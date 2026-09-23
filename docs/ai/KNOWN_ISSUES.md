@@ -28,13 +28,17 @@
   - a task sentence asking how to correct each issue: 8/17 and 8/17, the echo gone but invented values
     back.
   Prompt work has stopped.
-- **Impact:** `verify:ai-authoring-review` reports **TARGET NOT MET** (criterion 3). The delivered
-  explanation is actionable in every case, because the product attaches the action. Whether criterion 3
-  should measure that is the owner's decision (L4 › "Owner decision record: criterion 3").
+- **Impact:** since the owner's option B (2026-09-23, `289b9b71`), criterion 3 measures the explanation
+  a person sees and is MET at 17/17. This issue no longer blocks the target, which is PENDING on a
+  person's review.
+  - It stays OPEN as a **model limit**. The model's own text holds an action in 9/17 and 7/17 answers,
+    every one repeating the product's action, and 0/34 hold one of its own.
+  - It is reported beside criterion 3 and weighed in L1's go/no-go.
 - **Do not "fix" by:**
   - widening `CORRECTIVE` or `REMEDY`, or loosening any screen, after seeing a result (a screen that
     only makes the judge stricter, like `WRONG_REMEDY`, is allowed and was added);
-  - lowering a threshold, or changing what criterion 3 measures without the owner;
+  - lowering a threshold, changing what criterion 3 measures again without the owner, or crediting the
+    product's action to the model;
   - forcing the action through an enum field: the model would copy the product's string, and criterion 3
     would pass with nothing learned;
   - counting a screen-clear answer as correct unread, or recording a review verdict as an agent;

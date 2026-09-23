@@ -1,31 +1,33 @@
 {
-  "task": "awkit-djnl-6-literal-screen-0923",
-  "contract_path": "docs/ai/contracts/awkit-djnl-6-literal-screen-0923.json",
+  "task": "awkit-djnl-6-criterion3-optionb-0923",
+  "contract_path": "docs/ai/contracts/awkit-djnl-6-criterion3-optionb-0923.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-09-23T08:14:37.274Z",
-  "acquired_at_commit": "721077ab82218719607afbc9d35afe2e2974d161",
+  "acquired_at": "2026-09-23T09:26:29.996Z",
+  "acquired_at_commit": "289b9b7101b562a9af49ae0045aae970bec383e7",
   "baseline_dirty": [
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/DECISIONS.md",
     "docs/ai/HANDOFF.md",
     "docs/ai/KNOWN_ISSUES.md",
     "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/awkit-djnl-6-literal-screen-0923.json",
+    "docs/ai/contracts/awkit-djnl-6-criterion3-optionb-0923.json",
+    "docs/plans/ai-upgrade-v5/L1-ai-foundation.md",
     "docs/plans/ai-upgrade-v5/L4-authoring-diagnostics.md",
     "scripts/offline-benchmark/"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/CURRENT_STATE.md": "e86afb3160bfad0885ca59cda09e501868aaf9482eb783f440e025715158324e",
-    "docs/ai/DECISIONS.md": "e7bcad0778a0c8447bada22da8cde3e61448fd455a76d00144ffb6d122564027",
-    "docs/ai/HANDOFF.md": "cf1432e862ef8cd506e6d00affea744c18df8a49e250f5ad421910e58d45f54f",
-    "docs/ai/KNOWN_ISSUES.md": "b285f5ea6761b4231836fa8c01096326b5cec1301e8ee8f662677eed24eaa36c",
-    "docs/ai/TASK_LOG.md": "ded5bb11d4117345b44bb8a50ce3050a91de0af5c7b18924074469491d1f0300",
-    "docs/ai/contracts/awkit-djnl-6-literal-screen-0923.json": "54c4ced61bf21504f8d67e488ee36215c9f5f3b156017ef2e06bd27cf414746f",
-    "docs/plans/ai-upgrade-v5/L4-authoring-diagnostics.md": "5637f97ece774cb12b954819af2e793a89c93adceff6ecbc6dde0231704b0cde",
+    "docs/ai/CURRENT_STATE.md": "cfe37f9c931d0f7fae9434f53126a31b2ee2ea4a2ece70511502b1e93d403b2f",
+    "docs/ai/DECISIONS.md": "9697f209c21ba0285f91d2ccac1f2a7b146cb65470250713df54dfac9a273bbc",
+    "docs/ai/HANDOFF.md": "86bfe9a7c4948145cb84d896b03d0b6d75fd90956474cc0d26be046137ae1d52",
+    "docs/ai/KNOWN_ISSUES.md": "12e5a0bf2f82263282c5f8d1897e4be8dbf1e9f0262e28b8b4dd88fad2c31893",
+    "docs/ai/TASK_LOG.md": "8f5115555cc16322f64aabc44d5e26cc7307f9b553e377c35140c4094d4e9ec0",
+    "docs/ai/contracts/awkit-djnl-6-criterion3-optionb-0923.json": "7a89aede7ef0a9d28505d6edb0fd20acf28685e6f4bdfe27f18af45bb736770e",
+    "docs/plans/ai-upgrade-v5/L1-ai-foundation.md": "2f35ce8d92f8e9c432eb21ed9132bf5f1d91eddaa1f97040208f6ad8e8a1565d",
+    "docs/plans/ai-upgrade-v5/L4-authoring-diagnostics.md": "1b2fed9bb91d1797aea55a2cd614dcfba6ebec18ef88913f3f0975a2a8215a6e",
     "scripts/offline-benchmark/": "absent"
   },
   "baseline_watched_ignored": {
@@ -41,7 +43,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-23T08:15:18.270Z",
-  "released_reason": "L4b fabricated-literal screen fix noted on awkit-djnl.6 and awkit-djnl.1, nothing closed, no edge changed, export refreshed",
-  "archived_at": "2026-09-23T08:15:18.272Z"
+  "released_at": "2026-09-23T09:27:26.491Z",
+  "released_reason": "L4b criterion 3 option B noted on awkit-djnl.6 and awkit-djnl.1, nothing closed, no edge changed, export refreshed",
+  "archived_at": "2026-09-23T09:27:26.492Z"
 }

@@ -1,6 +1,37 @@
 # CURRENT_STATE
 
-## L4b judge: invented values are screened in every quotation style (2026-09-23, current)
+## L4b criterion 3 measures the explanation a person sees, by owner decision (option B) (2026-09-23, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L4b quality is
+not a ledger case).
+
+- **The owner chose option B** for criterion 3 and kept the 80 % threshold. An issue counts when the
+  explanation a person sees holds a corrective action: the product's, beside the answer, or the model's
+  own.
+  - An answer with a screen hit or a misattribution never counts.
+  - An undelivered answer still counts against the rate.
+- **Implemented in the evaluator only (`289b9b71`).** The model's own rate is reported beside criterion
+  3 and never credited, with a count of answers that repeat the product's action word for word. The
+  judge, prompt, model, limits, corrective actions and Flow Designer are unchanged.
+- **The measurement:** criterion 3 is **MET**, 17/17 and 17/17. The model's own text holds an action in
+  9/17 and 7/17 answers, and every one of those repeats the product's action, so 0/34 hold a correction
+  the model wrote itself. **TARGET: PENDING** on criteria 1 and 4.
+- **Found, not changed:** the one verdict in the review store is a template placeholder (`reviewer:
+  "YOUR_LABEL"`, item `…adbc14/casing/i0`, recorded after `8a3c31b2`). The evaluator counts it as
+  reviewed, but it is not a person's assessment. A real verdict on that item replaces it.
+- **Status:** L1, L4b and L5b stay `in_progress`. **L7 cannot be entered.** A person still reviews 16
+  answers, and the owner still confirms the 11 proposed verdicts. A MET target would not by itself accept
+  L4b or make L1 GO.
+
+| Check (final state) | Result |
+|---|---|
+| `verify:ai-authoring` | 268/268 (was 262). Mutations: criterion 3 back on the model's text 266/268; the screen-hit and misattribution exclusion dropped 266/268 |
+| `verify:ai-authoring-review` | exit 1, TARGET PENDING: criterion 3 MET 17/17 · 17/17 (model's own 9/17 · 7/17, all repeated), criteria 1 and 4 PENDING |
+| `typecheck:scripts` · `npm run build` | PASS · PASS |
+| `verify:roadmap-dashboard` | 177/177 "Sources agree" on both rounds: 320 issues, 26 outstanding / 294 closed, 180 edges |
+| `verify:ai-authoring-quality-live` · `benchmark:ai-model-0-8b` | NOT RUN: no request, model or limit changed |
+
+## L4b judge: invented values are screened in every quotation style (2026-09-23)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L4b quality is
 not a ledger case).

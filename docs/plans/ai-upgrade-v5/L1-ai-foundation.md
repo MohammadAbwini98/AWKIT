@@ -1382,15 +1382,20 @@ re-measured.**
 
 **Still owed before L1 can be accepted:**
 
-1. L4b's explanation quality target, **adopted provisionally on 2026-09-22 and NOT MET**. Since
-   `ddcfc35b` the corrective action a person sees is the product's (L1.8: GO, 83,345 ms at cap). The
-   0.8B's own sentence states it in 9/17 and 7/17 answers against 80 % (criterion 3). A further bounded
-   change did not move it (8/17 and 8/17, restored), and prompt work has stopped.
-   - Criterion 3 needs the owner's decision: see L4 › "Owner decision record: criterion 3".
-   - No person has recorded a review of either request's screen-clear answers (criteria 1 and 4).
+1. L4b's explanation quality target, **adopted provisionally on 2026-09-22, now PENDING**. Since
+   `ddcfc35b` the corrective action a person sees is the product's (L1.8: GO, 83,345 ms at cap).
+   - **Criterion 3:** the owner chose option B on 2026-09-23, so it measures the explanation a person
+     sees. It is MET at 17/17 in each run (`289b9b71`).
+   - **The model's own rate, reported and never credited:** the 0.8B's own sentence states the action in
+     9/17 and 7/17 answers. Every one of them repeats the product's action word for word, and 0/34 hold a
+     correction the model wrote itself. Prompt work has stopped.
+   - **Still missing:** no person has recorded a review of either request's screen-clear answers
+     (criteria 1 and 4). The one verdict in the store is a template placeholder (L4 › "Criterion 3 as
+     option B, implemented").
+   - **A MET target does not decide L1.** The model's own remediation quality is weighed in item 2.
 2. The owner's go/no-go on the re-scoped model, including whether the 4B stays pinned, in light of the
    quality evidence: locator plans 3–4 of 5 proven with 0 false targets, explanations 17/17 on subject
-   by proxy but 7–9/17 actionable in the model's own text with no ranking (target not met), and failure analysis tying the baseline on the labelled set, with or without
+   by proxy but 7–9/17 actionable in the model's own text, all of it the product's action repeated, with no ranking (target PENDING on a person's review), and failure analysis tying the baseline on the labelled set, with or without
    the conclusion in its prompt and with step provenance, and falling below it (−2 over 17 rows) once the
    request states runtime request provenance. The gap is −5 since the baseline itself reads the confirmed
    link (`14c0ad84`): 9/17 against 14/17.

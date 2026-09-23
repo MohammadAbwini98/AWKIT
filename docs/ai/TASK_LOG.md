@@ -1,5 +1,30 @@
 # TASK_LOG
 
+## 2026-09-23 — L4b criterion 3: the owner's option B implemented; review handoff prepared (Claude)
+
+- **Task:** present the criterion 3 decision and prepare the human review. On the owner's choice of B,
+  update the acceptance contract and evaluator, keeping the 80 % threshold, reporting the model's own
+  rate and never crediting the product's action to it. The model, prompt, limits and other Phase L work
+  stay untouched.
+- **Files (`289b9b71`):**
+  - `scripts/ai-harness/authoringQualityReview.ts`: `visibleCorrective`, the criterion, and the run
+    fields `visibleActionable` and `repeatsProductAction`;
+  - `scripts/verify-ai-authoring.mts`: six checks in §12;
+  - `scripts/verify-ai-authoring-review.mts`: the run line.
+  - This closeout: the L4 and L1 plans, CURRENT_STATE, HANDOFF, DECISIONS and KNOWN_ISSUES; notes on
+    `awkit-djnl.6` and `awkit-djnl.1`.
+- **Found:** the review store's one verdict is a template placeholder (`YOUR_LABEL`), counted as
+  reviewed. Left untouched and reported. Separately, all 16 screen-clear answers copy the product's text,
+  and 0/34 hold a correction the model wrote itself.
+- **Checks:**
+  - `verify:ai-authoring` 268/268 (was 262). Mutations 266/268 and 266/268, each caught by its own
+    checks.
+  - `verify:ai-authoring-review` exit 1: TARGET PENDING, criterion 3 MET 17/17 · 17/17.
+  - `typecheck:scripts` and build PASS.
+  - NOT RUN, nothing they measure changed: the real-model quality run, `benchmark:ai-model-0-8b`.
+- **Result:** criterion 3 decided and MET. No review verdict recorded by an agent. L4b stays
+  `in_progress`, and L1 is not GO.
+
 ## 2026-09-23 — L4b: the fabricated-literal screen reads every quotation style (Claude)
 
 - **Task:** fix the quality judge so an invented value cannot clear the fabricated-literal screen through

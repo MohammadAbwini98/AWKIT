@@ -1,6 +1,27 @@
 # DECISIONS
 
-### 2026-09-23 (latest) — Phase L L4b: a value is held only where the request gives it, and the target is read by today's judge (`awkit-djnl.6`, `awkit-djnl.1`)
+### 2026-09-23 (latest) — Phase L L4b: criterion 3 measures the explanation a person sees (owner, option B) (`awkit-djnl.6`, `awkit-djnl.1`)
+
+- **Decided by the owner:** criterion 3 evaluates the complete visible explanation, including the
+  product's corrective action shown beside the answer.
+  - The 80 % threshold is kept.
+  - The model's own rate is reported independently and never credited with the product's action.
+  - Human review of correctness, actionability, grounding and unsupported claims is unchanged.
+  - Neither L4b nor L1 is accepted because the visible explanation holds an action.
+  - The model stays optional.
+- **Decided by the implementer (`289b9b71`), within that:**
+  - **An answer with a screen hit or a misattribution does not count, even beside the product's action.**
+    It puts other guidance beside the product's, so the person does not see one correct action. This can
+    only lower the rate.
+  - **The model's own rate stays the proxy on its text.** Beside it is a count of those that repeat the
+    product's action word for word, so a repeated action is never read as the model's reasoning.
+  - **The product's action is not re-judged in the evaluator.** Its correctness per rule is proven in
+    `verify:ai-authoring` §13 and on screen (`verify:ai-assist-gui`).
+- **Limit recorded:** option B shows the product's guidance is complete. It does not show that the 0.8B
+  can produce remediation: 0/34 of its answers hold a correction of its own. Model-specific quality
+  rests on criteria 1, 2 and 4 and on L1's go/no-go.
+
+### 2026-09-23 — Phase L L4b: a value is held only where the request gives it, and the target is read by today's judge (`awkit-djnl.6`, `awkit-djnl.1`)
 
 - **Context:** "Correct the operator casing to 'operator'." cleared the fabricated-literal screen. It
   would have in any quotation style, because a literal counted as held when its letters occurred anywhere

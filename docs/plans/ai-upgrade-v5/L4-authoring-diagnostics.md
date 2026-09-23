@@ -219,7 +219,12 @@ lowered to fit a result. `verify:ai-authoring-review` evaluates it (`QUALITY_TAR
    while any answer the target sends to a person is unread, because a person can still confirm a claim
    the screens missed. A person marking an answer ungrounded counts as a confirmed claim.
 2. At least 90 % on subject by proxy, **in every complete run**.
-3. At least 80 % actionable by proxy, **in every complete run**.
+3. At least 80 % of issues get a corrective action in the explanation a person sees, **in every complete
+   run**. It is either the product's corrective action shown beside the answer or the model's own. An
+   answer with a screen hit or a misattribution does not count.
+   - *Revised by the owner on 2026-09-23 (option B).* Until then it measured the model's own text alone.
+   - The model's own rate is still reported beside it, and it is never credited with the product's
+     action. See "Owner decision record: criterion 3".
 4. A person reads every screen-clear explanation, and judges at least 80 % correct and actionable. With
    nothing screen-clear it is NOT MET, never vacuously met.
 5. When the model ranks, no order violation. **An empty fix order is acceptable** (owner decision 4).
@@ -645,11 +650,11 @@ its run 2, so under that request those two answers would have gone to a person.
 casing to operator.") reads like prose ("change the casing to lowercase"), and screening it would reject
 legitimate answers. A person's review (criteria 1 and 4) remains the check for it.
 
-### Owner decision record: criterion 3 (prepared 2026-09-23, not adopted)
+### Owner decision record: criterion 3 (prepared 2026-09-23; **option B adopted by the owner** the same day)
 
-Neither option is adopted. The thresholds, the proxy, the 192-token cap, the 160-character limit, the
-120 s ceiling and the 125 s deadline are unchanged in both. Criteria 1 and 4, a person's review, stay
-exactly as they are in both. The owner's confirmation of the 11 `97996c48` verdicts is separate.
+The thresholds, the proxy, the 192-token cap, the 160-character limit, the 120 s ceiling and the 125 s
+deadline are unchanged in both options. Criteria 1 and 4, a person's review, stay exactly as they are in
+both. The owner's confirmation of the 11 `97996c48` verdicts is separate.
 
 | | **A. Keep criterion 3 as written** | **B. Measure the complete visible explanation** |
 |---|---|---|
@@ -660,21 +665,82 @@ exactly as they are in both. The owner's confirmation of the 11 `97996c48` verdi
 | Follow-on questions | None new | Whether criterion 4's "correct and actionable" judges the visible explanation too, and whether the model should still restate the action, which uses characters the explanation could have |
 | Risk | L4b can stay open indefinitely on a model limit that users never see, since they always see the product's action | A model that adds nothing still passes criterion 3, so criteria 1, 2 and 4 carry the model-quality signal alone |
 
+**The owner's decision (2026-09-23): option B.** The owner's requirements:
+
+- the 80 % threshold is kept;
+- the model's own corrective-action rate is reported independently, including 9/17 and 7/17;
+- a deterministic corrective action is never credited to the model;
+- a person still reviews correctness, actionability, grounding and unsupported claims;
+- neither L4b nor L1 is accepted merely because the visible explanation holds an action;
+- the model stays optional, and validation is unchanged when AI is unavailable.
+
+**Its limit, recorded as the owner required:** option B shows that the product gives the person correct
+corrective guidance. It does **not** show that the 0.8B can produce remediation on its own.
+
+- At the current request, **0 of 34** answers carry a correction the model wrote itself.
+- All 9 and 7 answers actionable in the model's own text repeat the product's action word for word.
+- The other 18 carry no step.
+- Model-specific quality is judged by criteria 1, 2 and 4 and by L1's go/no-go (L1 › "Still owed" item
+  2, which reads "7–9/17 actionable in the model's own text"). L4 has no other model-specific
+  acceptance.
+
+### Criterion 3 as option B, implemented (2026-09-23, `289b9b71`)
+
+The change is in the evaluator only (`evaluateQualityTarget`). The judge, the prompt, the model, the
+limits, the corrective actions and the Flow Designer are unchanged.
+
+- **What counts.** An issue counts when the explanation a person sees holds a corrective action. That is
+  the product's action, attached to every accepted answer by `correctiveStep` and never taken from the
+  model (`step`), or an actionable answer of the model's own. Three things never count:
+  - an answer with a screen hit, because it puts other guidance beside the product's;
+  - a misattributed answer, for the same reason;
+  - an undelivered answer. It has no item, so its sent issues still count against the rate.
+- **Reported beside it, never credited:** `actionable`, the model's own text by proxy as before, and
+  `repeatsProductAction`, those of them that repeat the product's action word for word.
+  `verify:ai-authoring-review` prints both on every run line and in criterion 3's detail.
+- **Proven without a model:** `verify:ai-authoring` §12 is now 268/268, was 262.
+  - With the product's action beside every answer, criterion 3 is MET while the model's own text reads
+    0/17.
+  - With a screen hit beside it, 4 of 17 fails and 3 of 17 meets. A misattribution beside it does not
+    count.
+  - An undelivered answer counts against the rate (13 of 17).
+  - A word-for-word repetition is reported as one.
+  - Criterion 3 MET leaves the target PENDING until a person reviews.
+- **Mutations,** each run once and reverted, each failing exactly its own checks:
+  - criterion 3 read on the model's text again: 266/268;
+  - the screen-hit and misattribution exclusion dropped: 266/268.
+
+`verify:ai-authoring-review` over the current request's captures now gives **TARGET: PENDING**, exit 1:
+
+| Criterion | Status | Detail |
+|---|---|---|
+| (1) no confirmed claim, no misattribution | PENDING | 0 misattributed, 0 confirmed; 15 of 16 screen-clear answers unread |
+| (2) ≥ 90 % on subject, every run | MET | 17/17, 17/17 |
+| (3) ≥ 80 % with a corrective action a person sees, every run | **MET** | 17/17, 17/17. The model's own text, reported and not credited: 9/17 and 7/17, every one repeating the product's action |
+| (4) a person reads every screen-clear answer, ≥ 80 % correct and actionable | PENDING | 16 screen-clear, 1 "reviewed" |
+| (5) no order violation when the model ranks | MET | nothing ranked |
+| (6) ≥ 2 runs | MET | 2 |
+
+**The one verdict in the store is not a person's review.** Item
+`2026-09-22T21-04-43-654Z-adbc14/casing/i0` carries `reviewer: "YOUR_LABEL"` and `note: "optional"`, the
+documented example values, recorded at 2026-09-23T08:27Z. The evaluator counts it as reviewed, but it is
+not an assessment. Recording a verdict on the same item replaces it. It was not edited here.
+
 ### What L4b acceptance still needs
 
-- **Criterion 3:** at least 80 % actionable by proxy in every run; the final request gives 9/17 and
-  7/17, and one further bounded change (the corrective task sentence) gave 8/17 and 8/17 and was
-  restored. It needs the owner's decision: see "Owner decision record: criterion 3" above. A threshold is
-  not lowered to fit a result.
+- **Criterion 3:** MET under option B, 17/17 in each run. The model's own rate (9/17 and 7/17, 0/34
+  written by the model) is reported beside it, never credited.
 - **A person's review.** Two sets are unread:
-  - the 11 screen-clear answers of `97996c48`. The owner's review found 6/11 correct and actionable; its
+  - the 11 screen-clear answers of `97996c48`. The owner's review found 6/11 correct and actionable. Its
     per-answer verdicts are proposed in the 2026-09-23 HANDOFF and await the owner's confirmation and
     recording. They count only for that earlier request, which is ignored by the evaluation;
-  - the 16 screen-clear answers of the final request (criteria 1 and 4). Run `npm run
-    verify:ai-authoring-review -- --pending`, then `-- --record` for each.
+  - the 16 screen-clear answers of the final request (criteria 1 and 4), including a real verdict to
+    replace the placeholder above. Run `npm run verify:ai-authoring-review -- --pending`, then
+    `-- --record` for each.
 - The target is provisional; the owner may confirm it or change it.
 
-Until the target is MET, L4b stays `in_progress`.
+Until the target is MET, L4b stays `in_progress`. Even then, a MET target does not by itself accept L4b
+or declare L1 GO. Both remain the owner's, with the model's own rate on the record.
 
 ### L4b renderer surface as built (2026-09-21, `8ee425a1`)
 
@@ -718,12 +784,16 @@ Apply / Show on Canvas / Dismiss.
 `-part1` 9/0 and `-part2` 8/0; since `97996c48` each part writes a redacted local review capture; since
 `ddcfc35b` the capture holds the corrective action shown beside each answer),
 `verify:ai-authoring-review` (the adopted target over captured runs and a person's verdicts: NOT MET at `97996c48`
-and at `ddcfc35b`, criterion 3);
+and at `ddcfc35b`, criterion 3; since `289b9b71` criterion 3 reads the explanation a person sees (option B),
+MET, and the target is PENDING on a person's review);
 existing validation, legacy-compat and profile-store gates; `npm run build`.
 
 ## Acceptance
 
 Validators remain the single source of truth; SafeFixApplier remains the only mutation authority; AI never adds a fix
 kind; explanation quality target recorded and met before release. **Recorded** (adopted provisionally, 2026-09-22);
-**not met** (criterion 3 at 9/17 and 7/17 on `ddcfc35b`; criteria 1 and 4 await a person). Since `ddcfc35b` the
-corrective action a person sees is the product's, never model text.
+**not met**: PENDING.
+- Criterion 3 is MET under the owner's option B, 17/17 in each run. The model's own text reaches 9/17 and
+  7/17, reported and never credited.
+- Criteria 1 and 4 await a person.
+- Since `ddcfc35b` the corrective action a person sees is the product's, never model text.

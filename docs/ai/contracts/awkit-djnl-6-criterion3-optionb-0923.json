@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-6-criterion3-optionb-0923",
+    "title": "Record the owner's criterion 3 decision (option B) and its implementation at 289b9b71 on L4b and L1",
+    "objective": "The owner adopted option B for L4b criterion 3 on 2026-09-23, keeping the 80 % threshold: criterion 3 now counts an issue when the explanation a person sees holds a corrective action (the product's beside the answer, or the model's own; a screen hit or misattribution never counts), and the model's own rate is reported beside it and never credited. At 289b9b71 verify:ai-authoring-review reads criterion 3 MET at 17/17 and 17/17, the model's own text 9/17 and 7/17 with every one repeating the product's action (0/34 model-authored), criteria 1 and 4 PENDING, TARGET PENDING. The one verdict in the local review store is a template placeholder (reviewer YOUR_LABEL) and is not a person's assessment. Append a note to awkit-djnl.6 and to awkit-djnl.1 giving the decision, the commit, the result and what stays open (a person's review of 16 answers replacing the placeholder, the owner's confirmation of the 11 proposed verdicts, L1's go/no-go). Refresh the JSONL export. Nothing closes: both stay in_progress. No edge is added or removed. The lease writes .beads/** only, so the owner's untracked scripts/offline-benchmark/ and the already-edited state documents are outside it and untouched.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "289b9b71",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "scripts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "tracker-reflects-reality",
+      "description": "awkit-djnl.6 and awkit-djnl.1 stay in_progress, each with a note naming the owner's option B decision, 289b9b71 and its result, no edge changes, the JSONL export is refreshed from the database, and the dashboard reports that its sources agree.",
+      "evidence_required": [
+        "roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177 with the Overview banner on 'Sources agree' on round 1, after the two `bd update --append-notes`, `bd export -o .beads/issues.jsonl` and the already-edited state documents: 320 issues, 26 outstanding / 294 closed, 180 edges, and both narratives restating 65 PASS / 2 NOT RUN / 0 BLOCKED. Round 2 ran once after the lease release, because active-lease.json is a registered source, and was again 177/177 'Sources agree' with the same counts."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-6-criterion3-optionb-0923:project-state:2026-09-23T09:26:29.996Z",
+        "task": "awkit-djnl-6-criterion3-optionb-0923",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-23T09:26:29.996Z",
+        "acquired_at_commit": "289b9b7101b562a9af49ae0045aae970bec383e7",
+        "released_at": "2026-09-23T09:27:26.491Z",
+        "released_reason": "L4b criterion 3 option B noted on awkit-djnl.6 and awkit-djnl.1, nothing closed, no edge changed, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

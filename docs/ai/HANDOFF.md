@@ -1,6 +1,35 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-23, latest) — L4b's fabricated-literal screen reads every quotation style; criterion 3 and two reviews still wait
+## HANDOFF (2026-09-23, latest) — L4b criterion 3 is option B and MET; the target waits on a person's review
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done (`289b9b71`, then this closeout):** the owner chose option B, and it is implemented. See L4 ›
+  "Owner decision record: criterion 3" and "Criterion 3 as option B, implemented".
+  - Criterion 3 counts the explanation a person sees: **MET, 17/17 and 17/17.**
+  - The model's own text is reported beside it at 9/17 and 7/17, never credited. Every one of those
+    repeats the product's action, and 0/34 are the model's own.
+  - **TARGET: PENDING.** `verify:ai-authoring` is 268/268.
+- **A template placeholder is in the review store.** Item `2026-09-22T21-04-43-654Z-adbc14/casing/i0`
+  has `reviewer: "YOUR_LABEL"`, `note: "optional"`, recorded at 2026-09-23T08:27Z. The evaluator counts
+  it (criterion 4: 1/16 "reviewed"), but it is not an assessment. It was left untouched; a real verdict
+  on the item replaces it.
+- **The review sheet** was given to the owner in chat, not committed, because captured model text stays
+  local. It holds the 11 historical and 16 current items, verbatim, with each one's source (copied,
+  model-authored or none) and the exact `--record` commands. `--pending` lists the same 16.
+- **Next, not started (a person's):**
+  1. The owner records the 16 current verdicts, B1 first, which replaces the placeholder. Then run
+     `npm run verify:ai-authoring-review`.
+  2. The owner confirms or corrects the 11 proposed historical verdicts (the table in the section "L4b's
+     corrective action is the product's" below) and records them.
+  3. Then L1's go/no-go, which weighs the model's own 7–9/17 (all repeated). The next Phase L item stays
+     L5b's baseline gap (−5).
+- **Do not:**
+  - record a verdict as an agent, or edit or delete the placeholder in the store;
+  - credit the product's action to the model, or read criterion 3 MET as model quality;
+  - accept L4b or declare L1 GO because the target reads MET;
+  - change the prompt, model, limits or thresholds.
+
+## HANDOFF (2026-09-23, superseded) — L4b's fabricated-literal screen reads every quotation style; criterion 3 and two reviews still wait
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done (`721077ab`, then this closeout):** see L4 › "The fabricated-literal screen reads every
