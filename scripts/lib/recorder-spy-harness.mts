@@ -152,3 +152,42 @@ export function persistedState(appData: string): string {
   walk(appData);
   return files.sort().join("\n");
 }
+
+/** The AI host's traffic for one ask: each infer request's host id, job id and prompt, and each reply by host id. */
+export type HostTraffic = {
+  requests: { child: number; id: string; jobId: string; user: string }[];
+  replies: { child: number; id: string; ok: boolean; text?: string; reason?: string }[];
+};
+export type HostAttempt = { attempt: number; ok: boolean; text?: string; reason?: string };
+
+/**
+ * The attempts one ask made, in order: each reply paired with the infer request it answers by host and id.
+ * Anything else — a load or hello reply, another utility host, a job asked before this one (a cancelled
+ * request answering late) — answers no request of this ask and is left out. `jobs` counts the §7 jobs
+ * (`<job>.a<n>#<host try>`) this ask's requests belong to.
+ */
+export function attemptsOf(traffic: HostTraffic): { jobs: number; attempts: HostAttempt[] } {
+  const sent = new Map(traffic.requests.map((request) => [`${request.child}:${request.id}`, request.jobId]));
+  const attempts: HostAttempt[] = [];
+  for (const { child, id, ...reply } of traffic.replies) {
+    const jobId = sent.get(`${child}:${id}`);
+    if (jobId) attempts.push({ attempt: Number(/\.a(\d+)#\d+$/.exec(jobId)?.[1] ?? NaN), ...reply });
+  }
+  return { jobs: new Set(traffic.requests.map((request) => request.jobId.replace(/\.a\d+#\d+$/, ""))).size, attempts: attempts.sort((a, b) => a.attempt - b.attempt) };
+}
+
+/**
+ * One ask's counts, each from its own source: the host's requests and replies, and `refused` — the
+ * panel's `attemptsUsed`, L3 §7's budget, which only a refusal spends. They are not interchangeable: a
+ * proposal proven after a refusal is two replies and one refusal. What the loop's own contract
+ * (`LocatorAttemptResult.calls`) does promise is that every call but the last spends, so the replies
+ * exceed the refusals by at most one — by exactly one when a proposal is shown, since the shown answer
+ * spent nothing. `consistent` is that, plus every request of this one job answered once, in attempt order.
+ */
+export function askAccounting(traffic: HostTraffic, refused: number | undefined, shown: boolean) {
+  const { jobs, attempts } = attemptsOf(traffic);
+  const unspent = attempts.length - (refused ?? Number.NaN);
+  const consistent =
+    jobs === 1 && attempts.length === traffic.requests.length && attempts.every((a, i) => a.attempt === i + 1) && (shown ? unspent === 1 : unspent === 0 || unspent === 1);
+  return { jobs, requests: traffic.requests.length, replies: attempts.length, refused, shown, attempts, consistent };
+}

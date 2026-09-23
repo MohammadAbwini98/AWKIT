@@ -62,6 +62,7 @@ import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 import { JsonProfileStore } from "@src/storage/ProfileStore";
 
 import { LARGEST_CONTEXT, LONGEST_REFUSAL, locatorInput, locatorUpgradePacket, productLocatorRequest } from "./ai-harness/locatorUpgradePacket";
+import { askAccounting, type HostTraffic } from "./lib/recorder-spy-harness.mts";
 
 let passed = 0;
 let failed = 0;
@@ -368,6 +369,45 @@ try {
   check("feedback names the stage, code and field only", feedback.includes("WRONG_ELEMENT") && feedback.includes("CANDIDATE_NOT_UNIQUE"), feedback);
   check("...and carries no candidate value, page text or typed value", !/Gamma|lu-open|Alice|Bob/.test(feedback), feedback);
   check("...and is a pure function of the records", buildAttemptFeedback(wrong.result.attempts) === feedback);
+  await page.close();
+
+  // What `verify:ai-spy-live` failed on (32/1, 2026-09-23): its precondition took `attemptsUsed` for the
+  // number of model replies, but only a refusal spends it. Replayed here on the real loop and the real proof.
+  console.log("\na proof refusal, then a proven answer: replies, refusals and the record stay distinct");
+  await seedFlow(FLOW_ID);
+  page = await freshPage();
+  const answers = [PLANS.wrongElement, PLANS.good];
+  const recovered = await job(page, answers);
+  check("the second answer is accepted after the first is refused, and stored capture-proven", recovered.result.outcome === "accepted" && (await savedPending())?.proof === "capture-proven", JSON.stringify(recovered.result));
+  check("...on 2 provider calls with 1 attempt spent: the accepted answer spends nothing", recovered.result.calls === 2 && recovered.result.attemptsUsed === 1, JSON.stringify(recovered.result));
+  const kept = recovered.result.attempts;
+  check(
+    "...and the acceptance does not erase the refusal from the record",
+    kept.length === 1 && kept[0]?.attempt === 1 && kept[0].consumed && kept[0].stage === "proof" && kept[0].code === "WRONG_ELEMENT",
+    JSON.stringify(kept)
+  );
+  // The same ask at the host boundary, as the live verifier captures it: every infer answered as scripted.
+  const sent = recovered.harness.fake.inferRequests();
+  const traffic: HostTraffic = {
+    requests: sent.map((request, i) => ({ child: 0, id: `m${i}`, jobId: request.jobId, user: request.user })),
+    replies: sent.map((_, i) => ({ child: 0, id: `m${i}`, ok: true, text: answers[i] }))
+  };
+  const counted = askAccounting(traffic, recovered.result.attemptsUsed, true);
+  check(
+    "verify:ai-spy-live's accounting accepts the shown proposal: 2 requests, 2 replies, 1 refused",
+    counted.consistent && counted.requests === 2 && counted.replies === 2 && counted.refused === 1,
+    JSON.stringify({ ...counted, attempts: counted.attempts.map((a) => a.attempt) })
+  );
+  check(
+    "...and its diagnostic keeps the refused reply before the proven one",
+    counted.attempts.map((a) => `${a.attempt}:${a.text === PLANS.wrongElement ? "refused" : a.text === PLANS.good ? "proven" : "?"}`).join(" ") === "1:refused 2:proven",
+    JSON.stringify(counted.attempts.map((a) => a.attempt))
+  );
+  check("...an accepted answer shown as NOT_PROVEN (unprovable-now in the Spy) is one unspent reply too", askAccounting(traffic, 1, false).consistent);
+  check(
+    "...and it is not vacuous: a shown proposal with every reply refused, or 2 replies with none refused, is inconsistent",
+    !askAccounting(traffic, 2, true).consistent && !askAccounting(traffic, 0, true).consistent && !askAccounting(traffic, 0, false).consistent
+  );
   await page.close();
 
   // ── 7. A protected-login refusal terminates ─────────────────────────────────────────────────────

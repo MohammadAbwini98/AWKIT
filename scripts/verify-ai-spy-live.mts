@@ -58,12 +58,16 @@ import {
   SPY_LAB,
   aiBusy,
   aiReleased,
+  askAccounting,
+  attemptsOf,
   captureRecorderBrowsers,
   inspectInSpy,
   openSpy,
   persistedState,
   startFeatureTestLab,
-  until
+  until,
+  type HostAttempt,
+  type HostTraffic
 } from "./lib/recorder-spy-harness.mts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -174,15 +178,11 @@ async function judge(browser: Browser, proposal: NonNullable<InspectionLocatorVi
  * Why a refused request was refused. The panel says only "none could be proven", and main keeps no record,
  * so the verifier keeps the AI host's traffic (a `utilityProcess.fork` wrap in main, as `chromium.launch`
  * is wrapped): each infer request's host id, job id and prompt, and each reply by host id. `attemptsOf`
- * pairs them here, so a reply is an attempt only when it answers an infer request this ask sent. Every
- * reply is then re-classified exactly as the loop does: the output contract, the compiler and intent guard,
- * the duplicate rule, then the page. Held in memory; only codes, shapes and compiled locators are printed.
- * (No named inner functions.)
+ * pairs them (`askAccounting`, shared with `verify:ai-locator-attempts`), so a reply is an attempt only
+ * when it answers an infer request this ask sent. Every reply is then re-classified exactly as the loop
+ * does: the output contract, the compiler and intent guard, the duplicate rule, then the page. Held in
+ * memory; only codes, shapes and compiled locators are printed. (No named inner functions.)
  */
-type HostTraffic = {
-  requests: { child: number; id: string; jobId: string; user: string }[];
-  replies: { child: number; id: string; ok: boolean; text?: string; reason?: string }[];
-};
 async function captureHostTraffic(electronApp: ElectronApplication): Promise<void> {
   await electronApp.evaluate((electronModule) => {
     const store = globalThis as unknown as { __awkitHostTraffic?: HostTraffic };
@@ -226,23 +226,6 @@ async function takeHostTraffic(electronApp: ElectronApplication): Promise<HostTr
   });
 }
 
-type Attempt = { attempt: number; ok: boolean; text?: string; reason?: string };
-/**
- * The attempts one ask made, in order: each reply paired with the infer request it answers by host and id.
- * Anything else — a load or hello reply, another utility host, a job asked before this one (a cancelled
- * request answering late) — answers no request of this ask and is left out. `jobs` counts the §7 jobs
- * (`<job>.a<n>#<host try>`) this ask's requests belong to.
- */
-function attemptsOf(traffic: HostTraffic): { jobs: number; attempts: Attempt[] } {
-  const sent = new Map(traffic.requests.map((request) => [`${request.child}:${request.id}`, request.jobId]));
-  const attempts: Attempt[] = [];
-  for (const { child, id, ...reply } of traffic.replies) {
-    const jobId = sent.get(`${child}:${id}`);
-    if (jobId) attempts.push({ attempt: Number(/\.a(\d+)#\d+$/.exec(jobId)?.[1] ?? NaN), ...reply });
-  }
-  return { jobs: new Set(traffic.requests.map((request) => request.jobId.replace(/\.a\d+#\d+$/, ""))).size, attempts: attempts.sort((a, b) => a.attempt - b.attempt) };
-}
-
 /** What one request showed the model: its line kinds, candidate strategies and match counts, container kinds. Never its text. */
 function requestShape(user: string): string {
   const kinds = new Map<string, number>();
@@ -269,7 +252,7 @@ function refusedShape(plan: unknown, field: string): string {
 }
 
 /** Each attempt as the loop saw it, and what the page says about any plan that compiled. */
-async function classifyAttempts(browser: Browser, attempts: readonly Attempt[], baseline: ElementInspection["locator"], intended: string) {
+async function classifyAttempts(browser: Browser, attempts: readonly HostAttempt[], baseline: ElementInspection["locator"], intended: string) {
   const seen = new Set<string>();
   const lines: string[] = [];
   let rightButWithheld = 0;
@@ -305,7 +288,8 @@ async function classifyAttempts(browser: Browser, attempts: readonly Attempt[], 
   return { lines, rightButWithheld };
 }
 
-type Outcome = { element: string; state: string | null; ms: number; code: string | null; attempts: number | null; modelId: string | null; shown: string | null; judged: string; why?: string[] };
+/** `attempts` is the refusals the panel reports spent; `replies` the model answers the host returned. */
+type Outcome = { element: string; state: string | null; ms: number; code: string | null; attempts: number | null; replies?: number; modelId: string | null; shown: string | null; judged: string; why?: string[] };
 const outcomes: Outcome[] = [];
 
 /**
@@ -346,16 +330,15 @@ async function askReal(electronApp: ElectronApplication, win: Page, judgeBrowser
   }
   check(`${element}: main let the job go`, await aiReleased(win, 10_000));
   const traffic = await takeHostTraffic(electronApp);
-  const { jobs, attempts } = attemptsOf(traffic);
-  // `attemptsUsed` is the §7 budget, which only a refusal spends: an accepted answer is one more reply.
-  const accepted = settled === "done" ? 1 : 0;
+  const counted = askAccounting(traffic, view?.attemptsUsed, settled === "done" && Boolean(view?.proposal));
+  outcome.replies = counted.replies;
   check(
-    `${element}: (precondition) one reply per attempt, each paired with this job's own request`,
-    baseline !== undefined && jobs === 1 && attempts.length === (view?.attemptsUsed ?? -1) + accepted && attempts.every((a, i) => a.attempt === i + 1),
-    `${jobs} job(s), attempts ${attempts.map((a) => a.attempt).join(",")}, panel says ${view?.attemptsUsed} spent${accepted ? " + 1 accepted" : ""}`
+    `${element}: (precondition) one reply per request of this one job, and no more unspent replies than the panel's refusals allow`,
+    baseline !== undefined && counted.consistent,
+    `${counted.jobs} job(s), ${counted.requests} request(s), ${counted.replies} repl(ies) for attempts ${counted.attempts.map((a) => a.attempt).join(",")}, panel says ${counted.refused} refused${counted.shown ? ", 1 shown" : ""}`
   );
   if (baseline) {
-    const why = await classifyAttempts(judgeBrowser, attempts, baseline, intended);
+    const why = await classifyAttempts(judgeBrowser, counted.attempts, baseline, intended);
     const first = traffic.requests[0]?.user ?? "";
     outcome.why = [
       `request 1 showed: ${requestShape(first) || "nothing parsable"}${mentions.map((text) => `; mentions ${text}: ${first.includes(text) ? "yes" : "no"}`).join("")}`,
@@ -491,7 +474,7 @@ try {
 
 console.log("\nWhat a person saw (no model text beyond the locator the panel shows):");
 for (const o of outcomes) {
-  console.log(`  ${o.element}: ${o.state ?? "never settled"} ${o.code ?? ""} in ${(o.ms / 1000).toFixed(1)} s${o.attempts !== null ? `, ${o.attempts} refused attempt(s)` : ""}${o.shown ? ` — shown: ${o.shown}` : ""}${o.shown ? ` — judged: ${o.judged}` : ""}`);
+  console.log(`  ${o.element}: ${o.state ?? "never settled"} ${o.code ?? ""} in ${(o.ms / 1000).toFixed(1)} s${o.replies !== undefined ? `, ${o.replies} model repl(ies)` : ""}${o.attempts !== null ? `, ${o.attempts} refused attempt(s)` : ""}${o.shown ? ` — shown: ${o.shown}` : ""}${o.shown ? ` — judged: ${o.judged}` : ""}`);
   for (const line of o.why ?? []) console.log(`      ${line}`);
 }
 const shown = outcomes.filter((o) => o.shown);

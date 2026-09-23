@@ -10,10 +10,22 @@
   schema expects, never in a selector syntax the compiler refuses.
 - **Fixed: verifier precondition.** `verify:ai-spy-live` expected one host reply per `attemptsUsed`. That
   field counts only REFUSED attempts, the §7 budget; an accepted answer spends nothing. The first run
-  with a proven proposal (Save profile, on the 2nd call) failed that check, 32/1. The check now allows
-  for one accepted reply. It was not re-run on the model: the brief bounds the live run to one.
+  with a proven proposal (Save profile, on the 2nd call) failed that check, 32/1.
+  - The first correction also had a gap. It required replies = `attemptsUsed` whenever nothing was shown.
+    But an answer the loop accepts can still show as `NOT_PROVEN` (proof `unprovable-now`), and that
+    answer spends nothing.
+  - `askAccounting` (`scripts/lib/recorder-spy-harness.mts`) now reports requests, replies, refusals and
+    whether a proposal was shown, each separately. It allows at most one unspent reply, and exactly one
+    when a proposal is shown.
+  - `verify:ai-locator-attempts` covers it on the real loop and proof, 125/125. The original rule fails
+    122/125, and the first correction fails 124/125.
+  - The final-state live run was 33/0, exit 2 INCONCLUSIVE, with no proposal shown this time.
+  - **Fragile area:** never treat `attemptsUsed` as a call count. Read `LocatorAttemptResult.calls`, or
+    count the host traffic.
 - **Still open:** Edit in a duplicated row. Only row content tells the rows apart, and that needs an
-  owner decision (below).
+  owner decision (below). Save profile is not reliable on the 0.8B either. After the format fix, 1 of 2
+  live runs showed a proposal. In the other run, both answers invented a `section` scope that the proof
+  refused. That is model variance, not a product defect.
 
 ## The real 0.8B proposed no provable locator in Element Spy, and the live verifier exited 0 for it (2026-09-23, Save profile part SUPERSEDED above; row limit OPEN — L1/L3)
 

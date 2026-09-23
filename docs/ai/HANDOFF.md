@@ -1,6 +1,26 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-23, latest) — the real 0.8B proposed a proven Save profile locator after one request-format fix
+## HANDOFF (2026-09-23, latest) — Element Spy live verifier closed out: counting regression proven, final-state run INCONCLUSIVE
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No bead's status or
+  edge changed.
+- **Done:**
+  - `verify:ai-spy-live` counts requests, replies and refusals separately (`askAccounting`).
+  - A deterministic regression on the real loop and proof covers the case where a refusal is followed by
+    a proven answer (`verify:ai-locator-attempts` 125/125, mutation-tested).
+  - One final-state live run: 33/0, exit 2, INCONCLUSIVE. Save profile was refused both times this run.
+  - The historical 32/1 run and its page-confirmed proposal stay on record as they were.
+  - Details are in the L1 plan, "Element Spy live verifier closeout".
+- **Still open, unchanged, and each needs an owner decision:**
+  - L4b's B2–B16 verdicts;
+  - "Use in action" provenance for AI proposals;
+  - row-content scoping for duplicate rows.
+
+  The signed-license route (b) rebuild note below still applies.
+- **Do not:** rerun the live gate to chase a shown proposal; tune the prompt or fixture; record a
+  verdict as an agent; widen the GO; close L1, L3, L4b or L5b; touch the `blocks` edges.
+
+## HANDOFF (2026-09-23, superseded) — the real 0.8B proposed a proven Save profile locator after one request-format fix
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No bead's status or
   edge changed.

@@ -205,6 +205,19 @@ Built under the owner's limited L1 GO: on demand, browser-proven before use, nev
   element. Nothing was written. Edit (INV-2002) is still refused: that row limit is unchanged. This is
   one element on one run, not §9's acceptance. Details are in the L1 plan, "Element Spy on the real 0.8B,
   after the request-format fix".
+- **Live verifier closeout (2026-09-23).**
+  - The run above ended 32/1, exit 1. It stays a failed execution. Its page-confirmed proposal still
+    stands as evidence.
+  - The verifier now counts requests, replies and refusals (`attemptsUsed`, the §7 budget) separately.
+    It never assumes they are equal.
+  - A deterministic regression on the real loop and proof covers it: a proof refusal, then a proven
+    answer, gives 2 calls and 1 attempt spent, and the refusal stays on the record
+    (`verify:ai-locator-attempts` 125/125). The old counting rule fails 122/125.
+  - The one final-state live run was 33/0, exit 2, INCONCLUSIVE. Both Save profile answers were scoped to
+    a `section` that matched nothing, and the proof refused them. Edit was refused as before. Nothing was
+    shown or written.
+  - §9 acceptance is still not met. The row-content limit and "Use in action" for AI proposals still need
+    owner decisions. Details are in the L1 plan, "Element Spy live verifier closeout".
 
 ## 2. Locator plan DSL → trusted compiler
 

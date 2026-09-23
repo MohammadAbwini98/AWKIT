@@ -1,5 +1,27 @@
 # TASK_LOG
 
+## 2026-09-23 — Phase L: Element Spy live verifier closeout (Claude)
+
+- **Task:** verify the corrected `verify:ai-spy-live` counting, with a deterministic regression and at
+  most one bounded live run. Keep the historical evidence as it was.
+- **Change** (verifiers only, no product code):
+  - `attemptsOf` moved into `scripts/lib/recorder-spy-harness.mts`, beside a new `askAccounting` that
+    reports requests, replies, refusals and whether a proposal was shown, each separately.
+  - The live precondition uses it.
+  - The 5071606f rule had a latent false failure: an accepted answer shown as `NOT_PROVEN`.
+- **Regression:** `verify:ai-locator-attempts` 125/125, 7 new checks. A proof refusal, then a proven
+  answer, gives 2 calls and 1 attempt spent, and the refusal record is kept. The accounting is consistent
+  and not vacuous. The original rule fails 122/125, and the 5071606f rule fails 124/125.
+- **Live** (one run, justified by the changed verifier): `verify:ai-spy-live` 33/0, exit 2, INCONCLUSIVE,
+  198 s. Save profile: both answers were scoped to a `section` that matched nothing, and the proof refused
+  them. Edit was refused as before. No retry.
+- **Checks:**
+  - `verify:ai-assist-gui` 162/0, `verify:element-spy` 120/0, `verify:locator-plan` 53/0,
+    `verify:ai-locator-upgrade-budget` 8/0.
+  - `typecheck:scripts` PASS, build PASS.
+- **Result:** the counting regression is verified. The historical 32/1 run is kept as a failed execution
+  that showed one page-confirmed proposal. No milestone, bead status, edge or verdict changed.
+
 ## 2026-09-23 — Phase L: real-model locator proposal quality, one request-format fix and one live run (Claude)
 
 - **Task:** establish, under the owner's limited GO, whether the pinned 0.8B can produce a proven

@@ -1550,6 +1550,70 @@ model-quality evidence.
 frames, or elements other than Save profile. It sets no quality threshold, promotes nothing and applies
 nothing, and it does not change L1's limited GO or L3's status.
 
+## Element Spy live verifier closeout (2026-09-23): counting regression proven, final-state run INCONCLUSIVE
+
+The run above stays as recorded: **32 passed, 1 failed, exit 1**. It is the only live run that showed a
+proposal, and the page confirmed that proposal. It is not a passing execution of the verifier.
+
+**The corrected rule still had a gap.** The 5071606f precondition required replies = `attemptsUsed` + 1 when
+a proposal was shown, and replies = `attemptsUsed` otherwise. One reachable Spy path breaks the second
+half: the loop accepts an answer, but the panel shows `NOT_PROVEN` or `NOT_FOUND`. That happens when the
+proof is `unprovable-now`, or when the inspection changed while the model answered. That answer spent
+nothing and showed nothing. The check now lives in `askAccounting` (`scripts/lib/recorder-spy-harness.mts`)
+and reports each count from its own source:
+- requests and replies come from the host traffic;
+- refusals come from the panel's `attemptsUsed`;
+- a proposal counts as shown only when the panel rendered one.
+
+It is consistent when:
+- there is one job;
+- each request got one reply, in attempt order;
+- replies exceed refusals by at most one, and by exactly one when a proposal is shown.
+
+That is the loop's own contract (`LocatorAttemptResult.calls`). The verifier reads the loop's counts; it
+does not recompute them.
+
+**Deterministic regression** (`verify:ai-locator-attempts`, 125/125). This uses the real §7 loop and the
+real `AiService` over `FakeAiHostTransport`, with real browser proof on `/recorder-lab/locator-upgrade`:
+- the 1st answer, a different element, is refused at proof as `WRONG_ELEMENT` and spends an attempt;
+- the 2nd answer is proven and stored `capture-proven`;
+- the loop reports 2 calls and 1 attempt spent;
+- the record still holds the attempt-1 refusal after the success;
+- `askAccounting` over the same traffic gives 2 requests, 2 replies and 1 refused, and it is consistent;
+- its diagnostic keeps the replies in order: refused, then proven;
+- non-vacuity: a shown proposal with every reply refused is inconsistent, and so are 2 replies with none
+  refused.
+
+Mutations:
+- the original rule (replies = `attemptsUsed`) fails 122/125;
+- the 5071606f rule fails 124/125, on the accepted-but-not-shown case.
+
+**Final-state live run** (`verify:ai-spy-live`, one run, 198 s): **33 passed, 0 failed, exit 2,
+INCONCLUSIVE.** The verifier and its precondition had both changed since the last run, which justified
+this run. The model pin, request, fixture, deadlines, budget and proof were unchanged.
+
+| Scenario | Outcome | Replies / refused | What each answer became |
+|---|---|---|---|
+| Approve in frame (T3) | `PROTECTED` in 0.1 s | 0 / 0 | – |
+| Edit (INV-2002) | `NOT_PROVEN` in 70.9 s | 2 / 2 | `role button "Edit"` (exact) matched 2, then the same plan was refused as a duplicate |
+| Display name, cancelled | `CANCELLED`, host released in 1.1 s | – | – |
+| Save profile | `NOT_PROVEN` in 103.9 s | 2 / 2 | both `role button "Save profile"` (exact) inside a `section` scope that matched nothing, refused at proof |
+
+- **No proposal was shown**, so this run gives no new correctness evidence.
+- The corrected precondition held on both refusal paths. The live shown-proposal path of the new check has
+  not run on the model yet. The deterministic regression is what covers it.
+- Every functional and safety check passed:
+  - T3 was refused before any call;
+  - cancel released the host;
+  - both jobs finished inside their deadlines;
+  - no plan the page proves right was withheld;
+  - nothing was written.
+- Save profile after the format fix: 1 run of 2 showed a proven proposal. Both refusals here were a scope
+  the model invented, which the page correctly refused. This is sample variance on one element. It is not
+  a product defect. It was not retried, and nothing was tuned to change it.
+
+L1's limited GO, L3, L4b (1 of 16, TARGET PENDING) and L5b are unchanged.
+
 ## Verifiers
 
 `verify:ai-adapter`, `verify:ai-redaction`, `verify:ai-fallback`, `verify:ai-permissions`, `verify:ai-model-pack`,

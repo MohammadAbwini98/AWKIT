@@ -1,6 +1,36 @@
 # CURRENT_STATE
 
-## Phase L: the real 0.8B's first proven Element Spy proposal, after one request-format fix (2026-09-23, current)
+## Phase L: Element Spy live verifier closeout, counting regression proven, final-state live run INCONCLUSIVE (2026-09-23, current)
+
+**Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No bead's status or
+edge changed.
+
+- **Verifier only; no product defect found.** `verify:ai-spy-live` now counts requests, replies and refusals
+  separately. Refusals are `attemptsUsed`, the §7 budget. It no longer assumes those counts are equal. The
+  check is `askAccounting` in `scripts/lib/recorder-spy-harness.mts`.
+  - The earlier correction (5071606f) could still fail on an accepted answer the Spy shows as
+    `NOT_PROVEN`. That case is now allowed.
+- **Deterministic regression** (`verify:ai-locator-attempts` 125/125). It runs the real loop with real
+  browser proof. A proof refusal followed by a proven answer gives 2 calls and 1 attempt spent, and the
+  refusal stays on the record. Mutations: the original rule fails 122/125, and the 5071606f rule fails
+  124/125.
+- **Historical run, kept as is:** 32/1, exit 1. Its shown Save profile proposal was page-confirmed.
+- **Final-state live run** (one run, real 0.8B, real Electron): 33/0, exit 2, INCONCLUSIVE. Both Save
+  profile answers were scoped to a `section` that matched nothing, and the proof refused them. Edit was
+  refused as before. T3, cancel and nothing-written all passed. No proposal was shown. It was not
+  retried.
+- **L1, L3, L4b, L5b:** unchanged. The limited GO stands, and no automatic locator feature is enabled.
+  L4b is at 1 of 16, TARGET PENDING.
+
+| Gate (this session) | Result |
+|---|---|
+| `verify:ai-locator-attempts` | 125/125 (122/125 original rule, 124/125 5071606f rule) |
+| `verify:ai-spy-live` (real 0.8B, one run) | 33/0, exit 2, INCONCLUSIVE; no proposal shown |
+| `verify:ai-assist-gui` · `verify:element-spy` · `verify:locator-plan` · `verify:ai-locator-upgrade-budget` | 162/0 · 120/0 · 53/0 · 8/0 |
+| `typecheck:scripts` · build | PASS · PASS |
+| L1.8 CPU benchmark · `verify:mock-site` · runner | NOT RUN: model, deadline, mock site and runner unchanged |
+
+## Phase L: the real 0.8B's first proven Element Spy proposal, after one request-format fix (2026-09-23)
 
 **Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No bead's status or
 edge changed.
