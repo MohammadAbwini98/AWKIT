@@ -1489,6 +1489,67 @@ these two elements.
 
 Rerunning the same fixture is not one of the options.
 
+## Element Spy on the real 0.8B, after the request-format fix (2026-09-23): one proven proposal
+
+The owner authorized one narrow clarification of the model-facing request, followed by one bounded live
+run. Neither the owner's limited GO nor any policy was widened.
+
+**The defect in the request.** `contextLines` wrote each capture candidate as `candidate: <strategy>=<value>`,
+for example `testId=spy-save-profile`, `text=Save profile` or `id=save`. That is Playwright's
+`engine=selector` form. `SCRIPT_PATTERN` refuses that form in a `value`, and for `text=` and `id=` it
+refuses the line itself. The 0.8B's two Save profile answers were `css` `data-testid=spy-save-profile`,
+the same form with the test-id engine's name. Each candidate is now written as the plan's own target
+object, for example `candidate: {"strategy":"testId","value":"spy-save-profile"} matches=1`. The request
+carries the same fields, redaction and bound-value drops. The compiler, intent guard and proof are
+unchanged. The instructions, output cap (256), attempt budget (2), deadlines and model pin are unchanged.
+The longest request any capture can send is 1,003 prompt tokens on the 0.8B tokenizer
+(`verify:ai-locator-upgrade-budget` 8/0).
+
+**Regression** (`verify:ai-locator-attempts` 118/118, and 111/118 with the old format restored):
+- the offered test id is shown as `strategy testId`, and every candidate line compiles as written;
+- no candidate line is in the `engine=` form;
+- the 0.8B's `css` `data-testid=` answer is still refused as `SCRIPT`, and so are copied `text=` and
+  `id=` values;
+- a bound candidate is still never shown.
+
+**Positive scenario: Save profile** (`/recorder-lab/element-spy`, unchanged). It has a unique role and
+name and a unique `data-testid`. It has no row, position, frame or sensitive content. The scripted
+provider proves both a `role` and a `testId` plan for it through real Electron, the Recorder's own
+browser, the compiler, intent guard and proof. The proposal is shown labelled AI and is applied nowhere
+(`verify:ai-assist-gui` 162/0). Those scripted runs show the scenario can be solved. They are not
+model-quality evidence.
+
+**The live run** (`verify:ai-spy-live`, one run, 240 s): 32 passed, 1 failed, exit 1.
+
+| Scenario | Outcome | Model calls | What each call became |
+|---|---|---|---|
+| Approve in frame (T3) | `PROTECTED` in 0.5 s | 0 | – |
+| Edit (INV-2002) | `NOT_PROVEN` in 102.1 s | 2 | `role button "Edit"` (exact) matches 2, then the same plan refused as `DUPLICATE_CANDIDATE` |
+| Display name, cancelled | `CANCELLED`, host released in 1.1 s | – | – |
+| Save profile | **`OK` in 114.4 s, shown** | 2 | scoped to a `section`, which matched nothing, refused at proof; then `role button "Save profile"` (exact), proven |
+
+- **Positive-quality observation:** the panel showed `role button "Save profile" (exact)`, labelled AI.
+  The answer came from the pinned model. The verifier's own browser judged the shown proposal on a fresh
+  page: 1 match, `data-spy=save-profile`, and a click landed there. Nothing was written: no flow, draft,
+  fragment, report or recorded step changed.
+- **Safe refusals, reported separately:** T3 was refused before any call. Edit refused a non-unique plan
+  and then its repeat, as before; this request also showed the row container and INV-2002, but the
+  contract still steers away from row content. The Save profile scope that matched nothing was refused
+  at proof.
+- **Compared with the run before the fix:** that run made 2 compiler `SCRIPT` refusals and showed no
+  proposal. This one made 0 compiler refusals, 1 proof refusal and 1 proven proposal. This is one run
+  each, so the fix is a probable cause, not a measured one.
+- **The failed check was the verifier's.** Its precondition compared host replies with `attemptsUsed`,
+  but `attemptsUsed` is the §7 budget, and only refusals spend it. The loop's own contract says an
+  accepted answer spends nothing (`verify:ai-locator-attempts` §1). The run's pairing was sound: one job,
+  replies 1 and 2 in order, 1 spent plus 1 accepted. The precondition now allows for the accepted reply.
+  The live run was not repeated, because the brief bounds it to one run and the product request has not
+  changed since.
+
+**What this does not show:** anything about rows, duplicate controls, protected or sensitive elements,
+frames, or elements other than Save profile. It sets no quality threshold, promotes nothing and applies
+nothing, and it does not change L1's limited GO or L3's status.
+
 ## Verifiers
 
 `verify:ai-adapter`, `verify:ai-redaction`, `verify:ai-fallback`, `verify:ai-permissions`, `verify:ai-model-pack`,

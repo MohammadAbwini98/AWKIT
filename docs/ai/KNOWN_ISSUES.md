@@ -1,6 +1,21 @@
 # KNOWN_ISSUES
 
-## The real 0.8B proposed no provable locator in Element Spy, and the live verifier exited 0 for it (2026-09-23, OPEN quality limit + FIXED verifier — L1/L3)
+## The locator request wrote candidates in the form the compiler refuses; the live verifier miscounted an accepted attempt (2026-09-23, FIXED — L3 §7)
+
+- **Fixed: product request.** `contextLines` wrote each candidate as `<strategy>=<value>`, for example
+  `testId=…`, `text=…` or `id=…`. That is Playwright's `engine=selector` form, which `SCRIPT_PATTERN`
+  refuses in a value. The 0.8B answered Save profile with `css` `data-testid=…`. Candidates are now the
+  plan's own target object. `verify:ai-locator-attempts` fails with the old form (111/118).
+  **Fragile area:** whatever the request shows, a small model copies. Write data in the form the output
+  schema expects, never in a selector syntax the compiler refuses.
+- **Fixed: verifier precondition.** `verify:ai-spy-live` expected one host reply per `attemptsUsed`. That
+  field counts only REFUSED attempts, the §7 budget; an accepted answer spends nothing. The first run
+  with a proven proposal (Save profile, on the 2nd call) failed that check, 32/1. The check now allows
+  for one accepted reply. It was not re-run on the model: the brief bounds the live run to one.
+- **Still open:** Edit in a duplicated row. Only row content tells the rows apart, and that needs an
+  owner decision (below).
+
+## The real 0.8B proposed no provable locator in Element Spy, and the live verifier exited 0 for it (2026-09-23, Save profile part SUPERSEDED above; row limit OPEN — L1/L3)
 
 - **Open: model quality.** `verify:ai-spy-live` ran 32/0 with proposal correctness INCONCLUSIVE. Every
   real plan was refused, correctly, so none was shown:

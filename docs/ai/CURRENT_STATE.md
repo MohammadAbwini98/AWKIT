@@ -1,6 +1,41 @@
 # CURRENT_STATE
 
-## Phase L: Element Spy's AI proposal on the real 0.8B: functional PASS, proposal correctness INCONCLUSIVE (2026-09-23, current)
+## Phase L: the real 0.8B's first proven Element Spy proposal, after one request-format fix (2026-09-23, current)
+
+**Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No bead's status or
+edge changed.
+
+- **Request-format defect fixed (L3 §7, `awkit-djnl.4`).** The locator request wrote each candidate as
+  `candidate: testId=spy-save-profile`. That is Playwright's `engine=selector` form, and the compiler
+  refuses it as `SCRIPT`. The 0.8B had copied it back as `css` `data-testid=spy-save-profile`. Each
+  candidate is now written as the plan's own target object, `{"strategy":"testId","value":"…"}`. The
+  fields, redaction and bound-value drops are the same. The compiler, intent guard, proof, output cap,
+  attempt budget, deadlines and model pin did not change.
+- **Positive scenario: Save profile** on the Feature Test Lab's Element Spy page. It has a unique role and
+  name and a unique test id, with no row, position or sensitive content. The fixture was not changed.
+- **Scripted first:** `verify:ai-assist-gui` 162/0. It now also proves a `testId` plan in real Electron,
+  shown and applied nowhere.
+- **Real 0.8B, one run** (`verify:ai-spy-live`). Save profile was proposed as `role button "Save profile"
+  (exact)` on the 2nd call. The 1st call was scoped to a `section` and refused. The page confirmed the
+  shown proposal: 1 match, the inspected element, and a click landed on it. Nothing was written.
+  Edit (INV-2002) was refused as before, since only row content tells its rows apart. That limit is
+  unchanged.
+- **Harness:** that run was 32/1, exit 1. The one failure was a verifier precondition: it treated
+  `attemptsUsed` as the number of calls, but it only counts refused attempts. The precondition is fixed.
+  The live run was not repeated.
+- **L1, L3, L4b, L5b:** unchanged. The limited GO stands. L4b is at 1 of 16, TARGET PENDING. This is
+  one element on one run, not an acceptance threshold.
+
+| Gate (this session) | Result |
+|---|---|
+| `verify:ai-locator-attempts` | 118/118 (111/118 with the old line format restored) |
+| `verify:ai-assist-gui` · `verify:element-spy` · `verify:locator-plan` | 162/0 · 120/0 · 53/0 |
+| `verify:ai-locator-upgrade-budget` (real tokenizer) | 8/0, output cap 256 unchanged, longest prompt 1,003 tokens |
+| `verify:ai-spy-live` (real 0.8B, real Electron) | 32/1, exit 1 (verifier precondition, fixed). 1 proposal shown and page-confirmed |
+| `typecheck:scripts` · build | PASS · PASS |
+| `verify:ai-permissions` · `verify:ai-fallback` · `verify:ipc-contract` · `verify:mock-site` | NOT RUN: inputs unchanged (last recorded 96/0 · 38/0 · 10/10 · 242/242) |
+
+## Phase L: Element Spy's AI proposal on the real 0.8B: functional PASS, proposal correctness INCONCLUSIVE (2026-09-23)
 
 **Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No bead's status or
 edge changed.

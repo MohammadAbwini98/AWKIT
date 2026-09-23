@@ -1,6 +1,27 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-23, latest) — Element Spy on the real 0.8B: functional PASS, proposal correctness INCONCLUSIVE
+## HANDOFF (2026-09-23, latest) — the real 0.8B proposed a proven Save profile locator after one request-format fix
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No bead's status or
+  edge changed.
+- **Done:**
+  - The locator request now writes each candidate as the plan's own target object, never as
+    `<strategy>=<value>`, the engine form the compiler refuses.
+  - The scripted real-Electron gate proves a `testId` plan (162/0).
+  - One live run on the 0.8B showed a proposal the page confirmed: Save profile, role button, one
+    match, the inspected element.
+  - Details are in the L1 plan, "Element Spy on the real 0.8B, after the request-format fix".
+- **What that evidence is:** one element on one run. It does not cover rows, protected elements or
+  ambiguous targets. Edit (INV-2002) is still refused, and that contract limit is unchanged.
+- **Still open, unchanged:**
+  - L4b's B2–B16 are the owner's to record.
+  - "Use in action" for an AI proposal needs the owner's provenance decision.
+  - Row-content scoping for duplicate rows needs an owner decision.
+  - The signed-license route (b) rebuild note below still applies.
+- **Do not:** record a verdict as an agent; widen the GO; loosen the compiler, proof or uniqueness rules
+  for a pass; close L1, L3, L4b or L5b; touch the `blocks` edges; rerun the live gate to chase results.
+
+## HANDOFF (2026-09-23, superseded) — Element Spy on the real 0.8B: functional PASS, proposal correctness INCONCLUSIVE
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No bead's status or edge
   changed.

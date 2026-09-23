@@ -1,5 +1,32 @@
 # TASK_LOG
 
+## 2026-09-23 — Phase L: real-model locator proposal quality, one request-format fix and one live run (Claude)
+
+- **Task:** establish, under the owner's limited GO, whether the pinned 0.8B can produce a proven
+  locator through Element Spy for an element with a permitted unique identity. Allowed: one narrow
+  request clarification if a defect is shown, and one bounded live run.
+- **Scenario:** Save profile on `/recorder-lab/element-spy`. It has a unique role and name and a unique
+  `data-testid`, with no row, position or sensitive content. The fixture was unchanged.
+- **Product change** (`src/ai/locatorUpgradeAttempts.ts`): candidates in the §7 request are the plan's
+  own target object, no longer `<strategy>=<value>`, the `engine=selector` form the compiler refuses.
+  Nothing else changed.
+- **Verifiers:**
+  - `verify:ai-locator-attempts`: new format and refusal regressions, 118/118. With the old format
+    restored it fails 111/118.
+  - `verify:ai-assist-gui`: a scripted `testId` plan is proven in real Electron, 162/0.
+  - `verify:ai-spy-live`: a `testId` judge control, a parser for the new line, and the corrected
+    accepted-attempt precondition.
+- **Checks:**
+  - `verify:ai-spy-live` (real 0.8B, one run, 240 s): 32/1, exit 1. Save profile was proposed on the
+    2nd call as `role button "Save profile"` (exact). The page confirmed it: 1 match, the inspected
+    element, and a click landed there. Nothing was written.
+  - The 1 failure was the verifier's `attemptsUsed` precondition, since fixed. The live run was not
+    repeated.
+  - `verify:element-spy` 120/0, `verify:locator-plan` 53/0, `verify:ai-locator-upgrade-budget` 8/0.
+  - `typecheck:scripts` PASS, build PASS.
+- **Result:** one positive real-model observation on one element. Edit (INV-2002) is still refused, and
+  its row limit needs an owner decision. No milestone, bead status, edge or review verdict changed.
+
 ## 2026-09-23 — Phase L: Element Spy's AI proposal on the real 0.8B, and the live verifier's diagnostic corrected (Claude)
 
 - **Task:** resume the paused real-model session from `b753c980`. Its five uncommitted files were kept

@@ -1,6 +1,21 @@
 # DECISIONS
 
-### 2026-09-23 (latest) — Phase L L1: limited GO on Qwen3.5-0.8B for three on-demand features (owner, option 1) (`awkit-djnl.1`, `.4`, `.6`, `.8`)
+### 2026-09-23 (latest) — Phase L L3 §7: the locator request shows candidates as plan targets, not engine selectors (owner-authorized, `awkit-djnl.4`)
+
+- **Authorized by the owner (task brief, 2026-09-23):** one narrowly scoped clarification of the
+  model-facing locator request, and only if the source and the captured evidence show an ambiguity.
+  The earlier real-model run had recorded that ambiguity and left it for the owner to decide.
+- **Decided:** a capture candidate is shown as the plan's own target object
+  (`{"strategy":"testId","value":"…"}`), never as `<strategy>=<value>`. The old form is Playwright's
+  `engine=selector` syntax, which the compiler refuses as `SCRIPT`. The fields, redaction and bound-value
+  drops are the same.
+- **Unchanged:** the instructions, compiler, intent guard, proof, uniqueness and identity rules, output
+  cap, attempt budget, deadlines, model pin, autonomy tiers and row-content policy. "Use in action" stays
+  off for AI proposals.
+- **Evidence:** L1 plan, "Element Spy on the real 0.8B, after the request-format fix". This is not a
+  quality threshold and not an acceptance of L3.
+
+### 2026-09-23 — Phase L L1: limited GO on Qwen3.5-0.8B for three on-demand features (owner, option 1) (`awkit-djnl.1`, `.4`, `.6`, `.8`)
 
 - **Decided by the owner (2026-09-23, in session), on the decision record in `L1-ai-foundation.md`:**
   option 1. The pinned Qwen3.5-0.8B pack is accepted for exactly these person-triggered features:

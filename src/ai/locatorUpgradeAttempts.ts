@@ -291,6 +291,9 @@ const FEEDBACK: Readonly<Partial<Record<LocatorPlanRejectionCode | string, strin
  *   or positional CSS/XPath): both are the fragile form being replaced, which the compiler refuses.
  * - It is one DATA block. Each block costs about 45 prompt tokens of nonce delimiters, and the seven it
  *   used to be were most of a typical prompt.
+ * - A candidate is written as the plan's own `target` object, never `<strategy>=<value>`: that is
+ *   Playwright's `engine=selector` form, which the compiler refuses as SCRIPT. On the real 0.8B it came
+ *   back as `css` `data-testid=<id>` for an offered `testId=<id>` (L1 plan, "Element Spy on the real 0.8B").
  */
 function contextLines(input: LocatorUpgradeAttemptInput, records: readonly LocatorAttemptRecord[]): string[] {
   const baseline = input.step.locator;
@@ -303,7 +306,9 @@ function contextLines(input: LocatorUpgradeAttemptInput, records: readonly Locat
     target ? `target: ${target}` : "",
     ...(records.length ? buildAttemptFeedback(records).split("\n").map((refusal) => `refused ${refusal}`) : []),
     ...(context?.candidates ?? []).map((candidate, index) =>
-      candidate.fallback || bound.has(`candidates.${index}`) ? "" : `candidate: ${candidate.strategy}=${candidate.value}${candidate.name ? ` name=${candidate.name}` : ""} matches=${candidate.count}`
+      candidate.fallback || bound.has(`candidates.${index}`)
+        ? ""
+        : `candidate: ${JSON.stringify({ strategy: candidate.strategy, value: candidate.value, ...(candidate.name ? { name: candidate.name } : {}) })} matches=${candidate.count}`
     ),
     ...(context?.containers ?? []).map((container, index) => `container: ${container.kind} ${container.role}${bound.has(`containers.${index}.name`) ? "" : ` ${container.name}`}`.trim()),
     context && !bound.has("heading") && context.heading ? `heading: ${context.heading}` : "",

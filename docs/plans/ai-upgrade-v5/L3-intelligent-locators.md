@@ -196,6 +196,15 @@ Built under the owner's limited L1 GO: on demand, browser-proven before use, nev
   steers the model toward. Save profile was proposed twice as `css` with a `data-testid=` engine prefix,
   a `SCRIPT` refusal. The request offered `testId` (1 match), which would have compiled. Neither refusal
   is a product defect; details in the L1 plan, "Element Spy on the real 0.8B".
+- **After the request-format fix (2026-09-23): one proven proposal on the real 0.8B.** The §7 request
+  had written each candidate as `<strategy>=<value>`. That is Playwright's `engine=selector` form,
+  which the compiler refuses as `SCRIPT`. Candidates are now written as the plan's own target object;
+  the compiler, proof, budget and pin did not change. The scripted gate proves `role` and `testId`
+  plans for Save profile (`verify:ai-assist-gui` 162/0). One live run then showed
+  `role button "Save profile" (exact)` on its 2nd call, and the page confirmed one match, the inspected
+  element. Nothing was written. Edit (INV-2002) is still refused: that row limit is unchanged. This is
+  one element on one run, not §9's acceptance. Details are in the L1 plan, "Element Spy on the real 0.8B,
+  after the request-format fix".
 
 ## 2. Locator plan DSL → trusted compiler
 

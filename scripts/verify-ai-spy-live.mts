@@ -247,7 +247,7 @@ function attemptsOf(traffic: HostTraffic): { jobs: number; attempts: Attempt[] }
 function requestShape(user: string): string {
   const kinds = new Map<string, number>();
   for (const line of user.split("\n")) {
-    const candidate = /^candidate: (\w+)=.* matches=(\d+)$/.exec(line);
+    const candidate = /^candidate: \{"strategy":"(\w+)".* matches=(\d+)$/.exec(line);
     const container = /^container: (\w+)/.exec(line);
     const kind = candidate
       ? `candidate ${candidate[1]} (matches ${candidate[2]})`
@@ -347,10 +347,12 @@ async function askReal(electronApp: ElectronApplication, win: Page, judgeBrowser
   check(`${element}: main let the job go`, await aiReleased(win, 10_000));
   const traffic = await takeHostTraffic(electronApp);
   const { jobs, attempts } = attemptsOf(traffic);
+  // `attemptsUsed` is the §7 budget, which only a refusal spends: an accepted answer is one more reply.
+  const accepted = settled === "done" ? 1 : 0;
   check(
     `${element}: (precondition) one reply per attempt, each paired with this job's own request`,
-    baseline !== undefined && jobs === 1 && attempts.length === (view?.attemptsUsed ?? -1) && attempts.every((a, i) => a.attempt === i + 1),
-    `${jobs} job(s), attempts ${attempts.map((a) => a.attempt).join(",")}, panel says ${view?.attemptsUsed}`
+    baseline !== undefined && jobs === 1 && attempts.length === (view?.attemptsUsed ?? -1) + accepted && attempts.every((a, i) => a.attempt === i + 1),
+    `${jobs} job(s), attempts ${attempts.map((a) => a.attempt).join(",")}, panel says ${view?.attemptsUsed} spent${accepted ? " + 1 accepted" : ""}`
   );
   if (baseline) {
     const why = await classifyAttempts(judgeBrowser, attempts, baseline, intended);
@@ -376,6 +378,8 @@ try {
   console.log("The judge is not vacuous");
   const right = await judge(judgeBrowser, { candidate: { strategy: "role", value: "button", name: "Save profile", exact: true }, meaningChange: false });
   check("control: a right candidate is judged right", right.matches === 1 && right.selected === "save-profile" && right.clicked === "save-profile", JSON.stringify(right));
+  const rightTestId = await judge(judgeBrowser, { candidate: { strategy: "testId", value: "spy-save-profile" }, meaningChange: false });
+  check("control: ...and so is the test id the request offers", rightTestId.matches === 1 && rightTestId.selected === "save-profile" && rightTestId.clicked === "save-profile", JSON.stringify(rightTestId));
   const wrong = await judge(judgeBrowser, { candidate: { strategy: "role", value: "button", name: "Keep", exact: true }, meaningChange: false });
   check("control: a unique but different element is judged not the inspected one", wrong.matches === 1 && wrong.selected === "dialog-keep" && wrong.clicked === "dialog-keep", JSON.stringify(wrong));
   const ambiguous = await judge(judgeBrowser, { candidate: { strategy: "role", value: "button", name: "Edit", exact: true }, meaningChange: false });
@@ -487,7 +491,7 @@ try {
 
 console.log("\nWhat a person saw (no model text beyond the locator the panel shows):");
 for (const o of outcomes) {
-  console.log(`  ${o.element}: ${o.state ?? "never settled"} ${o.code ?? ""} in ${(o.ms / 1000).toFixed(1)} s${o.attempts !== null ? `, ${o.attempts} attempt(s)` : ""}${o.shown ? ` — shown: ${o.shown}` : ""}${o.shown ? ` — judged: ${o.judged}` : ""}`);
+  console.log(`  ${o.element}: ${o.state ?? "never settled"} ${o.code ?? ""} in ${(o.ms / 1000).toFixed(1)} s${o.attempts !== null ? `, ${o.attempts} refused attempt(s)` : ""}${o.shown ? ` — shown: ${o.shown}` : ""}${o.shown ? ` — judged: ${o.judged}` : ""}`);
   for (const line of o.why ?? []) console.log(`      ${line}`);
 }
 const shown = outcomes.filter((o) => o.shown);

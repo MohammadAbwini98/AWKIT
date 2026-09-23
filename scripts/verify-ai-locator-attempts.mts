@@ -567,9 +567,36 @@ try {
   const typicalShown = shownBy(typicalJob);
   check("an attempt sends ONE data block, built whole", typicalJob.prompt.fields.length === 1 && typicalShown.split("<<<DATA ").length === 2, typicalShown);
   check("...decoded against the attempt grammar at the attempt's output cap", typicalJob.schema === LOCATOR_ATTEMPT_SCHEMA && typicalJob.maxOutputTokens === LOCATOR_ATTEMPT_LIMITS.maxOutputTokens);
-  const expected = [`current locator: ${archive.locator?.strategy}, guarded-positional`, "target: tag=button role=button name=Archive", "candidate: role=button name=Archive matches=2", "container: card region Guarded baselines", "heading: Locator Upgrade Lab", "sibling action: Remove", "data-bound, not shown: siblingActions.1"];
+  const expected = [`current locator: ${archive.locator?.strategy}, guarded-positional`, "target: tag=button role=button name=Archive", 'candidate: {"strategy":"role","value":"button","name":"Archive"} matches=2', "container: card region Guarded baselines", "heading: Locator Upgrade Lab", "sibling action: Remove", "data-bound, not shown: siblingActions.1"];
   check("...showing the saved locator's strategy and class only, the target, candidate, container, heading and actions", expected.every((line) => typicalShown.includes(`\n${line}\n`)), typicalShown);
   check("...and never the sibling flagged as a bound value", !typicalShown.includes("Swap twins"));
+
+  // Element Spy's Save profile on the real 0.8B: offered `testId=spy-save-profile`, it answered `css`
+  // `data-testid=spy-save-profile` — Playwright's engine=selector form, which the compiler refuses.
+  const spySave = sanitizeUpgradeContext(
+    { target: { tag: "button", role: "button", name: "Save profile" }, candidates: [{ strategy: "testId", value: "spy-save-profile", count: 1 }, { strategy: "role", value: "button", name: "Save profile", count: 1 }] },
+    { pageAlias: "lab", frameDepth: 0 }
+  );
+  if (!spySave) throw new Error("the Save profile capture did not sanitize");
+  const spyCandidateLines = (upgradeContext: UpgradeContext) => (attempt(upgradeContext).prompt.fields[0].text ?? "").split("\n").filter((line) => line.startsWith("candidate: "));
+  const spyLines = spyCandidateLines(spySave);
+  const spyTargets = spyLines.map((line) => {
+    try {
+      return JSON.parse(/^candidate: (\{.*\}) matches=\d+$/.exec(line)?.[1] ?? "") as unknown;
+    } catch {
+      return null;
+    }
+  });
+  check("an offered test id is shown as the plan's own target, strategy testId", spyLines[0] === 'candidate: {"strategy":"testId","value":"spy-save-profile"} matches=1', spyLines.join(" | "));
+  check("...every candidate shown is a target the compiler accepts as written", spyTargets.length === 2 && spyTargets.every((target) => target !== null && compileLocatorPlan({ version: 1, target, scopes: [] }, undefined).ok), spyLines.join(" | "));
+  check("...and none is written in the engine=selector form", spyLines.every((line) => !/^candidate: [\w-]+=/.test(line)), spyLines.join(" | "));
+  const refusedAs = (target: Record<string, unknown>) => {
+    const compiled = compileLocatorPlan({ version: 1, target, scopes: [] }, undefined);
+    return compiled.ok ? "OK" : compiled.code;
+  };
+  check("the compiler still refuses the real 0.8B's answer as SCRIPT", refusedAs({ strategy: "css", value: "data-testid=spy-save-profile" }) === "SCRIPT");
+  check("...and the old line forms copied into a value, text= and id= as SCRIPT", refusedAs({ strategy: "css", value: "text=Save profile" }) === "SCRIPT" && refusedAs({ strategy: "css", value: "id=save" }) === "SCRIPT");
+  check("a candidate flagged as a bound value is still never shown", !spyCandidateLines(markBoundValues(spySave, ["spy-save-profile"])).some((line) => line.includes("spy-save-profile")), spyCandidateLines(markBoundValues(spySave, ["spy-save-profile"])).join(" | "));
 
   // A capture at every L2 bound: four distinct 200-character candidates, a Recorder fallback, and
   // more context than fits. Every line is shown whole or not at all.
@@ -596,7 +623,7 @@ try {
     `current locator: ${archive.locator?.strategy}, guarded-positional`,
     `target: tag=${tag} role=${role} type=${type} name=${name}`,
     `refused ${buildAttemptFeedback([LONGEST_REFUSAL])}`,
-    ...semantic.map((candidate) => `candidate: ${candidate.strategy}=${candidate.value} name=${candidate.name} matches=${candidate.count}`),
+    ...semantic.map((candidate) => `candidate: ${JSON.stringify({ strategy: candidate.strategy, value: candidate.value, name: candidate.name })} matches=${candidate.count}`),
     ...boundCaptured.containers.map((container) => `container: ${container.kind} ${container.role} ${container.name}`),
     `heading: ${boundCaptured.heading}`,
     ...boundCaptured.siblingActions.map((action) => `sibling action: ${action}`)
@@ -604,7 +631,7 @@ try {
   check("at every L2 bound the context stays within its budget and builds whole", boundText.length <= LOCATOR_ATTEMPT_LIMITS.maxContextChars && shownBy(boundJob) !== "", String(boundText.length));
   check("...(precondition) and more was offered than fits, so lines were dropped", boundLines.length < wholeLines.size && boundLines.length > 3, `${boundLines.length} of ${wholeLines.size}`);
   check("...and every line shown is whole, never cut", boundLines.every((line) => wholeLines.has(line)), boundLines.filter((line) => !wholeLines.has(line)).join(" | "));
-  check("...with every candidate among them, since they come first", semantic.every((candidate) => boundLines.some((line) => line.startsWith(`candidate: ${candidate.strategy}=${candidate.value} `))));
+  check("...with every candidate among them, since they come first", semantic.every((candidate) => boundLines.some((line) => line.startsWith(`candidate: {"strategy":"${candidate.strategy}","value":"${candidate.value}"`))));
   check("...and the refusal survives the budget", boundText.includes("refused attempt 1: refused at intent (INTENT_BOUND_VALUE) on scopes.0.hasText"));
   check("a Recorder fallback (structural or positional CSS/XPath) is never shown", !boundText.includes("nth-of-type") && !boundText.includes("(fallback)"));
 
@@ -612,7 +639,7 @@ try {
   const largestCaptured = locatorInput(LARGEST_CONTEXT, "req-largest").upgradeContext!;
   check(
     "the largest fixture's request drops nothing: every semantic candidate, action and the heading, whole",
-    largestCaptured.candidates.every((candidate) => candidate.fallback !== largestText.includes(`candidate: ${candidate.strategy}=${candidate.value} `)) &&
+    largestCaptured.candidates.every((candidate) => candidate.fallback !== largestText.includes(`candidate: {"strategy":"${candidate.strategy}","value":${JSON.stringify(candidate.value)}`)) &&
       [...largestCaptured.siblingActions.map((action) => `sibling action: ${action}`), `heading: ${largestCaptured.heading}`].every((line) => largestText.split("\n").includes(line)),
     largestText
   );

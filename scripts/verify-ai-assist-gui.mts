@@ -351,6 +351,16 @@ try {
   check("...while the Recorder's own primary locator and candidates are unchanged", (await win.getByTestId("element-spy-primary").innerText()) === spyPrimary && JSON.stringify((await win.evaluate(() => window.playwrightFlowStudio.recorder.getInspection())).inspection?.candidates ?? null) === candidatesBefore);
   check("...and nothing on the page was performed", (await recorderPage(app, { op: "text", path: SPY_LAB, selector: '[data-testid="spy-clicks"]' })) === "0");
 
+  // The test id the request offers for this element: what the real 0.8B was shown and did not return.
+  console.log("\n  The offered test id, returned as its own strategy, is proven the same way");
+  provide({ text: spyPlan({ strategy: "testId", value: "spy-save-profile" }) });
+  check("(precondition) the offered test id resolves to exactly the inspected element", (await recorderPage(app, { op: "data-spy", path: SPY_LAB, selector: '[data-testid="spy-save-profile"]' })) === "1:save-profile");
+  await win.getByTestId("element-spy-ai-propose").click();
+  const testIdProposed = await stateSettles(win, "element-spy-ai", "done");
+  const testIdText = await win.getByTestId("element-spy-ai-proposal").innerText().catch(() => "");
+  check("a testId plan for the inspected element is proven and shown", testIdProposed === "done" && testIdText === "testId spy-save-profile", `${testIdProposed} — ${testIdText}`);
+  check("...applied nowhere: the Recorder's primary locator and candidates are unchanged, nothing performed", (await win.getByTestId("element-spy-primary").innerText()) === spyPrimary && JSON.stringify((await win.evaluate(() => window.playwrightFlowStudio.recorder.getInspection())).inspection?.candidates ?? null) === candidatesBefore && (await recorderPage(app, { op: "text", path: SPY_LAB, selector: '[data-testid="spy-clicks"]' })) === "0");
+
   console.log("\n  A plan that reaches a different element is refused in the browser");
   provide({ text: spyPlan({ strategy: "testId", value: "spy-submit-order" }) });
   check("(precondition) the scripted plan is a real, unique element of the page — just not the inspected one", (await recorderPage(app, { op: "data-spy", path: SPY_LAB, selector: '[data-testid="spy-submit-order"]' })) === "1:submit-order");
