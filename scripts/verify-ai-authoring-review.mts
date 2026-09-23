@@ -9,7 +9,8 @@
  *       --grounded yes|no --unsupported yes|no --reviewer <label> [--note <text>]
  *
  * A person records verdicts; an agent never does. Captures of an earlier request (other instructions)
- * are listed and ignored. Exit 0 only when the target is MET, or NOT RUN when nothing of the current
+ * are listed and ignored. Every captured explanation is judged by today's judge, in memory, and each one it
+ * reads differently from its capture is listed; a capture file is never rewritten. Exit 0 only when the target is MET, or NOT RUN when nothing of the current
  * request is captured; PENDING, NOT MET and an unreadable store exit 1, because none of them is acceptance.
  */
 
@@ -17,10 +18,13 @@ import { buildAuthoringRequest } from "@src/ai/authoringExplanation";
 import { validateFlowDefinition } from "@src/validation/FlowValidator";
 
 import { LABELLED_SET } from "./ai-harness/authoringQualitySet";
-import { evaluateQualityTarget, instructionsSha256, loadReviewStore, recordVerdict, reviewDir, QUALITY_TARGET } from "./ai-harness/authoringQualityReview";
+import { evaluateQualityTarget, instructionsSha256, loadReviewStore, recordVerdict, rereadCapture, reviewDir, QUALITY_TARGET, type ReviewItem } from "./ai-harness/authoringQualityReview";
 
-const first = LABELLED_SET[0];
-const probe = buildAuthoringRequest(validateFlowDefinition(first.flow, { referenceableFlowIds: new Set([first.flow.id]) }));
+const requestFor = (caseId: string) => {
+  const labelled = LABELLED_SET.find((c) => c.id === caseId);
+  return labelled ? buildAuthoringRequest(validateFlowDefinition(labelled.flow, { referenceableFlowIds: new Set([labelled.flow.id]) })) : undefined;
+};
+const probe = requestFor(LABELLED_SET[0].id);
 if (!probe) throw new Error("the labelled set builds no request");
 const current = instructionsSha256(probe);
 const dir = reviewDir();
@@ -46,12 +50,19 @@ if (args[0] === "--record") {
 }
 
 const store = loadReviewStore(dir);
-const captures = store.captures.filter((c) => c.instructionsSha256 === current);
+// Every capture is judged by TODAY's judge, in memory; the files keep the reading they were taken with.
+const rereads = store.captures.map((c) => rereadCapture(c, requestFor));
+const captures = rereads.map((r) => r.capture).filter((c) => c.instructionsSha256 === current);
 const verdictOf = new Map(store.verdicts.map((v) => [v.itemId, v]));
 console.log(`L4b explanation quality target (adopted ${QUALITY_TARGET.adopted})`);
 console.log(`  review store: ${dir}`);
 console.log(`  captures: ${captures.length} of the current request, ${store.captures.length - captures.length} of an earlier one (ignored); verdicts: ${store.verdicts.length}`);
 if (store.malformed.length > 0) console.error(`  ✗ unreadable: ${store.malformed.join(", ")}`);
+const shown = store.captures.reduce((n, c) => n + c.items.filter((i) => i.text !== null).length, 0);
+const changed = rereads.flatMap((r) => r.changed.map((c) => ({ ...c, retained: r.instructionsRetained })));
+const reading = (j: ReviewItem["judged"]) => `${j.category}${j.unsupported.length > 0 ? ` [${j.unsupported.join(", ")}]` : ""}${j.actionable ? ", actionable" : ""}`;
+console.log(`  re-read by today's judge: ${rereads.reduce((n, r) => n + r.reread, 0)} of ${shown} captured explanation(s) (the rest keep their captured reading: today's labelled set sends other codes under their ids); ${changed.length} read differently:`);
+for (const c of changed) console.log(`    ${c.itemId} ${c.code}: ${reading(c.before)} → ${reading(c.after)}${c.retained ? "" : " (against its Issues lines; that request's instructions are not retained)"}`);
 
 if (args[0] === "--pending") {
   const pending = captures.flatMap((c) => c.items).filter((i) => !verdictOf.has(i.id));

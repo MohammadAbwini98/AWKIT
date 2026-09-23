@@ -33,7 +33,7 @@ import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 import { writeJsonFileAtomic } from "@src/session/atomicWrite";
 import { isExecutionBlocking, type FlowValidationCode } from "@src/validation/FlowValidator";
 
-import { CANARY, type AuthoringJudgement, type ExplanationCategory, type UnsupportedKind } from "./authoringQualitySet";
+import { CANARY, judgeAuthoringAnswer, type AuthoringJudgement, type ExplanationCategory, type UnsupportedKind } from "./authoringQualitySet";
 
 /** L4's proposed explanation quality target, as adopted by the owner. Never lowered to fit a result. */
 export const QUALITY_TARGET = Object.freeze({
@@ -178,6 +178,59 @@ export function buildReviewCapture(modelId: string, cases: readonly CapturedCase
     })),
     items
   };
+}
+
+/** One explanation today's judge reads differently from the reading its capture was taken with. */
+export interface Reread {
+  itemId: string;
+  code: FlowValidationCode;
+  before: ReviewItem["judged"];
+  after: ReviewItem["judged"];
+}
+
+/**
+ * A capture read again by TODAY's judge, in memory: the file keeps the model's text and the reading it was
+ * taken with, a person's verdicts are untouched, and nothing is written back. Each explanation is judged
+ * against what its capture kept of the request: its case's Issues lines, and the instructions only when the
+ * capture's hash is today's (an earlier request's are not retained). A case whose ids no longer carry the
+ * same codes, blocking and fixes in today's labelled set keeps its captured reading.
+ */
+export function rereadCapture(
+  capture: ReviewCapture,
+  requestFor: (caseId: string) => AuthoringRequest | undefined
+): { capture: ReviewCapture; changed: Reread[]; reread: number; instructionsRetained: boolean } {
+  const items = capture.items.map((item) => ({ ...item }));
+  const changed: Reread[] = [];
+  let reread = 0;
+  let instructionsRetained = false;
+  for (const caseId of new Set(items.map((item) => item.caseId))) {
+    const request = requestFor(caseId);
+    const inCase = items.filter((item) => item.caseId === caseId);
+    const refs = inCase.map((item) =>
+      request?.issues.find((ref) => ref.id === item.issueId && ref.issue.code === item.code && ref.fixable === item.fixable && isExecutionBlocking(ref.issue) === item.blocking)
+    );
+    if (!request || refs.some((ref) => ref === undefined)) continue;
+    instructionsRetained = instructionsSha256(request) === capture.instructionsSha256;
+    const asked: AuthoringRequest = {
+      ...request,
+      prompt: { ...request.prompt, instructions: instructionsRetained ? request.prompt.instructions : "", fields: [{ name: "Issues", text: inCase.map((item) => item.evidence).join("\n") }] }
+    };
+    const shown = inCase.flatMap((item, k) => (item.text === null ? [] : [{ item, text: item.text, ref: refs[k]! }]));
+    const answer: AuthoringAnswer = {
+      ok: true,
+      explanations: shown.map(({ item, text, ref }) => ({ issueId: item.issueId, issue: ref.issue, text, step: ref.step, ...(item.cut ? { cut: true as const } : {}) })),
+      ranking: []
+    };
+    judgeAuthoringAnswer(asked, answer).perExplanation.forEach((p, k) => {
+      const item = shown[k].item;
+      const after = { onSubject: p.onSubject, misattributed: p.misattributed, actionable: p.actionable, unsupported: p.unsupported, category: p.category };
+      reread += 1;
+      if (JSON.stringify(after) === JSON.stringify(item.judged)) return;
+      changed.push({ itemId: item.id, code: item.code, before: item.judged, after });
+      item.judged = after;
+    });
+  }
+  return { capture: { ...capture, items }, changed, reread, instructionsRetained };
 }
 
 export async function writeReviewCapture(dir: string, capture: ReviewCapture): Promise<string> {

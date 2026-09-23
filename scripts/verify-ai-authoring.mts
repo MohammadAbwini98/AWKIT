@@ -74,12 +74,13 @@ import {
   instructionsSha256,
   loadReviewStore,
   recordVerdict,
+  rereadCapture,
   writeReviewCapture,
   type ReviewCapture,
   type ReviewItem,
   type ReviewVerdict
 } from "./ai-harness/authoringQualityReview";
-import { CANARY, LABELLED_SET, REMEDY, SUBJECT, authoringControlFailures, correctiveControlFailures, judgeAuthoringAnswer, rankingControlFailures } from "./ai-harness/authoringQualitySet";
+import { CANARY, LABELLED_SET, REMEDY, SUBJECT, authoringControlFailures, correctiveControlFailures, judgeAuthoringAnswer, literalControlFailures, rankingControlFailures } from "./ai-harness/authoringQualitySet";
 
 let passed = 0;
 let failed = 0;
@@ -720,14 +721,21 @@ console.log("\n11 — the labelled set verify:ai-authoring-quality-live sends, a
   const priority = LABELLED_SET.find((c) => c.id === "priority")!;
   const ranking = rankingControlFailures(buildAuthoringRequest(reportOf(priority))!);
   check("the ranking-order controls all hold (blocking first, off-path first, blocking left out, none)", ranking.length === 0, ranking.join("; "));
-  const corrective = correctiveControlFailures((id) => {
+  const labelledRequest = (id: string) => {
     const labelled = LABELLED_SET.find((c) => c.id === id);
     return labelled ? buildAuthoringRequest(reportOf(labelled)) : undefined;
-  });
+  };
+  const corrective = correctiveControlFailures(labelledRequest);
   check(
     "the reviewed failures are refused as controls: incorrect, inverted, irrelevant, unsupported and truncated guidance is never actionable, each correct twin is, and every product step restated clears the judge",
     corrective.length === 0,
     corrective.join("; ")
+  );
+  const literals = literalControlFailures(labelledRequest);
+  check(
+    "an invented value is fabricated in every quotation style and unquoted, and the request's own words quoted any way stay clear",
+    literals.length === 0,
+    literals.join("; ")
   );
 }
 
@@ -825,6 +833,23 @@ console.log("\n12 — corrective step, fix priority, the review store and the ad
   const cutItems = buildReviewCapture("fake-l4b-model", [{ caseId: "cycle", request: cycleRequest, answer: cutAnswer, judged: judgeAuthoringAnswer(cycleRequest, cutAnswer), inferMs: 1 }]).items;
   check("the capture marks a text the character limit cut, and only that one", cutItems[0]?.cut === true && cutItems[0].text === "Connectors form a cycle." && cutItems[1]?.cut === undefined, JSON.stringify(cutItems.map((i) => [i.text, i.cut])));
   check("each item carries the product's own Issues line as its evidence",capture.items.every((item) => item.evidence.startsWith(`${item.issueId}: ${item.code} `)));
+  // A corrected judge reads what was captured again, in memory; the capture keeps the reading it was taken with.
+  const offDomain = parseAuthoringAnswer({ version: 1, explanations: [{ issueId: cycleRequest.issues[0].id, text: "Restart the application to clear the loop." }, { issueId: cycleRequest.issues[1].id, text: "Remove this connector from the End step." }] }, cycleRequest);
+  if (!offDomain.ok) throw new Error("the off-domain scripted answer must parse");
+  const stale = buildReviewCapture("fake-l4b-model", [{ caseId: "cycle", request: cycleRequest, answer: offDomain, judged: judgeAuthoringAnswer(cycleRequest, offDomain), inferMs: 1 }]);
+  stale.items[0].judged = { ...stale.items[0].judged, unsupported: [], category: "notActionable" };
+  const staleBefore = JSON.stringify(stale);
+  const reread = rereadCapture(stale, requestFor);
+  check(
+    "today's judge re-reads a capture: a reading it no longer gives is replaced and listed",
+    reread.changed.length === 1 && reread.changed[0].itemId === stale.items[0].id && reread.capture.items[0].judged.category === "defect" && reread.capture.items[0].judged.unsupported.includes("OFF_DOMAIN") && reread.reread === 2,
+    JSON.stringify(reread.changed)
+  );
+  check("...in memory: the capture keeps the model's text and the reading it was taken with", JSON.stringify(stale) === staleBefore);
+  check(
+    "...against its own request: the instructions only when its hash is today's, and a case whose ids carry other codes today keeps its reading",
+    reread.instructionsRetained && !rereadCapture({ ...stale, instructionsSha256: "earlier" }, requestFor).instructionsRetained && rereadCapture(stale, () => requestFor("casing")).reread === 0
+  );
   check("nothing from the flow is stored: no step name, flow name or connector id", !/Orders |click |"e[1-5]"/.test(onDisk));
   check("an undelivered case is captured with its sent issues and no answer, so it cannot raise a rate", capture.cases[1].delivered === false && capture.cases[1].sent === 1 && capture.items.every((i) => i.caseId === "cycle"));
   check("the capture is keyed to the product's instructions", capture.instructionsSha256 === instructionsSha256(request));

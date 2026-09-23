@@ -247,8 +247,9 @@ const CORRECTIVE =
  * Claims the request does not support, each one evidence an explanation is wrong:
  *  - AUTO_FIX_CLAIMED: the application can repair an issue it emitted no fix for (AI inventing a fix);
  *  - OFF_DOMAIN: a cause or remedy outside the flow (restart, network, cache, credentials, support);
- *  - FABRICATED_LITERAL: a quoted name, a selector, a URL or a value the request never held, or the
- *    corrective action given as a step's name (`ACTION_AS_NAME`);
+ *  - FABRICATED_LITERAL: a name quoted in any style, a selector, a URL or a value the request never held
+ *    (a value is held only as a target the request gives: "to a listed value"), or the corrective action
+ *    given as a step's name (`ACTION_AS_NAME`);
  *  - SEVERITY_OVERSTATED: an issue that does not block the run is said to stop the flow running;
  *  - SEVERITY_UNDERSTATED: an issue that blocks the run is said to be harmless or only a warning;
  *  - WRONG_REMEDY: a correction the issue's own rule contradicts (`WRONG_REMEDY`).
@@ -264,7 +265,20 @@ const BLOCKS_RUN =
   /\b(?:flow|run|automation|execution)\b[^.;]{0,25}\b(?:cannot|can't|can not|won't|will not|unable to|is blocked from)\b[^.;]{0,15}\b(?:run|start|execute|begin)\b|\bfrom (?:running|starting|executing|being run)\b|\bbefore (?:the flow|it) can (?:run|start)\b/i;
 const HARMLESS =
   /\b(?:harmless|(?:safe|okay|ok|fine) to ignore|can (?:safely )?(?:be )?ignored?|(?:only|just) a warning|not (?:a )?(?:real |serious |critical |blocking )?(?:problem|issue|error)|does(?:n't| not) matter)\b/i;
-const QUOTED = /["`“”]([^"`“”]{2,})["`“”]/g;
+/**
+ * Quoted text in any style. A single quote opens only after a non-letter and closes only before one, so the
+ * apostrophes in "step's", "steps'" and "can't" are never quotation marks. Until 2026-09-23 only double
+ * quotes and backticks were read, and "Correct the operator casing to 'operator'." cleared the screen.
+ */
+const QUOTED = [/["`“”]([^"`“”]{2,})["`“”]/g, /(?<![\p{L}\p{N}_])['‘](\S[^\n]*?\S)['’](?![\p{L}\p{N}_])/gu];
+/** A value, where it is what something is changed or set TO. */
+const VALUE_TARGET = /(?:\b(?:change|correct|set|switch|convert|rename|update|normali[sz]e)\w*\b[^.;!?]{0,60}\b(?:to|into)|=)\s*$/i;
+/** An unquoted value only a literal can be: a boolean, null, or a code-like name ("notEquals"). */
+const LITERAL_WORD = /(?<=\b(?:to|into)\s+|=\s*)([A-Za-z_]\w*)/gi;
+const literalShaped = (word: string) => /^(?:true|false|null)$/i.test(word) || /^[a-z]+(?:[A-Z][a-z0-9]*)+$/.test(word);
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/** Held as a whole phrase: a literal that occurs only inside a longer word ("supported" in "unsupportedOperator") is not held. */
+const holds = (supported: string, pattern: string) => new RegExp(`(?<![\\p{L}\\p{N}_])${pattern}(?![\\p{L}\\p{N}_])`, "iu").test(supported);
 /**
  * The corrective action given as the NAME of a step ("The step 'Add a locator to this step' is missing
  * a locator"): a step name the request never held, and no instruction. Written after the first 2026-09-23
@@ -281,10 +295,21 @@ const completeSentencesOf = (text: string): string[] => sentencesOf(/[.!?]["')\]
 /** Everything the model was given: the instructions and the Issues block, never the nonce. */
 const supportedTextOf = (request: AuthoringRequest): string => [request.prompt.instructions, ...request.prompt.fields.map((f) => f.text)].join("\n");
 
-function fabricatesLiteral(text: string, supported: string): boolean {
+function fabricatesLiteral(raw: string, supported: string): boolean {
+  // An escaped quotation mark (\' or \") quotes like a plain one.
+  const text = raw.replace(/\\(?=["'`“”‘’])/g, "");
   if (ACTION_AS_NAME.test(text)) return true;
-  const known = supported.toLowerCase();
-  for (const quote of text.matchAll(QUOTED)) if (!known.includes(quote[1].trim().toLowerCase())) return true;
+  const literals = [
+    ...QUOTED.flatMap((quoted) => [...text.matchAll(quoted)].map((m) => ({ value: m[1].trim(), at: m.index ?? 0, quoted: true }))),
+    ...[...text.matchAll(LITERAL_WORD)].filter((m) => literalShaped(m[1])).map((m) => ({ value: m[1], at: m.index ?? 0, quoted: false }))
+  ];
+  for (const { value, at, quoted } of literals) {
+    // A value is held only as a target the request gives itself ("…to a listed value"), never as a word
+    // it uses elsewhere: "to 'operator'" is a value the request never held, though it says "operator".
+    if (VALUE_TARGET.test(text.slice(0, at))) {
+      if (!holds(supported, `\\b(?:to|into)\\s+(?:(?:a|an|the|one of the)\\s+)?${escapeRegExp(value)}`)) return true;
+    } else if (quoted && !holds(supported, escapeRegExp(value))) return true;
+  }
   for (const number of text.matchAll(NUMBER)) {
     // A small count ("2 connectors") restates "two or more"; a value or a unit is something the model was never told.
     const held = new RegExp(`(?<![\\w.,])${number[1].replace(/[.,]/g, "\\$&")}(?![\\w.,])`).test(supported);
@@ -600,5 +625,53 @@ export function correctiveControlFailures(requestFor: (caseId: string) => Author
     const reading = request ? read(labelled.id, request.issues.map((ref) => ref.step)) : null;
     expect(`${labelled.id}: the product's steps, restated, are actionable and screen-clear`, reading !== null && reading.judged.perExplanation.every((p) => p.actionable && p.category === "unverified"));
   }
+  return failures;
+}
+
+/**
+ * The fabricated-literal screen in every quotation style. Run 2 of the corrective task sentence measured at
+ * d2f9721f (2026-09-23) gave "Correct the operator casing to 'operator'." and "…to 'true'.": values the
+ * request never held, read as not actionable and never as defects, so neither would reach a person. Each is
+ * replayed verbatim, then double-quoted, curly-quoted, back-quoted, escaped and unquoted, beside the
+ * request's own words quoted the same ways (rule text, issue ids, the given action), which must stay clear.
+ */
+export function literalControlFailures(requestFor: (caseId: string) => AuthoringRequest | undefined): string[] {
+  const failures: string[] = [];
+  const expect = (label: string, ok: boolean) => {
+    if (!ok) failures.push(label);
+  };
+  const readings = (caseId: string, texts: string[]) => {
+    const request = requestFor(caseId);
+    if (!request || request.issues.length !== texts.length) return [];
+    const parsed = parseAuthoringAnswer({ version: 1, explanations: request.issues.map((ref, i) => ({ issueId: ref.id, text: texts[i] })) }, request);
+    return parsed.ok ? judgeAuthoringAnswer(request, parsed).perExplanation : [];
+  };
+  const invented = (caseId: string, texts: string[]) => {
+    const read = readings(caseId, texts);
+    return read.length === texts.length && read.every((p) => p.category === "defect" && p.unsupported.includes("FABRICATED_LITERAL"));
+  };
+  const clear = (caseId: string, texts: string[]) => {
+    const read = readings(caseId, texts);
+    return read.length === texts.length && read.every((p) => p.unsupported.length === 0);
+  };
+  const op = (value: string) => `The operator casing is incorrect. Action: Correct the operator casing to ${value}.`;
+  const setting = (value: string) => `The configuration value is outside its permitted set. Action: Correct the configuration value to ${value}.`;
+
+  expect("reported: 'operator' and 'true', single-quoted as captured, are invented values", invented("casing", [op("'operator'"), setting("'true'")]));
+  expect("...double-quoted too", invented("casing", [op('"operator"'), setting('"true"')]));
+  expect("...curly-quoted", invented("casing", [op("‘operator’"), setting("“true”")]));
+  expect("...back-quoted", invented("casing", [op("`operator`"), setting("`true`")]));
+  expect("...with escaped quotation marks", invented("casing", [op("\\'operator\\'"), setting('\\"true\\"')]));
+  expect("...and unquoted, where the value is a literal: a boolean, an operator name", invented("casing", ["The operator casing is incorrect. Change the operator to notEquals.", setting("true")]));
+  // This request holds "unsupported" and "supported" only inside the rule codes, never as a word or a name.
+  expect("a quoted name the request holds only inside a longer word is invented", invented("casing", ['Remove the "Unsupported" connector.', 'Rename the "Supported" step.']));
+
+  const step = (caseId: string, index: number) => requestFor(caseId)?.issues[index]?.step ?? "";
+  // Both from the 97996c48 captures, single-quoted: the request's own words.
+  expect("the request's own words single-quoted stay clear: the captured 'invalidTimeout' and 'on the run path'", clear("single", ["The timeout value is zero, negative, or not a finite number, which violates the validation rule for the 'invalidTimeout' rule."]) && clear("single", ["The timeout value is zero, negative, or not a finite number, which violates the validation rule for the 'on the run path' node."]));
+  expect("...as do an issue id and its rule code", clear("casing", ["Issue 'i0' is 'unsupportedOperator': the condition's operator is not a known one.", step("casing", 1)]));
+  expect("...and the given action's own target, quoted as a value", clear("casing", ["Review and apply the offered safe fix, which corrects the operator's casing to 'a listed value'.", step("casing", 1)]) && clear("cycle", ["Change the connector that closes this cycle to “Loop Back”.", "Remove this connector from the End step."]));
+  expect("...and escaped quotation marks around them", clear("cycle", ['Add a \\"Loop Back\\" connector to break the cycle.', "Remove this connector from the End step."]));
+  expect("apostrophes, straight and curly, are never quotation marks", clear("cycle", ["Change this cycle's closing connector to a Loop Back connector, so the steps' loop and the connector’s count end it.", "Remove this connector from the End step’s outgoing connectors."]));
   return failures;
 }
