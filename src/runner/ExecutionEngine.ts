@@ -2103,7 +2103,7 @@ export class ExecutionEngine {
    * any manual-handoff wait, then fire the cancellation token — its handler closes the live
    * browser runtime so in-flight Playwright work rejects immediately instead of running on.
    */
-  private cancelOne(instanceId: string, reason: string): void {
+  private cancelOne(instanceId: string, reason: string, origin: "ui" | "license-gate" = "ui"): void {
     const instance = this.pool.get(instanceId);
     if (!instance) return;
     if (["completed", "failed", "cancelled"].includes(instance.status) && !this.activeInstanceRunners.has(instanceId)) {
@@ -2113,12 +2113,16 @@ export class ExecutionEngine {
       return;
     }
 
+    const requestedAt = new Date().toISOString();
     this.durableStore.recordCancellation({
       instanceId,
       executionId: instance.executionId,
-      requestedAt: new Date().toISOString(),
+      requestedAt,
       reason,
-      source: "ui"
+      source: origin,
+      // Only a live runner completes a cancellation (runInstanceInner's finally). Work that never
+      // started has nothing to unwind, so its cancellation is complete as it is recorded.
+      completedAt: this.activeInstanceRunners.has(instanceId) ? undefined : requestedAt
     });
     if (instance.status === "waitingForManualAction") {
       this.manualHandoffController.cancel(instance.executionId, instance.instanceId);
@@ -2150,7 +2154,7 @@ export class ExecutionEngine {
     const cancelled: string[] = [];
     for (const instance of this.pool.list()) {
       if (!notYetStarted.includes(instance.status)) continue;
-      this.cancelOne(instance.instanceId, reason);
+      this.cancelOne(instance.instanceId, reason, "license-gate");
       cancelled.push(instance.instanceId);
     }
     return cancelled;
