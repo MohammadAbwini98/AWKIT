@@ -876,7 +876,7 @@ console.log("\n12 — corrective step, fix priority, the review store and the ad
   const sha = instructionsSha256(request);
   type Judged = ReviewItem["judged"];
   const clear: Judged = { onSubject: true, misattributed: false, actionable: true, unsupported: [], category: "unverified" };
-  const synth = (capturedAt: string, o: { cases?: string[]; judged?: (index: number) => Partial<Judged>; undelivered?: string[]; orderViolation?: string } = {}): ReviewCapture => {
+  const synth = (capturedAt: string, o: { cases?: string[]; judged?: (index: number) => Partial<Judged>; undelivered?: string[]; orderViolation?: string; step?: string; text?: string } = {}): ReviewCapture => {
     const captureId = `synthetic-${capturedAt}`;
     let index = 0;
     const cases = o.cases ?? caseIds;
@@ -891,7 +891,8 @@ console.log("\n12 — corrective step, fix priority, the review store and the ad
           blocking: s.blocking,
           fixable: s.fixable,
           evidence: "",
-          text: "Add what the step needs.",
+          ...(o.step ? { step: o.step } : {}),
+          text: o.text ?? "Add what the step needs.",
           judged: { ...clear, ...o.judged?.(index++) }
         }))
       );
@@ -936,6 +937,32 @@ console.log("\n12 — corrective step, fix priority, the review store and the ad
     return status(evaluateQualityTarget(runs, approve(runs), caseIds), 3);
   };
   check("13 of 17 actionable in one run (76 %) fails criterion 3; 14 of 17 (82 %) meets it", actionable(4) === "NOT MET" && actionable(3) === "MET");
+  // Criterion 3, option B (owner, 2026-09-23): the explanation a person sees, with the product's action
+  // beside the answer. The model's own rate is still reported, and never credited with the product's action.
+  const action = "Set this step's timeout to a positive number of milliseconds.";
+  const silent = () => ({ actionable: false, category: "notActionable" as const });
+  const shownRuns = [synth("2026-09-22T01", { step: action, judged: silent }), synth("2026-09-22T02", { step: action, judged: silent })];
+  const shown = evaluateQualityTarget(shownRuns, approve(shownRuns), caseIds);
+  check(
+    "the product's action beside every answer meets criterion 3 while the model's own text is reported at 0/17, uncredited",
+    status(shown, 3) === "MET" && shown.runs.every((r) => r.visibleActionable === 17 && r.actionable === 0),
+    JSON.stringify(shown.runs)
+  );
+  const defectBeside = (hits: number) => {
+    const runs = [synth("2026-09-22T01", { step: action, judged: (i) => (i < hits ? { actionable: false, unsupported: ["WRONG_REMEDY"], category: "defect" } : silent()) }), synth("2026-09-22T02", { step: action, judged: silent })];
+    return status(evaluateQualityTarget(runs, approve(runs), caseIds), 3);
+  };
+  check("an answer with a screen hit beside the product's action does not count: 4 of 17 fails criterion 3, 3 of 17 meets it", defectBeside(4) === "NOT MET" && defectBeside(3) === "MET");
+  const misBeside = [synth("2026-09-22T01", { step: action, judged: (i) => (i < 4 ? { misattributed: true, onSubject: false, category: "defect" } : silent()) }), synth("2026-09-22T02", { step: action, judged: silent })];
+  check("a misattributed answer beside the product's action does not count toward criterion 3", status(evaluateQualityTarget(misBeside, approve(misBeside), caseIds), 3) === "NOT MET");
+  const lostShown = [synth("2026-09-22T01", { step: action, undelivered: ["values", "branch"], judged: silent }), synth("2026-09-22T02", { step: action, judged: silent })];
+  const lostShownEval = evaluateQualityTarget(lostShown, approve(lostShown), caseIds);
+  check("an undelivered answer shows no action, so its issues count against criterion 3", lostShownEval.runs[0].sent === 17 && lostShownEval.runs[0].visibleActionable === 13 && status(lostShownEval, 3) === "NOT MET");
+  const copied = [synth("2026-09-22T01", { step: action, text: `Timeout is zero, negative or not a finite number. Action: ${action}` }), synth("2026-09-22T02", { step: action })];
+  const copiedEval = evaluateQualityTarget(copied, approve(copied), caseIds);
+  check("an answer repeating the product's action word for word is reported as such, and one of its own is not", copiedEval.runs[0].repeatsProductAction === 17 && copiedEval.runs[1].repeatsProductAction === 0 && copiedEval.runs[1].actionable === 17);
+  const unread = evaluateQualityTarget(copied, [], caseIds);
+  check("criterion 3 met with the product's action beside the answer leaves the target PENDING until a person reviews, never MET", status(unread, 3) === "MET" && unread.verdict === "PENDING");
   const onSubject = (misses: number) => {
     const runs = [synth("2026-09-22T01"), synth("2026-09-22T02", { judged: (i) => (i < misses ? { onSubject: false, category: "offSubject" } : {}) })];
     return status(evaluateQualityTarget(runs, approve(runs), caseIds), 2);

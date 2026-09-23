@@ -37,10 +37,13 @@ import { CANARY, judgeAuthoringAnswer, type AuthoringJudgement, type Explanation
 
 /** L4's proposed explanation quality target, as adopted by the owner. Never lowered to fit a result. */
 export const QUALITY_TARGET = Object.freeze({
-  adopted: "2026-09-22, provisionally (owner decision 1)",
+  adopted: "2026-09-22, provisionally (owner decision 1); criterion 3 revised 2026-09-23 (option B)",
   /** (2) On subject by proxy, in every complete run. */
   minOnSubject: 0.9,
-  /** (3) Actionable by proxy, in every complete run. */
+  /**
+   * (3) A corrective action in the explanation a person sees, in every complete run (owner, 2026-09-23,
+   * option B). The model's own rate is reported beside it and never credited with the product's action.
+   */
   minActionable: 0.8,
   /** (4) Of the screen-clear explanations, judged correct and actionable by a person. */
   minReviewedCorrectAndActionable: 0.8,
@@ -301,11 +304,23 @@ export type CriterionStatus = "MET" | "NOT MET" | "PENDING";
 
 export interface TargetEvaluation {
   completeRuns: number;
-  runs: Array<{ run: number; sent: number; delivered: number; onSubject: number; misattributed: number; actionable: number; ranked: number; orderViolations: number; withheld: number }>;
+  /**
+   * `actionable` is the model's own text by proxy; `repeatsProductAction` of those repeat the product's action
+   * word for word. `visibleActionable` is criterion 3: the explanation a person sees holds a corrective action.
+   */
+  runs: Array<{ run: number; sent: number; delivered: number; onSubject: number; misattributed: number; actionable: number; repeatsProductAction: number; visibleActionable: number; ranked: number; orderViolations: number; withheld: number }>;
   review: { screenClear: number; screenClearReviewed: number; screenClearCorrectAndActionable: number; screenHits: number; screenHitsReviewed: number; confirmedUnsupported: number };
   criteria: Array<{ id: number; label: string; status: CriterionStatus; detail: string }>;
   verdict: CriterionStatus;
 }
+
+/**
+ * Criterion 3 (option B): the explanation a person sees holds a corrective action, either the product's,
+ * shown beside every accepted answer (`step`, never model text), or the model's own. An answer with a screen
+ * hit or a misattribution never counts, because it puts other guidance beside the product's. An undelivered
+ * answer has no item, so its issues still count against the rate.
+ */
+const visibleCorrective = (i: ReviewItem) => !i.judged.misattributed && i.judged.unsupported.length === 0 && (!!i.step || i.judged.actionable);
 
 /**
  * The target over captures of ONE request and model. Run `k` is each case's `k`-th measurement, in
@@ -332,6 +347,8 @@ export function evaluateQualityTarget(captures: readonly ReviewCapture[], verdic
       onSubject: count((i) => i.judged.onSubject),
       misattributed: count((i) => i.judged.misattributed),
       actionable: count((i) => i.judged.actionable),
+      repeatsProductAction: count((i) => i.judged.actionable && !!i.step && !!i.text?.includes(i.step)),
+      visibleActionable: count(visibleCorrective),
       ranked: inRun.reduce((n, { measured }) => n + measured.ranking.length, 0),
       orderViolations: inRun.filter(({ measured }) => measured.rankingOrderCorrect === false).length,
       withheld: inRun.filter(({ measured }) => measured.rankingWithheld).length
@@ -378,9 +395,9 @@ export function evaluateQualityTarget(captures: readonly ReviewCapture[], verdic
     },
     {
       id: 3,
-      label: `at least ${QUALITY_TARGET.minActionable * 100} % actionable by proxy, in every complete run`,
-      status: everyRun((r) => r.actionable, QUALITY_TARGET.minActionable) ? "MET" : "NOT MET",
-      detail: perRun((r) => r.actionable)
+      label: `at least ${QUALITY_TARGET.minActionable * 100} % of issues get a corrective action in the explanation a person sees, in every complete run`,
+      status: everyRun((r) => r.visibleActionable, QUALITY_TARGET.minActionable) ? "MET" : "NOT MET",
+      detail: `${perRun((r) => r.visibleActionable)}; the model's own text, reported and not credited: ${runs.map((r) => `run ${r.run} ${r.actionable}/${r.sent} (${r.repeatsProductAction} repeat the product's action word for word)`).join(", ") || "no complete run"}`
     },
     {
       id: 4,

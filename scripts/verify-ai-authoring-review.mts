@@ -93,7 +93,7 @@ for (const modelId of [...new Set(captures.map((c) => c.modelId))]) {
   );
   console.log(`\n${modelId}: ${evaluation.completeRuns} complete run(s)`);
   for (const r of evaluation.runs) {
-    console.log(`  run ${r.run}: ${r.delivered}/${LABELLED_SET.length} delivered, ${r.onSubject}/${r.sent} on subject, ${r.actionable}/${r.sent} actionable, ${r.misattributed} misattributed, ${r.ranked} ranked, ${r.orderViolations} order violation(s), ${r.withheld} withheld`);
+    console.log(`  run ${r.run}: ${r.delivered}/${LABELLED_SET.length} delivered, ${r.onSubject}/${r.sent} on subject, ${r.visibleActionable}/${r.sent} with a corrective action a person sees, ${r.actionable}/${r.sent} actionable in the model's own text (${r.repeatsProductAction} repeating the product's action), ${r.misattributed} misattributed, ${r.ranked} ranked, ${r.orderViolations} order violation(s), ${r.withheld} withheld`);
   }
   const rv = evaluation.review;
   console.log(`  review: ${rv.screenClearReviewed}/${rv.screenClear} screen-clear and ${rv.screenHitsReviewed}/${rv.screenHits} screen hits reviewed; ${rv.confirmedUnsupported} unsupported claim(s) confirmed by a person`);
