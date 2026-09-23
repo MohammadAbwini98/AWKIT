@@ -1,6 +1,35 @@
 # CURRENT_STATE
 
-## L4b criterion 3 measures the explanation a person sees, by owner decision (option B) (2026-09-23, current)
+## L4b review integrity: a placeholder verdict never counts (2026-09-23, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L4b quality is
+not a ledger case).
+
+- **Fixed (`1b92298f`).** The store's `YOUR_LABEL` verdict had been counted as a review.
+  - `recordVerdict` now refuses a blank label, a template slot, or a listed placeholder or agent label.
+  - `evaluateQualityTarget` counts only a person's verdicts.
+  - A stored placeholder is kept in `reviews.json` for audit, untouched, and a person's verdict on the
+    same item is recorded beside it.
+  - See L4 › "A placeholder verdict never counts".
+- **Now:** 0 genuine verdicts, 1 kept for audit. The **TARGET is PENDING**:
+  - criterion 4 at 0 of 16 reviewed (it read 1 of 16);
+  - criterion 3 MET, 17/17 and 17/17;
+  - the model's own text 9/17 and 7/17, every one repeating the product's action, reported and not
+    credited.
+- **Review handoff:** the 16 current answers and the 11 historical proposals were given to the owner in
+  chat, not committed, because captured model text stays local. No verdict was recorded by an agent.
+- **Status:** L1, L4b and L5b stay `in_progress`. **L7 cannot be entered.** L4b is not accepted, and L1 is
+  not GO.
+
+| Check (final state) | Result |
+|---|---|
+| `verify:ai-authoring` | 272/272 (was 268). Mutations: the evaluator filter and the audit preservation dropped, 269/272; the `recordVerdict` refusal disabled NOT RUN (the permission classifier denied the run) |
+| `verify:ai-authoring-review` | exit 1, TARGET PENDING: 0 by a person, 1 kept for audit; criterion 4 PENDING at 0/16 |
+| `typecheck:scripts` · `npm run build` | PASS · PASS |
+| `verify:roadmap-dashboard` | 177/177 "Sources agree" on both rounds: 320 issues, 26 outstanding / 294 closed, 180 edges |
+| `verify:ai-authoring-quality-live` · `benchmark:ai-model-0-8b` | NOT RUN: no request, model or limit changed |
+
+## L4b criterion 3 measures the explanation a person sees, by owner decision (option B) (2026-09-23)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L4b quality is
 not a ledger case).

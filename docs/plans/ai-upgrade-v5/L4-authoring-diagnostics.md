@@ -726,17 +726,56 @@ limits, the corrective actions and the Flow Designer are unchanged.
 documented example values, recorded at 2026-09-23T08:27Z. The evaluator counts it as reviewed, but it is
 not an assessment. Recording a verdict on the same item replaces it. It was not edited here.
 
+### A placeholder verdict never counts (2026-09-23, `1b92298f`)
+
+**Root cause.** `recordVerdict` accepted any non-empty label, so the CLI's documented example
+`YOUR_LABEL` reached the real store, and `evaluateQualityTarget` counted it as reviewed.
+
+**The correction** (`scripts/ai-harness/authoringQualityReview.ts`):
+
+- `isGenuineReviewer` refuses these labels:
+  - a blank label;
+  - a template slot (`<label>`, `{name}`);
+  - an explicit list of placeholders and agents: `YOUR_LABEL` in any case or spacing, `reviewer`,
+    `placeholder`, `TODO`, `Claude`, `Codex`, `Gemini` and others.
+- `recordVerdict` refuses a verdict under any of them.
+- `evaluateQualityTarget` counts only a person's verdicts. It is the one guard every caller goes through.
+- **Audit.** A stored placeholder verdict stays in `reviews.json` and is never rewritten. A person's
+  verdict on the same item is recorded beside it, and replaces only that person's own earlier verdict.
+- `verify:ai-authoring-review` lists what it kept for audit and did not count. `--pending` shows the
+  placeholder's item as awaiting a person.
+
+**Proven** (`verify:ai-authoring` 272/272, was 268):
+
+- six placeholder and agent labels are refused;
+- a stored placeholder stays unchanged beside a person's verdict;
+- every answer "approved" under `YOUR_LABEL` leaves 0 reviewed and the target PENDING;
+- one placeholder among real verdicts leaves 33 of 34 reviewed, and the target PENDING.
+
+**Mutations,** reverted:
+
+- the evaluator filter and the audit preservation, each dropped and run together: 269/272, failing
+  exactly those three checks;
+- disabling the `recordVerdict` refusal: **NOT RUN**, because the session's permission classifier
+  denied that run.
+
+**Over the real store:** 0 verdicts by a person, and 1 kept for audit (`YOUR_LABEL` on
+`…adbc14/casing/i0`, still in the file). Criterion 4 is PENDING at **0 of 16** (it read 1 of 16),
+criterion 3 is MET at 17/17 and 17/17, and the **TARGET is PENDING**. No threshold, judge, prompt, model
+or capture changed.
+
 ### What L4b acceptance still needs
 
 - **Criterion 3:** MET under option B, 17/17 in each run. The model's own rate (9/17 and 7/17, 0/34
   written by the model) is reported beside it, never credited.
-- **A person's review.** Two sets are unread:
+- **A person's review.** Two sets are unread (0 genuine verdicts in the store since `1b92298f`):
   - the 11 screen-clear answers of `97996c48`. The owner's review found 6/11 correct and actionable. Its
     per-answer verdicts are proposed in the 2026-09-23 HANDOFF and await the owner's confirmation and
     recording. They count only for that earlier request, which is ignored by the evaluation;
-  - the 16 screen-clear answers of the final request (criteria 1 and 4), including a real verdict to
-    replace the placeholder above. Run `npm run verify:ai-authoring-review -- --pending`, then
-    `-- --record` for each.
+  - the 16 screen-clear answers of the final request (criteria 1 and 4), `…adbc14/casing/i0` among them.
+    The placeholder on that item stays in the store for audit, and a person's verdict is recorded
+    beside it. Run `npm run verify:ai-authoring-review -- --pending`, then `-- --record` for each under
+    the reviewer's own label.
 - The target is provisional; the owner may confirm it or change it.
 
 Until the target is MET, L4b stays `in_progress`. Even then, a MET target does not by itself accept L4b

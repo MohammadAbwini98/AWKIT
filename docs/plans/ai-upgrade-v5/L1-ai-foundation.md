@@ -1390,8 +1390,9 @@ re-measured.**
      9/17 and 7/17 answers. Every one of them repeats the product's action word for word, and 0/34 hold a
      correction the model wrote itself. Prompt work has stopped.
    - **Still missing:** no person has recorded a review of either request's screen-clear answers
-     (criteria 1 and 4). The one verdict in the store is a template placeholder (L4 › "Criterion 3 as
-     option B, implemented").
+     (criteria 1 and 4): 0 of 16 for the current request. The store's one verdict is a template
+     placeholder, which since `1b92298f` is kept for audit and never counted (L4 › "A placeholder
+     verdict never counts").
    - **A MET target does not decide L1.** The model's own remediation quality is weighed in item 2.
 2. The owner's go/no-go on the re-scoped model, including whether the 4B stays pinned, in light of the
    quality evidence: locator plans 3–4 of 5 proven with 0 false targets, explanations 17/17 on subject

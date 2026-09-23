@@ -1,5 +1,26 @@
 # TASK_LOG
 
+## 2026-09-23 — L4b: a placeholder verdict never counts; the 16-answer review handed to the owner (Claude)
+
+- **Task:** close the reviewer-integrity gap, hand the owner the 16 current answers and the 11
+  historical proposals, and reconcile L4b acceptance once verdicts exist. No threshold, judge, prompt,
+  model or capture changes.
+- **Files (`1b92298f`):**
+  - `scripts/ai-harness/authoringQualityReview.ts`: `isGenuineReviewer`, the refusal in `recordVerdict`,
+    audit preservation, and the evaluator filter;
+  - `scripts/verify-ai-authoring.mts`: four checks in §12;
+  - `scripts/verify-ai-authoring-review.mts`: lists the verdicts kept for audit, and `--pending` counts
+    only a person's.
+  - This closeout: the L4 and L1 plans, CURRENT_STATE, HANDOFF and KNOWN_ISSUES.
+- **Checks:**
+  - `verify:ai-authoring` 272/272 (was 268).
+  - Mutations: 269/272 on the evaluator and audit guards. The refusal mutation is NOT RUN, because the
+    permission classifier denied it.
+  - `verify:ai-authoring-review` exit 1: TARGET PENDING, criterion 4 at 0 of 16.
+  - `typecheck:scripts` and build PASS.
+- **Result:** the fix is shipped. **0 genuine verdicts; the owner's review is outstanding.** L4b stays
+  `in_progress`, L1 is not GO, and no verdict was recorded by an agent.
+
 ## 2026-09-23 — L4b criterion 3: the owner's option B implemented; review handoff prepared (Claude)
 
 - **Task:** present the criterion 3 decision and prepare the human review. On the owner's choice of B,

@@ -1,6 +1,38 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-23, latest) — L4b criterion 3 is option B and MET; the target waits on a person's review
+## HANDOFF (2026-09-23, latest) — L4b review integrity fixed; 16 current verdicts await the owner
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done (`1b92298f`):** a verdict under a placeholder or an agent's label is refused and never counted.
+  The stored `YOUR_LABEL` verdict on `…adbc14/casing/i0` stays in `reviews.json` for audit, untouched.
+  See L4 › "A placeholder verdict never counts".
+- **Now:** 0 genuine verdicts. **TARGET: PENDING**:
+  - criterion 4 at 0 of 16;
+  - criterion 1 PENDING;
+  - criterion 3 MET, 17/17 and 17/17 (the model's own text 9/17 and 7/17, never credited).
+- **The review sheet** was given to the owner in chat, not committed. It holds:
+  - B1–B16: the 16 current answers, in `--pending` order, each with its id, issue, the model's text and
+    the product's action;
+  - A1–A11: the historical proposals, with A2, A3, A6 and A8 flagged, because today's judge reads them
+    as not actionable (A2, A3, A8: the action was cut) or as a wrong remedy (A6).
+- **Next, not started (the owner's):**
+  1. The owner gives the B1–B16 verdicts and a label of their own. They record each one in their own
+     terminal:
+
+     ```bash
+     npm run verify:ai-authoring-review -- --record <id> --correct yes|no --actionable yes|no --grounded yes|no --unsupported yes|no --reviewer <label>
+     ```
+
+     Then run `npm run verify:ai-authoring-review` and report its actual result.
+  2. The owner confirms or corrects A1–A11 separately. These items are evidence for an earlier request
+     and are never counted toward the 16.
+  3. Only then is L4b acceptance reconciled. L1's go/no-go is separate.
+- **Do not:**
+  - record a verdict as an agent, or edit or delete the placeholder;
+  - credit a copied product action as the model's own correction;
+  - accept L4b or declare L1 GO while any of the 16 is unread.
+
+## HANDOFF (2026-09-23, superseded) — L4b criterion 3 is option B and MET; the target waits on a person's review
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done (`289b9b71`, then this closeout):** the owner chose option B, and it is implemented. See L4 ›

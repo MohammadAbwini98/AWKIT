@@ -53,6 +53,12 @@
     now defects (L4 › "The fabricated-literal screen reads every quotation style").
   - **Residual, by design:** an unquoted plain word given as a value ("…to operator.") is not screened,
     because it reads like prose ("to lowercase"). A person's review covers it.
+- **Review-store gap (FIXED `1b92298f`, found 2026-09-23):** a verdict under the CLI's example label
+  `YOUR_LABEL` was accepted and counted as a person's review (criterion 4 read 1 of 16).
+  - Now a placeholder, template-slot or agent label is refused, and the evaluator never counts one.
+  - The stored one is kept for audit, untouched.
+  - **Residual:** the label list is explicit, so an unlisted invented name still passes. The owner
+    recording under their own label is what makes a verdict genuine.
 
 ## The 0.8B's failure-analysis cause selection does not beat the baseline, and ignores provenance (2026-09-22, OPEN — `awkit-djnl.8`)
 
