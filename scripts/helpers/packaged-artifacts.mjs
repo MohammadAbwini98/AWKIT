@@ -84,8 +84,14 @@ export async function newestFileMtime(dir) {
  * A packaged tree older than the sources it claims to contain proves nothing: every packaged check
  * would drive a stale bundle and report a result about code that is no longer in the repository.
  * Returns null when `dist/win-unpacked` is at least as new as `src/` and `app/`, otherwise a message
- * naming the newer source file. mtime can only err towards "stale" after a checkout, never towards
- * accepting a bundle that predates an edit.
+ * naming the newer source file.
+ *
+ * SUPPORTING evidence, not provenance. It refuses a bundle that predates an ordinary edit, but mtime
+ * cannot see a touched or copied-in app.asar, sources restored with their old mtimes, an edit made
+ * while the build ran, or any input outside src/ and app/ (resources/, package.json, build config,
+ * node_modules). What a package contains is established by the app.asar content check and
+ * dist/release-provenance.json. A fresh checkout makes every source newer, so a dist/ copied onto
+ * another checkout is refused unless the whole tree is copied with its timestamps preserved.
  */
 export async function stalePackagedPayload(root = repoRoot) {
   const unpackedDir = join(root, "dist", "win-unpacked");
@@ -93,6 +99,8 @@ export async function stalePackagedPayload(root = repoRoot) {
   const packaged = await stat(existsSync(asarPath) ? asarPath : join(unpackedDir, "SpecterStudio.exe"));
   const newestSource = (await Promise.all([join(root, "src"), join(root, "app")].map(newestFileMtime)))
     .reduce((a, b) => (b.mtimeMs > a.mtimeMs ? b : a));
+  // No readable source file means nothing was compared; that is not "fresh".
+  if (newestSource.mtimeMs === 0) return "no readable file under src/ or app/ — the packaged payload's freshness cannot be established.";
   if (newestSource.mtimeMs <= packaged.mtimeMs) return null;
   return (
     `dist/win-unpacked is STALE — ${relative(root, newestSource.path)} ` +

@@ -21,6 +21,7 @@ import { fileURLToPath } from "node:url";
 import { _electron as electron, type ElectronApplication } from "playwright";
 import { loadSqlJs } from "@src/runner/store/SqlJsLoader";
 import { capturePackagedAppPids, ensurePackagedAppDead } from "./helpers/packaged-process-tree.mts";
+import { sanitizeAppEnv } from "./helpers/packaged-license.mts";
 
 const requireFromHere = createRequire(import.meta.url);
 // @electron/asar is CJS (ships with electron-builder's dependency tree).
@@ -101,7 +102,8 @@ async function main(): Promise<void> {
   // operator's real %LOCALAPPDATA% opened (and could migrate) their daily runtime database.
   const localAppData = join(tmpdir(), "awkit-packaged-runtime", new Date().toISOString().replace(/[:.]/g, "-"));
   await mkdir(localAppData, { recursive: true });
-  const env = { ...process.env, LOCALAPPDATA: localAppData } as Record<string, string | undefined>;
+  // Sanitized like the other packaged gates: the app must never inherit the issuer-key path.
+  const env = sanitizeAppEnv({ ...process.env, LOCALAPPDATA: localAppData }) as Record<string, string | undefined>;
   delete env.ELECTRON_RUN_AS_NODE; // must boot as a GUI app
   const app = await electron.launch({ executablePath: exePath, env: env as never, timeout: 60_000 });
   // Launcher-stub gotcha (Phase 5.1D): the spawned EXE is a stub; capture the REAL main pid

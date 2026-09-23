@@ -24,6 +24,9 @@
  *     externally afterwards
  *  K. the ACTUAL portable EXE boots on a second fresh profile and creates the runtime
  *  L. NSIS installer integrity (sha512 matches latest.yml)
+ *  M. network isolation over the whole walkthrough (only unlicensed startup and K when D–J are BLOCKED)
+ *
+ * K, L and M need no license and run on the licensed and the BLOCKED path alike.
  *
  * HONESTY NOTE: this is NOT the clean/offline Windows VM walkthrough. It proves the packaged
  * app works with no developer paths and no pre-existing app data, and that it only talks to
@@ -105,7 +108,6 @@ function check(label: string, condition: unknown, detail?: string): void {
 
 const sleep = (ms: number) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 
-/** Newest file mtime under `dir`, used to detect a packaged tree older than its own sources. */
 /** The packaged app shows a splash first; return only the main window carrying the preload bridge. */
 async function resolvePackagedMainWindow(app: ElectronApplication, timeoutMs = 60_000): Promise<Page> {
   const deadline = Date.now() + timeoutMs;
@@ -206,18 +208,24 @@ interface PsConnection {
 interface SystemSample {
   procs: PsProcess[];
   conns: PsConnection[];
+  /** False when the TCP table could not be read, so an empty `conns` means "not looked", not "none". */
+  connsRead: boolean;
 }
 
 async function sampleSystem(): Promise<SystemSample | null> {
-  const raw = await psJson<{ procs: PsProcess[] | PsProcess; conns: PsConnection[] | PsConnection | null }>(
+  // `-State Established,SynSent` reports ObjectNotFound for a state with no connections (SynSent
+  // usually), so only an error of any OTHER category, or a missing cmdlet, means the table was not read.
+  const raw = await psJson<{ procs: PsProcess[] | PsProcess; conns: PsConnection[] | PsConnection | null; connsRead: boolean }>(
     "$ErrorActionPreference='SilentlyContinue';" +
       "$procs = Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name,ExecutablePath,CommandLine;" +
-      "$conns = Get-NetTCPConnection -State Established,SynSent -ErrorAction SilentlyContinue | Select-Object OwningProcess,RemoteAddress,RemotePort;" +
-      "@{procs=$procs;conns=$conns} | ConvertTo-Json -Depth 4 -Compress"
+      "$connErr = $null;" +
+      "$conns = Get-NetTCPConnection -State Established,SynSent -ErrorAction SilentlyContinue -ErrorVariable connErr | Select-Object OwningProcess,RemoteAddress,RemotePort;" +
+      "$connsRead = [bool](Get-Command Get-NetTCPConnection) -and -not ($connErr | Where-Object { $_.CategoryInfo.Category -ne 'ObjectNotFound' });" +
+      "@{procs=$procs;conns=$conns;connsRead=$connsRead} | ConvertTo-Json -Depth 4 -Compress"
   );
   if (!raw) return null;
   const arr = <V,>(value: V[] | V | null | undefined): V[] => (Array.isArray(value) ? value : value ? [value] : []);
-  return { procs: arr(raw.procs), conns: arr(raw.conns) };
+  return { procs: arr(raw.procs), conns: arr(raw.conns), connsRead: raw.connsRead === true };
 }
 
 /**
@@ -285,7 +293,9 @@ class NetworkObserver {
     try {
       const sample = await sampleSystem();
       if (!sample) return null;
-      this.samples += 1;
+      // Only a sample that really read both tables counts towards Part M: the probe runs under
+      // SilentlyContinue, so a blind one would read as "no egress".
+      if (isLiveSample(sample) && sample.connsRead) this.samples += 1;
       // Attribute connections by EXECUTABLE PATH, not by parent-pid descent: Windows reuses
       // pids aggressively, so a descendant set polluted by dead roots can blame the user's
       // own Chrome for traffic that is not ours (observed in walkthrough run 2).
@@ -923,8 +933,8 @@ async function main(): Promise<void> {
     licensedSession = await licensePackagedMachine(tA, freshRootA);
     if (!licensedSession.licensed) {
       blocked += 1;
-      console.log(`  ⊘ Parts D–G real execution — BLOCKED: ${licensedSession.reason}`);
-      console.log("    Reporting BLOCKED rather than skipping: the four real runs below cannot be");
+      console.log(`  ⊘ Parts D–J real execution — BLOCKED: ${licensedSession.reason}`);
+      console.log("    Reporting BLOCKED rather than skipping: the real runs below cannot be");
       console.log("    attempted, so no claim is made about packaged execution either way.");
       throw new PackagedLicensingBlocked(licensedSession.reason ?? "licensing unavailable");
     }
@@ -1314,6 +1324,8 @@ async function main(): Promise<void> {
   async function independentParts(): Promise<void> {
     console.log("\nPart K — the ACTUAL portable EXE boots on a second fresh profile");
     portableProc = spawn(portableExePath, [], { env: appEnv(freshRootB) as never, stdio: "ignore", detached: false });
+    // Without a listener a spawn failure (e.g. ENOENT) is an uncaught exception that skips teardown.
+    portableProc.on("error", (error) => check("portable EXE spawned", false, error.message));
     const portablePid = portableProc.pid!;
     const portableSqlite = join(freshRootB, "SpecterStudio", "runtime", "runtime.sqlite");
     const portableBooted = await pollUntil(async () => (existsSync(portableSqlite) ? true : null), 240000, 2000);
@@ -1347,7 +1359,10 @@ async function main(): Promise<void> {
 
     console.log("\nPart M — network isolation observation (whole walkthrough)");
     observer.stop();
-    check(`system sampling ran (${observer.samples} samples)`, observer.samples >= 5);
+    check(`system sampling read the process and TCP tables (${observer.samples} samples)`, observer.samples >= 5);
+    if (summary.licensing) {
+      console.log("  (licensing BLOCKED: this window covers unlicensed startup, licensing IPC and the portable boot, not a licensed run)");
+    }
     const chromiumEgress = observer.nonLoopback.filter((conn) => conn.path.toLowerCase().includes("browsers\\chromium"));
     const appEgress = observer.nonLoopback.filter((conn) => !conn.path.toLowerCase().includes("browsers\\chromium"));
     check(
@@ -1372,6 +1387,7 @@ async function main(): Promise<void> {
     }
     console.log(`  (loopback connections observed: ${observer.loopbackConnections} — app ⇄ mock site / DevTools pipe)`);
     summary.network = {
+      coversLicensedRuns: !summary.licensing,
       samples: observer.samples,
       loopbackConnections: observer.loopbackConnections,
       nonLoopback: observer.nonLoopback
@@ -1379,12 +1395,14 @@ async function main(): Promise<void> {
   }
 
   console.log(`\nResult: ${passed} passed, ${failed} failed${blocked ? `, ${blocked} blocked` : ""}.`);
-  if (blocked > 0) {
+  if (summary.licensing) {
     console.log(
       `BLOCKED: licensed packaged execution was not attempted. Set ${ISSUER_KEY_ENV} on an authorized\n` +
         "validation machine or CI runner to run it. This is recorded as BLOCKED, not skipped and not passed —\n" +
         "no claim is made about packaged execution in either direction."
     );
+  } else if (blocked > 0) {
+    console.log("BLOCKED: see the ⊘ lines above; recorded as BLOCKED, not skipped and not passed.");
   }
   console.log(`Evidence: ${evidenceDir}`);
   console.log("REMINDER: this proves the packaged app on THIS machine with a fresh profile and loopback-only");

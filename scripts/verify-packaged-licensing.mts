@@ -38,10 +38,10 @@
  * execution rights, and the walkthrough asserts `inGrace === false` for exactly that reason.
  */
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from "node:fs";
 import { get as httpGet } from "node:http";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { _electron as electron, type ElectronApplication, type Page } from "playwright";
 import type { LicenseDocument } from "@src/licensing/LicenseTypes";
@@ -178,6 +178,23 @@ async function main(): Promise<void> {
     process.exit(1);
   }
   check("packaged EXE exists", true, exePath);
+  // The guard itself, on synthetic trees, so a fail-open in it cannot hide behind a fresh dist/.
+  const probe = join(baseDir, "stale-guard");
+  const probeAsar = join(probe, "dist", "win-unpacked", "resources", "app.asar");
+  const probeSource = join(probe, "src", "probe.ts");
+  mkdirSync(dirname(probeAsar), { recursive: true });
+  mkdirSync(join(probe, "app"), { recursive: true });
+  mkdirSync(dirname(probeSource), { recursive: true });
+  writeFileSync(probeAsar, "");
+  const built = new Date("2026-01-01T12:00:00Z");
+  utimesSync(probeAsar, built, built);
+  check("stale guard refuses when src/ and app/ hold no file", (await stalePackagedPayload(probe)) !== null);
+  writeFileSync(probeSource, "");
+  utimesSync(probeSource, built, new Date(built.getTime() - 3_600_000));
+  check("stale guard accepts a bundle newer than every source", (await stalePackagedPayload(probe)) === null);
+  utimesSync(probeSource, built, new Date(built.getTime() + 3_600_000));
+  const probeStale = await stalePackagedPayload(probe);
+  check("stale guard refuses a newer source and names it", probeStale?.includes("probe.ts") === true, probeStale ?? "accepted");
   // Without this the matrix would report on whatever bundle happened to be in dist/.
   const stale = await stalePackagedPayload(root);
   if (stale) {
