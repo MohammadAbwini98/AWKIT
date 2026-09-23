@@ -15,6 +15,7 @@
 import { existsSync } from "node:fs";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { _electron as electron, type ElectronApplication } from "playwright";
@@ -96,7 +97,11 @@ async function main(): Promise<void> {
   check("manifest still declares no internet requirement", manifest?.offline?.internetRequired === false && manifest?.offline?.runtimeDownloadsAllowed === false);
 
   console.log("\nPart C — launch the packaged app and read the runtime environment");
-  const env = { ...process.env } as Record<string, string | undefined>;
+  // A fresh, isolated profile, as the walkthrough and licensing gates use: launching against the
+  // operator's real %LOCALAPPDATA% opened (and could migrate) their daily runtime database.
+  const localAppData = join(tmpdir(), "awkit-packaged-runtime", new Date().toISOString().replace(/[:.]/g, "-"));
+  await mkdir(localAppData, { recursive: true });
+  const env = { ...process.env, LOCALAPPDATA: localAppData } as Record<string, string | undefined>;
   delete env.ELECTRON_RUN_AS_NODE; // must boot as a GUI app
   const app = await electron.launch({ executablePath: exePath, env: env as never, timeout: 60_000 });
   // Launcher-stub gotcha (Phase 5.1D): the spawned EXE is a stub; capture the REAL main pid
@@ -135,7 +140,6 @@ async function main(): Promise<void> {
       typeof environment?.sqlJsWasmPath === "string" && /app\.asar[\\/]node_modules[\\/]sql\.js/.test(environment.sqlJsWasmPath),
       environment?.sqlJsWasmPath
     );
-    const localAppData = process.env.LOCALAPPDATA ?? "";
     check(
       "runtime root is the writable %LOCALAPPDATA%/SpecterStudio (not resources/app.asar)",
       typeof environment?.runtimeRoot === "string" &&

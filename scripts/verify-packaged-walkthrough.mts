@@ -1256,6 +1256,62 @@ async function main(): Promise<void> {
       }
     }
 
+    await independentParts();
+  } catch (error) {
+    // A BLOCKED licensing precondition is a recorded outcome, not a failure and not a crash: the
+    // real-execution parts were never attempted, so nothing is claimed about them either way. The
+    // parts that need no license still run — before this, the throw silently skipped K, L and M, so
+    // a blocked run never checked the portable EXE, the NSIS installer or network isolation.
+    if (!(error instanceof PackagedLicensingBlocked)) throw error;
+    summary.licensing = { blocked: true, reason: error.message };
+    // Same state Part K starts from on the licensed path: every session closed (Part H closes A).
+    await sessionA?.close();
+    sessionA = null;
+    await independentParts();
+  } finally {
+    observer.stop();
+    // Phase 5.1D: tree-kill the REAL Electron main (not just the launcher stub) for every
+    // session launched, even on failure paths — killing only the stub leaves a zombie app.
+    const teardownLeftovers: number[] = [];
+    for (const session of [sessionA, sessionB, sessionC]) {
+      if (!session) continue;
+      const pids = sessionPids.get(session) ?? { stubPid: session.process().pid ?? 0, mainPid: 0 };
+      teardownLeftovers.push(...(await ensurePackagedAppDead(session, pids)));
+    }
+    // Assigned inside independentParts(), which control-flow narrowing cannot see.
+    const portable = portableProc as ReturnType<typeof spawn> | null;
+    if (portable?.pid) {
+      await new Promise((resolveKill) => execFile("taskkill", ["/PID", String(portable.pid), "/T", "/F"], () => resolveKill(null)));
+    }
+    mockSite?.kill();
+    // Sweep any bundled-Chromium or zombie app stragglers so the walkthrough never leaks processes.
+    const finalSample = await sampleSystem();
+    if (finalSample) {
+      for (const proc of bundledChromeAll(finalSample)) await taskkill(proc.ProcessId, true);
+      for (const proc of finalSample.procs.filter((p) => isAppProcess(p) && ["specterstudio.exe", "webflow studio.exe"].includes(p.Name.toLowerCase()))) {
+        await taskkill(proc.ProcessId, true);
+      }
+    }
+    // Final no-zombie verification: after teardown NOTHING app-owned may remain.
+    const postSweep = await sampleSystem();
+    const sweepVisible = isLiveSample(postSweep);
+    const zombies = sweepVisible
+      ? postSweep.procs.filter((p) => isAppProcess(p) && ["specterstudio.exe", "webflow studio.exe", "chrome.exe"].includes(p.Name.toLowerCase()))
+      : [];
+    check(
+      "teardown left no zombie app or bundled-Chromium processes",
+      sweepVisible && teardownLeftovers.length === 0 && zombies.length === 0,
+      sweepVisible
+        ? `leftover pids: ${teardownLeftovers.join(",") || "-"}; zombies: ${zombies.map((p) => `${p.Name}(${p.ProcessId})`).join(",") || "-"}`
+        : "post-sweep process enumeration failed — no no-zombie claim can be made"
+    );
+    summary.teardown = { leftovers: teardownLeftovers, zombies: zombies.map((p) => ({ pid: p.ProcessId, name: p.Name })) };
+    summary.finishedAt = new Date().toISOString();
+    await writeFile(join(evidenceDir, "walkthrough-summary.json"), `${JSON.stringify(summary, null, 2)}\n`, "utf8").catch(() => undefined);
+  }
+
+  /** Parts K, L and M need no license, so they run on the licensed and the BLOCKED path alike. */
+  async function independentParts(): Promise<void> {
     console.log("\nPart K — the ACTUAL portable EXE boots on a second fresh profile");
     portableProc = spawn(portableExePath, [], { env: appEnv(freshRootB) as never, stdio: "ignore", detached: false });
     const portablePid = portableProc.pid!;
@@ -1320,49 +1376,6 @@ async function main(): Promise<void> {
       loopbackConnections: observer.loopbackConnections,
       nonLoopback: observer.nonLoopback
     };
-  } catch (error) {
-    // A BLOCKED licensing precondition is a recorded outcome, not a failure and not a crash: the
-    // real-execution parts were never attempted, so nothing is claimed about them either way.
-    if (!(error instanceof PackagedLicensingBlocked)) throw error;
-    summary.licensing = { blocked: true, reason: error.message };
-  } finally {
-    observer.stop();
-    // Phase 5.1D: tree-kill the REAL Electron main (not just the launcher stub) for every
-    // session launched, even on failure paths — killing only the stub leaves a zombie app.
-    const teardownLeftovers: number[] = [];
-    for (const session of [sessionA, sessionB, sessionC]) {
-      if (!session) continue;
-      const pids = sessionPids.get(session) ?? { stubPid: session.process().pid ?? 0, mainPid: 0 };
-      teardownLeftovers.push(...(await ensurePackagedAppDead(session, pids)));
-    }
-    if (portableProc?.pid) {
-      await new Promise((resolveKill) => execFile("taskkill", ["/PID", String(portableProc!.pid), "/T", "/F"], () => resolveKill(null)));
-    }
-    mockSite?.kill();
-    // Sweep any bundled-Chromium or zombie app stragglers so the walkthrough never leaks processes.
-    const finalSample = await sampleSystem();
-    if (finalSample) {
-      for (const proc of bundledChromeAll(finalSample)) await taskkill(proc.ProcessId, true);
-      for (const proc of finalSample.procs.filter((p) => isAppProcess(p) && ["specterstudio.exe", "webflow studio.exe"].includes(p.Name.toLowerCase()))) {
-        await taskkill(proc.ProcessId, true);
-      }
-    }
-    // Final no-zombie verification: after teardown NOTHING app-owned may remain.
-    const postSweep = await sampleSystem();
-    const sweepVisible = isLiveSample(postSweep);
-    const zombies = sweepVisible
-      ? postSweep.procs.filter((p) => isAppProcess(p) && ["specterstudio.exe", "webflow studio.exe", "chrome.exe"].includes(p.Name.toLowerCase()))
-      : [];
-    check(
-      "teardown left no zombie app or bundled-Chromium processes",
-      sweepVisible && teardownLeftovers.length === 0 && zombies.length === 0,
-      sweepVisible
-        ? `leftover pids: ${teardownLeftovers.join(",") || "-"}; zombies: ${zombies.map((p) => `${p.Name}(${p.ProcessId})`).join(",") || "-"}`
-        : "post-sweep process enumeration failed — no no-zombie claim can be made"
-    );
-    summary.teardown = { leftovers: teardownLeftovers, zombies: zombies.map((p) => ({ pid: p.ProcessId, name: p.Name })) };
-    summary.finishedAt = new Date().toISOString();
-    await writeFile(join(evidenceDir, "walkthrough-summary.json"), `${JSON.stringify(summary, null, 2)}\n`, "utf8").catch(() => undefined);
   }
 
   console.log(`\nResult: ${passed} passed, ${failed} failed${blocked ? `, ${blocked} blocked` : ""}.`);
