@@ -18,7 +18,8 @@
  * how this defect stayed invisible through repeated packaging runs.
  */
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { readdir, stat } from "node:fs/promises";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const helpersDir = dirname(fileURLToPath(import.meta.url));
@@ -61,4 +62,41 @@ export function missingArtifactHint(path, command) {
 /** True when the current version's portable artifact is present. */
 export function portableExeExists(root = repoRoot) {
   return existsSync(portableExePath(root));
+}
+
+/** The newest file under `dir`, recursively, by mtime. */
+export async function newestFileMtime(dir) {
+  let newest = { path: dir, mtimeMs: 0 };
+  const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
+  for (const entry of entries) {
+    const full = join(dir, entry.name);
+    const found = entry.isDirectory()
+      ? await newestFileMtime(full)
+      : entry.isFile()
+        ? { path: full, mtimeMs: (await stat(full)).mtimeMs }
+        : newest;
+    if (found.mtimeMs > newest.mtimeMs) newest = found;
+  }
+  return newest;
+}
+
+/**
+ * A packaged tree older than the sources it claims to contain proves nothing: every packaged check
+ * would drive a stale bundle and report a result about code that is no longer in the repository.
+ * Returns null when `dist/win-unpacked` is at least as new as `src/` and `app/`, otherwise a message
+ * naming the newer source file. mtime can only err towards "stale" after a checkout, never towards
+ * accepting a bundle that predates an edit.
+ */
+export async function stalePackagedPayload(root = repoRoot) {
+  const unpackedDir = join(root, "dist", "win-unpacked");
+  const asarPath = join(unpackedDir, "resources", "app.asar");
+  const packaged = await stat(existsSync(asarPath) ? asarPath : join(unpackedDir, "SpecterStudio.exe"));
+  const newestSource = (await Promise.all([join(root, "src"), join(root, "app")].map(newestFileMtime)))
+    .reduce((a, b) => (b.mtimeMs > a.mtimeMs ? b : a));
+  if (newestSource.mtimeMs <= packaged.mtimeMs) return null;
+  return (
+    `dist/win-unpacked is STALE — ${relative(root, newestSource.path)} ` +
+    `(${new Date(newestSource.mtimeMs).toISOString()}) is newer than the packaged payload ` +
+    `(${new Date(packaged.mtimeMs).toISOString()}). Re-run "npm run package:portable" first.`
+  );
 }

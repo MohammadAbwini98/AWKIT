@@ -13,3 +13,5 @@ export declare function setupExePath(root?: string): string;
 export declare function setupExeName(root?: string): string;
 export declare function missingArtifactHint(path: string, command: string): string;
 export declare function portableExeExists(root?: string): boolean;
+export declare function newestFileMtime(dir: string): Promise<{ path: string; mtimeMs: number }>;
+export declare function stalePackagedPayload(root?: string): Promise<string | null>;

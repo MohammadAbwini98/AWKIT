@@ -58,6 +58,7 @@ import {
   writeCorruptStoredLicense,
   writeStoredLicenseEnvelope
 } from "./helpers/packaged-license.mts";
+import { stalePackagedPayload } from "./helpers/packaged-artifacts.mjs";
 
 const root = resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
 const exePath = join(root, "dist", "win-unpacked", "SpecterStudio.exe");
@@ -177,6 +178,13 @@ async function main(): Promise<void> {
     process.exit(1);
   }
   check("packaged EXE exists", true, exePath);
+  // Without this the matrix would report on whatever bundle happened to be in dist/.
+  const stale = await stalePackagedPayload(root);
+  if (stale) {
+    console.error(`  ✗ ${stale}`);
+    process.exit(1);
+  }
+  check("packaged payload is at least as new as src/ and app/", true);
   check("mock-site fixtures exist", existsSync(join(fixturesRoot, "workflows", "mock-simple-workflow.json")));
 
   let mockSite: ReturnType<typeof spawn> | null = null;

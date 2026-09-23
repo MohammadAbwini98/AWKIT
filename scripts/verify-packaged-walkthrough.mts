@@ -33,10 +33,10 @@
 import { spawn, execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { copyFile, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { get as httpGet } from "node:http";
 import { tmpdir } from "node:os";
-import { dirname, join, relative, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { _electron as electron, type ElectronApplication, type Page } from "playwright";
 import { loadSqlJs } from "@src/runner/store/SqlJsLoader";
@@ -51,7 +51,8 @@ import {
 import {
   portableExePath as resolvePortableExePath,
   setupExeName,
-  setupExePath as resolveSetupExePath
+  setupExePath as resolveSetupExePath,
+  stalePackagedPayload
 } from "./helpers/packaged-artifacts.mjs";
 
 const root = resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
@@ -105,21 +106,6 @@ function check(label: string, condition: unknown, detail?: string): void {
 const sleep = (ms: number) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 
 /** Newest file mtime under `dir`, used to detect a packaged tree older than its own sources. */
-async function newestFileMtime(dir: string): Promise<{ path: string; mtimeMs: number }> {
-  let newest = { path: dir, mtimeMs: 0 };
-  const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
-  for (const entry of entries) {
-    const full = join(dir, entry.name);
-    const found = entry.isDirectory()
-      ? await newestFileMtime(full)
-      : entry.isFile()
-        ? { path: full, mtimeMs: (await stat(full)).mtimeMs }
-        : newest;
-    if (found.mtimeMs > newest.mtimeMs) newest = found;
-  }
-  return newest;
-}
-
 /** The packaged app shows a splash first; return only the main window carrying the preload bridge. */
 async function resolvePackagedMainWindow(app: ElectronApplication, timeoutMs = 60_000): Promise<Page> {
   const deadline = Date.now() + timeoutMs;
@@ -744,28 +730,13 @@ async function main(): Promise<void> {
   }
   check("packaged win-unpacked EXE exists", true, exePath);
 
-  // A packaged tree older than the sources it claims to contain proves nothing: every check below
-  // would drive a stale bundle and report a green result about code that is no longer in the
-  // repository. Refuse outright rather than produce a misleading pass.
-  const asarPath = join(unpackedDir, "resources", "app.asar");
-  const packagedStamp = await stat(existsSync(asarPath) ? asarPath : exePath);
-  const newestSource = (await Promise.all([join(root, "src"), join(root, "app")].map(newestFileMtime)))
-    .reduce((a, b) => (b.mtimeMs > a.mtimeMs ? b : a));
-  if (newestSource.mtimeMs > packagedStamp.mtimeMs) {
-    console.error(
-      `  ✗ dist/win-unpacked is STALE — ${relative(root, newestSource.path)} ` +
-        `(${new Date(newestSource.mtimeMs).toISOString()}) is newer than the packaged payload ` +
-        `(${new Date(packagedStamp.mtimeMs).toISOString()}).\n` +
-        `    Re-run "npm run package:portable" first. Driving a stale bundle reports a pass about ` +
-        `code that is not in the working tree.`
-    );
+  // Refuse a stale bundle outright rather than produce a misleading pass.
+  const stale = await stalePackagedPayload(root);
+  if (stale) {
+    console.error(`  ✗ ${stale}`);
     process.exit(1);
   }
-  check(
-    "packaged payload is at least as new as src/ and app/",
-    true,
-    `packaged ${new Date(packagedStamp.mtimeMs).toISOString()} >= newest source ${new Date(newestSource.mtimeMs).toISOString()}`
-  );
+  check("packaged payload is at least as new as src/ and app/", true);
   check("portable EXE exists", existsSync(portableExePath), portableExePath);
   // Names the command that produces it: a gate failing for want of a build is a build step, not a
   // defect in the app. This used to "pass" by pointing at a 0.1.0 installer built in July.
