@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-4-spy-format-note-0923",
+    "title": "Record the real 0.8B's first proven Element Spy proposal on L3",
+    "objective": "At 5071606f the owner-authorized request clarification writes each capture candidate in the L3 section 7 request as the plan's own target object instead of strategy=value, Playwright's engine=selector form that the compiler refuses as SCRIPT. verify:ai-locator-attempts 118/118 (111/118 with the old format), verify:ai-assist-gui 162/0 with a scripted testId plan proven in real Electron. One bounded live run, verify:ai-spy-live 32/1 exit 1: Save profile was proposed by the pinned Qwen3.5-0.8B on its 2nd call as role button Save profile (exact) and confirmed by the page (1 match, the inspected element, a click lands there), nothing written. The 1 failure was a verifier precondition (attemptsUsed counts refusals only), corrected and not re-run. Edit (INV-2002) is still refused: its row-content limit needs an owner decision. Append a note to awkit-djnl.4 giving the commit and these results. Refresh the JSONL export. Nothing closes: awkit-djnl.4 stays in_progress, and this one element on one run is not L3's section 9 acceptance. No edge is added or removed. The lease writes .beads/** only.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "5071606f",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "scripts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "tracker-reflects-reality",
+      "description": "awkit-djnl.4 stays in_progress with a note naming 5071606f and its results, no edge changes, the JSONL export is refreshed from the database, and the dashboard reports that its sources agree.",
+      "evidence_required": [
+        "roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177 with the Overview banner on 'Sources agree' on round 1, run once after the lease release, after `bd update awkit-djnl.4 --append-notes` and `bd export -o .beads/issues.jsonl`: 26 outstanding / 294 closed with 180 edges, the export diff touching only awkit-djnl.4's line, and both narratives restating 65 PASS / 2 NOT RUN / 0 BLOCKED."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-4-spy-format-note-0923:project-state:2026-09-23T19:16:17.541Z",
+        "task": "awkit-djnl-4-spy-format-note-0923",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-23T19:16:17.541Z",
+        "acquired_at_commit": "5071606f4cf5c559d5f6e0d6e5e84c744a5bc5d4",
+        "released_at": "2026-09-23T19:16:49.590Z",
+        "released_reason": "real-model Element Spy proposal evidence noted on awkit-djnl.4 at 5071606f, nothing closed, no edge changed, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

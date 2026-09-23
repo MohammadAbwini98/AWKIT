@@ -1,18 +1,18 @@
 {
-  "task": "awkit-djnl-4-spy-live-note-0923",
-  "contract_path": "docs/ai/contracts/awkit-djnl-4-spy-live-note-0923.json",
+  "task": "awkit-djnl-4-spy-format-note-0923",
+  "contract_path": "docs/ai/contracts/awkit-djnl-4-spy-format-note-0923.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-09-23T18:48:59.803Z",
-  "acquired_at_commit": "fc14db8348b5782a14f8077eb03b23056e80d317",
+  "acquired_at": "2026-09-23T19:16:17.541Z",
+  "acquired_at_commit": "5071606f4cf5c559d5f6e0d6e5e84c744a5bc5d4",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-djnl-4-spy-live-note-0923.json"
+    "docs/ai/contracts/awkit-djnl-4-spy-format-note-0923.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-djnl-4-spy-live-note-0923.json": "3b3169cd5c7764137c15bab3b0f0949755e73b8f42de5428b49914e5cc9cbeba"
+    "docs/ai/contracts/awkit-djnl-4-spy-format-note-0923.json": "eb0b49a38293aca3e20b8c65b5b8b91bb8a30ed9ed8070eecef8f97ce002e70d"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -27,7 +27,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-23T18:49:30.781Z",
-  "released_reason": "real-model Element Spy evidence noted on awkit-djnl.4, nothing closed, no edge changed, export refreshed",
-  "archived_at": "2026-09-23T18:49:30.782Z"
+  "released_at": "2026-09-23T19:16:49.590Z",
+  "released_reason": "real-model Element Spy proposal evidence noted on awkit-djnl.4 at 5071606f, nothing closed, no edge changed, export refreshed",
+  "archived_at": "2026-09-23T19:16:49.593Z"
 }
