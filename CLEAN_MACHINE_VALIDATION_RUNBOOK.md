@@ -1,4 +1,4 @@
-# Clean-Machine Validation Runbook — SpecterStudio (AWKIT) 0.1.0
+# Clean-Machine Validation Runbook — SpecterStudio (AWKIT) 0.1.51
 
 ## ✅ Owner policy — clean-machine validation is OPTIONAL and NON-BLOCKING (2026-07-24, authoritative)
 
@@ -139,34 +139,48 @@ itself a finding to record — it is not a failure of the app.
 Copy these two files to the test machine (e.g. via read-only USB or a mapped read-only share). **Do
 not** copy the source tree or `node_modules`. Verify the hashes **on the test machine** before use.
 
+> **Refreshed 2026-09-23 for 0.1.51.** Both artifacts below were built from clean commit
+> `fe3439583c86b40c2c44084f276beecd84e1c477` (`treeDirty: false`, `dist/release-provenance.json`,
+> signed manifest pair committed at `f271e25f`). Earlier VM results (0.1.0 on 2026-07-30, 0.1.21 on
+> 2026-08-29) validated older artifacts and do **not** carry over to this build.
+
 ### Portable
 ```
-File    : SpecterStudio 0.1.0.exe
-Size    : 212,827,189 bytes  (203.0 MiB)
-Built   : 2026-07-29T19:42:45+03:00
-SHA-256 : 0934866d4a2bf04d0a2ea36934f03341581be1906dc47adef701a3e93bb1800f
-SHA-512 : vJ0gLb9LnII8CtZ/TIvq34ogTfddIuaUcQd+lS1wLzsqW6hGuYfz736YvaBHeTP5aQTMDwyjPt2vEp9fYKsJfw==  (base64)
+File    : SpecterStudio 0.1.51.exe
+Size    : 237,009,238 bytes  (226.0 MiB)
+Built   : 2026-09-23 from fe343958
+SHA-256 : c52e7ae44e2dd9b7f0a947255bdb92214dea63c6d5398dba029533c5ccb42ec2
 Signing : NotSigned  (Authenticode status: NotSigned — do NOT claim signed)
 ```
 
 ### NSIS installer
 ```
-File    : SpecterStudio Setup 0.1.0.exe
-Size    : 244,263,870 bytes  (232.9 MiB)
-Built   : 2026-07-29T19:37:55+03:00
-SHA-256 : 4ba8c55f812af05fba6270560234e6642171b12ae9e9b094fca1954562a39dfe
-SHA-512 : iGTa81i508AEiitMkXOtY0bdoBgb/okSDlwNTTDQvnZBaHUzFjDJnnhjDeMX6FLrOywAovh0Fr3oW1hDmgY6NA==  (base64; matches dist/latest.yml)
+File    : SpecterStudio Setup 0.1.51.exe
+Size    : 264,089,214 bytes  (251.9 MiB)
+Built   : 2026-09-23 from fe343958
+SHA-256 : 45c7a5a92b5cb9aa78c00840628f29da9370b013106fedb774b27a2d0002def8
+SHA-512 : fINZ46aZA9Mz8eHdFCuQzMW6SLRA21V62/H9KrBBjXpZM2ImbbOyvwzXL5Gn0rS0bKX5ObH0npq4OOZxlNGvmg==  (base64; matches dist/latest.yml)
 Signing : NotSigned  (Authenticode status: NotSigned — do NOT claim signed)
 ```
 
 **Verify on the test machine (PowerShell):**
 ```powershell
-Get-FileHash ".\SpecterStudio 0.1.0.exe"        -Algorithm SHA256 | Format-List
-Get-FileHash ".\SpecterStudio Setup 0.1.0.exe"  -Algorithm SHA256 | Format-List
+Get-FileHash ".\SpecterStudio 0.1.51.exe"        -Algorithm SHA256 | Format-List
+Get-FileHash ".\SpecterStudio Setup 0.1.51.exe"  -Algorithm SHA256 | Format-List
 # Confirm signing status (expected: NotSigned for both):
-Get-AuthenticodeSignature ".\SpecterStudio 0.1.0.exe"       | Select-Object Status, SignerCertificate
-Get-AuthenticodeSignature ".\SpecterStudio Setup 0.1.0.exe" | Select-Object Status, SignerCertificate
+Get-AuthenticodeSignature ".\SpecterStudio 0.1.51.exe"       | Select-Object Status, SignerCertificate
+Get-AuthenticodeSignature ".\SpecterStudio Setup 0.1.51.exe" | Select-Object Status, SignerCertificate
 ```
+
+**Licensing on 0.1.51.** Licensing enforcement is on in the packaged build and has no bypass. A
+fresh profile therefore cannot run a workflow (§4.4, 4.5, 4.8, 4.9, 6.3, 7.1.8) until a genuine
+license bound to **this VM's** fingerprint is imported: export the activation request from
+**Administration → Licensing** on the VM, carry it out as a small file (PowerShell Direct is fine for
+small files), have the authorized issuer sign it on the issuer workstation (never on the VM, never
+with a key copied onto the VM), and import the `.dat` back through the same page. An upgrade-seeded
+profile (§5) is admitted by the 14-day migration grace; that is not licensing and must not be recorded
+as licensing evidence. Also check that removing the license (Licensing → revoke/remove) refuses the
+next run.
 Record computed hashes and signing status in §12. **Any hash mismatch aborts the run** — the artifact
 is not the validated build.
 
@@ -238,7 +252,7 @@ field `sqlitePath`); use that rather than assuming a fixed subpath.
 ## 4. Clean-profile test procedure (PORTABLE, empty profile)
 
 Restore the clean snapshot. Confirm `%LOCALAPPDATA%\SpecterStudio` does **not** exist. Launch
-`SpecterStudio 0.1.0.exe` **as the standard user** (double-click; accept the SmartScreen warning).
+`SpecterStudio 0.1.51.exe` **as the standard user** (double-click; accept the SmartScreen warning).
 
 | # | Step | Expected result | Result |
 |---|---|---|---|
@@ -322,7 +336,7 @@ All of §4 and §5 above, on the standard-user offline machine, using the **port
 ## 7. NSIS install, upgrade, and uninstall checks
 
 Restore the **clean** snapshot first (so the installer runs against a machine with no prior app data
-or install). Run `SpecterStudio Setup 0.1.0.exe` **as the standard user**.
+or install). Run `SpecterStudio Setup 0.1.51.exe` **as the standard user**.
 
 ### 7.1 Install
 | # | Step | Expected result | Result |
@@ -448,12 +462,13 @@ template:
 > All fields below are **Not Executed** until a tester completes this runbook on a qualifying machine.
 
 ```
-CLEAN-MACHINE VALIDATION RESULT — SpecterStudio (AWKIT) 0.1.0
+CLEAN-MACHINE VALIDATION RESULT — SpecterStudio (AWKIT) 0.1.51
 ============================================================
 Runbook version .............: CLEAN_MACHINE_VALIDATION_RUNBOOK.md @ <git short SHA>
-Build under test ............: portable + NSIS 0.1.0
-  Portable SHA-256 (verified): __________________________  (expect 129833754870f5fa2663efa48b979aaecaf1532831f20805a5b3f6537264c1fb)
-  NSIS SHA-256 (verified) ...: __________________________  (expect 74950020d105af9b5f188d09a467d1ad297fbfc064b12cabe9931f1c4e6e2a5a)
+Build under test ............: portable + NSIS 0.1.51 (source fe343958)
+  Portable SHA-256 (verified): __________________________  (expect c52e7ae44e2dd9b7f0a947255bdb92214dea63c6d5398dba029533c5ccb42ec2)
+  NSIS SHA-256 (verified) ...: __________________________  (expect 45c7a5a92b5cb9aa78c00840628f29da9370b013106fedb774b27a2d0002def8)
+  License used for runs .....: genuine, VM-bound / migration grace only / none  (grace is not licensing)
   Portable signing ..........: __________  (expect NotSigned)
   NSIS signing ..............: __________  (expect NotSigned)
 

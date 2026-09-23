@@ -1,5 +1,38 @@
 # KNOWN_ISSUES
 
+## Packaged gates, QC follow-up: two blind spots closed, the freshness guard is mtime only (2026-09-23, FIXED + OPEN limits — packaged acceptance QC)
+
+Found by the independent QC review (`awkit-qc-reviewer`, APPROVED_WITH_NOTES).
+
+- **Fixed:**
+  - `stalePackagedPayload` called a tree with no readable `src/` or `app/` file "fresh". It now
+    refuses. `verify:packaged-licensing` checks the guard on a synthetic tree: red 27/1/2 without the
+    fix, green 28/0/2.
+  - Walkthrough Part M counted a sample even when `Get-NetTCPConnection` failed silently. A blind
+    run read as "no egress". Only samples that read the TCP table now count (17 in the rerun). One
+    residual (uncertain, unobserved): an `ObjectNotFound` from a broken CIM class would still count
+    as "read". The forced-blind mutation was not run.
+  - A portable-EXE spawn error was uncaught and skipped teardown. It is now a failed check.
+  - `verify:packaged-runtime` did not strip the issuer-key path from the app's environment. It now
+    uses `sanitizeAppEnv` like the other two gates. The key was unset, so nothing was exposed.
+- **Open limits (recorded, not fixed):**
+  - The freshness guard is **mtime only**. It cannot see a touched `app.asar`, restored mtimes, an
+    edit during the build, or any input outside `src/` and `app/`. It also refuses a `dist/` copied
+    onto a fresh checkout. What a package contains is shown by the `app.asar` content check and
+    `dist/release-provenance.json`. Nothing binds `dist/win-unpacked` to the provenance record.
+  - Runtime-gate isolation covers `LOCALAPPDATA` only. `%APPDATA%` (Electron `userData`) is shared,
+    and each run adds a `%PROGRAMDATA%\SpecterStudio\Licensing\migration-grace-<hash>.json` mirror.
+    Temp roots are left in place, because no repo policy allows an agent to delete them.
+  - Every run of `verify:packaged-runtime` from Phase 4D until `927253f8` launched the app on the real
+    `%LOCALAPPDATA%\SpecterStudio`. At startup the app opens and migrates `runtime.sqlite`, rewrites
+    the migration-grace anchor and its ProgramData mirror, and (inferred, caller not confirmed)
+    rewrites `lastValidatedUtc`/`clockHighWaterUtc` in an existing `license.dat`. Those files
+    existed before, so they were modified, not created. No license, flow or workflow was written. It
+    was not established which run touched which file.
+  - `verify:license-dispatch-gate` asserts persistence at the `recordCancellation` spy, not with a
+    SQLite read-back. It also stubs backpressure and rebuilds the enforcement composition in the
+    script. It is dev evidence, not packaged evidence.
+
 ## Packaged gates: a licensing BLOCKED hid license-free checks, and one gate used the operator's profile (2026-09-23, FIXED — packaged acceptance)
 
 - **Symptom:**

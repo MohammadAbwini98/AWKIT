@@ -1,5 +1,27 @@
 # TASK_LOG
 
+## 2026-09-23 — Packaged licensing QC closeout and operator handoffs (Claude)
+
+- **Task:** independent QC of `e2f703cb`/`927253f8`/`b2e85720`, resolve findings, prepare the
+  signed-license and clean-machine operator handoffs for the 0.1.51 artifacts.
+- **QC:** `awkit-qc-reviewer`, APPROVED_WITH_NOTES (no blocking finding). The follow-up review of the
+  fixes was also APPROVED_WITH_NOTES, with all six addressed findings resolved.
+- **Fixed (verifier code):** empty-source fail-open in `stalePackagedPayload`, blind Part M samples,
+  uncaught portable spawn error, unsanitized runtime-gate env, D–J messages, and the guard's
+  docstring.
+- **Docs:**
+  - Runbook §2 refreshed from 0.1.0 to the 0.1.51 hashes, with a licensing note.
+  - HANDOFF carries both operator gates and restores the non-blocking policy wording.
+  - KNOWN_ISSUES records the open limits (mtime-only guard, APPDATA/ProgramData isolation, historical
+    real-profile writes, the limits of the D evidence).
+- **Checks:**
+  - `verify:packaged-licensing` red 27/1/2 → green 28/0/2 BLOCKED.
+  - `verify:packaged-walkthrough` 42/0/1 BLOCKED; `verify:packaged-runtime` 25/0.
+  - `typecheck:scripts` PASS.
+  - `verify:clean-machine-policy` 27/1 at `caa7b8d5`, then PASS.
+- **Result:** engineering and QC are closed. Contract `blocked` (qa BLOCKED, qc APPROVED). No
+  artifact was rebuilt. Signed-license acceptance is BLOCKED and the clean-machine VM is NOT RUN.
+
 ## 2026-09-23 — Packaged licensing and offline acceptance on fresh 0.1.51 artifacts (Claude)
 
 - **Task:** package from current `main` and run the packaged licensing, walkthrough and offline gates

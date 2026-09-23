@@ -39,6 +39,9 @@
       "resources/dependency-manifest.sig",
       "scripts/verify-packaged-walkthrough.mts",
       "scripts/verify-packaged-runtime.mts",
+      "scripts/verify-packaged-licensing.mts",
+      "scripts/helpers/packaged-artifacts.mjs",
+      "CLEAN_MACHINE_VALIDATION_RUNBOOK.md",
       "docs/ai/contracts/active-lease.json",
       "docs/ai/contracts/awkit-packaged-licensing-0923.json",
       "docs/ai/CURRENT_STATE.md",
@@ -127,7 +130,7 @@
       "required": true,
       "result": "BLOCKED",
       "artifact": null,
-      "note": "25 PASS / 0 FAIL / 2 BLOCKED on the fresh tree: NOT_ACTIVATED, INVALID_SIGNATURE and CORRUPTED refuse a real run, migration grace 7/7. EXPIRED and MACHINE_MISMATCH BLOCKED because AWKIT_PACKAGED_LICENSE_ISSUER_KEY is unset on this machine. verify:packaged-walkthrough 42/0/1 BLOCKED (D-J), verify:packaged-validation 119/0, verify:packaged-runtime 25/0 isolated, verify:offline-supply-chain 25/0, validate:offline -Strict PASS. Clean-machine VM NOT RUN."
+      "note": "25 PASS / 0 FAIL / 2 BLOCKED on the fresh tree: NOT_ACTIVATED, INVALID_SIGNATURE and CORRUPTED refuse a real run, migration grace 7/7. EXPIRED and MACHINE_MISMATCH BLOCKED because AWKIT_PACKAGED_LICENSE_ISSUER_KEY is unset on this machine. verify:packaged-walkthrough 42/0/1 BLOCKED (D-J), verify:packaged-validation 119/0, verify:packaged-runtime 25/0 isolated, verify:offline-supply-chain 25/0, validate:offline -Strict PASS. Clean-machine VM NOT RUN. After the QC fixes (same artifacts): verify:packaged-licensing 28/0/2 BLOCKED (red 27/1/2 without the empty-source guard), verify:packaged-walkthrough 42/0/1 BLOCKED with Part M counting only samples that read the TCP table (17), verify:packaged-runtime 25/0 sanitized."
     },
     {
       "id": "EV-roadmap-verifier",
@@ -149,8 +152,8 @@
   "completion": {
     "status": "blocked",
     "qa_status": "BLOCKED",
-    "qc_status": "pending",
-    "note": "Fresh artifacts built and every locally runnable gate green; the signed-license packaged cases are BLOCKED on AWKIT_PACKAGED_LICENSE_ISSUER_KEY and the clean-machine VM is NOT RUN. No QC review was performed: the owner's session rules allow no subagent unless asked."
+    "qc_status": "APPROVED",
+    "note": "Engineering complete: fresh artifacts built and every locally runnable gate green. Independent QC by awkit-qc-reviewer on 2026-09-23: APPROVED_WITH_NOTES, no blocking finding; the verifier findings (empty-source fail-open, blind Part M samples, uncaught portable spawn error, unsanitized runtime-gate env, messages, guard docstring) were fixed and re-reviewed APPROVED_WITH_NOTES; open limits recorded in KNOWN_ISSUES. Release acceptance NOT established: the signed-license packaged cases are BLOCKED on AWKIT_PACKAGED_LICENSE_ISSUER_KEY (authorized issuer environment) and the 0.1.51 clean-machine VM is NOT RUN (lab operator); both handoffs are in HANDOFF.md. QC approval is not release acceptance."
   },
   "write_lease": {
     "history": [

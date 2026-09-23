@@ -1,6 +1,40 @@
 # CURRENT_STATE
 
-## Packaged licensing and offline acceptance on fresh 0.1.51 artifacts from `fe343958` (2026-09-23, current)
+## Packaged licensing QC closeout: approved with notes, two verifier blind spots closed (2026-09-23, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No bead changed.
+
+- **QC:** the independent `awkit-qc-reviewer` reviewed `e2f703cb`, `927253f8`, `b2e85720` and the docs.
+  Its verdict was **APPROVED_WITH_NOTES**, recorded as `qc_status: APPROVED` on contract
+  `awkit-packaged-licensing-0923`, with no blocking finding. It also reviewed the fixes below. The
+  contract stays `blocked` because its required signed-license evidence is BLOCKED; QC approval is
+  not release acceptance.
+- **Fixed from QC (verifier code only; no product code, no rebuild):**
+  - the freshness guard refuses an empty source set;
+  - Part M counts only samples that read the TCP table;
+  - a portable spawn error is a failed check;
+  - the runtime gate sanitizes the app environment;
+  - messages say D–J.
+  Details and the open limits are in KNOWN_ISSUES (newest).
+- **Artifact baseline unchanged:** portable `c52e7ae4…2ec2`, NSIS `45c7a5a9…def8`, source `fe343958`,
+  manifest at `f271e25f`. `src/`, `app/` and the package files are identical between `fe343958` and
+  HEAD, so no rebuild was needed.
+- **Correction to the section below:** the old `verify:packaged-runtime` modified the real profile on
+  every run since Phase 4D, not only once. See KNOWN_ISSUES.
+
+| Gate (this session, fresh 0.1.51 artifacts) | Result |
+|---|---|
+| `verify:packaged-licensing` (+3 guard self-checks) | 28 PASS / 0 FAIL / 2 BLOCKED (EXPIRED, MACHINE_MISMATCH); red 27/1/2 without the fix |
+| `verify:packaged-walkthrough` | 42 passed / 0 failed / 1 blocked (D–J); Part M read the TCP table in 17 samples |
+| `verify:packaged-runtime` (isolated, sanitized) | 25/0 |
+| `typecheck:scripts` | PASS |
+| `verify:clean-machine-policy` | PASS after HANDOFF restored the non-blocking policy wording (was 27/1 at `caa7b8d5`) |
+| Signed-license cases · clean-machine VM 0.1.51 | BLOCKED (issuer key) · NOT RUN (operator) — see HANDOFF |
+
+**Not claimed:** packaged licensed execution, licensed-run network isolation, clean-machine acceptance,
+release readiness.
+
+## Packaged licensing and offline acceptance on fresh 0.1.51 artifacts from `fe343958` (2026-09-23)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No bead changed.
 

@@ -1,25 +1,95 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-23, latest) — fresh 0.1.51 packaged; signed-license and clean-machine gates remain
+## HANDOFF (2026-09-23, latest) — 0.1.51 engineering + QC closed; two operator acceptance gates remain
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
-- **Done:** portable and NSIS 0.1.51 were built from clean `fe343958` and hold the `license-gate` fix.
-  All the gates that can run on this machine were run. See CURRENT_STATE (newest) for hashes and
-  results.
-- **Owner, now:** restore `scripts/offline-benchmark/` from `C:\Users\moham\awkit-offline-benchmark-20260923`.
-- **Remaining gates, each needing something this machine does not have:**
-  1. **Signed-license cases:** EXPIRED, MACHINE_MISMATCH, walkthrough D–J and the packaged
-     license-sweep transition. They need an authorized validation machine or CI runner with
-     `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` set to the issuer key's absolute path. Run
-     `npm run verify:packaged-licensing` and `npm run verify:packaged-walkthrough` against the portable
-     `c52e7ae4…2ec2` and the NSIS `45c7a5a9…def8`, or against a rebuild from a later clean commit.
-  2. **Clean-machine VM:** `docs/ai/PHASE5_OFFLINE_VM_WALKTHROUGH.md` and the root
-     `CLEAN_MACHINE_VALIDATION_RUNBOOK.md` on the offline Hyper-V lab, run by an operator with the same two artifacts. Historical VM results
-     are for older artifacts and do not carry over.
+- **Done:**
+  - Portable and NSIS 0.1.51 were built from clean `fe343958` and hold the `license-gate` fix.
+  - Independent QC (`awkit-qc-reviewer`) gave APPROVED_WITH_NOTES, and its verifier findings are
+    fixed.
+  - Contract `awkit-packaged-licensing-0923` records qa BLOCKED, qc APPROVED and status blocked. It
+    cannot close until its signed-license evidence passes.
+  - See CURRENT_STATE and KNOWN_ISSUES (newest).
+- **Artifacts under test:**
+  - `dist/SpecterStudio 0.1.51.exe`, SHA-256 `c52e7ae44e2dd9b7f0a947255bdb92214dea63c6d5398dba029533c5ccb42ec2`.
+  - `dist/SpecterStudio Setup 0.1.51.exe`, SHA-256 `45c7a5a92b5cb9aa78c00840628f29da9370b013106fedb774b27a2d0002def8`.
+  - `dist/release-provenance.json` names source `fe343958`, `treeDirty: false`.
+  - Do not rebuild these just because HEAD moved: `src/`, `app/` and the package files are unchanged
+    since `fe343958`.
+
+### Gate 1 — signed-license acceptance (BLOCKED: needs the authorized issuer environment)
+
+- **Where:** an authorized validation machine or CI runner that already has controlled access to the
+  existing trusted issuer key. Never generate a new key, never put a key in the repo, `resources/`, a
+  report or the VM. The task contract forbids setting the key on this developer machine; only the
+  owner can change that.
+- **Prerequisite, and a trap:** the gates drive `dist/win-unpacked` from a repo checkout with
+  `node_modules`, and their freshness guard compares mtimes. On a fresh clone every source is newer
+  than a copied `dist/`, so the guard refuses. Pick one route:
+  - **(a) Test these exact artifacts.** Copy this whole working tree, including `dist/` and
+    `node_modules`, with timestamps preserved (`robocopy <src> <dst> /E /COPY:DAT /DCOPY:DAT`).
+    Before running, prove identity by content, not mtime:
+    - `git merge-base --is-ancestor fe343958 HEAD`;
+    - `git diff --stat fe343958 HEAD -- src app package.json package-lock.json` is empty;
+    - both artifacts' SHA-256 match `dist/release-provenance.json`.
+  - **(b) Rebuild.** Run `npm run package:portable` then `npm run package:nsis` from clean `main` on
+    that machine. This makes new hashes, and the clean-machine VM must then use the rebuilt pair too.
+- **Commands (PowerShell):**
+  ```powershell
+  $env:AWKIT_PACKAGED_LICENSE_ISSUER_KEY = "<absolute path to the existing issuer key>"
+  npm run verify:packaged-licensing
+  npm run verify:packaged-walkthrough
+  Remove-Item Env:AWKIT_PACKAGED_LICENSE_ISSUER_KEY
+  ```
+  The license is signed by `tools/license-issuer` in a separate process, bound to the machine's real
+  fingerprint, and imported through the app's licensing IPC. `sanitizeAppEnv` keeps the key path out
+  of the app.
+- **Acceptance mapping:**
+  - EXPIRED and MACHINE_MISMATCH refuse → `verify:packaged-licensing`.
+  - A valid license runs bundled Chromium, a workflow, reports and artifacts, hard cancel and
+    recovery, then license removal refuses → walkthrough D–J.
+  - The walkthrough's C2 (installed Chrome) is independent of the key.
+- **Pass means:** 0 FAIL and 0 BLOCKED on both gates. Keep the evidence folder, and confirm it
+  contains neither the key path nor any key material.
+- **Keep the audit trail:** do NOT delete the issuer's `issuance-history.jsonl`. The gates remove their
+  own temporary licenses.
+- **Separate case, still open:** the packaged license-integrity transition with instances running and
+  queued. No packaged gate drives it. Its only evidence is dev-only: `verify:license-dispatch-gate`
+  66/66, with the limits listed in KNOWN_ISSUES.
+
+### Gate 2 — clean-machine VM for 0.1.51 (NOT RUN: needs the lab operator)
+
+- **Policy:** clean-machine validation is optional and non-blocking by owner policy (2026-07-24). If
+  it is executed, a FAIL still blocks. Earlier VM runs (0.1.0 and 0.1.21) do not count for 0.1.51.
+- **Procedure:** `CLEAN_MACHINE_VALIDATION_RUNBOOK.md`, whose §2 now lists the 0.1.51 hashes, plus
+  `docs/ai/PHASE5_OFFLINE_VM_WALKTHROUGH.md`.
+  - On the Hyper-V host, run `scripts/clean-machine/attach-artifacts.ps1` (read-only DVD built from
+    `dist/`), then `scripts/clean-machine/run-runbook.ps1` against `AWKIT-CleanMachine` restored to
+    its clean snapshot.
+  - The driver omitted §5, §6 and §8 last time; run those by hand.
+  - Record results in a new `docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_<date>.md`.
+- **Without the key:**
+  - hash and signing status;
+  - portable launch and per-user NSIS install/uninstall as a standard user with no UAC;
+  - offline startup, with runtime data under `%LOCALAPPDATA%\SpecterStudio` rather than the install
+    directory;
+  - an unlicensed run is refused;
+  - process cleanup and no egress;
+  - the §5 upgrade profile, whose runs are admitted by migration grace, which is not licensing.
+- **Needs a license:** any run on a fresh profile (§4.4–4.9, §6.3, §7.1.8), cancel and recovery on the
+  VM, and license removal.
+  - Export the activation request on the VM (Administration → Licensing) and move it out as a small
+    file.
+  - The authorized issuer signs it in the issuer environment. The VM never holds the key, so the two
+    environments can be separate machines.
+  - Import the `.dat` on the VM.
+
 - **Do not:**
   - set the issuer key on an ordinary developer machine;
   - count migration grace as licensing;
   - claim release readiness while either gate is BLOCKED or NOT RUN.
+- **Owner:** `scripts/offline-benchmark/` is still absent from the working tree. Restore it from
+  `C:\Users\moham\awkit-offline-benchmark-20260923` when convenient; no packaging depends on it now.
 - **Still open, unrelated:** the L4b handoff below (16 verdicts await the owner).
 
 ## HANDOFF (2026-09-23, open) — L4b review integrity fixed; 16 current verdicts await the owner
