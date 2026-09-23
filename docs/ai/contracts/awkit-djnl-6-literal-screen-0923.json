@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-6-literal-screen-0923",
+    "title": "Record the L4b fabricated-literal screen fix at 721077ab on L4b and L1",
+    "objective": "At 721077ab the L4b quality judge's fabricated-literal screen reads every quotation style (single quotes straight and curly with apostrophes left alone, escaped quotation marks), holds a quoted literal only as a whole phrase of the request, and holds a value only where the request gives the same target, so the restored variant's 'Correct the operator casing to 'operator'.' and '...to 'true'.' are now defects. verify:ai-authoring-review re-reads every capture with today's judge in memory: of 132 captured explanations the fix changes exactly those 2, and the current request's measurement is unchanged (9/17 and 7/17 actionable, 16 screen-clear, 0 screen hits, TARGET NOT MET). Append a note to awkit-djnl.6 and to awkit-djnl.1 giving the commit, the result and what stays open (the owner's criterion 3 decision, the owner's confirmation of the 11 proposed verdicts, 16 answers awaiting a person, the go/no-go). Refresh the JSONL export. Nothing closes: both stay in_progress. No edge is added or removed. The lease writes .beads/** only, so the owner's untracked scripts/offline-benchmark/ and the already-edited state documents are outside it and untouched.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "721077ab",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "scripts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "tracker-reflects-reality",
+      "description": "awkit-djnl.6 and awkit-djnl.1 stay in_progress, each with a note naming 721077ab and its result, no edge changes, the JSONL export is refreshed from the database, and the dashboard reports that its sources agree.",
+      "evidence_required": [
+        "roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177 with the Overview banner on 'Sources agree' on round 1, after the two `bd update --append-notes`, `bd export -o .beads/issues.jsonl` and the already-edited state documents: 320 issues, 26 outstanding / 294 closed, 180 edges, and both narratives restating 65 PASS / 2 NOT RUN / 0 BLOCKED. Round 2 ran once after the lease release, because active-lease.json is a registered source, and was again 177/177 'Sources agree' with the same counts."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-6-literal-screen-0923:project-state:2026-09-23T08:14:37.274Z",
+        "task": "awkit-djnl-6-literal-screen-0923",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-23T08:14:37.274Z",
+        "acquired_at_commit": "721077ab82218719607afbc9d35afe2e2974d161",
+        "released_at": "2026-09-23T08:15:18.270Z",
+        "released_reason": "L4b fabricated-literal screen fix noted on awkit-djnl.6 and awkit-djnl.1, nothing closed, no edge changed, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

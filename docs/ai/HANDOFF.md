@@ -1,6 +1,30 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-23, latest) — L4b criterion 3: prompt work has stopped; the owner decides what it measures
+## HANDOFF (2026-09-23, latest) — L4b's fabricated-literal screen reads every quotation style; criterion 3 and two reviews still wait
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done (`721077ab`, then this closeout):** see L4 › "The fabricated-literal screen reads every
+  quotation style".
+  - Root cause: the screen read double quotes and backticks only, and held a literal whose letters
+    occurred anywhere in the request, so `'operator'` passed in any style.
+  - The judge is fixed, and `verify:ai-authoring` is 262/262. `verify:ai-authoring-review` re-reads every
+    capture with today's judge, in memory, and lists what changed.
+  - The current request is unchanged (9/17 and 7/17, 16 screen-clear). The restored variant's 2 answers
+    are now defects.
+- **Proposed verdicts for the 11 `97996c48` answers:** unchanged, in the section "L4b's corrective action
+  is the product's" below. They are the agent's proposal and **not recorded**.
+- **Next, not started:**
+  1. **The owner decides criterion 3:** A or B (L4 › "Owner decision record: criterion 3").
+  2. **The owner** confirms or corrects those proposed verdicts and records them.
+  3. **A person** reviews the 16 screen-clear answers of the current request: `npm run
+     verify:ai-authoring-review -- --pending`, then `-- --record` for each.
+  4. Then L1's go/no-go. The next Phase L item stays L5b's baseline gap (−5).
+- **Do not:**
+  - treat a re-read as a verdict: it is the proxy's reading, and a person still reviews;
+  - screen an unquoted plain word as a value: it reads like prose;
+  - try another prompt variant, lower a threshold, or change what criterion 3 measures without the owner.
+
+## HANDOFF (2026-09-23, superseded) — L4b criterion 3: prompt work has stopped; the owner decides what it measures
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done (`d2f9721f`, then this closeout):** see L4 › "One corrective change, measured".

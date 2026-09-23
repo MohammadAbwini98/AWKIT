@@ -1,6 +1,25 @@
 # DECISIONS
 
-### 2026-09-23 (latest) — Phase L L4b: one corrective change measured and not shipped; criterion 3 goes to the owner (`awkit-djnl.6`, `awkit-djnl.1`)
+### 2026-09-23 (latest) — Phase L L4b: a value is held only where the request gives it, and the target is read by today's judge (`awkit-djnl.6`, `awkit-djnl.1`)
+
+- **Context:** "Correct the operator casing to 'operator'." cleared the fabricated-literal screen. It
+  would have in any quotation style, because a literal counted as held when its letters occurred anywhere
+  in the request.
+- **Decided by the implementer (`721077ab`):**
+  - **A value is held only as a target the request gives** ("to a listed value"). A request word is not
+    a value: "operator" is in the request, but "to 'operator'" is a value it never gave. Other quoted
+    literals must appear in the request as a whole phrase.
+  - **Unquoted, only literal-shaped values are screened:** booleans, null and code-like names. A plain
+    word reads like prose ("to lowercase"), so screening it would reject legitimate answers. A person's
+    review covers it.
+  - **The target is evaluated on today's judge's reading.** A capture keeps the reading it was taken with
+    and is never rewritten. `verify:ai-authoring-review` re-reads it in memory and lists each change, so a
+    corrected judge corrects the measurement without rewriting evidence. An earlier request's captures
+    are re-read against their Issues lines only, because their instructions are not retained.
+- **Not changed:** the thresholds, criterion 3, the prompt and its measurements, and the rule that only a
+  person records a verdict.
+
+### 2026-09-23 — Phase L L4b: one corrective change measured and not shipped; criterion 3 goes to the owner (`awkit-djnl.6`, `awkit-djnl.1`)
 
 - **Context:** criterion 3 stood at 9/17 and 7/17. The task allowed at most one bounded change for a
   distinct, evidence-backed cause, then a stop and an owner decision record.

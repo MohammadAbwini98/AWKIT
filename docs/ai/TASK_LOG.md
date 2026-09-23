@@ -1,5 +1,30 @@
 # TASK_LOG
 
+## 2026-09-23 — L4b: the fabricated-literal screen reads every quotation style (Claude)
+
+- **Task:** fix the quality judge so an invented value cannot clear the fabricated-literal screen through
+  its quotation style, without touching the production prompt, model, limits, corrective actions or Flow
+  Designer. Re-evaluate the captures, and change no verdict or threshold.
+- **Files (`721077ab`):**
+  - `scripts/ai-harness/authoringQualitySet.ts`: `fabricatesLiteral` (quotation styles, escapes,
+    whole-phrase support, values held only as the request's own targets), and `literalControlFailures`;
+  - `scripts/ai-harness/authoringQualityReview.ts`: `rereadCapture`, in memory;
+  - `scripts/verify-ai-authoring.mts`: the controls (§11) and the re-read (§12);
+  - `scripts/verify-ai-authoring-review.mts`: re-reads every capture and lists changed readings.
+  - This closeout: the L4 plan, CURRENT_STATE, HANDOFF, KNOWN_ISSUES, DECISIONS; notes on `awkit-djnl.6`
+    and `awkit-djnl.1`.
+- **Root cause:** double quotes and backticks only, and a literal held by substring, so `'operator'`
+  cleared it in any style. An escaped quote of the request's own words was a false positive.
+- **Checks:**
+  - `verify:ai-authoring` 262/262 (was 258). Red first: 261/262 on the unfixed judge. Mutations 259/262
+    and 260/262, each caught by its own checks.
+  - `verify:ai-authoring-review` exit 1, TARGET NOT MET as before. 132/132 re-read; 12 readings already
+    changed under the unfixed judge (the `ddcfc35b` screens), and the fix changes exactly the reported 2.
+  - `typecheck:scripts` and build PASS, `verify:verifier-classification` 260.
+  - NOT RUN, nothing they measure changed: the real-model quality run, `benchmark:ai-model-0-8b`.
+- **Result:** the current request's measurement is unchanged (9/17, 7/17, 16 screen-clear, 0 screen
+  hits). No review verdict recorded. L4b stays `in_progress`.
+
 ## 2026-09-23 — L4b criterion 3: omissions diagnosed, one change measured and restored, owner decision prepared (Claude)
 
 - **Task:** find why the real 0.8B omits the corrective action from its own explanations (9/17 and 7/17

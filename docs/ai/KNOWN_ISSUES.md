@@ -40,13 +40,15 @@
   - counting a screen-clear answer as correct unread, or recording a review verdict as an agent;
   - changing the request without re-measuring L1.8's `explanationAtCapMs` (8.5 s of projected margin at
     `ddcfc35b`; the 160-character limit and the 192-token cap are fixed by it).
-- **Judge gap (OPEN, found 2026-09-23):** `FABRICATED_LITERAL` reads only double-quoted and backticked
-  literals (`QUOTED` in `scripts/ai-harness/authoringQualitySet.ts`). A single-quoted invented value,
-  such as "Correct the operator casing to 'operator'.", clears the screen.
-  - It was seen only in the restored variant's captures, which the evaluation ignores. No `ddcfc35b`
-    answer quotes a value.
-  - Such an answer is also not actionable, so it never reaches a person.
-  - A fix must make the judge stricter only, and must leave an apostrophe ("step's") alone.
+- **Judge gap (FIXED `721077ab`, found 2026-09-23):** `FABRICATED_LITERAL` read only double-quoted and
+  backticked literals, and counted a quoted literal as held when its letters occurred anywhere in the
+  request. So "Correct the operator casing to 'operator'." cleared it in any quotation style.
+  - Now: every quotation style, apostrophes left alone; escaped quotation marks; a literal held only as a
+    whole phrase; a value held only where the request gives the same target.
+  - Re-read with it, the current request's captures read the same. The restored variant's 2 answers are
+    now defects (L4 › "The fabricated-literal screen reads every quotation style").
+  - **Residual, by design:** an unquoted plain word given as a value ("…to operator.") is not screened,
+    because it reads like prose ("to lowercase"). A person's review covers it.
 
 ## The 0.8B's failure-analysis cause selection does not beat the baseline, and ignores provenance (2026-09-22, OPEN — `awkit-djnl.8`)
 

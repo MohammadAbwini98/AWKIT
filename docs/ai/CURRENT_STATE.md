@@ -1,6 +1,37 @@
 # CURRENT_STATE
 
-## L4b criterion 3: omissions diagnosed, one change measured and restored, an owner decision prepared (2026-09-23, current)
+## L4b judge: invented values are screened in every quotation style (2026-09-23, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L4b quality is
+not a ledger case).
+
+- **Reproduced (`721077ab`).** The restored variant's "Correct the operator casing to 'operator'." and
+  "…to 'true'." were read not actionable, with no screen hit. There were two causes:
+  - the fabricated-literal screen read double quotes and backticks only;
+  - it counted a quoted literal as held when its letters occurred anywhere in the request, so "operator"
+    cleared it in any quotation style.
+- **Fixed in the judge only:** every quotation style, apostrophes left alone; escaped quotation marks; a
+  literal held only as a whole phrase; a value held only where the request gives the same target.
+  Controls replay both answers in every style, beside the request's own words quoted the same ways.
+- **Re-evaluated:** `verify:ai-authoring-review` now re-reads every capture with today's judge, in memory,
+  and lists each change. Of 132 captured explanations, the fix changes exactly the reported 2
+  (`notActionable` → `defect`), both in the variant the target ignores.
+- **The current request's measurement is unchanged:** 9/17 and 7/17 actionable, 16 screen-clear, 0
+  screen hits, TARGET NOT MET.
+- **Unchanged:** prompt, model, limits, corrective actions and Flow Designer. L1.8 was not re-measured,
+  since nothing it measures changed. No review verdict was recorded.
+- **Status:** L1, L4b and L5b stay `in_progress`. **L7 cannot be entered.** Criterion 3 still needs the
+  owner's decision, and 16 answers still need a person.
+
+| Check (final state) | Result |
+|---|---|
+| `verify:ai-authoring` | 262/262 (was 258). Red first: 261/262 on the unfixed judge. Mutations: 259/262 and 260/262, each failing its own checks |
+| `verify:ai-authoring-review` | FAIL (exit 1): TARGET NOT MET at 9/17 and 7/17, as before; 2 readings changed, both in the ignored variant |
+| `typecheck:scripts` · `npm run build` · `verify:verifier-classification` | PASS · PASS · 260 scripts |
+| `verify:roadmap-dashboard` | 177/177 "Sources agree" on both rounds: 320 issues, 26 outstanding / 294 closed, 180 edges |
+| `verify:ai-authoring-quality-live` · `benchmark:ai-model-0-8b` | NOT RUN: only the judge changed, not the request, model or limits |
+
+## L4b criterion 3: omissions diagnosed, one change measured and restored, an owner decision prepared (2026-09-23)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L4b quality is
 not a ledger case).

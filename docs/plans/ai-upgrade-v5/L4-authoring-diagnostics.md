@@ -529,7 +529,8 @@ criteria 1 and 4 PENDING on 16 screen-clear answers.
   - Run 2's `casing` gave "Correct the operator casing to 'operator'." and "Correct the configuration
     value to 'true'.": invented values, against the instruction.
   - The proxy files both as not actionable, not as defects, because its fabricated-literal screen reads
-    double quotes only. So neither would reach a person. That is a judge gap (KNOWN_ISSUES).
+    double quotes only. So neither would reach a person. That is a judge gap (KNOWN_ISSUES), fixed at
+    `721077ab`: see "The fabricated-literal screen reads every quotation style" below.
   - Both runs' `warnings`' `highTimeout` answers count as actionable by proxy, but they are the model's
     own words, "Reduce the timeout value…", with an unsupported claim that the flow will "hang". One also
     ends mid-phrase ("…to a reasonable duration for the current.").
@@ -570,6 +571,79 @@ measured. Five variants have been measured at this stage:
 
 The five over-limit rules cap an answer in the line's order at 12/17 (71 %) per run, below 80 %. Prompt
 experimentation stops here, as the task's stop condition requires.
+
+### The fabricated-literal screen reads every quotation style (2026-09-23, `721077ab`)
+
+A judge-only correction. The production prompt, model, limits, corrective actions and Flow Designer are
+unchanged, so neither a real-model run nor L1.8 was needed.
+
+**Reproduced on the captured text.** Run 2 of the corrective task sentence (capture
+`2026-09-23T07-19-08-685Z-3d074e`, `casing`) gave "The operator casing is incorrect. Action: Correct the
+operator casing to 'operator'." and "The configuration value is outside its permitted set. Action: Correct
+the configuration value to 'true'.". Both were read `notActionable` with no screen hit, so neither was a
+defect and neither would reach a person. Replayed verbatim against the unfixed judge, `verify:ai-authoring`
+went 261/262, and every invented form in the table below failed.
+
+**Root cause: two defects in `fabricatesLiteral`, not one.**
+
+- `QUOTED` read double quotes and backticks only, so a single-quoted literal, straight or curly, was never
+  examined. That is why `'true'` passed.
+- A quoted literal counted as held when its letters occurred anywhere in the request (`includes`).
+  "operator" is a word of the request, and "unsupported" occurs inside the rule codes, so `"operator"` and
+  `` `operator` `` cleared the screen too. The earlier "double quotes only" diagnosis was incomplete:
+  `operator` would have passed in any quotation style.
+- The opposite error, found by the same controls: a backslash-escaped quote of the request's own words
+  (`\"Loop Back\"`) was flagged as invented, because the backslash became part of the literal. No captured
+  answer contains an escaped quote.
+
+**The correction, in `fabricatesLiteral` only:**
+
+- single quotes, straight and curly, open only after a non-letter and close only before one, so
+  apostrophes ("step's", "steps'", "connector’s") stay prose;
+- an escaped quotation mark reads as a plain one;
+- a quoted literal is held only as a whole phrase of the request;
+- a **value** is held only where the request gives that same target ("to a listed value", "to a Loop Back
+  connector"). A value is a literal given as what something is changed or set to: quoted ("…to
+  'operator'"), or an unquoted boolean, null or code-like name ("to true", "to notEquals").
+
+**Controls** (`literalControlFailures`, one check in `verify:ai-authoring` §11):
+
+| Must be `FABRICATED_LITERAL`, a defect | Must stay clear |
+|---|---|
+| the two captured answers, verbatim | the captured `'invalidTimeout'` and `'on the run path'` (`97996c48`) |
+| the same, double-quoted, curly-quoted, back-quoted and escaped | an issue id and its rule code, single-quoted |
+| unquoted: "to true", "to notEquals" | the given action's own target quoted as a value: "to 'a listed value'", "to “Loop Back”" |
+| a name the request holds only inside a longer word ("Unsupported", "Supported") | escaped quotes around the request's own words; apostrophes, straight and curly |
+
+**Mutations**, in two rounds, each reverted, each failing exactly its own checks:
+
+- 259/262: single quotes dropped, substring support restored, escape normalization dropped, the re-read
+  writing into the capture, the re-read's code guard dropped;
+- 260/262: the value rule dropped, a capture's instructions always treated as retained.
+
+**Re-evaluating the captures.** `verify:ai-authoring-review` now re-reads every captured explanation with
+today's judge, in memory (`rereadCapture`):
+
+- against the capture's own Issues lines, plus the instructions only when its hash is today's, since an
+  earlier request's instructions are not retained;
+- a case whose ids carry other codes today keeps its captured reading;
+- the target is evaluated on today's reading, and each changed reading is listed. No capture file, model
+  text or verdict is rewritten.
+
+| | Unfixed judge | Fixed judge |
+|---|---|---|
+| Explanations re-read | 132 of 132 | 132 of 132 |
+| Read differently from their capture | 12, all in earlier requests' captures, from the screens added at `ddcfc35b`: 6 `WRONG_REMEDY` and 3 no longer actionable (`97996c48`), 3 action-as-name (the "Step:" variant) | the same 12, **plus the reported 2** (the variant's run 2, `casing`): `notActionable` → `defect [FABRICATED_LITERAL]` |
+| The current request, 4 captures | 9/17 and 7/17 actionable, 16 screen-clear, 0 screen hits | **unchanged** |
+
+**Impact on the L4b measurements:** none on the current request. Criterion 3 stays at 9/17 and 7/17 (NOT
+MET), criteria 1 and 4 stay PENDING on the same 16 screen-clear answers, and there are 0 screen hits. No
+`ddcfc35b` answer quotes a value. The restored variant, which the target ignores, now has 2 screen hits in
+its run 2, so under that request those two answers would have gone to a person.
+
+**Still out of lexical reach, by design:** an unquoted plain word given as a value ("Correct the operator
+casing to operator.") reads like prose ("change the casing to lowercase"), and screening it would reject
+legitimate answers. A person's review (criteria 1 and 4) remains the check for it.
 
 ### Owner decision record: criterion 3 (prepared 2026-09-23, not adopted)
 
