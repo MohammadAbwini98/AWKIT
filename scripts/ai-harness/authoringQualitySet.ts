@@ -24,7 +24,7 @@
  * Electron-free: `verify:ai-authoring` audits the set and runs the judge's controls without a model.
  */
 
-import { parseAuthoringAnswer, rankingKeepsPriority, type AuthoringAnswer, type AuthoringIssueRef, type AuthoringRequest } from "@src/ai/authoringExplanation";
+import { AUTHORING_LIMITS, parseAuthoringAnswer, rankingKeepsPriority, type AuthoringAnswer, type AuthoringIssueRef, type AuthoringRequest } from "@src/ai/authoringExplanation";
 import type { FlowEdge, FlowProfile, FlowStep, StepType } from "@src/profiles/FlowProfile";
 import { findResidualSecrets } from "@src/semantic/SemanticPolicyValidator";
 import { isExecutionBlocking, type FlowValidationCode } from "@src/validation/FlowValidator";
@@ -570,6 +570,28 @@ export function correctiveControlFailures(requestFor: (caseId: string) => Author
   expect("truncated: a lone fragment is marked with an ellipsis and is not actionable", fragment?.answer.explanations[0].text.endsWith("…") === true && fragment.judged.perExplanation[0].actionable === false);
   const stepFirst = read("cycle", ["Add a Loop Back connector to break the cycle. The connectors repeat the same steps and the run stops with a runtime-cy", "Remove the connector that leaves the End node."]);
   expect("...while a step given first survives the limit and is actionable", stepFirst?.answer.explanations[0].text === "Add a Loop Back connector to break the cycle." && good(stepFirst, 0));
+
+  // The ddcfc35b captures (2026-09-23): the task sentence echoed as the cause, and no action. The corrective
+  // task sentence measured and reverted the same day must not let its echo pass for one either: "correct"
+  // alone instructs nothing.
+  const leaveEnd = "Remove this connector from the End step.";
+  const becauseCycle = "The automation flow failed validation because connectors form a cycle with no Loop Back connector, causing a runtime-cycle error.";
+  const becauseReading = read("cycle", [becauseCycle, leaveEnd])?.judged.perExplanation[0];
+  expect("echoed: the task sentence given back as the cause is on subject and not actionable", becauseReading?.onSubject === true && becauseReading.category === "notActionable");
+  const echoOnly = read("cycle", ["To correct this validation issue, note that connectors form a cycle with no Loop Back connector.", leaveEnd])?.judged.perExplanation[0];
+  expect("...as is a corrective task sentence echoed with no action", echoOnly?.onSubject === true && echoOnly.category === "notActionable");
+  expect("...and that echo leading into the action is actionable", good(read("cycle", ["To correct this validation issue, change the connector that closes this cycle to a Loop Back connector with a maximum count.", leaveEnd]), 0));
+  const becauseCut = read("warnings", ["Lower this step's timeout unless the step really needs to wait that long.", "The automation flow failed validation because a reachable step had no way out, causing the run to stop at that node and report success without reaching the End"]);
+  expect("echoed and cut by the limit: a lone fragment, not actionable", becauseCut?.answer.explanations[1].text.endsWith("…") === true && becauseCut.judged.perExplanation[1].actionable === false);
+  // The line's rule code copied as the whole text (the id is followed by it in the Issues line).
+  const bare = read("casing", ["unsupportedOperator", "unsupportedConfiguration"]);
+  expect("a bare rule code is a marked fragment, never actionable", bare !== null && bare.answer.explanations.every((e) => e.text.endsWith("…")) && bare.judged.actionable === 0);
+  // Summary then action runs past the limit for this rule, so the product trims the action away.
+  const sourceSummary = "A bound value source is missing the key it reads; it resolves to an empty value or fails the run.";
+  const sourceStep = requestFor("values")?.issues[1]?.step ?? "";
+  const summaryFirst = read("values", ["Set the value this step needs.", `${sourceSummary} Action: ${sourceStep}`.slice(0, AUTHORING_LIMITS.maxExplanationChars)]);
+  expect("summary then action past the limit: the action is trimmed away, marked cut, not actionable", summaryFirst?.answer.explanations[1].text === sourceSummary && summaryFirst.answer.explanations[1].cut === true && !summaryFirst.judged.perExplanation[1].actionable);
+  expect("...while the action first survives the same limit", good(read("values", ["Set the value this step needs.", `${sourceStep} ${sourceSummary}`.slice(0, AUTHORING_LIMITS.maxExplanationChars)]), 1));
 
   // The product's own step, as the model's whole text, is the answer the request asks for: it must be
   // judged actionable and clear every screen, including the one above, for every labelled code.

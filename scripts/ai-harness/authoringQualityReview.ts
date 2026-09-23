@@ -63,6 +63,11 @@ export interface ReviewItem {
   /** The model's explanation after redaction; `null` when it was withheld. */
   text: string | null;
   withheld?: "RESIDUAL_SECRET";
+  /**
+   * The character limit cut the model's text and the product kept its complete sentences (captures since
+   * this field; absent before). Without it, an action cut and trimmed away reads like one never written.
+   */
+  cut?: true;
   /** The proxy judge's reading, taken on the answer the product accepted. */
   judged: { onSubject: boolean; misattributed: boolean; actionable: boolean; unsupported: UnsupportedKind[]; category: ExplanationCategory };
 }
@@ -151,6 +156,7 @@ export function buildReviewCapture(modelId: string, cases: readonly CapturedCase
         step: explanation.step,
         text,
         ...(text === null ? { withheld: "RESIDUAL_SECRET" as const } : {}),
+        ...(explanation.cut ? { cut: true as const } : {}),
         judged: { onSubject: reading.onSubject, misattributed: reading.misattributed, actionable: reading.actionable, unsupported: reading.unsupported, category: reading.category }
       });
     }

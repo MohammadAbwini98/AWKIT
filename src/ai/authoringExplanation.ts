@@ -157,9 +157,12 @@ export interface AuthoringRejection {
  * action; the list of things never to invent; the fix limit; and the ranking's priority. Its length is
  * L1.8 prompt time: it is shorter than the one it replaced, because each issue's line carries its action.
  */
-// The 0.8B often opens an answer by echoing the first sentence ("The automation flow failed validation
-// because…"), and the character limit then cuts the action. Removing that sentence was worse: answers
-// collapsed to bare labels ("Unsupported Operator…"), 2 of 10 actionable against 7 of 10 (2026-09-23).
+// The 0.8B echoes the task sentence: 16 of the 2026-09-23 captured answers opened "The automation flow
+// failed validation because…", and none held an action. Both alternatives measured no better that day:
+// with no task sentence, answers collapsed to bare rule codes ("Unsupported Operator…"), 2 of 10
+// actionable; asked instead "how to correct each validation issue", the echo ended but runs gave 8/17
+// and 8/17 (this sentence: 9/17 and 7/17), and the verb came back as the model's own actions with values
+// it invented ("Correct the operator casing to 'operator'"). See L4 › "One corrective change, measured".
 const INSTRUCTIONS =
   "You explain why an automation flow failed validation, for the person editing it. " +
   "Each issue has an id, its rule code, severity, where it is, the rule's one-line summary and the action " +

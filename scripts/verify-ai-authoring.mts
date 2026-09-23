@@ -741,7 +741,7 @@ console.log("\n12 — corrective step, fix priority, the review store and the ad
 
   // (2) The instruction: each clause is a behaviour the owner asked for, so each is held on its own.
   const instructions = request.prompt.instructions;
-  check("the instruction says each issue comes with the action that corrects it", /the rule's one-line summary and the action that corrects it/.test(instructions));
+  check("the instruction says each issue comes with the action that corrects it",/the rule's one-line summary and the action that corrects it/.test(instructions));
   check("...and asks for that action FIRST and as given, so the character limit cuts the explanation and not the action", /first its action as given, then what is wrong/.test(instructions));
   check("...and no other action: the action is the product's, grounded in the rule", /Never suggest another action/.test(instructions));
   check("...never inventing a step name, selector, value or connection", /never invent issues, ids, rules, step names, selectors, values or connections/.test(instructions));
@@ -815,7 +815,16 @@ console.log("\n12 — corrective step, fix priority, the review store and the ad
   check("no email, token value, URL or user path reaches the capture", !/ops@example\.com|abcd1234efgh|x\.test|bob/.test(onDisk), onDisk.slice(0, 400));
   check("...they are redacted in place, so the rest of the text is still reviewable", capture.items[0].text?.includes("[redacted]") === true && capture.items[0].text.startsWith("Loop"));
   check("a text in which a secret survives redaction is not written at all", capture.items[1].text === null && capture.items[1].withheld === "RESIDUAL_SECRET" && !onDisk.includes("PRIVATE KEY"));
-  check("each item carries the product's own Issues line as its evidence", capture.items.every((item) => item.evidence.startsWith(`${item.issueId}: ${item.code} `)));
+  // A text the limit cut is trimmed to its complete sentences; the capture must say so, or an action cut
+  // and trimmed away reads as one the model never wrote.
+  const cutAnswer = parseAuthoringAnswer(
+    { version: 1, explanations: [{ issueId: cycleRequest.issues[0].id, text: "Connectors form a cycle. Change the connector that closes this cycle to a Loop" }, { issueId: cycleRequest.issues[1].id, text: "Remove this connector from the End step." }] },
+    cycleRequest
+  );
+  if (!cutAnswer.ok) throw new Error("the cut scripted answer must parse");
+  const cutItems = buildReviewCapture("fake-l4b-model", [{ caseId: "cycle", request: cycleRequest, answer: cutAnswer, judged: judgeAuthoringAnswer(cycleRequest, cutAnswer), inferMs: 1 }]).items;
+  check("the capture marks a text the character limit cut, and only that one", cutItems[0]?.cut === true && cutItems[0].text === "Connectors form a cycle." && cutItems[1]?.cut === undefined, JSON.stringify(cutItems.map((i) => [i.text, i.cut])));
+  check("each item carries the product's own Issues line as its evidence",capture.items.every((item) => item.evidence.startsWith(`${item.issueId}: ${item.code} `)));
   check("nothing from the flow is stored: no step name, flow name or connector id", !/Orders |click |"e[1-5]"/.test(onDisk));
   check("an undelivered case is captured with its sent issues and no answer, so it cannot raise a rate", capture.cases[1].delivered === false && capture.cases[1].sent === 1 && capture.items.every((i) => i.caseId === "cycle"));
   check("the capture is keyed to the product's instructions", capture.instructionsSha256 === instructionsSha256(request));
