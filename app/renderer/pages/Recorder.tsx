@@ -22,11 +22,16 @@ import {
   Save,
   Search,
   ShieldAlert,
+  Sparkles,
   StopCircle,
   Trash2,
   Video,
+  X,
   XCircle
 } from "lucide-react";
+import type { AiStatusView, InspectionLocatorView } from "@src/ai/contracts/AiApi";
+import { describeCandidate, describeProposedScope } from "@src/ai/locatorStatus";
+import { aiUnavailableSentence, useAiAssistJob, type AiAssistPhase } from "../components/shared/useAiAssistJob";
 import { usePageChrome } from "../state/pageChrome";
 import { Toast, type ToastState } from "../components/shared/Toast";
 import {
@@ -1116,6 +1121,7 @@ export function Recorder() {
                 onApply={() => void useSpyCandidate()}
               />
             ) : null}
+            {spy?.inspection ? <ElementSpyAi inspectedAt={spy.inspection.inspectedAt} /> : null}
             {spyMessage ? (
               <p className="recorder-spy-message" role="status" data-testid="element-spy-message">
                 {spyMessage}
@@ -1883,6 +1889,82 @@ export function ElementSpyResult({
         <p className="recorder-spy-note">Choose a unique, non-positional candidate. Positional and ambiguous candidates are shown for review only.</p>
       ) : null}
     </div>
+  );
+}
+
+/** L3 §1: Element Spy's on-demand AI proposal. A new inspection abandons the job in flight. */
+function ElementSpyAi({ inspectedAt }: { inspectedAt: string }) {
+  const job = useAiAssistJob<InspectionLocatorView>(inspectedAt);
+  if (!job.visible) return null;
+  return (
+    <ElementSpyAiPanel
+      status={job.status}
+      phase={job.phase}
+      onPropose={() => job.start("l3spy", inspectedAt, (requestId) => window.playwrightFlowStudio.ai.proposeInspectionLocator({ requestId }))}
+      onCancel={job.cancel}
+    />
+  );
+}
+
+/**
+ * Only a proposal proven on the live page is ever shown: it matched one element, and that element is the
+ * inspected one. It is labelled AI, saved nowhere and applied nowhere.
+ */
+export function ElementSpyAiPanel({
+  status,
+  phase,
+  onPropose,
+  onCancel
+}: {
+  status: AiStatusView | null;
+  phase: AiAssistPhase<InspectionLocatorView>;
+  onPropose: () => void;
+  onCancel: () => void;
+}) {
+  const unavailable = aiUnavailableSentence(status, "The candidates above work without it.");
+  const refused = phase.kind === "failed" && phase.view.code !== "CANCELLED";
+  const proposal = phase.kind === "done" ? phase.view.proposal : null;
+  const scope = proposal ? describeProposedScope(proposal.context) : undefined;
+  let message = unavailable;
+  if (!message && phase.kind === "loading") message = "Asking local AI for a stronger locator, then proving it on this page…";
+  if (!message && phase.kind === "failed") message = phase.view.message ?? "Local AI could not answer this request.";
+  if (!message && proposal) message = "Proven on this page: it matches one element, and it is the inspected one. Nothing was saved or applied.";
+  return (
+    <>
+      <div className="ai-assist-bar" data-testid="element-spy-ai" data-assist-state={unavailable ? "unavailable" : phase.kind}>
+        <span className="ai-assist-label">
+          <Sparkles size={13} aria-hidden="true" />
+          Local AI
+        </span>
+        {phase.kind === "loading" ? (
+          <button className="toolbar-button" type="button" data-testid="element-spy-ai-cancel" onClick={onCancel}>
+            <X size={13} aria-hidden="true" />
+            Cancel
+          </button>
+        ) : (
+          <button className="toolbar-button" type="button" data-testid="element-spy-ai-propose" disabled={Boolean(unavailable)} onClick={onPropose}>
+            Find stronger locator with AI
+          </button>
+        )}
+        <span className={`ai-assist-message${refused ? " error" : ""}`} role="status" data-testid="element-spy-ai-message">
+          {refused ? <AlertCircle size={12} aria-hidden="true" /> : null} {message}
+        </span>
+      </div>
+      {proposal ? (
+        <div className="recorder-spy-primary" data-testid="element-spy-ai-result">
+          <strong>AI suggestion</strong>
+          <code data-testid="element-spy-ai-proposal">
+            {describeCandidate(proposal.candidate)}
+            {scope ? ` · within ${scope}` : ""}
+          </code>
+          {proposal.meaningChange ? (
+            <p className="recorder-spy-note" data-testid="element-spy-ai-meaning">
+              It identifies the element differently from the Recorder's choice (for example by text instead of position). Review it before you use it.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+    </>
   );
 }
 

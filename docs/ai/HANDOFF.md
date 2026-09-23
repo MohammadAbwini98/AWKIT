@@ -1,6 +1,34 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-23, latest) — L4b: 15 reviews await the owner; L1 decision record ready; L3 §9 report shipped
+## HANDOFF (2026-09-23, latest) — limited L1 GO recorded; Element Spy AI proposal built; 15 L4b reviews await the owner
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No bead's status changed.
+- **Owner decisions recorded (DECISIONS, latest):**
+  - `MA` is the owner's label, so B1 counts.
+  - L1 is option 1, a limited GO on the 0.8B for on-demand explanations, locator proposals (proven before
+    use) and manual failure analysis only.
+  - L1, L3, L4b and L5b stay `in_progress`.
+- **Built:** Element Spy's **Find stronger locator with AI** (L3 › "§1 Element Spy trigger as built"). It
+  shows a proposal only when it is proven on the live page, and it writes nothing.
+  - Proof: `verify:element-spy` 114/0 (mutation caught at 107/7) and `verify:ai-assist-gui` 102/0.
+  - NOT RUN: the real-Electron click-through. No harness can click inside the Recorder's browser.
+- **L4b review (owner's):** B2–B16 are still unread. The sheet (capture id, product action, model answer)
+  was given in chat, not committed. Record each verdict in your own terminal with
+  `npm run verify:ai-authoring-review -- --record <capture id> --correct yes|no --actionable yes|no --grounded yes|no --unsupported yes|no --reviewer MA`,
+  then run `npm run verify:ai-authoring-review`.
+- **Not authorized by the GO, so still unbuilt:**
+  - the Recorder-finalization upgrade job;
+  - the runtime-repair trigger;
+  - the sweep's queue and scheduler;
+  - automatic failure analysis;
+  - T2 promotion;
+  - "Use in action" for an AI proposal, which needs a provenance decision for draft steps.
+- **The signed-license note below still applies:** route (b) rebuild. This change touched `app/main`, so
+  the 0.1.51 artifacts are further behind `main`.
+- **Do not:** record a verdict as an agent; widen the GO's scope; close L1, L3, L4b or L5b; move a
+  ceiling; touch the `blocks` edges.
+
+## HANDOFF (2026-09-23, superseded) — L4b: 15 reviews await the owner; L1 decision record ready; L3 §9 report shipped
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No bead changed.
 - **L4b review (owner's):**

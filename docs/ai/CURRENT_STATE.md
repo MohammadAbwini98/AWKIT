@@ -1,6 +1,43 @@
 # CURRENT_STATE
 
-## Phase L: L4b at 1 of 16 reviewed, L1 decision record prepared, L3 §9 durability report shipped (2026-09-23, current)
+## Phase L: owner's limited L1 GO recorded; Element Spy "Find stronger locator with AI" built (2026-09-23, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No bead's status
+changed.
+
+- **L1 (`awkit-djnl.1`, in_progress):** the owner chose option 1 (DECISIONS 2026-09-23, latest). It is a
+  limited GO on the pinned Qwen3.5-0.8B for three on-demand features:
+  - authoring explanations;
+  - locator proposals, browser-proven before they are shown or stored;
+  - manual failure analysis.
+
+  It is not the full GO. Automatic failure analysis, the Recorder-finalization upgrade job, the
+  runtime-repair trigger, the sweep's queue and scheduler, and T2 auto-promotion stay blocked. No packaged
+  AI gate has run (L7).
+- **L3 (`awkit-djnl.4`, in_progress):** the first production caller of the §7 loop is built. It is
+  Element Spy's **Find stronger locator with AI**, through `ai:proposeInspectionLocator` (AI_USE + Recorder
+  page + `recorder.elementSpy`). Main reads its own live inspection and runs the product's
+  loop → compiler → intent guard → `proveLocatorPlan` on the Spy's page. It shows only a `capture-proven`
+  candidate, labelled AI, and writes nothing: no flow, draft or Spy candidate. Details are in L3 ›
+  "§1 Element Spy trigger as built".
+- **L4b (`awkit-djnl.6`, in_progress):** the owner confirmed `MA` is their label, so B1 stands as their
+  verdict. B2–B16 were given to the owner in chat, from the local captures. The store is unchanged at 1 of
+  16, so the TARGET stays PENDING.
+- **Fixed in passing:** `typecheck:scripts` had regressed to 1 error at `4b2dfa7b`, a `navigate` fixture
+  step in `verify-flow-library-gui.mts`. It is now `goto`, and the gate is back to 0.
+
+| Gate (this session) | Result |
+|---|---|
+| `verify:element-spy` | 114/0 (was 89); mutation dropping `userRequested` caught at 107/7 |
+| `verify:ai-permissions` · `verify:ai-fallback` · `verify:ai-authoring` | 96/0 · 38/0 · 272/272 |
+| `verify:ai-assist-gui` (real Electron) | 102/0; the new channel answers NOT_FOUND over real IPC |
+| `verify:flow-library` · `verify:design-tokens` · `typecheck:scripts` · build | 30/30 · 35/35 · PASS · PASS |
+| `verify:ipc-contract` · `verify:failure-capture-overhead` | 10/10 · 18/0/0: zero-AI run path, and timing passed this run (run 10 appended) |
+| `verify:verifier-classification` · `verify:roadmap-dashboard` | 260 reconciled · 177/177 Sources agree |
+| Spy button click-through in real Electron | NOT RUN: no GUI harness can click inside the Recorder's own browser |
+| `verify:ai-authoring-review` | not re-run (store unchanged): TARGET PENDING at 1 of 16 |
+
+## Phase L: L4b at 1 of 16 reviewed, L1 decision record prepared, L3 §9 durability report shipped (2026-09-23)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No bead changed.
 

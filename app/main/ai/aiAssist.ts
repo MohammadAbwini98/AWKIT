@@ -26,12 +26,14 @@ import {
   sanitizeFailureAnalysisRequest,
   sanitizeFailureAnalysisTarget,
   sanitizeFragmentSummaryRequest,
+  sanitizeInspectionLocatorRequest,
   type AiAdminResponse,
   type AiAssistCode,
   type AiAssistStatus,
   type AuthoringAssistView,
   type FailureAnalysisView,
-  type FragmentSummaryView
+  type FragmentSummaryView,
+  type InspectionLocatorView
 } from "@src/ai/contracts/AiApi";
 import {
   FAILURE_ANALYSIS_LIMITS,
@@ -46,10 +48,14 @@ import {
   type FailureBatchEntry
 } from "@src/ai/failureAnalysis";
 import { FRAGMENT_ASSIST_LIMITS, buildFragmentSummaryRequest, fragmentSummaryDecision, parseFragmentSummary } from "@src/ai/fragmentAssist";
+import { runLocatorUpgradeAttempts, type LocatorUpgradeProvider } from "@src/ai/locatorUpgradeAttempts";
 import type { FlowFragment } from "@src/fragments/FlowFragment";
+import type { FlowStep, PendingLocatorUpgrade } from "@src/profiles/FlowProfile";
+import type { ElementInspection } from "@src/recorder/RecorderTypes";
 import type { ConcurrentRunReport, StoredFailureAnalysis } from "@src/reports/ExecutionReport";
+import type { LocatorProofResult } from "@src/runner/locatorProof";
 import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
-import type { AiPolicyConfig, AiPolicyDecision } from "@src/security/authz/AiAutonomyPolicy";
+import { decideAiAction, type AiPolicyConfig, type AiPolicyDecision } from "@src/security/authz/AiAutonomyPolicy";
 import { validateFlowDefinition, type FlowValidationReport } from "@src/validation/FlowValidator";
 
 export interface AiAssistDeps {
@@ -73,7 +79,9 @@ const MESSAGES: Readonly<Record<AiAssistCode, string>> = Object.freeze({
   INVALID_REQUEST: "The request could not be read.",
   NOT_FOUND: "It no longer exists.",
   REAUTH_REQUIRED: "Confirm your password to continue.",
-  NOT_AUTHORIZED: "You are not authorized to use local AI."
+  NOT_AUTHORIZED: "You are not authorized to use local AI.",
+  PROTECTED: "Local AI never proposes locators for sensitive or sign-in elements.",
+  NOT_PROVEN: "No proposal could be proven on this page, so none is shown."
 });
 
 export function assistStatus(code: AiAssistCode, modelId?: string): AiAssistStatus {
@@ -310,6 +318,119 @@ export async function deleteFailureAnalysis(input: unknown, deps: Pick<FailureRe
     return { code: "NOT_FOUND", ok: false, message: "The saved analysis could not be deleted." };
   }
   return removed ? { code: "OK", ok: true } : { code: "NOT_FOUND", ok: false, message: "There is no saved analysis for this failure." };
+}
+
+/** The live Element Spy target, read by main from its own RecorderService — never from the renderer. */
+export interface InspectionTarget {
+  inspection: ElementInspection;
+  /** Values typed earlier in the recording: a proposal scoped by one is refused by the intent guard. */
+  boundValues: readonly string[];
+  /** L3 §4 capture-time proof on the inspection's live page (`proveLocatorPlan`). */
+  prove: (step: FlowStep, plan: unknown) => Promise<LocatorProofResult>;
+}
+
+export interface InspectionLocatorDeps extends Pick<AiAssistDeps, "policy"> {
+  ai: LocatorUpgradeProvider;
+  target: () => InspectionTarget | null;
+}
+
+/** In-flight Element Spy jobs by assist job id. The §7 loop submits one host job per attempt, so cancel goes through its signal. */
+const inspectionJobs = new Map<string, AbortController>();
+
+/** A provider code from the §7 loop as the code every other assist answers with (`outcomeCode`). */
+function providerCode(code: string): AiAssistCode {
+  if (code === "DISABLED") return "DISABLED";
+  if (code === "UNAVAILABLE" || code === "SHUTDOWN") return "UNAVAILABLE";
+  if (code === "QUEUE_FULL" || code === "DUPLICATE_REQUEST" || code === "YIELD_LIMIT") return "BUSY";
+  if (code === "TIMEOUT") return "TIMEOUT";
+  return "FAILED";
+}
+
+/**
+ * L3 §1's explicit trigger: "Find stronger locator with AI" in Element Spy (owner's limited L1 GO,
+ * 2026-09-23: on demand, browser-proven before use, never auto-promoted).
+ *
+ * The inspected element is treated as the click a recording would make on it, so T3 is decided exactly as
+ * for that step. The bounded §7 loop proposes, compiles, guards intent and proves on the live page. Only a
+ * `capture-proven` candidate is returned, and it is shown, not stored: nothing writes a flow, a draft or
+ * the Recorder's candidates, so using it is a person's separate act.
+ */
+export async function proposeInspectionLocator(senderId: number, input: unknown, deps: InspectionLocatorDeps): Promise<InspectionLocatorView> {
+  const request = sanitizeInspectionLocatorRequest(input);
+  const view = (code: AiAssistCode, inspectedAt: string | null = null, attemptsUsed = 0): InspectionLocatorView => ({
+    ...assistStatus(code),
+    inspectedAt,
+    proposal: null,
+    attemptsUsed
+  });
+  if (!request) return view("INVALID_REQUEST");
+  const target = deps.target();
+  if (!target) return view("NOT_FOUND");
+  const { inspection } = target;
+  const step: FlowStep = { id: "element-spy", type: "click", name: inspection.owner.name, locator: inspection.locator };
+  const decision = decideAiAction("locatorSemanticUpgrade", "locatorChange", { step }, await deps.policy());
+  if (decision.decision === "forbidden") return view(decision.reason.startsWith("T3_") ? "PROTECTED" : policyCode(decision)!, inspection.inspectedAt);
+
+  const jobId = assistJobId(senderId, request.requestId);
+  if (inspectionJobs.has(jobId)) return view("BUSY", inspection.inspectedAt);
+  const controller = new AbortController();
+  inspectionJobs.set(jobId, controller);
+  let proposal: PendingLocatorUpgrade | undefined;
+  try {
+    const result = await runLocatorUpgradeAttempts(
+      {
+        requestId: jobId,
+        step,
+        boundValues: target.boundValues,
+        ...(inspection.upgradeContext ? { upgradeContext: inspection.upgradeContext } : {}),
+        userRequested: true,
+        priority: "interactive",
+        signal: controller.signal
+      },
+      {
+        ai: deps.ai,
+        prove: (plan) => target.prove(step, plan),
+        // Held for this answer only. The loop's compare-and-swap target is a saved step; the Spy has none.
+        annotate: async (pending) => {
+          proposal = pending;
+          return { code: "OK" };
+        }
+      }
+    );
+    const at = inspection.inspectedAt;
+    switch (result.outcome) {
+      case "accepted":
+        // `unprovable-now` is storable for a saved step, which replay settles later. The Spy has no replay.
+        return proposal?.proof === "capture-proven"
+          ? {
+              ...assistStatus("OK", proposal.modelId),
+              inspectedAt: at,
+              proposal: { candidate: proposal.candidate, ...(proposal.context ? { context: proposal.context } : {}), meaningChange: proposal.meaningChange },
+              attemptsUsed: result.attemptsUsed
+            }
+          : view("NOT_PROVEN", at, result.attemptsUsed);
+      case "not-eligible":
+      case "forbidden":
+        return view(result.code.startsWith("T3_") ? "PROTECTED" : "NOTHING_TO_ASK", at, result.attemptsUsed);
+      case "provider-unavailable":
+        return view(providerCode(result.code), at, result.attemptsUsed);
+      case "cancelled":
+        return view("CANCELLED", at, result.attemptsUsed);
+      case "context-expired":
+        return view("NOT_FOUND", at, result.attemptsUsed);
+      default:
+        return view("NOT_PROVEN", at, result.attemptsUsed);
+    }
+  } finally {
+    inspectionJobs.delete(jobId);
+  }
+}
+
+/** Abort an in-flight Element Spy job by its assist job id. False when there is none. */
+export function abortInspectionLocator(jobId: string): boolean {
+  const controller = inspectionJobs.get(jobId);
+  controller?.abort();
+  return controller !== undefined;
 }
 
 export function cancelAssist(senderId: number, input: unknown, cancel: (jobId: string) => boolean): AiAdminResponse {

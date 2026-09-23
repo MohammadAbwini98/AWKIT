@@ -116,6 +116,9 @@ console.log("\nEvery AI channel is gated in main, and the preload exposes exactl
     "ai:analyzeFailure": [["AI_USE", "PAGE_REPORTS"], false],
     // ...and deleting the analysis it saved into that report needs exactly the pair that can create it.
     "ai:deleteFailureAnalysis": [["AI_USE", "PAGE_REPORTS"], false],
+    // L3 §1: an Element Spy proposal reads the page being inspected and writes nothing, so it takes the
+    // Spy's own pair (the Recorder page and recorder.elementSpy) on top of AI_USE.
+    "ai:proposeInspectionLocator": [["AI_USE", "PAGE_RECORDER", "RECORDER_ELEMENT_SPY"], false],
     "ai:importModelPack": [["AI_MANAGE"], true],
     "ai:removeModelPack": [["AI_MANAGE"], true]
   };
@@ -133,7 +136,7 @@ console.log("\nEvery AI channel is gated in main, and the preload exposes exactl
     check(`${channel} ${expected[1] ? "requires" : "does not require"} re-authentication`, sensitive === expected[1]);
     const gate = body.search(/assertSenderPermission|authorize\(/);
     const action = body.search(
-      /aiStatusView|aiSettingsView|updateAiSettings|restoreAiFeature|aiDiagnosticsView|aiAuditView|revertAiActionFromAudit|flowLocatorUpgrades|promoteFlowLocatorUpgrade|setFlowEditorState|explainFlowValidation\(|summarizeFragment\(|analyzeFailure\(|deleteFailureAnalysis\(|cancelAssist\(|importAiModelPack|removeAiModelPack|showOpenDialog/
+      /aiStatusView|aiSettingsView|updateAiSettings|restoreAiFeature|aiDiagnosticsView|aiAuditView|revertAiActionFromAudit|flowLocatorUpgrades|promoteFlowLocatorUpgrade|setFlowEditorState|explainFlowValidation\(|summarizeFragment\(|analyzeFailure\(|deleteFailureAnalysis\(|proposeInspectionLocator\(|cancelAssist\(|importAiModelPack|removeAiModelPack|showOpenDialog/
     );
     check(`${channel} authorizes before doing anything else`, gate >= 0 && action > gate, `gate@${gate} action@${action}`);
   }

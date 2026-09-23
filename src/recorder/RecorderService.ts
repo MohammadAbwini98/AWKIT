@@ -1895,6 +1895,18 @@ export class RecorderService {
     };
   }
 
+  /**
+   * L3 §1's Element Spy trigger: the current inspection, the live page it was taken on, and the values
+   * typed earlier in this recording, which an AI scope must never contain. Null when the inspection
+   * expired, was refused, or its page closed.
+   */
+  public getInspectionTarget(): { inspection: ElementInspection; page: Page; boundValues: string[] } | null {
+    const inspection = this.getInspectionState().inspection;
+    if (!inspection) return null;
+    const page = inspection.pageAlias === "main" ? this.page : this.popupPages.get(inspection.pageAlias);
+    return page && !page.isClosed() ? { inspection, page, boundValues: boundValueSources(this.actions) } : null;
+  }
+
   /** "Use in action": explicitly replace one recorded step's locator with a unique inspected candidate. */
   public async applyInspection(actionId: string, candidateIndex: number): Promise<{ ok: true; actions: RecordedAction[] } | { ok: false; reason: string }> {
     const inspection = this.getInspectionState().inspection;

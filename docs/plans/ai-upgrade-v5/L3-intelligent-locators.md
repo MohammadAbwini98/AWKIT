@@ -23,9 +23,11 @@ caught) on the new `lu-repair` mock-site fixture. **§9 flow health sweep is bui
 `verify:ai-locator-sweep` 60/60 pure, three mutations caught): the durability audit and the bounded,
 idle-gated job queue. **`verify:ai-locator-quality-live` is built** (2026-09-22, `858ffd17`): the real
 Qwen3.5-0.8B's plans for six labelled cases, proven by §4/§8 in real Chromium and judged by the page, 14/0
-with false-target 0 (details and results in the L1 plan). Not built: the production callers of §7/§8 and of
-§9's job queue, which all need the AI caller L1 gates. §9's model-free **durability report** does not, and
-is shown on the Flow Library since 2026-09-23 (see §9).
+with false-target 0 (details and results in the L1 plan). §9's model-free **durability report** is shown
+on the Flow Library since 2026-09-23 (see §9). **Since the owner's limited L1 GO (2026-09-23), §7 has its
+first production caller:** Element Spy's on-demand proposal (see "§1 Element Spy trigger as built"). Still
+not built, and outside that GO's scope: the automatic trigger on Recorder finalization, the §8 runtime
+repair trigger, and §9's queue and idle scheduler.
 
 §7 as built:
 - **One bounded job.** `runLocatorUpgradeAttempts` is the whole loop. Every iteration either returns or
@@ -127,6 +129,41 @@ A job is queued when a finalized locator's L2 class is `guarded-positional` or b
 saved locator fails at runtime and deterministic recovery finds no strong replacement, when the user asks from Element
 Spy, or by the idle **flow health sweep**. Never for strong semantic locators, and never for sensitive-action or
 protected-login steps (T3). The current locator stays authoritative.
+
+### §1 Element Spy trigger as built (2026-09-23)
+
+Built under the owner's limited L1 GO: on demand, browser-proven before use, never auto-promoted.
+
+- **Where:** Recorder › Element Spy, **Find stronger locator with AI** under the inspection result
+  (`ElementSpyAi` in `Recorder.tsx`, on the shared `useAiAssistJob`). A new inspection abandons and
+  cancels the job in flight.
+- **Channel:** `ai:proposeInspectionLocator` needs AI_USE plus the Spy's own pair (Recorder page,
+  `recorder.elementSpy`). It carries only a request id. Main reads its own live inspection through
+  `RecorderService.getInspectionTarget()`, which returns the inspection, its page and the values typed
+  earlier in the recording.
+- **The job is the product's own chain:** `proposeInspectionLocator` in `app/main/ai/aiAssist.ts` runs
+  `runLocatorUpgradeAttempts` with `userRequested: true`, the capture context and those typed values.
+  `proveLocatorPlan` proves on the Spy's page. The inspected element is judged for T3 as a click on it
+  would be, so a sensitive name is refused before any model call. Cancel goes through the loop's signal
+  (`abortInspectionLocator`).
+- **Only `capture-proven` is shown.** An `unprovable-now` candidate is storable for a saved step, where
+  replay settles it. The Spy has no replay, so it answers `NOT_PROVEN` instead.
+- **Nothing is written.** The loop's `annotate` holds the candidate for the answer only. No flow, draft or
+  Spy candidate changes, so using a proposal stays a person's separate act. Applying it through
+  "Use in action" with provenance and audit is not built. It would need a decision on how a draft step
+  carries AI provenance before it is saved.
+- **Proven:**
+  - `verify:element-spy` 114/0 (was 89). Section H runs the real RecorderService Spy session, the
+    product's loop, compiler, intent guard and proof, with a scripted provider in place of the model. It
+    covers a proven proposal, two wrong-element plans refused in the browser, a row scope on a value typed
+    earlier refused by the intent guard (and never shown to the model), a T3 element refused before any
+    call, Cancel, AI off and no inspection. It also shows that nothing was written.
+  - The E section checks the IPC gates and wiring; the F section renders the panel's states.
+  - The mutation dropping `userRequested` was caught at 107/7.
+  - `verify:ai-assist-gui` 102/0: the channel is registered and answers over real IPC.
+  - `verify:ai-permissions` 96/0 and `verify:ai-fallback` 38/0 admit the channel in their exact rosters.
+- **NOT RUN:** clicking the button in real Electron. No GUI harness can click inside the Recorder's own
+  browser, so no inspection exists there to ask about.
 
 ## 2. Locator plan DSL → trusted compiler
 

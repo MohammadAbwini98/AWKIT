@@ -29,18 +29,24 @@ import {
   type AuthoringAssistView,
   type FailureAnalysisView,
   type FlowLocatorUpgradesView,
-  type FragmentSummaryView
+  type FragmentSummaryView,
+  type InspectionLocatorView
 } from "@src/ai/contracts/AiApi";
+import { recorderService } from "@src/recorder/RecorderService";
+import { proveLocatorPlan } from "@src/runner/locatorProof";
 import { Permission } from "@src/security/authz/Permissions";
 
 import { createFlowFragmentStore, createFlowProfileStore, createReportStore } from "../profileStores";
 import { assertSenderPermission } from "../security/sessionContext";
 import {
+  abortInspectionLocator,
   analyzeFailure,
   cancelAssist,
   deleteFailureAnalysis,
   explainFlowValidation,
+  proposeInspectionLocator,
   summarizeFragment,
+  type InspectionTarget,
   type AiAssistDeps,
   type FailureReportAccess
 } from "../ai/aiAssist";
@@ -69,6 +75,18 @@ function assistDeps(): AiAssistDeps {
     submit: (job) => getAiService().submit(job),
     policy: aiPolicyConfig,
     savedFlowIds: async () => (await createFlowProfileStore().list()).map((flow) => flow.id)
+  };
+}
+
+/** Element Spy's live inspection and page, proven on with the product's own capture-time proof. */
+function inspectionTarget(): InspectionTarget | null {
+  const live = recorderService.getInspectionTarget();
+  if (!live) return null;
+  const { inspection, page, boundValues } = live;
+  return {
+    inspection,
+    boundValues,
+    prove: (step, plan) => proveLocatorPlan(page, step, plan, { boundValues, ...(inspection.upgradeContext ? { upgradeContext: inspection.upgradeContext } : {}) })
   };
 }
 
@@ -202,10 +220,25 @@ export function registerAiIpc(): void {
     return denied ?? deleteFailureAnalysis(target, reportAccess());
   });
 
+  // L3 §1, Element Spy on demand (owner's limited L1 GO). It names nothing: main reads its own live
+  // inspection. It reads a page the user is inspecting and writes nothing, so it takes the Spy's own
+  // permission pair plus AI_USE.
+  ipcMain.handle("ai:proposeInspectionLocator", async (event, request: unknown): Promise<InspectionLocatorView> => {
+    const denied =
+      (await authorize(event, Permission.AI_USE, false)) ??
+      (await authorize(event, Permission.PAGE_RECORDER, false)) ??
+      (await authorize(event, Permission.RECORDER_ELEMENT_SPY, false));
+    if (denied) {
+      const code = denied.code === "REAUTH_REQUIRED" ? "REAUTH_REQUIRED" : "NOT_AUTHORIZED";
+      return { code, ok: false, message: denied.message, inspectedAt: null, proposal: null, attemptsUsed: 0 };
+    }
+    return proposeInspectionLocator(event.sender.id, request, { policy: aiPolicyConfig, ai: getAiService(), target: inspectionTarget });
+  });
+
   // Cancels only the asking window's own job: main prefixes the id with the sender's id.
   ipcMain.handle("ai:cancelAssist", async (event, requestId: unknown): Promise<AiAdminResponse> => {
     await assertSenderPermission(event, Permission.AI_USE);
-    return cancelAssist(event.sender.id, requestId, (jobId) => getAiService().cancel(jobId));
+    return cancelAssist(event.sender.id, requestId, (jobId) => abortInspectionLocator(jobId) || getAiService().cancel(jobId));
   });
 
   ipcMain.handle("ai:importModelPack", async (event): Promise<AiAdminResponse> => {

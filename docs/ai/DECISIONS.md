@@ -1,6 +1,36 @@
 # DECISIONS
 
-### 2026-09-23 (latest) — Phase L L4b: criterion 3 measures the explanation a person sees (owner, option B) (`awkit-djnl.6`, `awkit-djnl.1`)
+### 2026-09-23 (latest) — Phase L L1: limited GO on Qwen3.5-0.8B for three on-demand features (owner, option 1) (`awkit-djnl.1`, `.4`, `.6`, `.8`)
+
+- **Decided by the owner (2026-09-23, in session), on the decision record in `L1-ai-foundation.md`:**
+  option 1. The pinned Qwen3.5-0.8B pack is accepted for exactly these person-triggered features:
+  1. **Authoring explanations** (L4b, T0), shown with the product's own corrective action.
+  2. **Locator proposals** (L3), on demand only. A proposal is browser-proven before it is shown or
+     stored. It is never auto-promoted and never auto-repaired.
+  3. **Manual failure analysis** (L5b), person-triggered only.
+- **Still blocked, because they are outside that scope:**
+  - automatic failure analysis (−5 against the baseline, ROADMAP rule 7);
+  - the automatic upgrade job on Recorder finalization;
+  - the runtime-repair trigger;
+  - the health sweep's queue and idle scheduler;
+  - T2 auto-promotion (`LOCATOR_UPGRADE_REPLAY_POLICY.committed` stays `false`).
+
+  L6 fragment summaries are not named either. They stay as built under the 2026-09-20 conditional
+  authorization, and L6 keeps its own acceptance.
+- **What this decision does not do:**
+  - L1 stays `in_progress`. This is not the full performance-and-quality GO. No packaged AI gate has run
+    (L7), and the 2B stays NOT RUN.
+  - The 4B stays pinned in the manifest. The owner made no decision on it.
+  - L3, L4b and L5b keep their own acceptance. L4b still needs 15 of 16 reviews.
+- **Reviewer identity:** the owner confirmed that `MA` is their label and that B1
+  (`…adbc14/casing/i0`) is their own verdict.
+- **Built under it (implementer):** Element Spy's "Find stronger locator with AI"
+  (`ai:proposeInspectionLocator`). It shows only a candidate proven on the live page and writes nothing,
+  so no audit record is needed. Using a proposal in a recorded step, with provenance, is not built: a
+  draft step has no saved flow for the audit and revert path to act on. See L3 › "§1 Element Spy trigger
+  as built".
+
+### 2026-09-23 — Phase L L4b: criterion 3 measures the explanation a person sees (owner, option B) (`awkit-djnl.6`, `awkit-djnl.1`)
 
 - **Decided by the owner:** criterion 3 evaluates the complete visible explanation, including the
   product's corrective action shown beside the answer.

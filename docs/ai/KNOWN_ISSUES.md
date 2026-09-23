@@ -1,5 +1,20 @@
 # KNOWN_ISSUES
 
+## GUI verifiers cannot click inside the Recorder's own browser (2026-09-23, OPEN — verification gap, L3 §1)
+
+- The Recorder and Element Spy browser is launched by main through Playwright. No GUI harness can reach
+  it: no CDP port, no test hook. So no real-Electron verifier can create an inspection. Element Spy's
+  **Find stronger locator with AI** is therefore proven in three pieces:
+  - `verify:element-spy` §H: the real RecorderService, the product's loop and proof, a scripted provider;
+  - §E, which checks the IPC and preload wiring in source, and §F, which renders the panel;
+  - `verify:ai-assist-gui`: the channel answers over real IPC.
+
+  The click-through itself is NOT RUN.
+- Adding a harness path into that browser would be a test hook on a security-sensitive surface (protected
+  login is handed off from it). It needs its own design and must not be improvised.
+- **Related trap, fixed:** `4b2dfa7b` did not run `typecheck:scripts`, and a `navigate` fixture step (not a
+  `StepType`) broke it. Run `typecheck:scripts` whenever a verifier changes.
+
 ## Packaged gates, QC follow-up: two blind spots closed, the freshness guard is mtime only (2026-09-23, FIXED + OPEN limits — packaged acceptance QC)
 
 Found by the independent QC review (`awkit-qc-reviewer`, APPROVED_WITH_NOTES).

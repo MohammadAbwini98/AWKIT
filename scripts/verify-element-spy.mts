@@ -15,6 +15,10 @@
  *   E  main-process permission wiring for every inspection IPC channel, role registry, preload surface
  *   F  the Recorder's result panel rendered (SSR) from the real inspection
  *   G  protected-login detection during a recording turns inspection off and clears the result
+ *   H  "Find stronger locator with AI" (L3 §1): the product's bounded loop, compiler, intent guard and
+ *      browser proof on the live Spy page with a scripted provider — only a proven proposal is shown, a
+ *      wrong element, a typed value and a T3 element are refused, Cancel ends the job, nothing is written
+ *      (its IPC wiring is asserted in E and its panel rendered in F)
  */
 import { spawn, type ChildProcess } from "node:child_process";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
@@ -33,6 +37,11 @@ import { LocatorFactory } from "@src/runner/LocatorFactory";
 import { StepExecutor } from "@src/runner/StepExecutor";
 import { ValueResolver } from "@src/runner/ValueResolver";
 import type { InstanceExecutionContext } from "@src/runner/InstanceExecutionContext";
+import type { AiStatusView, InspectionLocatorView } from "@src/ai/contracts/AiApi";
+import type { AiJobOutcome, AiJobRequest } from "@src/ai/AiService";
+import { proveLocatorPlan } from "@src/runner/locatorProof";
+import { abortInspectionLocator, proposeInspectionLocator, type InspectionTarget } from "../app/main/ai/aiAssist";
+import type { AiAssistPhase } from "../app/renderer/components/shared/useAiAssistJob";
 
 const PORT = 4389;
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -274,10 +283,97 @@ async function main(): Promise<void> {
     check("the applied locator is persisted to the draft", draftAfterApply.actions.find((a) => a.id === saveAction?.id)?.locator?.strategy === "role");
     check("the spy session recorded nothing", recorder.getActions().length === recordedCount && recorder.getActions().every((a) => a.name !== "Void"), String(recorder.getActions().length));
 
+    // ── H: "Find stronger locator with AI" (L3 §1, owner's limited L1 GO) ────────────────────────
+    console.log("H  Element Spy AI proposal: proven on the live page, shown only");
+    const jobs: AiJobRequest[] = [];
+    const plans: unknown[] = [];
+    let hanging: ((outcome: AiJobOutcome) => void) | null = null;
+    // A scripted provider in place of the model; the loop, compiler, intent guard and browser proof are the product's.
+    const fakeAi = {
+      submit: async (job: AiJobRequest): Promise<AiJobOutcome> => {
+        jobs.push(job);
+        const plan = plans.shift();
+        if (plan === "hang") return new Promise<AiJobOutcome>((resolve) => (hanging = resolve));
+        return { status: "ok", value: plan, modelId: "test-fake", usage: { promptTokens: 0, outputTokens: 0, firstTokenMs: 0, generationMs: 0 }, yields: 0 };
+      },
+      cancel: () => {
+        const settle = hanging;
+        hanging = null;
+        settle?.({ status: "cancelled", yields: 0 });
+        return settle !== null;
+      }
+    };
+    // The same wiring as ai.ipc.ts's inspectionTarget (asserted in E): the Recorder's live target, the product's proof.
+    const spyTarget = (): InspectionTarget | null => {
+      const live = recorder.getInspectionTarget();
+      if (!live) return null;
+      const { inspection, page, boundValues } = live;
+      return {
+        inspection,
+        boundValues,
+        prove: (step, plan) => proveLocatorPlan(page, step, plan, { boundValues, ...(inspection.upgradeContext ? { upgradeContext: inspection.upgradeContext } : {}) })
+      };
+    };
+    let askCount = 0;
+    const ask = (enabled = true) => proposeInspectionLocator(7, { requestId: `h-${(askCount += 1)}` }, { policy: async () => ({ enabled }), ai: fakeAi, target: spyTarget });
+    const rolePlan = (name: string, scopes: unknown[] = []) => ({ version: 1, target: { strategy: "role", value: "button", name, exact: true }, scopes });
+    const testIdPlan = (value: string) => ({ version: 1, target: { strategy: "testId", value }, scopes: [] });
+    const actionsBeforeAi = JSON.stringify(recorder.getActions());
+    const candidatesBeforeAi = JSON.stringify(recorder.getInspectionState().inspection?.candidates);
+
+    check("a malformed request is refused before anything runs", (await proposeInspectionLocator(7, { requestId: "not valid!" }, { policy: async () => ({ enabled: true }), ai: fakeAi, target: spyTarget })).code === "INVALID_REQUEST" && jobs.length === 0);
+    let proposal = await ask(false);
+    check("local AI switched off: DISABLED and no model call", proposal.code === "DISABLED" && proposal.proposal === null && jobs.length === 0, JSON.stringify(proposal));
+
+    plans.push(rolePlan("Save profile"));
+    proposal = await ask();
+    check(
+      "a plan that reaches the inspected element is returned as proven, with its compiled locator",
+      proposal.ok && proposal.code === "OK" && proposal.proposal?.candidate.strategy === "role" && proposal.proposal.candidate.name === "Save profile" && proposal.modelId === "test-fake",
+      JSON.stringify(proposal)
+    );
+    check("the answer names the inspection it belongs to", proposal.inspectedAt === save2?.inspectedAt, `${proposal.inspectedAt} vs ${save2?.inspectedAt}`);
+    check("the job is the L3 upgrade feature, interactive, as a user request", jobs[0]?.feature === "locatorSemanticUpgrade" && jobs[0].priority === "interactive" && jobs.length === 1, JSON.stringify(jobs.map((j) => [j.feature, j.priority])));
+    const provenView = proposal;
+
+    plans.push(testIdPlan("spy-submit-order"), testIdPlan("spy-next-link"));
+    proposal = await ask();
+    check("plans that reach a different element are refused in the browser, and nothing is shown", !proposal.ok && proposal.code === "NOT_PROVEN" && proposal.proposal === null && proposal.attemptsUsed === 2, JSON.stringify(proposal));
+    check("the proof only observed: no refused candidate was clicked", (await text(spy, "spy-clicks")) === "0", await text(spy, "spy-clicks"));
+
+    const edit = await inspect(() => spy.getByRole("row", { name: /INV-2002/ }).getByRole("button", { name: "Edit" }).click(), "Edit");
+    const jobsBeforeEdit = jobs.length;
+    const rowScope = { kind: "tableRow", strategy: "role", value: "row", hasText: "INV-2002" };
+    plans.push(rolePlan("Edit", [rowScope]), rolePlan("Edit", [{ ...rowScope, hasText: "inv-2002" }]));
+    proposal = await ask();
+    check("a scope on text typed earlier in the recording is refused by the intent guard", Boolean(edit) && proposal.code === "NOT_PROVEN" && proposal.proposal === null && proposal.attemptsUsed === 2, JSON.stringify(proposal));
+    check("the model was never shown that typed value", jobs.length === jobsBeforeEdit + 2 && !JSON.stringify(jobs.slice(jobsBeforeEdit).map((j) => j.prompt)).toLowerCase().includes("inv-2002"));
+
+    const approve = await inspect(() => spy.frameLocator('[data-testid="spy-frame"]').getByTestId("spy-frame-approve").click(), "Approve in frame");
+    const jobsBeforeT3 = jobs.length;
+    proposal = await ask();
+    check("a sensitive element (T3) is refused before any model call", Boolean(approve) && proposal.code === "PROTECTED" && jobs.length === jobsBeforeT3, JSON.stringify(proposal));
+
+    await inspect(() => spy.getByTestId("spy-save-profile").click(), "Save profile");
+    plans.push("hang");
+    const pendingAsk = ask();
+    await until(() => (hanging ? true : null));
+    const cancelled = abortInspectionLocator(`assist.7.h-${askCount}`);
+    proposal = await pendingAsk;
+    check("Cancel reaches the in-flight model job and ends it", cancelled && proposal.code === "CANCELLED" && proposal.proposal === null, JSON.stringify(proposal));
+    check("a finished job can no longer be aborted", !abortInspectionLocator(`assist.7.h-${askCount}`));
+
+    check("proposals wrote nothing: recorded steps unchanged", JSON.stringify(recorder.getActions()) === actionsBeforeAi);
+    check("proposals wrote nothing: the draft file unchanged", (await readFile(draftPath, "utf8")) === draftAfterApplyText);
+    check("proposals never join the Spy's own candidates", JSON.stringify(recorder.getInspectionState().inspection?.candidates) === candidatesBeforeAi);
+
     // Expired inspection.
     internal.inspection.inspectedAt = new Date(Date.now() - 6 * 60_000).toISOString();
     applied = saveAction ? await recorder.applyInspection(saveAction.id, roleIndex) : { ok: false as const, reason: "" };
     check("an expired inspection cannot be applied", !applied.ok && /expired/.test(applied.reason) && recorder.getInspectionState().inspection === null, JSON.stringify(applied));
+    const jobsBeforeExpired = jobs.length;
+    proposal = await ask();
+    check("with no current inspection a proposal is NOT_FOUND and nothing is asked", proposal.code === "NOT_FOUND" && jobs.length === jobsBeforeExpired, JSON.stringify(proposal));
 
     // Mode off: clicks are performed again, still nothing is recorded.
     state = await recorder.setInspectMode(false);
@@ -377,10 +473,46 @@ async function main(): Promise<void> {
     check("a role without recorder.elementSpy is denied; Operator is granted", !viewer.has(Permission.RECORDER_ELEMENT_SPY) && operator.has(Permission.RECORDER_ELEMENT_SPY), `viewer=${viewer.has(Permission.RECORDER_ELEMENT_SPY)} operator=${operator.has(Permission.RECORDER_ELEMENT_SPY)}`);
     const recorderPage = await readFile("app/renderer/pages/Recorder.tsx", "utf8");
     check("the renderer shows the Spy and polls it only with the permission", /\{canSpy \? \(/.test(recorderPage) && /if \(canSpy\) \{\s*window\.playwrightFlowStudio\.recorder\.getInspection\(\)/.test(recorderPage));
+    const aiIpc = await readFile("app/main/ipc/ai.ipc.ts", "utf8");
+    const proposeStart = aiIpc.indexOf('ipcMain.handle("ai:proposeInspectionLocator"');
+    const proposeBody = proposeStart < 0 ? "" : aiIpc.slice(proposeStart, aiIpc.indexOf("ipcMain.handle(", proposeStart + 10));
+    const proposeCall = proposeBody.indexOf("proposeInspectionLocator(event.sender.id");
+    const gates = ["Permission.AI_USE", "Permission.PAGE_RECORDER", "Permission.RECORDER_ELEMENT_SPY"].map((gate) => proposeBody.indexOf(gate));
+    check("ai:proposeInspectionLocator authorizes AI_USE, the Recorder page and recorder.elementSpy before it runs", proposeCall > 0 && gates.every((at) => at > 0 && at < proposeCall), `gates=${gates} call=${proposeCall}`);
+    check(
+      "main proves on the Spy's own live page with the Recorder's typed values and capture context",
+      /recorderService\.getInspectionTarget\(\)/.test(aiIpc) && /proveLocatorPlan\(page, step, plan, \{ boundValues, \.\.\.\(inspection\.upgradeContext \? \{ upgradeContext: inspection\.upgradeContext \} : \{\}\) \}\)/.test(aiIpc)
+    );
+    check("Cancel reaches an Element Spy job before the plain service cancel", /abortInspectionLocator\(jobId\) \|\| getAiService\(\)\.cancel\(jobId\)/.test(aiIpc));
+    check("the preload exposes the proposal channel", preload.includes('invoke("ai:proposeInspectionLocator"'));
 
     // ── F: result panel rendered from a real inspection ──────────────────────────────────────────
     console.log("F  Result panel rendered from the real inspection");
-    const { ElementSpyResult } = await import("../app/renderer/pages/Recorder.tsx");
+    const { ElementSpyResult, ElementSpyAiPanel } = await import("../app/renderer/pages/Recorder.tsx");
+    const ready: AiStatusView = {
+      enabled: true,
+      state: "available",
+      reason: null,
+      holdReason: null,
+      queueDepth: 0,
+      modelPack: { status: "installed", reason: null, modelId: "test-fake", displayName: "Test" }
+    };
+    const panel = (status: AiStatusView | null, phase: AiAssistPhase<InspectionLocatorView>) =>
+      renderToStaticMarkup(createElement(ElementSpyAiPanel, { status, phase, onPropose: () => undefined, onCancel: () => undefined }));
+    const idleHtml = panel(ready, { kind: "idle" });
+    check("AI panel: the proposal button is offered when local AI is ready", /data-testid="element-spy-ai-propose"(?![^>]*disabled)/.test(idleHtml) && idleHtml.includes("Find stronger locator with AI"));
+    const offHtml = panel({ ...ready, enabled: false }, { kind: "idle" });
+    check("AI panel: switched off, the button is disabled and says why", /data-testid="element-spy-ai-propose"[^>]*disabled/.test(offHtml) && offHtml.includes("Local AI is turned off"));
+    const loadingHtml = panel(ready, { kind: "loading" });
+    check("AI panel: while asking, only Cancel is offered", loadingHtml.includes('data-testid="element-spy-ai-cancel"') && !loadingHtml.includes('data-testid="element-spy-ai-propose"'));
+    const provenHtml = panel(ready, { kind: "done", view: provenView, subject: provenView.inspectedAt ?? "" });
+    check(
+      "AI panel: a proven proposal is shown labelled as AI, as its compiled locator, and says nothing was applied",
+      provenHtml.includes("AI suggestion") && provenHtml.includes("role button &quot;Save profile&quot; (exact)") && provenHtml.includes("Nothing was saved or applied"),
+      provenHtml
+    );
+    const refusedHtml = panel(ready, { kind: "failed", view: { code: "NOT_PROVEN", ok: false, message: "No proposal could be proven on this page, so none is shown." } });
+    check("AI panel: an unproven answer shows its reason and no locator", refusedHtml.includes("No proposal could be proven") && !refusedHtml.includes("element-spy-ai-result"));
     if (save2 && twin) {
       const render = (inspection: ElementInspection, candidate: number) =>
         renderToStaticMarkup(createElement(ElementSpyResult, { inspection, candidate, onCandidate: () => undefined, actions: recorder.getActions(), actionId: saveAction?.id ?? "", onAction: () => undefined, busy: false, onApply: () => undefined }));

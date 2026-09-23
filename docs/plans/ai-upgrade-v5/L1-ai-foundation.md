@@ -1403,7 +1403,7 @@ re-measured.**
 
 So L1 is not accepted. The 2B is NOT RUN because it is not downloaded.
 
-## Decision record for the owner's L1 go/no-go (prepared 2026-09-23, NOT decided)
+## Decision record for the owner's L1 go/no-go (prepared 2026-09-23; decided the same day: option 1, limited)
 
 A consolidation of the evidence above, for the owner to decide on. It adds no measurement and makes no
 decision. Nothing live was re-run to write it, because no input changed.
@@ -1428,6 +1428,12 @@ in `docs/ai/DECISIONS.md`:
    PENDING. The product keeps its deterministic behavior, which already works with AI off.
 3. **More evaluation first.** Acquire and measure Qwen3.5-2B (NOT RUN), or another model, against the
    same ceilings and labelled sets before any broader AI function is authorized.
+
+**Decided by the owner, 2026-09-23: option 1** (`docs/ai/DECISIONS.md`, latest). The GO covers
+authoring explanations, on-demand locator proposals (proven before use, never auto-promoted or
+auto-repaired) and manual failure analysis. The measurements above are unchanged. L1 stays
+`in_progress`: the release gate (packaged AI, L7) has not run. The 2B stays NOT RUN, and the 4B pin is
+unchanged. Built under it: the Element Spy proposal (L3 › "§1 Element Spy trigger as built").
 
 ## Verifiers
 

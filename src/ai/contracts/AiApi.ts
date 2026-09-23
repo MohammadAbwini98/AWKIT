@@ -243,7 +243,11 @@ export type AiAssistCode =
   /** The named subject (a fragment) no longer exists. */
   | "NOT_FOUND"
   | "REAUTH_REQUIRED"
-  | "NOT_AUTHORIZED";
+  | "NOT_AUTHORIZED"
+  /** L3 T3: a sensitive or sign-in element. No proposal is ever asked for. */
+  | "PROTECTED"
+  /** L3: no proposal was proven on the page (refused, exhausted, or the page changed meanwhile). */
+  | "NOT_PROVEN";
 
 export interface AiAssistStatus {
   code: AiAssistCode;
@@ -290,6 +294,31 @@ export function sanitizeFragmentSummaryRequest(input: unknown): FragmentSummaryA
   const requestId = raw ? sanitizeAssistRequestId(raw.requestId) : null;
   const fragmentId = raw ? sanitizeProfileId(raw.fragmentId) : null;
   return requestId && fragmentId ? { requestId, fragmentId } : null;
+}
+
+/**
+ * L3 §1, Element Spy: propose a stronger locator for the element inspected right now. The request
+ * carries only its cancel key; main reads the live inspection, its page and its context itself.
+ */
+export interface InspectionLocatorRequest {
+  requestId: string;
+}
+
+export interface InspectionLocatorView extends AiAssistStatus {
+  /** The inspection this answers, so the renderer drops it once a newer element is inspected. */
+  inspectedAt: string | null;
+  /**
+   * Only a candidate proven on the live page right now: it builds, matches one element, and that
+   * element IS the inspected one. Compiler-validated, labelled AI, shown only, and never stored or applied.
+   */
+  proposal: { candidate: LocatorCandidate; context?: LocatorContext; meaningChange: boolean } | null;
+  attemptsUsed: number;
+}
+
+export function sanitizeInspectionLocatorRequest(input: unknown): InspectionLocatorRequest | null {
+  const raw = typeof input === "object" && input !== null ? (input as Record<string, unknown>) : null;
+  const requestId = raw ? sanitizeAssistRequestId(raw.requestId) : null;
+  return requestId ? { requestId } : null;
 }
 
 /** L5b: interpret one failed instance of a stored run. It names the run and the instance; main reads the report. */

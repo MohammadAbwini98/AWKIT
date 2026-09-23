@@ -30,6 +30,8 @@ import type {
   FlowLocatorUpgradesView,
   FragmentSummaryAssistRequest,
   FragmentSummaryView,
+  InspectionLocatorRequest,
+  InspectionLocatorView,
   LocatorPromotionRequest
 } from "@src/ai/contracts/AiApi";
 import type { AiSettingsPatch } from "@src/ai/AiSettings";
@@ -436,6 +438,8 @@ const api = {
     // L5b. Names a stored run and instance; main reads that report's own evidence.
     analyzeFailure: (request: FailureAnalysisAssistRequest) => invoke("ai:analyzeFailure", request) as Promise<FailureAnalysisView>,
     deleteFailureAnalysis: (target: FailureAnalysisTarget) => invoke("ai:deleteFailureAnalysis", target) as Promise<AiAdminResponse>,
+    // L3 §1. Element Spy's current element; main reads its own live inspection. Shown only, never applied.
+    proposeInspectionLocator: (request: InspectionLocatorRequest) => invoke("ai:proposeInspectionLocator", request) as Promise<InspectionLocatorView>,
     cancelAssist: (requestId: string) => invoke("ai:cancelAssist", requestId) as Promise<AiAdminResponse>,
     importModelPack: () => invoke("ai:importModelPack") as Promise<AiAdminResponse>,
     removeModelPack: () => invoke("ai:removeModelPack") as Promise<AiAdminResponse>

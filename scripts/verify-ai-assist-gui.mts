@@ -276,6 +276,10 @@ try {
   check("the fixture has an unfixable finding AND a validator-fixable one", expected.fixableIds.length >= 1 && expected.issues.length > expected.fixableIds.length);
   const status = await win.evaluate(() => window.playwrightFlowStudio.ai.getStatus());
   check("main reports local AI available through the deterministic provider", status.enabled && status.state === "available", JSON.stringify(status));
+  // L3 §1: the Element Spy proposal is registered, gated and coded through the real bridge. The proposal
+  // itself runs on a Recorder browser page, which verify:element-spy drives directly.
+  const spyAnswer = await win.evaluate(() => window.playwrightFlowStudio.ai.proposeInspectionLocator({ requestId: "gui-spy-none" }));
+  check("the Element Spy proposal answers NOT_FOUND over real IPC when nothing is inspected", spyAnswer.code === "NOT_FOUND" && spyAnswer.proposal === null, JSON.stringify(spyAnswer));
 
   console.log("\nThe designer offers the explanation inside the validation panel");
   console_.setLabel("flow designer");

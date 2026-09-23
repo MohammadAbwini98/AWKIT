@@ -1,5 +1,41 @@
 # TASK_LOG
 
+## 2026-09-23 — Phase L: owner's limited L1 GO recorded, Element Spy "Find stronger locator with AI" built (Claude)
+
+- **Task:** resolve the L4b reviewer identity and the L1 decision with the owner, then build the next
+  implementation the decision authorizes.
+- **Owner answers (in session):**
+  - `MA` is the owner's label, and B1 is their own verdict.
+  - L1 is option 1, a limited GO on the 0.8B for authoring explanations, locator proposals (proven before
+    use) and manual failure analysis. It is recorded in DECISIONS.
+- **L4b:** B2–B16 were re-read from the four current captures and given in chat, with the product's action
+  kept apart from the model's answer. Nothing was committed and no verdict was recorded. The store is
+  unchanged at 1 of 16, so the TARGET stays PENDING.
+- **Built:** Element Spy's on-demand proposal. The pieces:
+  - `RecorderService.getInspectionTarget`;
+  - `proposeInspectionLocator` and `abortInspectionLocator` in `app/main/ai/aiAssist.ts`;
+  - `ai:proposeInspectionLocator`, gated on AI_USE, the Recorder page and `recorder.elementSpy`;
+  - a preload method, the `InspectionLocatorRequest`/`InspectionLocatorView` contract and the
+    `PROTECTED`/`NOT_PROVEN` codes;
+  - the `ElementSpyAi` panel in `Recorder.tsx`, on existing classes with no new CSS.
+
+  Explanations and manual failure analysis already had production callers, so nothing else was needed.
+- **Checks:**
+  - `verify:element-spy` 89 → 114/0; the mutation dropping `userRequested` was caught at 107/7.
+  - `verify:ai-permissions` 96/0 and `verify:ai-fallback` 38/0 (roster and count 12 → 13).
+  - `verify:ai-authoring` 272/272, `verify:ai-assist-gui` 102/0, `verify:flow-library` 30/30,
+    `verify:design-tokens` 35/35, `typecheck:scripts` PASS, build PASS.
+  - `verify:ipc-contract` 10/10. `verify:failure-capture-overhead` 18/0/0: the zero-AI run path passes,
+    and the timing passed this run (run 10 appended).
+  - `verify:verifier-classification` 260 reconciled; `verify:roadmap-dashboard` 177/177, Sources agree.
+  - The real-Electron click-through is NOT RUN: no harness can click inside the Recorder's browser.
+  - The tracker note on `awkit-djnl.1`/`.4` is BLOCKED: `bd` writes need a project-state lease, which
+    needs a task contract. No bead's status changed.
+- **Fixed in passing:** a `navigate` fixture step (not a `StepType`) in `verify-flow-library-gui.mts`,
+  from `4b2dfa7b`, had broken `typecheck:scripts`. It is now `goto`.
+- **Result:** L3's §7 loop has its first production caller. No milestone closed, and no bead's status
+  changed.
+
 ## 2026-09-23 — Phase L: L4b review state, L1 decision record, L3 §9 durability report on the Flow Library (Claude)
 
 - **Task:** make the L4b review ready for the owner, consolidate the L1 evidence for the owner's

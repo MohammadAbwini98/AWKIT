@@ -173,7 +173,7 @@ check(
 );
 check(
   "a library with no locator says so rather than printing zeros",
-  durabilitySummary(buildLocatorDurabilityReport([{ ...seededFlows[1], nodes: [{ id: "n", type: "navigate", name: "Open" }] } as FlowProfile])) === "Locator durability: no saved step has a locator yet."
+  durabilitySummary(buildLocatorDurabilityReport([{ ...seededFlows[1], nodes: [{ id: "n", type: "goto", name: "Open" }] } as FlowProfile])) === "Locator durability: no saved step has a locator yet."
 );
 check("an all-strong library reads none weak", /, none weak\.$/.test(durabilitySummary(buildLocatorDurabilityReport([seededFlows[1]]))));
 
