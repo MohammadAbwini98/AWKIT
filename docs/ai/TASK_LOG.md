@@ -1,5 +1,32 @@
 # TASK_LOG
 
+## 2026-09-23 — Phase L: Element Spy's AI proposal on the real 0.8B, and the live verifier's diagnostic corrected (Claude)
+
+- **Task:** resume the paused real-model session from `b753c980`. Its five uncommitted files were kept
+  as they were. Then diagnose the two refusals, check the verifier's integrity, and record the result
+  truthfully.
+- **Diagnosis:**
+  - Edit (INV-2002): a non-unique role plan, then the same plan again. The request carried the row and
+    its text, but the contract steers away from row content, and position is refused.
+  - Save profile: `css` with a `data-testid=` engine prefix, the `SCRIPT_PATTERN` branch, although a
+    `testId` candidate was offered.
+
+  Neither refusal is a product defect. The earlier output could not tell `SCRIPT`'s two branches apart,
+  and that justified the one re-run.
+- **Verifier fixes** (`scripts/verify-ai-spy-live.mts`):
+  - Replies are paired to their infer request by host and id, no longer by arrival order across every
+    utility process. A new scripted control covers this.
+  - Each refusal reports its strategy and value shape, never its text.
+  - Intent refusals are labelled apart from compiler refusals.
+  - A run that shows nothing exits 2 (INCONCLUSIVE).
+- **Checks:**
+  - `verify:ai-spy-live` 32/0, INCONCLUSIVE, exit 2, 222 s. The earlier run was 31/0 with exit 0.
+  - `verify:ai-assist-gui` 159/0 on the shared harness, `verify:element-spy` 120/0.
+  - `verify:ai-permissions` 96/0, `verify:ai-fallback` 38/0, `verify:ipc-contract` 10/10.
+  - `verify:verifier-classification` 261 reconciled, `typecheck:scripts` PASS, build PASS.
+- **Result:** functional and safety checks PASS. A successful real-model proposal was not demonstrated
+  (INCONCLUSIVE). No milestone, bead status or review verdict changed.
+
 ## 2026-09-23 — Phase L: Element Spy's AI proposal verified end to end in real Electron, two lifecycle defects fixed (Claude)
 
 - **Task:** close the previous session's NOT RUN real-Electron click-through of **Find stronger locator

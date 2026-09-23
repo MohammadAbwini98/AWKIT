@@ -1,6 +1,34 @@
 # CURRENT_STATE
 
-## Phase L: Element Spy's AI proposal verified end to end in real Electron; two lifecycle defects fixed (2026-09-23, current)
+## Phase L: Element Spy's AI proposal on the real 0.8B: functional PASS, proposal correctness INCONCLUSIVE (2026-09-23, current)
+
+**Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No bead's status or
+edge changed.
+
+- **L3 (`awkit-djnl.4`, in_progress):** new `verify:ai-spy-live` (`real-browser`) runs **Find stronger
+  locator with AI** in the real app on the pinned Qwen3.5-0.8B. The final-state run was 32/0 with exit 2,
+  INCONCLUSIVE. The earlier 31/0 run had exited 0, which was wrong.
+  - T3 was refused before any call. A real cancel released the host in 1.1 s. Both asked jobs settled
+    inside their deadlines. Nothing was written.
+  - **No proposal was shown.** Edit (INV-2002) got a non-unique `role button "Edit"`, repeated. Only row
+    content tells the rows apart, and the contract steers away from it. Save profile got `css` with a
+    `data-testid=` prefix, a correct `SCRIPT` refusal, although `testId` was offered.
+  - No product defect. No policy, prompt, model or threshold changed. Details are in the L1 plan,
+    "Element Spy on the real 0.8B".
+- **Harness:** the Element Spy helpers moved to `scripts/lib/recorder-spy-harness.mts`, shared by both
+  verifiers. `verify:ai-assist-gui` stays 159/0 on it.
+- **L1 (`awkit-djnl.1`) and L4b (`awkit-djnl.6`):** unchanged. The limited GO stands. L4b is at 1 of 16,
+  TARGET PENDING. No verdict was requested or recorded.
+
+| Gate (this session) | Result |
+|---|---|
+| `verify:ai-spy-live` (real 0.8B, real Electron) | 32/0, INCONCLUSIVE, exit 2 (was 31/0, exit 0, before the diagnostic fix) |
+| `verify:ai-assist-gui` (shared harness) · `verify:element-spy` | 159/0 · 120/0 |
+| `verify:ai-permissions` · `verify:ai-fallback` · `verify:ipc-contract` | 96/0 · 38/0 · 10/10 |
+| `verify:verifier-classification` · `typecheck:scripts` · build | 261 reconciled · PASS · PASS |
+| Recorder, mock-site, runner suites | not re-run: no product code changed |
+
+## Phase L: Element Spy's AI proposal verified end to end in real Electron; two lifecycle defects fixed (2026-09-23)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No bead's status
 changed. `awkit-djnl.4` gained a note, through the routed project-state lease (contract

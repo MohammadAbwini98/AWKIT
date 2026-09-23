@@ -495,6 +495,13 @@ npm run verify:ai-locator-quality-live
                                   # the twins refused after a real second attempt, >= 1 plan browser-proven.
                                   # Five scripted controls run first and stop the run if one fails. ~9 min,
                                   # inside the 10-minute tool limit. NOT RUN without runtime + pack (14)
+npm run verify:ai-spy-live        # needs `npm run build`: Element Spy's Find stronger locator with AI in the real
+                                  # app on the real 0.8B (Recorder's own browser, trusted click, real IPC, the
+                                  # production AiService). T3 refused before a call, a real cancel within 3 s,
+                                  # two asked jobs inside their deadlines, nothing written; each attempt paired to
+                                  # its infer request by host id and re-classified (codes, shapes, never text); a
+                                  # shown proposal judged by the page. Exit 2 = INCONCLUSIVE (nothing shown).
+                                  # ~4 min. NOT RUN without runtime + pack (32 checks, 2026-09-23)
 npm run verify:ai-authoring-quality-live
                                   # the same launcher: L4b's labelled set (9 flows, 17 issues, 14 codes, both
                                   # fix kinds, a truncated report with two fixes of different urgency, warnings

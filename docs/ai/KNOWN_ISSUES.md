@@ -1,5 +1,25 @@
 # KNOWN_ISSUES
 
+## The real 0.8B proposed no provable locator in Element Spy, and the live verifier exited 0 for it (2026-09-23, OPEN quality limit + FIXED verifier — L1/L3)
+
+- **Open: model quality.** `verify:ai-spy-live` ran 32/0 with proposal correctness INCONCLUSIVE. Every
+  real plan was refused, correctly, so none was shown:
+  - Edit in the INV-2002 row: `role button "Edit"` was not unique, and attempt 2 repeated it. Only row
+    content tells the rows apart, and the instructions steer the model away from row content.
+  - Save profile: `css` with a `data-testid=` engine prefix, a `SCRIPT` refusal, even though a `testId`
+    candidate was offered.
+
+  Neither is a product defect. Details are in the L1 plan, "Element Spy on the real 0.8B". Do not loosen
+  the compiler or the proof to get a pass. Do not rerun the same fixture hoping for a different sample.
+- **Fixed: the diagnostic and the exit code** (verifier only):
+  - Replies had been paired to attempts by arrival order, from every `utilityProcess` the app forks. The
+    semantic host's traffic, a load reply or a cancelled job's late answer could have counted as an
+    attempt. Now a reply counts only when it answers an infer request of the same ask, matched by host
+    and id. A scripted control proves the pairing.
+  - `SCRIPT on target.value` has two compiler branches: an `id` that is not an id token, and a `css`
+    engine prefix. The output did not say which. The strategy and value shape now say.
+  - A run that showed nothing exited 0. It now exits 2 (INCONCLUSIVE), the `gateExitCode` convention.
+
 ## Element Spy AI in real Electron: the Recorder browser is now driven, and two lifecycle defects it found are fixed (2026-09-23, FIXED — L3 §1)
 
 - **The gap is closed without a product hook.** Element Spy inspects only a trusted click, which page

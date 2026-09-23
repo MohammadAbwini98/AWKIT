@@ -1,6 +1,27 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-23, latest) — Element Spy AI proposal verified end to end in real Electron; two lifecycle fixes
+## HANDOFF (2026-09-23, latest) — Element Spy on the real 0.8B: functional PASS, proposal correctness INCONCLUSIVE
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No bead's status or edge
+  changed.
+- **Done:** `verify:ai-spy-live` ran on the pinned 0.8B in the real app: 32/0, exit 2, INCONCLUSIVE. Every
+  functional and safety check passed. The model's four plans were all refused, correctly (L1 plan,
+  "Element Spy on the real 0.8B"). No product defect was found. The verifier's reply pairing and exit
+  code were corrected (KNOWN_ISSUES, newest).
+- **The quality limit, and what would resolve it.** Rerunning the same fixture would not. Either choice
+  needs the owner:
+  - a labelled real-model case with a discriminator the contract allows (a named region, or a test id
+    on the row); or
+  - a decision on row-content scoping and on the `candidate: <strategy>=<value>` line format, which may
+    prime engine-prefix answers.
+- **Still open, unchanged:**
+  - L4b's B2–B16 are the owner's to record.
+  - "Use in action" for an AI proposal needs the owner's provenance decision.
+  - The signed-license route (b) rebuild note below still applies.
+- **Do not:** record a verdict as an agent; widen the GO; loosen the compiler, proof or uniqueness rules
+  for a pass; close L1, L3, L4b or L5b; touch the `blocks` edges.
+
+## HANDOFF (2026-09-23, superseded) — Element Spy AI proposal verified end to end in real Electron; two lifecycle fixes
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No bead's status changed.
   `awkit-djnl.4` has a note, written under the routed project-state lease (contract

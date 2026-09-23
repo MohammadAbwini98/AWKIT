@@ -185,6 +185,17 @@ Built under the owner's limited L1 GO: on demand, browser-proven before use, nev
   - `verify:ai-permissions` 96/0 and `verify:ai-fallback` 38/0 admit the channel in their exact rosters.
     `verify:recorder-gui` 205/0/0 after the `closeBrowser()` change.
   - **Not shown by any of this:** real-model quality. The live 0.8B evidence stays in the L1 plan.
+- **On the real 0.8B (2026-09-23, `verify:ai-spy-live`): functional and safety PASS, proposal correctness
+  INCONCLUSIVE.** The same path, with the pinned pack answering through the production AiService, ran
+  32/0 (exit 2). T3 was refused before any call, a real inference was cancelled and released in 1.1 s,
+  both asked jobs settled inside their deadlines and released the host, and nothing was written. **No
+  proposal was shown:** every real plan was refused, correctly. The Edit button in the INV-2002 row was
+  proposed as `role button "Edit"` twice; it matched both rows' Edit buttons, and the second attempt
+  repeated the first. The request carried the row container and its text, but the instructions say
+  "never by row content", and position is refused, so this fixture has no discriminator the contract
+  steers the model toward. Save profile was proposed twice as `css` with a `data-testid=` engine prefix,
+  a `SCRIPT` refusal. The request offered `testId` (1 match), which would have compiled. Neither refusal
+  is a product defect; details in the L1 plan, "Element Spy on the real 0.8B".
 
 ## 2. Locator plan DSL → trusted compiler
 

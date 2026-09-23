@@ -1435,6 +1435,60 @@ auto-repaired) and manual failure analysis. The measurements above are unchanged
 `in_progress`: the release gate (packaged AI, L7) has not run. The 2B stays NOT RUN, and the 4B pin is
 unchanged. Built under it: the Element Spy proposal (L3 › "§1 Element Spy trigger as built").
 
+## Element Spy on the real 0.8B (2026-09-23): functional PASS, proposal correctness INCONCLUSIVE
+
+`verify:ai-spy-live` drives **Find stronger locator with AI** in the real app with the pinned
+Qwen3.5-0.8B. It uses the Recorder's own browser, a trusted click, the real IPC, main's loop, compiler,
+intent guard and proof, and the production AiService with the real `ai-host.cjs`. It is evidence under
+the limited GO, not an acceptance threshold. It does not replace the scripted `verify:ai-assist-gui`
+159/0.
+
+**Final-state run: 32 passed, 0 failed, 222 s, exit 2 (INCONCLUSIVE).** An earlier run the same day,
+before the diagnostic was corrected, was 31/0 and exited 0. That exit code was wrong: it reported a pass
+with no proposal shown.
+
+| Scenario | Outcome | Attempts |
+|---|---|---|
+| Approve in frame (T3) | refused `PROTECTED` in 0.8 s, before any model call | 0 |
+| Edit in the INV-2002 row | `NOT_PROVEN` in 93.9 s | 2 |
+| Display name, cancelled mid-inference | `CANCELLED`, host released in 1.1 s (ceiling 3 s) | – |
+| Save profile | `NOT_PROVEN` in 106.1 s | 2 |
+
+No proposal was shown, so none could be judged. Every check a person depends on passed: both jobs
+settled inside their 400 s job deadline and released the host, T3 made no call, cancel released the
+host, no flow, fragment, report, draft or recorded step changed, and no renderer error was logged.
+
+**Why each plan was refused.** Each attempt is the host reply to that job's own infer request, paired by
+host id. Each is re-classified through the output contract, the compiler and intent guard, the duplicate
+rule and a fresh page:
+
+- **Edit (INV-2002). A contract limit on this fixture, and a model repeat.** Attempt 1 was
+  `role button "Edit"` (exact), which the page matches twice. Attempt 2 was the same plan, refused as
+  `DUPLICATE_CANDIDATE`. The request did carry the discriminator: a `row` container, and the text
+  INV-2002 (reported yes/no, never printed). The instructions tell the model "Scope by stable page
+  structure, never by row content", though. Position is refused (`POSITIONAL`). The only thing that tells
+  this row apart is therefore its content. Uniqueness, row-content policy and privacy were not relaxed.
+  The run of 2026-09-22 already lists rows among the cases no live run covers.
+- **Save profile. A model-output violation of the approved plan schema.** Both attempts were
+  `strategy css`, with a value shaped `a-a=a-a-a`, the `data-testid=<id>` Playwright engine prefix.
+  `SCRIPT_PATTERN`'s engine-prefix branch refused it (`compiler SCRIPT on target.value`). This is the
+  intended refusal: `css` admits only a stable `#id`, and a model never returns a selector. The request
+  offered `candidate testId (matches 1)`, and `{strategy: testId}` would have compiled. The second
+  attempt ignored the feedback ("looked like code or a selector engine prefix"). The request's
+  `candidate: <strategy>=<value>` line format may prime the engine-prefix form. Changing the prompt
+  needs an owner decision, so it is recorded here, not changed.
+
+**Not changed:** the model, prompt, output cap, attempt limit, locator policy, proof and thresholds. The
+two refusals are the product working as designed. The measured limitation is the 0.8B's plan quality on
+these two elements.
+
+**Closing it needs** the owner to choose one of these:
+- a labelled real-model case that has a discriminator the contract allows, such as a named region or a
+  test id on the row; or
+- a decision on row-content scoping and the candidate line format.
+
+Rerunning the same fixture is not one of the options.
+
 ## Verifiers
 
 `verify:ai-adapter`, `verify:ai-redaction`, `verify:ai-fallback`, `verify:ai-permissions`, `verify:ai-model-pack`,
@@ -1446,7 +1500,9 @@ and `verify:ai-locator-upgrade-live` (each feature's own request on the 0.8B und
 analysis accepted and classified as its fixture requires, and each locator job accepted; `NOT RUN` without pack),
 `verify:ai-locator-quality-live` (the 0.8B's locator plans proven by the product in real Chromium on the Feature Test Lab
 and judged by the page: false-target 0, the twins refused after a real second attempt, at least one plan browser-proven,
-behind five scripted controls; `NOT RUN` without pack), and
+behind five scripted controls; `NOT RUN` without pack), `verify:ai-spy-live` (Element Spy's proposal in the real app
+on the 0.8B: functional and safety checks, every attempt re-classified, any shown proposal judged by the page; INCONCLUSIVE,
+exit 2, when nothing is shown; `NOT RUN` without pack), and
 `verify:ai-failure-analysis-budget` and `verify:ai-locator-upgrade-budget` (each request's prompt and its longest
 acceptable answer counted on the 0.8B's own tokenizer against the output cap; `NOT RUN` without pack). Cover runtime/model missing, checksum mismatch, timeout,
 cancel, queue saturation, crash/restart, malformed output, schema rejection, injection text, shutdown.
