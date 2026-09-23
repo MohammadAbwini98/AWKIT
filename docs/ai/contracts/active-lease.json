@@ -1,22 +1,25 @@
 {
   "task": "awkit-packaged-licensing-0923",
   "contract_path": "docs/ai/contracts/awkit-packaged-licensing-0923.json",
-  "holder": "release",
-  "status": "active",
+  "holder": "project-state",
+  "status": "released",
   "allowed_paths": [
-    "build",
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig"
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/HANDOFF.md",
+    "docs/ai/KNOWN_ISSUES.md",
+    "docs/ai/TASK_LOG.md"
   ],
-  "acquired_at": "2026-09-23T12:19:14.499Z",
-  "acquired_at_commit": "e2f703cb129684be513cf712eb9ded5ef17d98e0",
+  "acquired_at": "2026-09-23T13:21:55.085Z",
+  "acquired_at_commit": "927253f80a1ae9cbae1d54b92a2b369414306a20",
   "baseline_dirty": [
+    "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-packaged-licensing-0923.json",
-    "scripts/offline-benchmark/"
+    "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-packaged-licensing-0923.json": "1dcec2ab9aa9b31ab70b89b58b8fdb5829ebaf450af70c2e6d8645ebf762979d",
-    "scripts/offline-benchmark/": "absent"
+    "docs/ai/contracts/active-lease.json": "c92def9d72bd274af6b6c0e767bda50c66920651ad5aac2b809099b9c20090ef",
+    "docs/ai/contracts/awkit-packaged-licensing-0923.json": "656e5e5ee17144ca1458589b9f647754e42896ca5e38929a5538b36ee8446d02",
+    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -26,9 +29,12 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1789762718948.7537"
+    "build": "dir(1):native-hosts:1790168997923.712"
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-23T13:24:13.917Z",
+  "released_reason": "packaged acceptance recorded: fresh 0.1.51 from fe343958, local gates green, signed-license cases BLOCKED on the issuer key, clean-machine VM NOT RUN",
+  "archived_at": "2026-09-23T13:24:13.918Z"
 }

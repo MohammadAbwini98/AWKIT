@@ -1,5 +1,25 @@
 # KNOWN_ISSUES
 
+## Packaged gates: a licensing BLOCKED hid license-free checks, and one gate used the operator's profile (2026-09-23, FIXED — packaged acceptance)
+
+- **Symptom:**
+  - `verify:packaged-walkthrough` reported 35/0/1 BLOCKED without ever checking the portable EXE, the
+    NSIS installer or network isolation.
+  - `verify:packaged-licensing` would drive whatever bundle sat in `dist/`.
+  - `verify:packaged-runtime` launched the packaged app on the real `%LOCALAPPDATA%\SpecterStudio`.
+- **Root cause:**
+  - The `PackagedLicensingBlocked` throw unwound past Parts K, L and M.
+  - The licensing gate had no freshness check.
+  - The runtime gate copied `process.env` unchanged.
+- **Fix (`e2f703cb`, `927253f8`):**
+  - K, L and M run on both paths: 42/0/1.
+  - `stalePackagedPayload` is shared by both license gates.
+  - The runtime gate gets a fresh temp root, and its runtime-root check compares against that root.
+- **Fragile area:**
+  - Packaged licensed execution has never run on a machine without the issuer key. Every
+    signed-license packaged case is BLOCKED here.
+  - Strict packaging refuses any untracked file, including owner work outside the build inputs.
+
 ## A license sweep was persisted as a UI stop, and never-started cancellations never completed (2026-09-23, FIXED — licensing acceptance)
 
 - **Symptom:** every row the license gate wrote to `runtime_cancellations` said `source: "ui"`, and a

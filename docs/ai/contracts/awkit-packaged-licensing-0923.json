@@ -37,6 +37,8 @@
       "build",
       "resources/dependency-manifest.json",
       "resources/dependency-manifest.sig",
+      "scripts/verify-packaged-walkthrough.mts",
+      "scripts/verify-packaged-runtime.mts",
       "docs/ai/contracts/active-lease.json",
       "docs/ai/contracts/awkit-packaged-licensing-0923.json",
       "docs/ai/CURRENT_STATE.md",
@@ -46,24 +48,17 @@
     ],
     "consultants": [],
     "writer": {
-      "agent_id": "release",
+      "agent_id": "project-state",
       "allowed_paths": [
-        "build",
-        "resources/dependency-manifest.json",
-        "resources/dependency-manifest.sig"
-      ],
-      "forbidden_paths": [
-        "app/**",
-        "src/**",
-        "package.json",
-        "electron-builder.json",
-        ".beads/**",
-        "tools/roadmap/*.ts"
-      ],
-      "note": "Canonical packaging only: package:portable then package:nsis. The pipelines regenerate and re-sign the dependency manifest pair and stage the Zvec host under build/native-hosts."
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/KNOWN_ISSUES.md",
+        "docs/ai/TASK_LOG.md"
+      ]
     },
     "writer_sequence": [
       "release",
+      "qa",
       "project-state"
     ],
     "reviewers": [
@@ -112,32 +107,36 @@
       "type": "packaged",
       "command": "npm run package:portable",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "dist/SpecterStudio 0.1.51.exe",
+      "note": "From clean fe343958: preflight, verify:portable-fresh-state 10/10, manifest signed ed25519:aa5b9dd8, strict offline PASS. 237009238 bytes, sha256 c52e7ae44e2dd9b7f0a947255bdb92214dea63c6d5398dba029533c5ccb42ec2. The packaged app.asar holds the license-gate cancelOne call site from b2e85720."
     },
     {
       "id": "EV-nsis",
       "type": "packaged",
       "command": "npm run package:nsis",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": "dist/SpecterStudio Setup 0.1.51.exe",
+      "note": "From clean fe343958, strict offline PASS. 264089214 bytes, sha256 45c7a5a92b5cb9aa78c00840628f29da9370b013106fedb774b27a2d0002def8, sha512 matches latest.yml (walkthrough Part L). Manifest pair committed at f271e25f."
     },
     {
       "id": "EV-packaged-licensing",
       "type": "packaged",
       "command": "npm run verify:packaged-licensing",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "BLOCKED",
+      "artifact": null,
+      "note": "25 PASS / 0 FAIL / 2 BLOCKED on the fresh tree: NOT_ACTIVATED, INVALID_SIGNATURE and CORRUPTED refuse a real run, migration grace 7/7. EXPIRED and MACHINE_MISMATCH BLOCKED because AWKIT_PACKAGED_LICENSE_ISSUER_KEY is unset on this machine. verify:packaged-walkthrough 42/0/1 BLOCKED (D-J), verify:packaged-validation 119/0, verify:packaged-runtime 25/0 isolated, verify:offline-supply-chain 25/0, validate:offline -Strict PASS. Clean-machine VM NOT RUN."
     },
     {
       "id": "EV-roadmap-verifier",
       "type": "verifier",
       "command": "npm run verify:roadmap-dashboard",
       "required": true,
-      "result": "pending",
-      "artifact": null
+      "result": "PASS",
+      "artifact": null,
+      "note": "177/177, Overview 'Sources agree', 320 issues, 26 outstanding / 294 closed, 180 edges, ledger 65 PASS / 2 NOT RUN / 0 BLOCKED restated in both newest narratives. verify:verifier-classification reconciled at 260 (no new script). git diff --check clean."
     }
   ],
   "git": {
@@ -148,8 +147,67 @@
     "push_authorized": true
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "pending",
-    "qc_status": "pending"
+    "status": "blocked",
+    "qa_status": "BLOCKED",
+    "qc_status": "pending",
+    "note": "Fresh artifacts built and every locally runnable gate green; the signed-license packaged cases are BLOCKED on AWKIT_PACKAGED_LICENSE_ISSUER_KEY and the clean-machine VM is NOT RUN. No QC review was performed: the owner's session rules allow no subagent unless asked."
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-packaged-licensing-0923:release:2026-09-23T12:19:14.499Z",
+        "task": "awkit-packaged-licensing-0923",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "build",
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig"
+        ],
+        "acquired_at": "2026-09-23T12:19:14.499Z",
+        "acquired_at_commit": "e2f703cb129684be513cf712eb9ded5ef17d98e0",
+        "released_at": "2026-09-23T13:17:40.337Z",
+        "released_reason": "handoff to qa: the walkthrough skips license-free Parts K L M when licensing is BLOCKED and verify:packaged-runtime launches against the real LOCALAPPDATA",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-packaged-licensing-0923:qa:2026-09-23T13:17:40.404Z",
+        "task": "awkit-packaged-licensing-0923",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-packaged-runtime.mts",
+          "scripts/verify-packaged-walkthrough.mts"
+        ],
+        "acquired_at": "2026-09-23T13:17:40.404Z",
+        "acquired_at_commit": "f271e25f9eb754f1aa6342631aaa606c575bd388",
+        "released_at": "2026-09-23T13:21:55.020Z",
+        "released_reason": "handoff to project-state: record the fresh 0.1.51 packaged acceptance results, the two verifier fixes and the remaining BLOCKED and NOT RUN gates",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-packaged-licensing-0923:project-state:2026-09-23T13:21:55.085Z",
+        "task": "awkit-packaged-licensing-0923",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md"
+        ],
+        "acquired_at": "2026-09-23T13:21:55.085Z",
+        "acquired_at_commit": "927253f80a1ae9cbae1d54b92a2b369414306a20",
+        "released_at": "2026-09-23T13:24:13.917Z",
+        "released_reason": "packaged acceptance recorded: fresh 0.1.51 from fe343958, local gates green, signed-license cases BLOCKED on the issuer key, clean-machine VM NOT RUN",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
   }
 }

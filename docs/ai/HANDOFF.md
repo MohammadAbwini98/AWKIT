@@ -1,6 +1,28 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-23, latest) — L4b review integrity fixed; 16 current verdicts await the owner
+## HANDOFF (2026-09-23, latest) — fresh 0.1.51 packaged; signed-license and clean-machine gates remain
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
+- **Done:** portable and NSIS 0.1.51 were built from clean `fe343958` and hold the `license-gate` fix.
+  All the gates that can run on this machine were run. See CURRENT_STATE (newest) for hashes and
+  results.
+- **Owner, now:** restore `scripts/offline-benchmark/` from `C:\Users\moham\awkit-offline-benchmark-20260923`.
+- **Remaining gates, each needing something this machine does not have:**
+  1. **Signed-license cases:** EXPIRED, MACHINE_MISMATCH, walkthrough D–J and the packaged
+     license-sweep transition. They need an authorized validation machine or CI runner with
+     `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` set to the issuer key's absolute path. Run
+     `npm run verify:packaged-licensing` and `npm run verify:packaged-walkthrough` against the portable
+     `c52e7ae4…2ec2` and the NSIS `45c7a5a9…def8`, or against a rebuild from a later clean commit.
+  2. **Clean-machine VM:** `docs/ai/PHASE5_OFFLINE_VM_WALKTHROUGH.md` and the root
+     `CLEAN_MACHINE_VALIDATION_RUNBOOK.md` on the offline Hyper-V lab, run by an operator with the same two artifacts. Historical VM results
+     are for older artifacts and do not carry over.
+- **Do not:**
+  - set the issuer key on an ordinary developer machine;
+  - count migration grace as licensing;
+  - claim release readiness while either gate is BLOCKED or NOT RUN.
+- **Still open, unrelated:** the L4b handoff below (16 verdicts await the owner).
+
+## HANDOFF (2026-09-23, open) — L4b review integrity fixed; 16 current verdicts await the owner
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**.
 - **Done (`1b92298f`):** a verdict under a placeholder or an agent's label is refused and never counted.

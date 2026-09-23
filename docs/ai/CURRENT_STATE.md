@@ -1,6 +1,47 @@
 # CURRENT_STATE
 
-## Licensing enforcement: a license sweep is persisted as the gate's, proven on a real signed-license transition (2026-09-23, current)
+## Packaged licensing and offline acceptance on fresh 0.1.51 artifacts from `fe343958` (2026-09-23, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No bead changed.
+
+- **Artifacts:** built by the canonical `package:portable` then `package:nsis` from a clean tree. The
+  owner moved the untracked `scripts/offline-benchmark/` outside the repository for the run; nothing
+  was excluded or committed.
+  - Source `fe343958`, `treeDirty: false`, version 0.1.51. Electron 33.4.11, Playwright 1.61.0, Chrome
+    for Testing 149.0.7827.55 r1228 (payload `a6e86ba2…`).
+  - Portable `dist/SpecterStudio 0.1.51.exe`: 237,009,238 bytes, SHA-256
+    `c52e7ae44e2dd9b7f0a947255bdb92214dea63c6d5398dba029533c5ccb42ec2`.
+  - NSIS `dist/SpecterStudio Setup 0.1.51.exe`: 264,089,214 bytes, SHA-256
+    `45c7a5a92b5cb9aa78c00840628f29da9370b013106fedb774b27a2d0002def8`.
+  - The manifest is signed `ed25519:aa5b9dd8` and committed at `f271e25f` (the NSIS run's copy). The
+    portable carries the portable run's copy, with the same source commit and an earlier timestamp.
+  - **The fix is inside:** the packaged `app.asar` holds `this.cancelOne(…, "license-gate")`, the
+    `b2e85720` call site. This is a content check, not an mtime.
+- **Three harness gaps closed:**
+  - `verify:packaged-licensing` now refuses a stale `dist/win-unpacked` (`e2f703cb`). It shares the
+    walkthrough's check, and its red run against the old bundle named `src/runner/ExecutionEngine.ts`.
+  - The walkthrough's licensing BLOCKED throw skipped Parts K, L and M (portable boot, NSIS integrity,
+    network isolation), which need no license. They now run on both paths (`927253f8`): 35 → 42.
+  - `verify:packaged-runtime` launched against the operator's real `%LOCALAPPDATA%`. It now uses a
+    fresh temp root (`927253f8`). Its first run in this task, before the fix, did launch the app once on
+    the real profile. That verifier imports no license and runs no workflow.
+
+| Gate (fresh 0.1.51 artifacts) | Result |
+|---|---|
+| `package:portable` · `package:nsis` (preflight, fresh-state 10/10, manifest, strict offline) | PASS · PASS |
+| `validate:offline -- -Strict` at HEAD `fe343958` | PASS |
+| `verify:packaged-licensing` | 25 PASS / 0 FAIL / 2 BLOCKED |
+| NOT_ACTIVATED · INVALID_SIGNATURE · CORRUPTED refused · migration grace (7 checks) | PASS · PASS · PASS · PASS |
+| EXPIRED · MACHINE_MISMATCH | BLOCKED: `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` unset |
+| `verify:packaged-walkthrough` | 42 passed / 0 failed / 1 blocked |
+| Walkthrough D–J (signed activation, real runs, hard cancel, recovery, license removal) | BLOCKED: same key |
+| `verify:packaged-validation` · `verify:packaged-runtime` (isolated) · `verify:offline-supply-chain` | 119/0 · 25/0 · 25/0 |
+| Packaged license-sweep provenance on a real transition | BLOCKED: needs a signed license. Dev evidence stands: `verify:license-dispatch-gate` 66/66 at `b2e85720` |
+| Clean-machine VM (`PHASE5_OFFLINE_VM_WALKTHROUGH.md`) | NOT RUN: the Hyper-V lab driver is outside this session's shell guard and needs an operator |
+
+**Not claimed:** packaged licensed execution, clean-machine acceptance, release readiness.
+
+## Licensing enforcement: a license sweep is persisted as the gate's, proven on a real signed-license transition (2026-09-23)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.**
 

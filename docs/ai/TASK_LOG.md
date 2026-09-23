@@ -1,5 +1,29 @@
 # TASK_LOG
 
+## 2026-09-23 — Packaged licensing and offline acceptance on fresh 0.1.51 artifacts (Claude)
+
+- **Task:** package from current `main` and run the packaged licensing, walkthrough and offline gates
+  against artifacts that contain `b2e85720`.
+- **Blocker met and cleared:** the owner's untracked `scripts/offline-benchmark/` made the tree dirty,
+  and strict packaging refuses a dirty tree. The owner moved it outside the repository. Nothing was
+  excluded or committed.
+- **Commits:**
+  - `e2f703cb`: `stalePackagedPayload` is shared in `scripts/helpers/packaged-artifacts.mjs`, and
+    `verify:packaged-licensing` uses it. Red against the old bundle.
+  - `fe343958`: the contract and release lease.
+  - `f271e25f`: the re-signed manifest, source `fe343958`.
+  - `927253f8`: the walkthrough runs K, L and M when licensing is BLOCKED (35 → 42), and
+    `verify:packaged-runtime` uses an isolated `LOCALAPPDATA`.
+- **Checks on the fresh artifacts:**
+  - `package:portable` and `package:nsis` PASS; `validate:offline -Strict` PASS.
+  - `verify:packaged-licensing` 25/0/2 BLOCKED; `verify:packaged-walkthrough` 42/0/1 BLOCKED.
+  - `verify:packaged-validation` 119/0, `verify:packaged-runtime` 25/0, `verify:offline-supply-chain`
+    25/0; `typecheck:scripts` PASS.
+- **BLOCKED:** every signed-license case, because `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` is unset.
+  **NOT RUN:** the clean-machine VM.
+- **Result:** the artifacts are fresh and hold the fix, and every locally runnable gate is green.
+  Packaged licensed execution and release readiness are not claimed.
+
 ## 2026-09-23 — Licensing enforcement acceptance: a real signed-license transition with work running; sweep provenance fixed (Claude)
 
 - **Task:** verify the licensing enforcement, Test Lab exit contract and packaged issuer work already on
