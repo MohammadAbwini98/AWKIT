@@ -1,5 +1,18 @@
 # KNOWN_ISSUES
 
+## A license sweep was persisted as a UI stop, and never-started cancellations never completed (2026-09-23, FIXED — licensing acceptance)
+
+- **Symptom:** every row the license gate wrote to `runtime_cancellations` said `source: "ui"`, and a
+  queued or pending instance's row kept `completedAt` null forever. Nothing reads the table yet, so no
+  product surface was wrong, but the forensic record was.
+- **Root cause:** `ExecutionEngine.cancelOne` hard-coded the source. Only `runInstanceInner`'s `finally`
+  completes a cancellation, and work that never started has no runner.
+- **Fix:** `cancelOne` takes its origin, and completes a cancellation at once when no runner is live.
+  `verify:license-dispatch-gate` asserts both.
+- **Fragile area:** a verifier that lets the dispatch loop start work depends on host backpressure. At
+  91–99 % CPU the loop refused admission ("CPU pressure"). The trusted-transition section admits
+  explicitly, so what it measures is the license gate, not the host.
+
 ## The 0.8B's own sentence often omits the corrective action, and it never ranks a fix (2026-09-23, OPEN — `awkit-djnl.6`)
 
 - **Symptom:**

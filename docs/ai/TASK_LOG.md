@@ -1,5 +1,31 @@
 # TASK_LOG
 
+## 2026-09-23 — Licensing enforcement acceptance: a real signed-license transition with work running; sweep provenance fixed (Claude)
+
+- **Task:** verify the licensing enforcement, Test Lab exit contract and packaged issuer work already on
+  `main` (`ac42aa1f`) against the original acceptance requirements, and close only reproducible gaps.
+- **Found:** the watcher, the dispatch gate, the Test Lab exit contract and the shell-free issuer were
+  already in place and green. No regression drove a real license transition while an instance ran.
+  Every license sweep was persisted as `source: "ui"`, and a never-started cancellation never completed.
+- **Files:**
+  - `src/runner/ExecutionEngine.ts`: `cancelOne` records its origin, and completes a cancellation that
+    has no live runner.
+  - `scripts/verify-license-dispatch-gate.mts`: a trusted-transition section and one static check.
+  - This closeout: CURRENT_STATE, TASK_LOG and KNOWN_ISSUES.
+- **Checks:**
+  - `verify:license-dispatch-gate` 66/66 (was 34). Red before the fix at 64/66. The mutation that
+    widened the sweep to `running` was caught at 59/66 and reverted.
+  - `verify:licensing` 192, `verify:issuer-key-resolution` 86, `verify:test-lab-cli-only` 24 on a fresh
+    build, and `-exit` 20.
+  - `verify:runner` 138, `verify:cancellation` 34, `verify:ai-fallback` 38, `verify:security` 61,
+    `verify:source-hygiene` 11, and `verify:verifier-classification` PASS.
+  - Build and `typecheck:scripts` PASS.
+- **NOT RUN:**
+  - Packaged licensing: the artifact predates the change, and the verifier has no freshness guard.
+  - Clean machine: needs the VM lab.
+  - `validate:offline`: no offline input changed.
+- **Result:** fixed and covered. Packaged and release acceptance are not claimed.
+
 ## 2026-09-23 — L4b: a placeholder verdict never counts; the 16-answer review handed to the owner (Claude)
 
 - **Task:** close the reviewer-integrity gap, hand the owner the 16 current answers and the 11

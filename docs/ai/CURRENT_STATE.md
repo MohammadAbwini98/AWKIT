@@ -1,6 +1,45 @@
 # CURRENT_STATE
 
-## L4b review integrity: a placeholder verdict never counts (2026-09-23, current)
+## Licensing enforcement: a license sweep is persisted as the gate's, proven on a real signed-license transition (2026-09-23, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.**
+
+- **Already on `main` at `ac42aa1f`, verified and not redone:**
+  - the enforcement watcher (startup, interval, window focus, revalidate IPC, license change);
+  - the dispatch gate in the engine loop and at the final pre-start check, and `repeatInstance` refused
+    while blocked;
+  - the Test Lab exit contract (PASS 0, FAIL 1, BLOCKED 2);
+  - the shell-free packaged issuer helper with its redacted error.
+- **Fixed.** `cancelPendingInstances` is called only by license paths, but every sweep was persisted in
+  `runtime_cancellations` as `source: "ui"`. A never-started instance's cancellation also kept
+  `completedAt` null forever, because only a live runner's `finally` completes one.
+  - `cancelOne` now records its origin: `license-gate` for the sweep, `ui` for Stop.
+  - A cancellation with no live runner is complete when it is recorded.
+- **New regression in `verify:license-dispatch-gate`, 66/66 (was 34).** A signed license (ephemeral
+  trusted key, temporary store, the production validator, policy and latch) goes VALID, then
+  INVALID_SIGNATURE on disk, then VALID again. One instance runs throughout and two are queued.
+  - It proves exactly the queued pair is swept and the running one keeps running.
+  - The sweep is persisted with the license reason, the `license-gate` source and a completion.
+  - Work queued while blocked never starts, and repeated revalidation adds no audit or cancellation.
+  - After recovery only new work runs, and nothing swept is revived.
+  - The red run before the fix failed exactly the two persistence checks (64/66). A sweep widened to
+    `running` fails 7 checks (59/66), and it was reverted.
+- **Packaged and release acceptance are NOT claimed.** `dist/win-unpacked` predates this change, and
+  `verify:packaged-licensing` has no artifact freshness guard, so it was NOT RUN. The clean-machine
+  gate needs the VM lab and was NOT RUN.
+
+| Check (final state) | Result |
+|---|---|
+| `verify:license-dispatch-gate` | 66/66 (was 34/34) |
+| `verify:licensing` · `verify:issuer-key-resolution` | 192/192 · 86/86 |
+| `verify:test-lab-cli-only` · `verify:test-lab-cli-only-exit` | 24/24 on a fresh build · 20/20 |
+| `verify:runner` · `verify:cancellation` · `verify:ai-fallback` | 138/138 · 34/34 · 38/38 |
+| `verify:security` · `verify:source-hygiene` · `verify:verifier-classification` | 61/61 · 11/11 · PASS (260 classified) |
+| `npm run build` · `typecheck:scripts` | PASS · PASS |
+| `verify:packaged-licensing` · clean-machine | NOT RUN: packaged artifact predates the change · needs the VM lab |
+| `validate:offline` · `verify:failure-capture-overhead` | NOT RUN: no offline or packaging input changed · the L5a benchmark, capture untouched |
+
+## L4b review integrity: a placeholder verdict never counts (2026-09-23)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases** (L4b quality is
 not a ledger case).
