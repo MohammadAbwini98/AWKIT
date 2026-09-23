@@ -1,33 +1,21 @@
 {
-  "task": "awkit-djnl-6-criterion3-optionb-0923",
-  "contract_path": "docs/ai/contracts/awkit-djnl-6-criterion3-optionb-0923.json",
-  "holder": "project-state",
-  "status": "released",
+  "task": "awkit-packaged-licensing-0923",
+  "contract_path": "docs/ai/contracts/awkit-packaged-licensing-0923.json",
+  "holder": "release",
+  "status": "active",
   "allowed_paths": [
-    ".beads/**"
+    "build",
+    "resources/dependency-manifest.json",
+    "resources/dependency-manifest.sig"
   ],
-  "acquired_at": "2026-09-23T09:26:29.996Z",
-  "acquired_at_commit": "289b9b7101b562a9af49ae0045aae970bec383e7",
+  "acquired_at": "2026-09-23T12:19:14.499Z",
+  "acquired_at_commit": "e2f703cb129684be513cf712eb9ded5ef17d98e0",
   "baseline_dirty": [
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/DECISIONS.md",
-    "docs/ai/HANDOFF.md",
-    "docs/ai/KNOWN_ISSUES.md",
-    "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/awkit-djnl-6-criterion3-optionb-0923.json",
-    "docs/plans/ai-upgrade-v5/L1-ai-foundation.md",
-    "docs/plans/ai-upgrade-v5/L4-authoring-diagnostics.md",
+    "docs/ai/contracts/awkit-packaged-licensing-0923.json",
     "scripts/offline-benchmark/"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/CURRENT_STATE.md": "cfe37f9c931d0f7fae9434f53126a31b2ee2ea4a2ece70511502b1e93d403b2f",
-    "docs/ai/DECISIONS.md": "9697f209c21ba0285f91d2ccac1f2a7b146cb65470250713df54dfac9a273bbc",
-    "docs/ai/HANDOFF.md": "86bfe9a7c4948145cb84d896b03d0b6d75fd90956474cc0d26be046137ae1d52",
-    "docs/ai/KNOWN_ISSUES.md": "12e5a0bf2f82263282c5f8d1897e4be8dbf1e9f0262e28b8b4dd88fad2c31893",
-    "docs/ai/TASK_LOG.md": "8f5115555cc16322f64aabc44d5e26cc7307f9b553e377c35140c4094d4e9ec0",
-    "docs/ai/contracts/awkit-djnl-6-criterion3-optionb-0923.json": "7a89aede7ef0a9d28505d6edb0fd20acf28685e6f4bdfe27f18af45bb736770e",
-    "docs/plans/ai-upgrade-v5/L1-ai-foundation.md": "2f35ce8d92f8e9c432eb21ed9132bf5f1d91eddaa1f97040208f6ad8e8a1565d",
-    "docs/plans/ai-upgrade-v5/L4-authoring-diagnostics.md": "1b2fed9bb91d1797aea55a2cd614dcfba6ebec18ef88913f3f0975a2a8215a6e",
+    "docs/ai/contracts/awkit-packaged-licensing-0923.json": "1dcec2ab9aa9b31ab70b89b58b8fdb5829ebaf450af70c2e6d8645ebf762979d",
     "scripts/offline-benchmark/": "absent"
   },
   "baseline_watched_ignored": {
@@ -42,8 +30,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-23T09:27:26.491Z",
-  "released_reason": "L4b criterion 3 option B noted on awkit-djnl.6 and awkit-djnl.1, nothing closed, no edge changed, export refreshed",
-  "archived_at": "2026-09-23T09:27:26.492Z"
+  "violations": []
 }

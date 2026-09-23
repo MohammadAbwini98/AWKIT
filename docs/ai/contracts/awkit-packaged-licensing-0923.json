@@ -1,0 +1,155 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-packaged-licensing-0923",
+    "title": "Package portable + NSIS from current main and run the packaged licensing and offline acceptance gates",
+    "objective": "The license-sweep provenance fix (b2e85720) and its closeout (8ed51a0c) were verified only in the development tree; dist/win-unpacked (0.1.51, built 2026-09-18 from 7069e9e) predates them. Produce fresh portable and NSIS artifacts from the current clean main through the canonical package:portable then package:nsis pipelines, prove from the packaged app.asar that they contain the fix, then run verify:packaged-licensing, verify:packaged-walkthrough, verify:packaged-runtime, verify:portable-fresh-state, verify:offline-supply-chain and validate:offline against them. Signing-dependent cases are BLOCKED unless AWKIT_PACKAGED_LICENSE_ISSUER_KEY is explicitly set on this machine; the clean-machine VM gate is NOT RUN unless the lab is available. No strict-offline, manifest, provenance or fresh-state gate is weakened.",
+    "requested_by": "repository owner",
+    "risk_level": 3,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "e2f703cb",
+    "working_tree_expected": "clean",
+    "preserved_paths": [],
+    "preserved_notes": [
+      "The owner's untracked scripts/offline-benchmark/ was moved outside the repository by the owner for packaging and is restored by the owner afterwards; it is never committed, excluded or touched by this task.",
+      "Older dist/ artifacts are generated build output; the 0.1.51 portable and win-unpacked tree are superseded by the rebuild, no user-authored file is deleted."
+    ]
+  },
+  "classification": {
+    "packaging_change": true,
+    "offline_boundary_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 2
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "qa",
+      "qc",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      "build",
+      "resources/dependency-manifest.json",
+      "resources/dependency-manifest.sig",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-packaged-licensing-0923.json",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "release",
+      "allowed_paths": [
+        "build",
+        "resources/dependency-manifest.json",
+        "resources/dependency-manifest.sig"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "package.json",
+        "electron-builder.json",
+        ".beads/**",
+        "tools/roadmap/*.ts"
+      ],
+      "note": "Canonical packaging only: package:portable then package:nsis. The pipelines regenerate and re-sign the dependency manifest pair and stage the Zvec host under build/native-hosts."
+    },
+    "writer_sequence": [
+      "release",
+      "project-state"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ]
+  },
+  "constraints": {
+    "architecture": [
+      "Use scripts/package-portable.ps1 and scripts/package-per-user-installer.ps1 via npm run package:portable and npm run package:nsis; never hand-invoke electron-builder to bypass a failing gate.",
+      "Do not bump the version; the release-version workflow is not part of verification packaging."
+    ],
+    "security": [
+      "Do not alter signing-key custody or set the synced-key override.",
+      "Never set AWKIT_PACKAGED_LICENSE_ISSUER_KEY on this machine; signing-dependent cases are BLOCKED when it is unset.",
+      "Do not weaken manifest, provenance, fresh-state or strict-offline gates."
+    ],
+    "compatibility": [
+      "Windows PowerShell 5.1 remains the packaging host shell and no administrator rights may be required."
+    ],
+    "offline": [
+      "No internet dependency, telemetry, runtime download, global Node, global Playwright or global browser may be introduced."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "AC-1",
+      "description": "Portable and NSIS artifacts are regenerated from the clean baseline commit, provenance names that commit with treeDirty false, and the packaged app.asar contains the license-gate cancellation source.",
+      "evidence_required": [
+        "EV-portable",
+        "EV-nsis"
+      ]
+    },
+    {
+      "id": "AC-2",
+      "description": "Every packaged licensing and offline gate is executed against the fresh artifacts and reported with its exact PASS/FAIL/BLOCKED/NOT RUN outcome.",
+      "evidence_required": [
+        "EV-packaged-licensing",
+        "EV-roadmap-verifier"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "EV-portable",
+      "type": "packaged",
+      "command": "npm run package:portable",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "EV-nsis",
+      "type": "packaged",
+      "command": "npm run package:nsis",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "EV-packaged-licensing",
+      "type": "packaged",
+      "command": "npm run verify:packaged-licensing",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    },
+    {
+      "id": "EV-roadmap-verifier",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "required": true,
+      "result": "pending",
+      "artifact": null
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  }
+}
