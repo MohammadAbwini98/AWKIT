@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-4-spy-e2e-note-0923",
+    "title": "Record the real-Electron verification of Element Spy's AI proposal on L3",
+    "objective": "At 93bd50c7 Element Spy's Find stronger locator with AI is verified end to end in real Electron: verify:ai-assist-gui drives the Recorder's own browser through its own Playwright connection, the request crosses the real preload and IPC, and main's loop, compiler, intent guard and proof run on the live page with the scripted provider (159/0, red first 50/3, two mutations caught and reverted). It found and fixed two lifecycle defects: a reload while a proposal was pending showed the old inspection's answer as proven on the new document, and Close Spy then Open Element Spy at once orphaned the new browser. Append a note to awkit-djnl.4 giving the commit, the results and what stays open (real-model quality is the separate L1 evidence, Use in action for an AI proposal is not built, the automatic triggers stay outside the limited GO). Refresh the JSONL export. Nothing closes: awkit-djnl.4 stays in_progress. No edge is added or removed. The lease writes .beads/** only, so the state documents edited afterwards and the owner's relocated scripts/offline-benchmark/ are outside it and untouched.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "93bd50c7",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "scripts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "tracker-reflects-reality",
+      "description": "awkit-djnl.4 stays in_progress with a note naming the verification commit and its results, no edge changes, the JSONL export is refreshed from the database, and the dashboard reports that its sources agree.",
+      "evidence_required": [
+        "roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177 with the Overview banner on 'Sources agree' on round 1, run once after the lease release (active-lease.json is a registered source), after `bd update awkit-djnl.4 --append-notes`, `bd export -o .beads/issues.jsonl` and the state documents: 26 outstanding / 294 closed with 180 edges, the export diff touching only awkit-djnl.4's notes and updated_at, and both narratives restating 65 PASS / 2 NOT RUN / 0 BLOCKED."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-4-spy-e2e-note-0923:project-state:2026-09-23T17:40:05.879Z",
+        "task": "awkit-djnl-4-spy-e2e-note-0923",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-23T17:40:05.879Z",
+        "acquired_at_commit": "93bd50c7cddf0357dc1b86a8436afbea95611adf",
+        "released_at": "2026-09-23T17:40:54.022Z",
+        "released_reason": "real-Electron Element Spy verification noted on awkit-djnl.4, nothing closed, no edge changed, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

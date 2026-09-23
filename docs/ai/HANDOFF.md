@@ -1,6 +1,29 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-23, latest) — limited L1 GO recorded; Element Spy AI proposal built; 15 L4b reviews await the owner
+## HANDOFF (2026-09-23, latest) — Element Spy AI proposal verified end to end in real Electron; two lifecycle fixes
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No bead's status changed.
+  `awkit-djnl.4` has a note, written under the routed project-state lease (contract
+  `awkit-djnl-4-spy-e2e-note-0923`, released).
+- **Done:** the previous handoff's NOT RUN click-through now runs. `verify:ai-assist-gui` 159/0 drives the
+  Recorder's own browser through its own Playwright connection, captured in main by the verifier. That
+  technique is the one to reuse for any GUI check inside the Recorder browser (KNOWN_ISSUES, newest). It
+  found two defects, fixed in `93bd50c7`:
+  - a reload while a proposal was pending showed a stale answer as proven;
+  - Close Spy, then Open Element Spy at once, orphaned the new browser.
+- **Unchanged:** the owner's limited L1 GO, L1/L3/L4b/L5b `in_progress`, L4b at 1 of 16 (B2–B16 are the
+  owner's to record, as in the superseded note below). The GO's exclusions are still unbuilt.
+- **Next authorized work:**
+  - A real-model run of the Spy proposal in the real app. The harness exists, so the pinned 0.8B can
+    replace the scripted provider for an on-demand check of what a person sees (the L1.8 latency is
+    ~70 s per attempt, up to 3 attempts). It is inside the limited GO, and it is evidence only.
+  - "Use in action" for an AI proposal still needs the owner's provenance decision for draft steps.
+- **The signed-license note below still applies** (route (b) rebuild); `src/recorder` and `app/main`
+  changed again.
+- **Do not:** record a verdict as an agent; widen the GO; close L1, L3, L4b or L5b; touch the `blocks`
+  edges.
+
+## HANDOFF (2026-09-23, superseded) — limited L1 GO recorded; Element Spy AI proposal built; 15 L4b reviews await the owner
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No bead's status changed.
 - **Owner decisions recorded (DECISIONS, latest):**

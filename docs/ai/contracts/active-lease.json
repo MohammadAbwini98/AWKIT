@@ -1,25 +1,18 @@
 {
-  "task": "awkit-packaged-licensing-0923",
-  "contract_path": "docs/ai/contracts/awkit-packaged-licensing-0923.json",
+  "task": "awkit-djnl-4-spy-e2e-note-0923",
+  "contract_path": "docs/ai/contracts/awkit-djnl-4-spy-e2e-note-0923.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/HANDOFF.md",
-    "docs/ai/KNOWN_ISSUES.md",
-    "docs/ai/TASK_LOG.md"
+    ".beads/**"
   ],
-  "acquired_at": "2026-09-23T13:21:55.085Z",
-  "acquired_at_commit": "927253f80a1ae9cbae1d54b92a2b369414306a20",
+  "acquired_at": "2026-09-23T17:40:05.879Z",
+  "acquired_at_commit": "93bd50c7cddf0357dc1b86a8436afbea95611adf",
   "baseline_dirty": [
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-packaged-licensing-0923.json",
-    "tools/roadmap/assignments.json"
+    "docs/ai/contracts/awkit-djnl-4-spy-e2e-note-0923.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "c92def9d72bd274af6b6c0e767bda50c66920651ad5aac2b809099b9c20090ef",
-    "docs/ai/contracts/awkit-packaged-licensing-0923.json": "656e5e5ee17144ca1458589b9f647754e42896ca5e38929a5538b36ee8446d02",
-    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
+    "docs/ai/contracts/awkit-djnl-4-spy-e2e-note-0923.json": "a7ecf1ce195bc8d5919726dc130135045521fb63738f87a3b3d1d3ad17c8bf0e"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -34,7 +27,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-23T13:24:13.917Z",
-  "released_reason": "packaged acceptance recorded: fresh 0.1.51 from fe343958, local gates green, signed-license cases BLOCKED on the issuer key, clean-machine VM NOT RUN",
-  "archived_at": "2026-09-23T13:24:13.918Z"
+  "released_at": "2026-09-23T17:40:54.022Z",
+  "released_reason": "real-Electron Element Spy verification noted on awkit-djnl.4, nothing closed, no edge changed, export refreshed",
+  "archived_at": "2026-09-23T17:40:54.023Z"
 }

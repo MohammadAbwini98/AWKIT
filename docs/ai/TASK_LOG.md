@@ -1,5 +1,38 @@
 # TASK_LOG
 
+## 2026-09-23 — Phase L: Element Spy's AI proposal verified end to end in real Electron, two lifecycle defects fixed (Claude)
+
+- **Task:** close the previous session's NOT RUN real-Electron click-through of **Find stronger locator
+  with AI**, fix any defect it reproduces, and keep the owner's limited L1 GO, and every human-review
+  gate, exactly as they were.
+- **Harness:** the gap was a missing trusted click, which page script cannot forge. `verify:ai-assist-gui`
+  uses `app.evaluate` and `createRequire` on the externalized `playwright` module (the same
+  `playwright-core` main imports) to wrap `chromium.launch` before the Spy opens. It then clicks through the
+  Recorder's own browser. There is no product hook, no second browser and no CDP port. Harness traps fixed
+  along the way: the isolated `%LOCALAPPDATA%` also moves Playwright's browser cache
+  (`PLAYWRIGHT_BROWSERS_PATH`), and `inspecting` turns true before the Spy's browser launches.
+- **Defects found and fixed (`93bd50c7`):**
+  - Proof on a replaced document. `RecorderService` counts `framenavigated` per frame and pins the
+    count at inspection. `getInspectionTarget()` returns null once that frame navigated or detached.
+    `proposeInspectionLocator` re-reads the target before it shows an accepted answer.
+  - Close-then-reopen race. The close's liveness-triggered second `closeBrowser()` reset the newer
+    session. `closeBrowser()` now resets state only while it still holds the handles it closed.
+- **Checks:**
+  - `verify:ai-assist-gui` 102 → 159/0. It was red first at 50/3. Two mutations were caught and
+    reverted: the final same-inspection check (158/1) and the renderer stale-result token (157/2, which
+    no older check caught).
+  - `verify:element-spy` 114 → 120/0; the reopen check was red at 118/2 without the guard.
+  - `verify:recorder-gui` 205/0/0, `verify:ai-permissions` 96/0, `verify:ai-fallback` 38/0,
+    `verify:ipc-contract` 10/10, `verify:mock-site` 242/242.
+  - `verify:failure-capture-overhead` 18/0/0 (run 11 appended), `verify:verifier-classification` 260
+    reconciled, `typecheck:scripts` PASS, build PASS.
+- **Tracker:** a note on `awkit-djnl.4`, written under contract `awkit-djnl-4-spy-e2e-note-0923` with the
+  project-state lease (granted, then released). The export was refreshed. No status or edge changed.
+- **Not run, by scope:** L4b human review, live-model benchmarks (inputs unchanged), packaging and
+  licensing QC.
+- **Result:** the user-facing Spy path is verified in the real app with a scripted provider. That is not
+  real-model quality. No milestone closed.
+
 ## 2026-09-23 — Phase L: owner's limited L1 GO recorded, Element Spy "Find stronger locator with AI" built (Claude)
 
 - **Task:** resolve the L4b reviewer identity and the L1 decision with the owner, then build the next

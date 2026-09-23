@@ -1,6 +1,37 @@
 # CURRENT_STATE
 
-## Phase L: owner's limited L1 GO recorded; Element Spy "Find stronger locator with AI" built (2026-09-23, current)
+## Phase L: Element Spy's AI proposal verified end to end in real Electron; two lifecycle defects fixed (2026-09-23, current)
+
+**Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No bead's status
+changed. `awkit-djnl.4` gained a note, through the routed project-state lease (contract
+`awkit-djnl-4-spy-e2e-note-0923`).
+
+- **L3 (`awkit-djnl.4`, in_progress):** **Find stronger locator with AI** now runs end to end in the real
+  app. `verify:ai-assist-gui` opens the Recorder's own Chromium on the Feature Test Lab and inspects with a
+  trusted click. The click goes through that browser's own Playwright connection, which the verifier
+  captures in main (no product hook). The request crosses the real preload and IPC. Main's loop,
+  compiler, intent guard and proof then run on the live page, with the scripted provider replacing only
+  the transport. Details are in L3 › "§1 Element Spy trigger as built".
+- **Fixed, found by that run (`93bd50c7`):**
+  - A reload while a proposal was pending showed the old inspection's answer as proven on the new
+    document. An inspection is now pinned to its frame's navigation count.
+  - Close Spy, then Open Element Spy at once, orphaned the new browser. `closeBrowser()` now
+    compare-and-clears.
+- **L1 (`awkit-djnl.1`) and L4b (`awkit-djnl.6`):** unchanged. The limited GO stands. L4b stays at 1 of 16
+  reviewed, TARGET PENDING. No human verdict was requested, recorded or inferred.
+- **Not shown:** real-model quality (the L1 evidence), and the installed-Chrome
+  `launchPersistentContext` Spy path, which the harness does not wrap.
+
+| Gate (this session) | Result |
+|---|---|
+| `verify:ai-assist-gui` (real Electron) | 159/0 (was 102). Red first 50/3 on the unfixed source. Mutations caught: final same-inspection check 158/1, renderer stale-result token 157/2 |
+| `verify:element-spy` | 120/0 (was 114). The close-then-reopen check was red 118/2 without the close guard |
+| `verify:recorder-gui` · `verify:ai-permissions` · `verify:ai-fallback` | 205/0/0 · 96/0 · 38/0 |
+| `verify:ipc-contract` · `verify:mock-site` · `verify:failure-capture-overhead` | 10/10 · 242/242 · 18/0/0 (run 11 appended) |
+| `verify:verifier-classification` · `typecheck:scripts` · build | 260 reconciled · PASS · PASS |
+| `verify:ai-authoring-review` · live-model benchmarks | not re-run: inputs unchanged; L4b human review excluded from this task |
+
+## Phase L: owner's limited L1 GO recorded; Element Spy "Find stronger locator with AI" built (2026-09-23)
 
 **Validation ledger — unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No bead's status
 changed.
