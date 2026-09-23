@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-4-l3-design-review-note-0923",
+    "title": "Record the L3 duplicate-row and Use-in-action design review on L3",
+    "objective": "At ada9ec2d the L3 plan section 1 records two owner decisions as proposals, nothing enabled: D1 duplicate rows (INV-2002 has no container identity, the compiler and proof already support test-id, authored-name and row-text scopes, options A/B/C) and D2 Use in action for AI proposals (U1 recommended: attach the proven proposal as the draft step pendingUpgrade so the existing replay, promotion, audit and revert apply, U2 capture-only apply with new audit semantics). verify:locator-upgrade-proof 85/85 with 10 container-scope checks on lu-scope, 72/85 with container scoping disabled (reverted). Append a note to awkit-djnl.4 giving the commit and these facts. Refresh the JSONL export. Nothing closes: awkit-djnl.4 stays in_progress, and no edge is added or removed. The lease writes .beads/** only.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "ada9ec2d",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "scripts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "tracker-reflects-reality",
+      "description": "awkit-djnl.4 stays in_progress with a note naming ada9ec2d and the pending owner decisions D1 and D2, no edge changes, the JSONL export is refreshed from the database, and the dashboard reports that its sources agree.",
+      "evidence_required": [
+        "roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177 with the Overview banner on 'Sources agree' on round 1, run once after the lease release, after `bd update awkit-djnl.4 --append-notes` and `bd export -o .beads/issues.jsonl`: 26 outstanding / 294 closed with 180 edges, the export diff touching only awkit-djnl.4's line, and both narratives restating 65 PASS / 2 NOT RUN / 0 BLOCKED."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-4-l3-design-review-note-0923:project-state:2026-09-23T20:11:36.706Z",
+        "task": "awkit-djnl-4-l3-design-review-note-0923",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-23T20:11:36.706Z",
+        "acquired_at_commit": "ada9ec2d72776c4f15c5aa6814f23752ef0a1721",
+        "released_at": "2026-09-23T20:12:03.287Z",
+        "released_reason": "L3 design review noted on awkit-djnl.4 at ada9ec2d, nothing closed, no edge changed, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}
