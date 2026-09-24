@@ -16,7 +16,7 @@ and what risk it carries. An earlier draft stated these rules in three places th
 | `uiux` | UI/UX & Accessibility Specialist | read-only | — | — |
 | `frontend` | React / Renderer Engineer | writer | `app/renderer/**`<br>`logos/**`<br>`UI Samples/**`<br>`ui-mock.html`<br>`capture-dribbble.mjs`<br>`get-videos.mjs` | `app/renderer/AGENTS.md` |
 | `software` | General Software Engineer | writer | `src/ai/**`<br>`src/branding/**`<br>`src/logging/**`<br>`src/reports/**`<br>`src/roadmap/**`<br>`src/semantic/**`<br>`src/theme/**`<br>`src/utils/**`<br>`src/validation/**` | `src/AGENTS.md` |
-| `runtime` | Electron Main / Runner Engineer | writer | `app/main/**`<br>`src/runner/**`<br>`src/orchestrator/**`<br>`src/instances/**`<br>`src/oracle/**`<br>`oracle-jdbc-bridge/**`<br>`native-hosts/**`<br>`scripts/oracle/**`<br>`scripts/prepare-oracle-runtime.mjs`<br>`scripts/prepare-zvec-native-host.mjs`<br>`scripts/zvec-harness/**`<br>`scripts/zvec-spike/**` | `app/main/AGENTS.md` |
+| `runtime` | Electron Main / Runner Engineer | writer | `app/main/**`<br>`src/runner/**`<br>`src/orchestrator/**`<br>`src/instances/**`<br>`src/oracle/**`<br>`oracle-jdbc-bridge/**`<br>`native-hosts/**`<br>`scripts/oracle/**`<br>`scripts/prepare-oracle-runtime.mjs`<br>`scripts/prepare-zvec-native-host.mjs`<br>`scripts/prepare-ai-native-host.mjs`<br>`scripts/zvec-harness/**`<br>`scripts/zvec-spike/**` | `app/main/AGENTS.md` |
 | `integration` | Cross-Boundary Integration Specialist | read-only | — | — |
 | `recorder` | Recorder / Playwright Specialist | writer | `src/recorder/**`<br>`src/session/**` | `src/AGENTS.md` |
 | `qa` | Quality Assurance Engineer | writer | `tests/**`<br>`mock-site/**`<br>`scripts/verify-*`<br>`scripts/validate-*`<br>`scripts/benchmark-*`<br>`scripts/benchmark/**`<br>`scripts/helpers/**`<br>`scripts/measure-*`<br>`scripts/random-test-lab.mts`<br>`scripts/seed-*`<br>`scripts/capture-*`<br>`scripts/write-test-root-manifest.mjs`<br>`playwright.config.ts`<br>`specs/e2e/**`<br>`scripts/lib/e2e-qa-lib.mjs`<br>`scripts/lib/gui-verify-harness.mjs`<br>`scripts/lib/latency-histogram.mts`<br>`scripts/lib/legacy-gui-verifier-coverage.mjs`<br>`scripts/lib/loop-capsule-visual-oracle.mjs`<br>`scripts/lib/rss-trend.mts`<br>`scripts/lib/selfSignedCertificate.mts`<br>`scripts/lib/test-lab-packaging-policy.ts`<br>`scripts/lib/verify-flow-loop-capsule-gui.mjs`<br>`scripts/lib/verify-workflow-loop-capsule-gui.mjs`<br>`src/testing/**` | `tests/AGENTS.md` |
@@ -128,6 +128,7 @@ change was visual. First match wins, so narrower paths come first.
 | `scripts/oracle/**` | `runtime` | `execution_change`, `authorization_change`, `offline_boundary_change` | Runtime preparation and native bridge tooling crosses the shipped execution boundary. |
 | `scripts/prepare-oracle-runtime.mjs` | `runtime` | `execution_change`, `authorization_change`, `offline_boundary_change` | Runtime preparation and native bridge tooling crosses the shipped execution boundary. |
 | `scripts/prepare-zvec-native-host.mjs` | `runtime` | `execution_change`, `authorization_change`, `offline_boundary_change` | Runtime preparation and native bridge tooling crosses the shipped execution boundary. |
+| `scripts/prepare-ai-native-host.mjs` | `runtime` | `execution_change`, `authorization_change`, `offline_boundary_change` | Runtime preparation and native bridge tooling crosses the shipped execution boundary. |
 | `scripts/zvec-harness/**` | `runtime` | `execution_change`, `authorization_change`, `offline_boundary_change` | Runtime preparation and native bridge tooling crosses the shipped execution boundary. |
 | `scripts/zvec-spike/**` | `runtime` | `execution_change`, `authorization_change`, `offline_boundary_change` | Runtime preparation and native bridge tooling crosses the shipped execution boundary. |
 | `build/**` | `release` | `packaging_change` | Packaging inputs. |
@@ -215,6 +216,7 @@ flags already make them Risk 3; they require the matching owner and critical rev
 | `scripts/oracle/**` | `runtime` | `execution_change`, `authorization_change`, `offline_boundary_change` |
 | `scripts/prepare-oracle-runtime.mjs` | `runtime` | `execution_change`, `authorization_change`, `offline_boundary_change` |
 | `scripts/prepare-zvec-native-host.mjs` | `runtime` | `execution_change`, `authorization_change`, `offline_boundary_change` |
+| `scripts/prepare-ai-native-host.mjs` | `runtime` | `execution_change`, `authorization_change`, `offline_boundary_change` |
 | `scripts/zvec-harness/**` | `runtime` | `execution_change`, `authorization_change`, `offline_boundary_change` |
 | `scripts/zvec-spike/**` | `runtime` | `execution_change`, `authorization_change`, `offline_boundary_change` |
 | `resources/**` | `release` | `packaging_change`, `offline_boundary_change` |

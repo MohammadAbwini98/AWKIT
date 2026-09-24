@@ -1,14 +1,14 @@
 {
   "task": "awkit-djnl-10-ai-runtime-packaging-0924",
   "contract_path": "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json",
-  "holder": "qa",
+  "holder": "project-state",
   "status": "active",
   "allowed_paths": [
-    "scripts/verify-ai-packaged-app.mts",
-    "scripts/verify-ai-packaged-runtime.mts"
+    "docs/ai/routing/ROUTING_MATRIX.md",
+    "scripts/lib/verifier-classification.ts"
   ],
-  "acquired_at": "2026-09-24T15:21:19.016Z",
-  "acquired_at_commit": "e8f99c3f10ce6be3d263df77f2bd61395f958c15",
+  "acquired_at": "2026-09-24T15:27:03.263Z",
+  "acquired_at_commit": "680090f637d6b0026bc70e2c0e2bea35fac87261",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json",
@@ -17,8 +17,8 @@
     "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "f36f6662275f3b984e77361b8044f8783f02cfacc3fc74eba9dbaa03d8d1dd2d",
-    "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json": "c5805e59ccdc3c3fd73bc2bf91860f2971ab0245296749e09f440d1cbc6b47fb",
+    "docs/ai/contracts/active-lease.json": "353b5b97494fb5ffb2268f3ae34a1a2fd13f92dd4cd9c44a7555bc4e883b71c9",
+    "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json": "cc41b1d30328f784e5ea33c681cf64d705dfabe886d13db4626c59ea02f4a6bb",
     "resources/dependency-manifest.json": "44228e957a46814ec87dc64821aaeefc3736ed65b6a17861796ba95b50768ac4",
     "resources/dependency-manifest.sig": "a744444667e49f7df1cd4631cc27c4d5ec5b4d11015670fd0097453a0f516be8",
     "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"

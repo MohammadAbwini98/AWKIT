@@ -78,10 +78,10 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "qa",
+      "agent_id": "project-state",
       "allowed_paths": [
-        "scripts/verify-ai-packaged-app.mts",
-        "scripts/verify-ai-packaged-runtime.mts"
+        "docs/ai/routing/ROUTING_MATRIX.md",
+        "scripts/lib/verifier-classification.ts"
       ]
     },
     "writer_sequence": [
@@ -272,6 +272,23 @@
         "acquired_at_commit": "7e2252ef54652a2db746ae5b333ddde8d7f465e0",
         "released_at": "2026-09-24T15:21:18.960Z",
         "released_reason": "handoff to qa: dotfile fix committed at e8f99c3f, add its regression check and the real packaged-app AI gate",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:qa:2026-09-24T15:21:19.016Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-ai-packaged-app.mts",
+          "scripts/verify-ai-packaged-runtime.mts"
+        ],
+        "acquired_at": "2026-09-24T15:21:19.016Z",
+        "acquired_at_commit": "e8f99c3f10ce6be3d263df77f2bd61395f958c15",
+        "released_at": "2026-09-24T15:27:03.203Z",
+        "released_reason": "handoff to project-state: packaged-app gate committed at 680090f6, classify it and regenerate the routing matrix for the new staging-script entry",
         "amendments": [],
         "overrides": [],
         "violations": []
