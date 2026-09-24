@@ -1,18 +1,18 @@
 {
-  "task": "awkit-djnl-4-d1-quality-set-note-0924",
-  "contract_path": "docs/ai/contracts/awkit-djnl-4-d1-quality-set-note-0924.json",
+  "task": "awkit-djnl-4-d1-live-run-note-0924",
+  "contract_path": "docs/ai/contracts/awkit-djnl-4-d1-live-run-note-0924.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-09-24T08:59:52.290Z",
-  "acquired_at_commit": "e8d8ad1c5fdfadb4ecfac1298096456aff1fc1d4",
+  "acquired_at": "2026-09-24T09:53:58.040Z",
+  "acquired_at_commit": "bfbbe88f6f2fa2efe2c5051cb222d07a532e1553",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-djnl-4-d1-quality-set-note-0924.json"
+    "docs/ai/contracts/awkit-djnl-4-d1-live-run-note-0924.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-djnl-4-d1-quality-set-note-0924.json": "db1c293dccbc41e1e6b71c16ef7b18e296baa5a0d14ff6a08369d49e9d3d896f"
+    "docs/ai/contracts/awkit-djnl-4-d1-live-run-note-0924.json": "628977e34a155531c8795f281837328ab58b4c93f18cc95ee2f7a6743d90ae74"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -27,7 +27,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-24T09:00:37.963Z",
-  "released_reason": "D1 real-model quality set noted on awkit-djnl.4 at e8d8ad1c, nothing closed, no edge changed, export refreshed",
-  "archived_at": "2026-09-24T09:00:37.964Z"
+  "released_at": "2026-09-24T09:54:33.004Z",
+  "released_reason": "live D1 run noted on awkit-djnl.4 at bfbbe88f, nothing closed, no edge changed, export refreshed",
+  "archived_at": "2026-09-24T09:54:33.005Z"
 }
