@@ -1,5 +1,36 @@
 # TASK_LOG
 
+## 2026-09-24 — Phase L: durable, sanitized session evidence for verify:ai-spy-live (Claude)
+
+- **Task:** close the OPEN `verify:ai-spy-live` durable-evidence follow-up with a model-free regression.
+  Verifier-only.
+- **Root cause:** the verifier printed its checks and classified attempts to the console only, then removed its
+  isolated profile. When the running tool cut the output, the per-attempt detail was gone.
+- **Change (`f9e573ac`):**
+  - New `scripts/ai-harness/spyLiveEvidence.mts` holds a session recorder, an allowlisted builder, a per-run
+    writer and `settleSpyRun`. It reuses `locatorQualityEvidence.mts`'s helpers, which are now exported, and
+    `replaceFileAtomically`.
+  - `verify-ai-spy-live.mts` records nine fixed scenarios as they run. Each write is a checkpoint, marked
+    INCOMPLETE. The final record is written to `evidence/L3-spy-live-<runId>.json` before the profile is removed.
+    A failed write fails the run.
+  - `classifyAttempts` also returns bounded per-attempt `records`.
+- **Checks:**
+  - `verify:ai-locator-quality-controls`: 49/0 (was 28). It adds 21 checks. It ran red 48/1 before the verifier
+    was wired.
+  - `verify:ai-locator-attempts`: 170/170 (was 167).
+  - Nine mutations, each caught and reverted: 48/1, 39/10, 46/3, 47/2, 48/1, 48/1, 48/1, 48/1 and 169/170.
+  - `typecheck:scripts` PASS, build PASS.
+  - `verify:verifier-classification`, `verify:roadmap-dashboard` and `git diff --check` were run after the
+    `awkit-djnl.4` note. Their results are in its contract and commit.
+- **Not run:**
+  - `verify:ai-spy-live`, `verify:ai-locator-quality-live` and `-d1`: real-model paths, not authorized.
+  - `verify:ai-host-electron`: the Electron harness imports neither evidence module.
+  - `verify:ai-assist-gui`: it does not call `classifyAttempts`.
+- **Records:** `KNOWN_ISSUES.md` (FIXED, original record kept), L3 plan, `COMMANDS.md`, `CURRENT_STATE.md`,
+  `HANDOFF.md`. `DECISIONS.md` unchanged.
+- **Result:** L3 stays `in_progress`. No milestone, bead status, edge or verdict changed. The D1 live result
+  and the earlier Spy runs are unchanged, and no evidence file was made for them.
+
 ## 2026-09-24 — Phase L: durable, sanitized per-case evidence for live locator-quality runs (Claude)
 
 - **Task:** close the OPEN durable-evidence follow-up with a model-free regression. Verifier-only.

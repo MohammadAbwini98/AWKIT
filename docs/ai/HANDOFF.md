@@ -1,6 +1,24 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-24, latest) — live locator-quality runs now save durable per-case evidence
+## HANDOFF (2026-09-24, latest) — verify:ai-spy-live now keeps a durable session record
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. `awkit-djnl.4` stays
+  `in_progress` with a note for this change. No bead's status or edge changed.
+- **Done (`f9e573ac`, verifier-only):** `verify:ai-spy-live` records each scenario and attempt as codes. It
+  writes `docs/plans/ai-upgrade-v5/evidence/L3-spy-live-<runId>.json` as an INCOMPLETE checkpoint while it runs,
+  and as the final record before its profile is removed (`spyLiveEvidence.mts`). Checks:
+  `verify:ai-locator-quality-controls` 49/0 and `verify:ai-locator-attempts` 170/170, with nine mutations
+  caught. No model was run.
+- **After the next authorized live run:** review the new `L3-spy-live-*.json` and commit it deliberately. It
+  is left untracked on purpose. A file whose `stage` is `checkpoint` means the run was killed.
+- **Next, no owner step needed:** none is open for L3 evidence. The remaining Phase L work needs the owner.
+- **Needs the owner:** whether to change the request wording for scope copying, or accept D1 as refused-only
+  on the 0.8B; any further live run; the 15 L4b reviews.
+- **Residual risk:** the recording glue in both live verifiers is type-checked and wired, but not yet run live.
+- **Do not:** run a live model to test the writer; commit evidence without reviewing it; allow `hasText`
+  scopes. The signed-license route (b) rebuild note below still applies.
+
+## HANDOFF (2026-09-24, superseded) — live locator-quality runs now save durable per-case evidence
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. `awkit-djnl.4` stays
   `in_progress` with a note for this change; no bead's status or edge changed.

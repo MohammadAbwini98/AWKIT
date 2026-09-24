@@ -1,6 +1,50 @@
 # KNOWN_ISSUES
 
-## `verify:ai-spy-live` keeps no durable per-case record (2026-09-24, OPEN — verifier follow-up, `awkit-djnl.4`)
+## `verify:ai-spy-live` keeps no durable per-case record (2026-09-24, FIXED in `f9e573ac` — verifier, `awkit-djnl.4`)
+
+- **Fix (`f9e573ac`, verifier-only, product unchanged, no model run):**
+  - **Module:** `scripts/ai-harness/spyLiveEvidence.mts`, a Spy-specific record. It reuses
+    `locatorQualityEvidence.mts`'s allowlist helpers, identity, run id, source revision and `EVIDENCE_DIR`, and
+    `replaceFileAtomically`. It does not reuse the labelled-set schema.
+  - **Recorder:** `startSpyLiveRun` counts every check. The verifier begins, records and ends each of nine fixed
+    scenarios: judge controls, accounting control, preconditions, Spy open, the T3 refusal, the duplicated Edit
+    ask, the cancel, the Save profile ask, and no writes. Each measurement is recorded as soon as it is taken.
+    `classifyAttempts` also returns bounded `records`.
+  - **Storage:** `docs/plans/ai-upgrade-v5/evidence/L3-spy-live-<runId>.json`. Every begin, record, end and skip
+    writes a checkpoint: `stage: "checkpoint"`, result `INCOMPLETE`, no exit code. After the app, browsers and
+    site close, `settleSpyRun` writes the final record and only then removes the isolated profile. Each write is
+    a `.partial` file, an atomic rename with EPERM retry, and a read-back. The file is replaced only while it
+    holds what this run last wrote, never another run's. Any failed write, checkpoint or final, fails the run
+    (exit 1). The file is left untracked for review.
+  - **Contract (schema 1):** run id, stage, source commit and dirty flag, pack id, file name, sha256 and size
+    (no path), runtime, timings, result, exit code, `completed`, the scenario in flight, checks, checkpoint
+    counts, scenario counts, `notReached` and totals. Totals count model requests, replies, refused attempts,
+    attempts recorded, `SCOPE_NOT_OFFERED`, shown, browser-proven, wrong targets shown and right-but-withheld.
+    Each scenario keeps its status (`not-run`, `started`, `passed`, `refused`, `failed`), its checks, and facts
+    from a fixed table (product `AiAssistCode`, panel state, counts, flags, a `RUN_BUDGET` skip). Each attempt
+    keeps: replied, host code, contract, plan strategy, scope category, `stage:CODE` refusal and field, page
+    code, matches and target. Any other value is `unrecognized`, and extra properties are never read.
+  - **Result rule (meanings unchanged):** PASS needs every scenario ended (or skipped for the run budget), every
+    check held, no failed write, and every shown proposal the page's inspected element. Nothing shown is
+    INCONCLUSIVE, exit 2.
+- **Regression:**
+  - `verify:ai-locator-quality-controls` is 49/0 (was 28). It has 21 new checks: A to L plus the verifier's
+    wiring. They cover a proven proposal, a refusal, `SCOPE_NOT_OFFERED`, INCONCLUSIVE and a `RUN_BUDGET` skip,
+    a failed check then an error, a cancel released and not released, profile cleanup after the final write, a
+    silenced console, 12 seeded sensitive strings with extra properties, a run-id clash, failed writes (all, and
+    only the final), and a killed run's INCOMPLETE checkpoint. Before the verifier was wired it ran red, 48/1.
+  - `verify:ai-locator-attempts` §19 is 170/170 (was 167), with three new record checks.
+  - Nine mutations were each caught, then reverted: folder moved to temp (48/1), first scenario dropped
+    (39/10), INCONCLUSIVE as PASS (46/3), raw attempt fields spread (47/2), overwrite guard removed (48/1), failed
+    final write ignored (48/1), checkpoint marked complete (48/1), profile removed before the final write
+    (48/1), and D1 refusal dropped from the classifier record (169/170).
+- **Limits:**
+  - The recording glue is type-checked and wired, but it first runs in the next authorized live run.
+  - A kill leaves only the last checkpoint, so anything measured after the last recorded fact is lost.
+  - There is no signal handler, and no crash or host-shutdown handling is claimed.
+  - Earlier Spy runs have no file, and none is reconstructed.
+
+**Original record (kept):**
 
 - **What happens:** it prints its checks and classified attempts to the console only. A tool that cuts long
   output loses the per-attempt detail, as the D1 run did before the fix below.

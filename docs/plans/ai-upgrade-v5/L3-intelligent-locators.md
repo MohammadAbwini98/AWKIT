@@ -443,6 +443,32 @@ cut. Now:
   2026-09-24 D1 run, and its missing detail is not reconstructed. `verify:ai-spy-live` is a separate OPEN
   follow-up (`KNOWN_ISSUES.md`).
 
+**`verify:ai-spy-live` now keeps a durable session record too (2026-09-24, `f9e573ac`, verifier-only).** It printed
+its checks and classified attempts to the console only, then removed its isolated profile, so a cut console lost
+the per-attempt detail. It is one Element Spy session, not a labelled set, so it has its own record
+(`scripts/ai-harness/spyLiveEvidence.mts`), reusing the allowlist helpers, identity and atomic replace above:
+- **Session:** nine fixed scenarios in run order (judge controls, accounting control, preconditions, Spy open,
+  the T3 refusal, the duplicated Edit ask, the cancel, the Save profile ask, no writes). Each has a status
+  (`not-run`, `started`, `passed`, `refused`, `failed`), its check counts, and allowlisted facts: panel state,
+  `AiAssistCode`, timings, shown and labelled, the page's verdict, requests, replies and refused attempts
+  counted apart, the accounting result, right-but-withheld, row key in the request, model started, cancel shown
+  and model released apart, AI on and pack installed, nothing written, renderer errors, a `RUN_BUDGET` skip.
+- **Per attempt** (`classifyAttempts` now also returns `records`): replied or the host's code, contract,
+  plan strategy, scope category, `stage:CODE` refusal and field, page code, matches and target. D1's
+  `SCOPE_NOT_OFFERED` stays an intent refusal with no page verdict, never a plan withheld.
+- **Lifecycle:** every scenario boundary and recorded fact writes a checkpoint (`INCOMPLETE`, no exit code) to
+  `evidence/L3-spy-live-<runId>.json`. After the app, browsers and site close, `settleSpyRun` writes the final
+  record and only then removes the profile. The file is replaced only while it holds what this run last wrote,
+  never another run's. A failed write, checkpoint or final, fails the run.
+- **Result rule:** unchanged meanings. PASS needs every scenario ended (or skipped for the run budget), every
+  check held, and every shown proposal the page's inspected element. Nothing shown is INCONCLUSIVE, exit 2.
+- **Proof:** `verify:ai-locator-quality-controls` 49/0 (21 new checks: A–L and the verifier's wiring, red 48/1
+  before the wiring). `verify:ai-locator-attempts` §19 170/170 (3 new record checks). Nine mutations were each
+  caught and reverted.
+- **Limits:** the glue first runs in the next authorized live run. A kill leaves the last checkpoint, so what a
+  scenario measured after its last recorded fact is lost. No signal handler, crash or host-shutdown handling is
+  claimed. Earlier Spy runs have no file, and none is reconstructed.
+
 ### §1 owner decisions: duplicate rows (D1) and "Use in action" (D2) (2026-09-23 design review; decided 2026-09-24)
 
 The owner chose D1 A+B and D2 U1 on 2026-09-24 (above). The review below is kept as it was written.
@@ -867,10 +893,11 @@ caught. The cases it does not cover (frames, shadow, rows, protected login, repl
 the scripted suites. `verify:ai-locator-quality-live-d1` (built 2026-09-24; run once the same day, 12/0, INCONCLUSIVE exit 2,
 0/2 positives proven, 0 false targets) runs D1's own four
 cases on `/recorder-lab/element-spy`, reported apart (see "§1 D1 and D2 as built").
-`verify:ai-locator-quality-controls` (28/0 since 2026-09-24, no model) runs the saved evidence's 17 checks and
-every scripted control of both sets. Each live run saves its per-case evidence under `evidence/`.
-`verify:ai-locator-attempts` §19 (167/167 in all since 2026-09-24) runs `verify:ai-spy-live`'s attempt
-classifier with no model.
+`verify:ai-locator-quality-controls` (49/0 since 2026-09-24, no model) runs the saved evidence's 17 checks, the
+Spy session evidence's 21, and every scripted control of both sets. Each live run, `verify:ai-spy-live`
+included, saves its evidence under `evidence/`.
+`verify:ai-locator-attempts` §19 (170/170 in all since 2026-09-24) runs `verify:ai-spy-live`'s attempt
+classifier and its records with no model.
 Existing: recorder/locator suites from L2,
 `verify:blueprint-recovery-browser`, `verify:profile-store`, `verify:runner`, `verify:mock-site`, `npm run build`.
 

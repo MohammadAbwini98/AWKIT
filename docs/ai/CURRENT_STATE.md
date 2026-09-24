@@ -1,6 +1,39 @@
 # CURRENT_STATE
 
-## Phase L: live locator-quality runs save durable, sanitized per-case evidence (2026-09-24, current)
+## Phase L: verify:ai-spy-live keeps a durable, sanitized session record (2026-09-24, current)
+
+**Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** `awkit-djnl.4` stays
+`in_progress` with a note for this change. No bead's status or edge changed. The change is verifier-only
+(`f9e573ac`): product source, fixtures, compiler, intent guard, proof and the D1/D2 rules are unchanged. No model
+was run.
+
+- **Fixed** (was OPEN in `KNOWN_ISSUES.md`): the Spy-live verifier kept its detail only in the console.
+  - It now records nine fixed scenarios as they run, each with a status, check counts, allowlisted facts and
+    per-attempt codes (`scripts/ai-harness/spyLiveEvidence.mts`).
+  - Each write goes to `docs/plans/ai-upgrade-v5/evidence/L3-spy-live-<runId>.json`. During the run it is an
+    INCOMPLETE checkpoint; at the end it is the final record, written before the profile is removed.
+  - It never replaces another run's file, and a failed write fails the run.
+- **Contract:** allowlisted codes, enums, counts and flags only; anything else is `unrecognized`. There is no
+  model text, prompt, locator value, page or row text, record key, inspection, path or stack. D1's
+  `SCOPE_NOT_OFFERED` stays the product's intent refusal, never a plan withheld.
+- **Limits:** the glue first runs in the next authorized live run. A kill keeps only the last checkpoint. No
+  signal, crash or host-shutdown handling is claimed.
+- **Unchanged:**
+  - The D1 live result (12/0, exit 2 INCONCLUSIVE, 0 of 2 positives) and the earlier Spy runs. No file exists
+    for them, and nothing is reconstructed.
+  - L1 limited GO. L3 `in_progress`. L4b 1 of 16, TARGET PENDING.
+  - L5b automatic analysis, T2, automatic promotion, repair, sweeps and row-text scoping stay off.
+
+| Gate (final state) | Result |
+|---|---|
+| `verify:ai-locator-quality-controls` | 49/0 (21 new checks, red 48/1 before wiring; nine mutations each caught, reverted) |
+| `verify:ai-locator-attempts` | 170/170 (3 new record checks) |
+| `typecheck:scripts` · build | PASS · PASS |
+| `verify:verifier-classification` · `verify:roadmap-dashboard` · `git diff --check` | run after the `awkit-djnl.4` note; results in its contract and commit |
+| `verify:ai-spy-live` · `verify:ai-locator-quality-live` · `-d1` | NOT RUN: real-model paths, not authorized |
+| `verify:ai-host-electron` · `verify:ai-assist-gui` | not rerun: neither exercises a changed input (26/0 stands) |
+
+## Phase L: live locator-quality runs save durable, sanitized per-case evidence (2026-09-24)
 
 **Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** `awkit-djnl.4` stays
 `in_progress` with a note for this change; no bead's status or edge changed. Verifier-only (`acdf841f`): product

@@ -504,8 +504,10 @@ npm run verify:ai-locator-quality-live-d1
                                   # untracked for review and commit). A failed save fails the run (exit 1).
 npm run verify:ai-locator-quality-controls
                                   # no model, runtime or Electron: the saved evidence's own 17 checks (synthetic
-                                  # runs through the real builder, save and cleanup), then every scripted control
-                                  # of both sets over the served mock site (28 checks)
+                                  # runs through the real builder, save and cleanup), verify:ai-spy-live's session
+                                  # evidence (21: synthetic sessions through its real recorder, writer and settle,
+                                  # plus its scenario wiring), then every scripted control of both sets over the
+                                  # served mock site (49 checks)
 npm run verify:ai-spy-live        # needs `npm run build`: Element Spy's Find stronger locator with AI in the real
                                   # app on the real 0.8B (Recorder's own browser, trusted click, real IPC, the
                                   # production AiService). T3 refused before a call, a real cancel within 3 s,
@@ -513,6 +515,10 @@ npm run verify:ai-spy-live        # needs `npm run build`: Element Spy's Find st
                                   # its infer request by host id and re-classified (codes, shapes, never text); a
                                   # shown proposal judged by the page. Exit 2 = INCONCLUSIVE (nothing shown).
                                   # ~4 min. NOT RUN without runtime + pack (32 checks, 2026-09-23)
+                                  # Keeps a sanitized session record: docs/plans/ai-upgrade-v5/evidence/
+                                  # L3-spy-live-<runId>.json, an INCOMPLETE checkpoint at each scenario boundary,
+                                  # the final record before the profile goes (left untracked for review). A failed
+                                  # write fails the run (exit 1).
 npm run verify:ai-authoring-quality-live
                                   # the same launcher: L4b's labelled set (9 flows, 17 issues, 14 codes, both
                                   # fix kinds, a truncated report with two fixes of different urgency, warnings
