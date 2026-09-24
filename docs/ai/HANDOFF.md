@@ -1,6 +1,23 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-24, latest) — verify:ai-spy-live's classifier now applies D1's scope rule
+## HANDOFF (2026-09-24, latest) — live locator-quality runs now save durable per-case evidence
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. `awkit-djnl.4` stays
+  `in_progress` with a note for this change; no bead's status or edge changed.
+- **Done (`acdf841f`, verifier-only):** each live locator-quality run saves a new, sanitized per-case file
+  under `docs/plans/ai-upgrade-v5/evidence/` before its scratch folders go (`locatorQualityEvidence.mts`).
+  `verify:ai-locator-quality-controls` 28/0 with 17 model-free evidence checks and six caught mutations.
+  No model run. The D1 live result is unchanged, and no evidence file exists for it.
+- **After the next authorized live run:** review the new `L3-locator-quality-live-*.json` and commit it
+  deliberately. It is left untracked on purpose.
+- **Next, no owner step needed:** the `verify:ai-spy-live` durable-evidence follow-up in `KNOWN_ISSUES.md`.
+- **Needs the owner:** whether to change the request wording for scope copying, or accept D1 as
+  refused-only on the 0.8B; any further live run; the 15 L4b reviews.
+- **Residual risk:** the harness recording and launcher glue are type-checked and bundled, not yet run live.
+- **Do not:** run a live model to test the writer; commit evidence without reviewing it; allow `hasText`
+  scopes. The signed-license route (b) rebuild note below still applies.
+
+## HANDOFF (2026-09-24, superseded) — verify:ai-spy-live's classifier now applies D1's scope rule
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. `awkit-djnl.4` stays
   `in_progress` with a note for this fix; no bead's status or edge changed.

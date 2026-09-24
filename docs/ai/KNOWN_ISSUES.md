@@ -1,7 +1,57 @@
 # KNOWN_ISSUES
 
-## A live locator-quality run keeps no durable per-case record (2026-09-24, OPEN — verifier follow-up, `awkit-djnl.4`)
+## `verify:ai-spy-live` keeps no durable per-case record (2026-09-24, OPEN — verifier follow-up, `awkit-djnl.4`)
 
+- **What happens:** it prints its checks and classified attempts to the console only. A tool that cuts long
+  output loses the per-attempt detail, as the D1 run did before the fix below.
+- **Why it is separate:** it has no harness report. It drives the real app through one Element Spy session,
+  and its record is attempts paired to host requests, UI timings and a page judgment. That is a different
+  shape from a labelled set of cases, so the D1 builder cannot take it as it is.
+- **Follow-up:** reuse `locatorQualityEvidence.mts`'s pattern: an allowlisted builder from its
+  `classifyAttempts` records, the same save (new file, never replaced), and model-free checks. Until then, launch
+  a live run where its whole output is kept.
+
+## A live locator-quality run keeps no durable per-case record (2026-09-24, FIXED in `acdf841f` — verifier, `awkit-djnl.4`)
+
+- **Fix (`acdf841f`, verifier-only, product unchanged):**
+  - **Harness:** `locatorQualityLive.ts` records each case's codes and counts in its report as the case runs
+    (`qualityCases`, written at every step boundary). The record is written before any check can throw. A
+    case's checks are now bounded failure codes (same pass/fail rule), so a failed or killed case keeps what
+    it measured.
+  - **Launcher:** after the harness exits, `settleQualityRun` (`scripts/ai-harness/locatorQualityEvidence.mts`)
+    builds the evidence. It saves it as a new file,
+    `docs/plans/ai-upgrade-v5/evidence/L3-locator-quality-live-<set>-<runId>.json`, and only then removes the
+    scratch folders.
+  - **Save:** a `.partial` file, then an atomic rename with an EPERM retry. It is refused if the name exists and
+    read back after the write. A failed save fails the run (exit 1). The file is left untracked for review.
+  - **Contract (schema 1):** built from an allowlist only. Allowed values are the product's own enums, the plan
+    schema's strategies, bounded upper-case codes, counts and flags. Any other value is written as
+    `unrecognized`. Step details, errors, log lines, labels and paths are never read.
+  - **Run fields:** run id, source commit and dirty flag, pack file name, sha256 and size (no path), runtime,
+    checks, result, exit code, `completed`, harness state, the case in flight and the cases not reached.
+  - **Per case:** condition, expected, status, failure codes, requests, replies, consumed refusals, outcome,
+    code, accepted, browser-proven, matches, target, false targets, withheld-in-request, class and timing.
+  - **Per call:** contract, strategy, scope category, refusal, refused field, proof and matches.
+  - **Result rule:** PASS only when every labelled case finished and every check held. A run that judged
+    nothing is INCONCLUSIVE (exit 2).
+- **Regression:** `verify:ai-locator-quality-controls` 28/0 (was 11). It has 17 new model-free checks, A to I:
+  a complete PASS, INCONCLUSIVE, a failed case with the rest not reached, a killed run and no report, real
+  scratch-folder cleanup, console independence, 12 seeded sensitive strings and extra properties, no
+  overwrite and run identity, and a failed write. Six mutations were each caught, then reverted:
+  - evidence saved in the scratch folder: 27/1;
+  - first case dropped: 17/11;
+  - INCONCLUSIVE recorded as PASS: 27/1;
+  - raw strategy copied: 26/2;
+  - overwrite guard removed: 27/1;
+  - pass reported after a failed save: 27/1.
+- **Limits:**
+  - The harness-side recording and the launcher glue are type-checked and bundled (`verify:ai-host-electron`
+    26/0). They first execute in the next authorized live run.
+  - A launcher killed from outside writes no evidence. The harness's incremental report then stays in its
+    `%TEMP%` scratch folder, since no cleanup runs.
+  - The original set's per-call scope is page-free, so an unoffered scope stays `not-offered`, unplaced.
+  - No evidence file exists for the 2026-09-24 D1 run. Its missing detail is not reconstructed.
+- **Original record (was OPEN):**
 - **What happens:** `verify-ai-explanation-live.mts` prints the harness report and then deletes it with its
   scratch folder (`fs.rmSync(harnessDir)`). When the tool running it cuts long output, the per-case detail
   is gone. That is how the D1 run lost its first two cases' per-call strategy and scope kind.

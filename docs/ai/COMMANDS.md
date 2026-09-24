@@ -495,6 +495,17 @@ npm run verify:ai-locator-quality-live
                                   # the twins refused after a real second attempt, >= 1 plan browser-proven.
                                   # Five scripted controls run first and stop the run if one fails. ~9 min,
                                   # inside the 10-minute tool limit. NOT RUN without runtime + pack (14)
+npm run verify:ai-locator-quality-live-d1
+                                  # the same, over D1's four cases on /recorder-lab/element-spy (12 checks;
+                                  # exit 2 INCONCLUSIVE when no D1 candidate is browser-proven)
+                                  # Both live sets, PASS, FAIL or INCONCLUSIVE, save a NEW sanitized per-case
+                                  # evidence file before the scratch folders go: docs/plans/ai-upgrade-v5/
+                                  # evidence/L3-locator-quality-live-<set>-<runId>.json (never replaced; left
+                                  # untracked for review and commit). A failed save fails the run (exit 1).
+npm run verify:ai-locator-quality-controls
+                                  # no model, runtime or Electron: the saved evidence's own 17 checks (synthetic
+                                  # runs through the real builder, save and cleanup), then every scripted control
+                                  # of both sets over the served mock site (28 checks)
 npm run verify:ai-spy-live        # needs `npm run build`: Element Spy's Find stronger locator with AI in the real
                                   # app on the real 0.8B (Recorder's own browser, trusted click, real IPC, the
                                   # production AiService). T3 refused before a call, a real cancel within 3 s,

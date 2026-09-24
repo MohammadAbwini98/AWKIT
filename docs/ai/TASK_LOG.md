@@ -1,5 +1,30 @@
 # TASK_LOG
 
+## 2026-09-24 — Phase L: durable, sanitized per-case evidence for live locator-quality runs (Claude)
+
+- **Task:** close the OPEN durable-evidence follow-up with a model-free regression. Verifier-only.
+- **Root cause:** `verify-ai-explanation-live.mts` printed the harness report, then deleted it with its
+  scratch folder. When the running tool cut the output, the per-case detail was gone.
+- **Change (`acdf841f`):**
+  - `locatorQualityLive.ts` records each case's codes and counts in the report as it runs, before any check
+    throws.
+  - New `scripts/ai-harness/locatorQualityEvidence.mts` builds the allowlisted evidence and saves a new
+    `docs/plans/ai-upgrade-v5/evidence/L3-locator-quality-live-<set>-<runId>.json`. The file is atomic,
+    never replaced and read back. Scratch folders are removed only after the save.
+  - The launcher saves it for every live locatorQuality run. A failed save fails the run.
+- **Checks:**
+  - `verify:ai-locator-quality-controls`: 28/0 (was 11). Six mutations, each caught and reverted: 27/1,
+    17/11, 27/1, 26/2, 27/1 and 27/1.
+  - `typecheck:scripts` PASS, build PASS, `verify:ai-host-electron` 26/0.
+  - `verify:verifier-classification`, `verify:roadmap-dashboard` and `git diff --check`: run after the
+    `awkit-djnl.4` note; results in its contract and commit.
+- **Not run:** `verify:ai-locator-quality-live`, `-d1` and `verify:ai-spy-live` (real-model paths, not
+  authorized). `verify:ai-locator-attempts` was not rerun because nothing it imports changed.
+- **Records:** `KNOWN_ISSUES.md` (FIXED, record kept; new OPEN `verify:ai-spy-live` follow-up), L3 plan,
+  `COMMANDS.md`, `CURRENT_STATE.md`, `HANDOFF.md`. `DECISIONS.md` unchanged.
+- **Result:** L3 stays `in_progress`; no milestone, bead status, edge or verdict changed. The D1 live result
+  is unchanged, and no evidence file was made for it.
+
 ## 2026-09-24 — Phase L: verify:ai-spy-live's attempt classifier applies D1's scope rule (Claude)
 
 - **Task:** fix the OPEN `classifyAttempts` defect with a no-model regression. Verifier-only.

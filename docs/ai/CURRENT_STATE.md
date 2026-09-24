@@ -1,6 +1,32 @@
 # CURRENT_STATE
 
-## Phase L: verify:ai-spy-live's attempt classifier applies D1's scope rule; no-model regression added (2026-09-24, current)
+## Phase L: live locator-quality runs save durable, sanitized per-case evidence (2026-09-24, current)
+
+**Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** `awkit-djnl.4` stays
+`in_progress` with a note for this change; no bead's status or edge changed. Verifier-only (`acdf841f`): product
+source, fixtures, compiler, intent guard, proof and D1/D2 rules are unchanged. No model was run.
+
+- **Fixed** (was OPEN in `KNOWN_ISSUES.md`): the launcher deleted the harness report with its scratch folder,
+  so a cut console lost per-case detail. Now the harness records each case's codes and counts as it runs.
+  `settleQualityRun` saves a NEW file, `docs/plans/ai-upgrade-v5/evidence/L3-locator-quality-live-<set>-<runId>.json`,
+  before cleanup, for PASS, FAIL, INCONCLUSIVE and a timed-out harness alike. The file is never replaced.
+  A failed save fails the run. The file is left untracked for review.
+- **Contract:** allowlisted codes, enums, counts and flags only; anything else is `unrecognized`. No model
+  text, prompt, locator value, page text, record key, path or stack. Cases not reached are listed apart.
+- **Unchanged:** the D1 live result (12/0, exit 2 INCONCLUSIVE, 0 of 2 positives); no evidence file exists
+  for it and nothing is reconstructed. L1 limited GO. L3 `in_progress`. L4b 1 of 16, TARGET PENDING. L5b
+  automatic analysis, T2, automatic promotion, repair, sweeps and row-text scoping stay off.
+- **New OPEN follow-up:** `verify:ai-spy-live` keeps no durable per-case record (a different shape; `KNOWN_ISSUES.md`).
+
+| Gate (final state) | Result |
+|---|---|
+| `verify:ai-locator-quality-controls` | 28/0 (17 new evidence checks; six mutations each caught, reverted) |
+| `typecheck:scripts` · build · `verify:ai-host-electron` | PASS · PASS · 26/0 (the harness bundles and runs) |
+| `verify:verifier-classification` · `verify:roadmap-dashboard` · `git diff --check` | run after the `awkit-djnl.4` note; results in its contract and commit |
+| `verify:ai-locator-quality-live` · `-d1` · `verify:ai-spy-live` | NOT RUN: real-model paths, not authorized |
+| `verify:ai-locator-attempts` | not rerun: it imports nothing changed (167/167 stands) |
+
+## Phase L: verify:ai-spy-live's attempt classifier applies D1's scope rule; no-model regression added (2026-09-24)
 
 **Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** `awkit-djnl.4` stays
 `in_progress` with a note for this fix; no bead's status or edge changed. Verifier-only (`6b4ca1eb`): product

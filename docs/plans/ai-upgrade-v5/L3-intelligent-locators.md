@@ -420,6 +420,29 @@ Chromium with scripted replies and no model:
 Red 163/167, green 167/167 (was 153), mutation 163/167, reverted. The D1 live result above is unchanged, and
 `verify:ai-spy-live` was not run.
 
+**Live locator-quality runs now save durable per-case evidence (2026-09-24, `acdf841f`, verifier-only).** The
+D1 run lost detail because the launcher deleted the harness report with its scratch folder, and the console was
+cut. Now:
+- **Harness:** each case records its codes and counts in the report as it runs. The record is written before
+  any check can throw. The original set also records per-call contract, strategy, a page-free scope kind,
+  refusal and field, proof and matches.
+- **Launcher:** once the harness exits, `settleQualityRun` (`scripts/ai-harness/locatorQualityEvidence.mts`)
+  saves `evidence/L3-locator-quality-live-<set>-<runId>.json`, then removes the scratch folders. PASS, FAIL,
+  INCONCLUSIVE and a harness killed at the launcher's timeout are all saved.
+- **Save:** a new file every run, never replaced, complete or absent, and read back. A failed save fails the
+  run. The file is left untracked for a person to review and commit, like the benchmark's evidence.
+- **Contract:** built from an allowlist only: product enums, the plan schema's strategies, bounded codes,
+  counts and flags. Any other value is written `unrecognized`. There is no model text, prompt, locator
+  value, page or row text, record key, path or stack. Cases not reached are listed apart, never as run.
+- **Result rule:** PASS needs every labelled case finished and every check held. A run that proved nothing is
+  INCONCLUSIVE, exit 2.
+- **Proof:** `verify:ai-locator-quality-controls` has 17 model-free checks (28/0 in all). Six mutations were
+  each caught and reverted: cleanup deletes the file, a case dropped, INCONCLUSIVE as PASS, a raw reply field
+  copied, overwrite, and a pass after a failed save.
+- **Limits:** the recording glue first runs in the next authorized live run. There is no evidence file for the
+  2026-09-24 D1 run, and its missing detail is not reconstructed. `verify:ai-spy-live` is a separate OPEN
+  follow-up (`KNOWN_ISSUES.md`).
+
 ### §1 owner decisions: duplicate rows (D1) and "Use in action" (D2) (2026-09-23 design review; decided 2026-09-24)
 
 The owner chose D1 A+B and D2 U1 on 2026-09-24 (above). The review below is kept as it was written.
@@ -844,7 +867,8 @@ caught. The cases it does not cover (frames, shadow, rows, protected login, repl
 the scripted suites. `verify:ai-locator-quality-live-d1` (built 2026-09-24; run once the same day, 12/0, INCONCLUSIVE exit 2,
 0/2 positives proven, 0 false targets) runs D1's own four
 cases on `/recorder-lab/element-spy`, reported apart (see "§1 D1 and D2 as built").
-`verify:ai-locator-quality-controls` (11/0, no model) runs every scripted control of both sets.
+`verify:ai-locator-quality-controls` (28/0 since 2026-09-24, no model) runs the saved evidence's 17 checks and
+every scripted control of both sets. Each live run saves its per-case evidence under `evidence/`.
 `verify:ai-locator-attempts` §19 (167/167 in all since 2026-09-24) runs `verify:ai-spy-live`'s attempt
 classifier with no model.
 Existing: recorder/locator suites from L2,
