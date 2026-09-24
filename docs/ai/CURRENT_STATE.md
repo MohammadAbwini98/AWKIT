@@ -1,6 +1,36 @@
 # CURRENT_STATE
 
-## Phase L: D1 real-model quality set added to the live locator-quality verifier, controls run with no model; live D1 run NOT RUN (2026-09-24, current)
+## Phase L: D1 real-model quality set run once on the real 0.8B: INCONCLUSIVE, 0 of 2 positives proven, 0 false targets (2026-09-24, current)
+
+**Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** `awkit-djnl.4` stays
+`in_progress` with a note for this run; no bead's status or edge changed. No source, fixture, verifier, model
+or policy changed. Details: L3 plan, "D1 live run on the real 0.8B".
+
+- **One owner-authorized run** of `npm run verify:ai-locator-quality-live-d1` at `51ac81df`, not repeated:
+  12 passed, 0 failed, **exit 2 INCONCLUSIVE**. Published `Qwen3.5-0.8B-Q4_K_M.gguf` (sha256 matched),
+  `node-llama-cpp@3.21.1+llama.cpp@v0.4.0`, 4 threads, host 2 % busy before inference.
+- **Per case:** 2 requests, 2 replies, 2 consumed refusals each; nothing accepted, nothing reached the
+  browser. `d1-test-id` and `d1-authored-name` (expected success) ended refused; `d1-record-key` and
+  `d1-computed-row` (expected refused) ended refused.
+- **Why:** all 8 replies passed the contract and compiled, but each used a `hasText` row-content scope
+  instead of the offered scope object, so each was refused `SCOPE_NOT_OFFERED` before the browser, including
+  after the feedback on attempt 2. The limit is model output. The request, compiler and proof are not the cause.
+- **Safety:** 0 false targets proposed or accepted, no withheld identity in any request, nothing accepted for
+  the no-identity cases. Those two refusals are the privacy rule holding, not model quality.
+- **Evidence gap:** the running tool cut the middle of the output, so the first two cases' per-call
+  strategy and scope kind were not kept. Their category and refusal code are in the run's aggregate.
+- **Phase L:** L1 limited GO unchanged. L3 `in_progress`: real-model D1 quality not shown, §9 unmet. L4b 1 of
+  16, TARGET PENDING. L5b automatic analysis, T2, automatic promotion, repair, sweeps and row-text scoping
+  stay off. `verify:ai-spy-live`'s `classifyAttempts` defect stays OPEN.
+
+| Gate | Result |
+|---|---|
+| `verify:ai-locator-quality-controls` (baseline before the live run) | 11/0 |
+| `verify:ai-locator-quality-live-d1` (once) | 12/0, exit 2, INCONCLUSIVE |
+| `verify:verifier-classification` · `verify:roadmap-dashboard` · `git diff --check` | run after the `awkit-djnl.4` note; results in its contract and commit |
+| `verify:ai-spy-live` · `verify:ai-locator-quality-live` | NOT RUN: out of scope; no authorization |
+
+## Phase L: D1 real-model quality set added to the live locator-quality verifier, controls run with no model; live D1 run NOT RUN (2026-09-24)
 
 **Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** `awkit-djnl.4` stays
 `in_progress`; no bead's status or edge changed. Verifier-only change: product source (`src/`, `app/`) and the

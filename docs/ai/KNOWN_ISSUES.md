@@ -1,5 +1,19 @@
 # KNOWN_ISSUES
 
+## The 0.8B writes a row-content scope instead of copying the offered D1 scope (2026-09-24, OPEN — model quality, `awkit-djnl.4`)
+
+- **Seen in:** the one authorized `verify:ai-locator-quality-live-d1` run, 12/0, exit 2 INCONCLUSIVE.
+- **What happens:** the request offers a ready scope object (`slot-primary`, "Night shift"). In 8 of 8 replies
+  the model wrote a `hasText` container scope instead, including on attempt 2 after `SCOPE_NOT_OFFERED`
+  feedback. Every reply passed the contract and compiled. The loop refused each one before the browser.
+- **Impact:** 0 of 2 D1 positives proven on this model. No false target, no leak, nothing accepted. The
+  product behaved as designed. This is not a product defect.
+- **Do not:** allow `hasText` (option C is not approved), loosen the scope rule, or rerun the same set
+  hoping for a different sample. Changing the request wording is product behaviour and an owner decision,
+  and any further live run needs its own authorization.
+- **Evidence gap:** the first two cases' per-call strategy and scope kind were cut from the tool output and
+  the harness deletes its report. Their category and refusal code are in the run's aggregate line.
+
 ## The live locator-quality verifier's attempt check predated D1's scope rule (2026-09-24, FIXED — L3 D1 quality set)
 
 - **What happened:** `attemptViolations` in `scripts/ai-harness/locatorQualityLive.ts` re-derives why each

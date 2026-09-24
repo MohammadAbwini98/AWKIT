@@ -1,6 +1,25 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-24, latest) — D1's real-model quality set is ready to run; the live run is NOT RUN
+## HANDOFF (2026-09-24, latest) — D1's live run on the real 0.8B: INCONCLUSIVE, 0 of 2 positives proven
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. `awkit-djnl.4` stays
+  `in_progress` with a note for this run; no bead's status or edge changed.
+- **Done:** the one authorized run of `verify:ai-locator-quality-live-d1`: 12/0, exit 2 INCONCLUSIVE. All 8
+  replies used a `hasText` row-content scope instead of the offered scope, so every one was refused
+  `SCOPE_NOT_OFFERED` before the browser. 0 false targets, no withheld identity in any request. Controls
+  11/0 before it. Records: L3 plan ("D1 live run on the real 0.8B"), `KNOWN_ISSUES.md`.
+- **Next, no owner step needed:** fix `verify:ai-spy-live`'s `classifyAttempts` with its no-model
+  regression (steps in `KNOWN_ISSUES.md`). Do not run the live model for it.
+- **Needs the owner:**
+  - whether and how to improve the 0.8B's copying of an offered scope (request wording is product
+    behaviour), or accept D1 as refused-only on this model;
+  - any further live D1 run, which needs its own authorization;
+  - the 15 L4b reviews.
+- **Do not:** rerun the unchanged live set to chase a pass; allow `hasText` scopes; relax D1 eligibility or
+  the scope rule; count the two no-identity refusals as model quality. The signed-license route (b)
+  rebuild note below still applies.
+
+## HANDOFF (2026-09-24, superseded) — D1's real-model quality set is ready to run; the live run is NOT RUN
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. `awkit-djnl.4` stays
   `in_progress`; no bead's status or edge changed.

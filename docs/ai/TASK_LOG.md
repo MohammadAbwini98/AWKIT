@@ -1,5 +1,25 @@
 # TASK_LOG
 
+## 2026-09-24 — Phase L: D1 real-model quality set run once on the real 0.8B (Claude)
+
+- **Task:** the owner-authorized single run of `verify:ai-locator-quality-live-d1`, then records and the
+  tracker note. No source, fixture, verifier, model or policy change.
+- **Checks:**
+  - `verify:ai-locator-quality-controls` 11/0 (baseline, before the live run);
+  - `verify:ai-locator-quality-live-d1` once at `51ac81df`: 12/0, exit 2 INCONCLUSIVE;
+  - `verify:verifier-classification`, `verify:roadmap-dashboard` and `git diff --check`: run after the
+    `awkit-djnl.4` note; results in its contract and commit.
+- **Result:** 8 requests, 8 replies, 8 consumed refusals, 0 accepted, 0 proven. Every reply used a `hasText`
+  row-content scope and was refused `SCOPE_NOT_OFFERED` before the browser. The two positives ended
+  refused, the two no-identity cases refused as required. 0 false targets, no withheld identity in any
+  request.
+- **Evidence gap:** the tool cut the middle of the output, so the first two cases' per-call strategy and scope
+  kind were not kept. Not re-run.
+- **Records:** L3 plan, `CURRENT_STATE.md`, `HANDOFF.md`, `KNOWN_ISSUES.md` (new OPEN model-quality entry).
+  L1 plan unchanged (D1 is L3 evidence). `DECISIONS.md` unchanged.
+- **Not run:** `verify:ai-spy-live` (its `classifyAttempts` defect stays OPEN), the original live set.
+- **Result for Phase L:** L3 stays `in_progress`; no milestone, bead status, edge or verdict changed.
+
 ## 2026-09-24 — Phase L: D1 real-model quality set for the live locator-quality verifier (Claude)
 
 - **Task:** extend `verify:ai-locator-quality-live` so D1 container scoping can be measured on the real
