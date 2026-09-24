@@ -50,6 +50,7 @@
       "electron-builder.json",
       "package.json",
       "scripts/verify-ai-packaged-runtime.mts",
+      "scripts/verify-ai-packaged-app.mts",
       "scripts/validate-offline-bundle.ps1",
       "scripts/lib/verifier-classification.ts",
       "tools/agents/routing-matrix.mjs",
@@ -77,9 +78,10 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "runtime",
+      "agent_id": "qa",
       "allowed_paths": [
-        "scripts/prepare-ai-native-host.mjs"
+        "scripts/verify-ai-packaged-app.mts",
+        "scripts/verify-ai-packaged-runtime.mts"
       ]
     },
     "writer_sequence": [
@@ -254,6 +256,22 @@
         "acquired_at_commit": "bc66b1d6325df41ecbb27e64b20128b79c44871c",
         "released_at": "2026-09-24T15:20:47.765Z",
         "released_reason": "handoff to runtime: the packaged tree drops dotfiles because electron-builder's filter excludes them, so staging must exclude them too for the staged manifest to equal what ships",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:runtime:2026-09-24T15:20:47.822Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/prepare-ai-native-host.mjs"
+        ],
+        "acquired_at": "2026-09-24T15:20:47.822Z",
+        "acquired_at_commit": "7e2252ef54652a2db746ae5b333ddde8d7f465e0",
+        "released_at": "2026-09-24T15:21:18.960Z",
+        "released_reason": "handoff to qa: dotfile fix committed at e8f99c3f, add its regression check and the real packaged-app AI gate",
         "amendments": [],
         "overrides": [],
         "violations": []

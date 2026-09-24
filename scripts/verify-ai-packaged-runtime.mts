@@ -133,6 +133,9 @@ function assertStagedTree(dir: string, label: string): StagedManifest | null {
   const unlisted = onDisk.filter((f) => !listed.has(f.rel));
   check(`${label}: no file on disk is missing from the manifest (${onDisk.length} files)`, onDisk.length === assets.length && unlisted.length === 0, unlisted.slice(0, 3).map((f) => f.rel).join(", "));
   check(`${label}: no symlink or junction is staged`, onDisk.every((f) => !f.symlink));
+  // electron-builder's "**/*" filter never ships a dotfile, so a listed one is a file the installer lacks.
+  const dotted = [...listed.keys()].filter((rel) => rel.split("/").some((part) => part.startsWith(".")));
+  check(`${label}: no dotfile or dot-directory is listed (the installer would not carry it)`, dotted.length === 0, dotted.slice(0, 3).join(", "));
 
   for (const required of ["ai-host.cjs", "node_modules/node-llama-cpp/package.json", "node_modules/node-llama-cpp/llama/binariesGithubRelease.json", ADDON]) {
     check(`${label}: carries ${required}`, listed.has(required));
