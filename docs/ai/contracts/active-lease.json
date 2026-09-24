@@ -1,18 +1,18 @@
 {
-  "task": "awkit-djnl-4-l3-design-review-note-0923",
-  "contract_path": "docs/ai/contracts/awkit-djnl-4-l3-design-review-note-0923.json",
+  "task": "awkit-djnl-4-d1-d2-note-0924",
+  "contract_path": "docs/ai/contracts/awkit-djnl-4-d1-d2-note-0924.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-09-23T20:11:36.706Z",
-  "acquired_at_commit": "ada9ec2d72776c4f15c5aa6814f23752ef0a1721",
+  "acquired_at": "2026-09-24T07:49:30.275Z",
+  "acquired_at_commit": "c9af5c9fc8db601381ecb8e0c012ba0649cb5458",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-djnl-4-l3-design-review-note-0923.json"
+    "docs/ai/contracts/awkit-djnl-4-d1-d2-note-0924.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-djnl-4-l3-design-review-note-0923.json": "13650b02a7abc6c01e40cea398aecebdbe07ff5efe6ec6b96627de838a3baf1c"
+    "docs/ai/contracts/awkit-djnl-4-d1-d2-note-0924.json": "c032cc8648b036709566b7f90269799cf0b16407322a9fdd6035cd76d8ad9996"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -27,7 +27,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-23T20:12:03.287Z",
-  "released_reason": "L3 design review noted on awkit-djnl.4 at ada9ec2d, nothing closed, no edge changed, export refreshed",
-  "archived_at": "2026-09-23T20:12:03.288Z"
+  "released_at": "2026-09-24T07:50:02.946Z",
+  "released_reason": "D1 and D2 implementation noted on awkit-djnl.4 at c9af5c9f, nothing closed, no edge changed, export refreshed",
+  "archived_at": "2026-09-24T07:50:02.948Z"
 }
