@@ -64,7 +64,7 @@ import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 import { JsonProfileStore } from "@src/storage/ProfileStore";
 
 import { LARGEST_CONTEXT, LONGEST_REFUSAL, locatorInput, locatorUpgradePacket, productLocatorRequest } from "./ai-harness/locatorUpgradePacket";
-import { askAccounting, type HostTraffic } from "./lib/recorder-spy-harness.mts";
+import { SPY_LAB, askAccounting, classifyAttempts, judge, type HostAttempt, type HostTraffic } from "./lib/recorder-spy-harness.mts";
 
 let passed = 0;
 let failed = 0;
@@ -860,6 +860,108 @@ try {
   check("an offered scope goes on to the browser proof, which stays authoritative", d1Proofs === 1, String(d1Proofs));
   await d1Loop(d1Plan({ kind: "listItem", strategy: "testId", value: "slot-backup" }), "repair");
   check("(scope) §8 repair has no capture to offer from and is unchanged: its scope reaches the proof", d1Proofs === 2, String(d1Proofs));
+
+  // ── 19. verify:ai-spy-live's own classifier applies D1's scope rule before the page ────────────────
+  // `classifyAttempts` re-derives each real reply to report why a request was refused, and fails the
+  // live run when a plan the page proves right was withheld. A plan D1 withholds is the product's correct
+  // refusal, so it must never count as one, however well the page would match it. Real Chromium on
+  // the Element Spy lab; the replies are scripted plan text, so no model is asked.
+  console.log("\n19 — verify:ai-spy-live's classifier: a scope D1 withholds is the product's refusal, never a right plan withheld");
+  const spyUrl = `${BASE}${SPY_LAB}`;
+  const spyCapture = (target: string, containers: Array<Record<string, unknown>>) =>
+    sanitizeUpgradeContext({ target: { tag: "button", role: "button", name: target }, containers }, { pageAlias: "main", frameDepth: 0 });
+  const primaryItem = { kind: "listItem", tag: "li", role: "listitem", name: "Alice Smith Call", nameSource: "content", testId: "slot-primary", text: "Alice Smith Call" };
+  const nightItem = { kind: "listItem", tag: "li", role: "listitem", name: "Night shift", nameSource: "aria-label", testId: "contact-carol-white", text: "Carol White Call" };
+  const contacts = { kind: "landmark", tag: "section", role: "region", name: "On-call contacts", nameSource: "aria-labelledby", testId: "spy-contacts", text: "On-call contacts Alice Smith Call Bob Jones Call Carol White Call Dan Brown Call" };
+  const primaryCapture = spyCapture("Call", [primaryItem, contacts]);
+  const nightCapture = spyCapture("Call", [nightItem, contacts]);
+  const offeredOf = (capture: UpgradeContext | undefined) => JSON.stringify(offeredContainerScopes(capture).flat().map((scope) => [scope.strategy, scope.value, scope.name ?? null]));
+  check(
+    "(precondition) the capture offers the Call's own slot-primary and the section, never the item's computed name",
+    offeredOf(primaryCapture) === JSON.stringify([["testId", "slot-primary", null], ["testId", "spy-contacts", null], ["role", "region", "On-call contacts"]]),
+    offeredOf(primaryCapture)
+  );
+  check(
+    "(precondition) ...and for Night shift its authored name, never its record-keyed test id",
+    offeredOf(nightCapture) === JSON.stringify([["role", "listitem", "Night shift"], ["testId", "spy-contacts", null], ["role", "region", "On-call contacts"]]),
+    offeredOf(nightCapture)
+  );
+  const callBaseline = { strategy: "role", value: "button", name: "Call", exact: true } as const;
+  const callIn = (scopeSpec: Record<string, unknown>) => JSON.stringify({ version: 1, target: { strategy: "role", value: "button", name: "Call", exact: true }, scopes: [scopeSpec] });
+  const replies = (...texts: string[]): HostAttempt[] => texts.map((text, index) => ({ attempt: index + 1, ok: true, text }));
+  const rowText = callIn({ kind: "listItem", strategy: "role", value: "listitem", hasText: "Alice Smith" });
+  const ownRecordKey = callIn({ kind: "listItem", strategy: "testId", value: "contact-carol-white" });
+  const pageSays = async (plan: string, intended: string) => {
+    const compiled = compileLocatorPlan(JSON.parse(plan), undefined);
+    if (!compiled.ok) throw new Error(`fixture plan did not compile: ${compiled.code}`);
+    const verdict = await judge(liveBrowser(), spyUrl, { candidate: compiled.candidate, ...(compiled.context ? { context: compiled.context } : {}), meaningChange: false });
+    return verdict.matches === 1 && verdict.selected === intended;
+  };
+  check("(precondition) asked directly, the page proves the row-text plan and the record-key plan ARE the inspected Calls", (await pageSays(rowText, "call-primary")) && (await pageSays(ownRecordKey, "call-night")));
+
+  // 1 and 4: a correct target through a withheld scope, then a sibling's and an invented id, each twice.
+  const withheld = await classifyAttempts(liveBrowser(), spyUrl, replies(rowText, rowText), callBaseline, "call-primary", primaryCapture);
+  check(
+    "a row-text scope is the product's SCOPE_NOT_OFFERED refusal on its hasText, both times (the rule comes before the duplicate rule, as in the loop)",
+    withheld.lines.length === 2 && withheld.lines.every((line) => / intent SCOPE_NOT_OFFERED on scopes\.0\.hasText .*withheld by D1$/.test(line)),
+    withheld.lines.join(" | ")
+  );
+  check("...never judged by the page, and never counted a right plan withheld", withheld.rightButWithheld === 0 && !withheld.lines.some((line) => line.includes("→ page:")), withheld.lines.join(" | "));
+  check("...and the line shapes the row text, never shows it", !withheld.lines.some((line) => /Alice|Smith/.test(line)), withheld.lines.join(" | "));
+  const recordKey = await classifyAttempts(liveBrowser(), spyUrl, replies(ownRecordKey), callBaseline, "call-night", nightCapture);
+  check(
+    "the item's own record-keyed test id, which the page proves, is refused SCOPE_NOT_OFFERED on its value and not counted",
+    recordKey.rightButWithheld === 0 && / intent SCOPE_NOT_OFFERED on scopes\.0\.value .*withheld by D1$/.test(recordKey.lines[0] ?? "") && !recordKey.lines[0]?.includes("carol"),
+    recordKey.lines.join(" | ")
+  );
+  const invented = await classifyAttempts(
+    liveBrowser(),
+    spyUrl,
+    replies(callIn({ kind: "listItem", strategy: "testId", value: "slot-backup" }), callIn({ kind: "listItem", strategy: "testId", value: "slot-tertiary" })),
+    callBaseline,
+    "call-primary",
+    primaryCapture
+  );
+  check(
+    "a sibling's and an invented test id are refused before the page: a browser match cannot authorize a scope the request never offered",
+    invented.lines.length === 2 && invented.lines.every((line) => / intent SCOPE_NOT_OFFERED on scopes\.0\.value /.test(line) && !line.includes("→ page:")) && invented.rightButWithheld === 0,
+    invented.lines.join(" | ")
+  );
+
+  // 2 (C): an offered scope that proves the inspected element stays counted, test id and authored name alike.
+  const offeredId = await classifyAttempts(liveBrowser(), spyUrl, replies(callIn({ kind: "listItem", strategy: "testId", value: "slot-primary" })), callBaseline, "call-primary", primaryCapture);
+  check("an offered test id scope that the page proves is still counted a right plan", offeredId.rightButWithheld === 1 && /→ page: THE INSPECTED ELEMENT$/.test(offeredId.lines[0] ?? ""), offeredId.lines.join(" | "));
+  const offeredName = await classifyAttempts(liveBrowser(), spyUrl, replies(callIn({ kind: "listItem", strategy: "role", value: "listitem", name: "Night shift" })), callBaseline, "call-night", nightCapture);
+  check("...and so is an offered authored name", offeredName.rightButWithheld === 1 && /→ page: THE INSPECTED ELEMENT$/.test(offeredName.lines[0] ?? ""), offeredName.lines.join(" | "));
+
+  // A and 3 (D): offered but not proven. The section holds all four Calls; a capture that misattributes the
+  // sibling's slot as the item's own lets that scope through, and the page still names the sibling.
+  const section = await classifyAttempts(liveBrowser(), spyUrl, replies(callIn({ kind: "landmark", strategy: "testId", value: "spy-contacts" })), callBaseline, "call-primary", primaryCapture);
+  check("an offered scope that is not unique reaches the page and is judged NOT_UNIQUE, not right", section.rightButWithheld === 0 && /→ page: NOT_UNIQUE \(4\)$/.test(section.lines[0] ?? ""), section.lines.join(" | "));
+  const misattributed = spyCapture("Call", [{ ...primaryItem, testId: "slot-backup" }]);
+  const sibling = await classifyAttempts(liveBrowser(), spyUrl, replies(callIn({ kind: "listItem", strategy: "testId", value: "slot-backup" })), callBaseline, "call-primary", misattributed);
+  check("an offered scope that finds a sibling is judged WRONG_ELEMENT: the page stays authoritative", sibling.rightButWithheld === 0 && /→ page: WRONG_ELEMENT \(call-backup\)$/.test(sibling.lines[0] ?? ""), sibling.lines.join(" | "));
+
+  // 5 and E: no scope on a unique target is untouched by the rule; contract and compiler refusals keep their own class.
+  const saveCapture = spyCapture("Save profile", [{ kind: "landmark", tag: "section", role: "region", name: "Account settings", nameSource: "aria-labelledby", testId: "spy-unique", text: "Account settings Save profile Display name" }]);
+  const unscoped = await classifyAttempts(
+    liveBrowser(),
+    spyUrl,
+    replies(PLANS.notJson, PLANS.positional, '{"version":1,"target":{"strategy":"testId","value":"spy-save-profile"},"scopes":[]}'),
+    { strategy: "testId", value: "spy-save-profile" } as const,
+    "save-profile",
+    saveCapture
+  );
+  check(
+    "an unscoped plan for a unique element is judged, not refused, and counted right",
+    unscoped.rightButWithheld === 1 && /^attempt 3: compiled .*→ page: THE INSPECTED ELEMENT$/.test(unscoped.lines[2] ?? "") && !unscoped.lines.some((line) => line.includes("SCOPE_NOT_OFFERED")),
+    unscoped.lines.join(" | ")
+  );
+  check(
+    "...while an unparsable reply and a positional plan stay contract and compiler refusals",
+    /^attempt 1: [A-Z_]+ \(/.test(unscoped.lines[0] ?? "") && /^attempt 2: compiler /.test(unscoped.lines[1] ?? ""),
+    unscoped.lines.join(" | ")
+  );
 } finally {
   await browser?.close().catch(() => undefined);
   server?.kill();

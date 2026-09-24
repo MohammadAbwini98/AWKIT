@@ -31,15 +31,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { _electron as electron, chromium, type Browser, type ElectronApplication, type Page } from "playwright";
 
-import { parseAiOutput } from "@src/ai/AiOutputContract";
 import type { InspectionLocatorView } from "@src/ai/contracts/AiApi";
 import { AI_HOST_TIMEOUTS } from "@src/ai/contracts/AiHostProtocol";
-import { evaluateLocatorPlan } from "@src/ai/locatorPlan";
-import { describeCandidate, describeProposedScope } from "@src/ai/locatorStatus";
-import { LOCATOR_ATTEMPT_LIMITS, LOCATOR_ATTEMPT_SCHEMA } from "@src/ai/locatorUpgradeAttempts";
-import type { ElementInspection } from "@src/recorder/RecorderTypes";
+import { LOCATOR_ATTEMPT_LIMITS } from "@src/ai/locatorUpgradeAttempts";
 import { AI_MODEL_MANIFEST } from "@src/offline/AiModelManifest";
-import { LocatorFactory } from "@src/runner/LocatorFactory";
 
 import { measurePack, runtimeInstalled } from "./ai-harness/launch.mts";
 import {
@@ -61,12 +56,13 @@ import {
   askAccounting,
   attemptsOf,
   captureRecorderBrowsers,
+  classifyAttempts,
   inspectInSpy,
+  judge,
   openSpy,
   persistedState,
   startFeatureTestLab,
   until,
-  type HostAttempt,
   type HostTraffic
 } from "./lib/recorder-spy-harness.mts";
 
@@ -134,6 +130,7 @@ console.log(`  runtime ${runtime.build}, pack ${PACK.sha256.slice(0, 16)}… ${l
 
 const port = Number(process.env.AWKIT_AI_SPY_LIVE_PORT ?? 4437);
 const origin = `http://127.0.0.1:${port}`;
+const LAB_URL = `${origin}${SPY_LAB}`;
 const spyAi = (win: Page) => win.getByTestId("element-spy-ai");
 
 type Phase = { kind: "idle" | "loading" | "done" | "failed"; view?: InspectionLocatorView };
@@ -158,29 +155,13 @@ async function shownPhase(win: Page): Promise<Phase | null> {
   });
 }
 
-/** The page's verdict on a candidate, outside the product's gates, on a fresh page of the judge's own browser. */
-async function judge(browser: Browser, proposal: NonNullable<InspectionLocatorView["proposal"]>) {
-  const page = await browser.newPage();
-  try {
-    await page.goto(`${origin}${SPY_LAB}`);
-    const locator = await new LocatorFactory(page).locateCandidate(proposal.candidate, proposal.context).catch(() => null);
-    const matches = locator ? await locator.count().catch(() => 0) : 0;
-    const selected = locator && matches === 1 ? await locator.getAttribute("data-spy").catch(() => null) : null;
-    let clicked: string | null = null;
-    if (locator && matches === 1 && (await locator.click({ timeout: 5_000 }).then(() => true, () => false))) clicked = await page.getByTestId("spy-last").textContent();
-    return { matches, selected, clicked };
-  } finally {
-    await page.close();
-  }
-}
-
 /**
  * Why a refused request was refused. The panel says only "none could be proven", and main keeps no record,
  * so the verifier keeps the AI host's traffic (a `utilityProcess.fork` wrap in main, as `chromium.launch`
  * is wrapped): each infer request's host id, job id and prompt, and each reply by host id. `attemptsOf`
  * pairs them (`askAccounting`, shared with `verify:ai-locator-attempts`), so a reply is an attempt only
  * when it answers an infer request this ask sent. Every reply is then re-classified exactly as the loop
- * does: the output contract, the compiler and intent guard, the duplicate rule, then the page. Held in
+ * does: the output contract, the compiler and intent guard, D1's scope rule, the duplicate rule, then the page (`classifyAttempts`). Held in
  * memory; only codes, shapes and compiled locators are printed. (No named inner functions.)
  */
 async function captureHostTraffic(electronApp: ElectronApplication): Promise<void> {
@@ -242,52 +223,6 @@ function requestShape(user: string): string {
   return [...kinds].map(([kind, n]) => (n > 1 ? `${kind} ×${n}` : kind)).join("; ");
 }
 
-/** The refused field's strategy and the SHAPE of its text (every word run is `a`), which names the compiler branch without the text. */
-function refusedShape(plan: unknown, field: string): string {
-  const source = plan as { target?: Record<string, unknown>; scopes?: Record<string, unknown>[] };
-  const at = field.startsWith("scopes.") ? source.scopes?.[Number(field.split(".")[1])] : source.target;
-  const key = /\.(name|hasText)$/.exec(field)?.[1] ?? "value";
-  const text = typeof at?.[key] === "string" ? (at[key] as string) : "";
-  return `strategy ${String(at?.strategy)}, ${key} shaped "${text.replace(/[A-Za-z0-9_]+/g, "a").slice(0, 40)}"`;
-}
-
-/** Each attempt as the loop saw it, and what the page says about any plan that compiled. */
-async function classifyAttempts(browser: Browser, attempts: readonly HostAttempt[], baseline: ElementInspection["locator"], intended: string) {
-  const seen = new Set<string>();
-  const lines: string[] = [];
-  let rightButWithheld = 0;
-  for (const reply of attempts) {
-    const at = `attempt ${reply.attempt}`;
-    if (!reply.ok || reply.text === undefined) {
-      lines.push(`${at}: host ${reply.reason}`);
-      continue;
-    }
-    const parsed = parseAiOutput(reply.text, LOCATOR_ATTEMPT_SCHEMA);
-    if (!parsed.ok) {
-      lines.push(`${at}: ${parsed.code} (${parsed.errors.slice(0, 2).join("; ")})`);
-      continue;
-    }
-    const compiled = evaluateLocatorPlan(parsed.value, { boundValues: [], baseline, captured: baseline.context });
-    if (!compiled.ok) {
-      lines.push(`${at}: ${compiled.code === "INTENT_BOUND_VALUE" ? "intent" : "compiler"} ${compiled.code} on ${compiled.field} (${refusedShape(parsed.value, compiled.field)})`);
-      continue;
-    }
-    const shown = `${describeCandidate(compiled.candidate)}${describeProposedScope(compiled.context) ? ` within ${describeProposedScope(compiled.context)}` : ""}`;
-    const key = JSON.stringify([compiled.candidate, compiled.context ?? null]);
-    if (seen.has(key)) {
-      lines.push(`${at}: DUPLICATE of an earlier attempt (${shown})`);
-      continue;
-    }
-    seen.add(key);
-    const verdict = await judge(browser, { candidate: compiled.candidate, ...(compiled.context ? { context: compiled.context } : {}), meaningChange: compiled.meaningChange });
-    const right = verdict.matches === 1 && verdict.selected === intended;
-    if (right) rightButWithheld += 1;
-    const page = verdict.matches === 0 ? "NO_MATCH" : verdict.matches > 1 ? `NOT_UNIQUE (${verdict.matches})` : right ? "THE INSPECTED ELEMENT" : `WRONG_ELEMENT (${verdict.selected})`;
-    lines.push(`${at}: compiled ${shown} → page: ${page}`);
-  }
-  return { lines, rightButWithheld };
-}
-
 /** `attempts` is the refusals the panel reports spent; `replies` the model answers the host returned. */
 type Outcome = { element: string; state: string | null; ms: number; code: string | null; attempts: number | null; replies?: number; modelId: string | null; shown: string | null; judged: string; why?: string[] };
 const outcomes: Outcome[] = [];
@@ -297,7 +232,9 @@ const outcomes: Outcome[] = [];
  * fixture texts whose presence in the first request is reported as yes/no, never shown.
  */
 async function askReal(electronApp: ElectronApplication, win: Page, judgeBrowser: Browser, element: string, intended: string, mentions: string[] = []): Promise<void> {
-  const baseline = (await win.evaluate(() => window.playwrightFlowStudio.recorder.getInspection())).inspection?.locator;
+  // The inspection main hands the job: its locator is the baseline, its upgrade context what D1 lets the request offer.
+  const inspection = (await win.evaluate(() => window.playwrightFlowStudio.recorder.getInspection())).inspection;
+  const baseline = inspection?.locator;
   await takeHostTraffic(electronApp);
   const started = Date.now();
   await win.getByTestId("element-spy-ai-propose").click();
@@ -317,7 +254,7 @@ async function askReal(electronApp: ElectronApplication, win: Page, judgeBrowser
     outcome.shown = await win.getByTestId("element-spy-ai-proposal").innerText().catch(() => null);
     check(`${element}: the answer came from the pinned ${PACK.displayName}`, view.modelId === PACK.id, String(view.modelId));
     check(`${element}: it is labelled an AI suggestion and says nothing was saved or applied`, /^AI suggestion/.test(await win.getByTestId("element-spy-ai-result").innerText()) && /Nothing was saved or applied/.test(message));
-    const verdict = await judge(judgeBrowser, view.proposal);
+    const verdict = await judge(judgeBrowser, LAB_URL, view.proposal);
     outcome.judged = `matches ${verdict.matches}, selected ${verdict.selected}, click reached ${verdict.clicked}`;
     check(
       `${element}: the page confirms the shown proposal — one element, the inspected one, and a click lands there`,
@@ -338,7 +275,7 @@ async function askReal(electronApp: ElectronApplication, win: Page, judgeBrowser
     `${counted.jobs} job(s), ${counted.requests} request(s), ${counted.replies} repl(ies) for attempts ${counted.attempts.map((a) => a.attempt).join(",")}, panel says ${counted.refused} refused${counted.shown ? ", 1 shown" : ""}`
   );
   if (baseline) {
-    const why = await classifyAttempts(judgeBrowser, counted.attempts, baseline, intended);
+    const why = await classifyAttempts(judgeBrowser, LAB_URL, counted.attempts, baseline, intended, inspection?.upgradeContext);
     const first = traffic.requests[0]?.user ?? "";
     outcome.why = [
       `request 1 showed: ${requestShape(first) || "nothing parsable"}${mentions.map((text) => `; mentions ${text}: ${first.includes(text) ? "yes" : "no"}`).join("")}`,
@@ -359,13 +296,13 @@ try {
   judgeBrowser = await chromium.launch();
 
   console.log("The judge is not vacuous");
-  const right = await judge(judgeBrowser, { candidate: { strategy: "role", value: "button", name: "Save profile", exact: true }, meaningChange: false });
+  const right = await judge(judgeBrowser, LAB_URL, { candidate: { strategy: "role", value: "button", name: "Save profile", exact: true }, meaningChange: false });
   check("control: a right candidate is judged right", right.matches === 1 && right.selected === "save-profile" && right.clicked === "save-profile", JSON.stringify(right));
-  const rightTestId = await judge(judgeBrowser, { candidate: { strategy: "testId", value: "spy-save-profile" }, meaningChange: false });
+  const rightTestId = await judge(judgeBrowser, LAB_URL, { candidate: { strategy: "testId", value: "spy-save-profile" }, meaningChange: false });
   check("control: ...and so is the test id the request offers", rightTestId.matches === 1 && rightTestId.selected === "save-profile" && rightTestId.clicked === "save-profile", JSON.stringify(rightTestId));
-  const wrong = await judge(judgeBrowser, { candidate: { strategy: "role", value: "button", name: "Keep", exact: true }, meaningChange: false });
+  const wrong = await judge(judgeBrowser, LAB_URL, { candidate: { strategy: "role", value: "button", name: "Keep", exact: true }, meaningChange: false });
   check("control: a unique but different element is judged not the inspected one", wrong.matches === 1 && wrong.selected === "dialog-keep" && wrong.clicked === "dialog-keep", JSON.stringify(wrong));
-  const ambiguous = await judge(judgeBrowser, { candidate: { strategy: "role", value: "button", name: "Edit", exact: true }, meaningChange: false });
+  const ambiguous = await judge(judgeBrowser, LAB_URL, { candidate: { strategy: "role", value: "button", name: "Edit", exact: true }, meaningChange: false });
   check("control: an unscoped duplicate matches more than one element", ambiguous.matches > 1 && ambiguous.selected === null, JSON.stringify(ambiguous));
 
   console.log("\nThe attempt accounting is not vacuous");

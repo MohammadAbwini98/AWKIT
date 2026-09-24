@@ -7,7 +7,16 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
-import type { ElectronApplication, Page } from "playwright";
+import type { Browser, ElectronApplication, Page } from "playwright";
+
+import { parseAiOutput } from "@src/ai/AiOutputContract";
+import type { InspectionLocatorView } from "@src/ai/contracts/AiApi";
+import { evaluateLocatorPlan } from "@src/ai/locatorPlan";
+import { describeCandidate, describeProposedScope } from "@src/ai/locatorStatus";
+import { LOCATOR_ATTEMPT_SCHEMA, unofferedScopeField } from "@src/ai/locatorUpgradeAttempts";
+import type { ElementInspection } from "@src/recorder/RecorderTypes";
+import type { UpgradeContext } from "@src/recorder/upgradeContext";
+import { LocatorFactory } from "@src/runner/LocatorFactory";
 
 export const SPY_LAB = "/recorder-lab/element-spy";
 export const SPY_FRAME = '[data-testid="spy-frame"]';
@@ -190,4 +199,85 @@ export function askAccounting(traffic: HostTraffic, refused: number | undefined,
   const consistent =
     jobs === 1 && attempts.length === traffic.requests.length && attempts.every((a, i) => a.attempt === i + 1) && (shown ? unspent === 1 : unspent === 0 || unspent === 1);
   return { jobs, requests: traffic.requests.length, replies: attempts.length, refused, shown, attempts, consistent };
+}
+
+/** The page's verdict on a candidate, outside the product's gates, on a fresh page at `url` of the judge's own browser. */
+export async function judge(browser: Browser, url: string, proposal: NonNullable<InspectionLocatorView["proposal"]>) {
+  const page = await browser.newPage();
+  try {
+    await page.goto(url);
+    const locator = await new LocatorFactory(page).locateCandidate(proposal.candidate, proposal.context).catch(() => null);
+    const matches = locator ? await locator.count().catch(() => 0) : 0;
+    const selected = locator && matches === 1 ? await locator.getAttribute("data-spy").catch(() => null) : null;
+    let clicked: string | null = null;
+    if (locator && matches === 1 && (await locator.click({ timeout: 5_000 }).then(() => true, () => false))) clicked = await page.getByTestId("spy-last").textContent();
+    return { matches, selected, clicked };
+  } finally {
+    await page.close();
+  }
+}
+
+/** The refused field's strategy and the SHAPE of its text (every word run is `a`), which names the compiler branch without the text. */
+function refusedShape(plan: unknown, field: string): string {
+  const source = plan as { target?: Record<string, unknown>; scopes?: Record<string, unknown>[] };
+  const at = field.startsWith("scopes.") ? source.scopes?.[Number(field.split(".")[1])] : source.target;
+  const key = /\.(name|hasText)$/.exec(field)?.[1] ?? "value";
+  const text = typeof at?.[key] === "string" ? (at[key] as string) : "";
+  return `strategy ${String(at?.strategy)}, ${key} shaped "${text.replace(/[A-Za-z0-9_]+/g, "a").slice(0, 40)}"`;
+}
+
+/**
+ * Each attempt as the loop saw it, and what the page at `url` says about any plan the loop would have
+ * proven. `capture` is the inspection's own upgrade context, the one main hands the job. `rightButWithheld`
+ * counts plans the page proves are the inspected element: when the panel shows nothing, each is a plan
+ * the product wrongly withheld. (Shared with `verify:ai-locator-attempts`, which proves it with no model.)
+ */
+export async function classifyAttempts(
+  browser: Browser,
+  url: string,
+  attempts: readonly HostAttempt[],
+  baseline: ElementInspection["locator"],
+  intended: string,
+  capture: UpgradeContext | undefined
+) {
+  const seen = new Set<string>();
+  const lines: string[] = [];
+  let rightButWithheld = 0;
+  for (const reply of attempts) {
+    const at = `attempt ${reply.attempt}`;
+    if (!reply.ok || reply.text === undefined) {
+      lines.push(`${at}: host ${reply.reason}`);
+      continue;
+    }
+    const parsed = parseAiOutput(reply.text, LOCATOR_ATTEMPT_SCHEMA);
+    if (!parsed.ok) {
+      lines.push(`${at}: ${parsed.code} (${parsed.errors.slice(0, 2).join("; ")})`);
+      continue;
+    }
+    const compiled = evaluateLocatorPlan(parsed.value, { boundValues: [], baseline, captured: baseline.context });
+    if (!compiled.ok) {
+      lines.push(`${at}: ${compiled.code === "INTENT_BOUND_VALUE" ? "intent" : "compiler"} ${compiled.code} on ${compiled.field} (${refusedShape(parsed.value, compiled.field)})`);
+      continue;
+    }
+    // D1, as the loop decides it: a scope the request did not offer is refused before the browser and before
+    // the duplicate rule. It is the product's correct refusal, never a plan withheld, whatever the page says.
+    const unoffered = unofferedScopeField(compiled.context, capture);
+    if (unoffered) {
+      lines.push(`${at}: intent SCOPE_NOT_OFFERED on ${unoffered} (${refusedShape(parsed.value, unoffered)}), withheld by D1`);
+      continue;
+    }
+    const shown = `${describeCandidate(compiled.candidate)}${describeProposedScope(compiled.context) ? ` within ${describeProposedScope(compiled.context)}` : ""}`;
+    const key = JSON.stringify([compiled.candidate, compiled.context ?? null]);
+    if (seen.has(key)) {
+      lines.push(`${at}: DUPLICATE of an earlier attempt (${shown})`);
+      continue;
+    }
+    seen.add(key);
+    const verdict = await judge(browser, url, { candidate: compiled.candidate, ...(compiled.context ? { context: compiled.context } : {}), meaningChange: compiled.meaningChange });
+    const right = verdict.matches === 1 && verdict.selected === intended;
+    if (right) rightButWithheld += 1;
+    const page = verdict.matches === 0 ? "NO_MATCH" : verdict.matches > 1 ? `NOT_UNIQUE (${verdict.matches})` : right ? "THE INSPECTED ELEMENT" : `WRONG_ELEMENT (${verdict.selected})`;
+    lines.push(`${at}: compiled ${shown} → page: ${page}`);
+  }
+  return { lines, rightButWithheld };
 }
