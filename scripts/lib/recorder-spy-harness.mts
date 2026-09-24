@@ -14,6 +14,7 @@ import type { InspectionLocatorView } from "@src/ai/contracts/AiApi";
 import { evaluateLocatorPlan } from "@src/ai/locatorPlan";
 import { describeCandidate, describeProposedScope } from "@src/ai/locatorStatus";
 import { LOCATOR_ATTEMPT_SCHEMA, unofferedScopeField } from "@src/ai/locatorUpgradeAttempts";
+import { locatorContainerChain } from "@src/profiles/FlowProfile";
 import type { ElementInspection } from "@src/recorder/RecorderTypes";
 import type { UpgradeContext } from "@src/recorder/upgradeContext";
 import { LocatorFactory } from "@src/runner/LocatorFactory";
@@ -227,10 +228,30 @@ function refusedShape(plan: unknown, field: string): string {
 }
 
 /**
+ * One attempt as the codes the loop and the page gave it, never its text: what `verify:ai-spy-live`'s saved
+ * evidence is built from (`scripts/ai-harness/spyLiveEvidence.mts`, which trusts none of it). `scope` is
+ * `scopeKind`'s category (locatorQualityLive.ts); `page` and `target` exist only for a plan the page judged.
+ */
+export type AttemptRecord = {
+  attempt: number;
+  responded: boolean;
+  host: string | null;
+  contract: string | null;
+  strategy: string | null;
+  scope: string | null;
+  refusal: string | null;
+  field: string | null;
+  page: string | null;
+  matches: number | null;
+  target: "intended" | "other" | "not-unique" | "no-match" | null;
+};
+
+/**
  * Each attempt as the loop saw it, and what the page at `url` says about any plan the loop would have
  * proven. `capture` is the inspection's own upgrade context, the one main hands the job. `rightButWithheld`
  * counts plans the page proves are the inspected element: when the panel shows nothing, each is a plan
- * the product wrongly withheld. (Shared with `verify:ai-locator-attempts`, which proves it with no model.)
+ * the product wrongly withheld. `records` is the same, as codes. (Shared with `verify:ai-locator-attempts`,
+ * which proves it with no model.)
  */
 export async function classifyAttempts(
   browser: Browser,
@@ -242,33 +263,48 @@ export async function classifyAttempts(
 ) {
   const seen = new Set<string>();
   const lines: string[] = [];
+  const records: AttemptRecord[] = [];
   let rightButWithheld = 0;
   for (const reply of attempts) {
     const at = `attempt ${reply.attempt}`;
+    const record: AttemptRecord = { attempt: reply.attempt, responded: false, host: null, contract: null, strategy: null, scope: null, refusal: null, field: null, page: null, matches: null, target: null };
+    records.push(record);
     if (!reply.ok || reply.text === undefined) {
+      record.host = reply.reason ?? null;
       lines.push(`${at}: host ${reply.reason}`);
       continue;
     }
+    record.responded = true;
     const parsed = parseAiOutput(reply.text, LOCATOR_ATTEMPT_SCHEMA);
     if (!parsed.ok) {
+      record.contract = parsed.code;
       lines.push(`${at}: ${parsed.code} (${parsed.errors.slice(0, 2).join("; ")})`);
       continue;
     }
+    record.contract = "pass";
     const compiled = evaluateLocatorPlan(parsed.value, { boundValues: [], baseline, captured: baseline.context });
     if (!compiled.ok) {
-      lines.push(`${at}: ${compiled.code === "INTENT_BOUND_VALUE" ? "intent" : "compiler"} ${compiled.code} on ${compiled.field} (${refusedShape(parsed.value, compiled.field)})`);
+      const stage = compiled.code === "INTENT_BOUND_VALUE" ? "intent" : "compiler";
+      Object.assign(record, { strategy: (parsed.value as { target?: { strategy?: string } }).target?.strategy ?? null, scope: "not-compiled", refusal: `${stage}:${compiled.code}`, field: compiled.field });
+      lines.push(`${at}: ${stage} ${compiled.code} on ${compiled.field} (${refusedShape(parsed.value, compiled.field)})`);
       continue;
     }
     // D1, as the loop decides it: a scope the request did not offer is refused before the browser and before
     // the duplicate rule. It is the product's correct refusal, never a plan withheld, whatever the page says.
     const unoffered = unofferedScopeField(compiled.context, capture);
+    const chain = locatorContainerChain(compiled.context);
+    record.strategy = compiled.candidate.strategy;
+    record.scope =
+      chain.length === 0 ? "none" : chain.some((scope) => scope.hasText) ? "row-content" : unoffered ? "not-offered" : chain.every((scope) => scope.strategy === "role" && scope.name === undefined) ? "structural" : "offered";
     if (unoffered) {
+      Object.assign(record, { refusal: "intent:SCOPE_NOT_OFFERED", field: unoffered });
       lines.push(`${at}: intent SCOPE_NOT_OFFERED on ${unoffered} (${refusedShape(parsed.value, unoffered)}), withheld by D1`);
       continue;
     }
     const shown = `${describeCandidate(compiled.candidate)}${describeProposedScope(compiled.context) ? ` within ${describeProposedScope(compiled.context)}` : ""}`;
     const key = JSON.stringify([compiled.candidate, compiled.context ?? null]);
     if (seen.has(key)) {
+      record.refusal = "duplicate:DUPLICATE_CANDIDATE";
       lines.push(`${at}: DUPLICATE of an earlier attempt (${shown})`);
       continue;
     }
@@ -276,8 +312,13 @@ export async function classifyAttempts(
     const verdict = await judge(browser, url, { candidate: compiled.candidate, ...(compiled.context ? { context: compiled.context } : {}), meaningChange: compiled.meaningChange });
     const right = verdict.matches === 1 && verdict.selected === intended;
     if (right) rightButWithheld += 1;
+    Object.assign(record, {
+      matches: verdict.matches,
+      page: verdict.matches === 0 ? "CANDIDATE_NO_MATCH" : verdict.matches > 1 ? "CANDIDATE_NOT_UNIQUE" : right ? "INSPECTED_ELEMENT" : "WRONG_ELEMENT",
+      target: verdict.matches === 0 ? "no-match" : verdict.matches > 1 ? "not-unique" : right ? "intended" : "other"
+    });
     const page = verdict.matches === 0 ? "NO_MATCH" : verdict.matches > 1 ? `NOT_UNIQUE (${verdict.matches})` : right ? "THE INSPECTED ELEMENT" : `WRONG_ELEMENT (${verdict.selected})`;
     lines.push(`${at}: compiled ${shown} → page: ${page}`);
   }
-  return { lines, rightButWithheld };
+  return { lines, records, rightButWithheld };
 }

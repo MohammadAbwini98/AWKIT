@@ -22,6 +22,7 @@
  *     Each live run, PASS, FAIL or INCONCLUSIVE, also saves its sanitized per-case evidence as a NEW file under
  *     docs/plans/ai-upgrade-v5/evidence/ before the scratch folders are removed; a failed save fails the run
  *     (scripts/ai-harness/locatorQualityEvidence.mts). The file is left for a person to review and commit.
+ *     `--controls` also runs verify:ai-spy-live's session-evidence regression (scripts/ai-harness/spyLiveEvidence.mts).
  *   - authoringQuality: `explainFlowValidation` over L4b's labelled set, each answer delivered with every
  *     issue explained and no canary leaked, quality recorded (scripts/ai-harness/authoringQualityLive.ts);
  *     `--cases` runs it in parts. Each part also writes a redacted review capture to the local review
@@ -143,6 +144,9 @@ if (process.argv.includes("--controls")) {
   // The saved per-case evidence first: synthetic runs through the builder, save and settle a live run uses.
   const { evidenceControls } = await import("./ai-harness/locatorQualityEvidence.mts");
   await evidenceControls(check);
+  // ...and verify:ai-spy-live's saved session evidence: synthetic sessions through its recorder, builder, writer and settle.
+  const { spyEvidenceControls } = await import("./ai-harness/spyLiveEvidence.mts");
+  await spyEvidenceControls(check);
   const { runLocatorQualityLive } = await import("./ai-harness/locatorQualityLive");
   const site = await startMockSite();
   const steps: Array<{ label: string; ok: boolean; error?: string; detail?: unknown }> = [];

@@ -64,7 +64,7 @@ import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 import { JsonProfileStore } from "@src/storage/ProfileStore";
 
 import { LARGEST_CONTEXT, LONGEST_REFUSAL, locatorInput, locatorUpgradePacket, productLocatorRequest } from "./ai-harness/locatorUpgradePacket";
-import { SPY_LAB, askAccounting, classifyAttempts, judge, type HostAttempt, type HostTraffic } from "./lib/recorder-spy-harness.mts";
+import { SPY_LAB, askAccounting, classifyAttempts, judge, type AttemptRecord, type HostAttempt, type HostTraffic } from "./lib/recorder-spy-harness.mts";
 
 let passed = 0;
 let failed = 0;
@@ -927,6 +927,17 @@ try {
     invented.lines.length === 2 && invented.lines.every((line) => / intent SCOPE_NOT_OFFERED on scopes\.0\.value /.test(line) && !line.includes("→ page:")) && invented.rightButWithheld === 0,
     invented.lines.join(" | ")
   );
+  // The codes verify:ai-spy-live's saved evidence keeps (spyLiveEvidence.mts): the same decisions, as records.
+  const coded = (records: readonly AttemptRecord[]) => JSON.stringify(records.map((r) => [r.attempt, r.responded, r.host, r.contract, r.strategy, r.scope, r.refusal, r.field, r.page, r.matches, r.target]));
+  const d1Refused = (attempt: number, scope: string, field: string) => [attempt, true, null, "pass", "role", scope, "intent:SCOPE_NOT_OFFERED", field, null, null, null];
+  check(
+    "the records keep each D1 refusal as codes: intent SCOPE_NOT_OFFERED on its field, the scope's category, no page verdict and no text",
+    coded(withheld.records) === JSON.stringify([d1Refused(1, "row-content", "scopes.0.hasText"), d1Refused(2, "row-content", "scopes.0.hasText")]) &&
+      coded(recordKey.records) === JSON.stringify([d1Refused(1, "not-offered", "scopes.0.value")]) &&
+      coded(invented.records) === JSON.stringify([d1Refused(1, "not-offered", "scopes.0.value"), d1Refused(2, "not-offered", "scopes.0.value")]) &&
+      !/Alice|Smith|carol|slot-/.test(JSON.stringify([withheld.records, recordKey.records, invented.records])),
+    `${coded(withheld.records)} ${coded(recordKey.records)} ${coded(invented.records)}`
+  );
 
   // 2 (C): an offered scope that proves the inspected element stays counted, test id and authored name alike.
   const offeredId = await classifyAttempts(liveBrowser(), spyUrl, replies(callIn({ kind: "listItem", strategy: "testId", value: "slot-primary" })), callBaseline, "call-primary", primaryCapture);
@@ -941,6 +952,13 @@ try {
   const misattributed = spyCapture("Call", [{ ...primaryItem, testId: "slot-backup" }]);
   const sibling = await classifyAttempts(liveBrowser(), spyUrl, replies(callIn({ kind: "listItem", strategy: "testId", value: "slot-backup" })), callBaseline, "call-primary", misattributed);
   check("an offered scope that finds a sibling is judged WRONG_ELEMENT: the page stays authoritative", sibling.rightButWithheld === 0 && /→ page: WRONG_ELEMENT \(call-backup\)$/.test(sibling.lines[0] ?? ""), sibling.lines.join(" | "));
+  const judged = (scope: string, page: string, matches: number, target: string) => [[1, true, null, "pass", "role", scope, null, null, page, matches, target]];
+  check(
+    "the records of the judged plans keep the page's verdict as codes: the inspected element, not unique (4), and a sibling as another element",
+    coded(offeredId.records) === JSON.stringify(judged("offered", "INSPECTED_ELEMENT", 1, "intended")) && coded(offeredName.records) === JSON.stringify(judged("offered", "INSPECTED_ELEMENT", 1, "intended")) &&
+      coded(section.records) === JSON.stringify(judged("offered", "CANDIDATE_NOT_UNIQUE", 4, "not-unique")) && coded(sibling.records) === JSON.stringify(judged("offered", "WRONG_ELEMENT", 1, "other")),
+    `${coded(offeredId.records)} ${coded(section.records)} ${coded(sibling.records)}`
+  );
 
   // 5 and E: no scope on a unique target is untouched by the rule; contract and compiler refusals keep their own class.
   const saveCapture = spyCapture("Save profile", [{ kind: "landmark", tag: "section", role: "region", name: "Account settings", nameSource: "aria-labelledby", testId: "spy-unique", text: "Account settings Save profile Display name" }]);
@@ -961,6 +979,24 @@ try {
     "...while an unparsable reply and a positional plan stay contract and compiler refusals",
     /^attempt 1: [A-Z_]+ \(/.test(unscoped.lines[0] ?? "") && /^attempt 2: compiler /.test(unscoped.lines[1] ?? ""),
     unscoped.lines.join(" | ")
+  );
+  const hostThenTwice = await classifyAttempts(
+    liveBrowser(),
+    spyUrl,
+    [{ attempt: 1, ok: false, reason: "AI_CANCELLED" }, ...replies(callIn({ kind: "listItem", strategy: "testId", value: "slot-primary" }), callIn({ kind: "listItem", strategy: "testId", value: "slot-primary" })).map((r) => ({ ...r, attempt: r.attempt + 1 }))],
+    callBaseline,
+    "call-primary",
+    primaryCapture
+  );
+  const [contract, positional, unscopedRight] = unscoped.records;
+  check(
+    "the records keep a contract refusal, a compiler refusal (not compiled), an unscoped plan, a host refusal and a duplicate each apart",
+    contract?.responded === true && /^[A-Z_]+$/.test(contract.contract ?? "") && contract.contract !== "pass" && contract.strategy === null && contract.page === null &&
+      positional?.contract === "pass" && positional.scope === "not-compiled" && /^compiler:[A-Z_]+$/.test(positional.refusal ?? "") && positional.page === null &&
+      JSON.stringify(unscopedRight) === JSON.stringify({ attempt: 3, responded: true, host: null, contract: "pass", strategy: "testId", scope: "none", refusal: null, field: null, page: "INSPECTED_ELEMENT", matches: 1, target: "intended" }) &&
+      coded(hostThenTwice.records) ===
+        JSON.stringify([[1, false, "AI_CANCELLED", null, null, null, null, null, null, null, null], judged("offered", "INSPECTED_ELEMENT", 1, "intended")[0].map((v, i) => (i === 0 ? 2 : v)), [3, true, null, "pass", "role", "offered", "duplicate:DUPLICATE_CANDIDATE", null, null, null, null]]),
+    `${coded(unscoped.records)} ${coded(hostThenTwice.records)}`
   );
 } finally {
   await browser?.close().catch(() => undefined);

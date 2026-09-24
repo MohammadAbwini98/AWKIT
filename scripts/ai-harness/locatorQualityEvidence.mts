@@ -38,18 +38,18 @@ import { QUALITY_CASES, type D1Class, type QualityCaseLabel } from "./locatorQua
 export { QUALITY_CASES };
 
 export const EVIDENCE_DIR = path.join(ROOT, "docs", "plans", "ai-upgrade-v5", "evidence");
-const UNRECOGNIZED = "unrecognized";
+export const UNRECOGNIZED = "unrecognized";
 /** Far above what a job can spend (two attempts); a longer list keeps its true length in `requests`. */
-const MAX_CALLS = 8;
+export const MAX_CALLS = 8;
 const MAX_FAILURES = 32;
 
-const CODE = /^[A-Z][A-Z0-9_]{0,63}$/;
+export const CODE = /^[A-Z][A-Z0-9_]{0,63}$/;
 /** A check's code, or a fixture precondition's `CODE:PROOF_CODE`. */
 const FAILURE = /^[A-Z][A-Z0-9_]{0,63}(:[A-Z][A-Z0-9_]{0,63})?$/;
 /** A plan field path as the compiler names it, e.g. `scopes.0.hasText`: structure only, never a value. */
-const FIELD = /^(target|scopes\.[0-9])(\.(strategy|value|name|exact|kind|hasText|visibleOnly))?$/;
-const SCOPE = /^(none|structural|offered|row-content|not-compiled|not-offered(:(sibling|absent|ambiguous|withheld-own|[A-Z][A-Z0-9_]{0,63}))?)$/;
-const RUN_ID = /^\d{8}T\d{6}Z-[0-9a-f]{6}$/;
+export const FIELD = /^(target|scopes\.[0-9])(\.(strategy|value|name|exact|kind|hasText|visibleOnly))?$/;
+export const SCOPE = /^(none|structural|offered|row-content|not-compiled|not-offered(:(sibling|absent|ambiguous|withheld-own|[A-Z][A-Z0-9_]{0,63}))?)$/;
+export const RUN_ID = /^\d{8}T\d{6}Z-[0-9a-f]{6}$/;
 const OUTCOMES: Record<LocatorAttemptOutcome, true> = {
   accepted: true,
   "not-eligible": true,
@@ -62,18 +62,18 @@ const OUTCOMES: Record<LocatorAttemptOutcome, true> = {
   "context-expired": true,
   "write-failed": true
 };
-const STAGES: Record<LocatorAttemptStage, true> = { provider: true, compiler: true, intent: true, duplicate: true, proof: true };
+export const STAGES: Record<LocatorAttemptStage, true> = { provider: true, compiler: true, intent: true, duplicate: true, proof: true };
 const CLASSES: Record<D1Class, true> = { success: true, refused: true, inconclusive: true, fail: true };
 const TARGETS: Record<"intended" | "other" | "not-unique", true> = { intended: true, other: true, "not-unique": true };
 /** The strategies the model's grammar allows, read from the product's own schema. */
-const PLAN_STRATEGIES = new Set((LOCATOR_PLAN_SCHEMA as unknown as { properties: { target: { properties: { strategy: { enum: string[] } } } } }).properties.target.properties.strategy.enum);
+export const PLAN_STRATEGIES = new Set((LOCATOR_PLAN_SCHEMA as unknown as { properties: { target: { properties: { strategy: { enum: string[] } } } } }).properties.target.properties.strategy.enum);
 
-const has = (values: Record<string, true>) => (s: string) => Object.prototype.hasOwnProperty.call(values, s);
-const rec = (value: unknown): Record<string, unknown> | null => (typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : null);
-const count = (value: unknown): number | null => (typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null);
-const flag = (value: unknown): boolean | null => (typeof value === "boolean" ? value : null);
+export const has = (values: Record<string, true>) => (s: string) => Object.prototype.hasOwnProperty.call(values, s);
+export const rec = (value: unknown): Record<string, unknown> | null => (typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : null);
+export const count = (value: unknown): number | null => (typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null);
+export const flag = (value: unknown): boolean | null => (typeof value === "boolean" ? value : null);
 /** An approved token as it is, any other value `unrecognized`, absent as null. */
-const token = (value: unknown, approved: (s: string) => boolean): string | null =>
+export const token = (value: unknown, approved: (s: string) => boolean): string | null =>
   value === undefined || value === null ? null : typeof value === "string" && approved(value) ? value : UNRECOGNIZED;
 
 export interface QualityRunIdentity {
@@ -101,16 +101,34 @@ export function sourceRevision(): { commit: string | null; dirty: boolean | null
   }
 }
 
+/** A refusal as `<loop stage>:<CODE>`. */
+export const isRefusal = (s: string): boolean => {
+  const [stage, code, extra] = s.split(":");
+  return extra === undefined && has(STAGES)(stage) && CODE.test(code ?? "");
+};
+
+/** A run's identity through the allowlist: the pack's file name and hashes, never where it lives. */
+export function identityEvidence(identity: Omit<QualityRunIdentity, "set">) {
+  return {
+    runId: token(identity.runId, (s) => RUN_ID.test(s)),
+    source: { commit: token(identity.source.commit, (s) => /^[0-9a-f]{40}$/.test(s)), dirty: flag(identity.source.dirty) },
+    model: {
+      id: token(identity.model.id, (s) => /^[A-Za-z0-9._-]{1,64}$/.test(s)),
+      file: token(identity.model.file, (s) => /^[A-Za-z0-9._-]{1,96}\.gguf$/.test(s)),
+      sha256: token(identity.model.sha256, (s) => /^[0-9a-f]{64}$/.test(s)),
+      sizeBytes: count(identity.model.sizeBytes)
+    },
+    runtime: token(identity.runtime, (s) => /^[A-Za-z0-9@.+_-]{1,120}$/.test(s))
+  };
+}
+
 function callEvidence(value: unknown) {
   const raw = rec(value) ?? {};
   return {
     contract: token(raw.contract, (s) => s === "pass" || s === "cancelled" || CODE.test(s)),
     strategy: token(raw.strategy, (s) => PLAN_STRATEGIES.has(s)),
     scope: token(raw.scope, (s) => SCOPE.test(s)),
-    refusal: token(raw.refusal, (s) => {
-      const [stage, code, extra] = s.split(":");
-      return extra === undefined && has(STAGES)(stage) && CODE.test(code ?? "");
-    }),
+    refusal: token(raw.refusal, isRefusal),
     refusalField: token(raw.field, (s) => FIELD.test(s)),
     proof: token(raw.proof, (s) => CODE.test(s)),
     matches: count(raw.matches)
@@ -180,23 +198,19 @@ export function buildLocatorQualityEvidence(input: {
     typeof inFlightLabel !== "string" ? null : (labels.find((l) => inFlightLabel.startsWith(`${l.id}: `))?.id ?? (/^(D1 )?control: /.test(inFlightLabel) ? "control" : "other"));
   const sum = (pick: (c: CaseEvidence) => number | null) => cases.reduce((total, c) => total + (pick(c) ?? 0), 0);
   const counted = (pick: (c: CaseEvidence) => boolean) => cases.filter(pick).length;
+  const run = identityEvidence(identity);
   return {
     schemaVersion: 1 as const,
     kind: "awkit.l3.locator-quality-live" as const,
-    runId: token(identity.runId, (s) => RUN_ID.test(s)),
+    runId: run.runId,
     verifier: identity.set === "d1" ? "verify:ai-locator-quality-live-d1" : "verify:ai-locator-quality-live",
     set: identity.set === "d1" ? ("d1" as const) : ("original" as const),
     startedAt: identity.startedAt.toISOString(),
     finishedAt: input.finishedAt.toISOString(),
     durationMs: Math.max(0, input.finishedAt.getTime() - identity.startedAt.getTime()),
-    source: { commit: token(identity.source.commit, (s) => /^[0-9a-f]{40}$/.test(s)), dirty: flag(identity.source.dirty) },
-    model: {
-      id: token(identity.model.id, (s) => /^[A-Za-z0-9._-]{1,64}$/.test(s)),
-      file: token(identity.model.file, (s) => /^[A-Za-z0-9._-]{1,96}\.gguf$/.test(s)),
-      sha256: token(identity.model.sha256, (s) => /^[0-9a-f]{64}$/.test(s)),
-      sizeBytes: count(identity.model.sizeBytes)
-    },
-    runtime: token(identity.runtime, (s) => /^[A-Za-z0-9@.+_-]{1,120}$/.test(s)),
+    source: run.source,
+    model: run.model,
+    runtime: run.runtime,
     result: exitCode === 0 ? "PASS" : exitCode === 2 ? "INCONCLUSIVE" : "FAIL",
     exitCode,
     completed,
@@ -233,7 +247,7 @@ export function buildLocatorQualityEvidence(input: {
 }
 export type LocatorQualityEvidence = ReturnType<typeof buildLocatorQualityEvidence>;
 
-const errorCode = (error: unknown): string => {
+export const errorCode = (error: unknown): string => {
   const code = (error as NodeJS.ErrnoException | null)?.code;
   return typeof code === "string" && /^[A-Z_]{1,32}$/.test(code) ? code : "WRITE_FAILED";
 };

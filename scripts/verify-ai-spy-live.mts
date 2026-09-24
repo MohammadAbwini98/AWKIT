@@ -23,6 +23,13 @@
  * (exit 2, the `gateExitCode` convention), never a pass. NOT RUN (exit 0) without the runtime or the pack at
  * ~/Downloads/Qwen3.5-0.8B-Q4_K_M.gguf (or AWKIT_AI_LIVE_MODEL).
  *
+ * Each run that reaches the pinned pack also keeps a sanitized session record, PASS, FAIL or INCONCLUSIVE, at
+ * docs/plans/ai-upgrade-v5/evidence/L3-spy-live-<runId>.json (scripts/ai-harness/spyLiveEvidence.mts): each
+ * scenario's status, check counts, facts and, per real ask, each attempt's codes. It is written as a checkpoint
+ * at every scenario boundary and recorded fact, and as the final record once the app is closed, before the
+ * profile is removed. A failed write fails the run. The console can be cut; the file keeps it. Review it
+ * before committing it.
+ *
  * Needs `npm run build` first (it launches `out/`). Run: npm run verify:ai-spy-live
  */
 import { copyFileSync, existsSync, linkSync, mkdirSync, writeFileSync } from "node:fs";
@@ -37,6 +44,8 @@ import { LOCATOR_ATTEMPT_LIMITS } from "@src/ai/locatorUpgradeAttempts";
 import { AI_MODEL_MANIFEST } from "@src/offline/AiModelManifest";
 
 import { measurePack, runtimeInstalled } from "./ai-harness/launch.mts";
+import { newRunId, sourceRevision } from "./ai-harness/locatorQualityEvidence.mts";
+import { settleSpyRun, startSpyLiveRun } from "./ai-harness/spyLiveEvidence.mts";
 import {
   isolatedLaunchEnv,
   resolveMainWindow,
@@ -76,14 +85,12 @@ const CANCEL_CEILING_MS = 3_000;
 const RUN_BUDGET_MS = 570_000;
 const runStarted = Date.now();
 
-let passed = 0;
-let failed = 0;
+// Every check is counted by the session record (`run`, created once the pinned pack is confirmed).
 function check(label: string, condition: unknown, detail?: string | null): void {
+  run.check(Boolean(condition));
   if (condition) {
-    passed += 1;
     console.log(`  ✓ ${label}`);
   } else {
-    failed += 1;
     console.error(`  ✗ ${label}${detail ? ` — ${detail}` : ""}`);
   }
 }
@@ -105,6 +112,15 @@ if (measured.sizeBytes !== PACK.sizeBytes || measured.sha256 !== PACK.sha256) {
   console.error(`REFUSED: ${source} is not the pinned ${PACK.fileName} (${measured.sizeBytes} bytes, sha256 ${measured.sha256}).`);
   process.exit(1);
 }
+const startedAt = new Date(runStarted);
+const runIdentity = {
+  runId: newRunId(startedAt),
+  startedAt,
+  source: sourceRevision(),
+  model: { id: PACK.id, file: PACK.fileName, sha256: measured.sha256, sizeBytes: measured.sizeBytes },
+  runtime: runtime.build
+};
+const run = startSpyLiveRun(runIdentity);
 
 // ── An isolated profile with local AI on and the pinned pack installed ─────────────────────────────
 const probe = isolatedLaunchEnv("awkit-ai-spy-live");
@@ -229,9 +245,10 @@ const outcomes: Outcome[] = [];
 
 /**
  * Ask through the button, as a person does, and wait for what the panel settles on. `mentions` are
- * fixture texts whose presence in the first request is reported as yes/no, never shown.
+ * fixture texts whose presence in the first request is reported as yes/no, never shown. Each measurement
+ * goes into the session record as soon as it is taken; the result is how the ask ended.
  */
-async function askReal(electronApp: ElectronApplication, win: Page, judgeBrowser: Browser, element: string, intended: string, mentions: string[] = []): Promise<void> {
+async function askReal(electronApp: ElectronApplication, win: Page, judgeBrowser: Browser, element: string, intended: string, mentions: string[] = []): Promise<"passed" | "refused"> {
   // The inspection main hands the job: its locator is the baseline, its upgrade context what D1 lets the request offer.
   const inspection = (await win.evaluate(() => window.playwrightFlowStudio.recorder.getInspection())).inspection;
   const baseline = inspection?.locator;
@@ -250,12 +267,21 @@ async function askReal(electronApp: ElectronApplication, win: Page, judgeBrowser
   check(`${element}: the request shows loading, then settles inside its own deadline (${Math.round(JOB_DEADLINE_MS / 1000)} s)`, Boolean(loading) && settled !== null, `${settled} after ${ms} ms`);
   check(`${element}: (precondition) the panel's rendered phase was read`, phase !== null && phase.kind === settled);
   const outcome: Outcome = { element, state: settled, ms, code: view?.code ?? null, attempts: view?.attemptsUsed ?? null, modelId: view?.modelId ?? null, shown: null, judged: "nothing shown" };
+  const shown = settled === "done" && Boolean(view?.proposal);
+  await run.record({ state: settled, code: view?.code ?? null, elapsedMs: ms, modelId: view?.modelId ?? null, shown });
   if (settled === "done" && view?.proposal) {
     outcome.shown = await win.getByTestId("element-spy-ai-proposal").innerText().catch(() => null);
     check(`${element}: the answer came from the pinned ${PACK.displayName}`, view.modelId === PACK.id, String(view.modelId));
-    check(`${element}: it is labelled an AI suggestion and says nothing was saved or applied`, /^AI suggestion/.test(await win.getByTestId("element-spy-ai-result").innerText()) && /Nothing was saved or applied/.test(message));
+    const labelled = /^AI suggestion/.test(await win.getByTestId("element-spy-ai-result").innerText()) && /Nothing was saved or applied/.test(message);
+    check(`${element}: it is labelled an AI suggestion and says nothing was saved or applied`, labelled);
     const verdict = await judge(judgeBrowser, LAB_URL, view.proposal);
     outcome.judged = `matches ${verdict.matches}, selected ${verdict.selected}, click reached ${verdict.clicked}`;
+    await run.record({
+      labelled,
+      proofMatches: verdict.matches,
+      proofTarget: verdict.matches === 0 ? "no-match" : verdict.matches > 1 ? "not-unique" : verdict.selected === intended ? "intended" : "other",
+      clickLanded: verdict.clicked === intended
+    });
     check(
       `${element}: the page confirms the shown proposal — one element, the inspected one, and a click lands there`,
       verdict.matches === 1 && verdict.selected === intended && verdict.clicked === intended,
@@ -267,8 +293,16 @@ async function askReal(electronApp: ElectronApplication, win: Page, judgeBrowser
   }
   check(`${element}: main let the job go`, await aiReleased(win, 10_000));
   const traffic = await takeHostTraffic(electronApp);
-  const counted = askAccounting(traffic, view?.attemptsUsed, settled === "done" && Boolean(view?.proposal));
+  const counted = askAccounting(traffic, view?.attemptsUsed, shown);
   outcome.replies = counted.replies;
+  const first = traffic.requests[0]?.user ?? "";
+  await run.record({
+    requests: counted.requests,
+    replies: counted.replies,
+    refusedAttempts: view?.attemptsUsed ?? null,
+    accountingConsistent: counted.consistent,
+    ...(mentions.length > 0 ? { rowKeyInRequest: mentions.some((text) => first.includes(text)) } : {})
+  });
   check(
     `${element}: (precondition) one reply per request of this one job, and no more unspent replies than the panel's refusals allow`,
     baseline !== undefined && counted.consistent,
@@ -276,7 +310,7 @@ async function askReal(electronApp: ElectronApplication, win: Page, judgeBrowser
   );
   if (baseline) {
     const why = await classifyAttempts(judgeBrowser, LAB_URL, counted.attempts, baseline, intended, inspection?.upgradeContext);
-    const first = traffic.requests[0]?.user ?? "";
+    await run.record({ rightButWithheld: why.rightButWithheld }, why.records);
     outcome.why = [
       `request 1 showed: ${requestShape(first) || "nothing parsable"}${mentions.map((text) => `; mentions ${text}: ${first.includes(text) ? "yes" : "no"}`).join("")}`,
       ...why.lines
@@ -284,6 +318,7 @@ async function askReal(electronApp: ElectronApplication, win: Page, judgeBrowser
     if (settled !== "done") check(`${element}: no plan the page proves right was withheld`, why.rightButWithheld === 0, why.lines.join(" | "));
   }
   outcomes.push(outcome);
+  return shown ? "passed" : "refused";
 }
 
 const budgetLeft = () => RUN_BUDGET_MS - (Date.now() - runStarted);
@@ -296,6 +331,7 @@ try {
   judgeBrowser = await chromium.launch();
 
   console.log("The judge is not vacuous");
+  await run.begin("judge-controls");
   const right = await judge(judgeBrowser, LAB_URL, { candidate: { strategy: "role", value: "button", name: "Save profile", exact: true }, meaningChange: false });
   check("control: a right candidate is judged right", right.matches === 1 && right.selected === "save-profile" && right.clicked === "save-profile", JSON.stringify(right));
   const rightTestId = await judge(judgeBrowser, LAB_URL, { candidate: { strategy: "testId", value: "spy-save-profile" }, meaningChange: false });
@@ -304,8 +340,10 @@ try {
   check("control: a unique but different element is judged not the inspected one", wrong.matches === 1 && wrong.selected === "dialog-keep" && wrong.clicked === "dialog-keep", JSON.stringify(wrong));
   const ambiguous = await judge(judgeBrowser, LAB_URL, { candidate: { strategy: "role", value: "button", name: "Edit", exact: true }, meaningChange: false });
   check("control: an unscoped duplicate matches more than one element", ambiguous.matches > 1 && ambiguous.selected === null, JSON.stringify(ambiguous));
+  await run.end("passed");
 
   console.log("\nThe attempt accounting is not vacuous");
+  await run.begin("accounting-control");
   // Replies out of order, a load reply, another host reusing an id, and a cancelled job answering late.
   const paired = attemptsOf({
     requests: [
@@ -325,7 +363,10 @@ try {
     paired.jobs === 1 && paired.attempts.map((a) => `${a.attempt}:${a.text}`).join(" ") === "1:first 2:second",
     JSON.stringify(paired)
   );
+  await run.end("passed");
 
+  // The launch and sign-in belong to the preconditions, so a failed launch is recorded as where the run stopped.
+  await run.begin("preconditions");
   app = await electron.launch({ args: [root, ...probe.electronArgs], cwd: root, env: env as Record<string, string> });
   await captureHostTraffic(app);
   const win: Page = await resolveMainWindow(app);
@@ -336,8 +377,11 @@ try {
 
   console.log("\nPreconditions");
   const status = await win.evaluate(() => window.playwrightFlowStudio.ai.getStatus());
+  await run.record({ aiEnabled: status.enabled, packInstalled: status.modelPack.status === "installed", pinnedModel: status.modelPack.modelId === PACK.id });
   check(`main reports local AI on with ${PACK.displayName} installed`, status.enabled && status.modelPack.status === "installed" && status.modelPack.modelId === PACK.id, JSON.stringify(status));
+  await run.end("passed");
 
+  await run.begin("spy-open");
   console_.setLabel("element spy");
   await navClick(win, "Recorder");
   await win.waitForSelector(".recorder-page", { timeout: 20_000 });
@@ -346,29 +390,38 @@ try {
   await captureRecorderBrowsers(app);
   await win.getByLabel("Target URL").fill(`${origin}${SPY_LAB}`);
   check("Open Element Spy opens the Recorder's browser on the Feature Test Lab", Boolean(await openSpy(win)), await win.getByTestId("element-spy-message").innerText().catch(() => ""));
+  await run.end("passed");
 
   console.log("\nA sensitive element is refused before the model is asked");
+  await run.begin("sensitive-refusal");
   const approve = await inspectInSpy(app, win, { frame: SPY_FRAME, selector: '[data-testid="spy-frame-approve"]' }, "Approve in frame");
   const t3Started = Date.now();
   await win.getByTestId("element-spy-ai-propose").click();
   const t3 = await until(async () => ((await spyAi(win).getAttribute("data-assist-state")) === "failed" ? true : null), 10_000);
   const t3Ms = Date.now() - t3Started;
+  const t3State = (await win.evaluate(() => window.playwrightFlowStudio.ai.getStatus())).state;
+  const t3Code = (await shownPhase(win))?.view?.code ?? null;
+  await run.record({ state: t3 ? "failed" : null, code: t3Code, elapsedMs: t3Ms, modelStarted: t3State === "busy" });
   check("(precondition) the approval control is inspected", Boolean(approve));
   check("it is refused at once, with the reason", Boolean(t3) && /never proposes locators for sensitive or sign-in elements/.test(await win.getByTestId("element-spy-ai-message").innerText()), `${t3Ms} ms`);
-  check("...and main never started the model", (await win.evaluate(() => window.playwrightFlowStudio.ai.getStatus())).state !== "busy");
-  outcomes.push({ element: "Approve in frame (T3)", state: t3 ? "failed" : null, ms: t3Ms, code: (await shownPhase(win))?.view?.code ?? null, attempts: 0, modelId: null, shown: null, judged: "nothing shown" });
+  check("...and main never started the model", t3State !== "busy");
+  outcomes.push({ element: "Approve in frame (T3)", state: t3 ? "failed" : null, ms: t3Ms, code: t3Code, attempts: 0, modelId: null, shown: null, judged: "nothing shown" });
+  await run.end("refused");
 
   console.log("\nA duplicated control: Edit in the INV-2002 row");
+  await run.begin("duplicate-ask");
   const edit = await inspectInSpy(app, win, { selector: '[data-spy="edit-2002"]' }, "Edit");
   check("(precondition) the row's Edit button is inspected", Boolean(edit), JSON.stringify(edit?.owner ?? null));
   console.log(`  (the Recorder's own locator: ${await win.getByTestId("element-spy-primary").innerText().catch(() => "?")} — ${await win.getByTestId("element-spy-class").innerText().catch(() => "?")})`);
-  await askReal(app, win, judgeBrowser, "Edit (INV-2002)", "edit-2002", ["INV-2002"]);
+  await run.end(await askReal(app, win, judgeBrowser, "Edit (INV-2002)", "edit-2002", ["INV-2002"]));
 
   console.log("\nCancel a real inference");
+  await run.begin("cancel");
   const display = await inspectInSpy(app, win, { selector: '[data-testid="spy-display-name"]' }, "Display name");
   check("(precondition) the Display name field is inspected", Boolean(display));
   await win.getByTestId("element-spy-ai-propose").click();
   const inferring = await aiBusy(win, 60_000);
+  await run.record({ busyBeforeCancel: inferring });
   check("(precondition) main is running the model", inferring);
   // Cancel mid-generation, not the instant the job is admitted: 3 s into the model's work.
   await new Promise((resolve) => setTimeout(resolve, 3_000));
@@ -376,38 +429,48 @@ try {
   await win.getByTestId("element-spy-ai-cancel").click();
   const released = await aiReleased(win, 15_000);
   const releaseMs = Date.now() - cancelAt;
-  check("Cancel shows cancelled at once", (await spyAi(win).getAttribute("data-assist-state")) === "failed" && /Cancelled/.test(await win.getByTestId("element-spy-ai-message").innerText()));
+  const cancelState = await spyAi(win).getAttribute("data-assist-state");
+  const cancelCode = (await shownPhase(win))?.view?.code ?? null;
+  const cancelShown = cancelState === "failed" && /Cancelled/.test(await win.getByTestId("element-spy-ai-message").innerText());
+  await run.record({ state: cancelState, code: cancelCode, cancelShown, released, releaseMs });
+  check("Cancel shows cancelled at once", cancelShown);
   check(`...and releases the model within ${CANCEL_CEILING_MS} ms (host grace ${AI_HOST_TIMEOUTS.cancelGraceMs} ms)`, released && releaseMs <= CANCEL_CEILING_MS, `${releaseMs} ms`);
   outcomes.push({ element: "Display name (cancelled)", state: "failed", ms: releaseMs, code: "CANCELLED", attempts: null, modelId: null, shown: null, judged: "nothing shown" });
+  await run.end("passed");
 
   console.log("\nA uniquely named control: Save profile");
   if (budgetLeft() < JOB_DEADLINE_MS + 20_000) {
     notRun("Save profile on the real model", `${Math.round(budgetLeft() / 1000)} s of the run budget left, a job may need ${Math.round(JOB_DEADLINE_MS / 1000)} s`);
+    await run.skip("unique-ask", "RUN_BUDGET");
   } else {
+    await run.begin("unique-ask");
     const save = await inspectInSpy(app, win, { selector: '[data-testid="spy-save-profile"]' }, "Save profile");
     check("(precondition) Save profile is inspected", Boolean(save));
-    await askReal(app, win, judgeBrowser, "Save profile", "save-profile");
+    await run.end(await askReal(app, win, judgeBrowser, "Save profile", "save-profile"));
   }
 
   console.log("\nNothing was written");
-  check("no flow, fragment, report or Recorder draft on disk changed", persistedState(appData) === before);
-  check("...and no recorded step changed", JSON.stringify(await win.evaluate(() => window.playwrightFlowStudio.recorder.getActions())) === actionsBefore);
+  await run.begin("no-writes");
+  const persistedUnchanged = persistedState(appData) === before;
+  const actionsUnchanged = JSON.stringify(await win.evaluate(() => window.playwrightFlowStudio.recorder.getActions())) === actionsBefore;
+  check("no flow, fragment, report or Recorder draft on disk changed", persistedUnchanged);
+  check("...and no recorded step changed", actionsUnchanged);
   await win.getByTestId("element-spy-stop").click();
   const errors = console_.errors ?? [];
+  await run.record({ persistedUnchanged, actionsUnchanged, rendererErrors: errors.length });
   check("no renderer error was logged", errors.length === 0, JSON.stringify(errors).slice(0, 400));
+  await run.end("passed");
 } catch (error) {
-  failed += 1;
+  run.unexpected();
   console.error(`  ✗ unexpected error — ${error instanceof Error ? error.stack : String(error)}`);
 } finally {
   await app?.close().catch(() => undefined);
   await judgeBrowser?.close().catch(() => undefined);
   site?.kill();
-  try {
-    probe.cleanup();
-  } catch {
-    /* the profile is a temp dir; a Windows file lock here is not a product failure */
-  }
 }
+
+// The app, both browsers and the site are released; the final record is written, and only then does the profile go.
+const settled = await settleSpyRun(run, [() => probe.cleanup()]);
 
 console.log("\nWhat a person saw (no model text beyond the locator the panel shows):");
 for (const o of outcomes) {
@@ -420,7 +483,16 @@ console.log(
     ? `\n${shown.length} proposal(s) shown, each judged by the page above.`
     : "\nINCONCLUSIVE for correctness: the real model's proposals were all refused, so no shown proposal was there to judge."
 );
-const inconclusive = shown.length === 0;
-console.log(`\nverify:ai-spy-live — ${passed} passed, ${failed} failed${inconclusive ? ", proposal correctness INCONCLUSIVE" : ""} (${Math.round((Date.now() - runStarted) / 1000)} s)`);
-// The repository's gate convention (`gateExitCode`): 1 on any failure or nothing passed, 2 when INCONCLUSIVE.
-process.exit(failed > 0 || passed === 0 ? 1 : inconclusive ? 2 : 0);
+const { evidence } = settled;
+if (settled.file) {
+  console.log(`\n  evidence: ${path.relative(root, settled.file)} — ${evidence.result}, ${evidence.scenarioCounts.reached} of ${evidence.scenarioCounts.total} scenarios reached (review before committing)`);
+} else {
+  console.error(`  ✗ the session evidence was saved — ${settled.error ?? "not saved"}`);
+}
+if (evidence.persistence.checkpointFailures > 0) console.error(`  ✗ ${evidence.persistence.checkpointFailures} checkpoint write(s) failed`);
+if (!evidence.completed) console.log(`  FAIL: the session did not finish (in flight: ${evidence.inFlight ?? "none"}, not reached: ${evidence.notReached.join(", ") || "none"})`);
+if (settled.cleanup.length > 0) console.log(`  NOTE: the isolated profile was not removed (${settled.cleanup.join(", ")}); a Windows file lock here is not a product failure`);
+const inconclusive = settled.exitCode === 2;
+console.log(`\nverify:ai-spy-live — ${evidence.checks.passed} passed, ${evidence.checks.failed} failed${inconclusive ? ", proposal correctness INCONCLUSIVE" : ""} (${Math.round((Date.now() - runStarted) / 1000)} s)`);
+// The repository's gate convention (`gateExitCode`): 1 on any failure, nothing passed, or evidence not saved; 2 when INCONCLUSIVE.
+process.exit(settled.exitCode);
