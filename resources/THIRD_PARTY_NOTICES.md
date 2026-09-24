@@ -75,12 +75,30 @@ a legal approval; the release responsibility below still applies.
     `node-llama-cpp`'s own notice, so the `llama.cpp` notice is reproduced below.
   - No license here requires source distribution, a notice of changes (no file is modified; the
     staging copies files byte for byte), or an attribution beyond these notices.
-- **Not included in this distribution:** the model packs (see below), and the Microsoft Visual C++
-  runtime (`VCRUNTIME140.dll`, `MSVCP140.dll`) that the prebuilt binaries import. It is not staged or
-  redistributed here.
+- **Not included in this distribution:** the model packs (see below).
+- **Proprietary files beside the open-source ones:** the Microsoft Visual C++ runtime that the prebuilt
+  binaries import. It is not open source and is not part of this review; see "Microsoft Visual C++
+  runtime" below. (Before 2026-09-25 it was not shipped, so local AI needed a globally installed
+  runtime, `awkit-i6ot`.)
 - **Kept current by a gate:** `npm run verify:ai-packaged-runtime` fails when a staged package is
   missing from the table below or listed with another version, license or license file, when a license
   is not one reviewed here, or when a notice this section must reproduce is absent.
+
+### Microsoft Visual C++ runtime
+
+- Files: `msvcp140.dll`, `vcruntime140.dll` and `vcruntime140_1.dll` (x64). They are copied unmodified
+  into each directory of `resources/native-hosts/ai` that holds a native binary. The `@node-llama-cpp/win-x64`
+  prebuilt binaries and the `@reflink/reflink-win32-x64-msvc` addon import them, and Windows does not
+  ship them.
+- Source: the Visual C++ 2015-2022 redistributable files of the Visual Studio installation that builds
+  the release (`VC\Redist\MSVC\<version>\x64\Microsoft.VC14x.CRT`), which is Microsoft's documented
+  source for app-local deployment. The owner authorized this source on 2026-09-25.
+- The staging accepts them only when each is a validly Microsoft-signed x64 image, at least as new as the
+  linker of every staged binary. It never takes them from the Windows system directory, and it records
+  their version in `ai-native-host-manifest.json` (`msvcRuntime`). Without them it stages nothing.
+- © Microsoft Corporation. These files are proprietary. Microsoft's license terms for them govern their
+  redistribution and use, not this file. The release owner confirms those terms cover the intended
+  distribution (see "Release responsibility").
 
 ### Staged runtime packages
 
@@ -305,5 +323,6 @@ redistribute the weights requires a separate review of the upstream licence term
 
 Before distributing a release outside the organization, the release owner must review the terms
 embedded in the exact approved Chrome for Testing payload and confirm the intended distribution
-channel and use remain permitted. The build tooling proves version, origin, and integrity; it does
-not provide legal advice.
+channel and use remain permitted. The same applies to the Microsoft Visual C++ runtime files, under the
+Visual Studio license of the installation that built the release. The build tooling proves version,
+origin, and integrity; it does not provide legal advice.

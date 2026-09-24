@@ -1,28 +1,25 @@
 {
   "task": "awkit-djnl-10-ai-runtime-packaging-0924",
   "contract_path": "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json",
-  "holder": "runtime",
+  "holder": "release",
   "status": "active",
   "allowed_paths": [
-    "scripts/prepare-ai-native-host.mjs"
+    "build",
+    "resources/THIRD_PARTY_NOTICES.md",
+    "resources/dependency-manifest.json",
+    "resources/dependency-manifest.sig"
   ],
-  "acquired_at": "2026-09-24T21:55:15.411Z",
-  "acquired_at_commit": "8739247c65b21f0656e699425909c2854712810b",
+  "acquired_at": "2026-09-24T22:00:06.737Z",
+  "acquired_at_commit": "bbec264e2f79cf87a5433141ea1545a8d3fdb0bd",
   "baseline_dirty": [
+    "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json",
-    "docs/plans/ai-upgrade-v5/evidence/L4b-ai-technical-evaluation-2026-09-25.md",
-    "package.json",
-    "scripts/helpers/pe-image.mts",
-    "scripts/verify-ai-packaged-runtime.mts",
-    "scripts/verify-native-dependencies.mts"
+    "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json": "f24f0f3f7eb15bc492a21af107e4474a4ae7c2e441fcca05019e17619e52c478",
-    "docs/plans/ai-upgrade-v5/evidence/L4b-ai-technical-evaluation-2026-09-25.md": "37988e33625e759f056268ad110e1a7bc4df9a3dde8b59361f1baaa24dd8da6e",
-    "package.json": "c3e92643fff7320d282c22653b01f79a3eedef03e6791ddb05b2b3cdcf555d59",
-    "scripts/helpers/pe-image.mts": "a92b131ac32237b9672b957108f43ae652946e0232092da8224a2ad920f805d9",
-    "scripts/verify-ai-packaged-runtime.mts": "2754d7706c9c000e70e1eb2ac6259d380996384c2c8afaedca3c2bb1b44b546c",
-    "scripts/verify-native-dependencies.mts": "56e3d979d4d896226c79dc56968b8a5673ecbcfe97b23a055d65e3db5fbfea14"
+    "docs/ai/contracts/active-lease.json": "5f266159a290ff8e1d838437203edaf38e9f3f56223cce58bc9f845de245418b",
+    "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json": "fb75b9b082d3abd2f5b7c5368a5e0a9a6f6590b46a1c011503b6eed2707b4325",
+    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {
     ".env": "absent",

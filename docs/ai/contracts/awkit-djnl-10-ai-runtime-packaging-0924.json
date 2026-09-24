@@ -86,9 +86,12 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "runtime",
+      "agent_id": "release",
       "allowed_paths": [
-        "scripts/prepare-ai-native-host.mjs"
+        "build",
+        "resources/THIRD_PARTY_NOTICES.md",
+        "resources/dependency-manifest.json",
+        "resources/dependency-manifest.sig"
       ]
     },
     "writer_sequence": [
@@ -631,6 +634,22 @@
         "acquired_at_commit": "04eed53767fd5ec25a3493a70248e903094c426c",
         "released_at": "2026-09-24T18:43:05.790Z",
         "released_reason": "L7 tracker note recorded at b2d4d2d1, performance confirmation GO and security evidence review noted, nothing closed, no edge changed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:runtime:2026-09-24T21:55:15.411Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/prepare-ai-native-host.mjs"
+        ],
+        "acquired_at": "2026-09-24T21:55:15.411Z",
+        "acquired_at_commit": "8739247c65b21f0656e699425909c2854712810b",
+        "released_at": "2026-09-24T21:57:18.848Z",
+        "released_reason": "staging script committed at 9ced79c4, verifier notices and classification next",
         "amendments": [],
         "overrides": [],
         "violations": []
