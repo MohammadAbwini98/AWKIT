@@ -1,9 +1,16 @@
 # SpecterStudio Phase L — Local AI & Intelligent Automation (V5)
 
-Status: **IN PROGRESS — L0 complete 2026-09-19; L1 built and pinned. The 4B fails its live-inference
-gate. The owner gave a limited GO on the 0.8B on 2026-09-23, for on-demand explanations, locator proposals
-and manual failure analysis only. That GO closes no milestone** (owner audit below; decisions ratified in
-`docs/ai/DECISIONS.md`).
+Status: **IN PROGRESS — 7 of 10 milestones closed (2026-09-24).** The closed ones are L0, L2, L4a and L5a,
+plus L1, L3 and L5b. The last three were accepted, scope-limited, within the owner's limited GO. The
+implementing agent accepted them under the owner's closeout delegation; that is not a human sign-off (see
+`docs/ai/DECISIONS.md`, latest). Still open:
+- **L4b:** 15 human verdicts;
+- **L6:** blocked by L4b;
+- **L7:** the MSVC runtime defect `awkit-i6ot`, the security review, the performance confirmation, the
+  licensed walkthrough and the clean-machine VM.
+
+The limited GO (2026-09-23) covers on-demand explanations, locator proposals and manual failure analysis
+only. Owner audit below; decisions ratified in `docs/ai/DECISIONS.md`.
 Roadmap Phase `L` (`in-progress`), Beads epic `awkit-djnl`.
 Supersedes the external V1–V4 drafts (`SpecterStudio_AI_Upgrade_*`).
 This file is the only copy of cross-cutting content (rules, architecture, autonomy policy, decisions).

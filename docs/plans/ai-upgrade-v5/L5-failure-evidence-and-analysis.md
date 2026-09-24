@@ -381,7 +381,18 @@ The owner took the third option above: **INCONCLUSIVE is accepted as this machin
 
 ## L5b — Failure intelligence (T0)
 
-**Status (2026-09-21): coalescing and the analysis contract are BUILT** — `src/ai/failureAnalysis.ts`,
+**Status (2026-09-24): ACCEPTED, on demand — `awkit-djnl.8` closed.** The implementing agent closed it
+under the owner's closeout delegation (`docs/ai/DECISIONS.md`, latest); it is not a human sign-off. Its
+criteria hold at `5b77cdd7`:
+- zero model calls before a terminal outcome (`verify:ai-fallback` 38/0);
+- 500 identical failures coalesce to one planned inference, and every claim cites evidence ids
+  (`verify:ai-error-analysis` 429/429);
+- the diagnostics extension is optional, so legacy reports load.
+
+Automatic analysis is not built and stays off under ROADMAP rule 7: the 0.8B scores 9/17 against the
+baseline's 14/17.
+
+**Earlier status (2026-09-21): coalescing and the analysis contract are BUILT** — `src/ai/failureAnalysis.ts`,
 proven by `verify:ai-error-analysis` (76/76, three mutations caught) over L5a's real `EvidenceBuffer`
 and real `deriveFailureCause`. **The on-demand reports UX was built the same day** (see "L5b on-demand
 surface as built"). **The `diagnostics` persistence extension was built on 2026-09-21** (see "L5b

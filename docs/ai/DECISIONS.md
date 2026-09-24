@@ -1,6 +1,63 @@
 # DECISIONS
 
-### 2026-09-24 (latest) — Phase L L3: the D1 request's wording and scope representation may change, nothing else (owner, `awkit-djnl.4`)
+### 2026-09-24 (latest) — Phase L closeout: L1, L3 and L5b accepted within the limited GO; L4b, L6 and L7 stay open (implementing agent under the owner's delegation) (`awkit-djnl.1`, `.4`, `.8`, `.6`, `.9`, `.10`, `awkit-i6ot`)
+
+- **Authority.** The owner's Phase L closeout mission (2026-09-24) delegates technical and product
+  acceptance decisions *within the approved requirements* to the implementing agent. It forbids
+  manufacturing human sign-off, security or licensing approval, and reinterpreting a requirement to obtain
+  a pass. Everything below is the agent's decision on that delegation, recorded as such. None of it is a
+  human verdict, and the owner can reverse any of it.
+- **L1 accepted, scope-limited.** Its acceptance criteria hold at `5b77cdd7`:
+  - app unchanged with no model: `verify:ai-fallback` 38/0;
+  - T3 unreachable: `verify:ai-autonomy-policy` 62/0;
+  - audit and revert: `verify:ai-audit-revert` 69/0;
+  - go/no-go recorded: L1.8 GO on all 8 for Qwen3.5-0.8B, and the owner's limited GO of 2026-09-23.
+
+  The owner kept L1 open because "no packaged AI gate has run". It has now run: `verify:ai-packaged-app`
+  20/0 on the fresh package from `1e856706`, a real inference in the packaged app. The one packaged defect
+  found, the MSVC runtime (`awkit-i6ot`), is L7 packaging scope and blocks L7, not L1's criteria.
+  - The GO stays exactly the limited GO: authoring explanations, on-demand locator proposals, manual
+    failure analysis.
+  - Not GO: automatic failure analysis, the automatic locator jobs, T2 auto-promotion, and L6's fragment AI.
+  - The 2B stays unevaluated; acquiring it is a download the owner must authorize.
+  - The 4B stays pinned and outside the GO. Unpinning it would refuse packs users already imported,
+    so that choice stays with the owner.
+- **L3 accepted, scope-limited.** Its criteria hold at `5b77cdd7`:
+  - the guarded baseline always runs, and pending candidates never execute: `verify:ai-locator-attempts` 191/191;
+  - promotion only after proof, the intent guard and policy, with one writer, audited and revertible:
+    `verify:ai-locator-upgrade` 78/0;
+  - zero false-target promotions: 0 false targets in every live quality run;
+  - AI absence changes nothing: `verify:ai-fallback` 38/0.
+
+  Delivered within the limited GO: the on-demand Element Spy proposal, D1 A+B and D2 U1. Deferred out of
+  Phase L, because the limited GO does not cover them: the automatic Recorder-finalization job, the §8
+  runtime-repair trigger, the §9 queue and idle scheduler, and T2 auto-promotion. The replay thresholds (N
+  and row diversity) stay provisional (`committed: false`): no auto-apply path exists to use them, and
+  committing them needs a replay baseline that no run has produced. D1's real-model quality (0 of 2
+  positives, 0 false targets) stays an OPEN model limitation, with no further prompt iteration in Phase L.
+- **L5b accepted, on demand.** Its criteria hold at `5b77cdd7`:
+  - zero model calls before a terminal outcome: `verify:ai-fallback` 38/0;
+  - 500 identical failures coalesce to one planned inference, and every AI claim cites evidence ids:
+    `verify:ai-error-analysis` 429/429;
+  - legacy reports compatible: the diagnostics extension is optional.
+
+  Automatic analysis is not built and stays off. ROADMAP rule 7 forbids it until a model beats the
+  deterministic baseline on the labelled set, and the 0.8B scores 9/17 against the baseline's 14/17.
+- **L4b is not accepted.** Its criterion "quality target met" needs a person's verdicts on 15 of the 16
+  answers. An agent must not record them. `npm run verify:ai-authoring-review -- --pending` lists them.
+- **L6 cannot close.** Its own criteria hold: works with AI off, retrieval before the model, fragments
+  validated as first-class content, no secrets persisted. But `awkit-djnl.9` is blocked by L4b. The T1
+  mapping-review surface (a workflow-side insertion surface) is not built, is not in the GO and is not one
+  of L6's acceptance criteria, so it is deferred.
+- **L7 stays open.** It depends on L4b and L6, and on:
+  - `awkit-i6ot`, which needs an owner or licensing decision;
+  - the L7 security review and performance confirmation;
+  - the committed thresholds;
+  - the licensed walkthrough parts, BLOCKED on the issuer key;
+  - the clean-machine VM, NOT RUN: it needs an operator.
+- **Not changed:** no AI behavior, tier, policy, threshold, permission, prompt, model pin or runtime pin.
+
+### 2026-09-24 — Phase L L3: the D1 request's wording and scope representation may change, nothing else (owner, `awkit-djnl.4`)
 
 - **Authorized by the owner (task brief, 2026-09-24):** a bounded change to the model-facing D1 request only,
   so the pinned 0.8B can reproduce an approved container scope. Each offered scope is shown in the exact

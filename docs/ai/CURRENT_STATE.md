@@ -1,6 +1,47 @@
 # CURRENT_STATE
 
-## Phase L: the installer carries the local-AI runtime, and the first packaged AI gate passes (2026-09-24, current)
+## Phase L closeout: seven L7 QC findings fixed, L1, L3 and L5b accepted, Phase L NOT closed (2026-09-24, current)
+
+**Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** Contract
+`awkit-djnl-10-ai-runtime-packaging-0924` (extended by the owner's closeout mission). Phase L is 7 of 10
+milestones closed. **It is not closed:** L4b needs a person's review, L6 is blocked by L4b, and L7 has open
+gates.
+
+- **QC findings on the L7 packaging, all fixed and red-first proven:**
+  - QC-1/QC-2: both packaged AI gates exit by `gateExitCode`. NOT RUN exits 2, never 0. A package without
+    the AI tree, or with a stale one, FAILS. Section F proves both black-box. Commits `93beb341`, `5b77cdd7`.
+  - QC-3/QC-4 (staging): refuses links and paths resolving outside the repository, and reads
+    `AI_RUNTIME_PIN` strictly (one frozen declaration, conflicts with `package.json` refused). 8 scratch
+    refusals were red on the old script. Commit `b162e825`.
+  - QC-4/QC-5 (strict validator): strict pin, inventory compared by path both ways. 6 rules were red
+    against the original logic. A latent bug fixed on the way: a failing signature check aborted
+    validation instead of being reported. Commits `93beb341`, `518e1c1b`.
+  - QC-6: the whole packaged artifact, `app.asar` members included, is scanned for model files. Commit `93beb341`.
+  - QC-7: license inventory of 111 distinct packages (130 directories: MIT 91, ISC 14, BlueOak 5, `rc`
+    triple), redistribution review, and the missing notices (llama.cpp, 5 packages with no license text)
+    in `resources/THIRD_PARTY_NOTICES.md`, gated. Commits `b2f8bf36`, `1e856706`.
+- **New real defect, `awkit-i6ot` (blocks L7):** the prebuilt ggml/llama binaries import `MSVCP140.dll` and
+  `VCRUNTIME140.dll`, which the installer does not carry. Local AI will fail to load on a machine without the
+  Visual C++ runtime. Fixing it needs an owner or licensing decision (see `KNOWN_ISSUES.md`).
+- **Acceptance decisions (the agent's, under the owner's delegation; `DECISIONS.md`):**
+  - L1 accepted, scoped to the limited GO.
+  - L3 accepted; its automatic triggers and T2 are deferred out of Phase L.
+  - L5b accepted, on demand; automatic analysis is off under rule 7.
+  - L4b not accepted (15 human verdicts). L6's criteria hold, but it is blocked by L4b.
+- **Fresh artifacts from clean `1e856706`:** portable 242,969,232 bytes (sha256 `eb0b54c4…`), NSIS
+  271,757,512 bytes (sha256 `df1c1964…`). Manifest pair committed at `9469e69e`.
+
+| Gate (final state) | Result |
+|---|---|
+| `verify:ai-packaged-runtime` | 95/2 FAIL: every QC check passes; both failures are `awkit-i6ot` |
+| `verify:ai-packaged-app` | 20/0 PASS (real 0.8B inference in the packaged EXE, 67 s) |
+| `validate:offline -- -Strict` at `1e856706` · `package:portable` · `package:nsis` | PASS · PASS · PASS |
+| `verify:offline-supply-chain` · `verify:packaged-validation` · `verify:packaged-runtime` | 25/0 · 119/0 · 25/0 |
+| `verify:ai-authoring` · `verify:ai-fallback` · `verify:ai-autonomy-policy` · `verify:ai-audit-revert` | 272/272 · 38/0 · 62/0 · 69/0 |
+| `verify:ai-error-analysis` · `verify:ai-locator-attempts` · `verify:ai-locator-upgrade` | 429/429 · 191/191 · 78/0 |
+| clean-machine VM · licensed walkthrough parts | NOT RUN (operator; the shell guard cannot drive Hyper-V) · BLOCKED (issuer key) |
+
+## Phase L: the installer carries the local-AI runtime, and the first packaged AI gate passes (2026-09-24)
 
 **Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No bead status or edge
 changed. Notes were added to `awkit-djnl.10` (L7) and `awkit-djnl.1` (L1). Contract

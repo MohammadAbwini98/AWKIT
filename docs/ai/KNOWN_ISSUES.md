@@ -1,5 +1,55 @@
 # KNOWN_ISSUES
 
+## The packaged local-AI runtime needs the Microsoft Visual C++ runtime, which the installer does not carry (2026-09-24, OPEN — owner or licensing decision, `awkit-i6ot`)
+
+- **Measured:** the PE-import check in `verify:ai-packaged-runtime` (`5b77cdd7`) found that the prebuilt
+  `@node-llama-cpp/win-x64` binaries import `MSVCP140.dll` and `VCRUNTIME140.dll`. It checked both the staged
+  tree and `dist/win-unpacked` from `1e856706`. The binaries are the `ggml*` DLLs, `llama.v0.4.0.dll`,
+  `llama-common.dll` and `llama-addon.node`. No `vcruntime*`, `msvcp*` or `vcomp*` DLL is staged or packaged.
+- **Consequence (inferred from the import table, not reproduced):** on a machine without the Visual C++
+  2015–2022 x64 runtime, the host cannot load the runtime, so local AI is unavailable. Everything else
+  works. This host has the runtime installed system-wide, which is why every packaged AI gate here passes.
+  The clean-machine VM that would show it is NOT RUN.
+- **Why it is not fixed here:** each remedy needs the owner.
+  - **App-local DLLs** need Visual Studio redistribution rights and a licensed redist source. Neither
+    exists on this host, and System32 copies are not a sanctioned source.
+  - **A documented prerequisite** relaxes the ROADMAP "no global runtimes, no admin rights" rule.
+  - **A static-CRT build** changes the pinned-prebuilt policy.
+- **Gate:** `verify:ai-packaged-runtime` stays FAIL (95/2) until this is resolved. Do not weaken the check.
+- **The Zvec binding was not measured** the same way.
+
+## Seven packaged-gate blind spots found by the L7 QC review (2026-09-24, FIXED — the pattern is the lesson, `awkit-djnl.10`)
+
+- **What they were:**
+  - a gate that exited 0 when its packaged section never ran (twice);
+  - a staging script that checked only a package's own entry for a symlink, never a linked parent or
+    `node_modules`;
+  - a pin read by a lazy regex from the first mention of the name, so `build: null` followed by any other
+    `build: "..."` read as pinned;
+  - an inventory "compared" by counts, so a duplicate or case-variant entry hid an unlisted file;
+  - model-pack exclusion read from manifest lists and app diagnostics, never from the artifact;
+  - no license inventory at all.
+- **Fixes:** `93beb341`, `518e1c1b`, `b162e825`, `b2f8bf36`, `1e856706`, `5b77cdd7`. Each is proven red-first
+  by a black-box check that runs the real script or validator on scratch inputs (`verify:ai-packaged-runtime`
+  A0, A1, F, E0).
+- **Rules:**
+  - NOT RUN is never exit 0.
+  - Resolve real paths, not only the final entry.
+  - Parse the one declaration, never "the first match after the name".
+  - Compare sets, not counts.
+  - Read the artifact, not its list.
+
+## A strict-validator signature check that wrote to stderr aborted validation instead of being reported (2026-09-24, FIXED in `518e1c1b`)
+
+- `validate-offline-bundle.ps1` ran `node … 2>&1` under `$ErrorActionPreference = "Stop"`. In Windows
+  PowerShell 5.1, stderr under `2>&1` becomes error records, and the first one is terminating. A failing
+  signature check therefore ended validation with an exception, not with its own reported failure and the
+  others. It failed closed, but gave the wrong message.
+- **Fix:** that one call runs under `Continue` and restores `Stop`. It was found because a scratch-root test
+  (A1) never reached the AI section.
+- **Still latent:** under the validator's strict mode, reading a missing top-level manifest property (for
+  example `manifestGeneratedAt`) throws instead of reporting. A1 avoids it by starting from the real manifest.
+
 ## A staged runtime can pass every check on the staging tree and still differ from what the installer ships (2026-09-24, FIXED in `e8f99c3f` — the pattern is the lesson, `awkit-djnl.10`)
 
 - **Symptom:** the first package carrying the local-AI runtime signed a manifest listing 1,474 files. Its

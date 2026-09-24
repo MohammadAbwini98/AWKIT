@@ -3,7 +3,18 @@
 Shared rules, architecture and decisions: `ROADMAP.md`. Depends on L1 go/no-go PASS and L2.
 **Source of truth for locator AI.**
 
-**Status (2026-09-20): OPEN, waiting on the L1 go/no-go.** The model-independent core is built ahead of it:
+**Status (2026-09-24): ACCEPTED, scope-limited — `awkit-djnl.4` closed.** The implementing agent closed it
+under the owner's closeout delegation (`docs/ai/DECISIONS.md`, latest); it is not a human sign-off. The
+acceptance criteria below hold at `5b77cdd7`:
+- `verify:ai-locator-attempts` 191/191 and `verify:ai-locator-upgrade` 78/0;
+- 0 false targets in every live quality run;
+- `verify:ai-fallback` 38/0.
+
+Deferred out of Phase L, because the limited GO does not cover them: the automatic Recorder-finalization
+job, the §8 repair trigger, the §9 queue and idle scheduler, and T2 auto-promotion. Replay thresholds stay
+provisional (`committed: false`). D1 real-model quality (0 of 2 positives) stays OPEN in `KNOWN_ISSUES.md`.
+
+**Earlier status (2026-09-20): OPEN, waiting on the L1 go/no-go.** The model-independent core is built ahead of it:
 §2 plan DSL + trusted compiler and §3 intent guard in `src/ai/locatorPlan.ts`, proven by `verify:locator-plan`
 (53/53, pure, no model or browser). **§4, §5, §6 and §7 are built** (`src/runner/locatorProof.ts`,
 `src/ai/pendingUpgrade.ts`, the `StepExecutor` replay hook, `src/ai/locatorPromotion.ts`,

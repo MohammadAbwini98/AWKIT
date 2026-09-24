@@ -2,8 +2,10 @@
 
 Shared rules, architecture and decisions: `ROADMAP.md`. Depends on L0.
 
-**Status (2026-09-19): IN PROGRESS.** `awkit-djnl.1` is `in_progress`. Implementation choices are in
-`docs/ai/DECISIONS.md` (L1 entry).
+**Status (2026-09-24): ACCEPTED, scope-limited — `awkit-djnl.1` closed.** The implementing agent closed
+it under the owner's delegation. That is not a human sign-off, and the owner can reverse it (see
+"Accepted, scope-limited" at the end of the decision record below, and `docs/ai/DECISIONS.md`, latest).
+Implementation choices are in `docs/ai/DECISIONS.md` (L1 entry). The body below is the history.
 
 | Task | State | Where |
 |---|---|---|
@@ -1453,6 +1455,26 @@ the full performance-and-quality GO, the 2B (NOT RUN) and the 4B pin are unchang
 timed out on the host's own contention (the same jobs took 120 s+ instead of 36–41 s, and
 `verify:ai-model-live-0-8b` on the repository host timed out identically). The runs quoted above passed after
 it eased. No latency figure here replaces L1.8's measurements.
+
+### Accepted, scope-limited (2026-09-24, Phase L closeout)
+
+Decided by the implementing agent under the owner's closeout delegation (`docs/ai/DECISIONS.md`, latest).
+It is not a human sign-off.
+
+- **L1's own acceptance criteria hold at `5b77cdd7`:**
+
+  | Criterion | Evidence |
+  |---|---|
+  | App unchanged with no model | `verify:ai-fallback` 38/0 |
+  | T3 unreachable | `verify:ai-autonomy-policy` 62/0 |
+  | Audit and revert verified | `verify:ai-audit-revert` 69/0 |
+  | Go/no-go recorded | L1.8 GO on all 8, and the owner's limited GO |
+
+- **The packaged gate the owner was waiting for has run.** `verify:ai-packaged-app` scored 20/0 on the
+  fresh package from `1e856706`. The one packaged defect it found is the MSVC runtime (`awkit-i6ot`). That
+  is L7 packaging scope, and it blocks L7.
+- **The GO stays the limited GO.** Not GO: automatic failure analysis, the automatic locator jobs, T2 and
+  fragment AI. The 4B stays pinned outside the GO, and the 2B is not evaluated.
 
 ## Element Spy on the real 0.8B (2026-09-23): functional PASS, proposal correctness INCONCLUSIVE
 

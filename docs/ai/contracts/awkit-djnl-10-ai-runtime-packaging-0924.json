@@ -3,7 +3,7 @@
   "task": {
     "id": "awkit-djnl-10-ai-runtime-packaging-0924",
     "title": "L7 packaging: the installer carries the pinned local-AI runtime beside its host",
-    "objective": "Phase L L7 › Packaging requires that the installer carry the pinned runtime and integration only, with the model pack separate. It does not: node-llama-cpp is a dev dependency, electron-builder.json ships only native-hosts/zvec, and no script stages native-hosts/ai, so a packaged build reports the AI runtime as not included and no packaged AI gate can run (L1 decision record: 'no packaged AI gate has run'). Stage native-hosts/ai/ai-host.cjs with node-llama-cpp 3.21.1, the CPU-only @node-llama-cpp/win-x64 prebuilt and node-llama-cpp's declared runtime dependency closure into build/native-hosts/ai (scripts/prepare-ai-native-host.mjs, mirroring the Zvec host: never downloads, refuses symlinks and escapes, GPU and foreign prebuilts, the llama.cpp source bundle, type declarations and source maps excluded, a per-file SHA-256 manifest, the runtime build checked against AI_RUNTIME_PIN), ship it through electron-builder extraResources, call it from both package pipelines before the dependency manifest is generated, fold its manifest into the signed dependency manifest as aiRuntime, and have validate:offline checksum it (a strict release without the runtime fails). Prove it with verify:ai-packaged-runtime, which stages into a temp directory outside the repository so module lookup cannot fall back to the repository's node_modules, loads the runtime there with two negative controls, handshakes the production AiUtilityHostManager with the staged host, runs the live harness on it with the pinned 0.8B pack, and repeats the checks on dist/win-unpacked. No model pack is bundled, no AI behavior, threshold, permission, policy, autonomy tier or model pin changes, and no Phase L milestone closes on this.",
+    "objective": "Phase L L7 › Packaging requires that the installer carry the pinned runtime and integration only, with the model pack separate. It does not: node-llama-cpp is a dev dependency, electron-builder.json ships only native-hosts/zvec, and no script stages native-hosts/ai, so a packaged build reports the AI runtime as not included and no packaged AI gate can run (L1 decision record: 'no packaged AI gate has run'). Stage native-hosts/ai/ai-host.cjs with node-llama-cpp 3.21.1, the CPU-only @node-llama-cpp/win-x64 prebuilt and node-llama-cpp's declared runtime dependency closure into build/native-hosts/ai (scripts/prepare-ai-native-host.mjs, mirroring the Zvec host: never downloads, refuses symlinks and escapes, GPU and foreign prebuilts, the llama.cpp source bundle, type declarations and source maps excluded, a per-file SHA-256 manifest, the runtime build checked against AI_RUNTIME_PIN), ship it through electron-builder extraResources, call it from both package pipelines before the dependency manifest is generated, fold its manifest into the signed dependency manifest as aiRuntime, and have validate:offline checksum it (a strict release without the runtime fails). Prove it with verify:ai-packaged-runtime, which stages into a temp directory outside the repository so module lookup cannot fall back to the repository's node_modules, loads the runtime there with two negative controls, handshakes the production AiUtilityHostManager with the staged host, runs the live harness on it with the pinned 0.8B pack, and repeats the checks on dist/win-unpacked. No model pack is bundled, no AI behavior, threshold, permission, policy, autonomy tier or model pin changes, and no Phase L milestone closes on this. Extended 2026-09-24 by the owner's Phase L closeout mission (delegated technical and product decisions, no manufactured human sign-off): resolve the seven QC findings on this packaging (QC-1..QC-7), rebuild and re-run the packaged gates, and reconcile the Phase L milestones against their own acceptance criteria, recording each acceptance decision as the agent's under that delegation.",
     "requested_by": "repository owner",
     "risk_level": 3,
     "mode": "change"
@@ -68,8 +68,13 @@
       "docs/ai/TASK_LOG.md",
       "docs/ai/KNOWN_ISSUES.md",
       "docs/ai/COMMANDS.md",
+      "docs/ai/DECISIONS.md",
       "docs/plans/ai-upgrade-v5/L7-release-confirmation.md",
       "docs/plans/ai-upgrade-v5/L1-ai-foundation.md",
+      "docs/plans/ai-upgrade-v5/L3-intelligent-locators.md",
+      "docs/plans/ai-upgrade-v5/L5-failure-evidence-and-analysis.md",
+      "docs/plans/ai-upgrade-v5/L6-fragments-and-templates.md",
+      "docs/plans/ai-upgrade-v5/ROADMAP.md",
       ".beads/**"
     ],
     "consultants": [
@@ -81,9 +86,21 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "qa",
+      "agent_id": "project-state",
       "allowed_paths": [
-        "scripts/verify-ai-packaged-runtime.mts"
+        ".beads/**",
+        "docs/ai/COMMANDS.md",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/KNOWN_ISSUES.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/plans/ai-upgrade-v5/L1-ai-foundation.md",
+        "docs/plans/ai-upgrade-v5/L3-intelligent-locators.md",
+        "docs/plans/ai-upgrade-v5/L5-failure-evidence-and-analysis.md",
+        "docs/plans/ai-upgrade-v5/L6-fragments-and-templates.md",
+        "docs/plans/ai-upgrade-v5/L7-release-confirmation.md",
+        "docs/plans/ai-upgrade-v5/ROADMAP.md",
+        "scripts/lib/verifier-classification.ts"
       ]
     },
     "writer_sequence": [
@@ -140,8 +157,8 @@
       "required": true,
       "command": "npm run verify:ai-packaged-runtime",
       "artifact": "dist/win-unpacked/resources/native-hosts/ai",
-      "result": "PASS",
-      "observed": "66/0 on fresh portable and NSIS from clean bafb05e3: staged into a temp dir outside the repository, 1461/1461 both ways, CPU only, no dotfile, 130 packages resolving inside, isolated getLlama with both negative controls failing as required, 24/24 protocol steps, live harness 13/13 on the staged copy, and the packaged tree exactly the signed staging with the same isolated load and handshake. Red first at 06f987d4 (1/1). Mutations caught and reverted: closure dropped 26/15, a Vulkan prebuilt plus an unlisted file failing the GPU and manifest-completeness checks. An earlier final-state run was INCONCLUSIVE on host CPU contention, reproduced on the repository host by verify:ai-model-live-0-8b (10/5)."
+      "result": "FAIL",
+      "observed": "Final state at 5b77cdd7 on fresh portable and NSIS from clean 1e856706: 95 passed, 2 failed, exit 1. Every QC-1..QC-7 check passes: A0 staging refusals 11/11, A1 validator rules 7/7, staged and packaged trees 1461/1461 both ways, license inventory 111/111 with 6 reproduced notices, no model file in 2088 files and 7840 app.asar members, packaged tree equal to the current staging, live harness 13/13 and protocol 24/24 on both, section F exit-status proofs 2/2. The 2 failures are one real defect the new PE-import check found in both trees: the prebuilt ggml/llama binaries import MSVCP140.dll and VCRUNTIME140.dll, which neither the staging nor the installer carries (an owner decision, see new_findings). Red first for the QC work: 74/12 at 93beb341 (8 staging refusals red on the unfixed script, no inventory), and the validator rules 1/6 against the original lazy pin and count logic restored in the working tree (never committed). Earlier: 66/0 at bafb05e3 before the QC review."
     },
     {
       "id": "verify:ai-packaged-app",
@@ -150,7 +167,7 @@
       "command": "npm run verify:ai-packaged-app",
       "artifact": "dist/win-unpacked/SpecterStudio.exe",
       "result": "PASS",
-      "observed": "19/0 on the same artifacts: the packaged main process finds its runtime and the pin, no bundled pack, MODEL_MISSING not RUNTIME_MISSING, the pinned 0.8B imported through ai:importModelPack in 4 s into the writable profile, and a real validation explanation OK in 73 s naming the pinned model with AWKIT_TEST_AI_PROVIDER set. No product mutation run (it would need a rebuilt installer)."
+      "observed": "20/0 on the fresh package from 1e856706: no model file in the artifact (2088 files, 7840 app.asar members read before launch), the packaged main process finds its runtime and the pin, no bundled pack, MODEL_MISSING not RUNTIME_MISSING, the pinned 0.8B imported in 3 s into the writable profile, and a real validation explanation OK in 67 s naming the pinned model with AWKIT_TEST_AI_PROVIDER set. Its NOT RUN path now exits 2 (was 0), proven by verify:ai-packaged-runtime section F. Earlier: 19/0 at bafb05e3."
     },
     {
       "id": "package:portable",
@@ -159,7 +176,7 @@
       "command": "npm run package:portable",
       "artifact": "dist/SpecterStudio 0.1.51.exe",
       "result": "PASS",
-      "observed": "From clean bafb05e3: preflight, build, staging (Zvec 17 files, AI 1461 files 50.7 MB), fresh-state 10/10, manifest signed ed25519:aa5b9dd8, strict offline PASS. 242967860 bytes, sha256 8bc0645e9911241de710c35b44b0cb66ef047bc4a245a00be8d8dde668e8e182. package:nsis PASS: 271754055 bytes, sha256 db11ba3bac17d28d6378da62b3261bfa9cd0f2de6529cd7581a402b7d302fe2f. Manifest pair (the NSIS run's copy) committed at 910de86e."
+      "observed": "From clean 1e856706 (after the QC fixes and the notices): preflight, build, staging (Zvec 17 files, AI 130 packages 1461 files 50.7 MB), fresh-state 10/10, manifest signed ed25519:aa5b9dd8, strict offline PASS with the path-by-path inventory. 242969232 bytes, sha256 eb0b54c48ad9c639d2fea435dc5f3cffc757fc6a81806a0c821418e7853bcc94. package:nsis PASS: 271757512 bytes, sha256 df1c1964b66da06fd159ca4a629d8a1ddab65880e71ce7e63640313d0071be15. Manifest pair (the NSIS run's copy, manifest sha256 4f3b0801) committed at 9469e69e. Earlier: bafb05e3, committed at 910de86e."
     },
     {
       "id": "validate:offline",
@@ -168,7 +185,7 @@
       "command": "npm run validate:offline -- -Strict",
       "artifact": "resources/dependency-manifest.json",
       "result": "PASS",
-      "observed": "At HEAD bafb05e3 before the manifest commit: Zvec 17/17 and local-AI runtime 1461/1461 assets checksum-verified, CPU only, no model pack, strict passed. Development mode on the pre-change manifest: PASS with the expected warning that it did not include the runtime. verify:offline-supply-chain 25/0, verify:packaged-validation 119/0, verify:packaged-runtime 25/0, verify:packaged-walkthrough 42/0/1 BLOCKED (licensed parts, issuer key)."
+      "observed": "At HEAD 1e856706 before the manifest commit: Zvec 17/17, local-AI runtime inventory 1461 staged files compared by path with 1461 signed entries (0 unlisted, 0 missing), 1461/1461 checksum-verified, the strict pin rules clean, CPU only, no model pack, strict passed. Development mode PASS at 93beb341 and 518e1c1b. On the fresh artifacts: verify:offline-supply-chain 25/0, verify:packaged-validation 119/0, verify:packaged-runtime 25/0. Earlier: strict PASS at bafb05e3."
     },
     {
       "id": "build",
@@ -177,7 +194,7 @@
       "command": "npm run build",
       "artifact": null,
       "result": "PASS",
-      "observed": "tsc --noEmit and electron-vite build inside both package pipelines at bafb05e3. No src/ or app/ file changed in this task. typecheck:scripts PASS after the last script change (d3c44e1c)."
+      "observed": "tsc --noEmit and electron-vite build inside both package pipelines at 1e856706 (and earlier at bafb05e3). No src/ or app/ file changed in this task. typecheck:scripts PASS after the last script change (5b77cdd7)."
     },
     {
       "id": "verify:verifier-classification",
@@ -197,46 +214,63 @@
     "push_authorized": true
   },
   "completion": {
-    "status": "implemented",
-    "qa_status": "PASS",
-    "qa_basis": "Every required gate ran on fresh artifacts from a clean tree and passed. The packaged layer found and verified the fix for a real defect. Negative controls and mutations show the new gate fails on the defects it exists for.",
-    "qa_known_limitations": "verify:ai-packaged-app has no product mutation run. The licensed walkthrough parts are BLOCKED on the issuer key, and the clean-machine VM is NOT RUN. No latency or quality claim is made. L7 is not accepted.",
+    "status": "blocked",
+    "blocked_on": "awkit-i6ot: the prebuilt AI binaries import MSVCP140.dll and VCRUNTIME140.dll, which the installer does not carry. Resolving it needs an owner or licensing decision (app-local Visual C++ runtime from a licensed redist, a documented prerequisite relaxing the offline rule, or a static-CRT build), so acceptance STAGE (a self-sufficient runtime tree) is not met.",
+    "qa_status": "FAIL",
+    "qa_basis": "Every QC-1..QC-7 check passes on fresh artifacts from clean 1e856706 and each fails against its original defect, but verify:ai-packaged-runtime is 95/2 FAIL on the one new real defect its PE-import check found (awkit-i6ot). FAIL is the true state of the self-sufficiency claim, not a harness problem.",
+    "qa_known_limitations": "The clean-machine VM is NOT RUN (it needs an operator, and the shell guard admits no Hyper-V command), so the MSVC consequence is inferred from the import table, not reproduced. The licensed walkthrough parts are BLOCKED on the issuer key. verify:ai-packaged-app has no product mutation run. The QC-1 and QC-2 red states are read from the old exit expressions, not re-run. No latency or quality claim is made. L7 is not accepted.",
     "qc_status": "pending",
+    "qc_basis": "The seven findings came from a QC review of the packaging. Their fixes have not had an independent QC re-review: the project rules allow no subagent unless the owner asks for one, and self-approval is not QC.",
     "qc_findings": [
       {
         "id": "QC-1",
         "finding": "verify:ai-packaged-runtime exits 0 when the packaged-tree section is NOT RUN, BLOCKED or stale",
-        "status": "open"
+        "status": "resolved",
+        "resolution": "gateExitCode exit (1 FAIL, stale FAILS, 2 NOT RUN) at 93beb341, one exit path and section F's black-box self-probe at 5b77cdd7"
       },
       {
         "id": "QC-2",
         "finding": "verify:ai-packaged-app exits 0 (process-level success) when the packaged-app gate never executed",
-        "status": "open"
+        "status": "resolved",
+        "resolution": "NOT RUN exits 2 at 93beb341, proven by section F with an empty home at 5b77cdd7"
       },
       {
         "id": "QC-3",
         "finding": "runtime staging does not reject a link, or a source path that resolves outside the repository boundary, above the package directory",
-        "status": "open"
+        "status": "resolved",
+        "resolution": "every source path must resolve to exactly its own place inside the real repository root, and --out may not lead back into it, at b162e825, with 3 junction refusals red on the old script (A0)"
       },
       {
         "id": "QC-4",
         "finding": "the runtime version pin is read with an ambiguous lazy regex and invalid or conflicting values are not rejected",
-        "status": "open"
+        "status": "resolved",
+        "resolution": "one frozen declaration, one name, one build of the pinned form agreeing with the single exact package.json pin, in the staging at b162e825 and the validator at 93beb341, with 5 staging and 4 validator cases red against the old logic"
       },
       {
         "id": "QC-5",
         "finding": "strict packaging validation compares file counts, not the actual file inventories",
-        "status": "open"
+        "status": "resolved",
+        "resolution": "path-by-path comparison both ways, duplicates, case variants and links refused, at 93beb341, with duplicate and case-variant cases red against the old count logic (A1), stderr abort fixed at 518e1c1b"
       },
       {
         "id": "QC-6",
         "finding": "model-pack exclusion is checked on manifest lists and app diagnostics, never on the real packaged artifact",
-        "status": "open"
+        "status": "resolved",
+        "resolution": "scripts/helpers/model-pack-scan.mts reads every file and app.asar member of dist/win-unpacked in both packaged gates at 93beb341, behind 3 controls, 0 found in 2088 files and 7840 members"
       },
       {
         "id": "QC-7",
         "finding": "no dependency-license inventory or technical redistribution review exists for the 130 staged runtime packages",
-        "status": "open"
+        "status": "resolved",
+        "resolution": "inventory of 111 distinct packages in 130 directories, redistribution review and the missing notices in resources/THIRD_PARTY_NOTICES.md at 1e856706, gated at b2f8bf36, no legal approval claimed"
+      }
+    ],
+    "new_findings": [
+      {
+        "id": "awkit-i6ot",
+        "finding": "the prebuilt ggml and llama binaries import MSVCP140.dll and VCRUNTIME140.dll, which neither the staging nor the installer carries",
+        "status": "open",
+        "needs": "owner or licensing decision"
       }
     ]
   },
@@ -537,6 +571,22 @@
         "acquired_at_commit": "b2f8bf3670a17914fd536d1198f6d1e710f0b9da",
         "released_at": "2026-09-24T18:13:15.518Z",
         "released_reason": "handoff to qa: QC-1 and QC-2 regression proof: both packaged AI gates must exit 2, never 0, when a required section did not run",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:qa:2026-09-24T18:13:15.576Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-ai-packaged-runtime.mts"
+        ],
+        "acquired_at": "2026-09-24T18:13:15.576Z",
+        "acquired_at_commit": "9469e69ec5a21ddbcd00f800b0e1c87204e61807",
+        "released_at": "2026-09-24T18:28:06.619Z",
+        "released_reason": "handoff to project-state: record the resolved QC findings, the new MSVC runtime defect and the Phase L acceptance decisions, reconcile the tracker and the dashboard sources",
         "amendments": [],
         "overrides": [],
         "violations": []

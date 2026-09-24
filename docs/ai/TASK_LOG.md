@@ -1,5 +1,51 @@
 # TASK_LOG
 
+## 2026-09-24 — Phase L closeout: seven L7 QC findings fixed, L1/L3/L5b accepted, Phase L not closed (Claude)
+
+- **Task:** the owner's "finalize and close Phase L" mission, which delegated technical and product decisions
+  and forbade manufactured sign-off. Contract `awkit-djnl-10-ai-runtime-packaging-0924`, extended. Leases:
+  project-state → qa → runtime → qa → runtime → qa → release → qa → project-state.
+- **Reconciliation:** commit `9c7ac35` was reported as unpushed. It is not present in this clone: no ref, no
+  reflog entry, no object. `main` equalled `origin/main` at `0c9bc646` after `git fetch origin`.
+- **Changes:**
+  - `verify:ai-packaged-runtime`:
+    - `gateExitCode` exit;
+    - sections A0 (staging refusals, black-box), A1 (validator rules via `-RootPath`) and F (exit-status
+      proofs);
+    - the license inventory against the notices;
+    - a PE-import check;
+    - a whole-artifact model scan.
+  - New `scripts/helpers/model-pack-scan.mts`.
+  - `verify:ai-packaged-app`: NOT RUN exits 2, and the artifact model scan.
+  - `validate-offline-bundle.ps1`:
+    - strict pin;
+    - path-by-path inventory;
+    - a signature-check abort fixed (PS 5.1 stderr under `Stop`).
+  - `prepare-ai-native-host.mjs`: boundary confinement and a strict pin.
+  - `THIRD_PARTY_NOTICES.md`: the inventory, the review and the reproduced notices.
+  - The classification entries for both packaged AI gates.
+  - A fresh manifest pair.
+- **Found:**
+  - `awkit-i6ot`: the AI binaries import the MSVC runtime, which the installer lacks. OPEN, owner decision.
+  - Five staged packages ship no license text.
+  - llama.cpp's MIT notice was never shipped.
+- **Checks:**
+  - Red first 74/12 (`93beb341`), and validator rules 1/6 against the original logic.
+  - Final `verify:ai-packaged-runtime` 95/2 (the 2 failures are `awkit-i6ot`).
+  - `verify:ai-packaged-app` 20/0.
+  - `validate:offline -- -Strict` PASS; `package:portable` and `package:nsis` PASS.
+  - Packaged gates 25/0, 119/0 and 25/0.
+  - AI acceptance verifiers 272/272, 38/0, 62/0, 69/0, 429/429, 191/191 and 78/0.
+  - `typecheck:scripts` PASS.
+- **Tracker:**
+  - Closed `awkit-djnl.1` (L1), `.4` (L3) and `.8` (L5b) with evidence (`DECISIONS.md`, latest).
+  - Filed `awkit-i6ot`, blocking L7.
+  - Notes added to L4b, L6 and L7.
+- **Not run:**
+  - the clean-machine VM: it needs an operator, and the shell guard admits no Hyper-V command;
+  - the licensed walkthrough parts: BLOCKED on the issuer key;
+  - an independent QC re-review of the fixes: the contract `qc_status` stays `pending`.
+
 ## 2026-09-24 — Phase L L7: the installer carries the pinned local-AI runtime; the first packaged AI gate (Claude)
 
 - **Task:** the owner's Phase L completion directive. A code-grounded completion matrix found one independent

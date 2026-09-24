@@ -1,6 +1,31 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-24, latest) — the installer carries the AI runtime; the remaining Phase L work is owner-gated
+## HANDOFF (2026-09-24, latest) — Phase L closeout: L7 QC fixed, L1/L3/L5b accepted, Phase L NOT closed
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. Phase L is 7 of 10
+  closed. L1, L3 and L5b were closed today on the agent's acceptance decisions under the owner's delegation
+  (`DECISIONS.md`, latest). The owner can reverse them.
+- **Done:** the seven L7 QC findings are fixed, red-first proven and gated (CURRENT_STATE newest, L7 plan ›
+  "QC findings resolved"). Fresh portable and NSIS artifacts were built from clean `1e856706`.
+- **What keeps Phase L open, and who acts:**
+  1. **L4b, a person.** 15 verdicts: `npm run verify:ai-authoring-review -- --pending`, then
+     `-- --record … --reviewer <your label>`. An agent must not record verdicts.
+  2. **`awkit-i6ot`, an owner or licensing decision.** The AI binaries need the MSVC runtime, which the
+     installer lacks. Three options: (a) ship it app-locally, which needs Visual Studio redistribution rights
+     and a licensed redist source; (b) declare it a prerequisite for AI; (c) a static-CRT runtime build.
+     Then re-run `verify:ai-packaged-runtime` (PE-import check) and the clean-machine VM.
+  3. **L6 follows L4b.** Its own criteria hold; only the L4b edge keeps it open.
+  4. **L7, after 1–3.** Still owed:
+     - the security review;
+     - the performance confirmation with final prompts;
+     - thresholds: T2 and automatic analysis are off, so N, row diversity and self-demotion stay
+       provisional, marked not applicable;
+     - the licensed walkthrough parts (BLOCKED, issuer key);
+     - the clean-machine VM (NOT RUN, operator).
+- **Do not:** record L4b verdicts, relabel the MSVC FAIL, or ship the MSVC runtime without the owner's
+  licensing decision.
+
+## HANDOFF (2026-09-24, superseded) — the installer carries the AI runtime; the remaining Phase L work is owner-gated
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No bead status or edge changed.
 - **Done:** L7 packaging.

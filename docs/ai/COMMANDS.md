@@ -467,13 +467,18 @@ npm run verify:ai-host-electron   # production AiUtilityHostManager against the 
 npm run prepare:ai-host           # L7: stage ai-host.cjs + the pinned CPU runtime closure into build/native-hosts/ai
                                   # (both package pipelines run it; the lease guard admits no prepare:* for agents)
 npm run verify:ai-packaged-runtime
-                                  # L7: stages into a temp dir OUTSIDE the repo, manifest both ways, CPU only,
-                                  # closure resolves inside, isolated load with 2 negative controls, handshake,
-                                  # live harness on the staged copy (0.8B, NOT RUN without it), then the same on
-                                  # dist/win-unpacked (NOT RUN when absent, stale when not the current staging) (66)
-npm run verify:ai-packaged-app    # L7: the real packaged EXE on a fresh profile: runtime found, no pack bundled,
-                                  # MODEL_MISSING not RUNTIME_MISSING, import through the app, a real inference,
-                                  # the test provider ignored. After package:portable; TIMEOUT = INCONCLUSIVE (19)
+                                  # L7: staging refusals on a byte-identical copy (A0), the strict validator's pin
+                                  # and inventory rules via -RootPath (A1), staging into a temp dir OUTSIDE the
+                                  # repo, manifest both ways, CPU only, closure resolves inside, PE imports staged
+                                  # or Windows', licenses vs THIRD_PARTY_NOTICES, isolated load with 2 negative
+                                  # controls, handshake, live harness (0.8B), then dist/win-unpacked: model scan of
+                                  # every file and app.asar member, the same checks, identity with the staging, and
+                                  # exit-status proofs (F). Exit: 1 FAIL (stale = FAIL), 2 NOT RUN, 0 only when all
+                                  # ran. 95/2 at 5b77cdd7: both failures are the MSVC runtime (awkit-i6ot)
+npm run verify:ai-packaged-app    # L7: the real packaged EXE on a fresh profile: no model file in the artifact,
+                                  # runtime found, no pack bundled, MODEL_MISSING not RUNTIME_MISSING, import through
+                                  # the app, a real inference, the test provider ignored. After package:portable.
+                                  # NOT RUN exits 2, TIMEOUT = INCONCLUSIVE (2), stale = FAIL (20)
 npm run verify:ai-model-live      # NOT RUN until the owner installs node-llama-cpp 3.21.1 and downloads the pack
 npm run verify:ai-model-live-0-8b # the same gate on Qwen3.5-0.8B-Q4_K_M.gguf from ~/Downloads, the pack's own GGUF
                                   # header checked against its manifest entry (context length, quantization) (23)

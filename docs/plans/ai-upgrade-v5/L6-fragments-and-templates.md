@@ -2,6 +2,13 @@
 
 Shared rules, architecture and decisions: `ROADMAP.md`. Depends on L2 and L4. Core behavior is deterministic.
 
+**Status (2026-09-24): its own acceptance criteria hold, but `awkit-djnl.9` stays `in_progress` because
+L4b (`awkit-djnl.6`) blocks it.** L4b waits on a person's review. The criteria are: works with AI off,
+retrieval before the model, fragments validated as first-class content, no secrets persisted. Decided under
+the owner's closeout delegation (`docs/ai/DECISIONS.md`, latest): the T1 mapping-review surface is not
+built, not in the limited GO and not one of these criteria, so it is deferred out of Phase L. Fragment
+summaries are not in the GO either.
+
 ## Audit first (blocking)
 
 Matrix — existing capability / reusable owner / real gap / proposed change / verifier — for: semantic indexing of

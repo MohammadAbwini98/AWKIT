@@ -20,10 +20,10 @@
   "claims": [
     {
       "itemId": "bead:awkit-djnl-10-ai-runtime-packaging-0924",
-      "agent": "Quality Assurance Engineer",
+      "agent": "Documentation / Project-State Specialist",
       "state": "in-progress",
-      "claimedAt": "2026-09-24T18:13:15.576Z",
-      "note": "write lease: scripts/verify-ai-packaged-runtime.mts"
+      "claimedAt": "2026-09-24T18:28:06.694Z",
+      "note": "write lease: .beads/**, docs/ai/COMMANDS.md, docs/ai/CURRENT_STATE.md, docs/ai/HANDOFF.md, docs/ai/KNOWN_ISSUES.md, docs/ai/TASK_LOG.md, docs/plans/ai-upgrade-v5/L1-ai-foundation.md, docs/plans/ai-upgrade-v5/L3-intelligent-locators.md, docs/plans/ai-upgrade-v5/L5-failure-evidence-and-analysis.md, docs/plans/ai-upgrade-v5/L6-fragments-and-templates.md, docs/plans/ai-upgrade-v5/L7-release-confirmation.md, docs/plans/ai-upgrade-v5/ROADMAP.md, scripts/lib/verifier-classification.ts"
     }
   ]
 }
