@@ -731,7 +731,9 @@ Found by the independent QC review (`awkit-qc-reviewer`, APPROVED_WITH_NOTES).
 ## `SemanticRedactor` missed a key/value whose value starts with `{`, a quoted space or punctuation (2026-09-21, FIXED — the pattern is the lesson)
 
 - **Symptom (before the fix):**
-  - `password: {hunter2}` came back unchanged.
+  - A password key whose value was wrapped in braces came back unchanged. (The literal example is not
+    kept here: the memory gate's secret scan rightly refuses it, and it failed `verify:agent-routing`'s
+    Stop-hook check from 2026-09-21 until 2026-09-24.)
   - `session: "two words"` lost only `two`.
   - `{"credential": {…}}` kept its whole nested object.
 - **Cause:** rule 4 (structured key/value) had the value class `[^"\s,;}{&]+`. A value that STARTED with

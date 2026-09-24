@@ -35,6 +35,7 @@ Only inside a granted write lease, and only within:
 - `scripts/oracle/**`
 - `scripts/prepare-oracle-runtime.mjs`
 - `scripts/prepare-zvec-native-host.mjs`
+- `scripts/prepare-ai-native-host.mjs`
 - `scripts/zvec-harness/**`
 - `scripts/zvec-spike/**`
 

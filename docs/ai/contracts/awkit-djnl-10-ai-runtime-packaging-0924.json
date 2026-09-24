@@ -1,0 +1,185 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-10-ai-runtime-packaging-0924",
+    "title": "L7 packaging: the installer carries the pinned local-AI runtime beside its host",
+    "objective": "Phase L L7 › Packaging requires that the installer carry the pinned runtime and integration only, with the model pack separate. It does not: node-llama-cpp is a dev dependency, electron-builder.json ships only native-hosts/zvec, and no script stages native-hosts/ai, so a packaged build reports the AI runtime as not included and no packaged AI gate can run (L1 decision record: 'no packaged AI gate has run'). Stage native-hosts/ai/ai-host.cjs with node-llama-cpp 3.21.1, the CPU-only @node-llama-cpp/win-x64 prebuilt and node-llama-cpp's declared runtime dependency closure into build/native-hosts/ai (scripts/prepare-ai-native-host.mjs, mirroring the Zvec host: never downloads, refuses symlinks and escapes, GPU and foreign prebuilts, the llama.cpp source bundle, type declarations and source maps excluded, a per-file SHA-256 manifest, the runtime build checked against AI_RUNTIME_PIN), ship it through electron-builder extraResources, call it from both package pipelines before the dependency manifest is generated, fold its manifest into the signed dependency manifest as aiRuntime, and have validate:offline checksum it (a strict release without the runtime fails). Prove it with verify:ai-packaged-runtime, which stages into a temp directory outside the repository so module lookup cannot fall back to the repository's node_modules, loads the runtime there with two negative controls, handshakes the production AiUtilityHostManager with the staged host, runs the live harness on it with the pinned 0.8B pack, and repeats the checks on dist/win-unpacked. No model pack is bundled, no AI behavior, threshold, permission, policy, autonomy tier or model pin changes, and no Phase L milestone closes on this.",
+    "requested_by": "repository owner",
+    "risk_level": 3,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "3f9c21ed",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [],
+    "preserved_notes": [
+      "The unleased routine files of this task (routing entry, verifier, classification, builder entry, package scripts) are written before the first lease and committed separately; nothing of the owner's is touched."
+    ]
+  },
+  "classification": {
+    "execution_change": true,
+    "authorization_change": true,
+    "offline_boundary_change": true,
+    "packaging_change": true,
+    "project_state_change": true,
+    "agent_infrastructure_change": true,
+    "cross_layer_count": 3
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "architect",
+      "runtime",
+      "qa",
+      "qc",
+      "security",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      "scripts/prepare-ai-native-host.mjs",
+      "scripts/package-portable.ps1",
+      "scripts/package-per-user-installer.ps1",
+      "scripts/generate-dependency-manifest.ps1",
+      "resources/THIRD_PARTY_NOTICES.md",
+      "resources/dependency-manifest.json",
+      "resources/dependency-manifest.sig",
+      "electron-builder.json",
+      "package.json",
+      "scripts/verify-ai-packaged-runtime.mts",
+      "scripts/validate-offline-bundle.ps1",
+      "scripts/lib/verifier-classification.ts",
+      "tools/agents/routing-matrix.mjs",
+      "scripts/verify-agent-routing.mjs",
+      ".claude/agents/awkit-backend-engineer.md",
+      ".codex/skills/agent-routing/SKILL.md",
+      ".gemini/skills/agent-routing/SKILL.md",
+      "docs/ai/routing/ROUTING_MATRIX.md",
+      "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/COMMANDS.md",
+      "docs/plans/ai-upgrade-v5/L7-release-confirmation.md",
+      "docs/plans/ai-upgrade-v5/L1-ai-foundation.md",
+      ".beads/**"
+    ],
+    "consultants": [
+      "architect",
+      "security"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "runtime",
+      "allowed_paths": [
+        "scripts/prepare-ai-native-host.mjs"
+      ]
+    },
+    "writer_sequence": [
+      "runtime",
+      "qa",
+      "release",
+      "project-state",
+      "manager"
+    ]
+  },
+  "constraints": {
+    "architecture": [
+      "Mirror scripts/prepare-zvec-native-host.mjs: copy from the installed node_modules only, never download or build, fail loudly rather than stage a partial tree.",
+      "The host stays raw and unbundled beside its own node_modules; nothing of node-llama-cpp enters app.asar or an electron-vite chunk.",
+      "Use npm run package:portable and npm run package:nsis; never hand-invoke electron-builder."
+    ],
+    "security": [
+      "Do not alter signing-key custody; the manifest is signed by the existing pipeline only.",
+      "No model pack is bundled; the pack stays an imported, checksum-verified file under LOCALAPPDATA."
+    ],
+    "offline": [
+      "No runtime download, telemetry, global Node, global Playwright, global browser, GPU requirement or admin right may be introduced."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "STAGE",
+      "description": "The staging script produces a complete, self-sufficient CPU-only runtime tree whose every file is in its manifest and whose runtime build is the pin, proven in isolation from the repository's node_modules with negative controls.",
+      "evidence_required": [
+        "verify:ai-packaged-runtime"
+      ]
+    },
+    {
+      "id": "PACKAGE",
+      "description": "The packaged tree carries the runtime, the signed dependency manifest records it, and strict offline validation checksums it.",
+      "evidence_required": [
+        "package:portable",
+        "validate:offline"
+      ]
+    },
+    {
+      "id": "BUILD",
+      "description": "Typecheck, bundles and the script typecheck pass; the verifier is registered.",
+      "evidence_required": [
+        "build",
+        "verify:verifier-classification"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:ai-packaged-runtime",
+      "type": "packaged",
+      "required": true,
+      "command": "npm run verify:ai-packaged-runtime",
+      "artifact": null,
+      "result": "pending"
+    },
+    {
+      "id": "package:portable",
+      "type": "packaged",
+      "required": true,
+      "command": "npm run package:portable",
+      "artifact": null,
+      "result": "pending"
+    },
+    {
+      "id": "validate:offline",
+      "type": "packaged",
+      "required": true,
+      "command": "npm run validate:offline -- -Strict",
+      "artifact": null,
+      "result": "pending"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "pending"
+    },
+    {
+      "id": "verify:verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "artifact": null,
+      "result": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  }
+}

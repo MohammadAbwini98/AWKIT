@@ -506,6 +506,10 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "real-browser",
     why: "Launches a real Electron app directory that drives the production AiUtilityHostManager against the real ai-host.cjs in a utility process: handshake reporting whether the runtime is installed, out-of-root and damaged-GGUF refusals the host survives, the runtime kept out of the main process, a killed host detected and restarted in a new process, the circuit opening on the third crash, and disposal leaving no process. No model."
   },
+  "verify:ai-packaged-runtime": {
+    class: "packaged-application",
+    why: "Phase L L7 packaging: stages the pinned node-llama-cpp runtime with scripts/prepare-ai-native-host.mjs into a temp directory OUTSIDE the repository (so module lookup cannot climb into the repository's node_modules), checks every file against the staged manifest in both directions, the host and addon byte-identical to their sources, CPU prebuilt only, and every declared runtime dependency resolving inside the tree; loads the runtime from that isolated copy in Electron's Node with two negative controls (no CPU prebuilt, one JS dependency removed) that must fail; handshakes the production AiUtilityHostManager with the staged host in a real utility process; runs the live harness on it with the pinned 0.8B pack (NOT RUN without it); and repeats integrity, identity with the current staging and the isolated load on dist/win-unpacked's tree (NOT RUN when absent, stale when not the current staging)."
+  },
   "verify:ai-model-live": {
     class: "real-browser",
     why: "Credential-style gate on the owner-installed node-llama-cpp and downloaded Qwen3.5-4B pack (NOT RUN without them): measures the pack, requires the runtime pin and manifest entry, imports through AiModelPackStore with the real manifest, then drives the production AiService and AiUtilityHostManager against the real host in a real Electron utility process for constrained decoding, determinism, injection text, thinking off, special-token literalness, truncation, cancel, deadline, yield, crash recovery and shutdown."

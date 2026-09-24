@@ -187,6 +187,7 @@ export const AGENTS = Object.freeze([
       "scripts/oracle/**",
       "scripts/prepare-oracle-runtime.mjs",
       "scripts/prepare-zvec-native-host.mjs",
+      "scripts/prepare-ai-native-host.mjs",
       "scripts/zvec-harness/**",
       "scripts/zvec-spike/**"
     ],
@@ -1004,6 +1005,7 @@ export const PATH_DOMAINS = Object.freeze([
     "scripts/oracle/**",
     "scripts/prepare-oracle-runtime.mjs",
     "scripts/prepare-zvec-native-host.mjs",
+    "scripts/prepare-ai-native-host.mjs",
     "scripts/zvec-harness/**",
     "scripts/zvec-spike/**"
   ].map((glob) => ({

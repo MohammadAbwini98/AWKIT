@@ -55,6 +55,13 @@
       "filter": [
         "**/*"
       ]
+    },
+    {
+      "from": "build/native-hosts/ai",
+      "to": "native-hosts/ai",
+      "filter": [
+        "**/*"
+      ]
     }
   ],
   "win": {

@@ -173,7 +173,7 @@ const VERBOSE = process.argv.slice(2).some((arg) => arg === "--verbose" || arg =
 // resolution, one domain-inside-ownsPaths and one expected-path activation check.
 // +28 (2026-09-20): the contract retention cleanup section — the removal lifecycle, the durable
 // record surviving it, idempotency, ten refusal shapes and the manager-only authorization boundary.
-const EXPECTED_UNCONDITIONAL_CHECKS = 1139;
+const EXPECTED_UNCONDITIONAL_CHECKS = 1142;
 /** Live PreToolUse hook probes; run only when the active lease grants this verifier's own path. */
 const EXPECTED_LIVE_LEASE_CHECKS = 3;
 /** Junction-escape confinement probe; runs only where the filesystem/privileges allow a junction. */
