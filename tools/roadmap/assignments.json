@@ -20,10 +20,10 @@
   "claims": [
     {
       "itemId": "bead:awkit-djnl-10-ai-runtime-packaging-0924",
-      "agent": "Electron Main / Runner Engineer",
+      "agent": "Quality Assurance Engineer",
       "state": "in-progress",
-      "claimedAt": "2026-09-24T15:47:08.226Z",
-      "note": "write lease: scripts/prepare-ai-native-host.mjs"
+      "claimedAt": "2026-09-24T15:47:18.605Z",
+      "note": "write lease: scripts/verify-ai-packaged-runtime.mts"
     }
   ]
 }

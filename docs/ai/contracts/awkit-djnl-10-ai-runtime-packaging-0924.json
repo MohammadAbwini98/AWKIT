@@ -78,9 +78,9 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "runtime",
+      "agent_id": "qa",
       "allowed_paths": [
-        "scripts/prepare-ai-native-host.mjs"
+        "scripts/verify-ai-packaged-runtime.mts"
       ]
     },
     "writer_sequence": [
@@ -323,6 +323,22 @@
         "acquired_at_commit": "dbad44bac6ae888c72fbe2348e24181ecace5352",
         "released_at": "2026-09-24T15:47:08.170Z",
         "released_reason": "handoff to runtime: manifest pair committed at 910de86e, correct the dotfile comment: the rebuild showed electron-builder drops some dotfiles, not all",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:runtime:2026-09-24T15:47:08.226Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/prepare-ai-native-host.mjs"
+        ],
+        "acquired_at": "2026-09-24T15:47:08.226Z",
+        "acquired_at_commit": "910de86e7540fd859411f7138d8077afb4bc1fc9",
+        "released_at": "2026-09-24T15:47:18.549Z",
+        "released_reason": "handoff to qa: correct the verifier's dotfile check wording to what was measured",
         "amendments": [],
         "overrides": [],
         "violations": []
