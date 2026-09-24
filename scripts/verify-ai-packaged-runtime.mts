@@ -36,7 +36,10 @@
  *   F. Neither packaged AI gate reports success for a gate that did not run: verify:ai-packaged-app with no
  *      model pack, and this gate's own exit path through a self-probe, must both exit 2.
  *   The PE-import check in A and E asks whether every DLL the staged binaries import is staged or ships
- *   with Windows, which is what "self-sufficient" means on a machine with nothing else installed.
+ *   with Windows, which is what "self-sufficient" means on a machine with nothing else installed. The
+ *   Visual C++ runtime is staged app-local from the Visual Studio redist folder (awkit-i6ot): A proves
+ *   the staging refuses without it, and that the manifest and notices record it.
+ *   `verify:native-dependencies` covers the whole packaged artifact and lets the loader decide.
  *
  * Exit, the `gateExitCode` convention: 1 on any failure, 2 when a required section did not run (no
  * packaged artifact, no model pack), 0 only when every section ran and passed. NOT RUN is never a pass.
@@ -55,6 +58,7 @@ import { deriveInferenceThreads } from "../src/ai/AiAdmission";
 import { AI_MODEL_MANIFEST, AI_RUNTIME_PIN } from "../src/offline/AiModelManifest";
 import { HOST_PATH, ROOT, buildAiHarness, measurePack, printSteps, runAiHarness, stageModelRoot } from "./ai-harness/launch.mts";
 import { scanForModelFiles } from "./helpers/model-pack-scan.mts";
+import { peImports } from "./helpers/pe-image.mts";
 import { gateExitCode } from "./lib/failure-capture-gate.mts";
 
 const MANIFEST_NAME = "ai-native-host-manifest.json";
@@ -74,6 +78,8 @@ const REPRODUCED_HEADING = "### License texts reproduced here";
 const REVIEWED_LICENSES = new Set(["MIT", "ISC", "BlueOak-1.0.0", "BSD-2-Clause", "Apache-2.0"]);
 /** Code compiled into the staged prebuilt binaries whose own notice no staged file carries. */
 const EMBEDDED_NOTICES = ["llama.cpp"];
+/** The Visual C++ runtime the staging copies app-local from the Visual Studio redist folder (awkit-i6ot). */
+const MSVC_RUNTIME = ["msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll"];
 const LICENSE_TEXT = /^(licen[cs]e|copying|notice)(?![a-z])/i;
 
 const asarModule = createRequire(import.meta.url)("@electron/asar") as { createPackage(src: string, dest: string): Promise<unknown> };
@@ -238,6 +244,12 @@ function assertLicenses(dir: string, label: string, listed: string[], noticesFil
     expected.size > 0 && missing.length === 0 && extra.length === 0 && notices.rows.length === expected.size,
     `${missing.length} missing, ${extra.length} not staged${extra.length > 0 ? `: ${extra.slice(0, 3).join(" ")}` : ""}`
   );
+  const text = fs.readFileSync(noticesFile, "utf8");
+  check(
+    `${label}: the notices describe the app-local Microsoft Visual C++ runtime and name each of its files`,
+    /^### Microsoft Visual C\+\+ runtime$/m.test(text) && MSVC_RUNTIME.every((file) => text.includes(`\`${file}\``)),
+    "no \"### Microsoft Visual C++ runtime\" section naming msvcp140.dll, vcruntime140.dll and vcruntime140_1.dll"
+  );
   if (missing.length > 0 || extra.length > 0) {
     const expectedTable = path.join(os.tmpdir(), `awkit-ai-runtime-inventory-${label}.md`);
     fs.writeFileSync(expectedTable, `${INVENTORY_HEADING}\n\n| Package | Version | License | License text |\n|---|---|---|---|\n${rows.map((r) => r.row).join("\n")}\n`);
@@ -247,38 +259,6 @@ function assertLicenses(dir: string, label: string, listed: string[], noticesFil
 
 /** Windows ships these (or resolves them itself); every other DLL a staged binary imports must be staged. */
 const WINDOWS_DLL = /^(api-ms-win-.*|ext-ms-.*|kernel32|kernelbase|ntdll|user32|gdi32|advapi32|shell32|shlwapi|ole32|oleaut32|ws2_32|bcrypt|crypt32|secur32|version|psapi|dbghelp|iphlpapi|winmm|comdlg32|setupapi|powrprof|userenv|node)\.(dll|exe)$/i;
-
-/** The DLL names a PE image imports, from its import and delay-load directories. */
-function peImports(file: string): string[] {
-  const b = fs.readFileSync(file);
-  if (b.length < 0x40 || b.readUInt16LE(0) !== 0x5a4d) return [];
-  const pe = b.readUInt32LE(0x3c);
-  if (b.readUInt32LE(pe) !== 0x4550) return [];
-  const sectionCount = b.readUInt16LE(pe + 6);
-  const optional = pe + 24;
-  const dataDirectory = optional + (b.readUInt16LE(optional) === 0x20b ? 112 : 96);
-  const sectionTable = optional + b.readUInt16LE(pe + 20);
-  const offsetOf = (rva: number): number => {
-    for (let i = 0; i < sectionCount; i += 1) {
-      const s = sectionTable + i * 40;
-      const va = b.readUInt32LE(s + 12);
-      if (rva >= va && rva < va + Math.max(b.readUInt32LE(s + 8), b.readUInt32LE(s + 16))) return rva - va + b.readUInt32LE(s + 20);
-    }
-    return -1;
-  };
-  const names: string[] = [];
-  const read = (directoryRva: number, stride: number, nameField: number): void => {
-    for (let d = directoryRva ? offsetOf(directoryRva) : -1; d >= 0; d += stride) {
-      const nameRva = b.readUInt32LE(d + nameField);
-      const at = nameRva ? offsetOf(nameRva) : -1;
-      if (at < 0) break;
-      names.push(b.toString("latin1", at, b.indexOf(0, at)));
-    }
-  };
-  read(b.readUInt32LE(dataDirectory + 8), 20, 12);
-  read(b.readUInt32LE(dataDirectory + 13 * 8), 32, 4);
-  return names;
-}
 
 function assertNativeImports(dir: string, label: string, listed: string[]): void {
   const binaries = listed.filter((rel) => /\.(dll|node)$/i.test(rel));
@@ -294,7 +274,7 @@ function assertNativeImports(dir: string, label: string, listed: string[]): void
   check(
     `${label}: every DLL the staged native binaries import is staged beside them or ships with Windows (${binaries.length} binaries, ${imports} imports)`,
     binaries.length > 0 && imports > 0 && unmet.length === 0,
-    unmet.length > 0 ? unmet.slice(0, 6).join("; ") : "no import was read"
+    unmet.length > 0 ? unmet.join("; ") : "no import was read"
   );
 }
 
@@ -355,6 +335,12 @@ function assertStagedTree(dir: string, label: string, noticesFile: string): Stag
     unresolved.length > 0 ? unresolved.slice(0, 5).join("; ") : `only ${packages.length} packages for ${directDeps.length} direct dependencies`
   );
   assertNativeImports(dir, label, [...listed.keys()]);
+  const msvc = (manifest as StagedManifest & { msvcRuntime?: { redistVersion?: string; files?: string[] } | null }).msvcRuntime;
+  check(
+    `${label}: the manifest records where the Visual C++ runtime came from (Visual Studio redist ${msvc?.redistVersion ?? "none"})`,
+    /^14\.\d+\.\d+$/.test(msvc?.redistVersion ?? "") && JSON.stringify(msvc?.files) === JSON.stringify(MSVC_RUNTIME),
+    JSON.stringify(msvc ?? null)
+  );
   assertLicenses(dir, label, [...listed.keys()], noticesFile);
   return manifest;
 }
@@ -730,6 +716,21 @@ try {
   for (let dir = scratch; path.dirname(dir) !== dir; dir = path.dirname(dir)) ancestors.push(path.dirname(dir));
   const leaks = ancestors.filter((dir) => fs.existsSync(path.join(dir, "node_modules", "node-llama-cpp")));
   check("precondition: no directory above the staging root can supply node-llama-cpp", leaks.length === 0, leaks.join(", "));
+
+  // awkit-i6ot: with no Visual Studio redist reachable, the real script must refuse rather than stage a
+  // runtime that loads only where Visual C++ happens to be installed.
+  const noRedistOut = path.join(scratch, "ai-without-vs-redist");
+  const noRedistRun = spawnSync(process.execPath, [STAGING_SCRIPT, "--out", noRedistOut], {
+    cwd: ROOT,
+    env: { ...process.env, "ProgramFiles(x86)": path.join(scratch, "no-visual-studio") },
+    encoding: "utf8",
+    timeout: 300_000
+  });
+  check(
+    "without a Visual Studio redist the staging refuses the Visual C++ runtime and stages nothing",
+    noRedistRun.status === 1 && /MSVC runtime: no Visual Studio installation/.test(noRedistRun.stderr ?? "") && !fs.existsSync(path.join(noRedistOut, MANIFEST_NAME)),
+    `exit ${noRedistRun.status}: ${`${noRedistRun.stderr ?? ""}`.trim().slice(0, 300)}`
+  );
 
   const stageRun = spawnSync(process.execPath, [STAGING_SCRIPT, "--out", staged], { cwd: ROOT, encoding: "utf8", timeout: 300_000 });
   check("scripts/prepare-ai-native-host.mjs stages the runtime (exit 0)", stageRun.status === 0, `${stageRun.status}: ${`${stageRun.stderr ?? ""}${stageRun.error?.message ?? ""}`.trim().slice(0, 400)}`);
