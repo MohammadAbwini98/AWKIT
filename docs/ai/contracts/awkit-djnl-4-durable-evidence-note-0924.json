@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-4-durable-evidence-note-0924",
+    "title": "Note the durable locator-quality evidence on awkit-djnl.4",
+    "objective": "At 562d2581 the live locator-quality verifiers save durable, sanitized per-case evidence (acdf841f: the harness records each case's codes and counts as it runs, settleQualityRun saves a new allowlisted file under docs/plans/ai-upgrade-v5/evidence before the scratch folders are removed, never replaced, a failed save fails the run; verify:ai-locator-quality-controls 28/0 with 17 model-free checks and six mutations caught and reverted; no model run) and recorded (562d2581, the OPEN issue FIXED, a new OPEN verify:ai-spy-live follow-up). Append one note to awkit-djnl.4. Refresh the JSONL export. Nothing closes: awkit-djnl.4 stays in_progress, and no edge is added or removed. The lease writes .beads/** only.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "562d2581",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "scripts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "tracker-reflects-reality",
+      "description": "awkit-djnl.4 stays in_progress with a note naming acdf841f and 562d2581, the root cause, the evidence file location and contract, the controls 28/0 with six caught mutations, no model run, the D1 live result unchanged with no evidence file made for it, and the verify:ai-spy-live follow-up, no edge changes, the JSONL export is refreshed from the database, and the dashboard reports that its sources agree.",
+      "evidence_required": [
+        "roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177 with the Overview banner on 'Sources agree' on round 1, run once after the lease release, after `bd update awkit-djnl.4 --append-notes` and `bd export -o .beads/issues.jsonl` (one line changed): 26 outstanding / 294 closed with 180 edges (unchanged), and both narratives restating 65 PASS / 2 NOT RUN / 0 BLOCKED. Also run once at the final state: verify:verifier-classification 263 reconciled (no new script)."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-4-durable-evidence-note-0924:project-state:2026-09-24T10:53:10.167Z",
+        "task": "awkit-djnl-4-durable-evidence-note-0924",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-24T10:53:10.167Z",
+        "acquired_at_commit": "562d2581e6c1a8d18d2ebb8e05e213e8c5baf778",
+        "released_at": "2026-09-24T10:53:51.994Z",
+        "released_reason": "durable-evidence change noted on awkit-djnl.4 at 562d2581, nothing closed, no edge changed, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}
