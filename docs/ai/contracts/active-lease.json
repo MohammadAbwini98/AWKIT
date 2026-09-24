@@ -1,27 +1,21 @@
 {
   "task": "awkit-djnl-10-ai-runtime-packaging-0924",
   "contract_path": "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json",
-  "holder": "release",
+  "holder": "runtime",
   "status": "active",
   "allowed_paths": [
-    "build",
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig"
+    "scripts/prepare-ai-native-host.mjs"
   ],
-  "acquired_at": "2026-09-24T15:28:08.398Z",
-  "acquired_at_commit": "dbad44bac6ae888c72fbe2348e24181ecace5352",
+  "acquired_at": "2026-09-24T15:47:08.226Z",
+  "acquired_at_commit": "910de86e7540fd859411f7138d8077afb4bc1fc9",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json",
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig",
     "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "b5e23eec17e4d16bad0f7597bd596a07a5ba306f6b9f3c3640a165427c6fdeaa",
-    "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json": "8a784ceabdd96cf585b87a6a6277cbd793ceec24022a86f454720c82ebe1b67c",
-    "resources/dependency-manifest.json": "44228e957a46814ec87dc64821aaeefc3736ed65b6a17861796ba95b50768ac4",
-    "resources/dependency-manifest.sig": "a744444667e49f7df1cd4631cc27c4d5ec5b4d11015670fd0097453a0f516be8",
+    "docs/ai/contracts/active-lease.json": "b04902eed9a6770680ef112f01d79c7a9b967f5ef59f52a311df5c086a8df05d",
+    "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json": "8404288b7c4da3e3b585186668bd49e2a41b3eb48dee81f0060f08cadb6c7dd5",
     "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {
@@ -32,7 +26,7 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1790262387613.4446"
+    "build": "dir(1):native-hosts:1790264012703.0955"
   },
   "amendments": [],
   "overrides": [],

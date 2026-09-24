@@ -78,11 +78,9 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "release",
+      "agent_id": "runtime",
       "allowed_paths": [
-        "build",
-        "resources/dependency-manifest.json",
-        "resources/dependency-manifest.sig"
+        "scripts/prepare-ai-native-host.mjs"
       ]
     },
     "writer_sequence": [
@@ -307,6 +305,24 @@
         "acquired_at_commit": "680090f637d6b0026bc70e2c0e2bea35fac87261",
         "released_at": "2026-09-24T15:28:08.339Z",
         "released_reason": "handoff to release: gates classified at dbad44ba, rebuild portable and NSIS from the clean tree with the dotfile fix and commit the regenerated manifest pair",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:release:2026-09-24T15:28:08.398Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "build",
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig"
+        ],
+        "acquired_at": "2026-09-24T15:28:08.398Z",
+        "acquired_at_commit": "dbad44bac6ae888c72fbe2348e24181ecace5352",
+        "released_at": "2026-09-24T15:47:08.170Z",
+        "released_reason": "handoff to runtime: manifest pair committed at 910de86e, correct the dotfile comment: the rebuild showed electron-builder drops some dotfiles, not all",
         "amendments": [],
         "overrides": [],
         "violations": []

@@ -196,9 +196,10 @@ function copyPackage(pkgDir, name) {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const from = path.join(dir, entry.name);
       if (excluded.some((ex) => from === ex || from.startsWith(ex + path.sep))) continue;
-      // electron-builder's extraResources filter ("**/*") never ships a dotfile or dot-directory, so
-      // staging one would make the signed manifest list a file the installer does not carry (measured:
-      // the packaged tree lacked chmodrp/.gitkeep). None is runtime code; the staged tree is what ships.
+      // electron-builder drops some dotfiles from extraResources by its own default exclusions (measured:
+      // of 13 staged, the packaged tree lacked chmodrp/.gitkeep), so a staged dotfile can be listed in the
+      // signed manifest yet not shipped. None is runtime code (the runtime loads and infers without them),
+      // so all are excluded and the staged tree is exactly what ships.
       if (entry.name.startsWith(".")) continue;
       if (entry.isSymbolicLink()) {
         fail(`Refusing to stage a symlink: ${posix(path.relative(ROOT, from))}`);
