@@ -81,9 +81,9 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "runtime",
+      "agent_id": "qa",
       "allowed_paths": [
-        "scripts/prepare-ai-native-host.mjs"
+        "scripts/verify-ai-packaged-runtime.mts"
       ]
     },
     "writer_sequence": [
@@ -486,6 +486,22 @@
         "acquired_at_commit": "93beb34148479e6e57935bd1c79d839d93e1e8d1",
         "released_at": "2026-09-24T17:51:31.566Z",
         "released_reason": "handoff to runtime: commit the QC-3 and QC-4 staging fix, proven by verify:ai-packaged-runtime A0 11 of 11 in the working tree",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:runtime:2026-09-24T17:51:31.624Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/prepare-ai-native-host.mjs"
+        ],
+        "acquired_at": "2026-09-24T17:51:31.624Z",
+        "acquired_at_commit": "518e1c1b604bed11bc627017ec68dd07bde33306",
+        "released_at": "2026-09-24T17:52:36.835Z",
+        "released_reason": "handoff to qa: QC-7: narrow the reviewed-license list to the families the review covers and require the llama.cpp notice for the prebuilt binaries",
         "amendments": [],
         "overrides": [],
         "violations": []

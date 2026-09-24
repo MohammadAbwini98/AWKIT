@@ -67,7 +67,9 @@ const REPRODUCED_HEADING = "### License texts reproduced here";
  * The license identifiers `resources/THIRD_PARTY_NOTICES.md` › "Redistribution review" covers. Anything
  * else, a new copyleft or unknown license included, fails until someone reviews it and extends both.
  */
-const REVIEWED_LICENSES = new Set(["MIT", "ISC", "BSD-2-Clause", "BSD-3-Clause", "Apache-2.0", "0BSD", "BlueOak-1.0.0", "CC0-1.0", "Unlicense"]);
+const REVIEWED_LICENSES = new Set(["MIT", "ISC", "BlueOak-1.0.0", "BSD-2-Clause", "Apache-2.0"]);
+/** Code compiled into the staged prebuilt binaries whose own notice no staged file carries. */
+const EMBEDDED_NOTICES = ["llama.cpp"];
 const LICENSE_TEXT = /^(licen[cs]e|copying|notice)(?![a-z])/i;
 
 const asarModule = createRequire(import.meta.url)("@electron/asar") as { createPackage(src: string, dest: string): Promise<unknown> };
@@ -210,11 +212,11 @@ function assertLicenses(dir: string, label: string, listed: string[], noticesFil
     check(`${label}: the third-party notices are present (${posix(path.relative(ROOT, noticesFile))})`, false);
     return;
   }
-  const missingText = rows.filter((r) => r.reproduced && !notices.reproduced.has(r.key));
+  const missingText = [...rows.filter((r) => r.reproduced).map((r) => r.key), ...EMBEDDED_NOTICES].filter((key) => !notices.reproduced.has(key));
   check(
-    `${label}: every package that ships no license text has it reproduced in the notices (${rows.filter((r) => r.reproduced).length} such)`,
+    `${label}: every package that ships no license text, and ${EMBEDDED_NOTICES.join(", ")} inside the prebuilt binaries, is reproduced in the notices (${rows.filter((r) => r.reproduced).length + EMBEDDED_NOTICES.length} such)`,
     missingText.length === 0,
-    missingText.map((r) => r.key).join(", ")
+    missingText.join(", ")
   );
   const listedRows = new Set(notices.rows);
   const expected = new Set(rows.map((r) => r.row));
