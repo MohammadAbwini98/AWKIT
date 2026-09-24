@@ -1435,6 +1435,25 @@ auto-repaired) and manual failure analysis. The measurements above are unchanged
 `in_progress`: the release gate (packaged AI, L7) has not run. The 2B stays NOT RUN, and the 4B pin is
 unchanged. Built under it: the Element Spy proposal (L3 › "§1 Element Spy trigger as built").
 
+### The packaged AI gate, run for the first time (2026-09-24)
+
+The decision record above says L1 stays `in_progress` partly because "no packaged AI gate has run". At that
+point the installer did not carry the runtime at all. L7's packaging item is now built (L7 plan › "Packaging
+as built"), and the gate ran on fresh portable and NSIS builds from `bafb05e3`:
+
+- **`verify:ai-packaged-app` 19/0.** In the real packaged EXE on a fresh profile, the main process finds its
+  runtime, reports the pin and has no model pack. The pinned 0.8B imports through the app. A real validation
+  explanation answers in 73 s, under its own 125 s deadline (90 s on the previous package), and names the
+  pinned model although the test-provider variable was set.
+- **`verify:ai-packaged-runtime` 66/0.** The shipped runtime tree is complete and self-sufficient in
+  isolation, and the live harness passes 13/13 on it.
+
+**What this does not change:** L1 stays `in_progress`. The limited GO is still limited. Automatic features,
+the full performance-and-quality GO, the 2B (NOT RUN) and the 4B pin are unchanged. Two live runs this day
+timed out on the host's own contention (the same jobs took 120 s+ instead of 36–41 s, and
+`verify:ai-model-live-0-8b` on the repository host timed out identically). The runs quoted above passed after
+it eased. No latency figure here replaces L1.8's measurements.
+
 ## Element Spy on the real 0.8B (2026-09-23): functional PASS, proposal correctness INCONCLUSIVE
 
 `verify:ai-spy-live` drives **Find stronger locator with AI** in the real app with the pinned

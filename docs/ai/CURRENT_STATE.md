@@ -1,6 +1,44 @@
 # CURRENT_STATE
 
-## Phase L: the revised D1 request run once on the real 0.8B, INCONCLUSIVE (2026-09-24, current)
+## Phase L: the installer carries the local-AI runtime, and the first packaged AI gate passes (2026-09-24, current)
+
+**Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No bead status or edge
+changed. Notes were added to `awkit-djnl.10` (L7) and `awkit-djnl.1` (L1). Contract
+`awkit-djnl-10-ai-runtime-packaging-0924`.
+
+- **Gap closed (L7 › Packaging).** The installer did not carry the pinned runtime: `node-llama-cpp` is a dev
+  dependency, and only `native-hosts/zvec` was shipped. Now:
+  - `scripts/prepare-ai-native-host.mjs` stages `ai-host.cjs` with the CPU-only runtime closure (130
+    packages, 1,461 files, 50.7 MB). Both package pipelines run it.
+  - `electron-builder.json` ships it as `resources/native-hosts/ai`.
+  - The signed manifest records it as `aiRuntime`, and strict `validate:offline` checksums every file.
+  - No product code, AI behaviour, permission, tier, threshold or pin changed. No model pack is bundled.
+- **Fresh artifacts from clean `bafb05e3`:**
+  - Portable: 242,967,860 bytes, sha256 `8bc0645e…`.
+  - NSIS: 271,754,055 bytes, sha256 `db11ba3b…`.
+  - Manifest pair signed `ed25519:aa5b9dd8`, committed at `910de86e`.
+- **Found and fixed by the packaged layer:** electron-builder dropped a dotfile, so the first package's signed
+  manifest listed a file it did not ship (`e8f99c3f`; see `KNOWN_ISSUES.md`).
+- **Also fixed:** `verify:agent-routing` had failed its Stop-hook memory check since 2026-09-21 on a
+  password-shaped literal in `KNOWN_ISSUES.md`. It is now 1143/1143.
+- **Unchanged:**
+  - L1 `in_progress`, with its limited GO.
+  - L3, L4b, L5b and L6 `in_progress`. L7 `open`.
+  - L4b 1 of 16, TARGET PENDING. Automatic analysis, T2, promotion, repair and sweeps stay off.
+
+| Gate (final state) | Result |
+|---|---|
+| `verify:ai-packaged-runtime` (new, packaged-application) | 66/0 (live harness 13/13 on the isolated staged copy; packaged tree = signed staging, 1,461/1,461) |
+| `verify:ai-packaged-app` (new, packaged-application) | 19/0: real 0.8B inference in the packaged EXE, 73 s |
+| `package:portable` · `package:nsis` (fresh-state 10/10, strict offline inside each) | PASS · PASS |
+| `validate:offline -- -Strict` at `bafb05e3` | PASS, 1,461/1,461 AI assets |
+| `verify:offline-supply-chain` · `verify:packaged-validation` · `verify:packaged-runtime` | 25/0 · 119/0 · 25/0 |
+| `verify:verifier-classification` · `verify:agent-routing` · `typecheck:scripts` · build (inside both pipelines) | 265 reconciled · 1143/1143 · PASS · PASS |
+| Mutations on the staging (closure dropped; a Vulkan prebuilt staged plus a file left out of the manifest) | caught (26/15; GPU and manifest-completeness checks), reverted |
+| `verify:packaged-walkthrough` on these artifacts | 42 passed / 0 failed / 1 blocked, as before: D–J BLOCKED on `AWKIT_PACKAGED_LICENSE_ISSUER_KEY`; portable boot, NSIS sha512 and loopback-only network PASS |
+| `verify:packaged-licensing` · clean-machine VM | NOT RUN: the licensing path did not change and the signed cases stay BLOCKED on the issuer key. The VM needs an operator |
+
+## Phase L: the revised D1 request run once on the real 0.8B, INCONCLUSIVE (2026-09-24)
 
 **Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** `awkit-djnl.4` stays
 `in_progress`, and a note was added for this run. No bead's status or edge changed. One owner-authorized run.

@@ -1,5 +1,45 @@
 # TASK_LOG
 
+## 2026-09-24 — Phase L L7: the installer carries the pinned local-AI runtime; the first packaged AI gate (Claude)
+
+- **Task:** the owner's Phase L completion directive. A code-grounded completion matrix found one independent
+  engineering gap: L7 › Packaging. The installer did not carry the runtime, so no packaged AI gate could run.
+  Contract `awkit-djnl-10-ai-runtime-packaging-0924`, leases runtime → release → qa → release → runtime → qa →
+  project-state → release → runtime → qa → project-state.
+- **Changes:**
+  - New `scripts/prepare-ai-native-host.mjs`, registered runtime-owned in the routing matrix.
+  - The `electron-builder.json` entry; both package pipelines run the staging.
+  - `aiRuntime` in the signed dependency manifest; the `aiRuntime` checks in `validate-offline-bundle.ps1`
+    (strict fails without it).
+  - `THIRD_PARTY_NOTICES` corrected: it had claimed a staging that did not exist.
+  - New `verify:ai-packaged-runtime` and `verify:ai-packaged-app`.
+  - `verify:agent-routing` pin 1139 → 1142 for the new routing entry.
+  - A `KNOWN_ISSUES` literal that failed the memory gate since 2026-09-21 was removed.
+- **Defect found by the packaged layer:** electron-builder dropped a dotfile, so the signed manifest listed a
+  file the installer lacked. Staging now excludes dotfiles (`e8f99c3f`). The comment was corrected at
+  `ed0833e5` after the rebuild showed only some dotfiles are dropped.
+- **Checks:**
+  - Red first: the verifier was 1/1 at `06f987d4`.
+  - `verify:ai-packaged-runtime` 66/0; mutations caught: closure dropped 26/15, GPU prebuilt plus an
+    unlisted file.
+  - `verify:ai-packaged-app` 19/0, with inference in 73 s.
+  - `package:portable` and `package:nsis` PASS; `validate:offline -- -Strict` PASS.
+  - `verify:offline-supply-chain` 25/0, `verify:packaged-validation` 119/0, `verify:packaged-runtime` 25/0.
+  - `verify:packaged-walkthrough` 42/0/1 BLOCKED.
+  - `verify:verifier-classification` 265, `verify:agent-routing` 1143/1143, `typecheck:scripts` PASS, and
+    the build inside both pipelines.
+  - One live run was INCONCLUSIVE on host CPU contention. It was reproduced on the repository host, then
+    passed.
+- **Not run:**
+  - `verify:packaged-licensing`: the licensing path is unchanged, and the signed cases are BLOCKED on the
+    issuer key.
+  - The clean-machine VM (needs an operator).
+  - `benchmark:ai-model` and every quality gate: not in scope, and no latency claim is made.
+  - A product mutation for `verify:ai-packaged-app`: it would need a rebuilt installer, so its built-in
+    control is the ignored test provider.
+- **Result for Phase L:** no milestone, bead status or edge changed. Notes were added to `awkit-djnl.10` and
+  `awkit-djnl.1`. Everything else open is owner-gated (HANDOFF, latest).
+
 ## 2026-09-24 — Phase L: the revised D1 request run once on the real 0.8B (Claude)
 
 - **Task:** the owner-authorized single run of `verify:ai-locator-quality-live-d1` on the `2fd2c3f5` request,

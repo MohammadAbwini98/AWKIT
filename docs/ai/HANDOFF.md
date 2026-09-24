@@ -1,6 +1,37 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-24, latest) — the revised D1 request ran once on the real 0.8B: INCONCLUSIVE
+## HANDOFF (2026-09-24, latest) — the installer carries the AI runtime; the remaining Phase L work is owner-gated
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No bead status or edge changed.
+- **Done:** L7 packaging.
+  - The runtime is staged, shipped and signed.
+  - `verify:ai-packaged-runtime` 66/0 and `verify:ai-packaged-app` 19/0 ran on fresh portable and NSIS
+    builds from `bafb05e3`. The latter is the first real inference inside the packaged app.
+  - Details: CURRENT_STATE (newest) and the L7 plan › "Packaging as built".
+- **No independent engineering item remains.** Every open Phase L item needs an owner decision or a person:
+  1. **L1 full GO** on the 0.8B, a scope-limited acceptance, or a model evaluation (the 2B is NOT RUN and
+     would need a download). The limited GO stays limited until then.
+  2. **L3:**
+     - Close with the automatic triggers (Recorder finalization job, §8 repair trigger, §9 sweep
+       scheduler) and T2 kept off, or authorize them.
+     - Commit the replay thresholds (N and row diversity).
+     - Decide the next step for D1 real-model quality (0/2 proven, 0 false targets).
+  3. **L4b:** 15 human verdicts. Run `npm run verify:ai-authoring-review -- --pending`, then `-- --record …
+     --reviewer <your label>`. Or approve another acceptance contract. An agent must not record verdicts.
+  4. **L5b:** accept on-demand-only analysis, with automatic analysis permanently off under rule 7 (AI 9/17
+     against the baseline's 14/17), or keep it open. Not built: the automatic trigger. It would hook
+     `ExecutionEngine`'s report write, a Risk-3 run path, and it is the capability the 2026-09-23 decision
+     lists as blocked.
+  5. **L6:** a host surface for the mapping review (a workflow-side insertion surface), and whether
+     fragment summaries join the GO. L6 is blocked by L4b.
+  6. **L7:** after 1–5:
+     - the performance re-run with final prompts;
+     - the security review;
+     - committing the promotion, self-demotion, coalescing and overhead values;
+     - the licensed walkthrough parts (BLOCKED on the issuer key) and the clean-machine VM (operator).
+- **Do not:** close any milestone, relabel an INCONCLUSIVE or BLOCKED gate, or record L4b verdicts.
+
+## HANDOFF (2026-09-24, superseded) — the revised D1 request ran once on the real 0.8B: INCONCLUSIVE
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. `awkit-djnl.4` stays
   `in_progress`, and a note was added for this run. No bead's status or edge changed.

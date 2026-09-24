@@ -60,6 +60,8 @@
       ".gemini/skills/agent-routing/SKILL.md",
       "docs/ai/routing/ROUTING_MATRIX.md",
       "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json",
+      "docs/ai/contracts/active-lease.json",
+      "tools/roadmap/assignments.json",
       "docs/ai/CURRENT_STATE.md",
       "docs/ai/HANDOFF.md",
       "docs/ai/TASK_LOG.md",
@@ -78,9 +80,16 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "qa",
+      "agent_id": "project-state",
       "allowed_paths": [
-        "scripts/verify-ai-packaged-runtime.mts"
+        ".beads/**",
+        "docs/ai/COMMANDS.md",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/KNOWN_ISSUES.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/plans/ai-upgrade-v5/L1-ai-foundation.md",
+        "docs/plans/ai-upgrade-v5/L7-release-confirmation.md"
       ]
     },
     "writer_sequence": [
@@ -136,24 +145,36 @@
       "type": "packaged",
       "required": true,
       "command": "npm run verify:ai-packaged-runtime",
-      "artifact": null,
-      "result": "pending"
+      "artifact": "dist/win-unpacked/resources/native-hosts/ai",
+      "result": "PASS",
+      "observed": "66/0 on fresh portable and NSIS from clean bafb05e3: staged into a temp dir outside the repository, 1461/1461 both ways, CPU only, no dotfile, 130 packages resolving inside, isolated getLlama with both negative controls failing as required, 24/24 protocol steps, live harness 13/13 on the staged copy, and the packaged tree exactly the signed staging with the same isolated load and handshake. Red first at 06f987d4 (1/1). Mutations caught and reverted: closure dropped 26/15, a Vulkan prebuilt plus an unlisted file failing the GPU and manifest-completeness checks. An earlier final-state run was INCONCLUSIVE on host CPU contention, reproduced on the repository host by verify:ai-model-live-0-8b (10/5)."
+    },
+    {
+      "id": "verify:ai-packaged-app",
+      "type": "packaged",
+      "required": false,
+      "command": "npm run verify:ai-packaged-app",
+      "artifact": "dist/win-unpacked/SpecterStudio.exe",
+      "result": "PASS",
+      "observed": "19/0 on the same artifacts: the packaged main process finds its runtime and the pin, no bundled pack, MODEL_MISSING not RUNTIME_MISSING, the pinned 0.8B imported through ai:importModelPack in 4 s into the writable profile, and a real validation explanation OK in 73 s naming the pinned model with AWKIT_TEST_AI_PROVIDER set. No product mutation run (it would need a rebuilt installer)."
     },
     {
       "id": "package:portable",
       "type": "packaged",
       "required": true,
       "command": "npm run package:portable",
-      "artifact": null,
-      "result": "pending"
+      "artifact": "dist/SpecterStudio 0.1.51.exe",
+      "result": "PASS",
+      "observed": "From clean bafb05e3: preflight, build, staging (Zvec 17 files, AI 1461 files 50.7 MB), fresh-state 10/10, manifest signed ed25519:aa5b9dd8, strict offline PASS. 242967860 bytes, sha256 8bc0645e9911241de710c35b44b0cb66ef047bc4a245a00be8d8dde668e8e182. package:nsis PASS: 271754055 bytes, sha256 db11ba3bac17d28d6378da62b3261bfa9cd0f2de6529cd7581a402b7d302fe2f. Manifest pair (the NSIS run's copy) committed at 910de86e."
     },
     {
       "id": "validate:offline",
       "type": "packaged",
       "required": true,
       "command": "npm run validate:offline -- -Strict",
-      "artifact": null,
-      "result": "pending"
+      "artifact": "resources/dependency-manifest.json",
+      "result": "PASS",
+      "observed": "At HEAD bafb05e3 before the manifest commit: Zvec 17/17 and local-AI runtime 1461/1461 assets checksum-verified, CPU only, no model pack, strict passed. Development mode on the pre-change manifest: PASS with the expected warning that it did not include the runtime. verify:offline-supply-chain 25/0, verify:packaged-validation 119/0, verify:packaged-runtime 25/0, verify:packaged-walkthrough 42/0/1 BLOCKED (licensed parts, issuer key)."
     },
     {
       "id": "build",
@@ -161,7 +182,8 @@
       "required": true,
       "command": "npm run build",
       "artifact": null,
-      "result": "pending"
+      "result": "PASS",
+      "observed": "tsc --noEmit and electron-vite build inside both package pipelines at bafb05e3. No src/ or app/ file changed in this task. typecheck:scripts PASS after the last script change (d3c44e1c)."
     },
     {
       "id": "verify:verifier-classification",
@@ -169,7 +191,8 @@
       "required": true,
       "command": "npm run verify:verifier-classification",
       "artifact": null,
-      "result": "pending"
+      "result": "PASS",
+      "observed": "265 reconciled, 13 packaged-application. verify:agent-routing 1143/1143 (pin 1139 to 1142 for the new routing entry, the Stop-hook memory gate green again). verify:roadmap-dashboard 177/177 Sources agree. git diff --check clean."
     }
   ],
   "git": {
@@ -180,8 +203,10 @@
     "push_authorized": true
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "pending",
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qa_basis": "Every required gate ran on fresh artifacts from a clean tree and passed. The packaged layer found and verified the fix for a real defect. Negative controls and mutations show the new gate fails on the defects it exists for.",
+    "qa_known_limitations": "verify:ai-packaged-app has no product mutation run. The licensed walkthrough parts are BLOCKED on the issuer key, and the clean-machine VM is NOT RUN. No latency or quality claim is made. L7 is not accepted.",
     "qc_status": "pending"
   },
   "write_lease": {
@@ -339,6 +364,22 @@
         "acquired_at_commit": "910de86e7540fd859411f7138d8077afb4bc1fc9",
         "released_at": "2026-09-24T15:47:18.549Z",
         "released_reason": "handoff to qa: correct the verifier's dotfile check wording to what was measured",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:qa:2026-09-24T15:47:18.605Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-ai-packaged-runtime.mts"
+        ],
+        "acquired_at": "2026-09-24T15:47:18.605Z",
+        "acquired_at_commit": "ed0833e53841c7f18b9b15dc044aeb0af6d313cf",
+        "released_at": "2026-09-24T15:48:03.902Z",
+        "released_reason": "handoff to project-state: packaging built, packaged gates green, record the state, note the tracker items and reconcile the dashboard",
         "amendments": [],
         "overrides": [],
         "violations": []

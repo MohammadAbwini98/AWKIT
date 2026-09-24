@@ -464,6 +464,16 @@ npm run verify:ai-model-pack      # GGUF/size/SHA-256 import, tamper detection, 
 npm run verify:ai-settings-gui    # real Electron: Settings › Local AI, ceiling-bounded tiers, persistence on disk (30)
 npm run verify:ai-host            # the real host source under a fake parentPort and an injected fake runtime (135)
 npm run verify:ai-host-electron   # production AiUtilityHostManager against the real host in a real utility process (20)
+npm run prepare:ai-host           # L7: stage ai-host.cjs + the pinned CPU runtime closure into build/native-hosts/ai
+                                  # (both package pipelines run it; the lease guard admits no prepare:* for agents)
+npm run verify:ai-packaged-runtime
+                                  # L7: stages into a temp dir OUTSIDE the repo, manifest both ways, CPU only,
+                                  # closure resolves inside, isolated load with 2 negative controls, handshake,
+                                  # live harness on the staged copy (0.8B, NOT RUN without it), then the same on
+                                  # dist/win-unpacked (NOT RUN when absent, stale when not the current staging) (66)
+npm run verify:ai-packaged-app    # L7: the real packaged EXE on a fresh profile: runtime found, no pack bundled,
+                                  # MODEL_MISSING not RUNTIME_MISSING, import through the app, a real inference,
+                                  # the test provider ignored. After package:portable; TIMEOUT = INCONCLUSIVE (19)
 npm run verify:ai-model-live      # NOT RUN until the owner installs node-llama-cpp 3.21.1 and downloads the pack
 npm run verify:ai-model-live-0-8b # the same gate on Qwen3.5-0.8B-Q4_K_M.gguf from ~/Downloads, the pack's own GGUF
                                   # header checked against its manifest entry (context length, quantization) (23)

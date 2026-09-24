@@ -1,5 +1,42 @@
 # KNOWN_ISSUES
 
+## A staged runtime can pass every check on the staging tree and still differ from what the installer ships (2026-09-24, FIXED in `e8f99c3f` — the pattern is the lesson, `awkit-djnl.10`)
+
+- **Symptom:** the first package carrying the local-AI runtime signed a manifest listing 1,474 files. Its
+  `dist/win-unpacked/resources/native-hosts/ai` held 1,473. electron-builder's own default exclusions had
+  silently dropped `node_modules/chmodrp/.gitkeep`. Strict `validate:offline` still passed, because it
+  checksums the staged `build/` tree and never the packaged one.
+- **Caught by:** `verify:ai-packaged-runtime` section E, which checks the packaged tree against its own
+  manifest in both directions.
+- **Fix:** staging excludes every dotfile (none is runtime code), so the staged tree is exactly what
+  ships. 13 were staged and only one was dropped, so electron-builder removes some dotfiles, not all. The
+  first comment written for the fix said "never ships a dotfile", and was corrected at `ed0833e5`.
+- **Rule:** a gate over a staging tree says nothing about the installed tree. Check the packaged layer
+  itself, against the same manifest.
+
+## The AI host's `hello` reports "compatible" from package metadata alone (2026-09-24, OPEN — by design, recorded as a limit)
+
+- `native-hosts/ai/ai-host.cjs` `describeRuntime()` reads `package.json` files and never loads the runtime.
+  That keeps it cheap. A runtime tree missing a JavaScript dependency therefore still answers
+  `compatible: true` and the pinned build, and then every `load` fails with `AI_MODEL_LOAD_FAILED`.
+  Measured: the closure-dropped mutation of the staging script passed the handshake and the protocol
+  harness, and only the load and inference steps failed.
+- **Consequence:** diagnostics can say "runtime included, compatible" for a broken install. The product
+  degrades safely (AI unavailable, nothing else changes). The only gate that catches it is one that loads the
+  runtime: `verify:ai-packaged-runtime` (isolated `getLlama`, and the live harness) and
+  `verify:ai-packaged-app`.
+- Not changed: making `hello` load the native runtime would cost a load on every handshake. It is a host
+  protocol change with no owner decision behind it.
+
+## Live-model gates time out when the host is CPU-contended (2026-09-24, environment — observed, not a product defect)
+
+- During `awkit-djnl-10-ai-runtime-packaging-0924`, the same 0.8B jobs took 36–41 s in one run and hit the
+  120 s job deadline in the next. `verify:ai-model-live-0-8b` on the repository's own host timed out
+  identically (10/5), so the cause was the machine, not the staged runtime. The process list was not
+  inspected: the shell guard admits no process-listing command. Later runs passed at 40–60 s per job.
+- **So:** a live-model TIMEOUT is re-run only after the load eases. It is reported as INCONCLUSIVE
+  (`verify:ai-packaged-app` exits 2), never as a latency measurement against L1.8's ceilings.
+
 ## `verify:ai-spy-live` keeps no durable per-case record (2026-09-24, FIXED in `f9e573ac` — verifier, `awkit-djnl.4`)
 
 - **Fix (`f9e573ac`, verifier-only, product unchanged, no model run):**
