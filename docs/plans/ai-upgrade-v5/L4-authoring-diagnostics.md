@@ -787,6 +787,31 @@ or capture changed.
 Until the target is MET, L4b stays `in_progress`. Even then, a MET target does not by itself accept L4b
 or declare L1 GO. Both remain the owner's, with the model's own rate on the record.
 
+### AI technical evaluation of the 15 unread answers (2026-09-25, at the owner's request)
+
+The owner asked the implementing agent to evaluate the 15 answers itself instead of presenting them one
+by one. The full record is `evidence/L4b-ai-technical-evaluation-2026-09-25.md`. **It is an AI assessment,
+not a person's verdict.** Nothing was written to `reviews.json`, and criteria 1 and 4 stay PENDING (1 of
+16 read by a person).
+
+- **The 15:** all correct, actionable and grounded, with no unsupported claim. They are near-verbatim
+  restatements of the product's own evidence line, so the model adds little of its own.
+- **Outside the 15:** 7 of the 18 `notActionable` answers, which the Flow Designer still displays, claim a
+  failed validation caused by a warning, and two of them invent "the first step". The screens miss this:
+  `SEVERITY_OVERSTATED` does not match "failed validation", and `FABRICATED_LITERAL` does not match an
+  ordinal. Criterion 1 does not require a person to read these answers, so it cannot see them either.
+- **Effect:** with the screen matching its intent, criterion 3 would read 14/17 and 13/17, NOT MET in
+  run 2.
+- **Causes:**
+  - the model: the 0.8B echoes the task sentence;
+  - the product: the instruction "why an automation flow failed validation" presupposes failure;
+  - the harness: the screen blind spot and the optional reading of displayed answers.
+- **Remediation, not applied:** each option changes an owner-adopted artifact.
+  - R1: fix the screens and require a person to read every displayed causal claim.
+  - R2: replace the presupposing task sentence, then two fresh runs, the L1.8 explanation benchmark and a
+    person's review.
+  - R3: a person records verdicts. Accepting an AI evaluation in place of criterion 4 is not recommended.
+
 ### L4b renderer surface as built (2026-09-21, `8ee425a1`)
 
 Deterministic provider only; `awkit-djnl.6` is `in_progress` and cannot close under the conditional

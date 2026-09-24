@@ -2,7 +2,7 @@
   "task": "awkit-djnl-10-ai-runtime-packaging-0924",
   "contract_path": "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     ".beads/**",
     "docs/ai/COMMANDS.md",
@@ -46,5 +46,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-24T22:47:45.408Z",
+  "released_reason": "project-state reconciliation committed at 17c8ac29, roadmap pins and the L4 plan follow unleased",
+  "archived_at": "2026-09-24T22:47:45.410Z"
 }

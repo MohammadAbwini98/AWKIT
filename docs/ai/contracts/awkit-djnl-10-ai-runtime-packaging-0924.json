@@ -744,6 +744,30 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:project-state:2026-09-24T22:44:47.376Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**",
+          "docs/ai/COMMANDS.md",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/plans/ai-upgrade-v5/L6-fragments-and-templates.md",
+          "docs/plans/ai-upgrade-v5/L7-release-confirmation.md",
+          "docs/plans/ai-upgrade-v5/ROADMAP.md"
+        ],
+        "acquired_at": "2026-09-24T22:44:47.376Z",
+        "acquired_at_commit": "a02873461e677c68254db1d63c4b9092a05ed085",
+        "released_at": "2026-09-24T22:47:45.408Z",
+        "released_reason": "project-state reconciliation committed at 17c8ac29, roadmap pins and the L4 plan follow unleased",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }
