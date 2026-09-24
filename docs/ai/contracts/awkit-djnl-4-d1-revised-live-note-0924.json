@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-4-d1-revised-live-note-0924",
+    "title": "Note the live D1 run on the revised request on awkit-djnl.4",
+    "objective": "At 7c76fc64 the one owner-authorized verify:ai-locator-quality-live-d1 run on the 2fd2c3f5 request is recorded: at 68d19987 (clean) on the published Qwen3.5-0.8B-Q4_K_M.gguf, 12/0, exit 2 INCONCLUSIVE; all four cases refused, 8 requests, 8 replies, 8 consumed refusals, every reply a bare role target with scopes [], attempt 1 CANDIDATE_NOT_UNIQUE at the proof, attempt 2 DUPLICATE_CANDIDATE; 0 accepted, 0 browser-proven, positives 0/2, 0 false targets, no withheld identity in any request, no hasText, no SCOPE_NOT_OFFERED; evidence L3-locator-quality-live-d1-20260924T124628Z-da952d.json committed after review; the model-quality issue still OPEN. Append one note to awkit-djnl.4. Refresh the JSONL export. Nothing closes: awkit-djnl.4 stays in_progress, and no edge is added or removed. The lease writes .beads/** only.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "7c76fc64",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "scripts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "tracker-reflects-reality",
+      "description": "awkit-djnl.4 stays in_progress with a note naming 7c76fc64, the run at 68d19987, 12/0 exit 2 INCONCLUSIVE, the per-case codes (scopes [] in 8 of 8, CANDIDATE_NOT_UNIQUE then DUPLICATE_CANDIDATE), 0 of 2 positives, 0 false targets, no withheld identity, the committed evidence file and the model-quality issue still OPEN, no edge changes, the JSONL export is refreshed from the database, and the dashboard reports that its sources agree.",
+      "evidence_required": [
+        "roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177 with the Overview banner on 'Sources agree', run after the lease release, after `bd update awkit-djnl.4 --append-notes` and `bd export -o .beads/issues.jsonl` (one line changed): 26 outstanding / 294 closed with 180 edges (unchanged), and both narratives restating 65 PASS / 2 NOT RUN / 0 BLOCKED. Also run at the final state: verify:verifier-classification 263 reconciled (no new script), git diff --check clean."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-4-d1-revised-live-note-0924:project-state:2026-09-24T12:55:24.845Z",
+        "task": "awkit-djnl-4-d1-revised-live-note-0924",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-24T12:55:24.845Z",
+        "acquired_at_commit": "7c76fc6450a9b327acdabf3e88239e7c38440ff7",
+        "released_at": "2026-09-24T12:56:06.410Z",
+        "released_reason": "live D1 run on the revised request noted on awkit-djnl.4 at 7c76fc64, nothing closed, no edge changed, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

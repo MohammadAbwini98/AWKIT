@@ -1,18 +1,18 @@
 {
-  "task": "awkit-djnl-4-request-wording-note-0924",
-  "contract_path": "docs/ai/contracts/awkit-djnl-4-request-wording-note-0924.json",
+  "task": "awkit-djnl-4-d1-revised-live-note-0924",
+  "contract_path": "docs/ai/contracts/awkit-djnl-4-d1-revised-live-note-0924.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-09-24T12:35:28.192Z",
-  "acquired_at_commit": "9d03fa5af0ff08519b394f88a115fa1fbd32ab2c",
+  "acquired_at": "2026-09-24T12:55:24.845Z",
+  "acquired_at_commit": "7c76fc6450a9b327acdabf3e88239e7c38440ff7",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-djnl-4-request-wording-note-0924.json"
+    "docs/ai/contracts/awkit-djnl-4-d1-revised-live-note-0924.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-djnl-4-request-wording-note-0924.json": "49e245a1da5a23af51792558375bea794d8c64817cdd234d6a6a9226f1925941"
+    "docs/ai/contracts/awkit-djnl-4-d1-revised-live-note-0924.json": "cba697e353af8fd3c21950820c1f2dcaed208cdc58882dc7cbe169510b29f00e"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -27,7 +27,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-24T12:35:58.335Z",
-  "released_reason": "D1 request-format change noted on awkit-djnl.4 at 9d03fa5a, nothing closed, no edge changed, export refreshed",
-  "archived_at": "2026-09-24T12:35:58.336Z"
+  "released_at": "2026-09-24T12:56:06.410Z",
+  "released_reason": "live D1 run on the revised request noted on awkit-djnl.4 at 7c76fc64, nothing closed, no edge changed, export refreshed",
+  "archived_at": "2026-09-24T12:56:06.411Z"
 }
