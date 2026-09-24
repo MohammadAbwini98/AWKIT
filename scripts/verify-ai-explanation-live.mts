@@ -19,6 +19,9 @@
  *     every plan proven by the product in real Chromium and each accepted one judged by the page
  *     (scripts/ai-harness/locatorQualityLive.ts). `--set d1` judges D1's container-scoped set instead, and
  *     `--controls` runs every scripted control in plain Node with no model (verify:ai-locator-quality-controls).
+ *     Each live run, PASS, FAIL or INCONCLUSIVE, also saves its sanitized per-case evidence as a NEW file under
+ *     docs/plans/ai-upgrade-v5/evidence/ before the scratch folders are removed; a failed save fails the run
+ *     (scripts/ai-harness/locatorQualityEvidence.mts). The file is left for a person to review and commit.
  *   - authoringQuality: `explainFlowValidation` over L4b's labelled set, each answer delivered with every
  *     issue explained and no canary leaked, quality recorded (scripts/ai-harness/authoringQualityLive.ts);
  *     `--cases` runs it in parts. Each part also writes a redacted review capture to the local review
@@ -44,7 +47,7 @@ import path from "node:path";
 
 import { deriveInferenceThreads } from "../src/ai/AiAdmission";
 import { reviewDir } from "./ai-harness/authoringQualityReview";
-import { HOST_PATH, ROOT, buildAiHarness, measurePack, printSteps, runAiHarness, runtimeInstalled, stageModelRoot } from "./ai-harness/launch.mts";
+import { HOST_PATH, ROOT, buildAiHarness, measurePack, printSteps, runAiHarness, runtimeInstalled, stageModelRoot, type HarnessReport } from "./ai-harness/launch.mts";
 // Type-only: esbuild bundles the harness without checking it, so this puts the modes under typecheck:scripts.
 import type {} from "./ai-harness/harnessMain";
 
@@ -54,6 +57,8 @@ const PACK = Object.freeze({
   sizeBytes: 527_502_816,
   sha256: "f5b14da98939b60bbe1019a964eba656407e1e0b64f1fe3003ff6d650e93bfec"
 });
+/** The id the harness gives the unpinned pack. */
+const MODEL_ID = "Qwen3.5-0.8B-unpinned";
 
 /** Harness mode, its step count, and a launcher budget under the 10-minute limit of the tool running it. */
 const FEATURES: Readonly<Record<string, { mode: string; steps: number; timeoutMs: number; mockSite?: boolean; controls?: number; d1Steps?: number }>> = Object.freeze({
@@ -64,7 +69,7 @@ const FEATURES: Readonly<Record<string, { mode: string; steps: number; timeoutMs
   // time on this host, so it gets what the 600 s tool ceiling leaves after the build and the launch.
   // `--set d1` (verify:ai-locator-quality-live-d1): hello, 5 D1 controls, 4 D1 cases (at most 8 model calls),
   // the D1 verdict, apart from the set above so it fits the same ceiling and leaves that set's evidence as it was.
-  // `--controls` runs all 10 controls with no model.
+  // `--controls` runs all 10 controls, after the saved evidence's own checks, with no model.
   locatorQuality: { mode: "locatorQuality", steps: 13, timeoutMs: 575_000, mockSite: true, controls: 10, d1Steps: 11 },
   // hello, the control, 9 labelled cases, the set's verdict. Nine explanations at ~45–90 s each pass the
   // 600 s tool ceiling: from such a tool, run it in parts (`--cases`).
@@ -135,6 +140,9 @@ if (process.argv.includes("--controls")) {
     process.exit(1);
   }
   console.log(`${featureName} scripted controls — no model, runtime or Electron\n`);
+  // The saved per-case evidence first: synthetic runs through the builder, save and settle a live run uses.
+  const { evidenceControls } = await import("./ai-harness/locatorQualityEvidence.mts");
+  await evidenceControls(check);
   const { runLocatorQualityLive } = await import("./ai-harness/locatorQualityLive");
   const site = await startMockSite();
   const steps: Array<{ label: string; ok: boolean; error?: string; detail?: unknown }> = [];
@@ -191,19 +199,24 @@ console.log(`  runtime ${runtime.build}, pack ${PACK.file} ${measured.sha256.sli
 
 const staged = stageModelRoot(candidate, measured.sha256);
 const harnessDir = await buildAiHarness();
+// locatorQuality saves each run's per-case evidence (ai-harness/locatorQualityEvidence.mts); loaded before the run so a broken
+// module fails here, not after it.
+const quality = feature.mode === "locatorQuality" ? await import("./ai-harness/locatorQualityEvidence.mts") : undefined;
+const startedAt = new Date();
 let mockSite: Awaited<ReturnType<typeof startMockSite>> | undefined;
+let report: HarnessReport | null = null;
 // A step may say it judged nothing (the D1 set, when no candidate was proven): INCONCLUSIVE, never PASS.
 let inconclusive = false;
 try {
   mockSite = feature.mockSite ? await startMockSite() : undefined;
-  const report = await runAiHarness(
+  report = await runAiHarness(
     harnessDir,
     {
       AWKIT_HARNESS_MODE: feature.mode,
       AWKIT_HARNESS_HOST_PATH: HOST_PATH,
       AWKIT_HARNESS_MODEL_ROOT: staged.modelRoot,
       AWKIT_HARNESS_MODEL_PATH: staged.modelPath,
-      AWKIT_HARNESS_MODEL_ID: "Qwen3.5-0.8B-unpinned",
+      AWKIT_HARNESS_MODEL_ID: MODEL_ID,
       AWKIT_HARNESS_THREADS: String(threads),
       AWKIT_HARNESS_EXPECT_BUILD: runtime.build ?? "",
       ...(mockSite ? { AWKIT_HARNESS_LAB_URL: mockSite.lab } : {}),
@@ -224,15 +237,39 @@ try {
     for (const s of report.steps) if (s.detail) console.log(`    ${s.label}: ${JSON.stringify(s.detail)}`);
     inconclusive = report.steps.some((s) => s.ok && (s.detail as { inconclusive?: unknown } | undefined)?.inconclusive === true);
   }
+} catch (error) {
+  // Recorded, not thrown, so a locatorQuality run still saves what it measured below.
+  check("the launcher ran the harness to its end", false, String((error as Error)?.message ?? error));
 } finally {
   mockSite?.server.kill();
+}
+
+let exitCode = failed === 0 && passed > 0 ? (inconclusive ? 2 : 0) : 1;
+if (quality) {
+  // Saved from the report read above, then the scratch folders go: the console can be cut, the file keeps every case.
+  const set = d1Set ? "d1" : "original";
+  const settled = await quality.settleQualityRun({
+    report,
+    scratch: [harnessDir, staged.root],
+    identity: { runId: quality.newRunId(startedAt), set, startedAt, source: quality.sourceRevision(), model: { id: MODEL_ID, file: PACK.file, sha256: measured.sha256, sizeBytes: measured.sizeBytes }, runtime: runtime.build },
+    cases: quality.QUALITY_CASES[set],
+    checks: { passed, failed },
+    inconclusive
+  });
+  const { evidence } = settled;
+  if (settled.file) {
+    console.log(`\n  evidence: ${path.relative(ROOT, settled.file)} — ${evidence.result}, ${evidence.caseCounts.reached} of ${evidence.caseCounts.labelled} cases reached (review before committing)`);
+  } else {
+    check("the run's per-case evidence was saved", false, settled.error ?? "not saved");
+  }
+  if (!evidence.completed) console.log(`  FAIL: not every labelled case finished (harness ${evidence.harness}, not reached: ${evidence.notReached.join(", ") || "none"})`);
+  if (settled.cleanup.length > 0) console.log(`  NOTE: a scratch folder was not removed (${settled.cleanup.join(", ")})`);
+  exitCode = settled.exitCode;
+} else {
   fs.rmSync(harnessDir, { recursive: true, force: true });
   fs.rmSync(staged.root, { recursive: true, force: true });
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);
-if (failed === 0 && passed > 0 && inconclusive) {
-  console.log("INCONCLUSIVE: the checks held, but no candidate was browser-proven, so the judge judged nothing (exit 2).");
-  process.exit(2);
-}
-process.exit(failed === 0 && passed > 0 ? 0 : 1);
+if (exitCode === 2) console.log("INCONCLUSIVE: the checks held, but no candidate was browser-proven, so the judge judged nothing (exit 2).");
+process.exit(exitCode);

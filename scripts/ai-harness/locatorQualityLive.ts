@@ -238,6 +238,20 @@ const D1_SCENARIOS: readonly Scenario[] = [
 ];
 const d1Case = (id: string): Scenario & { d1: D1Label } => D1_SCENARIOS.find((s) => s.id === id) as Scenario & { d1: D1Label };
 
+/** A labelled case as its saved evidence names it: codes from this file, never page text (`covers` can hold fixture text). */
+export interface QualityCaseLabel {
+  id: string;
+  condition: string;
+  expected: "success" | "refused";
+}
+const caseLabel = (sc: Scenario): QualityCaseLabel => ({
+  id: sc.id,
+  condition: sc.d1 ? (sc.d1.offers ? `approved-${sc.d1.offers.strategy}-scope` : "no-approved-identity") : sc.impossible ? "not-uniquely-identifiable" : `${sc.mode}:${sc.id}`,
+  expected: sc.impossible ? "refused" : "success"
+});
+/** Each labelled set's cases, in run order (locatorQualityEvidence.mts). */
+export const QUALITY_CASES: Readonly<Record<"original" | "d1", readonly QualityCaseLabel[]>> = { original: SCENARIOS.map(caseLabel), d1: D1_SCENARIOS.map(caseLabel) };
+
 /**
  * The step a repair acts on: a single test-id candidate, as a hand-edited or imported flow carries. A
  * Recorder capture keeps role and text alternatives that survive the break, so there would be nothing
@@ -318,12 +332,14 @@ const requestText = (request: AiJobRequest): string => request.prompt.fields.map
 
 export type D1Class = "success" | "refused" | "inconclusive" | "fail";
 
-/** One model call of a D1 case: codes, enums, a bounded category and counts, never model or page text. */
+/** One model call of a case: codes, enums, a bounded category and counts, never model or page text. */
 interface D1Call {
   contract: string;
   strategy: unknown;
   scope: string | null;
   refusal: string | null;
+  /** The refused field's path, e.g. `scopes.0.hasText`. */
+  field: string | null;
   proof: string | null;
   matches: number | null;
 }
@@ -370,6 +386,14 @@ const PAGE_PLACES: Readonly<Record<string, string>> = { WRONG_ELEMENT: "sibling"
  * sibling, nothing, several, or the element itself through an identity D1 withholds.
  */
 export async function scopeCategory(value: unknown, input: LocatorUpgradeAttemptInput, page: (plan: unknown) => Promise<string>): Promise<string> {
+  const kind = scopeKind(value, input);
+  if (kind !== "not-offered") return kind;
+  const code = await page(value);
+  return `not-offered:${PAGE_PLACES[code] ?? code}`;
+}
+
+/** `scopeCategory` without asking the page, so an unoffered scope stays `not-offered`, unplaced. */
+export function scopeKind(value: unknown, input: LocatorUpgradeAttemptInput): string {
   const baseline = input.step.locator!;
   const evaluated = evaluateLocatorPlan(value, { boundValues: input.boundValues, baseline, captured: baseline.context, policy: input.policy });
   if (!evaluated.ok) return "not-compiled";
@@ -377,8 +401,7 @@ export async function scopeCategory(value: unknown, input: LocatorUpgradeAttempt
   if (chain.length === 0) return "none";
   if (chain.some((scope) => scope.hasText)) return "row-content";
   if (!unofferedScopeField(evaluated.context, input.upgradeContext)) return chain.every((scope) => scope.strategy === "role" && scope.name === undefined) ? "structural" : "offered";
-  const code = await page(value);
-  return `not-offered:${PAGE_PLACES[code] ?? code}`;
+  return "not-offered";
 }
 
 /**
@@ -871,8 +894,15 @@ export async function runLocatorQualityLive(api: FeatureLiveApi, options: { lab?
     // ── The real model over the labelled set ────────────────────────────────────────────────────────
     const results: Array<{ sc: Scenario; verdict: Verdict; calls: number; refusals: string[]; inferMs: number[] }> = [];
     const d1Results: D1Result[] = [];
+    // Each case's codes and counts, in the report from the moment the case starts and written at every step
+    // boundary, so a failed check or a killed run keeps what was measured. The launcher saves the evidence
+    // file from these (locatorQualityEvidence.mts); a case never started is absent.
+    const caseRecords: Array<Record<string, unknown>> = [];
+    api.record("qualityCases", caseRecords);
     for (const sc of set === "d1" ? D1_SCENARIOS : SCENARIOS) {
-      await api.step(`${sc.id}: ${sc.covers}`, async () => {
+      const caseRecord: Record<string, unknown> = { id: sc.id, status: "running" };
+      caseRecords.push(caseRecord);
+      const finished = await api.step(`${sc.id}: ${sc.covers}`, async () => {
         const captured = await capture(sc);
         const step = sc.mode === "repair" ? REPAIR_STEP : captured.step;
         const flowId = `flow-${sc.id}`;
@@ -885,7 +915,10 @@ export async function runLocatorQualityLive(api: FeatureLiveApi, options: { lab?
           if (sc.id === "impossible" && ((await page.getByRole("button", { name: "Remove", exact: true }).count()) !== 2 || quality !== "guarded-positional")) throw new Error(`the twins are not two identical, positionally guarded controls (${quality})`);
           if (sc.id === "scope" && (await page.getByRole("button", { name: "Edit address", exact: true }).count()) !== 2) throw new Error("Edit address is not ambiguous without its region");
           const invalid = sc.d1 ? await d1Preconditions(sc, page, step, captured.context) : [];
-          if (invalid.length > 0) throw new Error(`the ${sc.id} fixture is not what its label says: ${invalid.join(", ")}`);
+          if (invalid.length > 0) {
+            caseRecord.failures = invalid;
+            throw new Error(`the ${sc.id} fixture is not what its label says: ${invalid.join(", ")}`);
+          }
           if (sc.mode === "repair") {
             // The identity a repair proves against is what a REAL resolve recorded, before the break.
             const factory = new LocatorFactory(page, { recoveryStore: recovery, scope: { scenarioId: "quality", flowId } });
@@ -922,25 +955,34 @@ export async function runLocatorQualityLive(api: FeatureLiveApi, options: { lab?
             const prompt = prompts[index];
             return { ...measured(call.outcome, call.request.maxOutputTokens), shape: call.outcome.status === "ok" && prompt.ok ? planShape(call.outcome.value, prompt.user) : null };
           });
-          // D1: each call as codes, enums and a bounded scope category, and the case's class. Recorded, not thresholded.
+          // Each call as codes, enums and a bounded scope category. D1 places an unoffered scope on the page; the
+          // original set does not ask the page again, so there it stays `not-offered`, unplaced.
+          const perCall: D1Call[] = [];
+          for (const [index, call] of calls.entries()) {
+            const record = run.result.attempts.find((a) => a.attempt === index + 1);
+            const proof = proofs.find((p) => p.attempt === index + 1)?.result;
+            perCall.push({
+              contract: call.outcome.status === "ok" ? "pass" : "code" in call.outcome ? call.outcome.code : call.outcome.status,
+              strategy: models[index].shape?.strategy ?? null,
+              scope:
+                call.outcome.status !== "ok"
+                  ? null
+                  : sc.d1
+                    ? await scopeCategory(call.outcome.value, run.input, (plan) => pageSays(sc, step, captured.context, plan))
+                    : scopeKind(call.outcome.value, run.input),
+              refusal: record ? `${record.stage}:${record.code}` : null,
+              field: record?.field ?? null,
+              proof: proof?.code ?? null,
+              matches: proof?.candidateMatchCount ?? null
+            });
+          }
+          const responses = calls.filter((call) => answeredInTime(call.outcome)).length;
+          const falseTargetProposed = perCall.some((c) => c.proof === "WRONG_ELEMENT" || c.scope === "not-offered:sibling");
+          // D1: the case's class. Recorded, not thresholded.
           let d1: D1Result | undefined;
           if (sc.d1) {
             const withheld = sc.d1.withheld;
-            const perCall: D1Call[] = [];
-            for (const [index, call] of calls.entries()) {
-              const record = run.result.attempts.find((a) => a.attempt === index + 1);
-              const proof = proofs.find((p) => p.attempt === index + 1)?.result;
-              perCall.push({
-                contract: call.outcome.status === "ok" ? "pass" : "code" in call.outcome ? call.outcome.code : call.outcome.status,
-                strategy: models[index].shape?.strategy ?? null,
-                scope: call.outcome.status === "ok" ? await scopeCategory(call.outcome.value, run.input, (plan) => pageSays(sc, step, captured.context, plan)) : null,
-                refusal: record ? `${record.stage}:${record.code}` : null,
-                proof: proof?.code ?? null,
-                matches: proof?.candidateMatchCount ?? null
-              });
-            }
             const leaked = calls.some((call) => withheld.some((text) => requestText(call.request).includes(text)));
-            const responses = calls.filter((call) => answeredInTime(call.outcome)).length;
             d1 = {
               id: sc.id,
               covers: sc.covers,
@@ -954,7 +996,7 @@ export async function runLocatorQualityLive(api: FeatureLiveApi, options: { lab?
               perCall,
               matches: verdict.matches,
               matchedIntended: verdict.selected === sc.intended,
-              falseTargetProposed: perCall.some((c) => c.proof === "WRONG_ELEMENT" || c.scope === "not-offered:sibling"),
+              falseTargetProposed,
               falseTargetAccepted: verdict.falseTarget,
               leaked,
               class: classifyD1Case({ impossible: Boolean(sc.impossible), requests: calls.length, answered: responses, accepted: verdict.accepted, browserProven: verdict.browserProven, falseTarget: verdict.falseTarget, leaked })
@@ -978,12 +1020,40 @@ export async function runLocatorQualityLive(api: FeatureLiveApi, options: { lab?
             ...(d1 ? { d1 } : {})
           };
 
-          if (calls.length === 0 || !calls.every((call) => answeredInTime(call.outcome))) throw new Error(`not every attempt was answered in time: ${JSON.stringify(summary)}`);
-          if (deadlines.length !== calls.length || !deadlines.every((ms) => ms === LOCATOR_ATTEMPT_LIMITS.timeoutMs)) throw new Error(`the inferences were not each given ${LOCATOR_ATTEMPT_LIMITS.timeoutMs} ms: ${JSON.stringify(summary)}`);
-          if (!sameRequest) throw new Error(`the product sent a request other than locatorAttemptJob's: ${JSON.stringify(summary)}`);
-          if (violations.length > 0 || !untouched || verdict.problems.length > 0 || verdict.falseTarget || d1?.class === "fail") throw new Error(JSON.stringify(summary));
-          if (sc.impossible && (run.result.outcome === "accepted" || calls.length !== 2)) throw new Error(`the impossible case must end refused after its second attempt: ${JSON.stringify(summary)}`);
-          if (sc.dynamic && proofs.some((p) => !p.unsynchronized?.whileLoading || p.unsynchronized.outcome === "proven")) throw new Error(`a proof taken mid-render was proven, or was not taken mid-render: ${JSON.stringify(summary)}`);
+          // Every check this case must hold, as a code: the case fails if any is listed.
+          const failures = [
+            ...(calls.length === 0 || responses < calls.length ? ["NOT_ANSWERED_IN_TIME"] : []),
+            ...(deadlines.length !== calls.length || !deadlines.every((ms) => ms === LOCATOR_ATTEMPT_LIMITS.timeoutMs) ? ["DEADLINE_NOT_APPLIED"] : []),
+            ...(sameRequest ? [] : ["NOT_THE_PRODUCTS_REQUEST"]),
+            ...violations,
+            ...(untouched ? [] : ["PENDING_CANDIDATE_EXECUTED"]),
+            ...verdict.problems,
+            ...(verdict.falseTarget ? ["FALSE_TARGET"] : []),
+            ...(d1?.class === "fail" ? ["D1_CASE_FAILED"] : []),
+            ...(sc.impossible && (run.result.outcome === "accepted" || calls.length !== 2) ? ["IMPOSSIBLE_NOT_REFUSED_AFTER_TWO_ATTEMPTS"] : []),
+            ...(sc.dynamic && proofs.some((p) => !p.unsynchronized?.whileLoading || p.unsynchronized.outcome === "proven") ? ["PROOF_NOT_TAKEN_MID_RENDER"] : [])
+          ];
+          // In the report before the case can fail, so a failed case keeps what it measured.
+          Object.assign(caseRecord, {
+            failures,
+            requests: calls.length,
+            responses,
+            attemptsUsed: run.result.attemptsUsed,
+            consumedRefusals: run.result.attempts.filter((a) => a.consumed).length,
+            outcome: run.result.outcome,
+            code: run.result.code,
+            accepted: verdict.accepted,
+            browserProven: verdict.browserProven,
+            matches: verdict.matches,
+            target: !verdict.accepted ? null : verdict.matches !== 1 ? "not-unique" : verdict.selected === sc.intended ? "intended" : "other",
+            falseTargetProposed,
+            falseTargetAccepted: verdict.falseTarget,
+            withheldInRequest: d1 ? d1.leaked : null,
+            class: d1?.class ?? null,
+            elapsedMs,
+            calls: perCall
+          });
+          if (failures.length > 0) throw new Error(`${failures.join(", ")}: ${JSON.stringify(summary)}`);
           if (d1) {
             d1Results.push(d1);
             return summary;
@@ -1000,6 +1070,9 @@ export async function runLocatorQualityLive(api: FeatureLiveApi, options: { lab?
           await closePage(page);
         }
       });
+      // A step returns its summary, or nothing when it threw. Written by the next step, or at the end.
+      caseRecord.status = finished === undefined ? "failed" : "passed";
+      if (finished === undefined) caseRecord.failures ??= ["CASE_ERROR"];
     }
 
     if (set === "d1") {
