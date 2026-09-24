@@ -258,7 +258,7 @@ function assertLicenses(dir: string, label: string, listed: string[], noticesFil
 }
 
 /** Windows ships these (or resolves them itself); every other DLL a staged binary imports must be staged. */
-const WINDOWS_DLL = /^(api-ms-win-.*|ext-ms-.*|kernel32|kernelbase|ntdll|user32|gdi32|advapi32|shell32|shlwapi|ole32|oleaut32|ws2_32|bcrypt|crypt32|secur32|version|psapi|dbghelp|iphlpapi|winmm|comdlg32|setupapi|powrprof|userenv|node)\.(dll|exe)$/i;
+const WINDOWS_DLL = /^(api-ms-win-.*|ext-ms-.*|kernel32|kernelbase|ntdll|user32|gdi32|advapi32|shell32|shlwapi|ole32|oleaut32|ws2_32|bcrypt|bcryptprimitives|crypt32|secur32|version|psapi|dbghelp|iphlpapi|winmm|comdlg32|setupapi|powrprof|userenv|node)\.(dll|exe)$/i;
 
 function assertNativeImports(dir: string, label: string, listed: string[]): void {
   const binaries = listed.filter((rel) => /\.(dll|node)$/i.test(rel));
@@ -827,7 +827,15 @@ try {
     `exit ${self.status}: ${`${self.stdout ?? ""}`.trim().split(/\r?\n/).slice(-1).join("")}`
   );
 } finally {
-  for (const dir of cleanup) fs.rmSync(dir, { recursive: true, force: true });
+  // A scratch file a just-exited child still holds can make removal fail (measured: ENOTEMPTY under
+  // Node 18). Leftover scratch is harmless; losing the verdict to a cleanup crash is not.
+  for (const dir of cleanup) {
+    try {
+      fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    } catch (error) {
+      console.error(`  ! scratch left in place: ${dir} (${(error as NodeJS.ErrnoException).code ?? error})`);
+    }
+  }
 }
 
 finish();

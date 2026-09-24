@@ -318,7 +318,11 @@ try {
     });
   }
 } finally {
-  fs.rmSync(scratch, { recursive: true, force: true });
+  try {
+    fs.rmSync(scratch, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  } catch (error) {
+    console.error(`  ! scratch left in place: ${scratch} (${(error as NodeJS.ErrnoException).code ?? error})`);
+  }
 }
 
 const exitCode = gateExitCode({ passed, failed, inconclusive: 0, gateNotRun: notRun.length > 0 });
