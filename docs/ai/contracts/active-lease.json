@@ -2,7 +2,7 @@
   "task": "awkit-djnl-10-ai-runtime-packaging-0924",
   "contract_path": "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json",
   "holder": "project-state",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
     ".beads/**",
     "docs/ai/COMMANDS.md",
@@ -18,18 +18,10 @@
     "docs/plans/ai-upgrade-v5/ROADMAP.md",
     "scripts/lib/verifier-classification.ts"
   ],
-  "acquired_at": "2026-09-24T18:28:06.694Z",
-  "acquired_at_commit": "5b77cdd7490cbaef3d9207b13853e35836906a8c",
-  "baseline_dirty": [
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json",
-    "tools/roadmap/assignments.json"
-  ],
-  "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "eee71b75f81f9ef7b2955e6c9818d399674e5195971a2f986a7a5e5a12fc96c7",
-    "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json": "9e61665eee6abbd02757728fc1898cd5dc202b004b97f324975a397dc5181fa1",
-    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
-  },
+  "acquired_at": "2026-09-24T18:42:30.956Z",
+  "acquired_at_commit": "04eed53767fd5ec25a3493a70248e903094c426c",
+  "baseline_dirty": [],
+  "baseline_dirty_fingerprints": {},
   "baseline_watched_ignored": {
     ".env": "absent",
     ".claude/settings.local.json": "6238:1788551784499.886",
@@ -42,8 +34,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-24T18:34:20.517Z",
-  "released_reason": "Phase L closeout recorded at ecea3c65: QC-1 to QC-7 resolved, awkit-i6ot filed and open on an owner decision, L1 L3 L5b closed, contract blocked with qa FAIL and qc pending re-review",
-  "archived_at": "2026-09-24T18:34:20.519Z"
+  "violations": []
 }
