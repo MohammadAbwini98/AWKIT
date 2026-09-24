@@ -86,12 +86,9 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "release",
+      "agent_id": "runtime",
       "allowed_paths": [
-        "build",
-        "resources/THIRD_PARTY_NOTICES.md",
-        "resources/dependency-manifest.json",
-        "resources/dependency-manifest.sig"
+        "scripts/prepare-ai-native-host.mjs"
       ]
     },
     "writer_sequence": [
@@ -650,6 +647,25 @@
         "acquired_at_commit": "8739247c65b21f0656e699425909c2854712810b",
         "released_at": "2026-09-24T21:57:18.848Z",
         "released_reason": "staging script committed at 9ced79c4, verifier notices and classification next",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:release:2026-09-24T22:00:06.737Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "build",
+          "resources/THIRD_PARTY_NOTICES.md",
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig"
+        ],
+        "acquired_at": "2026-09-24T22:00:06.737Z",
+        "acquired_at_commit": "bbec264e2f79cf87a5433141ea1545a8d3fdb0bd",
+        "released_at": "2026-09-24T22:05:19.617Z",
+        "released_reason": "handoff to runtime: vswhere must also require the VC redist component",
         "amendments": [],
         "overrides": [],
         "violations": []

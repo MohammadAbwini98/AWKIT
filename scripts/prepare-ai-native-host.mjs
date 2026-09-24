@@ -324,9 +324,11 @@ const MSVC_RUNTIME = ["msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll"];
 function findVcRedist() {
   const vswhere = path.join(process.env["ProgramFiles(x86)"] ?? "C:\\Program Files (x86)", "Microsoft Visual Studio", "Installer", "vswhere.exe");
   if (!fs.existsSync(vswhere)) return { problem: "no Visual Studio installation: vswhere.exe is absent" };
-  const run = spawnSync(vswhere, ["-latest", "-products", "*", "-requires", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64", "-property", "installationPath", "-utf8"], { encoding: "utf8", windowsHide: true, timeout: 60_000 });
+  // Both components: the tools write Microsoft.VCRedistVersion.default.txt, the redist component the CRT folder.
+  const components = ["Microsoft.VisualStudio.Component.VC.Tools.x86.x64", "Microsoft.VisualStudio.Component.VC.Redist.14.Latest"];
+  const run = spawnSync(vswhere, ["-latest", "-products", "*", "-requires", ...components, "-property", "installationPath", "-utf8"], { encoding: "utf8", windowsHide: true, timeout: 60_000 });
   const install = `${run.stdout ?? ""}`.trim().split(/\r?\n/)[0];
-  if (run.status !== 0 || !install) return { problem: "vswhere reports no Visual Studio installation with the MSVC x64 build tools (Microsoft.VisualStudio.Component.VC.Tools.x86.x64)" };
+  if (run.status !== 0 || !install) return { problem: `vswhere reports no released Visual Studio installation with ${components.join(" and ")}` };
   const versionFile = path.join(install, "VC", "Auxiliary", "Build", "Microsoft.VCRedistVersion.default.txt");
   const version = fs.existsSync(versionFile) ? fs.readFileSync(versionFile, "utf8").trim() : "";
   if (!/^14\.\d+\.\d+$/.test(version)) return { problem: `${versionFile} is missing or holds no 14.x.y redist version` };
@@ -366,7 +368,7 @@ const runtimeDirs = [...new Set(nativeBinaries.map((rel) => path.posix.dirname(r
 let msvcRuntime = null;
 const redist = findVcRedist();
 if (redist.problem) {
-  fail(`MSVC runtime: ${redist.problem}. The staged native binaries import ${MSVC_RUNTIME.join(", ")}, which Windows does not ship; install Visual Studio 2022 (Build Tools or an edition whose license covers redistributing its Distributable Code) with "MSVC v143 - VS 2022 C++ x64/x86 build tools" (awkit-i6ot).`);
+  fail(`MSVC runtime: ${redist.problem}. The staged native binaries import ${MSVC_RUNTIME.join(", ")}, which Windows does not ship; install Visual Studio 2022 (Build Tools or an edition whose license covers redistributing its Distributable Code) with "MSVC v143 - VS 2022 C++ x64/x86 build tools" and "C++ 2022 Redistributable Update" (awkit-i6ot).`);
 } else {
   const sources = MSVC_RUNTIME.map((name) => path.join(redist.dir, name));
   const systemRoot = fs.realpathSync(process.env.SystemRoot ?? "C:\\Windows");
