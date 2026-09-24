@@ -40,6 +40,9 @@ gates.
 | `verify:ai-authoring` · `verify:ai-fallback` · `verify:ai-autonomy-policy` · `verify:ai-audit-revert` | 272/272 · 38/0 · 62/0 · 69/0 |
 | `verify:ai-error-analysis` · `verify:ai-locator-attempts` · `verify:ai-locator-upgrade` | 429/429 · 191/191 · 78/0 |
 | clean-machine VM · licensed walkthrough parts | NOT RUN (operator; the shell guard cannot drive Hyper-V) · BLOCKED (issuer key) |
+| L7 performance confirmation: `benchmark:ai-model-0-8b` with the final prompts | GO on all 8; 7/7 scenarios current (locator request re-measured: 113.5 s at cap against 180 s) |
+| L7 security evidence review: `verify:ai-adapter` · `-redaction` · `-permissions` · `-model-pack` · `-host` · `-host-electron` · `-locator-sweep` | 117/0 · 52/0 · 99/0 · 46/0 · 135/0 (12/12 mutations) · 26/0 · 64/64. Engineering evidence, not an independent sign-off |
+| `npm run build` · `verify:source-hygiene` · `verify:verifier-classification` · `verify:roadmap-dashboard` · `git diff --check` | PASS · 11/0 · 265 reconciled · 177/177 Sources agree · clean |
 
 ## Phase L: the installer carries the local-AI runtime, and the first packaged AI gate passes (2026-09-24)
 

@@ -51,10 +51,13 @@
   of L6's acceptance criteria, so it is deferred.
 - **L7 stays open.** It depends on L4b and L6, and on:
   - `awkit-i6ot`, which needs an owner or licensing decision;
-  - the L7 security review and performance confirmation;
-  - the committed thresholds;
+  - the committed thresholds, which do not apply while T2 and automatic analysis are off;
   - the licensed walkthrough parts, BLOCKED on the issuer key;
   - the clean-machine VM, NOT RUN: it needs an operator.
+
+  Done the same day: the performance confirmation with the final prompts (GO on all 8), and the security
+  review as an engineering evidence review in which every mapped gate passes. No independent security
+  sign-off is claimed.
 - **Not changed:** no AI behavior, tier, policy, threshold, permission, prompt, model pin or runtime pin.
 
 ### 2026-09-24 — Phase L L3: the D1 request's wording and scope representation may change, nothing else (owner, `awkit-djnl.4`)

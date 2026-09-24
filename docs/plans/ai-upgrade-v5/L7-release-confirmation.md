@@ -74,7 +74,9 @@ C++ runtime, local AI will fail to load. The fix needs an owner or licensing dec
 
 **Phase L closeout status of the sections below (2026-09-24):**
 - L1, L3 and L5b are accepted (`DECISIONS.md`, latest). L4b waits on 15 human verdicts, and L6 is blocked by L4b.
-- **Performance confirmation** and **security review:** not yet run for the final state. Carried by the L7 bead.
+- **Performance confirmation:** re-run with the final prompts, GO on all 8. See the section below.
+- **Security review:** the engineering evidence review is done, and every mapped gate passes. No
+  independent security sign-off is claimed. See the section below.
 - **Thresholds:** T2 auto-promotion and automatic failure analysis are off, and no automatic caller exists.
   Promotion N, row diversity and the self-demotion threshold therefore stay provisional, and do not apply
   until a feature is enabled. The overhead threshold is L5a's, accepted as INCONCLUSIVE by the owner.
@@ -88,11 +90,69 @@ during inference; AI yields to runs; idle unload; bounded queues; prompt cancell
 calls; failure-capture overhead within the committed threshold; ≤2 synthesis attempts; health sweep yields instantly.
 No VMware throughput claims from dev hardware.
 
+### Performance confirmation as run (2026-09-24, final prompts)
+
+`npm run benchmark:ai-model-0-8b` ran on the qualifying host (i7-8750H, 12 logical CPUs, 4 inference
+threads) with runtime `node-llama-cpp@3.21.1+llama.cpp@v0.4.0` and the pinned Qwen3.5-0.8B. It
+re-measured the one scenario the final prompts had made stale: the locator request, changed by D1 A+B at
+`2fd2c3f5`. Its two runs took 55.3 s and 58.3 s. The other six scenarios' fingerprints still match the
+product's current requests. All 7 are current, and the decision is **GO on all 8** L1.8 criteria:
+
+| Criterion | Measured | Ceiling |
+|---|---|---|
+| Cold load | 7,183 ms | 60,000 |
+| Host memory | 1,100 MB | 6,144 |
+| Locator upgrade at its cap | 113,514 ms | 180,000 |
+| Failure analysis at its cap | 120,389 ms | 180,000 |
+| Validation explanation at its cap | 83,345 ms | 120,000 |
+| Cancel latency | 1,020 ms | 3,000 |
+| Main-loop delay p99 | 30 ms | 100 |
+| Playwright slowdown with yield | 0.99 | 1.15 |
+
+Evidence: `evidence/L1.8-benchmark-full-host-Qwen3.5-0.8B-Q4_K_M.json`. The rest of the list above is
+covered by gates re-run on the same day:
+
+- **The Recorder never waits, and a run of under 3 s makes zero model calls.** No module the execution tree
+  can reach touches the model: `verify:ai-fallback` 38/0.
+- **Queue and lifecycle** — the queue is bounded, one inference runs at a time, work yields to runs and
+  resumes after them, the model unloads when idle, and a prompt can be cancelled: `verify:ai-adapter` 117/0.
+- **At most 2 synthesis attempts:** `verify:ai-locator-attempts` 191/191.
+- **The health sweep yields:** it is held by any active or queued run (`verify:ai-locator-sweep` 64/64). It
+  has no production caller.
+- **Failure-capture overhead:** L5a's gate, which the owner accepted as INCONCLUSIVE.
+
+This is the development host, not a VMware claim.
+
 ## Security review
 
 Prompt injection from page text; redaction and personal-data masking; protected-login exclusion; process/renderer
 boundaries; local transport; model-pack path traversal/tampering; checksum handling; permission defaults per role
 (Administrator denylist); report/log leakage; T3 unreachability; revert integrity; pending candidates never executed.
+
+### Security review — engineering evidence (2026-09-24)
+
+The implementing agent mapped each item to a gate re-run at the final state. **This is an evidence
+review, not an independent security sign-off.** The project allows no reviewer subagent unless the owner
+asks for one, and an implementer's approval is not QC.
+
+| Item | Evidence (all PASS at `5b77cdd7`–`a65bdf4c`) |
+|---|---|
+| Prompt injection from page text | `verify:ai-redaction` 52/0: a forged delimiter does not survive, and untrusted text never reaches the system message. The live harness on the packaged runtime shows instructions inside page data cannot escape the schema, and special-token text is plain text. `verify:ai-host` checks that page text is never parsed for special tokens. |
+| Redaction and personal-data masking | `verify:ai-redaction`: credentials, tokens, JWT, email, account numbers, token URLs and profile paths are masked before the host, and a residual secret is refused. `verify:ai-authoring` §1: no step name, typed value or locator value reaches a prompt. |
+| Protected-login exclusion | `verify:ai-locator-attempts` §7: a protected-login surface ends the job. `verify:ai-locator-upgrade`: a protected-login step is refused as T3. |
+| Process and renderer boundaries | `verify:ai-fallback`: the renderer cannot run a prompt, and no `ai:` channel can spawn a process or name a file. `verify:ai-host-electron` 26/0: the runtime stays out of the main process. |
+| Local transport | `verify:ai-host` 135/0 with 12/12 mutations: the host requires only `node:fs` and `node:path`, and has no listener, socket, HTTP, child process or worker. |
+| Model-pack path traversal and tampering; checksum handling | `verify:ai-host`: out-of-root paths, traversal, NUL bytes and junction escapes are refused. `verify:ai-model-pack` 46/0: format, size and checksum refusals, and tamper, truncate or delete caught at load. `verify:ai-packaged-app`: the import lands in the writable profile, never in `resources`. |
+| Permission defaults per role (Administrator denylist) | `verify:ai-permissions` 99/0: every role in both directions, re-auth only for AI management, and every `ai:` channel authorizes before it acts. |
+| Report and log leakage | `verify:ai-redaction`: logs carry codes only. The review store refuses a surviving secret (`verify:ai-authoring`). No leak on L5's labelled set (`verify:ai-error-analysis` 429/429). |
+| T3 unreachability | `verify:ai-autonomy-policy` 62/0 over 968 combinations. |
+| Revert integrity | `verify:ai-audit-revert` 69/0; `verify:ai-locator-upgrade` 78/0 (exact revert, STALE refused). |
+| Pending candidates never executed | `verify:ai-locator-attempts` §15; `verify:ai-locator-upgrade` (a pending candidate changes nothing). |
+| Packaging supply chain | The QC-3/QC-4 staging refusals, the QC-6 model scan and the QC-7 license review above; `verify:offline-supply-chain` 25/0. |
+
+**Open from the security side:** `awkit-i6ot`, the MSVC runtime, is an availability and packaging issue,
+not a confidentiality one. KNOWN_ISSUES keeps one limit: the host's `hello` reports "compatible" from
+package metadata alone.
 
 ## Quality & autonomy gates
 

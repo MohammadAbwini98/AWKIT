@@ -15,9 +15,12 @@
      and a licensed redist source; (b) declare it a prerequisite for AI; (c) a static-CRT runtime build.
      Then re-run `verify:ai-packaged-runtime` (PE-import check) and the clean-machine VM.
   3. **L6 follows L4b.** Its own criteria hold; only the L4b edge keeps it open.
-  4. **L7, after 1–3.** Still owed:
-     - the security review;
-     - the performance confirmation with final prompts;
+  4. **L7, after 1–3.** Done today:
+     - the performance confirmation with the final prompts: GO on all 8;
+     - the security review as an engineering evidence review, with every mapped gate passing.
+       No independent security sign-off is claimed; one is still needed if the owner requires it.
+
+     Still owed:
      - thresholds: T2 and automatic analysis are off, so N, row diversity and self-demotion stay
        provisional, marked not applicable;
      - the licensed walkthrough parts (BLOCKED, issuer key);

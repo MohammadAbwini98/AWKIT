@@ -45,6 +45,14 @@
   - the clean-machine VM: it needs an operator, and the shell guard admits no Hyper-V command;
   - the licensed walkthrough parts: BLOCKED on the issuer key;
   - an independent QC re-review of the fixes: the contract `qc_status` stays `pending`.
+- **L7 performance and security, the same day after the push of `a65bdf4c`:**
+  - `benchmark:ai-model-0-8b` with the final prompts: GO on all 8. It re-measured the locator request that
+    D1 had changed: 113.5 s at its cap against 180 s. Evidence file updated.
+  - Engineering security evidence review in the L7 plan: `verify:ai-adapter` 117/0, `verify:ai-redaction`
+    52/0, `verify:ai-permissions` 99/0, `verify:ai-model-pack` 46/0, `verify:ai-host` 135/0 with 12/12
+    mutations, `verify:ai-host-electron` 26/0, `verify:ai-locator-sweep` 64/64. It is not an independent
+    sign-off.
+  - `npm run build` PASS, `verify:source-hygiene` 11/0, `git diff --check` clean.
 
 ## 2026-09-24 — Phase L L7: the installer carries the pinned local-AI runtime; the first packaged AI gate (Claude)
 

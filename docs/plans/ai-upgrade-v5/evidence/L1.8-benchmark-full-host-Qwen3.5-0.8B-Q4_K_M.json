@@ -63,33 +63,33 @@
       }
     },
     "packets:locatorUpgrade": {
-      "completedAt": "2026-09-22T08:46:37.565Z",
+      "completedAt": "2026-09-24T18:38:48.580Z",
       "ok": true,
       "steps": [
         {
           "label": "packets: locatorUpgrade #1",
           "ok": true,
-          "durationMs": 73641,
+          "durationMs": 55349,
           "detail": {
-            "promptTokens": 618,
-            "outputTokens": 112,
+            "promptTokens": 633,
+            "outputTokens": 49,
             "stopReason": "stop",
-            "promptMs": 42141,
-            "firstTokenMs": 42141,
-            "generationMs": 31476,
-            "wallMs": 73627,
-            "promptTokensPerSec": 14.7,
-            "generationTokensPerSec": 3.53,
-            "hostPeakWorkingSetMb": 798,
-            "hostMaxWorkingSetMb": 798,
-            "hostCpuAvgPct": 31,
-            "hostCpuMaxPct": 34,
-            "mainLoopDelayP99Ms": 30,
-            "mainLoopDelayMaxMs": 36,
+            "promptMs": 43575,
+            "firstTokenMs": 43575,
+            "generationMs": 11758,
+            "wallMs": 55342,
+            "promptTokensPerSec": 14.5,
+            "generationTokensPerSec": 4.08,
+            "hostPeakWorkingSetMb": 1100,
+            "hostMaxWorkingSetMb": 1013,
+            "hostCpuAvgPct": 32,
+            "hostCpuMaxPct": 35,
+            "mainLoopDelayP99Ms": 29,
+            "mainLoopDelayMaxMs": 38,
             "maxOutputTokens": 256,
             "answer": {
               "accepted": true,
-              "meaningChange": true,
+              "meaningChange": false,
               "shape": {
                 "keys": [
                   "version",
@@ -103,19 +103,14 @@
                   "exact"
                 ],
                 "strategy": "role",
-                "scopes": 1,
-                "scopeKinds": [
-                  "section"
-                ],
+                "scopes": 0,
+                "scopeKinds": [],
                 "chars": [
                   6,
-                  64,
-                  64,
-                  64,
-                  4
+                  80
                 ],
-                "cutByGrammar": 0,
-                "ungrounded": 1
+                "cutByGrammar": 1,
+                "ungrounded": 0
               }
             }
           }
@@ -123,27 +118,27 @@
         {
           "label": "packets: locatorUpgrade #2",
           "ok": true,
-          "durationMs": 77081,
+          "durationMs": 58339,
           "detail": {
-            "promptTokens": 618,
-            "outputTokens": 112,
+            "promptTokens": 633,
+            "outputTokens": 49,
             "stopReason": "stop",
-            "promptMs": 47775,
-            "firstTokenMs": 47775,
-            "generationMs": 29270,
-            "wallMs": 77078,
-            "promptTokensPerSec": 12.9,
-            "generationTokensPerSec": 3.79,
-            "hostPeakWorkingSetMb": 798,
-            "hostMaxWorkingSetMb": 714,
-            "hostCpuAvgPct": 31,
+            "promptMs": 45609,
+            "firstTokenMs": 45609,
+            "generationMs": 12718,
+            "wallMs": 58337,
+            "promptTokensPerSec": 13.9,
+            "generationTokensPerSec": 3.77,
+            "hostPeakWorkingSetMb": 1100,
+            "hostMaxWorkingSetMb": 1017,
+            "hostCpuAvgPct": 32,
             "hostCpuMaxPct": 33,
-            "mainLoopDelayP99Ms": 30,
-            "mainLoopDelayMaxMs": 34,
+            "mainLoopDelayP99Ms": 29,
+            "mainLoopDelayMaxMs": 38,
             "maxOutputTokens": 256,
             "answer": {
               "accepted": true,
-              "meaningChange": true,
+              "meaningChange": false,
               "shape": {
                 "keys": [
                   "version",
@@ -157,19 +152,14 @@
                   "exact"
                 ],
                 "strategy": "role",
-                "scopes": 1,
-                "scopeKinds": [
-                  "section"
-                ],
+                "scopes": 0,
+                "scopeKinds": [],
                 "chars": [
                   6,
-                  64,
-                  64,
-                  64,
-                  4
+                  80
                 ],
-                "cutByGrammar": 0,
-                "ungrounded": 1
+                "cutByGrammar": 1,
+                "ungrounded": 0
               }
             }
           }
@@ -181,29 +171,29 @@
         "benchThreads": 4,
         "packets:locatorUpgrade": {
           "threads": 4,
-          "loadMs": 7219,
-          "packetIdentity": "a3d4f3866b224d00f93973f2e8323a6be8f5d98869a29b13b065e5cf44a631d7",
+          "loadMs": 7954,
+          "packetIdentity": "ee3b249671b9a14041f45d92a6b8e61b04f00bc1a4314ea12ecc5582cac5791a",
           "iterations": [
             {
-              "promptTokens": 618,
-              "outputTokens": 112,
+              "promptTokens": 633,
+              "outputTokens": 49,
               "stopReason": "stop",
-              "promptMs": 42141,
-              "firstTokenMs": 42141,
-              "generationMs": 31476,
-              "wallMs": 73627,
-              "promptTokensPerSec": 14.7,
-              "generationTokensPerSec": 3.53,
-              "hostPeakWorkingSetMb": 798,
-              "hostMaxWorkingSetMb": 798,
-              "hostCpuAvgPct": 31,
-              "hostCpuMaxPct": 34,
-              "mainLoopDelayP99Ms": 30,
-              "mainLoopDelayMaxMs": 36,
+              "promptMs": 43575,
+              "firstTokenMs": 43575,
+              "generationMs": 11758,
+              "wallMs": 55342,
+              "promptTokensPerSec": 14.5,
+              "generationTokensPerSec": 4.08,
+              "hostPeakWorkingSetMb": 1100,
+              "hostMaxWorkingSetMb": 1013,
+              "hostCpuAvgPct": 32,
+              "hostCpuMaxPct": 35,
+              "mainLoopDelayP99Ms": 29,
+              "mainLoopDelayMaxMs": 38,
               "maxOutputTokens": 256,
               "answer": {
                 "accepted": true,
-                "meaningChange": true,
+                "meaningChange": false,
                 "shape": {
                   "keys": [
                     "version",
@@ -217,42 +207,37 @@
                     "exact"
                   ],
                   "strategy": "role",
-                  "scopes": 1,
-                  "scopeKinds": [
-                    "section"
-                  ],
+                  "scopes": 0,
+                  "scopeKinds": [],
                   "chars": [
                     6,
-                    64,
-                    64,
-                    64,
-                    4
+                    80
                   ],
-                  "cutByGrammar": 0,
-                  "ungrounded": 1
+                  "cutByGrammar": 1,
+                  "ungrounded": 0
                 }
               }
             },
             {
-              "promptTokens": 618,
-              "outputTokens": 112,
+              "promptTokens": 633,
+              "outputTokens": 49,
               "stopReason": "stop",
-              "promptMs": 47775,
-              "firstTokenMs": 47775,
-              "generationMs": 29270,
-              "wallMs": 77078,
-              "promptTokensPerSec": 12.9,
-              "generationTokensPerSec": 3.79,
-              "hostPeakWorkingSetMb": 798,
-              "hostMaxWorkingSetMb": 714,
-              "hostCpuAvgPct": 31,
+              "promptMs": 45609,
+              "firstTokenMs": 45609,
+              "generationMs": 12718,
+              "wallMs": 58337,
+              "promptTokensPerSec": 13.9,
+              "generationTokensPerSec": 3.77,
+              "hostPeakWorkingSetMb": 1100,
+              "hostMaxWorkingSetMb": 1017,
+              "hostCpuAvgPct": 32,
               "hostCpuMaxPct": 33,
-              "mainLoopDelayP99Ms": 30,
-              "mainLoopDelayMaxMs": 34,
+              "mainLoopDelayP99Ms": 29,
+              "mainLoopDelayMaxMs": 38,
               "maxOutputTokens": 256,
               "answer": {
                 "accepted": true,
-                "meaningChange": true,
+                "meaningChange": false,
                 "shape": {
                   "keys": [
                     "version",
@@ -266,19 +251,14 @@
                     "exact"
                   ],
                   "strategy": "role",
-                  "scopes": 1,
-                  "scopeKinds": [
-                    "section"
-                  ],
+                  "scopes": 0,
+                  "scopeKinds": [],
                   "chars": [
                     6,
-                    64,
-                    64,
-                    64,
-                    4
+                    80
                   ],
-                  "cutByGrammar": 0,
-                  "ungrounded": 1
+                  "cutByGrammar": 1,
+                  "ungrounded": 0
                 }
               }
             }
@@ -843,7 +823,7 @@
     }
   },
   "verdict": {
-    "evaluatedAt": "2026-09-23T07:27:56.495Z",
+    "evaluatedAt": "2026-09-24T18:38:48.586Z",
     "decision": "GO",
     "criteria": [
       {
@@ -854,13 +834,13 @@
       },
       {
         "id": "hostMemory",
-        "measured": 1047,
+        "measured": 1100,
         "ceiling": 6144,
         "pass": true
       },
       {
         "id": "locatorUpgradeAtCap",
-        "measured": 115321,
+        "measured": 113514,
         "ceiling": 180000,
         "pass": true
       },
@@ -898,15 +878,15 @@
     "packets": {
       "locatorUpgrade": {
         "runs": 2,
-        "promptTokens": 618,
-        "promptTokensPerSec": 14.7,
-        "generationTokensPerSec": 3.79,
-        "firstTokenMsMedian": 47775,
-        "wallMsMedian": 77078,
-        "wallMsMax": 77078,
-        "atOutputCapMs": 115321,
-        "hostPeakWorkingSetMb": 798,
-        "mainLoopDelayP99Ms": 30
+        "promptTokens": 633,
+        "promptTokensPerSec": 14.5,
+        "generationTokensPerSec": 4.08,
+        "firstTokenMsMedian": 45609,
+        "wallMsMedian": 58337,
+        "wallMsMax": 58337,
+        "atOutputCapMs": 113514,
+        "hostPeakWorkingSetMb": 1100,
+        "mainLoopDelayP99Ms": 29
       },
       "validationExplanation": {
         "runs": 2,
