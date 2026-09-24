@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-4-request-wording-note-0924",
+    "title": "Note the D1 request-format change on awkit-djnl.4",
+    "objective": "At 9d03fa5a the D1 model request offers each approved container scope in the grammar's own form (2fd2c3f5: offeredContainerScopes writes the plan's own scope object in LOCATOR_PLAN_SCHEMA key order with hasText empty, the upgrade instructions allow a scope only as a verbatim copy of an offered one and scopes [] when unique or nothing is offered; compiler, scope rule, proof, budgets and model unchanged; verify:ai-locator-attempts 191/191, red 184/191 against the original request, five mutations caught; verify:ai-locator-quality-controls 49/0; verify:element-spy 205/0; budget 8/0; no model run) and recorded (9d03fa5a, the model-quality issue still OPEN, the owner's request-wording-only authorization in DECISIONS). Append one note to awkit-djnl.4. Refresh the JSONL export. Nothing closes: awkit-djnl.4 stays in_progress, and no edge is added or removed. The lease writes .beads/** only.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "9d03fa5a",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "scripts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "tracker-reflects-reality",
+      "description": "awkit-djnl.4 stays in_progress with a note naming 2fd2c3f5 and 9d03fa5a, the observed request-format cause, the change, the unchanged refusal policy, attempts 191/191 with the red run and five caught mutations, controls 49/0, element-spy 205/0, budget 8/0, no model run, the D1 live result unchanged and the model-quality issue still OPEN pending one separately authorized live run, no edge changes, the JSONL export is refreshed from the database, and the dashboard reports that its sources agree.",
+      "evidence_required": [
+        "roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177 with the Overview banner on 'Sources agree', run after the lease release, after `bd update awkit-djnl.4 --append-notes` and `bd export -o .beads/issues.jsonl` (one line changed): 26 outstanding / 294 closed with 180 edges (unchanged), and both narratives restating 65 PASS / 2 NOT RUN / 0 BLOCKED. Rerun once after the closeout doc rows for the src/ai structural gates were added. Also run at the final state: verify:verifier-classification 263 reconciled (no new script)."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-4-request-wording-note-0924:project-state:2026-09-24T12:35:28.192Z",
+        "task": "awkit-djnl-4-request-wording-note-0924",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-24T12:35:28.192Z",
+        "acquired_at_commit": "9d03fa5af0ff08519b394f88a115fa1fbd32ab2c",
+        "released_at": "2026-09-24T12:35:58.335Z",
+        "released_reason": "D1 request-format change noted on awkit-djnl.4 at 9d03fa5a, nothing closed, no edge changed, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

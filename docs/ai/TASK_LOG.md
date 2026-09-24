@@ -27,6 +27,10 @@
   - Other gates: `verify:ai-locator-quality-controls` 49/0, `verify:element-spy` 205/0, `verify:locator-plan`
     53/0, `verify:ai-locator-upgrade-budget` 8/0 (worst prompt 1053 of 3072 tokens), `verify:ai-host-electron`
     26/0, `verify:source-hygiene` 11/0, `typecheck:scripts` PASS, build PASS.
+  - The structural gates for `src/ai`: `verify:ai-fallback` 38/0, and `verify:failure-capture-overhead`
+    18/0/0 with run 13 appended to its evidence file.
+  - After the `awkit-djnl.4` note: `verify:roadmap-dashboard` 177/177 "Sources agree", and
+    `verify:verifier-classification` 263 reconciled.
 - **Not run:** `verify:ai-locator-quality-live-d1`, `verify:ai-spy-live` and `benchmark:ai-model`. They use the
   real model, which was not authorized.
 - **Tooling note:** the lease guard allows only a plain `npm run` for verifiers, with no pipes or redirects. Its

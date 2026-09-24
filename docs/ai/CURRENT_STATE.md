@@ -26,6 +26,7 @@ request wording only (`DECISIONS.md`), and it is built in `2fd2c3f5`. No model w
 | `verify:ai-locator-quality-controls` · `verify:element-spy` · `verify:locator-plan` | 49/0 · 205/0 · 53/0 |
 | `verify:ai-locator-upgrade-budget` | 8/0 (worst prompt 1053 of 3072 tokens; output cap 256 unchanged) |
 | `verify:ai-host-electron` · `verify:source-hygiene` · `typecheck:scripts` · build | 26/0 · 11/0 · PASS · PASS |
+| `verify:ai-fallback` · `verify:failure-capture-overhead` (structural gates for `src/ai`) | 38/0 · 18/0/0 (run 13 appended to `L5a-overhead-gate.json`) |
 | `verify:verifier-classification` · `verify:roadmap-dashboard` · `git diff --check` | run after the `awkit-djnl.4` note; results in its contract and commit |
 | `verify:ai-locator-quality-live-d1` · `verify:ai-spy-live` · `benchmark:ai-model` | NOT RUN: real model, not authorized |
 
