@@ -1,6 +1,32 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-24, latest) — L3 D1 (A+B) and D2 (U1) are built and mutation-tested
+## HANDOFF (2026-09-24, latest) — D1's real-model quality set is ready to run; the live run is NOT RUN
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. `awkit-djnl.4` stays
+  `in_progress`; no bead's status or edge changed.
+- **Done:**
+  - `verify:ai-locator-quality-live-d1` holds D1's four labelled cases.
+  - `verify:ai-locator-quality-controls` runs every control with no model: 11/0.
+  - The attempt check now knows `SCOPE_NOT_OFFERED`.
+  - Product source is unchanged. Records: the L3 plan ("D1 real-model quality set"), mock-site README,
+    `KNOWN_ISSUES.md`.
+- **Next action, only with the owner's explicit authorization:** `npm run verify:ai-locator-quality-live-d1`.
+  - Needs the installed runtime, the published pack at `~/Downloads/Qwen3.5-0.8B-Q4_K_M.gguf`, and an
+    otherwise idle CPU.
+  - At most 8 model calls. Plan for up to ~575 s of harness time.
+  - Exit codes: 0 when a D1 candidate is browser-proven and every safety check held; 2 INCONCLUSIVE when
+    none was proven; 1 on any failure.
+  - Record the per-case classes as measured. No D1 acceptance rate exists; the owner sets one if wanted.
+- **Residual risk:** the live loop's D1 glue (per-call record, D1 verdict) is type-checked. Its helpers
+  run in the controls, but the glue itself first runs in that live run.
+- **Open verifier defect:** `verify:ai-spy-live`'s `classifyAttempts` does not know `SCOPE_NOT_OFFERED`.
+  Fix it, with its no-model regression, before that verifier's next live run. The steps are in
+  `KNOWN_ISSUES.md`. It does not affect the D1 set.
+- **Do not:** run the live set to chase a pass; relax D1 eligibility; change the fixtures or the withheld
+  lists to get a green run; count a scripted-control pass as model quality. The signed-license route (b)
+  rebuild note below still applies.
+
+## HANDOFF (2026-09-24, superseded) — L3 D1 (A+B) and D2 (U1) are built and mutation-tested
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. `awkit-djnl.4` stays
   `in_progress`; no bead's status or edge changed.

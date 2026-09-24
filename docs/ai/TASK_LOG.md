@@ -1,5 +1,37 @@
 # TASK_LOG
 
+## 2026-09-24 — Phase L: D1 real-model quality set for the live locator-quality verifier (Claude)
+
+- **Task:** extend `verify:ai-locator-quality-live` so D1 container scoping can be measured on the real
+  0.8B in a later, separately authorized run. Controls, fixture validation, records. No live run.
+- **Verifier only:** `scripts/ai-harness/locatorQualityLive.ts`:
+  - the D1 set (four cases on `/recorder-lab/element-spy`);
+  - fixture preconditions;
+  - five D1 controls;
+  - per-call recording and case classes;
+  - the D1 verdict (INCONCLUSIVE when nothing is proven);
+  - the attempt check fixed for `SCOPE_NOT_OFFERED`.
+  Also: `verify-ai-explanation-live.mts` (`--set d1`, `--controls`, exit 2), `package.json` (two scripts),
+  `verifier-classification.ts` (two entries). Product source and Feature Test Lab pages are unchanged.
+- **Checks (final state):**
+  - `verify:ai-locator-quality-controls` 11/0 (baseline, original five: 6/0);
+  - `verify:ai-locator-upgrade-budget` 8/0;
+  - `typecheck:scripts` PASS, build PASS;
+  - `verify:verifier-classification` 263 reconciled;
+  - `git diff --check` clean.
+  - A resumed session re-ran each of these at the final state, with the same results.
+  - Live D1 and original live sets: NOT RUN, no authorization recorded.
+- **Mutations:** the loop's scope rule, a success without proof, an unanswered request, and the old attempt
+  check were each caught at 9/3 and reverted. Weakening the product's privacy rules was refused by the
+  safety classifier and not run.
+- **Open verifier defect, not fixed:** `verify:ai-spy-live`'s `classifyAttempts` does not know
+  `SCOPE_NOT_OFFERED`. The D1 set does not use it. The follow-up is in `KNOWN_ISSUES.md`.
+- **Records:** L3 plan, mock-site README, `CURRENT_STATE.md`, `HANDOFF.md`, `KNOWN_ISSUES.md`. The
+  `awkit-djnl.4` note and the `verify:roadmap-dashboard` run come after this commit, in a separate
+  project-state commit.
+- **Result:** the D1 set is ready to run. L3 stays `in_progress`; no milestone, bead status, edge or verdict
+  changed.
+
 ## 2026-09-24 — Phase L: L3 owner decisions D1 (A+B) and D2 (U1) implemented and mutation-tested (Claude)
 
 - **Task:** implement the owner's D1 A+B (stable container test id, authored container name) and D2 U1

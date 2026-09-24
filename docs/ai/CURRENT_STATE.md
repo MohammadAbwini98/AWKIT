@@ -1,6 +1,43 @@
 # CURRENT_STATE
 
-## Phase L: L3 owner decisions D1 (A+B) and D2 (U1) built — container identity for AI requests, and a proven proposal attached to a recorded step as a pending candidate (2026-09-24, current)
+## Phase L: D1 real-model quality set added to the live locator-quality verifier, controls run with no model; live D1 run NOT RUN (2026-09-24, current)
+
+**Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** `awkit-djnl.4` stays
+`in_progress`; no bead's status or edge changed. Verifier-only change: product source (`src/`, `app/`) and the
+Feature Test Lab pages are unchanged. Details: L3 plan, "§1 D1 and D2 as built", "D1 real-model quality set".
+
+- **New D1 set** in `scripts/ai-harness/locatorQualityLive.ts`, run apart with `verify:ai-locator-quality-live-d1`
+  (`--set d1`) and reported apart. The original six cases and their evidence are unchanged. Four cases on
+  `/recorder-lab/element-spy`:
+  - two positives: Call scoped by `slot-primary` (D1 A) and by "Night shift" (D1 B);
+  - two with no approved identity, which must end refused: `contact-2004` with an email name, and INV-2002.
+  Each fixture is checked on the page and in the request before the model is asked. Each call is recorded as
+  codes and a bounded scope category, and each case is classed. No D1 threshold is applied (none is
+  approved). A run that proves nothing is INCONCLUSIVE, exit 2.
+- **New `verify:ai-locator-quality-controls`:** every scripted control of both sets, in plain Node, with no
+  runtime, pack, Electron or model call. It shows the fixtures and the judge are sound, not model quality.
+- **Verifier defect fixed:** `attemptViolations` predated D1's `SCOPE_NOT_OFFERED`, so a correct refusal
+  would have failed a live run. No live `locatorQuality` run has been made since D1, so no recorded result
+  changes.
+- **Open verifier defect:** `verify:ai-spy-live`'s `classifyAttempts` has the same staleness. Its next live
+  run can fail on a plan D1 withholds on purpose. The D1 set does not use it. The follow-up is in
+  `KNOWN_ISSUES.md`.
+- **Mutations, each reverted:** four ran and were caught at 9/3. Weakening the product's privacy rules was
+  refused by the session's safety classifier and not run; constructed controls cover those paths.
+- **Live D1 run: NOT RUN.** No authorization for it is recorded. The runtime and the published pack are
+  present on this host. L1 stays under its limited GO. L3 stays `in_progress` (§9 and real-model quality
+  unmet). L4b is at 1 of 16, TARGET PENDING. L5b automatic analysis and T2 stay off.
+
+| Gate (final state; a resumed session re-ran each, same results) | Result |
+|---|---|
+| `verify:ai-locator-quality-controls` (new) | 11/0 (10 controls + step count); baseline before any edit: the original five, 6/0 |
+| `verify:ai-locator-upgrade-budget` (bundles the harness with the change) | 8/0 |
+| `typecheck:scripts` · build · `verify:verifier-classification` · `git diff --check` | PASS · PASS · 263 reconciled (was 261) · clean |
+| `verify:roadmap-dashboard` | runs after the `awkit-djnl.4` note, in a separate project-state commit |
+| `verify:ai-locator-quality-live-d1` · `verify:ai-locator-quality-live` | NOT RUN: no recorded authorization for a live run |
+| `verify:element-spy` · `verify:ai-locator-attempts` · `verify:ai-assist-gui` · `verify:locator-plan` · `verify:locator-upgrade-proof` · `verify:ai-locator-upgrade` · `verify:mock-site` | not rerun: their inputs are unchanged since their final-state runs at `5db17a0c` (205/0 · 153/153 · 177/0 · 53/0 · 85/0 · 78/0 · 242/242) |
+
+## Phase L: L3 owner decisions D1 (A+B) and D2 (U1) built — container identity for AI requests, and a proven proposal attached to a recorded step as a pending candidate (2026-09-24)
 
 **Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** `awkit-djnl.4` stays
 `in_progress`; no bead's status or edge changed. Decision record: `DECISIONS.md` (2026-09-24). As built: L3

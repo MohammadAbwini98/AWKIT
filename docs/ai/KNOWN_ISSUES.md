@@ -1,5 +1,35 @@
 # KNOWN_ISSUES
 
+## The live locator-quality verifier's attempt check predated D1's scope rule (2026-09-24, FIXED — L3 D1 quality set)
+
+- **What happened:** `attemptViolations` in `scripts/ai-harness/locatorQualityLive.ts` re-derives why each
+  attempt was refused. D1 added `SCOPE_NOT_OFFERED` to the §7 loop, a refusal made before the browser, but the
+  re-derivation was not updated. A correct refusal therefore read as `PLAN_NEVER_REACHED_THE_BROWSER`, and any
+  live run where the model proposed an unoffered scope would have failed on correct product behaviour.
+- **Impact:** none recorded. The last live `locatorQuality` run (2026-09-22) predates D1.
+- **Fix:** the check re-derives the scope rule, before the duplicate check as the loop does. It also flags a
+  plan refused before the browser that was proven anyway. Reverting the fix fails the D1 controls, 9/3.
+- **Fragile area:** a verifier that re-derives a product decision goes stale silently when the product gains
+  a rule. When a loop gains a refusal, grep the verifiers that re-derive it.
+- **OPEN, same staleness in `verify:ai-spy-live`:**
+  - `classifyAttempts` compiles each reply and asks the page, but knows nothing of D1's scope rule.
+  - Its check "no plan the page proves right was withheld" (line 347) fails when a compiled plan is
+    page-correct but withheld. Under D1 such plans are withheld on purpose: a `hasText "INV-2002"` row
+    scope, or `contact-carol-white`.
+  - So its next live run can fail on correct privacy behaviour.
+  - Not fixed here: `verify:ai-locator-quality-live-d1` and the controls do not use `classifyAttempts`
+    (`locatorQualityLive.ts` has its own `attemptViolations`, fixed above), and a fix is a separate change.
+  - **Follow-up:** in `classifyAttempts`, before judging a compiled plan on the page, run
+    `unofferedScopeField(compiled.context, offered)` from `@src/ai/locatorUpgradeAttempts`. Take
+    `offered` from the inspection's upgrade context if the verifier can reach it; otherwise read the
+    `container: … scope {…}` lines of the first request, as `d1Preconditions` does. Record a refused
+    plan as `SCOPE_NOT_OFFERED (withheld by D1)` and leave it out of `rightButWithheld`. Add a
+    deterministic regression with no model: a scripted attempt scoped by `hasText "INV-2002"` and one
+    by `contact-carol-white` must count 0, and an offered `slot-primary` plan the page proves must
+    still count 1. Do not run the live model to reproduce it.
+- **Also found:** the first D1 fixture check counted identical buttons page-wide, but never checked that the
+  inspected control was one of them. It now does.
+
 ## A mutation can pass because the fixture already equals the mutated result (2026-09-24, FIXED — L3 D1/U1 verifiers)
 
 - **What happened:** two of eight mutations were first not caught.

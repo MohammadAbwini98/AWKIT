@@ -325,6 +325,52 @@ D1 option C and D2 option U2 were not approved and are not built.
 - **Not shown by any of this:** real-model quality. No live model run was made. §9 acceptance is
   unchanged.
 
+**D1 real-model quality set, ready to run (2026-09-24).** `verify:ai-locator-quality-live` now has a
+second labelled set for D1, run apart with `verify:ai-locator-quality-live-d1` (`--set d1`) and reported
+apart, so the original six cases and their evidence are unchanged. Same harness, product path, proof and
+judge; the page is `/recorder-lab/element-spy` and each job is asked as Element Spy asks (`userRequested`,
+with the real Recorder capture).
+- **Cases.** `d1-test-id` (Call in `slot-primary`, D1 A) and `d1-authored-name` (Call in "Night shift",
+  D1 B) should be provable. `d1-record-key` (Call in `contact-2004`, email name) and `d1-computed-row`
+  (INV-2002 Edit) have no approved identity and must end refused.
+- **Before any model call** each fixture is checked: the inspected control is one of two or more
+  identical ones, the product's proof refuses the unscoped plan as not unique, the request offers the
+  approved scope object, and no withheld identity is in it (record key, email name, record text).
+- **Recorded per call:** contract result, strategy, a bounded scope category (`offered`, `structural`,
+  `row-content`, or `not-offered:` sibling / absent / ambiguous / withheld-own, placed by the product's
+  own proof asked directly), refusal, proof code and match count. Per case: requests, replies,
+  `attemptsUsed`, consumed refusals and accepted candidates, counted apart; false targets proposed and
+  accepted; model id. Class: success (browser-proven and confirmed by the page), refused, inconclusive
+  (a request not answered, or accepted but not proven) or fail (false target, withheld identity in a
+  request, or anything accepted for a no-identity case).
+- **No threshold.** No D1 acceptance rate is approved, so none is applied. The run fails on false
+  target, a leak or an accepted no-identity case, and is INCONCLUSIVE (exit 2) when no D1 candidate is
+  browser-proven.
+- **Controls, no model** (`verify:ai-locator-quality-controls`, all 10, plain Node): 11/0.
+  - Each D1 fixture is valid. Removing the twin controls, renaming the inspected one, dropping the
+    offered scope, offering `contact-2004`, and marking the INV-2002 row's computed name authored are each
+    caught by exactly their own check.
+  - An offered scope from a scripted provider is proven and judged the inspected element.
+  - A sibling's, an absent, a withheld own and a row-content scope are each refused `SCOPE_NOT_OFFERED`
+    before the browser (0 proofs). Asked directly, the product's proof says WRONG_ELEMENT,
+    CANDIDATE_NO_MATCH, PROVEN, PROVEN, so the refusal comes from the D1 rule, not the page.
+  - A sibling or invented container, offered as if it were the item's own and let through a bypassed
+    gate C/B, is caught by the judge.
+  - An unproven, unanswered, false-target, leaked or accepted no-identity case is never a success.
+- **Verifier defect fixed.** The live verifier's attempt check (`attemptViolations`) re-derived every
+  refusal without D1's scope rule, so a correct `SCOPE_NOT_OFFERED` read as "plan never reached the
+  browser": any live run where the model proposed an unoffered scope would have failed on a correct
+  refusal. No live `locatorQuality` run has been made since D1, so no recorded result changes. It now
+  re-derives the rule, and also flags a plan refused before the browser that was proven anyway.
+- **Mutations, each reverted:** the loop's scope rule removed → 9/3; an accepted candidate classed a
+  success without proof → 9/3; an unanswered request classed refused → 9/3; the old attempt check → 9/3.
+  Weakening the product's own privacy rules (test id digit rule, name source) was refused by the
+  session's safety classifier and not run; the constructed `recordKeyOffered` /
+  `computedRowNameAuthored` controls cover those detection paths.
+- **Live D1 run: NOT RUN.** No authorization for it is recorded. The runtime and the published pack are present
+  (`verify:ai-locator-upgrade-budget` 8/0 on this host). Real-model D1 quality, §9 acceptance and L3's
+  status are unchanged.
+
 ### §1 owner decisions: duplicate rows (D1) and "Use in action" (D2) (2026-09-23 design review; decided 2026-09-24)
 
 The owner chose D1 A+B and D2 U1 on 2026-09-24 (above). The review below is kept as it was written.
@@ -746,7 +792,10 @@ Each accepted candidate must be the recorded element on a fresh page: one match,
 repair proof again, and the click. False-target is 0 over every accepted candidate. Five scripted controls
 show that a bypassed gate B or C, a stubbed proof and a second attempt without the real refusal are each
 caught. The cases it does not cover (frames, shadow, rows, protected login, replay across rows) stay with
-the scripted suites. Existing: recorder/locator suites from L2,
+the scripted suites. `verify:ai-locator-quality-live-d1` (built 2026-09-24, NOT RUN) runs D1's own four
+cases on `/recorder-lab/element-spy`, reported apart (see "§1 D1 and D2 as built").
+`verify:ai-locator-quality-controls` (11/0, no model) runs every scripted control of both sets.
+Existing: recorder/locator suites from L2,
 `verify:blueprint-recovery-browser`, `verify:profile-store`, `verify:runner`, `verify:mock-site`, `npm run build`.
 
 ## Acceptance
