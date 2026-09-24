@@ -26,9 +26,11 @@ idle-gated job queue. **`verify:ai-locator-quality-live` is built** (2026-09-22,
 Qwen3.5-0.8B's plans for six labelled cases, proven by §4/§8 in real Chromium and judged by the page, 14/0
 with false-target 0 (details and results in the L1 plan). §9's model-free **durability report** is shown
 on the Flow Library since 2026-09-23 (see §9). **Since the owner's limited L1 GO (2026-09-23), §7 has its
-first production caller:** Element Spy's on-demand proposal (see "§1 Element Spy trigger as built"). Still
-not built, and outside that GO's scope: the automatic trigger on Recorder finalization, the §8 runtime
-repair trigger, and §9's queue and idle scheduler.
+first production caller:** Element Spy's on-demand proposal (see "§1 Element Spy trigger as built"). **Since
+the owner's D1 (A+B) and D2 (U1) decisions (2026-09-24), a proven proposal can be attached to a recorded
+step as a pending candidate** (see "§1 D1 and D2 as built"). Still not built, and outside that GO's scope:
+the automatic trigger on Recorder finalization, the §8 runtime repair trigger, and §9's queue and idle
+scheduler.
 
 §7 as built:
 - **One bounded job.** `runLocatorUpgradeAttempts` is the whole loop. Every iteration either returns or
@@ -149,10 +151,11 @@ Built under the owner's limited L1 GO: on demand, browser-proven before use, nev
   (`abortInspectionLocator`).
 - **Only `capture-proven` is shown.** An `unprovable-now` candidate is storable for a saved step, where
   replay settles it. The Spy has no replay, so it answers `NOT_PROVEN` instead.
-- **Nothing is written.** The loop's `annotate` holds the candidate for the answer only. No flow, draft or
-  Spy candidate changes, so using a proposal stays a person's separate act. Applying it through
-  "Use in action" with provenance and audit is not built. It would need a decision on how a draft step
-  carries AI provenance before it is saved.
+- **Nothing is written by asking.** The loop's `annotate` holds the candidate for the answer only. No
+  flow, draft or Spy candidate changes, so using a proposal stays a person's separate act. Since
+  2026-09-24 that act exists: main keeps the proven proposal in memory for its inspection, and the person
+  can attach it to a recorded step as a pending candidate (U1, see "§1 D1 and D2 as built"). Replacing
+  the locator on capture proof alone (U2) was not approved.
 - **An answer belongs to its document (fixed 2026-09-23, found end to end).** Navigation does not clear
   an inspection, and the proof runs on whatever the page holds when the answer arrives. A reload while
   the model was answering therefore showed the old inspection's answer as "proven … it is the inspected
@@ -220,10 +223,111 @@ Built under the owner's limited L1 GO: on demand, browser-proven before use, nev
   - §9 acceptance is still not met. The row-content limit and "Use in action" for AI proposals still need
     owner decisions. Details are in the L1 plan, "Element Spy live verifier closeout".
 
-### §1 open owner decisions: duplicate rows (D1) and "Use in action" (D2) (2026-09-23, design review)
+### §1 D1 and D2 as built (owner decision 2026-09-24: D1 A+B, D2 U1)
 
-These are proposals, not decisions. Nothing below is enabled. `docs/ai/DECISIONS.md` gets an entry only after
-the owner chooses.
+Decision record: `docs/ai/DECISIONS.md` (2026-09-24). Built in `fde23c5d`, mutation-tested in `5db17a0c`.
+D1 option C and D2 option U2 were not approved and are not built.
+
+**D1: what a request may say about a container.**
+- **Capture.** For each container kind the page already walks, `buildUpgradeContext` also reports where
+  the name came from (`aria-label`, `aria-labelledby` or `content`), the container's own `data-testid`
+  and up to 500 characters of its text. No second DOM walk was added.
+- **Eligibility is decided in main** (`sanitizeUpgradeContext`, `src/recorder/upgradeContext.ts`).
+  The container's text is used for the rules and then dropped:
+  - *B, authored name* (`authoredName`): the source is `aria-label` or `aria-labelledby`, and no
+    redaction rule matches. For a record (row, card, list item) it must also have no digit and must not
+    repeat the record's own text. A section or dialog named only by its content is not authored.
+  - *A, stable test id* (`testId`): an identifier shape of 60 characters or fewer, no digit, no
+    redaction match, and no word (3+ letters) that also appears in the container's text unless the
+    authored name has it too. `slot-primary` and `lu-scope-billing` pass. `spy-row-2003`,
+    `contact-2004`, `contact-carol-white` (in Carol White's row) and `token-…` do not. With no text
+    reported, nothing is offered.
+  - The L2 marker pass also flags a container test id that contains a typed value
+    (`containers.N.testId`), which drops it from the request.
+- **Request.** Each container line shows its kind and role, plus ready scope objects for what is
+  offered: `scope {"kind":"listItem","strategy":"testId","value":"slot-primary"}` or a role/label
+  scope with the authored name. A computed name is never shown, whatever the container. Candidates that
+  the compiler would refuse as written are no longer shown either. A structural
+  `[data-testid="contact-2004"] button` candidate had carried a record-keyed container id around the
+  rule; the live verifier found it on its first run.
+- **Scope rule.** The §7 loop (mode `upgrade`) refuses before the browser any compiled scope the
+  request did not offer: a `hasText` (option C), a computed row name, a text scope, or a record-keyed,
+  sibling or invented id (`SCOPE_NOT_OFFERED`, stage `intent`, one attempt spent). A nameless role
+  scope (a row, a region) names structure only and stays allowed. The container chain must still be
+  unique, and gate C still proves the element. §8 repair has no capture to offer from and is unchanged.
+  The instruction sentence now says to copy an offered scope exactly.
+- **INV-2002 stays refused.** Its rows have no test id or authored name. The section's `spy-duplicates`
+  id is offered, but it holds both rows, so every plan is `CANDIDATE_NOT_UNIQUE`. The fixture was not
+  changed.
+
+**D2 (U1): a proven proposal attached to its recorded step.**
+1. The person asks Element Spy for a locator. Only a `capture-proven` answer is shown. Main keeps it
+   in memory (`heldProposals`, `app/main/ai/aiAssist.ts`) by assist job id, together with the
+   inspection it was proven on. Only the current inspection's proposals are kept.
+2. The person picks a step in "Use in step" and clicks **Attach to step as pending suggestion**. The
+   button stays disabled until a step is chosen, and its note says the step's locator is not replaced.
+3. `ai:attachInspectionProposal` carries a request id and an action id only. It is gated on AI_USE +
+   PAGE_RECORDER + RECORDER_ELEMENT_SPY. Main (`attachInspectionProposal`) refuses it, and writes
+   nothing, in each of these cases:
+   - no proposal is held for that request: never asked, refused, cancelled or still running
+     (`NOT_FOUND`);
+   - the inspection is not the one the proposal was proven on: a new inspection, a reload, navigation,
+     a detached frame, Close Spy, the TTL or a closed page (`NOT_FOUND`);
+   - the step is not applicable under the same rules as "Use in action": another page or frame, not a
+     single-target element step, hover-gated, or in a shadow root (`NOT_APPLICABLE`);
+   - local AI is off or the feature is forbidden;
+   - the step is T3 (`PROTECTED`, before any proof) or `needs-review`.
+   Otherwise main proves the candidate again on the live page. The chosen step, built by the Recorder
+   finalizer (`buildRecordedStep`, with hashed guard and final resolution), is the baseline, so a
+   candidate that does not reach that step's element is refused `WRONG_ELEMENT`. The inspection is
+   re-checked after the proof.
+4. `RecorderService.attachPendingUpgrade` compare-and-swaps the candidate onto main's own draft step.
+   It is refused if the step's binding changed since the proof, or if a newer candidate is already
+   there. The step's locator is not touched. The draft is persisted, so the candidate survives a
+   restart. The step list shows "AI suggestion attached, not applied".
+5. **Save** (`recorder:saveFlow`) passes `recorderService.draftPendingUpgrades()` to
+   `buildRecordedFlow`. The renderer's copy is ignored: `forwardLocatorFields` never forwards
+   `pendingUpgrade` or `locatorProvenance`. Main's copy is re-attached through `attachPendingUpgrade` on
+   the built step, which checks the binding and T3, and the step must be `resolved`. A step the renderer
+   renamed, retargeted or re-scoped loses the candidate. No audit record is written here.
+6. After save, nothing new: the §5 replay hook tallies proof on ordinary runs with no model call, §10
+   shows "AI semantic (capture-proven)" and offers no Apply until the candidate is `eligible`, and §6
+   promotion by a person writes the provenance, the only audit record and the revert target. T2 stays
+   off (`committed: false`).
+
+**Proven:**
+- `verify:element-spy` 205/0 (was 120). Real Recorder browser, Feature Test Lab contacts list.
+  - Capture and request checks.
+  - Live D1 proofs: scoped by test id and by authored name → PROVEN; unscoped →
+    `CANDIDATE_NOT_UNIQUE`. A sibling, invented, record-keyed or row-text scope is refused before the
+    browser, and gates B/C refuse the first two on their own. INV-2002 stays refused.
+  - The whole U1 refusal matrix, attach, supersession, reload, Close Spy and restart.
+  - A forged, retargeted and legacy save.
+  - Designer re-save and export/import.
+  - Three real replays over two rows with no model call. A decoy candidate never executes.
+  - Promotion with the only audit record, then revert.
+- `verify:ai-locator-attempts` 153/153 (was 125): the D1 rules, request serialization and the loop's
+  scope rule.
+- `verify:ai-assist-gui` 177/0 (was 162), real Electron: attach through the real UI, main keeping the
+  recorded locator, a forged request and a forged save refused, the Flow Designer showing the candidate
+  as capture-proven with no Apply.
+- Mutations, each reverted:
+  - a renderer candidate accepted at save → 199/203;
+  - the active locator replaced at attach → first not caught, because the fixture's proposal equalled
+    the recorded locator; caught once the fixture proposed a different strategy;
+  - proof against the inspection instead of the chosen step → 202/204;
+  - the same-inspection checks removed → 203/204;
+  - `LocatorFactory` executing a pending candidate → 201/203;
+  - the scope rule removed → 147/152;
+  - the name source ignored → first not caught (every content-named fixture was a record or bound),
+    then 152/153 and 204/205;
+  - the candidate filter removed → 152/153.
+- **Not shown by any of this:** real-model quality. No live model run was made. §9 acceptance is
+  unchanged.
+
+### §1 owner decisions: duplicate rows (D1) and "Use in action" (D2) (2026-09-23 design review; decided 2026-09-24)
+
+The owner chose D1 A+B and D2 U1 on 2026-09-24 (above). The review below is kept as it was written.
 
 #### D1: repeated controls in rows (the INV-2002 refusal)
 

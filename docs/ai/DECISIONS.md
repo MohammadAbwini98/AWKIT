@@ -1,6 +1,50 @@
 # DECISIONS
 
-### 2026-09-23 (latest) — Phase L L3 §7: the locator request shows candidates as plan targets, not engine selectors (owner-authorized, `awkit-djnl.4`)
+### 2026-09-24 (latest) — Phase L L3: D1 options A+B (container identity) and D2 option U1 (attach a proven proposal as a pending candidate) (owner, `awkit-djnl.4`)
+
+- **Decided by the owner (task brief, 2026-09-24), on the options in L3 › "§1 owner decisions D1 and D2":**
+  - **D1 A:** a request may offer a container's own, stable `data-testid`, only when it is really on the
+    inspected element's container, was captured by the Recorder, and is not a credential, personal data,
+    a runtime input, a row value or a record key. Anything that cannot be established is left out.
+  - **D1 B:** a request may offer a container name authored through `aria-label`/`aria-labelledby`, under
+    the existing sensitivity, redaction and data-binding rules. A name computed from content (a table
+    row's name is its cell text) is not authored.
+  - **D1 C is NOT approved.** No row-content or positional scoping, and no row text as a fallback.
+  - **D2 U1:** after a person explicitly chooses it, a browser-proven Element Spy proposal may be attached
+    to the intended Recorder draft step as a pending candidate. The recorded locator stays the one that
+    runs. The candidate becomes the locator only through the existing replay proof, Flow Designer
+    approval, audit and revert. The limited L1 GO now covers attaching, keeping it as pending metadata
+    through save, collecting passive replay proof during ordinary authorized runs, and showing that
+    evidence for manual review. It does not cover model calls during replay, automatic promotion, automatic
+    repair, the Recorder-finalization trigger or the health sweep's inference.
+  - **D2 U2 is NOT approved** (no applied change on capture proof alone).
+- **Decided by the implementer, within that (`fde23c5d`, `5db17a0c`):**
+  - **Eligibility is main's, from what the page reports** (`sanitizeUpgradeContext`). A test id is
+    offered only when it has a stable identifier shape, no digit, nothing a redaction rule recognises,
+    and no word that also appears in its container's own text unless the authored name says the same.
+    An authored name on a record (row, card, list item) must have no digit and must not repeat the
+    record's text. Over-refusal is the accepted direction: an authored id that echoes its visible heading
+    is simply not offered.
+  - **A model scope must be one the request offered.** The §7 loop refuses any other named scope before
+    the browser (`SCOPE_NOT_OFFERED`): `hasText`, a computed row name, a record-keyed id, a sibling's or
+    an invented one. A nameless role scope names structure only and stays allowed. Gates B and C still
+    decide in the browser. §8 repair has no capture to offer from and is unchanged.
+  - **Candidates the compiler would refuse as written are no longer shown** to the model. A structural
+    `[data-testid="contact-2004"] button` candidate carried a record-keyed container id around the rule.
+  - **Ids only across IPC.** `ai:attachInspectionProposal` (AI_USE + PAGE_RECORDER +
+    RECORDER_ELEMENT_SPY) names a request and a draft step. Main holds the proposal it showed, checks
+    the inspection is unchanged, the step is applicable, not T3 and resolved, and proves the candidate
+    again with that step as the baseline. The binding is the Recorder finalizer's own step
+    (`buildRecordedStep`), so it is what saving persists.
+  - **Save takes main's copy only.** `buildRecordedFlow` never forwards `pendingUpgrade` or
+    `locatorProvenance` from an action, and re-attaches main's through `attachPendingUpgrade` on the built
+    step, so a renamed, retargeted or re-scoped step drops it.
+  - **No audit record at attach or save.** The only record is the existing promotion's.
+- **Unchanged:** the compiler, intent guard, proof gates, replay thresholds (`committed: false`), T2,
+  §6 promotion, §10 status, the model pin and the INV-2002 fixture (still refused: its rows have no
+  identity D1 may offer). No real-model run was made for this decision.
+
+### 2026-09-23 — Phase L L3 §7: the locator request shows candidates as plan targets, not engine selectors (owner-authorized, `awkit-djnl.4`)
 
 - **Authorized by the owner (task brief, 2026-09-23):** one narrowly scoped clarification of the
   model-facing locator request, and only if the source and the captured evidence show an ambiguity.
@@ -43,7 +87,7 @@
   (`ai:proposeInspectionLocator`). It shows only a candidate proven on the live page and writes nothing,
   so no audit record is needed. Using a proposal in a recorded step, with provenance, is not built: a
   draft step has no saved flow for the audit and revert path to act on. See L3 › "§1 Element Spy trigger
-  as built".
+  as built". (Superseded 2026-09-24: the owner chose D2 U1, attach as a pending candidate. See above.)
 
 ### 2026-09-23 — Phase L L4b: criterion 3 measures the explanation a person sees (owner, option B) (`awkit-djnl.6`, `awkit-djnl.1`)
 

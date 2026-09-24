@@ -654,7 +654,9 @@ src/ai/                 Framework-agnostic core (no Electron).
   contracts/              AiHostProtocol (utility-process wire protocol), AiApi (renderer contract).
 app/main/ai/            AiUtilityHostManager (utilityProcess, Zvec restart policy) + aiRuntime (lazy
                           composition, views, revert, import/remove, staged shutdown).
-app/main/ipc/ai.ipc.ts  Nine permission-gated channels; no prompt, path or process surface.
+app/main/ipc/ai.ipc.ts  Permission-gated channels (exact roster: verify:ai-permissions); no prompt,
+                          path or process surface. Element Spy's pair: proposeInspectionLocator and
+                          attachInspectionProposal (L3 U1), both ids only.
 native-hosts/ai/        ai-host.cjs: node-llama-cpp 3.21.1 in the utility process (MessagePort, CPU-only,
                           never builds or downloads). Needs the owner-installed runtime and pack to load.
 ```
@@ -694,6 +696,16 @@ and persists AI locator candidates through `src/ai/locatorPlan.ts`, `src/ai/pend
 `src/ai/AiOutputContract.ts`, which are pure data, schema and policy and hold no transport. Both
 verifiers name the model-bearing modules explicitly; a folder- or `Ai*`-name proxy would condemn those
 three and, being one hop deep, would miss a model reached through an intermediate module entirely.
+
+**Recorder → L3 pending candidate (owner decision D2 U1, 2026-09-24).** Element Spy's proven proposal is
+held in main (`app/main/ai/aiAssist.ts`) by assist job id with the inspection it was proven on. The
+renderer names it and a draft step by id; main re-proves it with that step as the baseline and
+compare-and-swaps it onto its own draft (`RecorderService.attachPendingUpgrade`). At save,
+`buildRecordedFlow` takes pending candidates only from main's draft (`draftPendingUpgrades()`), never from
+the actions the renderer sends, and re-attaches them through `attachPendingUpgrade` on the built step.
+From there the saved-flow path (§5 replay, §6 promotion, §10 status) is unchanged. D1: the capture reports
+container name source, own test id and text; `sanitizeUpgradeContext` decides what may be offered, and
+the §7 loop refuses any scope the request did not offer.
 
 ## Semantic index (separate process boundary)
 

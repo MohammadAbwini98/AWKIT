@@ -1,6 +1,44 @@
 # CURRENT_STATE
 
-## Phase L: L3 design review, duplicate rows (D1) and "Use in action" (D2) proposed for the owner; container-scope regression added (2026-09-23, current)
+## Phase L: L3 owner decisions D1 (A+B) and D2 (U1) built — container identity for AI requests, and a proven proposal attached to a recorded step as a pending candidate (2026-09-24, current)
+
+**Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** `awkit-djnl.4` stays
+`in_progress`; no bead's status or edge changed. Decision record: `DECISIONS.md` (2026-09-24). As built: L3
+plan, "§1 D1 and D2 as built". D1 option C and D2 option U2 were not approved and are not built.
+
+- **D1 (`fde23c5d`).** The capture reports each container's name source, own `data-testid` and a bounded text
+  sample. Main (`sanitizeUpgradeContext`) offers only an authored name and a stable test id; a computed row
+  name, a record-keyed or secret-shaped id and anything it cannot establish are left out. The request shows
+  offered identities as ready scopes. The §7 loop refuses any scope it did not offer (`SCOPE_NOT_OFFERED`,
+  before the browser), so row-text (`hasText`) scoping stays off. Gates B/C stay authoritative. INV-2002 stays
+  refused.
+- **Found and fixed on the way:** the Recorder's structural CSS candidates
+  (`[data-testid="contact-2004"] button`) carried record-keyed container ids into the request. The request now
+  shows only candidates the compiler would accept as written.
+- **D2 (U1).** Element Spy's proven proposal is held by main. **Attach to step as pending suggestion** sends ids
+  only (`ai:attachInspectionProposal`, AI_USE + PAGE_RECORDER + RECORDER_ELEMENT_SPY). Main re-proves it
+  against the chosen step and compare-and-swaps it onto its own draft. The recorded locator is unchanged and
+  still runs. Save takes main's copy only. Replay, promotion, audit and revert are the existing paths. No
+  audit record is written at attach or save.
+- **Mutation-tested (`5db17a0c`):** eight mutations. Two were first **not** caught, and the verifiers were
+  fixed:
+  - the attach fixture's proposal equalled the recorded locator;
+  - every content-named fixture was a record or a bound value.
+- **L1, L3, L4b, L5b:** L1 stays under its limited GO, which now covers the U1 attach and passive replay proof.
+  L3 stays `in_progress`: §9 acceptance and real-model quality are unmet, and no model run was made. L4b is at 1
+  of 16, TARGET PENDING. L5b automatic analysis stays off, and so does T2.
+
+| Gate (this session, final state) | Result |
+|---|---|
+| `verify:element-spy` · `verify:ai-locator-attempts` · `verify:ai-assist-gui` | 205/0 (was 120) · 153/153 (was 125) · 177/0 (was 162) |
+| `verify:ai-permissions` · `verify:ai-fallback` · `verify:ipc-contract` | 99/0 · 38/0 · 10/10 |
+| `verify:locator-plan` · `verify:locator-upgrade-proof` · `verify:ai-locator-upgrade` · `verify:ai-locator-repair` · `verify:ai-locator-status` | 53/0 · 85/0 · 78/0 · 85/85 · 85/0 |
+| `verify:ai-locator-upgrade-gui` · `verify:recorder` · `verify:recorder-gui` | 65/0 · 292/0 · 205/0/0 |
+| `verify:legacy-compat` · `verify:mock-site` · `verify:ai-locator-upgrade-budget` · `verify:failure-capture-overhead` | 152/0 · 242/242 · 8/0 · 18/0/0 inconclusive (run 12) |
+| build · `typecheck:scripts` | PASS · PASS |
+| live model (`verify:ai-spy-live`, `verify:ai-locator-quality-live`) | NOT RUN: real-model quality is a separate requirement, not rerun |
+
+## Phase L: L3 design review, duplicate rows (D1) and "Use in action" (D2) proposed for the owner; container-scope regression added (2026-09-23)
 
 **Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** No bead's status or
 edge changed.

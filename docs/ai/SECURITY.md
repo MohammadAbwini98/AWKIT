@@ -47,6 +47,16 @@
   accessible name, and **must never be used to automate CAPTCHA / MFA / OTP / passkeys / device approval /
   protected-login / bot-detection** — the protected-login detector above takes precedence. Design review:
   `docs/ai/security-reviews/2026-08-04-closed-shadow-c2.md`; gate: `verify:closed-shadow`.
+- **AI locator proposals (Phase L L3, owner decisions D1 A+B and D2 U1, 2026-09-24).** A local-model
+  request may name a container only by an authored `aria-label`/`aria-labelledby` name or a stable
+  `data-testid` that main judged eligible (`sanitizeUpgradeContext`). It never names a row's text, a
+  record-keyed or secret-shaped id, or a computed name, and the loop refuses any scope it did not offer.
+  A proven proposal is held by main. The renderer can only name it and a draft step by id
+  (`ai:attachInspectionProposal`, AI_USE + PAGE_RECORDER + RECORDER_ELEMENT_SPY). Main proves it again
+  against that step and saves only its own copy; a `pendingUpgrade` or `locatorProvenance` the renderer
+  sends is dropped. A pending candidate never executes. Only the existing person-approved promotion
+  applies it, audits it and can revert it. Protected-login surfaces and T3 steps are refused before any
+  model call or proof.
 
 ## Offline / network safety
 - Production offline mode must not execute remote scripts, load remote renderer code, fetch CDN

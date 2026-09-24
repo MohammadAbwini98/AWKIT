@@ -1,5 +1,30 @@
 # TASK_LOG
 
+## 2026-09-24 — Phase L: L3 owner decisions D1 (A+B) and D2 (U1) implemented and mutation-tested (Claude)
+
+- **Task:** implement the owner's D1 A+B (stable container test id, authored container name) and D2 U1
+  (attach a proven proposal as a pending candidate), and nothing beyond them. C and U2 not approved.
+- **Product (`fde23c5d`):** `recorderInitScript.ts` (container name source, own test id and text),
+  `upgradeContext.ts` (the eligibility rules, the `containers.N.testId` marker), `locatorUpgradeAttempts.ts`
+  (offered scopes in the request, `SCOPE_NOT_OFFERED`, compiler-filtered candidates, instruction sentence),
+  `pendingUpgrade.ts` (`proofEvidenceOf`), `elementInspection.ts` (`inspectionActionBlocker`),
+  `buildRecordedFlow.ts` (`buildRecordedStep`, no forwarding of `pendingUpgrade`/`locatorProvenance`, trusted
+  re-attach), `RecorderService.ts` (`getDraftAction`, `attachPendingUpgrade`, `draftPendingUpgrades`),
+  `RecorderTypes.ts`, `AiApi.ts` (`InspectionAttach*`, `NOT_APPLICABLE`), `aiAssist.ts` (held proposals,
+  `attachInspectionProposal`), `ai.ipc.ts`, `recorder.ipc.ts` (save wiring), `preload.ts`, `Recorder.tsx`
+  (Attach button and step note), `element-spy-lab.html` (contacts list).
+- **Verifiers:** `verify-element-spy` (A capture/request, new section I, E wiring, F panel), `verify-ai-locator-
+  attempts` (section 18), `verify-ai-assist-gui` (U1 journey, seeded draft), `verify-ai-permissions` and
+  `verify-ai-fallback` (roster), `ai-harness/locatorUpgradeBudget.ts` (D1 worst case).
+- **Found by the verifiers:** structural CSS candidates carried record-keyed container ids into the request
+  (fixed). Mutation testing (`5db17a0c`) found two vacuous checks, both fixed: the attach fixture's
+  proposal equalled the recorded locator, and every content-named fixture was a record or a bound value.
+- **Checks (final state):** listed in `CURRENT_STATE.md`, 2026-09-24. All PASS. Live model NOT RUN: real-model
+  quality is a separate requirement.
+- **Records:** `DECISIONS.md`, L3 plan, `ARCHITECTURE.md`, `SECURITY.md`, mock-site README, `CURRENT_STATE.md`,
+  `HANDOFF.md`, `KNOWN_ISSUES.md`, `awkit-djnl.4` notes.
+- **Result:** D1 A+B and D2 U1 built. L3 stays `in_progress`; no milestone, bead status, edge or verdict changed.
+
 ## 2026-09-23 — Phase L: L3 design review for duplicate rows (D1) and "Use in action" (D2) (Claude)
 
 - **Task:** turn the two open L3 questions into owner-ready decisions, and do any authorized independent

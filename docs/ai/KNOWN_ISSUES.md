@@ -1,6 +1,35 @@
 # KNOWN_ISSUES
 
-## The locator request shows row text its instructions forbid, and never shows a container's test id (2026-09-23, OPEN — owner decision D1, L3)
+## A mutation can pass because the fixture already equals the mutated result (2026-09-24, FIXED — L3 D1/U1 verifiers)
+
+- **What happened:** two of eight mutations were first not caught.
+  - "The attach replaces the active locator": the scripted proposal was the same locator the Recorder had
+    recorded, so a replaced locator looked exactly like a kept one.
+  - "Ignore where a container name came from": every content-named fixture was either a record (refused by
+    the echo rule anyway) or held a typed value (dropped as bound anyway), so the name-source rule was never
+    the one deciding.
+- **Fixed in the verifiers (`5db17a0c`):** the attach fixture proposes a different strategy with a
+  precondition that it differs, and a section named only by its content is asserted on the capture itself
+  and in a pure case.
+- **Fragile area:** a check that the product did NOT change something is vacuous when the change would be a
+  no-op on the fixture. Make the "would-be" value differ from the original, and assert that as a
+  precondition.
+
+## Structural CSS candidates carried a record-keyed container test id into the locator request (2026-09-24, FIXED — L3 D1)
+
+- **What happened:** the Recorder's non-fallback candidates include structural CSS such as
+  `[data-testid="contact-2004"] button`. The request showed them, so a container id that D1 refuses reached
+  the model through the candidate list. `verify:element-spy` found it on its first run.
+- **Fix (`fde23c5d`):** a candidate is shown only when the compiler would accept it as written. The compiler
+  refuses that CSS anyway, so no usable candidate was lost.
+- **Fragile area:** any new field in the request can reintroduce a container id or row text. D1's rules must
+  cover every line, not only the container line.
+
+## The locator request shows row text its instructions forbid, and never shows a container's test id (2026-09-23, FIXED 2026-09-24 — owner decision D1 A+B, L3)
+
+- **Resolved:** the request now shows a container's name only when it was authored and a test id only when
+  it is stable; anything else is left out, and the loop refuses an unoffered scope. See the L3 plan, "§1 D1
+  and D2 as built". The original text follows.
 
 - **Risky assumption:** `contextLines` sends each captured container's name unless it is a bound value. A
   `<tr>`'s accessible name is its cells' text, so the model sees the row content that the sentence "never

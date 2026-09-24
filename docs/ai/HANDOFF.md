@@ -1,6 +1,25 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-23, latest) — L3 duplicate-row (D1) and "Use in action" (D2) decisions are ready for the owner
+## HANDOFF (2026-09-24, latest) — L3 D1 (A+B) and D2 (U1) are built and mutation-tested
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. `awkit-djnl.4` stays
+  `in_progress`; no bead's status or edge changed.
+- **Done (`fde23c5d`, `5db17a0c`):**
+  - D1: authored container names and stable container test ids reach an AI request, as ready scopes; row
+    text, record-keyed ids and computed names never do; unoffered scopes are refused before the browser.
+  - U1: a proven Element Spy proposal attaches to a chosen recorded step as a pending candidate, ids only,
+    re-proven in main; the recorded locator keeps running; save takes main's copy only.
+  - Records: `DECISIONS.md`, the L3 plan ("§1 D1 and D2 as built"), `ARCHITECTURE.md`, `SECURITY.md`, the
+    mock-site README.
+- **Not done, and not authorized:** D1 C (row text), D2 U2 (apply on capture proof), automatic upgrade on
+  Recorder finalization, runtime repair trigger, health-sweep queue, T2. No real-model run was made.
+- **Next implementer:** see the L3 plan's remaining items. Real-model evidence for scoped duplicates (lu-scope,
+  the contacts list) is a separate, owner-scheduled run, not a rerun to chase a pass.
+- **Do not:** relax the D1 eligibility rules to get a test id or name offered; offer `hasText`; attach
+  without the main-side re-proof; write an audit record before a promotion; change the INV-2002 fixture;
+  record L4b verdicts as an agent. The signed-license route (b) rebuild note below still applies.
+
+## HANDOFF (2026-09-23, superseded) — L3 duplicate-row (D1) and "Use in action" (D2) decisions are ready for the owner
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. No bead's status or
   edge changed.
