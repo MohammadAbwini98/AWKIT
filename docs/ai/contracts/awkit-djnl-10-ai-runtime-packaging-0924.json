@@ -81,9 +81,12 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "qa",
+      "agent_id": "release",
       "allowed_paths": [
-        "scripts/verify-ai-packaged-runtime.mts"
+        "build",
+        "resources/THIRD_PARTY_NOTICES.md",
+        "resources/dependency-manifest.json",
+        "resources/dependency-manifest.sig"
       ]
     },
     "writer_sequence": [
@@ -502,6 +505,22 @@
         "acquired_at_commit": "518e1c1b604bed11bc627017ec68dd07bde33306",
         "released_at": "2026-09-24T17:52:36.835Z",
         "released_reason": "handoff to qa: QC-7: narrow the reviewed-license list to the families the review covers and require the llama.cpp notice for the prebuilt binaries",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:qa:2026-09-24T17:52:36.893Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-ai-packaged-runtime.mts"
+        ],
+        "acquired_at": "2026-09-24T17:52:36.893Z",
+        "acquired_at_commit": "b162e825306514d4ad188fff64e04a944bb3bffb",
+        "released_at": "2026-09-24T17:53:32.798Z",
+        "released_reason": "handoff to release: QC-7: record the dependency-license inventory, the redistribution review and the missing notices in the shipped third-party notices, then rebuild portable and NSIS from a clean tree",
         "amendments": [],
         "overrides": [],
         "violations": []
