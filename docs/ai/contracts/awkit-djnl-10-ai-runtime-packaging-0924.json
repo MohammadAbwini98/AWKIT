@@ -51,7 +51,10 @@
       "package.json",
       "scripts/verify-ai-packaged-runtime.mts",
       "scripts/verify-ai-packaged-app.mts",
+      "scripts/verify-native-dependencies.mts",
+      "scripts/verify-roadmap-dashboard.mjs",
       "scripts/helpers/model-pack-scan.mts",
+      "scripts/helpers/pe-image.mts",
       "scripts/validate-offline-bundle.ps1",
       "scripts/lib/verifier-classification.ts",
       "tools/agents/routing-matrix.mjs",
@@ -75,6 +78,8 @@
       "docs/plans/ai-upgrade-v5/L5-failure-evidence-and-analysis.md",
       "docs/plans/ai-upgrade-v5/L6-fragments-and-templates.md",
       "docs/plans/ai-upgrade-v5/ROADMAP.md",
+      "docs/plans/ai-upgrade-v5/L4-authoring-diagnostics.md",
+      "docs/plans/ai-upgrade-v5/evidence/**",
       ".beads/**"
     ],
     "consultants": [
@@ -154,7 +159,7 @@
       "command": "npm run verify:ai-packaged-runtime",
       "artifact": "dist/win-unpacked/resources/native-hosts/ai",
       "result": "FAIL",
-      "observed": "Final state at 5b77cdd7 on fresh portable and NSIS from clean 1e856706: 95 passed, 2 failed, exit 1. Every QC-1..QC-7 check passes: A0 staging refusals 11/11, A1 validator rules 7/7, staged and packaged trees 1461/1461 both ways, license inventory 111/111 with 6 reproduced notices, no model file in 2088 files and 7840 app.asar members, packaged tree equal to the current staging, live harness 13/13 and protocol 24/24 on both, section F exit-status proofs 2/2. The 2 failures are one real defect the new PE-import check found in both trees: the prebuilt ggml/llama binaries import MSVCP140.dll and VCRUNTIME140.dll, which neither the staging nor the installer carries (an owner decision, see new_findings). Red first for the QC work: 74/12 at 93beb341 (8 staging refusals red on the unfixed script, no inventory), and the validator rules 1/6 against the original lazy pin and count logic restored in the working tree (never committed). Earlier: 66/0 at bafb05e3 before the QC review."
+      "observed": "2026-09-25 at 0b581544 (awkit-i6ot remedy built, not yet packaged): 45 passed, 5 failed, exit 1. A0 11/11, A1 7/7, F 2/2, the no-redist refusal leaves an earlier staging untouched, the real staging refused because this host has no acceptable VS 2022 redist (VS 2019 CRT 14.29.30139 below 14.42), four checks on the stale 1e856706 package (MSVC imports, runtime provenance, notices section, current staging). Companion gate verify:native-dependencies 11/3 on the same package. Before: final state at 5b77cdd7 on fresh portable and NSIS from clean 1e856706: 95 passed, 2 failed, exit 1. Every QC-1..QC-7 check passes: A0 staging refusals 11/11, A1 validator rules 7/7, staged and packaged trees 1461/1461 both ways, license inventory 111/111 with 6 reproduced notices, no model file in 2088 files and 7840 app.asar members, packaged tree equal to the current staging, live harness 13/13 and protocol 24/24 on both, section F exit-status proofs 2/2. The 2 failures are one real defect the new PE-import check found in both trees: the prebuilt ggml/llama binaries import MSVCP140.dll and VCRUNTIME140.dll, which neither the staging nor the installer carries (an owner decision, see new_findings). Red first for the QC work: 74/12 at 93beb341 (8 staging refusals red on the unfixed script, no inventory), and the validator rules 1/6 against the original lazy pin and count logic restored in the working tree (never committed). Earlier: 66/0 at bafb05e3 before the QC review."
     },
     {
       "id": "verify:ai-packaged-app",
@@ -211,12 +216,12 @@
   },
   "completion": {
     "status": "blocked",
-    "blocked_on": "awkit-i6ot: the prebuilt AI binaries import MSVCP140.dll and VCRUNTIME140.dll, which the installer does not carry. Resolving it needs an owner or licensing decision (app-local Visual C++ runtime from a licensed redist, a documented prerequisite relaxing the offline rule, or a static-CRT build), so acceptance STAGE (a self-sufficient runtime tree) is not met.",
+    "blocked_on": "awkit-i6ot build-machine prerequisite (2026-09-25): the owner-chosen remedy (app-local msvcp140/vcruntime140/vcruntime140_1 from a VS 2022 Community, Professional or Enterprise redist folder) is implemented and fails closed, but this host has no acceptable installation (VS 2022 Community without the C++ workload, VS 18 prerelease, VS 2019 CRT 14.29 below the 14.42 minimum). The owner authorized adding the VS 2022 C++ tools and redist components; after that, rebuild portable and NSIS and run verify:native-dependencies, verify:ai-packaged-runtime and verify:ai-packaged-app. Acceptance STAGE is not met until then.",
     "qa_status": "FAIL",
-    "qa_basis": "Every QC-1..QC-7 check passes on fresh artifacts from clean 1e856706 and each fails against its original defect, but verify:ai-packaged-runtime is 95/2 FAIL on the one new real defect its PE-import check found (awkit-i6ot). FAIL is the true state of the self-sufficiency claim, not a harness problem.",
+    "qa_basis": "2026-09-25 at 0b581544: verify:native-dependencies 11/3 on the 1e856706 package (exactly the three MSVC DLLs unresolved, the decoy loader proof red for getLlama and reflink, Zvec, Electron and Chromium self-sufficient) and verify:ai-packaged-runtime 45/5 (A0 11/11, A1 7/7, F 2/2, the no-redist refusal leaving an earlier staging untouched, the real staging refused for want of an acceptable VS redist, four checks on the stale package). FAIL is the true state of the self-sufficiency claim until the rebuild. Earlier: 95/2 at 5b77cdd7.",
     "qa_known_limitations": "The clean-machine VM is NOT RUN (it needs an operator, and the shell guard admits no Hyper-V command), so the MSVC consequence is inferred from the import table, not reproduced. The licensed walkthrough parts are BLOCKED on the issuer key. verify:ai-packaged-app has no product mutation run. The QC-1 and QC-2 red states are read from the old exit expressions, not re-run. No latency or quality claim is made. L7 is not accepted.",
     "qc_status": "pending",
-    "qc_basis": "The seven findings came from a QC review of the packaging. Their fixes have not had an independent QC re-review: the project rules allow no subagent unless the owner asks for one, and self-approval is not QC.",
+    "qc_basis": "2026-09-25: at the owner's explicit request one read-only AI QC reviewer agent (awkit-qc-reviewer) reviewed the packaging at 393452f9: QC-1..QC-7 intact with no regression, provenance, offline boundary and exit semantics PASS, verdict FAIL on new findings F1-F8. F1-F7 are resolved (420f2aad, 0b581544, 37f9e62d) and F8 is accepted; the fixes have not been re-reviewed, and neither review is a human or legal sign-off, so qc stays pending.",
     "qc_findings": [
       {
         "id": "QC-1",
@@ -259,14 +264,62 @@
         "finding": "no dependency-license inventory or technical redistribution review exists for the 130 staged runtime packages",
         "status": "resolved",
         "resolution": "inventory of 111 distinct packages in 130 directories, redistribution review and the missing notices in resources/THIRD_PARTY_NOTICES.md at 1e856706, gated at b2f8bf36, no legal approval claimed"
+      },
+      {
+        "id": "QC2-F1",
+        "finding": "the runtime probe could pass with no CPU backend registered (gpu is ?? false over null), and beside-it was accepted for ggml-cpu variants Windows loads by path",
+        "status": "resolved",
+        "resolution": "both probes require a CPU line in systemInfo, and by-path DLLs outside an application folder resolve only names their folder's entry points already load, at 0b581544"
+      },
+      {
+        "id": "QC2-F2",
+        "finding": "the newest linker stamp is a weak proxy for the minimum runtime (the llama prebuilts carry an lld 14.0 stamp)",
+        "status": "resolved",
+        "resolution": "minimum is max(14.40, newest linker), per-file versions recorded, at 420f2aad"
+      },
+      {
+        "id": "QC2-F3",
+        "finding": "a refused runtime staging left a partial output that blocked later default runs",
+        "status": "resolved",
+        "resolution": "all runtime checks run before the output is replaced at 420f2aad, pinned by a check that an earlier staging stays untouched at 0b581544"
+      },
+      {
+        "id": "QC2-F4",
+        "finding": "the notices check was not bound to the Microsoft Visual C++ runtime section",
+        "status": "resolved",
+        "resolution": "file names read inside that section only, at 0b581544"
+      },
+      {
+        "id": "QC2-F5",
+        "finding": "node.exe was accepted for any import by a .node addon",
+        "status": "resolved",
+        "resolution": "only as a delay-load import, at 0b581544 (every current node.exe import is delay-loaded)"
+      },
+      {
+        "id": "QC2-F6",
+        "finding": "the native-dependencies cleanup could crash with ENOTEMPTY",
+        "status": "resolved",
+        "resolution": "retry and warn at 37f9e62d"
+      },
+      {
+        "id": "QC2-F7",
+        "finding": "the PE reader ignored NumberOfRvaAndSizes and skipped old-style delay-load descriptors",
+        "status": "resolved",
+        "resolution": "directory count honoured and an old-style descriptor reported under a name that never resolves, at 0b581544"
+      },
+      {
+        "id": "QC2-F8",
+        "finding": "the signature check accepts any valid O=Microsoft Corporation chain without pinning a root",
+        "status": "accepted",
+        "resolution": "acceptable on a trusted build host (the reviewer's own assessment); the files must also resolve inside a VS 2022 Community, Professional or Enterprise installation"
       }
     ],
     "new_findings": [
       {
         "id": "awkit-i6ot",
-        "finding": "the prebuilt ggml and llama binaries import MSVCP140.dll and VCRUNTIME140.dll, which neither the staging nor the installer carries",
-        "status": "open",
-        "needs": "owner or licensing decision"
+        "finding": "the prebuilt ggml and llama binaries and the reflink addon import MSVCP140.dll, VCRUNTIME140.dll and VCRUNTIME140_1.dll, which neither the staging nor the installer carried",
+        "status": "in_progress",
+        "needs": "the owner's VS 2022 C++ tools and redist components on the build machine (authorized 2026-09-25), then a rebuild and the packaged gates"
       }
     ]
   },
