@@ -1,13 +1,24 @@
 # SpecterStudio Phase L — Local AI & Intelligent Automation (V5)
 
-Status: **IN PROGRESS — 7 of 10 milestones closed (2026-09-24).** The closed ones are L0, L2, L4a and L5a,
-plus L1, L3 and L5b. The last three were accepted, scope-limited, within the owner's limited GO. The
-implementing agent accepted them under the owner's closeout delegation; that is not a human sign-off (see
-`docs/ai/DECISIONS.md`, latest). Still open:
-- **L4b:** 15 human verdicts;
-- **L6:** blocked by L4b;
-- **L7:** the MSVC runtime defect `awkit-i6ot`, the security review, the performance confirmation, the
-  licensed walkthrough and the clean-machine VM.
+Status: **IN PROGRESS — 7 of 10 milestones closed (updated 2026-09-25).** The closed ones are L0, L2, L4a
+and L5a, plus L1, L3 and L5b. The last three were accepted, scope-limited, within the owner's limited GO.
+The implementing agent accepted them under the owner's closeout delegation; that is not a human sign-off
+(see `docs/ai/DECISIONS.md`). Still open:
+- **L4b:** criteria 1 and 4 need a person's verdicts on 15 answers. The owner commissioned an AI technical
+  evaluation instead (2026-09-25, `evidence/L4b-ai-technical-evaluation-2026-09-25.md`). It is not a human
+  verdict and does not count. It also found 7 displayed answers with unsupported claims that the proxy
+  screens miss (remediation R1–R3 await the owner).
+- **L6:** its deterministic scope is verified. It is blocked only by L4b. By the owner's decision of
+  2026-09-25, the unbuilt intelligence (the T1 mapping review, Zvec fragment discovery, production fragment AI)
+  is deferred to a tracked follow-up outside Phase L.
+- **L7:**
+  - `awkit-i6ot`: the app-local Visual C++ runtime is implemented. It waits for the owner to add the VS 2022
+    C++ tools and redist to the build machine, then a rebuild and the packaged gates.
+  - The licensed walkthrough (issuer key) and the clean-machine VM (operator).
+  - Done on 2026-09-24: the performance confirmation (GO on all 8) and the engineering security evidence
+    review. The latter is not an independent sign-off.
+  - On 2026-09-25 an independent AI QC review of the packaging found no regression of QC-1..QC-7. Its new
+    findings F1–F7 are fixed.
 
 The limited GO (2026-09-23) covers on-demand explanations, locator proposals and manual failure analysis
 only. Owner audit below; decisions ratified in `docs/ai/DECISIONS.md`.

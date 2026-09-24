@@ -86,12 +86,17 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "release",
+      "agent_id": "project-state",
       "allowed_paths": [
-        "build",
-        "resources/THIRD_PARTY_NOTICES.md",
-        "resources/dependency-manifest.json",
-        "resources/dependency-manifest.sig"
+        ".beads/**",
+        "docs/ai/COMMANDS.md",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/KNOWN_ISSUES.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/plans/ai-upgrade-v5/L6-fragments-and-templates.md",
+        "docs/plans/ai-upgrade-v5/L7-release-confirmation.md",
+        "docs/plans/ai-upgrade-v5/ROADMAP.md"
       ]
     },
     "writer_sequence": [
@@ -717,6 +722,25 @@
         "acquired_at_commit": "0b581544f429fbb9fdf0c30d7f0014a8a7e43d22",
         "released_at": "2026-09-24T22:42:39.283Z",
         "released_reason": "handoff to release: notices cite the official Distributable Code list, then packaging",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:release:2026-09-24T22:42:39.352Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "build",
+          "resources/THIRD_PARTY_NOTICES.md",
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig"
+        ],
+        "acquired_at": "2026-09-24T22:42:39.352Z",
+        "acquired_at_commit": "ff817161e148ef9fb1eef65615efd4e374e5d915",
+        "released_at": "2026-09-24T22:43:04.729Z",
+        "released_reason": "notices citation committed at a0287346, packaging waits for the owner's VS 2022 C++ components",
         "amendments": [],
         "overrides": [],
         "violations": []

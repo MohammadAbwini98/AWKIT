@@ -2,12 +2,36 @@
 
 Shared rules, architecture and decisions: `ROADMAP.md`. Depends on L2 and L4. Core behavior is deterministic.
 
-**Status (2026-09-24): its own acceptance criteria hold, but `awkit-djnl.9` stays `in_progress` because
-L4b (`awkit-djnl.6`) blocks it.** L4b waits on a person's review. The criteria are: works with AI off,
-retrieval before the model, fragments validated as first-class content, no secrets persisted. Decided under
-the owner's closeout delegation (`docs/ai/DECISIONS.md`, latest): the T1 mapping-review surface is not
-built, not in the limited GO and not one of these criteria, so it is deferred out of Phase L. Fragment
-summaries are not in the GO either.
+**Status (2026-09-25): the deterministic scope is verified and `awkit-djnl.9` stays `in_progress` only
+because L4b (`awkit-djnl.6`) blocks it.** The owner decided on 2026-09-25 (`docs/ai/DECISIONS.md`):
+- L6 closes against its approved deterministic scope once L4b is genuinely accepted. That scope is: works
+  with AI off, retrieval before the model, fragments validated as first-class content, no secrets persisted.
+- The unbuilt intelligence is deferred to a dedicated follow-up bead outside Phase L, with its original
+  intent and criteria unchanged (see "Deferred intelligence" below). It must not be built in Phase L
+  without further authorization.
+
+Verified on 2026-09-25 against a fresh `npm run build` at `e4a9abfd` (no L6 source changed after it):
+- `verify:flow-fragments` 103/0;
+- `verify:flow-fragments-gui` 53/0 in real Electron (capture and insert, undo/redo, save and read-back,
+  locator and binding preservation, protected-login and IPC refusals, no console errors);
+- `verify:ai-fragment-assist` 73/73 with the fake provider (discovery works with AI switched off).
+
+The 2026-09-24 note had deferred the T1 surface under the closeout delegation; the owner's decision above
+supersedes it.
+
+## Deferred intelligence (owner decision 2026-09-25, tracked outside Phase L)
+
+These are kept as future work, unchanged:
+- **T1 parameter-mapping review.** Its host is a workflow-side insertion surface, since runtime inputs live
+  on workflows. It never auto-binds and never offers a password input. The adapter and its fake-provider
+  verifier already exist (`src/ai/fragmentAssist.ts`, `verify:ai-fragment-assist`).
+- **Semantic fragment discovery through the Zvec index.** This is the plan's "extend Zvec projections"
+  route. Retrieval stays before any model call, and the model stays optional.
+- **Production fragment AI integration.** This covers the T0 summary and the T1 mapping outside the
+  deterministic provider, within the autonomy ceilings `AiAutonomyPolicy` already registers.
+
+The Phase L acceptance criteria above are not weakened. Building any of these needs the owner's GO on a
+model for it.
 
 ## Audit first (blocking)
 
@@ -41,6 +65,10 @@ semantic, profile-store, designer/builder, history and validation gates; `npm ru
 Works with AI disabled; retrieval precedes the model; AI only summarizes/maps; fragments are validated first-class content.
 
 ## Dependency boundary (established 2026-09-20, before any implementation)
+
+> **Superseded in part (2026-09-25):** L1 is now accepted and closed (2026-09-24), so the chain "L4b is
+> blocked by L1" below no longer holds. L6's one open dependency is L4b (`awkit-djnl.6`), which waits on a
+> person's review. The `awkit-djnl.9` ← `awkit-djnl.6` edge is unchanged.
 
 The milestone table above says L6 depends on **L2 and L4**, and the tracker encodes that as
 `awkit-djnl.9` blocked by `awkit-djnl.3` (L2, **closed**) and `awkit-djnl.6` (**L4b, open**). L4b is

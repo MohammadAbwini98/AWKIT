@@ -465,7 +465,10 @@ npm run verify:ai-settings-gui    # real Electron: Settings › Local AI, ceilin
 npm run verify:ai-host            # the real host source under a fake parentPort and an injected fake runtime (135)
 npm run verify:ai-host-electron   # production AiUtilityHostManager against the real host in a real utility process (20)
 npm run prepare:ai-host           # L7: stage ai-host.cjs + the pinned CPU runtime closure into build/native-hosts/ai
-                                  # (both package pipelines run it; the lease guard admits no prepare:* for agents)
+                                  # (both package pipelines run it; the lease guard admits no prepare:* for agents).
+                                  # Needs VS 2022 Community/Professional/Enterprise with "MSVC v143 x64/x86 build
+                                  # tools" + "C++ 2022 Redistributable Update" on the BUILD machine (app-local
+                                  # MSVC runtime, awkit-i6ot); refuses otherwise. End users need nothing
 npm run verify:ai-packaged-runtime
                                   # L7: staging refusals on a byte-identical copy (A0), the strict validator's pin
                                   # and inventory rules via -RootPath (A1), staging into a temp dir OUTSIDE the
@@ -474,7 +477,17 @@ npm run verify:ai-packaged-runtime
                                   # controls, handshake, live harness (0.8B), then dist/win-unpacked: model scan of
                                   # every file and app.asar member, the same checks, identity with the staging, and
                                   # exit-status proofs (F). Exit: 1 FAIL (stale = FAIL), 2 NOT RUN, 0 only when all
-                                  # ran. 95/2 at 5b77cdd7: both failures are the MSVC runtime (awkit-i6ot)
+                                  # ran. 95/2 at 5b77cdd7: both failures are the MSVC runtime (awkit-i6ot).
+                                  # Since 2026-09-25 also: staging refuses without a VS 2022 redist and leaves an
+                                  # earlier staging untouched; manifest provenance and a notices section for the
+                                  # app-local MSVC runtime; a CPU backend must register. 45/5 at 0b581544 (host
+                                  # has no acceptable VS redist; the 1e856706 package is stale)
+npm run verify:native-dependencies
+                                  # L7 (awkit-i6ot): every PE image in dist/win-unpacked resolves its imports as an
+                                  # API set, beside it (by-path ggml-cpu-* only via names their folder's entry points
+                                  # load), node.exe as a delay-load of an addon, or a System32 file signed Microsoft
+                                  # Windows; then a decoy-rename loader proof per native module tree. 11/3 on the
+                                  # 1e856706 package (the three MSVC DLLs). Exit 1 FAIL, 2 without dist/win-unpacked
 npm run verify:ai-packaged-app    # L7: the real packaged EXE on a fresh profile: no model file in the artifact,
                                   # runtime found, no pack bundled, MODEL_MISSING not RUNTIME_MISSING, import through
                                   # the app, a real inference, the test provider ignored. After package:portable.

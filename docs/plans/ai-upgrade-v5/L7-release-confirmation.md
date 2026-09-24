@@ -72,6 +72,49 @@ C++ runtime, local AI will fail to load. The fix needs an owner or licensing dec
 | `verify:ai-packaged-app` | 20/0 (a real 0.8B inference in 67 s) |
 | `validate:offline -- -Strict` · `verify:offline-supply-chain` · `verify:packaged-validation` · `verify:packaged-runtime` | PASS · 25/0 · 119/0 · 25/0 |
 
+### `awkit-i6ot`: the app-local Visual C++ runtime (2026-09-25, owner decision: the VS redist folder)
+
+- **Measured with the new `verify:native-dependencies`:**
+  - **Scope:** every PE image in `dist/win-unpacked`, 46 in all: Electron 8, Chromium 17, Zvec 1, AI 20.
+  - **"Ships with Windows"** means a System32 file validly signed *Microsoft Windows*. The Visual C++
+    runtime this host installed globally is signed *Microsoft Windows Software Compatibility Publisher*,
+    so it does not count.
+  - **What is unresolved:** exactly `msvcp140.dll`, `vcruntime140.dll` and `vcruntime140_1.dll`. The
+    earlier check truncated its list to 6 and hid the last one, and hid that the reflink addon also needs
+    them.
+  - **Loader-level reproduction:** with every name the host could supply from outside the tree rewritten
+    to a decoy, `getLlama` fails with `NoBinaryFoundError`, and `reflink.node` fails with "module could
+    not be found". Zvec, Electron and Chromium are self-sufficient.
+- **The remedy:** `scripts/prepare-ai-native-host.mjs` copies the three DLLs beside every staged native
+  binary (`9ced79c4`, `393452f9`, `420f2aad`, `ff817161`). The source rules:
+  - Only a Visual Studio 2022 Community, Professional or Enterprise installation that has both the MSVC
+    x64 tools and the VC redist component. Microsoft's Distributable Code list for VS 2022 covers those
+    editions, not Build Tools.
+  - The files must resolve inside that installation, never under `SystemRoot`.
+  - Each must be x64, validly Microsoft-signed, and at least `max(14.40, newest linker)`.
+  - Everything is checked before the output is replaced, so a refusal stages nothing and leaves an
+    earlier staging intact.
+  - The manifest records the files' versions, and the notices describe the runtime and cite the list.
+- **On this host it refuses, correctly:**
+  - VS 2022 Community has no C++ workload.
+  - VS 18 Insiders is a prerelease.
+  - VS 2019 BuildTools' CRT 14.29.30139 is below the 14.42 minimum.
+
+  The owner authorized adding the VS 2022 C++ tools and redist on 2026-09-25. Until they are installed,
+  and portable and NSIS are rebuilt and re-verified, `awkit-i6ot` stays open.
+- **Independent QC (2026-09-25, one AI QC reviewer agent, read-only, not a human sign-off):** QC-1..QC-7
+  are re-verified with no regression, and provenance, the offline boundary and exit semantics PASS. It
+  raised F1–F7, which are resolved at `420f2aad` and `0b581544`:
+  - F1: the CPU backend must really register, and the by-path `ggml-cpu-*` rule;
+  - F2: a 14.40 floor;
+  - F3: refuse before replacing the output;
+  - F4: the notices check is bound to its section;
+  - F5: `node.exe` only as a delay-load import;
+  - F7: the PE directory count and old-style delay-load descriptors.
+
+  F6 was the cleanup crash, fixed at `37f9e62d`. F8, the signature check not pinning the root, is
+  accepted on a trusted build host.
+
 **Phase L closeout status of the sections below (2026-09-24):**
 - L1, L3 and L5b are accepted (`DECISIONS.md`, latest). L4b waits on 15 human verdicts, and L6 is blocked by L4b.
 - **Performance confirmation:** re-run with the final prompts, GO on all 8. See the section below.

@@ -1,6 +1,47 @@
 # CURRENT_STATE
 
-## Phase L closeout: seven L7 QC findings fixed, L1, L3 and L5b accepted, Phase L NOT closed (2026-09-24, current)
+## Phase L finalization: the MSVC runtime remedy built, independent QC done, L4b evaluated by AI, Phase L NOT complete (2026-09-25, current)
+
+**Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** Contract
+`awkit-djnl-10-ai-runtime-packaging-0924`, extended by the owner's decisions of 2026-09-25 (`DECISIONS.md`,
+latest). Phase L is still 7 of 10 milestones closed.
+
+- **`awkit-i6ot` (in progress): app-local MSVC runtime, fail-closed.**
+  - **Staging:** it stages `msvcp140.dll`, `vcruntime140.dll` and `vcruntime140_1.dll` beside every
+    native binary. They come only from a VS 2022 Community, Professional or Enterprise installation with
+    the MSVC x64 tools and redist; Microsoft's Distributable Code list excludes Build Tools. Each must be
+    signed, x64 and at least `max(14.40, newest linker)`, checked before the output is replaced.
+  - **Measured:** the new `verify:native-dependencies` reads 46 PE images (531 imports). Exactly those
+    three DLLs are unresolved. The decoy loader proof reproduces the defect (`getLlama`
+    NoBinaryFoundError, reflink "module not found"). Zvec, Electron and Chromium are self-sufficient.
+  - **This host has no acceptable Visual Studio.** VS 2022 Community has no C++ workload, VS 18 is a
+    prerelease, and VS 2019's CRT is 14.29 (the minimum is 14.42). So staging and packaging refuse
+    correctly.
+  - **Next:** the owner authorized adding the VS 2022 C++ components. Then rebuild and verify.
+- **Independent QC (one AI QC agent, the owner's request, not a human sign-off):**
+  - QC-1..QC-7 are intact, with no regression.
+  - F1–F7 are resolved: a real CPU backend must register, the rule for `ggml-cpu-*` loaded by path, a
+    14.40 floor, refuse before replacing the output, the notices check bound to its section, `node.exe`
+    only as a delay-load import, and PE directory hardening. F8 is accepted.
+- **L4b:** an AI technical evaluation (owner-commissioned) rates 15/15 correct and actionable. It is not
+  a person's verdict, so criteria 1 and 4 stay PENDING. It also found 7 displayed answers with
+  unsupported "failed validation" claims that the screens miss (`KNOWN_ISSUES.md`). R1–R3 await the owner.
+- **L6:** the deterministic scope is re-verified (103/0 · GUI 53/0 · fake-provider 73/73). The owner
+  deferred the unbuilt intelligence to `awkit-egkw`. L6 is blocked only by L4b.
+- **Correction:** the 2026-09-24 claim that no Visual Studio exists on this host was wrong. Three
+  installations predate the session, and none has an acceptable CRT.
+
+| Gate (this session) | Result |
+|---|---|
+| `verify:native-dependencies` (new) on the `1e856706` package | 11/3 FAIL: `awkit-i6ot` (the 3 DLLs; loader proof red for getLlama and reflink) |
+| `verify:ai-packaged-runtime` at `0b581544` | 45/5 FAIL: staging refused (no acceptable VS redist), 4 checks on the stale package. A0 11/11, A1 7/7, F 2/2 |
+| `verify:ai-authoring` · `verify:ai-authoring-review` | 272/272 · TARGET PENDING (1 of 16 read by a person) |
+| `verify:flow-fragments` · `-gui` · `verify:ai-fragment-assist` | 103/0 · 53/0 · 73/73 |
+| `npm run build` · `typecheck:scripts` · `verify:verifier-classification` | PASS · PASS · 266 reconciled |
+| rebuilt portable and NSIS · `verify:ai-packaged-app` · strict `validate:offline` | NOT RUN: staging refuses until the VS 2022 C++ components are installed |
+| licensed walkthrough · clean-machine VM | BLOCKED (issuer key) · NOT RUN (operator) |
+
+## Phase L closeout: seven L7 QC findings fixed, L1, L3 and L5b accepted, Phase L NOT closed (2026-09-24)
 
 **Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** Contract
 `awkit-djnl-10-ai-runtime-packaging-0924` (extended by the owner's closeout mission). Phase L is 7 of 10

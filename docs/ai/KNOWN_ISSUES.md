@@ -1,6 +1,41 @@
 # KNOWN_ISSUES
 
+## L4b's proxy screens miss "failed validation" blamed on a warning, and nobody must read the answers that carry it (2026-09-25, OPEN — owner decision R1/R2, `awkit-djnl.6`)
+
+- **Found by** the AI technical evaluation the owner commissioned
+  (`docs/plans/ai-upgrade-v5/evidence/L4b-ai-technical-evaluation-2026-09-25.md`).
+- **The claims:** 7 of the 18 `notActionable` answers of the current request say "The automation flow
+  failed validation because <a warning>". Two of them also invent "the first step". The Flow Designer
+  shows these answers to the user.
+- **Why the screens miss them:** `SEVERITY_OVERSTATED` matches "cannot run" phrasings, not "failed
+  validation". `FABRICATED_LITERAL` matches quotes, numbers and selectors, not ordinals.
+- **Why criterion 1 misses them:** it needs a person to read only screen-clear answers and screen hits.
+  These answers are optional, so criterion 1 cannot see them.
+- **Effect:** with a corrected screen, criterion 3 would read 14/17 and 13/17, NOT MET in run 2.
+- **Contributing product defect:** the request's task sentence ("why an automation flow failed
+  validation") presupposes failure even for a warnings-only report.
+- **Pattern:** the "optional" bucket held the real defects. Read everything a user can see, not only
+  what a rubric requires. Nothing was changed; R1/R2 need the owner.
+
 ## The packaged local-AI runtime needs the Microsoft Visual C++ runtime, which the installer does not carry (2026-09-24, OPEN — owner or licensing decision, `awkit-i6ot`)
+
+- **Update 2026-09-25: remedy decided and implemented, still OPEN.**
+  - **Decision:** the owner chose app-local DLLs from the Visual Studio redist folder.
+  - **What is staged:** `prepare-ai-native-host.mjs` stages `msvcp140.dll`, `vcruntime140.dll` and
+    `vcruntime140_1.dll` beside every staged native binary. The third was hidden by the old truncated
+    check, which also hid that the reflink addon needs these DLLs.
+  - **Source rules:** only a VS 2022 Community, Professional or Enterprise installation with the MSVC x64
+    tools and the VC redist. Microsoft's Distributable Code list excludes Build Tools. The files must be
+    signed, x64, and at least `max(14.40, newest linker)`.
+  - **The gate:** `verify:native-dependencies` covers the whole package, and its decoy loader proof
+    reproduces the defect.
+  - **Correction:** "neither exists on this host" below was wrong. Visual Studio 2019 BuildTools, 2022
+    Community and 18 Insiders were all installed before the session. A file-only glob missed the
+    directories.
+  - **Why the staging still refuses:** none of those three installations is acceptable. 2022 has no C++
+    workload, 18 is a prerelease, and 2019's CRT is 14.29.
+  - **What closes it:** the owner authorized adding the VS 2022 C++ tools and redist. Then rebuild
+    portable and NSIS and run the packaged gates.
 
 - **Measured:** the PE-import check in `verify:ai-packaged-runtime` (`5b77cdd7`) found that the prebuilt
   `@node-llama-cpp/win-x64` binaries import `MSVCP140.dll` and `VCRUNTIME140.dll`. It checked both the staged

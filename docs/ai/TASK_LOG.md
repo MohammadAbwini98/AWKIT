@@ -1,5 +1,39 @@
 # TASK_LOG
 
+## 2026-09-25 — Phase L finalization: app-local MSVC runtime, native-dependency gate, independent QC, L4b AI evaluation (Claude)
+
+- **Task:** the owner's Phase L finalization mission. Contract `awkit-djnl-10-ai-runtime-packaging-0924`,
+  extended.
+- **Owner decisions (in session):**
+  - `awkit-i6ot` via the VS redist folder, and adding the VS 2022 C++ components to the build machine;
+  - defer the L6 intelligence to `awkit-egkw`;
+  - evaluate L4b by AI, never recorded as human verdicts.
+- **Commits:**
+  - `9ced79c4`, `393452f9`, `420f2aad`, `ff817161`: staging;
+  - `870e1bec`, `37f9e62d`, `0b581544`: gates;
+  - `e4a9abfd`, `a0287346`: notices;
+  - `bbec264e`: the L4b evaluation;
+  - plus the plan, state and tracker reconciliation.
+- **Files:**
+  - `scripts/prepare-ai-native-host.mjs`, `scripts/verify-native-dependencies.mts` (new),
+    `scripts/helpers/pe-image.mts` (new), `scripts/verify-ai-packaged-runtime.mts`;
+  - `scripts/lib/verifier-classification.ts`, `package.json`, `resources/THIRD_PARTY_NOTICES.md`;
+  - `docs/plans/ai-upgrade-v5/{ROADMAP,L4,L6,L7}` and the L4b evidence file;
+  - `docs/ai/{CURRENT_STATE,HANDOFF,KNOWN_ISSUES,DECISIONS,COMMANDS,TASK_LOG}.md`;
+  - `.beads`, and the roadmap pins.
+- **Tests:**
+  - `verify:native-dependencies` 11/3 FAIL (awkit-i6ot, as designed);
+  - `verify:ai-packaged-runtime` 45/5 FAIL (no acceptable VS redist on the host; stale package);
+  - `verify:ai-authoring` 272/272; `verify:ai-authoring-review` PENDING;
+  - `verify:flow-fragments` 103/0, `-gui` 53/0, `verify:ai-fragment-assist` 73/73;
+  - `npm run build` PASS, `typecheck:scripts` PASS, `verify:verifier-classification` 266.
+- **Not run:**
+  - the rebuild, `verify:ai-packaged-app` and strict `validate:offline` (staging refuses until the VS 2022
+    C++ components exist);
+  - the licensed walkthrough (BLOCKED, issuer key) and the clean-machine VM (NOT RUN, operator).
+- **Result:** Phase L NOT complete. The QC's independent review found F1–F7, all fixed. A previous claim
+  was corrected: Visual Studio IS installed on this host, but without an acceptable CRT.
+
 ## 2026-09-24 — Phase L closeout: seven L7 QC findings fixed, L1/L3/L5b accepted, Phase L not closed (Claude)
 
 - **Task:** the owner's "finalize and close Phase L" mission, which delegated technical and product decisions

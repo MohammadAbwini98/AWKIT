@@ -20,10 +20,10 @@
   "claims": [
     {
       "itemId": "bead:awkit-djnl-10-ai-runtime-packaging-0924",
-      "agent": "Packaging / Offline / Release Engineer",
+      "agent": "Documentation / Project-State Specialist",
       "state": "in-progress",
-      "claimedAt": "2026-09-24T22:42:39.352Z",
-      "note": "write lease: build, resources/THIRD_PARTY_NOTICES.md, resources/dependency-manifest.json, resources/dependency-manifest.sig"
+      "claimedAt": "2026-09-24T22:44:47.376Z",
+      "note": "write lease: .beads/**, docs/ai/COMMANDS.md, docs/ai/CURRENT_STATE.md, docs/ai/HANDOFF.md, docs/ai/KNOWN_ISSUES.md, docs/ai/TASK_LOG.md, docs/plans/ai-upgrade-v5/L6-fragments-and-templates.md, docs/plans/ai-upgrade-v5/L7-release-confirmation.md, docs/plans/ai-upgrade-v5/ROADMAP.md"
     }
   ]
 }

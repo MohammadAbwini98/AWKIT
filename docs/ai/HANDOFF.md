@@ -1,6 +1,35 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-24, latest) — Phase L closeout: L7 QC fixed, L1/L3/L5b accepted, Phase L NOT closed
+## HANDOFF (2026-09-25, latest) — Phase L finalization: MSVC remedy built and fail-closed, QC done, Phase L NOT complete
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. Phase L is 7 of 10 closed.
+- **What keeps Phase L open, and who acts:**
+  1. **`awkit-i6ot`: the owner adds VS 2022 components.** In the Visual Studio Installer, modify VS 2022
+     Community and add "MSVC v143 - VS 2022 C++ x64/x86 build tools" and "C++ 2022 Redistributable
+     Update". The owner confirms their Community license is valid for this use. Then an agent, under the
+     release lease, runs:
+     - `npm run package:portable` and `npm run package:nsis` from a clean tree;
+     - `verify:native-dependencies` (must be all green, the loader proof included);
+     - `verify:ai-packaged-runtime` and `verify:ai-packaged-app`;
+     - `verify:offline-supply-chain`, `verify:packaged-validation` and `verify:packaged-runtime`;
+     - finally, commit the manifest pair.
+
+     `awkit-i6ot` closes only after those pass. The clean-machine VM is the remaining portability
+     evidence.
+  2. **L4b: a person, or an owner decision.** Criteria 1 and 4 need a person's verdicts. The AI evaluation
+     (`evidence/L4b-ai-technical-evaluation-2026-09-25.md`) does not count. It also shows the target
+     would be NOT MET once the screen blind spot is fixed. R1, R2 and R3 are the owner's.
+  3. **L6** closes on its deterministic scope when L4b is accepted. Its deferred intelligence is
+     `awkit-egkw`.
+  4. **L7:** the above, plus the licensed walkthrough (BLOCKED, issuer key) and the clean-machine VM
+     (NOT RUN, operator).
+- **Do not:**
+  - copy the runtime from System32;
+  - accept a Build Tools, 2019 or prerelease CRT;
+  - record L4b verdicts;
+  - relabel a FAIL.
+
+## HANDOFF (2026-09-24, superseded) — Phase L closeout: L7 QC fixed, L1/L3/L5b accepted, Phase L NOT closed
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. Phase L is 7 of 10
   closed. L1, L3 and L5b were closed today on the agent's acceptance decisions under the owner's delegation

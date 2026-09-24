@@ -1,6 +1,42 @@
 # DECISIONS
 
-### 2026-09-24 (latest) — Phase L closeout: L1, L3 and L5b accepted within the limited GO; L4b, L6 and L7 stay open (implementing agent under the owner's delegation) (`awkit-djnl.1`, `.4`, `.8`, `.6`, `.9`, `.10`, `awkit-i6ot`)
+### 2026-09-25 (latest) — Phase L finalization: the MSVC runtime remedy, L6's deferred intelligence, and an AI evaluation for L4b (owner, in session) (`awkit-i6ot`, `awkit-djnl.6`, `.9`, `.10`, `awkit-egkw`)
+
+- **`awkit-i6ot`: the remedy is app-local DLLs from the Visual Studio redist folder.** The owner chose it
+  over the vc_redist package and over deferral.
+  - It keeps the pinned prebuilt, needs no global runtime and no admin rights at user install, and needs
+    no download.
+  - The owner then authorized adding the VS 2022 C++ tools and redist components to the build machine
+    only. Admin rights apply to preparing the build environment, never to installing or running
+    SpecterStudio.
+  - Implementer's constraint, read from Microsoft's "Distributable Code Files for Visual Studio 2022"
+    list (2026-09-25): only validly licensed Enterprise, Professional or Community 2022 may distribute
+    the `VC\redist` files, unmodified, with a program. Build Tools is not on the list. So the staging
+    accepts only those editions.
+  - Whether the owner's own Community license is valid for this use stays the owner's to confirm. This
+    record is not legal advice.
+- **L6: defer the unbuilt intelligence and track it.**
+  - Deferred: the T1 parameter-mapping review surface, Zvec semantic fragment discovery, and production
+    fragment AI.
+  - They move to `awkit-egkw` with their original requirements, security boundaries, model-optional
+    architecture and acceptance criteria. They are not to be built in Phase L without further
+    authorization.
+  - L6 closes against its approved deterministic scope once L4b is genuinely accepted.
+  - This supersedes the 2026-09-24 agent-side deferral of the T1 surface.
+- **L4b: an autonomous AI technical evaluation.** The owner asked the agent to evaluate the 15 unread
+  answers itself rather than present them one at a time. The owner forbade using their label `MA` or
+  recording AI judgments as human verdicts, and forbade weakening the threshold, the denominator or any
+  existing verdict.
+  - The evaluation is recorded as an AI assessment only.
+  - Criteria 1 and 4 still require a person, so L4b is not accepted.
+  - R1, R2 and R3 are open owner decisions: they change owner-adopted artifacts.
+- **Independent QC:** at the owner's explicit request, one read-only AI QC reviewer agent reviewed the L7
+  packaging. Its findings are resolved. It is not a human or legal sign-off.
+- **Not changed:**
+  - no runtime or model pin, AI tier, threshold, permission, prompt, judge, capture or verdict;
+  - no licensing path, and no test-only licensing bypass.
+
+### 2026-09-24 — Phase L closeout: L1, L3 and L5b accepted within the limited GO; L4b, L6 and L7 stay open (implementing agent under the owner's delegation) (`awkit-djnl.1`, `.4`, `.8`, `.6`, `.9`, `.10`, `awkit-i6ot`)
 
 - **Authority.** The owner's Phase L closeout mission (2026-09-24) delegates technical and product
   acceptance decisions *within the approved requirements* to the implementing agent. It forbids
