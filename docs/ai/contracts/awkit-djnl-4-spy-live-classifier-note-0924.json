@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-4-spy-live-classifier-note-0924",
+    "title": "Note the verify:ai-spy-live classifier fix on awkit-djnl.4",
+    "objective": "At fcc145ec the verify:ai-spy-live classifyAttempts defect is fixed (6b4ca1eb: the production unofferedScopeField applied to the inspection's own upgradeContext before the duplicate rule and the page, verify:ai-locator-attempts section 19 red 163/167, green 167/167, mutation 163/167 reverted, no model) and recorded (fcc145ec, with a new OPEN durable-evidence follow-up). Append one note to awkit-djnl.4. Refresh the JSONL export. Nothing closes: awkit-djnl.4 stays in_progress, and no edge is added or removed. The lease writes .beads/** only.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "fcc145ec",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "scripts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "tracker-reflects-reality",
+      "description": "awkit-djnl.4 stays in_progress with a note naming 6b4ca1eb and fcc145ec, the root cause, the section 19 red/green/mutation results, no model run, and the durable-evidence follow-up, no edge changes, the JSONL export is refreshed from the database, and the dashboard reports that its sources agree.",
+      "evidence_required": [
+        "roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177 with the Overview banner on 'Sources agree' on round 1, run once after the lease release, after `bd update awkit-djnl.4 --append-notes` and `bd export -o .beads/issues.jsonl`: 26 outstanding / 294 closed with 180 edges (unchanged), and both narratives restating 65 PASS / 2 NOT RUN / 0 BLOCKED. Also run once at the final state: verify:verifier-classification 263 reconciled."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-4-spy-live-classifier-note-0924:project-state:2026-09-24T10:15:48.925Z",
+        "task": "awkit-djnl-4-spy-live-classifier-note-0924",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-24T10:15:48.925Z",
+        "acquired_at_commit": "fcc145ecdebb416b0228334fda1cf305257c43d1",
+        "released_at": "2026-09-24T10:16:15.848Z",
+        "released_reason": "spy-live classifier fix noted on awkit-djnl.4 at fcc145ec, nothing closed, no edge changed, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

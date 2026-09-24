@@ -1,18 +1,18 @@
 {
-  "task": "awkit-djnl-4-d1-live-run-note-0924",
-  "contract_path": "docs/ai/contracts/awkit-djnl-4-d1-live-run-note-0924.json",
+  "task": "awkit-djnl-4-spy-live-classifier-note-0924",
+  "contract_path": "docs/ai/contracts/awkit-djnl-4-spy-live-classifier-note-0924.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-09-24T09:53:58.040Z",
-  "acquired_at_commit": "bfbbe88f6f2fa2efe2c5051cb222d07a532e1553",
+  "acquired_at": "2026-09-24T10:15:48.925Z",
+  "acquired_at_commit": "fcc145ecdebb416b0228334fda1cf305257c43d1",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-djnl-4-d1-live-run-note-0924.json"
+    "docs/ai/contracts/awkit-djnl-4-spy-live-classifier-note-0924.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-djnl-4-d1-live-run-note-0924.json": "628977e34a155531c8795f281837328ab58b4c93f18cc95ee2f7a6743d90ae74"
+    "docs/ai/contracts/awkit-djnl-4-spy-live-classifier-note-0924.json": "6393108b0cf9f37b83a99991ba7778f150b0aa9ae229286276d288d2b6bb0fe3"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -27,7 +27,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-24T09:54:33.004Z",
-  "released_reason": "live D1 run noted on awkit-djnl.4 at bfbbe88f, nothing closed, no edge changed, export refreshed",
-  "archived_at": "2026-09-24T09:54:33.005Z"
+  "released_at": "2026-09-24T10:16:15.848Z",
+  "released_reason": "spy-live classifier fix noted on awkit-djnl.4 at fcc145ec, nothing closed, no edge changed, export refreshed",
+  "archived_at": "2026-09-24T10:16:15.850Z"
 }
