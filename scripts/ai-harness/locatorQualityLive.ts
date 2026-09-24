@@ -99,8 +99,11 @@ interface Scenario {
 interface D1Label {
   /** The duplicated control, unscoped: the page must hold two or more, and the product's proof must refuse it as not unique. */
   target: { strategy: "role"; value: "button"; name: string; exact: true };
-  /** The approved scope the request must offer, as the ready object it shows; none when the element has no approved identity. */
-  offers?: { kind: string; strategy: string; value: string };
+  /**
+   * The approved scope the request must offer, as the ready object it shows (the plan's own scope, every key in
+   * the grammar's order); none when the element has no approved identity. The D1 controls propose it verbatim.
+   */
+  offers?: ReturnType<typeof offeredScope>;
   /** Fixture constants no request may carry: a record key, a sensitive name, the record's own text. Checked, never recorded. */
   withheld: readonly string[];
 }
@@ -184,6 +187,7 @@ const SCENARIOS: readonly Scenario[] = [
 const scenario = (id: string): Scenario => SCENARIOS.find((s) => s.id === id)!;
 
 const CALL = { strategy: "role", value: "button", name: "Call", exact: true } as const;
+const offeredScope = (kind: string, strategy: string, value: string) => ({ strategy, value, name: "", exact: false, kind, hasText: "", visibleOnly: false });
 /**
  * D1's labelled set, asked for from Element Spy (L3 §1). The four Call buttons are identical; only the list
  * item says which is which. The two cases with no approved identity end refused, as INV-2002 did live.
@@ -198,7 +202,7 @@ const D1_SCENARIOS: readonly Scenario[] = [
     lab: "spy",
     intended: "call-primary",
     click: (p) => p.getByTestId("slot-primary").getByRole("button", { name: "Call" }).click(),
-    d1: { target: CALL, offers: { kind: "listItem", strategy: "testId", value: "slot-primary" }, withheld: ["Alice Smith"] }
+    d1: { target: CALL, offers: offeredScope("listItem", "testId", "slot-primary"), withheld: ["Alice Smith"] }
   },
   {
     id: "d1-authored-name",
@@ -209,7 +213,7 @@ const D1_SCENARIOS: readonly Scenario[] = [
     lab: "spy",
     intended: "call-night",
     click: (p) => p.getByRole("listitem", { name: "Night shift" }).getByRole("button", { name: "Call" }).click(),
-    d1: { target: CALL, offers: { kind: "listItem", strategy: "label", value: "Night shift" }, withheld: ["contact-carol-white", "Carol White"] }
+    d1: { target: CALL, offers: offeredScope("listItem", "label", "Night shift"), withheld: ["contact-carol-white", "Carol White"] }
   },
   {
     id: "d1-record-key",

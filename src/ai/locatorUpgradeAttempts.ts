@@ -110,12 +110,16 @@ export type LocatorJobMode = "upgrade" | "repair";
 const MODES = Object.freeze({
   upgrade: {
     feature: "locatorSemanticUpgrade",
+    // D1 request wording (owner, 2026-09-24): the target and the scope are told apart, and a scope is only
+    // ever a copy of an offered one. The data shows each offered scope in the grammar's own form.
     instructions:
       "You propose one replacement locator for a web element whose current locator is fragile. " +
-      "Return a single JSON locator plan matching the schema: a target strategy and value, and at most " +
-      "one semantic scope. Prefer role with an accessible name, label, placeholder or a test id. " +
-      "Never return code, a CSS path, a positional index, a frame reference, or text that is a data " +
-      "value the flow fills in. Scope only by a container scope offered below, copied exactly, never by row content. " +
+      "Answer one JSON plan: target is the element itself, and scopes is an optional list of at most one container around it. " +
+      "For target prefer a candidate below as written, or role with an accessible name, label, placeholder or a test id. " +
+      "A scope may only be a scope offered below, copied exactly: never row text, hasText, a record id or a position. " +
+      "If the target matches one element, answer scopes []. If it matches more than one, copy the offered scope of its container; " +
+      "if none is offered, answer scopes [] and never invent one. " +
+      "Never return code, a CSS path, a positional index, a frame reference, or text that is a data value the flow fills in. " +
       "If a previous attempt was refused, the refusal names the field and the rule it broke: fix that field."
   },
   repair: {
@@ -286,7 +290,13 @@ const FEEDBACK: Readonly<Partial<Record<LocatorPlanRejectionCode | string, strin
 /** Capture container kinds as plan scope kinds (`LOCATOR_PLAN_SCHEMA`); the rest are spelled the same. */
 const PLAN_SCOPE_KIND: Readonly<Record<string, string>> = { row: "tableRow" };
 
-type OfferedScope = { kind: string; strategy: "testId" | "role" | "label"; value: string; name?: string };
+/**
+ * An offered scope as the plan's own scope object, every key in `LOCATOR_PLAN_SCHEMA`'s order. node-llama-cpp
+ * writes every key in that order, so a verbatim copy is exactly what the grammar decodes; offered as
+ * `{kind, strategy, value}`, the real 0.8B had to write a `hasText` it was never shown and filled it with row
+ * text in 8 of 8 D1 replies. `hasText` is empty on purpose: row content is D1 option C, not approved.
+ */
+type OfferedScope = { strategy: "testId" | "role" | "label"; value: string; name: string; exact: false; kind: string; hasText: ""; visibleOnly: false };
 
 /**
  * D1 A+B (owner, 2026-09-24): the container scopes an upgrade request offers, per captured container.
@@ -298,10 +308,11 @@ export function offeredContainerScopes(context: UpgradeContext | undefined): Off
   const bound = new Set(context?.boundValues.map((marker) => marker.field));
   return (context?.containers ?? []).map((container, index) => {
     const kind = PLAN_SCOPE_KIND[container.kind] ?? container.kind;
+    const scope = (strategy: OfferedScope["strategy"], value: string, name = ""): OfferedScope => ({ strategy, value, name, exact: false, kind, hasText: "", visibleOnly: false });
     const scopes: OfferedScope[] = [];
-    if (container.testId && !bound.has(`containers.${index}.testId`)) scopes.push({ kind, strategy: "testId", value: container.testId });
+    if (container.testId && !bound.has(`containers.${index}.testId`)) scopes.push(scope("testId", container.testId));
     if (container.authoredName && container.name && !bound.has(`containers.${index}.name`)) {
-      scopes.push(container.role ? { kind, strategy: "role", value: container.role, name: container.name } : { kind, strategy: "label", value: container.name });
+      scopes.push(container.role ? scope("role", container.role, container.name) : scope("label", container.name));
     }
     return scopes;
   });

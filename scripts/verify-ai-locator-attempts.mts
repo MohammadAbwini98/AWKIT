@@ -68,12 +68,15 @@ import { SPY_LAB, askAccounting, classifyAttempts, judge, type AttemptRecord, ty
 
 let passed = 0;
 let failed = 0;
+/** Restated at the end: a tool that cuts long output otherwise loses which checks failed. */
+const failedLabels: string[] = [];
 function check(label: string, condition: unknown, detail?: string): void {
   if (condition) {
     passed += 1;
     console.log(`  ✓ ${label}`);
   } else {
     failed += 1;
+    failedLabels.push(label);
     console.error(`  ✗ ${label}${detail ? ` — ${detail}` : ""}`);
   }
 }
@@ -798,8 +801,12 @@ try {
   if (!d1Captured) throw new Error("the D1 capture did not sanitize");
   const d1Context = markBoundValues(d1Captured, ["lu-scope-billing"]);
   const d1Text = locatorAttemptJob({ requestId: "req-18", step: archive, boundValues: [], upgradeContext: d1Context }, [], "req-18.a1").prompt.fields[0].text ?? "";
-  check("the request offers the stable test id as a ready scope", d1Text.includes('container: listItem listitem scope {"kind":"listItem","strategy":"testId","value":"slot-primary"}'), d1Text);
-  check("...and the authored name as a ready role scope", d1Text.includes('scope {"kind":"landmark","strategy":"role","value":"region","name":"Billing address"}'), d1Text);
+  check(
+    "the request offers the stable test id as a ready scope",
+    d1Text.includes('container: listItem listitem scope {"strategy":"testId","value":"slot-primary","name":"","exact":false,"kind":"listItem","hasText":"","visibleOnly":false}'),
+    d1Text
+  );
+  check("...and the authored name as a ready role scope", d1Text.includes('scope {"strategy":"role","value":"region","name":"Billing address","exact":false,"kind":"landmark","hasText":"","visibleOnly":false}'), d1Text);
   check("...never a test id marked as a bound value, which is named by its field only", !d1Text.includes("lu-scope-billing") && d1Text.includes("containers.1.testId"), d1Text);
   check("...and never the list item's computed name", !d1Text.includes("Alice Smith"), d1Text);
   const structural = sanitizeUpgradeContext(
@@ -833,9 +840,9 @@ try {
 
   let d1Proofs = 0;
   const d1Plan = (scopeSpec: Record<string, unknown>) => ({ version: 1, target: { strategy: "role", value: "button", name: "Call", exact: true }, scopes: [scopeSpec] });
-  const d1Loop = (plan: unknown, mode: "upgrade" | "repair" = "upgrade") =>
+  const d1Loop = (plan: unknown, mode: "upgrade" | "repair" = "upgrade", upgradeContext: UpgradeContext = d1Context) =>
     runLocatorUpgradeAttempts(
-      { requestId: "req-d1", mode, step: archive, boundValues: [], upgradeContext: d1Context, userRequested: true, maxAttempts: 1 },
+      { requestId: "req-d1", mode, step: archive, boundValues: [], upgradeContext, userRequested: true, maxAttempts: 1 },
       {
         ai: {
           submit: async () => ({ status: "ok", value: plan, modelId: "stub", usage: { promptTokens: 1, outputTokens: 1, firstTokenMs: 0, generationMs: 0 }, yields: 0 }),
@@ -861,6 +868,85 @@ try {
   await d1Loop(d1Plan({ kind: "listItem", strategy: "testId", value: "slot-backup" }), "repair");
   check("(scope) §8 repair has no capture to offer from and is unchanged: its scope reaches the proof", d1Proofs === 2, String(d1Proofs));
 
+  // ── 18b. The request's offered scopes are the answer, copied verbatim (owner, request wording only) ──
+  // node-llama-cpp writes every key of a scope, in schema order. Offered `{"kind","strategy","value"}`,
+  // the real 0.8B had to write a hasText the request never mentioned, and filled it with row text in 8 of 8
+  // D1 replies. So each offered scope is shown exactly as the grammar makes the model write it.
+  console.log("\n18b — each offered scope is written as the grammar writes it, so a verbatim copy is the answer");
+  const scopeItem = LOCATOR_ATTEMPT_SCHEMA.type === "object" && LOCATOR_ATTEMPT_SCHEMA.properties.scopes.type === "array" ? LOCATOR_ATTEMPT_SCHEMA.properties.scopes.items : undefined;
+  const grammarKeys = scopeItem?.type === "object" ? Object.keys(scopeItem.properties) : [];
+  const offeredIn = (text: string): Array<Record<string, unknown>> =>
+    text
+      .split("\n")
+      .filter((line) => line.startsWith("container: "))
+      .flatMap((line) => [...line.matchAll(/ scope (\{[^{}]*\})/g)].map((match) => JSON.parse(match[1]) as Record<string, unknown>));
+  const requestText = (upgradeContext: UpgradeContext | undefined) => locatorAttemptJob({ requestId: "req-18b", step: archive, boundValues: [], upgradeContext }, [], "req-18b.a1").prompt.fields[0].text ?? "";
+  const d1Offered = offeredIn(d1Text);
+  check("(precondition) the grammar writes seven scope keys", grammarKeys.length === 7, JSON.stringify(grammarKeys));
+  check(
+    "A+B: the request offers exactly the two approved scopes: the item's stable test id, then the region's authored name",
+    JSON.stringify(d1Offered.map((scope) => [scope.strategy, scope.value, scope.name])) === JSON.stringify([["testId", "slot-primary", ""], ["role", "region", "Billing address"]]),
+    d1Text
+  );
+  check("...each with every key the grammar writes, in the grammar's order", d1Offered.every((scope) => JSON.stringify(Object.keys(scope)) === JSON.stringify(grammarKeys)), d1Text);
+  check("...with hasText empty, so a copy carries no row content", d1Offered.every((scope) => scope.hasText === "" && scope.visibleOnly === false && scope.exact === false), d1Text);
+  const verbatim = d1Offered.map((scope) => d1Plan(scope));
+  check("a verbatim copy of each is a whole answer the attempt grammar admits", verbatim.length === 2 && verbatim.every((plan) => validateAiOutput(plan, LOCATOR_ATTEMPT_SCHEMA).length === 0));
+  const beforeCopies = d1Proofs;
+  const copies = [];
+  for (const plan of verbatim) copies.push(await d1Loop(plan));
+  check(
+    "...and each, as a scripted reply, passes the compiler, the intent guard and D1's scope rule to the browser proof",
+    d1Proofs === beforeCopies + 2 && copies.every((run) => run.attempts[0]?.stage === "proof"),
+    JSON.stringify(copies.map((run) => run.attempts))
+  );
+  const filled = await d1Loop(d1Plan({ ...d1Offered[0], hasText: "Alice Smith Call" }));
+  check(
+    "C: the same copy with its hasText filled, as the 0.8B wrote it, is still refused SCOPE_NOT_OFFERED before the browser",
+    filled.attempts[0]?.code === "SCOPE_NOT_OFFERED" && filled.attempts[0].field === "scopes.0.hasText" && d1Proofs === beforeCopies + 2,
+    JSON.stringify(filled.attempts)
+  );
+  const nightD1 = sanitizeUpgradeContext(
+    { target: { tag: "button", role: "button", name: "Call" }, containers: [{ kind: "listItem", tag: "li", role: "listitem", name: "Night shift", nameSource: "aria-label", testId: "contact-carol-white", text: "Carol White Call" }] },
+    { pageAlias: "lab", frameDepth: 0 }
+  );
+  if (!nightD1) throw new Error("the record-keyed capture did not sanitize");
+  const nightText = requestText(nightD1);
+  check(
+    "D: a record-keyed container test id is never offered nor shown, while the item's authored name is",
+    JSON.stringify(offeredIn(nightText).map((scope) => [scope.strategy, scope.value, scope.name])) === JSON.stringify([["role", "listitem", "Night shift"]]) && !/contact-carol-white|Carol White/.test(nightText),
+    nightText
+  );
+  const recordKeyed = await d1Loop(d1Plan({ ...offeredIn(nightText)[0], strategy: "testId", value: "contact-carol-white", name: "" }), "upgrade", nightD1);
+  check(
+    "D: ...and a reply scoped by it, in the offered form, is refused SCOPE_NOT_OFFERED on its value",
+    recordKeyed.attempts[0]?.code === "SCOPE_NOT_OFFERED" && recordKeyed.attempts[0].field === "scopes.0.value" && d1Proofs === beforeCopies + 2,
+    JSON.stringify(recordKeyed.attempts)
+  );
+  const invoiceD1 = sanitizeUpgradeContext(
+    { target: { tag: "button", role: "button", name: "Edit" }, containers: [rowRaw, { kind: "landmark", tag: "section", role: "region", name: "Invoices Invoice INV-2001 Edit Void", nameSource: "content", text: "Invoices Invoice INV-2001 Edit Void" }] },
+    { pageAlias: "lab", frameDepth: 0 }
+  );
+  const invoiceText = requestText(invoiceD1);
+  check("E: (precondition) the no-identity capture keeps its two containers", invoiceD1?.containers.length === 2, JSON.stringify(invoiceD1?.containers));
+  check(
+    "E: with no approved identity the request offers no scope and implies none: its container lines name kind and role only",
+    offeredIn(invoiceText).length === 0 && !/ scope |"kind"|"hasText"|INV-2001/.test(invoiceText) && invoiceText.split("\n").filter((line) => line.startsWith("container: ")).length === 2,
+    invoiceText
+  );
+  const unscopedCall = await d1Loop({ version: 1, target: { strategy: "role", value: "button", name: "Call", exact: true }, scopes: [] });
+  check("F: an answer with scopes [] is never refused by D1's scope rule: the proof alone decides", unscopedCall.attempts[0]?.stage === "proof" && d1Proofs === beforeCopies + 3, JSON.stringify(unscopedCall.attempts));
+  const instructions = locatorAttemptJob({ requestId: "req-18i", step: archive, boundValues: [], upgradeContext: d1Context }, [], "req-18i.a1").prompt.instructions;
+  check("the instructions tell the target (the element itself) from scopes (optional, around it)", /target[^.]*the element itself/.test(instructions) && /scopes[^.]*optional/.test(instructions), instructions);
+  check("...a scope only as one offered below, copied exactly", /scope may only be[^.]*offered below[^.]*copied exactly/.test(instructions), instructions);
+  check("...never row text, hasText, a record id or a position", ["row text", "hasText", "record id", "position"].every((word) => instructions.includes(word)), instructions);
+  check(
+    "...a unique target answers scopes [], a duplicate copies an offered scope, and with none offered scopes [] and nothing invented",
+    /matches one element[^.]*scopes \[\]/.test(instructions) && /more than one[^.]*copy[^.]*offered scope/.test(instructions) && /none is offered[^.]*scopes \[\][^.]*never invent/.test(instructions),
+    instructions
+  );
+  check("...short, and carrying no fixture or record text", instructions.length <= 1_000 && !/slot-|Night shift|INV-|Alice|contact-/.test(instructions), String(instructions.length));
+
   // ── 19. verify:ai-spy-live's own classifier applies D1's scope rule before the page ────────────────
   // `classifyAttempts` re-derives each real reply to report why a request was refused, and fails the
   // live run when a plan the page proves right was withheld. A plan D1 withholds is the product's correct
@@ -875,15 +961,15 @@ try {
   const contacts = { kind: "landmark", tag: "section", role: "region", name: "On-call contacts", nameSource: "aria-labelledby", testId: "spy-contacts", text: "On-call contacts Alice Smith Call Bob Jones Call Carol White Call Dan Brown Call" };
   const primaryCapture = spyCapture("Call", [primaryItem, contacts]);
   const nightCapture = spyCapture("Call", [nightItem, contacts]);
-  const offeredOf = (capture: UpgradeContext | undefined) => JSON.stringify(offeredContainerScopes(capture).flat().map((scope) => [scope.strategy, scope.value, scope.name ?? null]));
+  const offeredOf = (capture: UpgradeContext | undefined) => JSON.stringify(offeredContainerScopes(capture).flat().map((scope) => [scope.strategy, scope.value, scope.name]));
   check(
     "(precondition) the capture offers the Call's own slot-primary and the section, never the item's computed name",
-    offeredOf(primaryCapture) === JSON.stringify([["testId", "slot-primary", null], ["testId", "spy-contacts", null], ["role", "region", "On-call contacts"]]),
+    offeredOf(primaryCapture) === JSON.stringify([["testId", "slot-primary", ""], ["testId", "spy-contacts", ""], ["role", "region", "On-call contacts"]]),
     offeredOf(primaryCapture)
   );
   check(
     "(precondition) ...and for Night shift its authored name, never its record-keyed test id",
-    offeredOf(nightCapture) === JSON.stringify([["role", "listitem", "Night shift"], ["testId", "spy-contacts", null], ["role", "region", "On-call contacts"]]),
+    offeredOf(nightCapture) === JSON.stringify([["role", "listitem", "Night shift"], ["testId", "spy-contacts", ""], ["role", "region", "On-call contacts"]]),
     offeredOf(nightCapture)
   );
   const callBaseline = { strategy: "role", value: "button", name: "Call", exact: true } as const;
@@ -960,6 +1046,32 @@ try {
     `${coded(offeredId.records)} ${coded(section.records)} ${coded(sibling.records)}`
   );
 
+  // The same on the page, with the plan copied from the product's own request line rather than written here.
+  const [primaryCopy] = offeredIn(requestText(primaryCapture));
+  const [nightCopy] = offeredIn(requestText(nightCapture));
+  const [siblingCopy] = offeredIn(requestText(misattributed));
+  const copiedId = await classifyAttempts(liveBrowser(), spyUrl, replies(callIn(primaryCopy)), callBaseline, "call-primary", primaryCapture);
+  check("A: the request's first offered scope for the Call, copied verbatim, is judged the inspected element", primaryCopy?.value === "slot-primary" && copiedId.rightButWithheld === 1 && /→ page: THE INSPECTED ELEMENT$/.test(copiedId.lines[0] ?? ""), copiedId.lines.join(" | "));
+  const copiedName = await classifyAttempts(liveBrowser(), spyUrl, replies(callIn(nightCopy)), callBaseline, "call-night", nightCapture);
+  check("B: ...and so is the Night shift item's authored name, copied verbatim", nightCopy?.name === "Night shift" && copiedName.rightButWithheld === 1 && /→ page: THE INSPECTED ELEMENT$/.test(copiedName.lines[0] ?? ""), copiedName.lines.join(" | "));
+  const copiedSibling = await classifyAttempts(liveBrowser(), spyUrl, replies(callIn(siblingCopy)), callBaseline, "call-primary", misattributed);
+  check(
+    "G: a verbatim copy of an offered scope that names a sibling's item is judged WRONG_ELEMENT: being offered never outranks the page",
+    siblingCopy?.value === "slot-backup" && copiedSibling.rightButWithheld === 0 && /→ page: WRONG_ELEMENT \(call-backup\)$/.test(copiedSibling.lines[0] ?? ""),
+    copiedSibling.lines.join(" | ")
+  );
+  const invoiceCapture = spyCapture("Edit", [
+    { kind: "row", tag: "tr", role: "row", name: "Invoice INV-2002 Edit Void", nameSource: "content", text: "Invoice INV-2002 Edit Void" },
+    { kind: "landmark", tag: "section", role: "region", name: "Invoices Invoice INV-2001 Edit Void", nameSource: "content", text: "Invoices Invoice INV-2001 Edit Void" }
+  ]);
+  const editBaseline = { strategy: "role", value: "button", name: "Edit", exact: true } as const;
+  const noScope = await classifyAttempts(liveBrowser(), spyUrl, replies(JSON.stringify({ version: 1, target: editBaseline, scopes: [] })), editBaseline, "edit-2002", invoiceCapture);
+  check(
+    "E: the INV-2002 Edit has nothing to offer, and its answer with scopes [], as instructed, stays refused by the page as not unique",
+    offeredIn(requestText(invoiceCapture)).length === 0 && noScope.rightButWithheld === 0 && /→ page: NOT_UNIQUE \(\d+\)$/.test(noScope.lines[0] ?? ""),
+    noScope.lines.join(" | ")
+  );
+
   // 5 and E: no scope on a unique target is untouched by the rule; contract and compiler refusals keep their own class.
   const saveCapture = spyCapture("Save profile", [{ kind: "landmark", tag: "section", role: "region", name: "Account settings", nameSource: "aria-labelledby", testId: "spy-unique", text: "Account settings Save profile Display name" }]);
   const unscoped = await classifyAttempts(
@@ -1003,5 +1115,6 @@ try {
   server?.kill();
 }
 
+for (const label of failedLabels) console.error(`  failed: ${label}`);
 console.log(`\nL3 §7 bounded attempts: ${passed}/${passed + failed} checks passed.`);
 process.exit(failed === 0 ? 0 : 1);

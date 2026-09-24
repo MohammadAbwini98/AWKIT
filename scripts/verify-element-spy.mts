@@ -231,11 +231,18 @@ async function main(): Promise<void> {
       return step && upgradeContext ? locatorAttemptJob({ requestId: "d1", step, boundValues: boundValueSources(recorder.getActions()), upgradeContext, userRequested: true }, [], "d1.a1").prompt.fields[0].text ?? "" : "";
     };
     const primaryRequest = requestFor(callPrimary);
-    check("D1 A: the request offers the item's test id as a ready scope and never its text", primaryRequest.includes('scope {"kind":"listItem","strategy":"testId","value":"slot-primary"}') && !primaryRequest.includes("Alice Smith"), primaryRequest);
+    // Each offered scope is the plan's own scope object, every key in the grammar's order, hasText empty.
+    check(
+      "D1 A: the request offers the item's test id as a ready scope and never its text",
+      primaryRequest.includes('scope {"strategy":"testId","value":"slot-primary","name":"","exact":false,"kind":"listItem","hasText":"","visibleOnly":false}') && !primaryRequest.includes("Alice Smith"),
+      primaryRequest
+    );
     const nightRequest = requestFor(callNight);
     check(
       "D1 B: the request offers the authored name as a ready scope, never the record-keyed test id or the record's text",
-      nightRequest.includes('scope {"kind":"listItem","strategy":"label","value":"Night shift"}') && !nightRequest.includes("contact-carol-white") && !nightRequest.includes("Carol White"),
+      nightRequest.includes('scope {"strategy":"label","value":"Night shift","name":"","exact":false,"kind":"listItem","hasText":"","visibleOnly":false}') &&
+        !nightRequest.includes("contact-carol-white") &&
+        !nightRequest.includes("Carol White"),
       nightRequest
     );
     check("D1: nothing sensitive or record-keyed about Dan's item reaches a request", !/dan@example\.com|contact-2004|Dan Brown/.test(requestFor(callDan)), requestFor(callDan));
