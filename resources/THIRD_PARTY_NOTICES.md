@@ -90,15 +90,22 @@ a legal approval; the release responsibility below still applies.
   into each directory of `resources/native-hosts/ai` that holds a native binary. The `@node-llama-cpp/win-x64`
   prebuilt binaries and the `@reflink/reflink-win32-x64-msvc` addon import them, and Windows does not
   ship them.
-- Source: the Visual C++ 2015-2022 redistributable files of the Visual Studio installation that builds
-  the release (`VC\Redist\MSVC\<version>\x64\Microsoft.VC14x.CRT`), which is Microsoft's documented
-  source for app-local deployment. The owner authorized this source on 2026-09-25.
+- Source: the Visual C++ 2015-2022 redistributable files of the Visual Studio 2022 installation that
+  builds the release (`VC\Redist\MSVC\<version>\x64\Microsoft.VC14x.CRT`), which is Microsoft's
+  documented source for app-local deployment. The owner authorized this source on 2026-09-25.
+- Microsoft's "Distributable Code Files for Visual Studio 2022" list
+  (<https://learn.microsoft.com/visualstudio/releases/2022/redistribution>, read 2026-09-25) permits
+  holders of a validly licensed Visual Studio Enterprise, Professional or Community 2022 to copy and
+  distribute the files in `VC\redist` with their program, unmodified, subject to the license terms
+  (`debug_nonredist` excluded). Build Tools is not on that list, so the staging accepts only those three
+  editions of Visual Studio 2022.
 - The staging accepts them only when each is a validly Microsoft-signed x64 image, at least as new as the
   linker of every staged binary. It never takes them from the Windows system directory, and it records
   their version in `ai-native-host-manifest.json` (`msvcRuntime`). Without them it stages nothing.
 - © Microsoft Corporation. These files are proprietary. Microsoft's license terms for them govern their
-  redistribution and use, not this file. The release owner confirms those terms cover the intended
-  distribution (see "Release responsibility").
+  redistribution and use, not this file. The release owner confirms that their own Visual Studio license
+  is valid for this use and that those terms cover the intended distribution (see "Release
+  responsibility").
 
 ### Staged runtime packages
 

@@ -86,9 +86,12 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "runtime",
+      "agent_id": "release",
       "allowed_paths": [
-        "scripts/prepare-ai-native-host.mjs"
+        "build",
+        "resources/THIRD_PARTY_NOTICES.md",
+        "resources/dependency-manifest.json",
+        "resources/dependency-manifest.sig"
       ]
     },
     "writer_sequence": [
@@ -698,6 +701,22 @@
         "acquired_at_commit": "37f9e62d04339d352aa2146c298f5e23b74775ad",
         "released_at": "2026-09-24T22:38:50.197Z",
         "released_reason": "staging QC fixes F2 F3 committed at 420f2aad, verifier fixes F1 F4 F5 F7 are unleased",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:runtime:2026-09-24T22:42:12.094Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/prepare-ai-native-host.mjs"
+        ],
+        "acquired_at": "2026-09-24T22:42:12.094Z",
+        "acquired_at_commit": "0b581544f429fbb9fdf0c30d7f0014a8a7e43d22",
+        "released_at": "2026-09-24T22:42:39.283Z",
+        "released_reason": "handoff to release: notices cite the official Distributable Code list, then packaging",
         "amendments": [],
         "overrides": [],
         "violations": []
