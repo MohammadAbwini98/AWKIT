@@ -20,10 +20,10 @@
   "claims": [
     {
       "itemId": "bead:awkit-djnl-10-ai-runtime-packaging-0924",
-      "agent": "Quality Assurance Engineer",
+      "agent": "Packaging / Offline / Release Engineer",
       "state": "in-progress",
-      "claimedAt": "2026-09-24T14:22:14.619Z",
-      "note": "write lease: scripts/validate-offline-bundle.ps1, scripts/verify-ai-packaged-runtime.mts"
+      "claimedAt": "2026-09-24T14:25:06.722Z",
+      "note": "write lease: build, resources/dependency-manifest.json, resources/dependency-manifest.sig"
     }
   ]
 }
