@@ -83,9 +83,7 @@
     "writer": {
       "agent_id": "qa",
       "allowed_paths": [
-        "scripts/helpers/model-pack-scan.mts",
         "scripts/validate-offline-bundle.ps1",
-        "scripts/verify-ai-packaged-app.mts",
         "scripts/verify-ai-packaged-runtime.mts"
       ]
     },
@@ -437,6 +435,41 @@
         "acquired_at_commit": "d3c44e1cab3ac4c0882d96a7258947e4f554274a",
         "released_at": "2026-09-24T17:05:34.965Z",
         "released_reason": "handoff to qa: resolve L7 QC findings QC-1 QC-2 QC-5 QC-6 in the packaged verifiers and strict validator, and add red-first checks for QC-3 QC-4 QC-7",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:qa:2026-09-24T17:05:35.022Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/helpers/model-pack-scan.mts",
+          "scripts/validate-offline-bundle.ps1",
+          "scripts/verify-ai-packaged-app.mts",
+          "scripts/verify-ai-packaged-runtime.mts"
+        ],
+        "acquired_at": "2026-09-24T17:05:35.022Z",
+        "acquired_at_commit": "0c9bc646e029b27a3dc30d423ed69b964f0beb9b",
+        "released_at": "2026-09-24T17:26:17.201Z",
+        "released_reason": "handoff to runtime: resolve L7 QC-3 and QC-4 in the staging script: refuse links and paths resolving outside the repository, read AI_RUNTIME_PIN strictly and reject conflicting package.json pins, verifiers committed at 93beb341",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:runtime:2026-09-24T17:26:17.257Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/prepare-ai-native-host.mjs"
+        ],
+        "acquired_at": "2026-09-24T17:26:17.257Z",
+        "acquired_at_commit": "93beb34148479e6e57935bd1c79d839d93e1e8d1",
+        "released_at": "2026-09-24T17:28:03.523Z",
+        "released_reason": "handoff to qa: run the red proof for QC-4 and QC-5 in the strict validator by restoring its original pin regex and count comparison for one run, with the staging fix in the working tree",
         "amendments": [],
         "overrides": [],
         "violations": []

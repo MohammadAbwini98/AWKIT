@@ -58,7 +58,12 @@ if (-not (Test-Path $manifest)) {
 $manifestJson = Get-Content -Raw $manifest | ConvertFrom-Json
 $failures = New-Object System.Collections.Generic.List[string]
 $warnings = New-Object System.Collections.Generic.List[string]
+# Windows PowerShell 5.1 turns a native command's stderr under `2>&1` into error records, and with
+# $ErrorActionPreference = "Stop" the first one aborts the script. A signature check that failed loudly
+# therefore ended validation with an exception instead of being reported with every other failure.
+$ErrorActionPreference = "Continue"
 $signatureOutput = & node (Join-Path $PSScriptRoot "offline-manifest-signature.mjs") verify --manifest $manifest --signature $manifestSignature --public-key $manifestPublicKey 2>&1
+$ErrorActionPreference = "Stop"
 if ($LASTEXITCODE -ne 0) {
   $failures.Add("Dependency-manifest signature verification failed: $signatureOutput")
 }

@@ -601,9 +601,19 @@ function validateInScratch(base: string, name: string, spec: ValidatorCase): str
   };
   const npm = /^node-llama-cpp@(\d+\.\d+\.\d+)\+/.exec(AI_RUNTIME_PIN.build ?? "")?.[1];
   const aiRuntime = { enabled: true, requiredForAppStartup: false, modelPackBundled: false, gpu: false, platform: "win32", arch: "x64", runtimeBuild: AI_RUNTIME_PIN.build, runtimeVersion: npm, assets: spec.listed.map(asset) };
-  fs.writeFileSync(path.join(root, "resources", "dependency-manifest.json"), JSON.stringify({ schema: { version: 3 }, aiRuntime }, null, 2));
+  // The validator runs under strict mode and reads the other sections directly, so the scratch manifest is
+  // the real one with only aiRuntime replaced. Its signature no longer verifies, which it reports and moves on.
+  const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, "resources", "dependency-manifest.json"), "utf8")) as Record<string, unknown>;
+  fs.writeFileSync(path.join(root, "resources", "dependency-manifest.json"), JSON.stringify({ ...manifest, aiRuntime }, null, 2));
   const run = spawnSync("powershell", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", VALIDATOR, "-RootPath", root], { encoding: "utf8", timeout: 120_000, windowsHide: true });
   return `${run.stdout ?? ""}\n${run.stderr ?? ""}`;
+}
+
+/** The validator's AI lines, or its last lines when it never reached the AI section. */
+function validatorDetail(output: string): string {
+  const lines = output.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const relevant = lines.filter((line) => /Local-AI|AI_RUNTIME_PIN/.test(line));
+  return (relevant.length > 0 ? relevant.join(" | ") : `no Local-AI line, the validator ended with: ${lines.slice(-4).join(" | ")}`).slice(0, 500);
 }
 
 function assertValidatorRules(base: string): void {
@@ -618,7 +628,7 @@ function assertValidatorRules(base: string): void {
   check(
     "control — a consistent tree and the real pin draw no pin or inventory error, and the inventory is compared by path",
     /Local-AI runtime inventory: 2 staged files compared by path with 2 signed entries \(0 unlisted, 0 missing\)/.test(control) && !pinError.test(control) && !inventoryError.test(control),
-    control.split(/\r?\n/).filter((l) => /Local-AI/.test(l)).join(" | ").slice(0, 400)
+    validatorDetail(control)
   );
   const cases: { label: string; spec: ValidatorCase; expect: RegExp[] }[] = [
     {
@@ -654,7 +664,7 @@ function assertValidatorRules(base: string): void {
   ];
   cases.forEach((c, index) => {
     const output = validateInScratch(base, `case-${index}`, c.spec);
-    check(c.label, c.expect.every((pattern) => pattern.test(output)), output.split(/\r?\n/).filter((l) => /Local-AI|AI_RUNTIME_PIN/.test(l)).join(" | ").slice(0, 400));
+    check(c.label, c.expect.every((pattern) => pattern.test(output)), validatorDetail(output));
   });
 }
 
