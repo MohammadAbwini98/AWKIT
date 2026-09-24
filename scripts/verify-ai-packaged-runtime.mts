@@ -244,11 +244,14 @@ function assertLicenses(dir: string, label: string, listed: string[], noticesFil
     expected.size > 0 && missing.length === 0 && extra.length === 0 && notices.rows.length === expected.size,
     `${missing.length} missing, ${extra.length} not staged${extra.length > 0 ? `: ${extra.slice(0, 3).join(" ")}` : ""}`
   );
-  const text = fs.readFileSync(noticesFile, "utf8");
+  const text = fs.readFileSync(noticesFile, "utf8").replace(/\r\n/g, "\n");
+  const crtHeading = text.indexOf("\n### Microsoft Visual C++ runtime\n");
+  const crtRest = crtHeading < 0 ? "" : text.slice(crtHeading + 1).replace(/^[^\n]*\n/, "");
+  const crtSection = crtRest.slice(0, Math.max(0, crtRest.search(/^#{1,3} /m)) || crtRest.length);
   check(
-    `${label}: the notices describe the app-local Microsoft Visual C++ runtime and name each of its files`,
-    /^### Microsoft Visual C\+\+ runtime$/m.test(text) && MSVC_RUNTIME.every((file) => text.includes(`\`${file}\``)),
-    "no \"### Microsoft Visual C++ runtime\" section naming msvcp140.dll, vcruntime140.dll and vcruntime140_1.dll"
+    `${label}: the notices' Microsoft Visual C++ runtime section names each of its files`,
+    crtHeading >= 0 && MSVC_RUNTIME.every((file) => crtSection.includes(`\`${file}\``)),
+    "no \"### Microsoft Visual C++ runtime\" section naming msvcp140.dll, vcruntime140.dll and vcruntime140_1.dll inside it"
   );
   if (missing.length > 0 || extra.length > 0) {
     const expectedTable = path.join(os.tmpdir(), `awkit-ai-runtime-inventory-${label}.md`);
@@ -359,7 +362,10 @@ const PROBE = `
     resolved = require.resolve("node-llama-cpp");
     const rt = await import("node-llama-cpp");
     const llama = await rt.getLlama({ gpu: false, build: "never", skipDownload: true, progressLogs: false, logLevel: rt.LlamaLogLevel.disabled, logger: () => undefined });
-    const out = { ok: true, resolved, gpu: llama.gpu };
+    // gpu is "?? false" over a null that means NO backend loaded; a CPU line in the system info means a
+    // ggml-cpu backend variant really registered.
+    const cpu = /(^|\\|)\\s*CPU\\s*:/.test(llama.systemInfo);
+    const out = cpu ? { ok: true, resolved, gpu: llama.gpu } : { ok: false, resolved, error: "no CPU backend registered: " + String(llama.systemInfo).slice(0, 160) };
     await llama.dispose();
     console.log("AWKIT_PROBE " + JSON.stringify(out));
   } catch (error) {
@@ -719,17 +725,25 @@ try {
 
   // awkit-i6ot: with no Visual Studio redist reachable, the real script must refuse rather than stage a
   // runtime that loads only where Visual C++ happens to be installed.
+  // The refusal must come before the output is replaced (QC F3): an earlier staging stays exactly as it was.
   const noRedistOut = path.join(scratch, "ai-without-vs-redist");
+  const earlierStaging = '{"marker":"an earlier staging"}\n';
+  fs.mkdirSync(noRedistOut, { recursive: true });
+  fs.writeFileSync(path.join(noRedistOut, MANIFEST_NAME), earlierStaging);
   const noRedistRun = spawnSync(process.execPath, [STAGING_SCRIPT, "--out", noRedistOut], {
     cwd: ROOT,
     env: { ...process.env, "ProgramFiles(x86)": path.join(scratch, "no-visual-studio") },
     encoding: "utf8",
     timeout: 300_000
   });
+  const left = fs.readdirSync(noRedistOut);
   check(
-    "without a Visual Studio redist the staging refuses the Visual C++ runtime and stages nothing",
-    noRedistRun.status === 1 && /MSVC runtime: no Visual Studio installation/.test(noRedistRun.stderr ?? "") && !fs.existsSync(path.join(noRedistOut, MANIFEST_NAME)),
-    `exit ${noRedistRun.status}: ${`${noRedistRun.stderr ?? ""}`.trim().slice(0, 300)}`
+    "without a Visual Studio redist the staging refuses the Visual C++ runtime and leaves an earlier staging untouched",
+    noRedistRun.status === 1 &&
+      /MSVC runtime: no Visual Studio installation/.test(noRedistRun.stderr ?? "") &&
+      left.length === 1 &&
+      fs.readFileSync(path.join(noRedistOut, MANIFEST_NAME), "utf8") === earlierStaging,
+    `exit ${noRedistRun.status}, ${left.length} entr${left.length === 1 ? "y" : "ies"} left: ${`${noRedistRun.stderr ?? ""}`.trim().slice(0, 300)}`
   );
 
   const stageRun = spawnSync(process.execPath, [STAGING_SCRIPT, "--out", staged], { cwd: ROOT, encoding: "utf8", timeout: 300_000 });

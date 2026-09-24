@@ -35,7 +35,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { readPeImage, type PeImage } from "./helpers/pe-image.mts";
+import { readPeImage, type PeImage, type PeImport } from "./helpers/pe-image.mts";
 import { gateExitCode } from "./lib/failure-capture-gate.mts";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -137,11 +137,52 @@ const entriesOf = (dir: string): Set<string> => {
   return dirEntries.get(dir)!;
 };
 
-/** Why `name`, imported by `importer`, does not resolve; null when it does. */
-function unresolvedReason(importer: string, name: string): string | null {
+/**
+ * Which "beside it" names Windows will really find for each binary.
+ *
+ * An executable's folder is the application directory, and an addon is loaded with its own folder
+ * searched (LOAD_WITH_ALTERED_SEARCH_PATH), so beside is right for both and for everything they import
+ * from there. A DLL nothing imports (the ggml-cpu-* variants) is loaded by full path at run time, and then
+ * Windows searches the application directory, not its folder: a name beside it resolves only because an
+ * entry point in that folder already loaded a module of that name. Such a DLL gets the set of names its
+ * folder's entry points load statically; every other binary gets null (beside is enough).
+ */
+function besideRules(binaries: Binary[]): Map<string, Set<string> | null> {
+  const rules = new Map<string, Set<string> | null>();
+  const byDir = new Map<string, Binary[]>();
+  for (const b of binaries) byDir.set(path.dirname(b.file), [...(byDir.get(path.dirname(b.file)) ?? []), b]);
+  for (const [, inDir] of byDir) {
+    const byName = new Map(inDir.map((b) => [path.basename(b.file).toLowerCase(), b]));
+    const entries = inDir.filter((b) => /\.(exe|node)$/i.test(b.file));
+    const loaded = new Set<string>();
+    const queue = [...entries];
+    while (queue.length > 0) {
+      for (const imp of queue.shift()!.image.imports) {
+        const key = imp.name.toLowerCase();
+        if (loaded.has(key) || !byName.has(key)) continue;
+        loaded.add(key);
+        queue.push(byName.get(key)!);
+      }
+    }
+    const appDir = inDir.some((b) => /\.exe$/i.test(b.file));
+    for (const b of inDir) {
+      const reachable = /\.(exe|node)$/i.test(b.file) || loaded.has(path.basename(b.file).toLowerCase());
+      rules.set(b.file, appDir || reachable ? null : loaded);
+    }
+  }
+  return rules;
+}
+
+/** Why `imp`, imported by `importer`, does not resolve; null when it does. */
+function unresolvedReason(importer: string, imp: PeImport, loadedFirst: Set<string> | null): string | null {
+  const name = imp.name;
   if (API_SET.test(name)) return null;
-  if (HOST_PROCESS.test(name) && /\.node$/i.test(importer)) return null;
-  if (entriesOf(path.dirname(importer)).has(name.toLowerCase())) return null;
+  // Electron's delay-load hook maps node.exe onto the host process; a static import of it would fail.
+  if (HOST_PROCESS.test(name) && /\.node$/i.test(importer)) return imp.delay ? null : "a static import of node.exe, which only the delay-load hook resolves";
+  if (entriesOf(path.dirname(importer)).has(name.toLowerCase())) {
+    if (loadedFirst === null || loadedFirst.has(name.toLowerCase())) return null;
+    return "beside it, but it is loaded by path at run time, so Windows does not search its folder, and no entry point there loads that name first";
+  }
   const standing = windowsStanding(name);
   return standing.windows ? null : standing.why;
 }
@@ -183,7 +224,7 @@ function isolateFromHost(tree: string): { decoys: Map<string, string>; patched: 
     let changed = false;
     for (const imp of image.imports) {
       const decoy = decoys.get(imp.name.toLowerCase());
-      if (!decoy) continue;
+      if (!decoy || imp.offset < 0) continue;
       bytes.write(decoy, imp.offset, "latin1");
       changed = true;
       patched += 1;
@@ -210,7 +251,10 @@ const PROBE = `
     if (spec.kind === "llama") {
       const rt = await import("node-llama-cpp");
       const llama = await rt.getLlama({ gpu: false, build: "never", skipDownload: true, progressLogs: false, logLevel: rt.LlamaLogLevel.disabled, logger: () => undefined });
-      out = { ok: llama.gpu === false, detail: "gpu " + llama.gpu };
+      // gpu is "?? false" over a null that means NO backend loaded, so it proves nothing on its own; the
+      // system info lists a CPU line only when a ggml-cpu backend variant actually registered.
+      const cpu = /(^|\\|)\\s*CPU\\s*:[^|]*/.exec(llama.systemInfo);
+      out = { ok: llama.gpu === false && cpu !== null, detail: "gpu " + llama.gpu + ", " + (cpu ? cpu[0].trim().slice(0, 80) : "no CPU backend in systemInfo: " + String(llama.systemInfo).slice(0, 120)) };
       await llama.dispose();
     } else {
       const mod = { exports: {} };
@@ -267,9 +311,12 @@ try {
     const system32Names = [...new Set(binaries.flatMap((b) => b.image.imports.map((i) => i.name.toLowerCase())))].map((n) => path.join(SYSTEM32, n)).filter((f) => fs.existsSync(f));
     readSignatures(system32Names);
     const unresolved = new Map<string, { why: string; importers: string[]; linkers: Set<string> }>();
+    const rules = besideRules(binaries);
+    const loadedByPath = binaries.filter((b) => rules.get(b.file) !== null).map((b) => b.rel);
+    console.log(`  loaded by path at run time outside an application folder: ${loadedByPath.length} (${loadedByPath.map((rel) => path.posix.basename(rel)).join(", ") || "none"})`);
     for (const binary of binaries) {
       for (const imp of binary.image.imports) {
-        const why = unresolvedReason(binary.file, imp.name);
+        const why = unresolvedReason(binary.file, imp, rules.get(binary.file) ?? null);
         if (why === null) continue;
         const key = imp.name.toLowerCase();
         const entry = unresolved.get(key) ?? { why, importers: [], linkers: new Set<string>() };
