@@ -685,6 +685,22 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:runtime:2026-09-24T22:37:24.731Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/prepare-ai-native-host.mjs"
+        ],
+        "acquired_at": "2026-09-24T22:37:24.731Z",
+        "acquired_at_commit": "37f9e62d04339d352aa2146c298f5e23b74775ad",
+        "released_at": "2026-09-24T22:38:50.197Z",
+        "released_reason": "staging QC fixes F2 F3 committed at 420f2aad, verifier fixes F1 F4 F5 F7 are unleased",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }

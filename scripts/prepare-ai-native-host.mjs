@@ -284,9 +284,13 @@ function findVcRedist() {
   if (!fs.existsSync(vswhere)) return { problem: "no Visual Studio installation: vswhere.exe is absent" };
   // Both components: the tools write Microsoft.VCRedistVersion.default.txt, the redist component the CRT folder.
   const components = ["Microsoft.VisualStudio.Component.VC.Tools.x86.x64", "Microsoft.VisualStudio.Component.VC.Redist.14.Latest"];
-  const run = spawnSync(vswhere, ["-latest", "-products", "*", "-requires", ...components, "-property", "installationPath", "-utf8"], { encoding: "utf8", windowsHide: true, timeout: 60_000 });
+  // Microsoft's Distributable Code list for Visual Studio 2022 (learn.microsoft.com/visualstudio/releases/2022/
+  // redistribution) grants the VC\redist files to validly licensed Enterprise, Professional and Community 2022
+  // only. Build Tools is not on it, and another major version has its own terms, so nothing else is used.
+  const products = ["Microsoft.VisualStudio.Product.Community", "Microsoft.VisualStudio.Product.Professional", "Microsoft.VisualStudio.Product.Enterprise"];
+  const run = spawnSync(vswhere, ["-latest", "-version", "[17.0,18.0)", "-products", ...products, "-requires", ...components, "-property", "installationPath", "-utf8"], { encoding: "utf8", windowsHide: true, timeout: 60_000 });
   const install = `${run.stdout ?? ""}`.trim().split(/\r?\n/)[0];
-  if (run.status !== 0 || !install) return { problem: `vswhere reports no released Visual Studio installation with ${components.join(" and ")}` };
+  if (run.status !== 0 || !install) return { problem: `vswhere reports no released Visual Studio 2022 Community, Professional or Enterprise installation with ${components.join(" and ")}` };
   const versionFile = path.join(install, "VC", "Auxiliary", "Build", "Microsoft.VCRedistVersion.default.txt");
   const version = fs.existsSync(versionFile) ? fs.readFileSync(versionFile, "utf8").trim() : "";
   if (!/^14\.\d+\.\d+$/.test(version)) return { problem: `${versionFile} is missing or holds no 14.x.y redist version` };
@@ -334,7 +338,7 @@ function nativeFilesOf(dir) {
 function prepareMsvcRuntime() {
   const redist = findVcRedist();
   if (redist.problem) {
-    fail(`MSVC runtime: ${redist.problem}. The staged native binaries import ${MSVC_RUNTIME.join(", ")}, which Windows does not ship; install Visual Studio 2022 (Build Tools or an edition whose license covers redistributing its Distributable Code) with "MSVC v143 - VS 2022 C++ x64/x86 build tools" and "C++ 2022 Redistributable Update" (awkit-i6ot).`);
+    fail(`MSVC runtime: ${redist.problem}. The staged native binaries import ${MSVC_RUNTIME.join(", ")}, which Windows does not ship; add "MSVC v143 - VS 2022 C++ x64/x86 build tools" and "C++ 2022 Redistributable Update" to a validly licensed Visual Studio 2022 Community, Professional or Enterprise, the editions Microsoft's Distributable Code list covers (awkit-i6ot).`);
     return null;
   }
   const sources = MSVC_RUNTIME.map((name) => path.join(redist.dir, name));

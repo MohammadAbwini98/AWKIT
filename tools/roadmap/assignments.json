@@ -22,7 +22,7 @@
       "itemId": "bead:awkit-djnl-10-ai-runtime-packaging-0924",
       "agent": "Electron Main / Runner Engineer",
       "state": "in-progress",
-      "claimedAt": "2026-09-24T22:37:24.731Z",
+      "claimedAt": "2026-09-24T22:42:12.094Z",
       "note": "write lease: scripts/prepare-ai-native-host.mjs"
     }
   ]
