@@ -1,18 +1,18 @@
 {
-  "task": "awkit-djnl-4-durable-evidence-note-0924",
-  "contract_path": "docs/ai/contracts/awkit-djnl-4-durable-evidence-note-0924.json",
+  "task": "awkit-djnl-4-spy-live-evidence-note-0924",
+  "contract_path": "docs/ai/contracts/awkit-djnl-4-spy-live-evidence-note-0924.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-09-24T10:53:10.167Z",
-  "acquired_at_commit": "562d2581e6c1a8d18d2ebb8e05e213e8c5baf778",
+  "acquired_at": "2026-09-24T11:43:19.358Z",
+  "acquired_at_commit": "3e61ab711e3079cf7126f6c57411376366785fee",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-djnl-4-durable-evidence-note-0924.json"
+    "docs/ai/contracts/awkit-djnl-4-spy-live-evidence-note-0924.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-djnl-4-durable-evidence-note-0924.json": "527193c25f3fc6289d8305bdf91f4c01ced70dba8f170ee7750f2b5c88098e66"
+    "docs/ai/contracts/awkit-djnl-4-spy-live-evidence-note-0924.json": "1f538d65745785912b7011e95cdfcb92c41f8b5b7b0068f5d8ae5b5dd7c099c3"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -27,7 +27,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-24T10:53:51.994Z",
-  "released_reason": "durable-evidence change noted on awkit-djnl.4 at 562d2581, nothing closed, no edge changed, export refreshed",
-  "archived_at": "2026-09-24T10:53:51.995Z"
+  "released_at": "2026-09-24T11:43:58.138Z",
+  "released_reason": "spy-live session evidence noted on awkit-djnl.4 at 3e61ab71, nothing closed, no edge changed, export refreshed",
+  "archived_at": "2026-09-24T11:43:58.139Z"
 }

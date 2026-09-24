@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-4-spy-live-evidence-note-0924",
+    "title": "Note the durable verify:ai-spy-live session evidence on awkit-djnl.4",
+    "objective": "At 3e61ab71 verify:ai-spy-live keeps a durable, sanitized session record (f9e573ac: scripts/ai-harness/spyLiveEvidence.mts records nine fixed scenarios with status, check counts, allowlisted facts and per-attempt codes from classifyAttempts records, writes docs/plans/ai-upgrade-v5/evidence/L3-spy-live-RUNID.json as an INCOMPLETE checkpoint at every scenario boundary and recorded fact and as the final record before the profile is removed, never another run's file, a failed write fails the run; verify:ai-locator-quality-controls 49/0 with 21 new model-free checks, verify:ai-locator-attempts 170/170, nine mutations caught and reverted; no model run) and recorded (3e61ab71, the OPEN issue FIXED). Append one note to awkit-djnl.4. Refresh the JSONL export. Nothing closes: awkit-djnl.4 stays in_progress, and no edge is added or removed. The lease writes .beads/** only.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "3e61ab71",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "scripts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "tracker-reflects-reality",
+      "description": "awkit-djnl.4 stays in_progress with a note naming f9e573ac and 3e61ab71, the root cause, the evidence file location, lifecycle and contract, the controls 49/0 and attempts 170/170 with nine caught mutations, no model run, the D1 live result and earlier Spy runs unchanged with no evidence file made for them, no edge changes, the JSONL export is refreshed from the database, and the dashboard reports that its sources agree.",
+      "evidence_required": [
+        "roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177 with the Overview banner on 'Sources agree' on round 1, run once after the lease release, after `bd update awkit-djnl.4 --append-notes` and `bd export -o .beads/issues.jsonl` (one line changed): 26 outstanding / 294 closed with 180 edges (unchanged), and both narratives restating 65 PASS / 2 NOT RUN / 0 BLOCKED. Also run once at the final state: verify:verifier-classification 263 reconciled (no new script)."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-4-spy-live-evidence-note-0924:project-state:2026-09-24T11:43:19.358Z",
+        "task": "awkit-djnl-4-spy-live-evidence-note-0924",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-24T11:43:19.358Z",
+        "acquired_at_commit": "3e61ab711e3079cf7126f6c57411376366785fee",
+        "released_at": "2026-09-24T11:43:58.138Z",
+        "released_reason": "spy-live session evidence noted on awkit-djnl.4 at 3e61ab71, nothing closed, no edge changed, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}
