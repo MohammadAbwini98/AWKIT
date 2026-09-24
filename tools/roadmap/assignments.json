@@ -17,5 +17,13 @@
     "    \"claimedAt\": \"2026-07-27T10:00:00Z\", \"expiresAt\": \"2026-07-28T10:00:00Z\",",
     "    \"note\": \"IPC authz sweep\" }"
   ],
-  "claims": []
+  "claims": [
+    {
+      "itemId": "bead:awkit-djnl-10-ai-runtime-packaging-0924",
+      "agent": "Packaging / Offline / Release Engineer",
+      "state": "in-progress",
+      "claimedAt": "2026-09-24T14:19:09.655Z",
+      "note": "write lease: build, resources/THIRD_PARTY_NOTICES.md, resources/dependency-manifest.json, resources/dependency-manifest.sig, scripts/generate-dependency-manifest.ps1, scripts/package-per-user-installer.ps1, scripts/package-portable.ps1"
+    }
+  ]
 }

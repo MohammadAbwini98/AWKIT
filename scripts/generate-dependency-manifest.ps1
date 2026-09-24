@@ -84,6 +84,53 @@ if ($null -ne $zvecHostManifest) {
   }
 }
 
+# === Local-AI utility host and its pinned runtime (Phase L, L7) ===
+# The staged tree under build/native-hosts/ai is produced by scripts/prepare-ai-native-host.mjs and
+# shipped via electron-builder extraResources. node-llama-cpp is a dev dependency, so this tree is the
+# only way the runtime reaches a build. Its own per-file manifest is folded in verbatim so release
+# validation can checksum every file. The model pack is never part of it: it is imported in Settings.
+$aiHostDir = Join-Path $root "build\native-hosts\ai"
+$aiHostManifestPath = Join-Path $aiHostDir "ai-native-host-manifest.json"
+$aiHostManifest = $null
+if (Test-Path $aiHostManifestPath) {
+  $aiHostManifest = Get-Content -Raw $aiHostManifestPath | ConvertFrom-Json
+}
+
+if ($null -ne $aiHostManifest) {
+  $aiRuntime = [ordered]@{
+    enabled = $true
+    # AI is optional: a missing or broken runtime disables AI features and changes nothing else.
+    requiredForAppStartup = $false
+    hostProtocolVersion = $aiHostManifest.hostProtocolVersion
+    hostEntry = "native-hosts/ai/$($aiHostManifest.hostEntry)"
+    runtimeBuild = $aiHostManifest.runtimeBuild
+    runtimeVersion = $aiHostManifest.runtimeVersion
+    binaryPackage = $aiHostManifest.binaryPackage
+    binaryVersion = $aiHostManifest.binaryVersion
+    gpu = $aiHostManifest.gpu
+    platform = $aiHostManifest.platform
+    arch = $aiHostManifest.arch
+    modelPackBundled = $false
+    stagedRoot = "native-hosts/ai"
+    fileCount = $aiHostManifest.fileCount
+    totalBytes = $aiHostManifest.totalBytes
+    assets = @($aiHostManifest.assets | ForEach-Object {
+      [ordered]@{
+        relativePath = "native-hosts/ai/$($_.relativePath)"
+        size = $_.size
+        sha256 = $_.sha256
+      }
+    })
+  }
+} else {
+  $aiRuntime = [ordered]@{
+    enabled = $false
+    requiredForAppStartup = $false
+    modelPackBundled = $false
+    assets = @()
+  }
+}
+
 $browserExists = Test-Path $browserPath
 $browserPayloadDigest = if ($browserExists) {
   Assert-AwkitBrowserTree -BrowserRoot $browserRoot -Policy $browserPolicy
@@ -250,8 +297,10 @@ $manifest = [ordered]@{
     sqlJs = Get-DependencyVersion "sql.js"
     sqlite = "sql.js $(Get-DependencyVersion 'sql.js') (WASM, no native driver)"
     zvec = Get-DependencyVersion "@zvec/zvec"
+    nodeLlamaCpp = Get-DependencyVersion "node-llama-cpp"
   }
   semanticNative = $semanticNative
+  aiRuntime = $aiRuntime
 }
 
 New-Item -ItemType Directory -Force -Path $resourcesRoot | Out-Null

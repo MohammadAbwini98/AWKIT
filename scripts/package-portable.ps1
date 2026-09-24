@@ -49,11 +49,15 @@ Write-Step "Building the application bundle"
 npm run build
 if ($LASTEXITCODE -ne 0) { throw "build failed with exit code $LASTEXITCODE" }
 
-# Stage the raw, unbundled Zvec utility host BEFORE the manifest is generated, so its checksums
-# describe the exact tree electron-builder will ship via extraResources.
-Write-Step "Staging the Zvec utility host"
+# Stage the raw, unbundled utility hosts BEFORE the manifest is generated, so their checksums
+# describe the exact trees electron-builder will ship via extraResources: the Zvec host, and the
+# local-AI host with its pinned CPU runtime (Phase L L7; the model pack is never bundled). One
+# [STEP] covers both, because the dashboard sizes its progress bar from a fixed marker count.
+Write-Step "Staging the native utility hosts (Zvec, local AI)"
 node (Join-Path $PSScriptRoot "prepare-zvec-native-host.mjs")
 if ($LASTEXITCODE -ne 0) { throw "prepare-zvec-native-host failed with exit code $LASTEXITCODE" }
+node (Join-Path $PSScriptRoot "prepare-ai-native-host.mjs")
+if ($LASTEXITCODE -ne 0) { throw "prepare-ai-native-host failed with exit code $LASTEXITCODE" }
 
 # A portable release must never inherit the developer's application/security database. Run after
 # staging so the gate inspects the exact app + extraResources input trees that will be signed.

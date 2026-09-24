@@ -45,8 +45,12 @@ Playwright includes code derived from Puppeteer under the Apache License 2.0. Th
   binary is an error rather than a source build or a network fetch. The prebuilt CUDA and Vulkan
   variants npm installs alongside `@node-llama-cpp/win-x64` are never loaded and are not staged.
 
-`node-llama-cpp` is a development dependency: it never enters `app.asar`, and its runtime tree is
-staged beside the host in the same way as the Zvec native host.
+`node-llama-cpp` is a development dependency: it never enters `app.asar`. Its runtime tree is staged
+beside the host by `scripts/prepare-ai-native-host.mjs` and shipped as `resources/native-hosts/ai`, in
+the same way as the Zvec native host: `node-llama-cpp`, the CPU prebuilt `@node-llama-cpp/win-x64`
+(MIT) and `node-llama-cpp`'s declared runtime dependency packages, each copied with its own package
+metadata (including its declared license) and any license or notice file it ships. Every staged file is listed with its SHA-256 in the signed dependency
+manifest (`aiRuntime`). No model pack is bundled.
 
 ## Local AI model pack (Qwen3.5-4B GGUF)
 
