@@ -78,10 +78,11 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "project-state",
+      "agent_id": "release",
       "allowed_paths": [
-        "docs/ai/routing/ROUTING_MATRIX.md",
-        "scripts/lib/verifier-classification.ts"
+        "build",
+        "resources/dependency-manifest.json",
+        "resources/dependency-manifest.sig"
       ]
     },
     "writer_sequence": [
@@ -289,6 +290,23 @@
         "acquired_at_commit": "e8f99c3f10ce6be3d263df77f2bd61395f958c15",
         "released_at": "2026-09-24T15:27:03.203Z",
         "released_reason": "handoff to project-state: packaged-app gate committed at 680090f6, classify it and regenerate the routing matrix for the new staging-script entry",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:project-state:2026-09-24T15:27:03.263Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/routing/ROUTING_MATRIX.md",
+          "scripts/lib/verifier-classification.ts"
+        ],
+        "acquired_at": "2026-09-24T15:27:03.263Z",
+        "acquired_at_commit": "680090f637d6b0026bc70e2c0e2bea35fac87261",
+        "released_at": "2026-09-24T15:28:08.339Z",
+        "released_reason": "handoff to release: gates classified at dbad44ba, rebuild portable and NSIS from the clean tree with the dotfile fix and commit the regenerated manifest pair",
         "amendments": [],
         "overrides": [],
         "violations": []
