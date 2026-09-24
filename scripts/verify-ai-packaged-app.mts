@@ -6,6 +6,8 @@
  * This gate launches `dist/win-unpacked/SpecterStudio.exe` itself on a fresh, isolated %LOCALAPPDATA%,
  * creates its first account through the real sign-in screen, and then uses the app's own IPC only:
  *
+ *   0. the packaged artifact itself carries no model file: every file of dist/win-unpacked and every file
+ *      packed in its app.asar is read (extension, GGUF magic, pinned pack size), before anything launches;
  *   1. diagnostics: the packaged main process finds its runtime in resources/native-hosts/ai and reports
  *      the pinned build, and a fresh install has NO model pack (the installer never carries one);
  *   2. with AI enabled and no pack, AI is unavailable for the model, never for a missing runtime;
@@ -16,8 +18,9 @@
  *   5. the non-packaged test provider is unreachable: AWKIT_TEST_AI_PROVIDER points at a scripted answer
  *      and the answer must still come from the real model.
  *
- * NOT RUN (exit 0, with the reason) without a packaged tree that carries native-hosts/ai or without the
- * pack. A stale packaged tree FAILS. A TIMEOUT on a contended host is INCONCLUSIVE (exit 2), never PASS.
+ * Exit, the `gateExitCode` convention: NOT RUN (exit 2, with the reason, never a pass) without a packaged
+ * tree that carries native-hosts/ai or without the pack. A stale packaged tree FAILS (exit 1). A TIMEOUT on
+ * a contended host is INCONCLUSIVE (exit 2). Only a run where every step executed and passed exits 0.
  *
  * Run: npm run verify:ai-packaged-app   (after `npm run package:portable`)
  */
@@ -31,9 +34,11 @@ import { _electron as electron, type ElectronApplication, type Page } from "play
 import { AI_MODEL_MANIFEST, AI_RUNTIME_PIN } from "../src/offline/AiModelManifest";
 import { measurePack, ROOT } from "./ai-harness/launch.mts";
 import { FLOW } from "./ai-harness/validationExplanationPacket";
+import { scanForModelFiles } from "./helpers/model-pack-scan.mts";
 import { stalePackagedPayload } from "./helpers/packaged-artifacts.mjs";
 import { sanitizeAppEnv } from "./helpers/packaged-license.mts";
 import { capturePackagedAppPids, ensurePackagedAppDead, type PackagedAppPids } from "./helpers/packaged-process-tree.mts";
+import { gateExitCode } from "./lib/failure-capture-gate.mts";
 
 const UNPACKED = path.join(ROOT, "dist", "win-unpacked");
 const EXE = path.join(UNPACKED, "SpecterStudio.exe");
@@ -55,9 +60,10 @@ function check(label: string, ok: boolean, detail?: string): void {
   }
 }
 
+/** The gate did not execute, so the process must not report success: exit 2, never 0. */
 function notRun(reason: string): never {
-  console.log(`NOT RUN: ${reason}`);
-  process.exit(0);
+  console.log(`NOT RUN: ${reason} — exit 2, never a pass`);
+  process.exit(2);
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -121,7 +127,15 @@ check("the packaged payload is not older than the source", stale === null, stale
 const measured = await measurePack(pack);
 const entry = AI_MODEL_MANIFEST.find((item) => item.sha256 === measured.sha256 && item.sizeBytes === measured.sizeBytes);
 check("the pack is a pinned manifest entry", Boolean(entry), `sha256 ${measured.sha256}`);
-if (stale !== null || !entry) {
+
+console.log("\n0. The packaged artifact itself carries no model file");
+const shipped = scanForModelFiles(UNPACKED);
+check(
+  `no model file in dist/win-unpacked, app.asar included (${shipped.files} files and ${shipped.asarEntries} asar entries read)`,
+  shipped.files > 0 && shipped.asarEntries > 0 && shipped.found.length === 0,
+  shipped.found.length > 0 ? shipped.found.slice(0, 5).join("; ") : "nothing was read"
+);
+if (stale !== null || !entry || failed > 0) {
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(1);
 }
@@ -168,9 +182,9 @@ try {
   const after = await diagnostics();
   check("diagnostics now report that pack installed", after?.modelPack?.status === "installed" && after?.modelPack?.modelId === entry.id && after?.modelPack?.sha256 === entry.sha256, JSON.stringify(after?.modelPack));
   const inProfile = findFiles(localAppData, (name) => name.toLowerCase().endsWith(".gguf"));
-  const inResources = findFiles(path.join(UNPACKED, "resources"), (name) => name.toLowerCase().endsWith(".gguf"));
+  const inResources = scanForModelFiles(path.join(UNPACKED, "resources"));
   check("the imported pack lives under the writable %LOCALAPPDATA% profile", inProfile.length === 1, inProfile.join(", "));
-  check("nothing was written into the packaged resources", inResources.length === 0, inResources.join(", "));
+  check("no model file was written into the packaged resources", inResources.files > 0 && inResources.found.length === 0, inResources.found.join(", "));
 
   console.log("\n4. A real inference in the packaged app's own utility host");
   const asked = Date.now();
@@ -204,6 +218,7 @@ try {
   }
 }
 
-const verdict = failed > 0 ? "FAIL" : inconclusive > 0 ? "INCONCLUSIVE" : "PASS";
+const exitCode = gateExitCode({ passed, failed, inconclusive, gateNotRun: false });
+const verdict = exitCode === 1 ? "FAIL" : exitCode === 2 ? "INCONCLUSIVE" : "PASS";
 console.log(`\n${passed} passed, ${failed} failed${inconclusive > 0 ? `, ${inconclusive} inconclusive` : ""} — ${verdict}`);
-process.exit(failed > 0 ? 1 : inconclusive > 0 ? 2 : 0);
+process.exit(exitCode);

@@ -7,11 +7,20 @@
  * electron-builder ships as `resources/native-hosts/ai`. This gate proves that tree is complete and
  * self-sufficient, not merely present:
  *
+ *   A0. The staging script's refusals, black-box: a byte-identical copy runs in a scratch repository and
+ *       must refuse a runtime pin that is ambiguous, unpinned, malformed or in conflict with package.json,
+ *       and a node_modules, runtime package or --out reached through a link or resolving outside the
+ *       repository. A control with the real pin draws none of those refusals.
+ *   A1. The strict validator's rules, black-box: `validate-offline-bundle.ps1 -RootPath` on scratch roots
+ *       must refuse the same pin defects, and must compare the staged inventory to the signed list by
+ *       path, so a duplicate or case-variant entry can no longer keep the counts equal over an unlisted file.
  *   A. Staging into a temp directory OUTSIDE the repository, so Node's module lookup can never climb
  *      into the repository's `node_modules` and pass on a runtime the installer does not carry. Every
  *      file is listed in the staged manifest with its size and SHA-256 and every listed file is on
  *      disk; the host and the native addon are byte-identical to their sources; only the CPU prebuilt
- *      is staged; every declared runtime dependency resolves inside the staged tree.
+ *      is staged; every declared runtime dependency resolves inside the staged tree. Every staged
+ *      package's license is one reviewed for redistribution, its license text ships or the notices
+ *      reproduce it, and `resources/THIRD_PARTY_NOTICES.md` lists exactly the staged packages.
  *   B. The staged runtime loads (`getLlama`, CPU, never build, never download) from that isolated copy,
  *      and two negative controls prove the probe cannot fall back to anything else: without the CPU
  *      prebuilt, and without one JavaScript dependency, it must fail.
@@ -19,9 +28,14 @@
  *      process and the host reports the pinned build.
  *   D. With the pinned Qwen3.5-0.8B pack in ~/Downloads: the live harness (constrained decoding,
  *      cancellation, crash recovery, shutdown) runs on the staged copy. NOT RUN without the pack.
- *   E. `dist/win-unpacked/resources/native-hosts/ai`: integrity against its own manifest, identity with
- *      the current source's staging, and B/C on an isolated copy of it. NOT RUN when no packaged tree
- *      carries the runtime; stale when it is not the current source's staging.
+ *   E. `dist/win-unpacked`, the real packaged artifact: no model file anywhere in it, `app.asar`
+ *      included (three controls first prove the scan catches a renamed pack, a `.gguf` and a pack inside
+ *      an asar); the AI tree present, intact against its own manifest, the shipped notices listing its
+ *      packages, identical to the current source's staging, and B/C on an isolated copy of it. A package
+ *      without the runtime, or whose runtime is not the current staging, is STALE and FAILS.
+ *
+ * Exit, the `gateExitCode` convention: 1 on any failure, 2 when a required section did not run (no
+ * packaged artifact, no model pack), 0 only when every section ran and passed. NOT RUN is never a pass.
  *
  * Run: npm run verify:ai-packaged-runtime
  */
@@ -36,12 +50,27 @@ import path from "node:path";
 import { deriveInferenceThreads } from "../src/ai/AiAdmission";
 import { AI_MODEL_MANIFEST, AI_RUNTIME_PIN } from "../src/offline/AiModelManifest";
 import { HOST_PATH, ROOT, buildAiHarness, measurePack, printSteps, runAiHarness, stageModelRoot } from "./ai-harness/launch.mts";
+import { scanForModelFiles } from "./helpers/model-pack-scan.mts";
+import { gateExitCode } from "./lib/failure-capture-gate.mts";
 
 const MANIFEST_NAME = "ai-native-host-manifest.json";
 const ADDON = "node_modules/@node-llama-cpp/win-x64/bins/win-x64/llama-addon.node";
 const PACK_NAME = "Qwen3.5-0.8B-Q4_K_M.gguf";
 /** A dependency `node-llama-cpp`'s entry imports at load time; removing it must break the probe. */
 const CONTROL_DEPENDENCY = "lifecycle-utils";
+const STAGING_SCRIPT = path.join(ROOT, "scripts", "prepare-ai-native-host.mjs");
+const PIN_SOURCE = path.join(ROOT, "src", "offline", "AiModelManifest.ts");
+const NOTICES = path.join(ROOT, "resources", "THIRD_PARTY_NOTICES.md");
+const INVENTORY_HEADING = "### Staged runtime packages";
+const REPRODUCED_HEADING = "### License texts reproduced here";
+/**
+ * The license identifiers `resources/THIRD_PARTY_NOTICES.md` › "Redistribution review" covers. Anything
+ * else, a new copyleft or unknown license included, fails until someone reviews it and extends both.
+ */
+const REVIEWED_LICENSES = new Set(["MIT", "ISC", "BSD-2-Clause", "BSD-3-Clause", "Apache-2.0", "0BSD", "BlueOak-1.0.0", "CC0-1.0", "Unlicense"]);
+const LICENSE_TEXT = /^(licen[cs]e|copying|notice)(?![a-z])/i;
+
+const asarModule = createRequire(import.meta.url)("@electron/asar") as { createPackage(src: string, dest: string): Promise<unknown> };
 
 let passed = 0;
 let failed = 0;
@@ -113,8 +142,151 @@ function packageDirs(root: string, files: string[]): string[] {
     .map((rel) => path.join(root, path.dirname(rel)));
 }
 
+// ── License inventory (the notices table's own row form) ────────────────────────────────────────────
+
+interface PackageJsonLicense {
+  name?: string;
+  version?: string;
+  license?: string | { type?: string };
+  licenses?: (string | { type?: string })[];
+}
+
+function declaredLicense(pkg: PackageJsonLicense): string {
+  if (typeof pkg.license === "string") return pkg.license.trim();
+  if (typeof pkg.license?.type === "string") return pkg.license.type.trim();
+  if (Array.isArray(pkg.licenses)) return pkg.licenses.map((l) => (typeof l === "string" ? l : l?.type ?? "")).filter(Boolean).join(" OR ");
+  return "";
+}
+
+/** `(MIT OR CC0-1.0)` → MIT, CC0-1.0. An empty declaration yields one empty identifier, never none. */
+const licenseIds = (expression: string): string[] =>
+  expression.split(/\s+(?:OR|AND|WITH)\s+|[()]/).map((id) => id.trim()).filter((id, index, all) => id.length > 0 || all.length === 1);
+
+interface InventoryRow {
+  row: string;
+  key: string;
+  license: string;
+  reproduced: boolean;
+}
+
+function inventory(dir: string, listed: string[]): InventoryRow[] {
+  const rows = new Map<string, InventoryRow>();
+  for (const pkgDir of packageDirs(dir, listed)) {
+    const pkg = JSON.parse(fs.readFileSync(path.join(pkgDir, "package.json"), "utf8")) as PackageJsonLicense;
+    const texts = fs.readdirSync(pkgDir, { withFileTypes: true }).filter((e) => e.isFile() && LICENSE_TEXT.test(e.name)).map((e) => e.name).sort();
+    const license = declaredLicense(pkg);
+    const row = `| \`${pkg.name}\` | ${pkg.version} | ${license || "NONE"} | ${texts.length > 0 ? texts.map((t) => `\`${t}\``).join(", ") : "reproduced below"} |`;
+    rows.set(row, { row, key: `${pkg.name}@${pkg.version}`, license, reproduced: texts.length === 0 });
+  }
+  return [...rows.values()].sort((a, b) => a.row.localeCompare(b.row));
+}
+
+/** The rows under the inventory heading, and the `#### \`name@version\`` headings of reproduced texts. */
+function readNotices(file: string): { rows: string[]; reproduced: Set<string> } | null {
+  if (!fs.existsSync(file)) return null;
+  const text = fs.readFileSync(file, "utf8").replace(/\r\n/g, "\n");
+  const section = (heading: string): string => {
+    const start = text.indexOf(`\n${heading}\n`);
+    if (start < 0) return "";
+    const rest = text.slice(start + heading.length + 2);
+    const end = rest.search(/^#{1,3} /m);
+    return end < 0 ? rest : rest.slice(0, end);
+  };
+  const rows = section(INVENTORY_HEADING).split("\n").filter((line) => line.startsWith("| `")).map((line) => line.trim());
+  const reproduced = new Set([...section(REPRODUCED_HEADING).matchAll(/^#### `([^`]+)`$/gm)].map((m) => m[1]));
+  return { rows, reproduced };
+}
+
+function assertLicenses(dir: string, label: string, listed: string[], noticesFile: string): void {
+  const rows = inventory(dir, listed);
+  const unreviewed = rows.filter((r) => licenseIds(r.license).some((id) => !REVIEWED_LICENSES.has(id)));
+  check(
+    `${label}: every staged package declares a license reviewed for redistribution (${rows.length} distinct packages)`,
+    rows.length > 0 && unreviewed.length === 0,
+    unreviewed.length > 0 ? unreviewed.slice(0, 5).map((r) => `${r.key} "${r.license || "none declared"}"`).join("; ") : "no package was read"
+  );
+  const notices = readNotices(noticesFile);
+  if (!notices) {
+    check(`${label}: the third-party notices are present (${posix(path.relative(ROOT, noticesFile))})`, false);
+    return;
+  }
+  const missingText = rows.filter((r) => r.reproduced && !notices.reproduced.has(r.key));
+  check(
+    `${label}: every package that ships no license text has it reproduced in the notices (${rows.filter((r) => r.reproduced).length} such)`,
+    missingText.length === 0,
+    missingText.map((r) => r.key).join(", ")
+  );
+  const listedRows = new Set(notices.rows);
+  const expected = new Set(rows.map((r) => r.row));
+  const missing = rows.map((r) => r.row).filter((row) => !listedRows.has(row));
+  const extra = notices.rows.filter((row) => !expected.has(row));
+  check(
+    `${label}: the notices inventory lists exactly the staged packages (${expected.size} expected, ${notices.rows.length} listed)`,
+    expected.size > 0 && missing.length === 0 && extra.length === 0 && notices.rows.length === expected.size,
+    `${missing.length} missing, ${extra.length} not staged${extra.length > 0 ? `: ${extra.slice(0, 3).join(" ")}` : ""}`
+  );
+  if (missing.length > 0 || extra.length > 0) {
+    const expectedTable = path.join(os.tmpdir(), `awkit-ai-runtime-inventory-${label}.md`);
+    fs.writeFileSync(expectedTable, `${INVENTORY_HEADING}\n\n| Package | Version | License | License text |\n|---|---|---|---|\n${rows.map((r) => r.row).join("\n")}\n`);
+    console.log(`    the inventory these packages need was written to ${expectedTable} (${missing.length} missing: ${missing.slice(0, 3).join(" ")})`);
+  }
+}
+
+/** Windows ships these (or resolves them itself); every other DLL a staged binary imports must be staged. */
+const WINDOWS_DLL = /^(api-ms-win-.*|ext-ms-.*|kernel32|kernelbase|ntdll|user32|gdi32|advapi32|shell32|shlwapi|ole32|oleaut32|ws2_32|bcrypt|crypt32|secur32|version|psapi|dbghelp|iphlpapi|winmm|comdlg32|setupapi|powrprof|userenv|node)\.(dll|exe)$/i;
+
+/** The DLL names a PE image imports, from its import and delay-load directories. */
+function peImports(file: string): string[] {
+  const b = fs.readFileSync(file);
+  if (b.length < 0x40 || b.readUInt16LE(0) !== 0x5a4d) return [];
+  const pe = b.readUInt32LE(0x3c);
+  if (b.readUInt32LE(pe) !== 0x4550) return [];
+  const sectionCount = b.readUInt16LE(pe + 6);
+  const optional = pe + 24;
+  const dataDirectory = optional + (b.readUInt16LE(optional) === 0x20b ? 112 : 96);
+  const sectionTable = optional + b.readUInt16LE(pe + 20);
+  const offsetOf = (rva: number): number => {
+    for (let i = 0; i < sectionCount; i += 1) {
+      const s = sectionTable + i * 40;
+      const va = b.readUInt32LE(s + 12);
+      if (rva >= va && rva < va + Math.max(b.readUInt32LE(s + 8), b.readUInt32LE(s + 16))) return rva - va + b.readUInt32LE(s + 20);
+    }
+    return -1;
+  };
+  const names: string[] = [];
+  const read = (directoryRva: number, stride: number, nameField: number): void => {
+    for (let d = directoryRva ? offsetOf(directoryRva) : -1; d >= 0; d += stride) {
+      const nameRva = b.readUInt32LE(d + nameField);
+      const at = nameRva ? offsetOf(nameRva) : -1;
+      if (at < 0) break;
+      names.push(b.toString("latin1", at, b.indexOf(0, at)));
+    }
+  };
+  read(b.readUInt32LE(dataDirectory + 8), 20, 12);
+  read(b.readUInt32LE(dataDirectory + 13 * 8), 32, 4);
+  return names;
+}
+
+function assertNativeImports(dir: string, label: string, listed: string[]): void {
+  const binaries = listed.filter((rel) => /\.(dll|node)$/i.test(rel));
+  const unmet: string[] = [];
+  let imports = 0;
+  for (const rel of binaries) {
+    const beside = new Set(listed.filter((other) => path.posix.dirname(other) === path.posix.dirname(rel)).map((other) => path.posix.basename(other).toLowerCase()));
+    for (const name of peImports(path.join(dir, ...rel.split("/")))) {
+      imports += 1;
+      if (!WINDOWS_DLL.test(name) && !beside.has(name.toLowerCase())) unmet.push(`${rel} → ${name}`);
+    }
+  }
+  check(
+    `${label}: every DLL the staged native binaries import is staged beside them or ships with Windows (${binaries.length} binaries, ${imports} imports)`,
+    binaries.length > 0 && imports > 0 && unmet.length === 0,
+    unmet.length > 0 ? unmet.slice(0, 6).join("; ") : "no import was read"
+  );
+}
+
 /** Section A's assertions, for any tree that claims to be the staged runtime. */
-function assertStagedTree(dir: string, label: string): StagedManifest | null {
+function assertStagedTree(dir: string, label: string, noticesFile: string): StagedManifest | null {
   const manifest = readManifest(dir);
   check(`${label}: ${MANIFEST_NAME} is present and parses`, manifest !== null);
   if (!manifest) return null;
@@ -169,6 +341,8 @@ function assertStagedTree(dir: string, label: string): StagedManifest | null {
     packages.length > directDeps.length && unresolved.length === 0,
     unresolved.length > 0 ? unresolved.slice(0, 5).join("; ") : `only ${packages.length} packages for ${directDeps.length} direct dependencies`
   );
+  assertNativeImports(dir, label, [...listed.keys()]);
+  assertLicenses(dir, label, [...listed.keys()], noticesFile);
   return manifest;
 }
 
@@ -260,6 +434,253 @@ async function assertRuntimeRuns(dir: string, label: string, harnessDir: string,
   }
 }
 
+// ── A0: the staging script's refusals, on a byte-identical copy ─────────────────────────────────────
+
+interface ScratchCase {
+  pin?: (source: string) => string;
+  pkg?: (pkg: Record<string, any>) => Record<string, any>;
+  /** How the scratch repository's node_modules is made. Absent by default. */
+  nodeModules?: "linked-root" | "linked-runtime";
+  /** Pass --out through a junction that leads back into the scratch repository. */
+  outThroughLink?: boolean;
+}
+
+/**
+ * Runs a byte-identical copy of the staging script whose own ROOT is a scratch repository, so each refusal
+ * is the real script's. Every junction made here is unlinked before anything is removed: a recursive
+ * removal must never be able to walk into the repository's own node_modules.
+ */
+function stageInScratch(base: string, name: string, spec: ScratchCase, links: string[]): { status: number | null; output: string; staged: boolean } {
+  const root = path.join(base, name);
+  fs.mkdirSync(path.join(root, "scripts"), { recursive: true });
+  fs.copyFileSync(STAGING_SCRIPT, path.join(root, "scripts", "prepare-ai-native-host.mjs"));
+  fs.mkdirSync(path.join(root, "src", "offline"), { recursive: true });
+  const pin = fs.readFileSync(PIN_SOURCE, "utf8");
+  fs.writeFileSync(path.join(root, "src", "offline", "AiModelManifest.ts"), spec.pin ? spec.pin(pin) : pin);
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8")) as Record<string, any>;
+  fs.writeFileSync(path.join(root, "package.json"), JSON.stringify(spec.pkg ? spec.pkg(pkg) : pkg, null, 2));
+  fs.mkdirSync(path.join(root, "native-hosts", "ai"), { recursive: true });
+  fs.copyFileSync(HOST_PATH, path.join(root, "native-hosts", "ai", "ai-host.cjs"));
+  const link = (target: string, at: string): void => {
+    fs.symlinkSync(target, at, "junction");
+    links.push(at);
+  };
+  if (spec.nodeModules === "linked-root") link(path.join(ROOT, "node_modules"), path.join(root, "node_modules"));
+  if (spec.nodeModules === "linked-runtime") {
+    fs.mkdirSync(path.join(root, "node_modules"));
+    link(path.join(ROOT, "node_modules", "node-llama-cpp"), path.join(root, "node_modules", "node-llama-cpp"));
+  }
+  let out = path.join(base, `${name}-out`);
+  if (spec.outThroughLink) {
+    link(path.join(root, "src"), path.join(base, `${name}-out-link`));
+    out = path.join(base, `${name}-out-link`, "staged");
+  }
+  const run = spawnSync(process.execPath, [path.join(root, "scripts", "prepare-ai-native-host.mjs"), "--out", out], { cwd: root, encoding: "utf8", timeout: 300_000 });
+  return { status: run.status, output: `${run.stdout ?? ""}\n${run.stderr ?? ""}`, staged: fs.existsSync(path.join(out, MANIFEST_NAME)) };
+}
+
+/** Returns false when a junction it made could not be removed; the caller must then leave the scratch tree alone. */
+function assertStagingRefusals(base: string): boolean {
+  const links: string[] = [];
+  const pinnedLine = `build: "${AI_RUNTIME_PIN.build}"`;
+  const npmVersion = /^node-llama-cpp@(\d+\.\d+\.\d+)\+/.exec(AI_RUNTIME_PIN.build ?? "")?.[1] ?? "";
+  const tagged = /^\s*- (AI_RUNTIME_PIN|package\.json|Boundary):/m;
+  try {
+    fs.mkdirSync(base, { recursive: true });
+    const source = fs.readFileSync(PIN_SOURCE, "utf8");
+    check("precondition: the pin source carries the pinned build line exactly once", source.split(pinnedLine).length === 2, pinnedLine);
+    const cases: { label: string; spec: ScratchCase; expect: RegExp | null }[] = [
+      { label: "control — the real pin and package.json draw no pin, package or boundary refusal", spec: {}, expect: null },
+      {
+        label: "an unpinned build is refused even when another object's build follows it (the lazy-match decoy)",
+        spec: { pin: (s) => `${s.replace(pinnedLine, "build: null")}\nexport const DECOY_RECORD = Object.freeze({\n  ${pinnedLine}\n});\n` },
+        expect: /- AI_RUNTIME_PIN: build is null/
+      },
+      {
+        label: "a second AI_RUNTIME_PIN declaration is refused",
+        spec: { pin: (s) => `${s}\nexport const AI_RUNTIME_PIN = Object.freeze({\n  name: "llama.cpp",\n  build: "node-llama-cpp@9.9.9+llama.cpp@b1"\n});\n` },
+        expect: /- AI_RUNTIME_PIN: .*exactly once/
+      },
+      {
+        label: "a malformed build value is refused",
+        spec: { pin: (s) => s.replace(pinnedLine, `build: "node-llama-cpp@${npmVersion.split(".").slice(0, 2).join(".")}+llama.cpp@v0.4.0"`) },
+        expect: /- AI_RUNTIME_PIN: build ".*" is not of the form/
+      },
+      {
+        label: "a build naming a node-llama-cpp version other than package.json's pin is refused as a conflict",
+        spec: { pin: (s) => s.replace(pinnedLine, pinnedLine.replace(`node-llama-cpp@${npmVersion}+`, "node-llama-cpp@0.0.1+")) },
+        expect: /- AI_RUNTIME_PIN: .*but package\.json pins/
+      },
+      {
+        label: "package.json declaring node-llama-cpp twice with different versions is refused",
+        spec: { pkg: (p) => ({ ...p, dependencies: { ...(p.dependencies ?? {}), "node-llama-cpp": `^${npmVersion}` } }) },
+        expect: /- package\.json: node-llama-cpp must be declared exactly once/
+      },
+      {
+        label: "a node_modules that resolves outside the repository (a junction) is refused and nothing is staged",
+        spec: { nodeModules: "linked-root" },
+        expect: /- Boundary: node_modules /
+      },
+      {
+        label: "a runtime package reached through a junction is refused",
+        spec: { nodeModules: "linked-runtime" },
+        expect: /- Boundary: node_modules\/node-llama-cpp /
+      },
+      {
+        label: "an --out that resolves back into the repository through a junction is refused",
+        spec: { outThroughLink: true },
+        expect: /- Boundary: --out /
+      }
+    ];
+    cases.forEach((c, index) => {
+      const run = stageInScratch(base, `case-${index}`, c.spec, links);
+      if (c.expect === null) {
+        // node_modules is absent, so the copy must stop at its own preconditions and name nothing else.
+        check(c.label, run.status !== 0 && /is not installed/.test(run.output) && !tagged.test(run.output), run.output.trim().slice(0, 400));
+      } else {
+        check(c.label, run.status !== 0 && !run.staged && c.expect.test(run.output), `exit ${run.status}, staged ${run.staged}: ${run.output.trim().slice(0, 400)}`);
+      }
+    });
+    const copy = path.join(base, "case-0", "scripts", "prepare-ai-native-host.mjs");
+    check("the script that ran is byte-identical to scripts/prepare-ai-native-host.mjs", sha256(copy) === sha256(STAGING_SCRIPT));
+  } finally {
+    for (const at of links) {
+      try {
+        fs.unlinkSync(at);
+      } catch {
+        // Checked below. Never fall back to a recursive removal of a link.
+      }
+    }
+  }
+  const remaining = links.filter((at) => {
+    try {
+      fs.lstatSync(at);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+  if (remaining.length > 0) console.error(`  ! junctions left in place, so the scratch tree is NOT removed: ${remaining.join(", ")}`);
+  return remaining.length === 0;
+}
+
+// ── A1: the strict validator's pin and inventory rules, on scratch roots ────────────────────────────
+
+const VALIDATOR = path.join(ROOT, "scripts", "validate-offline-bundle.ps1");
+
+interface ValidatorCase {
+  pin?: (source: string) => string;
+  pkg?: (pkg: Record<string, any>) => Record<string, any>;
+  /** Files of the scratch staged tree, relative to build/native-hosts/ai. */
+  files: string[];
+  /** The manifest's asset list, relative to native-hosts/ai. Each asset carries its file's real size and hash. */
+  listed: string[];
+}
+
+/** Runs the real validator (development mode) with -RootPath on a scratch root and returns its output. */
+function validateInScratch(base: string, name: string, spec: ValidatorCase): string {
+  const root = path.join(base, name);
+  const stagedRoot = path.join(root, "build", "native-hosts", "ai");
+  fs.mkdirSync(path.join(root, "resources"), { recursive: true });
+  fs.mkdirSync(path.join(root, "src", "offline"), { recursive: true });
+  fs.mkdirSync(stagedRoot, { recursive: true });
+  fs.copyFileSync(path.join(ROOT, "resources", "offline-browser-policy.json"), path.join(root, "resources", "offline-browser-policy.json"));
+  const pin = fs.readFileSync(PIN_SOURCE, "utf8");
+  fs.writeFileSync(path.join(root, "src", "offline", "AiModelManifest.ts"), spec.pin ? spec.pin(pin) : pin);
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8")) as Record<string, any>;
+  fs.writeFileSync(path.join(root, "package.json"), JSON.stringify(spec.pkg ? spec.pkg(pkg) : pkg, null, 2));
+  fs.writeFileSync(path.join(stagedRoot, MANIFEST_NAME), "{}\n");
+  for (const rel of spec.files) {
+    const file = path.join(stagedRoot, ...rel.split("/"));
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, `content of ${rel}\n`);
+  }
+  const asset = (rel: string) => {
+    const file = path.join(stagedRoot, ...rel.split("/"));
+    return { relativePath: `native-hosts/ai/${rel}`, size: fs.statSync(file).size, sha256: sha256(file) };
+  };
+  const npm = /^node-llama-cpp@(\d+\.\d+\.\d+)\+/.exec(AI_RUNTIME_PIN.build ?? "")?.[1];
+  const aiRuntime = { enabled: true, requiredForAppStartup: false, modelPackBundled: false, gpu: false, platform: "win32", arch: "x64", runtimeBuild: AI_RUNTIME_PIN.build, runtimeVersion: npm, assets: spec.listed.map(asset) };
+  fs.writeFileSync(path.join(root, "resources", "dependency-manifest.json"), JSON.stringify({ schema: { version: 3 }, aiRuntime }, null, 2));
+  const run = spawnSync("powershell", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", VALIDATOR, "-RootPath", root], { encoding: "utf8", timeout: 120_000, windowsHide: true });
+  return `${run.stdout ?? ""}\n${run.stderr ?? ""}`;
+}
+
+function assertValidatorRules(base: string): void {
+  const pinnedLine = `build: "${AI_RUNTIME_PIN.build}"`;
+  const npmVersion = /^node-llama-cpp@(\d+\.\d+\.\d+)\+/.exec(AI_RUNTIME_PIN.build ?? "")?.[1] ?? "";
+  const pinError = /ERROR: Local-AI runtime pin:/;
+  const inventoryError = /the signed manifest does not list|the staged tree does not hold|lists a path more than once/;
+  const tree = ["ai-host.cjs", "node_modules/a/index.js"];
+  fs.mkdirSync(base, { recursive: true });
+
+  const control = validateInScratch(base, "control", { files: tree, listed: tree });
+  check(
+    "control — a consistent tree and the real pin draw no pin or inventory error, and the inventory is compared by path",
+    /Local-AI runtime inventory: 2 staged files compared by path with 2 signed entries \(0 unlisted, 0 missing\)/.test(control) && !pinError.test(control) && !inventoryError.test(control),
+    control.split(/\r?\n/).filter((l) => /Local-AI/.test(l)).join(" | ").slice(0, 400)
+  );
+  const cases: { label: string; spec: ValidatorCase; expect: RegExp[] }[] = [
+    {
+      label: "a duplicate entry that keeps the counts equal no longer hides an unlisted staged file",
+      spec: { files: [...tree, "node_modules/a/extra.js"], listed: [tree[0], tree[0], tree[1]] },
+      expect: [/lists a path more than once/, /holds 1 file\(s\) the signed manifest does not list/]
+    },
+    {
+      label: "a case-variant entry that keeps the counts equal no longer hides an unlisted staged file",
+      spec: { files: [...tree, "node_modules/a/extra.js"], listed: [tree[0], "AI-HOST.cjs", tree[1]] },
+      expect: [/lists a path more than once \(compared case-insensitively\)/, /holds 1 file\(s\) the signed manifest does not list/]
+    },
+    {
+      label: "an unpinned build followed by another object's build is refused (the lazy-match decoy)",
+      spec: { files: tree, listed: tree, pin: (s) => `${s.replace(pinnedLine, "build: null")}\nexport const DECOY_RECORD = Object.freeze({\n  ${pinnedLine}\n});\n` },
+      expect: [/Local-AI runtime pin: AI_RUNTIME_PIN: build is null/]
+    },
+    {
+      label: "a second AI_RUNTIME_PIN declaration is refused",
+      spec: { files: tree, listed: tree, pin: (s) => `${s}\nexport const AI_RUNTIME_PIN = Object.freeze({\n  name: "llama.cpp",\n  build: "node-llama-cpp@9.9.9+llama.cpp@b1"\n});\n` },
+      expect: [/Local-AI runtime pin: AI_RUNTIME_PIN: .*exactly once/]
+    },
+    {
+      label: "a pin naming a node-llama-cpp version other than package.json's is refused as a conflict",
+      spec: { files: tree, listed: tree, pin: (s) => s.replace(pinnedLine, pinnedLine.replace(`node-llama-cpp@${npmVersion}+`, "node-llama-cpp@0.0.1+")) },
+      expect: [/Local-AI runtime pin: AI_RUNTIME_PIN: .*but package\.json pins/]
+    },
+    {
+      label: "package.json declaring node-llama-cpp twice is refused",
+      spec: { files: tree, listed: tree, pkg: (p) => ({ ...p, dependencies: { ...(p.dependencies ?? {}), "node-llama-cpp": `^${npmVersion}` } }) },
+      expect: [/Local-AI runtime pin: package\.json: node-llama-cpp must be declared exactly once/]
+    }
+  ];
+  cases.forEach((c, index) => {
+    const output = validateInScratch(base, `case-${index}`, c.spec);
+    check(c.label, c.expect.every((pattern) => pattern.test(output)), output.split(/\r?\n/).filter((l) => /Local-AI|AI_RUNTIME_PIN/.test(l)).join(" | ").slice(0, 400));
+  });
+}
+
+// ── E0: the model scan catches what it exists for ─────────────────────────────────────────────────────
+
+async function assertModelScanControls(base: string): Promise<void> {
+  const tree = path.join(base, "tree");
+  fs.mkdirSync(path.join(tree, "resources"), { recursive: true });
+  const gguf = Buffer.concat([Buffer.from("GGUF", "latin1"), Buffer.alloc(60)]);
+  fs.writeFileSync(path.join(tree, "resources", "weights.bin"), gguf);
+  fs.writeFileSync(path.join(tree, "resources", "model.gguf"), "not a real pack");
+  fs.writeFileSync(path.join(tree, "resources", "clean.txt"), "plain text");
+  const asarSource = path.join(base, "asar-source");
+  fs.mkdirSync(path.join(asarSource, "lib"), { recursive: true });
+  fs.writeFileSync(path.join(asarSource, "lib", "clean.js"), "module.exports = 1;\n");
+  fs.writeFileSync(path.join(asarSource, "lib", "data.dat"), gguf);
+  await asarModule.createPackage(asarSource, path.join(tree, "resources", "app.asar"));
+  const scan = scanForModelFiles(tree);
+  const flagged = (rel: string, signal: string): boolean => scan.found.includes(`${rel} (${signal})`);
+  check(
+    "control — the scan flags a renamed pack by its magic, a .gguf by name and a pack packed inside app.asar, and nothing else",
+    flagged("resources/weights.bin", "GGUF magic") && flagged("resources/model.gguf", "model extension") && flagged("resources/app.asar/lib/data.dat", "GGUF magic") && scan.found.length === 3 && scan.asarEntries === 2,
+    JSON.stringify(scan)
+  );
+}
+
 // ── Run ──────────────────────────────────────────────────────────────────────────────────────────
 
 console.log("verify:ai-packaged-runtime — the pinned local-AI runtime as the installer carries it\n");
@@ -269,15 +690,21 @@ const cleanup: string[] = [scratch];
 let harnessDir: string | null = null;
 
 try {
-  console.log("A. Staging into an isolated directory");
+  console.log("A0. The staging script's refusals (a byte-identical copy in a scratch repository)");
+  if (!assertStagingRefusals(path.join(scratch, "refusals"))) cleanup.splice(cleanup.indexOf(scratch), 1);
+
+  console.log("\nA1. The strict validator's pin and inventory rules (scratch roots through -RootPath)");
+  assertValidatorRules(path.join(scratch, "validator"));
+
+  console.log("\nA. Staging into an isolated directory");
   const ancestors: string[] = [];
   for (let dir = scratch; path.dirname(dir) !== dir; dir = path.dirname(dir)) ancestors.push(path.dirname(dir));
   const leaks = ancestors.filter((dir) => fs.existsSync(path.join(dir, "node_modules", "node-llama-cpp")));
   check("precondition: no directory above the staging root can supply node-llama-cpp", leaks.length === 0, leaks.join(", "));
 
-  const stageRun = spawnSync(process.execPath, [path.join(ROOT, "scripts", "prepare-ai-native-host.mjs"), "--out", staged], { cwd: ROOT, encoding: "utf8", timeout: 300_000 });
+  const stageRun = spawnSync(process.execPath, [STAGING_SCRIPT, "--out", staged], { cwd: ROOT, encoding: "utf8", timeout: 300_000 });
   check("scripts/prepare-ai-native-host.mjs stages the runtime (exit 0)", stageRun.status === 0, `${stageRun.status}: ${`${stageRun.stderr ?? ""}${stageRun.error?.message ?? ""}`.trim().slice(0, 400)}`);
-  const stagedManifest = stageRun.status === 0 ? assertStagedTree(staged, "staged") : null;
+  const stagedManifest = stageRun.status === 0 ? assertStagedTree(staged, "staged", NOTICES) : null;
 
   if (stagedManifest) {
     harnessDir = await buildAiHarness();
@@ -318,30 +745,45 @@ try {
     }
   }
 
-  console.log("\nE. The packaged tree (dist/win-unpacked)");
-  const packaged = path.join(ROOT, "dist", "win-unpacked", "resources", "native-hosts", "ai");
-  if (!fs.existsSync(packaged)) {
-    skip("packaged runtime", "dist/win-unpacked carries no native-hosts/ai — run `npm run package:portable`");
+  console.log("\nE. The packaged artifact (dist/win-unpacked)");
+  await assertModelScanControls(path.join(scratch, "model-scan-controls"));
+  const unpacked = path.join(ROOT, "dist", "win-unpacked");
+  const packaged = path.join(unpacked, "resources", "native-hosts", "ai");
+  if (!fs.existsSync(unpacked)) {
+    skip("packaged artifact", "there is no dist/win-unpacked — run `npm run package:portable`");
   } else {
-    const packagedManifest = assertStagedTree(packaged, "packaged");
-    const identity = (m: StagedManifest | null) => JSON.stringify((m?.assets ?? []).map((a) => [a.relativePath, a.size, a.sha256]).sort());
-    const current = Boolean(packagedManifest && stagedManifest && identity(packagedManifest) === identity(stagedManifest));
-    if (!current) {
-      skip("packaged runtime on an isolated copy", "STALE: the packaged tree is not the current source's staging — re-run `npm run package:portable`");
-    } else {
-      check("packaged: the tree is exactly the current source's staging", true);
-      const isolated = path.join(scratch, "packaged-ai");
-      copyTree(packaged, isolated);
-      if (!harnessDir) {
-        harnessDir = await buildAiHarness();
-        cleanup.push(harnessDir);
+    const scan = scanForModelFiles(unpacked);
+    check(
+      `packaged: no model file anywhere in the artifact, app.asar included (${scan.files} files and ${scan.asarEntries} asar entries read)`,
+      scan.files > 0 && scan.asarEntries > 0 && scan.found.length === 0,
+      scan.found.length > 0 ? scan.found.slice(0, 5).join("; ") : "nothing was read"
+    );
+    check("packaged: the artifact carries the local-AI runtime (resources/native-hosts/ai)", fs.existsSync(packaged), "a package without it predates L7 packaging and is stale — re-run `npm run package:portable`");
+    if (fs.existsSync(packaged)) {
+      const packagedManifest = assertStagedTree(packaged, "packaged", path.join(unpacked, "resources", "resources", "THIRD_PARTY_NOTICES.md"));
+      const identity = (m: StagedManifest | null) => JSON.stringify((m?.assets ?? []).map((a) => [a.relativePath, a.size, a.sha256]).sort());
+      const current = Boolean(packagedManifest && stagedManifest && identity(packagedManifest) === identity(stagedManifest));
+      check(
+        "packaged: the tree is exactly the current source's staging",
+        current,
+        stagedManifest ? "STALE: the packaged tree is not the current source's staging — re-run `npm run package:portable`" : "the current staging failed, so there is nothing to compare against"
+      );
+      if (current) {
+        const isolated = path.join(scratch, "packaged-ai");
+        copyTree(packaged, isolated);
+        if (!harnessDir) {
+          harnessDir = await buildAiHarness();
+          cleanup.push(harnessDir);
+        }
+        await assertRuntimeRuns(isolated, "packaged", harnessDir, false);
       }
-      await assertRuntimeRuns(isolated, "packaged", harnessDir, false);
     }
   }
 } finally {
   for (const dir of cleanup) fs.rmSync(dir, { recursive: true, force: true });
 }
 
-console.log(`\n${passed} passed, ${failed} failed${notRun.length > 0 ? `, NOT RUN: ${notRun.join("; ")}` : ""}`);
-process.exit(failed === 0 && passed > 0 ? 0 : 1);
+const exitCode = gateExitCode({ passed, failed, inconclusive: 0, gateNotRun: notRun.length > 0 });
+const verdict = exitCode === 0 ? "PASS" : exitCode === 1 ? "FAIL" : "NOT RUN — a required section did not run, which is never a pass";
+console.log(`\n${passed} passed, ${failed} failed${notRun.length > 0 ? `, NOT RUN: ${notRun.join("; ")}` : ""} — ${verdict}`);
+process.exit(exitCode);

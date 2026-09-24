@@ -51,6 +51,7 @@
       "package.json",
       "scripts/verify-ai-packaged-runtime.mts",
       "scripts/verify-ai-packaged-app.mts",
+      "scripts/helpers/model-pack-scan.mts",
       "scripts/validate-offline-bundle.ps1",
       "scripts/lib/verifier-classification.ts",
       "tools/agents/routing-matrix.mjs",
@@ -80,16 +81,12 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "project-state",
+      "agent_id": "qa",
       "allowed_paths": [
-        ".beads/**",
-        "docs/ai/COMMANDS.md",
-        "docs/ai/CURRENT_STATE.md",
-        "docs/ai/HANDOFF.md",
-        "docs/ai/KNOWN_ISSUES.md",
-        "docs/ai/TASK_LOG.md",
-        "docs/plans/ai-upgrade-v5/L1-ai-foundation.md",
-        "docs/plans/ai-upgrade-v5/L7-release-confirmation.md"
+        "scripts/helpers/model-pack-scan.mts",
+        "scripts/validate-offline-bundle.ps1",
+        "scripts/verify-ai-packaged-app.mts",
+        "scripts/verify-ai-packaged-runtime.mts"
       ]
     },
     "writer_sequence": [
@@ -207,7 +204,44 @@
     "qa_status": "PASS",
     "qa_basis": "Every required gate ran on fresh artifacts from a clean tree and passed. The packaged layer found and verified the fix for a real defect. Negative controls and mutations show the new gate fails on the defects it exists for.",
     "qa_known_limitations": "verify:ai-packaged-app has no product mutation run. The licensed walkthrough parts are BLOCKED on the issuer key, and the clean-machine VM is NOT RUN. No latency or quality claim is made. L7 is not accepted.",
-    "qc_status": "pending"
+    "qc_status": "pending",
+    "qc_findings": [
+      {
+        "id": "QC-1",
+        "finding": "verify:ai-packaged-runtime exits 0 when the packaged-tree section is NOT RUN, BLOCKED or stale",
+        "status": "open"
+      },
+      {
+        "id": "QC-2",
+        "finding": "verify:ai-packaged-app exits 0 (process-level success) when the packaged-app gate never executed",
+        "status": "open"
+      },
+      {
+        "id": "QC-3",
+        "finding": "runtime staging does not reject a link, or a source path that resolves outside the repository boundary, above the package directory",
+        "status": "open"
+      },
+      {
+        "id": "QC-4",
+        "finding": "the runtime version pin is read with an ambiguous lazy regex and invalid or conflicting values are not rejected",
+        "status": "open"
+      },
+      {
+        "id": "QC-5",
+        "finding": "strict packaging validation compares file counts, not the actual file inventories",
+        "status": "open"
+      },
+      {
+        "id": "QC-6",
+        "finding": "model-pack exclusion is checked on manifest lists and app diagnostics, never on the real packaged artifact",
+        "status": "open"
+      },
+      {
+        "id": "QC-7",
+        "finding": "no dependency-license inventory or technical redistribution review exists for the 130 staged runtime packages",
+        "status": "open"
+      }
+    ]
   },
   "write_lease": {
     "history": [
@@ -380,6 +414,29 @@
         "acquired_at_commit": "ed0833e53841c7f18b9b15dc044aeb0af6d313cf",
         "released_at": "2026-09-24T15:48:03.902Z",
         "released_reason": "handoff to project-state: packaging built, packaged gates green, record the state, note the tracker items and reconcile the dashboard",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:project-state:2026-09-24T15:48:03.959Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**",
+          "docs/ai/COMMANDS.md",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/plans/ai-upgrade-v5/L1-ai-foundation.md",
+          "docs/plans/ai-upgrade-v5/L7-release-confirmation.md"
+        ],
+        "acquired_at": "2026-09-24T15:48:03.959Z",
+        "acquired_at_commit": "d3c44e1cab3ac4c0882d96a7258947e4f554274a",
+        "released_at": "2026-09-24T17:05:34.965Z",
+        "released_reason": "handoff to qa: resolve L7 QC findings QC-1 QC-2 QC-5 QC-6 in the packaged verifiers and strict validator, and add red-first checks for QC-3 QC-4 QC-7",
         "amendments": [],
         "overrides": [],
         "violations": []

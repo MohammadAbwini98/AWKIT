@@ -438,11 +438,56 @@ if (Test-Property $manifestJson "semanticNative") {
 # development it is a warning, because AI stays optional and AWKIT starts and runs without it. When it
 # is included, the runtime must be CPU-only, exactly AI_RUNTIME_PIN.build, ship no model pack and no
 # GPU or foreign-platform prebuilt, and every staged file must be listed and checksum-verified.
+#
+# The pin is read strictly (the same rules as scripts/prepare-ai-native-host.mjs): exactly one
+# `export const AI_RUNTIME_PIN ... = Object.freeze({ ... });` declaration, `name: "llama.cpp"` and exactly
+# one `build`, whose value is a `node-llama-cpp@<x.y.z>+llama.cpp@<release>` string whose node-llama-cpp
+# version is package.json's single exact pin. A lazy match from the first mention of the name used to take
+# the first `build: "..."` anywhere after it, so an unpinned build followed by any other build read as pinned.
 $aiPinSource = Join-Path $root "src\offline\AiModelManifest.ts"
 $aiRuntimePin = $null
-if (Test-Path $aiPinSource) {
-  $aiPinMatch = [regex]::Match((Get-Content -Raw $aiPinSource), 'AI_RUNTIME_PIN[\s\S]*?build:\s*"([^"]+)"')
-  if ($aiPinMatch.Success) { $aiRuntimePin = $aiPinMatch.Groups[1].Value }
+$aiRuntimeNpmPin = $null
+$aiPinProblems = New-Object System.Collections.Generic.List[string]
+if (-not (Test-Path -LiteralPath $aiPinSource -PathType Leaf)) {
+  $aiPinProblems.Add("AI_RUNTIME_PIN: src/offline/AiModelManifest.ts is missing.")
+} else {
+  $aiPinText = Get-Content -Raw -LiteralPath $aiPinSource
+  $aiPinDeclared = [regex]::Matches($aiPinText, '(?m)^[ \t]*(?:export[ \t]+)?(?:const|let|var)[ \t]+AI_RUNTIME_PIN\b')
+  $aiPinFrozen = [regex]::Matches($aiPinText, '(?m)^export const AI_RUNTIME_PIN\b[^=\r\n]*=\s*Object\.freeze\(\{(?<body>[^{}]*)\}\);')
+  if ($aiPinDeclared.Count -ne 1 -or $aiPinFrozen.Count -ne 1) {
+    $aiPinProblems.Add("AI_RUNTIME_PIN: src/offline/AiModelManifest.ts must declare it exactly once as ``export const AI_RUNTIME_PIN ... = Object.freeze({ ... });`` (found $($aiPinDeclared.Count) declaration(s), $($aiPinFrozen.Count) in that form).")
+  } else {
+    $aiPinBody = $aiPinFrozen[0].Groups['body'].Value
+    $aiPinBuilds = [regex]::Matches($aiPinBody, '(?m)^\s*build\s*:\s*(?<value>.+?)\s*,?\s*$')
+    $aiPinNames = [regex]::Matches($aiPinBody, '(?m)^\s*name\s*:\s*"llama\.cpp"\s*,?\s*$')
+    if ($aiPinBuilds.Count -ne 1 -or $aiPinNames.Count -ne 1) {
+      $aiPinProblems.Add("AI_RUNTIME_PIN: its declaration must set name: `"llama.cpp`" and exactly one build (found $($aiPinNames.Count) name, $($aiPinBuilds.Count) build).")
+    } else {
+      $aiPinValue = $aiPinBuilds[0].Groups['value'].Value
+      $aiPinForm = [regex]::Match($aiPinValue, '^"(?<build>node-llama-cpp@(?<npm>\d+\.\d+\.\d+)\+llama\.cpp@[A-Za-z0-9][A-Za-z0-9._-]*)"$')
+      if (-not $aiPinForm.Success) {
+        $aiPinProblems.Add("AI_RUNTIME_PIN: build is $aiPinValue, not a pinned node-llama-cpp@<x.y.z>+llama.cpp@<release> string.")
+      } else {
+        $aiRuntimePin = $aiPinForm.Groups['build'].Value
+        $aiRuntimeNpmPin = $aiPinForm.Groups['npm'].Value
+      }
+    }
+  }
+}
+try {
+  $aiPackageJson = Get-Content -Raw -LiteralPath (Join-Path $root "package.json") | ConvertFrom-Json
+  $aiDeclared = @(foreach ($section in @("dependencies", "devDependencies", "optionalDependencies", "peerDependencies")) {
+    if ((Test-Property $aiPackageJson $section) -and (Test-Property $aiPackageJson.$section "node-llama-cpp")) {
+      "$section $($aiPackageJson.$section.'node-llama-cpp')"
+    }
+  })
+  if ($aiDeclared.Count -ne 1 -or $aiDeclared[0] -notmatch ' \d+\.\d+\.\d+$') {
+    $aiPinProblems.Add("package.json: node-llama-cpp must be declared exactly once, at an exact x.y.z version (found: $(if ($aiDeclared.Count -gt 0) { $aiDeclared -join ', ' } else { 'none' })).")
+  } elseif ($null -ne $aiRuntimeNpmPin -and ($aiDeclared[0] -split ' ')[1] -ne $aiRuntimeNpmPin) {
+    $aiPinProblems.Add("AI_RUNTIME_PIN: build names node-llama-cpp $aiRuntimeNpmPin but package.json pins $(($aiDeclared[0] -split ' ')[1]); the two must agree.")
+  }
+} catch {
+  $aiPinProblems.Add("package.json: could not be read to cross-check the node-llama-cpp pin: $($_.Exception.Message)")
 }
 $ai = if (Test-Property $manifestJson "aiRuntime") { $manifestJson.aiRuntime } else { $null }
 if ($null -eq $ai -or $ai.enabled -ne $true) {
@@ -458,8 +503,14 @@ if ($null -eq $ai -or $ai.enabled -ne $true) {
   if ($ai.gpu -ne $false -or $ai.platform -ne "win32" -or $ai.arch -ne "x64") {
     $failures.Add("Local-AI runtime must be the CPU-only win32/x64 build (got gpu=$($ai.gpu), $($ai.platform)/$($ai.arch)).")
   }
-  if ([string]::IsNullOrWhiteSpace($aiRuntimePin) -or [string]$ai.runtimeBuild -ne $aiRuntimePin) {
+  foreach ($problem in $aiPinProblems) {
+    $failures.Add("Local-AI runtime pin: $problem")
+  }
+  if ([string]::IsNullOrWhiteSpace($aiRuntimePin) -or [string]$ai.runtimeBuild -cne $aiRuntimePin) {
     $failures.Add("Local-AI runtime build '$($ai.runtimeBuild)' is not AI_RUNTIME_PIN.build '$aiRuntimePin' (src/offline/AiModelManifest.ts).")
+  }
+  if ($null -ne $aiRuntimeNpmPin -and [string]$ai.runtimeVersion -cne $aiRuntimeNpmPin) {
+    $failures.Add("Local-AI runtime version '$($ai.runtimeVersion)' is not the node-llama-cpp version AI_RUNTIME_PIN.build names ($aiRuntimeNpmPin).")
   }
 
   $aiAssetPaths = @($ai.assets | ForEach-Object { [string]$_.relativePath })
@@ -483,11 +534,40 @@ if ($null -eq $ai -or $ai.enabled -ne $true) {
   if (-not (Test-Path (Join-Path $aiStagedRoot "ai-native-host-manifest.json"))) {
     $failures.Add("Local-AI runtime is declared included but its staged manifest is missing: build/native-hosts/ai/ai-native-host-manifest.json (run 'npm run prepare:ai-host').")
   } else {
-    # electron-builder ships the whole staged directory, so an unlisted file would ship unverified.
-    $aiOnDisk = @(Get-ChildItem -LiteralPath $aiStagedRoot -Recurse -File -Force | Where-Object { $_.Name -ne "ai-native-host-manifest.json" })
-    if ($aiOnDisk.Count -ne $aiAssetPaths.Count) {
-      $failures.Add("Local-AI staged tree holds $($aiOnDisk.Count) files but the manifest lists $($aiAssetPaths.Count); every shipped file must be listed.")
+    # electron-builder ships the whole staged directory, so the files on disk and the signed list must be
+    # the same SET of paths, compared by name. Equal counts proved nothing: a duplicate or case-variant
+    # entry (Windows paths are case-insensitive) let one listed path stand in for an unlisted file.
+    $aiPrefix = "native-hosts/ai/"
+    $aiListed = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($path in $aiAssetPaths) {
+      if (-not $path.StartsWith($aiPrefix, [System.StringComparison]::Ordinal) -or $path -match '(^|/)\.\.?(/|$)' -or $path.Contains('\')) {
+        $failures.Add("Local-AI runtime manifest lists a path outside native-hosts/ai/: $path")
+      } elseif (-not $aiListed.Add($path)) {
+        $failures.Add("Local-AI runtime manifest lists a path more than once (compared case-insensitively): $path")
+      }
     }
+    $aiStagedFull = (Resolve-Path -LiteralPath $aiStagedRoot).ProviderPath.TrimEnd('\') + '\'
+    $aiLinks = @(Get-ChildItem -LiteralPath $aiStagedRoot -Recurse -Force | Where-Object { $_.Attributes -band [System.IO.FileAttributes]::ReparsePoint })
+    foreach ($link in $aiLinks) {
+      $failures.Add("Local-AI staged tree contains a link, which is never staged: $($link.FullName.Substring($aiStagedFull.Length).Replace('\', '/'))")
+    }
+    $aiOnDisk = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($file in Get-ChildItem -LiteralPath $aiStagedRoot -Recurse -File -Force) {
+      $relative = $file.FullName.Substring($aiStagedFull.Length).Replace('\', '/')
+      if ($relative -ne "ai-native-host-manifest.json") { [void]$aiOnDisk.Add($aiPrefix + $relative) }
+    }
+    $aiUnlisted = @($aiOnDisk | Where-Object { -not $aiListed.Contains($_) } | Sort-Object)
+    $aiUnstaged = @($aiListed | Where-Object { -not $aiOnDisk.Contains($_) } | Sort-Object)
+    if ($aiUnlisted.Count -gt 0) {
+      $failures.Add("Local-AI staged tree holds $($aiUnlisted.Count) file(s) the signed manifest does not list, which would ship unverified: $(($aiUnlisted | Select-Object -First 5) -join ', ')")
+    }
+    if ($aiUnstaged.Count -gt 0) {
+      $failures.Add("Local-AI signed manifest lists $($aiUnstaged.Count) file(s) the staged tree does not hold: $(($aiUnstaged | Select-Object -First 5) -join ', ')")
+    }
+    if ($aiOnDisk.Count -eq 0) {
+      $failures.Add("Local-AI staged tree holds no files, so nothing was compared.")
+    }
+    Write-Host "Local-AI runtime inventory: $($aiOnDisk.Count) staged files compared by path with $($aiListed.Count) signed entries ($($aiUnlisted.Count) unlisted, $($aiUnstaged.Count) missing)."
   }
 
   $aiChecked = 0
