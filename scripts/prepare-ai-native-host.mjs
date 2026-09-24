@@ -254,6 +254,122 @@ while (queue.length > 0) {
 }
 stop("(dependency closure)");
 
+// ── App-local Microsoft Visual C++ runtime (awkit-i6ot) ─────────────────────────────────────────────
+
+/**
+ * The prebuilt llama/ggml binaries and the reflink addon import the Visual C++ 2015-2022 runtime, which
+ * Windows does not ship, so without it local AI cannot load on a machine that never installed it. The
+ * owner authorized (2026-09-25) app-local deployment from the Visual Studio redist folder, Microsoft's
+ * documented source for these files, so every staged directory holding a native binary gets them beside
+ * it. They come only from the Visual Studio installation vswhere reports (never System32), and each must
+ * be a validly Microsoft-signed x64 image at least as new as MSVC_RUNTIME_FLOOR and the newest linker
+ * that built a native binary to be staged. All of that is decided BEFORE the output directory is
+ * replaced, so a refusal leaves an earlier staging intact and stages nothing. A runtime that loads only
+ * where Visual C++ happens to be installed is not shipped. `npm run verify:native-dependencies` proves
+ * the result.
+ */
+const MSVC_RUNTIME = ["msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll"];
+/**
+ * Microsoft requires the runtime to be at least as new as the toolset that built a binary, and a linker
+ * stamp can understate it: the llama/ggml prebuilts report 14.0 (an lld stamp) though they were built on
+ * a Windows Server 2022 image in 2026. Binaries compiled with the 14.40+ STL (VS 2022 17.10, where
+ * std::mutex's constructor became constexpr) fail at run time, not at load time, on an older
+ * msvcp140.dll, so no load check would notice. 14.40 is therefore a floor under the newest linker stamp.
+ */
+const MSVC_RUNTIME_FLOOR = [14, 40];
+const atLeast = (version, minimum) => version[0] > minimum[0] || (version[0] === minimum[0] && version[1] >= minimum[1]);
+
+function findVcRedist() {
+  const vswhere = path.join(process.env["ProgramFiles(x86)"] ?? "C:\\Program Files (x86)", "Microsoft Visual Studio", "Installer", "vswhere.exe");
+  if (!fs.existsSync(vswhere)) return { problem: "no Visual Studio installation: vswhere.exe is absent" };
+  // Both components: the tools write Microsoft.VCRedistVersion.default.txt, the redist component the CRT folder.
+  const components = ["Microsoft.VisualStudio.Component.VC.Tools.x86.x64", "Microsoft.VisualStudio.Component.VC.Redist.14.Latest"];
+  const run = spawnSync(vswhere, ["-latest", "-products", "*", "-requires", ...components, "-property", "installationPath", "-utf8"], { encoding: "utf8", windowsHide: true, timeout: 60_000 });
+  const install = `${run.stdout ?? ""}`.trim().split(/\r?\n/)[0];
+  if (run.status !== 0 || !install) return { problem: `vswhere reports no released Visual Studio installation with ${components.join(" and ")}` };
+  const versionFile = path.join(install, "VC", "Auxiliary", "Build", "Microsoft.VCRedistVersion.default.txt");
+  const version = fs.existsSync(versionFile) ? fs.readFileSync(versionFile, "utf8").trim() : "";
+  if (!/^14\.\d+\.\d+$/.test(version)) return { problem: `${versionFile} is missing or holds no 14.x.y redist version` };
+  const archDir = path.join(install, "VC", "Redist", "MSVC", version, "x64");
+  const crt = fs.existsSync(archDir) ? fs.readdirSync(archDir).filter((name) => /^Microsoft\.VC14\d\.CRT$/i.test(name)) : [];
+  if (crt.length !== 1) return { problem: `expected one Microsoft.VC14x.CRT folder in ${archDir}, found ${crt.length}` };
+  return { install, version, dir: path.join(archDir, crt[0]) };
+}
+
+/** Machine and linker version of a PE image, or null. */
+function peHeader(file) {
+  const b = fs.readFileSync(file);
+  if (b.length < 0x40 || b.readUInt16LE(0) !== 0x5a4d) return null;
+  const pe = b.readUInt32LE(0x3c);
+  if (pe + 28 > b.length || b.readUInt32LE(pe) !== 0x4550) return null;
+  return { machine: b.readUInt16LE(pe + 4), linker: [b.readUInt8(pe + 26), b.readUInt8(pe + 27)] };
+}
+
+/** Authenticode status, signer subject and file version of each file, in one PowerShell call. */
+function signaturesOf(files) {
+  const list = files.map((f) => `'${f.replace(/'/g, "''")}'`).join(",");
+  const script =
+    "$ErrorActionPreference='Stop'; " +
+    `foreach ($p in @(${list})) { $s = Get-AuthenticodeSignature -LiteralPath $p; $v = (Get-Item -LiteralPath $p).VersionInfo; ` +
+    "$subject = if ($s.SignerCertificate) { $s.SignerCertificate.Subject } else { '' }; " +
+    "Write-Output ('{0}|{1}|{2}.{3}.{4}' -f $s.Status, $subject, $v.FileMajorPart, $v.FileMinorPart, $v.FileBuildPart) }";
+  const run = spawnSync("powershell", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8", windowsHide: true, timeout: 120_000 });
+  const lines = `${run.stdout ?? ""}`.split(/\r?\n/).filter(Boolean);
+  return files.map((_, i) => {
+    const [status = "Unread", subject = "", version = "0.0.0"] = (lines[i] ?? "").split("|");
+    return { status, subject, version: version.split(".").map(Number) };
+  });
+}
+
+/** The .dll and .node files of a package directory, as copyPackage would find them (nested node_modules skipped). */
+function nativeFilesOf(dir) {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) return entry.name === "node_modules" ? [] : nativeFilesOf(full);
+    return entry.isFile() && /\.(dll|node)$/i.test(entry.name) ? [full] : [];
+  });
+}
+
+/** Find and check the redist files, or fail; nothing on disk changes here. */
+function prepareMsvcRuntime() {
+  const redist = findVcRedist();
+  if (redist.problem) {
+    fail(`MSVC runtime: ${redist.problem}. The staged native binaries import ${MSVC_RUNTIME.join(", ")}, which Windows does not ship; install Visual Studio 2022 (Build Tools or an edition whose license covers redistributing its Distributable Code) with "MSVC v143 - VS 2022 C++ x64/x86 build tools" and "C++ 2022 Redistributable Update" (awkit-i6ot).`);
+    return null;
+  }
+  const sources = MSVC_RUNTIME.map((name) => path.join(redist.dir, name));
+  const systemRoot = fs.realpathSync(process.env.SystemRoot ?? "C:\\Windows");
+  const realInstall = fs.realpathSync(redist.install);
+  for (const source of sources) {
+    if (!fs.existsSync(source)) {
+      fail(`MSVC runtime: ${source} is missing from the Visual Studio redist folder.`);
+      continue;
+    }
+    const real = fs.realpathSync(source);
+    if (!isInside(realInstall, real) || isInside(systemRoot, real)) fail(`MSVC runtime: ${source} resolves to ${real}, outside the Visual Studio installation.`);
+    if (peHeader(source)?.machine !== 0x8664) fail(`MSVC runtime: ${source} is not an x64 image.`);
+  }
+  if (failures.length > 0) return null;
+  const newestLinker = [...closure.keys()]
+    .flatMap(nativeFilesOf)
+    .map((file) => peHeader(file)?.linker ?? [0, 0])
+    .reduce((a, b) => (atLeast(b, a) ? b : a), [0, 0]);
+  const minimum = atLeast(newestLinker, MSVC_RUNTIME_FLOOR) ? newestLinker : MSVC_RUNTIME_FLOOR;
+  const signatures = signaturesOf(sources);
+  signatures.forEach((sig, i) => {
+    if (sig.status !== "Valid" || !/(^|,\s*)O=Microsoft Corporation(,|$)/.test(sig.subject)) {
+      fail(`MSVC runtime: ${MSVC_RUNTIME[i]} is not validly signed by Microsoft (${sig.status}, "${sig.subject}").`);
+    }
+    if (!atLeast(sig.version, minimum)) {
+      fail(`MSVC runtime: ${MSVC_RUNTIME[i]} ${sig.version.join(".")} is older than ${minimum.join(".")} (the floor ${MSVC_RUNTIME_FLOOR.join(".")} and the newest linker ${newestLinker.join(".")} of a staged binary); the runtime must be at least as new.`);
+    }
+  });
+  return { sources, redistVersion: redist.version, fileVersions: signatures.map((s) => s.version.join(".")), minimum, newestLinker };
+}
+
+const vcRedist = prepareMsvcRuntime();
+stop("(MSVC runtime)");
+
 // ── Stage ────────────────────────────────────────────────────────────────────────────────────────
 
 fs.rmSync(OUT_DIR, { recursive: true, force: true });
@@ -307,102 +423,24 @@ copyFile(HOST_SOURCE, "ai-host.cjs");
 for (const [dir, name] of closure) copyPackage(dir, name);
 stop("during staging");
 
-// ── App-local Microsoft Visual C++ runtime (awkit-i6ot) ─────────────────────────────────────────────
-
-/**
- * The prebuilt llama/ggml binaries and the reflink addon import the Visual C++ 2015-2022 runtime, which
- * Windows does not ship, so without it local AI cannot load on a machine that never installed it. The
- * owner authorized (2026-09-25) app-local deployment from the Visual Studio redist folder, Microsoft's
- * documented source for these files, so every staged directory holding a native binary gets them beside
- * it. They come only from the Visual Studio installation vswhere reports (never System32), and each must
- * be a validly Microsoft-signed x64 image at least as new as the newest linker that built a staged
- * binary. Without that installation nothing is staged: a runtime that loads only where Visual C++ happens
- * to be installed is not shipped. `npm run verify:native-dependencies` proves the result.
- */
-const MSVC_RUNTIME = ["msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll"];
-
-function findVcRedist() {
-  const vswhere = path.join(process.env["ProgramFiles(x86)"] ?? "C:\\Program Files (x86)", "Microsoft Visual Studio", "Installer", "vswhere.exe");
-  if (!fs.existsSync(vswhere)) return { problem: "no Visual Studio installation: vswhere.exe is absent" };
-  // Both components: the tools write Microsoft.VCRedistVersion.default.txt, the redist component the CRT folder.
-  const components = ["Microsoft.VisualStudio.Component.VC.Tools.x86.x64", "Microsoft.VisualStudio.Component.VC.Redist.14.Latest"];
-  const run = spawnSync(vswhere, ["-latest", "-products", "*", "-requires", ...components, "-property", "installationPath", "-utf8"], { encoding: "utf8", windowsHide: true, timeout: 60_000 });
-  const install = `${run.stdout ?? ""}`.trim().split(/\r?\n/)[0];
-  if (run.status !== 0 || !install) return { problem: `vswhere reports no released Visual Studio installation with ${components.join(" and ")}` };
-  const versionFile = path.join(install, "VC", "Auxiliary", "Build", "Microsoft.VCRedistVersion.default.txt");
-  const version = fs.existsSync(versionFile) ? fs.readFileSync(versionFile, "utf8").trim() : "";
-  if (!/^14\.\d+\.\d+$/.test(version)) return { problem: `${versionFile} is missing or holds no 14.x.y redist version` };
-  const archDir = path.join(install, "VC", "Redist", "MSVC", version, "x64");
-  const crt = fs.existsSync(archDir) ? fs.readdirSync(archDir).filter((name) => /^Microsoft\.VC14\d\.CRT$/i.test(name)) : [];
-  if (crt.length !== 1) return { problem: `expected one Microsoft.VC14x.CRT folder in ${archDir}, found ${crt.length}` };
-  return { install, version, dir: path.join(archDir, crt[0]) };
-}
-
-/** Machine and linker version of a PE image, or null. */
-function peHeader(file) {
-  const b = fs.readFileSync(file);
-  if (b.length < 0x40 || b.readUInt16LE(0) !== 0x5a4d) return null;
-  const pe = b.readUInt32LE(0x3c);
-  if (pe + 28 > b.length || b.readUInt32LE(pe) !== 0x4550) return null;
-  return { machine: b.readUInt16LE(pe + 4), linker: [b.readUInt8(pe + 26), b.readUInt8(pe + 27)] };
-}
-
-/** Authenticode status, signer subject and file version of each file, in one PowerShell call. */
-function signaturesOf(files) {
-  const list = files.map((f) => `'${f.replace(/'/g, "''")}'`).join(",");
-  const script =
-    "$ErrorActionPreference='Stop'; " +
-    `foreach ($p in @(${list})) { $s = Get-AuthenticodeSignature -LiteralPath $p; $v = (Get-Item -LiteralPath $p).VersionInfo; ` +
-    "$subject = if ($s.SignerCertificate) { $s.SignerCertificate.Subject } else { '' }; " +
-    "Write-Output ('{0}|{1}|{2}.{3}.{4}' -f $s.Status, $subject, $v.FileMajorPart, $v.FileMinorPart, $v.FileBuildPart) }";
-  const run = spawnSync("powershell", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8", windowsHide: true, timeout: 120_000 });
-  const lines = `${run.stdout ?? ""}`.split(/\r?\n/).filter(Boolean);
-  return files.map((_, i) => {
-    const [status = "Unread", subject = "", version = "0.0.0"] = (lines[i] ?? "").split("|");
-    return { status, subject, version: version.split(".").map(Number) };
-  });
-}
-
-const nativeBinaries = staged.filter((rel) => /\.(dll|node)$/i.test(rel));
-const runtimeDirs = [...new Set(nativeBinaries.map((rel) => path.posix.dirname(rel)))].sort();
-let msvcRuntime = null;
-const redist = findVcRedist();
-if (redist.problem) {
-  fail(`MSVC runtime: ${redist.problem}. The staged native binaries import ${MSVC_RUNTIME.join(", ")}, which Windows does not ship; install Visual Studio 2022 (Build Tools or an edition whose license covers redistributing its Distributable Code) with "MSVC v143 - VS 2022 C++ x64/x86 build tools" and "C++ 2022 Redistributable Update" (awkit-i6ot).`);
-} else {
-  const sources = MSVC_RUNTIME.map((name) => path.join(redist.dir, name));
-  const systemRoot = fs.realpathSync(process.env.SystemRoot ?? "C:\\Windows");
-  const realInstall = fs.realpathSync(redist.install);
-  for (const source of sources) {
-    if (!fs.existsSync(source)) {
-      fail(`MSVC runtime: ${source} is missing from the Visual Studio redist folder.`);
-      continue;
-    }
-    const real = fs.realpathSync(source);
-    if (!isInside(realInstall, real) || isInside(systemRoot, real)) fail(`MSVC runtime: ${source} resolves to ${real}, outside the Visual Studio installation.`);
-    if (peHeader(source)?.machine !== 0x8664) fail(`MSVC runtime: ${source} is not an x64 image.`);
+// The Visual C++ runtime, already found and checked above, beside every staged native binary.
+const runtimeDirs = [...new Set(staged.filter((rel) => /\.(dll|node)$/i.test(rel)).map((rel) => path.posix.dirname(rel)))].sort();
+for (const dir of runtimeDirs) {
+  for (const [i, name] of MSVC_RUNTIME.entries()) {
+    const rel = `${dir}/${name}`;
+    if (staged.some((s) => s.toLowerCase() === rel.toLowerCase())) fail(`MSVC runtime: ${rel} is already staged by a package.`);
+    else copyFile(vcRedist.sources[i], rel);
   }
-  stop("(MSVC runtime source)");
-  const newestLinker = nativeBinaries
-    .map((rel) => peHeader(path.join(OUT_DIR, ...rel.split("/")))?.linker ?? [0, 0])
-    .reduce((a, b) => (b[0] > a[0] || (b[0] === a[0] && b[1] > a[1]) ? b : a), [0, 0]);
-  signaturesOf(sources).forEach((sig, i) => {
-    if (sig.status !== "Valid" || !/(^|,\s*)O=Microsoft Corporation(,|$)/.test(sig.subject)) {
-      fail(`MSVC runtime: ${MSVC_RUNTIME[i]} is not validly signed by Microsoft (${sig.status}, "${sig.subject}").`);
-    }
-    if (sig.version[0] < newestLinker[0] || (sig.version[0] === newestLinker[0] && sig.version[1] < newestLinker[1])) {
-      fail(`MSVC runtime: ${MSVC_RUNTIME[i]} ${sig.version.join(".")} is older than linker ${newestLinker.join(".")} that built a staged binary; the runtime must be at least as new.`);
-    }
-  });
-  for (const dir of runtimeDirs) {
-    for (const [i, name] of MSVC_RUNTIME.entries()) {
-      const rel = `${dir}/${name}`;
-      if (staged.some((s) => s.toLowerCase() === rel.toLowerCase())) fail(`MSVC runtime: ${rel} is already staged by a package.`);
-      else copyFile(sources[i], rel);
-    }
-  }
-  msvcRuntime = { source: "Visual Studio redist (Microsoft.VC14x.CRT), app-local", redistVersion: redist.version, newestLinker: newestLinker.join("."), files: MSVC_RUNTIME, directories: runtimeDirs };
 }
+const msvcRuntime = {
+  source: "Visual Studio redist (Microsoft.VC14x.CRT), app-local",
+  redistVersion: vcRedist.redistVersion,
+  fileVersions: Object.fromEntries(MSVC_RUNTIME.map((name, i) => [name, vcRedist.fileVersions[i]])),
+  minimumVersion: vcRedist.minimum.join("."),
+  newestLinker: vcRedist.newestLinker.join("."),
+  files: MSVC_RUNTIME,
+  directories: runtimeDirs
+};
 stop("staging the MSVC runtime");
 
 // Verify what was staged rather than trusting the copy loop.

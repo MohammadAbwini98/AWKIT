@@ -669,6 +669,22 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:runtime:2026-09-24T22:05:19.681Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/prepare-ai-native-host.mjs"
+        ],
+        "acquired_at": "2026-09-24T22:05:19.681Z",
+        "acquired_at_commit": "e4a9abfd87e7172a477e957d26a96ff0672c2527",
+        "released_at": "2026-09-24T22:06:37.212Z",
+        "released_reason": "vswhere hardening committed at 393452f9, verifier harness fixes are unleased qa work",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }
