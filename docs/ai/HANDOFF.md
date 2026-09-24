@@ -1,6 +1,20 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-24, latest) — the D1 request now offers copyable scopes; real-model quality still unshown
+## HANDOFF (2026-09-24, latest) — the revised D1 request ran once on the real 0.8B: INCONCLUSIVE
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. `awkit-djnl.4` stays
+  `in_progress`, and a note was added for this run. No bead's status or edge changed.
+- **Done:** one authorized `verify:ai-locator-quality-live-d1` at `68d19987`: 12/0, exit 2 INCONCLUSIVE, 0/2
+  positives, 0 false targets.
+  - All 8 replies were a bare `role` target with `scopes []`. They were refused as not unique, then as a
+    repeated plan. No `hasText`, and no offered scope copied.
+  - Evidence: `evidence/L3-locator-quality-live-d1-20260924T124628Z-da952d.json`, reviewed and committed.
+- **Needs the owner:** a decision on the next step for D1 quality (for example a different model, or a
+  further request change). Each needs its own authorization. Also the 15 L4b reviews.
+- **Do not:** rerun the D1 set for a better sample, allow `hasText` scopes, loosen `SCOPE_NOT_OFFERED`, or
+  read the scripted PASS as model quality.
+
+## HANDOFF (2026-09-24, superseded) — the D1 request now offers copyable scopes; real-model quality still unshown
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. `awkit-djnl.4` stays
   `in_progress`, and a note was added for this change. No bead's status or edge changed.

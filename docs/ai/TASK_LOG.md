@@ -1,5 +1,27 @@
 # TASK_LOG
 
+## 2026-09-24 — Phase L: the revised D1 request run once on the real 0.8B (Claude)
+
+- **Task:** the owner-authorized single run of `verify:ai-locator-quality-live-d1` on the `2fd2c3f5` request,
+  then records and the tracker note. No source, request, fixture, verifier, model or policy change.
+- **Checks:**
+  - `verify:ai-locator-quality-controls` 49/0 (baseline, before the live run).
+  - `verify:ai-locator-quality-live-d1` once at `68d19987` (clean tree): 12/0, exit 2 INCONCLUSIVE, 354 s.
+  - `verify:verifier-classification`, `verify:roadmap-dashboard` and `git diff --check`: run after the
+    `awkit-djnl.4` note; results in its contract and commit.
+- **Result:** 8 requests, 8 replies, 8 consumed refusals, 0 accepted, 0 proven, positives 0/2.
+  - Every reply was a bare `role` target with `scopes []`.
+  - Attempt 1 in each case was refused by the proof, `CANDIDATE_NOT_UNIQUE`. Attempt 2 repeated it,
+    `DUPLICATE_CANDIDATE`.
+  - No `hasText`, no `SCOPE_NOT_OFFERED`, 0 false targets, and no withheld identity in any request.
+- **Evidence:** `docs/plans/ai-upgrade-v5/evidence/L3-locator-quality-live-d1-20260924T124628Z-da952d.json`.
+  It is complete, 4 of 4 cases, and was reviewed for allowlisted content only, then committed. The first two
+  cases' per-call model timings were cut from the console and are not in the file. Not re-run.
+- **Records:** L3 plan, `KNOWN_ISSUES.md` (still OPEN, observation updated), `CURRENT_STATE.md`, `HANDOFF.md`.
+  L1 plan, `DECISIONS.md` and `COMMANDS.md` unchanged.
+- **Not run:** `verify:ai-spy-live`, `benchmark:ai-model`, the original live set, and build (no code changed).
+- **Result for Phase L:** L3 stays `in_progress`. No milestone, bead status, edge or verdict changed.
+
 ## 2026-09-24 — Phase L: the D1 request offers each approved scope in the grammar's own form (Claude)
 
 - **Task:** the owner authorized a bounded change to the D1 model request's wording and representation only. No

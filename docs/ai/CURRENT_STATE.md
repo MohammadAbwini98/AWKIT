@@ -1,6 +1,36 @@
 # CURRENT_STATE
 
-## Phase L: the D1 request offers each approved scope in the grammar's own form (2026-09-24, current)
+## Phase L: the revised D1 request run once on the real 0.8B, INCONCLUSIVE (2026-09-24, current)
+
+**Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** `awkit-djnl.4` stays
+`in_progress`, and a note was added for this run. No bead's status or edge changed. One owner-authorized run.
+No source, request, fixture, verifier, model or policy changed.
+
+- **Run:** `npm run verify:ai-locator-quality-live-d1` once at `68d19987`, on the published
+  `Qwen3.5-0.8B-Q4_K_M.gguf` (sha256 `f5b14da98939b60b…`, 527,502,816 bytes, matched before use). Result 12/0,
+  exit 2 INCONCLUSIVE, in 354 s.
+- **Per case:** all four cases ended `refused`, each with 2 requests, 2 replies and 2 consumed refusals. Every reply
+  was a bare `role` target with `scopes []`. Attempt 1 was refused by the proof `CANDIDATE_NOT_UNIQUE`. Attempt 2
+  repeated the same plan, `DUPLICATE_CANDIDATE`.
+- **Totals:** 0 accepted, 0 browser-proven, positives 0/2, false targets 0. No withheld identity in any request.
+  No `hasText` scopes (the older request drew 8 of 8), and no `SCOPE_NOT_OFFERED`.
+- **Evidence:** `docs/plans/ai-upgrade-v5/evidence/L3-locator-quality-live-d1-20260924T124628Z-da952d.json`.
+  It is complete (4 of 4 cases), matches the exit code, and was reviewed: codes, enums and counts only.
+- **Still OPEN (`KNOWN_ISSUES.md`):** real-model D1 quality. The 0.8B does not copy the offered scope. The first
+  D1 run (older request, 12/0, exit 2, 0 of 2) is kept apart.
+- **Unchanged:**
+  - L1 limited GO. L3 `in_progress`. L4b 1 of 16, TARGET PENDING.
+  - L5b automatic analysis, T2, automatic promotion, repair, sweeps and row-text scoping stay off.
+
+| Gate (final state) | Result |
+|---|---|
+| `verify:ai-locator-quality-controls` (baseline, before the run) | 49/0 |
+| `verify:ai-locator-quality-live-d1` (once, `68d19987`) | 12/0, exit 2 INCONCLUSIVE, 0/2 positives, 0 false targets |
+| `verify:verifier-classification` · `verify:roadmap-dashboard` · `git diff --check` | run after the `awkit-djnl.4` note; results in its contract and commit |
+| build and focused structural verifiers | NOT RUN: no production or verifier file changed |
+| `verify:ai-spy-live` · `benchmark:ai-model` · a second D1 run | NOT RUN: not authorized |
+
+## Phase L: the D1 request offers each approved scope in the grammar's own form (2026-09-24)
 
 **Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** `awkit-djnl.4` stays
 `in_progress`, and a note was added for this change. No bead's status or edge changed. The owner authorized the

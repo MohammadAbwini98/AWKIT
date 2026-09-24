@@ -109,7 +109,25 @@
 - **Until then:** a future authorized live run should be launched where its whole output is kept. Missing
   history is not reconstructed.
 
-## The 0.8B writes a row-content scope instead of copying the offered D1 scope (2026-09-24, OPEN — model quality, `awkit-djnl.4`; request format changed in `2fd2c3f5`, unproven on the model)
+## The 0.8B does not copy the offered D1 scope (2026-09-24, OPEN — model quality, `awkit-djnl.4`; request format changed in `2fd2c3f5`; its one live run INCONCLUSIVE, 0 of 2 positives)
+
+- **Live run on the revised request (2026-09-24, `68d19987`, one owner-authorized run, not repeated):**
+  `verify:ai-locator-quality-live-d1` 12/0, exit 2 INCONCLUSIVE. Evidence:
+  `docs/plans/ai-upgrade-v5/evidence/L3-locator-quality-live-d1-20260924T124628Z-da952d.json`.
+  - All 8 replies passed the contract and compiled. Each was a bare duplicate `role` target with `scopes []`:
+    no `hasText`, no invented scope, no withheld identity, 0 `SCOPE_NOT_OFFERED`.
+  - In every case, attempt 1 reached the browser and the proof refused it `CANDIDATE_NOT_UNIQUE` (4 matches, 2
+    for INV-2002). Attempt 2 repeated the same plan after that feedback and was refused `DUPLICATE_CANDIDATE`.
+  - So the observed limitation changed. The `hasText` row-content pattern is gone from this run. The 0.8B still
+    did not copy the offered scope in either positive, even after the not-unique refusal. 0 of 2 positives
+    proven, 0 false targets, nothing accepted.
+  - This is not a product defect. The request carried the offered scope, and the product refused correctly.
+    One run per request form is not a rate. Nothing was loosened, and nothing was re-run.
+- **Do not:** rerun the same set hoping for a different sample, allow `hasText`, loosen the scope rule, or
+  treat `scopes []` refusals as the privacy rule working. The model never tried a withheld scope in this run.
+  Any further wording change, model change or live run needs its own owner authorization.
+
+**Request-format record (kept):**
 
 - **Request-format cause found (observed, not a guess about the model):** node-llama-cpp 3.21.1 writes every key
   of a scope object, in `LOCATOR_PLAN_SCHEMA` order: `strategy, value, name, exact, kind, hasText, visibleOnly`.
@@ -137,9 +155,8 @@
     exact offered object, and the product's real proof says PROVEN for both D1 positives.
   - `verify:ai-locator-upgrade-budget` 8/0 on the pinned tokenizer. The worst prompt is 1053 of 3072 tokens, and
     the cap is unchanged.
-- **Still OPEN:** a scripted PASS shows the request is copyable and the product accepts a copy. It does not show
-  that the 0.8B will copy it. Closing this needs one separately authorized `verify:ai-locator-quality-live-d1`
-  run on the revised request.
+- **Was OPEN pending a live run (now run, above):** a scripted PASS shows the request is copyable and the
+  product accepts a copy. It does not show that the 0.8B will copy it.
 
 **Original record (kept):**
 

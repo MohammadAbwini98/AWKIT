@@ -1,0 +1,224 @@
+{
+  "schemaVersion": 1,
+  "kind": "awkit.l3.locator-quality-live",
+  "runId": "20260924T124628Z-da952d",
+  "verifier": "verify:ai-locator-quality-live-d1",
+  "set": "d1",
+  "startedAt": "2026-09-24T12:46:28.945Z",
+  "finishedAt": "2026-09-24T12:52:23.294Z",
+  "durationMs": 354349,
+  "source": {
+    "commit": "68d19987c28afe8336d9b159c02bea7d49d23091",
+    "dirty": false
+  },
+  "model": {
+    "id": "Qwen3.5-0.8B-unpinned",
+    "file": "Qwen3.5-0.8B-Q4_K_M.gguf",
+    "sha256": "f5b14da98939b60bbe1019a964eba656407e1e0b64f1fe3003ff6d650e93bfec",
+    "sizeBytes": 527502816
+  },
+  "runtime": "node-llama-cpp@3.21.1+llama.cpp@v0.4.0",
+  "result": "INCONCLUSIVE",
+  "exitCode": 2,
+  "completed": true,
+  "harness": "finished",
+  "inFlight": null,
+  "checks": {
+    "passed": 12,
+    "failed": 0
+  },
+  "caseCounts": {
+    "labelled": 4,
+    "reached": 4,
+    "notReached": 0,
+    "passed": 4,
+    "failed": 0,
+    "interrupted": 0,
+    "success": 0,
+    "refused": 4,
+    "inconclusive": 0,
+    "fail": 0,
+    "unrecognized": 0
+  },
+  "notReached": [],
+  "totals": {
+    "requests": 8,
+    "responses": 8,
+    "consumedRefusals": 8,
+    "acceptedCandidates": 0,
+    "browserProven": 0,
+    "falseTargetsProposed": 0,
+    "falseTargetsAccepted": 0,
+    "withheldInRequest": 0
+  },
+  "cases": [
+    {
+      "id": "d1-test-id",
+      "condition": "approved-testId-scope",
+      "expected": "success",
+      "status": "passed",
+      "failures": [],
+      "requests": 2,
+      "responses": 2,
+      "attemptsUsed": 2,
+      "consumedRefusals": 2,
+      "outcome": "attempts-exhausted",
+      "code": "DUPLICATE_CANDIDATE",
+      "accepted": false,
+      "browserProven": false,
+      "matches": null,
+      "target": null,
+      "falseTargetProposed": false,
+      "falseTargetAccepted": false,
+      "withheldInRequest": false,
+      "class": "refused",
+      "elapsedMs": 83200,
+      "calls": [
+        {
+          "contract": "pass",
+          "strategy": "role",
+          "scope": "none",
+          "refusal": "proof:CANDIDATE_NOT_UNIQUE",
+          "refusalField": null,
+          "proof": "CANDIDATE_NOT_UNIQUE",
+          "matches": 4
+        },
+        {
+          "contract": "pass",
+          "strategy": "role",
+          "scope": "none",
+          "refusal": "duplicate:DUPLICATE_CANDIDATE",
+          "refusalField": null,
+          "proof": null,
+          "matches": null
+        }
+      ]
+    },
+    {
+      "id": "d1-authored-name",
+      "condition": "approved-label-scope",
+      "expected": "success",
+      "status": "passed",
+      "failures": [],
+      "requests": 2,
+      "responses": 2,
+      "attemptsUsed": 2,
+      "consumedRefusals": 2,
+      "outcome": "attempts-exhausted",
+      "code": "DUPLICATE_CANDIDATE",
+      "accepted": false,
+      "browserProven": false,
+      "matches": null,
+      "target": null,
+      "falseTargetProposed": false,
+      "falseTargetAccepted": false,
+      "withheldInRequest": false,
+      "class": "refused",
+      "elapsedMs": 82089,
+      "calls": [
+        {
+          "contract": "pass",
+          "strategy": "role",
+          "scope": "none",
+          "refusal": "proof:CANDIDATE_NOT_UNIQUE",
+          "refusalField": null,
+          "proof": "CANDIDATE_NOT_UNIQUE",
+          "matches": 4
+        },
+        {
+          "contract": "pass",
+          "strategy": "role",
+          "scope": "none",
+          "refusal": "duplicate:DUPLICATE_CANDIDATE",
+          "refusalField": null,
+          "proof": null,
+          "matches": null
+        }
+      ]
+    },
+    {
+      "id": "d1-record-key",
+      "condition": "no-approved-identity",
+      "expected": "refused",
+      "status": "passed",
+      "failures": [],
+      "requests": 2,
+      "responses": 2,
+      "attemptsUsed": 2,
+      "consumedRefusals": 2,
+      "outcome": "attempts-exhausted",
+      "code": "DUPLICATE_CANDIDATE",
+      "accepted": false,
+      "browserProven": false,
+      "matches": null,
+      "target": null,
+      "falseTargetProposed": false,
+      "falseTargetAccepted": false,
+      "withheldInRequest": false,
+      "class": "refused",
+      "elapsedMs": 79486,
+      "calls": [
+        {
+          "contract": "pass",
+          "strategy": "role",
+          "scope": "none",
+          "refusal": "proof:CANDIDATE_NOT_UNIQUE",
+          "refusalField": null,
+          "proof": "CANDIDATE_NOT_UNIQUE",
+          "matches": 4
+        },
+        {
+          "contract": "pass",
+          "strategy": "role",
+          "scope": "none",
+          "refusal": "duplicate:DUPLICATE_CANDIDATE",
+          "refusalField": null,
+          "proof": null,
+          "matches": null
+        }
+      ]
+    },
+    {
+      "id": "d1-computed-row",
+      "condition": "no-approved-identity",
+      "expected": "refused",
+      "status": "passed",
+      "failures": [],
+      "requests": 2,
+      "responses": 2,
+      "attemptsUsed": 2,
+      "consumedRefusals": 2,
+      "outcome": "attempts-exhausted",
+      "code": "DUPLICATE_CANDIDATE",
+      "accepted": false,
+      "browserProven": false,
+      "matches": null,
+      "target": null,
+      "falseTargetProposed": false,
+      "falseTargetAccepted": false,
+      "withheldInRequest": false,
+      "class": "refused",
+      "elapsedMs": 66974,
+      "calls": [
+        {
+          "contract": "pass",
+          "strategy": "role",
+          "scope": "none",
+          "refusal": "proof:CANDIDATE_NOT_UNIQUE",
+          "refusalField": null,
+          "proof": "CANDIDATE_NOT_UNIQUE",
+          "matches": 2
+        },
+        {
+          "contract": "pass",
+          "strategy": "role",
+          "scope": "none",
+          "refusal": "duplicate:DUPLICATE_CANDIDATE",
+          "refusalField": null,
+          "proof": null,
+          "matches": null
+        }
+      ]
+    }
+  ]
+}

@@ -368,7 +368,8 @@ with the real Recorder capture).
   session's safety classifier and not run; the constructed `recordKeyOffered` /
   `computedRowNameAuthored` controls cover those detection paths.
 - **Live D1 run:** NOT RUN when the set was built (no authorization then). Run once on 2026-09-24 with the
-  owner's authorization: INCONCLUSIVE, see below.
+  owner's authorization: INCONCLUSIVE, see below. Run once more that day, on the revised request, with its own
+  authorization: INCONCLUSIVE again (see "D1 live run on the revised request").
 
 **D1 live run on the real 0.8B (2026-09-24): INCONCLUSIVE, exit 2, 12 passed / 0 failed.** One owner-authorized
 execution of `npm run verify:ai-locator-quality-live-d1` at `51ac81df`, not repeated. Model: the published
@@ -500,6 +501,42 @@ grammar forced a `hasText` slot the request never explained.
     plan tokens unchanged.
 - **Not shown:** whether the 0.8B now copies the scope. The D1 live result above stays INCONCLUSIVE. Showing it
   needs one separately authorized `verify:ai-locator-quality-live-d1` run.
+
+**D1 live run on the revised request (2026-09-24): INCONCLUSIVE, exit 2, 12 passed / 0 failed.** One
+owner-authorized execution of `npm run verify:ai-locator-quality-live-d1` at `68d19987` (clean tree), not
+repeated. It is the first live run of the `2fd2c3f5` request. Model: the published `Qwen3.5-0.8B-Q4_K_M.gguf`
+(527,502,816 bytes, sha256 `f5b14da98939b60b…`, matched by the verifier before use, staged unpinned); runtime
+`node-llama-cpp@3.21.1+llama.cpp@v0.4.0`, 4 inference threads, host 9 % busy before inference, 354 s in all.
+The five D1 controls passed inside the run, and `verify:ai-locator-quality-controls` was 49/0 just before it.
+Evidence: `evidence/L3-locator-quality-live-d1-20260924T124628Z-da952d.json`. It is complete, 4 of 4 cases,
+its result and exit code match the console, and it was reviewed before commit: codes, enums and counts only.
+
+| Case | Expected | Requests · replies · attempts · consumed refusals | Attempt 1 | Attempt 2 | Class |
+|---|---|---|---|---|---|
+| `d1-test-id` (D1 A) | success | 2 · 2 · 2 · 2 | contract pass, `role` target, `scopes []`, proof `CANDIDATE_NOT_UNIQUE` (4 matches) | the same plan, `DUPLICATE_CANDIDATE` | refused |
+| `d1-authored-name` (D1 B) | success | 2 · 2 · 2 · 2 | contract pass, `role` target, `scopes []`, proof `CANDIDATE_NOT_UNIQUE` (4 matches) | the same plan, `DUPLICATE_CANDIDATE` | refused |
+| `d1-record-key` | refused | 2 · 2 · 2 · 2 | contract pass, `role` target, `scopes []`, proof `CANDIDATE_NOT_UNIQUE` (4 matches) | the same plan, `DUPLICATE_CANDIDATE` | refused |
+| `d1-computed-row` | refused | 2 · 2 · 2 · 2 | contract pass, `role` target, `scopes []`, proof `CANDIDATE_NOT_UNIQUE` (2 matches) | the same plan, `DUPLICATE_CANDIDATE` | refused |
+
+- **Totals:** 8 requests, 8 replies, 8 consumed refusals, 0 accepted, 0 browser-proven, positives proven
+  **0/2**. False targets proposed 0, accepted 0. No withheld identity in any request. Scope category `none`
+  8 of 8. Refusals: `proof:CANDIDATE_NOT_UNIQUE` 4, `duplicate:DUPLICATE_CANDIDATE` 4. `SCOPE_NOT_OFFERED` 0.
+- **What the model did:** it wrote no `hasText`, no invented scope and no withheld identity. In both positives
+  it also did not copy the offered scope. Each attempt 1 was the bare duplicate `role` target, so the product's
+  proof found it not unique. Each attempt 2 repeated that plan after the `CANDIDATE_NOT_UNIQUE` feedback.
+- **The two no-identity cases ended refused as required.** They were refused by the proof and the duplicate
+  rule. The model never proposed a withheld scope, so this run did not exercise `SCOPE_NOT_OFFERED`.
+- **Against the first run (one run each, not a rate):** the older request drew a `hasText` scope in 8 of 8
+  replies, and none reached the browser. This request drew `scopes []` in 8 of 8, and 4 reached the proof.
+  Neither run proved a D1 candidate. That the request removed the `hasText` pattern fits this pair of runs. It
+  is not a measured improvement in quality.
+- **Where the limit is: model output.** The request carried the offered scope, and the fixture controls
+  checked it before the model was asked. The 0.8B did not use it. Nothing was loosened or retried.
+- **Not kept:** per-call model timings for `d1-test-id` and `d1-authored-name`. The console cut them, and the
+  evidence holds codes only. For the other two cases the console shows 33–42 s inference per call, 27–37
+  output tokens, and every call inside the 185 s host deadline.
+- **Not changed:** model, pack, request, compiler, intent guard, scope rule, budget, deadlines, fixtures and
+  verifier. Real-model D1 quality remains unshown. §9 acceptance is unmet, and L3 stays `in_progress`.
 
 ### §1 owner decisions: duplicate rows (D1) and "Use in action" (D2) (2026-09-23 design review; decided 2026-09-24)
 
@@ -922,8 +959,8 @@ Each accepted candidate must be the recorded element on a fresh page: one match,
 repair proof again, and the click. False-target is 0 over every accepted candidate. Five scripted controls
 show that a bypassed gate B or C, a stubbed proof and a second attempt without the real refusal are each
 caught. The cases it does not cover (frames, shadow, rows, protected login, replay across rows) stay with
-the scripted suites. `verify:ai-locator-quality-live-d1` (built 2026-09-24; run once the same day, 12/0, INCONCLUSIVE exit 2,
-0/2 positives proven, 0 false targets) runs D1's own four
+the scripted suites. `verify:ai-locator-quality-live-d1` (built 2026-09-24; run twice that day, once per request form, each 12/0,
+INCONCLUSIVE exit 2, 0/2 positives proven, 0 false targets) runs D1's own four
 cases on `/recorder-lab/element-spy`, reported apart (see "§1 D1 and D2 as built").
 `verify:ai-locator-quality-controls` (49/0 since 2026-09-24, no model) runs the saved evidence's 17 checks, the
 Spy session evidence's 21, and every scripted control of both sets. Each live run, `verify:ai-spy-live`
