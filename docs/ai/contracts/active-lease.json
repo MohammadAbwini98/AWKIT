@@ -1,27 +1,29 @@
 {
   "task": "awkit-djnl-10-ai-runtime-packaging-0924",
   "contract_path": "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json",
-  "holder": "project-state",
-  "status": "released",
+  "holder": "runtime",
+  "status": "active",
   "allowed_paths": [
-    ".beads/**",
-    "docs/ai/COMMANDS.md",
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/HANDOFF.md",
-    "docs/ai/KNOWN_ISSUES.md",
-    "docs/ai/TASK_LOG.md",
-    "docs/plans/ai-upgrade-v5/L1-ai-foundation.md",
-    "docs/plans/ai-upgrade-v5/L3-intelligent-locators.md",
-    "docs/plans/ai-upgrade-v5/L5-failure-evidence-and-analysis.md",
-    "docs/plans/ai-upgrade-v5/L6-fragments-and-templates.md",
-    "docs/plans/ai-upgrade-v5/L7-release-confirmation.md",
-    "docs/plans/ai-upgrade-v5/ROADMAP.md",
-    "scripts/lib/verifier-classification.ts"
+    "scripts/prepare-ai-native-host.mjs"
   ],
-  "acquired_at": "2026-09-24T18:42:30.956Z",
-  "acquired_at_commit": "04eed53767fd5ec25a3493a70248e903094c426c",
-  "baseline_dirty": [],
-  "baseline_dirty_fingerprints": {},
+  "acquired_at": "2026-09-24T21:55:15.411Z",
+  "acquired_at_commit": "8739247c65b21f0656e699425909c2854712810b",
+  "baseline_dirty": [
+    "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json",
+    "docs/plans/ai-upgrade-v5/evidence/L4b-ai-technical-evaluation-2026-09-25.md",
+    "package.json",
+    "scripts/helpers/pe-image.mts",
+    "scripts/verify-ai-packaged-runtime.mts",
+    "scripts/verify-native-dependencies.mts"
+  ],
+  "baseline_dirty_fingerprints": {
+    "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json": "f24f0f3f7eb15bc492a21af107e4474a4ae7c2e441fcca05019e17619e52c478",
+    "docs/plans/ai-upgrade-v5/evidence/L4b-ai-technical-evaluation-2026-09-25.md": "37988e33625e759f056268ad110e1a7bc4df9a3dde8b59361f1baaa24dd8da6e",
+    "package.json": "c3e92643fff7320d282c22653b01f79a3eedef03e6791ddb05b2b3cdcf555d59",
+    "scripts/helpers/pe-image.mts": "a92b131ac32237b9672b957108f43ae652946e0232092da8224a2ad920f805d9",
+    "scripts/verify-ai-packaged-runtime.mts": "2754d7706c9c000e70e1eb2ac6259d380996384c2c8afaedca3c2bb1b44b546c",
+    "scripts/verify-native-dependencies.mts": "56e3d979d4d896226c79dc56968b8a5673ecbcfe97b23a055d65e3db5fbfea14"
+  },
   "baseline_watched_ignored": {
     ".env": "absent",
     ".claude/settings.local.json": "6238:1788551784499.886",
@@ -34,8 +36,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-24T18:43:05.790Z",
-  "released_reason": "L7 tracker note recorded at b2d4d2d1, performance confirmation GO and security evidence review noted, nothing closed, no edge changed",
-  "archived_at": "2026-09-24T18:43:05.792Z"
+  "violations": []
 }

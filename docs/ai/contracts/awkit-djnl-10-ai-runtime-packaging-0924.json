@@ -3,7 +3,7 @@
   "task": {
     "id": "awkit-djnl-10-ai-runtime-packaging-0924",
     "title": "L7 packaging: the installer carries the pinned local-AI runtime beside its host",
-    "objective": "Phase L L7 › Packaging requires that the installer carry the pinned runtime and integration only, with the model pack separate. It does not: node-llama-cpp is a dev dependency, electron-builder.json ships only native-hosts/zvec, and no script stages native-hosts/ai, so a packaged build reports the AI runtime as not included and no packaged AI gate can run (L1 decision record: 'no packaged AI gate has run'). Stage native-hosts/ai/ai-host.cjs with node-llama-cpp 3.21.1, the CPU-only @node-llama-cpp/win-x64 prebuilt and node-llama-cpp's declared runtime dependency closure into build/native-hosts/ai (scripts/prepare-ai-native-host.mjs, mirroring the Zvec host: never downloads, refuses symlinks and escapes, GPU and foreign prebuilts, the llama.cpp source bundle, type declarations and source maps excluded, a per-file SHA-256 manifest, the runtime build checked against AI_RUNTIME_PIN), ship it through electron-builder extraResources, call it from both package pipelines before the dependency manifest is generated, fold its manifest into the signed dependency manifest as aiRuntime, and have validate:offline checksum it (a strict release without the runtime fails). Prove it with verify:ai-packaged-runtime, which stages into a temp directory outside the repository so module lookup cannot fall back to the repository's node_modules, loads the runtime there with two negative controls, handshakes the production AiUtilityHostManager with the staged host, runs the live harness on it with the pinned 0.8B pack, and repeats the checks on dist/win-unpacked. No model pack is bundled, no AI behavior, threshold, permission, policy, autonomy tier or model pin changes, and no Phase L milestone closes on this. Extended 2026-09-24 by the owner's Phase L closeout mission (delegated technical and product decisions, no manufactured human sign-off): resolve the seven QC findings on this packaging (QC-1..QC-7), rebuild and re-run the packaged gates, and reconcile the Phase L milestones against their own acceptance criteria, recording each acceptance decision as the agent's under that delegation.",
+    "objective": "Phase L L7 › Packaging requires that the installer carry the pinned runtime and integration only, with the model pack separate. It does not: node-llama-cpp is a dev dependency, electron-builder.json ships only native-hosts/zvec, and no script stages native-hosts/ai, so a packaged build reports the AI runtime as not included and no packaged AI gate can run (L1 decision record: 'no packaged AI gate has run'). Stage native-hosts/ai/ai-host.cjs with node-llama-cpp 3.21.1, the CPU-only @node-llama-cpp/win-x64 prebuilt and node-llama-cpp's declared runtime dependency closure into build/native-hosts/ai (scripts/prepare-ai-native-host.mjs, mirroring the Zvec host: never downloads, refuses symlinks and escapes, GPU and foreign prebuilts, the llama.cpp source bundle, type declarations and source maps excluded, a per-file SHA-256 manifest, the runtime build checked against AI_RUNTIME_PIN), ship it through electron-builder extraResources, call it from both package pipelines before the dependency manifest is generated, fold its manifest into the signed dependency manifest as aiRuntime, and have validate:offline checksum it (a strict release without the runtime fails). Prove it with verify:ai-packaged-runtime, which stages into a temp directory outside the repository so module lookup cannot fall back to the repository's node_modules, loads the runtime there with two negative controls, handshakes the production AiUtilityHostManager with the staged host, runs the live harness on it with the pinned 0.8B pack, and repeats the checks on dist/win-unpacked. No model pack is bundled, no AI behavior, threshold, permission, policy, autonomy tier or model pin changes, and no Phase L milestone closes on this. Extended 2026-09-24 by the owner's Phase L closeout mission (delegated technical and product decisions, no manufactured human sign-off): resolve the seven QC findings on this packaging (QC-1..QC-7), rebuild and re-run the packaged gates, and reconcile the Phase L milestones against their own acceptance criteria, recording each acceptance decision as the agent's under that delegation. Extended 2026-09-25 by the owner's Phase L finalization mission and decision (awkit-i6ot remedy: app-local Microsoft Visual C++ runtime DLLs from the Visual Studio redist folder, Microsoft.VC14x.CRT): stage msvcp140.dll, vcruntime140.dll and vcruntime140_1.dll beside every staged native binary, only from the Visual Studio installation vswhere reports, each verified as Microsoft-signed x64 at least as new as the binaries' linker; refuse to stage without it; prove self-sufficiency with verify:native-dependencies (whole-artifact PE resolution with Windows' own files identified by signature, and a loader-level proof with every name the host could supply from outside the tree made unreachable).",
     "requested_by": "repository owner",
     "risk_level": 3,
     "mode": "change"
@@ -86,21 +86,9 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "project-state",
+      "agent_id": "runtime",
       "allowed_paths": [
-        ".beads/**",
-        "docs/ai/COMMANDS.md",
-        "docs/ai/CURRENT_STATE.md",
-        "docs/ai/HANDOFF.md",
-        "docs/ai/KNOWN_ISSUES.md",
-        "docs/ai/TASK_LOG.md",
-        "docs/plans/ai-upgrade-v5/L1-ai-foundation.md",
-        "docs/plans/ai-upgrade-v5/L3-intelligent-locators.md",
-        "docs/plans/ai-upgrade-v5/L5-failure-evidence-and-analysis.md",
-        "docs/plans/ai-upgrade-v5/L6-fragments-and-templates.md",
-        "docs/plans/ai-upgrade-v5/L7-release-confirmation.md",
-        "docs/plans/ai-upgrade-v5/ROADMAP.md",
-        "scripts/lib/verifier-classification.ts"
+        "scripts/prepare-ai-native-host.mjs"
       ]
     },
     "writer_sequence": [
