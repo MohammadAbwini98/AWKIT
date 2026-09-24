@@ -132,7 +132,8 @@ try {
   console.log("Beads issue tracker:");
   const beads = parseBeads();
   // 320 since 2026-09-22: Phase N epic `awkit-vra` and its eight planned workstreams were filed.
-  check("320 issues parse", beads.stats.total === 320, `got ${beads.stats.total}`);
+  // 321 since 2026-09-24: the Phase L closeout filed `awkit-i6ot` (the packaged AI runtime's MSVC dependency).
+  check("321 issues parse", beads.stats.total === 321, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -603,8 +604,10 @@ try {
   // open milestone children. Nothing closed and no Phase L status changed.
   // Then 26/294 of 320 on 2026-09-22: Phase N registered NOT STARTED as epic `awkit-vra` with eight
   // open workstream children. Nothing closed and no Phase L or Phase M status changed.
-    "26 outstanding / 294 closed",
-    beads.stats.outstanding === 26 && beads.stats.closed === 294,
+  // Then 24/297 of 321 on 2026-09-24, the Phase L closeout: L1 `awkit-djnl.1`, L3 `awkit-djnl.4` and
+  // L5b `awkit-djnl.8` closed (three out of outstanding), and `awkit-i6ot` filed OPEN (one in).
+    "24 outstanding / 297 closed",
+    beads.stats.outstanding === 24 && beads.stats.closed === 297,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -678,9 +681,11 @@ try {
   // Then 180 on 2026-09-22: Phase N added eight parent-child edges and seventeen blocks edges:
   // the epic after Phase L, N1 after L7, N2 after N1, N3 after N2, N4 after N3, N5 after N2/N3,
   // N6 after N3/N4/N5, N7 after N3/N5/N6, and N8 after N4/N5/N6/N7. Phase M is not an edge.
+  // Then 181 on 2026-09-24: `awkit-i6ot` was filed with one `blocks` edge on `awkit-djnl.10` (L7).
+  // Closing L1, L3 and L5b removed no edge.
   check(
-    "180 edges are present to classify",
-    beads.stats.edges === 180,
+    "181 edges are present to classify",
+    beads.stats.edges === 181,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(

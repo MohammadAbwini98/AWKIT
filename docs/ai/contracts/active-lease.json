@@ -2,7 +2,7 @@
   "task": "awkit-djnl-10-ai-runtime-packaging-0924",
   "contract_path": "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     ".beads/**",
     "docs/ai/COMMANDS.md",
@@ -42,5 +42,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-24T18:34:20.517Z",
+  "released_reason": "Phase L closeout recorded at ecea3c65: QC-1 to QC-7 resolved, awkit-i6ot filed and open on an owner decision, L1 L3 L5b closed, contract blocked with qa FAIL and qc pending re-review",
+  "archived_at": "2026-09-24T18:34:20.519Z"
 }
