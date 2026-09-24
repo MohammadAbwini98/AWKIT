@@ -433,6 +433,85 @@ if (Test-Property $manifestJson "semanticNative") {
   }
 }
 
+# === Local-AI utility host and its pinned runtime (Phase L, L7) ===
+# L7 requires the installer to carry the pinned runtime, so a strict release without it FAILS; in
+# development it is a warning, because AI stays optional and AWKIT starts and runs without it. When it
+# is included, the runtime must be CPU-only, exactly AI_RUNTIME_PIN.build, ship no model pack and no
+# GPU or foreign-platform prebuilt, and every staged file must be listed and checksum-verified.
+$aiPinSource = Join-Path $root "src\offline\AiModelManifest.ts"
+$aiRuntimePin = $null
+if (Test-Path $aiPinSource) {
+  $aiPinMatch = [regex]::Match((Get-Content -Raw $aiPinSource), 'AI_RUNTIME_PIN[\s\S]*?build:\s*"([^"]+)"')
+  if ($aiPinMatch.Success) { $aiRuntimePin = $aiPinMatch.Groups[1].Value }
+}
+$ai = if (Test-Property $manifestJson "aiRuntime") { $manifestJson.aiRuntime } else { $null }
+if ($null -eq $ai -or $ai.enabled -ne $true) {
+  Add-Problem "Local-AI runtime is not included in this build; Phase L L7 requires the installer to carry it. Run 'npm run prepare:ai-host' before generating the manifest. AI features stay optional and AWKIT starts normally without it." $Strict
+} else {
+  Write-Host "Validating the local-AI runtime..."
+  if ($ai.requiredForAppStartup -ne $false) {
+    $failures.Add("Local-AI runtime must declare requiredForAppStartup=false (AI is optional).")
+  }
+  if ($ai.modelPackBundled -ne $false) {
+    $failures.Add("Local-AI runtime must declare modelPackBundled=false (the model pack is imported in Settings, never bundled).")
+  }
+  if ($ai.gpu -ne $false -or $ai.platform -ne "win32" -or $ai.arch -ne "x64") {
+    $failures.Add("Local-AI runtime must be the CPU-only win32/x64 build (got gpu=$($ai.gpu), $($ai.platform)/$($ai.arch)).")
+  }
+  if ([string]::IsNullOrWhiteSpace($aiRuntimePin) -or [string]$ai.runtimeBuild -ne $aiRuntimePin) {
+    $failures.Add("Local-AI runtime build '$($ai.runtimeBuild)' is not AI_RUNTIME_PIN.build '$aiRuntimePin' (src/offline/AiModelManifest.ts).")
+  }
+
+  $aiAssetPaths = @($ai.assets | ForEach-Object { [string]$_.relativePath })
+  foreach ($required in @(
+    "native-hosts/ai/ai-host.cjs",
+    "native-hosts/ai/node_modules/node-llama-cpp/package.json",
+    "native-hosts/ai/node_modules/node-llama-cpp/llama/binariesGithubRelease.json",
+    "native-hosts/ai/node_modules/@node-llama-cpp/win-x64/bins/win-x64/llama-addon.node"
+  )) {
+    if ($aiAssetPaths -notcontains $required) {
+      $failures.Add("Local-AI runtime manifest does not list a mandatory asset: $required")
+    }
+  }
+  foreach ($path in $aiAssetPaths) {
+    if ($path -match '^native-hosts/ai/node_modules/@node-llama-cpp/(?!win-x64/)' -or $path -match '\.gguf$' -or $path -match 'gitRelease\.bundle$') {
+      $failures.Add("Local-AI runtime ships a forbidden file (GPU or foreign prebuilt, model pack, or llama.cpp source bundle): $path")
+    }
+  }
+
+  $aiStagedRoot = Join-Path $root "build\native-hosts\ai"
+  if (-not (Test-Path (Join-Path $aiStagedRoot "ai-native-host-manifest.json"))) {
+    $failures.Add("Local-AI runtime is declared included but its staged manifest is missing: build/native-hosts/ai/ai-native-host-manifest.json (run 'npm run prepare:ai-host').")
+  } else {
+    # electron-builder ships the whole staged directory, so an unlisted file would ship unverified.
+    $aiOnDisk = @(Get-ChildItem -LiteralPath $aiStagedRoot -Recurse -File -Force | Where-Object { $_.Name -ne "ai-native-host-manifest.json" })
+    if ($aiOnDisk.Count -ne $aiAssetPaths.Count) {
+      $failures.Add("Local-AI staged tree holds $($aiOnDisk.Count) files but the manifest lists $($aiAssetPaths.Count); every shipped file must be listed.")
+    }
+  }
+
+  $aiChecked = 0
+  foreach ($asset in $ai.assets) {
+    $abs = Join-Path $root ("build\" + ($asset.relativePath -replace '/', '\'))
+    if (-not (Test-Path -LiteralPath $abs)) {
+      $failures.Add("Local-AI runtime asset is missing from the staged tree: $($asset.relativePath)")
+      continue
+    }
+    $actualSize = (Get-Item -LiteralPath $abs).Length
+    if ($actualSize -ne $asset.size) {
+      $failures.Add("Local-AI runtime asset size mismatch for $($asset.relativePath): manifest $($asset.size), on disk $actualSize.")
+      continue
+    }
+    $actualHash = Get-AwkitFileSha256 -LiteralPath $abs
+    if ($actualHash -ne ([string]$asset.sha256).ToLower()) {
+      $failures.Add("Local-AI runtime asset checksum mismatch for $($asset.relativePath) (corrupted or tampered).")
+      continue
+    }
+    $aiChecked++
+  }
+  Write-Host "Local-AI runtime: $aiChecked/$($aiAssetPaths.Count) assets checksum-verified ($($ai.runtimeBuild), CPU only, no model pack)."
+}
+
 foreach ($warning in $warnings) {
   Write-Warning $warning
 }

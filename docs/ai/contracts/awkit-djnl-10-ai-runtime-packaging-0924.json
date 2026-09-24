@@ -77,15 +77,10 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "release",
+      "agent_id": "qa",
       "allowed_paths": [
-        "build",
-        "resources/THIRD_PARTY_NOTICES.md",
-        "resources/dependency-manifest.json",
-        "resources/dependency-manifest.sig",
-        "scripts/generate-dependency-manifest.ps1",
-        "scripts/package-per-user-installer.ps1",
-        "scripts/package-portable.ps1"
+        "scripts/validate-offline-bundle.ps1",
+        "scripts/verify-ai-packaged-runtime.mts"
       ]
     },
     "writer_sequence": [
@@ -203,6 +198,28 @@
         "acquired_at_commit": "06f987d4b3b8023aeb0f043a43677d23c3368d05",
         "released_at": "2026-09-24T14:19:09.072Z",
         "released_reason": "handoff to release: staging script committed at a79ba983, the package pipelines, manifest generator and notices carry the staged AI runtime next",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:release:2026-09-24T14:19:09.655Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "build",
+          "resources/THIRD_PARTY_NOTICES.md",
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig",
+          "scripts/generate-dependency-manifest.ps1",
+          "scripts/package-per-user-installer.ps1",
+          "scripts/package-portable.ps1"
+        ],
+        "acquired_at": "2026-09-24T14:19:09.655Z",
+        "acquired_at_commit": "a79ba98313d800ae7cf728cd2816754f4a2d939b",
+        "released_at": "2026-09-24T14:22:14.323Z",
+        "released_reason": "handoff to qa: release edits committed at 28d21f77, strict offline validation must checksum the aiRuntime section next",
         "amendments": [],
         "overrides": [],
         "violations": []

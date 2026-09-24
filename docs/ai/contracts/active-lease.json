@@ -1,26 +1,23 @@
 {
   "task": "awkit-djnl-10-ai-runtime-packaging-0924",
   "contract_path": "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json",
-  "holder": "release",
+  "holder": "qa",
   "status": "active",
   "allowed_paths": [
-    "build",
-    "resources/THIRD_PARTY_NOTICES.md",
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig",
-    "scripts/generate-dependency-manifest.ps1",
-    "scripts/package-per-user-installer.ps1",
-    "scripts/package-portable.ps1"
+    "scripts/validate-offline-bundle.ps1",
+    "scripts/verify-ai-packaged-runtime.mts"
   ],
-  "acquired_at": "2026-09-24T14:19:09.655Z",
-  "acquired_at_commit": "a79ba98313d800ae7cf728cd2816754f4a2d939b",
+  "acquired_at": "2026-09-24T14:22:14.619Z",
+  "acquired_at_commit": "28d21f7756bd9be304834e992cacc32cb678fa43",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json"
+    "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json",
+    "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "27da98f344d3d09d84387002027440411d087612e63bc90654b097f861648cf8",
-    "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json": "1e13ce99845cae391930f849587daaaa2637d028fed6edc3e7b0ad0ef827627e"
+    "docs/ai/contracts/active-lease.json": "c5ad74d85cb8f3a18b252ce07d3e68bfc812e41b7bf75462f5cf52c0e79c65d2",
+    "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json": "89215b89335c49fb1f0f0a760827964b3b036ff68846871fd35a4485bd219c2a",
+    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
