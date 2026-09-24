@@ -81,10 +81,9 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "qa",
+      "agent_id": "runtime",
       "allowed_paths": [
-        "scripts/validate-offline-bundle.ps1",
-        "scripts/verify-ai-packaged-runtime.mts"
+        "scripts/prepare-ai-native-host.mjs"
       ]
     },
     "writer_sequence": [
@@ -470,6 +469,23 @@
         "acquired_at_commit": "93beb34148479e6e57935bd1c79d839d93e1e8d1",
         "released_at": "2026-09-24T17:28:03.523Z",
         "released_reason": "handoff to qa: run the red proof for QC-4 and QC-5 in the strict validator by restoring its original pin regex and count comparison for one run, with the staging fix in the working tree",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:qa:2026-09-24T17:28:03.599Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/validate-offline-bundle.ps1",
+          "scripts/verify-ai-packaged-runtime.mts"
+        ],
+        "acquired_at": "2026-09-24T17:28:03.599Z",
+        "acquired_at_commit": "93beb34148479e6e57935bd1c79d839d93e1e8d1",
+        "released_at": "2026-09-24T17:51:31.566Z",
+        "released_reason": "handoff to runtime: commit the QC-3 and QC-4 staging fix, proven by verify:ai-packaged-runtime A0 11 of 11 in the working tree",
         "amendments": [],
         "overrides": [],
         "violations": []

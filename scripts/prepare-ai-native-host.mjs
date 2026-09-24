@@ -58,14 +58,65 @@ const readJson = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const sha256 = (file) => crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
 const posix = (p) => p.split(path.sep).join("/");
 
+// ── Repository boundary ──────────────────────────────────────────────────────────────────────────
+
+const REAL_ROOT = fs.realpathSync(ROOT);
+const samePath = (a, b) => (process.platform === "win32" ? a.toLowerCase() === b.toLowerCase() : a === b);
+const isInside = (base, candidate) => {
+  const rel = path.relative(base, candidate);
+  return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
+};
+
+/** The real path of `p`, resolving its nearest existing ancestor so a path still to be created is covered. */
+function realPathOf(p) {
+  const rest = [];
+  let probe = p;
+  while (!fs.existsSync(probe) && path.dirname(probe) !== probe) {
+    rest.unshift(path.basename(probe));
+    probe = path.dirname(probe);
+  }
+  return path.join(fs.realpathSync(probe), ...rest);
+}
+
+/**
+ * A source path must resolve to exactly its own place inside the repository. A junction or symlink
+ * anywhere on the way (a linked node_modules, an `npm link`ed package, a linked scope folder) would stage
+ * files from outside the tree that was installed and tested, and nothing downstream could tell: the entry's
+ * own lstat looks ordinary when the link sits on a parent.
+ */
+function confined(p, label) {
+  const expected = path.join(REAL_ROOT, path.relative(ROOT, p));
+  let real;
+  try {
+    real = fs.realpathSync(p);
+  } catch (error) {
+    fail(`Boundary: ${label} cannot be resolved (${error?.code ?? error}).`);
+    return false;
+  }
+  if (!isInside(ROOT, p) || !samePath(real, expected)) {
+    fail(`Boundary: ${label} resolves to ${real}, not ${expected}: it is reached through a link or lies outside the repository, and staging copies only real paths inside it.`);
+    return false;
+  }
+  return true;
+}
+
 // ── Output directory ─────────────────────────────────────────────────────────────────────────────
 
 const outFlag = process.argv.indexOf("--out");
 const OUT_DIR = outFlag >= 0 ? path.resolve(process.argv[outFlag + 1] ?? "") : DEFAULT_OUT;
-const relToRoot = path.relative(ROOT, OUT_DIR);
-const insideRoot = relToRoot === "" || (!relToRoot.startsWith("..") && !path.isAbsolute(relToRoot));
+const insideRoot = isInside(ROOT, OUT_DIR);
 if (OUT_DIR !== DEFAULT_OUT && insideRoot) {
   fail(`--out must be the default ${posix(path.relative(ROOT, DEFAULT_OUT))} or a directory outside the repository (got ${OUT_DIR}).`);
+}
+// The directory is removed and rewritten, so where it RESOLVES decides what is at risk: an --out that
+// leads back into the repository through a junction, or a default whose parents are linked elsewhere.
+const realOut = realPathOf(OUT_DIR);
+if (OUT_DIR === DEFAULT_OUT) {
+  if (!samePath(realOut, path.join(REAL_ROOT, path.relative(ROOT, DEFAULT_OUT)))) {
+    fail(`Boundary: ${posix(path.relative(ROOT, DEFAULT_OUT))} resolves to ${realOut} through a link; the default output must be a real directory in the repository.`);
+  }
+} else if (!insideRoot && isInside(REAL_ROOT, realOut)) {
+  fail(`Boundary: --out ${OUT_DIR} resolves to ${realOut}, inside the repository through a link; it must be the default or a directory outside the repository.`);
 }
 // The directory is replaced, so it must be empty, absent, or an earlier staging of this script.
 if (fs.existsSync(OUT_DIR) && fs.readdirSync(OUT_DIR).length > 0 && !fs.existsSync(path.join(OUT_DIR, MANIFEST_NAME))) {
@@ -78,28 +129,66 @@ if (process.platform !== REQUIRED_PLATFORM || process.arch !== REQUIRED_ARCH) {
   fail(`Staging must run on ${REQUIRED_PLATFORM}-${REQUIRED_ARCH} (got ${process.platform}-${process.arch}).`);
 }
 if (!fs.existsSync(HOST_SOURCE)) fail(`Missing raw host source: ${posix(path.relative(ROOT, HOST_SOURCE))}`);
+else confined(HOST_SOURCE, "native-hosts/ai/ai-host.cjs");
 
+// Exactly one declaration, at an exact version: a second one with another range is a conflict, not a fallback.
 const rootPkg = readJson(path.join(ROOT, "package.json"));
-const pinnedVersion = rootPkg.devDependencies?.[RUNTIME_PACKAGE] ?? rootPkg.dependencies?.[RUNTIME_PACKAGE];
-if (!pinnedVersion || !/^\d+\.\d+\.\d+$/.test(pinnedVersion)) {
-  fail(`${RUNTIME_PACKAGE} must be pinned to an exact version in package.json (found "${pinnedVersion}").`);
+const declaredPins = ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"]
+  .filter((section) => rootPkg[section]?.[RUNTIME_PACKAGE] !== undefined)
+  .map((section) => `${section} ${rootPkg[section][RUNTIME_PACKAGE]}`);
+const pinnedVersion = declaredPins.length === 1 ? (/^\S+ (\d+\.\d+\.\d+)$/.exec(declaredPins[0])?.[1] ?? null) : null;
+if (!pinnedVersion) {
+  fail(`package.json: ${RUNTIME_PACKAGE} must be declared exactly once, at an exact x.y.z version (found: ${declaredPins.join(", ") || "none"}).`);
 }
 
-const pinMatch = /AI_RUNTIME_PIN[\s\S]*?build:\s*"([^"]+)"/.exec(fs.readFileSync(PIN_SOURCE, "utf8"));
-const pinnedBuild = pinMatch?.[1] ?? null;
-if (!pinnedBuild) fail("AI_RUNTIME_PIN.build is not set in src/offline/AiModelManifest.ts; an unpinned runtime is never staged.");
+/**
+ * AI_RUNTIME_PIN, read strictly. A lazy match from the first mention of the name used to take the first
+ * `build: "..."` anywhere after it, so an unpinned `build: null` followed by any other object's build read
+ * as pinned, and a second declaration was never noticed. The source must declare it once, frozen, with one
+ * `name` and one `build`, and the build must be a `node-llama-cpp@<x.y.z>+llama.cpp@<release>` string.
+ */
+function readRuntimePin(source) {
+  const declared = [...source.matchAll(/^[ \t]*(?:export[ \t]+)?(?:const|let|var)[ \t]+AI_RUNTIME_PIN\b/gm)].length;
+  const frozen = [...source.matchAll(/^export const AI_RUNTIME_PIN\b[^=\r\n]*=\s*Object\.freeze\(\{([^{}]*)\}\);/gm)];
+  if (declared !== 1 || frozen.length !== 1) {
+    return { problem: `src/offline/AiModelManifest.ts must declare it exactly once as \`export const AI_RUNTIME_PIN ... = Object.freeze({ ... });\` (found ${declared} declaration(s), ${frozen.length} in that form).` };
+  }
+  const builds = [...frozen[0][1].matchAll(/^\s*build\s*:\s*(.+?)\s*,?\s*$/gm)];
+  const names = [...frozen[0][1].matchAll(/^\s*name\s*:\s*"llama\.cpp"\s*,?\s*$/gm)];
+  if (builds.length !== 1 || names.length !== 1) {
+    return { problem: `its declaration must set name: "llama.cpp" and exactly one build (found ${names.length} name, ${builds.length} build).` };
+  }
+  const value = builds[0][1];
+  if (!/^"[^"]*"$/.test(value)) return { problem: `build is ${value}, not a pinned string; an unpinned runtime is never staged.` };
+  const form = /^"(node-llama-cpp@(\d+\.\d+\.\d+)\+llama\.cpp@[A-Za-z0-9][A-Za-z0-9._-]*)"$/.exec(value);
+  if (!form) return { problem: `build ${value} is not of the form node-llama-cpp@<x.y.z>+llama.cpp@<release>.` };
+  return { build: form[1], npmVersion: form[2] };
+}
+
+let pinnedBuild = null;
+if (!fs.existsSync(PIN_SOURCE)) {
+  fail("AI_RUNTIME_PIN: src/offline/AiModelManifest.ts is missing; an unpinned runtime is never staged.");
+} else if (confined(PIN_SOURCE, "src/offline/AiModelManifest.ts")) {
+  const pin = readRuntimePin(fs.readFileSync(PIN_SOURCE, "utf8"));
+  if (pin.problem) fail(`AI_RUNTIME_PIN: ${pin.problem}`);
+  else if (pinnedVersion && pin.npmVersion !== pinnedVersion) {
+    fail(`AI_RUNTIME_PIN: build names ${RUNTIME_PACKAGE} ${pin.npmVersion} but package.json pins ${pinnedVersion}; the two must agree.`);
+  } else pinnedBuild = pin.build;
+}
 
 const hostProtocol = /const PROTOCOL_VERSION = (\d+);/.exec(fs.existsSync(HOST_SOURCE) ? fs.readFileSync(HOST_SOURCE, "utf8") : "");
 if (!hostProtocol) fail("The host's PROTOCOL_VERSION could not be read.");
 
 const runtimeDir = path.join(NODE_MODULES, RUNTIME_PACKAGE);
 const binaryDir = path.join(NODE_MODULES, ...BINARY_PACKAGE.split("/"));
+if (fs.existsSync(NODE_MODULES)) confined(NODE_MODULES, "node_modules");
 if (!fs.existsSync(path.join(runtimeDir, "package.json"))) fail(`${RUNTIME_PACKAGE} is not installed.`);
+else confined(runtimeDir, `node_modules/${RUNTIME_PACKAGE}`);
 // The Windows CPU prebuilt is an OPTIONAL dependency: npm silently omits it under --no-optional or a
 // platform mismatch, which would otherwise yield a package that stages fine and fails at runtime.
 if (!fs.existsSync(path.join(binaryDir, "package.json"))) {
   fail(`${BINARY_PACKAGE} is not installed. Install with optional dependencies enabled; the CPU prebuilt is mandatory.`);
-}
+} else confined(binaryDir, `node_modules/${BINARY_PACKAGE}`);
 stop("(preconditions)");
 
 const runtimePkg = readJson(path.join(runtimeDir, "package.json"));
@@ -152,10 +241,8 @@ while (queue.length > 0) {
       if (!optional.has(name) || name === BINARY_PACKAGE) fail(`Declared runtime dependency ${name} of ${pkg.name} is not installed.`);
       continue;
     }
-    if (fs.lstatSync(found).isSymbolicLink()) {
-      fail(`Refusing to stage a symlinked package: ${posix(path.relative(ROOT, found))}`);
-      continue;
-    }
+    // The package's own entry AND every parent on its way must be real: a linked parent looks ordinary to lstat.
+    if (!confined(found, posix(path.relative(ROOT, found)))) continue;
     if (!closure.has(found)) {
       closure.set(found, name);
       queue.push(found);
