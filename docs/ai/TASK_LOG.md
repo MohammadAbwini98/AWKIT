@@ -1,5 +1,26 @@
 # TASK_LOG
 
+## 2026-09-24 — Phase L: verify:ai-spy-live's attempt classifier applies D1's scope rule (Claude)
+
+- **Task:** fix the OPEN `classifyAttempts` defect with a no-model regression. Verifier-only.
+- **Root cause:** the classifier skipped D1's `SCOPE_NOT_OFFERED` rule, so a plan the product correctly
+  withholds, but the page proves right, counted as a right plan withheld.
+- **Change (`6b4ca1eb`):** `classifyAttempts`, `judge` and `refusedShape` moved unchanged into
+  `scripts/lib/recorder-spy-harness.mts`. They now apply the production `unofferedScopeField` to the
+  inspection's own `upgradeContext` before the duplicate rule. `verify-ai-spy-live.mts` passes the context and
+  lab URL. `verify:ai-locator-attempts` gained §19 (14 checks). The mock-site README names it.
+- **Checks:**
+  - `verify:ai-locator-attempts`: red 163/167, green 167/167 (was 153), mutation 163/167, reverted, final
+    167/167;
+  - `typecheck:scripts` PASS, build PASS, `verify:ai-locator-quality-controls` 11/0;
+  - `verify:verifier-classification`, `verify:roadmap-dashboard` and `git diff --check`: run after the
+    `awkit-djnl.4` note; results in its contract and commit.
+- **Not run:** `verify:ai-spy-live`, `verify:ai-locator-quality-live-d1` (real-model paths, out of scope).
+- **Records:** `KNOWN_ISSUES.md` (the defect FIXED, record kept; new OPEN durable-evidence follow-up), L3
+  plan, `CURRENT_STATE.md`, `HANDOFF.md`. `DECISIONS.md` and `COMMANDS.md` unchanged.
+- **Result:** L3 stays `in_progress`; no milestone, bead status, edge or verdict changed. The D1 live result is
+  unchanged.
+
 ## 2026-09-24 — Phase L: D1 real-model quality set run once on the real 0.8B (Claude)
 
 - **Task:** the owner-authorized single run of `verify:ai-locator-quality-live-d1`, then records and the

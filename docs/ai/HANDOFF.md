@@ -1,6 +1,23 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-24, latest) — D1's live run on the real 0.8B: INCONCLUSIVE, 0 of 2 positives proven
+## HANDOFF (2026-09-24, latest) — verify:ai-spy-live's classifier now applies D1's scope rule
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. `awkit-djnl.4` stays
+  `in_progress` with a note for this fix; no bead's status or edge changed.
+- **Done (`6b4ca1eb`, verifier-only):** `classifyAttempts` moved to `scripts/lib/recorder-spy-harness.mts`.
+  It applies the production `unofferedScopeField` to the inspection's own `upgradeContext` before the
+  duplicate rule and the page. `verify:ai-locator-attempts` §19: red 163/167, green 167/167, mutation
+  163/167, reverted. No model run. The D1 live result is unchanged.
+- **Next, no owner step needed:** the durable-evidence follow-up in `KNOWN_ISSUES.md`. Make the live
+  locator-quality verifier write its counts-only report to `docs/plans/ai-upgrade-v5/evidence/`, with a
+  no-model check that it holds no fixture text.
+- **Needs the owner:** whether to change the request wording for scope copying, or accept D1 as
+  refused-only on the 0.8B; any further live run (`verify:ai-spy-live` or `-d1`); the 15 L4b reviews.
+- **Residual risk:** `verify:ai-spy-live`'s own glue (passing the context and URL) is type-checked, not run.
+- **Do not:** run a live model for this fix; allow `hasText` scopes; relax D1 or the scope rule. The
+  signed-license route (b) rebuild note below still applies.
+
+## HANDOFF (2026-09-24, superseded) — D1's live run on the real 0.8B: INCONCLUSIVE, 0 of 2 positives proven
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. `awkit-djnl.4` stays
   `in_progress` with a note for this run; no bead's status or edge changed.

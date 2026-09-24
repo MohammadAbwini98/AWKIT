@@ -1,5 +1,20 @@
 # KNOWN_ISSUES
 
+## A live locator-quality run keeps no durable per-case record (2026-09-24, OPEN — verifier follow-up, `awkit-djnl.4`)
+
+- **What happens:** `verify-ai-explanation-live.mts` prints the harness report and then deletes it with its
+  scratch folder (`fs.rmSync(harnessDir)`). When the tool running it cuts long output, the per-case detail
+  is gone. That is how the D1 run lost its first two cases' per-call strategy and scope kind.
+- **Existing mechanism to reuse:** `benchmark:ai-model-0-8b` writes counts-and-timings JSON into the
+  committed `docs/plans/ai-upgrade-v5/evidence/`, never model text. The harness report already holds only
+  counts, codes, shapes and timings.
+- **Follow-up (separate verifier change, not done here):** for `--feature locatorQuality`, write
+  `report.steps` to `docs/plans/ai-upgrade-v5/evidence/L3-locator-quality-live[-d1].json` before the scratch
+  folder is removed. Add a no-model check to `verify:ai-locator-quality-controls` that the written file holds
+  no fixture text (row text, record keys, email names). No live run is needed to build or prove it.
+- **Until then:** a future authorized live run should be launched where its whole output is kept. Missing
+  history is not reconstructed.
+
 ## The 0.8B writes a row-content scope instead of copying the offered D1 scope (2026-09-24, OPEN — model quality, `awkit-djnl.4`)
 
 - **Seen in:** the one authorized `verify:ai-locator-quality-live-d1` run, 12/0, exit 2 INCONCLUSIVE.
@@ -25,7 +40,23 @@
   plan refused before the browser that was proven anyway. Reverting the fix fails the D1 controls, 9/3.
 - **Fragile area:** a verifier that re-derives a product decision goes stale silently when the product gains
   a rule. When a loop gains a refusal, grep the verifiers that re-derive it.
-- **OPEN, same staleness in `verify:ai-spy-live`:**
+- **Same staleness in `verify:ai-spy-live` — FIXED 2026-09-24 in `6b4ca1eb` (was OPEN; the record below is kept):**
+  - **Root cause:** `classifyAttempts` re-derived each reply as contract, compiler and intent, duplicate,
+    then the page. It never ran D1's scope rule, so a plan the product refuses `SCOPE_NOT_OFFERED` and the
+    page proves is the inspected element counted in `rightButWithheld`.
+  - **Fix:** `classifyAttempts`, `judge` and `refusedShape` moved unchanged into
+    `scripts/lib/recorder-spy-harness.mts`. The live script runs Electron and the model on import, so it had
+    no seam. `classifyAttempts` now runs the production `unofferedScopeField` against the inspection's own
+    `upgradeContext` after the compiler and before the duplicate rule, as the loop does. The inspection
+    comes from `recorder:getInspection`, the same object main hands the job. A refused plan is recorded as
+    `intent SCOPE_NOT_OFFERED on <field>`, with its text shaped. It is never judged and never counted. No
+    request-text parsing and no second policy.
+  - **Regression:** `verify:ai-locator-attempts` §19, real Chromium on the Element Spy lab, scripted replies,
+    no model. Red before the fix 163/167, on the four scope checks only (the preconditions passed). Green
+    167/167. Disabling the rule again in the final source: 163/167 on the same four. Reverted.
+  - **Limit:** the live script's own glue (passing the inspection's context and the lab URL) is
+    type-checked, not run. `verify:ai-spy-live` itself was not run.
+- **Original record (was OPEN):**
   - `classifyAttempts` compiles each reply and asks the page, but knows nothing of D1's scope rule.
   - Its check "no plan the page proves right was withheld" (line 347) fails when a compiled plan is
     page-correct but withheld. Under D1 such plans are withheld on purpose: a `hasText "INV-2002"` row

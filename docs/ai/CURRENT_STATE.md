@@ -1,6 +1,32 @@
 # CURRENT_STATE
 
-## Phase L: D1 real-model quality set run once on the real 0.8B: INCONCLUSIVE, 0 of 2 positives proven, 0 false targets (2026-09-24, current)
+## Phase L: verify:ai-spy-live's attempt classifier applies D1's scope rule; no-model regression added (2026-09-24, current)
+
+**Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** `awkit-djnl.4` stays
+`in_progress` with a note for this fix; no bead's status or edge changed. Verifier-only (`6b4ca1eb`): product
+source, fixtures and the production `SCOPE_NOT_OFFERED` rule are unchanged. No model was run.
+
+- **Defect fixed** (was OPEN in `KNOWN_ISSUES.md`): `classifyAttempts` never applied D1's scope rule, so a
+  plan the product correctly withholds, but the page proves right, counted as a right plan withheld. It
+  now lives in `scripts/lib/recorder-spy-harness.mts`. It runs the production `unofferedScopeField` against
+  the inspection's own `upgradeContext`, after the compiler and before the duplicate rule, as the loop does.
+- **Regression:** `verify:ai-locator-attempts` §19, real Chromium on the Element Spy lab, scripted replies.
+  Red 163/167 before the fix, green 167/167 (was 153). The mutation re-disabling the rule fails 163/167 on
+  the same four checks, and it was reverted.
+- **Unchanged:** the D1 live result (12/0, exit 2 INCONCLUSIVE, 0 of 2 positives). L1 limited GO. L3
+  `in_progress`. L4b 1 of 16, TARGET PENDING. L5b automatic analysis, T2, automatic promotion, repair,
+  sweeps and row-text scoping stay off.
+- **New OPEN follow-up:** a live locator-quality run keeps no durable per-case record (`KNOWN_ISSUES.md`).
+
+| Gate (final state) | Result |
+|---|---|
+| `verify:ai-locator-attempts` | 167/167 (red 163/167 first; mutation 163/167, reverted) |
+| `typecheck:scripts` · build · `verify:ai-locator-quality-controls` | PASS · PASS · 11/0 |
+| `verify:verifier-classification` · `verify:roadmap-dashboard` · `git diff --check` | run after the `awkit-djnl.4` note; results in its contract and commit |
+| `verify:ai-spy-live` · `verify:ai-locator-quality-live-d1` | NOT RUN: real-model paths, out of scope |
+| `verify:element-spy` · `verify:ai-assist-gui` | not rerun: they import the shared harness, whose existing exports are unchanged; only new exports were added |
+
+## Phase L: D1 real-model quality set run once on the real 0.8B: INCONCLUSIVE, 0 of 2 positives proven, 0 false targets (2026-09-24)
 
 **Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** `awkit-djnl.4` stays
 `in_progress` with a note for this run; no bead's status or edge changed. No source, fixture, verifier, model

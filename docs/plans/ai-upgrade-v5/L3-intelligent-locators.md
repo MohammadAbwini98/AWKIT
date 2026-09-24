@@ -403,6 +403,23 @@ precondition (the offered scope object in the request, no withheld identity in i
   verifier. Real-model D1 quality remains unshown (no D1 candidate proven), §9 acceptance is unmet, and L3
   stays `in_progress`.
 
+**`verify:ai-spy-live`'s classifier now applies D1's scope rule (2026-09-24, `6b4ca1eb`, verifier-only).**
+Its `classifyAttempts` re-derives each real reply to say why a request was refused, and it fails the live run
+when a plan the page proves right was withheld. It had no scope rule, so a plan D1 withholds on purpose (a
+`hasText` row, the item's own record-keyed id) would have failed a correct refusal. It now lives in
+`scripts/lib/recorder-spy-harness.mts` and runs the production `unofferedScopeField` against the inspection's
+own `upgradeContext`, after the compiler and before the duplicate rule. Such a plan is recorded as the
+product's `SCOPE_NOT_OFFERED`, never judged, never counted. `verify:ai-locator-attempts` §19 proves it in real
+Chromium with scripted replies and no model:
+- withheld scopes (row text, own record key) are refused and not counted, although the page proves them;
+- a sibling's and an invented id are refused before the page;
+- offered test id and authored-name scopes are still counted when the page proves them;
+- an offered but ambiguous scope is `NOT_UNIQUE`, and a misattributed sibling slot is `WRONG_ELEMENT`;
+- an unscoped unique target is untouched.
+
+Red 163/167, green 167/167 (was 153), mutation 163/167, reverted. The D1 live result above is unchanged, and
+`verify:ai-spy-live` was not run.
+
 ### §1 owner decisions: duplicate rows (D1) and "Use in action" (D2) (2026-09-23 design review; decided 2026-09-24)
 
 The owner chose D1 A+B and D2 U1 on 2026-09-24 (above). The review below is kept as it was written.
@@ -828,6 +845,8 @@ the scripted suites. `verify:ai-locator-quality-live-d1` (built 2026-09-24; run 
 0/2 positives proven, 0 false targets) runs D1's own four
 cases on `/recorder-lab/element-spy`, reported apart (see "§1 D1 and D2 as built").
 `verify:ai-locator-quality-controls` (11/0, no model) runs every scripted control of both sets.
+`verify:ai-locator-attempts` §19 (167/167 in all since 2026-09-24) runs `verify:ai-spy-live`'s attempt
+classifier with no model.
 Existing: recorder/locator suites from L2,
 `verify:blueprint-recovery-browser`, `verify:profile-store`, `verify:runner`, `verify:mock-site`, `npm run build`.
 
