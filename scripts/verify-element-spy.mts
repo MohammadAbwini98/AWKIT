@@ -217,6 +217,14 @@ async function main(): Promise<void> {
     const invoiceRow = editContext?.containers[rowIndex];
     const archivedRow = archiveContext?.containers.find((c) => c.kind === "row");
     check("D1: a table row's computed name (its cells) is never offered, nor a row-number test id", Boolean(invoiceRow && archivedRow) && !invoiceRow?.authoredName && !archivedRow?.authoredName && archivedRow?.testId === undefined, JSON.stringify({ invoiceRow, archivedRow }));
+    // A section with no label is named by everything in it, rows included. Asserted on the capture itself:
+    // in the request this name is also dropped as a bound value (INV-2002 was typed), which would hide a regression.
+    const invoicesSection = editContext?.containers.find((c) => c.kind === "landmark");
+    check(
+      "D1 B: a section named only by its content (the invoices, rows and all) is not treated as authored",
+      Boolean(invoicesSection?.name.includes("INV-2001")) && invoicesSection?.authoredName === undefined,
+      JSON.stringify(invoicesSection)
+    );
     const requestFor = (action: RecordedAction | null | undefined): string => {
       const step = action ? buildRecordedStep(action) : undefined;
       const upgradeContext = action ? recorder.getUpgradeContext(action.id) : undefined;
@@ -594,27 +602,35 @@ async function main(): Promise<void> {
       attach: (id, pending) => recorder.attachPendingUpgrade(id, pending)
     };
     const attach = (requestId: string, actionId: string | undefined, deps: InspectionAttachDeps = attachDeps) => attachInspectionProposal(7, { requestId, actionId: actionId ?? "missing" }, deps);
+    // A failure detail names the outcome, never the whole draft it returned.
+    const outcome = (view: { code: string; message?: string }) => JSON.stringify({ code: view.code, message: view.message });
     const draftBytes = () => readFile(draftPath, "utf8");
     const actionById = (id: string | undefined) => recorder.getActions().find((a) => a.id === id);
     const primaryBefore = structuredClone(actionById(callPrimary?.id)?.locator);
 
     await inspectPrimary();
     check("(precondition) a proposal proven for an earlier inspection cannot be attached", (await attach(provenForOldInspection, callPrimary?.id)).code === "NOT_FOUND");
-    plans.push(callIn(slot("slot-primary")));
+    // A candidate that differs from the Recorder's own locator, so a replaced locator cannot pass for a kept one.
+    plans.push({ version: 1, target: { strategy: "text", value: "Call", exact: true }, scopes: [slot("slot-primary")] });
     answer = await askLive();
     const r1 = lastAsk();
     check("(precondition) a proven proposal for the inspected Call", answer.ok, JSON.stringify(answer));
+    check(
+      "(precondition) the proposal is not the recorded locator itself",
+      answer.proposal?.candidate.strategy === "text" && primaryBefore?.strategy !== "text",
+      JSON.stringify({ proposal: answer.proposal?.candidate, recorded: primaryBefore && { strategy: primaryBefore.strategy, value: primaryBefore.value } })
+    );
     const bytesBefore = await draftBytes();
     let attached = await attach("not valid!", callPrimary?.id);
     check("a malformed attach request is refused", attached.code === "INVALID_REQUEST" && attached.actions === null);
     check("a request with no proven proposal behind it is refused", (await attach("never-asked", callPrimary?.id)).code === "NOT_FOUND");
     check("...and so is one whose proposal was refused, which main never held", (await attach(refusedAsk, callPrimary?.id)).code === "NOT_FOUND");
     attached = await attach(r1, callNight?.id);
-    check("attaching to a step whose element is not the proposal's is refused by the re-proof", attached.code === "NOT_APPLICABLE" && /does not reach the element/.test(attached.message ?? ""), JSON.stringify(attached));
+    check("attaching to a step whose element is not the proposal's is refused by the re-proof", attached.code === "NOT_APPLICABLE" && /does not reach the element/.test(attached.message ?? ""), outcome(attached));
     attached = await attach(r1, recorder.getActions().find((a) => a.type === "goto")?.id);
-    check("a non-element step is refused", attached.code === "NOT_APPLICABLE", JSON.stringify(attached));
+    check("a non-element step is refused", attached.code === "NOT_APPLICABLE", outcome(attached));
     attached = await attach(r1, frameAction?.id);
-    check("a step in another frame is refused", attached.code === "NOT_APPLICABLE" && /different frame/.test(attached.message ?? ""), JSON.stringify(attached));
+    check("a step in another frame is refused", attached.code === "NOT_APPLICABLE" && /different frame/.test(attached.message ?? ""), outcome(attached));
     check("with local AI switched off it is refused", (await attach(r1, callPrimary?.id, { ...attachDeps, policy: async () => ({ enabled: false }) })).code === "DISABLED");
     // A sensitive step and a needs-review step over the same element: draft fixtures, removed again below.
     internal.actions.push(
@@ -629,12 +645,12 @@ async function main(): Promise<void> {
     attached = await attach(r1, callPrimary?.id);
     const primaryAfter = actionById(callPrimary?.id)?.locator;
     const onDraft = primaryAfter?.pendingUpgrade;
-    check("the proven proposal attaches to the step the person chose", attached.ok && attached.code === "OK" && Boolean(onDraft), JSON.stringify(attached));
+    check("the proven proposal attaches to the step the person chose", attached.ok && attached.code === "OK" && Boolean(onDraft), outcome(attached));
     const { pendingUpgrade: _attached, ...primaryActive } = primaryAfter ?? ({} as RecordedActionLocator);
     check("...leaving the step's own locator exactly as recorded, so it is still the one that runs", JSON.stringify(primaryActive) === JSON.stringify(primaryBefore));
     check(
       "...as a capture-proven candidate, proven again against that step",
-      onDraft?.proof === "capture-proven" && onDraft.proofEvidence?.code === "PROVEN" && onDraft.proofEvidence.sameElement === "pass" && onDraft.candidate.name === "Call",
+      onDraft?.proof === "capture-proven" && onDraft.proofEvidence?.code === "PROVEN" && onDraft.proofEvidence.sameElement === "pass" && onDraft.candidate.strategy === "text" && onDraft.candidate.value === "Call",
       JSON.stringify(onDraft)
     );
     const primaryBuilt = callPrimary ? buildRecordedStep(actionById(callPrimary.id)!) : undefined;
@@ -664,9 +680,9 @@ async function main(): Promise<void> {
     await askLive();
     const r3 = lastAsk();
     attached = await attach(r3, callPrimary?.id);
-    check("a newer proven proposal replaces the attached candidate", attached.ok && actionById(callPrimary?.id)?.locator?.pendingUpgrade?.createdAt !== onDraft?.createdAt, JSON.stringify(attached));
+    check("a newer proven proposal replaces the attached candidate", attached.ok && actionById(callPrimary?.id)?.locator?.pendingUpgrade?.createdAt !== onDraft?.createdAt, outcome(attached));
     attached = await attach(r2, callPrimary?.id);
-    check("an older one cannot replace the newer candidate", attached.code === "NOT_APPLICABLE" && /newer/.test(attached.message ?? ""), JSON.stringify(attached));
+    check("an older one cannot replace the newer candidate", attached.code === "NOT_APPLICABLE" && /newer/.test(attached.message ?? ""), outcome(attached));
 
     await inspectNight();
     check("a new inspection makes the earlier proposal unattachable", (await attach(r3, callPrimary?.id)).code === "NOT_FOUND");
@@ -679,7 +695,7 @@ async function main(): Promise<void> {
     plans.push(callIn(nightScope));
     await askLive();
     attached = await attach(lastAsk(), callNight?.id);
-    check("inspected again on the new document, the authored-name proposal attaches to its own step", attached.ok && Boolean(actionById(callNight?.id)?.locator?.pendingUpgrade), JSON.stringify(attached));
+    check("inspected again on the new document, the authored-name proposal attaches to its own step", attached.ok && Boolean(actionById(callNight?.id)?.locator?.pendingUpgrade), outcome(attached));
     await inspectPrimary();
     plans.push(callIn(slot("slot-primary")));
     await askLive();

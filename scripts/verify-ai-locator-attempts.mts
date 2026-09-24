@@ -782,6 +782,17 @@ try {
     JSON.stringify(names.slice(0, 4))
   );
   check("B: ...while a record's own authored label and a dialog's authored name are", names[4]?.authoredName === true && names[5]?.authoredName === true, JSON.stringify(names.slice(4)));
+  // Not a record, so only the name's source keeps its content out: a section with no label is named by
+  // everything inside it, row text included.
+  const structuralNames = d1([
+    { kind: "landmark", role: "region", name: "Invoices Invoice INV-2001 Edit Void", nameSource: "content", text: "Invoices Invoice INV-2001 Edit Void" },
+    { kind: "dialog", role: "dialog", name: "Refund Alice Smith", nameSource: "content", text: "Refund Alice Smith Confirm" }
+  ]);
+  check(
+    "B: a section's or dialog's name computed from its content is never offered, although neither is a record",
+    structuralNames.length === 2 && structuralNames.every((container) => container.authoredName === undefined),
+    JSON.stringify(structuralNames)
+  );
 
   const d1Captured = sanitizeUpgradeContext({ target: { tag: "button", role: "button", name: "Call" }, containers: [itemRaw, regionRaw] }, { pageAlias: "lab", frameDepth: 0 });
   if (!d1Captured) throw new Error("the D1 capture did not sanitize");
