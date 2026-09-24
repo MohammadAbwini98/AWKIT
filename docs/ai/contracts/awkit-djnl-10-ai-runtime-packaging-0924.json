@@ -81,12 +81,9 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "release",
+      "agent_id": "qa",
       "allowed_paths": [
-        "build",
-        "resources/THIRD_PARTY_NOTICES.md",
-        "resources/dependency-manifest.json",
-        "resources/dependency-manifest.sig"
+        "scripts/verify-ai-packaged-runtime.mts"
       ]
     },
     "writer_sequence": [
@@ -521,6 +518,25 @@
         "acquired_at_commit": "b162e825306514d4ad188fff64e04a944bb3bffb",
         "released_at": "2026-09-24T17:53:32.798Z",
         "released_reason": "handoff to release: QC-7: record the dependency-license inventory, the redistribution review and the missing notices in the shipped third-party notices, then rebuild portable and NSIS from a clean tree",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:release:2026-09-24T17:53:32.855Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "build",
+          "resources/THIRD_PARTY_NOTICES.md",
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig"
+        ],
+        "acquired_at": "2026-09-24T17:53:32.855Z",
+        "acquired_at_commit": "b2f8bf3670a17914fd536d1198f6d1e710f0b9da",
+        "released_at": "2026-09-24T18:13:15.518Z",
+        "released_reason": "handoff to qa: QC-1 and QC-2 regression proof: both packaged AI gates must exit 2, never 0, when a required section did not run",
         "amendments": [],
         "overrides": [],
         "violations": []

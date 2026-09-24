@@ -33,6 +33,10 @@
  *      an asar); the AI tree present, intact against its own manifest, the shipped notices listing its
  *      packages, identical to the current source's staging, and B/C on an isolated copy of it. A package
  *      without the runtime, or whose runtime is not the current staging, is STALE and FAILS.
+ *   F. Neither packaged AI gate reports success for a gate that did not run: verify:ai-packaged-app with no
+ *      model pack, and this gate's own exit path through a self-probe, must both exit 2.
+ *   The PE-import check in A and E asks whether every DLL the staged binaries import is staged or ships
+ *   with Windows, which is what "self-sufficient" means on a machine with nothing else installed.
  *
  * Exit, the `gateExitCode` convention: 1 on any failure, 2 when a required section did not run (no
  * packaged artifact, no model pack), 0 only when every section ran and passed. NOT RUN is never a pass.
@@ -89,6 +93,13 @@ function check(label: string, ok: boolean, detail?: string): void {
 function skip(label: string, reason: string): void {
   notRun.push(label);
   console.log(`  - NOT RUN: ${label} — ${reason}`);
+}
+/** The only exit path, so section F's self-probe exercises exactly what a real run exits with. */
+function finish(): never {
+  const exitCode = gateExitCode({ passed, failed, inconclusive: 0, gateNotRun: notRun.length > 0 });
+  const verdict = exitCode === 0 ? "PASS" : exitCode === 1 ? "FAIL" : "NOT RUN — a required section did not run, which is never a pass";
+  console.log(`\n${passed} passed, ${failed} failed${notRun.length > 0 ? `, NOT RUN: ${notRun.join("; ")}` : ""} — ${verdict}`);
+  process.exit(exitCode);
 }
 
 const sha256 = (file: string): string => createHash("sha256").update(fs.readFileSync(file)).digest("hex");
@@ -696,6 +707,12 @@ async function assertModelScanControls(base: string): Promise<void> {
 // ── Run ──────────────────────────────────────────────────────────────────────────────────────────
 
 console.log("verify:ai-packaged-runtime — the pinned local-AI runtime as the installer carries it\n");
+if (process.argv.includes("--exit-status-probe")) {
+  // Section F's probe: one passing check and one section not run, through the real exit path.
+  check("exit-status probe: a check that passed", true);
+  skip("exit-status probe: a required section", "section F's self-probe");
+  finish();
+}
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "awkit-ai-staged-"));
 const staged = path.join(scratch, "ai");
 const cleanup: string[] = [scratch];
@@ -791,11 +808,25 @@ try {
       }
     }
   }
+
+  console.log("\nF. Neither packaged AI gate reports success for a gate that did not run");
+  const tsxCli = path.join(ROOT, "node_modules", "tsx", "dist", "cli.mjs");
+  const homeWithoutPack = path.join(scratch, "home-without-pack");
+  fs.mkdirSync(homeWithoutPack, { recursive: true });
+  const app = spawnSync(process.execPath, [tsxCli, path.join(ROOT, "scripts", "verify-ai-packaged-app.mts")], { cwd: ROOT, env: { ...process.env, USERPROFILE: homeWithoutPack, HOME: homeWithoutPack }, encoding: "utf8", timeout: 180_000 });
+  check(
+    "verify:ai-packaged-app exits 2, never 0, when it cannot run (no model pack in ~/Downloads)",
+    app.status === 2 && /NOT RUN/.test(app.stdout ?? ""),
+    `exit ${app.status}: ${`${app.stdout ?? ""}`.trim().split(/\r?\n/).slice(-2).join(" | ")}`
+  );
+  const self = spawnSync(process.execPath, [tsxCli, path.join(ROOT, "scripts", "verify-ai-packaged-runtime.mts"), "--exit-status-probe"], { cwd: ROOT, encoding: "utf8", timeout: 180_000 });
+  check(
+    "verify:ai-packaged-runtime exits 2, never 0, when a check passed and a required section did not run",
+    self.status === 2 && /NOT RUN/.test(self.stdout ?? ""),
+    `exit ${self.status}: ${`${self.stdout ?? ""}`.trim().split(/\r?\n/).slice(-1).join("")}`
+  );
 } finally {
   for (const dir of cleanup) fs.rmSync(dir, { recursive: true, force: true });
 }
 
-const exitCode = gateExitCode({ passed, failed, inconclusive: 0, gateNotRun: notRun.length > 0 });
-const verdict = exitCode === 0 ? "PASS" : exitCode === 1 ? "FAIL" : "NOT RUN — a required section did not run, which is never a pass";
-console.log(`\n${passed} passed, ${failed} failed${notRun.length > 0 ? `, NOT RUN: ${notRun.join("; ")}` : ""} — ${verdict}`);
-process.exit(exitCode);
+finish();
