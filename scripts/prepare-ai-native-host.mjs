@@ -196,6 +196,10 @@ function copyPackage(pkgDir, name) {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const from = path.join(dir, entry.name);
       if (excluded.some((ex) => from === ex || from.startsWith(ex + path.sep))) continue;
+      // electron-builder's extraResources filter ("**/*") never ships a dotfile or dot-directory, so
+      // staging one would make the signed manifest list a file the installer does not carry (measured:
+      // the packaged tree lacked chmodrp/.gitkeep). None is runtime code; the staged tree is what ships.
+      if (entry.name.startsWith(".")) continue;
       if (entry.isSymbolicLink()) {
         fail(`Refusing to stage a symlink: ${posix(path.relative(ROOT, from))}`);
       } else if (entry.isDirectory()) {

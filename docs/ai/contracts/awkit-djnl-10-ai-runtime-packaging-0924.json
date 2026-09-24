@@ -77,11 +77,9 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "release",
+      "agent_id": "runtime",
       "allowed_paths": [
-        "build",
-        "resources/dependency-manifest.json",
-        "resources/dependency-manifest.sig"
+        "scripts/prepare-ai-native-host.mjs"
       ]
     },
     "writer_sequence": [
@@ -238,6 +236,24 @@
         "acquired_at_commit": "28d21f7756bd9be304834e992cacc32cb678fa43",
         "released_at": "2026-09-24T14:25:06.417Z",
         "released_reason": "handoff to release: validator committed at bc66b1d6, run the canonical package pipelines on the clean tree and commit the regenerated manifest pair",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:release:2026-09-24T14:25:06.722Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "build",
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig"
+        ],
+        "acquired_at": "2026-09-24T14:25:06.722Z",
+        "acquired_at_commit": "bc66b1d6325df41ecbb27e64b20128b79c44871c",
+        "released_at": "2026-09-24T15:20:47.765Z",
+        "released_reason": "handoff to runtime: the packaged tree drops dotfiles because electron-builder's filter excludes them, so staging must exclude them too for the staged manifest to equal what ships",
         "amendments": [],
         "overrides": [],
         "violations": []
