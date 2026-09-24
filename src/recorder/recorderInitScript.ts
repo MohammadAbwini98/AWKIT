@@ -1745,11 +1745,30 @@ export function installRecorderCapture(): void {
     if (/^(password|hidden)$/i.test(type) || /password|one-time-code/i.test(attr(target, "autocomplete"))) return undefined;
     const clip = (value: string | null | undefined, max: number): string => norm(value).slice(0, max);
     const nameOf = (el: Element): string => clip(attr(el, "aria-label") || accessibleName(el), 80);
+    // D1: where a container's name comes from. Only an authored name may reach an AI request; a row's
+    // computed name is its cell text. Main decides from this, the test id and the text what is offered.
+    const nameSourceOf = (el: Element): string => {
+      if (norm(attr(el, "aria-label"))) return "aria-label";
+      const root = el.getRootNode() as Document | ShadowRoot;
+      const ids = attr(el, "aria-labelledby").split(/\s+/).filter(Boolean);
+      const labelled = typeof root.getElementById === "function" ? ids.map((id) => root.getElementById(id)?.textContent ?? "").join(" ") : "";
+      return norm(labelled) ? "aria-labelledby" : "content";
+    };
     const parent = target.parentElement;
     const containers: Array<Record<string, string>> = [];
     for (const [kind, selector] of UPGRADE_CONTAINERS) {
       const node = parent ? parent.closest(selector) : null;
-      if (node) containers.push({ kind, tag: tagOf(node), role: roleOf(node) || "", name: nameOf(node) });
+      if (node) {
+        containers.push({
+          kind,
+          tag: tagOf(node),
+          role: roleOf(node) || "",
+          name: nameOf(node),
+          nameSource: nameSourceOf(node),
+          testId: clip(attr(node, "data-testid"), 61),
+          text: clip(node.textContent, 500)
+        });
+      }
     }
     const scope = (parent && parent.closest('dialog,[role="dialog"],[role="alertdialog"],article,section,main,form')) || document.body;
     let heading = "";

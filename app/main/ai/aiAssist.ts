@@ -26,6 +26,7 @@ import {
   sanitizeFailureAnalysisRequest,
   sanitizeFailureAnalysisTarget,
   sanitizeFragmentSummaryRequest,
+  sanitizeInspectionAttachRequest,
   sanitizeInspectionLocatorRequest,
   type AiAdminResponse,
   type AiAssistCode,
@@ -33,6 +34,7 @@ import {
   type AuthoringAssistView,
   type FailureAnalysisView,
   type FragmentSummaryView,
+  type InspectionAttachView,
   type InspectionLocatorView
 } from "@src/ai/contracts/AiApi";
 import {
@@ -48,10 +50,15 @@ import {
   type FailureBatchEntry
 } from "@src/ai/failureAnalysis";
 import { FRAGMENT_ASSIST_LIMITS, buildFragmentSummaryRequest, fragmentSummaryDecision, parseFragmentSummary } from "@src/ai/fragmentAssist";
+import { planFromCandidate } from "@src/ai/locatorPlan";
 import { runLocatorUpgradeAttempts, type LocatorUpgradeProvider } from "@src/ai/locatorUpgradeAttempts";
+import { proofEvidenceOf } from "@src/ai/pendingUpgrade";
 import type { FlowFragment } from "@src/fragments/FlowFragment";
 import type { FlowStep, PendingLocatorUpgrade } from "@src/profiles/FlowProfile";
-import type { ElementInspection } from "@src/recorder/RecorderTypes";
+import { createLocatorApprovalBinding } from "@src/profiles/locatorApproval";
+import { buildRecordedStep } from "@src/recorder/buildRecordedFlow";
+import { inspectionActionBlocker } from "@src/recorder/elementInspection";
+import type { ElementInspection, RecordedAction } from "@src/recorder/RecorderTypes";
 import type { ConcurrentRunReport, StoredFailureAnalysis } from "@src/reports/ExecutionReport";
 import type { LocatorProofResult } from "@src/runner/locatorProof";
 import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
@@ -81,7 +88,8 @@ const MESSAGES: Readonly<Record<AiAssistCode, string>> = Object.freeze({
   REAUTH_REQUIRED: "Confirm your password to continue.",
   NOT_AUTHORIZED: "You are not authorized to use local AI.",
   PROTECTED: "Local AI never proposes locators for sensitive or sign-in elements.",
-  NOT_PROVEN: "No proposal could be proven on this page, so none is shown."
+  NOT_PROVEN: "No proposal could be proven on this page, so none is shown.",
+  NOT_APPLICABLE: "This suggestion cannot be attached to that step."
 });
 
 export function assistStatus(code: AiAssistCode, modelId?: string): AiAssistStatus {
@@ -337,6 +345,18 @@ export interface InspectionLocatorDeps extends Pick<AiAssistDeps, "policy"> {
 /** In-flight Element Spy jobs by assist job id. The §7 loop submits one host job per attempt, so cancel goes through its signal. */
 const inspectionJobs = new Map<string, AbortController>();
 
+/**
+ * L3 U1 (owner decision D2): the proposals shown as proven, by assist job id, with the inspection they
+ * were proven on. This is the only source an attach takes a candidate from; the renderer names one by
+ * its request id. Only the current inspection's proposals are kept, so the map stays small.
+ */
+const heldProposals = new Map<string, { inspection: ElementInspection; pending: PendingLocatorUpgrade }>();
+
+function holdProposal(jobId: string, inspection: ElementInspection, pending: PendingLocatorUpgrade): void {
+  for (const [id, held] of heldProposals) if (held.inspection !== inspection) heldProposals.delete(id);
+  heldProposals.set(jobId, { inspection, pending });
+}
+
 /** A provider code from the §7 loop as the code every other assist answers with (`outcomeCode`). */
 function providerCode(code: string): AiAssistCode {
   if (code === "DISABLED") return "DISABLED";
@@ -353,7 +373,8 @@ function providerCode(code: string): AiAssistCode {
  * The inspected element is treated as the click a recording would make on it, so T3 is decided exactly as
  * for that step. The bounded §7 loop proposes, compiles, guards intent and proves on the live page. Only a
  * `capture-proven` candidate is returned, and it is shown, not stored: nothing writes a flow, a draft or
- * the Recorder's candidates, so using it is a person's separate act.
+ * the Recorder's candidates, so using it is a person's separate act. Main keeps it in memory for this
+ * inspection only, so that act (`attachInspectionProposal`) never takes a candidate from the renderer.
  */
 export async function proposeInspectionLocator(senderId: number, input: unknown, deps: InspectionLocatorDeps): Promise<InspectionLocatorView> {
   const request = sanitizeInspectionLocatorRequest(input);
@@ -405,6 +426,7 @@ export async function proposeInspectionLocator(senderId: number, input: unknown,
         // inspection while the model was answering means the proof saw something never inspected.
         if (deps.target()?.inspection !== inspection) return view("NOT_FOUND", at, result.attemptsUsed);
         // `unprovable-now` is storable for a saved step, which replay settles later. The Spy has no replay.
+        if (proposal?.proof === "capture-proven") holdProposal(jobId, inspection, proposal);
         return proposal?.proof === "capture-proven"
           ? {
               ...assistStatus("OK", proposal.modelId),
@@ -428,6 +450,64 @@ export async function proposeInspectionLocator(senderId: number, input: unknown,
   } finally {
     inspectionJobs.delete(jobId);
   }
+}
+
+export interface InspectionAttachDeps extends Pick<AiAssistDeps, "policy"> {
+  target: () => InspectionTarget | null;
+  /** Main's own draft action (`RecorderService.getDraftAction`), never the renderer's copy. */
+  draftAction: (actionId: string) => Promise<RecordedAction | undefined>;
+  /** Main's compare-and-swap into its draft (`RecorderService.attachPendingUpgrade`). */
+  attach: (actionId: string, pending: PendingLocatorUpgrade) => Promise<{ ok: true; actions: RecordedAction[] } | { ok: false; reason: string }>;
+}
+
+/**
+ * L3 U1 (owner decision D2, 2026-09-24): attach a proven Element Spy proposal to one recorded draft step
+ * as its pending candidate, after the person chose that step. Nothing is replaced: the step keeps its
+ * own locator, and the candidate can only become active through the saved-flow replay proof, the Flow
+ * Designer's Apply, its audit record and its revert (L3 §5, §6, §10).
+ *
+ * Main decides everything: the proposal is main's own copy for that request (never the renderer's), the
+ * inspection must still be the one it was proven on, the step must be applicable to that inspection, not
+ * T3 and resolved, and the candidate is proven AGAIN on the live page with that step's own locator as the
+ * baseline, so it reaches the element the step acts on (else `WRONG_ELEMENT`, refused). The binding is
+ * the finalizer's own step, which is what saving persists. No audit record: this is not an applied change.
+ */
+export async function attachInspectionProposal(senderId: number, input: unknown, deps: InspectionAttachDeps): Promise<InspectionAttachView> {
+  const request = sanitizeInspectionAttachRequest(input);
+  const view = (code: AiAssistCode, message?: string): InspectionAttachView => ({ ...assistStatus(code), ...(message ? { message } : {}), actions: null });
+  if (!request) return view("INVALID_REQUEST");
+  const jobId = assistJobId(senderId, request.requestId);
+  const held = heldProposals.get(jobId);
+  // A job still running has nothing held yet; a refused, cancelled or withheld one never will.
+  if (!held) return view("NOT_FOUND");
+  const target = deps.target();
+  if (!target || target.inspection !== held.inspection) {
+    heldProposals.delete(jobId);
+    return view("NOT_FOUND");
+  }
+  const action = await deps.draftAction(request.actionId);
+  const blocker = inspectionActionBlocker(action, held.inspection);
+  if (!action || blocker) return view("NOT_APPLICABLE", blocker ?? "Choose a recorded element step.");
+  const step = buildRecordedStep(action);
+  if (!step?.locator) return view("NOT_APPLICABLE", "Choose a recorded element step.");
+  const decision = decideAiAction("locatorSemanticUpgrade", "locatorChange", { step }, await deps.policy());
+  if (decision.decision === "forbidden") return view(decision.reason.startsWith("T3_") ? "PROTECTED" : policyCode(decision)!);
+  if (step.locator.resolution !== "resolved") return view("NOT_APPLICABLE", "A step that needs review keeps its recorded locator. Resolve it first.");
+
+  const proof = await target.prove(step, planFromCandidate(held.pending.candidate, held.pending.context));
+  // The page or the inspection may have moved on while the proof ran: a proof of a replaced document
+  // proves nothing about the step.
+  if (deps.target()?.inspection !== held.inspection) return view("NOT_FOUND");
+  if (proof.outcome !== "proven") {
+    return proof.code.startsWith("T3_")
+      ? view("PROTECTED")
+      : view("NOT_APPLICABLE", "The suggestion does not reach the element this step acts on, so it was not attached.");
+  }
+  const binding = createLocatorApprovalBinding(step);
+  if (!binding) return view("NOT_APPLICABLE", "Choose a recorded element step.");
+  const pending: PendingLocatorUpgrade = { ...structuredClone(held.pending), binding, proofEvidence: proofEvidenceOf(proof) };
+  const written = await deps.attach(action.id, pending);
+  return written.ok ? { ...assistStatus("OK", pending.modelId), actions: written.actions } : view("NOT_APPLICABLE", written.reason);
 }
 
 /** Abort an in-flight Element Spy job by its assist job id. False when there is none. */

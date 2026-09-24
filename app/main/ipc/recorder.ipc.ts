@@ -219,7 +219,8 @@ export function registerRecorderIpc(): void {
     // Recorded flows always open with default Start/End nodes and the actions between them,
     // replaying recorded waits/tab-switches. Logic lives in a pure, unit-tested helper.
     const blueprints: PageBlueprint[] = [];
-    const flowProfile = buildRecordedFlow(name, actions, blueprints);
+    // L3 U1: a pending AI candidate comes only from main's own draft, never from these actions.
+    const flowProfile = buildRecordedFlow(name, actions, blueprints, { pendingUpgrades: recorderService.draftPendingUpgrades() });
     await store.create(flowProfile);
     
     // Save any assembled blueprints for fallback recovery.

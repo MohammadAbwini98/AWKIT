@@ -16,6 +16,7 @@
 import { authorizeSemanticAction } from "../../semantic/contracts/SemanticApi";
 import type { FlowProfile, LocatorCandidate, LocatorContext, PendingProofEvidence } from "../../profiles/FlowProfile";
 import type { LocatorQualityClass } from "../../recorder/LocatorQualityClass";
+import type { RecordedAction } from "../../recorder/RecorderTypes";
 import type { FailureAnalysisBody, StoredFailureAnalysis } from "../../reports/ExecutionReport";
 import { isAiFeatureId, type AiFeatureId, type AiTier } from "../../security/authz/AiAutonomyPolicy";
 import type { FlowValidationIssue } from "../../validation/FlowValidator";
@@ -247,7 +248,9 @@ export type AiAssistCode =
   /** L3 T3: a sensitive or sign-in element. No proposal is ever asked for. */
   | "PROTECTED"
   /** L3: no proposal was proven on the page (refused, exhausted, or the page changed meanwhile). */
-  | "NOT_PROVEN";
+  | "NOT_PROVEN"
+  /** L3 U1: the chosen step cannot take this proposal (another page, frame or element; not an element step). */
+  | "NOT_APPLICABLE";
 
 export interface AiAssistStatus {
   code: AiAssistCode;
@@ -319,6 +322,29 @@ export function sanitizeInspectionLocatorRequest(input: unknown): InspectionLoca
   const raw = typeof input === "object" && input !== null ? (input as Record<string, unknown>) : null;
   const requestId = raw ? sanitizeAssistRequestId(raw.requestId) : null;
   return requestId ? { requestId } : null;
+}
+
+/**
+ * L3 U1 (owner decision D2, 2026-09-24): attach the proven proposal answered to `requestId` to one
+ * recorded draft step as a pending candidate. Ids only: main holds the proposal, the inspection and the
+ * draft, proves the candidate again against that step, and never takes a candidate, a proof or a
+ * provenance from the renderer. The step's own locator is not changed.
+ */
+export interface InspectionAttachRequest {
+  requestId: string;
+  actionId: string;
+}
+
+export interface InspectionAttachView extends AiAssistStatus {
+  /** Main's draft after the attach; null unless `ok`. */
+  actions: RecordedAction[] | null;
+}
+
+export function sanitizeInspectionAttachRequest(input: unknown): InspectionAttachRequest | null {
+  const raw = typeof input === "object" && input !== null ? (input as Record<string, unknown>) : null;
+  const requestId = raw ? sanitizeAssistRequestId(raw.requestId) : null;
+  const actionId = raw && typeof raw.actionId === "string" && /^[A-Za-z0-9._:-]{1,128}$/.test(raw.actionId) ? raw.actionId : null;
+  return requestId && actionId ? { requestId, actionId } : null;
 }
 
 /** L5b: interpret one failed instance of a stored run. It names the run and the instance; main reads the report. */

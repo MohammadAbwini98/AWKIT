@@ -28,12 +28,13 @@ import type { AiPromptSpec } from "./AiPromptBuilder";
 import {
   LOCATOR_PLAN_MAX_ATTEMPTS,
   LOCATOR_PLAN_SCHEMA,
+  compileLocatorPlan,
   evaluateLocatorPlan,
   type LocatorPlanPolicy,
   type LocatorPlanRejectionCode
 } from "./locatorPlan";
-import { createPendingUpgrade, locatorCandidateDigest, type PendingUpgradeRefusal } from "./pendingUpgrade";
-import type { FlowStep, PendingLocatorUpgrade } from "../profiles/FlowProfile";
+import { createPendingUpgrade, locatorCandidateDigest, proofEvidenceOf, type PendingUpgradeRefusal } from "./pendingUpgrade";
+import { locatorContainerChain, type FlowStep, type LocatorContext, type PendingLocatorUpgrade } from "../profiles/FlowProfile";
 import { classifyLocatorQuality, type LocatorQualityClass } from "../recorder/LocatorQualityClass";
 import { UPGRADE_CONTEXT_TTL_MS, type UpgradeContext } from "../recorder/upgradeContext";
 import { decideAiAction, type AiFeatureId } from "../security/authz/AiAutonomyPolicy";
@@ -114,7 +115,7 @@ const MODES = Object.freeze({
       "Return a single JSON locator plan matching the schema: a target strategy and value, and at most " +
       "one semantic scope. Prefer role with an accessible name, label, placeholder or a test id. " +
       "Never return code, a CSS path, a positional index, a frame reference, or text that is a data " +
-      "value the flow fills in. Scope by stable page structure, never by row content. " +
+      "value the flow fills in. Scope only by a container scope offered below, copied exactly, never by row content. " +
       "If a previous attempt was refused, the refusal names the field and the rule it broke: fix that field."
   },
   repair: {
@@ -275,11 +276,56 @@ const FEEDBACK: Readonly<Partial<Record<LocatorPlanRejectionCode | string, strin
   WRONG_ELEMENT: "it matched a different element than the step acts on",
   FRAME_CONTEXT_MISMATCH: "it left the element's frame or shadow scope",
   DUPLICATE_CANDIDATE: "that is the same plan as a previous attempt, which was already refused",
+  SCOPE_NOT_OFFERED: "a scope must be one of the offered container scopes, copied exactly, never row content or an invented id",
   // L3 §8 repair codes.
   BASELINE_HEALTHY: "the saved locator resolves fine, so there is nothing to repair",
   NO_IDENTITY_ANCHOR: "no saved identity exists for this step, so nothing can be proven against it",
   TARGET_UNFINGERPRINTABLE: "the matched element's identity could not be read"
 });
+
+/** Capture container kinds as plan scope kinds (`LOCATOR_PLAN_SCHEMA`); the rest are spelled the same. */
+const PLAN_SCOPE_KIND: Readonly<Record<string, string>> = { row: "tableRow" };
+
+type OfferedScope = { kind: string; strategy: "testId" | "role" | "label"; value: string; name?: string };
+
+/**
+ * D1 A+B (owner, 2026-09-24): the container scopes an upgrade request offers, per captured container.
+ * One per stable container test id and one per authored container name the capture kept
+ * (`sanitizeUpgradeContext`), minus any the L2 marker pass flagged as a bound value. The request shows
+ * exactly these, and {@link unofferedScopeField} refuses any other named scope.
+ */
+export function offeredContainerScopes(context: UpgradeContext | undefined): OfferedScope[][] {
+  const bound = new Set(context?.boundValues.map((marker) => marker.field));
+  return (context?.containers ?? []).map((container, index) => {
+    const kind = PLAN_SCOPE_KIND[container.kind] ?? container.kind;
+    const scopes: OfferedScope[] = [];
+    if (container.testId && !bound.has(`containers.${index}.testId`)) scopes.push({ kind, strategy: "testId", value: container.testId });
+    if (container.authoredName && container.name && !bound.has(`containers.${index}.name`)) {
+      scopes.push(container.role ? { kind, strategy: "role", value: container.role, name: container.name } : { kind, strategy: "label", value: container.name });
+    }
+    return scopes;
+  });
+}
+
+/**
+ * The first scope of a compiled upgrade plan that the request did not offer, as a field path; undefined
+ * when there is none. D1 option C (row content) is not approved, so `hasText` is refused, and a named
+ * scope must be an offered one — never a row's computed name, a record-keyed id or an invented one. A
+ * nameless role scope (a row, a dialog, a region) names structure only and stays allowed; the container
+ * chain must still resolve uniquely and gate C still proves the element.
+ */
+export function unofferedScopeField(context: LocatorContext | undefined, capture: UpgradeContext | undefined): string | undefined {
+  const offered = offeredContainerScopes(capture).flat();
+  for (const [index, scope] of locatorContainerChain(context).entries()) {
+    if (scope.hasText) return `scopes.${index}.hasText`;
+    if (scope.strategy === "role" && scope.name === undefined) continue;
+    const same = offered.some(
+      (option) => option.strategy === scope.strategy && option.value === scope.value && (option.name ?? "").toLowerCase() === (scope.name ?? "").toLowerCase()
+    );
+    if (!same) return `scopes.${index}.${scope.name !== undefined ? "name" : "value"}`;
+  }
+  return undefined;
+}
 
 /**
  * The context one attempt may see, as lines in the order they are worth keeping: what is being
@@ -287,8 +333,13 @@ const FEEDBACK: Readonly<Partial<Record<LocatorPlanRejectionCode | string, strin
  *
  * - Any context field the L2 marker pass flagged as carrying a bound data value is DROPPED here rather
  *   than relied on being caught downstream, so the model is never shown a row's contents.
+ * - A container's name is shown only when it was authored, and its test id only when it is stable
+ *   (D1 A+B). A table row's computed name is its cell text, so it is never shown.
  * - The baseline's VALUE is never sent, and neither are the Recorder's fallback candidates (structural
- *   or positional CSS/XPath): both are the fragile form being replaced, which the compiler refuses.
+ *   or positional CSS/XPath): both are the fragile form being replaced, which the compiler refuses. The
+ *   same goes for any candidate the compiler would refuse as written, fallback or not: a structural
+ *   `[data-testid="contact-2004"] button` carried a container's record-keyed test id around the D1
+ *   rule (found by `verify:element-spy`, 2026-09-24), and no answer could ever use it.
  * - It is one DATA block. Each block costs about 45 prompt tokens of nonce delimiters, and the seven it
  *   used to be were most of a typical prompt.
  * - A candidate is written as the plan's own `target` object, never `<strategy>=<value>`: that is
@@ -299,18 +350,22 @@ function contextLines(input: LocatorUpgradeAttemptInput, records: readonly Locat
   const baseline = input.step.locator;
   const context = input.upgradeContext;
   const bound = new Set(context?.boundValues.map((marker) => marker.field));
+  const offered = offeredContainerScopes(context);
   const pairs = (entries: Array<[string, string]>) => entries.filter(([, value]) => value).map(([key, value]) => `${key}=${value}`).join(" ");
   const target = context ? pairs([["tag", context.target.tag], ["role", context.target.role], ["type", context.target.type], ["name", bound.has("target.name") ? "" : context.target.name]]) : "";
   return [
     `current locator: ${baseline?.strategy ?? "unknown"}, ${classifyLocatorQuality(baseline)?.class ?? "unknown"}`,
     target ? `target: ${target}` : "",
     ...(records.length ? buildAttemptFeedback(records).split("\n").map((refusal) => `refused ${refusal}`) : []),
-    ...(context?.candidates ?? []).map((candidate, index) =>
-      candidate.fallback || bound.has(`candidates.${index}`)
+    ...(context?.candidates ?? []).map((candidate, index) => {
+      const target = { strategy: candidate.strategy, value: candidate.value, ...(candidate.name ? { name: candidate.name } : {}) };
+      return candidate.fallback || bound.has(`candidates.${index}`) || !compileLocatorPlan({ version: 1, target, scopes: [] }, undefined).ok
         ? ""
-        : `candidate: ${JSON.stringify({ strategy: candidate.strategy, value: candidate.value, ...(candidate.name ? { name: candidate.name } : {}) })} matches=${candidate.count}`
+        : `candidate: ${JSON.stringify(target)} matches=${candidate.count}`;
+    }),
+    ...(context?.containers ?? []).map(
+      (container, index) => `container: ${[container.kind, container.role].filter(Boolean).join(" ")}${(offered[index] ?? []).map((scope) => ` scope ${JSON.stringify(scope)}`).join("")}`
     ),
-    ...(context?.containers ?? []).map((container, index) => `container: ${container.kind} ${container.role}${bound.has(`containers.${index}.name`) ? "" : ` ${container.name}`}`.trim()),
     context && !bound.has("heading") && context.heading ? `heading: ${context.heading}` : "",
     ...(context?.siblingActions ?? []).map((action, index) => (bound.has(`siblingActions.${index}`) ? "" : `sibling action: ${action}`)),
     // Field PATHS, so the model is told which slots are data-bound without being shown the data.
@@ -452,6 +507,13 @@ export async function runLocatorUpgradeAttempts(
       if (exhausted) return exhausted;
       continue;
     }
+    // D1: an upgrade scope must be one the request offered. §8 repair has no capture to offer from.
+    const unoffered = mode === "upgrade" ? unofferedScopeField(evaluated.context, input.upgradeContext) : undefined;
+    if (unoffered) {
+      const exhausted = spend("intent", "SCOPE_NOT_OFFERED", unoffered);
+      if (exhausted) return exhausted;
+      continue;
+    }
 
     // A repeated plan cannot buy a second opinion: it is the same refusal, so it spends the attempt
     // and never reaches the browser again.
@@ -493,16 +555,7 @@ export async function runLocatorUpgradeAttempts(
       compiled: evaluated,
       meaningChange: evaluated.meaningChange,
       proof: mode === "repair" ? "repair-proven" : proof.outcome === "proven" ? "capture-proven" : "unprovable-now",
-      // L3 §10 evidence-on-demand: gate verdicts, counts and the code, nothing the proof saw.
-      proofEvidence: {
-        code: proof.code,
-        ...(proof.candidateMatchCount !== undefined ? { candidateMatchCount: proof.candidateMatchCount } : {}),
-        ...(proof.baselineMatchCount !== undefined ? { baselineMatchCount: proof.baselineMatchCount } : {}),
-        sameElement: proof.gates.sameElement,
-        scope: proof.scope,
-        ...(proof.identityAnchor !== undefined ? { identityAnchor: proof.identityAnchor } : {}),
-        ...(proof.identityScore !== undefined ? { identityScore: proof.identityScore } : {})
-      },
+      proofEvidence: proofEvidenceOf(proof),
       modelId: outcome.modelId,
       now: now()
     });

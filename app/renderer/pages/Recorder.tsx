@@ -1121,7 +1121,16 @@ export function Recorder() {
                 onApply={() => void useSpyCandidate()}
               />
             ) : null}
-            {spy?.inspection ? <ElementSpyAi inspectedAt={spy.inspection.inspectedAt} /> : null}
+            {spy?.inspection ? (
+              <ElementSpyAi
+                inspectedAt={spy.inspection.inspectedAt}
+                actionId={spyActionId}
+                onAttached={(updated, message) => {
+                  if (updated) setActions(updated);
+                  setSpyMessage(message);
+                }}
+              />
+            ) : null}
             {spyMessage ? (
               <p className="recorder-spy-message" role="status" data-testid="element-spy-message">
                 {spyMessage}
@@ -1319,7 +1328,8 @@ export function Recorder() {
                   const meta = [
                     action.locator && locatorContainerChain(action.locator.context).length ? formatLocatorScope(action) : "",
                     waitTypes.length ? `Smart waits: ${waitTypes.join(", ")}` : "",
-                    action.valueSource ? `Value → ${action.valueSource.value}` : ""
+                    action.valueSource ? `Value → ${action.valueSource.value}` : "",
+                    action.locator?.pendingUpgrade ? "AI suggestion attached, not applied" : ""
                   ].filter(Boolean);
                   return (
                     <SysTimelineRow
@@ -1892,16 +1902,46 @@ export function ElementSpyResult({
   );
 }
 
-/** L3 §1: Element Spy's on-demand AI proposal. A new inspection abandons the job in flight. */
-function ElementSpyAi({ inspectedAt }: { inspectedAt: string }) {
+/**
+ * L3 §1: Element Spy's on-demand AI proposal. A new inspection abandons the job in flight. L3 U1: a
+ * proven proposal can be attached to the step chosen above as a pending candidate. Only ids cross to
+ * main, which holds the proposal and proves it again against that step.
+ */
+function ElementSpyAi({ inspectedAt, actionId, onAttached }: { inspectedAt: string; actionId: string; onAttached: (actions: RecordedAction[] | null, message: string) => void }) {
   const job = useAiAssistJob<InspectionLocatorView>(inspectedAt);
+  // The newest request's id: the hook paints only the newest answer, so a proposal shown is this one's.
+  const requestId = useRef("");
+  const [attaching, setAttaching] = useState(false);
   if (!job.visible) return null;
+  const attach = async () => {
+    if (attaching || !actionId || !requestId.current) return;
+    setAttaching(true);
+    try {
+      const view = await window.playwrightFlowStudio.ai.attachInspectionProposal({ requestId: requestId.current, actionId });
+      onAttached(
+        view.ok ? view.actions : null,
+        view.ok
+          ? "AI suggestion attached to the step as pending. The step still runs on its recorded locator; the suggestion is proven on the saved flow's own runs and applied only when you approve it in the Flow Designer."
+          : `Not attached: ${view.message ?? "the suggestion could not be attached."}`
+      );
+    } catch (error: any) {
+      onAttached(null, `Not attached: ${error?.message ?? error}`);
+    } finally {
+      setAttaching(false);
+    }
+  };
   return (
     <ElementSpyAiPanel
       status={job.status}
       phase={job.phase}
-      onPropose={() => job.start("l3spy", inspectedAt, (requestId) => window.playwrightFlowStudio.ai.proposeInspectionLocator({ requestId }))}
+      onPropose={() =>
+        job.start("l3spy", inspectedAt, (id) => {
+          requestId.current = id;
+          return window.playwrightFlowStudio.ai.proposeInspectionLocator({ requestId: id });
+        })
+      }
       onCancel={job.cancel}
+      attach={{ stepChosen: Boolean(actionId), busy: attaching, onAttach: () => void attach() }}
     />
   );
 }
@@ -1914,12 +1954,15 @@ export function ElementSpyAiPanel({
   status,
   phase,
   onPropose,
-  onCancel
+  onCancel,
+  attach
 }: {
   status: AiStatusView | null;
   phase: AiAssistPhase<InspectionLocatorView>;
   onPropose: () => void;
   onCancel: () => void;
+  /** L3 U1: attach the shown proposal to the step chosen in "Use in step". */
+  attach?: { stepChosen: boolean; busy: boolean; onAttach: () => void };
 }) {
   const unavailable = aiUnavailableSentence(status, "The candidates above work without it.");
   const refused = phase.kind === "failed" && phase.view.code !== "CANCELLED";
@@ -1961,6 +2004,19 @@ export function ElementSpyAiPanel({
             <p className="recorder-spy-note" data-testid="element-spy-ai-meaning">
               It identifies the element differently from the Recorder's choice (for example by text instead of position). Review it before you use it.
             </p>
+          ) : null}
+          {attach ? (
+            <>
+              <div className="recorder-spy-apply">
+                <SysButton kind="small" icon={Crosshair} data-testid="element-spy-ai-attach" disabled={!attach.stepChosen || attach.busy} onClick={attach.onAttach}>
+                  Attach to step as pending suggestion
+                </SysButton>
+              </div>
+              <p className="recorder-spy-note" data-testid="element-spy-ai-attach-note">
+                {attach.stepChosen ? "" : "Choose the recorded step above first. "}
+                Attaching does not replace the step's locator. The step keeps running on it; the suggestion is proven on the saved flow's own runs, and becomes the locator only when you approve it in the Flow Designer.
+              </p>
+            </>
           ) : null}
         </div>
       ) : null}

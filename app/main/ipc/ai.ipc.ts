@@ -30,6 +30,7 @@ import {
   type FailureAnalysisView,
   type FlowLocatorUpgradesView,
   type FragmentSummaryView,
+  type InspectionAttachView,
   type InspectionLocatorView
 } from "@src/ai/contracts/AiApi";
 import { recorderService } from "@src/recorder/RecorderService";
@@ -41,6 +42,7 @@ import { assertSenderPermission } from "../security/sessionContext";
 import {
   abortInspectionLocator,
   analyzeFailure,
+  attachInspectionProposal,
   cancelAssist,
   deleteFailureAnalysis,
   explainFlowValidation,
@@ -233,6 +235,26 @@ export function registerAiIpc(): void {
       return { code, ok: false, message: denied.message, inspectedAt: null, proposal: null, attemptsUsed: 0 };
     }
     return proposeInspectionLocator(event.sender.id, request, { policy: aiPolicyConfig, ai: getAiService(), target: inspectionTarget });
+  });
+
+  // L3 U1 (owner decision D2): attach that window's proven proposal to one recorded draft step as a
+  // pending candidate. Ids only; main holds the proposal and its own draft, and proves it again against
+  // the step. It writes the Recorder draft, as "Use in action" does, so the same pair plus AI_USE.
+  ipcMain.handle("ai:attachInspectionProposal", async (event, request: unknown): Promise<InspectionAttachView> => {
+    const denied =
+      (await authorize(event, Permission.AI_USE, false)) ??
+      (await authorize(event, Permission.PAGE_RECORDER, false)) ??
+      (await authorize(event, Permission.RECORDER_ELEMENT_SPY, false));
+    if (denied) {
+      const code = denied.code === "REAUTH_REQUIRED" ? "REAUTH_REQUIRED" : "NOT_AUTHORIZED";
+      return { code, ok: false, message: denied.message, actions: null };
+    }
+    return attachInspectionProposal(event.sender.id, request, {
+      policy: aiPolicyConfig,
+      target: inspectionTarget,
+      draftAction: (actionId) => recorderService.getDraftAction(actionId),
+      attach: (actionId, pending) => recorderService.attachPendingUpgrade(actionId, pending)
+    });
   });
 
   // Cancels only the asking window's own job: main prefixes the id with the sender's id.

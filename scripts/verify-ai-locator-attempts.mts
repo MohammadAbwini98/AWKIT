@@ -39,7 +39,9 @@ import {
   buildAttemptFeedback,
   isLocatorUpgradeEligible,
   locatorAttemptJob,
+  offeredContainerScopes,
   runLocatorUpgradeAttempts,
+  unofferedScopeField,
   upgradeContextUsable,
   type LocatorAttemptResult,
   type LocatorUpgradeAttemptInput
@@ -607,9 +609,10 @@ try {
   const typicalShown = shownBy(typicalJob);
   check("an attempt sends ONE data block, built whole", typicalJob.prompt.fields.length === 1 && typicalShown.split("<<<DATA ").length === 2, typicalShown);
   check("...decoded against the attempt grammar at the attempt's output cap", typicalJob.schema === LOCATOR_ATTEMPT_SCHEMA && typicalJob.maxOutputTokens === LOCATOR_ATTEMPT_LIMITS.maxOutputTokens);
-  const expected = [`current locator: ${archive.locator?.strategy}, guarded-positional`, "target: tag=button role=button name=Archive", 'candidate: {"strategy":"role","value":"button","name":"Archive"} matches=2', "container: card region Guarded baselines", "heading: Locator Upgrade Lab", "sibling action: Remove", "data-bound, not shown: siblingActions.1"];
+  const expected = [`current locator: ${archive.locator?.strategy}, guarded-positional`, "target: tag=button role=button name=Archive", 'candidate: {"strategy":"role","value":"button","name":"Archive"} matches=2', "container: card region", "heading: Locator Upgrade Lab", "sibling action: Remove", "data-bound, not shown: siblingActions.1"];
   check("...showing the saved locator's strategy and class only, the target, candidate, container, heading and actions", expected.every((line) => typicalShown.includes(`\n${line}\n`)), typicalShown);
   check("...and never the sibling flagged as a bound value", !typicalShown.includes("Swap twins"));
+  check("...nor a container name the page computed from its content (D1 B: only an authored name is offered)", !typicalShown.includes("Guarded baselines"), typicalShown);
 
   // Element Spy's Save profile on the real 0.8B: offered `testId=spy-save-profile`, it answered `css`
   // `data-testid=spy-save-profile` — Playwright's engine=selector form, which the compiler refuses.
@@ -646,12 +649,26 @@ try {
       ...["alpha-", "bravo-", "charlie-", "delta-"].map((seed) => ({ strategy: "placeholder", value: long(seed, 200), name: long("Archive ", 80), count: 10_000 })),
       { strategy: "css", value: "main > section:nth-of-type(3) > div.row > button", count: 3, fallback: true }
     ],
-    containers: Array.from({ length: 6 }, (_, index) => ({ kind: "listItem", tag: "li", role: long("listitem", 30), name: long(`Panel ${index} of the orders workspace `, 80) })),
+    // The widest a container line can get since D1: an authored name at its bound AND a stable test id at its bound.
+    containers: Array.from({ length: 6 }, (_, index) => ({
+      kind: "listItem",
+      tag: "li",
+      role: long("listitem", 30),
+      name: long(`Panel ${"ABCDEF"[index]} of the orders workspace `, 80),
+      nameSource: "aria-label",
+      testId: `${"abcdef"[index]}-panel${"-orders".repeat(10)}`.slice(0, 60),
+      text: "Open order row"
+    })),
     heading: long("Open orders ", 80),
     siblingActions: Array.from({ length: 6 }, (_, index) => long(`Action ${index} for this order `, 60))
   };
   const boundCaptured = sanitizeUpgradeContext(boundRaw, { pageAlias: "lab", frameDepth: 0 });
   if (!boundCaptured) throw new Error("the bound capture did not sanitize");
+  check(
+    "(precondition) every bound container keeps its authored name and its 60-character test id, so each line is the widest D1 allows",
+    boundCaptured.containers.every((container) => container.authoredName === true && container.testId?.length === 60),
+    JSON.stringify(boundCaptured.containers.map((container) => [container.authoredName, container.testId?.length]))
+  );
   const boundJob = attempt(markBoundValues(boundCaptured, []), [LONGEST_REFUSAL]);
   const boundText = boundJob.prompt.fields[0].text ?? "";
   const boundLines = boundText.split("\n");
@@ -664,7 +681,9 @@ try {
     `target: tag=${tag} role=${role} type=${type} name=${name}`,
     `refused ${buildAttemptFeedback([LONGEST_REFUSAL])}`,
     ...semantic.map((candidate) => `candidate: ${JSON.stringify({ strategy: candidate.strategy, value: candidate.value, name: candidate.name })} matches=${candidate.count}`),
-    ...boundCaptured.containers.map((container) => `container: ${container.kind} ${container.role} ${container.name}`),
+    ...boundCaptured.containers.map(
+      (container, index) => `container: ${container.kind} ${container.role}${offeredContainerScopes(boundCaptured)[index].map((offered) => ` scope ${JSON.stringify(offered)}`).join("")}`
+    ),
     `heading: ${boundCaptured.heading}`,
     ...boundCaptured.siblingActions.map((action) => `sibling action: ${action}`)
   ]);
@@ -724,6 +743,112 @@ try {
   const longValue = await job(page, [JSON.stringify(planWith(longestCandidate, [])), PLANS.notJson]);
   check("a plan carrying a 200-character captured value passes the contract and compiler to the proof", proofs === before + 1 && longValue.result.attempts[0]?.stage === "proof", JSON.stringify(longValue.result));
   await page.close();
+
+  // ── 18. D1 (owner decision A+B): what a request may offer about a container, and nothing else ────
+  console.log("\n18 — D1 A+B: only an authored container name or a stable container test id is offered, and only an offered scope is proposed");
+  const d1 = (containers: Array<Record<string, unknown>>) =>
+    sanitizeUpgradeContext({ target: { tag: "button", role: "button", name: "Call" }, containers }, { pageAlias: "lab", frameDepth: 0 })?.containers ?? [];
+  const regionRaw = { kind: "landmark", tag: "section", role: "region", name: "Billing address", nameSource: "aria-label", testId: "lu-scope-billing", text: "Billing address Edit address" };
+  const itemRaw = { kind: "listItem", tag: "li", role: "listitem", name: "Alice Smith Call", nameSource: "content", testId: "slot-primary", text: "Alice Smith Call" };
+  const rowRaw = { kind: "row", tag: "tr", role: "row", name: "Invoice INV-2001 Edit Void", nameSource: "content", testId: "", text: "Invoice INV-2001 Edit Void" };
+  const [region, item, contentRow] = d1([regionRaw, itemRaw, rowRaw]);
+  check("B: a region's aria-label name is offered", region?.authoredName === true, JSON.stringify(region));
+  check("A: ...and its test id, whose one word also on the page is in its authored name", region?.testId === "lu-scope-billing", JSON.stringify(region));
+  check("A: a list item's stable test id is offered, its computed name is not", item?.testId === "slot-primary" && item.authoredName === undefined, JSON.stringify(item));
+  check("B: a row's name computed from its cells is kept for the Spy to show, never offered", Boolean(contentRow?.name.includes("INV-2001")) && contentRow?.authoredName === undefined && contentRow.testId === undefined, JSON.stringify(contentRow));
+  const refusedIds = d1([
+    { kind: "row", role: "row", name: "", testId: "spy-row-2003", text: "Invoice INV-2003 Archive" },
+    { kind: "listItem", role: "listitem", name: "", testId: "contact-carol-white", text: "Carol White Call" },
+    { kind: "card", role: "", name: "", testId: "token-abcdefgh", text: "Settings" },
+    { kind: "form", role: "form", name: "", testId: "billing panel", text: "Pay" },
+    { kind: "landmark", role: "region", name: "", testId: "billing-panel" }
+  ]);
+  check(
+    "A: a record-keyed (digits or the record's own words), secret-shaped, malformed or unverifiable test id is never offered",
+    refusedIds.length === 5 && refusedIds.every((container) => container.testId === undefined),
+    JSON.stringify(refusedIds)
+  );
+  const names = d1([
+    { kind: "listItem", role: "listitem", name: "Dan Brown", nameSource: "aria-label", text: "Dan Brown Call" },
+    { kind: "row", role: "row", name: "Invoice 2002", nameSource: "aria-label", text: "Paid Edit" },
+    { kind: "listItem", role: "listitem", name: "Contact dan@example.com", nameSource: "aria-label", text: "Dan Brown Call" },
+    { kind: "row", role: "row", name: "Paid", nameSource: "aria-label" },
+    { kind: "listItem", role: "listitem", name: "Night shift", nameSource: "aria-labelledby", text: "Carol White Call" },
+    { kind: "dialog", role: "dialog", name: "Confirm discount", nameSource: "aria-label", text: "Confirm discount Apply Keep" }
+  ]);
+  check(
+    "B: a record's authored name that repeats its data, carries a record key, is sensitive, or cannot be checked is never offered",
+    names.slice(0, 4).every((container) => container.authoredName === undefined),
+    JSON.stringify(names.slice(0, 4))
+  );
+  check("B: ...while a record's own authored label and a dialog's authored name are", names[4]?.authoredName === true && names[5]?.authoredName === true, JSON.stringify(names.slice(4)));
+
+  const d1Captured = sanitizeUpgradeContext({ target: { tag: "button", role: "button", name: "Call" }, containers: [itemRaw, regionRaw] }, { pageAlias: "lab", frameDepth: 0 });
+  if (!d1Captured) throw new Error("the D1 capture did not sanitize");
+  const d1Context = markBoundValues(d1Captured, ["lu-scope-billing"]);
+  const d1Text = locatorAttemptJob({ requestId: "req-18", step: archive, boundValues: [], upgradeContext: d1Context }, [], "req-18.a1").prompt.fields[0].text ?? "";
+  check("the request offers the stable test id as a ready scope", d1Text.includes('container: listItem listitem scope {"kind":"listItem","strategy":"testId","value":"slot-primary"}'), d1Text);
+  check("...and the authored name as a ready role scope", d1Text.includes('scope {"kind":"landmark","strategy":"role","value":"region","name":"Billing address"}'), d1Text);
+  check("...never a test id marked as a bound value, which is named by its field only", !d1Text.includes("lu-scope-billing") && d1Text.includes("containers.1.testId"), d1Text);
+  check("...and never the list item's computed name", !d1Text.includes("Alice Smith"), d1Text);
+  const structural = sanitizeUpgradeContext(
+    { target: { tag: "button", role: "button", name: "Call" }, candidates: [{ strategy: "css", value: '[data-testid="contact-2004"] button', count: 1, fallback: false }, { strategy: "role", value: "button", name: "Call", count: 4 }] },
+    { pageAlias: "lab", frameDepth: 0 }
+  );
+  const structuralText = structural ? (locatorAttemptJob({ requestId: "req-18s", step: archive, boundValues: [], upgradeContext: structural }, [], "req-18s.a1").prompt.fields[0].text ?? "") : "";
+  check(
+    "a candidate the compiler would refuse as written is never shown, so a structural CSS path cannot carry a container's record-keyed id",
+    structuralText.includes('candidate: {"strategy":"role","value":"button","name":"Call"}') && !structuralText.includes("contact-2004"),
+    structuralText
+  );
+
+  const compiledScope = (scopeSpec: Record<string, unknown>) => {
+    const compiled = compileLocatorPlan({ version: 1, target: { strategy: "role", value: "button", name: "Call" }, scopes: [scopeSpec] }, undefined);
+    if (!compiled.ok) throw new Error(`scope fixture did not compile: ${compiled.code}`);
+    return compiled.context;
+  };
+  const scopedBy = (scopeSpec: Record<string, unknown>) => unofferedScopeField(compiledScope(scopeSpec), d1Context);
+  check("an offered test id scope is accepted", scopedBy({ kind: "listItem", strategy: "testId", value: "slot-primary" }) === undefined);
+  check("an offered authored name is accepted, in any case", scopedBy({ kind: "landmark", strategy: "role", value: "region", name: "billing address" }) === undefined);
+  check("a nameless role scope names structure only and is accepted", scopedBy({ kind: "tableRow", strategy: "role", value: "row" }) === undefined);
+  check("a sibling's or invented test id is refused", scopedBy({ kind: "listItem", strategy: "testId", value: "slot-backup" }) === "scopes.0.value");
+  check("a test id that is a bound value is refused although the page carries it", scopedBy({ kind: "landmark", strategy: "testId", value: "lu-scope-billing" }) === "scopes.0.value");
+  check("C is not approved: a row-text scope (hasText) is refused", scopedBy({ kind: "tableRow", strategy: "role", value: "row", hasText: "INV-2001" }) === "scopes.0.hasText");
+  check(
+    "...and so are a row's computed name and a text scope",
+    scopedBy({ kind: "tableRow", strategy: "role", value: "row", name: "Invoice INV-2001 Edit Void" }) === "scopes.0.name" && scopedBy({ kind: "listItem", strategy: "text", value: "Alice Smith" }) === "scopes.0.value"
+  );
+  check("with no capture, no named scope is offered", unofferedScopeField(compiledScope({ kind: "listItem", strategy: "testId", value: "slot-primary" }), undefined) === "scopes.0.value");
+
+  let d1Proofs = 0;
+  const d1Plan = (scopeSpec: Record<string, unknown>) => ({ version: 1, target: { strategy: "role", value: "button", name: "Call", exact: true }, scopes: [scopeSpec] });
+  const d1Loop = (plan: unknown, mode: "upgrade" | "repair" = "upgrade") =>
+    runLocatorUpgradeAttempts(
+      { requestId: "req-d1", mode, step: archive, boundValues: [], upgradeContext: d1Context, userRequested: true, maxAttempts: 1 },
+      {
+        ai: {
+          submit: async () => ({ status: "ok", value: plan, modelId: "stub", usage: { promptTokens: 1, outputTokens: 1, firstTokenMs: 0, generationMs: 0 }, yields: 0 }),
+          cancel: () => false
+        },
+        prove: async () => {
+          d1Proofs += 1;
+          return { schemaVersion: 1, outcome: "rejected", code: "WRONG_ELEMENT", compiled: true, intent: "passed", gates: { policy: "pass", buildable: "pass", unique: "pass", sameElement: "fail" }, scope: "compatible", pendingEligible: false };
+        },
+        annotate: async () => ({ code: "OK" as const })
+      }
+    );
+  const unofferedRun = await d1Loop(d1Plan({ kind: "listItem", strategy: "testId", value: "slot-backup" }));
+  check(
+    "the loop refuses an unoffered scope at intent (SCOPE_NOT_OFFERED), spending the attempt",
+    unofferedRun.attempts[0]?.stage === "intent" && unofferedRun.attempts[0].code === "SCOPE_NOT_OFFERED" && unofferedRun.attempts[0].field === "scopes.0.value" && unofferedRun.attemptsUsed === 1,
+    JSON.stringify(unofferedRun)
+  );
+  check("...and it never reached the browser", d1Proofs === 0, String(d1Proofs));
+  check("...and the next attempt is told why, by code and field only", buildAttemptFeedback(unofferedRun.attempts).includes("SCOPE_NOT_OFFERED) on scopes.0.value — a scope must be one of the offered container scopes") && !buildAttemptFeedback(unofferedRun.attempts).includes("slot-backup"));
+  await d1Loop(d1Plan({ kind: "listItem", strategy: "testId", value: "slot-primary" }));
+  check("an offered scope goes on to the browser proof, which stays authoritative", d1Proofs === 1, String(d1Proofs));
+  await d1Loop(d1Plan({ kind: "listItem", strategy: "testId", value: "slot-backup" }), "repair");
+  check("(scope) §8 repair has no capture to offer from and is unchanged: its scope reaches the proof", d1Proofs === 2, String(d1Proofs));
 } finally {
   await browser?.close().catch(() => undefined);
   server?.kill();

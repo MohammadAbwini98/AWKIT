@@ -130,6 +130,14 @@ export function inspectionApplyBlocker(action: RecordedAction | undefined, inspe
   const candidate = inspection.candidates[candidateIndex];
   if (!candidate) return "That candidate is not part of the current inspection.";
   if (candidate.count !== 1 || candidate.fallback) return "Only a unique, non-positional candidate can be used in an action.";
+  return inspectionActionBlocker(action, inspection);
+}
+
+/**
+ * Why nothing from this inspection may be used with this action, whatever the candidate: the element
+ * steps, page, frame chain and shadow rules "Use in action" and the AI attach (L3 U1) share.
+ */
+export function inspectionActionBlocker(action: RecordedAction | undefined, inspection: ElementInspection): string | undefined {
   const boundary = inspection.locator.context?.shadow?.boundary;
   if (boundary && boundary !== "none") return "Elements inside a shadow root keep their recorded locator: a page-wide candidate cannot express the shadow-host chain.";
   if (!action?.locator) return "Choose a recorded element step.";

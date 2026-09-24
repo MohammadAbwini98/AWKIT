@@ -19,6 +19,7 @@ import { createHash } from "node:crypto";
 import type { FlowProfile, FlowStep, LocatorCandidate, LocatorContext, PendingLocatorUpgrade, PendingProofEvidence } from "../profiles/FlowProfile";
 import { createLocatorApprovalBinding, locatorBindingMatches } from "../profiles/locatorApproval";
 import { decideAiAction, type AiPolicyReason } from "../security/authz/AiAutonomyPolicy";
+import type { LocatorProofResult } from "../runner/locatorProof";
 import type { CompiledLocatorPlan } from "./locatorPlan";
 
 /**
@@ -103,7 +104,20 @@ export function createPendingUpgrade(input: {
   };
 }
 
-export type PendingUpgradeRefusal = "STEP_NOT_FOUND" | "NO_LOCATOR" | "STALE" | "SUPERSEDED" | Extract<AiPolicyReason, `T3_${string}`>;
+/** L3 §10 evidence-on-demand from one proof: gate verdicts, counts and the code, nothing the proof saw. */
+export function proofEvidenceOf(proof: LocatorProofResult): PendingProofEvidence {
+  return {
+    code: proof.code,
+    ...(proof.candidateMatchCount !== undefined ? { candidateMatchCount: proof.candidateMatchCount } : {}),
+    ...(proof.baselineMatchCount !== undefined ? { baselineMatchCount: proof.baselineMatchCount } : {}),
+    sameElement: proof.gates.sameElement,
+    scope: proof.scope,
+    ...(proof.identityAnchor !== undefined ? { identityAnchor: proof.identityAnchor } : {}),
+    ...(proof.identityScore !== undefined ? { identityScore: proof.identityScore } : {})
+  };
+}
+
+export type PendingUpgradeRefusal ="STEP_NOT_FOUND" | "NO_LOCATOR" | "STALE" | "SUPERSEDED" | Extract<AiPolicyReason, `T3_${string}`>;
 export type PendingUpgradeWrite = { ok: true; profile: FlowProfile; replaced: boolean } | { ok: false; code: PendingUpgradeRefusal };
 
 /** Pure compare-and-swap. Run it inside the flow store's folder lane. */

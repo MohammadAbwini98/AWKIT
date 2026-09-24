@@ -325,13 +325,15 @@ console.log("\nThe renderer cannot run a prompt:\n");
   // `ai:deleteFailureAnalysis` names the same pair through `sanitizeFailureAnalysisTarget` and only
   // removes the stored analysis covering that instance. L3 §1: `ai:proposeInspectionLocator` carries
   // only a request id through `sanitizeInspectionLocatorRequest`; main reads its own live inspection.
+  // L3 U1: `ai:attachInspectionProposal` carries a request id and an action id through
+  // `sanitizeInspectionAttachRequest`; main holds the proposal and its own draft, never a candidate.
   const argumentsTaken = [...preload.matchAll(/(ai:[A-Za-z]+)", ([a-zA-Z]+)\)/g)].map((m) => `${m[1]}(${m[2]})`);
   // Without this the .every() below passes on an empty list the moment the pattern stops matching.
-  check("the bridge's arguments were actually read", argumentsTaken.length === 13, argumentsTaken.join(","));
+  check("the bridge's arguments were actually read", argumentsTaken.length === 14, argumentsTaken.join(","));
   check(
     "only settings, a feature id, an audit page, an action id, a flow id, a promotion, editor state and named assist jobs cross the bridge",
     argumentsTaken.every((call) =>
-      /^ai:(updateSettings\(patch\)|restoreFeature\(feature\)|listAudit\(page\)|revert\(actionId\)|listUpgrades\(flowId\)|promoteUpgrade\(request\)|setEditorState\(state\)|explainValidation\(request\)|summarizeFragment\(request\)|analyzeFailure\(request\)|deleteFailureAnalysis\(target\)|proposeInspectionLocator\(request\)|cancelAssist\(requestId\))$/.test(call)
+      /^ai:(updateSettings\(patch\)|restoreFeature\(feature\)|listAudit\(page\)|revert\(actionId\)|listUpgrades\(flowId\)|promoteUpgrade\(request\)|setEditorState\(state\)|explainValidation\(request\)|summarizeFragment\(request\)|analyzeFailure\(request\)|deleteFailureAnalysis\(target\)|proposeInspectionLocator\(request\)|attachInspectionProposal\(request\)|cancelAssist\(requestId\))$/.test(call)
     ),
     argumentsTaken.join(",")
   );

@@ -19,6 +19,11 @@
  * scripted plan on that live page before the panel shows it — or refuses, cancels, or withholds it when
  * the page or the inspection it was asked for is gone.
  *
+ * L3 U1 (owner decision D2, 2026-09-24) too: a proven proposal is attached to a recorded draft step only
+ * after the step is chosen and Attach is clicked; main keeps the step's own locator, refuses a request it
+ * never answered, saves its own candidate even when the renderer forges one, and the Flow Designer shows
+ * the saved candidate as proven on the page but on no run, with nothing applied.
+ *
  * The provider is the DETERMINISTIC one: `AWKIT_TEST_AI_PROVIDER` names a file holding the next
  * scripted answer, read only by a non-packaged build (the `AWKIT_TEST_LICENSE_BYPASS` pattern). It
  * replaces the transport and the model pack; queue, prompt builder and output contract are production.
@@ -160,6 +165,23 @@ const fragmentBlocking = auditFragment(seededFragment).filter((finding) => findi
 if (fragmentBlocking.length) throw new Error(`the seeded fragment is not storable: ${fragmentBlocking.map((f) => f.code).join(",")}`);
 mkdirSync(path.dirname(fragmentFile), { recursive: true });
 writeFileSync(fragmentFile, `${JSON.stringify(seededFragment, null, 2)}\n`, "utf8");
+
+// L3 U1: one recorded step on the Spy lab, restored as the Recorder's draft at start. Its own locator is
+// the one that runs; the U1 section attaches a proven AI proposal to it through the real app.
+const U1_ACTION_ID = "u1-save-profile";
+writeFileSync(
+  path.join(appData, "recorder-draft.json"),
+  `${JSON.stringify(
+    {
+      version: 1,
+      updatedAt: now,
+      actions: [{ id: U1_ACTION_ID, type: "click", name: "Click Save profile", pageAlias: "main", locator: { strategy: "text", value: "Save profile", quality: { strategy: "text", isUnique: true, matchCount: 1, confidence: "medium" } } }]
+    },
+    null,
+    2
+  )}\n`,
+  "utf8"
+);
 
 // L5b: one stored failed run whose diagnostics come from L5a's REAL buffer and REAL cause baseline,
 // plus a second instance failing the same way, and the durable history row the drawer opens from.
@@ -494,6 +516,82 @@ try {
   check("no flow, fragment, report or Recorder draft on disk changed across the Spy journey", persistedState() === spyState);
   check("...no recorded step changed", JSON.stringify(await win.evaluate(() => window.playwrightFlowStudio.recorder.getActions())) === actionsBeforeSpy);
   check("...and the flow library is as it was", JSON.stringify(await win.evaluate(() => window.playwrightFlowStudio.flows.list())) === flowsBeforeSpy);
+
+  console.log("\nL3 U1 — a proven proposal attached to a recorded step as a pending candidate, saved, and seen in the Flow Designer");
+  console_.setLabel("recorder u1");
+  check("(precondition) the Recorder restored the seeded draft step", (await win.evaluate(() => window.playwrightFlowStudio.recorder.getActions())).some((action) => action.id === U1_ACTION_ID));
+  // The message still reads "opened" from the previous session, so the new session's own page is the signal.
+  await openSpy(win);
+  check(
+    "(precondition) the Spy reopens on the Feature Test Lab",
+    Boolean(await until(async () => ((await recorderPage(app!, { op: "count" })).includes(SPY_LAB) ? true : null), 60_000)),
+    await recorderPage(app, { op: "count" })
+  );
+  const u1Inspected = await inspectInSpy(app, win, { selector: '[data-testid="spy-save-profile"]' }, "Save profile");
+  provide({ text: SAVE_PROFILE_PLAN });
+  await win.getByTestId("element-spy-ai-propose").click();
+  check("(precondition) a proven proposal is shown", Boolean(u1Inspected) && (await stateSettles(win, "element-spy-ai", "done")) === "done");
+  const attachButton = win.getByTestId("element-spy-ai-attach");
+  check(
+    "Attach is offered but disabled until a step is chosen, and says it replaces nothing",
+    (await attachButton.isDisabled()) && /Choose the recorded step above first[\s\S]*does not replace the step's locator/.test(await win.getByTestId("element-spy-ai-attach-note").innerText())
+  );
+  await win.getByTestId("element-spy-action").selectOption(U1_ACTION_ID);
+  check("...and enabled once the step is chosen", await attachButton.isEnabled());
+  await attachButton.click();
+  const attachedMessage = await until(async () => {
+    const message = await win.getByTestId("element-spy-message").innerText().catch(() => "");
+    return /attached|Not attached/.test(message) ? message : null;
+  }, 20_000);
+  check("the person's attach crosses real IPC and main attaches the proposal", /^AI suggestion attached[\s\S]*still runs on its recorded locator/.test(attachedMessage ?? ""), attachedMessage);
+  const u1Draft = (await win.evaluate(() => window.playwrightFlowStudio.recorder.getActions())).find((action) => action.id === U1_ACTION_ID);
+  check(
+    "main's draft holds the candidate beside the unchanged recorded locator",
+    u1Draft?.locator?.strategy === "text" && u1Draft.locator.value === "Save profile" && u1Draft.locator.pendingUpgrade?.proof === "capture-proven" && u1Draft.locator.pendingUpgrade.candidate.name === "Save profile",
+    JSON.stringify(u1Draft?.locator)
+  );
+  check("the step list says it is attached and not applied", (await win.locator(".recorder-step-meta", { hasText: "AI suggestion attached, not applied" }).count()) === 1);
+  const forgedAttach = await win.evaluate(
+    (actionId) => window.playwrightFlowStudio.ai.attachInspectionProposal({ requestId: "never-asked", actionId, pendingUpgrade: { candidate: { strategy: "testId", value: "spy-submit-order" } } } as never),
+    U1_ACTION_ID
+  );
+  check("a request main never answered is refused over real IPC, whatever candidate it carries", forgedAttach.code === "NOT_FOUND" && forgedAttach.actions === null, JSON.stringify(forgedAttach));
+  // Saved by a renderer that forges the candidate and adds provenance: main saves its own copy.
+  const u1Saved = await win.evaluate(async (actionId) => {
+    const copy = JSON.parse(JSON.stringify(await window.playwrightFlowStudio.recorder.getActions()));
+    const step = copy.find((action: { id: string }) => action.id === actionId);
+    step.locator.pendingUpgrade.candidate = { strategy: "testId", value: "spy-submit-order" };
+    step.locator.locatorProvenance = { schemaVersion: 1, source: "ai-semantic-upgrade", tier: "T2", actionId: "forged", proof: "replay-proven" };
+    return window.playwrightFlowStudio.recorder.saveFlow("U1 GUI flow", copy);
+  }, U1_ACTION_ID);
+  const u1Step = (u1Saved as FlowProfile).nodes.find((node) => node.name === "Click Save profile");
+  check(
+    "the saved step keeps its recorded locator, with main's candidate and not the renderer's",
+    u1Step?.locator?.strategy === "text" && u1Step.locator.pendingUpgrade?.candidate.name === "Save profile" && u1Step.locator.pendingUpgrade.candidate.strategy === "role" && u1Step.locator.locatorProvenance === undefined,
+    JSON.stringify(u1Step?.locator)
+  );
+  const u1OnDisk = (JSON.parse(readFileSync(path.join(appData, "flows", `${(u1Saved as FlowProfile).id}.json`), "utf8")) as FlowProfile).nodes.find((node) => node.id === u1Step?.id);
+  check("...exactly as written to disk", JSON.stringify(u1OnDisk?.locator?.pendingUpgrade) === JSON.stringify(u1Step?.locator?.pendingUpgrade) && u1OnDisk?.locator?.locatorProvenance === undefined);
+  check("...and saving cleared the draft", (await win.evaluate(() => window.playwrightFlowStudio.recorder.getActions())).length === 0);
+  await win.getByTestId("element-spy-stop").click().catch(() => undefined);
+
+  console_.setLabel("flow designer u1");
+  await navClick(win, "Flow Designer");
+  await win.getByRole("button", { name: "Saved flow" }).click();
+  await win.getByRole("option", { name: "U1 GUI flow" }).click();
+  await win.locator(".action-flow-node", { hasText: "Click Save profile" }).first().click();
+  await win.getByTestId("locator-upgrade-section").waitFor({ state: "visible", timeout: 20_000 });
+  await win
+    .waitForFunction(() => document.querySelector('[data-testid="locator-upgrade-state"]')?.getAttribute("data-upgrade-state") === "capture-proven", null, { timeout: 20_000 })
+    .catch(() => undefined);
+  const u1State = win.getByTestId("locator-upgrade-state");
+  check(
+    "the Flow Designer shows it as proven once on the page, not on any run, and never executed",
+    (await u1State.getAttribute("data-upgrade-state")) === "capture-proven" && /not yet on any run[\s\S]*never executed/.test(await u1State.innerText()),
+    await u1State.innerText().catch(() => "")
+  );
+  check("...with no Apply offered until replay proof exists", (await win.getByTestId("apply-locator-upgrade").count()) === 0 || (await win.getByTestId("apply-locator-upgrade").isDisabled()));
+  check("...while the saved flow still runs the recorded locator", (await win.evaluate(async (id) => (await window.playwrightFlowStudio.flows.get(id))?.nodes.find((node) => node.name === "Click Save profile")?.locator?.strategy, (u1Saved as FlowProfile).id)) === "text");
   provide({ text: goodAnswer });
 
   console.log("\nThe designer offers the explanation inside the validation panel");

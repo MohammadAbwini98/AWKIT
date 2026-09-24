@@ -30,6 +30,8 @@ import type {
   FlowLocatorUpgradesView,
   FragmentSummaryAssistRequest,
   FragmentSummaryView,
+  InspectionAttachRequest,
+  InspectionAttachView,
   InspectionLocatorRequest,
   InspectionLocatorView,
   LocatorPromotionRequest
@@ -440,6 +442,8 @@ const api = {
     deleteFailureAnalysis: (target: FailureAnalysisTarget) => invoke("ai:deleteFailureAnalysis", target) as Promise<AiAdminResponse>,
     // L3 §1. Element Spy's current element; main reads its own live inspection. Shown only, never applied.
     proposeInspectionLocator: (request: InspectionLocatorRequest) => invoke("ai:proposeInspectionLocator", request) as Promise<InspectionLocatorView>,
+    // L3 U1. Ids only: attaches main's own proven proposal to a recorded step as a pending candidate.
+    attachInspectionProposal: (request: InspectionAttachRequest) => invoke("ai:attachInspectionProposal", request) as Promise<InspectionAttachView>,
     cancelAssist: (requestId: string) => invoke("ai:cancelAssist", requestId) as Promise<AiAdminResponse>,
     importModelPack: () => invoke("ai:importModelPack") as Promise<AiAdminResponse>,
     removeModelPack: () => invoke("ai:removeModelPack") as Promise<AiAdminResponse>

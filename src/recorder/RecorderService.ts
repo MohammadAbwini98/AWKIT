@@ -36,8 +36,9 @@ import type { SessionProfile } from "../session/SessionProfile";
 import { normalizeOrigin } from "../session/sessionMatch";
 // AWKIT-DUR-003: drafts and URL history go through the ONE atomic temp+rename+retry writer.
 import { writeJsonFileAtomic } from "../session/atomicWrite";
-import { createLocatorApprovalBinding, isPositionalCandidate, isPositionalLocator } from "../profiles/locatorApproval";
-import type { DialogExpectation, FlowStep, LocatorCandidate, WaitCondition } from "../profiles/FlowProfile";
+import { createLocatorApprovalBinding, isPositionalCandidate, isPositionalLocator, locatorBindingMatches } from "../profiles/locatorApproval";
+import type { DialogExpectation, FlowStep, LocatorCandidate, PendingLocatorUpgrade, WaitCondition } from "../profiles/FlowProfile";
+import { buildRecordedStep } from "./buildRecordedFlow";
 import { buildFrameChain } from "./frameChainCapture";
 import { LocatorFactory } from "../runner/LocatorFactory";
 import { derivePopupAlias } from "../runner/runtime/PopupIdentityRegistry";
@@ -1944,6 +1945,42 @@ export class RecorderService {
     }
     await this.persistDraft();
     return { ok: true, actions: this.actions };
+  }
+
+  /** L3 U1: a copy of main's own draft action. The renderer's copy is never what an AI attach reads. */
+  public async getDraftAction(actionId: string): Promise<RecordedAction | undefined> {
+    await this.ensureDraftLoaded();
+    const action = this.actions.find((candidate) => candidate.id === actionId);
+    return action ? structuredClone(action) : undefined;
+  }
+
+  /**
+   * L3 U1 (owner decision D2): attach a browser-proven AI candidate to one draft step as its pending
+   * upgrade. A compare-and-swap: refused unless the step, as the finalizer builds it, still has the
+   * binding the candidate was proven against, or when the step already holds a newer candidate. The
+   * step's locator is not changed, so it stays the one that runs. Persisted with the draft.
+   */
+  public async attachPendingUpgrade(actionId: string, pending: PendingLocatorUpgrade): Promise<{ ok: true; actions: RecordedAction[] } | { ok: false; reason: string }> {
+    await this.ensureDraftLoaded();
+    await this.actionQueue.catch(() => undefined);
+    const action = this.actions.find((candidate) => candidate.id === actionId);
+    const built = action ? buildRecordedStep(action) : undefined;
+    if (!action?.locator || !built) return { ok: false, reason: "That recorded step no longer exists." };
+    if (!locatorBindingMatches(pending.binding, built)) return { ok: false, reason: "That step changed after the suggestion was proven. Ask again." };
+    const existing = action.locator.pendingUpgrade;
+    if (existing && Date.parse(existing.createdAt) > Date.parse(pending.createdAt)) return { ok: false, reason: "That step already holds a newer AI suggestion." };
+    action.locator.pendingUpgrade = structuredClone(pending);
+    if (this.draftTimer) {
+      clearTimeout(this.draftTimer);
+      this.draftTimer = null;
+    }
+    await this.persistDraft();
+    return { ok: true, actions: this.actions };
+  }
+
+  /** L3 U1: main's own pending candidates by action id, for the save boundary (`buildRecordedFlow`). */
+  public draftPendingUpgrades(): Map<string, PendingLocatorUpgrade> {
+    return new Map(this.actions.flatMap((action) => (action.locator?.pendingUpgrade ? [[action.id, action.locator.pendingUpgrade] as const] : [])));
   }
 
   private async recordInspection(sourcePage: Page | undefined, sourceFrame: Frame | undefined, raw: unknown): Promise<void> {

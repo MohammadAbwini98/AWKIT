@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { ElementIdentityContract, FlowProfile, FlowStep, LocatorGuard, StepLocator, WaitCondition } from "../profiles/FlowProfile";
+import { attachPendingUpgrade } from "../ai/pendingUpgrade";
+import type { ElementIdentityContract, FlowProfile, FlowStep, LocatorGuard, PendingLocatorUpgrade, StepLocator, WaitCondition } from "../profiles/FlowProfile";
 import { isPositionalLocator } from "../profiles/locatorApproval";
 import {
   automaticInteractionDecision,
@@ -53,7 +54,11 @@ function forwardLocatorFields(locator: RecordedActionLocator): Partial<StepLocat
   for (const key of [
     "strategy", "value", "name", "exact", "recordingXPath", "recordingCandidates", "upgradeContext", "quality", "alternatives", "context",
     "interaction", "identity", "prerequisite", "executionDecision", "resolution", "resolvedBy",
-    "approvedFallbackReason", "approvedFallbackBinding", "reviewReason", "guard", "blueprintCapture"
+    "approvedFallbackReason", "approvedFallbackBinding", "reviewReason", "guard", "blueprintCapture",
+    // AI state is never taken from an action: the renderer sends the actions back at save. A pending
+    // candidate comes only from main's own draft (`options.pendingUpgrades`), and a recorded step has no
+    // applied AI change to carry provenance for.
+    "pendingUpgrade", "locatorProvenance"
   ]) delete forward[key];
   return forward as Partial<StepLocator>;
 }
@@ -102,6 +107,15 @@ function persistWait(wait: WaitCondition): WaitCondition {
 }
 
 /**
+ * The step the finalizer builds from one draft action: what saving would persist for it (hashed guard
+ * and identity, final resolution). L3 U1 proves and binds a candidate against this, so the binding it
+ * carries is the one the saved step will have.
+ */
+export function buildRecordedStep(action: RecordedAction): FlowStep | undefined {
+  return buildRecordedFlow("", [action]).nodes.find((node) => node.id === "step-1");
+}
+
+/**
  * Build a saveable {@link FlowProfile} from a recorded session's actions. Pure (no I/O) so it can be
  * unit-tested and reused by the recorder IPC handler.
  *
@@ -111,10 +125,20 @@ function persistWait(wait: WaitCondition): WaitCondition {
  *  - recorded think-time (`wait` actions) becomes a fixed-time wait step (`config.waitType: "time"`,
  *    duration in `timeoutMs`) so it replays during execution;
  *  - recorded tab switches (`routeChange`) replay as a Route Change targeting the newest tab.
+ *
+ * `options.pendingUpgrades` is main's own copy of the AI candidates attached to draft actions (L3 U1),
+ * by action id. Each is attached to the step built from that action only while its binding still
+ * matches that step, the step is resolved, and it is not T3; otherwise it is dropped.
  */
-export function buildRecordedFlow(name: string, actions: RecordedAction[], blueprintsOut?: PageBlueprint[]): FlowProfile {
+export function buildRecordedFlow(
+  name: string,
+  actions: RecordedAction[],
+  blueprintsOut?: PageBlueprint[],
+  options: { pendingUpgrades?: ReadonlyMap<string, PendingLocatorUpgrade> } = {}
+): FlowProfile {
   // Guard against any Start/End sneaking in from the recording so we never duplicate them.
   const actionSteps = actions.filter((action) => action.type !== "start" && action.type !== "end");
+  const pendingSteps: Array<[string, PendingLocatorUpgrade]> = [];
 
   let currentY = 100;
   const startStep: FlowStep = { id: "start", type: "start", name: "Start", position: { x: 300, y: currentY } };
@@ -240,6 +264,8 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[], bluep
         step.locator.resolvedBy = "recorder";
       }
       if (prerequisiteOnlyReview) delete step.locator.reviewReason;
+      const trustedPending = options.pendingUpgrades?.get(action.id);
+      if (trustedPending) pendingSteps.push([step.id, trustedPending]);
 
       if (step.locator.prerequisite?.status === "unknown" && !step.locator.executionDecision) {
         const decisionStep = { type: step.type, name: step.name, safety: step.safety, locator: step.locator };
@@ -436,5 +462,13 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[], bluep
     });
   }
 
-  return flowProfile;
+  // The same compare-and-swap that writes a candidate to a saved flow: T3 and the binding are checked on
+  // the step as built, so a renamed, retargeted or re-scoped step drops the candidate (STALE).
+  let flow = flowProfile;
+  for (const [stepId, pending] of pendingSteps) {
+    if (flow.nodes.find((node) => node.id === stepId)?.locator?.resolution !== "resolved") continue;
+    const attached = attachPendingUpgrade(flow, stepId, pending);
+    if (attached.ok) flow = attached.profile;
+  }
+  return flow;
 }

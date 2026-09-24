@@ -19,6 +19,16 @@
  *      browser proof on the live Spy page with a scripted provider — only a proven proposal is shown, a
  *      wrong element, a typed value and a T3 element are refused, Cancel ends the job, nothing is written
  *      (its IPC wiring is asserted in E and its panel rendered in F)
+ *   I  owner decisions D1 (A+B) and D2 (U1), 2026-09-24. D1: a duplicate control scoped by its
+ *      container's stable test id or authored name is proven on the live page; unscoped it stays
+ *      non-unique; a sibling, invented, record-keyed or row-text scope is refused before the browser
+ *      (and by gates B/C on their own); the request never carries a row's text, a record-keyed id or
+ *      sensitive container content; INV-2002 stays refused. U1: a proven proposal attaches only to the
+ *      chosen step and only after main proves it again there; refusals for every stale, cancelled,
+ *      foreign, T3, needs-review or AI-off case write nothing; the step keeps its own locator; save
+ *      takes main's candidates only (a forged or retargeted one is dropped); reload, Designer re-save
+ *      and export/import keep it; real replays earn proof with no model call and never execute it;
+ *      the existing promotion writes the only audit record, and revert restores the recorded locator
  */
 import { spawn, type ChildProcess } from "node:child_process";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
@@ -28,19 +38,29 @@ import { chromium, type Page } from "playwright";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { RecorderService } from "@src/recorder/RecorderService";
-import { buildRecordedFlow } from "@src/recorder/buildRecordedFlow";
+import { buildRecordedFlow, buildRecordedStep } from "@src/recorder/buildRecordedFlow";
 import { classifyLocatorQuality } from "@src/recorder/LocatorQualityClass";
-import type { ElementInspection, ElementInspectionState, RecordedAction } from "@src/recorder/RecorderTypes";
-import type { FlowStep, StepLocator } from "@src/profiles/FlowProfile";
+import type { ElementInspection, ElementInspectionState, RecordedAction, RecordedActionLocator } from "@src/recorder/RecorderTypes";
+import { boundValueSources } from "@src/recorder/upgradeContext";
+import type { FlowProfile, FlowStep, StepLocator } from "@src/profiles/FlowProfile";
+import { createLocatorApprovalBinding, locatorBindingMatches } from "@src/profiles/locatorApproval";
 import { effectivePermissions, Permission } from "@src/security/authz/Permissions";
 import { LocatorFactory } from "@src/runner/LocatorFactory";
+import { FileLocatorRecoveryStore } from "@src/runner/LocatorRecoveryStore";
 import { StepExecutor } from "@src/runner/StepExecutor";
 import { ValueResolver } from "@src/runner/ValueResolver";
 import type { InstanceExecutionContext } from "@src/runner/InstanceExecutionContext";
+import { AiActionStore } from "@src/ai/AiActionStore";
+import { revertAiAction } from "@src/ai/AiRevert";
 import type { AiStatusView, InspectionLocatorView } from "@src/ai/contracts/AiApi";
 import type { AiJobOutcome, AiJobRequest } from "@src/ai/AiService";
+import { promoteLocatorUpgrade } from "@src/ai/locatorPromotion";
+import { locatorAttemptJob } from "@src/ai/locatorUpgradeAttempts";
+import { evaluatePendingUpgrade, pendingUpgradeDigests } from "@src/ai/pendingUpgrade";
 import { proveLocatorPlan } from "@src/runner/locatorProof";
-import { abortInspectionLocator, proposeInspectionLocator, type InspectionTarget } from "../app/main/ai/aiAssist";
+import { JsonProfileStore } from "@src/storage/ProfileStore";
+import { abortInspectionLocator, attachInspectionProposal, proposeInspectionLocator, type InspectionAttachDeps, type InspectionTarget } from "../app/main/ai/aiAssist";
+import { toDesignerDocument, toFlowProfile } from "../app/renderer/components/workflow/flowProfileMapping";
 import type { AiAssistPhase } from "../app/renderer/components/shared/useAiAssistJob";
 
 const PORT = 4389;
@@ -48,6 +68,7 @@ const BASE = `http://127.0.0.1:${PORT}`;
 const LAB = `${BASE}/recorder-lab/element-spy`;
 let passed = 0;
 let failed = 0;
+const failures: string[] = [];
 
 function check(label: string, condition: unknown, detail?: string): void {
   if (condition) {
@@ -55,6 +76,7 @@ function check(label: string, condition: unknown, detail?: string): void {
     console.log(`  ✓ ${label}`);
   } else {
     failed += 1;
+    failures.push(`${label}${detail ? ` — ${detail.slice(0, 600)}` : ""}`);
     console.error(`  ✗ ${label}${detail ? ` — ${detail}` : ""}`);
   }
 }
@@ -171,6 +193,45 @@ async function main(): Promise<void> {
     const fillContext = fillAction ? recorder.getUpgradeContext(fillAction.id) : undefined;
     check("upgrade context never carries a form value", Boolean(fillContext) && !JSON.stringify(fillContext).includes("INV-2002"), JSON.stringify(fillContext?.target));
     check("recorded actions carry no upgrade context", !JSON.stringify(recorder.getActions()).includes("upgradeContext"));
+
+    // D1 (owner decision A+B, 2026-09-24): the same Call button in four list items, told apart only by
+    // the item's own identity. Recorded here so section I can attach AI candidates to real draft steps.
+    const calls = () => recorder.getActions().filter((a) => a.type === "click" && a.name.includes("Call"));
+    await rec.getByTestId("slot-primary").getByRole("button", { name: "Call" }).click();
+    await until(() => (calls().length === 1 ? true : null));
+    await rec.getByRole("listitem", { name: "Night shift" }).getByRole("button", { name: "Call" }).click();
+    await until(() => (calls().length === 2 ? true : null));
+    await rec.getByTestId("contact-2004").getByRole("button", { name: "Call" }).click();
+    await until(() => (calls().length === 3 ? true : null));
+    const [callPrimary, callNight, callDan] = calls();
+    check("recording captured the three Call steps", Boolean(callPrimary && callNight && callDan), JSON.stringify(calls().map((a) => a.name)));
+    const containerOf = (action: RecordedAction | undefined, kind: string) => (action ? recorder.getUpgradeContext(action.id)?.containers.find((c) => c.kind === kind) : undefined);
+    const primaryItem = containerOf(callPrimary, "listItem");
+    const nightItem = containerOf(callNight, "listItem");
+    const danItem = containerOf(callDan, "listItem");
+    const contactsRegion = containerOf(callPrimary, "landmark");
+    check("D1 A: a list item's stable test id is captured and offered; its computed name is not", primaryItem?.testId === "slot-primary" && primaryItem.authoredName === undefined, JSON.stringify(primaryItem));
+    check("D1 B: a list item's authored name is offered; its record-keyed test id is not", nightItem?.authoredName === true && nightItem.name === "Night shift" && nightItem.testId === undefined, JSON.stringify(nightItem));
+    check("D1: an item whose name carries an email and whose test id a record number offers neither", Boolean(danItem) && danItem?.authoredName === undefined && danItem?.testId === undefined, JSON.stringify(danItem));
+    check("D1 B: a region named through aria-labelledby is offered with its stable test id", contactsRegion?.authoredName === true && contactsRegion.name === "On-call contacts" && contactsRegion.testId === "spy-contacts", JSON.stringify(contactsRegion));
+    const invoiceRow = editContext?.containers[rowIndex];
+    const archivedRow = archiveContext?.containers.find((c) => c.kind === "row");
+    check("D1: a table row's computed name (its cells) is never offered, nor a row-number test id", Boolean(invoiceRow && archivedRow) && !invoiceRow?.authoredName && !archivedRow?.authoredName && archivedRow?.testId === undefined, JSON.stringify({ invoiceRow, archivedRow }));
+    const requestFor = (action: RecordedAction | null | undefined): string => {
+      const step = action ? buildRecordedStep(action) : undefined;
+      const upgradeContext = action ? recorder.getUpgradeContext(action.id) : undefined;
+      return step && upgradeContext ? locatorAttemptJob({ requestId: "d1", step, boundValues: boundValueSources(recorder.getActions()), upgradeContext, userRequested: true }, [], "d1.a1").prompt.fields[0].text ?? "" : "";
+    };
+    const primaryRequest = requestFor(callPrimary);
+    check("D1 A: the request offers the item's test id as a ready scope and never its text", primaryRequest.includes('scope {"kind":"listItem","strategy":"testId","value":"slot-primary"}') && !primaryRequest.includes("Alice Smith"), primaryRequest);
+    const nightRequest = requestFor(callNight);
+    check(
+      "D1 B: the request offers the authored name as a ready scope, never the record-keyed test id or the record's text",
+      nightRequest.includes('scope {"kind":"listItem","strategy":"label","value":"Night shift"}') && !nightRequest.includes("contact-carol-white") && !nightRequest.includes("Carol White"),
+      nightRequest
+    );
+    check("D1: nothing sensitive or record-keyed about Dan's item reaches a request", !/dan@example\.com|contact-2004|Dan Brown/.test(requestFor(callDan)), requestFor(callDan));
+    check("D1: the removed INV-2003 row's text and its row-number test id never reach a request", !/INV-2003|spy-row-2003/.test(requestFor(archiveAction)), requestFor(archiveAction));
 
     // In-recording inspect: the click is inspected, never performed and never recorded.
     const beforeInspect = actionCount();
@@ -447,6 +508,315 @@ async function main(): Promise<void> {
     state = await recorder.stopInspection();
     check("...and that session closes cleanly too", !state.session && internal.context === null, JSON.stringify(state));
 
+    // ── I: owner decisions D1 (A+B) and D2 (U1), 2026-09-24, on the live Spy page ─────────────────
+    console.log("I  D1 container identity on the live page, then U1: a proven proposal attached as a pending candidate");
+    state = await recorder.startInspection(LAB, { executablePath });
+    const live: Page = internal.page;
+    let liveProofs = 0;
+    const provingTarget = (): InspectionTarget | null => {
+      const target = spyTarget();
+      return target && { ...target, prove: (step, plan) => ((liveProofs += 1), target.prove(step, plan)) };
+    };
+    let liveAsks = 0;
+    const askLive = () => proposeInspectionLocator(7, { requestId: `i-${(liveAsks += 1)}` }, { policy: async () => ({ enabled: true }), ai: fakeAi, target: provingTarget });
+    const lastAsk = () => `i-${liveAsks}`;
+    const lastPrompt = () => jobs.at(-1)?.prompt.fields[0]?.text ?? "";
+    const spyStep = (): FlowStep => {
+      const inspection = recorder.getInspectionState().inspection!;
+      return { id: "element-spy", type: "click", name: inspection.owner.name, locator: inspection.locator };
+    };
+    const proveNow = (plan: unknown) => spyTarget()!.prove(spyStep(), plan);
+    const callIn = (scope?: Record<string, unknown>) => rolePlan("Call", scope ? [scope] : []);
+    const slot = (value: string) => ({ kind: "listItem", strategy: "testId", value });
+    // What the request offers for an item with an authored name and no explicit role.
+    const nightScope = { kind: "listItem", strategy: "label", value: "Night shift" };
+    const inspectPrimary = () => inspect(() => live.getByTestId("slot-primary").getByRole("button", { name: "Call" }).click(), "Call");
+    const inspectNight = () => inspect(() => live.getByRole("listitem", { name: "Night shift" }).getByRole("button", { name: "Call" }).click(), "Call");
+
+    const primaryInspection = await inspectPrimary();
+    plans.push(callIn(slot("slot-primary")));
+    let answer = await askLive();
+    const provenForOldInspection = lastAsk();
+    check("D1 A: a duplicate Call scoped by its item's stable test id is proven on the live page", Boolean(primaryInspection) && answer.ok && answer.proposal?.context?.containers?.[0]?.value === "slot-primary", JSON.stringify(answer));
+    check("...the model was offered that scope, never the item's text", lastPrompt().includes('"strategy":"testId","value":"slot-primary"') && !lastPrompt().includes("Alice Smith"), lastPrompt());
+    plans.push(callIn(), { version: 1, target: { strategy: "text", value: "Call", exact: true }, scopes: [] });
+    const unscoped = await askLive();
+    const refusedAsk = lastAsk();
+    check("D1: unscoped, the same Call stays non-unique and nothing is shown", unscoped.code === "NOT_PROVEN" && unscoped.attemptsUsed === 2 && (await proveNow(callIn())).code === "CANDIDATE_NOT_UNIQUE", JSON.stringify(unscoped));
+    let proofsBefore = liveProofs;
+    plans.push(callIn(slot("slot-backup")), callIn(slot("slot-tertiary")));
+    const sibling = await askLive();
+    check("D1: a sibling item's scope and an invented one are refused before the browser (never offered)", sibling.code === "NOT_PROVEN" && sibling.attemptsUsed === 2 && liveProofs === proofsBefore, JSON.stringify(sibling));
+    check(
+      "...and the browser proof refuses them on its own: gate C (WRONG_ELEMENT) and gate B (CANDIDATE_NO_MATCH)",
+      (await proveNow(callIn(slot("slot-backup")))).code === "WRONG_ELEMENT" && (await proveNow(callIn(slot("slot-tertiary")))).code === "CANDIDATE_NO_MATCH"
+    );
+
+    const nightInspection = await inspectNight();
+    plans.push(callIn(nightScope));
+    answer = await askLive();
+    check("D1 B: a duplicate Call scoped by its item's authored name is proven on the live page", Boolean(nightInspection) && answer.ok && answer.proposal?.context?.containers?.[0]?.value === "Night shift", JSON.stringify(answer));
+    check("...offered that name, never the item's record-keyed test id or text", lastPrompt().includes('"strategy":"label","value":"Night shift"') && !lastPrompt().includes("contact-carol-white") && !lastPrompt().includes("Carol White"), lastPrompt());
+    proofsBefore = liveProofs;
+    plans.push(callIn(slot("contact-carol-white")), callIn({ ...slot("contact-carol-white"), kind: "card" }));
+    const keyed = await askLive();
+    check("D1 A: the record-keyed test id is refused when proposed, before the browser", keyed.code === "NOT_PROVEN" && liveProofs === proofsBefore, JSON.stringify(keyed));
+    check("...although the page would prove it: only the D1 rule keeps it out", (await proveNow(callIn(slot("contact-carol-white")))).code === "PROVEN");
+
+    await inspect(() => live.getByTestId("contact-2004").getByRole("button", { name: "Call" }).click(), "Call");
+    plans.push(callIn(), callIn());
+    await askLive();
+    check("D1: an item whose name carries an email and whose test id a record number reaches the model with neither", !/dan@example\.com|contact-2004|Dan Brown/.test(lastPrompt()), lastPrompt());
+
+    const inv2001 = await inspect(() => live.getByRole("row", { name: /INV-2001/ }).getByRole("button", { name: "Edit" }).click(), "Edit");
+    const rowText = { kind: "tableRow", strategy: "role", value: "row", hasText: "INV-2001" };
+    proofsBefore = liveProofs;
+    plans.push(rolePlan("Edit", [rowText]), rolePlan("Edit", [{ ...rowText, hasText: "Invoice INV-2001" }]));
+    const rowAnswer = await askLive();
+    check("C is not approved: a row-text scope is refused before the browser", Boolean(inv2001) && rowAnswer.code === "NOT_PROVEN" && liveProofs === proofsBefore, JSON.stringify(rowAnswer));
+    check("...although the page would prove it: the mechanics exist, the policy refuses them", (await proveNow(rolePlan("Edit", [rowText]))).code === "PROVEN");
+    check("...and the request carried neither the row's text nor its computed name", !lastPrompt().includes("INV-2001"), lastPrompt());
+    const inv2002 = await inspect(() => live.getByRole("row", { name: /INV-2002/ }).getByRole("button", { name: "Edit" }).click(), "Edit");
+    const invoicesScope = { kind: "landmark", strategy: "testId", value: "spy-duplicates" };
+    plans.push(rolePlan("Edit"), rolePlan("Edit", [invoicesScope]));
+    const invAnswer = await askLive();
+    check(
+      "INV-2002 stays refused: its rows carry no identity D1 may offer, so no plan is unique",
+      Boolean(inv2002) && invAnswer.code === "NOT_PROVEN" && invAnswer.attemptsUsed === 2 && (await proveNow(rolePlan("Edit", [invoicesScope]))).code === "CANDIDATE_NOT_UNIQUE",
+      JSON.stringify(invAnswer)
+    );
+
+    // U1: main holds the proven proposal; the renderer names it and a step, nothing else.
+    const attachDeps: InspectionAttachDeps = {
+      policy: async () => ({ enabled: true }),
+      target: spyTarget,
+      draftAction: (id) => recorder.getDraftAction(id),
+      attach: (id, pending) => recorder.attachPendingUpgrade(id, pending)
+    };
+    const attach = (requestId: string, actionId: string | undefined, deps: InspectionAttachDeps = attachDeps) => attachInspectionProposal(7, { requestId, actionId: actionId ?? "missing" }, deps);
+    const draftBytes = () => readFile(draftPath, "utf8");
+    const actionById = (id: string | undefined) => recorder.getActions().find((a) => a.id === id);
+    const primaryBefore = structuredClone(actionById(callPrimary?.id)?.locator);
+
+    await inspectPrimary();
+    check("(precondition) a proposal proven for an earlier inspection cannot be attached", (await attach(provenForOldInspection, callPrimary?.id)).code === "NOT_FOUND");
+    plans.push(callIn(slot("slot-primary")));
+    answer = await askLive();
+    const r1 = lastAsk();
+    check("(precondition) a proven proposal for the inspected Call", answer.ok, JSON.stringify(answer));
+    const bytesBefore = await draftBytes();
+    let attached = await attach("not valid!", callPrimary?.id);
+    check("a malformed attach request is refused", attached.code === "INVALID_REQUEST" && attached.actions === null);
+    check("a request with no proven proposal behind it is refused", (await attach("never-asked", callPrimary?.id)).code === "NOT_FOUND");
+    check("...and so is one whose proposal was refused, which main never held", (await attach(refusedAsk, callPrimary?.id)).code === "NOT_FOUND");
+    attached = await attach(r1, callNight?.id);
+    check("attaching to a step whose element is not the proposal's is refused by the re-proof", attached.code === "NOT_APPLICABLE" && /does not reach the element/.test(attached.message ?? ""), JSON.stringify(attached));
+    attached = await attach(r1, recorder.getActions().find((a) => a.type === "goto")?.id);
+    check("a non-element step is refused", attached.code === "NOT_APPLICABLE", JSON.stringify(attached));
+    attached = await attach(r1, frameAction?.id);
+    check("a step in another frame is refused", attached.code === "NOT_APPLICABLE" && /different frame/.test(attached.message ?? ""), JSON.stringify(attached));
+    check("with local AI switched off it is refused", (await attach(r1, callPrimary?.id, { ...attachDeps, policy: async () => ({ enabled: false }) })).code === "DISABLED");
+    // A sensitive step and a needs-review step over the same element: draft fixtures, removed again below.
+    internal.actions.push(
+      { ...structuredClone(callPrimary!), id: "u1-sensitive", name: "Delete account" },
+      { ...structuredClone(callPrimary!), id: "u1-review", locator: { ...structuredClone(callPrimary!.locator!), resolution: "needs-review", reviewReason: "fixture" } }
+    );
+    check("a sensitive (T3) step is refused before any proof", (await attach(r1, "u1-sensitive")).code === "PROTECTED");
+    check("a step that needs review is refused", (await attach(r1, "u1-review")).code === "NOT_APPLICABLE");
+    internal.actions = internal.actions.filter((a: RecordedAction) => a.id !== "u1-sensitive" && a.id !== "u1-review");
+    check("no refused attach wrote the draft", (await draftBytes()) === bytesBefore);
+
+    attached = await attach(r1, callPrimary?.id);
+    const primaryAfter = actionById(callPrimary?.id)?.locator;
+    const onDraft = primaryAfter?.pendingUpgrade;
+    check("the proven proposal attaches to the step the person chose", attached.ok && attached.code === "OK" && Boolean(onDraft), JSON.stringify(attached));
+    const { pendingUpgrade: _attached, ...primaryActive } = primaryAfter ?? ({} as RecordedActionLocator);
+    check("...leaving the step's own locator exactly as recorded, so it is still the one that runs", JSON.stringify(primaryActive) === JSON.stringify(primaryBefore));
+    check(
+      "...as a capture-proven candidate, proven again against that step",
+      onDraft?.proof === "capture-proven" && onDraft.proofEvidence?.code === "PROVEN" && onDraft.proofEvidence.sameElement === "pass" && onDraft.candidate.name === "Call",
+      JSON.stringify(onDraft)
+    );
+    const primaryBuilt = callPrimary ? buildRecordedStep(actionById(callPrimary.id)!) : undefined;
+    check("...bound to the step the finalizer builds, which is what saving persists", Boolean(primaryBuilt) && locatorBindingMatches(onDraft?.binding, primaryBuilt!));
+    // The binding mirrors the step's own recorded locator and context, as every pending binding does
+    // (DECISIONS 2026-09-19), so only what the AI path adds is checked for page text.
+    check(
+      "...its candidate and evidence carry no page text or typed value, and nothing in it carries a fingerprint",
+      !/fingerprint/.test(JSON.stringify(onDraft)) && !/Alice|INV-2002/.test(JSON.stringify({ candidate: onDraft?.candidate, context: onDraft?.context, evidence: onDraft?.proofEvidence })),
+      JSON.stringify(onDraft)
+    );
+    check("...and nothing was added to alternatives, which the runner would execute", JSON.stringify(primaryAfter?.alternatives) === JSON.stringify(primaryBefore?.alternatives));
+    check("...persisted with the draft", Boolean((JSON.parse(await draftBytes()) as { actions: RecordedAction[] }).actions.find((a) => a.id === callPrimary?.id)?.locator?.pendingUpgrade));
+    check("...and returned to the renderer for its step list", Boolean(attached.actions?.find((a) => a.id === callPrimary?.id)?.locator?.pendingUpgrade));
+
+    plans.push("hang");
+    const running = askLive();
+    await until(() => (hanging ? true : null));
+    check("a job still running has nothing to attach", (await attach(lastAsk(), callPrimary?.id)).code === "NOT_FOUND");
+    abortInspectionLocator(`assist.7.${lastAsk()}`);
+    await running;
+
+    plans.push(callIn(slot("slot-primary")));
+    await askLive();
+    const r2 = lastAsk();
+    plans.push(callIn(slot("slot-primary")));
+    await askLive();
+    const r3 = lastAsk();
+    attached = await attach(r3, callPrimary?.id);
+    check("a newer proven proposal replaces the attached candidate", attached.ok && actionById(callPrimary?.id)?.locator?.pendingUpgrade?.createdAt !== onDraft?.createdAt, JSON.stringify(attached));
+    attached = await attach(r2, callPrimary?.id);
+    check("an older one cannot replace the newer candidate", attached.code === "NOT_APPLICABLE" && /newer/.test(attached.message ?? ""), JSON.stringify(attached));
+
+    await inspectNight();
+    check("a new inspection makes the earlier proposal unattachable", (await attach(r3, callPrimary?.id)).code === "NOT_FOUND");
+    plans.push(callIn(nightScope));
+    await askLive();
+    const beforeReload = lastAsk();
+    await live.reload();
+    check("a reload of the inspected document makes its proposal unattachable", (await attach(beforeReload, callNight?.id)).code === "NOT_FOUND");
+    await inspectNight();
+    plans.push(callIn(nightScope));
+    await askLive();
+    attached = await attach(lastAsk(), callNight?.id);
+    check("inspected again on the new document, the authored-name proposal attaches to its own step", attached.ok && Boolean(actionById(callNight?.id)?.locator?.pendingUpgrade), JSON.stringify(attached));
+    await inspectPrimary();
+    plans.push(callIn(slot("slot-primary")));
+    await askLive();
+    const heldAtClose = lastAsk();
+    state = await recorder.stopInspection();
+    check("after Close Spy a held proposal is unattachable", (await attach(heldAtClose, callPrimary?.id)).code === "NOT_FOUND");
+    const trusted = recorder.draftPendingUpgrades();
+    check("...while the two attached candidates stay with the draft", trusted.size === 2 && trusted.has(callPrimary!.id) && trusted.has(callNight!.id));
+    const restarted = new RecorderService();
+    restarted.configureDraftStorage(draftPath);
+    await restarted.ensureDraftLoaded();
+    check(
+      "a restarted Recorder restores them from its draft",
+      JSON.stringify([...restarted.draftPendingUpgrades()].map(([id, pending]) => [id, pending.createdAt])) === JSON.stringify([...trusted].map(([id, pending]) => [id, pending.createdAt]))
+    );
+
+    // Save: only main's own candidates, each on the step built from its own action.
+    const stepIdOf = (actions: RecordedAction[], id: string) => `step-${actions.filter((a) => a.type !== "start" && a.type !== "end").findIndex((a) => a.id === id) + 1}`;
+    const rendererCopy = structuredClone(recorder.getActions());
+    const forgedOn = rendererCopy.find((a) => a.id === editAction?.id)!;
+    forgedOn.locator!.pendingUpgrade = { ...structuredClone(trusted.get(callPrimary!.id)!), binding: createLocatorApprovalBinding(buildRecordedStep(forgedOn)!)! };
+    rendererCopy.find((a) => a.id === callDan?.id)!.locator!.locatorProvenance = { schemaVersion: 1, source: "ai-semantic-upgrade", tier: "T1", actionId: "forged", modelId: "x", proof: "replay-proven", appliedAt: new Date().toISOString(), binding: forgedOn.locator!.pendingUpgrade!.binding, previous: { strategy: "css", value: "#x" } };
+    const savedFlowDraft = buildRecordedFlow("Spy U1", rendererCopy, [], { pendingUpgrades: trusted });
+    const carrying = savedFlowDraft.nodes.filter((node) => node.locator?.pendingUpgrade).map((node) => node.id);
+    check(
+      "at save only main's own candidates are attached, each to the step built from its own action",
+      JSON.stringify(carrying) === JSON.stringify([stepIdOf(rendererCopy, callPrimary!.id), stepIdOf(rendererCopy, callNight!.id)]),
+      JSON.stringify(carrying)
+    );
+    check("...so a candidate the renderer forged on another step is dropped", !savedFlowDraft.nodes.find((node) => node.id === stepIdOf(rendererCopy, editAction!.id))?.locator?.pendingUpgrade);
+    check("...and so is provenance the renderer sent", !JSON.stringify(savedFlowDraft).includes("locatorProvenance"));
+    const retargetedCopy = structuredClone(recorder.getActions());
+    retargetedCopy.find((a) => a.id === callPrimary!.id)!.locator!.value = "link";
+    check(
+      "a step the renderer retargeted before save loses its candidate (its binding no longer matches)",
+      buildRecordedFlow("x", retargetedCopy, [], { pendingUpgrades: trusted }).nodes.filter((node) => node.locator?.pendingUpgrade).length === 1
+    );
+    const legacyNodes = JSON.stringify(buildRecordedFlow("x", structuredClone(recorder.getActions())).nodes);
+    check("a save without main's candidates carries none, although the draft actions do", !legacyNodes.includes("pendingUpgrade"));
+    check("...and it is exactly a save with none attached, so legacy saves are unchanged", legacyNodes === JSON.stringify(buildRecordedFlow("x", structuredClone(recorder.getActions()), undefined, { pendingUpgrades: new Map() }).nodes));
+
+    const flowStore = new JsonProfileStore<FlowProfile>({ folder: join(work, "flows") });
+    await flowStore.create(savedFlowDraft);
+    const savedFlow = (await flowStore.get(savedFlowDraft.id))!;
+    const savedCall = savedFlow.nodes.find((node) => node.id === stepIdOf(rendererCopy, callPrimary!.id))!;
+    check("the saved step keeps its recorded locator as the active one", savedCall.locator?.strategy === primaryBuilt?.locator?.strategy && savedCall.locator?.value === primaryBuilt?.locator?.value && JSON.stringify(savedCall.locator?.context) === JSON.stringify(primaryBuilt?.locator?.context));
+    check("...and its candidate survives save and reload, still bound to it", locatorBindingMatches(savedCall.locator?.pendingUpgrade?.binding, savedCall) && !/fingerprint/.test(JSON.stringify(savedCall.locator?.pendingUpgrade)));
+    const designerTrip = (profile: FlowProfile): FlowProfile => {
+      const doc = toDesignerDocument(profile);
+      return toFlowProfile(doc.nodes, doc.edges, profile.id, profile.name, { description: profile.description, version: profile.version });
+    };
+    const edited = designerTrip({ ...savedFlow, name: "Spy U1 (edited)" });
+    await flowStore.update(savedFlow.id, edited);
+    const resavedFlow = (await flowStore.get(savedFlow.id))!;
+    check("an edit and re-save in the Flow Designer keeps the candidate", JSON.stringify(resavedFlow.nodes.find((node) => node.id === savedCall.id)?.locator?.pendingUpgrade) === JSON.stringify(savedCall.locator?.pendingUpgrade));
+    const exported = await flowStore.export(savedFlow.id);
+    const imported = await flowStore.import({ ...JSON.parse(JSON.stringify(exported)), id: "spy-u1-imported" });
+    check("export and import keep it", JSON.stringify(imported.nodes.find((node) => node.id === savedCall.id)?.locator?.pendingUpgrade) === JSON.stringify(savedCall.locator?.pendingUpgrade));
+
+    // Replay: the step runs on its own locator; passing runs earn proof. No model is involved.
+    const recovery = new FileLocatorRecoveryStore(join(work, "memory"));
+    const u1Browser = await chromium.launch({ headless: true });
+    const audit = new AiActionStore(join(work, "ai-actions.json"));
+    try {
+      const runSaved = async (step: FlowStep, row: unknown, flowId = savedFlow.id) => {
+        const context = await u1Browser.newContext();
+        const page = await context.newPage();
+        await page.goto(LAB, { waitUntil: "domcontentloaded" });
+        const execution = { ...replayContext(), scenarioId: "spy-u1", flowId, currentRow: row };
+        const factory = new LocatorFactory(page, { recoveryStore: recovery, scope: { scenarioId: execution.scenarioId, flowId } });
+        const result = await new StepExecutor(page, factory, new ValueResolver(execution), execution).execute(step);
+        const last = await text(page, "spy-last");
+        await context.close();
+        return { result, last };
+      };
+      const scopeKey = (flowId: string, stepId: string) => ["spy-u1", flowId, stepId].join(String.fromCharCode(0));
+      const jobsBeforeReplay = jobs.length;
+      const replays: Array<Awaited<ReturnType<typeof runSaved>>> = [];
+      for (const row of [{ id: 1 }, { id: 2 }, { id: 2 }]) replays.push(await runSaved(savedCall, row));
+      check("each run acts through the step's own locator on the recorded element", replays.every((run) => run.result.status === "passed" && run.last === "call-primary"), JSON.stringify(replays.map((run) => [run.result.status, run.result.error, run.last])));
+      const tally = await recovery.getReplayProof(scopeKey(savedFlow.id, savedCall.id));
+      check("3 passing replays over 2 data rows are tallied as the candidate's replay proof", tally?.proven === 3 && tally.dataRowKeys.length === 2 && tally.rejected === 0, JSON.stringify(tally));
+      check("...with no model call anywhere in replay", jobs.length === jobsBeforeReplay);
+      check("...so the existing evidence selection reads it as eligible", Boolean(tally) && evaluatePendingUpgrade(savedCall, tally, pendingUpgradeDigests(savedCall)!).state === "eligible");
+
+      const decoyPending = { ...savedCall.locator!.pendingUpgrade!, context: { ...savedCall.locator!.pendingUpgrade!.context, containers: [{ type: "listItem" as const, strategy: "testId" as const, value: "slot-backup" }] } };
+      const decoy: FlowStep = { ...savedCall, id: "u1-decoy", locator: { ...savedCall.locator!, pendingUpgrade: decoyPending } };
+      const decoyRun = await runSaved(decoy, { id: 1 }, "u1-decoy-flow");
+      check("a pending candidate never executes: one pointing at Bob's Call leaves the step calling the recorded element", decoyRun.result.status === "passed" && decoyRun.last === "call-primary", JSON.stringify([decoyRun.result.status, decoyRun.last]));
+      const decoyTally = await recovery.getReplayProof(scopeKey("u1-decoy-flow", "u1-decoy"));
+      check("...and replay records that candidate as refused", decoyTally?.rejected === 1 && decoyTally.lastCode === "WRONG_ELEMENT", JSON.stringify(decoyTally));
+
+      // Promotion is the existing, person-approved path; the audit record is written by it and only by it.
+      check("no audit record exists after attach, save or replay: none of them applied a change", (await audit.snapshot()).records.length === 0);
+      const proofs = await recovery.listReplayProofs();
+      const promote = async (mode: "auto" | "user-approved", actionId: string) => {
+        let code = "FLOW_NOT_FOUND";
+        let record: unknown = null;
+        await flowStore.updateWith(savedFlow.id, (current) => {
+          if (!current) return undefined;
+          const outcome = promoteLocatorUpgrade(current, savedCall.id, {
+            createdAt: savedCall.locator!.pendingUpgrade!.createdAt,
+            mode,
+            actionId,
+            nowIso: new Date().toISOString(),
+            replayProofs: proofs,
+            policy: { enabled: true },
+            editorDirty: false
+          });
+          code = outcome.ok ? "OK" : outcome.code;
+          record = outcome.ok ? outcome.record : null;
+          return outcome.ok ? outcome.profile : undefined;
+        });
+        if (record) await audit.append(record as Parameters<AiActionStore["append"]>[0]);
+        return code;
+      };
+      check("automatic promotion stays refused (thresholds uncommitted)", (await promote("auto", "act-u1-auto")) === "THRESHOLDS_PROVISIONAL");
+      check("a person's explicit apply promotes it through the existing path", (await promote("user-approved", "act-u1")) === "OK");
+      const promoted = (await flowStore.get(savedFlow.id))!.nodes.find((node) => node.id === savedCall.id)!;
+      const expectedPrevious: Record<string, unknown> = { ...savedCall.locator };
+      delete expectedPrevious.pendingUpgrade;
+      check(
+        "...making the candidate the locator and keeping the recorded one as the revert target",
+        promoted.locator?.strategy === savedCall.locator!.pendingUpgrade!.candidate.strategy && !promoted.locator?.pendingUpgrade && JSON.stringify(promoted.locator?.locatorProvenance?.previous) === JSON.stringify(expectedPrevious),
+        JSON.stringify(promoted.locator)
+      );
+      const records = (await audit.snapshot()).records;
+      check("exactly one audit record, for the applied change, with its replay counts", records.length === 1 && records[0].id === "act-u1" && records[0].target.stepId === savedCall.id && records[0].proof.replays === 3, JSON.stringify(records));
+      const promotedRun = await runSaved(promoted, { id: 3 });
+      check("the promoted locator acts on the same element", promotedRun.result.status === "passed" && promotedRun.last === "call-primary", JSON.stringify([promotedRun.result.status, promotedRun.result.error, promotedRun.last]));
+      const reverted = await revertAiAction("act-u1", { audit, flows: flowStore });
+      const afterRevert = (await flowStore.get(savedFlow.id))!.nodes.find((node) => node.id === savedCall.id)!;
+      check("revert restores the recorded locator exactly", reverted.code === "OK" && JSON.stringify(afterRevert.locator) === JSON.stringify(expectedPrevious), JSON.stringify(afterRevert.locator));
+    } finally {
+      await u1Browser.close();
+    }
+
     // ── C: save, reload, edit, re-save and replay ─────────────────────────────────────────────────
     console.log("C  Save, reload and replay after locator replacement");
     const flow = JSON.parse(JSON.stringify(buildRecordedFlow("Spy applied", recorder.getActions())));
@@ -519,6 +889,20 @@ async function main(): Promise<void> {
     );
     check("Cancel reaches an Element Spy job before the plain service cancel", /abortInspectionLocator\(jobId\) \|\| getAiService\(\)\.cancel\(jobId\)/.test(aiIpc));
     check("the preload exposes the proposal channel", preload.includes('invoke("ai:proposeInspectionLocator"'));
+    const attachStart = aiIpc.indexOf('ipcMain.handle("ai:attachInspectionProposal"');
+    const attachBody = attachStart < 0 ? "" : aiIpc.slice(attachStart, aiIpc.indexOf("ipcMain.handle(", attachStart + 10));
+    const attachCall = attachBody.indexOf("attachInspectionProposal(event.sender.id");
+    const attachGates = ["Permission.AI_USE", "Permission.PAGE_RECORDER", "Permission.RECORDER_ELEMENT_SPY"].map((gate) => attachBody.indexOf(gate));
+    check("U1: ai:attachInspectionProposal authorizes AI_USE, the Recorder page and recorder.elementSpy before it runs", attachCall > 0 && attachGates.every((at) => at > 0 && at < attachCall), `gates=${attachGates} call=${attachCall}`);
+    check(
+      "U1: it reads main's own inspection, draft and compare-and-swap, never a candidate from the request",
+      /target: inspectionTarget/.test(attachBody) && /recorderService\.getDraftAction\(actionId\)/.test(attachBody) && /recorderService\.attachPendingUpgrade\(actionId, pending\)/.test(attachBody)
+    );
+    check("U1: the preload exposes it with ids only", /attachInspectionProposal: \(request: InspectionAttachRequest\) => invoke\("ai:attachInspectionProposal", request\)/.test(preload));
+    check(
+      "U1: saving passes main's own candidates to the finalizer, never the renderer's",
+      /buildRecordedFlow\(name, actions, blueprints, \{ pendingUpgrades: recorderService\.draftPendingUpgrades\(\) \}\)/.test(await readFile("app/main/ipc/recorder.ipc.ts", "utf8"))
+    );
 
     // ── F: result panel rendered from a real inspection ──────────────────────────────────────────
     console.log("F  Result panel rendered from the real inspection");
@@ -547,6 +931,17 @@ async function main(): Promise<void> {
     );
     const refusedHtml = panel(ready, { kind: "failed", view: { code: "NOT_PROVEN", ok: false, message: "No proposal could be proven on this page, so none is shown." } });
     check("AI panel: an unproven answer shows its reason and no locator", refusedHtml.includes("No proposal could be proven") && !refusedHtml.includes("element-spy-ai-result"));
+    const attachPanel = (stepChosen: boolean) =>
+      renderToStaticMarkup(
+        createElement(ElementSpyAiPanel, { status: ready, phase: { kind: "done", view: provenView, subject: provenView.inspectedAt ?? "" }, onPropose: () => undefined, onCancel: () => undefined, attach: { stepChosen, busy: false, onAttach: () => undefined } })
+      );
+    check(
+      "U1 panel: a proven proposal offers the attach, disabled until a step is chosen, and says it replaces nothing",
+      /data-testid="element-spy-ai-attach"[^>]*disabled/.test(attachPanel(false)) && attachPanel(false).includes("Choose the recorded step above first") && attachPanel(false).includes("does not replace the step&#x27;s locator"),
+      attachPanel(false)
+    );
+    check("U1 panel: with a step chosen the attach is enabled", /data-testid="element-spy-ai-attach"(?![^>]*disabled)/.test(attachPanel(true)) && !attachPanel(true).includes("Choose the recorded step above first"));
+    check("U1 panel: an unproven answer offers nothing to attach", !panel(ready, { kind: "failed", view: { code: "NOT_PROVEN", ok: false } }).includes("element-spy-ai-attach"));
     if (save2 && twin) {
       const render = (inspection: ElementInspection, candidate: number) =>
         renderToStaticMarkup(createElement(ElementSpyResult, { inspection, candidate, onCandidate: () => undefined, actions: recorder.getActions(), actionId: saveAction?.id ?? "", onAction: () => undefined, busy: false, onApply: () => undefined }));
@@ -578,6 +973,8 @@ async function main(): Promise<void> {
     await rm(work, { recursive: true, force: true }).catch(() => undefined);
   }
 
+  // The run is long enough for a console to truncate its middle; the failures are repeated here whole.
+  if (failures.length) console.error(`\nFailed:\n${failures.map((label) => `  ✗ ${label}`).join("\n")}`);
   console.log(`\n${passed} passed, ${failed} failed`);
   if (passed === 0 || failed > 0) process.exit(1);
 }

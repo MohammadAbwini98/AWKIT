@@ -80,7 +80,17 @@ function boundContext(filler: string) {
   return {
     target: { tag: fill(filler, 20), role: fill(filler, 30), name: fill(filler, 80), type: fill(filler, 20) },
     candidates: Array.from({ length: 5 }, () => ({ strategy: "placeholder", value: fill(filler, 200), name: fill(filler, 80), count: 10_000, fallback: false })),
-    containers: Array.from({ length: 6 }, () => ({ kind: "listItem", tag: fill(filler, 20), role: fill(filler, 30), name: fill(filler, 80) })),
+    // D1 A+B: the widest a container line gets is an authored name AND a stable test id, both offered as
+    // ready scopes. A landmark's authored name is offered in every register (a record's is not with digits).
+    containers: Array.from({ length: 6 }, () => ({
+      kind: "landmark",
+      tag: fill(filler, 20),
+      role: fill(filler, 30),
+      name: fill(filler, 80),
+      nameSource: "aria-label",
+      testId: fill("orders-table-row-actions-", 60),
+      text: ""
+    })),
     heading: fill(filler, 80),
     siblingActions: Array.from({ length: 6 }, () => fill(filler, 60)),
     pageKey: "/bound"

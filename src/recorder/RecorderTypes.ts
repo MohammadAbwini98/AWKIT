@@ -1,4 +1,4 @@
-import type { DialogExpectation, ElementIdentityContract, InteractionExecutionDecisionContract, InteractionPrerequisiteContract, LocatorApprovalBinding, LocatorGuard, LocatorQuality, LocatorCandidate, LocatorContext, LocatorFrameContext, StepLocator, WaitCondition } from "../profiles/FlowProfile";
+import type { DialogExpectation, ElementIdentityContract, InteractionExecutionDecisionContract, InteractionPrerequisiteContract, LocatorApprovalBinding, LocatorGuard, LocatorQuality, LocatorCandidate, LocatorContext, LocatorFrameContext, PendingLocatorUpgrade, StepLocator, WaitCondition } from "../profiles/FlowProfile";
 import type { UpgradeContext } from "./upgradeContext";
 
 export type { LocatorQuality } from "../profiles/FlowProfile";
@@ -144,6 +144,13 @@ export interface RecordedActionLocator {
    * process before persistence.
    */
   guard?: LocatorGuard;
+  /**
+   * L3 U1 (owner decision D2): a browser-proven Element Spy proposal that main attached to this step
+   * as a pending candidate (`RecorderService.attachPendingUpgrade`). It never runs. At save main
+   * re-attaches its own copy (`buildRecordedFlow`'s `pendingUpgrades`); a copy the renderer sends back
+   * is dropped.
+   */
+  pendingUpgrade?: PendingLocatorUpgrade;
   /**
    * Per-element positional/structural data for page-level blueprint recovery. Captured RAW in-page
    * and hashed by the main process at save time. The blueprint is assembled from accumulated captures

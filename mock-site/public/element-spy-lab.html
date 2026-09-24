@@ -38,6 +38,19 @@
         </div>
       </section>
 
+      <!-- L3 D1: the same Call button four times. Only the item's own identity tells them apart: a stable
+           test id (slot-primary, slot-backup) or an authored name (Night shift) may be offered to AI;
+           a test id or name that is the record's data (contact-carol-white, contact-2004, an email) never is. -->
+      <section data-testid="spy-contacts" aria-labelledby="spy-contacts-title">
+        <h2 id="spy-contacts-title">On-call contacts</h2>
+        <ul aria-label="Contacts">
+          <li data-testid="slot-primary"><span>Alice Smith</span> <button type="button" data-spy="call-primary">Call</button></li>
+          <li data-testid="slot-backup"><span>Bob Jones</span> <button type="button" data-spy="call-backup">Call</button></li>
+          <li aria-label="Night shift" data-testid="contact-carol-white"><span>Carol White</span> <button type="button" data-spy="call-night">Call</button></li>
+          <li aria-label="Contact dan@example.com" data-testid="contact-2004"><span>Dan Brown</span> <button type="button" data-spy="call-dan">Call</button></li>
+        </ul>
+      </section>
+
       <dialog open data-testid="spy-dialog" aria-label="Confirm discount" style="position: static; margin: 0">
 
         <h3>Apply discount</h3>
