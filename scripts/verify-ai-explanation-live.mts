@@ -17,7 +17,8 @@
  *   - locatorUpgrade: `runLocatorUpgradeAttempts` over a typical and the largest L2 capture context.
  *   - locatorQuality: the same job over real Recorder captures on the Feature Test Lab, served here, with
  *     every plan proven by the product in real Chromium and each accepted one judged by the page
- *     (scripts/ai-harness/locatorQualityLive.ts).
+ *     (scripts/ai-harness/locatorQualityLive.ts). `--set d1` judges D1's container-scoped set instead, and
+ *     `--controls` runs every scripted control in plain Node with no model (verify:ai-locator-quality-controls).
  *   - authoringQuality: `explainFlowValidation` over L4b's labelled set, each answer delivered with every
  *     issue explained and no canary leaked, quality recorded (scripts/ai-harness/authoringQualityLive.ts);
  *     `--cases` runs it in parts. Each part also writes a redacted review capture to the local review
@@ -31,7 +32,8 @@
  * root; `AI_MODEL_MANIFEST` is not touched.
  *
  * Run: npm run verify:ai-explanation-live | verify:ai-failure-analysis-live | verify:ai-locator-upgrade-live
- *      | verify:ai-locator-quality-live | verify:ai-authoring-quality-live | verify:ai-error-quality-live
+ *      | verify:ai-locator-quality-live | verify:ai-locator-quality-live-d1 | verify:ai-locator-quality-controls
+ *      | verify:ai-authoring-quality-live | verify:ai-error-quality-live
  */
 
 import { spawn, type ChildProcess } from "node:child_process";
@@ -54,13 +56,16 @@ const PACK = Object.freeze({
 });
 
 /** Harness mode, its step count, and a launcher budget under the 10-minute limit of the tool running it. */
-const FEATURES: Readonly<Record<string, { mode: string; steps: number; timeoutMs: number; mockSite?: boolean }>> = Object.freeze({
+const FEATURES: Readonly<Record<string, { mode: string; steps: number; timeoutMs: number; mockSite?: boolean; controls?: number; d1Steps?: number }>> = Object.freeze({
   validationExplanation: { mode: "explain", steps: 4, timeoutMs: 480_000 },
   failureAnalysis: { mode: "failureAnalysis", steps: 4, timeoutMs: 560_000 },
   locatorUpgrade: { mode: "locatorUpgrade", steps: 3, timeoutMs: 560_000 },
   // hello, 5 controls, 6 scenarios, the labelled-set verdict. Eleven model calls took ~520 s of harness
   // time on this host, so it gets what the 600 s tool ceiling leaves after the build and the launch.
-  locatorQuality: { mode: "locatorQuality", steps: 13, timeoutMs: 575_000, mockSite: true },
+  // `--set d1` (verify:ai-locator-quality-live-d1): hello, 5 D1 controls, 4 D1 cases (at most 8 model calls),
+  // the D1 verdict, apart from the set above so it fits the same ceiling and leaves that set's evidence as it was.
+  // `--controls` runs all 10 controls with no model.
+  locatorQuality: { mode: "locatorQuality", steps: 13, timeoutMs: 575_000, mockSite: true, controls: 10, d1Steps: 11 },
   // hello, the control, 9 labelled cases, the set's verdict. Nine explanations at ~45–90 s each pass the
   // 600 s tool ceiling: from such a tool, run it in parts (`--cases`).
   authoringQuality: { mode: "authoringQuality", steps: 12, timeoutMs: 1_200_000 },
@@ -100,7 +105,14 @@ if (!feature) {
 // step count.
 const casesFlag = process.argv.indexOf("--cases");
 const cases = casesFlag >= 0 && ["errorQuality", "authoringQuality"].includes(feature.mode) ? (process.argv[casesFlag + 1] ?? "").split(",").filter(Boolean) : [];
-const expectedSteps = cases.length > 0 ? 3 + cases.length : feature.steps;
+// locatorQuality: `--set d1` judges D1's labelled set instead of the original one.
+const setFlag = process.argv.indexOf("--set");
+if (setFlag >= 0 && (feature.d1Steps === undefined || process.argv[setFlag + 1] !== "d1")) {
+  console.error(`--set takes "d1", and only with --feature locatorQuality`);
+  process.exit(1);
+}
+const d1Set = setFlag >= 0;
+const expectedSteps = cases.length > 0 ? 3 + cases.length : d1Set ? feature.d1Steps! : feature.steps;
 
 let passed = 0;
 let failed = 0;
@@ -112,6 +124,50 @@ function check(label: string, ok: boolean, detail?: string): void {
     failed += 1;
     console.error(`  ✗ ${label}${detail ? ` — ${detail}` : ""}`);
   }
+}
+
+// `--controls` (locatorQuality, `verify:ai-locator-quality-controls`): the scripted controls alone, in plain
+// Node over the served Feature Test Lab. No runtime, pack, Electron or model call, so they run where the live
+// gate is NOT RUN. A pass shows the judge and fixtures are sound; it says nothing about the model.
+if (process.argv.includes("--controls")) {
+  if (feature.controls === undefined) {
+    console.error(`--controls is only for --feature locatorQuality`);
+    process.exit(1);
+  }
+  console.log(`${featureName} scripted controls — no model, runtime or Electron\n`);
+  const { runLocatorQualityLive } = await import("./ai-harness/locatorQualityLive");
+  const site = await startMockSite();
+  const steps: Array<{ label: string; ok: boolean; error?: string; detail?: unknown }> = [];
+  try {
+    await runLocatorQualityLive(
+      {
+        step: async (label, fn) => {
+          try {
+            const detail = await fn();
+            steps.push({ label, ok: true, detail });
+            return detail;
+          } catch (error) {
+            steps.push({ label, ok: false, error: String((error as Error)?.message ?? error) });
+            return undefined;
+          }
+        },
+        record: () => undefined,
+        makeLiveContext: () => {
+          throw new Error("--controls makes no model call");
+        }
+      },
+      { lab: site.lab, controlsOnly: true }
+    );
+  } finally {
+    site.server.kill();
+  }
+  for (const s of steps) {
+    check(s.label, s.ok, s.error);
+    if (s.detail) console.log(`    ${JSON.stringify(s.detail)}`);
+  }
+  check("every control ran", steps.length === feature.controls, `${steps.length} steps`);
+  console.log(`\n${passed} passed, ${failed} failed`);
+  process.exit(failed === 0 && passed > 0 ? 0 : 1);
 }
 
 console.log(`${featureName} on the real 0.8B — the product's own request, production path, its own deadline\n`);
@@ -136,6 +192,8 @@ console.log(`  runtime ${runtime.build}, pack ${PACK.file} ${measured.sha256.sli
 const staged = stageModelRoot(candidate, measured.sha256);
 const harnessDir = await buildAiHarness();
 let mockSite: Awaited<ReturnType<typeof startMockSite>> | undefined;
+// A step may say it judged nothing (the D1 set, when no candidate was proven): INCONCLUSIVE, never PASS.
+let inconclusive = false;
 try {
   mockSite = feature.mockSite ? await startMockSite() : undefined;
   const report = await runAiHarness(
@@ -149,6 +207,7 @@ try {
       AWKIT_HARNESS_THREADS: String(threads),
       AWKIT_HARNESS_EXPECT_BUILD: runtime.build ?? "",
       ...(mockSite ? { AWKIT_HARNESS_LAB_URL: mockSite.lab } : {}),
+      ...(d1Set ? { AWKIT_HARNESS_SET: "d1" } : {}),
       ...(cases.length > 0 ? { AWKIT_HARNESS_CASES: cases.join(",") } : {}),
       // The redacted answers a person reviews: local, outside the repository (authoringQualityReview.ts).
       ...(feature.mode === "authoringQuality" ? { AWKIT_HARNESS_REVIEW_DIR: reviewDir() } : {})
@@ -163,6 +222,7 @@ try {
     check("the harness ran every step", report.steps.length === expectedSteps, `${report.steps.length} steps`);
     // Counts, codes and timings only: the harness never records model text.
     for (const s of report.steps) if (s.detail) console.log(`    ${s.label}: ${JSON.stringify(s.detail)}`);
+    inconclusive = report.steps.some((s) => s.ok && (s.detail as { inconclusive?: unknown } | undefined)?.inconclusive === true);
   }
 } finally {
   mockSite?.server.kill();
@@ -171,4 +231,8 @@ try {
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);
+if (failed === 0 && passed > 0 && inconclusive) {
+  console.log("INCONCLUSIVE: the checks held, but no candidate was browser-proven, so the judge judged nothing (exit 2).");
+  process.exit(2);
+}
 process.exit(failed === 0 && passed > 0 ? 0 : 1);

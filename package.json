@@ -310,6 +310,8 @@
     "verify:ai-locator-upgrade-live": "tsx scripts/verify-ai-explanation-live.mts --feature locatorUpgrade",
     "verify:ai-locator-upgrade-budget": "tsx scripts/verify-ai-failure-analysis-budget.mts --feature locatorUpgrade",
     "verify:ai-locator-quality-live": "tsx scripts/verify-ai-explanation-live.mts --feature locatorQuality",
+    "verify:ai-locator-quality-live-d1": "tsx scripts/verify-ai-explanation-live.mts --feature locatorQuality --set d1",
+    "verify:ai-locator-quality-controls": "tsx scripts/verify-ai-explanation-live.mts --feature locatorQuality --controls",
     "verify:ai-spy-live": "tsx scripts/verify-ai-spy-live.mts",
     "verify:ai-authoring-quality-live": "tsx scripts/verify-ai-explanation-live.mts --feature authoringQuality",
     "verify:ai-authoring-quality-live-part1": "tsx scripts/verify-ai-explanation-live.mts --feature authoringQuality --cases casing,locator-orphan,branch,cycle,values",

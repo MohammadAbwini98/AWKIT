@@ -23,6 +23,18 @@
  * and a wrong element and an ambiguous match let through by a proof with gate C or B bypassed, a stubbed
  * proof, and a second attempt that does not carry the first attempt's real refusal must each be caught.
  *
+ * D1 (owner decision A+B, 2026-09-24) has its own labelled set on /recorder-lab/element-spy, run and reported
+ * apart (`verify:ai-locator-quality-live-d1`) so the set above and its evidence are unchanged: a duplicate Call
+ * told apart only by its list item's stable test id (A) or authored name (B), and two controls with no approved
+ * identity — a record-keyed test id with an email name, and the INV-2002 row named only by its cells — which
+ * must never reach a request, so nothing may be accepted for them. Each call is recorded (contract, strategy,
+ * a bounded scope category, refusal, proof, matches) and each case classed success, refused, inconclusive or
+ * fail. No D1 acceptance rate is approved, so none is applied: a run that proves no D1 candidate is
+ * INCONCLUSIVE. D1 controls first show each fixture is what its label says, a scripted offered scope is proven
+ * and judged the inspected element, a sibling's, an absent, a withheld and a row-content scope are each refused
+ * as not offered before the browser, a misattributed container through a bypassed gate is caught, and nothing
+ * unproven or unanswered is classed a success. `verify:ai-locator-quality-controls` runs every control, no model.
+ *
  * Counts, codes, fixture names and timings only, never model text.
  */
 
@@ -39,13 +51,14 @@ import {
   buildAttemptFeedback,
   locatorAttemptJob,
   runLocatorUpgradeAttempts,
+  unofferedScopeField,
   type LocatorAttemptResult,
   type LocatorUpgradeAttemptDeps,
   type LocatorUpgradeAttemptInput,
   type LocatorUpgradeProvider
 } from "@src/ai/locatorUpgradeAttempts";
 import { annotatePendingUpgrade, locatorCandidateDigest } from "@src/ai/pendingUpgrade";
-import type { FlowProfile, FlowStep } from "@src/profiles/FlowProfile";
+import { locatorContainerChain, type FlowProfile, type FlowStep } from "@src/profiles/FlowProfile";
 import { buildRecordedFlow } from "@src/recorder/buildRecordedFlow";
 import { classifyLocatorQuality } from "@src/recorder/LocatorQualityClass";
 import { getRecorderInitScriptContent } from "@src/recorder/recorderInitScript";
@@ -77,6 +90,19 @@ interface Scenario {
   impossible?: boolean;
   /** The list re-renders as new elements while the job holds a plan; the proof waits on the page's own status. */
   dynamic?: boolean;
+  /** Served page: the locator-upgrade lab unless `spy` (/recorder-lab/element-spy, whose controls report `data-spy` into `spy-last`). */
+  lab?: "spy";
+  d1?: D1Label;
+}
+
+/** A D1 case's label, checked on the page and in the request the product builds before any model call. */
+interface D1Label {
+  /** The duplicated control, unscoped: the page must hold two or more, and the product's proof must refuse it as not unique. */
+  target: { strategy: "role"; value: "button"; name: string; exact: true };
+  /** The approved scope the request must offer, as the ready object it shows; none when the element has no approved identity. */
+  offers?: { kind: string; strategy: string; value: string };
+  /** Fixture constants no request may carry: a record key, a sensitive name, the record's own text. Checked, never recorded. */
+  withheld: readonly string[];
 }
 
 interface Proof {
@@ -157,6 +183,61 @@ const SCENARIOS: readonly Scenario[] = [
 ];
 const scenario = (id: string): Scenario => SCENARIOS.find((s) => s.id === id)!;
 
+const CALL = { strategy: "role", value: "button", name: "Call", exact: true } as const;
+/**
+ * D1's labelled set, asked for from Element Spy (L3 §1). The four Call buttons are identical; only the list
+ * item says which is which. The two cases with no approved identity end refused, as INV-2002 did live.
+ */
+const D1_SCENARIOS: readonly Scenario[] = [
+  {
+    id: "d1-test-id",
+    covers: "D1 A: a duplicate Call told apart only by its list item's stable test id",
+    name: "Call primary contact",
+    mode: "upgrade",
+    userRequested: true,
+    lab: "spy",
+    intended: "call-primary",
+    click: (p) => p.getByTestId("slot-primary").getByRole("button", { name: "Call" }).click(),
+    d1: { target: CALL, offers: { kind: "listItem", strategy: "testId", value: "slot-primary" }, withheld: ["Alice Smith"] }
+  },
+  {
+    id: "d1-authored-name",
+    covers: "D1 B: a duplicate Call told apart only by its list item's authored name",
+    name: "Call night shift contact",
+    mode: "upgrade",
+    userRequested: true,
+    lab: "spy",
+    intended: "call-night",
+    click: (p) => p.getByRole("listitem", { name: "Night shift" }).getByRole("button", { name: "Call" }).click(),
+    d1: { target: CALL, offers: { kind: "listItem", strategy: "label", value: "Night shift" }, withheld: ["contact-carol-white", "Carol White"] }
+  },
+  {
+    id: "d1-record-key",
+    covers: "D1 excluded: a duplicate Call whose item's only identities are a record-keyed test id and an email name",
+    name: "Call listed contact",
+    mode: "upgrade",
+    userRequested: true,
+    lab: "spy",
+    intended: "call-dan",
+    impossible: true,
+    click: (p) => p.getByTestId("contact-2004").getByRole("button", { name: "Call" }).click(),
+    d1: { target: CALL, withheld: ["contact-2004", "dan@example.com", "Dan Brown"] }
+  },
+  {
+    id: "d1-computed-row",
+    covers: "D1 excluded: the INV-2002 Edit, whose row is named only by its cells",
+    name: "Edit invoice row",
+    mode: "upgrade",
+    userRequested: true,
+    lab: "spy",
+    intended: "edit-2002",
+    impossible: true,
+    click: (p) => p.getByRole("row", { name: /INV-2002/ }).getByRole("button", { name: "Edit" }).click(),
+    d1: { target: { ...CALL, name: "Edit" }, withheld: ["INV-2002"] }
+  }
+];
+const d1Case = (id: string): Scenario & { d1: D1Label } => D1_SCENARIOS.find((s) => s.id === id) as Scenario & { d1: D1Label };
+
 /**
  * The step a repair acts on: a single test-id candidate, as a hand-edited or imported flow carries. A
  * Recorder capture keeps role and text alternatives that survive the break, so there would be nothing
@@ -197,6 +278,9 @@ export function attemptViolations(input: LocatorUpgradeAttemptInput, result: Loc
     if (outcome?.status !== "ok") return undefined;
     const evaluated = evaluateLocatorPlan(outcome.value, { boundValues: input.boundValues, baseline, captured: baseline.context, policy: input.policy });
     if (!evaluated.ok) return { stage: evaluated.code === "INTENT_BOUND_VALUE" ? "intent" : "compiler", code: evaluated.code, field: evaluated.field };
+    // D1: an upgrade scope the request did not offer is refused before the browser, and before the duplicate check.
+    const unoffered = (input.mode ?? "upgrade") === "upgrade" ? unofferedScopeField(evaluated.context, input.upgradeContext) : undefined;
+    if (unoffered) return { stage: "intent", code: "SCOPE_NOT_OFFERED", field: unoffered };
     const digest = locatorCandidateDigest(evaluated.candidate, evaluated.context);
     if (seen.has(digest)) return { stage: "duplicate", code: "DUPLICATE_CANDIDATE" };
     seen.add(digest);
@@ -208,6 +292,7 @@ export function attemptViolations(input: LocatorUpgradeAttemptInput, result: Loc
     const truth = actual(attempt);
     const record = result.attempts.find((r) => r.attempt === attempt);
     if (truth?.stage === "none") violations.push(`ATTEMPT_${attempt}_PLAN_NEVER_REACHED_THE_BROWSER`);
+    if (truth && truth.stage !== "proof" && truth.stage !== "accepted" && proofs.some((p) => p.attempt === attempt)) violations.push(`ATTEMPT_${attempt}_REFUSED_BEFORE_THE_BROWSER_YET_PROVEN`);
     if (!truth || truth.stage === "accepted" || truth.stage === "none") {
       if (record) violations.push(`ATTEMPT_${attempt}_RECORDED_BUT_NOT_REFUSED`);
       if (attempt < calls.length) violations.push(`ATTEMPT_${attempt}_NOT_REFUSED_YET_ASKED_AGAIN`);
@@ -226,22 +311,101 @@ export function attemptViolations(input: LocatorUpgradeAttemptInput, result: Loc
   return violations;
 }
 
-export async function runLocatorQualityLive(api: FeatureLiveApi): Promise<void> {
-  const lab = process.env.AWKIT_HARNESS_LAB_URL;
+/** A proof that claims PROVEN without any browser having run: what a stubbed proof hands the job. */
+const CLAIMED_PROOF: LocatorProofResult = { schemaVersion: 1, outcome: "proven", code: "PROVEN", compiled: true, intent: "passed", gates: { policy: "pass", buildable: "pass", unique: "pass", sameElement: "pass" }, scope: "compatible", candidateMatchCount: 1, baselineMatchCount: 1, pendingEligible: true };
+
+const requestText = (request: AiJobRequest): string => request.prompt.fields.map((field) => field.text ?? "").join("\n");
+
+export type D1Class = "success" | "refused" | "inconclusive" | "fail";
+
+/** One model call of a D1 case: codes, enums, a bounded category and counts, never model or page text. */
+interface D1Call {
+  contract: string;
+  strategy: unknown;
+  scope: string | null;
+  refusal: string | null;
+  proof: string | null;
+  matches: number | null;
+}
+
+/** Requests, replies, attempts spent and accepted candidates are counted apart: none is assumed to equal another. */
+interface D1Result {
+  id: string;
+  covers: string;
+  expected: "success" | "refused";
+  modelIds: string[];
+  requests: number;
+  responses: number;
+  attemptsUsed: number;
+  consumedRefusals: number;
+  acceptedCandidates: number;
+  perCall: D1Call[];
+  matches: number | null;
+  matchedIntended: boolean;
+  falseTargetProposed: boolean;
+  falseTargetAccepted: boolean;
+  leaked: boolean;
+  class: D1Class;
+}
+
+/**
+ * One D1 case's class. Only a candidate browser-proven and confirmed by the page is a success. A request the
+ * model never answered is inconclusive, never a refusal or a success, and so is an accepted candidate the
+ * browser did not prove. A false target, a withheld identity in a request, or anything accepted where no
+ * approved identity exists fails the case.
+ */
+export function classifyD1Case(c: { impossible: boolean; requests: number; answered: number; accepted: boolean; browserProven: boolean; falseTarget: boolean; leaked: boolean }): D1Class {
+  if (c.leaked || c.falseTarget || (c.impossible && c.accepted)) return "fail";
+  if (c.requests === 0 || c.answered < c.requests) return "inconclusive";
+  if (!c.accepted) return "refused";
+  return c.browserProven ? "success" : "inconclusive";
+}
+
+const PAGE_PLACES: Readonly<Record<string, string>> = { WRONG_ELEMENT: "sibling", CANDIDATE_NO_MATCH: "absent", CANDIDATE_NOT_UNIQUE: "ambiguous", PROVEN: "withheld-own" };
+
+/**
+ * A plan's container scopes as one bounded category, never a value: `none`, `structural` (nameless roles
+ * only), `offered` (every named scope one the request offered), `row-content` (a `hasText`, D1 option C), or
+ * `not-offered:<where>`, placed by the product's own proof asked directly (`page`): the scope finds a
+ * sibling, nothing, several, or the element itself through an identity D1 withholds.
+ */
+export async function scopeCategory(value: unknown, input: LocatorUpgradeAttemptInput, page: (plan: unknown) => Promise<string>): Promise<string> {
+  const baseline = input.step.locator!;
+  const evaluated = evaluateLocatorPlan(value, { boundValues: input.boundValues, baseline, captured: baseline.context, policy: input.policy });
+  if (!evaluated.ok) return "not-compiled";
+  const chain = locatorContainerChain(evaluated.context);
+  if (chain.length === 0) return "none";
+  if (chain.some((scope) => scope.hasText)) return "row-content";
+  if (!unofferedScopeField(evaluated.context, input.upgradeContext)) return chain.every((scope) => scope.strategy === "role" && scope.name === undefined) ? "structural" : "offered";
+  const code = await page(value);
+  return `not-offered:${PAGE_PLACES[code] ?? code}`;
+}
+
+/**
+ * `controlsOnly` (`verify:ai-locator-quality-controls`): the scripted controls alone, under plain tsx. No
+ * runtime, pack, host or model call: they show the judge and the fixtures are sound, never model quality.
+ */
+export async function runLocatorQualityLive(api: FeatureLiveApi, options: { lab?: string; controlsOnly?: boolean } = {}): Promise<void> {
+  const lab = options.lab ?? process.env.AWKIT_HARNESS_LAB_URL;
   if (!lab) throw new Error("AWKIT_HARNESS_LAB_URL is not set");
-  const ctx = observed(api);
+  const ctx = options.controlsOnly ? undefined : observed(api);
   api.record("deadlineMs", LOCATOR_ATTEMPT_LIMITS.timeoutMs);
-  await hello(api, ctx);
+  if (ctx) await hello(api, ctx);
+  // The labelled set a live run judges (`AWKIT_HARNESS_SET`, `--set d1`); the controls alone run every control.
+  const set = options.controlsOnly ? "controls" : process.env.AWKIT_HARNESS_SET === "d1" ? "d1" : "original";
 
   const work = fs.mkdtempSync(path.join(os.tmpdir(), "awkit-l1-quality-"));
   const flows = new JsonProfileStore<FlowProfile>({ folder: path.join(work, "flows") });
   const recovery = new FileLocatorRecoveryStore(path.join(work, "recovery"));
   const browser = await chromium.launch({ headless: true });
 
-  const freshPage = async (): Promise<Page> => {
+  /** A scenario's page, and how that page says which element was acted on. */
+  const identity = (sc: Scenario) =>
+    sc.lab === "spy" ? { url: new URL("/recorder-lab/element-spy", lab).href, attribute: "data-spy", result: "spy-last" } : { url: lab, attribute: "data-lu", result: "lu-result" };
+  const freshPage = async (url = lab): Promise<Page> => {
     const page = await (await browser.newContext()).newPage();
     page.setDefaultTimeout(3_000);
-    await page.goto(lab);
+    await page.goto(url);
     return page;
   };
   const closePage = (page: Page) => page.context().close().catch(() => undefined);
@@ -256,8 +420,8 @@ export async function runLocatorQualityLive(api: FeatureLiveApi): Promise<void> 
       page.setDefaultTimeout(5_000);
       await page.exposeBinding("__awtkit_recordAction", (_source, action) => actions.push(action as RecordedAction));
       await page.exposeBinding("__awtkit_recordSignal", () => undefined);
-      await page.goto(lab);
-      await reportsReady(page);
+      await page.goto(identity(sc).url);
+      if (!sc.lab) await reportsReady(page);
       // As the Recorder verifiers do: the init script settles before its first capture.
       await page.waitForTimeout(400);
       await sc.click(page);
@@ -274,19 +438,51 @@ export async function runLocatorQualityLive(api: FeatureLiveApi): Promise<void> 
     return { step, context: markBoundValues(sanitized, BOUND_VALUES.map((value) => value.toLowerCase())) };
   };
 
+  const inputOf = (sc: Scenario, step: FlowStep, requestId: string, context?: UpgradeContext): LocatorUpgradeAttemptInput => ({
+    requestId,
+    mode: sc.mode,
+    step,
+    boundValues: BOUND_VALUES,
+    ...(context ? { upgradeContext: context } : {}),
+    ...(sc.userRequested ? { userRequested: true } : {})
+  });
+
   const runJob = async (sc: Scenario, step: FlowStep, flowId: string, ai: LocatorUpgradeProvider, prove: LocatorUpgradeAttemptDeps["prove"], context?: UpgradeContext) => {
     await flows.delete(flowId).catch(() => undefined);
     await flows.create({ id: flowId, name: sc.name, version: 1, nodes: [step], edges: [] });
-    const input: LocatorUpgradeAttemptInput = {
-      requestId: `quality-${flowId}`,
-      mode: sc.mode,
-      step,
-      boundValues: BOUND_VALUES,
-      ...(context ? { upgradeContext: context } : {}),
-      ...(sc.userRequested ? { userRequested: true } : {})
-    };
+    const input = inputOf(sc, step, `quality-${flowId}`, context);
     const result = await runLocatorUpgradeAttempts(input, { ai, prove, annotate: (pending) => annotatePendingUpgrade(flows, flowId, step.id, pending) });
     return { input, result };
+  };
+
+  /** What the product's own proof says of a plan on a fresh page, whatever the loop's rules would do with it. Never acts. */
+  const pageSays = async (sc: Scenario, step: FlowStep, context: UpgradeContext | undefined, plan: unknown): Promise<string> => {
+    const page = await freshPage(identity(sc).url);
+    try {
+      return (await proveLocatorPlan(page, step, plan, { boundValues: BOUND_VALUES, upgradeContext: context })).code;
+    } finally {
+      await closePage(page);
+    }
+  };
+
+  /**
+   * Why a D1 case is not the fixture its label says, measured on the page and in the request the product
+   * builds for it; empty when it is. Every check runs, so a broken fixture names each thing it broke.
+   */
+  const d1Preconditions = async (sc: Scenario, page: Page, step: FlowStep, context: UpgradeContext): Promise<string[]> => {
+    const d1 = sc.d1!;
+    const problems: string[] = [];
+    // Two or more identical controls, the intended element one of them: a count alone passes a renamed target.
+    const twins = page.getByRole("button", { name: d1.target.name, exact: true });
+    const { attribute } = identity(sc);
+    const intendedAmong = await twins.evaluateAll((elements, [attr, id]) => elements.filter((el) => el.getAttribute(attr) === id).length, [attribute, sc.intended] as const);
+    if ((await twins.count()) < 2 || intendedAmong !== 1) problems.push("NOT_DUPLICATE");
+    const unscoped = await proveLocatorPlan(page, step, { version: 1, target: d1.target, scopes: [] }, { boundValues: BOUND_VALUES, upgradeContext: context });
+    if (unscoped.code !== "CANDIDATE_NOT_UNIQUE") problems.push(`UNSCOPED_NOT_AMBIGUOUS:${unscoped.code}`);
+    const request = requestText(locatorAttemptJob(inputOf(sc, step, "d1-precondition", context), [], "d1-precondition.a1"));
+    if (d1.offers && !request.split("\n").some((line) => line.startsWith("container: ") && line.includes(` scope ${JSON.stringify(d1.offers)}`))) problems.push("SCOPE_NOT_IN_REQUEST");
+    if (d1.withheld.some((text) => request.includes(text))) problems.push("WITHHELD_IN_REQUEST");
+    return problems;
   };
 
   /** The product's own proof, recorded. `tamper` is a control's broken gate, applied before the job sees the answer. */
@@ -348,7 +544,8 @@ export async function runLocatorQualityLive(api: FeatureLiveApi): Promise<void> 
     const expected = sc.mode === "repair" ? "repair-proven" : provenNow ? "capture-proven" : "unprovable-now";
     if (pending.proof !== expected) problems.push("PROOF_MISREPORTED");
 
-    const page = await freshPage();
+    const { url, attribute, result: reported } = identity(sc);
+    const page = await freshPage(url);
     let matches: number | null = null;
     let selected: string | null = null;
     let recheck: string | null = null;
@@ -357,7 +554,7 @@ export async function runLocatorQualityLive(api: FeatureLiveApi): Promise<void> 
       await sc.prepare?.(page);
       const locator = await new LocatorFactory(page).locateCandidate(pending.candidate, pending.context).catch(() => null);
       matches = locator ? await locator.count().catch(() => 0) : null;
-      if (locator && matches === 1) selected = await locator.getAttribute("data-lu").catch(() => null);
+      if (locator && matches === 1) selected = await locator.getAttribute(attribute).catch(() => null);
       if (saved) {
         recheck = (
           sc.mode === "repair"
@@ -366,7 +563,7 @@ export async function runLocatorQualityLive(api: FeatureLiveApi): Promise<void> 
         ).code;
       }
       // Proof never acts; the verifier does, on its own page, so the page itself says which element it was.
-      if (locator && matches === 1 && (await locator.click().then(() => true, () => false))) clicked = await page.getByTestId("lu-result").textContent();
+      if (locator && matches === 1 && (await locator.click().then(() => true, () => false))) clicked = await page.getByTestId(reported).textContent();
     } finally {
       await closePage(page);
     }
@@ -378,16 +575,26 @@ export async function runLocatorQualityLive(api: FeatureLiveApi): Promise<void> 
     return { accepted: true, proof: pending.proof, browserProven: provenNow && problems.length === 0, matches, selected, recheck, clicked, falseTarget, problems };
   };
 
-  /** A control job over a scripted provider, on a fresh lab page. */
-  const control = async (sc: Scenario, plans: unknown[], prove: (page: Page, step: FlowStep, proofs: Proof[]) => LocatorUpgradeAttemptDeps["prove"]) => {
-    const { step } = await capture(sc);
+  /**
+   * A control job over a scripted provider, on a fresh lab page. A D1 job carries its capture, as Element Spy's
+   * does (the loop's offered-scope rule reads it); `forge` hands it a tampered one instead.
+   */
+  const control = async (
+    sc: Scenario,
+    plans: unknown[],
+    prove: (page: Page, step: FlowStep, proofs: Proof[], context?: UpgradeContext) => LocatorUpgradeAttemptDeps["prove"],
+    forge: (captured: UpgradeContext) => UpgradeContext = (captured) => captured
+  ) => {
+    const captured = await capture(sc);
+    const { step } = captured;
+    const context = sc.d1 ? forge(captured.context) : undefined;
     const flowId = `control-${sc.id}-${Math.random().toString(16).slice(2, 8)}`;
-    const page = await freshPage();
+    const page = await freshPage(identity(sc).url);
     const calls: Call[] = [];
     const proofs: Proof[] = [];
     try {
-      const run = await runJob(sc, step, flowId, scripted(plans, calls), prove(page, step, proofs));
-      return { ...run, calls, proofs, step, verdict: await judge(sc, run.result, proofs, flowId, step.id) };
+      const run = await runJob(sc, step, flowId, scripted(plans, calls), prove(page, step, proofs, context), context);
+      return { ...run, calls, proofs, step, context, verdict: await judge(sc, run.result, proofs, flowId, step.id) };
     } finally {
       await closePage(page);
     }
@@ -402,7 +609,9 @@ export async function runLocatorQualityLive(api: FeatureLiveApi): Promise<void> 
     // ── Controls: the judge is not vacuous, and each broken behavior is caught ──────────────────────
     // A judge whose controls fail cannot judge the model, so a failed control ends the run before any model call.
     let controlsFailed = 0;
-    const controlStep = async <T>(label: string, fn: () => Promise<T>): Promise<T | undefined> => {
+    // A live run takes its own set's controls; the controls alone run both groups.
+    const controlStep = async <T>(label: string, fn: () => Promise<T>, group: "original" | "d1" = "original"): Promise<T | undefined> => {
+      if (set !== "controls" && set !== group) return undefined;
       const value = await api.step(label, fn);
       if (value === undefined) controlsFailed += 1;
       return value;
@@ -427,7 +636,7 @@ export async function runLocatorQualityLive(api: FeatureLiveApi): Promise<void> 
       return { untampered, verdict: run.verdict };
     });
     await controlStep("control: a stubbed proof is never counted as a browser proof, even for a correct plan", async () => {
-      const claimed: LocatorProofResult = { schemaVersion: 1, outcome: "proven", code: "PROVEN", compiled: true, intent: "passed", gates: { policy: "pass", buildable: "pass", unique: "pass", sameElement: "pass" }, scope: "compatible", candidateMatchCount: 1, baselineMatchCount: 1, pendingEligible: true };
+      const claimed = CLAIMED_PROOF;
       // The stub `verify:ai-locator-upgrade-live` uses: stored for replay, proven by nothing.
       const unavailable: LocatorProofResult = { schemaVersion: 1, outcome: "unprovable-now", code: "PAGE_UNAVAILABLE", compiled: true, intent: "passed", gates: { policy: "not-run", buildable: "not-run", unique: "not-run", sameElement: "not-run" }, scope: "compatible", pendingEligible: true };
       const verdicts = [];
@@ -458,21 +667,216 @@ export async function runLocatorQualityLive(api: FeatureLiveApi): Promise<void> 
       return { refusals: run.result.attempts.map((a) => `${a.stage}:${a.code}`), mutations };
     });
 
+    // ── D1 controls: the fixtures are what their labels say, and each broken behavior is caught ─────
+    const primary = d1Case("d1-test-id");
+    const night = d1Case("d1-authored-name");
+    const dan = d1Case("d1-record-key");
+    const invoice = d1Case("d1-computed-row");
+    const EDIT = invoice.d1.target;
+    const plan = (target: object, scopes: object[] = []) => ({ version: 1, target, scopes });
+    const listItem = (value: string) => ({ kind: "listItem", strategy: "testId", value });
+    const withContainer = (context: UpgradeContext, match: (c: UpgradeContext["containers"][number]) => boolean, change: (c: UpgradeContext["containers"][number]) => UpgradeContext["containers"][number]): UpgradeContext => ({
+      ...context,
+      containers: context.containers.map((c) => (match(c) ? change(c) : c))
+    });
+
+    await controlStep(
+      "D1 control: each case's fixture is what its label says, and each way of breaking one is caught by the check it targets alone",
+      async () => {
+        const check = async (sc: Scenario, forge: (c: UpgradeContext) => UpgradeContext = (c) => c, alterPage?: (page: Page) => Promise<unknown>) => {
+          const { step, context } = await capture(sc);
+          const page = await freshPage(identity(sc).url);
+          try {
+            await alterPage?.(page);
+            return await d1Preconditions(sc, page, step, forge(context));
+          } finally {
+            await closePage(page);
+          }
+        };
+        const valid: Record<string, string[]> = {};
+        for (const sc of D1_SCENARIOS) valid[sc.id] = await check(sc);
+        if (Object.values(valid).some((problems) => problems.length > 0)) throw new Error(`a D1 fixture is not what its label says: ${JSON.stringify(valid)}`);
+        // Exactly the targeted problem, so a mutation is never caught by some unrelated fixture error instead.
+        const mutations = {
+          siblingsRemoved: await check(primary, undefined, (page) =>
+            page.evaluate(() => document.querySelectorAll('[data-testid="spy-contacts"] li:not([data-testid="slot-primary"])').forEach((item) => item.remove()))
+          ),
+          // Three identical Calls remain; only the inspected one is no longer among them.
+          targetRenamed: await check(primary, undefined, (page) =>
+            page.evaluate(() => {
+              const button = document.querySelector('[data-spy="call-primary"]');
+              if (button) button.textContent = "Call primary";
+            })
+          ),
+          offeredScopeDropped: await check(primary, (c) => withContainer(c, (k) => k.testId === "slot-primary", ({ testId: _dropped, ...k }) => k)),
+          recordKeyOffered: await check(dan, (c) => withContainer(c, (k) => k.kind === "listItem", (k) => ({ ...k, testId: "contact-2004" }))),
+          computedRowNameAuthored: await check(invoice, (c) => withContainer(c, (k) => k.kind === "row", (k) => ({ ...k, authoredName: true })))
+        };
+        const expected = {
+          siblingsRemoved: ["NOT_DUPLICATE", "UNSCOPED_NOT_AMBIGUOUS:PROVEN"],
+          // The unscoped proof fires only because the recorded baseline loses the renamed element; NOT_DUPLICATE
+          // names the defect itself, and would still fire with a baseline that does not encode the name.
+          targetRenamed: ["NOT_DUPLICATE", "UNSCOPED_NOT_AMBIGUOUS:TARGET_MISSING"],
+          offeredScopeDropped: ["SCOPE_NOT_IN_REQUEST"],
+          recordKeyOffered: ["WITHHELD_IN_REQUEST"],
+          computedRowNameAuthored: ["WITHHELD_IN_REQUEST"]
+        };
+        if (JSON.stringify(mutations) !== JSON.stringify(expected)) throw new Error(`a broken fixture was not caught by its own check: ${JSON.stringify(mutations)}`);
+        return { valid, mutations };
+      },
+      "d1"
+    );
+
+    await controlStep(
+      "D1 control: the offered scope, proposed by a scripted provider, is proven in real Chromium and judged the inspected element",
+      async () => {
+        const out: Record<string, unknown> = {};
+        for (const sc of [primary, night]) {
+          const proposal = plan(sc.d1.target, [sc.d1.offers!]);
+          const run = await control(sc, [proposal], (page, step, proofs, context) => realProof(sc, page, step, proofs, { context }));
+          const violations = attemptViolations(run.input, run.result, run.calls, run.proofs);
+          const scope = await scopeCategory(proposal, run.input, (p) => pageSays(sc, run.step, run.context, p));
+          const ok =
+            run.result.outcome === "accepted" && run.calls.length === 1 && run.proofs.length === 1 && run.verdict.browserProven && run.verdict.problems.length === 0 &&
+            run.verdict.selected === sc.intended && run.verdict.clicked === sc.intended && violations.length === 0 && scope === "offered";
+          if (!ok) throw new Error(`${sc.id}: ${JSON.stringify({ outcome: run.result.outcome, calls: run.calls.length, proofs: run.proofs.map((p) => p.result.code), verdict: run.verdict, violations, scope })}`);
+          out[sc.id] = { proof: run.proofs[0].result.code, scope, verdict: run.verdict };
+        }
+        return out;
+      },
+      "d1"
+    );
+
+    await controlStep(
+      "D1 control: a sibling's, an absent, a withheld own and a row-content scope are each refused as not offered before the browser, and the page tells them apart",
+      async () => {
+        // Per case: the scripted plans (the last repeats), the field each refusal names, what the product's proof
+        // says when asked directly, and the category the report would give each plan.
+        const cases = [
+          { sc: primary, plans: [plan(CALL, [listItem("slot-backup")]), plan(CALL, [listItem("slot-tertiary")])], fields: ["scopes.0.value", "scopes.0.value"], page: ["WRONG_ELEMENT", "CANDIDATE_NO_MATCH"], scope: ["not-offered:sibling", "not-offered:absent"] },
+          { sc: night, plans: [plan(CALL, [listItem("contact-carol-white")]), plan(CALL, [listItem("slot-primary")])], fields: ["scopes.0.value", "scopes.0.value"], page: ["PROVEN", "WRONG_ELEMENT"], scope: ["not-offered:withheld-own", "not-offered:sibling"] },
+          { sc: dan, plans: [plan(CALL, [listItem("contact-2004")])], fields: ["scopes.0.value", "scopes.0.value"], page: ["PROVEN", "PROVEN"], scope: ["not-offered:withheld-own", "not-offered:withheld-own"] },
+          {
+            sc: invoice,
+            plans: [plan(EDIT, [{ kind: "tableRow", strategy: "role", value: "row", hasText: "INV-2002" }]), plan(EDIT, [{ kind: "tableRow", strategy: "role", value: "row", name: "Invoice INV-2002" }])],
+            fields: ["scopes.0.hasText", "scopes.0.name"],
+            page: ["PROVEN", "PROVEN"],
+            scope: ["row-content", "not-offered:withheld-own"]
+          }
+        ];
+        const out: Record<string, unknown> = {};
+        let primaryRun: Awaited<ReturnType<typeof control>> | undefined;
+        for (const c of cases) {
+          const run = await control(c.sc, c.plans, (page, step, proofs, context) => realProof(c.sc, page, step, proofs, { context }));
+          const asked = [0, 1].map((i) => c.plans[Math.min(i, c.plans.length - 1)]);
+          const pageCodes: string[] = [];
+          const scopes: string[] = [];
+          for (const p of asked) {
+            pageCodes.push(await pageSays(c.sc, run.step, run.context, p));
+            scopes.push(await scopeCategory(p, run.input, (q) => pageSays(c.sc, run.step, run.context, q)));
+          }
+          const refusals = run.result.attempts.map((a) => `${a.stage}:${a.code}@${a.field ?? ""}`);
+          const detail = { outcome: run.result.outcome, calls: run.calls.length, proofs: run.proofs.length, refusals, violations: attemptViolations(run.input, run.result, run.calls, run.proofs), page: pageCodes, scope: scopes, stored: run.verdict.problems };
+          const ok =
+            run.result.outcome === "attempts-exhausted" && run.calls.length === 2 && run.proofs.length === 0 &&
+            JSON.stringify(refusals) === JSON.stringify(c.fields.map((f) => `intent:SCOPE_NOT_OFFERED@${f}`)) &&
+            detail.violations.length === 0 && !run.verdict.accepted && run.verdict.problems.length === 0 &&
+            JSON.stringify(pageCodes) === JSON.stringify(c.page) && JSON.stringify(scopes) === JSON.stringify(c.scope);
+          if (!ok) throw new Error(`${c.sc.id}: ${JSON.stringify(detail)}`);
+          out[c.sc.id] = detail;
+          if (c.sc === primary) primaryRun = run;
+        }
+        // The accounting check itself: a refused plan that reached the browser anyway, and a record that is not
+        // the refusal the plan earned, are each caught.
+        const run = primaryRun!;
+        const mutations = {
+          provenAnyway: attemptViolations(run.input, run.result, run.calls, [{ attempt: 1, result: { ...CLAIMED_PROOF, outcome: "rejected", code: "WRONG_ELEMENT" } }]),
+          misrecorded: attemptViolations(run.input, { ...run.result, attempts: run.result.attempts.map((a, i) => (i === 0 ? { ...a, stage: "proof" as const, code: "WRONG_ELEMENT" } : a)) }, run.calls, run.proofs)
+        };
+        if (!mutations.provenAnyway.includes("ATTEMPT_1_REFUSED_BEFORE_THE_BROWSER_YET_PROVEN") || !mutations.misrecorded.includes("ATTEMPT_1_RECORD_IS_NOT_ITS_OUTCOME")) throw new Error(JSON.stringify(mutations));
+        return { ...out, mutations };
+      },
+      "d1"
+    );
+
+    await controlStep(
+      "D1 control: a sibling's or an invented container, offered as if it were the item's own and let through a bypassed gate, is caught by the judge",
+      async () => {
+        // As if the capture had misattributed the item's container: the request offers that id, so the loop admits it.
+        const misattributed = (value: string) => (c: UpgradeContext) => withContainer(c, (k) => k.testId === "slot-primary", (k) => ({ ...k, testId: value }));
+        const sibling = await control(primary, [plan(CALL, [listItem("slot-backup")])], (page, step, proofs, context) => realProof(primary, page, step, proofs, { context, tamper: forceProven("WRONG_ELEMENT") }), misattributed("slot-backup"));
+        const invented = await control(primary, [plan(CALL, [listItem("slot-tertiary")])], (page, step, proofs, context) => realProof(primary, page, step, proofs, { context, tamper: forceProven("CANDIDATE_NO_MATCH") }), misattributed("slot-tertiary"));
+        const detail = { sibling: { untampered: sibling.proofs[0]?.untampered, verdict: sibling.verdict }, invented: { untampered: invented.proofs[0]?.untampered, verdict: invented.verdict } };
+        if (detail.sibling.untampered !== "WRONG_ELEMENT" || detail.invented.untampered !== "CANDIDATE_NO_MATCH") throw new Error(`the real proof did not refuse them, so the bypass was never needed: ${JSON.stringify(detail)}`);
+        const siblingCaught = sibling.result.outcome === "accepted" && sibling.verdict.falseTarget && !sibling.verdict.browserProven && sibling.verdict.selected === "call-backup" && sibling.verdict.problems.includes("WRONG_ELEMENT");
+        const inventedCaught = invented.result.outcome === "accepted" && invented.verdict.falseTarget && !invented.verdict.browserProven && invented.verdict.matches === 0 && invented.verdict.problems.includes("NOT_UNIQUE");
+        if (!siblingCaught || !inventedCaught) throw new Error(JSON.stringify(detail));
+        return detail;
+      },
+      "d1"
+    );
+
+    await controlStep(
+      "D1 control: a case is a success only when its candidate was browser-proven — never an unproven one, an unanswered request, a false target, a leak or an accepted no-identity case",
+      async () => {
+        const base = { impossible: false, requests: 1, answered: 1, accepted: true, browserProven: true, falseTarget: false, leaked: false };
+        const table = {
+          proven: classifyD1Case(base),
+          acceptedUnproven: classifyD1Case({ ...base, browserProven: false }),
+          unanswered: classifyD1Case({ ...base, requests: 2, answered: 1, accepted: false, browserProven: false }),
+          noRequest: classifyD1Case({ ...base, requests: 0, answered: 0, accepted: false, browserProven: false }),
+          refused: classifyD1Case({ ...base, accepted: false, browserProven: false }),
+          falseTarget: classifyD1Case({ ...base, falseTarget: true }),
+          leaked: classifyD1Case({ ...base, leaked: true }),
+          noIdentityAccepted: classifyD1Case({ ...base, impossible: true }),
+          noIdentityRefused: classifyD1Case({ ...base, impossible: true, accepted: false, browserProven: false })
+        };
+        const expected = { proven: "success", acceptedUnproven: "inconclusive", unanswered: "inconclusive", noRequest: "inconclusive", refused: "refused", falseTarget: "fail", leaked: "fail", noIdentityAccepted: "fail", noIdentityRefused: "refused" };
+        if (JSON.stringify(table) !== JSON.stringify(expected)) throw new Error(JSON.stringify(table));
+        // The same rule over real jobs: a stubbed proof that claims PROVEN, and a request that timed out.
+        const stubbed = await control(primary, [plan(CALL, [primary.d1.offers!])], () => async () => CLAIMED_PROOF);
+        const { step, context } = await capture(primary);
+        const timedOutCalls: Call[] = [];
+        const timingOut: LocatorUpgradeProvider = {
+          submit: async (request) => {
+            const outcome: AiJobOutcome = { status: "failed", code: "TIMEOUT", yields: 0 };
+            timedOutCalls.push({ request, outcome });
+            return outcome;
+          },
+          cancel: () => false
+        };
+        const timedOut = await runJob(primary, step, `control-timeout-${Math.random().toString(16).slice(2, 8)}`, timingOut, async () => {
+          throw new Error("an unanswered request reached the proof");
+        }, context);
+        const answered = (calls: readonly Call[]) => calls.filter((call) => answeredInTime(call.outcome)).length;
+        const real = {
+          stubbedProof: classifyD1Case({ impossible: false, requests: stubbed.calls.length, answered: answered(stubbed.calls), accepted: stubbed.verdict.accepted, browserProven: stubbed.verdict.browserProven, falseTarget: stubbed.verdict.falseTarget, leaked: false }),
+          timedOut: classifyD1Case({ impossible: false, requests: timedOutCalls.length, answered: answered(timedOutCalls), accepted: timedOut.result.outcome === "accepted", browserProven: false, falseTarget: false, leaked: false })
+        };
+        const ok = stubbed.result.outcome === "accepted" && stubbed.verdict.problems.includes("NO_REAL_PROOF") && real.stubbedProof !== "success" && timedOut.result.outcome === "provider-unavailable" && timedOutCalls.length === 1 && real.timedOut === "inconclusive";
+        if (!ok) throw new Error(JSON.stringify({ real, stubbed: stubbed.verdict, timedOut: timedOut.result.outcome }));
+        return { table, real };
+      },
+      "d1"
+    );
+
     if (controlsFailed > 0) {
       await api.step("the real model is not judged, because a control failed", () => {
         throw new Error(`${controlsFailed} control(s) failed`);
       });
       return;
     }
+    if (!ctx) return;
 
     // ── The real model over the labelled set ────────────────────────────────────────────────────────
     const results: Array<{ sc: Scenario; verdict: Verdict; calls: number; refusals: string[]; inferMs: number[] }> = [];
-    for (const sc of SCENARIOS) {
+    const d1Results: D1Result[] = [];
+    for (const sc of set === "d1" ? D1_SCENARIOS : SCENARIOS) {
       await api.step(`${sc.id}: ${sc.covers}`, async () => {
         const captured = await capture(sc);
         const step = sc.mode === "repair" ? REPAIR_STEP : captured.step;
         const flowId = `flow-${sc.id}`;
-        const page = await freshPage();
+        const page = await freshPage(identity(sc).url);
         try {
           // The fixture is what the scenario says it is, measured on the page rather than assumed.
           const quality = classifyLocatorQuality(step.locator)?.class ?? null;
@@ -480,6 +884,8 @@ export async function runLocatorQualityLive(api: FeatureLiveApi): Promise<void> 
           if (sc.id === "multiple-matches" && quality !== "guarded-positional") throw new Error(`Archive was captured as ${quality}, not a guarded position`);
           if (sc.id === "impossible" && ((await page.getByRole("button", { name: "Remove", exact: true }).count()) !== 2 || quality !== "guarded-positional")) throw new Error(`the twins are not two identical, positionally guarded controls (${quality})`);
           if (sc.id === "scope" && (await page.getByRole("button", { name: "Edit address", exact: true }).count()) !== 2) throw new Error("Edit address is not ambiguous without its region");
+          const invalid = sc.d1 ? await d1Preconditions(sc, page, step, captured.context) : [];
+          if (invalid.length > 0) throw new Error(`the ${sc.id} fixture is not what its label says: ${invalid.join(", ")}`);
           if (sc.mode === "repair") {
             // The identity a repair proves against is what a REAL resolve recorded, before the break.
             const factory = new LocatorFactory(page, { recoveryStore: recovery, scope: { scenarioId: "quality", flowId } });
@@ -516,6 +922,44 @@ export async function runLocatorQualityLive(api: FeatureLiveApi): Promise<void> 
             const prompt = prompts[index];
             return { ...measured(call.outcome, call.request.maxOutputTokens), shape: call.outcome.status === "ok" && prompt.ok ? planShape(call.outcome.value, prompt.user) : null };
           });
+          // D1: each call as codes, enums and a bounded scope category, and the case's class. Recorded, not thresholded.
+          let d1: D1Result | undefined;
+          if (sc.d1) {
+            const withheld = sc.d1.withheld;
+            const perCall: D1Call[] = [];
+            for (const [index, call] of calls.entries()) {
+              const record = run.result.attempts.find((a) => a.attempt === index + 1);
+              const proof = proofs.find((p) => p.attempt === index + 1)?.result;
+              perCall.push({
+                contract: call.outcome.status === "ok" ? "pass" : "code" in call.outcome ? call.outcome.code : call.outcome.status,
+                strategy: models[index].shape?.strategy ?? null,
+                scope: call.outcome.status === "ok" ? await scopeCategory(call.outcome.value, run.input, (plan) => pageSays(sc, step, captured.context, plan)) : null,
+                refusal: record ? `${record.stage}:${record.code}` : null,
+                proof: proof?.code ?? null,
+                matches: proof?.candidateMatchCount ?? null
+              });
+            }
+            const leaked = calls.some((call) => withheld.some((text) => requestText(call.request).includes(text)));
+            const responses = calls.filter((call) => answeredInTime(call.outcome)).length;
+            d1 = {
+              id: sc.id,
+              covers: sc.covers,
+              expected: sc.impossible ? "refused" : "success",
+              modelIds: [...new Set(calls.flatMap((call) => (call.outcome.status === "ok" ? [call.outcome.modelId] : [])))],
+              requests: calls.length,
+              responses,
+              attemptsUsed: run.result.attemptsUsed,
+              consumedRefusals: run.result.attempts.filter((a) => a.consumed).length,
+              acceptedCandidates: run.result.outcome === "accepted" ? 1 : 0,
+              perCall,
+              matches: verdict.matches,
+              matchedIntended: verdict.selected === sc.intended,
+              falseTargetProposed: perCall.some((c) => c.proof === "WRONG_ELEMENT" || c.scope === "not-offered:sibling"),
+              falseTargetAccepted: verdict.falseTarget,
+              leaked,
+              class: classifyD1Case({ impossible: Boolean(sc.impossible), requests: calls.length, answered: responses, accepted: verdict.accepted, browserProven: verdict.browserProven, falseTarget: verdict.falseTarget, leaked })
+            };
+          }
           const summary = {
             baselineClass: quality,
             outcome: run.result.outcome,
@@ -530,15 +974,20 @@ export async function runLocatorQualityLive(api: FeatureLiveApi): Promise<void> 
             untouched,
             hostDeadlinesMs: deadlines,
             elapsedMs,
-            models
+            models,
+            ...(d1 ? { d1 } : {})
           };
 
           if (calls.length === 0 || !calls.every((call) => answeredInTime(call.outcome))) throw new Error(`not every attempt was answered in time: ${JSON.stringify(summary)}`);
           if (deadlines.length !== calls.length || !deadlines.every((ms) => ms === LOCATOR_ATTEMPT_LIMITS.timeoutMs)) throw new Error(`the inferences were not each given ${LOCATOR_ATTEMPT_LIMITS.timeoutMs} ms: ${JSON.stringify(summary)}`);
           if (!sameRequest) throw new Error(`the product sent a request other than locatorAttemptJob's: ${JSON.stringify(summary)}`);
-          if (violations.length > 0 || !untouched || verdict.problems.length > 0 || verdict.falseTarget) throw new Error(JSON.stringify(summary));
+          if (violations.length > 0 || !untouched || verdict.problems.length > 0 || verdict.falseTarget || d1?.class === "fail") throw new Error(JSON.stringify(summary));
           if (sc.impossible && (run.result.outcome === "accepted" || calls.length !== 2)) throw new Error(`the impossible case must end refused after its second attempt: ${JSON.stringify(summary)}`);
           if (sc.dynamic && proofs.some((p) => !p.unsynchronized?.whileLoading || p.unsynchronized.outcome === "proven")) throw new Error(`a proof taken mid-render was proven, or was not taken mid-render: ${JSON.stringify(summary)}`);
+          if (d1) {
+            d1Results.push(d1);
+            return summary;
+          }
           results.push({
             sc,
             verdict,
@@ -551,6 +1000,37 @@ export async function runLocatorQualityLive(api: FeatureLiveApi): Promise<void> 
           await closePage(page);
         }
       });
+    }
+
+    if (set === "d1") {
+      await api.step("D1: the container-scoped cases, measured apart from the labelled set — false-target 0, nothing withheld in any request, the no-identity cases refused", () => {
+        const tally = (values: ReadonlyArray<string | null>) => values.reduce<Record<string, number>>((acc, v) => (v === null ? acc : { ...acc, [v]: (acc[v] ?? 0) + 1 }), {});
+        const sum = (pick: (r: D1Result) => number) => d1Results.reduce((total, r) => total + pick(r), 0);
+        const perCall = d1Results.flatMap((r) => r.perCall);
+        const browserProven = d1Results.filter((r) => r.class === "success").map((r) => r.id);
+        const d1Quality = {
+          cases: d1Results.length,
+          perCase: Object.fromEntries(d1Results.map((r) => [r.id, `${r.class} (expected ${r.expected})`])),
+          browserProven,
+          positivesProven: `${browserProven.length}/${D1_SCENARIOS.filter((s) => !s.impossible).length}`,
+          requests: sum((r) => r.requests),
+          responses: sum((r) => r.responses),
+          attemptsUsed: sum((r) => r.attemptsUsed),
+          consumedRefusals: sum((r) => r.consumedRefusals),
+          acceptedCandidates: sum((r) => r.acceptedCandidates),
+          falseTargetsProposed: d1Results.filter((r) => r.falseTargetProposed).length,
+          falseTargetsAccepted: d1Results.filter((r) => r.falseTargetAccepted).length,
+          scopes: tally(perCall.map((c) => c.scope)),
+          refusals: tally(perCall.map((c) => c.refusal)),
+          // No D1 acceptance rate is approved, so none is applied; a run that proved no D1 candidate judged nothing.
+          inconclusive: browserProven.length === 0
+        };
+        api.record("d1Quality", d1Quality);
+        if (d1Results.length !== D1_SCENARIOS.length) throw new Error(`${d1Results.length} of ${D1_SCENARIOS.length} D1 cases completed`);
+        if (d1Quality.falseTargetsAccepted !== 0 || d1Results.some((r) => r.class === "fail")) throw new Error(JSON.stringify(d1Quality));
+        return d1Quality;
+      });
+      return;
     }
 
     await api.step("the labelled set: false-target = 0, the impossible case guarded, and at least one real plan browser-proven", () => {
@@ -576,8 +1056,10 @@ export async function runLocatorQualityLive(api: FeatureLiveApi): Promise<void> 
       return quality;
     });
   } finally {
-    await ctx.service.shutdown();
-    api.record("counters", (await ctx.service.status()).counters);
+    if (ctx) {
+      await ctx.service.shutdown();
+      api.record("counters", (await ctx.service.status()).counters);
+    }
     await browser.close().catch(() => undefined);
     fs.rmSync(work, { recursive: true, force: true });
   }
