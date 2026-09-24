@@ -1,6 +1,21 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-24, latest) — verify:ai-spy-live now keeps a durable session record
+## HANDOFF (2026-09-24, latest) — the D1 request now offers copyable scopes; real-model quality still unshown
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. `awkit-djnl.4` stays
+  `in_progress`, and a note was added for this change. No bead's status or edge changed.
+- **Done (`2fd2c3f5`, owner-authorized request wording only):** each approved D1 scope is shown as the plan's
+  own scope object in grammar key order, with `hasText` `""`. The instructions allow a scope only as a verbatim
+  copy of an offered one.
+  - `verify:ai-locator-attempts` 191/191, red 184/191 before, five mutations caught.
+  - `verify:ai-locator-quality-controls` 49/0, `verify:element-spy` 205/0, budget 8/0. No model was run.
+- **Needs the owner:** one separately authorized live run of the revised request,
+  `npm run verify:ai-locator-quality-live-d1`, with the pinned pack at `~/Downloads/Qwen3.5-0.8B-Q4_K_M.gguf`.
+  It saves `evidence/L3-locator-quality-live-d1-<runId>.json`, untracked for review. Also the 15 L4b reviews.
+- **Do not:** treat the scripted PASS as model quality, allow `hasText` scopes, loosen `SCOPE_NOT_OFFERED`, or
+  rerun the model to tune the wording.
+
+## HANDOFF (2026-09-24, superseded) — verify:ai-spy-live now keeps a durable session record
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. `awkit-djnl.4` stays
   `in_progress` with a note for this change. No bead's status or edge changed.

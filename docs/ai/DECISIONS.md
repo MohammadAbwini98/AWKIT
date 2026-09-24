@@ -1,6 +1,21 @@
 # DECISIONS
 
-### 2026-09-24 (latest) — Phase L L3: D1 options A+B (container identity) and D2 option U1 (attach a proven proposal as a pending candidate) (owner, `awkit-djnl.4`)
+### 2026-09-24 (latest) — Phase L L3: the D1 request's wording and scope representation may change, nothing else (owner, `awkit-djnl.4`)
+
+- **Authorized by the owner (task brief, 2026-09-24):** a bounded change to the model-facing D1 request only,
+  so the pinned 0.8B can reproduce an approved container scope. Each offered scope is shown in the exact
+  locator-plan form, target and scope are told apart, and a scope is only a copy of an offered one. With none
+  offered, the answer is `scopes []`, and the request and output budgets are kept.
+- **Not authorized:** changes to the D1 privacy policy, the compiler, the intent guard, the scope rule, the
+  browser proof, the refusal codes, the attempt budget, the model or pack, sampling, the output cap, the
+  deadlines, or any automatic AI function. D1 C and D2 U2 stay unapproved. No live-model evaluation was
+  authorized. Any further live run needs its own authorization.
+- **Implemented as (`2fd2c3f5`):** `offeredContainerScopes` writes each approved scope as the plan's own scope
+  object in grammar key order (node-llama-cpp writes every key in schema order), with `hasText` `""`. The
+  upgrade instructions carry the copy-only rule. The request stays inside its existing char and token budgets
+  (`verify:ai-locator-upgrade-budget` 8/0).
+
+### 2026-09-24 — Phase L L3: D1 options A+B (container identity) and D2 option U1 (attach a proven proposal as a pending candidate) (owner, `awkit-djnl.4`)
 
 - **Decided by the owner (task brief, 2026-09-24), on the options in L3 › "§1 owner decisions D1 and D2":**
   - **D1 A:** a request may offer a container's own, stable `data-testid`, only when it is really on the

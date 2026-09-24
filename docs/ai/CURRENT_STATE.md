@@ -1,6 +1,35 @@
 # CURRENT_STATE
 
-## Phase L: verify:ai-spy-live keeps a durable, sanitized session record (2026-09-24, current)
+## Phase L: the D1 request offers each approved scope in the grammar's own form (2026-09-24, current)
+
+**Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** `awkit-djnl.4` stays
+`in_progress`, and a note was added for this change. No bead's status or edge changed. The owner authorized the
+request wording only (`DECISIONS.md`), and it is built in `2fd2c3f5`. No model was run.
+
+- **Root cause (request format, observed):** node-llama-cpp writes every scope key in `LOCATOR_PLAN_SCHEMA`
+  order. The request offered `{"kind","strategy","value"}`, a different order with four keys missing, so the
+  grammar forced a `hasText` the model was never shown. The live D1 run filled it with row content 8 of 8 times.
+- **Change:**
+  - Each approved scope is shown as the plan's own scope object, every key in grammar order, `hasText` `""`.
+  - The upgrade instructions separate `target` from `scopes` and allow a scope only as a verbatim copy of an
+    offered one. A unique target and a target with nothing offered both answer `scopes []`.
+  - The identities offered and every refusal are unchanged.
+- **Still OPEN (`KNOWN_ISSUES.md`):** real-model D1 quality. The historical D1 run stays 12/0, exit 2
+  INCONCLUSIVE, 0 of 2 positives. A scripted PASS is not model evidence.
+- **Unchanged:**
+  - L1 limited GO. L3 `in_progress`. L4b 1 of 16, TARGET PENDING.
+  - L5b automatic analysis, T2, automatic promotion, repair, sweeps and row-text scoping stay off.
+
+| Gate (final state) | Result |
+|---|---|
+| `verify:ai-locator-attempts` | 191/191 (was 170; red 184/191 against the original request; five mutations caught, reverted) |
+| `verify:ai-locator-quality-controls` · `verify:element-spy` · `verify:locator-plan` | 49/0 · 205/0 · 53/0 |
+| `verify:ai-locator-upgrade-budget` | 8/0 (worst prompt 1053 of 3072 tokens; output cap 256 unchanged) |
+| `verify:ai-host-electron` · `verify:source-hygiene` · `typecheck:scripts` · build | 26/0 · 11/0 · PASS · PASS |
+| `verify:verifier-classification` · `verify:roadmap-dashboard` · `git diff --check` | run after the `awkit-djnl.4` note; results in its contract and commit |
+| `verify:ai-locator-quality-live-d1` · `verify:ai-spy-live` · `benchmark:ai-model` | NOT RUN: real model, not authorized |
+
+## Phase L: verify:ai-spy-live keeps a durable, sanitized session record (2026-09-24)
 
 **Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** `awkit-djnl.4` stays
 `in_progress` with a note for this change. No bead's status or edge changed. The change is verifier-only

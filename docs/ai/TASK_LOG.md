@@ -1,5 +1,41 @@
 # TASK_LOG
 
+## 2026-09-24 — Phase L: the D1 request offers each approved scope in the grammar's own form (Claude)
+
+- **Task:** the owner authorized a bounded change to the D1 model request's wording and representation only. No
+  real-model run was authorized.
+- **Root cause (observed):** node-llama-cpp writes every scope key in `LOCATOR_PLAN_SCHEMA` order. The request
+  offered `{"kind","strategy","value"}`, so no reply could copy it, and the grammar forced an unexplained
+  `hasText`. The live D1 run filled it with row content in all 8 replies.
+- **Change (`2fd2c3f5`):**
+  - `src/ai/locatorUpgradeAttempts.ts`: `offeredContainerScopes` now writes each scope in the plan's own form
+    and grammar key order, with `hasText` `""`. The upgrade instructions are reworded. The compiler, the scope
+    rule, the proof, the budgets and the repair instructions are unchanged.
+  - Verifiers: `verify-ai-locator-attempts.mts` gains §18b and four §19 checks, and restates failed check names
+    at the end. `verify-element-spy.mts` and `locatorQualityLive.ts` pin the new offered form.
+- **Checks:**
+  - `verify:ai-locator-attempts` 191/191 (was 170). It ran red 184/191 against the original request, on exactly
+    the 3 format and 4 instruction checks.
+  - Mutations, each caught then reverted:
+    - instruction removed 189/191;
+    - kind-first keys 188/191;
+    - computed row name as `hasText` 180/191;
+    - authored-name scope omitted 177/191;
+    - invented test id 185/191.
+  - A first `hasText` mutation read `container.text`, which the sanitized capture drops. It was a no-op at
+    191/191 and is not counted.
+  - Other gates: `verify:ai-locator-quality-controls` 49/0, `verify:element-spy` 205/0, `verify:locator-plan`
+    53/0, `verify:ai-locator-upgrade-budget` 8/0 (worst prompt 1053 of 3072 tokens), `verify:ai-host-electron`
+    26/0, `verify:source-hygiene` 11/0, `typecheck:scripts` PASS, build PASS.
+- **Not run:** `verify:ai-locator-quality-live-d1`, `verify:ai-spy-live` and `benchmark:ai-model`. They use the
+  real model, which was not authorized.
+- **Tooling note:** the lease guard allows only a plain `npm run` for verifiers, with no pipes or redirects. Its
+  denial of `Select-String` reached TERMINAL. That is why failed check names are now restated at the end.
+- **Records:** `KNOWN_ISSUES.md` (still OPEN, change recorded), L3 plan, `DECISIONS.md` (owner authorization),
+  `CURRENT_STATE.md`, `HANDOFF.md`. `COMMANDS.md` unchanged.
+- **Result:** L3 stays `in_progress`. No milestone, bead status, edge or verdict changed. The historical D1 run
+  stays INCONCLUSIVE.
+
 ## 2026-09-24 — Phase L: durable, sanitized session evidence for verify:ai-spy-live (Claude)
 
 - **Task:** close the OPEN `verify:ai-spy-live` durable-evidence follow-up with a model-free regression.

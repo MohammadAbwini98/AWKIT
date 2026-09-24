@@ -469,6 +469,38 @@ the per-attempt detail. It is one Element Spy session, not a labelled set, so it
   scenario measured after its last recorded fact is lost. No signal handler, crash or host-shutdown handling is
   claimed. Earlier Spy runs have no file, and none is reconstructed.
 
+**The D1 request offers each approved scope in the grammar's own form (2026-09-24, `2fd2c3f5`, owner-authorized
+request wording only).** The live run's 8 `hasText` replies trace to the request, not only to the model.
+node-llama-cpp writes every scope key in `LOCATOR_PLAN_SCHEMA` order. The request offered
+`{"kind","strategy","value"}`, a different order with four keys missing, so no reply could copy it, and the
+grammar forced a `hasText` slot the request never explained.
+- **Data:** each `container:` line now carries `scope {"strategy":…,"value":…,"name":"","exact":false,"kind":…,
+  "hasText":"","visibleOnly":false}`, exactly what the grammar decodes. It offers the same D1 A+B identities,
+  and a capture with none offers none.
+- **Instructions (upgrade mode only):**
+  - `target` is the element itself. `scopes` is optional, at most one container.
+  - A scope may only be an offered one, copied exactly: never row text, `hasText`, a record id or a position.
+  - A unique target answers `scopes []`, and a duplicate copies its container's offered scope.
+  - With none offered, the answer is `scopes []` and nothing is invented.
+- **Unchanged:**
+  - The compiler, the intent guard and `unofferedScopeField`.
+  - The proof, the refusal codes and the attempt budget.
+  - The output cap (256), the deadlines, the model and the pack.
+  - The repair instructions.
+- **Proof, no model:**
+  - `verify:ai-locator-attempts` is 191/191 (was 170). §18b has 17 checks: form, key order, empty `hasText`,
+    verbatim copy to the proof, a filled `hasText` still refused, a record key never offered, none invented,
+    `scopes []` untouched, and the instructions.
+  - §19 has 4 real-Chromium checks: a verbatim test id or authored-name copy is the inspected element, a sibling
+    copy is `WRONG_ELEMENT`, and INV-2002 with `scopes []` is `NOT_UNIQUE`.
+  - Red against the original request, 184/191. Five mutations were each caught: 189, 188, 180, 177, 185.
+  - `verify:ai-locator-quality-controls` 49/0: both D1 positives, proposed as the exact offered object, are
+    PROVEN by the product's proof. `verify:element-spy` 205/0.
+  - `verify:ai-locator-upgrade-budget` 8/0: system prompt 154 to 213 tokens, worst prompt 989 to 1053 of 3072,
+    plan tokens unchanged.
+- **Not shown:** whether the 0.8B now copies the scope. The D1 live result above stays INCONCLUSIVE. Showing it
+  needs one separately authorized `verify:ai-locator-quality-live-d1` run.
+
 ### §1 owner decisions: duplicate rows (D1) and "Use in action" (D2) (2026-09-23 design review; decided 2026-09-24)
 
 The owner chose D1 A+B and D2 U1 on 2026-09-24 (above). The review below is kept as it was written.
@@ -896,8 +928,9 @@ cases on `/recorder-lab/element-spy`, reported apart (see "§1 D1 and D2 as buil
 `verify:ai-locator-quality-controls` (49/0 since 2026-09-24, no model) runs the saved evidence's 17 checks, the
 Spy session evidence's 21, and every scripted control of both sets. Each live run, `verify:ai-spy-live`
 included, saves its evidence under `evidence/`.
-`verify:ai-locator-attempts` §19 (170/170 in all since 2026-09-24) runs `verify:ai-spy-live`'s attempt
-classifier and its records with no model.
+`verify:ai-locator-attempts` §19 (191/191 in all since `2fd2c3f5`) runs `verify:ai-spy-live`'s attempt
+classifier and its records with no model. §18b checks that each offered D1 scope is the grammar's own form,
+copyable verbatim.
 Existing: recorder/locator suites from L2,
 `verify:blueprint-recovery-browser`, `verify:profile-store`, `verify:runner`, `verify:mock-site`, `npm run build`.
 

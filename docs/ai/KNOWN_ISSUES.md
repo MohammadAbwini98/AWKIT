@@ -109,7 +109,39 @@
 - **Until then:** a future authorized live run should be launched where its whole output is kept. Missing
   history is not reconstructed.
 
-## The 0.8B writes a row-content scope instead of copying the offered D1 scope (2026-09-24, OPEN — model quality, `awkit-djnl.4`)
+## The 0.8B writes a row-content scope instead of copying the offered D1 scope (2026-09-24, OPEN — model quality, `awkit-djnl.4`; request format changed in `2fd2c3f5`, unproven on the model)
+
+- **Request-format cause found (observed, not a guess about the model):** node-llama-cpp 3.21.1 writes every key
+  of a scope object, in `LOCATOR_PLAN_SCHEMA` order: `strategy, value, name, exact, kind, hasText, visibleOnly`.
+  The request offered each scope as `{"kind","strategy","value"}`. That is a different order with four keys
+  missing, and nothing said what `hasText` should hold. So the model could not copy it verbatim, and the grammar
+  made it write a `hasText` it had never been shown. All 8 replies filled that slot with row content. Whether the
+  0.8B also cannot follow a well-formed offer is still unknown. That is the part only a live run can answer.
+- **Change (`2fd2c3f5`, owner-authorized request wording only):**
+  - `offeredContainerScopes` writes each approved scope as the plan's own scope object, every key in grammar
+    order: `name` `""` for a test id, `exact` false, `hasText` `""`, `visibleOnly` false. It offers the same D1 A+B
+    identities as before, and nothing new.
+  - The upgrade instructions separate `target` (the element itself) from `scopes` (optional, at most one
+    container). A scope may only be an offered one, copied exactly: never row text, `hasText`, a record id or a
+    position. A unique target answers `scopes []`. A duplicate copies its container's offered scope. With none
+    offered, the answer is `scopes []` and nothing is invented.
+- **Refusal policy unchanged:** `unofferedScopeField`, the compiler, the intent guard, the browser proof, the
+  refusal codes, the attempt budget, the output cap (256) and the deadlines. `hasText` is still refused
+  `SCOPE_NOT_OFFERED`. The repair instructions are unchanged.
+- **Deterministic regression (no model):**
+  - `verify:ai-locator-attempts` is 191/191 (was 170). It has 17 checks in §18b and 4 real-Chromium checks in §19,
+    covering cases A–H of the brief.
+  - It ran red against the original request, 184/191, on exactly the 3 format and 4 instruction checks.
+  - Five mutations were each caught, then reverted: 189, 188, 180, 177 and 185 of 191.
+  - `verify:element-spy` 205/0. `verify:ai-locator-quality-controls` 49/0: the scripted provider proposes the
+    exact offered object, and the product's real proof says PROVEN for both D1 positives.
+  - `verify:ai-locator-upgrade-budget` 8/0 on the pinned tokenizer. The worst prompt is 1053 of 3072 tokens, and
+    the cap is unchanged.
+- **Still OPEN:** a scripted PASS shows the request is copyable and the product accepts a copy. It does not show
+  that the 0.8B will copy it. Closing this needs one separately authorized `verify:ai-locator-quality-live-d1`
+  run on the revised request.
+
+**Original record (kept):**
 
 - **Seen in:** the one authorized `verify:ai-locator-quality-live-d1` run, 12/0, exit 2 INCONCLUSIVE.
 - **What happens:** the request offers a ready scope object (`slot-primary`, "Night shift"). In 8 of 8 replies
