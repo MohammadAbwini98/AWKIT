@@ -57,8 +57,30 @@
 - **Pattern:** the "optional" bucket held the real defects. Read everything a user can see, not only
   what a rubric requires. Nothing was changed; R1/R2 need the owner.
 
-## The packaged local-AI runtime needs the Microsoft Visual C++ runtime, which the installer does not carry (2026-09-24, OPEN — owner or licensing decision, `awkit-i6ot`)
+## A native tree can ship a DLL nothing loads, and a live "determinism" check can compare two different prompts (2026-09-25, both FIXED — the patterns are the lesson)
 
+- **The orphan runtime DLL (`176f8d5b`, red first at `0edccbba`):**
+  - The staging copied all three Visual C++ runtime DLLs beside every native folder. The reflink folder
+    then shipped an `msvcp140.dll` nothing loads, whose own import did not resolve.
+  - The loader proof passed, because nothing loaded that file. Only the whole-artifact static check
+    (`verify:native-dependencies`) saw it.
+  - **Pattern:** stage what the imports ask for, not a blanket set. A file nobody loads is still shipped
+    code that must resolve.
+- **The nonce (`242d1df4`, red first):**
+  - The production `AiService` draws a fresh random prompt nonce per job. So the live harness's "same job
+    is deterministic" step compared two different prompts. It passed for weeks and then failed once on
+    the staged copy.
+  - **Pattern:** before asserting that an output repeats, assert that the input repeated.
+
+## The packaged local-AI runtime needs the Microsoft Visual C++ runtime, which the installer does not carry (2026-09-24, RESOLVED in the packages 2026-09-25; clean-machine proof NOT RUN, `awkit-i6ot`)
+
+- **Update 2026-09-25 (latest): resolved in the packages.**
+  - The owner installed `VC.Tools.x86.x64` and `VC.Redist.14.Latest`, so the x64 CRT 14.44.35211 is
+    staged app-locally.
+  - Portable and NSIS were rebuilt from clean `1fbd2178`, with the manifest pair at `040407a4`.
+  - `verify:native-dependencies` reads 14/0, including the loader proof without the host's global runtime.
+    The packaged-app inference passes, and every packaged gate is green.
+  - **Still owed:** the clean-machine VM (runbook in L7 › `awkit-i6ot`).
 - **Update 2026-09-25 (later): the owner reported the components installed. This host still lacks them.**
   - The staging's own vswhere query finds no VS 2022 install with `VC.Tools.x86.x64` and
     `VC.Redist.14.Latest`, so `verify:ai-packaged-runtime` reads 45/5 as before.

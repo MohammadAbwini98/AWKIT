@@ -1,5 +1,47 @@
 # TASK_LOG
 
+## 2026-09-25 (night) — `awkit-i6ot` rebuilt with the app-local Visual C++ runtime; two defects fixed red first; L4b decision record (Claude)
+
+- **Task:** the owner installed the VS 2022 C++ components and asked for four things: resume
+  `awkit-i6ot` through fresh packaging and every packaged gate, prepare a consolidated L4b decision record,
+  revisit the R4 mutation test, and get an independent QC review of the final implementation.
+- **Commits:**
+  - `242d1df4`: the live-harness nonce fix;
+  - `cb29a776` and `1fbd2178`: lease bookkeeping;
+  - `176f8d5b`: the staging fix;
+  - `0edccbba`: its check;
+  - `040407a4`: the manifest pair;
+  - plus this reconciliation.
+- **Files:**
+  - `scripts/prepare-ai-native-host.mjs`, `scripts/verify-ai-packaged-runtime.mts`,
+    `scripts/ai-harness/harnessMain.ts`;
+  - `resources/dependency-manifest.{json,sig}`;
+  - the L4, L7 and ROADMAP plans, and the new `evidence/L4b-decision-record-2026-09-25.md`;
+  - `docs/ai/{CURRENT_STATE,HANDOFF,KNOWN_ISSUES,TASK_LOG}.md`, the contract and `.beads`.
+- **Tests:**
+  - `verify:ai-packaged-runtime`:
+    - 91/5, the first run (staging OK; 4 failures on the stale package, 1 the determinism flake);
+    - 91/5 red (the prompts differed);
+    - 99/4 red (the orphan runtime DLL in both trees, and the harness's 480 s cap at step 12);
+    - 104/0 on the final artifacts.
+  - `verify:native-dependencies`: 13/1 on `cb29a776`, then 14/0 on `1fbd2178`.
+  - The other packaged gates on the final artifacts:
+    - `verify:ai-packaged-app` 20/0;
+    - strict `validate:offline` PASS, `verify:offline-supply-chain` 25/0;
+    - `verify:packaged-validation` 119/0, `verify:packaged-runtime` 25/0;
+    - `verify:nsis-per-user-install` 12/0;
+    - `verify:packaged-walkthrough` 42/0, with 1 BLOCKED.
+  - `typecheck:scripts` PASS, and the build PASS inside both package pipelines.
+- **Not run:**
+  - the R4 mutation test: denied twice by the permission classifier, so BLOCKED;
+  - the clean-machine VM (NOT RUN, operator; runbook in L7);
+  - the licensed walkthrough parts (BLOCKED, issuer key).
+- **Result:**
+  - The packaged runtime no longer depends on the host's Visual C++ runtime, by the loader proof.
+  - `awkit-i6ot` is open only for the VM.
+  - L4b is NOT MET, pending the owner's one decision in the decision record.
+  - Phase L is not complete.
+
 ## 2026-09-25 (latest) — L4b R4 display gate built, independent QC and its fixes; `awkit-i6ot` re-checked on this host (Claude)
 
 - **Task:** the owner asked for three things:

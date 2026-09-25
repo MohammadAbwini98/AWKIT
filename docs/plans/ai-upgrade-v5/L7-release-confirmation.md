@@ -132,6 +132,78 @@ C++ runtime, local AI will fail to load. The fix needs an owner or licensing dec
   - **Not run:** the portable and NSIS rebuild, the manifest, `verify:native-dependencies` (its input, the
     stale `1e856706` package, is unchanged), `verify:ai-packaged-app`, and strict offline. The last package
     also predates R2 and R4.
+- **Resolved on this host, and rebuilt (2026-09-25, latest).**
+  - **The install:** the owner installed both components. The VS 2022 Community instance record was
+    updated at 2026-09-25T16:10:45Z and lists `VC.Tools.x86.x64` and `VC.Redist.14.Latest`.
+  - **The DLLs:** `VC\Redist\MSVC\14.44.35112\x64\Microsoft.VC143.CRT` holds `msvcp140.dll`,
+    `vcruntime140.dll` and `vcruntime140_1.dll`. All three are file version 14.44.35211. The staging's
+    own checks accepted each one: x64, a valid Microsoft Corporation signature, inside the VS install and
+    never System32, and at least the 14.42 floor.
+  - **One staging defect found and fixed (`176f8d5b`, red first at `0edccbba`).** The runtime was copied
+    beside every native folder. That left an `msvcp140.dll` beside the reflink addon, which imports only
+    `vcruntime140.dll`. Nothing there loads that file, and its own import `vcruntime140_1.dll` does not
+    resolve. `verify:native-dependencies` failed on the first fresh package (`cb29a776`) for exactly that.
+    - Staging now reads the imports, and puts runtime DLLs only where a binary loads them. That is all
+      three beside `@node-llama-cpp/win-x64/bins/win-x64`, and `vcruntime140.dll` beside the reflink
+      addon.
+    - The new staged-tree check in `verify:ai-packaged-runtime` was red on the old staging and on that
+      package.
+  - **One harness defect found and fixed (`242d1df4`, red first).** The live determinism step compared
+    two jobs with different random prompt nonces, so two different prompts. The pair now shares one
+    nonce, and the step first asserts the two prompts are byte-identical.
+  - **The fresh artifacts,** built from clean `1fbd2178` (`dist/release-provenance.json`, treeDirty false):
+
+    | Artifact | Bytes | SHA-256 |
+    |---|---|---|
+    | Portable `SpecterStudio 0.1.51.exe` | 243,157,087 | `879400696f273bbb73995cc1d9f3a8b7fb35597044eba36ab75f6c16a3133c8d` |
+    | NSIS `SpecterStudio Setup 0.1.51.exe` | 272,025,974 | `fd747e8b62b34ee46ad2df1294eae04864b3ea7eb41fea4cee4f5a35e081f0cc` |
+    | Signed dependency manifest | — | `b218d77f…`, Ed25519 `aa5b9dd8…`, committed at `040407a4` |
+
+  - **The gates on them:**
+    - `verify:native-dependencies` 14/0: every import of 50 PE images resolves. The loader proof loads
+      the AI runtime and the reflink addon with the host's global Visual C++ runtime made unreachable.
+    - `verify:ai-packaged-runtime` 104/0, the live harness 13/13 on the staged copy.
+    - `verify:ai-packaged-app` 20/0: the pinned pack imported, and a real explanation in 92 s in the
+      packaged app's own host.
+    - Strict `validate:offline` PASS, `verify:offline-supply-chain` 25/0, `verify:packaged-validation`
+      119/0, `verify:packaged-runtime` 25/0, `verify:nsis-per-user-install` 12/0.
+    - `verify:packaged-walkthrough` 42/0, with 1 BLOCKED: its licensed parts D–J need the issuer key.
+  - **What this does not prove:** it is the development host. Its global Visual C++ runtime is made
+    unreachable only for the loader proof, which is not a clean machine.
+  - **`awkit-i6ot` stays open.** Its acceptance also names the clean-machine VM loading the runtime from the
+    installed package. That is NOT RUN, and needs an operator (runbook below).
+
+### Clean-machine runbook for the local-AI runtime (operator; evidence required)
+
+The existing VM scripts (`scripts/clean-machine/`) have no local-AI step. On a clean VM:
+- Windows 10 or 11 x64, with a standard (non-administrator) user.
+- The network adapter disconnected.
+- No Visual C++ 2015–2022 Redistributable installed. `Test-Path C:\Windows\System32\msvcp140.dll` and
+  `Test-Path C:\Windows\System32\vcruntime140_1.dll` both print `False`. Keep that output.
+
+Then:
+1. Copy these to the VM and record `Get-FileHash -Algorithm SHA256` of each:
+   - `dist\SpecterStudio Setup 0.1.51.exe`, which must equal `fd747e8b…`;
+   - `Qwen3.5-0.8B-Q4_K_M.gguf`, which must equal `f5b14da98939b60bbe1019a964eba656407e1e0b64f1fe3003ff6d650e93bfec`.
+2. Install per user with the canonical arguments (`scripts/lib/nsis-per-user-install.ps1`):
+   `"SpecterStudio Setup 0.1.51.exe" /currentuser /S`. The exit code must be 0, and the app must be
+   installed.
+3. Launch and create the first Super User. In Settings › Local AI, enable AI. The status must read "No
+   model pack imported" (MODEL_MISSING), never "The AI runtime is not included in this build"
+   (RUNTIME_MISSING).
+4. Import the pack with *Import Model Pack…*. The status must become available ("Model pack imported and
+   verified.").
+5. Open a flow with validation findings in the Flow Designer and click *Explain with AI*. An answer must
+   arrive. Either an interpretation or a withheld notice is a pass. The bar must not report local AI as
+   unavailable.
+6. Evidence:
+   - the two `Test-Path` outputs and the two hashes;
+   - screenshots of steps 3, 4 and 5;
+   - a listing of `…\resources\native-hosts\ai\node_modules\@node-llama-cpp\win-x64\bins\win-x64\*140*.dll`
+     from the installed folder;
+   - the app log lines for the explanation job.
+   Record the result in `awkit-i6ot` and here. PASS closes `awkit-i6ot`; any other result keeps it open,
+   with the failing step recorded.
 - **Independent QC (2026-09-25, one AI QC reviewer agent, read-only, not a human sign-off):** QC-1..QC-7
   are re-verified with no regression, and provenance, the offline boundary and exit semantics PASS. It
   raised F1–F7, which are resolved at `420f2aad` and `0b581544`:

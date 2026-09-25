@@ -91,12 +91,9 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "release",
+      "agent_id": "runtime",
       "allowed_paths": [
-        "build",
-        "resources/THIRD_PARTY_NOTICES.md",
-        "resources/dependency-manifest.json",
-        "resources/dependency-manifest.sig"
+        "scripts/prepare-ai-native-host.mjs"
       ]
     },
     "writer_sequence": [
@@ -153,8 +150,8 @@
       "required": true,
       "command": "npm run verify:ai-packaged-runtime",
       "artifact": "dist/win-unpacked/resources/native-hosts/ai",
-      "result": "FAIL",
-      "observed": "2026-09-25 (latest, at 3cd26e10, after the owner reported the VS components installed): 45 passed, 5 failed, the same five. The real staging refused: vswhere reports no released VS 2022 Community, Professional or Enterprise with Microsoft.VisualStudio.Component.VC.Tools.x86.x64 and Microsoft.VisualStudio.Component.VC.Redist.14.Latest. The Community instance record selects VC.Tools.ARM only, and VC\\Redist\\MSVC\\14.44.35112 has no x64 CRT folder. Earlier, 2026-09-25 at 0b581544 (awkit-i6ot remedy built, not yet packaged): 45 passed, 5 failed, exit 1. A0 11/11, A1 7/7, F 2/2, the no-redist refusal leaves an earlier staging untouched, the real staging refused because this host has no acceptable VS 2022 redist (VS 2019 CRT 14.29.30139 below 14.42), four checks on the stale 1e856706 package (MSVC imports, runtime provenance, notices section, current staging). Companion gate verify:native-dependencies 11/3 on the same package. Before: final state at 5b77cdd7 on fresh portable and NSIS from clean 1e856706: 95 passed, 2 failed, exit 1. Every QC-1..QC-7 check passes: A0 staging refusals 11/11, A1 validator rules 7/7, staged and packaged trees 1461/1461 both ways, license inventory 111/111 with 6 reproduced notices, no model file in 2088 files and 7840 app.asar members, packaged tree equal to the current staging, live harness 13/13 and protocol 24/24 on both, section F exit-status proofs 2/2. The 2 failures are one real defect the new PE-import check found in both trees: the prebuilt ggml/llama binaries import MSVCP140.dll and VCRUNTIME140.dll, which neither the staging nor the installer carries (an owner decision, see new_findings). Red first for the QC work: 74/12 at 93beb341 (8 staging refusals red on the unfixed script, no inventory), and the validator rules 1/6 against the original lazy pin and count logic restored in the working tree (never committed). Earlier: 66/0 at bafb05e3 before the QC review."
+      "result": "PASS",
+      "observed": "2026-09-25 (night) on the final portable and NSIS from clean 1fbd2178: 104 passed, 0 failed. Staging succeeds with the app-local Visual C++ runtime from VS 2022 Community redist 14.44.35112 (file versions 14.44.35211): all three beside the llama/ggml binaries, vcruntime140.dll beside the reflink addon, 24 binaries and 277 imports resolved, no runtime DLL staged where nothing loads it (the check added red-first at 0edccbba). Live harness 13/13 on the staged copy, packaged tree equal to the current staging, protocol 24/24 on both. Red first this night: 91/5 (the staged pair's determinism step compared two different prompt nonces, fixed at 242d1df4, plus the four stale-package checks), 99/4 (the orphan msvcp140.dll and vcruntime140_1.dll beside reflink in both trees, fixed at 176f8d5b, and the harness's 480 s cap after 11 passing steps, a timing result that passed on the rerun). Before that, 2026-09-25 (latest, at 3cd26e10, after the owner first reported the VS components installed): 45 passed, 5 failed, the same five. The real staging refused: vswhere reports no released VS 2022 Community, Professional or Enterprise with Microsoft.VisualStudio.Component.VC.Tools.x86.x64 and Microsoft.VisualStudio.Component.VC.Redist.14.Latest. The Community instance record selects VC.Tools.ARM only, and VC\\Redist\\MSVC\\14.44.35112 has no x64 CRT folder. Earlier, 2026-09-25 at 0b581544 (awkit-i6ot remedy built, not yet packaged): 45 passed, 5 failed, exit 1. A0 11/11, A1 7/7, F 2/2, the no-redist refusal leaves an earlier staging untouched, the real staging refused because this host has no acceptable VS 2022 redist (VS 2019 CRT 14.29.30139 below 14.42), four checks on the stale 1e856706 package (MSVC imports, runtime provenance, notices section, current staging). Companion gate verify:native-dependencies 11/3 on the same package. Before: final state at 5b77cdd7 on fresh portable and NSIS from clean 1e856706: 95 passed, 2 failed, exit 1. Every QC-1..QC-7 check passes: A0 staging refusals 11/11, A1 validator rules 7/7, staged and packaged trees 1461/1461 both ways, license inventory 111/111 with 6 reproduced notices, no model file in 2088 files and 7840 app.asar members, packaged tree equal to the current staging, live harness 13/13 and protocol 24/24 on both, section F exit-status proofs 2/2. The 2 failures are one real defect the new PE-import check found in both trees: the prebuilt ggml/llama binaries import MSVCP140.dll and VCRUNTIME140.dll, which neither the staging nor the installer carries (an owner decision, see new_findings). Red first for the QC work: 74/12 at 93beb341 (8 staging refusals red on the unfixed script, no inventory), and the validator rules 1/6 against the original lazy pin and count logic restored in the working tree (never committed). Earlier: 66/0 at bafb05e3 before the QC review."
     },
     {
       "id": "verify:ai-packaged-app",
@@ -163,7 +160,7 @@
       "command": "npm run verify:ai-packaged-app",
       "artifact": "dist/win-unpacked/SpecterStudio.exe",
       "result": "PASS",
-      "observed": "20/0 on the fresh package from 1e856706: no model file in the artifact (2088 files, 7840 app.asar members read before launch), the packaged main process finds its runtime and the pin, no bundled pack, MODEL_MISSING not RUNTIME_MISSING, the pinned 0.8B imported in 3 s into the writable profile, and a real validation explanation OK in 67 s naming the pinned model with AWKIT_TEST_AI_PROVIDER set. Its NOT RUN path now exits 2 (was 0), proven by verify:ai-packaged-runtime section F. Earlier: 19/0 at bafb05e3."
+      "observed": "2026-09-25 (night) 20/0 on the final package from clean 1fbd2178: no model file (2092 files, 7840 asar entries), runtime and pin found, MODEL_MISSING not RUNTIME_MISSING, the pinned pack imported in 5 s into the writable profile, a real validation explanation OK in 92 s in the packaged app's own host naming the pinned model, circuit closed, process tree terminated. Earlier, 20/0 on the fresh package from 1e856706: no model file in the artifact (2088 files, 7840 app.asar members read before launch), the packaged main process finds its runtime and the pin, no bundled pack, MODEL_MISSING not RUNTIME_MISSING, the pinned 0.8B imported in 3 s into the writable profile, and a real validation explanation OK in 67 s naming the pinned model with AWKIT_TEST_AI_PROVIDER set. Its NOT RUN path now exits 2 (was 0), proven by verify:ai-packaged-runtime section F. Earlier: 19/0 at bafb05e3."
     },
     {
       "id": "package:portable",
@@ -172,7 +169,7 @@
       "command": "npm run package:portable",
       "artifact": "dist/SpecterStudio 0.1.51.exe",
       "result": "PASS",
-      "observed": "From clean 1e856706 (after the QC fixes and the notices): preflight, build, staging (Zvec 17 files, AI 130 packages 1461 files 50.7 MB), fresh-state 10/10, manifest signed ed25519:aa5b9dd8, strict offline PASS with the path-by-path inventory. 242969232 bytes, sha256 eb0b54c48ad9c639d2fea435dc5f3cffc757fc6a81806a0c821418e7853bcc94. package:nsis PASS: 271757512 bytes, sha256 df1c1964b66da06fd159ca4a629d8a1ddab65880e71ce7e63640313d0071be15. Manifest pair (the NSIS run's copy, manifest sha256 4f3b0801) committed at 9469e69e. Earlier: bafb05e3, committed at 910de86e."
+      "observed": "2026-09-25 (night) from clean 1fbd2178 (after the staging fix): preflight, build, staging (Zvec 17 files, AI 130 packages 1465 files 51.5 MB, MSVC 14.44.35112 per folder), fresh-state 10/10, manifest signed ed25519:aa5b9dd8 (sha256 b218d77f), strict offline PASS. Portable 243157087 bytes sha256 879400696f273bbb73995cc1d9f3a8b7fb35597044eba36ab75f6c16a3133c8d, NSIS 272025974 bytes sha256 fd747e8b62b34ee46ad2df1294eae04864b3ea7eb41fea4cee4f5a35e081f0cc, provenance treeDirty false, manifest pair committed at 040407a4. A first pair from clean cb29a776 was superseded after verify:native-dependencies found the orphan runtime DLL. Earlier, from clean 1e856706 (after the QC fixes and the notices): preflight, build, staging (Zvec 17 files, AI 130 packages 1461 files 50.7 MB), fresh-state 10/10, manifest signed ed25519:aa5b9dd8, strict offline PASS with the path-by-path inventory. 242969232 bytes, sha256 eb0b54c48ad9c639d2fea435dc5f3cffc757fc6a81806a0c821418e7853bcc94. package:nsis PASS: 271757512 bytes, sha256 df1c1964b66da06fd159ca4a629d8a1ddab65880e71ce7e63640313d0071be15. Manifest pair (the NSIS run's copy, manifest sha256 4f3b0801) committed at 9469e69e. Earlier: bafb05e3, committed at 910de86e."
     },
     {
       "id": "validate:offline",
@@ -181,7 +178,7 @@
       "command": "npm run validate:offline -- -Strict",
       "artifact": "resources/dependency-manifest.json",
       "result": "PASS",
-      "observed": "At HEAD 1e856706 before the manifest commit: Zvec 17/17, local-AI runtime inventory 1461 staged files compared by path with 1461 signed entries (0 unlisted, 0 missing), 1461/1461 checksum-verified, the strict pin rules clean, CPU only, no model pack, strict passed. Development mode PASS at 93beb341 and 518e1c1b. On the fresh artifacts: verify:offline-supply-chain 25/0, verify:packaged-validation 119/0, verify:packaged-runtime 25/0. Earlier: strict PASS at bafb05e3."
+      "observed": "2026-09-25 (night) at 1fbd2178 with the final manifest pair: strict PASS, local-AI runtime 1465 staged files compared by path with 1465 signed entries, 1465/1465 checksum-verified, CPU only, no model pack. On the final artifacts: verify:offline-supply-chain 25/0, verify:packaged-validation 119/0, verify:packaged-runtime 25/0, verify:native-dependencies 14/0, verify:nsis-per-user-install 12/0, verify:packaged-walkthrough 42/0 with 1 BLOCKED (licensed parts D-J, issuer key). Earlier, at HEAD 1e856706 before the manifest commit: Zvec 17/17, local-AI runtime inventory 1461 staged files compared by path with 1461 signed entries (0 unlisted, 0 missing), 1461/1461 checksum-verified, the strict pin rules clean, CPU only, no model pack, strict passed. Development mode PASS at 93beb341 and 518e1c1b. On the fresh artifacts: verify:offline-supply-chain 25/0, verify:packaged-validation 119/0, verify:packaged-runtime 25/0. Earlier: strict PASS at bafb05e3."
     },
     {
       "id": "build",
@@ -190,7 +187,7 @@
       "command": "npm run build",
       "artifact": null,
       "result": "PASS",
-      "observed": "tsc --noEmit and electron-vite build inside both package pipelines at 1e856706 (and earlier at bafb05e3). No src/ or app/ file changed in this task. typecheck:scripts PASS after the last script change (5b77cdd7)."
+      "observed": "2026-09-25 (night): tsc --noEmit and electron-vite build PASS inside both package pipelines at 1fbd2178, and typecheck:scripts PASS after the harness and verifier changes. Earlier, tsc --noEmit and electron-vite build inside both package pipelines at 1e856706 (and earlier at bafb05e3). No src/ or app/ file changed in this task. typecheck:scripts PASS after the last script change (5b77cdd7)."
     },
     {
       "id": "verify:verifier-classification",
@@ -896,6 +893,25 @@
         "acquired_at_commit": "cb29a7764dba08171e271ac1ffc64f0b6f6563f6",
         "released_at": "2026-09-25T17:59:57.547Z",
         "released_reason": "staging fix committed, runtime DLLs only where loaded, its verifier check is unleased qa work, then rebuild under the release lease",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:release:2026-09-25T18:00:25.051Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "build",
+          "resources/THIRD_PARTY_NOTICES.md",
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig"
+        ],
+        "acquired_at": "2026-09-25T18:00:25.051Z",
+        "acquired_at_commit": "0edccbba46cc03c4aa0da814b6850975b3cad9e6",
+        "released_at": "2026-09-25T18:25:02.031Z",
+        "released_reason": "awkit-i6ot rebuild complete: portable and NSIS from clean 1fbd2178, manifest pair committed at 040407a4, every packaged gate green, licensed walkthrough BLOCKED on the issuer key, clean-machine VM NOT RUN",
         "amendments": [],
         "overrides": [],
         "violations": []

@@ -1033,6 +1033,10 @@ kind; explanation quality target recorded and met before release. **Recorded** (
   - Criterion 3 reads 17/17 and 16/17.
   - By the AI reading, criterion 1 would be NOT MET: 8 of 34 displayed answers carry an unsupported claim.
   - R4 to R6 await the owner.
+- **Decision record (2026-09-25, latest):** `evidence/L4b-decision-record-2026-09-25.md` consolidates four
+  things: the raw model result (preserved, NOT MET), what a person sees after R4, the fallback's
+  effectiveness and limits, and the unmet human review. It asks the owner one question: which measure
+  accepts L4b?
 - **After R4 (2026-09-25, `a89a14bd`):** the target is **NOT MET**.
   - Criterion 2 reads 13/17 and 11/17, because withheld answers are never counted.
   - Criterion 1 is PENDING on 26 answers, and criterion 4 on 16.
