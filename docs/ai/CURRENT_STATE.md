@@ -1,6 +1,42 @@
 # CURRENT_STATE
 
-## Phase L: L4b option B decided and DX-0 frozen; clean-machine step 9 corrected and executed; Phase L NOT complete (2026-09-25, final, current)
+## Phase L: the L4b DX evaluator and the held-out format are built and proven; the held-out set is the owner's; Phase L NOT complete (2026-09-26, current)
+
+**Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** Phase L is still 7 of
+10 milestones closed. Nothing closed. No fresh model run was taken.
+
+- **The owner chose an independent held-out set** (2026-09-26). The owner or a person the owner names prepares
+  it. The agent defines only the format and the structural check, and has seen no case.
+- **The DX evaluator is built beside the unchanged adopted target** (`scripts/ai-harness/authoringDx.ts`).
+  - It evaluates DX-0 and DX-2 to DX-5. DX-1 rests on `verify:ai-authoring` §14 and `verify:ai-assist-gui`.
+  - Its source identity and its readings of the rules are in `evidence/L4b-owner-decision-proposal-2026-09-25.md`
+    §0. The owner can overrule a reading before the first fresh run.
+  - Captures now record the inputs they were taken on. A capture on anything other than DX-0 voids the fresh
+    evidence.
+  - A DX verdict needs a new `--misattributed` field.
+  - The reading packet is blind to the gate's decision.
+- **The held-out format** is in `evidence/L4b-held-out/README.md`.
+  - One flow per `.json` file in `flows/`, checked structurally.
+  - At least 17 issues sent, which means at least 9 flows.
+  - `inventory.json` is written once and committed with its corpus hash.
+- **Every fresh authoring run is refused until the held-out set is committed.** Proven on
+  `verify:ai-authoring-quality-live-part1`: REFUSED, with no model loaded.
+- **DX-0 still matches the frozen identities exactly:**
+  - the four blobs;
+  - the request `ab4b891f…`;
+  - the runtime pin `node-llama-cpp@3.21.1+llama.cpp@v0.4.0`.
+
+| Gate (this session) | Result |
+|---|---|
+| `verify:ai-authoring` | 362/362 PASS (305 before; §15 adds 57 DX checks) |
+| `verify:ai-dx-mutations` (new) | 54/0 PASS, 25 of 25 mutants killed, control 362/362 |
+| `verify:ai-display-gate-mutations` | 38/0 PASS, 15 of 15 killed (red once at 37/1: §15 crashed under one mutant, now a failed check) |
+| `verify:ai-authoring-dx` (new) | PENDING (exit 2): DX-0 MET on the tree, no fresh capture, no held-out set |
+| `verify:ai-authoring-held-out` (new) | NOT PROVIDED (exit 2): no flows yet |
+| `typecheck:scripts` · `npm run build` · `verify:verifier-classification` | PASS · PASS · 275 classified |
+| fresh L4b runs · clean-machine VM · licensed walkthrough | NOT RUN (after the held-out set) · NOT RUN (operator) · BLOCKED (issuer key) |
+
+## Phase L: L4b option B decided and DX-0 frozen; clean-machine step 9 corrected and executed; Phase L NOT complete (2026-09-25, final)
 
 **Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** Phase L is still 7 of
 10 milestones closed. Nothing closed.

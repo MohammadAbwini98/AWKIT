@@ -6,23 +6,43 @@
  *   npm run verify:ai-authoring-review                 the target, criterion by criterion
  *   npm run verify:ai-authoring-review -- --pending    every captured explanation still awaiting a person
  *   npm run verify:ai-authoring-review -- --record <item id> --correct yes|no --actionable yes|no
- *       --grounded yes|no --unsupported yes|no --reviewer <label> [--note <text>]
+ *       --grounded yes|no --unsupported yes|no [--misattributed yes|no] --reviewer <label> [--note <text>]
  *
  * A person records verdicts; an agent never does. Captures of an earlier request (other instructions)
  * are listed and ignored. Every captured explanation is judged by today's judge, in memory, and each one it
  * reads differently from its capture is listed; a capture file is never rewritten. Exit 0 only when the target is MET, or NOT RUN when nothing of the current
  * request is captured; PENDING, NOT MET and an unreadable store exit 1, because none of them is acceptance.
+ *
+ * L4b's delivered-experience acceptance (owner, 2026-09-25, option B; scripts/ai-harness/authoringDx.ts):
+ *   npm run verify:ai-authoring-review -- --dx            DX-0 and DX-2 to DX-5; exit 0 MET, 1 NOT MET, 2 PENDING
+ *   npm run verify:ai-authoring-review -- --dx --pending  every fresh text still awaiting a person's DX reading,
+ *       displayed and withheld alike, with no gate or judge reading beside it (a DX verdict needs --misattributed)
+ *   npm run verify:ai-authoring-review -- --held-out  check the held-out flows' structure and show their
+ *       inventory; the first valid run writes inventory.json to commit beside them, later runs compare with it.
+ *       Exit 0 valid, 1 invalid, 2 none yet
+ * Named scripts, since the lease guard refuses arguments: verify:ai-authoring-dx, verify:ai-authoring-dx-pending,
+ * verify:ai-authoring-held-out.
  */
 
+import fs from "node:fs";
+import path from "node:path";
+
 import { buildAuthoringRequest } from "@src/ai/authoringExplanation";
+import { AI_RUNTIME_PIN } from "@src/offline/AiModelManifest";
+import { writeJsonFileAtomic } from "@src/session/atomicWrite";
 import { validateFlowDefinition } from "@src/validation/FlowValidator";
 
+import { DX0, HELD_OUT_DIR, currentDx0Problems, dxPending, evaluateDx, heldOutCommitProblems, heldOutRequest, inventoryPath, readHeldOut } from "./ai-harness/authoringDx";
 import { LABELLED_SET } from "./ai-harness/authoringQualitySet";
 import { evaluateQualityTarget, instructionsSha256, isGenuineReviewer, loadReviewStore, recordVerdict, requiredReading, rereadCapture, reviewDir, QUALITY_TARGET, type ReviewItem } from "./ai-harness/authoringQualityReview";
 
+const heldOutDir = path.resolve(HELD_OUT_DIR);
+const heldOut = readHeldOut(heldOutDir);
 const requestFor = (caseId: string) => {
   const labelled = LABELLED_SET.find((c) => c.id === caseId);
-  return labelled ? buildAuthoringRequest(validateFlowDefinition(labelled.flow, { referenceableFlowIds: new Set([labelled.flow.id]) })) : undefined;
+  if (labelled) return buildAuthoringRequest(validateFlowDefinition(labelled.flow, { referenceableFlowIds: new Set([labelled.flow.id]) }));
+  const flow = heldOut.ok ? heldOut.flows.get(caseId) : undefined;
+  return flow ? heldOutRequest(flow) : undefined;
 };
 const probe = requestFor(LABELLED_SET[0].id);
 if (!probe) throw new Error("the labelled set builds no request");
@@ -42,11 +62,35 @@ if (args[0] === "--record") {
     actionable: yesNo("--actionable") as boolean,
     grounded: yesNo("--grounded") as boolean,
     unsupportedClaim: yesNo("--unsupported") as boolean,
+    // Anything but yes or no reaches recordVerdict as a non-boolean, which it refuses.
+    ...(flag("--misattributed") !== undefined ? { misattributed: (yesNo("--misattributed") ?? null) as unknown as boolean } : {}),
     reviewer: flag("--reviewer") ?? "",
     ...(flag("--note") !== undefined ? { note: flag("--note") } : {})
   });
   console.log(result.ok ? `recorded ${args[1]}` : `REFUSED: ${result.reason}`);
   process.exit(result.ok ? 0 : 1);
+}
+
+// The held-out set's structure and inventory. No model, no display gate: nothing here previews a case's answer.
+if (args[0] === "--held-out") {
+  const where = path.relative(process.cwd(), heldOutDir);
+  if (!heldOut.ok) {
+    console.log(`L4b held-out set in ${where}: ${heldOut.notProvided ? "NOT PROVIDED" : "INVALID"}`);
+    for (const p of heldOut.problems) console.log(`  ✗ ${p}`);
+    process.exit(heldOut.notProvided ? 2 : 1);
+  }
+  const inv = heldOut.inventory;
+  console.log(`L4b held-out set in ${where}: ${inv.cases.length} flow(s), ${inv.issues} issue(s) sent, corpus sha256 ${inv.corpusSha256}`);
+  for (const c of inv.cases) console.log(`  ${c.id}  ${c.file}  sends ${c.sent.map((s) => `${s.code}${s.fixable ? "+fix" : ""}${s.blocking ? "+blocks" : ""}`).join(", ")}${c.truncated > 0 ? `; ${c.truncated} more not sent` : ""}`);
+  // Written once: a later change to the flows shows as a mismatch, never as a quietly rewritten inventory.
+  if (!fs.existsSync(inventoryPath(heldOutDir))) {
+    await writeJsonFileAtomic(inventoryPath(heldOutDir), inv);
+    console.log(`wrote ${path.relative(process.cwd(), inventoryPath(heldOutDir))}: commit it with the flows before any fresh run`);
+    process.exit(0);
+  }
+  const problems = heldOutCommitProblems(heldOutDir, inv);
+  console.log(problems.length === 0 ? "committed: inventory.json matches the flows, and both are committed" : `not committed yet: ${problems.join("; ")}`);
+  process.exit(0);
 }
 
 const store = loadReviewStore(dir);
@@ -68,6 +112,38 @@ const changed = rereads.flatMap((r) => r.changed.map((c) => ({ ...c, retained: r
 const reading = (j: ReviewItem["judged"]) => `${j.category}${j.unsupported.length > 0 ? ` [${j.unsupported.join(", ")}]` : ""}${j.actionable ? ", actionable" : ""}`;
 console.log(`  re-read by today's judge: ${rereads.reduce((n, r) => n + r.reread, 0)} of ${shown} captured explanation(s) (the rest keep their captured reading: today's labelled set sends other codes under their ids); ${changed.length} read differently:`);
 for (const c of changed) console.log(`    ${c.itemId} ${c.code}: ${reading(c.before)} → ${reading(c.after)}${c.retained ? "" : " (against its Issues lines; that request's instructions are not retained)"}`);
+
+if (args[0] === "--dx") {
+  const commitProblems = heldOut.ok ? heldOutCommitProblems(heldOutDir, heldOut.inventory) : heldOut.problems;
+  const committed = heldOut.ok && commitProblems.length === 0 ? heldOut.inventory : null;
+  const read = rereads.map((r) => r.capture);
+  if (args.includes("--pending")) {
+    const pending = dxPending(read, store.verdicts, committed);
+    console.log(`\n${pending.length} fresh text(s) await a person's DX reading. Displayed and withheld texts are listed alike, in item-id order, with no gate or judge reading: read each against its evidence line.\n`);
+    for (const item of pending) {
+      console.log(item.id);
+      console.log(`  ${item.caseId.startsWith("ho-") ? "held-out" : "labelled"} case ${item.caseId}, ${item.issueId} ${item.code} (${item.blocking ? "blocks the run" : "does not block the run"}, ${item.fixable ? "fixable" : "no emitted fix"})`);
+      console.log(`  evidence: ${item.evidence}`);
+      console.log(`  AI text:  ${item.text}`);
+      if (item.step) console.log(`  the product's corrective step beside it: ${item.step}`);
+      console.log("");
+    }
+    console.log("Record each under your own label: npm run verify:ai-authoring-review -- --record <item id> --correct yes|no --actionable yes|no --grounded yes|no --unsupported yes|no --misattributed yes|no --reviewer <label>");
+    process.exit(0);
+  }
+  const dx = evaluateDx(read, store.verdicts, committed, currentDx0Problems(current, AI_RUNTIME_PIN.build));
+  const adopted = captures.some((c) => c.modelId === DX0.modelId) ? evaluateQualityTarget(captures.filter((c) => c.modelId === DX0.modelId), store.verdicts, LABELLED_SET.map((c) => c.id)).verdict : "NOT MET (nothing captured)";
+  console.log(`\nL4b delivered experience (DX): owner decision 2026-09-25, option B, cap 25 % per run, held-out set, the owner reads`);
+  console.log(`  DX-0 frozen at ${DX0.commit}: pack ${DX0.modelSha256.slice(0, 8)}, runtime ${DX0.runtimeBuild}, request ${DX0.instructionsSha256.slice(0, 8)}, ${Object.keys(DX0.blobs).length} source blobs`);
+  console.log(`  held-out set: ${committed ? `committed, ${committed.cases.length} flow(s), ${committed.issues} issue(s), corpus sha256 ${committed.corpusSha256}` : heldOut.ok ? `NOT committed (${commitProblems.join("; ")})` : heldOut.notProvided ? "not provided yet" : `invalid (${commitProblems.join("; ")})`}`);
+  console.log(`  the adopted quality target, unchanged and never passed by DX: ${adopted}`);
+  console.log("  DX-1 deterministic guidance: proven by verify:ai-authoring §14 and verify:ai-assist-gui on the accepted build, run separately; not computed here");
+  for (const r of dx.runs) console.log(`  ${r.corpus} run ${r.run}: ${r.displayed}/${r.sent} displayed; not displayed: ${r.gateWithheld} by the gate, ${r.secretWithheld} for a residual secret, ${r.undelivered} undelivered`);
+  for (const c of dx.criteria) console.log(`  ${c.status === "MET" ? "✓" : c.status === "PENDING" ? "…" : "✗"} ${c.id} ${c.label}: ${c.status} — ${c.detail}`);
+  if (store.malformed.length > 0) console.error(`  ✗ unreadable store file(s), which may hide a capture: ${store.malformed.join(", ")}`);
+  console.log(`  DX (DX-0, DX-2 to DX-5): ${dx.verdict}${dx.verdict === "MET" ? "; L4b closes only with DX-1's two gates PASS on the accepted build as well" : ""}`);
+  process.exit(dx.verdict === "MET" && store.malformed.length === 0 ? 0 : dx.verdict === "PENDING" && store.malformed.length === 0 ? 2 : 1);
+}
 
 if (args[0] === "--pending") {
   const pending = captures.flatMap((c) => c.items).filter((i) => !verdictOf.has(i.id));

@@ -47,6 +47,77 @@ are void.
 - The DX evaluation code (§6 B, work item 1) is written to these rules before any fresh run, and its source
   identity is added here before the first run. Writing it changes no rule.
 
+**The DX evaluator (2026-09-26, before any fresh run). Nothing below changes a DX-0 input.**
+
+| File | Role | Blob |
+|---|---|---|
+| `scripts/ai-harness/authoringDx.ts` | DX-0 constants, the evaluator (DX-0, DX-2 to DX-5), the held-out format and structural check | `b6f17b98acdb3115283cfbe1bbfc8763a1cd920a` |
+| `scripts/ai-harness/authoringQualityReview.ts` | captures carry `inputs`; verdicts carry `misattributed` | `2b7d8ff2aefe9aacc8fc6b4c79e66c568891c70a` |
+| `scripts/ai-harness/authoringQualityLive.ts` | the harness runs the held-out set and records `inputs` | `8301d8c64fb980c7e093f7b1f3aad92f8c1703a8` |
+| `scripts/verify-ai-explanation-live.mts` | the launcher: it measures `inputs`, adds `--held-out --part k`, and refuses any fresh authoring run until the held-out set is committed | `bfa72737656b622c3cce96a94973676c01c47fb0` |
+| `scripts/verify-ai-authoring-review.mts` | the CLI: `--dx`, `--dx --pending`, `--held-out`, `--record … --misattributed` | `97d8885a3b81d0664ec7e1a7f05b54f6203c9342` |
+| `scripts/verify-ai-authoring.mts` (§15) | its checks, without a model: 57 of 362 | `82b0a4e15b66e3a52da993b253a4afe806f444a9` |
+| `scripts/verify-ai-display-gate-mutations.mts` (`--dx`) | its mutation run: 25 mutants | `9a7577ca5fb5dc7f3924881e58e3650ddb0973f2` |
+
+- **Commands:**
+  - `npm run verify:ai-authoring-dx` evaluates DX. It exits 0 MET, 1 NOT MET, 2 PENDING.
+  - `npm run verify:ai-authoring-dx-pending` prints the reading packet.
+  - `npm run verify:ai-authoring-held-out` runs the structural check and writes the inventory once.
+  - `npm run verify:ai-authoring-held-out-live-part1` to `-part4` run the held-out set, five flows per part.
+- **DX-1 is not computed by the evaluator.** It rests on `verify:ai-authoring` §14 and `verify:ai-assist-gui` on
+  the accepted build.
+- **Proof, without a model, on 2026-09-26:**
+  - `verify:ai-authoring` 362/362;
+  - `verify:ai-dx-mutations` 54/0, 25 of 25 mutants killed, with the control at 362/362;
+  - `verify:ai-display-gate-mutations` 38/0, 15 of 15 killed.
+- **DX-0 on the working tree:** MET. `verify:ai-authoring-dx` reads the four blobs, the request hash `ab4b891f…` and
+  `AI_RUNTIME_PIN.build` from the tree, and all equal the table above. It reports PENDING, with no fresh capture
+  and no held-out set yet.
+
+**How the evaluator reads the rules.** Each reading below was fixed before any fresh output exists, so the owner can
+overrule any of them now, and no later.
+
+1. **DX-4 counts every issue without a displayed AI text:**
+   - withheld by the gate;
+   - withheld for a residual secret;
+   - never delivered (a refused or timed-out answer, or an issue the answer did not explain).
+
+   §5 says so: "the model must give a displayable explanation for at least 3 issues in 4". Otherwise a model that
+   times out would pass the cap.
+2. **The cap applies to every complete fresh run, the held-out run included.**
+   - Each run's ratio is judged by itself; runs are never averaged.
+   - Integer arithmetic: `4 × undisplayed ≤ sent`, so 4 of 17 passes and 5 of 17 fails.
+3. **DX-3's 80 % is over every fresh displayed text, labelled and held-out together.**
+   - It is judged only once DX-2 holds, and the per-run figures are reported beside it.
+   - A confirmed escape fails DX-3 at once and can never be undone. An escape is a displayed text a person marks
+     unsupported, not grounded, or misattributed.
+4. **A DX verdict needs `--misattributed yes|no`,** because DX-3 names misattribution and the old verdict had no
+   field for it. A verdict without it, or under a placeholder's or an agent's label, is no reading.
+5. **Every fresh text must be read before DX-3 can be MET,** displayed and withheld alike.
+   - The packet is blind: it lists them in item-id order, without saying which the gate withheld and without any
+     judge reading.
+   - The false-withholding rate and the escape count are reported per run.
+6. **Evidence plan and counting:**
+   - The plan is exactly two complete labelled runs and one complete held-out run.
+   - Every fresh output counts.
+   - A run left incomplete keeps DX-2 PENDING until it is completed. It is never dropped, and a text in it still
+     counts for DX-3.
+   - The agent takes no run beyond the plan.
+7. **"Fresh" means a capture that carries the inputs the launcher measured,** all equal to DX-0 (pack, runtime,
+   the four blobs, the request, the committed held-out corpus).
+   - Any capture taken on other inputs makes DX-0 NOT MET: the fresh evidence is void.
+   - Captures from before DX carry no inputs and count for nothing.
+
+**The held-out set's format** (`L4b-held-out/README.md`):
+- one flow per `.json` file in `L4b-held-out/flows/`, as the product saves a flow;
+- structural rules only (see the README);
+- at least 17 issues sent, which means at least 9 flows, since one request sends at most 2;
+- a case id is `ho-` plus 12 hex of the flow's content hash, so it carries nothing from the file's name;
+- the corpus hash is taken over the content, never the layout.
+
+`inventory.json` is written once, then committed with the flows, and its corpus hash is recorded here. The
+selection is the owner's (or a person the owner names), per the ruling above. **The agent has seen no case.**
+
 ## 1. Original model-output quality: NOT MET (unchanged by anything below)
 
 The adopted target (L4 › "Explanation quality target") over what the pinned Qwen3.5-0.8B produces, two complete

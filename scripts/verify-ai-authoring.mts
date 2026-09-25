@@ -36,11 +36,14 @@
  * verbatim, it withholds the 8 the AI evaluation found unsupported and the 2 correct restatements it cannot
  * establish, and shows the other 24; through the adapter a withheld text never reaches the renderer while
  * the finding, its severity and the product's step do; the target counts no withheld answer as a success;
- * and held-out wording checks it beyond the 34.
+ * and held-out wording checks it beyond the 34. Section 15 holds L4b's delivered-experience evaluator (DX,
+ * owner decision 2026-09-25) on scripted captures: it can say MET, and says NOT MET or PENDING for each way
+ * short of DX-0 and DX-2 to DX-5 (inputs, runs, every text read, escapes, the 80 % and the 25 % cap at their
+ * boundaries); and the held-out set's structural check on flows written here, each refusal with its reason.
  *
  * Run: npm run verify:ai-authoring
  */
-import { readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve as resolvePath } from "node:path";
@@ -65,6 +68,7 @@ import {
 import { buildAiPrompt } from "@src/ai/AiPromptBuilder";
 import { parseAiOutput } from "@src/ai/AiOutputContract";
 import { AI_ASSIST_MAX_NODES, type AuthoringAssistView } from "@src/ai/contracts/AiApi";
+import { AI_RUNTIME_PIN } from "@src/offline/AiModelManifest";
 import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 import type { FlowProfile } from "@src/profiles/FlowProfile";
 import type { AiPolicyConfig } from "@src/security/authz/AiAutonomyPolicy";
@@ -82,10 +86,12 @@ import {
   requiredReading,
   rereadCapture,
   writeReviewCapture,
+  type CaptureInputs,
   type ReviewCapture,
   type ReviewItem,
   type ReviewVerdict
 } from "./ai-harness/authoringQualityReview";
+import { DX0, currentDx0Problems, dxPending, evaluateDx, heldOutCommitProblems, heldOutRequest, inventoryPath, readHeldOut } from "./ai-harness/authoringDx";
 import {
   CANARY,
   LABELLED_SET,
@@ -100,7 +106,8 @@ import {
   literalControlFailures,
   makesCausalClaim as harnessCausal,
   rankingControlFailures,
-  unsupportedClaims as harnessScreen
+  unsupportedClaims as harnessScreen,
+  type LabelledCase
 } from "./ai-harness/authoringQualitySet";
 import { makesCausalClaim, supportedTextOf, unsupportedClaims, withheldExplanationSentence, withholdReasons } from "@src/ai/authoringClaimScreen";
 
@@ -1256,6 +1263,283 @@ console.log("\n14 — R4: the display gate, on the 34 answers displayed after R1
 
   const held = displayGateControlFailures(requestFor);
   check("beyond the 34: unseen causes and consequences withheld, the product's own evidence shown, severity left to the screens, every product step shown", held.length === 0, held.join("; "));
+}
+
+// ── 15. L4b's delivered-experience acceptance, DX (owner decision 2026-09-25) ───────────────────
+// The evaluator beside the adopted target (scripts/ai-harness/authoringDx.ts), on scripted captures built from
+// R2's replayed answers, and the held-out set's structural check on flows written here from the labelled ones
+// with the canary taken out. No model runs and no fresh answer exists: nothing here was fitted to one.
+console.log("\n15 — L4b DX: the delivered-experience evaluator and the held-out set's format");
+// An exception here is a failed check, never an end to the run: a mutant elsewhere (the parser dropping the
+// gate's decision) leaves nothing withheld to pick, and a crash would hide the checks that caught it.
+try {
+  const labelledOf = (id: string) => LABELLED_SET.find((c) => c.id === id)!;
+  const requestFor = (id: string) => buildAuthoringRequest(validateFlowDefinition(labelledOf(id).flow, { referenceableFlowIds: new Set([id]) }))!;
+  const dxStatus = (e: ReturnType<typeof evaluateDx>, id: string) => e.criteria.find((c) => c.id === id)!.status;
+
+  const offDx0 = currentDx0Problems(instructionsSha256(requestFor("cycle")), AI_RUNTIME_PIN.build);
+  check("(precondition) the working tree is on DX-0: the four frozen blobs, the request's instructions and the runtime pin", offDx0.length === 0, offDx0.join("; "));
+
+  // The held-out set's format: the nine labelled flows under new ids, the canary replaced.
+  const heldFlow = (c: LabelledCase) => ({ ...JSON.parse(JSON.stringify(c.flow).replace(new RegExp(CANARY, "gi"), "Demo")), id: `held-${c.id}` });
+  const writeFlow = (dir: string, name: string, value: unknown) => writeFileSync(join(dir, "flows", name), typeof value === "string" ? value : JSON.stringify(value, null, 2));
+  const setUp = (name: string) => {
+    const dir = join(work, name);
+    mkdirSync(join(dir, "flows"), { recursive: true });
+    for (const c of LABELLED_SET) writeFlow(dir, `${c.id}.json`, heldFlow(c));
+    return dir;
+  };
+  const heldDir = setUp("held-out");
+  const loaded = readHeldOut(heldDir);
+  check(
+    "a held-out set of flows outside the labelled set loads: 9 flows, 17 issues, each sending what the product sends",
+    loaded.ok && loaded.inventory.cases.length === 9 && loaded.inventory.issues === 17 && loaded.inventory.cases.every((c) => JSON.stringify(c.sent) === JSON.stringify(labelledOf(c.file.replace(/\.json$/, "")).sent)),
+    loaded.ok ? JSON.stringify(loaded.inventory.cases.map((c) => [c.file, c.sent.length])) : loaded.problems.join("; ")
+  );
+  if (!loaded.ok) throw new Error("§15 needs the held-out set it writes");
+  const inv = loaded.inventory;
+  writeFlow(heldDir, "casing.json", String.fromCharCode(0xfeff) + JSON.stringify(heldFlow(labelledOf("casing")), null, 4).replace(/\n/g, "\r\n"));
+  const relaid = readHeldOut(heldDir);
+  check("the corpus hash is the content, not the layout: a byte-order mark, CRLF and indentation change no hash and no case id", relaid.ok && JSON.stringify(relaid.inventory) === JSON.stringify(inv));
+  const renamed = setUp("held-renamed");
+  writeFlow(renamed, "casing.json", { ...heldFlow(labelledOf("casing")), name: "Another name" });
+  const changed = readHeldOut(renamed);
+  check("...and any change of content changes it", changed.ok && changed.inventory.corpusSha256 !== inv.corpusSha256);
+  check("case ids carry nothing from a file's name: ho- and 12 hex", inv.cases.every((c) => /^ho-[0-9a-f]{12}$/.test(c.id)));
+
+  const refusedFor = (name: string, change: (dir: string) => void, reason: string) => {
+    const dir = setUp(`held-${name}`);
+    change(dir);
+    const read = readHeldOut(dir);
+    return !read.ok && !read.notProvided && read.problems.some((p) => p.includes(reason));
+  };
+  const single = heldFlow(labelledOf("single"));
+  check("refused: a flow carrying the labelled set's canary", refusedFor("canary", (d) => writeFlow(d, "x.json", { ...single, id: "x1", name: `x ${CANARY}` }), "canary"));
+  check("refused: a labelled flow's id", refusedFor("id", (d) => writeFlow(d, "x.json", { ...single, id: "single" }), "is a labelled flow's"));
+  check("refused: a file that is not .json", refusedFor("txt", (d) => writeFileSync(join(d, "flows", "notes.txt"), "notes"), "only .json"));
+  check("refused: a file that is not JSON", refusedFor("json", (d) => writeFlow(d, "bad.json", "{ not json"), "not JSON"));
+  check("refused: JSON the product does not take as a flow", refusedFor("shape", (d) => writeFlow(d, "bad.json", { id: "x2", nodes: "none" }), "not a flow the product accepts"));
+  const clean = {
+    id: "clean",
+    name: "Clean",
+    version: 1,
+    nodes: [{ id: "s", type: "start", name: "Start" }, { id: "a", type: "click", name: "Go", locator: { strategy: "testId", value: "go" } }, { id: "e", type: "end", name: "End" }],
+    edges: [{ id: "e1", source: "s", target: "a", type: "success", kind: "normal" }, { id: "e2", source: "a", target: "e", type: "success", kind: "normal" }]
+  };
+  check("refused: a flow the validator finds nothing wrong with", refusedFor("clean", (d) => writeFlow(d, "clean.json", clean), "nothing to ask"));
+  check("refused: the same flow twice", refusedFor("dup", (d) => writeFlow(d, "copy.json", single), "the same flow as"));
+  check("refused: fewer than 17 issues sent", refusedFor("few", (d) => rmSync(join(d, "flows", "single.json")), "at least 17"));
+  check("refused, naming the detector: a value the product's redaction treats as sensitive", refusedFor("secret", (d) => writeFlow(d, "x.json", { ...single, id: "x3", name: "api_key=abc123" }), "key/value secret"));
+  const none = readHeldOut(join(work, "held-none"));
+  check("no flows yet is NOT PROVIDED, not invalid", !none.ok && none.notProvided);
+  writeFileSync(inventoryPath(heldDir), JSON.stringify(inv));
+  check("an inventory git cannot show committed is never taken as committed", heldOutCommitProblems(heldDir, inv).length > 0);
+  writeFileSync(inventoryPath(heldDir), JSON.stringify({ ...inv, issues: 18 }));
+  check("...and one that does not match its flows is refused as such", heldOutCommitProblems(heldDir, inv).some((p) => p.includes("does not match")));
+
+  // The evaluator. R2's run-1 answers leave 4 of 17 undisplayed, run 2's 6: the cap's two sides, not fitted.
+  const inputs: CaptureInputs = { modelSha256: DX0.modelSha256, runtimeBuild: DX0.runtimeBuild, blobs: { ...DX0.blobs }, heldOutSha256: inv.corpusSha256 };
+  const answerFor = (request: AuthoringRequest, run: 1 | 2, twin: string) => {
+    const texts = request.issues.map((ref, i) => ({ issueId: ref.id, text: R2_DISPLAYED_ANSWERS.find((a) => a.run === run && a.caseId === twin && a.index === i)!.text.replace(/…$/, "") }));
+    const parsed = parseAuthoringAnswer({ version: 1, explanations: texts }, request);
+    if (!parsed.ok) throw new Error(`the replayed answer of ${twin} must parse`);
+    return parsed;
+  };
+  let minute = 0;
+  const at = () => new Date(Date.UTC(2026, 8, 27, 0, minute++));
+  const labelledCapture = (run: 1 | 2, ids = LABELLED_SET.map((c) => c.id), undelivered?: string) =>
+    buildReviewCapture(
+      DX0.modelId,
+      ids.map((id) => {
+        const request = requestFor(id);
+        const answer = id === undelivered ? null : answerFor(request, run, id);
+        return { caseId: id, request, answer, judged: answer ? judgeAuthoringAnswer(request, answer) : null, inferMs: 1 };
+      }),
+      at(),
+      inputs
+    );
+  const heldCapture = (run: 1 | 2) =>
+    buildReviewCapture(
+      DX0.modelId,
+      inv.cases.map((c) => {
+        const request = heldOutRequest(loaded.flows.get(c.id)!)!;
+        const answer = answerFor(request, run, c.file.replace(/\.json$/, ""));
+        return { caseId: c.id, request, answer, judged: judgeAuthoringAnswer(request, answer), inferMs: 1 };
+      }),
+      at(),
+      inputs
+    );
+  const approve = (captures: readonly ReviewCapture[], edit: (i: ReviewItem, v: ReviewVerdict) => ReviewVerdict = (_i, v) => v): ReviewVerdict[] =>
+    captures.flatMap((c) =>
+      c.items
+        .filter((i) => i.text !== null)
+        .map((i) => edit(i, { itemId: i.id, correct: true, actionable: true, grounded: true, unsupportedClaim: false, misattributed: false, reviewer: "MA", reviewedAt: "2026-09-27T00:00:00Z" }))
+    );
+  const pass = [labelledCapture(1), labelledCapture(1), heldCapture(1)];
+  const met = evaluateDx(pass, approve(pass), inv, []);
+  check(
+    "(precondition) the scripted captures are fresh, and run 1's answers leave 4 of 17 undisplayed in each labelled run and the held-out run",
+    met.fresh === 3 && met.voided.length === 0 && met.runs.length === 3 && met.runs.every((r) => r.sent === 17 && r.sent - r.displayed === 4),
+    JSON.stringify(met.runs)
+  );
+  check("DX can say MET: two labelled runs and one held-out run at the cap, every text read, all correct", met.verdict === "MET", JSON.stringify(met.criteria));
+  check(
+    "the adopted target over the same captures stays NOT MET: DX passes nothing on its behalf",
+    evaluateQualityTarget(pass, approve(pass), LABELLED_SET.map((c) => c.id)).verdict === "NOT MET"
+  );
+  check("DX-5 reports the model before the gate: 17/17 on subject in labelled run 1, the withheld included", met.runs[0].ownOnSubject === 17 && dxStatus(met, "DX-5") === "MET");
+  check("reading a capture again with today's judge and gate keeps what it was taken on", JSON.stringify(rereadCapture(pass[0], requestFor).capture.inputs) === JSON.stringify(inputs));
+
+  // DX-4, never averaged, and every way an issue can go without a displayed text.
+  const over = [labelledCapture(1), labelledCapture(2), heldCapture(1)];
+  const e4 = evaluateDx(over, approve(over), inv, []);
+  check("DX-4: run 2's answers leave 6 of 17 undisplayed: NOT MET", dxStatus(e4, "DX-4") === "NOT MET" && e4.verdict === "NOT MET" && e4.runs[1].sent - e4.runs[1].displayed === 6);
+  const shownMore = (c: ReviewCapture, n: number): ReviewCapture => {
+    const ids = new Set(c.items.filter((i) => i.displayWithheld).slice(0, n).map((i) => i.id));
+    return { ...c, items: c.items.map(({ displayWithheld, ...i }) => (ids.has(i.id) || !displayWithheld ? i : { ...i, displayWithheld })) };
+  };
+  const mixed = [shownMore(pass[0], 2), labelledCapture(2), shownMore(pass[2], 2)];
+  const eMix = evaluateDx(mixed, approve(mixed), inv, []);
+  const totals = eMix.runs.reduce((t, r) => ({ off: t.off + r.sent - r.displayed, sent: t.sent + r.sent }), { off: 0, sent: 0 });
+  check(
+    "DX-4 is never averaged: 10 of 51 over three runs is within 25 %, and the run at 6 of 17 still fails it",
+    totals.off === 10 && totals.sent === 51 && dxStatus(eMix, "DX-4") === "NOT MET",
+    JSON.stringify(eMix.runs)
+  );
+  const fifth = (change: (i: ReviewItem) => ReviewItem | null): ReviewCapture[] => {
+    let done = false;
+    const first: ReviewCapture = {
+      ...pass[0],
+      items: pass[0].items.flatMap((i) => {
+        if (done || i.text === null || i.displayWithheld) return [i];
+        done = true;
+        const next = change(i);
+        return next ? [next] : [];
+      })
+    };
+    return [first, pass[1], pass[2]];
+  };
+  const fifths: Array<[string, ReviewCapture[]]> = [
+    ["withheld by the gate", fifth((i) => ({ ...i, displayWithheld: ["UNESTABLISHED_CAUSE"] }))],
+    ["withheld for a residual secret", fifth((i) => ({ ...i, text: null, withheld: "RESIDUAL_SECRET" }))],
+    ["left unexplained", fifth(() => null)]
+  ];
+  for (const [how, captures] of fifths) {
+    const e = evaluateDx(captures, approve(captures), inv, []);
+    check(`DX-4 at the boundary: a 5th issue of 17 ${how} is NOT MET (4 was MET)`, dxStatus(e, "DX-4") === "NOT MET" && e.runs[0].sent - e.runs[0].displayed === 5, JSON.stringify(e.runs[0]));
+  }
+  const allShown = LABELLED_SET.find((c) => pass[0].items.filter((i) => i.caseId === c.id).every((i) => i.text !== null && !i.displayWithheld))!;
+  const dropped = [labelledCapture(1, undefined, allShown.id), pass[1], pass[2]];
+  const eDrop = evaluateDx(dropped, approve(dropped), inv, []);
+  // Runs are formed in capture order, so the capture made here is labelled run 2.
+  check(
+    `DX-4: an answer never delivered (${allShown.id}) counts its issues as undisplayed: NOT MET`,
+    dxStatus(eDrop, "DX-4") === "NOT MET" && eDrop.runs.some((r) => r.corpus === "labelled" && r.undelivered === allShown.sent.length && r.sent - r.displayed === 4 + allShown.sent.length),
+    JSON.stringify(eDrop.runs)
+  );
+
+  // DX-3: escapes, the 80 %, and every text read by a person.
+  const firstShown = pass[0].items.find((i) => i.text !== null && !i.displayWithheld)!;
+  const firstWithheld = pass[0].items.find((i) => i.displayWithheld)!;
+  const escapes: Array<[string, Partial<ReviewVerdict>]> = [
+    ["an unsupported claim", { unsupportedClaim: true }],
+    ["a claim not grounded in the request", { grounded: false }],
+    ["a misattribution", { misattributed: true }]
+  ];
+  for (const [how, edit] of escapes) {
+    const e = evaluateDx(pass, approve(pass, (i, v) => (i.id === firstShown.id ? { ...v, ...edit } : v)), inv, []);
+    check(`DX-3: one displayed text with ${how}, confirmed by a person, is NOT MET whatever else holds`, dxStatus(e, "DX-3") === "NOT MET" && e.verdict === "NOT MET" && e.runs[0].escapes === 1);
+  }
+  const caught = evaluateDx(pass, approve(pass, (i, v) => (i.id === firstWithheld.id ? { ...v, unsupportedClaim: true, correct: false } : v)), inv, []);
+  check("...the same verdict on a WITHHELD text is the gate working: no escape, still MET", caught.verdict === "MET" && caught.runs[0].escapes === 0);
+  const shownIds = pass.flatMap((c) => c.items).filter((i) => i.text !== null && !i.displayWithheld).map((i) => i.id);
+  const need = Math.ceil((shownIds.length * 4) / 5);
+  const goodOnly = (n: number, field: "correct" | "actionable") => {
+    const bad = new Set(shownIds.slice(n));
+    return approve(pass, (i, v) => (bad.has(i.id) ? { ...v, [field]: false } : v));
+  };
+  check(
+    `DX-3 at the boundary: ${need} of ${shownIds.length} displayed texts correct and actionable is MET, ${need - 1} is NOT MET, each way`,
+    dxStatus(evaluateDx(pass, goodOnly(need, "correct"), inv, []), "DX-3") === "MET" &&
+      dxStatus(evaluateDx(pass, goodOnly(need - 1, "correct"), inv, []), "DX-3") === "NOT MET" &&
+      dxStatus(evaluateDx(pass, goodOnly(need - 1, "actionable"), inv, []), "DX-3") === "NOT MET"
+  );
+  check("...and the withheld texts, every one judged correct, do not rescue it: they are never credited", evaluateDx(pass, goodOnly(need - 1, "correct"), inv, []).reading.correctAndActionable === need - 1);
+  const without = (id: string) => approve(pass).filter((v) => v.itemId !== id);
+  check("DX-3 is PENDING while one withheld text is unread: the owner reads those too", dxStatus(evaluateDx(pass, without(firstWithheld.id), inv, []), "DX-3") === "PENDING");
+  check("...and while one displayed text is unread", dxStatus(evaluateDx(pass, without(firstShown.id), inv, []), "DX-3") === "PENDING");
+  const noMisattribution = approve(pass, (i, v) => {
+    if (i.id !== firstShown.id) return v;
+    const { misattributed: _m, ...rest } = v;
+    return rest;
+  });
+  check("a verdict without --misattributed is no DX reading: PENDING", dxStatus(evaluateDx(pass, noMisattribution, inv, []), "DX-3") === "PENDING");
+  check(
+    "a verdict under an agent's or a placeholder's label is no reading, and cannot confirm a failure either: PENDING",
+    ["claude", "Codex", "YOUR_LABEL", "<label>"].every(
+      (label) => dxStatus(evaluateDx(pass, approve(pass, (i, v) => (i.id === firstShown.id ? { ...v, reviewer: label, unsupportedClaim: true } : v)), inv, []), "DX-3") === "PENDING"
+    )
+  );
+
+  // DX-0: each input, and the tree.
+  const swapped = (c: ReviewCapture) => [pass[0], c, pass[2]];
+  const voids: Array<[string, ReviewCapture]> = [
+    ["another pack", { ...pass[1], inputs: { ...inputs, modelSha256: "0".repeat(64) } }],
+    ["another model id", { ...pass[1], modelId: "Qwen3.5-2B-unpinned" }],
+    ["another runtime", { ...pass[1], inputs: { ...inputs, runtimeBuild: "node-llama-cpp@3.22.0+llama.cpp@v0.5.0" } }],
+    ["a changed display gate", { ...pass[1], inputs: { ...inputs, blobs: { ...inputs.blobs, "src/ai/authoringClaimScreen.ts": "0".repeat(40) } } }],
+    ["a frozen source not recorded", { ...pass[1], inputs: { ...inputs, blobs: Object.fromEntries(Object.entries(inputs.blobs).slice(1)) } }],
+    ["another request", { ...pass[1], instructionsSha256: "0".repeat(64) }],
+    ["another held-out corpus", { ...pass[1], inputs: { ...inputs, heldOutSha256: "0".repeat(64) } }]
+  ];
+  for (const [how, capture] of voids) {
+    const e = evaluateDx(swapped(capture), approve(swapped(capture)), inv, []);
+    check(`DX-0: a capture taken on ${how} voids the fresh evidence: NOT MET`, dxStatus(e, "DX-0") === "NOT MET" && e.verdict === "NOT MET" && e.voided.length === 1);
+  }
+  check("DX-0: a working tree off DX-0 is NOT MET", dxStatus(evaluateDx(pass, approve(pass), inv, ["src/ai/authoringClaimScreen.ts differs"]), "DX-0") === "NOT MET");
+  const { inputs: _inputs, ...before } = pass[1];
+  const e0 = evaluateDx([pass[0], before, pass[2]], approve(pass), inv, []);
+  check("a capture from before DX (no inputs) is no fresh evidence and voids nothing: one labelled run, DX-2 PENDING", e0.voided.length === 0 && e0.fresh === 2 && dxStatus(e0, "DX-2") === "PENDING");
+  const noHeldOut = evaluateDx(pass, approve(pass), null, []);
+  check("with no committed held-out set every capture is void: no fresh run can come before it", noHeldOut.voided.length === 3 && dxStatus(noHeldOut, "DX-0") === "NOT MET");
+
+  // DX-2: the planned runs, and a part that cannot be dropped.
+  check("DX-2: one labelled run is PENDING", dxStatus(evaluateDx([pass[0], pass[2]], approve(pass), inv, []), "DX-2") === "PENDING");
+  check("...and DX-3 is not judged before DX-2 holds: every text read and correct, still PENDING", dxStatus(evaluateDx([pass[0], pass[2]], approve(pass), inv, []), "DX-3") === "PENDING");
+  check("DX-2: no held-out run is PENDING", dxStatus(evaluateDx([pass[0], pass[1]], approve(pass), inv, []), "DX-2") === "PENDING");
+  const part = labelledCapture(1, ["casing", "branch"]);
+  const withPart = [...pass, part];
+  check("a part left incomplete keeps DX-2 PENDING: it can be completed, never dropped", dxStatus(evaluateDx(withPart, approve(withPart), inv, []), "DX-2") === "PENDING");
+  const partShown = part.items.find((i) => i.text !== null && !i.displayWithheld);
+  check(
+    "...and an unsupported text in that part still fails DX-3",
+    dxStatus(evaluateDx(withPart, approve(withPart, (i, v) => (i.id === partShown?.id ? { ...v, unsupportedClaim: true } : v)), inv, []), "DX-3") === "NOT MET"
+  );
+  const rest = labelledCapture(1, LABELLED_SET.map((c) => c.id).filter((id) => id !== "casing" && id !== "branch"));
+  const completed = [...withPart, rest];
+  const e2 = evaluateDx(completed, approve(completed), inv, []);
+  check("completed, that run counts like the others: 3 labelled runs, MET", e2.runs.filter((r) => r.corpus === "labelled").length === 3 && e2.verdict === "MET");
+
+  // The reading packet and the verdict's new field.
+  const readable = (c: ReviewCapture) => c.items.filter((i) => i.text !== null).length;
+  const packet = dxPending(pass, [], inv);
+  check(
+    "the reading packet lists every fresh text, displayed and withheld alike, in item-id order",
+    packet.length === pass.reduce((n, c) => n + readable(c), 0) && packet.some((i) => i.displayWithheld) && packet.some((i) => !i.displayWithheld) && packet.every((i, k) => k === 0 || packet[k - 1].id < i.id)
+  );
+  check(
+    "...drops what a person has read, and never lists a void capture's text",
+    dxPending(pass, approve([pass[0]]), inv).length === readable(pass[1]) + readable(pass[2]) && dxPending(swapped(voids[0][1]), [], inv).length === readable(pass[0]) + readable(pass[2])
+  );
+  const storeDir = join(work, "dx-store");
+  await writeReviewCapture(storeDir, pass[0]);
+  const verdictBase = { itemId: firstShown.id, correct: true, actionable: true, grounded: true, unsupportedClaim: false, reviewer: "MA" };
+  const refusedField = await recordVerdict(storeDir, { ...verdictBase, misattributed: null as unknown as boolean });
+  const recorded = await recordVerdict(storeDir, { ...verdictBase, misattributed: true });
+  const stored = loadReviewStore(storeDir).verdicts;
+  check("--misattributed is recorded as given, and anything but yes or no is refused", !refusedField.ok && recorded.ok && stored.length === 1 && stored[0].misattributed === true);
+} catch (error) {
+  check("§15 ran to its end", false, String((error as Error)?.stack ?? error));
 }
 
 for (const label of failedLabels) console.error(`  ✗ ${label}`);

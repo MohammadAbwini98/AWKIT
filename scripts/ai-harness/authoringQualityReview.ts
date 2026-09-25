@@ -94,6 +94,17 @@ export interface ReviewCaptureCase {
   inferMs: number | null;
 }
 
+/**
+ * What a capture was taken on, as the launcher measured it (L4b DX-0, authoringDx.ts): the pack's SHA-256, the
+ * installed runtime build, the frozen sources' blob ids and the committed held-out corpus. Absent before DX.
+ */
+export interface CaptureInputs {
+  modelSha256: string;
+  runtimeBuild: string;
+  blobs: Record<string, string>;
+  heldOutSha256: string;
+}
+
 export interface ReviewCapture {
   version: 1;
   captureId: string;
@@ -101,6 +112,7 @@ export interface ReviewCapture {
   modelId: string;
   /** SHA-256 of the product's instructions: a capture of another request is not evidence for this one. */
   instructionsSha256: string;
+  inputs?: CaptureInputs;
   cases: ReviewCaptureCase[];
   items: ReviewItem[];
 }
@@ -115,6 +127,8 @@ export interface ReviewVerdict {
   grounded: boolean;
   /** It claims something the request does not support: an invented fix, cause, name, value or severity. */
   unsupportedClaim: boolean;
+  /** It explains another sent issue than its own (L4b DX-3, which needs it; absent on verdicts before DX). */
+  misattributed?: boolean;
   reviewer: string;
   note?: string;
   reviewedAt: string;
@@ -144,7 +158,7 @@ export interface CapturedCase {
   inferMs: number | null;
 }
 
-export function buildReviewCapture(modelId: string, cases: readonly CapturedCase[], now = new Date()): ReviewCapture {
+export function buildReviewCapture(modelId: string, cases: readonly CapturedCase[], now = new Date(), inputs?: CaptureInputs): ReviewCapture {
   const captureId = `${now.toISOString().replace(/[:.]/g, "-")}-${randomBytes(3).toString("hex")}`;
   const items: ReviewItem[] = [];
   for (const { caseId, request, answer, judged } of cases) {
@@ -178,6 +192,7 @@ export function buildReviewCapture(modelId: string, cases: readonly CapturedCase
     capturedAt: now.toISOString(),
     modelId,
     instructionsSha256: instructionsSha256(cases[0].request),
+    ...(inputs ? { inputs } : {}),
     cases: cases.map(({ caseId, request, answer, judged, inferMs }) => ({
       caseId,
       sent: request.issues.length,
@@ -318,6 +333,7 @@ export async function recordVerdict(dir: string, input: VerdictInput, now = new 
   if (store.malformed.includes(REVIEWS_FILE)) return { ok: false, reason: `${REVIEWS_FILE} is malformed; fix or move it first` };
   if (!store.captures.some((c) => c.items.some((i) => i.id === input.itemId && i.text !== null))) return { ok: false, reason: `no reviewable captured explanation ${input.itemId}` };
   for (const key of ["correct", "actionable", "grounded", "unsupportedClaim"] as const) if (typeof input[key] !== "boolean") return { ok: false, reason: `${key} must be yes or no` };
+  if (input.misattributed !== undefined && typeof input.misattributed !== "boolean") return { ok: false, reason: "misattributed must be yes or no" };
   const reviewer = input.reviewer ? redactForReview(input.reviewer) : null;
   if (!reviewer || reviewer.length > 40) return { ok: false, reason: "a reviewer label of 1-40 characters with nothing sensitive in it is required" };
   if (!isGenuineReviewer(reviewer)) return { ok: false, reason: `"${reviewer}" is a placeholder or an agent, not a person's label; record the verdict under your own label` };
@@ -329,6 +345,7 @@ export async function recordVerdict(dir: string, input: VerdictInput, now = new 
     actionable: input.actionable,
     grounded: input.grounded,
     unsupportedClaim: input.unsupportedClaim,
+    ...(input.misattributed !== undefined ? { misattributed: input.misattributed } : {}),
     reviewer,
     ...(note ? { note } : {}),
     reviewedAt: now.toISOString()

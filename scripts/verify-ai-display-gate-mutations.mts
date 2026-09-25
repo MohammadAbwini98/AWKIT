@@ -10,6 +10,9 @@
  * gate, and so does a crash, since a crash is not an assertion. Controls: each mutated file, loaded through
  * the same hook with no change, passes in full; every mutant's text occurs exactly once and proves it loaded;
  * and the three source files are byte-identical afterwards.
+ *
+ * `--dx` (verify:ai-dx-mutations) runs the same way over L4b's DX evaluator and held-out check instead
+ * (scripts/ai-harness/authoringDx.ts, `verify:ai-authoring` §15): each rule it applies, broken one at a time.
  */
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -25,7 +28,9 @@ const HOOKS = pathToFileURL(join(root, "scripts", "helpers", "source-mutant-hook
 const GATE = join(root, "src", "ai", "authoringClaimScreen.ts");
 const PARSER = join(root, "src", "ai", "authoringExplanation.ts");
 const ADAPTER = join(root, "app", "main", "ai", "aiAssist.ts");
-const FILES = [GATE, PARSER, ADAPTER];
+const DX = process.argv.includes("--dx");
+const DX_FILE = join(root, "scripts", "ai-harness", "authoringDx.ts");
+const FILES = DX ? [DX_FILE] : [GATE, PARSER, ADAPTER];
 const ANCHOR = String.raw`(?<=^|[.!?]\\s|Action:\\s)`;
 
 interface Mutant {
@@ -35,7 +40,7 @@ interface Mutant {
   readonly replace: string;
 }
 
-const MUTANTS: readonly Mutant[] = [
+const GATE_MUTANTS: readonly Mutant[] = [
   { id: "gate-ignores-screens", file: GATE, find: "const reasons: ExplanationWithholdReason[] = unsupportedClaims(ref, text, supported);", replace: "const reasons: ExplanationWithholdReason[] = [];" },
   { id: "gate-ignores-causes", file: GATE, find: 'if (makesCausalClaim(own)) reasons.push("UNESTABLISHED_CAUSE");', replace: 'if (false) reasons.push("UNESTABLISHED_CAUSE");' },
   { id: "gate-ignores-consequences", file: GATE, find: 'if (makesConsequenceClaim(rest)) reasons.push("UNESTABLISHED_CONSEQUENCE");', replace: 'if (false) reasons.push("UNESTABLISHED_CONSEQUENCE");' },
@@ -54,11 +59,47 @@ const MUTANTS: readonly Mutant[] = [
 ];
 
 // Each control loads its file through the hook with its text unchanged.
-const CONTROLS: readonly Mutant[] = [
+const GATE_CONTROLS: readonly Mutant[] = [
   { id: "control-gate", file: GATE, find: "export function withholdReasons(", replace: "export function withholdReasons(" },
   { id: "control-parser", file: PARSER, find: "...(withheld.length > 0 ? { withheld } : {})", replace: "...(withheld.length > 0 ? { withheld } : {})" },
   { id: "control-adapter", file: ADAPTER, find: "(withheld ? { issue, text: null, step, withheld } : { issue, text, step })", replace: "(withheld ? { issue, text: null, step, withheld } : { issue, text, step })" }
 ];
+
+// L4b's DX evaluator and held-out check: every rule of §0 and §5 it applies, broken one at a time.
+const CAP = "const overCap = runs.filter((r) => (r.sent - r.displayed) * wd > r.sent * wn);";
+const DX_VERDICTS = 'verdicts.filter((v) => isGenuineReviewer(v.reviewer) && typeof v.misattributed === "boolean")';
+const DX0_STATUS = 'status: voided.length > 0 || currentProblems.length > 0 ? "NOT MET" : "MET",';
+const DX_MUTANTS: readonly Mutant[] = [
+  { id: "dx-cap-counts-only-the-gate", file: DX_FILE, find: CAP, replace: "const overCap = runs.filter((r) => r.gateWithheld * wd > r.sent * wn);" },
+  { id: "dx-cap-averaged", file: DX_FILE, find: CAP, replace: "const overCap = runs.reduce((n, r) => n + r.sent - r.displayed, 0) * wd > runs.reduce((n, r) => n + r.sent, 0) * wn ? runs : [];" },
+  { id: "dx-undelivered-uncounted", file: DX_FILE, find: "undelivered: sent - items.length,", replace: "undelivered: 0," },
+  { id: "dx-withheld-credited", file: DX_FILE, find: "const good = displayed.filter(", replace: "const good = readable.filter(" },
+  { id: "dx-escape-forgiven", file: DX_FILE, find: "confirmed.length > 0", replace: "false" },
+  { id: "dx-misattribution-not-an-escape", file: DX_FILE, find: "v.unsupportedClaim || !v.grounded || v.misattributed === true", replace: "v.unsupportedClaim || !v.grounded" },
+  { id: "dx-agent-verdicts-count", file: DX_FILE, find: DX_VERDICTS, replace: 'verdicts.filter((v) => typeof v.misattributed === "boolean")' },
+  { id: "dx-misattribution-optional", file: DX_FILE, find: DX_VERDICTS, replace: "verdicts.filter((v) => isGenuineReviewer(v.reviewer))" },
+  { id: "dx-unread-withheld-accepted", file: DX_FILE, find: ": unread.length > 0", replace: ": unreadDisplayed.length > 0" },
+  { id: "dx3-judged-before-dx2", file: DX_FILE, find: ": !dx2Met", replace: ": false" },
+  { id: "dx-incomplete-run-dropped", file: DX_FILE, find: " && incomplete.length === 0", replace: "" },
+  { id: "dx-void-ignored", file: DX_FILE, find: DX0_STATUS, replace: 'status: currentProblems.length > 0 ? "NOT MET" : "MET",' },
+  { id: "dx-tree-unchecked", file: DX_FILE, find: DX0_STATUS, replace: 'status: voided.length > 0 ? "NOT MET" : "MET",' },
+  { id: "dx-model-unchecked", file: DX_FILE, find: 'if (capture.modelId !== DX0.modelId || inputs.modelSha256 !== DX0.modelSha256) problems.push("model");', replace: "" },
+  { id: "dx-runtime-unchecked", file: DX_FILE, find: 'if (inputs.runtimeBuild !== DX0.runtimeBuild) problems.push("runtime");', replace: "" },
+  { id: "dx-blobs-unchecked", file: DX_FILE, find: 'if (!blobsMatch(inputs.blobs)) problems.push("source blobs");', replace: "" },
+  { id: "dx-request-unchecked", file: DX_FILE, find: 'if (capture.instructionsSha256 !== DX0.instructionsSha256) problems.push("request");', replace: "" },
+  { id: "dx-held-out-unchecked", file: DX_FILE, find: 'if (heldOutSha256 === null || inputs.heldOutSha256 !== heldOutSha256) problems.push("held-out corpus");', replace: "" },
+  { id: "dx-packet-lists-void", file: DX_FILE, find: ".filter((c) => c.inputs !== undefined && captureInputProblems(c, heldOutSha).length === 0)", replace: ".filter((c) => c.inputs !== undefined)" },
+  { id: "held-out-hash-of-layout", file: DX_FILE, find: "const hash = sha256(JSON.stringify(value));", replace: "const hash = sha256(text);" },
+  { id: "held-out-canary-unchecked", file: DX_FILE, find: "if (text.toUpperCase().includes(CANARY)) problems.push", replace: "if (false) problems.push" },
+  { id: "held-out-labelled-id-unchecked", file: DX_FILE, find: "if (labelledIds.has(flow.id)) problems.push", replace: "if (false) problems.push" },
+  { id: "held-out-secret-unchecked", file: DX_FILE, find: "if (secrets.length > 0) problems.push", replace: "if (false) problems.push" },
+  { id: "held-out-minimum-dropped", file: DX_FILE, find: "issues < DX_RULES.minHeldOutIssues) problems.push", replace: "issues < 0) problems.push" },
+  { id: "held-out-uncommitted-accepted", file: DX_FILE, find: "problems.push(`git cannot show that ${dir} is committed`);", replace: "" }
+];
+const DX_CONTROLS: readonly Mutant[] = [{ id: "control-dx", file: DX_FILE, find: "export function evaluateDx(", replace: "export function evaluateDx(" }];
+
+const MUTANTS = DX ? DX_MUTANTS : GATE_MUTANTS;
+const CONTROLS = DX ? DX_CONTROLS : GATE_CONTROLS;
 
 let passed = 0;
 let failed = 0;
@@ -125,7 +166,7 @@ async function runAll(mutants: readonly Mutant[], concurrency = 4): Promise<Outc
   return mutants.map((m) => results.find((r) => r.mutant === m)!);
 }
 
-console.log("R4 display gate — mutation run of verify:ai-authoring (no product file is written)\n");
+console.log(`${DX ? "L4b DX evaluator" : "R4 display gate"} — mutation run of verify:ai-authoring (no source file is written)\n`);
 const hashesBefore = FILES.map(sha);
 
 console.log("Preconditions");
@@ -157,7 +198,7 @@ for (const r of outcomes) {
   if (killed) console.log(`      e.g. ${r.failures[0]}`);
 }
 check(`every mutant was run (${outcomes.length} of ${MUTANTS.length})`, outcomes.length === MUTANTS.length && MUTANTS.length > 0);
-check("no product source file changed", FILES.every((f, i) => sha(f) === hashesBefore[i]));
+check("no mutated source file changed", FILES.every((f, i) => sha(f) === hashesBefore[i]));
 rmSync(work, { recursive: true, force: true });
 
 console.log(`\n${passed} passed, ${failed} failed — ${failed === 0 ? "PASS" : "FAIL"}`);

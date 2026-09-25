@@ -1,6 +1,41 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-25, final, latest) — L4b option B decided and frozen; the held-out set, the operator and the issuer key remain; Phase L NOT complete
+## HANDOFF (2026-09-26, latest) — the DX evaluator and held-out format are built; the held-out set is the owner's; Phase L NOT complete
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. Phase L is 7 of 10 closed.
+- **Decided (owner, 2026-09-26):** the held-out selection is independent. The owner or their named person
+  prepares it. The agent defines the format and the structural check only, and has seen no case.
+- **Done:** step 1 of the previous handoff.
+  - The DX evaluator, its identity and its readings of the rules are in `evidence/L4b-owner-decision-proposal-2026-09-25.md` §0.
+  - The format is in `evidence/L4b-held-out/README.md`.
+  - `verify:ai-authoring` 362/362; `verify:ai-dx-mutations` 25 of 25 killed.
+  - DX-0 still matches exactly.
+- **Next, in order:**
+  1. **Owner:** confirm or overrule the seven readings in §0 before any fresh run.
+  2. **Owner (or a named person, never the agent):** put at least 9 flows (at least 17 issues sent) in
+     `L4b-held-out/flows/` and run `npm run verify:ai-authoring-held-out` until it is valid. It writes
+     `inventory.json` once.
+  3. **Agent:** commit the flows and the inventory, and record the commit and corpus hash in §0. Run
+     `verify:ai-authoring-dx` to confirm DX-0 once more.
+  4. **Agent:** take the fresh runs, and only these:
+     - `verify:ai-authoring-quality-live-part1` and `-part2`, twice each, in order;
+     - `verify:ai-authoring-held-out-live-part1` and onward, once, covering every flow. There are five flows per
+       part and scripts up to part 4; a set of more than 20 flows needs one more named script.
+
+     Then `verify:ai-authoring-dx-pending` prints the packet.
+  5. **Owner:** record every fresh text with `-- --record <id> … --misattributed yes|no --reviewer <label>`.
+     Then `verify:ai-authoring-dx`.
+  6. **Operator:** the clean machine. **Issuer-key custodian:** the licensed walkthrough.
+     **Owner:** human QC sign-off (`completion.qc_status` is still `pending`) and the Visual Studio licence
+     statement.
+- **Do not:**
+  - start a fresh run before step 3 is committed (the launcher refuses);
+  - change a DX-0 input, the cap, a rule or a reading after seeing output;
+  - take extra runs;
+  - record verdicts;
+  - paste or commit any key.
+
+## HANDOFF (2026-09-25, final, superseded) — L4b option B decided and frozen; the held-out set, the operator and the issuer key remain; Phase L NOT complete
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. Phase L is 7 of 10 closed.
 - **Decided:** `L4b: B, cap 25 %, held-out yes, reader owner`. The ruling and DX-0 are in

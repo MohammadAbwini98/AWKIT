@@ -1,5 +1,24 @@
 # DECISIONS
 
+### 2026-09-26 — Phase L L4b: an independent held-out set; the DX evaluator's readings of the rules await the owner (owner, in session) (`awkit-djnl.6`)
+
+- **Owner:** the held-out selection is **independent**.
+  - The owner or a person they name prepares at least 17 eligible issues, in flows outside the labelled set.
+  - The agent may define the format and the structural validation only. It never selects, curates, ranks or
+    previews a case by expected model or R4 behaviour.
+  - The exact corpus is inventoried, hashed, committed and recorded in the DX evidence before the first fresh
+    run.
+- **Owner:** build the agent-side prerequisites now, and take no fresh inference.
+  - Change no DX-0 input, the cap, a denominator or a criterion.
+  - Record no verdict.
+  - Report the prerequisite verifiers, and confirm that DX-0 still matches, before the first fresh run.
+- **Agent (implementation, open to the owner's veto before any fresh run):** the evaluator reads the frozen rules
+  as §0 of the decision proposal lists (seven readings). Two of them matter most:
+  - DX-4 counts every issue without a displayed text, following §5's "at least 3 issues in 4".
+  - DX-3's 80 % is pooled over every fresh displayed text and judged only once DX-2 holds.
+
+  No output existed when either was fixed.
+
 ### 2026-09-25 (final) — Phase L L4b: option B, the delivered experience under DX-0 to DX-5; clean-machine step 9 per AI host process (owner, in session) (`awkit-djnl.6`, `awkit-i6ot`)
 
 - **Decided (owner):** `L4b: B, cap 25 %, held-out yes, reader owner`. The full ruling and the DX-0 freeze are in

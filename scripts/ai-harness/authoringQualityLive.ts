@@ -24,6 +24,9 @@
  * cannot judge the model.
  *
  * `AWKIT_HARNESS_CASES` runs part of the set, so a caller with the 600 s tool ceiling can run it in parts.
+ * `AWKIT_HARNESS_HELD_OUT` runs L4b's held-out set from that folder instead (authoringDx.ts), each flow checked
+ * against its inventory as the labelled ones are against their labels. `AWKIT_HARNESS_INPUTS` is what the
+ * launcher measured the run on; every capture carries it, for DX-0.
  *
  * The report holds counts, codes and timings only, never model text: that goes only into the capture.
  */
@@ -46,7 +49,8 @@ import {
   type LabelledCase,
   type UnsupportedKind
 } from "./authoringQualitySet";
-import { buildReviewCapture, writeReviewCapture, type CapturedCase } from "./authoringQualityReview";
+import { readHeldOut } from "./authoringDx";
+import { buildReviewCapture, writeReviewCapture, type CaptureInputs, type CapturedCase } from "./authoringQualityReview";
 import { hello, measured, observed, type FeatureLiveApi } from "./featureLive";
 
 /** The request `explainFlowValidation` builds for a case, with no saved library beside it. */
@@ -88,7 +92,21 @@ export async function runAuthoringQualityLive(api: FeatureLiveApi): Promise<void
   // Inconclusive: no answer to judge (a deadline, a host failure).
   const responses = { accepted: 0, rejected: 0, inconclusive: 0 };
   const only = (process.env.AWKIT_HARNESS_CASES ?? "").split(",").filter(Boolean);
-  const cases = only.length > 0 ? LABELLED_SET.filter((c) => only.includes(c.id)) : LABELLED_SET;
+  const heldOutDir = process.env.AWKIT_HARNESS_HELD_OUT;
+  const heldOut = heldOutDir ? readHeldOut(heldOutDir) : undefined;
+  if (heldOut && !heldOut.ok) {
+    // The launcher refuses this before it starts; a backstop, so nothing is judged on a set that does not load.
+    await api.step("the held-out set loads", () => {
+      throw new Error(heldOut.problems.join("; "));
+    });
+    await ctx.service.shutdown();
+    return;
+  }
+  const set: readonly LabelledCase[] = heldOut?.ok
+    ? heldOut.inventory.cases.map((c) => ({ id: c.id, families: "held-out", flow: heldOut.flows.get(c.id)!, sent: c.sent, truncated: c.truncated }))
+    : LABELLED_SET;
+  const cases = only.length > 0 ? set.filter((c) => only.includes(c.id)) : set;
+  const inputs = process.env.AWKIT_HARNESS_INPUTS ? (JSON.parse(process.env.AWKIT_HARNESS_INPUTS) as CaptureInputs) : undefined;
   api.record("cases", cases.map((c) => c.id));
   for (const labelled of cases) {
     await api.step(`${labelled.id}: ${labelled.families}`, async () => {
@@ -175,7 +193,7 @@ export async function runAuthoringQualityLive(api: FeatureLiveApi): Promise<void
     };
     // Written before the delivery verdict, so a part with a refused answer still leaves its evidence.
     const dir = process.env.AWKIT_HARNESS_REVIEW_DIR;
-    const capture = dir && captured.length > 0 ? buildReviewCapture(ctx.modelId, captured) : null;
+    const capture = dir && captured.length > 0 ? buildReviewCapture(ctx.modelId, captured, undefined, inputs) : null;
     if (dir && capture) await writeReviewCapture(dir, capture);
     const reviewCapture = capture
       ? { captureId: capture.captureId, cases: capture.cases.length, items: capture.items.length, withheld: capture.items.filter((i) => i.text === null).length }

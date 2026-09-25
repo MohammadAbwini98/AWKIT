@@ -575,6 +575,38 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "integration",
     why: "Reads the local L4b review store (redacted review captures written by verify:ai-authoring-quality-live and a person's verdicts; %LOCALAPPDATA%/SpecterStudio/ai-quality-review/authoring, outside the repository) and judges the explanation quality target the owner adopted provisionally on 2026-09-22 over every complete run of the CURRENT request (captures of other instructions are ignored): no confirmed unsupported claim and no misattribution, at least 90 % on subject and 80 % actionable by proxy in every run, a person's verdict on every screen-clear explanation with at least 80 % correct and actionable, no fix-order violation when the model ranks (an empty order is acceptable), and at least two runs. Exit 0 only when MET; PENDING review and NOT MET exit 1; NOT RUN with nothing captured. `-- --pending` lists what awaits a person and `-- --record` stores one verdict, redacted. Its evaluator, capture redaction and verdict validation are proven without a model by verify:ai-authoring §12."
   },
+  "verify:ai-authoring-dx": {
+    class: "integration",
+    why: "L4b's delivered-experience acceptance (owner decision 2026-09-25, option B; scripts/ai-harness/authoringDx.ts) over the local review store, beside the unchanged adopted target: DX-0 (every fresh capture carries the model, runtime, frozen source blobs and held-out corpus it was taken on, all equal to DX-0, and the working tree still matches via git hash-object), DX-2 (two complete labelled runs and one complete held-out run, none left incomplete), DX-3 (a person's reading of every fresh text, 0 displayed escapes, at least 80 % of displayed correct and actionable), DX-4 (at most 1 issue in 4 without a displayed text in every complete run) and DX-5 (the model's own rates reported). DX-1 is left to verify:ai-authoring §14 and verify:ai-assist-gui. Exit 0 MET, 1 NOT MET or an unreadable store, 2 PENDING. Its evaluator is proven without a model by verify:ai-authoring §15."
+  },
+  "verify:ai-dx-mutations": {
+    class: "integration",
+    why: "The mutation run of L4b's DX evaluator and held-out check (scripts/ai-harness/authoringDx.ts), the same way as verify:ai-display-gate-mutations and with its hook: each mutant breaks one rule in memory (the 25 % cap per run and what it counts, withheld texts never credited, escapes and misattribution, a person's label, every text read, DX-3 only after DX-2, incomplete runs, each DX-0 input and the tree, the reading packet, the held-out hash, canary, labelled id, secret, minimum and commit checks) and verify:ai-authoring must fail at least one check. A survivor or crash fails; a control loads the file unchanged and must pass in full; the source is byte-identical afterwards. No model."
+  },
+  "verify:ai-authoring-dx-pending": {
+    class: "integration",
+    why: "The DX-3 reading packet: every fresh text in the local review store still awaiting a person's DX verdict, displayed and withheld alike, in item-id order with no display-gate or judge reading beside it, each with its evidence line and the product's step. Read-only; records nothing (a person records with verify:ai-authoring-review -- --record)."
+  },
+  "verify:ai-authoring-held-out": {
+    class: "static-source-validation",
+    why: "Structural check of L4b's held-out flows under docs/plans/ai-upgrade-v5/evidence/L4b-held-out/flows (the product's own intake, outside the labelled set, no canary, nothing the redaction treats as sensitive, at least one issue each, no duplicate, at least 17 issues sent) and their inventory from the real FlowValidator and request builder. No model and no display gate run. The first valid run writes inventory.json (write-once); later runs compare with it and report whether both are committed. Exit 0 valid, 1 invalid, 2 no flows yet."
+  },
+  "verify:ai-authoring-held-out-live-part1": {
+    class: "real-browser",
+    why: "verify:ai-authoring-quality-live over the committed held-out set's first five flows in case-id order (--held-out --part 1): same hard checks and redacted review capture as the labelled parts, each flow checked against its inventory, each capture carrying the inputs measured for DX-0. REFUSED until the held-out set is committed."
+  },
+  "verify:ai-authoring-held-out-live-part2": {
+    class: "real-browser",
+    why: "verify:ai-authoring-quality-live over the committed held-out set's flows 6-10 in case-id order (--held-out --part 2); as part1. REFUSED when the set has no such flows."
+  },
+  "verify:ai-authoring-held-out-live-part3": {
+    class: "real-browser",
+    why: "verify:ai-authoring-quality-live over the committed held-out set's flows 11-15 in case-id order (--held-out --part 3); as part1. REFUSED when the set has no such flows."
+  },
+  "verify:ai-authoring-held-out-live-part4": {
+    class: "real-browser",
+    why: "verify:ai-authoring-quality-live over the committed held-out set's flows 16-20 in case-id order (--held-out --part 4); as part1. REFUSED when the set has no such flows."
+  },
   "verify:ai-display-gate-mutations": {
     class: "integration",
     why: "The mutation run of the L4b R4 display gate: runs verify:ai-authoring once per mutant in a child process whose Node load hook (scripts/helpers/source-mutant-hooks.mjs) replaces one source file's text in memory, so no product file is ever written. Mutants cover the gate's decisions (screens, causes, consequences), its evidence anchoring, its vocabulary, the parser and the adapter. A mutant counts as killed only when the run completes with a failed check; a survivor or a crash fails the gate. Controls: each file loaded unchanged through the hook passes in full, each mutant's text occurs exactly once and proves it loaded, and the source files are byte-identical afterwards. No model, no network."

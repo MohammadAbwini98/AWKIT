@@ -1,5 +1,48 @@
 # TASK_LOG
 
+## 2026-09-26 — L4b DX evaluator, held-out format and structural check, before any fresh run (Claude)
+
+- **Task:** the owner shared an external closure audit and then chose:
+  - **Held-out selection: independent.** The owner, or a person they name, prepares the set. The agent defines
+    the format and the structural check only.
+  - **Build the agent-side prerequisites now:** the DX evaluator beside the unchanged original, its source
+    identity in DX-0, and the held-out format. No fresh inference.
+- **Audit checked against `335a0a7c`:** its status claims hold.
+  - `completion.qc_status` is `pending`: no human sign-off exists.
+  - The Visual Studio Community licence eligibility is recorded nowhere. `THIRD_PARTY_NOTICES.md` already
+    assigns it to the release owner.
+  - The audit missed one thing: the DX evaluator did not depend on the held-out choice.
+- **Files:**
+  - `scripts/ai-harness/authoringDx.ts` (new): DX-0 constants, the evaluator, the held-out loader, the
+    structural check and the inventory.
+  - Captures carry `inputs` and verdicts carry `misattributed`: `authoringQualityReview.ts`.
+  - The harness runs the held-out set: `authoringQualityLive.ts`.
+  - The launcher (`verify-ai-explanation-live.mts`) measures the inputs, adds `--held-out --part k`, and refuses
+    any fresh authoring run until the set is committed.
+  - `verify-ai-authoring-review.mts`: `--dx`, `--dx --pending`, `--held-out`.
+  - `verify-ai-authoring.mts` §15, with 57 checks.
+  - `verify-ai-display-gate-mutations.mts --dx`, with 25 mutants.
+  - `package.json` gains 8 named scripts, registered in `verifier-classification.ts`.
+  - `evidence/L4b-held-out/README.md`, §0 of the decision proposal, and `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md`.
+- **Tests:**
+  - `verify:ai-authoring` 362/362. It was 359/360 first: one check assumed capture order wrongly, and the
+    evaluator was right.
+  - `verify:ai-dx-mutations` 54/0, 25 of 25 mutants killed.
+  - `verify:ai-display-gate-mutations`: 37/1 first, because §15 crashed under the parser mutant; now 38/0.
+  - `verify:ai-authoring-dx` PENDING, with DX-0 MET on the tree.
+  - `verify:ai-authoring-held-out` NOT PROVIDED.
+  - The launcher REFUSED a fresh part-1 run.
+  - `typecheck:scripts`, `npm run build` and `verify:verifier-classification` (275) all PASS.
+  - `verify:roadmap-dashboard`: the result is in the newest CURRENT_STATE section.
+- **Not run:**
+  - fresh L4b runs, which wait for the committed held-out set;
+  - the owner's reading;
+  - the clean-machine VM (operator);
+  - the licensed walkthrough (issuer key).
+- **Learned:** the Write tool stored a `﻿` escape as the raw character, which is the memory's known control-char
+  trap. It is replaced by `String.fromCharCode(0xfeff)`.
+- **Result:** L4b in_progress, nothing accepted. Phase L not complete: 7 of 10.
+
 ## 2026-09-25 (final) — Phase L closure plan: L4b option B recorded and DX-0 frozen; clean-machine step 9 corrected and executed (Claude)
 
 - **Task:** the owner shared an external Phase L closure plan and decided the open questions: L4b option B, cap

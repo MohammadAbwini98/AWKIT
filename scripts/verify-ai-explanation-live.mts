@@ -26,7 +26,10 @@
  *   - authoringQuality: `explainFlowValidation` over L4b's labelled set, each answer delivered with every
  *     issue explained and no canary leaked, quality recorded (scripts/ai-harness/authoringQualityLive.ts);
  *     `--cases` runs it in parts. Each part also writes a redacted review capture to the local review
- *     store, the only place model text is kept (scripts/ai-harness/authoringQualityReview.ts).
+ *     store, the only place model text is kept (scripts/ai-harness/authoringQualityReview.ts). `--held-out`
+ *     runs L4b's committed held-out set instead, `--part k` its k-th five flows. Either is REFUSED until that
+ *     set is committed (L4b §0: before any fresh run), and each capture records the inputs measured here for
+ *     DX-0 (scripts/ai-harness/authoringDx.ts).
  *   - errorQuality: `analyzeFailure` over L5's labelled set, each row delivered and saved with no canary
  *     leaked, L5's metrics recorded (scripts/ai-harness/errorQualityLive.ts).
  * Each answer must arrive before its deadline, and each step records counts and timings, never model text.
@@ -47,7 +50,9 @@ import os from "node:os";
 import path from "node:path";
 
 import { deriveInferenceThreads } from "../src/ai/AiAdmission";
-import { reviewDir } from "./ai-harness/authoringQualityReview";
+import { AUTHORING_LIMITS } from "../src/ai/authoringExplanation";
+import { DX0, HELD_OUT_DIR, gitBlobs, heldOutCommitProblems, readHeldOut } from "./ai-harness/authoringDx";
+import { reviewDir, type CaptureInputs } from "./ai-harness/authoringQualityReview";
 import { HOST_PATH, ROOT, buildAiHarness, measurePack, printSteps, runAiHarness, runtimeInstalled, stageModelRoot, type HarnessReport } from "./ai-harness/launch.mts";
 // Type-only: esbuild bundles the harness without checking it, so this puts the modes under typecheck:scripts.
 import type {} from "./ai-harness/harnessMain";
@@ -110,7 +115,7 @@ if (!feature) {
 // case, verdict), so a caller with the 600 s tool ceiling can run it in parts. An unknown id fails the
 // step count.
 const casesFlag = process.argv.indexOf("--cases");
-const cases = casesFlag >= 0 && ["errorQuality", "authoringQuality"].includes(feature.mode) ? (process.argv[casesFlag + 1] ?? "").split(",").filter(Boolean) : [];
+const listed = casesFlag >= 0 && ["errorQuality", "authoringQuality"].includes(feature.mode) ? (process.argv[casesFlag + 1] ?? "").split(",").filter(Boolean) : [];
 // locatorQuality: `--set d1` judges D1's labelled set instead of the original one.
 const setFlag = process.argv.indexOf("--set");
 if (setFlag >= 0 && (feature.d1Steps === undefined || process.argv[setFlag + 1] !== "d1")) {
@@ -118,7 +123,38 @@ if (setFlag >= 0 && (feature.d1Steps === undefined || process.argv[setFlag + 1] 
   process.exit(1);
 }
 const d1Set = setFlag >= 0;
-const expectedSteps = cases.length > 0 ? 3 + cases.length : d1Set ? feature.d1Steps! : feature.steps;
+const heldOutFlag = process.argv.includes("--held-out");
+if (heldOutFlag && feature.mode !== "authoringQuality") {
+  console.error(`--held-out is only for --feature authoringQuality`);
+  process.exit(1);
+}
+// L4b §0: no fresh authoring run before the held-out set is committed with its hash.
+const heldOutDir = path.join(ROOT, HELD_OUT_DIR);
+const heldOut = feature.mode === "authoringQuality" ? readHeldOut(heldOutDir) : undefined;
+if (heldOut) {
+  const problems = heldOut.ok ? heldOutCommitProblems(heldOutDir, heldOut.inventory) : heldOut.problems;
+  if (problems.length > 0) {
+    console.error(`REFUSED: L4b's held-out set must be committed before any fresh authoring run (§0): ${problems.join("; ")}`);
+    process.exit(1);
+  }
+}
+// `--held-out --part k`: the k-th five flows of the held-out set, in case-id order, so each part stays under
+// the 600 s tool ceiling as the labelled parts do. Case ids are only known once the set is committed.
+const partFlag = process.argv.indexOf("--part");
+const part = partFlag >= 0 ? Number(process.argv[partFlag + 1]) : 0;
+const HELD_OUT_PART_SIZE = 5;
+if (partFlag >= 0 && (!heldOutFlag || listed.length > 0 || !Number.isInteger(part) || part < 1)) {
+  console.error(`--part takes a positive integer, only with --held-out and never with --cases`);
+  process.exit(1);
+}
+const partCases = heldOut?.ok && part > 0 ? heldOut.inventory.cases.slice((part - 1) * HELD_OUT_PART_SIZE, part * HELD_OUT_PART_SIZE).map((c) => c.id) : [];
+if (part > 0 && partCases.length === 0) {
+  console.error(`REFUSED: held-out part ${part} is empty; the set has ${heldOut?.ok ? heldOut.inventory.cases.length : 0} flow(s), ${HELD_OUT_PART_SIZE} per part`);
+  process.exit(1);
+}
+const cases = part > 0 ? partCases : listed;
+const heldOutCases = heldOut?.ok && heldOutFlag ? heldOut.inventory.cases.length : 0;
+const expectedSteps = cases.length > 0 ? 3 + cases.length : heldOutFlag ? 3 + heldOutCases : d1Set ? feature.d1Steps! : feature.steps;
 
 let passed = 0;
 let failed = 0;
@@ -200,6 +236,15 @@ if (measured.sizeBytes !== PACK.sizeBytes || measured.sha256 !== PACK.sha256) {
 }
 const threads = deriveInferenceThreads(os.cpus().length);
 console.log(`  runtime ${runtime.build}, pack ${PACK.file} ${measured.sha256.slice(0, 16)}…, ${threads} inference threads\n`);
+// What this run is taken on, recorded in each capture for DX-0. A mismatch is not refused (a later, authorized
+// change may be measured), but its captures are no DX evidence.
+const inputs: CaptureInputs | undefined = heldOut?.ok
+  ? { modelSha256: measured.sha256, runtimeBuild: runtime.build ?? "", blobs: gitBlobs(Object.keys(DX0.blobs), ROOT), heldOutSha256: heldOut.inventory.corpusSha256 }
+  : undefined;
+if (inputs) {
+  const off = [...Object.entries(DX0.blobs).filter(([p, id]) => inputs.blobs[p] !== id).map(([p]) => p), ...(inputs.runtimeBuild !== DX0.runtimeBuild ? ["runtime"] : [])];
+  console.log(`  held-out corpus ${inputs.heldOutSha256.slice(0, 16)}…${heldOutFlag ? `, ${heldOutCases} flow(s)` : ""}; DX-0 sources ${off.length === 0 ? "match" : `DIFFER (${off.join(", ")}): these captures are no DX evidence`}\n`);
+}
 
 const staged = stageModelRoot(candidate, measured.sha256);
 const harnessDir = await buildAiHarness();
@@ -227,10 +272,16 @@ try {
       ...(d1Set ? { AWKIT_HARNESS_SET: "d1" } : {}),
       ...(cases.length > 0 ? { AWKIT_HARNESS_CASES: cases.join(",") } : {}),
       // The redacted answers a person reviews: local, outside the repository (authoringQualityReview.ts).
-      ...(feature.mode === "authoringQuality" ? { AWKIT_HARNESS_REVIEW_DIR: reviewDir() } : {})
+      ...(feature.mode === "authoringQuality" ? { AWKIT_HARNESS_REVIEW_DIR: reviewDir() } : {}),
+      ...(heldOutFlag ? { AWKIT_HARNESS_HELD_OUT: heldOutDir } : {}),
+      ...(inputs ? { AWKIT_HARNESS_INPUTS: JSON.stringify(inputs) } : {})
     },
-    // A part stays under the tool ceiling, as the whole set did before it grew past it.
-    { timeoutMs: cases.length > 0 ? Math.min(feature.timeoutMs, 575_000) : feature.timeoutMs }
+    // A part stays under the tool ceiling, as the whole set did before it grew past it. The whole held-out set
+    // gets each flow's deadline and a margin.
+    {
+      timeoutMs:
+        cases.length > 0 ? Math.min(feature.timeoutMs, 575_000) : heldOutFlag ? Math.max(feature.timeoutMs, 60_000 + heldOutCases * (AUTHORING_LIMITS.timeoutMs + 10_000)) : feature.timeoutMs
+    }
   );
   if (!report) {
     check("the harness wrote a report", false, "no report: Electron never reached app.whenReady() or timed out");
