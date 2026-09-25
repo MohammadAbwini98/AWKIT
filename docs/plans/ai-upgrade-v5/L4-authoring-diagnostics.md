@@ -966,7 +966,17 @@ readings are an **AI assessment, not a person's verdict**. Nothing was written t
   - `verify:ai-fallback` 38/0, `verify:ai-autonomy-policy` 62/0, `verify:ai-adapter` 117/0;
   - `npm run build` PASS.
 - **Not run:**
-  - A mutation run of §14 was denied by the environment's permission classifier.
+  - A mutation run of §14 was denied by the environment's permission classifier. *Done later on 2026-09-25
+    without editing product source:* `verify:ai-display-gate-mutations` applies each mutant in memory, through a
+    Node load hook in a child process that runs `verify:ai-authoring` unchanged. Result: 38/0, 15 of 15 killed.
+    - Its mutants cover the gate's three decisions, its evidence anchoring (the QC F1 and F6 rules), its QC F2
+      rules, its vocabulary and connectives, its validation-failure and position rules, the parser and the
+      adapter.
+    - One mutant first survived: taking the flow's own "blocks the run" evidence for a non-blocking issue.
+      No severity screen reads "does not run", and no control used it. A held-out control now kills it
+      ("The flow does not run." for a warning is withheld); it was red under the mutant first.
+    - The controls: each mutated file, loaded unchanged through the hook, gives 305/305, and the source files
+      are byte-identical afterwards.
   - No live model run: the request did not change, so the R2 captures and L1.8 (GO) stand.
 - **Independent QC** (one read-only AI QC reviewer agent at `a89a14bd`; not a person's sign-off): PASS WITH
   FINDINGS.

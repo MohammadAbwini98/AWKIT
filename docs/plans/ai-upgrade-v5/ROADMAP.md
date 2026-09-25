@@ -12,7 +12,10 @@ The implementing agent accepted them under the owner's closeout delegation; that
     Criteria 1 and 4 still await a person.
   - The owner must decide whether the target measures the answers a person sees or every answer the
     model produces. R5 and R6 await the owner.
-  - The one decision is set out in `evidence/L4b-decision-record-2026-09-25.md`.
+  - The one decision is set out in `evidence/L4b-decision-record-2026-09-25.md`. Its consolidated form, with
+    the delivered-experience criteria DX-0 to DX-5 stated precisely, is
+    `evidence/L4b-owner-decision-proposal-2026-09-25.md`.
+  - The R4 mutation run, blocked earlier, is done without editing product source: 15 of 15 mutants killed.
 - **L6:** its deterministic scope is verified. It is blocked only by L4b. By the owner's decision of
   2026-09-25, the unbuilt intelligence (the T1 mapping review, Zvec fragment discovery, production fragment AI)
   is deferred to a tracked follow-up outside Phase L.
@@ -24,8 +27,10 @@ The implementing agent accepted them under the owner's closeout delegation; that
     - **Resolved the same evening.** The owner installed both components, staging succeeds, and portable
       and NSIS were rebuilt, finally from clean `62aab2dc`. Every packaged gate passes, including the loader proof
       without the host's global runtime (L7 › `awkit-i6ot`).
-    - It stays open only for the clean-machine VM, which needs an operator (runbook in L7).
-  - The licensed walkthrough (issuer key) and the clean-machine VM (operator).
+    - It stays open only for the clean-machine VM, which needs an operator. The procedure is
+      `evidence/L7-clean-machine-procedure-0.1.51.md`.
+  - The licensed walkthrough (issuer key; re-checked 2026-09-25, still BLOCKED) and the clean-machine VM
+    (operator).
   - Done on 2026-09-24: the performance confirmation (GO on all 8) and the engineering security evidence
     review. The latter is not an independent sign-off.
   - On 2026-09-25 an independent AI QC review of the packaging found no regression of QC-1..QC-7. Its new

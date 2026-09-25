@@ -80,7 +80,8 @@
   - Portable and NSIS were rebuilt, finally from clean `62aab2dc`, with the manifest pair at `c337b267`.
   - `verify:native-dependencies` reads 14/0, including the loader proof without the host's global runtime.
     The packaged-app inference passes, and every packaged gate is green.
-  - **Still owed:** the clean-machine VM (runbook in L7 › `awkit-i6ot`).
+  - **Still owed:** the clean-machine VM. The self-contained operator procedure is
+    `docs/plans/ai-upgrade-v5/evidence/L7-clean-machine-procedure-0.1.51.md`.
 - **Update 2026-09-25 (later): the owner reported the components installed. This host still lacks them.**
   - The staging's own vswhere query finds no VS 2022 install with `VC.Tools.x86.x64` and
     `VC.Redist.14.Latest`, so `verify:ai-packaged-runtime` reads 45/5 as before.

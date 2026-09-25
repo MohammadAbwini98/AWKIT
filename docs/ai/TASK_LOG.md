@@ -1,5 +1,40 @@
 # TASK_LOG
 
+## 2026-09-25 (late night) — Phase L remaining work: L4b decision proposal, clean-machine procedure, issuer-key check, R4 mutation run (Claude)
+
+- **Task:** the owner asked for the independently actionable Phase L work:
+  - a consolidated L4b owner-decision proposal;
+  - a self-contained clean-machine procedure for the final artifacts;
+  - the licensed walkthrough, if issuer-key access exists through the approved procedure;
+  - closeout of the verification gaps.
+- **Files:**
+  - new: `evidence/L4b-owner-decision-proposal-2026-09-25.md`, `evidence/L7-clean-machine-procedure-0.1.51.md`,
+    `scripts/verify-ai-display-gate-mutations.mts`, `scripts/helpers/source-mutant-hooks.mjs`;
+  - `scripts/ai-harness/authoringQualitySet.ts` (one new held-out control), `package.json`,
+    `scripts/lib/verifier-classification.ts`;
+  - the L4, L7 and ROADMAP plans, and `evidence/L4b-decision-record-2026-09-25.md`;
+  - `docs/ai/{CURRENT_STATE,HANDOFF,KNOWN_ISSUES,TASK_LOG}.md`, the contract and `.beads`.
+- **Tests:**
+  - `verify:ai-display-gate-mutations`:
+    - first FAIL, because this host's Node has no `--import` (exit 9); fixed with a `--loader` fallback;
+    - then 37/1, with 14 of 15 mutants killed. The survivor took "the flow does not run" as evidence for a
+      warning;
+    - then 38/0, 15 of 15 killed, after a new control (the survivor is its red-first proof). Its three controls
+      each ran `verify:ai-authoring` unchanged: 305/305.
+  - `verify:packaged-walkthrough` 42/0 with 1 BLOCKED: `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` is not set.
+  - `typecheck:scripts` PASS. `verify:verifier-classification` reconciled, 267 classified.
+  - `verify:roadmap-dashboard`: the result is in the newest CURRENT_STATE section.
+- **Not run:**
+  - the clean-machine VM (NOT RUN, operator; the procedure is ready);
+  - the licensed walkthrough parts (BLOCKED, issuer key);
+  - fresh live L4b runs: under the proposal they come after the owner fixes the criteria, so that the criteria
+    are not fitted to the data;
+  - `npm run build`: no `src/` or `app/` file changed.
+- **Also corrected:** the decision record said R4 "guarantees" unsupported claims never reach a person. It now
+  says what was measured, and that R4 does not guarantee it.
+- **Result:** L4b NOT MET, awaiting one owner reply. `awkit-i6ot` is open for the VM. L7 is open. Phase L is not
+  complete: 7 of 10 milestones closed.
+
 ## 2026-09-25 (night) — `awkit-i6ot` rebuilt with the app-local Visual C++ runtime; two defects fixed red first; L4b decision record (Claude)
 
 - **Task:** the owner installed the VS 2022 C++ components and asked for four things: resume

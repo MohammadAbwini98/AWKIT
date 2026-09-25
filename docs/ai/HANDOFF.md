@@ -1,6 +1,35 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-25, night, latest) — `awkit-i6ot` packaged and verified, VM owed; L4b awaits one owner decision; Phase L NOT complete
+## HANDOFF (2026-09-25, late night, latest) — Phase L waits on one owner reply, one operator and the issuer key; Phase L NOT complete
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. Phase L is 7 of 10 closed.
+- **Done this session:**
+  - the consolidated L4b proposal (`evidence/L4b-owner-decision-proposal-2026-09-25.md`);
+  - the clean-machine procedure (`evidence/L7-clean-machine-procedure-0.1.51.md`);
+  - the R4 mutation run: `verify:ai-display-gate-mutations` 38/0, 15/15 killed, plus one new control;
+  - the issuer-key check: still BLOCKED.
+- **What keeps Phase L open, and who acts:**
+  1. **L4b: the owner replies once,** `L4b: A` or `L4b: B, cap <n> %, held-out <yes|no>, reader <label>` (§6 of
+     the proposal).
+     - On B, the next agent: adds the DX evaluation beside the adopted target in `verify:ai-authoring-review`;
+       makes two fresh complete runs (parts 1 and 2, twice); and builds the held-out set, if chosen.
+     - Then a person reads and records. L4b closes only when DX-1 to DX-5 hold.
+  2. **`awkit-i6ot`: an operator** runs the clean-machine procedure (NSIS and portable). PASS, after the owner's
+     review, closes it.
+  3. **L7's licensed parts:** on an authorized validation machine or CI runner, set
+     `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` to the key's absolute path, then run `npm run verify:packaged-walkthrough`.
+  4. **L6** closes on its deterministic scope once L4b is accepted. **L7** closes after L1–L6, and after the
+     VM and licensed parts.
+- **Do not:**
+  - run fresh L4b live runs before the owner fixes the criteria;
+  - count withheld or AI-read answers as correct;
+  - record verdicts;
+  - paste or commit any key;
+  - copy the runtime from System32.
+- **Node on this host has no `--import`.** A child process that needs loader hooks must use `--loader`, as
+  `verify:ai-display-gate-mutations` does.
+
+## HANDOFF (2026-09-25, night, superseded) — `awkit-i6ot` packaged and verified, VM owed; L4b awaits one owner decision; Phase L NOT complete
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. Phase L is 7 of 10 closed.
 - **Done:**

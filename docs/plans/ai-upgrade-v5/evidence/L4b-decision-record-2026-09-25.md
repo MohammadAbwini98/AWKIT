@@ -55,7 +55,9 @@
 - **Not measured:**
   - precision and recall on model output the gate has never seen;
   - a mutation run of §14, which the environment's permission classifier denied twice. It is BLOCKED,
-    not passed.
+    not passed. *Done later on 2026-09-25 without editing product source:* `verify:ai-display-gate-mutations`
+    gave 38/0, 15 of 15 killed, after one survivor got a new control (L4 › R4). That measures the checks, not
+    the gate's recall on unseen model output, which stays unmeasured.
 - **Known limits** (L4 › R4, 9 listed):
   - a closed English vocabulary for consequences, and a list of connectives for causes;
   - wording outside them is shown ("prevents", "ends up empty");
@@ -97,6 +99,10 @@
   - the owner accepts the AI evaluation for them. Only the owner can make that call.
 
 **Recommendation: B, with a person reading the 24 displayed texts.**
-- R4 guarantees the unsupported claims never reach the person, and the deterministic guidance is complete.
+- On the 34 it was designed against, R4 withheld all 8 unsupported answers, and the deterministic guidance is
+  complete. R4 does not guarantee that every unsupported statement is detected (L4 › R4, limits 1–9). *Corrected
+  2026-09-25: this line first said R4 "guarantees" it.*
+- **Superseded for the decision itself by `L4b-owner-decision-proposal-2026-09-25.md`.** That file states B
+  precisely as criteria DX-0 to DX-5: fresh unseen runs, a person's reading, and a 25 % withholding cap.
 - The raw-model shortfall stays visible and tracked.
 - Without an owner decision, L4b stays NOT MET, and L6 (blocked only by L4b) cannot close.

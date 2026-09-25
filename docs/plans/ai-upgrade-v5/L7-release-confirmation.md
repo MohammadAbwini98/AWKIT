@@ -189,38 +189,20 @@ C++ runtime, local AI will fail to load. The fix needs an owner or licensing dec
   - **`awkit-i6ot` stays open.** Its acceptance also names the clean-machine VM loading the runtime from the
     installed package. That is NOT RUN, and needs an operator (runbook below).
 
-### Clean-machine runbook for the local-AI runtime (operator; evidence required)
+### Clean-machine procedure for the local-AI runtime (operator; evidence required)
 
-The existing VM scripts (`scripts/clean-machine/`) have no local-AI step. On a clean VM:
-- Windows 10 or 11 x64, with a standard (non-administrator) user.
-- The network adapter disconnected.
-- No Visual C++ 2015–2022 Redistributable installed. `Test-Path C:\Windows\System32\msvcp140.dll` and
-  `Test-Path C:\Windows\System32\vcruntime140_1.dll` both print `False`. Keep that output.
+**Superseded on 2026-09-25 by `evidence/L7-clean-machine-procedure-0.1.51.md`**, which is self-contained. What
+it adds to the runbook first written here:
+- the portable EXE as well as the NSIS installer, each from a clean snapshot;
+- five machine-qualification checks, where a failure means NOT RUN, not FAIL: no network; no global
+  `msvcp140`/`vcruntime140_1`; no VC runtime registry key; nothing on `PATH`; the OS build;
+- the signature and version of each app-local DLL;
+- proof of which `*140*.dll` files the running app actually loaded, which must all come from the package;
+- a real inference shown by the diagnostics' completed-job count;
+- explicit PASS, FAIL, INCONCLUSIVE and NOT RUN rules.
 
-Then:
-1. Copy these to the VM and record `Get-FileHash -Algorithm SHA256` of each:
-   - `dist\SpecterStudio Setup 0.1.51.exe`, which must equal
-     `f34a83e4112ea3e86676541ffbb335bf6b4a59a73b7ee96fba807129a7615030`;
-   - `Qwen3.5-0.8B-Q4_K_M.gguf`, which must equal `f5b14da98939b60bbe1019a964eba656407e1e0b64f1fe3003ff6d650e93bfec`.
-2. Install per user with the canonical arguments (`scripts/lib/nsis-per-user-install.ps1`):
-   `"SpecterStudio Setup 0.1.51.exe" /currentuser /S`. The exit code must be 0, and the app must be
-   installed.
-3. Launch and create the first Super User. In Settings › Local AI, enable AI. The status must read "No
-   model pack imported" (MODEL_MISSING), never "The AI runtime is not included in this build"
-   (RUNTIME_MISSING).
-4. Import the pack with *Import Model Pack…*. The status must become available ("Model pack imported and
-   verified.").
-5. Open a flow with validation findings in the Flow Designer and click *Explain with AI*. An answer must
-   arrive. Either an interpretation or a withheld notice is a pass. The bar must not report local AI as
-   unavailable.
-6. Evidence:
-   - the two `Test-Path` outputs and the two hashes;
-   - screenshots of steps 3, 4 and 5;
-   - a listing of `…\resources\native-hosts\ai\node_modules\@node-llama-cpp\win-x64\bins\win-x64\*140*.dll`
-     from the installed folder;
-   - the app log lines for the explanation job.
-   Record the result in `awkit-i6ot` and here. PASS closes `awkit-i6ot`; any other result keeps it open,
-   with the failing step recorded.
+The result goes in `awkit-i6ot` and here. PASS closes `awkit-i6ot` after the owner's review of the evidence.
+**Status: NOT RUN** (it needs an operator).
 - **Independent QC (2026-09-25, one AI QC reviewer agent, read-only, not a human sign-off):** QC-1..QC-7
   are re-verified with no regression, and provenance, the offline boundary and exit semantics PASS. It
   raised F1–F7, which are resolved at `420f2aad` and `0b581544`:
@@ -244,6 +226,19 @@ Then:
   until a feature is enabled. The overhead threshold is L5a's, accepted as INCONCLUSIVE by the owner.
 - **Licensed walkthrough parts:** BLOCKED on the issuer key. **Clean-machine VM:** NOT RUN; it needs an
   operator.
+- **Licensed walkthrough, re-checked 2026-09-25 (latest) through the approved procedure:**
+  - `verify:packaged-walkthrough` on the final artifacts gave 42/0 with 1 BLOCKED, because
+    `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` is not set in this session.
+  - The key is deliberately not read from the issuer's default location
+    (`scripts/helpers/packaged-license.mts`).
+  - **The exact prerequisite:** an authorized validation machine or CI runner, where the operator sets
+    `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` to the absolute path of the offline issuer key under that machine's
+    controlled custody, then runs `npm run verify:packaged-walkthrough`.
+    - Only the path is set. The gate hands the path to `tools/license-issuer`, and strips it from the app's
+      environment.
+    - The key never goes into chat, the repository, an installer or a report.
+  - Parts D–J then mint a 45-minute trial licence bound to that machine's fingerprint, and run the real
+    workflows.
 
 ## Performance confirmation
 

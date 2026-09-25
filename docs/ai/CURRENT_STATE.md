@@ -1,6 +1,48 @@
 # CURRENT_STATE
 
-## Phase L: `awkit-i6ot` rebuilt and every packaged gate green, clean-machine VM NOT RUN; L4b NOT MET pending one owner decision; Phase L NOT complete (2026-09-25, night, current)
+## Phase L: L4b decision proposal and clean-machine procedure ready, R4 mutation run 15/15, issuer key still absent; Phase L NOT complete (2026-09-25, late night, current)
+
+**Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** Phase L is still 7 of
+10 milestones closed. Nothing closed, because no milestone's acceptance is met.
+
+- **L4b: the owner decision is consolidated** in `evidence/L4b-owner-decision-proposal-2026-09-25.md`. It sets
+  out, separately:
+  - the raw model result: the adopted target NOT MET, unchanged;
+  - the delivered experience: 34/34 deterministic guidance, 24 shown, 10 withheld, and 0 read by a person;
+  - the fallback: 8/8 caught in-sample, a 7.7 % false-withholding rate, and the limits. R4 does not
+    guarantee that every unsupported statement is detected;
+  - the unmet human review.
+
+  It proposes precise criteria DX-0 to DX-5: frozen inputs; deterministic guidance at 100 %; two fresh unseen
+  runs (plus a recommended held-out set); a person's reading, with 0 unsupported and ≥ 80 % correct; a withheld
+  cap of 25 % per run, which the existing run 2 (35 %) would fail; and the raw result kept visible. The owner
+  replies once: `L4b: A` or `L4b: B, cap …, held-out …, reader …`. The target stays NOT MET, and nothing is
+  recorded.
+- **The R4 mutation run is done** without editing product source. `verify:ai-display-gate-mutations`
+  applies each mutant in memory through a Node load hook (`--loader` on this host's Node).
+  - Result: 38/0, 15 of 15 killed.
+  - One survivor exposed a real control gap: "the flow does not run" said of a warning. A new held-out control
+    kills it. `verify:ai-authoring` stays 305/305.
+- **`awkit-i6ot`:** the self-contained clean-machine procedure for NSIS and portable is
+  `evidence/L7-clean-machine-procedure-0.1.51.md`. It has qualification checks, proof of which runtime DLLs the
+  app actually loaded, and pass, fail and NOT RUN rules. The run itself is NOT RUN; it needs an operator.
+- **Licensed walkthrough: still BLOCKED.** Re-checked through the approved procedure: `verify:packaged-walkthrough`
+  gave 42/0 with 1 BLOCKED, because `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` is not set here.
+  - Prerequisite: an authorized validation machine or CI runner with custody of the issuer key sets that variable
+    to the key's absolute path, and runs the gate.
+  - No key material is requested or stored.
+- **Corrected:** the decision record's claim that R4 "guarantees" unsupported claims never reach a person.
+
+| Gate (this session) | Result |
+|---|---|
+| `verify:ai-display-gate-mutations` | 38/0, 15/15 killed (37/1 red first: one survivor) |
+| `verify:ai-authoring` (inside the mutation controls) | 305/305 |
+| `verify:packaged-walkthrough` | 42/0, 1 BLOCKED (issuer key) |
+| `typecheck:scripts` · `verify:verifier-classification` | PASS · reconciled (267 classified) |
+| `verify:ai-authoring-review` | TARGET NOT MET (not re-run: its inputs did not change) |
+| clean-machine VM · licensed walkthrough | NOT RUN (operator) · BLOCKED (issuer key) |
+
+## Phase L: `awkit-i6ot` rebuilt and every packaged gate green, clean-machine VM NOT RUN; L4b NOT MET pending one owner decision; Phase L NOT complete (2026-09-25, night)
 
 **Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** Phase L is still 7 of
 10 milestones closed.
