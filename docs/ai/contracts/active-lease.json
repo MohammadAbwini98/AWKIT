@@ -2,7 +2,7 @@
   "task": "awkit-djnl-10-ai-runtime-packaging-0924",
   "contract_path": "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     ".beads/**",
     "docs/ai/COMMANDS.md",
@@ -30,5 +30,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-25T23:49:40.199Z",
+  "released_reason": "tracker notes for awkit-djnl.6 and awkit-djnl.10 committed at e5d91c82, nothing closed, no edge changed",
+  "archived_at": "2026-09-25T23:49:40.204Z"
 }
