@@ -591,6 +591,14 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "static-source-validation",
     why: "Structural check of L4b's held-out flows under docs/plans/ai-upgrade-v5/evidence/L4b-held-out/flows (the product's own intake, outside the labelled set, no canary, nothing the redaction treats as sensitive, at least one issue each, no duplicate, at least 17 issues sent) and their inventory from the real FlowValidator and request builder. No model and no display gate run. The first valid run writes inventory.json (write-once); later runs compare with it and report whether both are committed. Exit 0 valid, 1 invalid, 2 no flows yet."
   },
+  "verify:ai-authoring-held-out-eligibility": {
+    class: "static-source-validation",
+    why: "L4b held-out selection, step 1 (owner directive 2026-09-26, latest): enumerates every candidate of the committed rule's two sources (the resource flow fixtures and the Randomized Test Lab's awkit-oracle-baseline-001 mutated flows, rebuilt with that verifier's own seeds), applies E1 (the held-out structural rules), E2 (not a request L4b's development sent a model) and E3 (one candidate per distinct request) and writes eligibility.json once; later runs compare with it and never rewrite it. No model and no display gate. Exit 0 written or matching, 1 differing."
+  },
+  "verify:ai-authoring-held-out-select": {
+    class: "static-source-validation",
+    why: "L4b held-out selection, step 2: only once eligibility.json is committed and matches a fresh enumeration, derives the seed from its content and writes the shortest seeded prefix sending at least 17 issues to flows/ once, refusing any other content there. No model and no display gate. Exit 0 written or already the selection, 1 refused."
+  },
   "verify:ai-authoring-held-out-live-part1": {
     class: "real-browser",
     why: "verify:ai-authoring-quality-live over the committed held-out set's first five flows in case-id order (--held-out --part 1): same hard checks and redacted review capture as the labelled parts, each flow checked against its inventory, each capture carrying the inputs measured for DX-0. REFUSED until the held-out set is committed."

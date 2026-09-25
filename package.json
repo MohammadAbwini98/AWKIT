@@ -324,6 +324,8 @@
     "verify:ai-authoring-dx": "tsx scripts/verify-ai-authoring-review.mts --dx",
     "verify:ai-authoring-dx-pending": "tsx scripts/verify-ai-authoring-review.mts --dx --pending",
     "verify:ai-authoring-held-out": "tsx scripts/verify-ai-authoring-review.mts --held-out",
+    "verify:ai-authoring-held-out-eligibility": "tsx scripts/verify-ai-authoring-held-out-select.mts --eligibility",
+    "verify:ai-authoring-held-out-select": "tsx scripts/verify-ai-authoring-held-out-select.mts --select",
     "verify:ai-authoring-held-out-live-part1": "tsx scripts/verify-ai-explanation-live.mts --feature authoringQuality --held-out --part 1",
     "verify:ai-authoring-held-out-live-part2": "tsx scripts/verify-ai-explanation-live.mts --feature authoringQuality --held-out --part 2",
     "verify:ai-authoring-held-out-live-part3": "tsx scripts/verify-ai-explanation-live.mts --feature authoringQuality --held-out --part 3",

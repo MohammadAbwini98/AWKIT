@@ -5,10 +5,36 @@ mandatory for L4b's delivered-experience acceptance (DX).
 
 ## Who chooses it
 
-- The owner, or a person the owner names. **Never the implementing agent.**
-- The agent defines this format and runs the structural check. It does not select, curate, rank or
-  preview cases.
-- It runs no model and no display gate on the set before the set is committed with its hash.
+**A rule, committed before any candidate was enumerated** (owner directive, 2026-09-26, latest,
+`docs/ai/DECISIONS.md`). This supersedes "the owner, or a person the owner names". No person or agent picks,
+ranks or previews a case, and the agent runs no model and no display gate on the set before it is committed
+with its hash. The rule is `scripts/ai-harness/authoringHeldOutSelection.ts`:
+
+- **Sources.** Both are existing repository test scenarios, and L4b's development never sent either to a model.
+  - **S1:** every flow file in `resources/sample-flows/` and `resources/test-fixtures/mock-site/flows/`.
+  - **S2:** the Randomized Test Lab's committed oracle campaign `awkit-oracle-baseline-001`, built exactly as
+    `scripts/verify-random-oracle.mts` builds it: 9 patterns × 6 valid flows, each given each of the 13
+    controlled defects, with that verifier's own seeds. Only the mutated flows are candidates.
+  - In each case the expected finding is established independently of any model: the product validator's
+    own issues, and for S2 the oracle's documented expectation for each defect.
+- **Eligibility.** A candidate is excluded by the first of these rules it fails:
+  - **E1:** the structural rules below.
+  - **E2:** its request's Issues text is one L4b's development sent a real model: the nine labelled cases,
+    or the L1.8 `validationExplanation` packet. The instructions are fixed, so the Issues text is all that
+    differs between requests.
+  - **E3:** another eligible candidate sends the same Issues text. Of those, the smallest content SHA-256
+    stays.
+- **Selection.**
+  - The seed is the SHA-256 of the committed `eligibility.json`'s content.
+  - Eligible candidates are ordered by SHA-256(seed, newline, content SHA-256).
+  - The shortest prefix that sends at least 17 issues is the set.
+  - No other seed or subset is tried.
+- **Order of commits:**
+  1. the rule;
+  2. `eligibility.json` (`npm run verify:ai-authoring-held-out-eligibility`, written once);
+  3. `flows/` (`npm run verify:ai-authoring-held-out-select`) and `inventory.json`
+     (`npm run verify:ai-authoring-held-out`);
+  4. only then any fresh run.
 
 ## Format
 

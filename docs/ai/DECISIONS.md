@@ -1,5 +1,40 @@
 # DECISIONS
 
+### 2026-09-26 (latest) — Phase L closure: the owner delegates L4b's held-out selection and DX-3 reading to the implementing agent (owner, in session) (`awkit-djnl.6`, `.9`, `.10`)
+
+- **The owner's directive** (the Phase L final task brief, 2026-09-26). It supersedes two rulings of the
+  2026-09-25 (final) and 2026-09-26 entries below, and nothing else:
+  - *"You are explicitly authorized to select, construct, validate, freeze, and commit the held-out
+    evaluation dataset."* It must be a reproducible procedure, fixed before any case or model output is
+    examined, with no repeated seeds or alternative subsets.
+  - *"Do not require the repository owner to ... review AI outputs, approve technical test results ... A
+    human reviewer is not required for technical acceptance unless a non-waivable governing requirement
+    explicitly specifies one."* DX-3's reader was the owner's own ruling, not a legal or external
+    requirement, so it is the owner's to delegate.
+- **Held-out selection:** "chosen by someone other than the agent" becomes a rule the agent commits before it
+  enumerates any candidate (`scripts/ai-harness/authoringHeldOutSelection.ts`, `L4b-held-out/README.md`).
+  - Sources: existing repository test scenarios that L4b's development never sent to a model.
+  - Exclusions: the structural rules, any request L4b's development sent a model, and duplicate requests.
+  - Selection: a seed from the committed eligibility inventory, and the shortest seeded prefix of at least
+    17 issues.
+  - The agent tries no other seed or subset, and changes no product source after seeing the set.
+- **DX-3's reader:** "the owner, no AI agent's label counts" becomes the implementing agent's technical
+  reading, under one fixed label.
+  - It is recorded as an agent's reading, never under a person's label, and every DX report says no person
+    read the texts.
+  - The adopted target (§1) stays person-only and NOT MET. A person's DX verdict, if one is ever recorded,
+    takes precedence over the agent's on the same text.
+- **Unchanged:**
+  - DX-0 and its frozen identities;
+  - DX-1 to DX-5 as written, and the seven readings of §0 (they now apply to the agent's reading);
+  - the 25 % cap per run, the 80 % threshold, zero confirmed escapes, the denominators and the three-run plan.
+  - The brief also forbids waiving a criterion, altering a rubric after seeing results, inventing evidence,
+    manufacturing a person's or a legal sign-off, and self-certifying Microsoft licensing.
+- **Not delegated, and still external:**
+  - the clean-machine VM run (an authorized operator, per 2026-09-25, final);
+  - the licensed walkthrough (the issuer key's custody);
+  - the Visual Studio redistribution eligibility (2026-09-25).
+
 ### 2026-09-26 — Phase L L4b: an independent held-out set; the DX evaluator's readings of the rules await the owner (owner, in session) (`awkit-djnl.6`)
 
 - **Owner:** the held-out selection is **independent**.

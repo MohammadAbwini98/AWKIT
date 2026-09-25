@@ -19,9 +19,10 @@
  *    give a displayable explanation for at least 3 issues in 4"). Never averaged.
  *  - DX-5: the model's own rates before the gate, per run, reported beside DX.
  *
- * The held-out set's format and structural check are here too. The agent never selects, ranks or previews a
- * case: it checks that each file is a flow the product accepts, outside the labelled set, with something to
- * ask about, and inventories what the product's own validator and request builder send.
+ * The held-out set's format and structural check are here too: each file is a flow the product accepts, outside
+ * the labelled set, with something to ask about, inventoried by what the product's own validator and request
+ * builder send. Which flows go in is decided by a rule committed before any candidate was enumerated
+ * (authoringHeldOutSelection.ts; owner directive 2026-09-26, latest), never by a person's or the agent's choice.
  */
 
 import { execFileSync } from "node:child_process";
@@ -106,12 +107,47 @@ const byCodeUnits = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 /** The request the product builds for a flow with no saved library beside it, as the harness sends it. */
 export const heldOutRequest = (flow: FlowProfile) => buildAuthoringRequest(validateFlowDefinition(flow, { referenceableFlowIds: new Set([flow.id]) }));
 
+/**
+ * One candidate flow file's structural rules (the README's), named `where` in each problem. It makes a case only
+ * when the product accepts it and its validator finds an issue; any problem still refuses the set. Shared by
+ * `readHeldOut` and the held-out selection (authoringHeldOutSelection.ts), so a selected flow passes this exactly.
+ */
+export function checkHeldOutFlow(where: string, raw: string): { problems: string[]; flow?: FlowProfile; heldOutCase?: HeldOutCase } {
+  const labelledIds = new Set(LABELLED_SET.map((c) => c.flow.id));
+  const problems: string[] = [];
+  const text = raw.startsWith(BOM) ? raw.slice(1) : raw;
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    return { problems: [`${where}: not JSON`] };
+  }
+  const intake = sanitizeAuthoringAssistRequest({ requestId: "held-out", profile: value });
+  if (!intake) return { problems: [`${where}: not a flow the product accepts (an id, a nodes array, an edges array, at most ${AI_ASSIST_MAX_NODES} nodes)`] };
+  const flow = intake.profile;
+  if (text.toUpperCase().includes(CANARY)) problems.push(`${where}: carries the labelled set's canary, so it is labelled-set material`);
+  if (labelledIds.has(flow.id)) problems.push(`${where}: its flow id "${flow.id}" is a labelled flow's`);
+  // The corpus is committed to the repository. The request never carries values or URLs, so a placeholder
+  // changes nothing the model is asked.
+  const secrets = findResidualSecrets(text);
+  if (secrets.length > 0) problems.push(`${where}: holds what the product's redaction treats as sensitive (${secrets.join(", ")}); replace it with a placeholder`);
+  let request: ReturnType<typeof heldOutRequest>;
+  try {
+    request = heldOutRequest(flow);
+  } catch {
+    return { problems: [...problems, `${where}: the validator refuses it`] };
+  }
+  if (!request) return { problems: [...problems, `${where}: the validator finds no issue, so there is nothing to ask about`] };
+  const hash = sha256(JSON.stringify(value));
+  const sent = request.issues.map((ref) => ({ code: ref.issue.code, fixable: ref.fixable, blocking: isExecutionBlocking(ref.issue) }));
+  return { problems, flow, heldOutCase: { id: `ho-${hash.slice(0, 12)}`, file: where, sha256: hash, sent, truncated: request.truncated } };
+}
+
 /** Read and check the held-out flows under `dir`. Structural only: no model, no display gate. */
 export function readHeldOut(dir: string): HeldOutRead {
   const flowsDir = path.join(dir, "flows");
   const entries = fs.existsSync(flowsDir) ? fs.readdirSync(flowsDir, { withFileTypes: true }).sort((a, b) => byCodeUnits(a.name, b.name)) : [];
   if (entries.length === 0) return { ok: false, notProvided: true, problems: [`no held-out flows in ${flowsDir}`] };
-  const labelledIds = new Set(LABELLED_SET.map((c) => c.flow.id));
   const problems: string[] = [];
   const cases: HeldOutCase[] = [];
   const flows = new Map<string, FlowProfile>();
@@ -121,46 +157,16 @@ export function readHeldOut(dir: string): HeldOutRead {
       problems.push(`${where}: only .json flow files belong in flows/`);
       continue;
     }
-    const raw = fs.readFileSync(path.join(flowsDir, where), "utf8");
-    const text = raw.startsWith(BOM) ? raw.slice(1) : raw;
-    let value: unknown;
-    try {
-      value = JSON.parse(text);
-    } catch {
-      problems.push(`${where}: not JSON`);
-      continue;
-    }
-    const intake = sanitizeAuthoringAssistRequest({ requestId: "held-out", profile: value });
-    if (!intake) {
-      problems.push(`${where}: not a flow the product accepts (an id, a nodes array, an edges array, at most ${AI_ASSIST_MAX_NODES} nodes)`);
-      continue;
-    }
-    const flow = intake.profile;
-    if (text.toUpperCase().includes(CANARY)) problems.push(`${where}: carries the labelled set's canary, so it is labelled-set material`);
-    if (labelledIds.has(flow.id)) problems.push(`${where}: its flow id "${flow.id}" is a labelled flow's`);
-    // The corpus is committed to the repository. The request never carries values or URLs, so a placeholder
-    // changes nothing the model is asked.
-    const secrets = findResidualSecrets(text);
-    if (secrets.length > 0) problems.push(`${where}: holds what the product's redaction treats as sensitive (${secrets.join(", ")}); replace it with a placeholder`);
-    let request: ReturnType<typeof heldOutRequest>;
-    try {
-      request = heldOutRequest(flow);
-    } catch {
-      problems.push(`${where}: the validator refuses it`);
-      continue;
-    }
-    if (!request) {
-      problems.push(`${where}: the validator finds no issue, so there is nothing to ask about`);
-      continue;
-    }
-    const hash = sha256(JSON.stringify(value));
-    const id = `ho-${hash.slice(0, 12)}`;
+    const checked = checkHeldOutFlow(where, fs.readFileSync(path.join(flowsDir, where), "utf8"));
+    problems.push(...checked.problems);
+    if (!checked.flow || !checked.heldOutCase) continue;
+    const { id } = checked.heldOutCase;
     if (flows.has(id)) {
       problems.push(`${where}: the same flow as ${cases.find((c) => c.id === id)?.file}`);
       continue;
     }
-    flows.set(id, flow);
-    cases.push({ id, file: where, sha256: hash, sent: request.issues.map((ref) => ({ code: ref.issue.code, fixable: ref.fixable, blocking: isExecutionBlocking(ref.issue) })), truncated: request.truncated });
+    flows.set(id, checked.flow);
+    cases.push(checked.heldOutCase);
   }
   const issues = cases.reduce((n, c) => n + c.sent.length, 0);
   if (problems.length === 0 && issues < DX_RULES.minHeldOutIssues) problems.push(`${cases.length} flow(s) send ${issues} issue(s); the held-out set needs at least ${DX_RULES.minHeldOutIssues}`);
