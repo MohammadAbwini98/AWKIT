@@ -2,7 +2,7 @@
   "task": "awkit-djnl-10-ai-runtime-packaging-0924",
   "contract_path": "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json",
   "holder": "runtime",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "scripts/prepare-ai-native-host.mjs"
   ],
@@ -36,5 +36,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-25T17:59:57.547Z",
+  "released_reason": "staging fix committed, runtime DLLs only where loaded, its verifier check is unleased qa work, then rebuild under the release lease",
+  "archived_at": "2026-09-25T17:59:57.549Z"
 }

@@ -91,9 +91,12 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "runtime",
+      "agent_id": "release",
       "allowed_paths": [
-        "scripts/prepare-ai-native-host.mjs"
+        "build",
+        "resources/THIRD_PARTY_NOTICES.md",
+        "resources/dependency-manifest.json",
+        "resources/dependency-manifest.sig"
       ]
     },
     "writer_sequence": [
@@ -877,6 +880,22 @@
         "acquired_at_commit": "242d1df4d0dd6ada3b9931c0e776c1fef81e3a05",
         "released_at": "2026-09-25T17:47:08.027Z",
         "released_reason": "portable and NSIS built from clean cb29a776, verify:native-dependencies found one orphan runtime image (msvcp140.dll beside reflink imports vcruntime140_1.dll, nothing there loads it), staging fix and its red-first check next",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:runtime:2026-09-25T17:58:55.225Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/prepare-ai-native-host.mjs"
+        ],
+        "acquired_at": "2026-09-25T17:58:55.225Z",
+        "acquired_at_commit": "cb29a7764dba08171e271ac1ffc64f0b6f6563f6",
+        "released_at": "2026-09-25T17:59:57.547Z",
+        "released_reason": "staging fix committed, runtime DLLs only where loaded, its verifier check is unleased qa work, then rebuild under the release lease",
         "amendments": [],
         "overrides": [],
         "violations": []

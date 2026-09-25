@@ -279,6 +279,31 @@ function assertNativeImports(dir: string, label: string, listed: string[]): void
     binaries.length > 0 && imports > 0 && unmet.length === 0,
     unmet.length > 0 ? unmet.join("; ") : "no import was read"
   );
+  // A Visual C++ runtime DLL ships only where a binary beside it loads it, directly or through another runtime
+  // DLL. One that nothing loads is an image whose own imports need not resolve: verify:native-dependencies
+  // (2026-09-25) found msvcp140.dll beside the reflink addon, which imports only vcruntime140.dll, needing a
+  // vcruntime140_1.dll that nothing in that folder loads.
+  const isRuntime = (rel: string) => MSVC_RUNTIME.includes(path.posix.basename(rel).toLowerCase());
+  const importsOf = (rel: string) => peImports(path.join(dir, ...rel.split("/"))).map((name) => name.toLowerCase());
+  const orphans: string[] = [];
+  for (const folder of new Set(binaries.map((rel) => path.posix.dirname(rel)))) {
+    const inFolder = binaries.filter((rel) => path.posix.dirname(rel) === folder);
+    const loaded = new Set<string>();
+    const pending = inFolder.filter((rel) => !isRuntime(rel)).flatMap(importsOf);
+    for (const name of pending) {
+      if (loaded.has(name)) continue;
+      loaded.add(name);
+      const runtime = inFolder.find((rel) => isRuntime(rel) && path.posix.basename(rel).toLowerCase() === name);
+      if (runtime) pending.push(...importsOf(runtime));
+    }
+    orphans.push(...inFolder.filter((rel) => isRuntime(rel) && !loaded.has(path.posix.basename(rel).toLowerCase())));
+  }
+  const runtimeCount = binaries.filter(isRuntime).length;
+  check(
+    `${label}: every Visual C++ runtime DLL is staged only where a binary beside it loads it (${runtimeCount} staged)`,
+    runtimeCount > 0 && orphans.length === 0,
+    orphans.length > 0 ? `nothing beside them loads: ${orphans.join("; ")}` : "no runtime DLL is staged"
+  );
 }
 
 /** Section A's assertions, for any tree that claims to be the staged runtime. */
