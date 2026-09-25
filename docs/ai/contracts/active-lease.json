@@ -1,16 +1,21 @@
 {
   "task": "awkit-djnl-10-ai-runtime-packaging-0924",
   "contract_path": "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json",
-  "holder": "release",
+  "holder": "project-state",
   "status": "released",
   "allowed_paths": [
-    "build",
-    "resources/THIRD_PARTY_NOTICES.md",
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig"
+    ".beads/**",
+    "docs/ai/COMMANDS.md",
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/HANDOFF.md",
+    "docs/ai/KNOWN_ISSUES.md",
+    "docs/ai/TASK_LOG.md",
+    "docs/plans/ai-upgrade-v5/L6-fragments-and-templates.md",
+    "docs/plans/ai-upgrade-v5/L7-release-confirmation.md",
+    "docs/plans/ai-upgrade-v5/ROADMAP.md"
   ],
-  "acquired_at": "2026-09-25T18:34:21.660Z",
-  "acquired_at_commit": "ff22f89b2927092d1de486d3b5a9892233523fe5",
+  "acquired_at": "2026-09-25T19:01:28.089Z",
+  "acquired_at_commit": "0f66150287ede8614ea0c0f37bdc214f748090f0",
   "baseline_dirty": [],
   "baseline_dirty_fingerprints": {},
   "baseline_watched_ignored": {
@@ -21,12 +26,12 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1790359576699.5842"
+    "build": "dir(1):native-hosts:1790361556477.0342"
   },
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-25T18:55:29.161Z",
-  "released_reason": "final rebuild from clean 62aab2dc complete, manifest pair committed, every packaged gate green, licensed walkthrough BLOCKED on the issuer key, clean-machine VM NOT RUN",
-  "archived_at": "2026-09-25T18:55:29.164Z"
+  "released_at": "2026-09-25T19:02:18.752Z",
+  "released_reason": "tracker notes for awkit-i6ot (packaged and verified, VM owed) and awkit-djnl.6 (decision record) exported, verify:roadmap-dashboard 177/177 Sources agree",
+  "archived_at": "2026-09-25T19:02:18.756Z"
 }
