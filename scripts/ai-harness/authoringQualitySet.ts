@@ -307,10 +307,11 @@ const ACTION_AS_NAME = /\bstep\s+["'`“‘]?(?:add|apply|change|choose|connect|
  * A place in the flow the request never gives: an ordinal step ("the first step") or a numbered one ("step 3").
  * The request says only "at a node" or "at a connector". Written from the 2026-09-25 AI evaluation (R1): "the
  * first step" for a timeout on the flow's second step read clear, because `NUMBER` reads digits, not ordinals.
- * "This step" and "the next step" are the request's own words and no position.
+ * An issue's id given as its step ("at step i0", the first live run after R2) is one too: the id names the
+ * issue, never where it is. "This step" and "the next step" are the request's own words and no position.
  */
 const POSITION =
-  /\b(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|last|final|\d+(?:st|nd|rd|th))\s+(?:steps?|nodes?|connectors?|actions?|conditions?|branch(?:es)?)\b|\b(?:step|node|connector)\s+(?:#\s*|number\s+)?\d+\b/gi;
+  /\b(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|last|final|\d+(?:st|nd|rd|th))\s+(?:steps?|nodes?|connectors?|actions?|conditions?|branch(?:es)?)\b|\b(?:step|node|connector)\s+(?:#\s*|number\s+)?\d+\b|\b(?:steps?|nodes?|connectors?)\s+["'`“‘]?i\d+\b/gi;
 const NUMBER = /\b(\d+(?:[.,]\d+)*)\s*(ms|milliseconds?|s|secs?|seconds?|mins?|minutes?|h|hours?|%|px|times)?\b/gi;
 const SELECTOR = /https?:\/\/|www\.|(?:^|\s)[#.][a-z][\w-]*|\[data-[\w-]+/i;
 
@@ -784,6 +785,10 @@ export function causalClaimControlFailures(requestFor: (caseId: string) => Autho
   expect("a numbered step is a position the request never gave", hitBy("warnings", 0, "Lower the timeout of step 2 unless it really needs to wait that long.", "FABRICATED_LITERAL"));
   expect("...as is an ordinal on a blocking issue", hitBy("single", 0, "Set the first step's timeout to a positive number of milliseconds.", "FABRICATED_LITERAL"));
   expect("'this step' and 'the next step', the request's own words, are no position", clearOf("warnings", 1, "Add an outgoing connector from this step to the next step or to an End step."));
+  // The first live run after R2 (capture 78eafe, 2026-09-25): the issue's id given as the step it is at. Not causal,
+  // so R1's reading rule missed it too; it is a location the request never gave.
+  expect("78eafe/single/i0: an issue id given as a step ('at step i0') is a position the request never gave", hitBy("single", 0, "The validation found an issue in the automation flow at step i0. The rule code is 'invalidTimeout'.", "FABRICATED_LITERAL"));
+  expect("...while the issue id named as the issue is not", !hitBy("single", 0, `Issue i0 is an invalid timeout. ${positive}`, "FABRICATED_LITERAL"));
   expect("a purpose ('so that it knows') is not a causal claim, and an answer without one is not", !makesCausalClaim("Add a locator to this step so that it knows which element to act on.") && !makesCausalClaim(lower));
   return failures;
 }

@@ -754,7 +754,7 @@ console.log("\n11 — the labelled set verify:ai-authoring-quality-live sends, a
   // R1 (owner, 2026-09-25): the seven displayed answers the AI evaluation found unsupported, verbatim.
   const causal = causalClaimControlFailures(labelledRequest);
   check(
-    "the 7 displayed answers giving a non-blocking issue as a validation failure (2 with an invented 'first step') are defects and causal claims for a person; each twin stays clear",
+    "the 7 displayed answers giving a non-blocking issue as a validation failure (2 with an invented 'first step'), and the issue id given as a step after R2, are defects; each twin stays clear",
     causal.length === 0,
     causal.join("; ")
   );
