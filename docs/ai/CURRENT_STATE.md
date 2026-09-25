@@ -1,6 +1,36 @@
 # CURRENT_STATE
 
-## Phase L: L4b decision proposal and clean-machine procedure ready, R4 mutation run 15/15, issuer key still absent; Phase L NOT complete (2026-09-25, late night, current)
+## Phase L: L4b option B decided and DX-0 frozen; clean-machine step 9 corrected and executed; Phase L NOT complete (2026-09-25, final, current)
+
+**Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** Phase L is still 7 of
+10 milestones closed. Nothing closed.
+
+- **L4b: the owner chose B** (`L4b: B, cap 25 %, held-out yes, reader owner`). The ruling and the DX-0 freeze
+  are in `evidence/L4b-owner-decision-proposal-2026-09-25.md` §0 (DECISIONS 2026-09-25, final).
+  - The adopted target stays NOT MET on the record.
+  - The old 26-answer reading is historical PENDING: not executed, not passed, and no longer a closure
+    condition.
+  - DX-0 freezes the model, runtime, request (`ab4b891f`) and the three gate files by blob id.
+  - No fresh run has been taken. Next come the DX evaluation code, the held-out set (chosen by someone other
+    than the agent, then hashed), the runs, and the owner's reading.
+- **`awkit-i6ot`: step 9 of the clean-machine procedure is corrected** (owner's finding). It now proves which
+  runtime DLLs the AI host process itself loaded, identifying the host by the llama.cpp binaries only it loads,
+  instead of pooling every SpecterStudio process.
+  - `verify:ai-packaged-app` step 6 executes the same lines: 24/0.
+  - The AI host loaded all three from `resources\native-hosts\ai`, although System32 on this host carries all
+    three.
+  - The VM run stays NOT RUN (operator).
+- **Licensed walkthrough:** still BLOCKED on `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` (not re-run: nothing changed).
+
+| Gate (this session) | Result |
+|---|---|
+| `verify:ai-packaged-app` (with step 6) | 24/0 PASS on the 0.1.51 package |
+| `typecheck:scripts` | PASS |
+| `verify:ai-authoring-review` | TARGET NOT MET (unchanged; now prints the request hash) |
+| `verify:roadmap-dashboard` | 177/177, Overview "Sources agree" (25 outstanding / 297 closed, 181 edges) |
+| clean-machine VM · licensed walkthrough · fresh L4b runs | NOT RUN (operator) · BLOCKED (issuer key) · NOT RUN (after the held-out set) |
+
+## Phase L: L4b decision proposal and clean-machine procedure ready, R4 mutation run 15/15, issuer key still absent; Phase L NOT complete (2026-09-25, late night)
 
 **Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** Phase L is still 7 of
 10 milestones closed. Nothing closed, because no milestone's acceptance is met.

@@ -1036,6 +1036,30 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:project-state:2026-09-25T20:37:15.653Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**",
+          "docs/ai/COMMANDS.md",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/plans/ai-upgrade-v5/L6-fragments-and-templates.md",
+          "docs/plans/ai-upgrade-v5/L7-release-confirmation.md",
+          "docs/plans/ai-upgrade-v5/ROADMAP.md"
+        ],
+        "acquired_at": "2026-09-25T20:37:15.653Z",
+        "acquired_at_commit": "eb5d3fd9aec0ffeb951456740281d2cc5b0c74e2",
+        "released_at": "2026-09-25T20:38:51.430Z",
+        "released_reason": "tracker notes on awkit-djnl.6 (L4b option B and the DX-0 freeze) and awkit-i6ot (step 9 corrected, verify:ai-packaged-app 24/0), 322 issues exported, CURRENT_STATE HANDOFF TASK_LOG newest sections, verify:roadmap-dashboard 177/177 Sources agree",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }

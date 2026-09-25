@@ -1,5 +1,25 @@
 # DECISIONS
 
+### 2026-09-25 (final) — Phase L L4b: option B, the delivered experience under DX-0 to DX-5; clean-machine step 9 per AI host process (owner, in session) (`awkit-djnl.6`, `awkit-i6ot`)
+
+- **Decided (owner):** `L4b: B, cap 25 %, held-out yes, reader owner`. The full ruling and the DX-0 freeze are in
+  `docs/plans/ai-upgrade-v5/evidence/L4b-owner-decision-proposal-2026-09-25.md` §0.
+  - DX-0 to DX-5 accept L4b. The adopted target stays on the record as NOT MET, permanently.
+  - The cap is at most 4 of 17 withheld in each fresh complete run.
+  - The held-out set is mandatory. It is chosen by someone other than the agent, and committed with its hash
+    after the freeze and before any fresh run.
+  - The owner reads every fresh text under their own label. No AI agent's label counts.
+- **Old reading:** the adopted target's pending readings (26 answers) are superseded as closure conditions, and
+  kept as historical PENDING, not executed and not passed. They cannot change a target that is NOT MET on
+  criterion 2.
+- **Not a closure:** the decision authorizes the procedure. A run over the cap, a confirmed unsupported displayed
+  claim, or under 80 % correct and actionable keeps L4b open, with no criterion adjusted. L6 closes only by its
+  own dependency on an accepted L4b.
+- **Clean machine (owner):** an authorized operator runs it, and the agent reviews the evidence.
+  - Before that, step 9 had to prove which DLLs the AI host process itself loaded, not every SpecterStudio
+    process pooled together.
+  - Corrected at `eb5d3fd9`. `verify:ai-packaged-app` executes the same lines (24/0).
+
 ### 2026-09-25 (latest) — Phase L L4b: the owner authorizes R4, a deterministic display gate; the target's scope under it is the owner's to decide (owner, in session) (`awkit-djnl.6`)
 
 - **Authorized (owner, in session):** R4, a deterministic safety fallback.

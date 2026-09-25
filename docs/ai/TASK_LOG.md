@@ -1,5 +1,34 @@
 # TASK_LOG
 
+## 2026-09-25 (final) — Phase L closure plan: L4b option B recorded and DX-0 frozen; clean-machine step 9 corrected and executed (Claude)
+
+- **Task:** the owner shared an external Phase L closure plan and decided the open questions: L4b option B, cap
+  25 %, held-out yes, reader owner; the old reading superseded as historical PENDING; the clean machine run by
+  an operator, after step 9 is corrected to the AI host process.
+- **Checked against the repository:** every script the plan names exists. The issuer-key variable takes a path.
+  The AI host is an Electron `utilityProcess` (named SpecterStudio), and its PID is not shown in the UI.
+- **Files:**
+  - `scripts/verify-ai-packaged-app.mts` (step 6), `scripts/verify-ai-authoring-review.mts` (prints the request
+    hash);
+  - `evidence/L7-clean-machine-procedure-0.1.51.md` (step 9, portable §4.3),
+    `evidence/L4b-owner-decision-proposal-2026-09-25.md` (§0);
+  - the L4 plan, `docs/ai/{DECISIONS,CURRENT_STATE,HANDOFF,TASK_LOG}.md` and `.beads` (notes on `awkit-djnl.6`
+    and `awkit-i6ot`).
+- **Tests:**
+  - `verify:ai-packaged-app` 24/0, including step 6. The AI host loaded the three runtime DLLs from the packaged
+    tree, and System32 here carries all three (checked).
+  - `typecheck:scripts` PASS.
+  - `verify:ai-authoring-review` TARGET NOT MET (unchanged).
+  - `verify:roadmap-dashboard`: the result is in the newest CURRENT_STATE section.
+- **Not run:**
+  - no mutation run of step 6;
+  - fresh L4b runs, which wait for the DX code and the held-out set;
+  - the clean-machine VM (operator);
+  - the licensed walkthrough (issuer key);
+  - `npm run build`, since no `src/` or `app/` file changed.
+- **Result:** L4b in_progress under an adopted DX measure, nothing accepted. `awkit-i6ot` open for the VM. Phase
+  L not complete: 7 of 10.
+
 ## 2026-09-25 (late night) — Phase L remaining work: L4b decision proposal, clean-machine procedure, issuer-key check, R4 mutation run (Claude)
 
 - **Task:** the owner asked for the independently actionable Phase L work:

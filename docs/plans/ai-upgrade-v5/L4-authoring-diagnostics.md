@@ -49,6 +49,16 @@ design-time data-source/secret reference checks (needs a library context like `r
 
 ## L4b — AI explanations (T0) and fix ranking (T1)
 
+**Current status (2026-09-25, final): the owner chose option B.** `L4b: B, cap 25 %, held-out yes, reader owner`.
+DX-0 to DX-5 now accept L4b. The adopted target stays NOT MET on the record, and the DX-0 freeze is in
+`evidence/L4b-owner-decision-proposal-2026-09-25.md` §0. `awkit-djnl.6` stays `in_progress`. Next, in order:
+1. the DX evaluation code, written to the frozen rules;
+2. the held-out set, chosen by someone other than the agent and committed with its hash;
+3. two fresh complete runs, plus the held-out run;
+4. the owner's reading.
+
+L4b closes only if DX-1 to DX-5 all hold. The history below is unchanged.
+
 **Status (2026-09-21): the contract is BUILT** — `src/ai/authoringExplanation.ts`, proven by
 `verify:ai-authoring` (55/55, three mutations caught) over the real `FlowValidator`, the real
 `AiService` and the real output contract with a deterministic transport. **The renderer surface was built

@@ -1,9 +1,51 @@
 # L4b acceptance: owner decision proposal (2026-09-25)
 
-> **Prepared by the implementing agent (Claude Opus 5.5). This is a proposal, not a verdict.** Nothing was written
-> to `reviews.json`. The adopted target, its thresholds, cases and denominators are unchanged. L4b is not closed.
-> The evidence is in `L4b-decision-record-2026-09-25.md`; this file states the decision and the criteria it would
-> adopt, in one place.
+> **Prepared by the implementing agent (Claude Opus 5.5). The owner decided on 2026-09-25: option B (§0).** Nothing
+> was written to `reviews.json`. The adopted target, its thresholds, cases and denominators are unchanged. L4b is
+> not closed. The evidence is in `L4b-decision-record-2026-09-25.md`.
+
+## 0. The owner's decision (2026-09-25) and the DX-0 freeze
+
+**Decision:** `L4b: B, cap 25 %, held-out yes, reader owner`.
+
+- **Measure:** DX-0 to DX-5 (§5) accept L4b. §1 stays on the record as **NOT MET**, permanently. Withheld text is
+  never counted as model output.
+- **Cap:** at most 25 % of issues withheld **in each** fresh complete run (at most 4 of 17), never averaged.
+- **Held-out set: required.** The owner made the recommended set mandatory.
+  - At least 17 issues, in flows outside the labelled set.
+  - Selected by someone other than the implementing agent.
+  - Committed with its hash **after** this freeze and **before** the first fresh run.
+- **Reader (DX-3): the owner**, under their own label.
+  - The agent prepares the reading packet and analyses the results afterwards. It records no verdict.
+  - No AI agent's label (Claude, ChatGPT, Codex, Gemini or any other) counts as the reader.
+- **The old reading (§4).** The adopted target's pending readings (criteria 1 and 4: 26 answers, 16 of them for
+  criterion 4) are superseded as closure conditions.
+  - They are **not waived as passed.** They stay on the record as historical PENDING: not executed, not passed.
+  - The target is NOT MET on criterion 2 whatever they would show.
+  - Under DX, the owner reads every fresh DX-3 text instead: every displayed text, and every withheld one to
+    measure the gate (never credited).
+- **What the decision does not do.** It authorizes the acceptance procedure, not a closure.
+  - L4b closes only if DX-1 to DX-5 all hold on the frozen fresh and held-out evidence and the owner's reading.
+  - L4b stays open, and no criterion is adjusted, if any of these happens:
+    - a fresh run withholds more than 4 of 17;
+    - a displayed text has a confirmed unsupported claim;
+    - fewer than 80 % of displayed texts are judged correct and actionable.
+  - L6 closes only by its own documented dependency on an accepted L4b.
+
+**DX-0, frozen at the commit that records this decision.** Change any of these, and the fresh runs taken after it
+are void.
+
+| Input | Frozen value |
+|---|---|
+| Model pack | Qwen3.5-0.8B Q4_K_M, 527,502,816 bytes, sha256 `f5b14da98939b60bbe1019a964eba656407e1e0b64f1fe3003ff6d650e93bfec`. The live harness refuses any other file. Its captures carry the label `Qwen3.5-0.8B-unpinned`, which is the harness's own name for these same bytes. |
+| Runtime | `AI_RUNTIME_PIN.build` `node-llama-cpp@3.21.1+llama.cpp@v0.4.0` (`src/offline/AiModelManifest.ts`, blob `a6f2472e72b589fb37aa1ba543d588830972d1b2`) |
+| Request | instructions sha256 `ab4b891fa050b9c0fbc85f6c04c93ff9b8effdc77167cbafbef0f7d35a9a3fa5`, printed by `verify:ai-authoring-review` as "current request" |
+| Display gate (R4), the three files the R4 mutation run covers | `src/ai/authoringClaimScreen.ts` blob `3c3204fa350cb922e7b092705ede63f12ddf42a3`; `src/ai/authoringExplanation.ts` (request builder and parser) blob `c4376cccfb79106bc5a88a577d4bf32364612c56`; `app/main/ai/aiAssist.ts` (adapter) blob `74180291114b7eecc9718b8d2761f4dc90665e2b` |
+| Evaluation rules | DX-1 to DX-5 as written in §5, with the 25 % cap per run, and this section's rulings. The adopted target's evaluation (§1) is unchanged. |
+
+- Blob ids are `git ls-files -s <path>`. Check any of them with `git hash-object <path>`.
+- The DX evaluation code (§6 B, work item 1) is written to these rules before any fresh run, and its source
+  identity is added here before the first run. Writing it changes no rule.
 
 ## 1. Original model-output quality: NOT MET (unchanged by anything below)
 

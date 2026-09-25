@@ -1,6 +1,30 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-25, late night, latest) — Phase L waits on one owner reply, one operator and the issuer key; Phase L NOT complete
+## HANDOFF (2026-09-25, final, latest) — L4b option B decided and frozen; the held-out set, the operator and the issuer key remain; Phase L NOT complete
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. Phase L is 7 of 10 closed.
+- **Decided:** `L4b: B, cap 25 %, held-out yes, reader owner`. The ruling and DX-0 are in
+  `evidence/L4b-owner-decision-proposal-2026-09-25.md` §0.
+- **Done:** clean-machine step 9 corrected to the AI host process (`eb5d3fd9`), executed by
+  `verify:ai-packaged-app` step 6 (24/0).
+- **Next, in order:**
+  1. **Agent:** write the DX evaluation in `verify:ai-authoring-review`, beside the adopted target, to the
+     frozen rules in §0 and §5. Add its source identity to §0 **before** any fresh run.
+  2. **Owner (or a delegate who is not the agent):** choose the held-out set, at least 17 issues in flows
+     outside the labelled set. The agent commits it with its hash; the live harness needs a way to run it.
+  3. **Agent:** two fresh complete runs (parts 1 and 2, twice) plus the held-out run, on the frozen inputs.
+     Check the request hash (`verify:ai-authoring-review` prints it) and the three gate blobs first.
+  4. **Owner:** read every fresh text, displayed and withheld, with `-- --record` under their own label.
+  5. **Operator:** the clean-machine procedure (NSIS and portable). **Issuer-key custodian:** the licensed
+     walkthrough.
+- **Do not:**
+  - start a fresh run before steps 1 and 2 are committed;
+  - change any DX-0 input, the cap or a DX rule after seeing results;
+  - count withheld or AI-read texts as correct;
+  - record verdicts;
+  - paste or commit any key.
+
+## HANDOFF (2026-09-25, late night, superseded) — Phase L waits on one owner reply, one operator and the issuer key; Phase L NOT complete
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. Phase L is 7 of 10 closed.
 - **Done this session:**

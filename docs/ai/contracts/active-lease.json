@@ -14,10 +14,18 @@
     "docs/plans/ai-upgrade-v5/L7-release-confirmation.md",
     "docs/plans/ai-upgrade-v5/ROADMAP.md"
   ],
-  "acquired_at": "2026-09-25T19:29:36.393Z",
-  "acquired_at_commit": "a494622358ef88c48270fa38b1bcc74a1b79b3cc",
-  "baseline_dirty": [],
-  "baseline_dirty_fingerprints": {},
+  "acquired_at": "2026-09-25T20:37:15.653Z",
+  "acquired_at_commit": "eb5d3fd9aec0ffeb951456740281d2cc5b0c74e2",
+  "baseline_dirty": [
+    "docs/ai/DECISIONS.md",
+    "docs/plans/ai-upgrade-v5/L4-authoring-diagnostics.md",
+    "docs/plans/ai-upgrade-v5/evidence/L4b-owner-decision-proposal-2026-09-25.md"
+  ],
+  "baseline_dirty_fingerprints": {
+    "docs/ai/DECISIONS.md": "86297d4d8ff1ff262bea44e80fddc92d4943f74ddc4cc96d2ff4ce17f94d57f6",
+    "docs/plans/ai-upgrade-v5/L4-authoring-diagnostics.md": "eb40058740f3ea4e4b3ad3d62ecc16574798cddc224fd38954379a13f8d6006e",
+    "docs/plans/ai-upgrade-v5/evidence/L4b-owner-decision-proposal-2026-09-25.md": "68dabf722231e1589abc4a87cb7c1e1842369b794dd0154937556056432e3694"
+  },
   "baseline_watched_ignored": {
     ".env": "absent",
     ".claude/settings.local.json": "6238:1788551784499.886",
@@ -31,7 +39,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-25T19:30:28.168Z",
-  "released_reason": "tracker notes for awkit-djnl.6 (L4b proposal, R4 mutation run 38/0), awkit-i6ot (clean-machine procedure, NOT RUN) and awkit-djnl.10 (issuer key still BLOCKED) exported, 322 issues, verify:roadmap-dashboard 177/177 Sources agree",
-  "archived_at": "2026-09-25T19:30:28.171Z"
+  "released_at": "2026-09-25T20:38:51.430Z",
+  "released_reason": "tracker notes on awkit-djnl.6 (L4b option B and the DX-0 freeze) and awkit-i6ot (step 9 corrected, verify:ai-packaged-app 24/0), 322 issues exported, CURRENT_STATE HANDOFF TASK_LOG newest sections, verify:roadmap-dashboard 177/177 Sources agree",
+  "archived_at": "2026-09-25T20:38:51.432Z"
 }
