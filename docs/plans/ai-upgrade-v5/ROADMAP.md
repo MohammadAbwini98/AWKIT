@@ -4,10 +4,12 @@ Status: **IN PROGRESS — 7 of 10 milestones closed (updated 2026-09-25).** The 
 and L5a, plus L1, L3 and L5b. The last three were accepted, scope-limited, within the owner's limited GO.
 The implementing agent accepted them under the owner's closeout delegation; that is not a human sign-off
 (see `docs/ai/DECISIONS.md`). Still open:
-- **L4b:** criteria 1 and 4 need a person's verdicts on 15 answers. The owner commissioned an AI technical
-  evaluation instead (2026-09-25, `evidence/L4b-ai-technical-evaluation-2026-09-25.md`). It is not a human
-  verdict and does not count. It also found 7 displayed answers with unsupported claims that the proxy
-  screens miss (remediation R1–R3 await the owner).
+- **L4b:** the owner authorized R1 (harness) and R2 (request) on 2026-09-25, and both are measured
+  (`evidence/L4b-ai-technical-evaluation-2026-09-25-after-R1-R2.md`).
+  - The target is PENDING: a person must read 26 answers for criteria 1 and 4.
+  - By an AI reading, which is not a human verdict and does not count, 8 of 34 displayed answers still
+    carry an unsupported claim, so criterion 1 would be NOT MET.
+  - R4 to R6 await the owner.
 - **L6:** its deterministic scope is verified. It is blocked only by L4b. By the owner's decision of
   2026-09-25, the unbuilt intelligence (the T1 mapping review, Zvec fragment discovery, production fragment AI)
   is deferred to a tracked follow-up outside Phase L.

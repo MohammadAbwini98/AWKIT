@@ -1,6 +1,41 @@
 # DECISIONS
 
-### 2026-09-25 (latest) — Phase L finalization: the MSVC runtime remedy, L6's deferred intelligence, and an AI evaluation for L4b (owner, in session) (`awkit-i6ot`, `awkit-djnl.6`, `.9`, `.10`, `awkit-egkw`)
+### 2026-09-25 (later, latest) — Phase L L4b: the owner authorizes R1 and R2; R3 stays a person's (owner, in session) (`awkit-djnl.6`)
+
+- **R1, authorized: correct the evaluation harness.** Unsupported causal claims, validation failures given
+  to a non-blocking issue, and invented step positions must be detected. Regression coverage uses the seven
+  documented answers.
+  - **Implemented (`d6ad5762`, `264561ff`):**
+    - `SEVERITY_OVERSTATED` and `SEVERITY_UNDERSTATED` read the failure and blocking claims;
+    - `FABRICATED_LITERAL` reads ordinal, numbered and issue-id step positions;
+    - every displayed answer that makes a causal claim needs a person before criterion 1 can be MET.
+  - **Why a person rather than a screen:** a lexical screen cannot show a cause is supported. It can only
+    route the answer to someone who can judge it.
+  - **Changed result, accepted by the authorization:** the a84c7660 captures read NOT MET on criterion 3
+    (14/17 and 13/17).
+- **R2, authorized: correct the request.** It must tell blocking errors from non-blocking warnings without
+  assuming every issue failed validation.
+  - **Implemented (`51987cca`):**
+    - the task sentence presupposes nothing;
+    - each Issues line states whether the issue blocks the run, from `isExecutionBlocking`, the run
+      gate's single policy.
+  - **Deliberately one change:** the action, the never-invent list, the limits and the model are
+    untouched. The effect is attributable, and the prompt is not iterated.
+- **Owner constraints kept:**
+  - no weakened check;
+  - the 80 % target, the case coverage, privacy, the inference limits, the model pin and the autonomy
+    policy are unchanged;
+  - AI assessments are engineering evidence, never verdicts under the owner's identity.
+- **Owner's stop rule:** if the model still fails the target, report the limitation and propose a
+  bounded remediation, rather than change prompts again.
+  - **The limitation:** by the AI evaluation, 8 of 34 displayed answers still carry an unsupported
+    consequence or location.
+  - **Proposed:** R4 (a deterministic display gate), R5 (clarify three rule summaries) and R6 (a larger
+    model).
+  - None is applied. Each is the owner's decision.
+- **R3 is unchanged:** criteria 1 and 4 require a person's verdicts.
+
+### 2026-09-25 — Phase L finalization: the MSVC runtime remedy, L6's deferred intelligence, and an AI evaluation for L4b (owner, in session) (`awkit-i6ot`, `awkit-djnl.6`, `.9`, `.10`, `awkit-egkw`)
 
 - **`awkit-i6ot`: the remedy is app-local DLLs from the Visual Studio redist folder.** The owner chose it
   over the vc_redist package and over deferral.

@@ -1,6 +1,50 @@
 # CURRENT_STATE
 
-## Phase L finalization: the MSVC runtime remedy built, independent QC done, L4b evaluated by AI, Phase L NOT complete (2026-09-25, current)
+## Phase L: L4b R1 and R2 implemented and measured, the model still falls short on criterion 1, Phase L NOT complete (2026-09-25, later, current)
+
+**Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** The owner authorized
+R1 and R2 of the L4b AI evaluation on 2026-09-25 (`DECISIONS.md`, latest). Phase L is still 7 of 10
+milestones closed.
+
+- **R1, the harness (`d6ad5762`, `264561ff`):**
+  - `SEVERITY_OVERSTATED` now reads a validation failure, or "blocks the run", said of a non-blocking
+    issue. `SEVERITY_UNDERSTATED` reads "does not block the run" said of a blocking error.
+  - `FABRICATED_LITERAL` reads a step position the request never gave: an ordinal, a number, or an issue
+    id used as a step.
+  - Criterion 1 now also waits on every displayed answer that makes a causal claim.
+  - The seven answers from the evaluation are replayed verbatim as regression controls. They were proven
+    red first (275/277, then 279/280 for the issue-id screen).
+- **R2, the request (`51987cca`):**
+  - The task sentence no longer presupposes a failed validation.
+  - Each Issues line states whether its issue blocks the run, from `isExecutionBlocking`.
+- **Fresh live runs on the pinned 0.8B:** both parts passed twice (9/0, 8/0, 9/0, 8/0).
+  - `verify:ai-authoring-review`: **TARGET PENDING**.
+  - Criteria 2, 3, 5 and 6 are MET; criterion 3 reads 17/17 and 16/17.
+  - Criteria 1 and 4 await a person: 1 screen hit, 16 screen-clear answers and 9 other causal claims.
+- **AI evaluation of all 34 displayed answers** (`evidence/L4b-ai-technical-evaluation-2026-09-25-after-R1-R2.md`,
+  not a person's verdict):
+  - 16/16 screen-clear answers are correct and actionable.
+  - 0 answers give a warning as a validation failure (it was 7).
+  - **8 answers (4 per run) still carry an unsupported consequence or location.** All 8 are now in the
+    set a person must read.
+  - So criterion 1 would read NOT MET: a model limitation after six request versions.
+  - R4 to R6 are proposed to the owner; none was applied.
+- **Unchanged:** the 80 % target, the cases, privacy, the limits, the model pin and the autonomy policy.
+- **`awkit-i6ot`:** still blocked. VS 2022 Community on this host still has no `VC\Redist\MSVC` and no
+  `VC\Tools\MSVC`, so the fresh portable and NSIS rebuild and the packaged gates were not run. The last
+  package also predates R2's product change.
+
+| Gate (this session) | Result |
+|---|---|
+| `verify:ai-authoring` | 280/280 (red first: 275/277, then 279/280) |
+| `typecheck:scripts` · `npm run build` | PASS · PASS |
+| `verify:ai-authoring-quality-live-part1` / `-part2`, twice | 9/0 · 8/0 · 9/0 · 8/0 |
+| `verify:ai-authoring-review` | before R2 on a84c7660: NOT MET (criterion 3 at 14/17 and 13/17). After R2: PENDING (criteria 1 and 4) |
+| `benchmark:ai-model-0-8b` · `verify:ai-explanation-live` | GO on all 8 (explanation at cap 62,383 of 120,000 ms) · 5/0 |
+| portable and NSIS rebuild, `verify:native-dependencies`, `verify:ai-packaged-*`, strict `validate:offline` | NOT RUN: `awkit-i6ot` prerequisite (VS 2022 C++ components) still absent |
+| licensed walkthrough · clean-machine VM | BLOCKED (issuer key) · NOT RUN (operator) |
+
+## Phase L finalization: the MSVC runtime remedy built, independent QC done, L4b evaluated by AI, Phase L NOT complete (2026-09-25)
 
 **Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** Contract
 `awkit-djnl-10-ai-runtime-packaging-0924`, extended by the owner's decisions of 2026-09-25 (`DECISIONS.md`,

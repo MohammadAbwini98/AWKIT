@@ -218,6 +218,8 @@ lowered to fit a result. `verify:ai-authoring-review` evaluates it (`QUALITY_TAR
 1. No confirmed unsupported claim of any kind, and no misattributed explanation. It stays `PENDING`
    while any answer the target sends to a person is unread, because a person can still confirm a claim
    the screens missed. A person marking an answer ungrounded counts as a confirmed claim.
+   - The answers the target sends to a person: screen hits and screen-clear answers.
+   - Since R1 (owner, 2026-09-25), also every other displayed answer that makes a causal claim.
 2. At least 90 % on subject by proxy, **in every complete run**.
 3. At least 80 % of issues get a corrective action in the explanation a person sees, **in every complete
    run**. It is either the product's corrective action shown beside the answer or the model's own. An
@@ -812,6 +814,61 @@ not a person's verdict.** Nothing was written to `reviews.json`, and criteria 1 
     person's review.
   - R3: a person records verdicts. Accepting an AI evaluation in place of criterion 4 is not recommended.
 
+### R1 and R2, authorized by the owner and measured (2026-09-25, `d6ad5762`, `51987cca`, `264561ff`)
+
+The full record is `evidence/L4b-ai-technical-evaluation-2026-09-25-after-R1-R2.md`. Its per-answer
+readings are an **AI assessment, not a person's verdict**. Nothing was written to `reviews.json`.
+
+- **R1, the harness.**
+  - *Severity:* `SEVERITY_OVERSTATED` reads a validation failure ("failed validation", "validation fails"),
+    or "blocks the run", said of a non-blocking issue. A negation counts only on the claim itself.
+    `SEVERITY_UNDERSTATED` reads "does not block the run" said of a blocking error.
+  - *Positions:* `FABRICATED_LITERAL` reads a step position the request never gives: "the first step",
+    "step 2" and "at step i0".
+  - *Criterion 1:* it now waits on every displayed answer that makes a causal claim, beside screen hits and
+    screen-clear answers. `--pending` marks these `required: causal claim`.
+  - *Regressions:* the seven answers of the earlier evaluation are replayed verbatim, each with a clear
+    twin, and proven red first (275/277).
+- **R1 on the a84c7660 captures:** 7 screen hits, and criterion 3 reads 14/17 and 13/17. **TARGET NOT MET**,
+  as the evaluation predicted.
+- **R2, the request.**
+  - "You explain why an automation flow failed validation" became "You explain each issue that validation
+    found in an automation flow".
+  - Each Issues line now states "blocks the run" or "does not block the run", from `isExecutionBlocking`.
+  - Nothing else changed.
+- **Fresh runs on the pinned 0.8B:** part 1 and part 2 were each run twice (9/0, 8/0, 9/0, 8/0).
+
+| Criterion | Result after R2 |
+|---|---|
+| (1) no confirmed unsupported claim | PENDING. A person must read 1 screen hit (run 2's "at step i0", screened since `264561ff`, red first 279/280), 16 screen-clear answers and 9 other causal claims |
+| (2) on subject | MET, 17/17 and 17/17 |
+| (3) corrective action seen | MET, 17/17 and 16/17. The model's own text: 9/17 and 7/17, not credited |
+| (4) a person reads the screen-clear answers | PENDING, 0 of 16 |
+| (5) order · (6) runs | MET · MET |
+
+**TARGET: PENDING.**
+
+- **L1.8:** `benchmark:ai-model-0-8b` is GO on all 8.
+  - The explanation at the output cap takes 62,383 ms against 120,000, with 357 prompt tokens.
+  - `verify:ai-explanation-live` passes 5/0.
+- **AI reading of all 34 displayed answers:**
+  - the 16 screen-clear answers are all correct, actionable and grounded;
+  - validation failures given to a warning went from 7 to 0;
+  - **8 answers (4 per run) still carry an unsupported consequence or location**, and all 8 are in the set
+    a person must read;
+  - so, by this reading, **criterion 1 would be NOT MET** once a person confirms one.
+- **The limitation:** six request versions have been measured on the 0.8B.
+  - Each one removes the defect it targets, and the model's own paraphrase invents another.
+  - 5 of the 8 distort a rule summary's consequence clause.
+- **Proposed, not applied (each is the owner's decision):**
+  - **R4 (recommended):** a deterministic display gate that withholds a causal or position-naming AI text,
+    beside the product's unchanged summary and action. On these captures it withholds 10 answers, all 8
+    unsupported among them, and shows 24 with none.
+  - **R5:** clarify three rule summaries' consequence clauses. This changes the request, so it needs fresh
+    runs and L1.8.
+  - **R6:** a larger model. This changes the pin.
+  - **R3 is unchanged:** a person reads the 26 required answers.
+
 ### L4b renderer surface as built (2026-09-21, `8ee425a1`)
 
 Deterministic provider only; `awkit-djnl.6` is `in_progress` and cannot close under the conditional
@@ -866,4 +923,8 @@ kind; explanation quality target recorded and met before release. **Recorded** (
 - Criterion 3 is MET under the owner's option B, 17/17 in each run. The model's own text reaches 9/17 and
   7/17, reported and never credited.
 - Criteria 1 and 4 await a person.
+- **After R1 and R2 (2026-09-25):** the target is PENDING on 26 answers a person must read.
+  - Criterion 3 reads 17/17 and 16/17.
+  - By the AI reading, criterion 1 would be NOT MET: 8 of 34 displayed answers carry an unsupported claim.
+  - R4 to R6 await the owner.
 - Since `ddcfc35b` the corrective action a person sees is the product's, never model text.

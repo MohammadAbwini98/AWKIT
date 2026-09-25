@@ -1,6 +1,35 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-25, latest) — Phase L finalization: MSVC remedy built and fail-closed, QC done, Phase L NOT complete
+## HANDOFF (2026-09-25, later, latest) — L4b R1 and R2 done and measured; the model still falls short on criterion 1; Phase L NOT complete
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. Phase L is 7 of 10 closed.
+- **Done this session:**
+  - **R1 (the harness):** `d6ad5762`, plus the issue-id screen at `264561ff`.
+  - **R2 (the request):** `51987cca`.
+  - **Measurements:** two fresh live runs, the L1.8 re-measure (GO) and an AI evaluation of all 34
+    displayed answers.
+  - Evidence: `docs/plans/ai-upgrade-v5/evidence/L4b-ai-technical-evaluation-2026-09-25-after-R1-R2.md`.
+- **What keeps Phase L open, and who acts:**
+  1. **L4b: a person, and an owner decision.**
+     - **A person:** `verify:ai-authoring-review` is PENDING on 26 required answers (1 screen hit, 16
+       screen-clear, 9 causal claims). A person runs `npm run verify:ai-authoring-review -- --pending`,
+       then `-- --record` under their own label.
+     - **The AI reading:** 8 of those answers carry an unsupported claim, so criterion 1 would be NOT MET
+       once a person confirms one. Six request versions have been measured, and the limit is the 0.8B.
+     - **The owner decides among** R4 (a deterministic display gate, recommended, measured on the 34
+       captures), R5 (clarify three rule summaries) and R6 (a larger model, which changes the pin).
+     - Do not change the prompt again without that decision.
+  2. **`awkit-i6ot`: the owner adds the VS 2022 components.** Still absent on 2026-09-25. Then run the
+     rebuild and gates listed in the previous handoff below. The rebuild also picks up R2.
+  3. **L6** closes on its deterministic scope when L4b is accepted.
+  4. **L7:** the above, the licensed walkthrough (BLOCKED, issuer key) and the clean-machine VM (NOT RUN,
+     operator).
+- **Do not:**
+  - record L4b verdicts;
+  - count the AI evaluation as a person's;
+  - relabel a PENDING or a FAIL.
+
+## HANDOFF (2026-09-25, superseded) — Phase L finalization: MSVC remedy built and fail-closed, QC done, Phase L NOT complete
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. Phase L is 7 of 10 closed.
 - **What keeps Phase L open, and who acts:**

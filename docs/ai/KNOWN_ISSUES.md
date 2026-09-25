@@ -1,6 +1,33 @@
 # KNOWN_ISSUES
 
-## L4b's proxy screens miss "failed validation" blamed on a warning, and nobody must read the answers that carry it (2026-09-25, OPEN — owner decision R1/R2, `awkit-djnl.6`)
+## The 0.8B still paraphrases a rule's consequence into an unsupported claim, about 4 of 17 answers per run (2026-09-25, OPEN — owner decision R4/R5/R6, `awkit-djnl.6`)
+
+- **Found by:** the AI evaluation of all 34 displayed answers after R1 and R2
+  (`docs/plans/ai-upgrade-v5/evidence/L4b-ai-technical-evaluation-2026-09-25-after-R1-R2.md`). It is not a
+  person's verdict.
+- **The claims, 8 of 34:**
+  - 5 distort a rule summary's consequence clause: `connectorFromEndNode`'s "it never runs" read as the
+    flow, `unguardedCycle`'s runtime-cycle error read as "stops at the end of the run path", and
+    `incompleteBranchPair`'s "or" read as "and";
+  - 2 invent a consequence: "the step fails immediately", "the condition fails";
+  - 1 gives the issue id as a step: "at step i0".
+- **What R1 and R2 fixed:** validation failures given to a warning went from 7 to 0. All 8 new claims sit
+  in the set a person must read (R1). None is screen-clear or optional.
+- **Why it stays open:** six request versions have been measured. Each one removes the defect it targets,
+  and the model invents another. Criterion 1 would read NOT MET once a person confirms one.
+- **Next:** the owner chooses R4 (display gate, recommended), R5 (clarify three rule summaries) or R6 (a
+  larger model). Do not iterate the prompt.
+- **Pattern:** a lexical screen written after the fact catches only yesterday's phrasing. Route every
+  displayed causal claim to a person, and gate what the product shows on what it can check.
+
+## L4b's proxy screens miss "failed validation" blamed on a warning, and nobody must read the answers that carry it (2026-09-25, RESOLVED the same day by R1 and R2, `awkit-djnl.6`)
+
+- **Resolution (owner-authorized):**
+  - R1 (`d6ad5762`): the screens read validation failures, blocking claims and step positions, and every
+    displayed causal claim needs a person.
+  - R2 (`51987cca`): the request no longer presupposes a failure and states each issue's blocking.
+  - Proven red first against the seven answers.
+  - On fresh runs: 0 such claims. The remaining model limitation is the entry above.
 
 - **Found by** the AI technical evaluation the owner commissioned
   (`docs/plans/ai-upgrade-v5/evidence/L4b-ai-technical-evaluation-2026-09-25.md`).

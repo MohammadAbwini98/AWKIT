@@ -1,5 +1,38 @@
 # TASK_LOG
 
+## 2026-09-25 (later) — L4b R1 and R2: harness screens, the request's blocking fact, fresh live runs, L1.8, AI evaluation (Claude)
+
+- **Task:** the owner authorized R1 and R2 of the L4b AI evaluation, fresh live runs, the affected L1.8
+  benchmark, and an evaluation of every displayed answer. Phase L work was to continue in parallel.
+- **Commits:**
+  - `d6ad5762`: R1, the screens and causal-claim routing, red first;
+  - `51987cca`: R2, the request;
+  - `264561ff`: the live evidence, L1.8, the evaluation, and the issue-id screen, red first;
+  - plus this state reconciliation.
+- **Files:**
+  - `scripts/ai-harness/authoringQualitySet.ts`, `authoringQualityReview.ts`;
+  - `scripts/verify-ai-authoring.mts`, `scripts/verify-ai-authoring-review.mts`;
+  - `src/ai/authoringExplanation.ts`;
+  - the L1.8 0.8B results and the new L4b evaluation under `docs/plans/ai-upgrade-v5/evidence/`, and the
+    L4 plan;
+  - `docs/ai/{CURRENT_STATE,HANDOFF,DECISIONS,KNOWN_ISSUES,TASK_LOG}.md`, and the `.beads` notes.
+- **Tests:**
+  - `verify:ai-authoring`: 275/277 red, then 277/277 (R1); 280/280 (R2); 279/280 red, then 280/280 (the
+    issue-id screen);
+  - `typecheck:scripts` and `npm run build`: PASS;
+  - live part 1 and part 2, twice: 9/0, 8/0, 9/0, 8/0;
+  - `verify:ai-authoring-review`: NOT MET on a84c7660 after R1; after R2, PENDING (criteria 1 and 4);
+  - `benchmark:ai-model-0-8b` GO on all 8; `verify:ai-explanation-live` 5/0.
+- **Not run:**
+  - the rebuild and the packaged gates, because the `awkit-i6ot` prerequisite (VS 2022 C++ components) is
+    still absent on this host;
+  - the licensed walkthrough (BLOCKED, issuer key) and the clean-machine VM (NOT RUN, operator).
+- **Result:**
+  - R1 and R2 are done.
+  - AI reading: 16/16 screen-clear answers are correct, and 8/34 displayed answers are still
+    unsupported, so criterion 1 would be NOT MET.
+  - That is a model limitation. R4 to R6 are proposed, and L4b is not accepted.
+
 ## 2026-09-25 — Phase L finalization: app-local MSVC runtime, native-dependency gate, independent QC, L4b AI evaluation (Claude)
 
 - **Task:** the owner's Phase L finalization mission. Contract `awkit-djnl-10-ai-runtime-packaging-0924`,
