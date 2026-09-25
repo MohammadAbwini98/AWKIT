@@ -26,9 +26,9 @@
  * rests on model wording alone. A reviewed 0.8B answer had told the person to add a connector INTO End
  * for a connector leaving it, and read "requires a value and has none" as the value not being required.
  *
- * What crosses to the model: issue codes, severities, active-path flags, the anchor's KIND (node,
- * connector or flow), rule summaries and corrective steps (product-authored constants) and whether the
- * validator emitted a fix. Never an anchor id, a validator message, a locator value, a typed value, a step
+ * What crosses to the model: issue codes, severities, whether each blocks the run, active-path flags, the
+ * anchor's KIND (node, connector or flow), rule summaries and corrective steps (product-authored constants)
+ * and whether the validator emitted a fix. Never an anchor id, a validator message, a locator value, a typed value, a step
  * name or any profile literal — `safeFix.from`/`to` are deliberately withheld even though they are usually
  * enum casing, because "usually" is not a contract. So the prompt's size is a function of product
  * constants alone, which is what lets L1.8 bound its worst case.
@@ -163,9 +163,13 @@ export interface AuthoringRejection {
 // actionable; asked instead "how to correct each validation issue", the echo ended but runs gave 8/17
 // and 8/17 (this sentence: 9/17 and 7/17), and the verb came back as the model's own actions with values
 // it invented ("Correct the operator casing to 'operator'"). See L4 › "One corrective change, measured".
+// R2 (owner, 2026-09-25): that task sentence was also false. It presupposed a failed validation, and 7
+// displayed answers echoed it as the cause of a warning, where nothing failed ("…failed validation because
+// the timeout for the first step…"). The sentence now presupposes nothing, and each issue's line says
+// whether it blocks the run, as the run gate decides (`isExecutionBlocking`). Nothing else changed.
 const INSTRUCTIONS =
-  "You explain why an automation flow failed validation, for the person editing it. " +
-  "Each issue has an id, its rule code, severity, where it is, the rule's one-line summary and the action " +
+  "You explain each issue that validation found in an automation flow, for the person editing it. " +
+  "Each issue has an id, its rule code, severity, whether it blocks the run, where it is, the rule's one-line summary and the action " +
   "that corrects it. For each issue, write one or two short sentences: first its action as given, then " +
   "what is wrong. Never suggest another action, and never invent issues, ids, rules, step names, selectors, " +
   "values or connections. Only an issue marked fixable has a safe fix the application can apply; you may " +
@@ -273,8 +277,10 @@ export function buildAuthoringRequest(report: FlowValidationReport, options: { m
       // "Action", never "Step": a step is a node here, and labelled "Step:" the 0.8B read the corrective
       // step as a step's NAME ("The step 'Add a locator to this step' is missing a locator"). The action
       // stays after the summary: put first, with the instruction to match, the 0.8B stopped restating
-      // it (2 of 10 actionable against 7 of 10, 2026-09-23).
-      return `${ref.id}: ${issue.code} (${issue.severity}, ${issue.onActivePath ? "on the run path" : "off the run path"}, ${anchor}${ref.fixable ? ", fixable" : ""}) — ${FLOW_VALIDATION_RULES[issue.code].summary} Action: ${ref.step}`;
+      // it (2 of 10 actionable against 7 of 10, 2026-09-23). Whether it blocks the run is the run gate's own
+      // decision, stated for every issue (R2, 2026-09-25): a warning, or an error off the run path, does not.
+      const blocks = isExecutionBlocking(issue) ? "blocks the run" : "does not block the run";
+      return `${ref.id}: ${issue.code} (${issue.severity}, ${blocks}, ${issue.onActivePath ? "on the run path" : "off the run path"}, ${anchor}${ref.fixable ? ", fixable" : ""}) — ${FLOW_VALIDATION_RULES[issue.code].summary} Action: ${ref.step}`;
     })
     .join("\n");
 

@@ -715,6 +715,20 @@ console.log("\n11 — the labelled set verify:ai-authoring-quality-live sends, a
     check(`${id}: (precondition) the report itself lists a non-blocking issue first, so the builder reordered it`, report.issues.length > 0 && !isExecutionBlocking(report.issues[0]));
   }
   check("the set holds a warnings-only case, a lone issue and a truncated one", LABELLED_SET.some((c) => c.sent.every((s) => !s.blocking)) && LABELLED_SET.some((c) => c.sent.length === 1) && LABELLED_SET.some((c) => (c.truncated ?? 0) > 0));
+  // R2 (owner, 2026-09-25): each line says whether its issue blocks the run, the run gate's own decision.
+  const stated = LABELLED_SET.flatMap((c) => {
+    const built = buildAuthoringRequest(reportOf(c));
+    const lines = built?.prompt.fields.flatMap((f) => ("text" in f && typeof f.text === "string" ? f.text.split("\n") : [])) ?? [];
+    return (built?.issues ?? []).map((ref, i) => {
+      const line = lines.find((l) => l.startsWith(`${ref.id}: `)) ?? "";
+      return { blocks: line.includes(", blocks the run, "), doesNot: line.includes(", does not block the run, "), labelled: c.sent[i]?.blocking };
+    });
+  });
+  check(
+    "every issue's line says whether it blocks the run, as labelled from the run gate, both ways across the set",
+    stated.length === 17 && stated.every((s) => s.blocks === s.labelled && s.doesNot === !s.labelled) && stated.some((s) => s.labelled) && stated.some((s) => !s.labelled),
+    JSON.stringify(stated)
+  );
   const cycle = LABELLED_SET.find((c) => c.id === "cycle")!;
   const controls = authoringControlFailures(buildAuthoringRequest(reportOf(cycle))!);
   check("the judge's controls all hold (correct, swapped, vague, canary, partial, unemitted ranking; actionable, five unsupported screens and their negatives)", controls.length === 0, controls.join("; "));
@@ -756,6 +770,10 @@ console.log("\n12 — corrective step, fix priority, the review store and the ad
 
   // (2) The instruction: each clause is a behaviour the owner asked for, so each is held on its own.
   const instructions = request.prompt.instructions;
+  // R2 (owner, 2026-09-25): "You explain why an automation flow failed validation" was false for a warning,
+  // and 7 displayed answers echoed it as a warning's cause.
+  check("the task sentence presupposes no failure, which a warnings-only report never had", /^You explain each issue that validation found in an automation flow, for the person editing it\. /.test(instructions) && !/fail/i.test(instructions));
+  check("...and each issue comes with whether it blocks the run", /severity, whether it blocks the run, where it is/.test(instructions));
   check("the instruction says each issue comes with the action that corrects it",/the rule's one-line summary and the action that corrects it/.test(instructions));
   check("...and asks for that action FIRST and as given, so the character limit cuts the explanation and not the action", /first its action as given, then what is wrong/.test(instructions));
   check("...and no other action: the action is the product's, grounded in the rule", /Never suggest another action/.test(instructions));
