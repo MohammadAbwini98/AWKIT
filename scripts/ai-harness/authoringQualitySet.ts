@@ -754,6 +754,9 @@ export function displayGateControlFailures(requestFor: (caseId: string) => Autho
   expect("the flow not running, said of an issue that blocks the run, is its own line's evidence: shown", shown("single", 0, `The flow cannot run until this timeout is fixed. ${positive}`));
   expect("...but not a claim about which steps run (QC): 'Only this step will not execute.' is withheld", withheldFor("single", 0, `Only this step will not execute. ${positive}`, "UNESTABLISHED_CONSEQUENCE"));
   expect("...and 'cannot run' for a warning is an invented consequence: withheld", withheldFor("warnings", 0, "This step cannot run as configured.", "UNESTABLISHED_CONSEQUENCE"));
+  // Mutation run (2026-09-25): no severity screen reads "does not run", so for a warning only the gate withholds
+  // it. Taking the flow's own "blocks the run" evidence for a non-blocking issue survived every control above.
+  expect("...as is 'the flow does not run' for a warning, which no severity screen reads: withheld", withheldFor("warnings", 0, "The flow does not run.", "UNESTABLISHED_CONSEQUENCE"));
   // QC (2026-09-25, second pass): a pronoun can carry the scope claim back in, and a bare colon is no statement break.
   expect("...'it' is no subject the evidence names: 'Only this step is affected; it will not execute.' is withheld", withheldFor("single", 0, `Only this step is affected; it will not execute. ${positive}`, "UNESTABLISHED_CONSEQUENCE"));
   expect("a summary after a framing colon is read, not trusted: 'It is not true that: <summary>'", withheldFor("warnings", 1, `It is not true that: ${summary("deadEndNode")}`, "UNESTABLISHED_CONSEQUENCE"));
