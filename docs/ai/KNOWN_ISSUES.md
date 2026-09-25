@@ -918,6 +918,16 @@ Found by the independent QC review (`awkit-qc-reviewer`, APPROVED_WITH_NOTES).
     (`bd dep list` is refused inside one.)
 - **Read the allowlist before naming a new npm script.** Guessing costs a denial, and this session
   lost its last one for the 0.8B gate to a dot.
+- **Commits (2026-09-26, two denials):**
+  - Only `git commit -m "<one line>"` is accepted: exactly four tokens.
+  - The message may not contain `; & | < > \` ^ $( ${` or a newline (`hasUnsafeShellSyntax`). So a trailer with
+    an `<email>`, a here-string and a multi-line message are all refused.
+  - End the line with `(Co-Authored-By: Claude Opus 5.5)`, as every recent commit does.
+- **Other refusals in direct work:**
+  - `git hash-object` and `git -C`. Stage with `git add -- <paths>`, then read blob ids with `git ls-files -s`.
+  - A pipe after an allowed command.
+  - `run_in_background`.
+  - Any write outside the repository, the agent's own memory folder included.
 - **The counter is per denial class, not per command.** Three *different* refused commands with the
   same "bounded routine commands" message end the gate as TERMINAL for the session.
 - **So:** use the Grep/Read tools for inspection. Expose a parameterized script as a named npm script
