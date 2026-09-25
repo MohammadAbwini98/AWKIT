@@ -158,7 +158,8 @@ export async function explainFlowValidation(senderId: number, input: unknown, de
   const issueById = new Map(job.issues.map((ref) => [ref.id, ref.issue]));
   return {
     ...assistStatus("OK", outcome.modelId),
-    explanations: answer.explanations.map(({ issue, text, step }) => ({ issue, text, step })),
+    // A withheld text (R4) never reaches the renderer: only why, beside the product's finding and step.
+    explanations: answer.explanations.map(({ issue, text, step, withheld }) => (withheld ? { issue, text: null, step, withheld } : { issue, text, step })),
     ranking: ranked.map((id) => issueById.get(id)!),
     truncated: job.truncated
   };

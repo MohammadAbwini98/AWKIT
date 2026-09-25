@@ -32,6 +32,11 @@
  * every rule has one, a fix is named only where the validator emitted one, the designer gets the
  * product's step whatever the model wrote, and a sentence the character limit cut is never shown; §11
  * replays the reviewed failures (incorrect, inverted, irrelevant, unsupported, truncated) as controls.
+ * Section 14 holds R4, the display gate (owner, 2026-09-25): on the 34 answers displayed after R1 and R2,
+ * verbatim, it withholds the 8 the AI evaluation found unsupported and the 2 correct restatements it cannot
+ * establish, and shows the other 24; through the adapter a withheld text never reaches the renderer while
+ * the finding, its severity and the product's step do; the target counts no withheld answer as a success;
+ * and held-out wording checks it beyond the 34.
  *
  * Run: npm run verify:ai-authoring
  */
@@ -74,13 +79,30 @@ import {
   instructionsSha256,
   loadReviewStore,
   recordVerdict,
+  requiredReading,
   rereadCapture,
   writeReviewCapture,
   type ReviewCapture,
   type ReviewItem,
   type ReviewVerdict
 } from "./ai-harness/authoringQualityReview";
-import { CANARY, LABELLED_SET, REMEDY, SUBJECT, authoringControlFailures, causalClaimControlFailures, correctiveControlFailures, judgeAuthoringAnswer, literalControlFailures, rankingControlFailures } from "./ai-harness/authoringQualitySet";
+import {
+  CANARY,
+  LABELLED_SET,
+  R2_DISPLAYED_ANSWERS,
+  REMEDY,
+  SUBJECT,
+  authoringControlFailures,
+  causalClaimControlFailures,
+  correctiveControlFailures,
+  displayGateControlFailures,
+  judgeAuthoringAnswer,
+  literalControlFailures,
+  makesCausalClaim as harnessCausal,
+  rankingControlFailures,
+  unsupportedClaims as harnessScreen
+} from "./ai-harness/authoringQualitySet";
+import { makesCausalClaim, supportedTextOf, unsupportedClaims, withheldExplanationSentence, withholdReasons } from "@src/ai/authoringClaimScreen";
 
 let passed = 0;
 let failed = 0;
@@ -1090,6 +1112,141 @@ console.log("\n13 — the product's corrective step, and complete sentences only
   check("a text with no complete sentence keeps its fragment, marked with an ellipsis, inside the limit", lone.cut && lone.text.endsWith("…") && lone.text.length <= AUTHORING_LIMITS.maxExplanationChars, `${lone.text.length}: ${lone.text}`);
   const cutAnswer = parseAuthoringAnswer({ version: 1, explanations: [{ issueId: ids[0], text: "Regenerate the duplicate's id. Two connectors share one id and the runner cannot tell which one the flow me" }, { issueId: ids[1], text: "Add a locator to this step." }] }, request);
   check("the parser applies it and says so, and the step survives the cut", cutAnswer.ok && cutAnswer.explanations[0].text === "Regenerate the duplicate's id." && cutAnswer.explanations[0].cut === true && cutAnswer.explanations[0].step === request.issues[0].step && cutAnswer.explanations[1].cut === undefined, JSON.stringify(cutAnswer));
+}
+
+// ── 14. R4: the display gate (owner-authorized 2026-09-25) ──────────────────────────────────────
+// After R1 and R2 the 0.8B displayed 8 answers in 34 with a claim the evidence does not support (an AI
+// evaluation, not a person's). The product now withholds a text a screen hits, or that states a cause or a
+// run-time consequence in its own words; the finding, its severity and the product's step stay. Measured on
+// those 34 first, verbatim, then through the adapter, the review capture and the target.
+console.log("\n14 — R4: the display gate, on the 34 answers displayed after R1 and R2");
+{
+  const labelledOf = (id: string) => LABELLED_SET.find((c) => c.id === id)!;
+  const requestFor = (id: string) => buildAuthoringRequest(validateFlowDefinition(labelledOf(id).flow, { referenceableFlowIds: new Set([id]) }))!;
+  const status = (e: ReturnType<typeof evaluateQualityTarget>, id: number) => e.criteria.find((c) => c.id === id)!.status;
+  const caseIds = LABELLED_SET.map((c) => c.id);
+
+  check("one set of rules: the harness's screens are the product's own functions", harnessScreen === unsupportedClaims && harnessCausal === makesCausalClaim);
+
+  const decided = R2_DISPLAYED_ANSWERS.map((a) => {
+    const request = requestFor(a.caseId);
+    return { ...a, reasons: withholdReasons(request.issues[a.index], a.text, supportedTextOf(request)) };
+  });
+  const list = (rows: typeof decided) => rows.map((d) => `#${d.n}`).join(", ");
+  check(
+    "(precondition) 34 displayed answers, 17 per run, 8 unsupported by the AI evaluation, each to its case's own issue",
+    decided.length === 34 && decided.filter((d) => d.run === 1).length === 17 && decided.filter((d) => d.unsupported).length === 8 && decided.every((d) => labelledOf(d.caseId).sent[d.index] !== undefined)
+  );
+  const missed = decided.filter((d) => d.unsupported && d.reasons.length === 0);
+  check("all 8 answers the evaluation found unsupported are withheld (#5, #7, #8, #17, #23, #24, #25, #34)", missed.length === 0, list(missed));
+  const differs = decided.filter((d) => d.reasons.length > 0 !== d.withheld);
+  check(
+    "the gate withholds exactly the 10 the R4 proposal predicted: the 8, and the correct restatements #22 and #33",
+    differs.length === 0 && decided.filter((d) => d.reasons.length > 0).length === 10,
+    `differs on ${list(differs)}: ${JSON.stringify(differs.map((d) => [d.n, d.reasons]))}`
+  );
+  check("...so 24 of 34 are shown, none of them one the evaluation found unsupported", decided.filter((d) => d.reasons.length === 0).length === 24 && decided.every((d) => d.reasons.length > 0 || !d.unsupported));
+  console.log(`    withheld: ${decided.filter((d) => d.reasons.length > 0).map((d) => `#${d.n} ${d.reasons.join("+")}`).join("; ")}`);
+  check(
+    "each withheld answer gets a product sentence naming why, never the model's words",
+    decided.filter((d) => d.reasons.length > 0).every((d) => withheldExplanationSentence(d.reasons).startsWith("Not shown: the AI's text ") && !withheldExplanationSentence(d.reasons).includes(d.text.slice(0, 24)))
+  );
+  check(
+    "...and the sentence is deterministic",
+    withheldExplanationSentence(["UNESTABLISHED_CAUSE", "UNESTABLISHED_CONSEQUENCE"]) ===
+      "Not shown: the AI's text gave a cause and said what happens when the flow runs, which the validator's findings do not establish. The finding and its corrective action stand."
+  );
+
+  // Through the adapter behind ai:explainValidation, with the production AiService: what the designer receives.
+  // The model's text is replayed as the answer; a displayed fragment's "…" is the product's, so it is dropped.
+  const rawAnswer = (run: 1 | 2, caseId: string) =>
+    ({ version: 1, explanations: requestFor(caseId).issues.map((ref, i) => ({ issueId: ref.id, text: R2_DISPLAYED_ANSWERS.find((a) => a.run === run && a.caseId === caseId && a.index === i)!.text.replace(/…$/, "") })) });
+  const views: Array<{ run: 1 | 2; caseId: string; view: AuthoringAssistView }> = [];
+  for (const run of [1, 2] as const) {
+    for (const labelled of LABELLED_SET) {
+      const h = harness([JSON.stringify(rawAnswer(run, labelled.id))]);
+      views.push({ run, caseId: labelled.id, view: await explainFlowValidation(WINDOW, { requestId: `r4-${run}-${labelled.id}`, profile: labelled.flow }, assistDeps(h.service, POLICY, [labelled.flow.id])) });
+      await h.service.shutdown();
+    }
+  }
+  const received = views.flatMap(({ run, caseId, view }) => view.explanations.map((e, index) => ({ run, caseId, index, e, answer: R2_DISPLAYED_ANSWERS.find((a) => a.run === run && a.caseId === caseId && a.index === index)!, view })));
+  check("every one of the 34 is delivered: no issue dropped, withheld or not", views.every(({ caseId, view }) => view.code === "OK" && view.explanations.length === labelledOf(caseId).sent.length) && received.length === 34);
+  check(
+    "each keeps the validator's finding with its actual severity and blocking, and the product's corrective step",
+    received.every(({ caseId, index, e }) => {
+      const sent = labelledOf(caseId).sent[index];
+      return e.issue.code === sent.code && isExecutionBlocking(e.issue) === sent.blocking && e.issue.severity === FLOW_VALIDATION_RULES[sent.code].severity && e.step === correctiveStep(e.issue);
+    })
+  );
+  const decisionOf = (run: number, caseId: string, index: number) => decided.find((d) => d.run === run && d.caseId === caseId && d.index === index)!;
+  check("the designer gets the gate's decision on the displayed text, for all 34", received.every(({ run, caseId, index, e }) => JSON.stringify(e.withheld ?? []) === JSON.stringify(decisionOf(run, caseId, index).reasons)));
+  check(
+    "a withheld text never reaches the renderer: text null, its reasons given, its words nowhere in the view",
+    received.filter(({ e }) => e.withheld).length === 10 && received.filter(({ e }) => e.withheld).every(({ e, answer, view }) => e.text === null && e.withheld!.length > 0 && !JSON.stringify(view).includes(answer.text.replace(/…$/, "")))
+  );
+  check("a shown text reaches it exactly as the product displays it", received.filter(({ e }) => !e.withheld).every(({ e, answer }) => e.text === answer.text));
+  const fails = harness([{ fail: "AI_HOST_EXITED" }]);
+  const failed = await explainFlowValidation(WINDOW, { requestId: "r4-fail", profile: labelledOf("cycle").flow }, assistDeps(fails.service, POLICY, ["cycle"]));
+  await fails.service.shutdown();
+  const switched = harness([JSON.stringify(rawAnswer(1, "cycle"))]);
+  const off = await explainFlowValidation(WINDOW, { requestId: "r4-off", profile: labelledOf("cycle").flow }, assistDeps(switched.service, { enabled: false }, ["cycle"]));
+  await switched.service.shutdown();
+  check("missing or unavailable AI keeps the deterministic behaviour: no explanation, withheld or shown, reaches the designer", !failed.ok && failed.explanations.length === 0 && off.code === "DISABLED" && off.explanations.length === 0);
+
+  // The target over these 34 as the review store now records them.
+  const replay = (strip: boolean): ReviewCapture[] =>
+    ([1, 2] as const).map((run) => {
+      const capture = buildReviewCapture(
+        "r4-replay",
+        LABELLED_SET.map((labelled) => {
+          const request = requestFor(labelled.id);
+          const parsed = parseAuthoringAnswer(rawAnswer(run, labelled.id), request);
+          if (!parsed.ok) throw new Error(`the replayed answer of ${labelled.id} must parse`);
+          return { caseId: labelled.id, request, answer: parsed, judged: judgeAuthoringAnswer(request, parsed), inferMs: 1 };
+        }),
+        new Date(Date.UTC(2026, 8, 25, 12 + run))
+      );
+      return strip ? { ...capture, items: capture.items.map(({ displayWithheld: _gate, ...item }) => item) } : capture;
+    });
+  const gated = replay(false);
+  const before = replay(true);
+  const items = gated.flatMap((c) => c.items);
+  check("the capture records the 10 withheld answers with their reasons, and keeps each text for a person to read", items.filter((i) => i.displayWithheld).length === 10 && items.filter((i) => i.displayWithheld).every((i) => i.text !== null && i.displayWithheld!.length > 0));
+  const evaluation = evaluateQualityTarget(gated, [], caseIds);
+  const unGated = evaluateQualityTarget(before, [], caseIds);
+  check("(control) without the gate, the same answers are 17/17 on subject in each run", unGated.runs.map((r) => r.onSubject).join() === "17,17", JSON.stringify(unGated.runs));
+  check(
+    "no withheld answer counts as on subject: run 1 13/17, run 2 11/17, each 17 less the 4 and 6 withheld",
+    evaluation.runs.map((r) => `${r.onSubject}/${r.answersWithheld}`).join() === "13/4,11/6",
+    JSON.stringify(evaluation.runs)
+  );
+  check("...so criterion 2 is NOT MET: the fallback shows the model's shortfall, it does not raise the target", status(evaluation, 2) === "NOT MET" && status(unGated, 2) === "MET");
+  check(
+    "criterion 3 is computed as before the gate, on the product's action beside each answer: 17/17 and 16/17",
+    evaluation.runs.map((r) => r.visibleActionable).join() === "17,16" && unGated.runs.map((r) => r.visibleActionable).join() === "17,16"
+  );
+  check("the model's own actionable count leaves the withheld out too", evaluation.runs.every((r, k) => r.actionable <= unGated.runs[k].actionable) && items.filter((i) => i.displayWithheld && i.judged.actionable).length === evaluation.runs.reduce((n, r, k) => n + unGated.runs[k].actionable - r.actionable, 0));
+  check("the withheld answers stay in criterion 1's reading set: R4 changes what is displayed, not what a person must read", items.filter((i) => i.displayWithheld).every((i) => requiredReading(i) !== null) && evaluation.review.causalClaims + evaluation.review.screenHits === unGated.review.causalClaims + unGated.review.screenHits);
+  const approveAll = (captures: ReviewCapture[]): ReviewVerdict[] =>
+    captures.flatMap((c) => c.items.map((i) => ({ itemId: i.id, correct: true, actionable: true, grounded: true, unsupportedClaim: false, reviewer: "MA", reviewedAt: "2026-09-25T00:00:00Z" })));
+  check("a person approving every answer, the withheld included, never makes the target MET", evaluateQualityTarget(gated, approveAll(gated), caseIds).verdict === "NOT MET");
+  const clearShown = items.find((i) => i.judged.category === "unverified" && !i.displayWithheld)!;
+  const marked = gated.map((c) => ({ ...c, items: c.items.map((i) => (i.id === clearShown.id ? { ...i, displayWithheld: ["UNESTABLISHED_CAUSE" as const] } : i)) }));
+  const approvedGated = evaluateQualityTarget(gated, approveAll(gated), caseIds).review;
+  const approvedMarked = evaluateQualityTarget(marked, approveAll(marked), caseIds).review;
+  check(
+    "a screen-clear answer the gate withheld is never counted correct, even approved by a person (criterion 4)",
+    approvedMarked.screenClear === approvedGated.screenClear && approvedMarked.screenClearCorrectAndActionable === approvedGated.screenClearCorrectAndActionable - 1,
+    JSON.stringify({ approvedGated, approvedMarked })
+  );
+  const rereads = before.map((c) => rereadCapture(c, requestFor));
+  check(
+    "a capture taken before the gate is read with today's gate: its 10 withheld answers marked, in memory",
+    rereads.reduce((n, r) => n + r.capture.items.filter((i) => i.displayWithheld).length, 0) === 10 && before.every((c) => c.items.every((i) => i.displayWithheld === undefined))
+  );
+
+  const held = displayGateControlFailures(requestFor);
+  check("beyond the 34: unseen causes and consequences withheld, the product's own evidence shown, severity left to the screens, every product step shown", held.length === 0, held.join("; "));
 }
 
 for (const label of failedLabels) console.error(`  ✗ ${label}`);

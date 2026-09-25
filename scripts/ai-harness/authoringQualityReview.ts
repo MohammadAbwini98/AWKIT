@@ -27,6 +27,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+import { supportedTextOf, withholdReasons, type ExplanationWithholdReason } from "@src/ai/authoringClaimScreen";
 import type { AuthoringAnswer, AuthoringRequest } from "@src/ai/authoringExplanation";
 import { findResidualSecrets } from "@src/semantic/SemanticPolicyValidator";
 import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
@@ -66,6 +67,12 @@ export interface ReviewItem {
   /** The model's explanation after redaction; `null` when it was withheld. */
   text: string | null;
   withheld?: "RESIDUAL_SECRET";
+  /**
+   * The product's display gate withheld this text from the person (R4, since 2026-09-25): the designer showed
+   * the finding and `step` without it. Kept for a person to read, and never counted as a successful AI
+   * explanation. Absent on older captures until `rereadCapture` applies today's gate in memory.
+   */
+  displayWithheld?: ExplanationWithholdReason[];
   /**
    * The character limit cut the model's text and the product kept its complete sentences (captures since
    * this field; absent before). Without it, an action cut and trimmed away reads like one never written.
@@ -160,6 +167,7 @@ export function buildReviewCapture(modelId: string, cases: readonly CapturedCase
         text,
         ...(text === null ? { withheld: "RESIDUAL_SECRET" as const } : {}),
         ...(explanation.cut ? { cut: true as const } : {}),
+        ...(explanation.withheld ? { displayWithheld: explanation.withheld } : {}),
         judged: { onSubject: reading.onSubject, misattributed: reading.misattributed, actionable: reading.actionable, unsupported: reading.unsupported, category: reading.category }
       });
     }
@@ -192,8 +200,8 @@ export interface Reread {
 }
 
 /**
- * A capture read again by TODAY's judge, in memory: the file keeps the model's text and the reading it was
- * taken with, a person's verdicts are untouched, and nothing is written back. Each explanation is judged
+ * A capture read again by TODAY's judge and TODAY's display gate (R4), in memory: the file keeps the model's
+ * text and the reading it was taken with, a person's verdicts are untouched, and nothing is written back. Each explanation is judged
  * against what its capture kept of the request: its case's Issues lines, and the instructions only when the
  * capture's hash is today's (an earlier request's are not retained). A case whose ids no longer carry the
  * same codes, blocking and fixes in today's labelled set keeps its captured reading.
@@ -226,6 +234,10 @@ export function rereadCapture(
     };
     judgeAuthoringAnswer(asked, answer).perExplanation.forEach((p, k) => {
       const item = shown[k].item;
+      // Today's display gate as well (R4), on the text as captured: what the designer would show now.
+      const gate = withholdReasons(shown[k].ref, shown[k].text, supportedTextOf(asked));
+      if (gate.length > 0) item.displayWithheld = gate;
+      else delete item.displayWithheld;
       const after = { onSubject: p.onSubject, misattributed: p.misattributed, actionable: p.actionable, unsupported: p.unsupported, category: p.category };
       reread += 1;
       if (JSON.stringify(after) === JSON.stringify(item.judged)) return;
@@ -334,7 +346,12 @@ export interface TargetEvaluation {
    * `actionable` is the model's own text by proxy; `repeatsProductAction` of those repeat the product's action
    * word for word. `visibleActionable` is criterion 3: the explanation a person sees holds a corrective action.
    */
-  runs: Array<{ run: number; sent: number; delivered: number; onSubject: number; misattributed: number; actionable: number; repeatsProductAction: number; visibleActionable: number; ranked: number; orderViolations: number; withheld: number }>;
+  /**
+   * `answersWithheld`: explanations the display gate withheld (R4). None of them counts toward `onSubject`,
+   * `actionable` or a person's correct-and-actionable count: a text nobody was shown is no successful AI
+   * explanation. `withheld` is the fix orders withheld.
+   */
+  runs: Array<{ run: number; sent: number; delivered: number; onSubject: number; misattributed: number; actionable: number; repeatsProductAction: number; visibleActionable: number; ranked: number; orderViolations: number; withheld: number; answersWithheld: number }>;
   review: {
     screenClear: number;
     screenClearReviewed: number;
@@ -393,14 +410,15 @@ export function evaluateQualityTarget(captures: readonly ReviewCapture[], verdic
       run: k + 1,
       sent: inRun.reduce((n, { measured }) => n + measured.sent, 0),
       delivered: inRun.filter(({ measured }) => measured.delivered).length,
-      onSubject: count((i) => i.judged.onSubject),
+      onSubject: count((i) => i.judged.onSubject && !i.displayWithheld),
       misattributed: count((i) => i.judged.misattributed),
-      actionable: count((i) => i.judged.actionable),
-      repeatsProductAction: count((i) => i.judged.actionable && !!i.step && !!i.text?.includes(i.step)),
+      actionable: count((i) => i.judged.actionable && !i.displayWithheld),
+      repeatsProductAction: count((i) => i.judged.actionable && !i.displayWithheld && !!i.step && !!i.text?.includes(i.step)),
       visibleActionable: count(visibleCorrective),
       ranked: inRun.reduce((n, { measured }) => n + measured.ranking.length, 0),
       orderViolations: inRun.filter(({ measured }) => measured.rankingOrderCorrect === false).length,
-      withheld: inRun.filter(({ measured }) => measured.rankingWithheld).length
+      withheld: inRun.filter(({ measured }) => measured.rankingWithheld).length,
+      answersWithheld: count((i) => !!i.displayWithheld)
     });
   }
 
@@ -413,7 +431,8 @@ export function evaluateQualityTarget(captures: readonly ReviewCapture[], verdic
     return v !== undefined && (v.unsupportedClaim || !v.grounded);
   });
   const clearReviewed = screenClear.filter((i) => verdictOf.has(i.id));
-  const clearGood = clearReviewed.filter((i) => verdictOf.get(i.id)!.correct && verdictOf.get(i.id)!.actionable);
+  // A person may judge a withheld text right; it still helped nobody, so it never counts as a success (R4).
+  const clearGood = clearReviewed.filter((i) => !i.displayWithheld && verdictOf.get(i.id)!.correct && verdictOf.get(i.id)!.actionable);
   const hitsReviewed = screenHits.filter((i) => verdictOf.has(i.id));
   const misattributed = runs.reduce((n, r) => n + r.misattributed, 0);
   const violations = runs.reduce((n, r) => n + r.orderViolations, 0);
@@ -442,7 +461,7 @@ export function evaluateQualityTarget(captures: readonly ReviewCapture[], verdic
       id: 2,
       label: `at least ${QUALITY_TARGET.minOnSubject * 100} % on subject by proxy, in every complete run`,
       status: everyRun((r) => r.onSubject, QUALITY_TARGET.minOnSubject) ? "MET" : "NOT MET",
-      detail: perRun((r) => r.onSubject)
+      detail: `${perRun((r) => r.onSubject)}; withheld from display and never counted: ${runs.map((r) => `run ${r.run} ${r.answersWithheld}`).join(", ") || "no complete run"}`
     },
     {
       id: 3,
@@ -459,7 +478,7 @@ export function evaluateQualityTarget(captures: readonly ReviewCapture[], verdic
           : clearReviewed.length < screenClear.length
             ? "PENDING"
             : "MET",
-      detail: `${screenClear.length} screen-clear, ${clearReviewed.length} reviewed, ${clearGood.length} judged correct and actionable (${pct(clearGood.length, screenClear.length)})`
+      detail: `${screenClear.length} screen-clear (${screenClear.filter((i) => i.displayWithheld).length} withheld from display, never counted correct), ${clearReviewed.length} reviewed, ${clearGood.length} judged correct and actionable (${pct(clearGood.length, screenClear.length)})`
     },
     {
       id: 5,

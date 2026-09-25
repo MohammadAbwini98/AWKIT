@@ -21,6 +21,7 @@ import type { FailureAnalysisBody, StoredFailureAnalysis } from "../../reports/E
 import { isAiFeatureId, type AiFeatureId, type AiTier } from "../../security/authz/AiAutonomyPolicy";
 import type { FlowValidationIssue } from "../../validation/FlowValidator";
 import type { AiActionRecord } from "../AiActionRecord";
+import type { ExplanationWithholdReason } from "../authoringClaimScreen";
 import type { LocatorPromotionRefusal } from "../locatorPromotion";
 import type { PendingUpgradeState } from "../pendingUpgrade";
 
@@ -272,8 +273,10 @@ export interface AuthoringAssistView extends AiAssistStatus {
   /**
    * T0 prose, each attached to the validator's own issue. Always shown labelled as AI. `step` is the
    * product's corrective step for the issue, never model text, and is shown labelled as the rule's.
+   * `text` is `null` when the display gate withheld it (R4); `withheld` then says why, and the issue and
+   * its step are shown without it.
    */
-  explanations: Array<{ issue: FlowValidationIssue; text: string; step: string }>;
+  explanations: Array<{ issue: FlowValidationIssue; text: string | null; step: string; withheld?: ExplanationWithholdReason[] }>;
   /** T1: validator-emitted safe-fix issues in the suggested order. Empty unless the tier permits suggesting. */
   ranking: FlowValidationIssue[];
   /** Issues beyond the per-request cap that were not sent, so the UI never implies completeness. */

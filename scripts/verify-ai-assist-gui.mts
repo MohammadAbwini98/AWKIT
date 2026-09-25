@@ -638,6 +638,34 @@ try {
   await preview.getByRole("button", { name: "Cancel" }).click();
   check("cancelling the preview writes nothing", fileDigest() === seededDigest);
 
+  // R4 (owner, 2026-09-25): a text that states a cause or a run-time consequence the product's evidence does
+  // not is withheld by main; the designer shows why, the finding and the rule's action, never the model's words.
+  console.log("\nAn explanation the findings do not establish is withheld; its finding and action stay (R4)");
+  const WITHHELD_TEXT = "The runner stops here because this step fails immediately.";
+  provide({ text: JSON.stringify({ version: 1, explanations: ids.map((id, i) => ({ issueId: id, text: i === 0 ? WITHHELD_TEXT : `EXPL-${id}: look at this step's settings.` })), ranking: expected.fixableIds }) });
+  await win.getByTestId("ai-assist-explain").click();
+  check("the answer completes", (await assistSettles(win, "done")) === "done");
+  const withheldNote = win.locator('[data-testid="ai-explanation"][data-withheld]');
+  check("exactly one explanation is marked withheld, with the gate's reasons", (await withheldNote.count()) === 1 && /UNESTABLISHED_CAUSE/.test((await withheldNote.getAttribute("data-withheld")) ?? ""), String(await withheldNote.count()));
+  const noteText = await withheldNote.innerText().catch(() => "");
+  check(
+    "...labelled as withheld, saying why in the product's words, with the model's words nowhere on screen",
+    noteText.startsWith("AI explanation withheld") && /Not shown: the AI's text gave a cause/.test(noteText) && !(await win.locator("body").innerText()).includes("fails immediately"),
+    noteText
+  );
+  check("...and the rule's corrective action still beside it", /Corrective action/.test(noteText) && noteText.includes(expected.issues[0].step), noteText);
+  const withheldRow = await win.evaluate(() => {
+    let row = document.querySelector('[data-testid="ai-explanation"][data-withheld]')?.previousElementSibling ?? null;
+    while (row && !row.classList.contains("validation-issue-row")) row = row.previousElementSibling;
+    return row?.textContent ?? "";
+  });
+  check("...under its own finding's row, which keeps the validator's message and badge", withheldRow.includes(expected.issues[0].issue.message) && /blocks run|warning|off-path/.test(withheldRow), withheldRow);
+  check("the other finding's explanation is shown as before", (await explanations.count()) === ids.length && (await explanations.allInnerTexts()).filter((text) => text.startsWith("AI interpretation")).length === ids.length - 1);
+  const withheldBar = await win.getByTestId("ai-assist-message").innerText();
+  check("the bar counts the withheld explanation: never silent", new RegExp(`AI explained ${ids.length - 1} finding`).test(withheldBar) && /1 AI explanation was withheld/.test(withheldBar), withheldBar);
+  check("the saved flow is untouched", fileDigest() === seededDigest);
+  provide({ text: goodAnswer });
+
   console.log("\nAn edit withholds the now-stale answer");
   await win.locator(".action-flow-node", { hasText: STEP_NAME }).first().click();
   await win.locator(".properties-body").getByRole("textbox", { name: "Description" }).fill("Edited after the explanation");

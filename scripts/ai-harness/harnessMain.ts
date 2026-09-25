@@ -710,7 +710,9 @@ async function explainMode(): Promise<void> {
       code: view.code,
       sent: job.issues.length,
       explained: view.explanations.length,
-      textChars: view.explanations.map((e) => e.text.length),
+      // A text the display gate withheld (R4) never reaches the view, so it has no length here.
+      textChars: view.explanations.map((e) => e.text?.length ?? null),
+      withheldFromDisplay: view.explanations.filter((e) => e.withheld).length,
       elapsedMs: Date.now() - started,
       hostDeadlineMs: deadlines[deadlines.length - 1] ?? null,
       inferMs: usage ? usage.firstTokenMs + usage.generationMs : null,

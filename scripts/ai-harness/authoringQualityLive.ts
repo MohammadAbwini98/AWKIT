@@ -138,7 +138,7 @@ export async function runAuthoringQualityLive(api: FeatureLiveApi): Promise<void
   }
 
   await api.step("the labelled set: every answer delivered, every issue explained, nothing leaked; quality recorded", async () => {
-    const total = (key: "sent" | "explained" | "onSubject" | "misattributed" | "actionable" | "cutByGrammar" | "ranked") => results.reduce((n, r) => n + r.judged[key], 0);
+    const total = (key: "sent" | "explained" | "onSubject" | "misattributed" | "actionable" | "cutByGrammar" | "displayWithheld" | "ranked") => results.reduce((n, r) => n + r.judged[key], 0);
     const sum = <K extends string>(pick: (j: AuthoringJudgement) => Partial<Record<K, number>>) =>
       results.reduce<Partial<Record<K, number>>>((acc, r) => {
         for (const [k, v] of Object.entries(pick(r.judged)) as Array<[K, number]>) acc[k] = (acc[k] ?? 0) + v;
@@ -164,6 +164,8 @@ export async function runAuthoringQualityLive(api: FeatureLiveApi): Promise<void
       rankingOrder: `${orders.filter(Boolean).length} in order, ${orders.filter((v) => !v).length} out of order, of ${orderable} case(s) where one fix is more urgent`,
       rankingWithheld: results.filter((r) => r.judged.rankingWithheld).length,
       cutByGrammar: total("cutByGrammar"),
+      // R4: accepted, never shown, never counted by the target as a successful explanation.
+      displayWithheld: total("displayWithheld"),
       textChars: results.flatMap((r) => r.judged.textChars),
       inferMs: infer.length > 0 ? { min: Math.min(...infer), max: Math.max(...infer), median: [...infer].sort((a, b) => a - b)[Math.floor(infer.length / 2)] } : null,
       perCase: Object.fromEntries(

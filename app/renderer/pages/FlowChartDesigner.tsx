@@ -57,6 +57,7 @@ import { DesignerCanvasLayout } from "../layout/DesignerCanvasLayout";
 import { Toast, type ToastState } from "../components/shared/Toast";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { InsertFragmentDialog, SaveFragmentDialog } from "../components/workflow/FragmentDialogs";
+import { withheldExplanationSentence } from "@src/ai/authoringClaimScreen";
 import { applyFragment } from "@src/fragments/fragmentOperations";
 import { blockingFindings, type FlowFragment } from "@src/fragments/FlowFragment";
 import { CanvasItemPicker, type CanvasPickerItem } from "../components/shared/CanvasItemPicker";
@@ -1615,9 +1616,17 @@ function FlowChartDesignerContent() {
                       </span>
                     ) : null}
                   </button>
-                  {authoringAssist.explanationsFor(issue.key).map(({ text, step }, index) => (
-                    <p key={index} className="ai-explanation" data-testid="ai-explanation" data-finding-key={issue.key}>
-                      <span className="ai-explanation-label">AI interpretation</span> {text}
+                  {authoringAssist.explanationsFor(issue.key).map(({ text, step, withheld }, index) => (
+                    <p key={index} className="ai-explanation" data-testid="ai-explanation" data-finding-key={issue.key} data-withheld={withheld?.join(" ")}>
+                      {withheld ? (
+                        <>
+                          <span className="ai-explanation-label">AI explanation withheld</span> {withheldExplanationSentence(withheld)}
+                        </>
+                      ) : (
+                        <>
+                          <span className="ai-explanation-label">AI interpretation</span> {text}
+                        </>
+                      )}
                       <span className="ai-explanation-step" data-testid="ai-explanation-step">
                         <span className="ai-explanation-step-label">Corrective action</span> {step}
                       </span>

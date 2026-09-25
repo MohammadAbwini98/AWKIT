@@ -26,6 +26,11 @@
  * rests on model wording alone. A reviewed 0.8B answer had told the person to add a connector INTO End
  * for a connector leaving it, and read "requires a value and has none" as the value not being required.
  *
+ * An explanation whose text a claim screen hits, or that states a cause or a run-time consequence the
+ * product's evidence does not, is withheld from display (R4, owner-authorized 2026-09-25: the 0.8B gave 8
+ * such answers in 34). The screens and that gate are `authoringClaimScreen`, the one set of rules the
+ * quality harness applies too.
+ *
  * What crosses to the model: issue codes, severities, whether each blocks the run, active-path flags, the
  * anchor's KIND (node, connector or flow), rule summaries and corrective steps (product-authored constants)
  * and whether the validator emitted a fix. Never an anchor id, a validator message, a locator value, a typed value, a step
@@ -47,6 +52,7 @@ import {
   type SafeFixKind
 } from "../validation/FlowValidator";
 import { decideAiAction, type AiPolicyConfig, type AiPolicyDecision } from "../security/authz/AiAutonomyPolicy";
+import { supportedTextOf, withholdReasons, type ExplanationWithholdReason } from "./authoringClaimScreen";
 
 export const AUTHORING_ANSWER_VERSION = 1;
 
@@ -111,6 +117,12 @@ export interface AuthoringExplanation {
   step: string;
   /** The model's text ran into the character limit mid-sentence; see {@link endAtCompleteSentence}. */
   cut?: true;
+  /**
+   * The display gate (R4, `withholdReasons`) found a claim the product's evidence does not establish. The
+   * text is then never shown: the designer shows the finding and `step` without it. It is kept here only so
+   * the quality harness can capture and count it; the adapter drops it before the renderer.
+   */
+  withheld?: ExplanationWithholdReason[];
 }
 
 export interface AuthoringAnswer {
@@ -340,6 +352,7 @@ export function parseAuthoringAnswer(value: unknown, request: AuthoringRequest):
 
   const byId = new Map(request.issues.map((ref) => [ref.id, ref]));
   const fixable = new Set(request.fixableIds);
+  const supported = supportedTextOf(request);
 
   if (!Array.isArray(raw.explanations)) return reject("MALFORMED", "explanations");
   const explanations: AuthoringExplanation[] = [];
@@ -359,7 +372,10 @@ export function parseAuthoringAnswer(value: unknown, request: AuthoringRequest):
     if (hasControlChar(trimmed)) return reject("UNSAFE_TEXT", `${path}.text`);
     explained.add(issueId);
     const ended = endAtCompleteSentence(trimmed);
-    explanations.push({ issueId, issue: ref.issue, text: ended.text, step: ref.step, ...(ended.cut ? { cut: true as const } : {}) });
+    // R4: judged on the text as it would be shown. A withheld text stays an accepted answer, like a
+    // withheld fix order: the issue is still explained by the product's own finding and step.
+    const withheld = withholdReasons(ref, ended.text, supported);
+    explanations.push({ issueId, issue: ref.issue, text: ended.text, step: ref.step, ...(ended.cut ? { cut: true as const } : {}), ...(withheld.length > 0 ? { withheld } : {}) });
   }
 
   const ranking: string[] = [];

@@ -24,10 +24,11 @@
  * Electron-free: `verify:ai-authoring` audits the set and runs the judge's controls without a model.
  */
 
+import { ACTION_AS_NAME, makesCausalClaim, sentencesOf, supportedTextOf, unsupportedClaims, withholdReasons, type ExplanationWithholdReason, type UnsupportedKind } from "@src/ai/authoringClaimScreen";
 import { AUTHORING_LIMITS, parseAuthoringAnswer, rankingKeepsPriority, type AuthoringAnswer, type AuthoringIssueRef, type AuthoringRequest } from "@src/ai/authoringExplanation";
 import type { FlowEdge, FlowProfile, FlowStep, StepType } from "@src/profiles/FlowProfile";
 import { findResidualSecrets } from "@src/semantic/SemanticPolicyValidator";
-import { isExecutionBlocking, type FlowValidationCode } from "@src/validation/FlowValidator";
+import { FLOW_VALIDATION_RULES, isExecutionBlocking, type FlowValidationCode } from "@src/validation/FlowValidator";
 
 /** Planted in every name and value the product must never send. */
 export const CANARY = "QX7CANARY";
@@ -220,152 +221,18 @@ export const REMEDY: Readonly<Partial<Record<FlowValidationCode, RegExp>>> = Obj
 });
 
 /**
- * Corrections a rule contradicts, one pattern per rule whose wrong direction is unambiguous. Unlike the
- * patterns above, these were written AFTER real answers were read: each is a regression screen for a
- * correction the 97996c48 captures gave (an agent's reading, pending a person's review), generalised
- * from the rule rather than from the wording. A hit is an unsupported claim, and never actionable.
+ * The unsupported-claim screens (`unsupportedClaims`, `WRONG_REMEDY`, `makesCausalClaim`) moved into the
+ * product on 2026-09-25 with R4, unchanged, so the Flow Designer's display gate and this judge read ONE set
+ * of rules: `src/ai/authoringClaimScreen.ts`. They are re-exported here for the harness's callers.
  */
-export const WRONG_REMEDY: Readonly<Partial<Record<FlowValidationCode, RegExp>>> = Object.freeze({
-  // The connector LEAVING End is the defect; another connector into End leaves it in place.
-  connectorFromEndNode: /\b(?:add|connect|draw|create|insert)\b[^.;]{0,40}\bconnectors?\b[^.;]{0,30}\b(?:to|into|reach(?:es)?)\b[^.;]{0,15}\bend\b/i,
-  // The step's type needs one: saying it is not needed or not required inverts the rule.
-  missingRequiredValue: /\b(?:not|never)\b[^.;]{0,20}\b(?:need|requir)\w*[^.;]{0,20}\bvalues?\b/i,
-  missingRequiredLocator: /\b(?:not|never)\b[^.;]{0,20}\b(?:need|requir)\w*[^.;]{0,20}\blocators?\b/i,
-  // The emitted fix gives the duplicate a new id. Removing a connector, or an id, is a structural change no rule asks for.
-  duplicateEdgeId: /\b(?:remove|delete|drop)\b[^.;]{0,25}\b(?:edges?|connectors?|connections?|ids?|identifiers?)\b/i,
-  // The connector already carries its condition, and the runner is nothing the editor changes.
-  incompleteBranchPair: /\badd (?:a |another |the )?condition\b|\b(?:add|set|change|configure)\b[^.;]{0,30}\b(?:to|in) the runner\b/i,
-  // A timeout that is already unusually high is not corrected by raising it.
-  highTimeout: /\b(?:increase|raise|extend|lengthen)\b[^.;]{0,20}\btimeouts?\b/i
-});
+export { WRONG_REMEDY, makesCausalClaim, unsupportedClaims, type UnsupportedKind } from "@src/ai/authoringClaimScreen";
 
 /** A corrective verb in its base form: an instruction to the person, not a description of the problem. */
 const CORRECTIVE =
   /\b(?:add|apply|attach|assign|break|change|choose|connect|convert|configure|decrease|define|delete|disconnect|drop|edit|enter|give|insert|lower|make|move|pick|provide|reconnect|reduce|regenerate|remove|rename|replace|rewrite|select|shorten|specify|supply|switch|update|use)\b|\bset (?:the|a|an|it|its|this|that|one)\b/i;
 
-/**
- * Claims the request does not support, each one evidence an explanation is wrong:
- *  - AUTO_FIX_CLAIMED: the application can repair an issue it emitted no fix for (AI inventing a fix);
- *  - OFF_DOMAIN: a cause or remedy outside the flow (restart, network, cache, credentials, support);
- *  - FABRICATED_LITERAL: a name quoted in any style, a selector, a URL or a value the request never held
- *    (a value is held only as a target the request gives: "to a listed value"), the corrective action
- *    given as a step's name (`ACTION_AS_NAME`), or a step's position (`POSITION`, since 2026-09-25);
- *  - SEVERITY_OVERSTATED: an issue that does not block the run is said to stop the flow running, to block
- *    the run, or to have failed validation (the last two since 2026-09-25);
- *  - SEVERITY_UNDERSTATED: an issue that blocks the run is said to be harmless, only a warning, or not to
- *    block the run;
- *  - WRONG_REMEDY: a correction the issue's own rule contradicts (`WRONG_REMEDY`).
- */
-export type UnsupportedKind = "AUTO_FIX_CLAIMED" | "OFF_DOMAIN" | "FABRICATED_LITERAL" | "SEVERITY_OVERSTATED" | "SEVERITY_UNDERSTATED" | "WRONG_REMEDY";
-
-const AUTO_FIX =
-  /\b(?:app|application|tool|designer|editor|validator|system|awkit)\b[^.;]{0,20}\b(?:can|will|could)\b[^.;]{0,15}\b(?:fix|repair|correct|resolve|regenerate|rewrite|normalize)\b|\bapply (?:the |a |its )?(?:safe |suggested |available |automatic )?(?:fix|repair)\b|\bauto-?fix|\bone[- ]click\b|\b(?:is|marked) fixable\b|\bfix(?:ed)? (?:it |this )?automatically\b/i;
-const NEGATED = /\b(?:not|no|cannot|can't|isn't|won't)\b/i;
-const OFF_DOMAIN =
-  /\b(?:restart|reboot|reinstall|internet|network|wi-?fi|cache|cookies?|firewall|antivirus|vpn|password|credentials?|permissions?|licen[cs]e|contact (?:support|an? admin\w*|your admin\w*|the admin\w*))\b|\bupdate (?:the |your )?(?:app|application|browser|software|driver)s?\b|\b(?:log|sign) ?in again\b/i;
-const BLOCKS_RUN =
-  /\b(?:flow|run|automation|execution)\b[^.;]{0,25}\b(?:cannot|can't|can not|won't|will not|unable to|is blocked from)\b[^.;]{0,15}\b(?:run|start|execute|begin)\b|\bfrom (?:running|starting|executing|being run)\b|\bbefore (?:the flow|it) can (?:run|start)\b/i;
-/** The request's own words since R2 (2026-09-25): each issue's line says whether it blocks the run. */
-const BLOCKS_THE_RUN = /\bblock(?:s|ed|ing)?\s+(?:the\s+)?(?:run|flow|execution)\b/gi;
-/**
- * A validation failure claimed: "failed validation", "fail the validation", "validation fails", "a validation
- * failure". Written from the 2026-09-25 AI evaluation (R1, owner-authorized the same day): 7 displayed answers
- * gave a warning as the reason "the automation flow failed validation", and `BLOCKS_RUN` read none of them. A
- * non-blocking issue fails nothing, whether its report holds only warnings or a blocking error beside it.
- */
-const VALIDATION_FAILED = /\bfail(?:s|ed|ing)?\s+(?:the\s+|its\s+)?validation\b|\bvalidation\s+(?:\w+\s+){0,2}?fail(?:s|ed|ing|ures?)?\b/gi;
-/**
- * A negation ON the claim: inside it, or in the few characters before it ("does not fail validation"). One
- * elsewhere in the sentence negates nothing: "…failed validation because a reachable step had no way out".
- */
-const NEGATES_CLAIM = /\b(?:not|never|no)\b|n't\b/i;
-const claims = (text: string, pattern: RegExp): boolean =>
-  [...text.matchAll(pattern)].some((m) => !NEGATES_CLAIM.test(`${text.slice(Math.max(0, (m.index ?? 0) - 12), m.index)}${m[0]}`));
-const HARMLESS =
-  /\b(?:harmless|(?:safe|okay|ok|fine) to ignore|can (?:safely )?(?:be )?ignored?|(?:only|just) a warning|not (?:a )?(?:real |serious |critical |blocking )?(?:problem|issue|error)|does(?:n't| not) matter|(?:does|do|will) ?(?:not|n't) block|won't block|not blocking|non-?blocking)\b/i;
-/**
- * Quoted text in any style. A single quote opens only after a non-letter and closes only before one, so the
- * apostrophes in "step's", "steps'" and "can't" are never quotation marks. Until 2026-09-23 only double
- * quotes and backticks were read, and "Correct the operator casing to 'operator'." cleared the screen.
- */
-const QUOTED = [/["`“”]([^"`“”]{2,})["`“”]/g, /(?<![\p{L}\p{N}_])['‘](\S[^\n]*?\S)['’](?![\p{L}\p{N}_])/gu];
-/** A value, where it is what something is changed or set TO. */
-const VALUE_TARGET = /(?:\b(?:change|correct|set|switch|convert|rename|update|normali[sz]e)\w*\b[^.;!?]{0,60}\b(?:to|into)|=)\s*$/i;
-/** An unquoted value only a literal can be: a boolean, null, or a code-like name ("notEquals"). */
-const LITERAL_WORD = /(?<=\b(?:to|into)\s+|=\s*)([A-Za-z_]\w*)/gi;
-const literalShaped = (word: string) => /^(?:true|false|null)$/i.test(word) || /^[a-z]+(?:[A-Z][a-z0-9]*)+$/.test(word);
-const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-/** Held as a whole phrase: a literal that occurs only inside a longer word ("supported" in "unsupportedOperator") is not held. */
-const holds = (supported: string, pattern: string) => new RegExp(`(?<![\\p{L}\\p{N}_])${pattern}(?![\\p{L}\\p{N}_])`, "iu").test(supported);
-/**
- * The corrective action given as the NAME of a step ("The step 'Add a locator to this step' is missing
- * a locator"): a step name the request never held, and no instruction. Written after the first 2026-09-23
- * capture showed it, while the request still labelled the action "Step:".
- */
-const ACTION_AS_NAME = /\bstep\s+["'`“‘]?(?:add|apply|change|choose|connect|delete|fill|give|keep|lower|move|reconnect|remove|review|set)\b/i;
-/**
- * A place in the flow the request never gives: an ordinal step ("the first step") or a numbered one ("step 3").
- * The request says only "at a node" or "at a connector". Written from the 2026-09-25 AI evaluation (R1): "the
- * first step" for a timeout on the flow's second step read clear, because `NUMBER` reads digits, not ordinals.
- * An issue's id given as its step ("at step i0", the first live run after R2) is one too: the id names the
- * issue, never where it is. "This step" and "the next step" are the request's own words and no position.
- */
-const POSITION =
-  /\b(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|last|final|\d+(?:st|nd|rd|th))\s+(?:steps?|nodes?|connectors?|actions?|conditions?|branch(?:es)?)\b|\b(?:step|node|connector)\s+(?:#\s*|number\s+)?\d+\b|\b(?:steps?|nodes?|connectors?)\s+["'`“‘]?i\d+\b/gi;
-const NUMBER = /\b(\d+(?:[.,]\d+)*)\s*(ms|milliseconds?|s|secs?|seconds?|mins?|minutes?|h|hours?|%|px|times)?\b/gi;
-const SELECTOR = /https?:\/\/|www\.|(?:^|\s)[#.][a-z][\w-]*|\[data-[\w-]+/i;
-
-const sentencesOf = (text: string): string[] => text.split(/[.!?;]+/).filter((s) => s.trim());
 /** Complete sentences only: an unfinished tail, or a fragment the product marked "…", instructs nothing. */
 const completeSentencesOf = (text: string): string[] => sentencesOf(/[.!?]["')\]]?$/.test(text) ? text : text.replace(/[^.!?]*$/, ""));
-
-/** Everything the model was given: the instructions and the Issues block, never the nonce. */
-const supportedTextOf = (request: AuthoringRequest): string => [request.prompt.instructions, ...request.prompt.fields.map((f) => f.text)].join("\n");
-
-function fabricatesLiteral(raw: string, supported: string): boolean {
-  // An escaped quotation mark (\' or \") quotes like a plain one.
-  const text = raw.replace(/\\(?=["'`“”‘’])/g, "");
-  if (ACTION_AS_NAME.test(text)) return true;
-  if ([...text.matchAll(POSITION)].some((m) => !holds(supported, escapeRegExp(m[0]).replace(/\s+/g, "\\s+")))) return true;
-  const literals = [
-    ...QUOTED.flatMap((quoted) => [...text.matchAll(quoted)].map((m) => ({ value: m[1].trim(), at: m.index ?? 0, quoted: true }))),
-    ...[...text.matchAll(LITERAL_WORD)].filter((m) => literalShaped(m[1])).map((m) => ({ value: m[1], at: m.index ?? 0, quoted: false }))
-  ];
-  for (const { value, at, quoted } of literals) {
-    // A value is held only as a target the request gives itself ("…to a listed value"), never as a word
-    // it uses elsewhere: "to 'operator'" is a value the request never held, though it says "operator".
-    if (VALUE_TARGET.test(text.slice(0, at))) {
-      if (!holds(supported, `\\b(?:to|into)\\s+(?:(?:a|an|the|one of the)\\s+)?${escapeRegExp(value)}`)) return true;
-    } else if (quoted && !holds(supported, escapeRegExp(value))) return true;
-  }
-  for (const number of text.matchAll(NUMBER)) {
-    // A small count ("2 connectors") restates "two or more"; a value or a unit is something the model was never told.
-    const held = new RegExp(`(?<![\\w.,])${number[1].replace(/[.,]/g, "\\$&")}(?![\\w.,])`).test(supported);
-    if (!held && (number[2] !== undefined || Number(number[1].replace(/,/g, "")) >= 3)) return true;
-  }
-  return SELECTOR.test(text);
-}
-
-/** The screens that hit one explanation of `ref`. */
-export function unsupportedClaims(ref: AuthoringIssueRef, text: string, supported: string): UnsupportedKind[] {
-  const hits: UnsupportedKind[] = [];
-  if (!ref.fixable && sentencesOf(text).some((s) => AUTO_FIX.test(s) && !NEGATED.test(s))) hits.push("AUTO_FIX_CLAIMED");
-  if (OFF_DOMAIN.test(text)) hits.push("OFF_DOMAIN");
-  if (fabricatesLiteral(text, supported)) hits.push("FABRICATED_LITERAL");
-  const blocking = isExecutionBlocking(ref.issue);
-  if (!blocking && (BLOCKS_RUN.test(text) || claims(text, BLOCKS_THE_RUN) || claims(text, VALIDATION_FAILED))) hits.push("SEVERITY_OVERSTATED");
-  if (blocking && HARMLESS.test(text)) hits.push("SEVERITY_UNDERSTATED");
-  if (WRONG_REMEDY[ref.issue.code]?.test(text)) hits.push("WRONG_REMEDY");
-  return hits;
-}
-
-/**
- * A claim that one thing causes or explains another. Detected, never judged: a lexical screen cannot tell a
- * cause the evidence supports from an invented one, so every displayed answer that makes one needs a person
- * (R1, owner 2026-09-25; criterion 1). "So that" states a purpose, not a cause.
- */
-export const makesCausalClaim = (text: string): boolean =>
-  /\b(?:because|caus(?:e|es|ed|ing)\b|due to|as a result|results? in|resulted in|leads? to|led to|therefore|which means|so (?:it|its|the|this)\b)/i.test(text);
 
 /**
  * Where one explanation lands, worst first. `defect`: misattributed or an unsupported claim.
@@ -400,6 +267,11 @@ export interface AuthoringJudgement {
   rankingWithheld: boolean;
   /** Ran into `maxExplanationChars` mid-sentence, so the product kept its complete sentences only. */
   cutByGrammar: number;
+  /**
+   * Explanations the product's display gate withheld (R4): accepted, never shown, and never counted by the
+   * target as a successful AI explanation. The readings above still cover them, as a record of the model.
+   */
+  displayWithheld: number;
   /** Texts carrying the canary. The product never sends it, so any is a leak through the request. */
   canaryInText: number;
   residualSecrets: number;
@@ -451,6 +323,7 @@ export function judgeAuthoringAnswer(request: AuthoringRequest, answer: Authorin
     rankingOrderCorrect: answer.rankingWithheld ? false : rankingKeepsPriority(request, answer.ranking),
     rankingWithheld: answer.rankingWithheld !== undefined,
     cutByGrammar: answer.explanations.filter((e) => e.cut).length,
+    displayWithheld: answer.explanations.filter((e) => e.withheld).length,
     canaryInText: answer.explanations.filter((e) => e.text.toUpperCase().includes(CANARY)).length,
     residualSecrets: answer.explanations.reduce((n, e) => n + findResidualSecrets(e.text).length, 0),
     ranked: answer.ranking.length,
@@ -790,5 +663,104 @@ export function causalClaimControlFailures(requestFor: (caseId: string) => Autho
   expect("78eafe/single/i0: an issue id given as a step ('at step i0') is a position the request never gave", hitBy("single", 0, "The validation found an issue in the automation flow at step i0. The rule code is 'invalidTimeout'.", "FABRICATED_LITERAL"));
   expect("...while the issue id named as the issue is not", !hitBy("single", 0, `Issue i0 is an invalid timeout. ${positive}`, "FABRICATED_LITERAL"));
   expect("a purpose ('so that it knows') is not a causal claim, and an answer without one is not", !makesCausalClaim("Add a locator to this step so that it knows which element to act on.") && !makesCausalClaim(lower));
+  return failures;
+}
+
+/**
+ * The 34 answers the Flow Designer displayed in the two complete runs after R1 and R2 (captures 3bc349 and
+ * f409c9, then 6155eb and 78eafe, 2026-09-25), verbatim as displayed, numbered as in
+ * docs/plans/ai-upgrade-v5/evidence/L4b-ai-technical-evaluation-2026-09-25-after-R1-R2.md. `unsupported` is that
+ * evaluation's finding: an AI reading, not a person's verdict. `withheld` is what R4 was proposed to decide,
+ * written from that document's measurement before the gate existed: the 8 unsupported answers, and the correct
+ * restatements #22 and #33, whose causes the gate cannot tell from invented ones.
+ */
+export const R2_DISPLAYED_ANSWERS: ReadonlyArray<{ n: number; run: 1 | 2; caseId: string; index: number; text: string; unsupported: boolean; withheld: boolean }> = Object.freeze(
+  (
+    [
+      [1, 1, "casing", 0, "The operator is not a known operator. Action: Review and apply the offered safe fix, which corrects the operator's casing to a listed value.", false, false],
+      [2, 1, "casing", 1, "A configuration literal is outside its permitted set. Action: Review and apply the offered safe fix, which corrects this setting's casing to a listed value.", false, false],
+      [3, 1, "locator-orphan", 0, "The step has no locator, and its type needs one. Action: Add a locator to this step so that it knows which element to act on.", false, false],
+      [4, 1, "locator-orphan", 1, "Node cannot be reached from Start. Action: Connect this step from a step that runs, or delete it if it is not needed.", false, false],
+      [5, 1, "branch", 0, "The conditional connector is the only way out of the step, so the runner ignores the condition and runs the branch twice.", true, true],
+      [6, 1, "branch", 1, "The condition needs a comparison value or a variable path that is not set. Action: Set the condition's comparison value, or the variable path it reads.", false, false],
+      [7, 1, "cycle", 0, "The connector that closes the cycle is not a Loop Back connector, so the flow stops at the end of the run path.", true, true],
+      [8, 1, "cycle", 1, "The connector leaves an End node, so the flow finishes at End and never runs.", true, true],
+      [9, 1, "values", 0, "The step has no value, and its type needs one. Action: Set the value this step needs in its settings, or bind a value source to it.", false, false],
+      [10, 1, "values", 1, "A bound value source is missing the key it reads; it resolves to an empty value or fails the run.", false, false],
+      [11, 1, "duplicate-timeout", 0, "Two or more connectors share one id. Action: Review and apply the offered safe fix, which gives this connector a new id.", false, false],
+      [12, 1, "duplicate-timeout", 1, "highTimeout (warning, does not block the run, on the run path, at a node) — Timeout is unusually high.", false, false],
+      [13, 1, "priority", 0, "The operator is not a known operator. Action: Review and apply the offered safe fix, which corrects the operator's casing to a listed value.", false, false],
+      [14, 1, "priority", 1, "Two or more connectors share one id. Action: Review and apply the offered safe fix, which gives this connector a new id.", false, false],
+      [15, 1, "warnings", 0, "The step has a high timeout that does not block the run, which is flagged as a warning on the run path at a node. This is a highTimeout issue.", false, false],
+      [16, 1, "warnings", 1, "A reachable step has no way out; the run stops there and reports success without reaching End. This is a deadEndNode issue.", false, false],
+      [17, 1, "single", 0, "The validation error indicates that the timeout value is zero, negative, or not a finite number, which causes the step to fail immediately.", true, true],
+      [18, 2, "casing", 0, "unsupportedOperator…", false, false],
+      [19, 2, "casing", 1, "unsupportedConfiguration…", false, false],
+      [20, 2, "locator-orphan", 0, "The step has no locator, and its type needs one. Action: Add a locator to this step so that it knows which element to act on.", false, false],
+      [21, 2, "locator-orphan", 1, "Node cannot be reached from Start. Action: Connect this step from a step that runs, or delete it if it is not needed.", false, false],
+      [22, 2, "branch", 0, "The conditional connector is missing a matching branch or fallback connector from the same step, causing the runner to ignore the condition and run the branch…", false, true],
+      [23, 2, "branch", 1, "The condition's comparison value or variable path is not set, which causes the condition to fail and not block the run…", true, true],
+      [24, 2, "cycle", 0, "The connector that closes the cycle is not a Loop Back connector, so the flow stops at the end of the run path. This causes a runtime-cycle error.", true, true],
+      [25, 2, "cycle", 1, "The connector leaves an End node, so the flow finishes at the End step and never runs.", true, true],
+      [26, 2, "values", 0, "The step has no value, and its type needs one. Action: Set the value this step needs in its settings, or bind a value source to it.", false, false],
+      [27, 2, "values", 1, "A bound value source is missing the key it reads; it resolves to an empty value or fails the run.", false, false],
+      [28, 2, "duplicate-timeout", 0, "Two or more connectors share one id. Action: Review and apply the offered safe fix, which gives this connector a new id.", false, false],
+      [29, 2, "duplicate-timeout", 1, "Timeout is unusually high. Action: Lower this step's timeout unless the step really needs to wait that long.", false, false],
+      [30, 2, "priority", 0, "The operator is not a known operator. Action: Review and apply the offered safe fix, which corrects the operator's casing to a listed value.", false, false],
+      [31, 2, "priority", 1, "Two or more connectors share one id. Action: Review and apply the offered safe fix, which gives this connector a new id.", false, false],
+      [32, 2, "warnings", 0, "The step has a high timeout that is not blocking the run, but the rule indicates it should be lowered unless the step truly needs to wait that long.", false, false],
+      [33, 2, "warnings", 1, "The step is a dead end node because a reachable step has no way out, causing the run to stop at that node and report success without reaching the End.", false, true],
+      [34, 2, "single", 0, "The validation found an issue in the automation flow at step i0. The rule code is 'invalidTimeout'.", true, true]
+    ] as const
+  ).map(([n, run, caseId, index, text, unsupported, withheld]) => ({ n, run, caseId, index, text, unsupported, withheld }))
+);
+
+/**
+ * The display gate (R4) beyond the 34 it was measured on: wording none of them used, the evidence itself
+ * copied, and the severity statements the screens already judge. Returns every control that did not come
+ * out as it must; empty when all hold. What the gate cannot read is documented, not asserted: L4 › R4.
+ */
+export function displayGateControlFailures(requestFor: (caseId: string) => AuthoringRequest | undefined): string[] {
+  const failures: string[] = [];
+  const expect = (label: string, ok: boolean) => {
+    if (!ok) failures.push(label);
+  };
+  const reasons = (caseId: string, index: number, text: string): ExplanationWithholdReason[] | null => {
+    const request = requestFor(caseId);
+    const ref = request?.issues[index];
+    return request && ref ? withholdReasons(ref, text, supportedTextOf(request)) : null;
+  };
+  const withheldFor = (caseId: string, index: number, text: string, reason: ExplanationWithholdReason) => reasons(caseId, index, text)?.includes(reason) === true;
+  const shown = (caseId: string, index: number, text: string) => reasons(caseId, index, text)?.length === 0;
+  const summary = (code: FlowValidationCode) => FLOW_VALIDATION_RULES[code].summary;
+  const positive = "Set this step's timeout to a positive number of milliseconds.";
+
+  // A consequence or a cause in words none of the 34 used.
+  expect("a consequence with no causal word is withheld: 'The step fails at once when it runs.'", withheldFor("single", 0, "The step fails at once when it runs.", "UNESTABLISHED_CONSEQUENCE"));
+  expect("...'The runner skips this condition.'", withheldFor("branch", 1, "The runner skips this condition.", "UNESTABLISHED_CONSEQUENCE"));
+  expect("...'These connectors loop forever.'", withheldFor("cycle", 0, "These connectors loop forever.", "UNESTABLISHED_CONSEQUENCE"));
+  expect("...'The run times out at this step.'", withheldFor("warnings", 0, "The run times out at this step.", "UNESTABLISHED_CONSEQUENCE"));
+  expect("a cause through a connective none of the 34 used is withheld: 'Due to the missing value, …'", withheldFor("values", 0, "Due to the missing value, the step is incomplete.", "UNESTABLISHED_CAUSE"));
+  // The product's own evidence, copied, is shown: that is what the model was told.
+  expect("a rule summary that states a consequence, copied for its own issue, is shown (incompleteValueSource)", shown("values", 1, summary("incompleteValueSource")));
+  expect("...unguardedCycle's, with its runtime-cycle error", shown("cycle", 0, summary("unguardedCycle")));
+  expect("...one clause of a summary alone, capitalised (deadEndNode's consequence)", shown("warnings", 1, "The run stops there and reports success without reaching End."));
+  expect("...a cause in the product's own words (connectorFromEndNode's 'so it never runs' clause)", shown("cycle", 1, "The flow finishes at End, so it never runs."));
+  expect("the same summary under another issue is withheld: the evidence is each issue's own", withheldFor("warnings", 0, summary("deadEndNode"), "UNESTABLISHED_CONSEQUENCE"));
+  // Severity is the screens' to judge, both ways.
+  expect("'cannot run' said of an issue that blocks the run is its own line's evidence: shown", shown("single", 0, `This step cannot run as configured. ${positive}`));
+  expect("...and an invented consequence for a warning: withheld", withheldFor("warnings", 0, "This step cannot run as configured.", "UNESTABLISHED_CONSEQUENCE"));
+  expect("a validation failure said of a blocking error is a severity statement, not an invented consequence: shown", shown("single", 0, `This timeout fails validation. ${positive}`));
+  expect("...and said of a warning is overstated: withheld", withheldFor("warnings", 0, "This timeout fails validation.", "SEVERITY_OVERSTATED"));
+  // Every screen hit is a reason of its own kind, so no screen hit is ever displayed.
+  expect("a screen hit is withheld under its kind: an invented position", withheldFor("single", 0, "Set the first step's timeout to a positive number of milliseconds.", "FABRICATED_LITERAL"));
+  expect("...a remedy outside the flow", withheldFor("cycle", 0, "Restart the application to clear the loop.", "OFF_DOMAIN"));
+  expect("...a correction the rule contradicts", withheldFor("cycle", 1, "Add a connector that connects to the End node.", "WRONG_REMEDY"));
+  // Twins that must stay shown.
+  expect("a purpose ('so that it knows') is no cause: shown", shown("locator-orphan", 0, "Add a locator to this step so that it knows which element to act on."));
+  for (const labelled of LABELLED_SET) {
+    const request = requestFor(labelled.id);
+    expect(`${labelled.id}: the product's steps, restated, are shown`, request !== undefined && request.issues.every((ref, i) => shown(labelled.id, i, ref.step)));
+  }
   return failures;
 }

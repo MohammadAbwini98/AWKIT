@@ -51,6 +51,7 @@ if (args[0] === "--record") {
 
 const store = loadReviewStore(dir);
 // Every capture is judged by TODAY's judge, in memory; the files keep the reading they were taken with.
+// Today's display gate (R4) too, so the target counts what the designer shows now.
 const rereads = store.captures.map((c) => rereadCapture(c, requestFor));
 const captures = rereads.map((r) => r.capture).filter((c) => c.instructionsSha256 === current);
 const byPerson = store.verdicts.filter((v) => isGenuineReviewer(v.reviewer));
@@ -77,6 +78,7 @@ if (args[0] === "--pending") {
     console.log(`  case ${item.caseId}, ${item.issueId} ${item.code} (${item.blocking ? "blocks the run" : "does not block the run"}, ${item.fixable ? "fixable" : "no emitted fix"})`);
     console.log(`  evidence: ${item.evidence}`);
     console.log(`  answer:   ${item.text ?? "(withheld: something sensitive survived redaction)"}`);
+    if (item.displayWithheld) console.log(`  not shown to the person: the product's display gate withheld it (${item.displayWithheld.join(", ")})`);
     if (item.step) console.log(`  shown beside it, the rule step: ${item.step}`);
     console.log(`  proxy:    on subject ${item.judged.onSubject ? "yes" : "no"}, actionable ${item.judged.actionable ? "yes" : "no"}, ${item.judged.category}\n`);
   }
@@ -97,7 +99,7 @@ for (const modelId of [...new Set(captures.map((c) => c.modelId))]) {
   );
   console.log(`\n${modelId}: ${evaluation.completeRuns} complete run(s)`);
   for (const r of evaluation.runs) {
-    console.log(`  run ${r.run}: ${r.delivered}/${LABELLED_SET.length} delivered, ${r.onSubject}/${r.sent} on subject, ${r.visibleActionable}/${r.sent} with a corrective action a person sees, ${r.actionable}/${r.sent} actionable in the model's own text (${r.repeatsProductAction} repeating the product's action), ${r.misattributed} misattributed, ${r.ranked} ranked, ${r.orderViolations} order violation(s), ${r.withheld} withheld`);
+    console.log(`  run ${r.run}: ${r.delivered}/${LABELLED_SET.length} delivered, ${r.onSubject}/${r.sent} on subject, ${r.visibleActionable}/${r.sent} with a corrective action a person sees, ${r.actionable}/${r.sent} actionable in the model's own text (${r.repeatsProductAction} repeating the product's action), ${r.misattributed} misattributed, ${r.ranked} ranked, ${r.orderViolations} order violation(s), ${r.withheld} withheld; ${r.answersWithheld} explanation(s) withheld from display by the product's gate (R4)`);
   }
   const rv = evaluation.review;
   console.log(`  review: ${rv.screenClearReviewed}/${rv.screenClear} screen-clear, ${rv.screenHitsReviewed}/${rv.screenHits} screen hits and ${rv.causalClaimsReviewed}/${rv.causalClaims} other causal claims reviewed; ${rv.confirmedUnsupported} unsupported claim(s) confirmed by a person`);

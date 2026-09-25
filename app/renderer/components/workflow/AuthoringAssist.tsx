@@ -16,8 +16,11 @@ export interface AuthoringAssist {
   stale: boolean;
   explain: () => void;
   cancel: () => void;
-  /** The AI's text, and the rule's own corrective step beside it (product text, not AI). */
-  explanationsFor: (findingKey: string) => Array<{ text: string; step: string }>;
+  /**
+   * The AI's text, and the rule's own corrective step beside it (product text, not AI). `text` is null when
+   * the product withheld it (R4); `withheld` says why.
+   */
+  explanationsFor: (findingKey: string) => AuthoringAssistView["explanations"];
   /** 1-based position in the AI's suggested fix order, or null. */
   rankOf: (findingKey: string) => number | null;
 }
@@ -36,10 +39,10 @@ export function useAuthoringAssist(flowId: string, profile: FlowProfile, snapsho
 
   const current = phase.kind === "done" && phase.subject === snapshot ? phase.view : null;
   const explanations = useMemo(() => {
-    const byKey = new Map<string, Array<{ text: string; step: string }>>();
-    for (const { issue, text, step } of current?.explanations ?? []) {
-      const key = validationFindingKey(issue);
-      byKey.set(key, [...(byKey.get(key) ?? []), { text, step }]);
+    const byKey = new Map<string, AuthoringAssistView["explanations"]>();
+    for (const explanation of current?.explanations ?? []) {
+      const key = validationFindingKey(explanation.issue);
+      byKey.set(key, [...(byKey.get(key) ?? []), explanation]);
     }
     return byKey;
   }, [current]);
@@ -88,9 +91,15 @@ export function AuthoringAssistBar({
   if (!message && stale) message = "The flow changed after this explanation, so it is hidden. Explain again for the current findings.";
   if (!message && phase.kind === "failed") message = phase.view.message ?? "Local AI could not answer this request.";
   if (!message && done) {
-    message = done.explanations.length
-      ? `AI explained ${done.explanations.length} finding${done.explanations.length === 1 ? "" : "s"}. These are interpretations — the findings above are what the validator reports.`
-      : "AI returned no explanation for these findings.";
+    const withheld = done.explanations.filter((e) => e.withheld).length;
+    const shown = done.explanations.length - withheld;
+    message = shown
+      ? `AI explained ${shown} finding${shown === 1 ? "" : "s"}. These are interpretations — the findings above are what the validator reports.`
+      : withheld
+        ? ""
+        : "AI returned no explanation for these findings.";
+    // Never silent (R4): a withheld explanation is counted here and marked under its finding.
+    if (withheld) message = `${message} ${withheld} AI explanation${withheld === 1 ? " was" : "s were"} withheld: ${withheld === 1 ? "it" : "they"} claimed more than the validator's findings establish. The findings and corrective actions still apply.`.trim();
     if (done.truncated) message += ` ${done.truncated} further finding${done.truncated === 1 ? " was" : "s were"} not sent.`;
   }
 
