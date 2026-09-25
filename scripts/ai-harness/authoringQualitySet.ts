@@ -754,6 +754,9 @@ export function displayGateControlFailures(requestFor: (caseId: string) => Autho
   expect("the flow not running, said of an issue that blocks the run, is its own line's evidence: shown", shown("single", 0, `The flow cannot run until this timeout is fixed. ${positive}`));
   expect("...but not a claim about which steps run (QC): 'Only this step will not execute.' is withheld", withheldFor("single", 0, `Only this step will not execute. ${positive}`, "UNESTABLISHED_CONSEQUENCE"));
   expect("...and 'cannot run' for a warning is an invented consequence: withheld", withheldFor("warnings", 0, "This step cannot run as configured.", "UNESTABLISHED_CONSEQUENCE"));
+  // QC (2026-09-25, second pass): a pronoun can carry the scope claim back in, and a bare colon is no statement break.
+  expect("...'it' is no subject the evidence names: 'Only this step is affected; it will not execute.' is withheld", withheldFor("single", 0, `Only this step is affected; it will not execute. ${positive}`, "UNESTABLISHED_CONSEQUENCE"));
+  expect("a summary after a framing colon is read, not trusted: 'It is not true that: <summary>'", withheldFor("warnings", 1, `It is not true that: ${summary("deadEndNode")}`, "UNESTABLISHED_CONSEQUENCE"));
   expect("a validation failure said of a blocking error is a severity statement, not an invented consequence: shown", shown("single", 0, `This timeout fails validation. ${positive}`));
   expect("...and said of a warning is overstated: withheld", withheldFor("warnings", 0, "This timeout fails validation.", "SEVERITY_OVERSTATED"));
   // Every screen hit is a reason of its own kind, so no screen hit is ever displayed.

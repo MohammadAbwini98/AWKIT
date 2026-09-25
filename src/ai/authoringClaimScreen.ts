@@ -17,8 +17,8 @@
  * Coverage limits (see L4-authoring-diagnostics.md › R4): causes are read from connectives and consequences
  * from a closed vocabulary of run-time outcomes, both in English; a cause or consequence worded outside them
  * ("prevents", "the value ends up empty") is not read, and a correct paraphrase of a rule's consequence is
- * withheld with the wrong ones. Evidence is removed only where it stands as its own sentence or clause, so a
- * claim in a separate clause beside it is read on its own words only. Positions, values, severities and
+ * withheld with the wrong ones. Evidence is removed only where it starts a sentence (or follows "Action:"),
+ * so a claim in a separate sentence beside it is read on its own words only. Positions, values, severities and
  * remedies are the existing screens' own limits, and positions and values are checked against the whole
  * request, the other issue's line included.
  *
@@ -211,10 +211,11 @@ const CONSEQUENCE = new RegExp(
 const NOT_RUN = /\b(?:cannot|can't|can not|won't|will not|unable to|does not|doesn't|do not|don't)\s+(?:be\s+)?(?:run|start|execute|begin)\b/i;
 /**
  * The FLOW not running or starting: the Issues line's own "blocks the run", so evidence for an issue that
- * blocks it. Only with the flow or the run as its subject: "only this step will not execute" is a claim
- * about scope that nothing supports (QC, 2026-09-25).
+ * blocks it. Only with the flow or the run named as its subject: "only this step will not execute" is a
+ * claim about scope that nothing supports, and so is "only this step is affected; it will not execute",
+ * where a pronoun carries the step back in (QC, 2026-09-25, both passes).
  */
-const FLOW_NOT_RUN = /\b(?:the flow|this flow|the run|the automation|it)\s+(?:cannot|can't|can not|won't|will not|is unable to|does not|doesn't)\s+(?:be\s+)?(?:run|start|execute|begin)\b/gi;
+const FLOW_NOT_RUN = /\b(?:the flow|this flow|the run|the automation)\s+(?:cannot|can't|can not|won't|will not|is unable to|does not|doesn't)\s+(?:be\s+)?(?:run|start|execute|begin)\b/gi;
 
 /** A claim about what happens at run time, in `text` as given. */
 export const makesConsequenceClaim = (text: string): boolean => CONSEQUENCE.test(text) || NOT_RUN.test(text);
@@ -231,14 +232,16 @@ function evidenceSpans(ref: AuthoringIssueRef): string[] {
 
 /**
  * `text` with every verbatim copy of `ref`'s evidence taken out, whatever its case: the model's own words.
- * A copy counts only as a statement of its own: at the start of the text or after a sentence, clause or
- * "Action:" break, and ending at one. Inside a sentence the words around it can reverse it ("After you add a
- * connector, the run stops there…"), so it stays and is read like the rest (QC, 2026-09-25).
+ * A copy counts only as a statement of its own: starting the text, a sentence or the request's own
+ * "Action:" label, and ending at a sentence or clause break. Inside a sentence the words around it can
+ * reverse it ("After you add a connector, the run stops there…"), and so can a framing colon or clause ("It is
+ * not true that: …; the run stops there…"), so it stays and is read like the rest (QC, 2026-09-25, both
+ * passes). A whole summary copied as a sentence is removed whole, its own ";" included.
  */
 function ownWordsOf(ref: AuthoringIssueRef, text: string): string {
   let rest = text.replace(/\s+/g, " ");
   for (const span of evidenceSpans(ref)) {
-    rest = rest.replace(new RegExp(`(?<=^|[.!?;:]\\s)${escapeRegExp(span).replace(/ /g, "\\s+")}(?=\\s*(?:[.!?;]|$))`, "gi"), " ");
+    rest = rest.replace(new RegExp(`(?<=^|[.!?]\\s|Action:\\s)${escapeRegExp(span).replace(/ /g, "\\s+")}(?=\\s*(?:[.!?;]|$))`, "gi"), " ");
   }
   return rest;
 }
