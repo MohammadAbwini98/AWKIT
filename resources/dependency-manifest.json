@@ -4,12 +4,12 @@
                    "version":  3,
                    "sourceTemplate":  "playwright_flow_studio_updated_phases/12_OFFLINE_DEPENDENCY_MANIFEST_TEMPLATE.md"
                },
-    "manifestGeneratedAt":  "2026-09-24T17:59:56.7472393Z",
+    "manifestGeneratedAt":  "2026-09-25T18:06:31.5542487Z",
     "application":  {
                         "name":  "SpecterStudio",
                         "version":  "0.1.51",
                         "buildMode":  "production-offline",
-                        "sourceCommit":  "1e85670642f9747a3af2eed95768dda1ebeb48d8",
+                        "sourceCommit":  "1fbd2178cb4cc322d9b38be42f28938bc7f7b412",
                         "sourceTreeDirty":  false
                     },
     "offline":  {
@@ -232,8 +232,8 @@
                       "arch":  "x64",
                       "modelPackBundled":  false,
                       "stagedRoot":  "native-hosts/ai",
-                      "fileCount":  1461,
-                      "totalBytes":  53117391,
+                      "fileCount":  1465,
+                      "totalBytes":  53973999,
                       "assets":  [
                                      {
                                          "relativePath":  "native-hosts/ai/ai-host.cjs",
@@ -511,6 +511,21 @@
                                          "sha256":  "2e74c9c2901306e48085e225d169e887d68cef62b5ef8a63b9829c548cac0a10"
                                      },
                                      {
+                                         "relativePath":  "native-hosts/ai/node_modules/@node-llama-cpp/win-x64/bins/win-x64/msvcp140.dll",
+                                         "size":  557728,
+                                         "sha256":  "0f885b509a685d2bbfa652fed26b5fb31d88fbdab0a978c641d1c7b8aa460aa9"
+                                     },
+                                     {
+                                         "relativePath":  "native-hosts/ai/node_modules/@node-llama-cpp/win-x64/bins/win-x64/vcruntime140.dll",
+                                         "size":  124544,
+                                         "sha256":  "d5e4d9a3e835fa679450145d6a7d94e36573a509317111904d9b3712c30d9066"
+                                     },
+                                     {
+                                         "relativePath":  "native-hosts/ai/node_modules/@node-llama-cpp/win-x64/bins/win-x64/vcruntime140_1.dll",
+                                         "size":  49792,
+                                         "sha256":  "1f2d41c4aa5db0bc33ebf7b66d72943a817d7ce6cbe880502a9403823633093f"
+                                     },
+                                     {
                                          "relativePath":  "native-hosts/ai/node_modules/@node-llama-cpp/win-x64/dist/index.js",
                                          "size":  422,
                                          "sha256":  "032284f3124f6952b49b78f2f0098fba0102fc276780028e6859a45f560f53cb"
@@ -529,6 +544,11 @@
                                          "relativePath":  "native-hosts/ai/node_modules/@reflink/reflink-win32-x64-msvc/reflink.win32-x64-msvc.node",
                                          "size":  361472,
                                          "sha256":  "370cdee825881d1f0c3e87a85df5589ee51f1a7eec3bca3c252255b6521224dc"
+                                     },
+                                     {
+                                         "relativePath":  "native-hosts/ai/node_modules/@reflink/reflink-win32-x64-msvc/vcruntime140.dll",
+                                         "size":  124544,
+                                         "sha256":  "d5e4d9a3e835fa679450145d6a7d94e36573a509317111904d9b3712c30d9066"
                                      },
                                      {
                                          "relativePath":  "native-hosts/ai/node_modules/@reflink/reflink/binding.js",
