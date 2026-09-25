@@ -59,6 +59,7 @@ const notCounted = store.verdicts.filter((v) => !isGenuineReviewer(v.reviewer));
 const verdictOf = new Map(byPerson.map((v) => [v.itemId, v]));
 console.log(`L4b explanation quality target (adopted ${QUALITY_TARGET.adopted})`);
 console.log(`  review store: ${dir}`);
+console.log(`  current request: instructions sha256 ${current}`);
 console.log(`  captures: ${captures.length} of the current request, ${store.captures.length - captures.length} of an earlier one (ignored); verdicts: ${byPerson.length} by a person, ${notCounted.length} kept for audit and never counted`);
 for (const v of notCounted) console.log(`    not counted: ${v.itemId} under reviewer "${v.reviewer}" (a placeholder or an agent), recorded ${v.reviewedAt}`);
 if (store.malformed.length > 0) console.error(`  ✗ unreadable: ${store.malformed.join(", ")}`);

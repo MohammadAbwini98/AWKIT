@@ -16,7 +16,10 @@
  *   4. a validation explanation of a broken flow runs a REAL inference in the packaged app's own utility
  *      host under the feature's own deadline, and the answer names the pinned model;
  *   5. the non-packaged test provider is unreachable: AWKIT_TEST_AI_PROVIDER points at a scripted answer
- *      and the answer must still come from the real model.
+ *      and the answer must still come from the real model;
+ *   6. the L7 clean-machine procedure's step 9, same PowerShell: exactly one process, a child of the main
+ *      process, holds llama.cpp binaries from resources\native-hosts\ai (the AI host), and it loaded
+ *      msvcp140, vcruntime140 and vcruntime140_1 from that tree.
  *
  * Exit, the `gateExitCode` convention: NOT RUN (exit 2, with the reason, never a pass) without a packaged
  * tree that carries native-hosts/ai or without the pack. A stale packaged tree FAILS (exit 1). A TIMEOUT on
@@ -25,9 +28,11 @@
  * Run: npm run verify:ai-packaged-app   (after `npm run package:portable`)
  */
 
+import { execFile } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { promisify } from "node:util";
 
 import { _electron as electron, type ElectronApplication, type Page } from "playwright";
 
@@ -102,6 +107,36 @@ async function signIn(win: Page): Promise<void> {
   await win.getByRole("checkbox", { name: "I saved this recovery code in a secure place." }).check();
   await win.getByRole("button", { name: "Continue to SpecterStudio" }).click();
   await win.waitForSelector(".app-shell", { timeout: 30_000 });
+}
+
+/**
+ * Step 9 of docs/plans/ai-upgrade-v5/evidence/L7-clean-machine-procedure-0.1.51.md, its first five lines
+ * verbatim: keep the two in step, so the operator's command is the one this gate executes. Module lists are per process, so the
+ * AI host is found by what only it loads (llama.cpp binaries from native-hosts\ai), never by name alone.
+ */
+const STEP9 = String.raw`
+$ai  = Join-Path $install 'resources\native-hosts\ai'
+$crt = '^(msvcp140|vcruntime140|vcruntime140_1)\.dll$'
+$parent = @{}; Get-CimInstance Win32_Process -Filter "Name='SpecterStudio.exe'" | % { $parent[[int]$_.ProcessId] = [int]$_.ParentProcessId }
+$modules = Get-Process SpecterStudio | % { $p = $_; $p.Modules | % { [pscustomobject]@{ PID = $p.Id; Parent = $parent[$p.Id]; Module = $_.ModuleName; Path = $_.FileName } } }
+$aiHost = @($modules | ? { $_.Path -like "$ai\*" -and $_.Module -notmatch $crt } | Select-Object -ExpandProperty PID -Unique)
+`;
+
+type Step9 = { aiHost?: number | number[]; hostParent?: number | null; crt?: Array<{ PID: number; Module: string; Path: string }> };
+
+async function runStep9(install: string): Promise<Step9> {
+  const script =
+    `$install = '${install.replace(/'/g, "''")}'` +
+    STEP9 +
+    "[pscustomobject]@{ aiHost = $aiHost; hostParent = $(if ($aiHost.Count -eq 1) { $parent[$aiHost[0]] } else { $null }); " +
+    "crt = @($modules | ? { $_.Module -match $crt } | Select-Object PID, Module, Path) } | ConvertTo-Json -Depth 4 -Compress";
+  // -EncodedCommand: the script's own double quotes would not survive Windows argument quoting.
+  const { stdout } = await promisify(execFile)(
+    "powershell.exe",
+    ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")],
+    { maxBuffer: 16 << 20, timeout: 120_000 }
+  );
+  return JSON.parse(stdout.trim().split(/\r?\n/).pop() ?? "{}") as Step9;
 }
 
 function findFiles(dir: string, match: (name: string) => boolean, out: string[] = []): string[] {
@@ -202,6 +237,21 @@ try {
   const final = await diagnostics();
   check("the host is healthy afterwards (circuit closed)", final?.runtime?.circuitOpen === false, JSON.stringify(final?.runtime));
   if (view?.code !== "TIMEOUT") check("the service counted one completed inference", (final?.counters?.completed ?? 0) >= 1, JSON.stringify(final?.counters));
+
+  if (view?.code !== "TIMEOUT") {
+    console.log("\n6. The AI host loaded its C++ runtime from the packaged tree (L7 clean-machine step 9)");
+    const step9 = await runStep9(UNPACKED);
+    const hosts = ([] as number[]).concat(step9.aiHost ?? []);
+    const rows = ([] as NonNullable<Step9["crt"]>).concat(step9.crt ?? []);
+    const hostRows = rows.filter((row) => hosts.length === 1 && row.PID === hosts[0]);
+    const aiDir = path.join(UNPACKED, "resources", "native-hosts", "ai").toLowerCase() + path.sep;
+    const names = hostRows.map((row) => row.Module.toLowerCase()).sort();
+    check("exactly one SpecterStudio process holds llama.cpp binaries from native-hosts\\ai (the AI host)", hosts.length === 1, `PIDs: ${hosts.join(", ") || "none"}`);
+    check("the AI host is a child of the packaged main process", hosts.length === 1 && hosts[0] !== pids.mainPid && step9.hostParent === pids.mainPid, `parent ${step9.hostParent}, main ${pids.mainPid}`);
+    check("the AI host loaded msvcp140.dll, vcruntime140.dll and vcruntime140_1.dll, each once", names.join(",") === "msvcp140.dll,vcruntime140.dll,vcruntime140_1.dll", names.join(", ") || "none");
+    check("each from resources\\native-hosts\\ai, not System32 or PATH", hostRows.length === 3 && hostRows.every((row) => row.Path.toLowerCase().startsWith(aiDir)), hostRows.map((row) => row.Path).join("; "));
+    for (const row of rows.filter((candidate) => !hostRows.includes(candidate))) console.log(`    recorded, another process: PID ${row.PID} ${row.Module} ${row.Path}`);
+  }
 } catch (error) {
   check("the packaged-app gate ran to completion", false, error instanceof Error ? error.message : String(error));
 } finally {

@@ -97,15 +97,29 @@ another one.
      reads "Stopped after repeated crashes".
    - **INCONCLUSIVE:** a timeout. Retry once, then record it.
    - Take screenshot N8.
-9. **Which runtime DLLs were loaded.** Within a minute of the answer, as the same user, run:
+9. **Which runtime DLLs the AI host loaded.** Module lists are per process, and the AI runs in its own process
+   (an Electron utility process, also named SpecterStudio). So the AI host is found by what only it loads: the
+   llama.cpp binaries under `resources\native-hosts\ai`. Within a minute of the answer, as the same user, in
+   64-bit PowerShell, set `$install` to the install folder from step 2, then run:
 
    ```powershell
-   Get-Process SpecterStudio | % { $_.Modules } |
-     ? { $_.ModuleName -match '^(msvcp140|vcruntime140(_1)?)\.dll$' } | Select-Object -Unique FileName
+   $ai  = Join-Path $install 'resources\native-hosts\ai'
+   $crt = '^(msvcp140|vcruntime140|vcruntime140_1)\.dll$'
+   $parent = @{}; Get-CimInstance Win32_Process -Filter "Name='SpecterStudio.exe'" | % { $parent[[int]$_.ProcessId] = [int]$_.ParentProcessId }
+   $modules = Get-Process SpecterStudio | % { $p = $_; $p.Modules | % { [pscustomobject]@{ PID = $p.Id; Parent = $parent[$p.Id]; Module = $_.ModuleName; Path = $_.FileName } } }
+   $aiHost = @($modules | ? { $_.Path -like "$ai\*" -and $_.Module -notmatch $crt } | Select-Object -ExpandProperty PID -Unique)
+   "AI host: $($aiHost -join ', ')   its parent: $(if ($aiHost.Count -eq 1) { $parent[$aiHost[0]] })   SpecterStudio PIDs: $($parent.Keys -join ', ')"
+   $modules | ? { $_.Module -match $crt } | Sort-Object PID, Module | Format-Table PID, Parent, Module, Path -AutoSize
    ```
 
-   - It must list `msvcp140.dll` and `vcruntime140_1.dll`, each from `$install\resources\native-hosts\ai\…`.
-   - It must list no `*140*.dll` from outside the install folder.
+   - The first line must show **exactly one** AI host PID, and its parent must be one of the SpecterStudio
+     PIDs (the main process). No AI host PID means the runtime never loaded: FAIL.
+   - For that PID, the table must list `msvcp140.dll`, `vcruntime140.dll` and `vcruntime140_1.dll`, once
+     each, each with a path under `$install\resources\native-hosts\ai\`.
+   - No row, for any PID, may have a path outside `$install` (System32, `PATH` or anywhere else).
+   - `verify:ai-packaged-app` step 6 runs the first five lines verbatim on `dist\win-unpacked`. On the
+     development host (2026-09-25, 24/0), the AI host loaded all three from the packaged tree even though
+     System32 carries a global runtime, and no other SpecterStudio process loaded any of them.
 10. **Settings › Local AI again.** *Jobs* must read at least `1 completed`. *Runtime process* must not read "Stopped
     after repeated crashes". Take screenshot N10.
 11. **Network during the run.** `Get-NetTCPConnection -State Established` must show no remote address other than
@@ -118,9 +132,9 @@ Revert to **S0**, so the profile and the runtime state are clean. Then:
 1. Hash the portable EXE and the model pack; both must equal §1.
 2. Run `SpecterStudio 0.1.51.exe` as the standard user from a folder the user owns.
 3. Repeat NSIS steps 4–12 (screenshots P5, P6, P8, P10). The portable app unpacks itself into `%TEMP%`, so:
-   - in step 9, each DLL must come from a path containing `\resources\native-hosts\ai\`, under that unpacked
-     folder;
-   - no `*140*.dll` may come from `System32` or anywhere else outside it.
+   - in step 9, set `$install` to that unpacked folder:
+     `$install = Split-Path (Get-Process SpecterStudio | Select-Object -First 1).Path`. The musts are the same,
+     read against that folder.
    - Record that unpacked folder.
 
 ## 5. Result
