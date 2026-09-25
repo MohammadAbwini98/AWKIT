@@ -14,8 +14,8 @@
     "docs/plans/ai-upgrade-v5/L7-release-confirmation.md",
     "docs/plans/ai-upgrade-v5/ROADMAP.md"
   ],
-  "acquired_at": "2026-09-25T19:01:28.089Z",
-  "acquired_at_commit": "0f66150287ede8614ea0c0f37bdc214f748090f0",
+  "acquired_at": "2026-09-25T19:29:36.393Z",
+  "acquired_at_commit": "a494622358ef88c48270fa38b1bcc74a1b79b3cc",
   "baseline_dirty": [],
   "baseline_dirty_fingerprints": {},
   "baseline_watched_ignored": {
@@ -31,7 +31,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-25T19:02:18.752Z",
-  "released_reason": "tracker notes for awkit-i6ot (packaged and verified, VM owed) and awkit-djnl.6 (decision record) exported, verify:roadmap-dashboard 177/177 Sources agree",
-  "archived_at": "2026-09-25T19:02:18.756Z"
+  "released_at": "2026-09-25T19:30:28.168Z",
+  "released_reason": "tracker notes for awkit-djnl.6 (L4b proposal, R4 mutation run 38/0), awkit-i6ot (clean-machine procedure, NOT RUN) and awkit-djnl.10 (issuer key still BLOCKED) exported, 322 issues, verify:roadmap-dashboard 177/177 Sources agree",
+  "archived_at": "2026-09-25T19:30:28.171Z"
 }

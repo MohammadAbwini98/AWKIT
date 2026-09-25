@@ -39,6 +39,7 @@
 | `verify:ai-authoring` (inside the mutation controls) | 305/305 |
 | `verify:packaged-walkthrough` | 42/0, 1 BLOCKED (issuer key) |
 | `typecheck:scripts` · `verify:verifier-classification` | PASS · reconciled (267 classified) |
+| `verify:roadmap-dashboard` | 177/177, Overview "Sources agree" (25 outstanding / 297 closed, 181 edges) |
 | `verify:ai-authoring-review` | TARGET NOT MET (not re-run: its inputs did not change) |
 | clean-machine VM · licensed walkthrough | NOT RUN (operator) · BLOCKED (issuer key) |
 

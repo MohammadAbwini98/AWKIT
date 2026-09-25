@@ -1012,6 +1012,30 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:project-state:2026-09-25T19:29:36.393Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**",
+          "docs/ai/COMMANDS.md",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/plans/ai-upgrade-v5/L6-fragments-and-templates.md",
+          "docs/plans/ai-upgrade-v5/L7-release-confirmation.md",
+          "docs/plans/ai-upgrade-v5/ROADMAP.md"
+        ],
+        "acquired_at": "2026-09-25T19:29:36.393Z",
+        "acquired_at_commit": "a494622358ef88c48270fa38b1bcc74a1b79b3cc",
+        "released_at": "2026-09-25T19:30:28.168Z",
+        "released_reason": "tracker notes for awkit-djnl.6 (L4b proposal, R4 mutation run 38/0), awkit-i6ot (clean-machine procedure, NOT RUN) and awkit-djnl.10 (issuer key still BLOCKED) exported, 322 issues, verify:roadmap-dashboard 177/177 Sources agree",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }
