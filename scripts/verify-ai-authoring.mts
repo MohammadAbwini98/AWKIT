@@ -81,6 +81,7 @@ import {
   buildReviewCapture,
   evaluateQualityTarget,
   instructionsSha256,
+  isGenuineReviewer,
   loadReviewStore,
   recordVerdict,
   requiredReading,
@@ -926,6 +927,14 @@ console.log("\n12 — corrective step, fix priority, the review store and the ad
   const acceptedLabels: string[] = [];
   for (const reviewer of refusedLabels) if ((await recordVerdict(reviewRoot, { ...verdict, reviewer })).ok) acceptedLabels.push(reviewer);
   check("a verdict under a placeholder or an agent's label is refused: YOUR_LABEL, your label, <label>, <owner's label>, Claude, blank", acceptedLabels.length === 0, JSON.stringify(acceptedLabels));
+  // An agent's name inside a longer label passed before 2026-09-26 ("claude-opus" normalized to claude_opus, not in the list).
+  const agentNamed = ["Claude Opus", "agent:claude-opus-5.5", "claude-code-review", "Codex CLI", "gpt-5", "Gemini 2", "ChatGPT", "AI reviewer", "review-bot"];
+  const personLike = ["MA", "Mohammad", "Aiden", "Claudette", "Bottomley"];
+  check(
+    "a label naming an agent or model anywhere in it is refused too, while person-like labels containing those letters are not",
+    agentNamed.every((l) => !isGenuineReviewer(l)) && personLike.every((l) => isGenuineReviewer(l)),
+    JSON.stringify({ accepted: agentNamed.filter((l) => isGenuineReviewer(l)), refused: personLike.filter((l) => !isGenuineReviewer(l)) })
+  );
   const placeholder: ReviewVerdict = { ...verdict, reviewer: "YOUR_LABEL", note: "optional", reviewedAt: "2026-09-23T08:27:19.233Z" };
   writeFileSync(join(reviewRoot, "reviews.json"), JSON.stringify({ version: 1, verdicts: [placeholder] }));
   await recordVerdict(reviewRoot, verdict);

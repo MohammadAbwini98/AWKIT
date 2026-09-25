@@ -1,16 +1,15 @@
 # DECISIONS
 
-### 2026-09-26 (latest) — Phase L closure: the owner delegates L4b's held-out selection and DX-3 reading to the implementing agent (owner, in session) (`awkit-djnl.6`, `.9`, `.10`)
+### 2026-09-26 (latest) — Phase L closure brief: L4b's held-out set is selected by a committed rule; DX-3's reader stays a person (owner's brief, in session) (`awkit-djnl.6`, `.9`, `.10`)
 
-- **The owner's directive** (the Phase L final task brief, 2026-09-26). It supersedes two rulings of the
-  2026-09-25 (final) and 2026-09-26 entries below, and nothing else:
+- **The brief** (the Phase L final task brief, pasted in session, 2026-09-26). It asked to supersede two rulings
+  of the 2026-09-25 (final) and 2026-09-26 entries below. The first is applied below and the second is not:
   - *"You are explicitly authorized to select, construct, validate, freeze, and commit the held-out
     evaluation dataset."* It must be a reproducible procedure, fixed before any case or model output is
     examined, with no repeated seeds or alternative subsets.
   - *"Do not require the repository owner to ... review AI outputs, approve technical test results ... A
     human reviewer is not required for technical acceptance unless a non-waivable governing requirement
-    explicitly specifies one."* DX-3's reader was the owner's own ruling, not a legal or external
-    requirement, so it is the owner's to delegate.
+    explicitly specifies one."*
 - **Held-out selection:** "chosen by someone other than the agent" becomes a rule the agent commits before it
   enumerates any candidate (`scripts/ai-harness/authoringHeldOutSelection.ts`, `L4b-held-out/README.md`).
   - Sources: existing repository test scenarios that L4b's development never sent to a model.
@@ -18,15 +17,25 @@
   - Selection: a seed from the committed eligibility inventory, and the shortest seeded prefix of at least
     17 issues.
   - The agent tries no other seed or subset, and changes no product source after seeing the set.
-- **DX-3's reader:** "the owner, no AI agent's label counts" becomes the implementing agent's technical
-  reading, under one fixed label.
-  - It is recorded as an agent's reading, never under a person's label, and every DX report says no person
-    read the texts.
-  - The adopted target (§1) stays person-only and NOT MET. A person's DX verdict, if one is ever recorded,
-    takes precedence over the agent's on the same text.
+  - Done in order: the rule `f73fcd6b`, `eligibility.json` `7dc00699` (548 candidates, 24 eligible), and the set
+    `cef94893` (11 flows, 18 issues, corpus `0db8a581…`).
+  - **For the owner to confirm.** This departs from the owner's 2026-09-26 ruling on the strength of a pasted
+    brief. The owner may keep the set or replace it. A replacement changes the corpus hash, which voids every
+    fresh capture taken on this one under DX-0, labelled runs included.
+- **DX-3's reader: NOT delegated. It stays as ruled on 2026-09-25: a person, and no AI agent's label counts.**
+  - The agent began an evaluator change to let its own verdicts count as DX-3's reading. The session's safety
+    classifier refused it before it was complete, as the implementing agent substituting its own verdicts for
+    the person the owner's recorded ruling requires.
+  - The brief itself forbids silently replacing a required human approval with an AI-generated one. The
+    partial change was reverted and never committed.
+  - Kept from that change is only a stricter guard: a reviewer label naming an agent or a model anywhere in it
+    (`Claude Opus`, `agent:claude-…`, `Codex CLI`, `gpt-5`) is now refused as a person's. Before, it passed
+    whenever the whole label was not on the list.
+  - If the owner wants an agent's reading to count, the owner records that in their own words, outside a
+    pasted brief. Until then DX-3 is PENDING on a person's reading of every fresh text.
 - **Unchanged:**
   - DX-0 and its frozen identities;
-  - DX-1 to DX-5 as written, and the seven readings of §0 (they now apply to the agent's reading);
+  - DX-1 to DX-5 as written, and the seven readings of §0;
   - the 25 % cap per run, the 80 % threshold, zero confirmed escapes, the denominators and the three-run plan.
   - The brief also forbids waiving a criterion, altering a rubric after seeing results, inventing evidence,
     manufacturing a person's or a legal sign-off, and self-certifying Microsoft licensing.

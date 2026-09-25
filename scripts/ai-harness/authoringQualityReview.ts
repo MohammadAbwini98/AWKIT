@@ -310,6 +310,9 @@ const NOT_A_REVIEWER = new Set([
   "agent", "ai", "assistant", "claude", "claude_code", "codex", "gemini"
 ]);
 
+/** A label naming an agent or a model anywhere in it, as a word: `agent:claude-opus-5.5`, `Codex CLI`, `gpt-5`. */
+const AGENT_WORD = /(?:^|[^a-z])(?:agent|ai|assistant|bot|claude|opus|sonnet|haiku|fable|codex|gemini|gpt|chatgpt|copilot|llm)(?:[^a-z]|$)/i;
+
 /**
  * A label a person chose for themselves: 1-40 characters, not a placeholder, not an agent, and not a template
  * slot such as `<label>`. A verdict under any other label is refused, and one already stored is kept for
@@ -318,7 +321,7 @@ const NOT_A_REVIEWER = new Set([
 export function isGenuineReviewer(reviewer: unknown): boolean {
   if (typeof reviewer !== "string") return false;
   const label = reviewer.trim();
-  return label.length > 0 && label.length <= 40 && !/^[<{[(].*[>}\])]$/.test(label) && !NOT_A_REVIEWER.has(label.toLowerCase().replace(/[\s-]+/g, "_"));
+  return label.length > 0 && label.length <= 40 && !/^[<{[(].*[>}\])]$/.test(label) && !NOT_A_REVIEWER.has(label.toLowerCase().replace(/[\s-]+/g, "_")) && !AGENT_WORD.test(label);
 }
 
 export type VerdictInput = Omit<ReviewVerdict, "reviewedAt">;

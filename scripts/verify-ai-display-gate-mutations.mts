@@ -30,7 +30,8 @@ const PARSER = join(root, "src", "ai", "authoringExplanation.ts");
 const ADAPTER = join(root, "app", "main", "ai", "aiAssist.ts");
 const DX = process.argv.includes("--dx");
 const DX_FILE = join(root, "scripts", "ai-harness", "authoringDx.ts");
-const FILES = DX ? [DX_FILE] : [GATE, PARSER, ADAPTER];
+const REVIEW_FILE = join(root, "scripts", "ai-harness", "authoringQualityReview.ts");
+const FILES = DX ? [DX_FILE, REVIEW_FILE] : [GATE, PARSER, ADAPTER];
 const ANCHOR = String.raw`(?<=^|[.!?]\\s|Action:\\s)`;
 
 interface Mutant {
@@ -94,9 +95,14 @@ const DX_MUTANTS: readonly Mutant[] = [
   { id: "held-out-labelled-id-unchecked", file: DX_FILE, find: "if (labelledIds.has(flow.id)) problems.push", replace: "if (false) problems.push" },
   { id: "held-out-secret-unchecked", file: DX_FILE, find: "if (secrets.length > 0) problems.push", replace: "if (false) problems.push" },
   { id: "held-out-minimum-dropped", file: DX_FILE, find: "issues < DX_RULES.minHeldOutIssues) problems.push", replace: "issues < 0) problems.push" },
-  { id: "held-out-uncommitted-accepted", file: DX_FILE, find: "problems.push(`git cannot show that ${dir} is committed`);", replace: "" }
+  { id: "held-out-uncommitted-accepted", file: DX_FILE, find: "problems.push(`git cannot show that ${dir} is committed`);", replace: "" },
+  // The reviewer-label guard both evaluators rely on: an agent's name inside a longer label is no person's.
+  { id: "reviewer-agent-word-ignored", file: REVIEW_FILE, find: " && !AGENT_WORD.test(label)", replace: "" }
 ];
-const DX_CONTROLS: readonly Mutant[] = [{ id: "control-dx", file: DX_FILE, find: "export function evaluateDx(", replace: "export function evaluateDx(" }];
+const DX_CONTROLS: readonly Mutant[] = [
+  { id: "control-dx", file: DX_FILE, find: "export function evaluateDx(", replace: "export function evaluateDx(" },
+  { id: "control-review", file: REVIEW_FILE, find: "export function isGenuineReviewer(", replace: "export function isGenuineReviewer(" }
+];
 
 const MUTANTS = DX ? DX_MUTANTS : GATE_MUTANTS;
 const CONTROLS = DX ? DX_CONTROLS : GATE_CONTROLS;
