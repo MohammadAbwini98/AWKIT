@@ -1,0 +1,314 @@
+{
+  "id": "oracle-multiConditionBranch-2",
+  "name": "Oracle multiConditionBranch 2",
+  "description": "Randomized multiConditionBranch flow (seed awkit-oracle-baseline-001::multiConditionBranch-2)",
+  "version": 1,
+  "nodes": [
+    {
+      "type": "start",
+      "id": "oracle-multiConditionBranch-2-n0",
+      "name": "start-0",
+      "position": {
+        "x": 120,
+        "y": 120
+      }
+    },
+    {
+      "type": "condition",
+      "timeoutMs": 17000,
+      "retry": {
+        "count": 2,
+        "delayMs": 1000
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": false
+      },
+      "beforeWaits": [
+        {
+          "type": "domStable",
+          "stableForMs": 300,
+          "timeoutMs": 5000
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "none",
+        "retryable": false
+      },
+      "message": "lab-bravo",
+      "id": "oracle-multiConditionBranch-2-n1",
+      "name": "condition-1",
+      "position": {
+        "x": 480,
+        "y": 120
+      }
+    },
+    {
+      "type": "condition",
+      "value": "outcome === \"success\"",
+      "timeoutMs": 7000,
+      "retry": {
+        "count": 2,
+        "delayMs": 1500
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": false
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "safeMutation",
+        "retryable": false
+      },
+      "id": "oracle-multiConditionBranch-2-n2",
+      "name": "condition-2",
+      "position": {
+        "x": 840,
+        "y": 120
+      }
+    },
+    {
+      "type": "fill",
+      "locator": {
+        "strategy": "testId",
+        "value": "delay-ms"
+      },
+      "value": "lab-echo",
+      "valueSource": {
+        "type": "runtimeInput",
+        "key": "labInputAlpha"
+      },
+      "config": {
+        "clearBeforeFill": false
+      },
+      "timeoutMs": 8000,
+      "retry": {
+        "count": 2,
+        "delayMs": 1000
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": false
+      },
+      "beforeWaits": [
+        {
+          "type": "domStable",
+          "stableForMs": 300,
+          "timeoutMs": 5000
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "none",
+        "retryable": true
+      },
+      "message": "lab-delta",
+      "id": "oracle-multiConditionBranch-2-n3",
+      "name": "fill-3",
+      "position": {
+        "x": 1200,
+        "y": 120
+      }
+    },
+    {
+      "type": "goto",
+      "value": "http://127.0.0.1:4321/iframe-lab",
+      "valueSource": {
+        "type": "env",
+        "envKey": "AWKIT_LAB_ENV_ALPHA"
+      },
+      "url": "http://127.0.0.1:4321/iframe-lab",
+      "timeoutMs": 17000,
+      "retry": {
+        "count": 0,
+        "delayMs": 500
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": true
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "safeMutation",
+        "retryable": false
+      },
+      "message": "lab-echo",
+      "id": "oracle-multiConditionBranch-2-n4",
+      "name": "goto-4",
+      "position": {
+        "x": 120,
+        "y": 300
+      }
+    },
+    {
+      "type": "fill",
+      "locator": {
+        "strategy": "testId",
+        "value": "outer-input"
+      },
+      "value": "lab-user-03@example.invalid",
+      "valueSource": {
+        "type": "env",
+        "envKey": "AWKIT_LAB_ENV_BRAVO"
+      },
+      "config": {
+        "clearBeforeFill": false
+      },
+      "timeoutMs": 15000,
+      "retry": {
+        "count": 0,
+        "delayMs": 1000
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": true
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "read",
+        "retryable": true
+      },
+      "id": "oracle-multiConditionBranch-2-n5",
+      "name": "fill-5",
+      "position": {
+        "x": 480,
+        "y": 300
+      }
+    },
+    {
+      "type": "runFlow",
+      "value": "oracle-linear-2",
+      "valueSource": {
+        "type": "generated",
+        "generator": "randomNumber"
+      },
+      "flowId": "oracle-linear-2",
+      "config": {
+        "targetFlowId": "oracle-linear-2",
+        "stopParentOnChildFailure": false
+      },
+      "timeoutMs": 10000,
+      "retry": {
+        "count": 0,
+        "delayMs": 1500
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": false
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "none",
+        "retryable": false
+      },
+      "id": "oracle-multiConditionBranch-2-n6",
+      "name": "runFlow-6",
+      "position": {
+        "x": 840,
+        "y": 300
+      }
+    },
+    {
+      "type": "end",
+      "id": "oracle-multiConditionBranch-2-n7",
+      "name": "end-7",
+      "position": {
+        "x": 1200,
+        "y": 300
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "oracle-multiConditionBranch-2-e0",
+      "source": "oracle-multiConditionBranch-2-n0",
+      "target": "oracle-multiConditionBranch-2-n1",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-multiConditionBranch-2-e1",
+      "source": "oracle-multiConditionBranch-2-n1",
+      "target": "oracle-multiConditionBranch-2-n2",
+      "type": "conditional",
+      "kind": "conditional",
+      "conditional": {
+        "sourceField": "outcome",
+        "operator": "notContains",
+        "priority": 1,
+        "expectedValue": "lab-alpha"
+      }
+    },
+    {
+      "id": "oracle-multiConditionBranch-2-e2",
+      "source": "oracle-multiConditionBranch-2-n1",
+      "target": "oracle-multiConditionBranch-2-n3",
+      "type": "conditional",
+      "kind": "conditional",
+      "conditional": {
+        "sourceField": "variable",
+        "operator": "notContains",
+        "priority": 0,
+        "expectedValue": "failure",
+        "variableName": "outputs.lab.status"
+      }
+    },
+    {
+      "id": "oracle-multiConditionBranch-2-e3",
+      "source": "oracle-multiConditionBranch-2-n2",
+      "target": "oracle-multiConditionBranch-2-n4",
+      "type": "conditional",
+      "kind": "conditional",
+      "conditional": {
+        "sourceField": "errorCode",
+        "operator": "lessThanOrEqual",
+        "priority": 0,
+        "expectedValue": 94
+      }
+    },
+    {
+      "id": "oracle-multiConditionBranch-2-e4",
+      "source": "oracle-multiConditionBranch-2-n2",
+      "target": "oracle-multiConditionBranch-2-n5",
+      "type": "conditional",
+      "kind": "conditional",
+      "conditional": {
+        "sourceField": "dataSourceValue",
+        "operator": "falsy",
+        "priority": 1,
+        "variableName": "outputs.lab.code"
+      }
+    },
+    {
+      "id": "oracle-multiConditionBranch-2-e5",
+      "source": "oracle-multiConditionBranch-2-n3",
+      "target": "oracle-multiConditionBranch-2-n6",
+      "type": "failure",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-multiConditionBranch-2-e6",
+      "source": "oracle-multiConditionBranch-2-n4",
+      "target": "oracle-multiConditionBranch-2-n6",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-multiConditionBranch-2-e7",
+      "source": "oracle-multiConditionBranch-2-n5",
+      "target": "oracle-multiConditionBranch-2-n6",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-multiConditionBranch-2-e8",
+      "source": "oracle-multiConditionBranch-2-n6",
+      "target": "oracle-multiConditionBranch-2-n7",
+      "type": "success",
+      "kind": "normal"
+    }
+  ],
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z"
+}

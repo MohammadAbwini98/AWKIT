@@ -1,0 +1,185 @@
+{
+  "version": 1,
+  "corpusSha256": "0db8a5814eee3e08a2a1fc3d8bcb72826af584e48ea8062fd4461ad716ac09d3",
+  "issues": 18,
+  "cases": [
+    {
+      "id": "ho-006d2b1892f8",
+      "file": "oracle-oracle-linear-5-missingRequiredLocator.json",
+      "sha256": "006d2b1892f83da272abc51d623c71d6158a24549ce36873400b6900260103e8",
+      "sent": [
+        {
+          "code": "missingRequiredLocator",
+          "fixable": false,
+          "blocking": true
+        }
+      ],
+      "truncated": 0
+    },
+    {
+      "id": "ho-010f7dfff6fb",
+      "file": "oracle-oracle-nestedBranch-3-unsupportedOperator.json",
+      "sha256": "010f7dfff6fbbadc751448eabbcd34bf64f61d5ae02adc1dee44ca96de3578ec",
+      "sent": [
+        {
+          "code": "unsupportedOperator",
+          "fixable": false,
+          "blocking": true
+        }
+      ],
+      "truncated": 0
+    },
+    {
+      "id": "ho-040f7d60e0bf",
+      "file": "oracle-oracle-multiConditionBranch-2-missingRequiredValue.json",
+      "sha256": "040f7d60e0bf4c0ad8da61ae0305710a407a5565cce99aae3906fdff91eaf013",
+      "sent": [
+        {
+          "code": "missingFlowReference",
+          "fixable": false,
+          "blocking": true
+        },
+        {
+          "code": "missingRequiredValue",
+          "fixable": false,
+          "blocking": true
+        }
+      ],
+      "truncated": 0
+    },
+    {
+      "id": "ho-0814d91ce884",
+      "file": "oracle-oracle-multiConditionBranch-4-missingRequiredValue.json",
+      "sha256": "0814d91ce884ceadb75944200b559384b3bc5dcdf506b2587166e927d19e403a",
+      "sent": [
+        {
+          "code": "missingRequiredValue",
+          "fixable": false,
+          "blocking": true
+        }
+      ],
+      "truncated": 0
+    },
+    {
+      "id": "ho-084a34676218",
+      "file": "oracle-oracle-nestedBranch-4-missingRequiredLocator.json",
+      "sha256": "084a34676218b32ca77b56c4fab7a0bf004c3d508c886650da87457e3a605891",
+      "sent": [
+        {
+          "code": "missingFlowReference",
+          "fixable": false,
+          "blocking": true
+        },
+        {
+          "code": "missingFlowReference",
+          "fixable": false,
+          "blocking": true
+        }
+      ],
+      "truncated": 1
+    },
+    {
+      "id": "ho-094384117a67",
+      "file": "mock-comprehensive-connectors-flow.json",
+      "sha256": "094384117a677ca21e2a109a67ddcac5101ef7dc2354a011fd487b51a483e33a",
+      "sent": [
+        {
+          "code": "deadEndNode",
+          "fixable": false,
+          "blocking": false
+        },
+        {
+          "code": "deadEndNode",
+          "fixable": false,
+          "blocking": false
+        }
+      ],
+      "truncated": 0
+    },
+    {
+      "id": "ho-0d1b048efded",
+      "file": "oracle-oracle-boundedLoop-3-loopNodeNonConditionalSibling.json",
+      "sha256": "0d1b048efdedb710426ca5bf5c269b056a07e26d12a318b250027963a5637536",
+      "sent": [
+        {
+          "code": "connectorStructure",
+          "fixable": false,
+          "blocking": true
+        },
+        {
+          "code": "connectorStructure",
+          "fixable": false,
+          "blocking": true
+        }
+      ],
+      "truncated": 0
+    },
+    {
+      "id": "ho-0d725c389a7c",
+      "file": "oracle-oracle-loopWithBranch-0-structuralLoopAcrossNodes.json",
+      "sha256": "0d725c389a7cb5a3c7062bd2154896cc85b3b67d6ed13207d5f360ff84b2a802",
+      "sent": [
+        {
+          "code": "connectorStructure",
+          "fixable": false,
+          "blocking": true
+        }
+      ],
+      "truncated": 0
+    },
+    {
+      "id": "ho-0d76daa796fd",
+      "file": "oracle-oracle-parallelWaitAny-0-missingRequiredLocator.json",
+      "sha256": "0d76daa796fd59ab11b4ea27a10c6fe23994775f6facef4c19ddbae77f0c355f",
+      "sent": [
+        {
+          "code": "missingFlowReference",
+          "fixable": false,
+          "blocking": true
+        },
+        {
+          "code": "missingRequiredLocator",
+          "fixable": false,
+          "blocking": true
+        }
+      ],
+      "truncated": 0
+    },
+    {
+      "id": "ho-380eba35f4ab",
+      "file": "oracle-oracle-boundedLoop-0-unsupportedOperator.json",
+      "sha256": "380eba35f4ab41a2e686c4fa5b07302cfb0d116602978df2ed770a73747f43d1",
+      "sent": [
+        {
+          "code": "missingFlowReference",
+          "fixable": false,
+          "blocking": true
+        },
+        {
+          "code": "unsupportedOperator",
+          "fixable": false,
+          "blocking": true
+        }
+      ],
+      "truncated": 0
+    },
+    {
+      "id": "ho-6a6240799aec",
+      "file": "oracle-oracle-boundedLoop-0-invalidLoopLimit.json",
+      "sha256": "6a6240799aecb91e68ad1e5720e68482dc92814d9e91f4794353e205bd431014",
+      "sent": [
+        {
+          "code": "missingFlowReference",
+          "fixable": false,
+          "blocking": true
+        },
+        {
+          "code": "invalidLoopBounds",
+          "fixable": false,
+          "blocking": true
+        }
+      ],
+      "truncated": 0
+    }
+  ]
+}

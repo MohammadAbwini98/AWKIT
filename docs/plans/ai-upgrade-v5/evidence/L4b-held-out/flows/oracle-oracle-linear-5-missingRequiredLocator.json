@@ -1,0 +1,470 @@
+{
+  "id": "oracle-linear-5",
+  "name": "Oracle linear 5",
+  "description": "Randomized linear flow (seed awkit-oracle-baseline-001::linear-5)",
+  "version": 1,
+  "nodes": [
+    {
+      "type": "start",
+      "id": "oracle-linear-5-n0",
+      "name": "start-0",
+      "position": {
+        "x": 120,
+        "y": 120
+      }
+    },
+    {
+      "type": "dblclick",
+      "timeoutMs": 12000,
+      "retry": {
+        "count": 2,
+        "delayMs": 1000
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": false
+      },
+      "beforeWaits": [
+        {
+          "type": "domStable",
+          "stableForMs": 300,
+          "timeoutMs": 5000
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "read",
+        "retryable": false
+      },
+      "id": "oracle-linear-5-n1",
+      "name": "dblclick-1",
+      "position": {
+        "x": 480,
+        "y": 120
+      }
+    },
+    {
+      "type": "hover",
+      "locator": {
+        "strategy": "testId",
+        "value": "appeared-element"
+      },
+      "timeoutMs": 11000,
+      "retry": {
+        "count": 2,
+        "delayMs": 500
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": true
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "none",
+        "retryable": false
+      },
+      "id": "oracle-linear-5-n2",
+      "name": "hover-2",
+      "position": {
+        "x": 840,
+        "y": 120
+      }
+    },
+    {
+      "type": "fill",
+      "locator": {
+        "strategy": "testId",
+        "value": "delay-ms"
+      },
+      "value": "lab-charlie",
+      "valueSource": {
+        "type": "flowOutput",
+        "flowId": "lab-flow-01",
+        "outputKey": "labOutputAlpha"
+      },
+      "config": {
+        "clearBeforeFill": true
+      },
+      "timeoutMs": 8000,
+      "retry": {
+        "count": 0,
+        "delayMs": 500
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": true
+      },
+      "beforeWaits": [
+        {
+          "type": "elementVisible",
+          "locator": {
+            "strategy": "css",
+            "value": "h1"
+          },
+          "timeoutMs": 5000
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "none",
+        "retryable": false
+      },
+      "message": "lab-charlie",
+      "id": "oracle-linear-5-n3",
+      "name": "fill-3",
+      "position": {
+        "x": 1200,
+        "y": 120
+      }
+    },
+    {
+      "type": "fill",
+      "locator": {
+        "strategy": "testId",
+        "value": "delay-ms"
+      },
+      "value": "lab-echo",
+      "valueSource": {
+        "type": "flowOutput",
+        "flowId": "lab-flow-01",
+        "outputKey": "labOutputBravo"
+      },
+      "config": {
+        "clearBeforeFill": true
+      },
+      "timeoutMs": 6000,
+      "retry": {
+        "count": 1,
+        "delayMs": 1500
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": true
+      },
+      "beforeWaits": [
+        {
+          "type": "domStable",
+          "stableForMs": 200,
+          "timeoutMs": 5000
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "none",
+        "retryable": false
+      },
+      "id": "oracle-linear-5-n4",
+      "name": "fill-4",
+      "position": {
+        "x": 120,
+        "y": 300
+      }
+    },
+    {
+      "type": "loop",
+      "locator": {
+        "strategy": "css",
+        "value": "h1"
+      },
+      "value": "5",
+      "valueSource": {
+        "type": "static",
+        "value": "5"
+      },
+      "config": {
+        "loopType": "fixedCount",
+        "iterationCount": 2,
+        "loopActionType": "click",
+        "loopStopOnFailure": true,
+        "maxIterations": 5
+      },
+      "timeoutMs": 19000,
+      "retry": {
+        "count": 0,
+        "delayMs": 500
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": true
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "none",
+        "retryable": true
+      },
+      "loop": {
+        "maxIterations": 3
+      },
+      "id": "oracle-linear-5-n5",
+      "name": "loop-5",
+      "position": {
+        "x": 480,
+        "y": 300
+      }
+    },
+    {
+      "type": "assertVisible",
+      "locator": {
+        "strategy": "testId",
+        "value": "changing-text"
+      },
+      "config": {
+        "assertionType": "visible"
+      },
+      "timeoutMs": 11000,
+      "retry": {
+        "count": 1,
+        "delayMs": 1000
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": true
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "read",
+        "retryable": true
+      },
+      "id": "oracle-linear-5-n6",
+      "name": "assertVisible-6",
+      "position": {
+        "x": 840,
+        "y": 300
+      }
+    },
+    {
+      "type": "click",
+      "locator": {
+        "strategy": "testId",
+        "value": "reset-smart-waits"
+      },
+      "timeoutMs": 8000,
+      "retry": {
+        "count": 0,
+        "delayMs": 500
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": true
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "read",
+        "retryable": false
+      },
+      "id": "oracle-linear-5-n7",
+      "name": "click-7",
+      "position": {
+        "x": 1200,
+        "y": 300
+      }
+    },
+    {
+      "type": "click",
+      "locator": {
+        "strategy": "testId",
+        "value": "reset-smart-waits"
+      },
+      "timeoutMs": 9000,
+      "retry": {
+        "count": 2,
+        "delayMs": 1500
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": false
+      },
+      "beforeWaits": [
+        {
+          "type": "elementVisible",
+          "locator": {
+            "strategy": "css",
+            "value": "h1"
+          },
+          "timeoutMs": 5000
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "safeMutation",
+        "retryable": true
+      },
+      "id": "oracle-linear-5-n8",
+      "name": "click-8",
+      "position": {
+        "x": 120,
+        "y": 480
+      }
+    },
+    {
+      "type": "fill",
+      "locator": {
+        "strategy": "testId",
+        "value": "delay-ms"
+      },
+      "value": "lab-charlie",
+      "valueSource": {
+        "type": "runtimeInput",
+        "key": "labInputBravo"
+      },
+      "config": {
+        "clearBeforeFill": true
+      },
+      "timeoutMs": 16000,
+      "retry": {
+        "count": 1,
+        "delayMs": 1500
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": true
+      },
+      "beforeWaits": [
+        {
+          "type": "elementVisible",
+          "locator": {
+            "strategy": "css",
+            "value": "h1"
+          },
+          "timeoutMs": 5000
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "read",
+        "retryable": false
+      },
+      "message": "lab-delta",
+      "id": "oracle-linear-5-n9",
+      "name": "fill-9",
+      "position": {
+        "x": 480,
+        "y": 480
+      }
+    },
+    {
+      "type": "click",
+      "locator": {
+        "strategy": "testId",
+        "value": "wait-element-visible"
+      },
+      "timeoutMs": 16000,
+      "retry": {
+        "count": 2,
+        "delayMs": 1500
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": true
+      },
+      "pageAlias": "main",
+      "opensPopup": true,
+      "popupExpectation": {
+        "popupAlias": "popup-1",
+        "timeoutMs": 15000,
+        "waitUntil": "domcontentloaded",
+        "closeBehavior": "returnToMain"
+      },
+      "safety": {
+        "sideEffectLevel": "none",
+        "retryable": true
+      },
+      "id": "oracle-linear-5-n10",
+      "name": "click-10",
+      "position": {
+        "x": 840,
+        "y": 480
+      }
+    },
+    {
+      "type": "end",
+      "id": "oracle-linear-5-n11",
+      "name": "end-11",
+      "position": {
+        "x": 1200,
+        "y": 480
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "oracle-linear-5-e0",
+      "source": "oracle-linear-5-n0",
+      "target": "oracle-linear-5-n1",
+      "type": "always",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-linear-5-e1",
+      "source": "oracle-linear-5-n1",
+      "target": "oracle-linear-5-n2",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-linear-5-e2",
+      "source": "oracle-linear-5-n2",
+      "target": "oracle-linear-5-n3",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-linear-5-e3",
+      "source": "oracle-linear-5-n3",
+      "target": "oracle-linear-5-n4",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-linear-5-e4",
+      "source": "oracle-linear-5-n4",
+      "target": "oracle-linear-5-n5",
+      "type": "manualApproval",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-linear-5-e5",
+      "source": "oracle-linear-5-n5",
+      "target": "oracle-linear-5-n6",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-linear-5-e6",
+      "source": "oracle-linear-5-n6",
+      "target": "oracle-linear-5-n7",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-linear-5-e7",
+      "source": "oracle-linear-5-n7",
+      "target": "oracle-linear-5-n8",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-linear-5-e8",
+      "source": "oracle-linear-5-n8",
+      "target": "oracle-linear-5-n9",
+      "type": "always",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-linear-5-e9",
+      "source": "oracle-linear-5-n9",
+      "target": "oracle-linear-5-n10",
+      "type": "always",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-linear-5-e10",
+      "source": "oracle-linear-5-n10",
+      "target": "oracle-linear-5-n11",
+      "type": "success",
+      "kind": "normal"
+    }
+  ],
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z"
+}

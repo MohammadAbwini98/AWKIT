@@ -1,0 +1,280 @@
+{
+  "id": "oracle-boundedLoop-3",
+  "name": "Oracle boundedLoop 3",
+  "description": "Randomized boundedLoop flow (seed awkit-oracle-baseline-001::boundedLoop-3)",
+  "version": 1,
+  "nodes": [
+    {
+      "type": "start",
+      "id": "oracle-boundedLoop-3-n0",
+      "name": "start-0",
+      "position": {
+        "x": 120,
+        "y": 120
+      }
+    },
+    {
+      "type": "loop",
+      "locator": {
+        "strategy": "testId",
+        "value": "changing-text"
+      },
+      "value": "3",
+      "valueSource": {
+        "type": "generated",
+        "generator": "randomNumber"
+      },
+      "config": {
+        "loopType": "fixedCount",
+        "iterationCount": 1,
+        "loopActionType": "click",
+        "loopStopOnFailure": true,
+        "maxIterations": 5
+      },
+      "timeoutMs": 15000,
+      "retry": {
+        "count": 0,
+        "delayMs": 500
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": true
+      },
+      "beforeWaits": [
+        {
+          "type": "domStable",
+          "stableForMs": 100,
+          "timeoutMs": 5000
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "safeMutation",
+        "retryable": true
+      },
+      "loop": {
+        "maxIterations": 4
+      },
+      "id": "oracle-boundedLoop-3-n1",
+      "name": "loop-1",
+      "position": {
+        "x": 480,
+        "y": 120
+      }
+    },
+    {
+      "type": "click",
+      "locator": {
+        "strategy": "testId",
+        "value": "wait-element-visible"
+      },
+      "timeoutMs": 10000,
+      "retry": {
+        "count": 2,
+        "delayMs": 500
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": false
+      },
+      "beforeWaits": [
+        {
+          "type": "fixedDelay",
+          "delayMs": 200
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "read",
+        "retryable": false
+      },
+      "id": "oracle-boundedLoop-3-n2",
+      "name": "click-2",
+      "position": {
+        "x": 840,
+        "y": 120
+      }
+    },
+    {
+      "type": "select",
+      "locator": {
+        "strategy": "id",
+        "value": "country"
+      },
+      "value": "US",
+      "valueSource": {
+        "type": "static",
+        "value": "US"
+      },
+      "config": {
+        "selectMultiple": false
+      },
+      "selectionMode": "index",
+      "timeoutMs": 17000,
+      "retry": {
+        "count": 2,
+        "delayMs": 1000
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": true
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "none",
+        "retryable": true
+      },
+      "id": "oracle-boundedLoop-3-n3",
+      "name": "select-3",
+      "position": {
+        "x": 1200,
+        "y": 120
+      }
+    },
+    {
+      "type": "assertVisible",
+      "locator": {
+        "strategy": "id",
+        "value": "submitButton"
+      },
+      "config": {
+        "assertionType": "visible"
+      },
+      "timeoutMs": 14000,
+      "retry": {
+        "count": 0,
+        "delayMs": 1500
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": false
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "none",
+        "retryable": true
+      },
+      "id": "oracle-boundedLoop-3-n4",
+      "name": "assertVisible-4",
+      "position": {
+        "x": 120,
+        "y": 300
+      }
+    },
+    {
+      "type": "assertVisible",
+      "locator": {
+        "strategy": "css",
+        "value": "h1"
+      },
+      "config": {
+        "assertionType": "visible"
+      },
+      "timeoutMs": 6000,
+      "retry": {
+        "count": 1,
+        "delayMs": 1000
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": true
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "safeMutation",
+        "retryable": false
+      },
+      "id": "oracle-boundedLoop-3-n5",
+      "name": "assertVisible-5",
+      "position": {
+        "x": 480,
+        "y": 300
+      }
+    },
+    {
+      "type": "end",
+      "id": "oracle-boundedLoop-3-n6",
+      "name": "end-6",
+      "position": {
+        "x": 840,
+        "y": 300
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "oracle-boundedLoop-3-e0",
+      "source": "oracle-boundedLoop-3-n0",
+      "target": "oracle-boundedLoop-3-n1",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-boundedLoop-3-e1",
+      "source": "oracle-boundedLoop-3-n1",
+      "target": "oracle-boundedLoop-3-n1",
+      "type": "loop",
+      "kind": "loop",
+      "loop": {
+        "mode": "whileCondition",
+        "maxIterations": 2,
+        "parameterName": "labLoopValue",
+        "condition": {
+          "sourceField": "outcome",
+          "operator": "equals",
+          "expectedValue": "success",
+          "priority": 0
+        }
+      }
+    },
+    {
+      "id": "oracle-boundedLoop-3-e2",
+      "source": "oracle-boundedLoop-3-n1",
+      "target": "oracle-boundedLoop-3-n2",
+      "type": "conditional",
+      "kind": "conditional",
+      "conditional": {
+        "sourceField": "status",
+        "operator": "exists",
+        "priority": 0
+      }
+    },
+    {
+      "id": "oracle-boundedLoop-3-e3",
+      "source": "oracle-boundedLoop-3-n2",
+      "target": "oracle-boundedLoop-3-n3",
+      "type": "always",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-boundedLoop-3-e4",
+      "source": "oracle-boundedLoop-3-n3",
+      "target": "oracle-boundedLoop-3-n4",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-boundedLoop-3-e5",
+      "source": "oracle-boundedLoop-3-n4",
+      "target": "oracle-boundedLoop-3-n5",
+      "type": "manualApproval",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-boundedLoop-3-e6",
+      "source": "oracle-boundedLoop-3-n5",
+      "target": "oracle-boundedLoop-3-n6",
+      "type": "manualApproval",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-boundedLoop-3-mutant",
+      "source": "oracle-boundedLoop-3-n1",
+      "target": "oracle-boundedLoop-3-n2",
+      "type": "success",
+      "kind": "normal"
+    }
+  ],
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z"
+}

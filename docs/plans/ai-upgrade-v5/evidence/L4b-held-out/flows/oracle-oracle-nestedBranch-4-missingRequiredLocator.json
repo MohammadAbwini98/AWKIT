@@ -1,0 +1,554 @@
+{
+  "id": "oracle-nestedBranch-4",
+  "name": "Oracle nestedBranch 4",
+  "description": "Randomized nestedBranch flow (seed awkit-oracle-baseline-001::nestedBranch-4)",
+  "version": 1,
+  "nodes": [
+    {
+      "type": "start",
+      "id": "oracle-nestedBranch-4-n0",
+      "name": "start-0",
+      "position": {
+        "x": 120,
+        "y": 120
+      }
+    },
+    {
+      "type": "condition",
+      "value": "outcome === \"failure\"",
+      "timeoutMs": 9000,
+      "retry": {
+        "count": 1,
+        "delayMs": 1500
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": false
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "safeMutation",
+        "retryable": false
+      },
+      "id": "oracle-nestedBranch-4-n1",
+      "name": "condition-1",
+      "position": {
+        "x": 480,
+        "y": 120
+      }
+    },
+    {
+      "type": "fill",
+      "value": "lab-charlie",
+      "valueSource": {
+        "type": "generated",
+        "generator": "randomNumber"
+      },
+      "config": {
+        "clearBeforeFill": true
+      },
+      "timeoutMs": 9000,
+      "retry": {
+        "count": 2,
+        "delayMs": 1000
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": false
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "read",
+        "retryable": false
+      },
+      "id": "oracle-nestedBranch-4-n2",
+      "name": "fill-2",
+      "position": {
+        "x": 840,
+        "y": 120
+      }
+    },
+    {
+      "type": "assertText",
+      "locator": {
+        "strategy": "testId",
+        "value": "failure-status"
+      },
+      "value": "lab-delta",
+      "valueSource": {
+        "type": "static",
+        "value": "lab-delta"
+      },
+      "config": {
+        "assertionType": "text",
+        "comparisonOperator": "contains",
+        "expectedValue": "lab-charlie"
+      },
+      "timeoutMs": 14000,
+      "retry": {
+        "count": 2,
+        "delayMs": 1500
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": true
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "read",
+        "retryable": true
+      },
+      "message": "lab-charlie",
+      "id": "oracle-nestedBranch-4-n3",
+      "name": "assertText-3",
+      "position": {
+        "x": 1200,
+        "y": 120
+      }
+    },
+    {
+      "type": "fill",
+      "locator": {
+        "strategy": "id",
+        "value": "uploadNote"
+      },
+      "value": "lab-echo",
+      "valueSource": {
+        "type": "flowOutput",
+        "flowId": "lab-flow-01",
+        "outputKey": "labOutputAlpha"
+      },
+      "config": {
+        "clearBeforeFill": false
+      },
+      "timeoutMs": 18000,
+      "retry": {
+        "count": 2,
+        "delayMs": 500
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": false
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "read",
+        "retryable": false
+      },
+      "message": "lab-delta",
+      "id": "oracle-nestedBranch-4-n4",
+      "name": "fill-4",
+      "position": {
+        "x": 120,
+        "y": 300
+      }
+    },
+    {
+      "type": "fill",
+      "locator": {
+        "strategy": "id",
+        "value": "uploadNote"
+      },
+      "value": "lab-alpha",
+      "valueSource": {
+        "type": "static",
+        "value": "lab-alpha"
+      },
+      "config": {
+        "clearBeforeFill": true
+      },
+      "timeoutMs": 5000,
+      "retry": {
+        "count": 1,
+        "delayMs": 1000
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": true
+      },
+      "beforeWaits": [
+        {
+          "type": "domStable",
+          "stableForMs": 200,
+          "timeoutMs": 5000
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "safeMutation",
+        "retryable": true
+      },
+      "message": "lab-echo",
+      "id": "oracle-nestedBranch-4-n5",
+      "name": "fill-5",
+      "position": {
+        "x": 480,
+        "y": 300
+      }
+    },
+    {
+      "type": "runFlow",
+      "value": "oracle-linear-0",
+      "valueSource": {
+        "type": "static",
+        "value": "oracle-linear-0"
+      },
+      "flowId": "oracle-linear-0",
+      "config": {
+        "targetFlowId": "oracle-linear-0",
+        "stopParentOnChildFailure": true
+      },
+      "timeoutMs": 11000,
+      "retry": {
+        "count": 0,
+        "delayMs": 1000
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": false
+      },
+      "beforeWaits": [
+        {
+          "type": "fixedDelay",
+          "delayMs": 100
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "none",
+        "retryable": true
+      },
+      "id": "oracle-nestedBranch-4-n6",
+      "name": "runFlow-6",
+      "position": {
+        "x": 840,
+        "y": 300
+      }
+    },
+    {
+      "type": "condition",
+      "value": "outcome === \"failure\"",
+      "timeoutMs": 15000,
+      "retry": {
+        "count": 0,
+        "delayMs": 1500
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": false
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "none",
+        "retryable": false
+      },
+      "message": "lab-delta",
+      "id": "oracle-nestedBranch-4-n7",
+      "name": "condition-7",
+      "position": {
+        "x": 1200,
+        "y": 300
+      }
+    },
+    {
+      "type": "runFlow",
+      "value": "oracle-linear-2",
+      "valueSource": {
+        "type": "static",
+        "value": "oracle-linear-2"
+      },
+      "flowId": "oracle-linear-2",
+      "config": {
+        "targetFlowId": "oracle-linear-2",
+        "stopParentOnChildFailure": true
+      },
+      "timeoutMs": 18000,
+      "retry": {
+        "count": 0,
+        "delayMs": 1000
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": true
+      },
+      "beforeWaits": [
+        {
+          "type": "domStable",
+          "stableForMs": 300,
+          "timeoutMs": 5000
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "none",
+        "retryable": false
+      },
+      "id": "oracle-nestedBranch-4-n8",
+      "name": "runFlow-8",
+      "position": {
+        "x": 120,
+        "y": 480
+      }
+    },
+    {
+      "type": "assertText",
+      "locator": {
+        "strategy": "testId",
+        "value": "flaky-attempts"
+      },
+      "valueSource": {
+        "type": "secret",
+        "secretName": "awkit-lab-secret-ref-0001"
+      },
+      "config": {
+        "assertionType": "text",
+        "comparisonOperator": "equals",
+        "expectedValue": "lab-bravo"
+      },
+      "timeoutMs": 7000,
+      "retry": {
+        "count": 0,
+        "delayMs": 500
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": true
+      },
+      "beforeWaits": [
+        {
+          "type": "elementVisible",
+          "locator": {
+            "strategy": "css",
+            "value": "h1"
+          },
+          "timeoutMs": 5000
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "none",
+        "retryable": true
+      },
+      "id": "oracle-nestedBranch-4-n9",
+      "name": "assertText-9",
+      "position": {
+        "x": 480,
+        "y": 480
+      }
+    },
+    {
+      "type": "assertText",
+      "locator": {
+        "strategy": "css",
+        "value": "h1"
+      },
+      "value": "lab-echo",
+      "valueSource": {
+        "type": "static",
+        "value": "lab-echo"
+      },
+      "config": {
+        "assertionType": "text",
+        "comparisonOperator": "contains",
+        "expectedValue": "lab-charlie"
+      },
+      "timeoutMs": 11000,
+      "retry": {
+        "count": 0,
+        "delayMs": 1500
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": false
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "none",
+        "retryable": false
+      },
+      "message": "lab-charlie",
+      "id": "oracle-nestedBranch-4-n10",
+      "name": "assertText-10",
+      "position": {
+        "x": 840,
+        "y": 480
+      }
+    },
+    {
+      "type": "fill",
+      "locator": {
+        "strategy": "id",
+        "value": "uploadNote"
+      },
+      "value": "lab-delta",
+      "valueSource": {
+        "type": "generated",
+        "generator": "timestamp"
+      },
+      "config": {
+        "clearBeforeFill": true
+      },
+      "timeoutMs": 18000,
+      "retry": {
+        "count": 0,
+        "delayMs": 500
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": true
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "read",
+        "retryable": false
+      },
+      "id": "oracle-nestedBranch-4-n11",
+      "name": "fill-11",
+      "position": {
+        "x": 1200,
+        "y": 480
+      }
+    },
+    {
+      "type": "end",
+      "id": "oracle-nestedBranch-4-n12",
+      "name": "end-12",
+      "position": {
+        "x": 120,
+        "y": 660
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "oracle-nestedBranch-4-e0",
+      "source": "oracle-nestedBranch-4-n0",
+      "target": "oracle-nestedBranch-4-n1",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-nestedBranch-4-e1",
+      "source": "oracle-nestedBranch-4-n1",
+      "target": "oracle-nestedBranch-4-n2",
+      "type": "outcome",
+      "kind": "conditional",
+      "conditional": {
+        "sourceField": "errorCode",
+        "operator": "notExists",
+        "priority": 0
+      }
+    },
+    {
+      "id": "oracle-nestedBranch-4-e2",
+      "source": "oracle-nestedBranch-4-n2",
+      "target": "oracle-nestedBranch-4-n3",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-nestedBranch-4-e3",
+      "source": "oracle-nestedBranch-4-n3",
+      "target": "oracle-nestedBranch-4-n4",
+      "type": "always",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-nestedBranch-4-e4",
+      "source": "oracle-nestedBranch-4-n4",
+      "target": "oracle-nestedBranch-4-n5",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-nestedBranch-4-e5",
+      "source": "oracle-nestedBranch-4-n1",
+      "target": "oracle-nestedBranch-4-n6",
+      "type": "conditional",
+      "kind": "conditional",
+      "conditional": {
+        "sourceField": "status",
+        "operator": "lessThan",
+        "priority": 1,
+        "expectedValue": 78
+      }
+    },
+    {
+      "id": "oracle-nestedBranch-4-e6",
+      "source": "oracle-nestedBranch-4-n6",
+      "target": "oracle-nestedBranch-4-n7",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-nestedBranch-4-e7",
+      "source": "oracle-nestedBranch-4-n7",
+      "target": "oracle-nestedBranch-4-n8",
+      "type": "conditional",
+      "kind": "conditional",
+      "conditional": {
+        "sourceField": "variable",
+        "operator": "truthy",
+        "priority": 0,
+        "variableName": "outputs.lab.status"
+      }
+    },
+    {
+      "id": "oracle-nestedBranch-4-e8",
+      "source": "oracle-nestedBranch-4-n7",
+      "target": "oracle-nestedBranch-4-n9",
+      "type": "outcome",
+      "kind": "conditional",
+      "conditional": {
+        "sourceField": "outcome",
+        "operator": "lessThan",
+        "priority": 1,
+        "expectedValue": 64
+      }
+    },
+    {
+      "id": "oracle-nestedBranch-4-e9",
+      "source": "oracle-nestedBranch-4-n8",
+      "target": "oracle-nestedBranch-4-n10",
+      "type": "manualApproval",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-nestedBranch-4-e10",
+      "source": "oracle-nestedBranch-4-n9",
+      "target": "oracle-nestedBranch-4-n10",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-nestedBranch-4-e11",
+      "source": "oracle-nestedBranch-4-n5",
+      "target": "oracle-nestedBranch-4-n11",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-nestedBranch-4-e12",
+      "source": "oracle-nestedBranch-4-n10",
+      "target": "oracle-nestedBranch-4-n11",
+      "type": "always",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-nestedBranch-4-e13",
+      "source": "oracle-nestedBranch-4-n11",
+      "target": "oracle-nestedBranch-4-n12",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-nestedBranch-4-e14",
+      "source": "oracle-nestedBranch-4-n7",
+      "target": "oracle-nestedBranch-4-n6",
+      "type": "loopBack",
+      "maxLoopCount": 1
+    }
+  ],
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z"
+}

@@ -1,0 +1,590 @@
+{
+  "id": "oracle-boundedLoop-0",
+  "name": "Oracle boundedLoop 0",
+  "description": "Randomized boundedLoop flow (seed awkit-oracle-baseline-001::boundedLoop-0)",
+  "version": 1,
+  "nodes": [
+    {
+      "type": "start",
+      "id": "oracle-boundedLoop-0-n0",
+      "name": "start-0",
+      "position": {
+        "x": 120,
+        "y": 120
+      }
+    },
+    {
+      "type": "assertText",
+      "locator": {
+        "strategy": "testId",
+        "value": "changing-text"
+      },
+      "value": "lab-delta",
+      "valueSource": {
+        "type": "static",
+        "value": "lab-delta"
+      },
+      "config": {
+        "assertionType": "text",
+        "comparisonOperator": "contains",
+        "expectedValue": "lab-bravo"
+      },
+      "timeoutMs": 12000,
+      "retry": {
+        "count": 1,
+        "delayMs": 1500
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": true
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "read",
+        "retryable": true
+      },
+      "id": "oracle-boundedLoop-0-n1",
+      "name": "assertText-1",
+      "position": {
+        "x": 480,
+        "y": 120
+      }
+    },
+    {
+      "type": "hover",
+      "locator": {
+        "strategy": "css",
+        "value": "h1"
+      },
+      "timeoutMs": 5000,
+      "retry": {
+        "count": 0,
+        "delayMs": 1500
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": true
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "read",
+        "retryable": false
+      },
+      "id": "oracle-boundedLoop-0-n2",
+      "name": "hover-2",
+      "position": {
+        "x": 840,
+        "y": 120
+      }
+    },
+    {
+      "type": "assertVisible",
+      "locator": {
+        "strategy": "testId",
+        "value": "changing-text"
+      },
+      "config": {
+        "assertionType": "visible"
+      },
+      "timeoutMs": 11000,
+      "retry": {
+        "count": 2,
+        "delayMs": 500
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": true
+      },
+      "beforeWaits": [
+        {
+          "type": "elementVisible",
+          "locator": {
+            "strategy": "css",
+            "value": "h1"
+          },
+          "timeoutMs": 5000
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "safeMutation",
+        "retryable": true
+      },
+      "message": "lab-alpha",
+      "id": "oracle-boundedLoop-0-n3",
+      "name": "assertVisible-3",
+      "position": {
+        "x": 1200,
+        "y": 120
+      }
+    },
+    {
+      "type": "assertText",
+      "locator": {
+        "strategy": "css",
+        "value": "h1"
+      },
+      "value": "lab-charlie",
+      "valueSource": {
+        "type": "static",
+        "value": "lab-charlie"
+      },
+      "config": {
+        "assertionType": "text",
+        "comparisonOperator": "contains",
+        "expectedValue": "lab-bravo"
+      },
+      "timeoutMs": 19000,
+      "retry": {
+        "count": 2,
+        "delayMs": 1500
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": true
+      },
+      "beforeWaits": [
+        {
+          "type": "domStable",
+          "stableForMs": 200,
+          "timeoutMs": 5000
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "read",
+        "retryable": false
+      },
+      "id": "oracle-boundedLoop-0-n4",
+      "name": "assertText-4",
+      "position": {
+        "x": 120,
+        "y": 300
+      }
+    },
+    {
+      "type": "select",
+      "locator": {
+        "strategy": "id",
+        "value": "country"
+      },
+      "value": "US",
+      "valueSource": {
+        "type": "static",
+        "value": "US"
+      },
+      "config": {
+        "selectMultiple": false
+      },
+      "selectionMode": "index",
+      "timeoutMs": 14000,
+      "retry": {
+        "count": 1,
+        "delayMs": 1000
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": false
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "safeMutation",
+        "retryable": true
+      },
+      "id": "oracle-boundedLoop-0-n5",
+      "name": "select-5",
+      "position": {
+        "x": 480,
+        "y": 300
+      }
+    },
+    {
+      "type": "loop",
+      "locator": {
+        "strategy": "css",
+        "value": "h1"
+      },
+      "value": "5",
+      "valueSource": {
+        "type": "dynamic",
+        "dataSourceScope": "specific",
+        "dataSourceId": "lab-data-source-01",
+        "idMode": "explicit",
+        "objectId": "lab-object-01",
+        "keyName": "lab-alpha"
+      },
+      "config": {
+        "loopType": "fixedCount",
+        "iterationCount": 2,
+        "loopActionType": "customFlow",
+        "loopStopOnFailure": true,
+        "maxIterations": 5,
+        "targetFlowId": "oracle-linear-1"
+      },
+      "timeoutMs": 6000,
+      "retry": {
+        "count": 2,
+        "delayMs": 1000
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": false
+      },
+      "beforeWaits": [
+        {
+          "type": "domStable",
+          "stableForMs": 100,
+          "timeoutMs": 5000
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "none",
+        "retryable": true
+      },
+      "message": "lab-bravo",
+      "loop": {
+        "maxIterations": 5
+      },
+      "id": "oracle-boundedLoop-0-n6",
+      "name": "loop-6",
+      "position": {
+        "x": 840,
+        "y": 300
+      }
+    },
+    {
+      "type": "uploadFile",
+      "locator": {
+        "strategy": "testId",
+        "value": "upload-input"
+      },
+      "value": "awkit-lab-upload.txt",
+      "valueSource": {
+        "type": "generated",
+        "generator": "randomEmail"
+      },
+      "timeoutMs": 15000,
+      "retry": {
+        "count": 2,
+        "delayMs": 1000
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": true
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "read",
+        "retryable": true
+      },
+      "id": "oracle-boundedLoop-0-n7",
+      "name": "uploadFile-7",
+      "position": {
+        "x": 1200,
+        "y": 300
+      }
+    },
+    {
+      "type": "hover",
+      "locator": {
+        "strategy": "testId",
+        "value": "flaky-attempts"
+      },
+      "timeoutMs": 13000,
+      "retry": {
+        "count": 0,
+        "delayMs": 1500
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": true
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "read",
+        "retryable": false
+      },
+      "message": "lab-echo",
+      "id": "oracle-boundedLoop-0-n8",
+      "name": "hover-8",
+      "position": {
+        "x": 120,
+        "y": 480
+      }
+    },
+    {
+      "type": "check",
+      "locator": {
+        "strategy": "id",
+        "value": "interestAutomation"
+      },
+      "timeoutMs": 16000,
+      "retry": {
+        "count": 0,
+        "delayMs": 1000
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": true
+      },
+      "beforeWaits": [
+        {
+          "type": "fixedDelay",
+          "delayMs": 100
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "none",
+        "retryable": false
+      },
+      "id": "oracle-boundedLoop-0-n9",
+      "name": "check-9",
+      "position": {
+        "x": 480,
+        "y": 480
+      }
+    },
+    {
+      "type": "goto",
+      "value": "http://127.0.0.1:4321/form.html",
+      "valueSource": {
+        "type": "static",
+        "value": "http://127.0.0.1:4321/form.html"
+      },
+      "url": "http://127.0.0.1:4321/form.html",
+      "timeoutMs": 17000,
+      "retry": {
+        "count": 2,
+        "delayMs": 500
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": true
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "safeMutation",
+        "retryable": false
+      },
+      "message": "lab-alpha",
+      "id": "oracle-boundedLoop-0-n10",
+      "name": "goto-10",
+      "position": {
+        "x": 840,
+        "y": 480
+      }
+    },
+    {
+      "type": "loop",
+      "locator": {
+        "strategy": "css",
+        "value": "h1"
+      },
+      "value": "2",
+      "valueSource": {
+        "type": "instanceVariable",
+        "key": "labVarAlpha"
+      },
+      "config": {
+        "loopType": "fixedCount",
+        "iterationCount": 3,
+        "loopActionType": "click",
+        "loopStopOnFailure": true,
+        "maxIterations": 5
+      },
+      "timeoutMs": 8000,
+      "retry": {
+        "count": 2,
+        "delayMs": 1000
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": true
+      },
+      "beforeWaits": [
+        {
+          "type": "domStable",
+          "stableForMs": 200,
+          "timeoutMs": 5000
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "read",
+        "retryable": true
+      },
+      "message": "lab-charlie",
+      "loop": {
+        "maxIterations": 2
+      },
+      "id": "oracle-boundedLoop-0-n11",
+      "name": "loop-11",
+      "position": {
+        "x": 1200,
+        "y": 480
+      }
+    },
+    {
+      "type": "dblclick",
+      "locator": {
+        "strategy": "id",
+        "value": "submitButton"
+      },
+      "timeoutMs": 17000,
+      "retry": {
+        "count": 2,
+        "delayMs": 1500
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": false
+      },
+      "beforeWaits": [
+        {
+          "type": "elementVisible",
+          "locator": {
+            "strategy": "css",
+            "value": "h1"
+          },
+          "timeoutMs": 5000
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "none",
+        "retryable": false
+      },
+      "id": "oracle-boundedLoop-0-n12",
+      "name": "dblclick-12",
+      "position": {
+        "x": 120,
+        "y": 660
+      }
+    },
+    {
+      "type": "end",
+      "id": "oracle-boundedLoop-0-n13",
+      "name": "end-13",
+      "position": {
+        "x": 480,
+        "y": 660
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "oracle-boundedLoop-0-e0",
+      "source": "oracle-boundedLoop-0-n0",
+      "target": "oracle-boundedLoop-0-n1",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-boundedLoop-0-e1",
+      "source": "oracle-boundedLoop-0-n1",
+      "target": "oracle-boundedLoop-0-n1",
+      "type": "loop",
+      "kind": "loop",
+      "loop": {
+        "mode": "count",
+        "maxIterations": 1001,
+        "parameterName": "labLoopValue"
+      }
+    },
+    {
+      "id": "oracle-boundedLoop-0-e2",
+      "source": "oracle-boundedLoop-0-n1",
+      "target": "oracle-boundedLoop-0-n2",
+      "type": "conditional",
+      "kind": "conditional",
+      "conditional": {
+        "sourceField": "dataSourceValue",
+        "operator": "greaterThan",
+        "priority": 0,
+        "expectedValue": 99,
+        "variableName": "outputs.lab.value"
+      }
+    },
+    {
+      "id": "oracle-boundedLoop-0-e3",
+      "source": "oracle-boundedLoop-0-n2",
+      "target": "oracle-boundedLoop-0-n3",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-boundedLoop-0-e4",
+      "source": "oracle-boundedLoop-0-n3",
+      "target": "oracle-boundedLoop-0-n4",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-boundedLoop-0-e5",
+      "source": "oracle-boundedLoop-0-n4",
+      "target": "oracle-boundedLoop-0-n5",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-boundedLoop-0-e6",
+      "source": "oracle-boundedLoop-0-n5",
+      "target": "oracle-boundedLoop-0-n6",
+      "type": "always",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-boundedLoop-0-e7",
+      "source": "oracle-boundedLoop-0-n6",
+      "target": "oracle-boundedLoop-0-n7",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-boundedLoop-0-e8",
+      "source": "oracle-boundedLoop-0-n7",
+      "target": "oracle-boundedLoop-0-n8",
+      "type": "always",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-boundedLoop-0-e9",
+      "source": "oracle-boundedLoop-0-n8",
+      "target": "oracle-boundedLoop-0-n9",
+      "type": "manualApproval",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-boundedLoop-0-e10",
+      "source": "oracle-boundedLoop-0-n9",
+      "target": "oracle-boundedLoop-0-n10",
+      "type": "always",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-boundedLoop-0-e11",
+      "source": "oracle-boundedLoop-0-n10",
+      "target": "oracle-boundedLoop-0-n11",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-boundedLoop-0-e12",
+      "source": "oracle-boundedLoop-0-n11",
+      "target": "oracle-boundedLoop-0-n12",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-boundedLoop-0-e13",
+      "source": "oracle-boundedLoop-0-n12",
+      "target": "oracle-boundedLoop-0-n13",
+      "type": "failure",
+      "kind": "normal"
+    }
+  ],
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z"
+}

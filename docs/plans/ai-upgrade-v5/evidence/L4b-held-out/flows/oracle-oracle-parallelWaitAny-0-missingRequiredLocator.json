@@ -1,0 +1,229 @@
+{
+  "id": "oracle-parallelWaitAny-0",
+  "name": "Oracle parallelWaitAny 0",
+  "description": "Randomized parallelWaitAny flow (seed awkit-oracle-baseline-001::parallelWaitAny-0)",
+  "version": 1,
+  "nodes": [
+    {
+      "type": "start",
+      "id": "oracle-parallelWaitAny-0-n0",
+      "name": "start-0",
+      "position": {
+        "x": 120,
+        "y": 120
+      }
+    },
+    {
+      "type": "dblclick",
+      "timeoutMs": 12000,
+      "retry": {
+        "count": 0,
+        "delayMs": 1000
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": false
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "read",
+        "retryable": false
+      },
+      "message": "lab-alpha",
+      "id": "oracle-parallelWaitAny-0-n1",
+      "name": "dblclick-1",
+      "position": {
+        "x": 480,
+        "y": 120
+      }
+    },
+    {
+      "type": "click",
+      "locator": {
+        "strategy": "id",
+        "value": "resetButton"
+      },
+      "timeoutMs": 16000,
+      "retry": {
+        "count": 0,
+        "delayMs": 1000
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": true
+      },
+      "pageAlias": "main",
+      "opensPopup": true,
+      "popupExpectation": {
+        "popupAlias": "popup-1",
+        "timeoutMs": 15000,
+        "waitUntil": "domcontentloaded",
+        "closeBehavior": "returnToMain"
+      },
+      "safety": {
+        "sideEffectLevel": "safeMutation",
+        "retryable": false
+      },
+      "id": "oracle-parallelWaitAny-0-n2",
+      "name": "click-2",
+      "position": {
+        "x": 840,
+        "y": 120
+      }
+    },
+    {
+      "type": "screenshot",
+      "locator": {
+        "strategy": "css",
+        "value": "h1"
+      },
+      "config": {
+        "screenshotName": "lab-1199",
+        "fullPage": true
+      },
+      "timeoutMs": 18000,
+      "retry": {
+        "count": 2,
+        "delayMs": 1000
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": true
+      },
+      "beforeWaits": [
+        {
+          "type": "domStable",
+          "stableForMs": 300,
+          "timeoutMs": 5000
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "safeMutation",
+        "retryable": false
+      },
+      "message": "lab-delta",
+      "id": "oracle-parallelWaitAny-0-n3",
+      "name": "screenshot-3",
+      "position": {
+        "x": 1200,
+        "y": 120
+      }
+    },
+    {
+      "type": "loop",
+      "locator": {
+        "strategy": "css",
+        "value": "h1"
+      },
+      "value": "4",
+      "valueSource": {
+        "type": "dynamic",
+        "dataSourceScope": "workflow",
+        "dataSourceId": "lab-data-source-01",
+        "idMode": "instanceOrder",
+        "objectId": "lab-object-01",
+        "keyName": "lab-alpha"
+      },
+      "config": {
+        "loopType": "fixedCount",
+        "iterationCount": 5,
+        "loopActionType": "customFlow",
+        "loopStopOnFailure": true,
+        "maxIterations": 5,
+        "targetFlowId": "oracle-linear-1"
+      },
+      "timeoutMs": 7000,
+      "retry": {
+        "count": 2,
+        "delayMs": 500
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": true
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "read",
+        "retryable": false
+      },
+      "message": "lab-alpha",
+      "loop": {
+        "maxIterations": 3
+      },
+      "id": "oracle-parallelWaitAny-0-n4",
+      "name": "loop-4",
+      "position": {
+        "x": 120,
+        "y": 300
+      }
+    },
+    {
+      "type": "end",
+      "id": "oracle-parallelWaitAny-0-n5",
+      "name": "end-5",
+      "position": {
+        "x": 480,
+        "y": 300
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "oracle-parallelWaitAny-0-e0",
+      "source": "oracle-parallelWaitAny-0-n0",
+      "target": "oracle-parallelWaitAny-0-n1",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-parallelWaitAny-0-e1",
+      "source": "oracle-parallelWaitAny-0-n1",
+      "target": "oracle-parallelWaitAny-0-n2",
+      "type": "parallel",
+      "kind": "parallel",
+      "parallel": {
+        "joinMode": "waitAny",
+        "failMode": "collectErrors",
+        "isolation": "sharedPage",
+        "maxConcurrency": 1
+      }
+    },
+    {
+      "id": "oracle-parallelWaitAny-0-e2",
+      "source": "oracle-parallelWaitAny-0-n1",
+      "target": "oracle-parallelWaitAny-0-n3",
+      "type": "parallel",
+      "kind": "parallel",
+      "parallel": {
+        "joinMode": "waitAny",
+        "failMode": "collectErrors",
+        "isolation": "sharedPage",
+        "maxConcurrency": 1
+      }
+    },
+    {
+      "id": "oracle-parallelWaitAny-0-e3",
+      "source": "oracle-parallelWaitAny-0-n2",
+      "target": "oracle-parallelWaitAny-0-n4",
+      "type": "always",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-parallelWaitAny-0-e4",
+      "source": "oracle-parallelWaitAny-0-n3",
+      "target": "oracle-parallelWaitAny-0-n4",
+      "type": "failure",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-parallelWaitAny-0-e5",
+      "source": "oracle-parallelWaitAny-0-n4",
+      "target": "oracle-parallelWaitAny-0-n5",
+      "type": "failure",
+      "kind": "normal"
+    }
+  ],
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z"
+}

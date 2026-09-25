@@ -1,0 +1,224 @@
+{
+  "id": "mock-comprehensive-connectors-flow",
+  "name": "Mock — Comprehensive Connector Matrix",
+  "description": "Persisted positive-path fixture for normal, conditional, parallel, loop, outcome, and loop-back routing, with failure and manual-approval recovery branches available for negative/manual validation.",
+  "version": 1,
+  "createdAt": "2026-07-25T21:00:00.000Z",
+  "updatedAt": "2026-07-25T21:00:00.000Z",
+  "nodes": [
+    { "id": "start", "type": "start", "name": "Start" },
+    {
+      "id": "open-form",
+      "type": "goto",
+      "name": "Open Form",
+      "url": "http://localhost:4321/form"
+    },
+    {
+      "id": "conditional-router",
+      "type": "scroll",
+      "name": "Conditional Router",
+      "config": {
+        "scrollTarget": "page",
+        "scrollDirection": "down",
+        "scrollAmount": 5
+      }
+    },
+    {
+      "id": "parallel-root",
+      "type": "scroll",
+      "name": "Parallel Root",
+      "config": {
+        "scrollTarget": "page",
+        "scrollDirection": "up",
+        "scrollAmount": 5
+      }
+    },
+    {
+      "id": "parallel-a",
+      "type": "scroll",
+      "name": "Parallel Branch A",
+      "config": {
+        "scrollTarget": "page",
+        "scrollDirection": "down",
+        "scrollAmount": 5
+      }
+    },
+    {
+      "id": "parallel-b",
+      "type": "scroll",
+      "name": "Parallel Branch B",
+      "config": {
+        "scrollTarget": "page",
+        "scrollDirection": "up",
+        "scrollAmount": 5
+      }
+    },
+    {
+      "id": "loop-fill",
+      "type": "fill",
+      "name": "Loop Value",
+      "locator": {
+        "strategy": "id",
+        "value": "firstName"
+      },
+      "valueSource": {
+        "type": "runtimeInput",
+        "key": "connectorItem"
+      }
+    },
+    {
+      "id": "outcome-assert",
+      "type": "assertText",
+      "name": "Assert Loop Result",
+      "locator": {
+        "strategy": "id",
+        "value": "firstName"
+      },
+      "config": {
+        "assertionType": "value",
+        "comparisonOperator": "equals",
+        "expectedValue": "2"
+      }
+    },
+    {
+      "id": "loopback-a",
+      "type": "scroll",
+      "name": "Loop-Back A",
+      "config": {
+        "scrollTarget": "page",
+        "scrollDirection": "down",
+        "scrollAmount": 5
+      }
+    },
+    {
+      "id": "loopback-b",
+      "type": "scroll",
+      "name": "Loop-Back B",
+      "config": {
+        "scrollTarget": "page",
+        "scrollDirection": "up",
+        "scrollAmount": 5
+      }
+    },
+    {
+      "id": "failure-recovery",
+      "type": "fill",
+      "name": "Failure Recovery",
+      "locator": {
+        "strategy": "id",
+        "value": "firstName"
+      },
+      "value": "Recovered"
+    },
+    {
+      "id": "manual-review",
+      "type": "manualHandoff",
+      "name": "Manual Approval Recovery",
+      "message": "Review the failed connector outcome and approve continuation."
+    },
+    { "id": "end", "type": "end", "name": "End" }
+  ],
+  "edges": [
+    { "id": "connector-e01", "source": "start", "target": "open-form", "type": "success", "kind": "normal" },
+    { "id": "connector-e02", "source": "open-form", "target": "conditional-router", "type": "success", "kind": "normal" },
+    {
+      "id": "connector-e03",
+      "source": "conditional-router",
+      "target": "parallel-root",
+      "type": "conditional",
+      "kind": "conditional",
+      "conditional": {
+        "sourceField": "status",
+        "operator": "equals",
+        "expectedValue": "passed",
+        "priority": 10,
+        "label": "Status passed"
+      }
+    },
+    { "id": "connector-e04", "source": "conditional-router", "target": "failure-recovery", "type": "failure", "kind": "normal" },
+    {
+      "id": "connector-e05",
+      "source": "parallel-root",
+      "target": "parallel-a",
+      "type": "parallel",
+      "kind": "parallel",
+      "parallel": {
+        "joinMode": "waitAll",
+        "failMode": "collectErrors",
+        "isolation": "sharedPage",
+        "maxConcurrency": 2,
+        "label": "Fan out"
+      }
+    },
+    {
+      "id": "connector-e06",
+      "source": "parallel-root",
+      "target": "parallel-b",
+      "type": "parallel",
+      "kind": "parallel",
+      "parallel": {
+        "joinMode": "waitAll",
+        "failMode": "collectErrors",
+        "isolation": "sharedPage",
+        "maxConcurrency": 2,
+        "label": "Fan out"
+      }
+    },
+    { "id": "connector-e07", "source": "parallel-root", "target": "loop-fill", "type": "success", "kind": "normal" },
+    {
+      "id": "connector-e08",
+      "source": "loop-fill",
+      "target": "loop-fill",
+      "type": "loop",
+      "kind": "loop",
+      "loop": {
+        "mode": "count",
+        "maxIterations": 2,
+        "parameterName": "connectorItem",
+        "delayMs": 0,
+        "label": "Run twice"
+      }
+    },
+    {
+      "id": "connector-e09",
+      "source": "loop-fill",
+      "target": "outcome-assert",
+      "type": "conditional",
+      "kind": "conditional",
+      "conditional": {
+        "sourceField": "status",
+        "operator": "always",
+        "priority": 0,
+        "label": "Loop completed"
+      }
+    },
+    {
+      "id": "connector-e10",
+      "source": "outcome-assert",
+      "target": "loopback-a",
+      "type": "outcome",
+      "condition": {
+        "expression": "${stepResult.assertionResult} === true"
+      }
+    },
+    {
+      "id": "connector-e11",
+      "source": "outcome-assert",
+      "target": "failure-recovery",
+      "type": "outcome",
+      "condition": {
+        "expression": "${stepResult.assertionResult} === false"
+      }
+    },
+    { "id": "connector-e12", "source": "failure-recovery", "target": "manual-review", "type": "always", "kind": "normal" },
+    { "id": "connector-e13", "source": "manual-review", "target": "end", "type": "manualApproval", "kind": "normal" },
+    { "id": "connector-e15", "source": "loopback-a", "target": "loopback-b", "type": "success", "kind": "normal" },
+    {
+      "id": "connector-e16",
+      "source": "loopback-b",
+      "target": "loopback-a",
+      "type": "loopBack",
+      "maxLoopCount": 1
+    }
+  ]
+}

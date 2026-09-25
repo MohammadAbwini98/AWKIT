@@ -1,0 +1,579 @@
+{
+  "id": "oracle-loopWithBranch-0",
+  "name": "Oracle loopWithBranch 0",
+  "description": "Randomized loopWithBranch flow (seed awkit-oracle-baseline-001::loopWithBranch-0)",
+  "version": 1,
+  "nodes": [
+    {
+      "type": "start",
+      "id": "oracle-loopWithBranch-0-n0",
+      "name": "start-0",
+      "position": {
+        "x": 120,
+        "y": 120
+      }
+    },
+    {
+      "type": "select",
+      "locator": {
+        "strategy": "id",
+        "value": "country"
+      },
+      "value": "US",
+      "valueSource": {
+        "type": "runtimeInput",
+        "key": "labInputAlpha"
+      },
+      "config": {
+        "selectMultiple": false
+      },
+      "selectionMode": "index",
+      "timeoutMs": 17000,
+      "retry": {
+        "count": 0,
+        "delayMs": 1500
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": true
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "read",
+        "retryable": true
+      },
+      "id": "oracle-loopWithBranch-0-n1",
+      "name": "select-1",
+      "position": {
+        "x": 480,
+        "y": 120
+      }
+    },
+    {
+      "type": "goto",
+      "value": "http://127.0.0.1:4321/iframe-lab",
+      "valueSource": {
+        "type": "dynamic",
+        "dataSourceScope": "specific",
+        "dataSourceId": "lab-data-source-01",
+        "idMode": "explicit",
+        "objectId": "lab-object-01",
+        "keyName": "lab-bravo"
+      },
+      "url": "http://127.0.0.1:4321/iframe-lab",
+      "timeoutMs": 16000,
+      "retry": {
+        "count": 1,
+        "delayMs": 1000
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": true
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "safeMutation",
+        "retryable": true
+      },
+      "message": "lab-bravo",
+      "id": "oracle-loopWithBranch-0-n2",
+      "name": "goto-2",
+      "position": {
+        "x": 840,
+        "y": 120
+      }
+    },
+    {
+      "type": "radio",
+      "locator": {
+        "strategy": "id",
+        "value": "genderMale"
+      },
+      "value": "MALE",
+      "valueSource": {
+        "type": "static",
+        "value": "MALE"
+      },
+      "timeoutMs": 18000,
+      "retry": {
+        "count": 0,
+        "delayMs": 1500
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": true
+      },
+      "beforeWaits": [
+        {
+          "type": "fixedDelay",
+          "delayMs": 100
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "none",
+        "retryable": true
+      },
+      "message": "lab-bravo",
+      "id": "oracle-loopWithBranch-0-n3",
+      "name": "radio-3",
+      "position": {
+        "x": 1200,
+        "y": 120
+      }
+    },
+    {
+      "type": "downloadFile",
+      "locator": {
+        "strategy": "testId",
+        "value": "download-csv"
+      },
+      "timeoutMs": 13000,
+      "retry": {
+        "count": 0,
+        "delayMs": 1000
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": true
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "safeMutation",
+        "retryable": false
+      },
+      "id": "oracle-loopWithBranch-0-n4",
+      "name": "downloadFile-4",
+      "position": {
+        "x": 120,
+        "y": 300
+      }
+    },
+    {
+      "type": "click",
+      "locator": {
+        "strategy": "testId",
+        "value": "fail-404"
+      },
+      "timeoutMs": 20000,
+      "retry": {
+        "count": 0,
+        "delayMs": 500
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": true
+      },
+      "beforeWaits": [
+        {
+          "type": "fixedDelay",
+          "delayMs": 300
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "safeMutation",
+        "retryable": true
+      },
+      "message": "lab-alpha",
+      "id": "oracle-loopWithBranch-0-n5",
+      "name": "click-5",
+      "position": {
+        "x": 480,
+        "y": 300
+      }
+    },
+    {
+      "type": "uncheck",
+      "locator": {
+        "strategy": "id",
+        "value": "interestAutomation"
+      },
+      "timeoutMs": 17000,
+      "retry": {
+        "count": 0,
+        "delayMs": 1000
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": true
+      },
+      "beforeWaits": [
+        {
+          "type": "elementVisible",
+          "locator": {
+            "strategy": "css",
+            "value": "h1"
+          },
+          "timeoutMs": 5000
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "safeMutation",
+        "retryable": false
+      },
+      "message": "lab-bravo",
+      "id": "oracle-loopWithBranch-0-n6",
+      "name": "uncheck-6",
+      "position": {
+        "x": 840,
+        "y": 300
+      }
+    },
+    {
+      "type": "condition",
+      "value": "outcome === \"failure\"",
+      "timeoutMs": 20000,
+      "retry": {
+        "count": 1,
+        "delayMs": 1500
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": false
+      },
+      "beforeWaits": [
+        {
+          "type": "domStable",
+          "stableForMs": 200,
+          "timeoutMs": 5000
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "read",
+        "retryable": true
+      },
+      "message": "lab-delta",
+      "id": "oracle-loopWithBranch-0-n7",
+      "name": "condition-7",
+      "position": {
+        "x": 1200,
+        "y": 300
+      }
+    },
+    {
+      "type": "assertVisible",
+      "locator": {
+        "strategy": "id",
+        "value": "submitButton"
+      },
+      "config": {
+        "assertionType": "visible"
+      },
+      "timeoutMs": 19000,
+      "retry": {
+        "count": 1,
+        "delayMs": 500
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": true
+      },
+      "beforeWaits": [
+        {
+          "type": "fixedDelay",
+          "delayMs": 100
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "read",
+        "retryable": true
+      },
+      "message": "lab-alpha",
+      "id": "oracle-loopWithBranch-0-n8",
+      "name": "assertVisible-8",
+      "position": {
+        "x": 120,
+        "y": 480
+      }
+    },
+    {
+      "type": "fill",
+      "locator": {
+        "strategy": "id",
+        "value": "lastName"
+      },
+      "value": "lab-user-01@example.invalid",
+      "valueSource": {
+        "type": "runtimeInput",
+        "key": "labInputAlpha"
+      },
+      "config": {
+        "clearBeforeFill": true
+      },
+      "timeoutMs": 19000,
+      "retry": {
+        "count": 2,
+        "delayMs": 1500
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": false
+      },
+      "beforeWaits": [
+        {
+          "type": "domStable",
+          "stableForMs": 200,
+          "timeoutMs": 5000
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "none",
+        "retryable": true
+      },
+      "id": "oracle-loopWithBranch-0-n9",
+      "name": "fill-9",
+      "position": {
+        "x": 480,
+        "y": 480
+      }
+    },
+    {
+      "type": "dblclick",
+      "locator": {
+        "strategy": "id",
+        "value": "submitButton"
+      },
+      "timeoutMs": 16000,
+      "retry": {
+        "count": 1,
+        "delayMs": 1500
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": true
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "none",
+        "retryable": false
+      },
+      "id": "oracle-loopWithBranch-0-n10",
+      "name": "dblclick-10",
+      "position": {
+        "x": 840,
+        "y": 480
+      }
+    },
+    {
+      "type": "check",
+      "locator": {
+        "strategy": "id",
+        "value": "acceptTerms"
+      },
+      "timeoutMs": 18000,
+      "retry": {
+        "count": 1,
+        "delayMs": 500
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": true
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "safeMutation",
+        "retryable": true
+      },
+      "id": "oracle-loopWithBranch-0-n11",
+      "name": "check-11",
+      "position": {
+        "x": 1200,
+        "y": 480
+      }
+    },
+    {
+      "type": "assertText",
+      "locator": {
+        "strategy": "id",
+        "value": "submitButton"
+      },
+      "value": "lab-delta",
+      "valueSource": {
+        "type": "static",
+        "value": "lab-delta"
+      },
+      "config": {
+        "assertionType": "text",
+        "comparisonOperator": "equals",
+        "expectedValue": "lab-delta"
+      },
+      "timeoutMs": 12000,
+      "retry": {
+        "count": 2,
+        "delayMs": 1500
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": true
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "safeMutation",
+        "retryable": true
+      },
+      "id": "oracle-loopWithBranch-0-n12",
+      "name": "assertText-12",
+      "position": {
+        "x": 120,
+        "y": 660
+      }
+    },
+    {
+      "type": "end",
+      "id": "oracle-loopWithBranch-0-n13",
+      "name": "end-13",
+      "position": {
+        "x": 480,
+        "y": 660
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "oracle-loopWithBranch-0-e0",
+      "source": "oracle-loopWithBranch-0-n0",
+      "target": "oracle-loopWithBranch-0-n1",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-loopWithBranch-0-e1",
+      "source": "oracle-loopWithBranch-0-n1",
+      "target": "oracle-loopWithBranch-0-n2",
+      "type": "loop",
+      "kind": "loop",
+      "loop": {
+        "mode": "staticList",
+        "maxIterations": 1,
+        "parameterName": "labLoopValue",
+        "staticValues": [
+          "lab-alpha",
+          "lab-bravo"
+        ]
+      }
+    },
+    {
+      "id": "oracle-loopWithBranch-0-e2",
+      "source": "oracle-loopWithBranch-0-n1",
+      "target": "oracle-loopWithBranch-0-n2",
+      "type": "outcome",
+      "kind": "conditional",
+      "conditional": {
+        "sourceField": "status",
+        "operator": "contains",
+        "priority": 0,
+        "expectedValue": "lab-alpha"
+      }
+    },
+    {
+      "id": "oracle-loopWithBranch-0-e3",
+      "source": "oracle-loopWithBranch-0-n2",
+      "target": "oracle-loopWithBranch-0-n3",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-loopWithBranch-0-e4",
+      "source": "oracle-loopWithBranch-0-n3",
+      "target": "oracle-loopWithBranch-0-n4",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-loopWithBranch-0-e5",
+      "source": "oracle-loopWithBranch-0-n4",
+      "target": "oracle-loopWithBranch-0-n5",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-loopWithBranch-0-e6",
+      "source": "oracle-loopWithBranch-0-n5",
+      "target": "oracle-loopWithBranch-0-n6",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-loopWithBranch-0-e7",
+      "source": "oracle-loopWithBranch-0-n6",
+      "target": "oracle-loopWithBranch-0-n7",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-loopWithBranch-0-e8",
+      "source": "oracle-loopWithBranch-0-n7",
+      "target": "oracle-loopWithBranch-0-n8",
+      "type": "outcome",
+      "kind": "conditional",
+      "conditional": {
+        "sourceField": "errorCode",
+        "operator": "notContains",
+        "priority": 0,
+        "expectedValue": "success"
+      }
+    },
+    {
+      "id": "oracle-loopWithBranch-0-e9",
+      "source": "oracle-loopWithBranch-0-n8",
+      "target": "oracle-loopWithBranch-0-n9",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-loopWithBranch-0-e10",
+      "source": "oracle-loopWithBranch-0-n7",
+      "target": "oracle-loopWithBranch-0-n10",
+      "type": "outcome",
+      "kind": "conditional",
+      "conditional": {
+        "sourceField": "outcome",
+        "operator": "greaterThanOrEqual",
+        "priority": 1,
+        "expectedValue": 35
+      }
+    },
+    {
+      "id": "oracle-loopWithBranch-0-e11",
+      "source": "oracle-loopWithBranch-0-n10",
+      "target": "oracle-loopWithBranch-0-n11",
+      "type": "always",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-loopWithBranch-0-e12",
+      "source": "oracle-loopWithBranch-0-n9",
+      "target": "oracle-loopWithBranch-0-n12",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-loopWithBranch-0-e13",
+      "source": "oracle-loopWithBranch-0-n11",
+      "target": "oracle-loopWithBranch-0-n12",
+      "type": "failure",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-loopWithBranch-0-e14",
+      "source": "oracle-loopWithBranch-0-n12",
+      "target": "oracle-loopWithBranch-0-n13",
+      "type": "failure",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-loopWithBranch-0-e15",
+      "source": "oracle-loopWithBranch-0-n7",
+      "target": "oracle-loopWithBranch-0-n5",
+      "type": "loopBack",
+      "maxLoopCount": 2
+    }
+  ],
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z"
+}

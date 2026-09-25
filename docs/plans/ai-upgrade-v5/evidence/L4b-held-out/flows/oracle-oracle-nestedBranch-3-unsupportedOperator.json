@@ -1,0 +1,458 @@
+{
+  "id": "oracle-nestedBranch-3",
+  "name": "Oracle nestedBranch 3",
+  "description": "Randomized nestedBranch flow (seed awkit-oracle-baseline-001::nestedBranch-3)",
+  "version": 1,
+  "nodes": [
+    {
+      "type": "start",
+      "id": "oracle-nestedBranch-3-n0",
+      "name": "start-0",
+      "position": {
+        "x": 120,
+        "y": 120
+      }
+    },
+    {
+      "type": "condition",
+      "value": "outcome === \"success\"",
+      "timeoutMs": 6000,
+      "retry": {
+        "count": 2,
+        "delayMs": 1000
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": false
+      },
+      "beforeWaits": [
+        {
+          "type": "domStable",
+          "stableForMs": 300,
+          "timeoutMs": 5000
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "none",
+        "retryable": false
+      },
+      "id": "oracle-nestedBranch-3-n1",
+      "name": "condition-1",
+      "position": {
+        "x": 480,
+        "y": 120
+      }
+    },
+    {
+      "type": "assertText",
+      "locator": {
+        "strategy": "id",
+        "value": "submitButton"
+      },
+      "value": "lab-bravo",
+      "valueSource": {
+        "type": "env",
+        "envKey": "AWKIT_LAB_ENV_ALPHA"
+      },
+      "config": {
+        "assertionType": "text",
+        "comparisonOperator": "equals",
+        "expectedValue": "lab-echo"
+      },
+      "timeoutMs": 17000,
+      "retry": {
+        "count": 2,
+        "delayMs": 500
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": false
+      },
+      "beforeWaits": [
+        {
+          "type": "elementVisible",
+          "locator": {
+            "strategy": "css",
+            "value": "h1"
+          },
+          "timeoutMs": 5000
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "none",
+        "retryable": false
+      },
+      "message": "lab-delta",
+      "id": "oracle-nestedBranch-3-n2",
+      "name": "assertText-2",
+      "position": {
+        "x": 840,
+        "y": 120
+      }
+    },
+    {
+      "type": "uncheck",
+      "locator": {
+        "strategy": "id",
+        "value": "acceptTerms"
+      },
+      "timeoutMs": 14000,
+      "retry": {
+        "count": 0,
+        "delayMs": 500
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": false
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "safeMutation",
+        "retryable": false
+      },
+      "message": "lab-echo",
+      "id": "oracle-nestedBranch-3-n3",
+      "name": "uncheck-3",
+      "position": {
+        "x": 1200,
+        "y": 120
+      }
+    },
+    {
+      "type": "wait",
+      "locator": {
+        "strategy": "id",
+        "value": "submitButton"
+      },
+      "value": "100",
+      "valueSource": {
+        "type": "static",
+        "value": "100"
+      },
+      "config": {
+        "waitType": "time"
+      },
+      "timeoutMs": 9000,
+      "retry": {
+        "count": 0,
+        "delayMs": 1500
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": false
+      },
+      "beforeWaits": [
+        {
+          "type": "elementVisible",
+          "locator": {
+            "strategy": "css",
+            "value": "h1"
+          },
+          "timeoutMs": 5000
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "safeMutation",
+        "retryable": true
+      },
+      "message": "lab-delta",
+      "id": "oracle-nestedBranch-3-n4",
+      "name": "wait-4",
+      "position": {
+        "x": 120,
+        "y": 300
+      }
+    },
+    {
+      "type": "condition",
+      "value": "outcome === \"success\"",
+      "timeoutMs": 8000,
+      "retry": {
+        "count": 2,
+        "delayMs": 1500
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": false
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "none",
+        "retryable": false
+      },
+      "message": "lab-bravo",
+      "id": "oracle-nestedBranch-3-n5",
+      "name": "condition-5",
+      "position": {
+        "x": 480,
+        "y": 300
+      }
+    },
+    {
+      "type": "readText",
+      "locator": {
+        "strategy": "id",
+        "value": "submitButton"
+      },
+      "timeoutMs": 7000,
+      "retry": {
+        "count": 1,
+        "delayMs": 500
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": true
+      },
+      "beforeWaits": [
+        {
+          "type": "domStable",
+          "stableForMs": 100,
+          "timeoutMs": 5000
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "safeMutation",
+        "retryable": true
+      },
+      "outputs": {
+        "labOutputBravoPrimary": {
+          "type": "text"
+        },
+        "labOutputAlphaCount": {
+          "type": "number"
+        }
+      },
+      "message": "lab-delta",
+      "id": "oracle-nestedBranch-3-n6",
+      "name": "readText-6",
+      "position": {
+        "x": 840,
+        "y": 300
+      }
+    },
+    {
+      "type": "uncheck",
+      "locator": {
+        "strategy": "id",
+        "value": "interestAutomation"
+      },
+      "timeoutMs": 16000,
+      "retry": {
+        "count": 1,
+        "delayMs": 500
+      },
+      "onFailure": {
+        "action": "continue",
+        "screenshot": true
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "read",
+        "retryable": true
+      },
+      "message": "lab-echo",
+      "id": "oracle-nestedBranch-3-n7",
+      "name": "uncheck-7",
+      "position": {
+        "x": 1200,
+        "y": 300
+      }
+    },
+    {
+      "type": "contextMenu",
+      "locator": {
+        "strategy": "css",
+        "value": "h1"
+      },
+      "timeoutMs": 17000,
+      "retry": {
+        "count": 0,
+        "delayMs": 1000
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": false
+      },
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "read",
+        "retryable": true
+      },
+      "id": "oracle-nestedBranch-3-n8",
+      "name": "contextMenu-8",
+      "position": {
+        "x": 120,
+        "y": 480
+      }
+    },
+    {
+      "type": "fill",
+      "locator": {
+        "strategy": "id",
+        "value": "email"
+      },
+      "value": "lab-bravo",
+      "valueSource": {
+        "type": "instanceVariable",
+        "key": "labVarBravo"
+      },
+      "config": {
+        "clearBeforeFill": false
+      },
+      "timeoutMs": 7000,
+      "retry": {
+        "count": 0,
+        "delayMs": 1500
+      },
+      "onFailure": {
+        "action": "stop",
+        "screenshot": true
+      },
+      "beforeWaits": [
+        {
+          "type": "elementVisible",
+          "locator": {
+            "strategy": "css",
+            "value": "h1"
+          },
+          "timeoutMs": 5000
+        }
+      ],
+      "pageAlias": "main",
+      "safety": {
+        "sideEffectLevel": "none",
+        "retryable": false
+      },
+      "id": "oracle-nestedBranch-3-n9",
+      "name": "fill-9",
+      "position": {
+        "x": 480,
+        "y": 480
+      }
+    },
+    {
+      "type": "end",
+      "id": "oracle-nestedBranch-3-n10",
+      "name": "end-10",
+      "position": {
+        "x": 840,
+        "y": 480
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "oracle-nestedBranch-3-e0",
+      "source": "oracle-nestedBranch-3-n0",
+      "target": "oracle-nestedBranch-3-n1",
+      "type": "always",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-nestedBranch-3-e1",
+      "source": "oracle-nestedBranch-3-n1",
+      "target": "oracle-nestedBranch-3-n2",
+      "type": "conditional",
+      "kind": "conditional",
+      "conditional": {
+        "sourceField": "dataSourceValue",
+        "operator": "isDefinitelyNotAnOperator",
+        "priority": 0,
+        "variableName": "outputs.lab.value"
+      }
+    },
+    {
+      "id": "oracle-nestedBranch-3-e2",
+      "source": "oracle-nestedBranch-3-n2",
+      "target": "oracle-nestedBranch-3-n3",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-nestedBranch-3-e3",
+      "source": "oracle-nestedBranch-3-n1",
+      "target": "oracle-nestedBranch-3-n4",
+      "type": "conditional",
+      "kind": "conditional",
+      "conditional": {
+        "sourceField": "outcome",
+        "operator": "exists",
+        "priority": 1
+      }
+    },
+    {
+      "id": "oracle-nestedBranch-3-e4",
+      "source": "oracle-nestedBranch-3-n4",
+      "target": "oracle-nestedBranch-3-n5",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-nestedBranch-3-e5",
+      "source": "oracle-nestedBranch-3-n5",
+      "target": "oracle-nestedBranch-3-n6",
+      "type": "conditional",
+      "kind": "conditional",
+      "conditional": {
+        "sourceField": "outcome",
+        "operator": "greaterThan",
+        "priority": 0,
+        "expectedValue": 27
+      }
+    },
+    {
+      "id": "oracle-nestedBranch-3-e6",
+      "source": "oracle-nestedBranch-3-n5",
+      "target": "oracle-nestedBranch-3-n7",
+      "type": "conditional",
+      "kind": "conditional",
+      "conditional": {
+        "sourceField": "dataSourceValue",
+        "operator": "truthy",
+        "priority": 1,
+        "variableName": "outputs.lab.status"
+      }
+    },
+    {
+      "id": "oracle-nestedBranch-3-e7",
+      "source": "oracle-nestedBranch-3-n6",
+      "target": "oracle-nestedBranch-3-n8",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-nestedBranch-3-e8",
+      "source": "oracle-nestedBranch-3-n7",
+      "target": "oracle-nestedBranch-3-n8",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-nestedBranch-3-e9",
+      "source": "oracle-nestedBranch-3-n3",
+      "target": "oracle-nestedBranch-3-n9",
+      "type": "failure",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-nestedBranch-3-e10",
+      "source": "oracle-nestedBranch-3-n8",
+      "target": "oracle-nestedBranch-3-n9",
+      "type": "success",
+      "kind": "normal"
+    },
+    {
+      "id": "oracle-nestedBranch-3-e11",
+      "source": "oracle-nestedBranch-3-n9",
+      "target": "oracle-nestedBranch-3-n10",
+      "type": "success",
+      "kind": "normal"
+    }
+  ],
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z"
+}
