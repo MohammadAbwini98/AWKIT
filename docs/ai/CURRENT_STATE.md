@@ -1,6 +1,59 @@
 # CURRENT_STATE
 
-## Phase L: L4b R1 and R2 implemented and measured, the model still falls short on criterion 1, Phase L NOT complete (2026-09-25, later, current)
+## Phase L: L4b R4 display gate built, the L4b target NOT MET, `awkit-i6ot` still blocked on this host's VS components, Phase L NOT complete (2026-09-25, latest, current)
+
+**Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** Phase L is still 7 of
+10 milestones closed. The owner authorized R4 in session (`DECISIONS.md`, latest).
+
+- **R4 (`a89a14bd`): the Flow Designer withholds an AI explanation it cannot establish.**
+  - The claim screens now live in the product (`src/ai/authoringClaimScreen.ts`), and the quality harness
+    imports them: one set of rules.
+  - The gate withholds on a screen hit, or on a cause or run-time consequence left once the issue's
+    verbatim summary, clauses and step are removed.
+  - The designer shows *AI explanation withheld*, the reason, the finding with its severity, and the
+    rule's corrective action. The bar counts withheld answers, and the model text never reaches the
+    renderer.
+  - On the 34 answers displayed after R1 and R2: all 8 unsupported ones are withheld, plus 2 correct
+    restatements (#22, #33); 24 are shown. This was predicted before the build.
+  - The coverage limits are in L4 › R4. The request is unchanged, so no live run was needed.
+- **L4b target: NOT MET** (was PENDING). Withheld answers are never counted as successes, so criterion 2
+  reads 13/17 and 11/17. Criterion 1 awaits a person on 26 answers, and criterion 4 on 16.
+- **The owner must decide** whether the target measures the answers a person sees or every answer the
+  model produces. The recommendation is to keep "produces"; L4b then needs R6 or R5.
+- **`awkit-i6ot` re-checked after the owner reported the VS components installed.** On this host, the
+  staging's vswhere query still finds no VS 2022 with `VC.Tools.x86.x64` and `VC.Redist.14.Latest`.
+  - The Community instance selects `VC.Tools.ARM` only.
+  - `VC\Redist\MSVC\14.44.35112` holds ARM files only, with no x64 CRT.
+  - So the rebuild and packaged gates are NOT RUN. The owner action is in L7 › `awkit-i6ot`.
+- **Independent QC** (one read-only AI QC reviewer agent at `a89a14bd`; not a person's sign-off): PASS WITH
+  FINDINGS, 1 major and 4 minor findings, plus 1 nit. Fixed in the follow-up commit:
+  - F1 (major): a verbatim evidence clause wrapped in a framing sentence ("After you add a connector, the
+    run stops there…") was trusted. Evidence now counts only as its own sentence or clause.
+  - F2: "cannot run" was removed as evidence whatever its subject. Now only the flow or the run as the
+    subject counts ("Only this step will not execute" is withheld).
+  - F3: criterion 4's best case counted unread withheld answers as possible successes.
+  Recorded, not changed:
+  - F4: the request hash covers only the instructions. `git diff` shows R4 left the request builder and
+    `FlowValidator` untouched, so the request is byte-identical.
+  - F5: positions and values are checked against the whole request. This limit predates R4 and is now
+    documented.
+  - F6 (nit): the global regexes carry no state today.
+  - QC did not verify that §14 fails without the gate. That mutation run was denied here.
+
+| Gate (this session) | Result |
+|---|---|
+| `verify:ai-packaged-runtime` (real staging) | 45/5 FAIL: staging refused, no qualifying VS 2022 redist; same 5 as before |
+| `verify:ai-authoring` | 304/304 at `a89a14bd`; 305/305 after the QC fixes (25 new in §14, the QC controls not proven red first) |
+| `verify:ai-assist-gui` (real Electron) | 185/0 (8 new R4 checks), before and after the QC fixes |
+| `verify:ai-fallback` · `verify:ai-autonomy-policy` · `verify:ai-adapter` | 38/0 · 62/0 · 117/0 |
+| `typecheck` · `typecheck:scripts` · `npm run build` | PASS · PASS · PASS |
+| `verify:ai-authoring-review` (real store, today's gate) | TARGET NOT MET (criterion 2) |
+| mutation run of §14 | NOT RUN: denied by the environment's permission classifier |
+| live model runs, L1.8 | NOT RUN: the request is unchanged; the R2 captures and L1.8 GO stand |
+| portable and NSIS rebuild, manifest, `verify:native-dependencies`, `verify:ai-packaged-app`, strict `validate:offline` | NOT RUN: `awkit-i6ot` prerequisite absent |
+| licensed walkthrough · clean-machine VM | BLOCKED (issuer key) · NOT RUN (operator) |
+
+## Phase L: L4b R1 and R2 implemented and measured, the model still falls short on criterion 1, Phase L NOT complete (2026-09-25, later)
 
 **Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** The owner authorized
 R1 and R2 of the L4b AI evaluation on 2026-09-25 (`DECISIONS.md`, latest). Phase L is still 7 of 10

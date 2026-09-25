@@ -1,6 +1,19 @@
 # KNOWN_ISSUES
 
-## The 0.8B still paraphrases a rule's consequence into an unsupported claim, about 4 of 17 answers per run (2026-09-25, OPEN — owner decision R4/R5/R6, `awkit-djnl.6`)
+## The 0.8B still paraphrases a rule's consequence into an unsupported claim, about 4 of 17 answers per run (2026-09-25, OPEN — mitigated for display by R4; target decision and R5/R6 with the owner, `awkit-djnl.6`)
+
+- **Update 2026-09-25 (later): R4 built (`a89a14bd`), owner-authorized.**
+  - The Flow Designer no longer shows an answer that a claim screen hits, or that states a cause or a
+    run-time consequence in its own words. On the 34 answers it withholds all 8 of these, plus 2 correct
+    restatements, and shows 24.
+  - The model is unchanged, so the defect is not fixed. It is now withheld rather than shown.
+  - Withheld answers never count as successes, so the target is **NOT MET** on criterion 2 (13/17,
+    11/17).
+  - The owner must decide whether the target measures the answers a person sees or every answer the model
+    produces (L4 › R4).
+  - **Gate limits** (L4 › R4): a closed English vocabulary for consequences, a connective list for causes,
+    and verbatim evidence clauses trusted in any wrapping sentence. Correct paraphrases are withheld too.
+    Its precision on unseen output is unmeasured.
 
 - **Found by:** the AI evaluation of all 34 displayed answers after R1 and R2
   (`docs/plans/ai-upgrade-v5/evidence/L4b-ai-technical-evaluation-2026-09-25-after-R1-R2.md`). It is not a
@@ -46,6 +59,16 @@
 
 ## The packaged local-AI runtime needs the Microsoft Visual C++ runtime, which the installer does not carry (2026-09-24, OPEN — owner or licensing decision, `awkit-i6ot`)
 
+- **Update 2026-09-25 (later): the owner reported the components installed. This host still lacks them.**
+  - The staging's own vswhere query finds no VS 2022 install with `VC.Tools.x86.x64` and
+    `VC.Redist.14.Latest`, so `verify:ai-packaged-runtime` reads 45/5 as before.
+  - The VS 2022 Community instance record selects `VC.Tools.ARM` only, and was last updated 2025-06-12.
+  - `VC\Redist\MSVC\14.44.35112` holds ARM files only. There is no `x64\Microsoft.VC143.CRT`, and no x64
+    CRT redist package is cached.
+  - What was installed looks like the ARM build tools.
+  - **Owner action:** in VS 2022 Community, click *Modify* and add "MSVC v143 - VS 2022 C++ x64/x86 build
+    tools (Latest)" and "C++ 2022 Redistributable Update". Confirm with the `vswhere -requires` line in
+    L7 › `awkit-i6ot`.
 - **Update 2026-09-25: remedy decided and implemented, still OPEN.**
   - **Decision:** the owner chose app-local DLLs from the Visual Studio redist folder.
   - **What is staged:** `prepare-ai-native-host.mjs` stages `msvcp140.dll`, `vcruntime140.dll` and

@@ -1,5 +1,45 @@
 # TASK_LOG
 
+## 2026-09-25 (latest) — L4b R4 display gate built, independent QC and its fixes; `awkit-i6ot` re-checked on this host (Claude)
+
+- **Task:** the owner asked for three things:
+  - reconcile their report that the VS 2022 C++ components were installed with the previous session's
+    observation, then complete `awkit-i6ot`;
+  - implement R4, a deterministic safety fallback for L4b explanations;
+  - reconcile Phase L state, with an independent QC review.
+- **Commits:**
+  - `a89a14bd`: R4;
+  - the QC fixes and this state reconciliation;
+  - the tracker notes, under the project-state lease.
+- **Files:**
+  - `src/ai/authoringClaimScreen.ts` (new), `src/ai/authoringExplanation.ts`, `src/ai/contracts/AiApi.ts`;
+  - `app/main/ai/aiAssist.ts`, `app/renderer/components/workflow/AuthoringAssist.tsx`,
+    `app/renderer/pages/FlowChartDesigner.tsx`;
+  - `scripts/ai-harness/{authoringQualitySet,authoringQualityReview,authoringQualityLive,harnessMain}.ts`;
+  - `scripts/verify-ai-authoring.mts`, `scripts/verify-ai-authoring-review.mts`,
+    `scripts/verify-ai-assist-gui.mts`;
+  - the L4, L7 and ROADMAP plans, `docs/ai/{CURRENT_STATE,HANDOFF,DECISIONS,KNOWN_ISSUES,TASK_LOG}.md`, and
+    `.beads`.
+- **Tests:**
+  - `verify:ai-authoring` 304/304, then 305/305;
+  - `verify:ai-assist-gui` 185/0, twice;
+  - `verify:ai-fallback` 38/0, `verify:ai-autonomy-policy` 62/0, `verify:ai-adapter` 117/0;
+  - `typecheck`, `typecheck:scripts` and `npm run build`: PASS;
+  - `verify:ai-authoring-review`: TARGET NOT MET (criterion 2 at 13/17 and 11/17);
+  - `verify:ai-packaged-runtime`: 45/5, with the staging refused for want of a qualifying VS 2022 redist.
+- **Not run:**
+  - the mutation run of §14 (denied by the permission classifier);
+  - red-first proof of the three QC controls;
+  - live model runs (the request is unchanged);
+  - the rebuild and the packaged gates (the `awkit-i6ot` prerequisite is absent);
+  - the licensed walkthrough (BLOCKED, issuer key) and the clean-machine VM (NOT RUN, operator).
+- **Result:**
+  - R4 withholds all 8 unsupported answers of the 34, plus 2 correct ones, and shows 24.
+  - The L4b target is NOT MET. Whether it measures shown or produced answers is the owner's decision.
+  - `awkit-i6ot` needs "MSVC v143 x64/x86 build tools" and "C++ 2022 Redistributable Update" added to VS
+    2022 Community on this host; only the ARM tools are there.
+  - Phase L is not complete.
+
 ## 2026-09-25 (later) — L4b R1 and R2: harness screens, the request's blocking fact, fresh live runs, L1.8, AI evaluation (Claude)
 
 - **Task:** the owner authorized R1 and R2 of the L4b AI evaluation, fresh live runs, the affected L1.8

@@ -102,6 +102,36 @@ C++ runtime, local AI will fail to load. The fix needs an owner or licensing dec
 
   The owner authorized adding the VS 2022 C++ tools and redist on 2026-09-25. Until they are installed,
   and portable and NSIS are rebuilt and re-verified, `awkit-i6ot` stays open.
+- **Re-checked after the owner reported the components installed (2026-09-25, later).** The session runs on
+  the owner's own Windows host: profile `C:\Users\moham`, the same local review store as the earlier runs.
+  - **The staging's own query:** `verify:ai-packaged-runtime` ran `prepare-ai-native-host.mjs`, whose
+    vswhere call found no qualifying install. It refused with "vswhere reports no released Visual Studio
+    2022 Community, Professional or Enterprise installation with
+    Microsoft.VisualStudio.Component.VC.Tools.x86.x64 and Microsoft.VisualStudio.Component.VC.Redist.14.Latest".
+    The result was 45/5, the same five failures as before.
+  - **The installer's instance record** (`C:\ProgramData\Microsoft\VisualStudio\Packages\_Instances\62576ba5\state.json`,
+    VS 2022 Community 17.14.5):
+    - its selected C++ component is `Microsoft.VisualStudio.Component.VC.Tools.ARM`;
+    - neither `…VC.Tools.x86.x64` nor `…VC.Redist.14.Latest` is selected;
+    - the record's `updateDate` is 2025-06-12.
+  - **On disk:**
+    - `VC\Tools\MSVC\14.44.35207` exists, with an x64 linker;
+    - `VC\Redist\MSVC\14.44.35112` holds only `onecore\arm` and `debug_nonredist\arm`: there is no
+      `x64\Microsoft.VC143.CRT`;
+    - the package cache holds no `Microsoft.VC.14.44.*.CRT.Redist.X64` package.
+  - **The other instances still do not qualify:** VS 18 Insiders is a prerelease, and VS 2019 Build Tools
+    (CRT 14.29.30139) is below the floor and outside the Distributable Code list.
+  - **So the exact missing prerequisite** is the two components, added to VS 2022 Community with
+    *Modify*: "MSVC v143 - VS 2022 C++ x64/x86 build tools (Latest)" and "C++ 2022 Redistributable
+    Update". What is installed looks like the ARM build tools.
+  - **Proof they are present:** `vswhere.exe -products * -requires
+    Microsoft.VisualStudio.Component.VC.Tools.x86.x64 Microsoft.VisualStudio.Component.VC.Redist.14.Latest
+    -property installationPath` prints the Community path. Today it prints nothing.
+  - **Not checked:** the x64 DLLs' versions, signatures and source, because they are absent. Nothing was
+    copied from System32, and no assertion was weakened.
+  - **Not run:** the portable and NSIS rebuild, the manifest, `verify:native-dependencies` (its input, the
+    stale `1e856706` package, is unchanged), `verify:ai-packaged-app`, and strict offline. The last package
+    also predates R2 and R4.
 - **Independent QC (2026-09-25, one AI QC reviewer agent, read-only, not a human sign-off):** QC-1..QC-7
   are re-verified with no regression, and provenance, the offline boundary and exit semantics PASS. It
   raised F1–F7, which are resolved at `420f2aad` and `0b581544`:

@@ -1,6 +1,36 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-25, later, latest) — L4b R1 and R2 done and measured; the model still falls short on criterion 1; Phase L NOT complete
+## HANDOFF (2026-09-25, latest) — L4b R4 built and QC'd; the L4b target NOT MET; `awkit-i6ot` still missing its x64 VS components; Phase L NOT complete
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. Phase L is 7 of 10 closed.
+- **Done this session:**
+  - R4, the display gate (`a89a14bd`), plus the fixes for the AI QC's findings;
+  - `verify:ai-authoring` 305/305 and `verify:ai-assist-gui` 185/0.
+  - Details: L4 plan › R4.
+- **What keeps Phase L open, and who acts:**
+  1. **`awkit-i6ot`: the owner, on this host.**
+     - In the Visual Studio Installer, click *Modify* on VS 2022 Community. Add "MSVC v143 - VS 2022 C++
+       x64/x86 build tools (Latest)" and "C++ 2022 Redistributable Update". Only the ARM build tools are
+       installed now.
+     - Confirm with the `vswhere -requires` line in L7 › `awkit-i6ot`.
+     - Then an agent runs, under the release lease: `package:portable`, `package:nsis`,
+       `verify:native-dependencies`, `verify:ai-packaged-runtime`, `verify:ai-packaged-app`,
+       `verify:offline-supply-chain`, `verify:packaged-validation`, `verify:packaged-runtime`, and commits
+       the manifest pair.
+  2. **L4b: an owner decision, then a person.**
+     - The target is NOT MET because withheld answers never count (criterion 2: 13/17 and 11/17).
+     - The owner decides whether the target measures the answers a person sees or every answer the model
+       produces. The recommendation is "produces"; L4b then needs R6 (a larger model) or R5.
+     - A person still reads the 26 required answers (`npm run verify:ai-authoring-review -- --pending`).
+  3. **L6** closes on its deterministic scope when L4b is accepted.
+  4. **L7:** the above, plus the licensed walkthrough (BLOCKED, issuer key) and the clean-machine VM (NOT
+     RUN, operator).
+- **Do not:**
+  - copy the CRT from System32 or accept Build Tools, 2019 or a prerelease;
+  - record L4b verdicts, or count withheld or AI-read answers as correct;
+  - change the target's scope without the owner.
+
+## HANDOFF (2026-09-25, later, superseded) — L4b R1 and R2 done and measured; the model still falls short on criterion 1; Phase L NOT complete
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. Phase L is 7 of 10 closed.
 - **Done this session:**

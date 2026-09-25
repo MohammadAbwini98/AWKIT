@@ -1,6 +1,38 @@
 # DECISIONS
 
-### 2026-09-25 (later, latest) — Phase L L4b: the owner authorizes R1 and R2; R3 stays a person's (owner, in session) (`awkit-djnl.6`)
+### 2026-09-25 (latest) — Phase L L4b: the owner authorizes R4, a deterministic display gate; the target's scope under it is the owner's to decide (owner, in session) (`awkit-djnl.6`)
+
+- **Authorized (owner, in session):** R4, a deterministic safety fallback.
+  - The validator stays the source of truth.
+  - An AI text making a causal, execution-consequence or positional claim the trusted evidence cannot
+    establish is not presented as an explanation.
+  - The deterministic description and corrective action are preserved.
+  - The existing L4b infrastructure is reused, with no second AI-output authority.
+  - Every withholding is explainable, testable and observable, and withheld answers never count as
+    successful AI explanations.
+- **Implemented (`a89a14bd`, the agent's design decisions under that authorization):**
+  - The existing claim screens moved from the harness into the product (`src/ai/authoringClaimScreen.ts`),
+    so the display gate and the quality judge are one set of rules, not two.
+  - The gate withholds on any screen hit, and on a cause or run-time consequence left once the issue's
+    verbatim summary, clauses and step are removed. It fails closed: a correct paraphrase is withheld too.
+  - Withholding happens in `parseAuthoringAnswer`, like the existing fix-order withhold. The answer is
+    still accepted, and the model text never crosses to the renderer.
+  - In the target, a withheld answer never counts as on subject, as model-actionable, or as correct under
+    criterion 4.
+  - Criterion 3's computation, criterion 1's reading set, the thresholds, the cases and the denominators
+    are unchanged.
+- **Measured:** on the 34 displayed answers, all 8 unsupported are withheld, plus #22 and #33 (correct),
+  and 24 are shown, as predicted before the build. The request did not change, so no live run was needed.
+- **Open, the owner's (conflict recorded, criteria not modified):**
+  - Under the adopted target, R4 turns shown unsupported claims into missing explanations, and both
+    count as failures. Criterion 2 is NOT MET (13/17, 11/17), so the target is NOT MET.
+  - Criterion 1 still requires reading, and counts, answers no person is shown.
+  - **Decision needed:** does the target measure the explanations a person sees, or every explanation the
+    model produces?
+    - Recommended: keep "produces". L4b then needs R6 (a larger model) or R5 to be accepted, and R4 stays
+      as the safety net.
+
+### 2026-09-25 (later) — Phase L L4b: the owner authorizes R1 and R2; R3 stays a person's (owner, in session) (`awkit-djnl.6`)
 
 - **R1, authorized: correct the evaluation harness.** Unsupported causal claims, validation failures given
   to a non-blocking issue, and invented step positions must be detected. Regression coverage uses the seven
@@ -32,7 +64,8 @@
     consequence or location.
   - **Proposed:** R4 (a deterministic display gate), R5 (clarify three rule summaries) and R6 (a larger
     model).
-  - None is applied. Each is the owner's decision.
+  - None is applied. Each is the owner's decision. (R4 was authorized and built later the same day; see
+    above.)
 - **R3 is unchanged:** criteria 1 and 4 require a person's verdicts.
 
 ### 2026-09-25 — Phase L finalization: the MSVC runtime remedy, L6's deferred intelligence, and an AI evaluation for L4b (owner, in session) (`awkit-i6ot`, `awkit-djnl.6`, `.9`, `.10`, `awkit-egkw`)

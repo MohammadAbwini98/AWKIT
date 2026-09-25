@@ -869,6 +869,112 @@ readings are an **AI assessment, not a person's verdict**. Nothing was written t
   - **R6:** a larger model. This changes the pin.
   - **R3 is unchanged:** a person reads the 26 required answers.
 
+### R4, the display gate, authorized by the owner and built (2026-09-25, `a89a14bd`)
+
+- **One set of rules.** The claim screens moved, unchanged, from the harness into
+  `src/ai/authoringClaimScreen.ts`. The product and the quality harness now import the same functions;
+  `verify:ai-authoring` §14 checks that they are identical.
+- **The gate (`withholdReasons`).** `parseAuthoringAnswer` withholds an explanation from display when:
+  - a screen hits it (`AUTO_FIX_CLAIMED`, `OFF_DOMAIN`, `FABRICATED_LITERAL` with positions,
+    `SEVERITY_*`, `WRONG_REMEDY`);
+  - it states a cause in its own words (`UNESTABLISHED_CAUSE`);
+  - it states a run-time consequence in its own words (`UNESTABLISHED_CONSEQUENCE`, from a closed
+    vocabulary: fails, stops, skips, ignores, finishes, never runs, runs twice, times out, forever,
+    reports success, resolves to, …).
+- **What counts as evidence.** "Own words" means what is left after removing verbatim copies of the issue's
+  rule summary, each of its clauses, and its corrective step, ignoring case and spacing.
+  - Whether the issue blocks the run is left to the severity screens, both ways. So "cannot run" said of a
+    blocking issue, or "fails validation" said of an error, is evidence, not an invented consequence.
+  - The evidence is each issue's own. Another rule's summary counts as the model's own words.
+- **What the person sees.** The request is unchanged: the instructions hash is the same, so the four R2
+  captures remain evidence for it.
+  - The adapter sends `text: null` and the reasons, so a withheld text never reaches the renderer.
+  - Under the finding, the Flow Designer shows *AI explanation withheld*, a product sentence naming why,
+    and the rule's corrective action. The finding's row, message and severity badge are unchanged.
+  - The bar counts the withheld explanations. Nothing is dropped silently.
+- **What the target counts.** The review capture records each withheld answer (`displayWithheld`) with its
+  redacted text, for a person to read. `rereadCapture` applies today's gate in memory.
+  - A withheld answer is never counted as on subject, as actionable in the model's own text, or as correct
+    and actionable under criterion 4, even when a person approves it.
+  - Criterion 3 is computed as before (the product's action beside each answer), and so is criterion 1's
+    reading set. The denominators, the thresholds and the cases are unchanged.
+
+**On the 34 answers displayed after R1 and R2 (verbatim, `R2_DISPLAYED_ANSWERS`):**
+
+| | Answers |
+|---|---|
+| Withheld | 10: the 8 the AI evaluation found unsupported (#5, #7, #8, #17, #23, #24, #25 for a cause and a consequence; #34 `FABRICATED_LITERAL`), and the correct restatements #22 and #33, whose causes the gate cannot tell from invented ones. This is exactly the proposal's prediction, written before the gate existed |
+| Shown | 24, none of them one the evaluation found unsupported; the verbatim summaries with a consequence (#10, #16) stay shown |
+| Through the adapter | all 34 delivered, each with the validator's finding, its actual severity and blocking, and the product's step |
+| AI unavailable or off | no explanation reaches the designer, withheld or shown; the findings and actions are unchanged |
+
+- **Beyond the 34.** Held-out controls withhold wording none of them used ("fails at once", "skips", "loop
+  forever", "times out", "due to"). They show the evidence copied (whole summaries, one clause alone, "so it
+  never runs"). They leave severity to the screens, and they show every product step restated.
+- **Coverage limits (the gate is lexical, so these are real):**
+  1. Consequences are read from a closed English vocabulary. One outside it is shown: "the value ends up
+     empty", "nothing happens", "the run goes on to the next step".
+  2. Causes are read from connectives: because, cause, due to, as a result, leads to, therefore, which
+     means, and "so" followed by it, its, the or this. "Since…", "thus", "hence", "consequently" and
+     "making…" are not read.
+  3. A verbatim clause of the issue's own summary is trusted only as its own sentence or clause (since the
+     QC fix). Inside a sentence it is read like the model's own words. A claim in a separate clause beside
+     it ("Unless you fix it; the run stops there…") is read on its own words only.
+  4. A correct paraphrase of a cause or consequence is withheld with the wrong ones: 2 of the 26 correct
+     answers in the 34. A negated consequence ("does not stop") is withheld too, which fails closed.
+  5. A wrong statement that makes no cause, consequence or position claim and hits no screen is shown, for
+     example a wrong subject. Misattribution is the judge's proxy, not the gate.
+  6. Its precision and recall on unseen model output are unmeasured. The held-out wording was written by the
+     implementing agent, and no person has judged any of it.
+  7. Positions and values are checked against the whole request, the other issue's line included. This
+     predates R4 (QC F5).
+  8. Words and forms outside the lists: "prevents", "does nothing", "breaks", "is lost"; unquoted step
+     names ("the Login step"); relative places ("after Start"); any other language.
+- **The target on the real store after R4** (`verify:ai-authoring-review`, today's gate applied in memory):
+
+| Criterion | Before R4 | After R4 |
+|---|---|---|
+| (1) no confirmed unsupported claim | PENDING (26 to read) | PENDING (26 to read, the 10 withheld among them) |
+| (2) on subject, ≥ 90 % per run | MET, 17/17 and 17/17 | **NOT MET, 13/17 and 11/17** (4 and 6 withheld, never counted) |
+| (3) corrective action seen | MET, 17/17 and 16/17 | MET, 17/17 and 16/17 |
+| (4) a person reads the screen-clear | PENDING, 0 of 16 | PENDING, 0 of 16 (none withheld) |
+
+  **TARGET: NOT MET** (was PENDING). The fallback does not raise the target. It makes the model's shortfall
+  visible without a person: this 0.8B produces a displayable explanation for 13 and 11 of 17 issues.
+- **The conflict with the adopted target, which needs the owner.**
+  - The target was written when every accepted answer was displayed. R4 splits accepted answers into shown
+    and withheld, and, as instructed, no withheld answer is a success.
+  - So criterion 2 counts every withheld answer as a failure, and criterion 1 still makes a person read the
+    withheld answers. A confirmed unsupported claim in one of them fails the target, although R4
+    guarantees it is never shown.
+  - Under the current criteria, then, R4 improves what a person sees but cannot make L4b acceptable on this
+    model.
+  - **The minimum decision: does the target measure the explanations a person sees, or every explanation the
+    model produces?**
+    - **Keep "produces" (recommended, no change).** L4b stays NOT MET on the 0.8B. R4 remains the safety
+      net, and acceptance goes through R6 (a larger model, a pin change) or R5.
+    - **Change to "sees".** Criteria 1, 2 and 4 would count displayed answers only, with a new cap on the
+      withheld rate. That changes a denominator, and only the owner may do it.
+- **Verification:**
+  - `verify:ai-authoring` 304/304 (24 new in §14), then 305/305 after the QC fixes;
+  - `verify:ai-assist-gui` 185/0 in real Electron (8 new: the withheld note, its reasons and action, its
+    row and badge, the model's words nowhere on screen, and the bar's count);
+  - `verify:ai-fallback` 38/0, `verify:ai-autonomy-policy` 62/0, `verify:ai-adapter` 117/0;
+  - `npm run build` PASS.
+- **Not run:**
+  - A mutation run of §14 was denied by the environment's permission classifier.
+  - No live model run: the request did not change, so the R2 captures and L1.8 (GO) stand.
+- **Independent QC** (one read-only AI QC reviewer agent at `a89a14bd`; not a person's sign-off): PASS WITH
+  FINDINGS.
+  - Fixed in the follow-up commit, with controls (`verify:ai-authoring` 305/305, not proven red first):
+    - F1 (major): framed evidence was trusted;
+    - F2: "cannot run" was taken as evidence whatever its subject;
+    - F3: criterion 4's best case counted withheld answers.
+  - Recorded as limits or evidence:
+    - F4: the request builder is untouched per `git diff`;
+    - F5: see limit 7;
+    - F6 (nit): regex state.
+
 ### L4b renderer surface as built (2026-09-21, `8ee425a1`)
 
 Deterministic provider only; `awkit-djnl.6` is `in_progress` and cannot close under the conditional
@@ -927,4 +1033,9 @@ kind; explanation quality target recorded and met before release. **Recorded** (
   - Criterion 3 reads 17/17 and 16/17.
   - By the AI reading, criterion 1 would be NOT MET: 8 of 34 displayed answers carry an unsupported claim.
   - R4 to R6 await the owner.
+- **After R4 (2026-09-25, `a89a14bd`):** the target is **NOT MET**.
+  - Criterion 2 reads 13/17 and 11/17, because withheld answers are never counted.
+  - Criterion 1 is PENDING on 26 answers, and criterion 4 on 16.
+  - Whether the target measures the answers a person sees or all the model produces is the owner's
+    decision (see R4 above). R5 and R6 await the owner.
 - Since `ddcfc35b` the corrective action a person sees is the product's, never model text.

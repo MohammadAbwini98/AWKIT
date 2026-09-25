@@ -5,17 +5,22 @@ and L5a, plus L1, L3 and L5b. The last three were accepted, scope-limited, withi
 The implementing agent accepted them under the owner's closeout delegation; that is not a human sign-off
 (see `docs/ai/DECISIONS.md`). Still open:
 - **L4b:** the owner authorized R1 (harness) and R2 (request) on 2026-09-25, and both are measured
-  (`evidence/L4b-ai-technical-evaluation-2026-09-25-after-R1-R2.md`).
-  - The target is PENDING: a person must read 26 answers for criteria 1 and 4.
-  - By an AI reading, which is not a human verdict and does not count, 8 of 34 displayed answers still
-    carry an unsupported claim, so criterion 1 would be NOT MET.
-  - R4 to R6 await the owner.
+  (`evidence/L4b-ai-technical-evaluation-2026-09-25-after-R1-R2.md`). R4, the deterministic display gate,
+  was authorized and built the same day (`a89a14bd`, L4 › R4).
+  - It withholds all 8 unsupported answers of the 34 and 2 correct restatements, and shows 24.
+  - The target is **NOT MET**. Withheld answers never count, so criterion 2 reads 13/17 and 11/17.
+    Criteria 1 and 4 still await a person.
+  - The owner must decide whether the target measures the answers a person sees or every answer the
+    model produces. R5 and R6 await the owner.
 - **L6:** its deterministic scope is verified. It is blocked only by L4b. By the owner's decision of
   2026-09-25, the unbuilt intelligence (the T1 mapping review, Zvec fragment discovery, production fragment AI)
   is deferred to a tracked follow-up outside Phase L.
 - **L7:**
   - `awkit-i6ot`: the app-local Visual C++ runtime is implemented. It waits for the owner to add the VS 2022
     C++ tools and redist to the build machine, then a rebuild and the packaged gates.
+    - Re-checked later on 2026-09-25, after the owner reported them installed: VS 2022 Community has the ARM
+      build tools, but not `VC.Tools.x86.x64` or `VC.Redist.14.Latest`, and there is no x64 CRT folder.
+    - So the staging still refuses.
   - The licensed walkthrough (issuer key) and the clean-machine VM (operator).
   - Done on 2026-09-24: the performance confirmation (GO on all 8) and the engineering security evidence
     review. The latter is not an independent sign-off.
