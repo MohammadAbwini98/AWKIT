@@ -22,7 +22,7 @@ The implementing agent accepted them under the owner's closeout delegation; that
     - Re-checked later on 2026-09-25, after the owner reported them installed: VS 2022 Community had the ARM
       build tools, but not `VC.Tools.x86.x64` or `VC.Redist.14.Latest`, and there was no x64 CRT folder.
     - **Resolved the same evening.** The owner installed both components, staging succeeds, and portable
-      and NSIS were rebuilt from clean `1fbd2178`. Every packaged gate passes, including the loader proof
+      and NSIS were rebuilt, finally from clean `62aab2dc`. Every packaged gate passes, including the loader proof
       without the host's global runtime (L7 › `awkit-i6ot`).
     - It stays open only for the clean-machine VM, which needs an operator (runbook in L7).
   - The licensed walkthrough (issuer key) and the clean-machine VM (operator).

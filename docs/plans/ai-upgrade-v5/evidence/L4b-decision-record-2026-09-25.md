@@ -56,13 +56,16 @@
   - precision and recall on model output the gate has never seen;
   - a mutation run of §14, which the environment's permission classifier denied twice. It is BLOCKED,
     not passed.
-- **Known limits** (L4 › R4, 8 listed):
+- **Known limits** (L4 › R4, 9 listed):
   - a closed English vocabulary for consequences, and a list of connectives for causes;
   - wording outside them is shown ("prevents", "ends up empty");
   - correct paraphrases are withheld;
   - positions and values are checked against the whole request.
-- **Independent review:** one read-only AI QC reviewer, PASS WITH FINDINGS. F1–F3 are fixed and F4–F6
-  recorded. It is not a person's sign-off.
+- **Independent review:** one read-only AI QC reviewer, which is not a person's sign-off.
+  - First pass: PASS WITH FINDINGS. F1–F3 were fixed and F4–F6 recorded.
+  - Second pass: two more evidence rules were fixed red first (a pronoun, and a framing colon or
+    semicolon; `56d845b5`).
+  - Re-check of those fixes: PASS.
 
 ## 4. Mandatory human review (unchanged, not satisfied)
 

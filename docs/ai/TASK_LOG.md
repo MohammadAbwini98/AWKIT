@@ -7,10 +7,13 @@
   revisit the R4 mutation test, and get an independent QC review of the final implementation.
 - **Commits:**
   - `242d1df4`: the live-harness nonce fix;
-  - `cb29a776` and `1fbd2178`: lease bookkeeping;
+  - `cb29a776`, `1fbd2178`, `ff22f89b` and `62aab2dc`: lease bookkeeping;
   - `176f8d5b`: the staging fix;
   - `0edccbba`: its check;
-  - `040407a4`: the manifest pair;
+  - `040407a4`: the first manifest pair;
+  - the second QC pass's fixes: `56d845b5` (gate F5 and F6), `862dcb59` (staging F2–F4) and `1d9244c6`
+    (notices F1);
+  - `c337b267`: the final manifest pair;
   - plus this reconciliation.
 - **Files:**
   - `scripts/prepare-ai-native-host.mjs`, `scripts/verify-ai-packaged-runtime.mts`,
@@ -24,14 +27,18 @@
     - 91/5 red (the prompts differed);
     - 99/4 red (the orphan runtime DLL in both trees, and the harness's 480 s cap at step 12);
     - 104/0 on the final artifacts.
-  - `verify:native-dependencies`: 13/1 on `cb29a776`, then 14/0 on `1fbd2178`.
-  - The other packaged gates on the final artifacts:
+  - `verify:native-dependencies`: 13/1 on `cb29a776`, then 14/0 on `1fbd2178` and on the final `62aab2dc`.
+  - `verify:ai-authoring` 304/305 red with the two QC controls, then 305/305.
+  - `verify:ai-assist-gui` 185/0 on the final build.
+  - `verify:ai-authoring-review`: TARGET NOT MET, as before.
+  - The other packaged gates, on `1fbd2178` and again on the final `62aab2dc`:
     - `verify:ai-packaged-app` 20/0;
     - strict `validate:offline` PASS, `verify:offline-supply-chain` 25/0;
     - `verify:packaged-validation` 119/0, `verify:packaged-runtime` 25/0;
-    - `verify:nsis-per-user-install` 12/0;
     - `verify:packaged-walkthrough` 42/0, with 1 BLOCKED.
-  - `typecheck:scripts` PASS, and the build PASS inside both package pipelines.
+  - `verify:nsis-per-user-install` 12/0, at `1fbd2178` only: it reads the install scripts, which did not
+    change.
+  - `typecheck`, `typecheck:scripts` and the build inside both package pipelines: PASS.
 - **Not run:**
   - the R4 mutation test: denied twice by the permission classifier, so BLOCKED;
   - the clean-machine VM (NOT RUN, operator; runbook in L7);

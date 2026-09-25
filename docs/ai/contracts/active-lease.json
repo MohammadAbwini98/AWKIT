@@ -2,7 +2,7 @@
   "task": "awkit-djnl-10-ai-runtime-packaging-0924",
   "contract_path": "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json",
   "holder": "release",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "build",
     "resources/THIRD_PARTY_NOTICES.md",
@@ -25,5 +25,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-25T18:55:29.161Z",
+  "released_reason": "final rebuild from clean 62aab2dc complete, manifest pair committed, every packaged gate green, licensed walkthrough BLOCKED on the issuer key, clean-machine VM NOT RUN",
+  "archived_at": "2026-09-25T18:55:29.164Z"
 }

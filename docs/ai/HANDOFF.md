@@ -1,6 +1,36 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-25, latest) — L4b R4 built and QC'd; the L4b target NOT MET; `awkit-i6ot` still missing its x64 VS components; Phase L NOT complete
+## HANDOFF (2026-09-25, night, latest) — `awkit-i6ot` packaged and verified, VM owed; L4b awaits one owner decision; Phase L NOT complete
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. Phase L is 7 of 10 closed.
+- **Done:**
+  - the VS components verified;
+  - the runtime staged app-locally, only where imported;
+  - portable and NSIS built from clean `62aab2dc`, with the manifest pair at `c337b267`, and every packaged
+    gate green;
+  - two defects fixed red first;
+  - the second QC pass's findings fixed;
+  - the L4b decision record written.
+  - Details: CURRENT_STATE newest, and L7 › `awkit-i6ot`.
+- **What keeps Phase L open, and who acts:**
+  1. **`awkit-i6ot`: an operator.** Run the clean-machine local-AI runbook in L7 on a VM without the
+     Visual C++ runtime. PASS closes `awkit-i6ot`.
+  2. **L4b: the owner decides one thing** (`evidence/L4b-decision-record-2026-09-25.md`): which measure
+     accepts L4b?
+     - A: the adopted target; it stays NOT MET until R5 or R6.
+     - B: a delivered-experience measure, with the raw result kept on record. The recommendation is B,
+       with a person reading the 24 displayed texts.
+  3. **L6** closes on its deterministic scope when L4b is accepted.
+  4. **L7:** the licensed walkthrough (BLOCKED, issuer key) and the VM above.
+- **Also owed:** the R4 mutation test. The permission classifier denied it twice. The owner can allow it
+  with a permission rule.
+- **Do not:**
+  - copy the runtime from System32;
+  - count withheld or AI-read answers as correct;
+  - record verdicts;
+  - change the target without the owner.
+
+## HANDOFF (2026-09-25, latest, superseded) — L4b R4 built and QC'd; the L4b target NOT MET; `awkit-i6ot` still missing its x64 VS components; Phase L NOT complete
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. Phase L is 7 of 10 closed.
 - **Done this session:**

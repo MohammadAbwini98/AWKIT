@@ -1,6 +1,67 @@
 # CURRENT_STATE
 
-## Phase L: L4b R4 display gate built, the L4b target NOT MET, `awkit-i6ot` still blocked on this host's VS components, Phase L NOT complete (2026-09-25, latest, current)
+## Phase L: `awkit-i6ot` rebuilt and every packaged gate green, clean-machine VM NOT RUN; L4b NOT MET pending one owner decision; Phase L NOT complete (2026-09-25, night, current)
+
+**Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** Phase L is still 7 of
+10 milestones closed.
+
+- **The VS install is verified.** The owner installed `VC.Tools.x86.x64` and `VC.Redist.14.Latest` in VS
+  2022 Community; the instance record was updated at 2026-09-25T16:10:45Z. The x64
+  `Microsoft.VC143.CRT` folder of redist 14.44.35112 holds `msvcp140.dll`, `vcruntime140.dll` and
+  `vcruntime140_1.dll`, all file version 14.44.35211. The staging accepted each: x64, a valid Microsoft
+  Corporation signature, inside the VS install and not System32, and at least the 14.42 floor.
+- **`awkit-i6ot`: the packaging is done; still open for the clean-machine VM.**
+  - **The final artifacts** were built from clean `62aab2dc`: portable 243,160,364 bytes
+    (`11888cfb…`), NSIS 272,026,668 bytes (`f34a83e4…`), and the manifest pair at `c337b267`.
+  - **The runtime DLLs go only where imported:** all three beside the llama and ggml binaries, and
+    `vcruntime140.dll` beside the reflink addon.
+  - **The loader proof** in `verify:native-dependencies` loads the runtime and reflink with the host's
+    global Visual C++ runtime made unreachable. That is development-host evidence, not clean-machine
+    proof. The VM runbook is in L7.
+- **Defects found and fixed, red first:**
+  - the live determinism step compared two different prompt nonces (`242d1df4`);
+  - a runtime DLL was staged where nothing loads it (`176f8d5b`, with the check `0edccbba`);
+  - the second QC pass's display-gate evidence rules, F5 and F6 (`56d845b5`).
+  - Also fixed, not red first: old-style delay-load descriptors were skipped silently (`862dcb59`), and the
+    shipped notice described the runtime layout wrongly (`1d9244c6`).
+- **L4b** has a decision record: `evidence/L4b-decision-record-2026-09-25.md`.
+  - It keeps the raw model result on record as NOT MET.
+  - What a person sees: 34/34 issues show the deterministic finding and action. 24/34 AI texts are shown,
+    all correct by the AI reading; 10 are withheld.
+  - It sets out the fallback's effectiveness and limits, and the unmet human review.
+  - It asks the owner one question: which measure accepts L4b? The recommendation is a delivered-experience
+    measure, with a person reading the 24 displayed texts.
+  - The target stays NOT MET until then.
+- **L6** is blocked only by L4b. **L7:**
+  - the packaging and the independent QC are done;
+  - the licensed walkthrough is BLOCKED on the issuer key;
+  - the clean-machine VM is NOT RUN.
+- **Independent QC** (one read-only AI reviewer; not a person's sign-off):
+  - Second pass at `040407a4`: PASS WITH FINDINGS, with no blocker and nothing major.
+  - F1–F6 are fixed, and F7 and F8 accepted as nits.
+  - **Its re-check of the fixes: PASS, all six RESOLVED,** from file reads (it could not run commands).
+  - Two new nits are recorded, not changed:
+    - N1: the zero-import refusal would also refuse a resource-only DLL. None is staged today; the failure
+      is safe.
+    - N2: evidence after a `;` is now read as the model's own words. The 34 captured decisions are
+      unchanged, but the next live quality run should re-measure the withheld rate.
+
+| Gate (this session, on the final artifacts unless stated) | Result |
+|---|---|
+| `verify:native-dependencies` | 14/0 (13/1 on the first package, `cb29a776`: the orphan runtime DLL) |
+| `verify:ai-packaged-runtime` | 104/0, live harness 13/13 (red first 91/5, then 99/4) |
+| `verify:ai-packaged-app` | 20/0: the pinned pack imported, and a real explanation OK in 85 s in the packaged app's host |
+| strict `validate:offline` · `verify:offline-supply-chain` | PASS · 25/0 |
+| `verify:packaged-validation` · `verify:packaged-runtime` | 119/0 · 25/0 |
+| `verify:packaged-walkthrough` | 42/0, 1 BLOCKED (licensed parts D–J, issuer key) |
+| `verify:nsis-per-user-install` | 12/0 (at `1fbd2178`; install scripts unchanged) |
+| `verify:ai-authoring` · `verify:ai-assist-gui` | 305/305 (304/305 red first) · 185/0 |
+| `verify:ai-authoring-review` | TARGET NOT MET (criterion 2: 13/17, 11/17) |
+| `verify:verifier-classification` | reconciled (266 classified) |
+| R4 mutation test | BLOCKED: denied twice by the permission classifier |
+| clean-machine VM · licensed walkthrough | NOT RUN (operator) · BLOCKED (issuer key) |
+
+## Phase L: L4b R4 display gate built, the L4b target NOT MET, `awkit-i6ot` still blocked on this host's VS components, Phase L NOT complete (2026-09-25, latest)
 
 **Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** Phase L is still 7 of
 10 milestones closed. The owner authorized R4 in session (`DECISIONS.md`, latest).

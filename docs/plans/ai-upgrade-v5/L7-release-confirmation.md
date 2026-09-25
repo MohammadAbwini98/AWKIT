@@ -151,23 +151,39 @@ C++ runtime, local AI will fail to load. The fix needs an owner or licensing dec
   - **One harness defect found and fixed (`242d1df4`, red first).** The live determinism step compared
     two jobs with different random prompt nonces, so two different prompts. The pair now shares one
     nonce, and the step first asserts the two prompts are byte-identical.
-  - **The fresh artifacts,** built from clean `1fbd2178` (`dist/release-provenance.json`, treeDirty false):
+  - **Second QC pass** (one read-only AI reviewer at `040407a4`; not a person's sign-off): PASS WITH
+    FINDINGS, with no blocker and nothing major.
+    - Fixed:
+      - F1, the shipped notice wrongly said all three DLLs go into every native folder (`1d9244c6`);
+      - F2 and F4, stale comments, and F3, silent skipping of old-style delay-load descriptors
+        (`862dcb59`, not red first: no shipped binary has one);
+      - F5 and F6, two display-gate evidence rules (`56d845b5`, red first).
+    - Accepted: F7 and F8, nits.
+    - **The reviewer's re-check of the fixes: PASS, all six RESOLVED,** from file reads.
+    - New nit N1, accepted: the zero-import refusal would also refuse a resource-only DLL. None is staged
+      today; the failure is safe.
+  - **The final artifacts,** built from clean `62aab2dc` after those fixes (`dist/release-provenance.json`,
+    treeDirty false). They supersede the pair built from `1fbd2178` (committed at `040407a4`):
 
     | Artifact | Bytes | SHA-256 |
     |---|---|---|
-    | Portable `SpecterStudio 0.1.51.exe` | 243,157,087 | `879400696f273bbb73995cc1d9f3a8b7fb35597044eba36ab75f6c16a3133c8d` |
-    | NSIS `SpecterStudio Setup 0.1.51.exe` | 272,025,974 | `fd747e8b62b34ee46ad2df1294eae04864b3ea7eb41fea4cee4f5a35e081f0cc` |
-    | Signed dependency manifest | — | `b218d77f…`, Ed25519 `aa5b9dd8…`, committed at `040407a4` |
+    | Portable `SpecterStudio 0.1.51.exe` | 243,160,364 | `11888cfbb2afe32e328257dcd398efabaca6bda867c16762d15257abd3e118f2` |
+    | NSIS `SpecterStudio Setup 0.1.51.exe` | 272,026,668 | `f34a83e4112ea3e86676541ffbb335bf6b4a59a73b7ee96fba807129a7615030` |
+    | Signed dependency manifest | — | `dc0532bb…`, Ed25519 `aa5b9dd8…`, committed at `c337b267` |
 
   - **The gates on them:**
     - `verify:native-dependencies` 14/0: every import of 50 PE images resolves. The loader proof loads
       the AI runtime and the reflink addon with the host's global Visual C++ runtime made unreachable.
     - `verify:ai-packaged-runtime` 104/0, the live harness 13/13 on the staged copy.
-    - `verify:ai-packaged-app` 20/0: the pinned pack imported, and a real explanation in 92 s in the
-      packaged app's own host.
+    - `verify:ai-packaged-app` 20/0: the pinned pack imported in 3 s, and a real explanation OK in 85 s in
+      the packaged app's own host.
     - Strict `validate:offline` PASS, `verify:offline-supply-chain` 25/0, `verify:packaged-validation`
-      119/0, `verify:packaged-runtime` 25/0, `verify:nsis-per-user-install` 12/0.
+      119/0, `verify:packaged-runtime` 25/0.
+    - `verify:nsis-per-user-install` 12/0, at `1fbd2178`: it reads only the install scripts, which are
+      unchanged.
     - `verify:packaged-walkthrough` 42/0, with 1 BLOCKED: its licensed parts D–J need the issuer key.
+      NSIS sha512 matches `latest.yml`, and the app made no non-loopback connection.
+    - `verify:ai-assist-gui` 185/0 on the final build.
   - **What this does not prove:** it is the development host. Its global Visual C++ runtime is made
     unreachable only for the loader proof, which is not a clean machine.
   - **`awkit-i6ot` stays open.** Its acceptance also names the clean-machine VM loading the runtime from the
@@ -183,7 +199,8 @@ The existing VM scripts (`scripts/clean-machine/`) have no local-AI step. On a c
 
 Then:
 1. Copy these to the VM and record `Get-FileHash -Algorithm SHA256` of each:
-   - `dist\SpecterStudio Setup 0.1.51.exe`, which must equal `fd747e8b…`;
+   - `dist\SpecterStudio Setup 0.1.51.exe`, which must equal
+     `f34a83e4112ea3e86676541ffbb335bf6b4a59a73b7ee96fba807129a7615030`;
    - `Qwen3.5-0.8B-Q4_K_M.gguf`, which must equal `f5b14da98939b60bbe1019a964eba656407e1e0b64f1fe3003ff6d650e93bfec`.
 2. Install per user with the canonical arguments (`scripts/lib/nsis-per-user-install.ps1`):
    `"SpecterStudio Setup 0.1.51.exe" /currentuser /S`. The exit code must be 0, and the app must be

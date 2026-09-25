@@ -91,12 +91,17 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "release",
+      "agent_id": "project-state",
       "allowed_paths": [
-        "build",
-        "resources/THIRD_PARTY_NOTICES.md",
-        "resources/dependency-manifest.json",
-        "resources/dependency-manifest.sig"
+        ".beads/**",
+        "docs/ai/COMMANDS.md",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/KNOWN_ISSUES.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/plans/ai-upgrade-v5/L6-fragments-and-templates.md",
+        "docs/plans/ai-upgrade-v5/L7-release-confirmation.md",
+        "docs/plans/ai-upgrade-v5/ROADMAP.md"
       ]
     },
     "writer_sequence": [
@@ -211,12 +216,12 @@
   },
   "completion": {
     "status": "blocked",
-    "blocked_on": "awkit-i6ot build-machine prerequisite, re-checked 2026-09-25 (latest) after the owner reported it installed: the VS 2022 Community instance on this host selects Microsoft.VisualStudio.Component.VC.Tools.ARM only, and lacks Microsoft.VisualStudio.Component.VC.Tools.x86.x64 and Microsoft.VisualStudio.Component.VC.Redist.14.Latest, with no x64 Microsoft.VC143.CRT folder, so the staging still refuses. Earlier (2026-09-25): the owner-chosen remedy (app-local msvcp140/vcruntime140/vcruntime140_1 from a VS 2022 Community, Professional or Enterprise redist folder) is implemented and fails closed, but this host has no acceptable installation (VS 2022 Community without the C++ workload, VS 18 prerelease, VS 2019 CRT 14.29 below the 14.42 minimum). The owner authorized adding the VS 2022 C++ tools and redist components; after that, rebuild portable and NSIS and run verify:native-dependencies, verify:ai-packaged-runtime and verify:ai-packaged-app. Acceptance STAGE is not met until then.",
-    "qa_status": "FAIL",
-    "qa_basis": "2026-09-25 at 0b581544: verify:native-dependencies 11/3 on the 1e856706 package (exactly the three MSVC DLLs unresolved, the decoy loader proof red for getLlama and reflink, Zvec, Electron and Chromium self-sufficient) and verify:ai-packaged-runtime 45/5 (A0 11/11, A1 7/7, F 2/2, the no-redist refusal leaving an earlier staging untouched, the real staging refused for want of an acceptable VS redist, four checks on the stale package). FAIL is the true state of the self-sufficiency claim until the rebuild. Earlier: 95/2 at 5b77cdd7.",
-    "qa_known_limitations": "The clean-machine VM is NOT RUN (it needs an operator, and the shell guard admits no Hyper-V command), so the MSVC consequence is inferred from the import table, not reproduced. The licensed walkthrough parts are BLOCKED on the issuer key. verify:ai-packaged-app has no product mutation run. The QC-1 and QC-2 red states are read from the old exit expressions, not re-run. No latency or quality claim is made. L7 is not accepted.",
+    "blocked_on": "2026-09-25 (night): acceptance STAGE, PACKAGE and BUILD are met on the final portable and NSIS from clean 62aab2dc (every required evidence item PASS). What remains is external: awkit-i6ot's own acceptance names the clean-machine VM loading the runtime from the installed package, NOT RUN because it needs an operator (runbook in L7), and the licensed walkthrough parts are BLOCKED on the issuer key. Before that, re-checked 2026-09-25 (latest) after the owner first reported the components installed: the VS 2022 Community instance on this host selects Microsoft.VisualStudio.Component.VC.Tools.ARM only, and lacks Microsoft.VisualStudio.Component.VC.Tools.x86.x64 and Microsoft.VisualStudio.Component.VC.Redist.14.Latest, with no x64 Microsoft.VC143.CRT folder, so the staging still refuses. Earlier (2026-09-25): the owner-chosen remedy (app-local msvcp140/vcruntime140/vcruntime140_1 from a VS 2022 Community, Professional or Enterprise redist folder) is implemented and fails closed, but this host has no acceptable installation (VS 2022 Community without the C++ workload, VS 18 prerelease, VS 2019 CRT 14.29 below the 14.42 minimum). The owner authorized adding the VS 2022 C++ tools and redist components; after that, rebuild portable and NSIS and run verify:native-dependencies, verify:ai-packaged-runtime and verify:ai-packaged-app. Acceptance STAGE is not met until then.",
+    "qa_status": "PASS",
+    "qa_basis": "2026-09-25 (night) on the final artifacts from clean 62aab2dc: verify:native-dependencies 14/0 (every import of 50 PE images resolves, the runtime and reflink load with the host's global Visual C++ runtime made unreachable), verify:ai-packaged-runtime 104/0 (live harness 13/13), verify:ai-packaged-app 20/0, strict validate:offline PASS, verify:offline-supply-chain 25/0, verify:packaged-validation 119/0, verify:packaged-runtime 25/0, verify:packaged-walkthrough 42/0 with 1 BLOCKED. Two defects found and fixed red first on the way (the live determinism step's differing nonces, the orphan runtime DLL). Earlier, 2026-09-25 at 0b581544: verify:native-dependencies 11/3 on the 1e856706 package (exactly the three MSVC DLLs unresolved, the decoy loader proof red for getLlama and reflink, Zvec, Electron and Chromium self-sufficient) and verify:ai-packaged-runtime 45/5 (A0 11/11, A1 7/7, F 2/2, the no-redist refusal leaving an earlier staging untouched, the real staging refused for want of an acceptable VS redist, four checks on the stale package). FAIL is the true state of the self-sufficiency claim until the rebuild. Earlier: 95/2 at 5b77cdd7.",
+    "qa_known_limitations": "The clean-machine VM is NOT RUN (it needs an operator, and the shell guard admits no Hyper-V command), so independence from a globally installed Visual C++ runtime rests on the development host's loader proof, which is not a clean machine. The R4 mutation test was denied twice by the permission classifier (BLOCKED). The staging's old-style delay-load refusal (862dcb59) has no red run, because no shipped binary has such a descriptor. The licensed walkthrough parts are BLOCKED on the issuer key. verify:ai-packaged-app has no product mutation run. The QC-1 and QC-2 red states are read from the old exit expressions, not re-run. No latency or quality claim is made. L7 is not accepted.",
     "qc_status": "pending",
-    "qc_basis": "2026-09-25: at the owner's explicit request one read-only AI QC reviewer agent (awkit-qc-reviewer) reviewed the packaging at 393452f9: QC-1..QC-7 intact with no regression, provenance, offline boundary and exit semantics PASS, verdict FAIL on new findings F1-F8. F1-F7 are resolved (420f2aad, 0b581544, 37f9e62d) and F8 is accepted; the fixes have not been re-reviewed, and neither review is a human or legal sign-off, so qc stays pending.",
+    "qc_basis": "2026-09-25 (night): a second read-only AI QC reviewer pass over the corrections after the first (the harness nonce fix, the per-folder runtime staging, its check, the earlier R4 fixes) and the fresh artifacts at 040407a4: PASS WITH FINDINGS, no blocker or major (F1 notices text, F2 and F4 comments, F3 old-style delay-load descriptors, F5 and F6 display-gate evidence rules, F7 and F8 nits). F1-F6 fixed (1d9244c6, 862dcb59, 56d845b5); its re-check of those fixes: PASS, all six resolved, two new nits (N1, N2) recorded. No review is a human or legal sign-off, so qc stays pending on that. Earlier, 2026-09-25: at the owner's explicit request one read-only AI QC reviewer agent (awkit-qc-reviewer) reviewed the packaging at 393452f9: QC-1..QC-7 intact with no regression, provenance, offline boundary and exit semantics PASS, verdict FAIL on new findings F1-F8. F1-F7 are resolved (420f2aad, 0b581544, 37f9e62d) and F8 is accepted; the fixes have not been re-reviewed, and neither review is a human or legal sign-off, so qc stays pending.",
     "qc_findings": [
       {
         "id": "QC-1",
@@ -307,6 +312,36 @@
         "finding": "the signature check accepts any valid O=Microsoft Corporation chain without pinning a root",
         "status": "accepted",
         "resolution": "acceptable on a trusted build host (the reviewer's own assessment); the files must also resolve inside a VS 2022 Community, Professional or Enterprise installation"
+      },
+      {
+        "id": "QC3-F1",
+        "finding": "the shipped notice said all three runtime DLLs go into every native directory, which the per-folder staging no longer does",
+        "status": "resolved",
+        "resolution": "notice reworded at 1d9244c6 and shipped in the 62aab2dc artifacts, re-checked by the reviewer"
+      },
+      {
+        "id": "QC3-F2-F4",
+        "finding": "the staging header still described blanket staging and implied every refusal leaves an earlier staging intact",
+        "status": "resolved",
+        "resolution": "header corrected at 862dcb59"
+      },
+      {
+        "id": "QC3-F3",
+        "finding": "importsOf stopped silently at an old-style delay-load descriptor, so a future prebuilt could get no runtime beside it while staging succeeded",
+        "status": "resolved",
+        "resolution": "reported as a sentinel and refused, with any binary lacking readable imports, at 862dcb59; not red first (no shipped binary has one)"
+      },
+      {
+        "id": "QC3-F5-F6",
+        "finding": "the R4 display gate accepted it as the run's subject and treated a colon or clause break as a statement start",
+        "status": "resolved",
+        "resolution": "fixed red first at 56d845b5 (verify:ai-authoring 304/305, then 305/305), the 34 captured decisions unchanged"
+      },
+      {
+        "id": "QC3-F7-F8-N1-N2",
+        "finding": "nits: the harness re-implements the default nonce, the directories metadata is not compared with the layout, the zero-import refusal would also refuse a resource-only DLL, and the stricter evidence rule may move live withheld rates",
+        "status": "accepted",
+        "resolution": "recorded in L7 and L4; N2 to be re-measured on the next live quality run"
       }
     ],
     "new_findings": [
@@ -314,7 +349,7 @@
         "id": "awkit-i6ot",
         "finding": "the prebuilt ggml and llama binaries and the reflink addon import MSVCP140.dll, VCRUNTIME140.dll and VCRUNTIME140_1.dll, which neither the staging nor the installer carried",
         "status": "in_progress",
-        "needs": "the owner's VS 2022 C++ tools and redist components on the build machine (authorized 2026-09-25), then a rebuild and the packaged gates"
+        "needs": "the clean-machine VM loading the runtime from the installed package (operator; runbook in L7). The components were installed and the rebuild and every packaged gate pass on the final artifacts from clean 62aab2dc (2026-09-25, night)."
       }
     ]
   },
@@ -931,6 +966,25 @@
         "acquired_at_commit": "6c741233a01bf052408fcc7d483d23fdd0d5baff",
         "released_at": "2026-09-25T18:34:05.808Z",
         "released_reason": "staging QC fixes F2 F3 F4 committed, notices F1 and the rebuild under the release lease next",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:release:2026-09-25T18:34:21.660Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "build",
+          "resources/THIRD_PARTY_NOTICES.md",
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig"
+        ],
+        "acquired_at": "2026-09-25T18:34:21.660Z",
+        "acquired_at_commit": "ff22f89b2927092d1de486d3b5a9892233523fe5",
+        "released_at": "2026-09-25T18:55:29.161Z",
+        "released_reason": "final rebuild from clean 62aab2dc complete, manifest pair committed, every packaged gate green, licensed walkthrough BLOCKED on the issuer key, clean-machine VM NOT RUN",
         "amendments": [],
         "overrides": [],
         "violations": []

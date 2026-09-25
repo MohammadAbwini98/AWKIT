@@ -930,6 +930,10 @@ readings are an **AI assessment, not a person's verdict**. Nothing was written t
      predates R4 (QC F5).
   8. Words and forms outside the lists: "prevents", "does nothing", "breaks", "is lost"; unquoted step
      names ("the Login step"); relative places ("after Start"); any other language.
+  9. Since the second QC pass (`56d845b5`), evidence counts only where it starts a sentence or follows
+     "Action:". Evidence after a `;` or a colon is read as the model's own words, which errs toward
+     withholding. The 34 captured decisions are unchanged; the next live quality run should re-measure
+     the withheld rate (QC N2).
 - **The target on the real store after R4** (`verify:ai-authoring-review`, today's gate applied in memory):
 
 | Criterion | Before R4 | After R4 |

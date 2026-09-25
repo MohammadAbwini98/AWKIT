@@ -77,7 +77,7 @@
 - **Update 2026-09-25 (latest): resolved in the packages.**
   - The owner installed `VC.Tools.x86.x64` and `VC.Redist.14.Latest`, so the x64 CRT 14.44.35211 is
     staged app-locally.
-  - Portable and NSIS were rebuilt from clean `1fbd2178`, with the manifest pair at `040407a4`.
+  - Portable and NSIS were rebuilt, finally from clean `62aab2dc`, with the manifest pair at `c337b267`.
   - `verify:native-dependencies` reads 14/0, including the loader proof without the host's global runtime.
     The packaged-app inference passes, and every packaged gate is green.
   - **Still owed:** the clean-machine VM (runbook in L7 › `awkit-i6ot`).
