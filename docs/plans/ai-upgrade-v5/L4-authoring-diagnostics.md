@@ -1067,3 +1067,15 @@ kind; explanation quality target recorded and met before release. **Recorded** (
   - Whether the target measures the answers a person sees or all the model produces is the owner's
     decision (see R4 above). R5 and R6 await the owner.
 - Since `ddcfc35b` the corrective action a person sees is the product's, never model text.
+- **DX fresh runs (2026-09-26): DX NOT MET, so L4b stays open.** The record is
+  `evidence/L4b-dx-fresh-runs-2026-09-26.md`.
+  - The held-out set was selected by the rule committed at `f73fcd6b`: 11 flows, 18 issues, corpus `0db8a581…`.
+  - The full plan was taken on DX-0: two labelled runs and one held-out run, 52 issues, every answer delivered.
+  - **DX-4 is NOT MET:** labelled run 1 left 5 of 17 undisplayed, against a cap of 4. Labelled run 2 left 4 of
+    17 and the held-out run 3 of 18.
+  - DX-0, DX-2 and DX-5 are MET. DX-3 is PENDING: no person has read any of the 52 texts.
+  - Root cause: the 0.8B states an unestablished cause or consequence for about 1 issue in 4 (runs of 4, 6, 5
+    and 4 of 17), right at the cap. The remedies are R5, R6 or relaxing R4, each an owner decision that voids
+    these runs.
+  - The brief's request to let the agent's own reading count as DX-3 was not applied (`DECISIONS.md`,
+    2026-09-26, latest).

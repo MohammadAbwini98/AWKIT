@@ -1,6 +1,50 @@
 # CURRENT_STATE
 
-## Phase L: the L4b DX evaluator and the held-out format are built and proven; the held-out set is the owner's; Phase L NOT complete (2026-09-26, current)
+## Phase L: L4b's fresh DX runs taken; DX NOT MET on DX-4; Phase L NOT complete (2026-09-26, latest)
+
+**Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** Phase L is still 7 of
+10 milestones closed. L4b, L6 and L7 stay open.
+
+- **The held-out set was selected by a rule committed before any candidate was enumerated,** per the owner's
+  Phase L brief (`DECISIONS.md`, 2026-09-26, latest). It stands for the owner to confirm.
+  - The rule: `f73fcd6b`.
+  - Eligibility: `7dc00699`, 548 candidates and 24 eligible.
+  - The set: `cef94893`, 11 flows and 18 issues, corpus `0db8a581…`, including 3 codes the labelled set
+    never sends.
+- **The fresh runs on DX-0** (`evidence/L4b-dx-fresh-runs-2026-09-26.md`): two labelled runs and one held-out
+  run, 52 issues, all delivered.
+  - Withheld by the gate: 5/17, 4/17 and 3/18.
+  - **DX-4 is NOT MET** on labelled run 1: over the cap of 4 per run, never averaged. DX-0, DX-2 and DX-5 are
+    MET. DX-3 is PENDING: 0 of 52 texts read by a person.
+  - Per the owner's ruling, L4b stays open, and no criterion was adjusted.
+  - Root cause: the 0.8B states an unestablished cause or consequence at about the cap rate (4, 6, 5 and 4 of 17
+    across four runs). The remedies (R5, R6, a gate change) are the owner's.
+- **Not applied:** the brief's request that the agent's own reading count as DX-3. The safety classifier refused
+  it, and the partial change was reverted. What was kept is a stricter reviewer-label guard.
+- **L6** is blocked by L4b. **L7** is blocked by L4b, L6 and `awkit-i6ot`:
+  - clean-machine VM: NOT RUN (operator);
+  - licensed walkthrough: BLOCKED (issuer key, not re-run);
+  - packaging human QC and the VS licence statement: the owner's.
+- **Section-7 engineering findings: all already fixed, and re-verified today.**
+  - Revalidation cancels queued instances at once, and the dispatch race is closed.
+  - The scripts have no `shell:true`, and the packaged issuer passes an argv array.
+  - The CLI-only Test Lab gate exits 2 on BLOCKED.
+
+| Gate (this session, final state) | Result |
+|---|---|
+| fresh L4b runs (7 parts) | 9/0, 8/0, 9/0, 9/0, 5/0, 9/0, 8/0 |
+| `verify:ai-authoring-dx` | NOT MET (exit 1): DX-4 |
+| `verify:ai-authoring-review` (adopted target) | NOT MET (criterion 2: 13, 11, 12 and 13 of 17 over 4 runs) |
+| `verify:ai-authoring` | 363/363 |
+| `verify:ai-dx-mutations` · `verify:ai-display-gate-mutations` | 58/0, 26/26 killed · 38/0, 15/15 killed |
+| `verify:ai-authoring-held-out` · `-eligibility` | committed and matching · matching |
+| `npm run build` · `typecheck:scripts` | PASS · PASS |
+| `verify:runner` · `verify:mock-site` · `validate:offline` | 138/0 · 242/242 · PASS |
+| `verify:licensing` · `verify:license-dispatch-gate` · `verify:test-lab-cli-only-exit` | 192/0 · 66/0 · 20/0 |
+| `verify:source-hygiene` · `verify:verifier-classification` | 11/0 · 277 classified |
+| clean-machine VM · licensed walkthrough · DX-3 reading | NOT RUN (operator) · BLOCKED (issuer key) · PENDING (a person) |
+
+## Phase L: the L4b DX evaluator and the held-out format are built and proven; the held-out set is the owner's; Phase L NOT complete (2026-09-26, earlier)
 
 **Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** Phase L is still 7 of
 10 milestones closed. Nothing closed. No fresh model run was taken.

@@ -1,6 +1,33 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-26, latest) — the DX evaluator and held-out format are built; the held-out set is the owner's; Phase L NOT complete
+## HANDOFF (2026-09-26, final) — L4b fresh DX runs taken, DX NOT MET on DX-4; Phase L NOT complete
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. Phase L is 7 of 10 closed.
+- **Done:**
+  - The held-out set was selected by a rule committed before enumeration: `f73fcd6b`, then `7dc00699`, then
+    `cef94893`.
+  - The full fresh plan was taken on DX-0: labelled run 1, held-out run 1, labelled run 2.
+  - `verify:ai-authoring-dx`: **NOT MET**. DX-4 fails on labelled run 1 at 5/17, and DX-3 is PENDING, with 0 of
+    52 read. Record: `evidence/L4b-dx-fresh-runs-2026-09-26.md`.
+- **Refused and reverted:** the brief's request that the agent's own verdicts count as DX-3's reading
+  (KNOWN_ISSUES, top). Do not retry it.
+- **Next, owner decisions only:**
+  1. **Confirm or replace the held-out set.** A replacement voids every capture taken on it.
+  2. **Choose a remedy for L4b.** No fresh run can pass L4b on the current DX-0, because labelled run 1 is
+     already over the cap. The options:
+     - R5: clarify the rule summaries;
+     - R6: a larger model, which for the 2B means a download;
+     - relax R4.
+
+     Any of them changes DX-0. After it: a new held-out set, the fresh three-run plan, and a person's reading.
+  3. **Optionally, read the 52 fresh texts** (`npm run verify:ai-authoring-dx-pending`). The reading measures
+     the gate's false withholdings and escapes. It cannot change DX-4.
+  4. **Operator:** the clean machine. **Issuer-key custodian:** the licensed walkthrough. **Owner:** the
+     packaging QC sign-off and the VS licence statement.
+- **Do not:** take extra runs on this DX-0, change a DX-0 input without the owner's decision, record verdicts,
+  or paste or commit any key.
+
+## HANDOFF (2026-09-26, superseded) — the DX evaluator and held-out format are built; the held-out set is the owner's; Phase L NOT complete
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. Phase L is 7 of 10 closed.
 - **Decided (owner, 2026-09-26):** the held-out selection is independent. The owner or their named person

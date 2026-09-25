@@ -1,9 +1,17 @@
 # SpecterStudio Phase L — Local AI & Intelligent Automation (V5)
 
-Status: **IN PROGRESS — 7 of 10 milestones closed (updated 2026-09-25).** The closed ones are L0, L2, L4a
+Status: **IN PROGRESS — 7 of 10 milestones closed (updated 2026-09-26).** The closed ones are L0, L2, L4a
 and L5a, plus L1, L3 and L5b. The last three were accepted, scope-limited, within the owner's limited GO.
 The implementing agent accepted them under the owner's closeout delegation; that is not a human sign-off
 (see `docs/ai/DECISIONS.md`). Still open:
+- **L4b, 2026-09-26: DX NOT MET on the fresh runs.** Record: `evidence/L4b-dx-fresh-runs-2026-09-26.md`.
+  - The held-out set was selected by a committed rule: 11 flows, 18 issues.
+  - Two labelled runs and one held-out run were taken on DX-0.
+  - **DX-4 fails:** labelled run 1 withheld 5 of 17, against a cap of 4.
+  - DX-3 is PENDING: no person has read the 52 texts.
+  - L4b stays open. Closing it needs an owner-authorized remedy (R5, R6 or a gate change), then a new held-out
+    set, fresh runs and a person's reading.
+  - The history below is unchanged.
 - **L4b:** the owner authorized R1 (harness) and R2 (request) on 2026-09-25, and both are measured
   (`evidence/L4b-ai-technical-evaluation-2026-09-25-after-R1-R2.md`). R4, the deterministic display gate,
   was authorized and built the same day (`a89a14bd`, L4 › R4).

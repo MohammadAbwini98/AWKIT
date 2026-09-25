@@ -118,6 +118,38 @@ overrule any of them now, and no later.
 `inventory.json` is written once, then committed with the flows, and its corpus hash is recorded here. The
 selection is the owner's (or a person the owner names), per the ruling above. **The agent has seen no case.**
 
+**Superseded for the selection only (2026-09-26, latest, the owner's Phase L brief; `docs/ai/DECISIONS.md`).**
+The set was selected by a rule committed before any candidate was enumerated
+(`scripts/ai-harness/authoringHeldOutSelection.ts`, `L4b-held-out/README.md`):
+
+| Step | Commit | What |
+|---|---|---|
+| The rule | `f73fcd6b` | sources S1 and S2; exclusions E1 to E3; a seed from the committed inventory; the shortest prefix of at least 17 issues |
+| Eligibility | `7dc00699` | 548 candidates, 24 eligible sending 40 issues |
+| The set | `cef94893` | 11 flows, 18 issues, corpus sha256 `0db8a5814eee3e08a2a1fc3d8bcb72826af584e48ea8062fd4461ad716ac09d3`, seed `72fccdd8…` |
+
+- The reader ruling above is **unchanged**: DX-3 is a person's reading, and no agent label counts. The brief's
+  request to change it was not applied.
+- The owner may confirm this set or replace it. A replacement voids every capture taken on this one.
+
+**Evaluator at the fresh runs** (changed before the first run, at `f73fcd6b` and `88f89850`; no DX-0 input
+changed): `authoringDx.ts` `ca0a6a99` (`checkHeldOutFlow` factored out, same behaviour), `authoringQualityReview.ts`
+`1350dc59` (an agent or model name anywhere in a reviewer label is refused), `verify-ai-authoring.mts` `6c1bd810`
+(363 checks), `verify-ai-display-gate-mutations.mts` `6ddf520b` (26 DX mutants). The others are as in the table
+above.
+
+**The fresh runs (2026-09-26): DX NOT MET.** The record is `L4b-dx-fresh-runs-2026-09-26.md`.
+
+| Criterion | Status |
+|---|---|
+| DX-0 | MET |
+| DX-2 | MET: two labelled runs and one held-out run, 52 issues, all delivered |
+| DX-3 | PENDING: 0 of 52 read by a person |
+| DX-4 | **NOT MET**: labelled run 1 5/17 undisplayed (the cap is 4). Labelled run 2 4/17, held-out 3/18. |
+| DX-5 | MET |
+
+Per the ruling above, a run over the cap keeps L4b open with no criterion adjusted.
+
 ## 1. Original model-output quality: NOT MET (unchanged by anything below)
 
 The adopted target (L4 › "Explanation quality target") over what the pinned Qwen3.5-0.8B produces, two complete
