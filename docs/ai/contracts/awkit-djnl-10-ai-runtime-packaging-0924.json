@@ -821,6 +821,30 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:project-state:2026-09-25T13:17:19.377Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**",
+          "docs/ai/COMMANDS.md",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/plans/ai-upgrade-v5/L6-fragments-and-templates.md",
+          "docs/plans/ai-upgrade-v5/L7-release-confirmation.md",
+          "docs/plans/ai-upgrade-v5/ROADMAP.md"
+        ],
+        "acquired_at": "2026-09-25T13:17:19.377Z",
+        "acquired_at_commit": "1ed183ac8a0c6f1ebfbb63d68a5659ed6d18ee4e",
+        "released_at": "2026-09-25T13:18:25.709Z",
+        "released_reason": "project-state tracker notes for L4b R1 and R2 and the awkit-i6ot prerequisite check committed at 72cfe440",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }

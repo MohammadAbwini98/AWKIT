@@ -14,26 +14,10 @@
     "docs/plans/ai-upgrade-v5/L7-release-confirmation.md",
     "docs/plans/ai-upgrade-v5/ROADMAP.md"
   ],
-  "acquired_at": "2026-09-24T22:44:47.376Z",
-  "acquired_at_commit": "a02873461e677c68254db1d63c4b9092a05ed085",
-  "baseline_dirty": [
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json",
-    "docs/plans/ai-upgrade-v5/L4-authoring-diagnostics.md",
-    "docs/plans/ai-upgrade-v5/L6-fragments-and-templates.md",
-    "docs/plans/ai-upgrade-v5/L7-release-confirmation.md",
-    "docs/plans/ai-upgrade-v5/ROADMAP.md",
-    "tools/roadmap/assignments.json"
-  ],
-  "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "c4a80dcb4aa20ddc71b00d42617c52881a70cfd9c9454e852ed1583cbe772984",
-    "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json": "380cd305ffc22f5da4c5742629c0dbe7222502092ce4ad64d0519fa8d4830175",
-    "docs/plans/ai-upgrade-v5/L4-authoring-diagnostics.md": "943fdfa79f93635d4dcb0a1e8459db8f5e8a653d0c7ded9e2efa77a49cea5302",
-    "docs/plans/ai-upgrade-v5/L6-fragments-and-templates.md": "268a4057d84fb5d99143395caf8e4d378c80ab6f79b51561f171ff12be5a8136",
-    "docs/plans/ai-upgrade-v5/L7-release-confirmation.md": "b43b10c2f53c8b918c38bf068490a2728935f830688e18337ce6500d27e0fb5e",
-    "docs/plans/ai-upgrade-v5/ROADMAP.md": "568d547273c055e4161818455ede2716f8d6587ee54add4031384c2f78b01968",
-    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
-  },
+  "acquired_at": "2026-09-25T13:17:19.377Z",
+  "acquired_at_commit": "1ed183ac8a0c6f1ebfbb63d68a5659ed6d18ee4e",
+  "baseline_dirty": [],
+  "baseline_dirty_fingerprints": {},
   "baseline_watched_ignored": {
     ".env": "absent",
     ".claude/settings.local.json": "6238:1788551784499.886",
@@ -47,7 +31,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-24T22:47:45.408Z",
-  "released_reason": "project-state reconciliation committed at 17c8ac29, roadmap pins and the L4 plan follow unleased",
-  "archived_at": "2026-09-24T22:47:45.410Z"
+  "released_at": "2026-09-25T13:18:25.709Z",
+  "released_reason": "project-state tracker notes for L4b R1 and R2 and the awkit-i6ot prerequisite check committed at 72cfe440",
+  "archived_at": "2026-09-25T13:18:25.710Z"
 }
