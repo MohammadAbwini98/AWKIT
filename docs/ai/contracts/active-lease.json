@@ -1,28 +1,23 @@
 {
   "task": "awkit-djnl-10-ai-runtime-packaging-0924",
   "contract_path": "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json",
-  "holder": "runtime",
-  "status": "released",
+  "holder": "release",
+  "status": "active",
   "allowed_paths": [
-    "scripts/prepare-ai-native-host.mjs"
-  ],
-  "acquired_at": "2026-09-25T17:58:55.225Z",
-  "acquired_at_commit": "cb29a7764dba08171e271ac1ffc64f0b6f6563f6",
-  "baseline_dirty": [
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json",
+    "build",
+    "resources/THIRD_PARTY_NOTICES.md",
     "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig",
-    "scripts/verify-ai-packaged-runtime.mts",
-    "tools/roadmap/assignments.json"
+    "resources/dependency-manifest.sig"
+  ],
+  "acquired_at": "2026-09-25T18:00:25.051Z",
+  "acquired_at_commit": "0edccbba46cc03c4aa0da814b6850975b3cad9e6",
+  "baseline_dirty": [
+    "resources/dependency-manifest.json",
+    "resources/dependency-manifest.sig"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "8f4bb87c0a837222d8a58b54bf6fcf2d3783af91a91a109e49df3000c8111eda",
-    "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json": "5f1c672afe3e9707cbbff1214b737c850731a9971fc3206ff0924d7c6da9ab46",
     "resources/dependency-manifest.json": "182d3d357247412348640d350dbf3e36075cc0c4a2dfa4c87db86272a6fb961b",
-    "resources/dependency-manifest.sig": "8dc87871e8ccedcd43ca41d5a1893f5cfd2c660c2f2040b78852d1c6b58849c0",
-    "scripts/verify-ai-packaged-runtime.mts": "a9201c7cb0742ba5c5f56f1f77dee7d259b7af2ffe029fb33975de548b001516",
-    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
+    "resources/dependency-manifest.sig": "8dc87871e8ccedcd43ca41d5a1893f5cfd2c660c2f2040b78852d1c6b58849c0"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -36,8 +31,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-25T17:59:57.547Z",
-  "released_reason": "staging fix committed, runtime DLLs only where loaded, its verifier check is unleased qa work, then rebuild under the release lease",
-  "archived_at": "2026-09-25T17:59:57.549Z"
+  "violations": []
 }
