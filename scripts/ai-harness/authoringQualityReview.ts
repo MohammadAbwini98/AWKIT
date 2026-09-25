@@ -472,8 +472,10 @@ export function evaluateQualityTarget(captures: readonly ReviewCapture[], verdic
     {
       id: 4,
       label: `a person reads every screen-clear explanation and judges at least ${QUALITY_TARGET.minReviewedCorrectAndActionable * 100} % correct and actionable`,
+      // The best case still open counts only unread answers that COULD succeed: a withheld one never can (QC, 2026-09-25).
       status:
-        screenClear.length === 0 || clearGood.length + (screenClear.length - clearReviewed.length) < QUALITY_TARGET.minReviewedCorrectAndActionable * screenClear.length
+        screenClear.length === 0 ||
+        clearGood.length + screenClear.filter((i) => !i.displayWithheld && !verdictOf.has(i.id)).length < QUALITY_TARGET.minReviewedCorrectAndActionable * screenClear.length
           ? "NOT MET"
           : clearReviewed.length < screenClear.length
             ? "PENDING"

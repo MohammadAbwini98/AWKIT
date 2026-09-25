@@ -747,9 +747,13 @@ export function displayGateControlFailures(requestFor: (caseId: string) => Autho
   expect("...one clause of a summary alone, capitalised (deadEndNode's consequence)", shown("warnings", 1, "The run stops there and reports success without reaching End."));
   expect("...a cause in the product's own words (connectorFromEndNode's 'so it never runs' clause)", shown("cycle", 1, "The flow finishes at End, so it never runs."));
   expect("the same summary under another issue is withheld: the evidence is each issue's own", withheldFor("warnings", 0, summary("deadEndNode"), "UNESTABLISHED_CONSEQUENCE"));
+  // QC (2026-09-25): evidence counts only as a statement of its own. Framed inside a sentence, it can say the opposite.
+  expect("a copied clause framed inside a sentence is read, not trusted: 'After you add a connector, the run stops there…'", withheldFor("warnings", 1, "After you add a connector, the run stops there and reports success without reaching End.", "UNESTABLISHED_CONSEQUENCE"));
+  expect("...'It is not true that the run stops there…'", withheldFor("warnings", 1, "It is not true that the run stops there and reports success without reaching End.", "UNESTABLISHED_CONSEQUENCE"));
   // Severity is the screens' to judge, both ways.
-  expect("'cannot run' said of an issue that blocks the run is its own line's evidence: shown", shown("single", 0, `This step cannot run as configured. ${positive}`));
-  expect("...and an invented consequence for a warning: withheld", withheldFor("warnings", 0, "This step cannot run as configured.", "UNESTABLISHED_CONSEQUENCE"));
+  expect("the flow not running, said of an issue that blocks the run, is its own line's evidence: shown", shown("single", 0, `The flow cannot run until this timeout is fixed. ${positive}`));
+  expect("...but not a claim about which steps run (QC): 'Only this step will not execute.' is withheld", withheldFor("single", 0, `Only this step will not execute. ${positive}`, "UNESTABLISHED_CONSEQUENCE"));
+  expect("...and 'cannot run' for a warning is an invented consequence: withheld", withheldFor("warnings", 0, "This step cannot run as configured.", "UNESTABLISHED_CONSEQUENCE"));
   expect("a validation failure said of a blocking error is a severity statement, not an invented consequence: shown", shown("single", 0, `This timeout fails validation. ${positive}`));
   expect("...and said of a warning is overstated: withheld", withheldFor("warnings", 0, "This timeout fails validation.", "SEVERITY_OVERSTATED"));
   // Every screen hit is a reason of its own kind, so no screen hit is ever displayed.

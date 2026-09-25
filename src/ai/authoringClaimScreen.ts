@@ -15,9 +15,12 @@
  * issue, severity and corrective step are shown exactly as before, and only the model's text is not.
  *
  * Coverage limits (see L4-authoring-diagnostics.md › R4): causes are read from connectives and consequences
- * from a closed vocabulary of run-time outcomes, both in English; a consequence worded outside it ("the value
- * ends up empty") is not read, and a correct paraphrase of a rule's consequence is withheld with the wrong
- * ones. Positions, values, severities and remedies are the existing screens' own limits.
+ * from a closed vocabulary of run-time outcomes, both in English; a cause or consequence worded outside them
+ * ("prevents", "the value ends up empty") is not read, and a correct paraphrase of a rule's consequence is
+ * withheld with the wrong ones. Evidence is removed only where it stands as its own sentence or clause, so a
+ * claim in a separate clause beside it is read on its own words only. Positions, values, severities and
+ * remedies are the existing screens' own limits, and positions and values are checked against the whole
+ * request, the other issue's line included.
  *
  * Pure: no Electron, no filesystem, no clock, no model.
  */
@@ -204,8 +207,14 @@ const CONSEQUENCE = new RegExp(
   ].join("|")})\\b`,
   "i"
 );
-/** The run not starting: true of every issue that blocks the run, and a consequence invented for any other. */
+/** Something not running or starting: a consequence, unless the evidence below states it. */
 const NOT_RUN = /\b(?:cannot|can't|can not|won't|will not|unable to|does not|doesn't|do not|don't)\s+(?:be\s+)?(?:run|start|execute|begin)\b/i;
+/**
+ * The FLOW not running or starting: the Issues line's own "blocks the run", so evidence for an issue that
+ * blocks it. Only with the flow or the run as its subject: "only this step will not execute" is a claim
+ * about scope that nothing supports (QC, 2026-09-25).
+ */
+const FLOW_NOT_RUN = /\b(?:the flow|this flow|the run|the automation|it)\s+(?:cannot|can't|can not|won't|will not|is unable to|does not|doesn't)\s+(?:be\s+)?(?:run|start|execute|begin)\b/gi;
 
 /** A claim about what happens at run time, in `text` as given. */
 export const makesConsequenceClaim = (text: string): boolean => CONSEQUENCE.test(text) || NOT_RUN.test(text);
@@ -220,10 +229,17 @@ function evidenceSpans(ref: AuthoringIssueRef): string[] {
   return [...new Set(spans)].sort((a, b) => b.length - a.length);
 }
 
-/** `text` with every verbatim copy of `ref`'s evidence taken out, whatever its case: the model's own words. */
+/**
+ * `text` with every verbatim copy of `ref`'s evidence taken out, whatever its case: the model's own words.
+ * A copy counts only as a statement of its own: at the start of the text or after a sentence, clause or
+ * "Action:" break, and ending at one. Inside a sentence the words around it can reverse it ("After you add a
+ * connector, the run stops there…"), so it stays and is read like the rest (QC, 2026-09-25).
+ */
 function ownWordsOf(ref: AuthoringIssueRef, text: string): string {
   let rest = text.replace(/\s+/g, " ");
-  for (const span of evidenceSpans(ref)) rest = rest.replace(new RegExp(escapeRegExp(span).replace(/ /g, "\\s+"), "gi"), " ");
+  for (const span of evidenceSpans(ref)) {
+    rest = rest.replace(new RegExp(`(?<=^|[.!?;:]\\s)${escapeRegExp(span).replace(/ /g, "\\s+")}(?=\\s*(?:[.!?;]|$))`, "gi"), " ");
+  }
   return rest;
 }
 
@@ -245,7 +261,7 @@ export function withholdReasons(ref: AuthoringIssueRef, text: string, supported:
   if (makesCausalClaim(own)) reasons.push("UNESTABLISHED_CAUSE");
   // A validation failure is a severity claim, judged both ways above. So is the run not starting, which the
   // issue's own line states when it blocks the run.
-  const rest = own.replace(VALIDATION_FAILED, " ").replace(isExecutionBlocking(ref.issue) ? new RegExp(NOT_RUN.source, "gi") : /$^/, " ");
+  const rest = own.replace(VALIDATION_FAILED, " ").replace(isExecutionBlocking(ref.issue) ? FLOW_NOT_RUN : /$^/, " ");
   if (makesConsequenceClaim(rest)) reasons.push("UNESTABLISHED_CONSEQUENCE");
   return reasons;
 }

@@ -1239,6 +1239,15 @@ console.log("\n14 — R4: the display gate, on the 34 answers displayed after R1
     approvedMarked.screenClear === approvedGated.screenClear && approvedMarked.screenClearCorrectAndActionable === approvedGated.screenClearCorrectAndActionable - 1,
     JSON.stringify({ approvedGated, approvedMarked })
   );
+  // QC (2026-09-25): criterion 4's best case still open may count only unread answers that could succeed.
+  const clearIds = items.filter((i) => i.judged.category === "unverified" && !i.displayWithheld).map((i) => i.id);
+  const fourWithheld = new Set(clearIds.slice(0, 4));
+  const unreadFour = approveAll(gated).filter((v) => !fourWithheld.has(v.itemId));
+  const rescued = gated.map((c) => ({ ...c, items: c.items.map((i) => (fourWithheld.has(i.id) ? { ...i, displayWithheld: ["UNESTABLISHED_CAUSE" as const] } : i)) }));
+  check(
+    "4 unread screen-clear answers of 16 leave criterion 4 PENDING when shown, and NOT MET when withheld: a withheld answer cannot rescue it",
+    clearIds.length === 16 && status(evaluateQualityTarget(gated, unreadFour, caseIds), 4) === "PENDING" && status(evaluateQualityTarget(rescued, unreadFour, caseIds), 4) === "NOT MET"
+  );
   const rereads = before.map((c) => rereadCapture(c, requestFor));
   check(
     "a capture taken before the gate is read with today's gate: its 10 withheld answers marked, in memory",
