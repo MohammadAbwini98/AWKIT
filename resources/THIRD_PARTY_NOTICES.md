@@ -86,10 +86,10 @@ a legal approval; the release responsibility below still applies.
 
 ### Microsoft Visual C++ runtime
 
-- Files: `msvcp140.dll`, `vcruntime140.dll` and `vcruntime140_1.dll` (x64). They are copied unmodified
-  into each directory of `resources/native-hosts/ai` that holds a native binary. The `@node-llama-cpp/win-x64`
-  prebuilt binaries and the `@reflink/reflink-win32-x64-msvc` addon import them, and Windows does not
-  ship them.
+- Files: `msvcp140.dll`, `vcruntime140.dll` and `vcruntime140_1.dll` (x64), copied unmodified into the
+  directories of `resources/native-hosts/ai` whose binaries import them: all three beside the
+  `@node-llama-cpp/win-x64` prebuilt binaries, and `vcruntime140.dll` alone beside the
+  `@reflink/reflink-win32-x64-msvc` addon. Windows does not ship them.
 - Source: the Visual C++ 2015-2022 redistributable files of the Visual Studio 2022 installation that
   builds the release (`VC\Redist\MSVC\<version>\x64\Microsoft.VC14x.CRT`), which is Microsoft's
   documented source for app-local deployment. The owner authorized this source on 2026-09-25.
