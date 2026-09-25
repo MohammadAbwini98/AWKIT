@@ -91,12 +91,9 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "release",
+      "agent_id": "runtime",
       "allowed_paths": [
-        "build",
-        "resources/THIRD_PARTY_NOTICES.md",
-        "resources/dependency-manifest.json",
-        "resources/dependency-manifest.sig"
+        "scripts/prepare-ai-native-host.mjs"
       ]
     },
     "writer_sequence": [
@@ -861,6 +858,25 @@
         "acquired_at_commit": "25a6d047c48950bf7468fcc86a43c2e06186dfa8",
         "released_at": "2026-09-25T14:08:24.686Z",
         "released_reason": "project-state tracker notes for L4b R4 and the awkit-i6ot re-check exported, verify:roadmap-dashboard 177/177 Sources agree",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:release:2026-09-25T17:31:09.253Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "build",
+          "resources/THIRD_PARTY_NOTICES.md",
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig"
+        ],
+        "acquired_at": "2026-09-25T17:31:09.253Z",
+        "acquired_at_commit": "242d1df4d0dd6ada3b9931c0e776c1fef81e3a05",
+        "released_at": "2026-09-25T17:47:08.027Z",
+        "released_reason": "portable and NSIS built from clean cb29a776, verify:native-dependencies found one orphan runtime image (msvcp140.dll beside reflink imports vcruntime140_1.dll, nothing there loads it), staging fix and its red-first check next",
         "amendments": [],
         "overrides": [],
         "violations": []

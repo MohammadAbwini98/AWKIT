@@ -309,6 +309,43 @@ function peHeader(file) {
   return { machine: b.readUInt16LE(pe + 4), linker: [b.readUInt8(pe + 26), b.readUInt8(pe + 27)] };
 }
 
+/**
+ * The DLL names a PE image imports, from its import and delay-load directories, lower-cased; empty for
+ * anything that is not a PE image. The verifiers read imports with their own parser (scripts/helpers/pe-image.mts).
+ */
+function importsOf(file) {
+  const b = fs.readFileSync(file);
+  if (b.length < 0x40 || b.readUInt16LE(0) !== 0x5a4d) return [];
+  const pe = b.readUInt32LE(0x3c);
+  if (pe + 24 > b.length || b.readUInt32LE(pe) !== 0x4550) return [];
+  const sections = b.readUInt16LE(pe + 6);
+  const optional = pe + 24;
+  const pe32plus = b.readUInt16LE(optional) === 0x20b;
+  const directoryCount = b.readUInt32LE(optional + (pe32plus ? 108 : 92));
+  const directories = optional + (pe32plus ? 112 : 96);
+  const sectionTable = optional + b.readUInt16LE(pe + 20);
+  const offsetOf = (rva) => {
+    for (let i = 0; i < sections; i += 1) {
+      const s = sectionTable + i * 40;
+      const va = b.readUInt32LE(s + 12);
+      if (rva >= va && rva < va + Math.max(b.readUInt32LE(s + 8), b.readUInt32LE(s + 16))) return rva - va + b.readUInt32LE(s + 20);
+    }
+    return -1;
+  };
+  const names = [];
+  const read = (rva, stride, nameField) => {
+    for (let d = rva ? offsetOf(rva) : -1; d >= 0 && d + stride <= b.length; d += stride) {
+      const nameRva = b.readUInt32LE(d + nameField);
+      const at = nameRva ? offsetOf(nameRva) : -1;
+      if (at < 0) break;
+      names.push(b.toString("latin1", at, b.indexOf(0, at)).toLowerCase());
+    }
+  };
+  if (directoryCount > 1) read(b.readUInt32LE(directories + 8), 20, 12);
+  if (directoryCount > 13) read(b.readUInt32LE(directories + 13 * 8), 32, 4);
+  return names;
+}
+
 /** Authenticode status, signer subject and file version of each file, in one PowerShell call. */
 function signaturesOf(files) {
   const list = files.map((f) => `'${f.replace(/'/g, "''")}'`).join(",");
@@ -427,15 +464,31 @@ copyFile(HOST_SOURCE, "ai-host.cjs");
 for (const [dir, name] of closure) copyPackage(dir, name);
 stop("during staging");
 
-// The Visual C++ runtime, already found and checked above, beside every staged native binary.
-const runtimeDirs = [...new Set(staged.filter((rel) => /\.(dll|node)$/i.test(rel)).map((rel) => path.posix.dirname(rel)))].sort();
-for (const dir of runtimeDirs) {
-  for (const [i, name] of MSVC_RUNTIME.entries()) {
+// The Visual C++ runtime, already found and checked above, beside each staged native binary that loads it:
+// in each folder, the runtime DLLs its binaries import, and the runtime DLLs those import in turn
+// (msvcp140.dll imports vcruntime140_1.dll). A runtime DLL nothing beside it loads is an image whose own imports
+// need not resolve: verify:native-dependencies found msvcp140.dll staged beside the reflink addon, which
+// imports only vcruntime140.dll, with no vcruntime140_1.dll loaded in that folder (2026-09-25).
+const runtimeImports = new Map(MSVC_RUNTIME.map((name, i) => [name, importsOf(vcRedist.sources[i])]));
+const nativeByDir = new Map();
+for (const rel of staged.filter((r) => /\.(dll|node)$/i.test(r))) {
+  nativeByDir.set(path.posix.dirname(rel), [...(nativeByDir.get(path.posix.dirname(rel)) ?? []), rel]);
+}
+const runtimeByDir = {};
+for (const [dir, binaries] of [...nativeByDir].sort(([a], [b]) => a.localeCompare(b))) {
+  const needed = binaries.flatMap((rel) => importsOf(path.join(OUT_DIR, ...rel.split("/")))).filter((name) => MSVC_RUNTIME.includes(name));
+  for (const name of needed) for (const dep of runtimeImports.get(name)) if (MSVC_RUNTIME.includes(dep) && !needed.includes(dep)) needed.push(dep);
+  const names = MSVC_RUNTIME.filter((name) => needed.includes(name));
+  if (names.length === 0) continue;
+  runtimeByDir[dir] = names;
+  for (const name of names) {
     const rel = `${dir}/${name}`;
     if (staged.some((s) => s.toLowerCase() === rel.toLowerCase())) fail(`MSVC runtime: ${rel} is already staged by a package.`);
-    else copyFile(vcRedist.sources[i], rel);
+    else copyFile(vcRedist.sources[MSVC_RUNTIME.indexOf(name)], rel);
   }
 }
+const runtimeDirs = Object.keys(runtimeByDir);
+if (runtimeDirs.length === 0) fail("MSVC runtime: no staged native binary imports it, so the import reader found nothing; refusing to stage without it.");
 const msvcRuntime = {
   source: "Visual Studio redist (Microsoft.VC14x.CRT), app-local",
   redistVersion: vcRedist.redistVersion,
@@ -443,7 +496,7 @@ const msvcRuntime = {
   minimumVersion: vcRedist.minimum.join("."),
   newestLinker: vcRedist.newestLinker.join("."),
   files: MSVC_RUNTIME,
-  directories: runtimeDirs
+  directories: runtimeByDir
 };
 stop("staging the MSVC runtime");
 
@@ -490,4 +543,4 @@ fs.writeFileSync(path.join(OUT_DIR, MANIFEST_NAME), `${JSON.stringify(manifest, 
 console.log(`Staged local-AI native host -> ${insideRoot ? posix(path.relative(ROOT, OUT_DIR)) : OUT_DIR}`);
 console.log(`  ${runtimeBuild} / ${BINARY_PACKAGE} ${binaryPkg.version} (${REQUIRED_PLATFORM}-${REQUIRED_ARCH}, CPU only)`);
 console.log(`  ${closure.size} packages, ${assets.length} files, ${(manifest.totalBytes / 1024 / 1024).toFixed(1)} MB`);
-console.log(`  MSVC runtime ${msvcRuntime.redistVersion} (app-local, Visual Studio redist) beside ${msvcRuntime.directories.length} native director${msvcRuntime.directories.length === 1 ? "y" : "ies"}`);
+console.log(`  MSVC runtime ${msvcRuntime.redistVersion} (app-local, Visual Studio redist): ${runtimeDirs.map((dir) => `${runtimeByDir[dir].join(", ")} beside ${dir}`).join("; ")}`);

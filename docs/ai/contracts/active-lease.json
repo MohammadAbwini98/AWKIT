@@ -1,21 +1,28 @@
 {
   "task": "awkit-djnl-10-ai-runtime-packaging-0924",
   "contract_path": "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json",
-  "holder": "release",
+  "holder": "runtime",
   "status": "active",
   "allowed_paths": [
-    "build",
-    "resources/THIRD_PARTY_NOTICES.md",
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig"
+    "scripts/prepare-ai-native-host.mjs"
   ],
-  "acquired_at": "2026-09-25T17:31:09.253Z",
-  "acquired_at_commit": "242d1df4d0dd6ada3b9931c0e776c1fef81e3a05",
+  "acquired_at": "2026-09-25T17:58:55.225Z",
+  "acquired_at_commit": "cb29a7764dba08171e271ac1ffc64f0b6f6563f6",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json"
+    "docs/ai/contracts/active-lease.json",
+    "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json",
+    "resources/dependency-manifest.json",
+    "resources/dependency-manifest.sig",
+    "scripts/verify-ai-packaged-runtime.mts",
+    "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json": "d2de0d784cbd4120b1280b9f3b29ac8c1d949545a1b2441b71db81388bef450f"
+    "docs/ai/contracts/active-lease.json": "8f4bb87c0a837222d8a58b54bf6fcf2d3783af91a91a109e49df3000c8111eda",
+    "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json": "5f1c672afe3e9707cbbff1214b737c850731a9971fc3206ff0924d7c6da9ab46",
+    "resources/dependency-manifest.json": "182d3d357247412348640d350dbf3e36075cc0c4a2dfa4c87db86272a6fb961b",
+    "resources/dependency-manifest.sig": "8dc87871e8ccedcd43ca41d5a1893f5cfd2c660c2f2040b78852d1c6b58849c0",
+    "scripts/verify-ai-packaged-runtime.mts": "a9201c7cb0742ba5c5f56f1f77dee7d259b7af2ffe029fb33975de548b001516",
+    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -25,7 +32,7 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1790272782819.5703"
+    "build": "dir(1):native-hosts:1790358025551.925"
   },
   "amendments": [],
   "overrides": [],
