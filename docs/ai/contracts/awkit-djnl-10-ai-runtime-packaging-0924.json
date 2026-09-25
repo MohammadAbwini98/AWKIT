@@ -159,7 +159,7 @@
       "command": "npm run verify:ai-packaged-runtime",
       "artifact": "dist/win-unpacked/resources/native-hosts/ai",
       "result": "FAIL",
-      "observed": "2026-09-25 at 0b581544 (awkit-i6ot remedy built, not yet packaged): 45 passed, 5 failed, exit 1. A0 11/11, A1 7/7, F 2/2, the no-redist refusal leaves an earlier staging untouched, the real staging refused because this host has no acceptable VS 2022 redist (VS 2019 CRT 14.29.30139 below 14.42), four checks on the stale 1e856706 package (MSVC imports, runtime provenance, notices section, current staging). Companion gate verify:native-dependencies 11/3 on the same package. Before: final state at 5b77cdd7 on fresh portable and NSIS from clean 1e856706: 95 passed, 2 failed, exit 1. Every QC-1..QC-7 check passes: A0 staging refusals 11/11, A1 validator rules 7/7, staged and packaged trees 1461/1461 both ways, license inventory 111/111 with 6 reproduced notices, no model file in 2088 files and 7840 app.asar members, packaged tree equal to the current staging, live harness 13/13 and protocol 24/24 on both, section F exit-status proofs 2/2. The 2 failures are one real defect the new PE-import check found in both trees: the prebuilt ggml/llama binaries import MSVCP140.dll and VCRUNTIME140.dll, which neither the staging nor the installer carries (an owner decision, see new_findings). Red first for the QC work: 74/12 at 93beb341 (8 staging refusals red on the unfixed script, no inventory), and the validator rules 1/6 against the original lazy pin and count logic restored in the working tree (never committed). Earlier: 66/0 at bafb05e3 before the QC review."
+      "observed": "2026-09-25 (latest, at 3cd26e10, after the owner reported the VS components installed): 45 passed, 5 failed, the same five. The real staging refused: vswhere reports no released VS 2022 Community, Professional or Enterprise with Microsoft.VisualStudio.Component.VC.Tools.x86.x64 and Microsoft.VisualStudio.Component.VC.Redist.14.Latest. The Community instance record selects VC.Tools.ARM only, and VC\\Redist\\MSVC\\14.44.35112 has no x64 CRT folder. Earlier, 2026-09-25 at 0b581544 (awkit-i6ot remedy built, not yet packaged): 45 passed, 5 failed, exit 1. A0 11/11, A1 7/7, F 2/2, the no-redist refusal leaves an earlier staging untouched, the real staging refused because this host has no acceptable VS 2022 redist (VS 2019 CRT 14.29.30139 below 14.42), four checks on the stale 1e856706 package (MSVC imports, runtime provenance, notices section, current staging). Companion gate verify:native-dependencies 11/3 on the same package. Before: final state at 5b77cdd7 on fresh portable and NSIS from clean 1e856706: 95 passed, 2 failed, exit 1. Every QC-1..QC-7 check passes: A0 staging refusals 11/11, A1 validator rules 7/7, staged and packaged trees 1461/1461 both ways, license inventory 111/111 with 6 reproduced notices, no model file in 2088 files and 7840 app.asar members, packaged tree equal to the current staging, live harness 13/13 and protocol 24/24 on both, section F exit-status proofs 2/2. The 2 failures are one real defect the new PE-import check found in both trees: the prebuilt ggml/llama binaries import MSVCP140.dll and VCRUNTIME140.dll, which neither the staging nor the installer carries (an owner decision, see new_findings). Red first for the QC work: 74/12 at 93beb341 (8 staging refusals red on the unfixed script, no inventory), and the validator rules 1/6 against the original lazy pin and count logic restored in the working tree (never committed). Earlier: 66/0 at bafb05e3 before the QC review."
     },
     {
       "id": "verify:ai-packaged-app",
@@ -216,7 +216,7 @@
   },
   "completion": {
     "status": "blocked",
-    "blocked_on": "awkit-i6ot build-machine prerequisite (2026-09-25): the owner-chosen remedy (app-local msvcp140/vcruntime140/vcruntime140_1 from a VS 2022 Community, Professional or Enterprise redist folder) is implemented and fails closed, but this host has no acceptable installation (VS 2022 Community without the C++ workload, VS 18 prerelease, VS 2019 CRT 14.29 below the 14.42 minimum). The owner authorized adding the VS 2022 C++ tools and redist components; after that, rebuild portable and NSIS and run verify:native-dependencies, verify:ai-packaged-runtime and verify:ai-packaged-app. Acceptance STAGE is not met until then.",
+    "blocked_on": "awkit-i6ot build-machine prerequisite, re-checked 2026-09-25 (latest) after the owner reported it installed: the VS 2022 Community instance on this host selects Microsoft.VisualStudio.Component.VC.Tools.ARM only, and lacks Microsoft.VisualStudio.Component.VC.Tools.x86.x64 and Microsoft.VisualStudio.Component.VC.Redist.14.Latest, with no x64 Microsoft.VC143.CRT folder, so the staging still refuses. Earlier (2026-09-25): the owner-chosen remedy (app-local msvcp140/vcruntime140/vcruntime140_1 from a VS 2022 Community, Professional or Enterprise redist folder) is implemented and fails closed, but this host has no acceptable installation (VS 2022 Community without the C++ workload, VS 18 prerelease, VS 2019 CRT 14.29 below the 14.42 minimum). The owner authorized adding the VS 2022 C++ tools and redist components; after that, rebuild portable and NSIS and run verify:native-dependencies, verify:ai-packaged-runtime and verify:ai-packaged-app. Acceptance STAGE is not met until then.",
     "qa_status": "FAIL",
     "qa_basis": "2026-09-25 at 0b581544: verify:native-dependencies 11/3 on the 1e856706 package (exactly the three MSVC DLLs unresolved, the decoy loader proof red for getLlama and reflink, Zvec, Electron and Chromium self-sufficient) and verify:ai-packaged-runtime 45/5 (A0 11/11, A1 7/7, F 2/2, the no-redist refusal leaving an earlier staging untouched, the real staging refused for want of an acceptable VS redist, four checks on the stale package). FAIL is the true state of the self-sufficiency claim until the rebuild. Earlier: 95/2 at 5b77cdd7.",
     "qa_known_limitations": "The clean-machine VM is NOT RUN (it needs an operator, and the shell guard admits no Hyper-V command), so the MSVC consequence is inferred from the import table, not reproduced. The licensed walkthrough parts are BLOCKED on the issuer key. verify:ai-packaged-app has no product mutation run. The QC-1 and QC-2 red states are read from the old exit expressions, not re-run. No latency or quality claim is made. L7 is not accepted.",
@@ -842,6 +842,30 @@
         "acquired_at_commit": "1ed183ac8a0c6f1ebfbb63d68a5659ed6d18ee4e",
         "released_at": "2026-09-25T13:18:25.709Z",
         "released_reason": "project-state tracker notes for L4b R1 and R2 and the awkit-i6ot prerequisite check committed at 72cfe440",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-10-ai-runtime-packaging-0924:project-state:2026-09-25T14:07:30.874Z",
+        "task": "awkit-djnl-10-ai-runtime-packaging-0924",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**",
+          "docs/ai/COMMANDS.md",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/plans/ai-upgrade-v5/L6-fragments-and-templates.md",
+          "docs/plans/ai-upgrade-v5/L7-release-confirmation.md",
+          "docs/plans/ai-upgrade-v5/ROADMAP.md"
+        ],
+        "acquired_at": "2026-09-25T14:07:30.874Z",
+        "acquired_at_commit": "25a6d047c48950bf7468fcc86a43c2e06186dfa8",
+        "released_at": "2026-09-25T14:08:24.686Z",
+        "released_reason": "project-state tracker notes for L4b R4 and the awkit-i6ot re-check exported, verify:roadmap-dashboard 177/177 Sources agree",
         "amendments": [],
         "overrides": [],
         "violations": []

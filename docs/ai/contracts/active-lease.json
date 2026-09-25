@@ -14,8 +14,8 @@
     "docs/plans/ai-upgrade-v5/L7-release-confirmation.md",
     "docs/plans/ai-upgrade-v5/ROADMAP.md"
   ],
-  "acquired_at": "2026-09-25T13:17:19.377Z",
-  "acquired_at_commit": "1ed183ac8a0c6f1ebfbb63d68a5659ed6d18ee4e",
+  "acquired_at": "2026-09-25T14:07:30.874Z",
+  "acquired_at_commit": "25a6d047c48950bf7468fcc86a43c2e06186dfa8",
   "baseline_dirty": [],
   "baseline_dirty_fingerprints": {},
   "baseline_watched_ignored": {
@@ -31,7 +31,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-25T13:18:25.709Z",
-  "released_reason": "project-state tracker notes for L4b R1 and R2 and the awkit-i6ot prerequisite check committed at 72cfe440",
-  "archived_at": "2026-09-25T13:18:25.710Z"
+  "released_at": "2026-09-25T14:08:24.686Z",
+  "released_reason": "project-state tracker notes for L4b R4 and the awkit-i6ot re-check exported, verify:roadmap-dashboard 177/177 Sources agree",
+  "archived_at": "2026-09-25T14:08:24.688Z"
 }
