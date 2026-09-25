@@ -1,13 +1,16 @@
 {
   "task": "awkit-djnl-10-ai-runtime-packaging-0924",
   "contract_path": "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json",
-  "holder": "runtime",
-  "status": "released",
+  "holder": "release",
+  "status": "active",
   "allowed_paths": [
-    "scripts/prepare-ai-native-host.mjs"
+    "build",
+    "resources/THIRD_PARTY_NOTICES.md",
+    "resources/dependency-manifest.json",
+    "resources/dependency-manifest.sig"
   ],
-  "acquired_at": "2026-09-25T18:33:22.455Z",
-  "acquired_at_commit": "6c741233a01bf052408fcc7d483d23fdd0d5baff",
+  "acquired_at": "2026-09-25T18:34:21.660Z",
+  "acquired_at_commit": "ff22f89b2927092d1de486d3b5a9892233523fe5",
   "baseline_dirty": [],
   "baseline_dirty_fingerprints": {},
   "baseline_watched_ignored": {
@@ -22,8 +25,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-25T18:34:05.808Z",
-  "released_reason": "staging QC fixes F2 F3 F4 committed, notices F1 and the rebuild under the release lease next",
-  "archived_at": "2026-09-25T18:34:05.810Z"
+  "violations": []
 }
