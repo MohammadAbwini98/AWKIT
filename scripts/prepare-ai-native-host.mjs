@@ -260,13 +260,15 @@ stop("(dependency closure)");
  * The prebuilt llama/ggml binaries and the reflink addon import the Visual C++ 2015-2022 runtime, which
  * Windows does not ship, so without it local AI cannot load on a machine that never installed it. The
  * owner authorized (2026-09-25) app-local deployment from the Visual Studio redist folder, Microsoft's
- * documented source for these files, so every staged directory holding a native binary gets them beside
- * it. They come only from the Visual Studio installation vswhere reports (never System32), and each must
- * be a validly Microsoft-signed x64 image at least as new as MSVC_RUNTIME_FLOOR and the newest linker
- * that built a native binary to be staged. All of that is decided BEFORE the output directory is
- * replaced, so a refusal leaves an earlier staging intact and stages nothing. A runtime that loads only
- * where Visual C++ happens to be installed is not shipped. `npm run verify:native-dependencies` proves
- * the result.
+ * documented source for these files, so each staged folder gets the runtime DLLs its own binaries import
+ * (closed over the runtime's own imports) beside them. They come only from the Visual Studio installation
+ * vswhere reports (never System32), and each must be a validly Microsoft-signed x64 image at least as new
+ * as MSVC_RUNTIME_FLOOR and the newest linker that built a native binary to be staged. That source check is
+ * decided BEFORE the output directory is replaced, so its refusal leaves an earlier staging intact. The
+ * per-folder placement reads the staged binaries, so a refusal there (an import table it cannot read) comes
+ * after the output was replaced and leaves no staging and no manifest: packaging stops either way. A runtime
+ * that loads only where Visual C++ happens to be installed is not shipped. `npm run verify:native-dependencies`
+ * proves the result.
  */
 const MSVC_RUNTIME = ["msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll"];
 /**
@@ -309,9 +311,13 @@ function peHeader(file) {
   return { machine: b.readUInt16LE(pe + 4), linker: [b.readUInt8(pe + 26), b.readUInt8(pe + 27)] };
 }
 
+/** Stands in for an old-style (address-based) delay-load descriptor, which importsOf does not decode. */
+const OLD_STYLE_DELAY_LOAD = "<old-style delay-load descriptor>";
+
 /**
  * The DLL names a PE image imports, from its import and delay-load directories, lower-cased; empty for
- * anything that is not a PE image. The verifiers read imports with their own parser (scripts/helpers/pe-image.mts).
+ * anything that is not a PE image. An old-style delay-load descriptor is reported as OLD_STYLE_DELAY_LOAD,
+ * never skipped. The verifiers read imports with their own parser (scripts/helpers/pe-image.mts).
  */
 function importsOf(file) {
   const b = fs.readFileSync(file);
@@ -333,16 +339,22 @@ function importsOf(file) {
     return -1;
   };
   const names = [];
-  const read = (rva, stride, nameField) => {
+  const read = (rva, stride, nameField, delay) => {
     for (let d = rva ? offsetOf(rva) : -1; d >= 0 && d + stride <= b.length; d += stride) {
       const nameRva = b.readUInt32LE(d + nameField);
-      const at = nameRva ? offsetOf(nameRva) : -1;
+      if (!nameRva) break;
+      // An old-style delay descriptor (attribute bit 0 clear) holds an address, not an RVA (QC, 2026-09-25).
+      if (delay && (b.readUInt32LE(d) & 1) === 0) {
+        names.push(OLD_STYLE_DELAY_LOAD);
+        continue;
+      }
+      const at = offsetOf(nameRva);
       if (at < 0) break;
       names.push(b.toString("latin1", at, b.indexOf(0, at)).toLowerCase());
     }
   };
-  if (directoryCount > 1) read(b.readUInt32LE(directories + 8), 20, 12);
-  if (directoryCount > 13) read(b.readUInt32LE(directories + 13 * 8), 32, 4);
+  if (directoryCount > 1) read(b.readUInt32LE(directories + 8), 20, 12, false);
+  if (directoryCount > 13) read(b.readUInt32LE(directories + 13 * 8), 32, 4, true);
   return names;
 }
 
@@ -476,7 +488,13 @@ for (const rel of staged.filter((r) => /\.(dll|node)$/i.test(r))) {
 }
 const runtimeByDir = {};
 for (const [dir, binaries] of [...nativeByDir].sort(([a], [b]) => a.localeCompare(b))) {
-  const needed = binaries.flatMap((rel) => importsOf(path.join(OUT_DIR, ...rel.split("/")))).filter((name) => MSVC_RUNTIME.includes(name));
+  const imports = binaries.map((rel) => [rel, importsOf(path.join(OUT_DIR, ...rel.split("/")))]);
+  // What a binary needs cannot be decided from an import table the reader could not read: refuse, never guess.
+  for (const [rel, names] of imports) {
+    if (names.length === 0) fail(`MSVC runtime: no import could be read from ${rel}, so the runtime DLLs it needs are unknown.`);
+    if (names.includes(OLD_STYLE_DELAY_LOAD)) fail(`MSVC runtime: ${rel} has an old-style delay-load descriptor this reader does not decode.`);
+  }
+  const needed = imports.flatMap(([, names]) => names).filter((name) => MSVC_RUNTIME.includes(name));
   for (const name of needed) for (const dep of runtimeImports.get(name)) if (MSVC_RUNTIME.includes(dep) && !needed.includes(dep)) needed.push(dep);
   const names = MSVC_RUNTIME.filter((name) => needed.includes(name));
   if (names.length === 0) continue;

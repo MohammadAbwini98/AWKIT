@@ -1,24 +1,15 @@
 {
   "task": "awkit-djnl-10-ai-runtime-packaging-0924",
   "contract_path": "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json",
-  "holder": "release",
-  "status": "released",
+  "holder": "runtime",
+  "status": "active",
   "allowed_paths": [
-    "build",
-    "resources/THIRD_PARTY_NOTICES.md",
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig"
+    "scripts/prepare-ai-native-host.mjs"
   ],
-  "acquired_at": "2026-09-25T18:00:25.051Z",
-  "acquired_at_commit": "0edccbba46cc03c4aa0da814b6850975b3cad9e6",
-  "baseline_dirty": [
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig"
-  ],
-  "baseline_dirty_fingerprints": {
-    "resources/dependency-manifest.json": "182d3d357247412348640d350dbf3e36075cc0c4a2dfa4c87db86272a6fb961b",
-    "resources/dependency-manifest.sig": "8dc87871e8ccedcd43ca41d5a1893f5cfd2c660c2f2040b78852d1c6b58849c0"
-  },
+  "acquired_at": "2026-09-25T18:33:22.455Z",
+  "acquired_at_commit": "6c741233a01bf052408fcc7d483d23fdd0d5baff",
+  "baseline_dirty": [],
+  "baseline_dirty_fingerprints": {},
   "baseline_watched_ignored": {
     ".env": "absent",
     ".claude/settings.local.json": "6238:1788551784499.886",
@@ -27,12 +18,9 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1790358025551.925"
+    "build": "dir(1):native-hosts:1790359576699.5842"
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-25T18:25:02.031Z",
-  "released_reason": "awkit-i6ot rebuild complete: portable and NSIS from clean 1fbd2178, manifest pair committed at 040407a4, every packaged gate green, licensed walkthrough BLOCKED on the issuer key, clean-machine VM NOT RUN",
-  "archived_at": "2026-09-25T18:25:02.035Z"
+  "violations": []
 }
