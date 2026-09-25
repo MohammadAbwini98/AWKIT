@@ -18,7 +18,7 @@ import { buildAuthoringRequest } from "@src/ai/authoringExplanation";
 import { validateFlowDefinition } from "@src/validation/FlowValidator";
 
 import { LABELLED_SET } from "./ai-harness/authoringQualitySet";
-import { evaluateQualityTarget, instructionsSha256, isGenuineReviewer, loadReviewStore, recordVerdict, rereadCapture, reviewDir, QUALITY_TARGET, type ReviewItem } from "./ai-harness/authoringQualityReview";
+import { evaluateQualityTarget, instructionsSha256, isGenuineReviewer, loadReviewStore, recordVerdict, requiredReading, rereadCapture, reviewDir, QUALITY_TARGET, type ReviewItem } from "./ai-harness/authoringQualityReview";
 
 const requestFor = (caseId: string) => {
   const labelled = LABELLED_SET.find((c) => c.id === caseId);
@@ -71,7 +71,8 @@ if (args[0] === "--pending") {
   const pending = captures.flatMap((c) => c.items).filter((i) => !verdictOf.has(i.id));
   console.log(`\n${pending.length} captured explanation(s) await a person (required ones are the target's criteria 1 and 4)\n`);
   for (const item of pending) {
-    const why = item.judged.unsupported.length > 0 ? `required: screen hit ${item.judged.unsupported.join(", ")}` : item.judged.category === "unverified" ? "required: screen-clear" : "optional";
+    const required = requiredReading(item);
+    const why = required === null ? "optional" : `required: ${required}${required === "screen hit" ? ` ${item.judged.unsupported.join(", ")}` : ""}`;
     console.log(`${item.id}  [${why}]`);
     console.log(`  case ${item.caseId}, ${item.issueId} ${item.code} (${item.blocking ? "blocks the run" : "does not block the run"}, ${item.fixable ? "fixable" : "no emitted fix"})`);
     console.log(`  evidence: ${item.evidence}`);
@@ -99,7 +100,7 @@ for (const modelId of [...new Set(captures.map((c) => c.modelId))]) {
     console.log(`  run ${r.run}: ${r.delivered}/${LABELLED_SET.length} delivered, ${r.onSubject}/${r.sent} on subject, ${r.visibleActionable}/${r.sent} with a corrective action a person sees, ${r.actionable}/${r.sent} actionable in the model's own text (${r.repeatsProductAction} repeating the product's action), ${r.misattributed} misattributed, ${r.ranked} ranked, ${r.orderViolations} order violation(s), ${r.withheld} withheld`);
   }
   const rv = evaluation.review;
-  console.log(`  review: ${rv.screenClearReviewed}/${rv.screenClear} screen-clear and ${rv.screenHitsReviewed}/${rv.screenHits} screen hits reviewed; ${rv.confirmedUnsupported} unsupported claim(s) confirmed by a person`);
+  console.log(`  review: ${rv.screenClearReviewed}/${rv.screenClear} screen-clear, ${rv.screenHitsReviewed}/${rv.screenHits} screen hits and ${rv.causalClaimsReviewed}/${rv.causalClaims} other causal claims reviewed; ${rv.confirmedUnsupported} unsupported claim(s) confirmed by a person`);
   for (const c of evaluation.criteria) console.log(`  ${c.status === "MET" ? "✓" : c.status === "PENDING" ? "…" : "✗"} (${c.id}) ${c.label}: ${c.status} — ${c.detail}`);
   console.log(`  TARGET: ${evaluation.verdict}`);
   met &&= evaluation.verdict === "MET";

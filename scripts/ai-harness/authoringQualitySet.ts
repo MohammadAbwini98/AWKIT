@@ -248,10 +248,12 @@ const CORRECTIVE =
  *  - AUTO_FIX_CLAIMED: the application can repair an issue it emitted no fix for (AI inventing a fix);
  *  - OFF_DOMAIN: a cause or remedy outside the flow (restart, network, cache, credentials, support);
  *  - FABRICATED_LITERAL: a name quoted in any style, a selector, a URL or a value the request never held
- *    (a value is held only as a target the request gives: "to a listed value"), or the corrective action
- *    given as a step's name (`ACTION_AS_NAME`);
- *  - SEVERITY_OVERSTATED: an issue that does not block the run is said to stop the flow running;
- *  - SEVERITY_UNDERSTATED: an issue that blocks the run is said to be harmless or only a warning;
+ *    (a value is held only as a target the request gives: "to a listed value"), the corrective action
+ *    given as a step's name (`ACTION_AS_NAME`), or a step's position (`POSITION`, since 2026-09-25);
+ *  - SEVERITY_OVERSTATED: an issue that does not block the run is said to stop the flow running, to block
+ *    the run, or to have failed validation (the last two since 2026-09-25);
+ *  - SEVERITY_UNDERSTATED: an issue that blocks the run is said to be harmless, only a warning, or not to
+ *    block the run;
  *  - WRONG_REMEDY: a correction the issue's own rule contradicts (`WRONG_REMEDY`).
  */
 export type UnsupportedKind = "AUTO_FIX_CLAIMED" | "OFF_DOMAIN" | "FABRICATED_LITERAL" | "SEVERITY_OVERSTATED" | "SEVERITY_UNDERSTATED" | "WRONG_REMEDY";
@@ -263,8 +265,24 @@ const OFF_DOMAIN =
   /\b(?:restart|reboot|reinstall|internet|network|wi-?fi|cache|cookies?|firewall|antivirus|vpn|password|credentials?|permissions?|licen[cs]e|contact (?:support|an? admin\w*|your admin\w*|the admin\w*))\b|\bupdate (?:the |your )?(?:app|application|browser|software|driver)s?\b|\b(?:log|sign) ?in again\b/i;
 const BLOCKS_RUN =
   /\b(?:flow|run|automation|execution)\b[^.;]{0,25}\b(?:cannot|can't|can not|won't|will not|unable to|is blocked from)\b[^.;]{0,15}\b(?:run|start|execute|begin)\b|\bfrom (?:running|starting|executing|being run)\b|\bbefore (?:the flow|it) can (?:run|start)\b/i;
+/** The request's own words since R2 (2026-09-25): each issue's line says whether it blocks the run. */
+const BLOCKS_THE_RUN = /\bblock(?:s|ed|ing)?\s+(?:the\s+)?(?:run|flow|execution)\b/gi;
+/**
+ * A validation failure claimed: "failed validation", "fail the validation", "validation fails", "a validation
+ * failure". Written from the 2026-09-25 AI evaluation (R1, owner-authorized the same day): 7 displayed answers
+ * gave a warning as the reason "the automation flow failed validation", and `BLOCKS_RUN` read none of them. A
+ * non-blocking issue fails nothing, whether its report holds only warnings or a blocking error beside it.
+ */
+const VALIDATION_FAILED = /\bfail(?:s|ed|ing)?\s+(?:the\s+|its\s+)?validation\b|\bvalidation\s+(?:\w+\s+){0,2}?fail(?:s|ed|ing|ures?)?\b/gi;
+/**
+ * A negation ON the claim: inside it, or in the few characters before it ("does not fail validation"). One
+ * elsewhere in the sentence negates nothing: "…failed validation because a reachable step had no way out".
+ */
+const NEGATES_CLAIM = /\b(?:not|never|no)\b|n't\b/i;
+const claims = (text: string, pattern: RegExp): boolean =>
+  [...text.matchAll(pattern)].some((m) => !NEGATES_CLAIM.test(`${text.slice(Math.max(0, (m.index ?? 0) - 12), m.index)}${m[0]}`));
 const HARMLESS =
-  /\b(?:harmless|(?:safe|okay|ok|fine) to ignore|can (?:safely )?(?:be )?ignored?|(?:only|just) a warning|not (?:a )?(?:real |serious |critical |blocking )?(?:problem|issue|error)|does(?:n't| not) matter)\b/i;
+  /\b(?:harmless|(?:safe|okay|ok|fine) to ignore|can (?:safely )?(?:be )?ignored?|(?:only|just) a warning|not (?:a )?(?:real |serious |critical |blocking )?(?:problem|issue|error)|does(?:n't| not) matter|(?:does|do|will) ?(?:not|n't) block|won't block|not blocking|non-?blocking)\b/i;
 /**
  * Quoted text in any style. A single quote opens only after a non-letter and closes only before one, so the
  * apostrophes in "step's", "steps'" and "can't" are never quotation marks. Until 2026-09-23 only double
@@ -285,6 +303,14 @@ const holds = (supported: string, pattern: string) => new RegExp(`(?<![\\p{L}\\p
  * capture showed it, while the request still labelled the action "Step:".
  */
 const ACTION_AS_NAME = /\bstep\s+["'`“‘]?(?:add|apply|change|choose|connect|delete|fill|give|keep|lower|move|reconnect|remove|review|set)\b/i;
+/**
+ * A place in the flow the request never gives: an ordinal step ("the first step") or a numbered one ("step 3").
+ * The request says only "at a node" or "at a connector". Written from the 2026-09-25 AI evaluation (R1): "the
+ * first step" for a timeout on the flow's second step read clear, because `NUMBER` reads digits, not ordinals.
+ * "This step" and "the next step" are the request's own words and no position.
+ */
+const POSITION =
+  /\b(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|last|final|\d+(?:st|nd|rd|th))\s+(?:steps?|nodes?|connectors?|actions?|conditions?|branch(?:es)?)\b|\b(?:step|node|connector)\s+(?:#\s*|number\s+)?\d+\b/gi;
 const NUMBER = /\b(\d+(?:[.,]\d+)*)\s*(ms|milliseconds?|s|secs?|seconds?|mins?|minutes?|h|hours?|%|px|times)?\b/gi;
 const SELECTOR = /https?:\/\/|www\.|(?:^|\s)[#.][a-z][\w-]*|\[data-[\w-]+/i;
 
@@ -299,6 +325,7 @@ function fabricatesLiteral(raw: string, supported: string): boolean {
   // An escaped quotation mark (\' or \") quotes like a plain one.
   const text = raw.replace(/\\(?=["'`“”‘’])/g, "");
   if (ACTION_AS_NAME.test(text)) return true;
+  if ([...text.matchAll(POSITION)].some((m) => !holds(supported, escapeRegExp(m[0]).replace(/\s+/g, "\\s+")))) return true;
   const literals = [
     ...QUOTED.flatMap((quoted) => [...text.matchAll(quoted)].map((m) => ({ value: m[1].trim(), at: m.index ?? 0, quoted: true }))),
     ...[...text.matchAll(LITERAL_WORD)].filter((m) => literalShaped(m[1])).map((m) => ({ value: m[1], at: m.index ?? 0, quoted: false }))
@@ -325,11 +352,19 @@ export function unsupportedClaims(ref: AuthoringIssueRef, text: string, supporte
   if (OFF_DOMAIN.test(text)) hits.push("OFF_DOMAIN");
   if (fabricatesLiteral(text, supported)) hits.push("FABRICATED_LITERAL");
   const blocking = isExecutionBlocking(ref.issue);
-  if (!blocking && BLOCKS_RUN.test(text)) hits.push("SEVERITY_OVERSTATED");
+  if (!blocking && (BLOCKS_RUN.test(text) || claims(text, BLOCKS_THE_RUN) || claims(text, VALIDATION_FAILED))) hits.push("SEVERITY_OVERSTATED");
   if (blocking && HARMLESS.test(text)) hits.push("SEVERITY_UNDERSTATED");
   if (WRONG_REMEDY[ref.issue.code]?.test(text)) hits.push("WRONG_REMEDY");
   return hits;
 }
+
+/**
+ * A claim that one thing causes or explains another. Detected, never judged: a lexical screen cannot tell a
+ * cause the evidence supports from an invented one, so every displayed answer that makes one needs a person
+ * (R1, owner 2026-09-25; criterion 1). "So that" states a purpose, not a cause.
+ */
+export const makesCausalClaim = (text: string): boolean =>
+  /\b(?:because|caus(?:e|es|ed|ing)\b|due to|as a result|results? in|resulted in|leads? to|led to|therefore|which means|so (?:it|its|the|this)\b)/i.test(text);
 
 /**
  * Where one explanation lands, worst first. `defect`: misattributed or an unsupported claim.
@@ -673,5 +708,82 @@ export function literalControlFailures(requestFor: (caseId: string) => Authoring
   expect("...and the given action's own target, quoted as a value", clear("casing", ["Review and apply the offered safe fix, which corrects the operator's casing to 'a listed value'.", step("casing", 1)]) && clear("cycle", ["Change the connector that closes this cycle to “Loop Back”.", "Remove this connector from the End step."]));
   expect("...and escaped quotation marks around them", clear("cycle", ['Add a \\"Loop Back\\" connector to break the cycle.', "Remove this connector from the End step."]));
   expect("apostrophes, straight and curly, are never quotation marks", clear("cycle", ["Change this cycle's closing connector to a Loop Back connector, so the steps' loop and the connector’s count end it.", "Remove this connector from the End step’s outgoing connectors."]));
+  return failures;
+}
+
+/**
+ * The seven displayed answers the 2026-09-25 AI evaluation found making a claim the evidence does not support
+ * (docs/plans/ai-upgrade-v5/evidence/L4b-ai-technical-evaluation-2026-09-25.md), each replayed verbatim as the
+ * Flow Designer showed it: a non-blocking issue given as the reason "the automation flow failed validation",
+ * two of them with an invented "first step". Every one read `notActionable` and screen-clear, so none reached
+ * a person. Each must now be a defect, and each is a causal claim a person must read. Beside them, twins that
+ * must stay clear of the screen they test: the same echo on the blocking error it is true of, the claim
+ * denied, and the request's own blocking words (R2).
+ */
+export function causalClaimControlFailures(requestFor: (caseId: string) => AuthoringRequest | undefined): string[] {
+  const failures: string[] = [];
+  const expect = (label: string, ok: boolean) => {
+    if (!ok) failures.push(label);
+  };
+  /**
+   * `text` exactly as displayed, as the answer to issue `index` of `caseId`, beside the product's own action
+   * for any other issue. Judged as the review store re-reads a capture: the shown text, not re-trimmed.
+   */
+  const reading = (caseId: string, index: number, text: string) => {
+    const request = requestFor(caseId);
+    if (!request?.issues[index]) return undefined;
+    const answer: AuthoringAnswer = {
+      ok: true,
+      explanations: request.issues.map((ref, i) => ({ issueId: ref.id, issue: ref.issue, step: ref.step, text: i === index ? text : ref.step, ...(i === index && text.endsWith("…") ? { cut: true as const } : {}) })),
+      ranking: []
+    };
+    return judgeAuthoringAnswer(request, answer).perExplanation[index];
+  };
+  const firstStep = "The automation flow failed validation because the timeout for the first step was set to an unusually high value, causing the flow to fail validation before the…";
+  const CAPTURED = [
+    { item: "adbc14/cycle/i1", caseId: "cycle", index: 1, position: false, text: "The automation flow failed validation because a connector leaves an End node, causing the flow to finish at End and never run." },
+    { item: "992ea9/warnings/i0", caseId: "warnings", index: 0, position: true, text: firstStep },
+    { item: "992ea9/warnings/i1", caseId: "warnings", index: 1, position: false, text: "The automation flow failed validation because a reachable step had no way out, causing the run to stop at that node and report success without reaching the End…" },
+    { item: "f36c94/branch/i1", caseId: "branch", index: 1, position: false, text: "The automation flow failed validation because the condition needs a comparison value or a variable path that is not set, causing the runner to fail validation…" },
+    { item: "f36c94/cycle/i1", caseId: "cycle", index: 1, position: false, text: "The automation flow failed validation because a connector leaves an End node, so the flow finishes at End and never runs." },
+    { item: "840178/warnings/i0", caseId: "warnings", index: 0, position: true, text: firstStep },
+    { item: "840178/warnings/i1", caseId: "warnings", index: 1, position: false, text: "The automation flow failed validation because a reachable step has no way out, causing the run to stop at that node and report success without reaching the End…" }
+  ];
+  for (const c of CAPTURED) {
+    const p = reading(c.caseId, c.index, c.text);
+    const blocking = requestFor(c.caseId)?.issues[c.index] ? isExecutionBlocking(requestFor(c.caseId)!.issues[c.index].issue) : true;
+    expect(`${c.item}: (precondition) its issue does not block the run`, !blocking);
+    expect(`${c.item}: a validation failure given to a non-blocking issue is overstated, so the answer is a defect`, p?.category === "defect" && p.unsupported.includes("SEVERITY_OVERSTATED") && !p.actionable);
+    if (c.position) expect(`${c.item}: "the first step" is a position the request never gave`, p?.unsupported.includes("FABRICATED_LITERAL") === true);
+    expect(`${c.item}: a causal claim, which a person must read`, makesCausalClaim(c.text));
+  }
+
+  // The same echo on the blocking error it is true of: a causal claim for a person, and no severity screen hit.
+  const echoes = [
+    { item: "adbc14/cycle/i0", caseId: "cycle", text: "The automation flow failed validation because connectors form a cycle with no Loop Back connector, causing a runtime-cycle error." },
+    { item: "840178/single/i0", caseId: "single", text: "The automation flow failed validation because the timeout value is zero, negative, or not a finite number. The rule code is invalidTimeout." }
+  ];
+  for (const e of echoes) {
+    const p = reading(e.caseId, 0, e.text);
+    expect(`${e.item}: the echo on a blocking error is not overstated, and stays notActionable`, p?.category === "notActionable" && p.unsupported.length === 0);
+    expect(`${e.item}: ...and is still a causal claim a person must read`, makesCausalClaim(e.text));
+  }
+  const lower = "Lower this step's timeout unless the step really needs to wait that long.";
+  const clearOf = (caseId: string, index: number, text: string) => reading(caseId, index, text)?.category === "unverified";
+  const hitBy = (caseId: string, index: number, text: string, kind: UnsupportedKind) => reading(caseId, index, text)?.unsupported.includes(kind) === true;
+  expect("a validation failure denied on the claim itself is not overstated", clearOf("warnings", 0, `This warning does not fail validation. ${lower}`) && clearOf("warnings", 0, `Validation did not fail on this warning. ${lower}`));
+  expect("...while a negation elsewhere in the sentence ('had no way out') excuses nothing", hitBy("warnings", 1, "The flow failed validation because this step has no way out.", "SEVERITY_OVERSTATED"));
+  expect("the failure form is read in either order: 'validation fails because…'", hitBy("warnings", 0, `Validation fails because this timeout is high. ${lower}`, "SEVERITY_OVERSTATED"));
+  // R2's words. The request now says of each issue whether it blocks the run; saying the opposite is a severity claim.
+  expect("a non-blocking issue said to block the run is overstated", hitBy("warnings", 0, `This timeout blocks the run. ${lower}`, "SEVERITY_OVERSTATED"));
+  expect("...and one said not to block it is clear", clearOf("warnings", 0, `This warning does not block the run. ${lower}`));
+  const positive = "Set this step's timeout to a positive number of milliseconds.";
+  expect("a blocking issue said not to block the run is understated", hitBy("single", 0, `This timeout does not block the run. ${positive}`, "SEVERITY_UNDERSTATED") && hitBy("single", 0, `This timeout doesn't block the run. ${positive}`, "SEVERITY_UNDERSTATED"));
+  expect("...and one said to block it is clear", clearOf("single", 0, `This timeout blocks the run. ${positive}`));
+  // A position the request never gives, however it is written, whatever the issue's severity.
+  expect("a numbered step is a position the request never gave", hitBy("warnings", 0, "Lower the timeout of step 2 unless it really needs to wait that long.", "FABRICATED_LITERAL"));
+  expect("...as is an ordinal on a blocking issue", hitBy("single", 0, "Set the first step's timeout to a positive number of milliseconds.", "FABRICATED_LITERAL"));
+  expect("'this step' and 'the next step', the request's own words, are no position", clearOf("warnings", 1, "Add an outgoing connector from this step to the next step or to an End step."));
+  expect("a purpose ('so that it knows') is not a causal claim, and an answer without one is not", !makesCausalClaim("Add a locator to this step so that it knows which element to act on.") && !makesCausalClaim(lower));
   return failures;
 }

@@ -80,7 +80,7 @@ import {
   type ReviewItem,
   type ReviewVerdict
 } from "./ai-harness/authoringQualityReview";
-import { CANARY, LABELLED_SET, REMEDY, SUBJECT, authoringControlFailures, correctiveControlFailures, judgeAuthoringAnswer, literalControlFailures, rankingControlFailures } from "./ai-harness/authoringQualitySet";
+import { CANARY, LABELLED_SET, REMEDY, SUBJECT, authoringControlFailures, causalClaimControlFailures, correctiveControlFailures, judgeAuthoringAnswer, literalControlFailures, rankingControlFailures } from "./ai-harness/authoringQualitySet";
 
 let passed = 0;
 let failed = 0;
@@ -737,6 +737,13 @@ console.log("\n11 — the labelled set verify:ai-authoring-quality-live sends, a
     literals.length === 0,
     literals.join("; ")
   );
+  // R1 (owner, 2026-09-25): the seven displayed answers the AI evaluation found unsupported, verbatim.
+  const causal = causalClaimControlFailures(labelledRequest);
+  check(
+    "the 7 displayed answers giving a non-blocking issue as a validation failure (2 with an invented 'first step') are defects and causal claims for a person; each twin stays clear",
+    causal.length === 0,
+    causal.join("; ")
+  );
 }
 
 // ── 12. The owner's L4b decisions (2026-09-22) ──────────────────────────────────────────────────
@@ -891,7 +898,7 @@ console.log("\n12 — corrective step, fix priority, the review store and the ad
   const sha = instructionsSha256(request);
   type Judged = ReviewItem["judged"];
   const clear: Judged = { onSubject: true, misattributed: false, actionable: true, unsupported: [], category: "unverified" };
-  const synth = (capturedAt: string, o: { cases?: string[]; judged?: (index: number) => Partial<Judged>; undelivered?: string[]; orderViolation?: string; step?: string; text?: string } = {}): ReviewCapture => {
+  const synth = (capturedAt: string, o: { cases?: string[]; judged?: (index: number) => Partial<Judged>; undelivered?: string[]; orderViolation?: string; step?: string; text?: string; textOf?: (index: number) => string | undefined } = {}): ReviewCapture => {
     const captureId = `synthetic-${capturedAt}`;
     let index = 0;
     const cases = o.cases ?? caseIds;
@@ -907,7 +914,7 @@ console.log("\n12 — corrective step, fix priority, the review store and the ad
           fixable: s.fixable,
           evidence: "",
           ...(o.step ? { step: o.step } : {}),
-          text: o.text ?? "Add what the step needs.",
+          text: o.textOf?.(index) ?? o.text ?? "Add what the step needs.",
           judged: { ...clear, ...o.judged?.(index++) }
         }))
       );
@@ -1000,6 +1007,22 @@ console.log("\n12 — corrective step, fix priority, the review store and the ad
   check("...a person dismissing it meets criterion 1", status(evaluateQualityTarget(hit, approve(hit), caseIds), 1) === "MET");
   check("...a person confirming it fails criterion 1", status(evaluateQualityTarget(hit, approve(hit, (v) => (v.itemId === hitItem ? { ...v, unsupportedClaim: true } : v)), caseIds), 1) === "NOT MET");
   check("a person finding an answer ungrounded fails criterion 1 as well", status(evaluateQualityTarget(twoRuns, approve(twoRuns, (v) => (v.itemId === twoRuns[0].items[3].id ? { ...v, grounded: false } : v)), caseIds), 1) === "NOT MET");
+  // R1 (owner, 2026-09-25): the Flow Designer shows every answer, so one that makes a causal claim needs a
+  // person even when it is neither a screen hit nor screen-clear. Without a cause, reading it stays optional.
+  const becauseText = "The flow failed because connectors form a cycle.";
+  const causalRuns = (text: string) => [synth("2026-09-22T01", { judged: (i) => (i === 0 ? { actionable: false, category: "notActionable" } : {}), textOf: (i) => (i === 0 ? text : undefined) }), synth("2026-09-22T02")];
+  const causalItem = (runs: ReviewCapture[]) => runs[0].items[0].id;
+  const withCause = causalRuns(becauseText);
+  const causalUnread = evaluateQualityTarget(withCause, approve(withCause).filter((v) => v.itemId !== causalItem(withCause)), caseIds);
+  check(
+    "an unread notActionable answer that makes a causal claim leaves criterion 1 PENDING, and is counted as one",
+    status(causalUnread, 1) === "PENDING" && causalUnread.review.causalClaims === 1 && causalUnread.review.causalClaimsReviewed === 0,
+    JSON.stringify(causalUnread.review)
+  );
+  check("...a person reading it meets criterion 1", status(evaluateQualityTarget(withCause, approve(withCause), caseIds), 1) === "MET");
+  check("...a person confirming it unsupported fails criterion 1", status(evaluateQualityTarget(withCause, approve(withCause, (v) => (v.itemId === causalItem(withCause) ? { ...v, unsupportedClaim: true } : v)), caseIds), 1) === "NOT MET");
+  const noCause = causalRuns("Connectors form a cycle here.");
+  check("...and one without a causal claim stays optional: criterion 1 MET without it", status(evaluateQualityTarget(noCause, approve(noCause).filter((v) => v.itemId !== causalItem(noCause)), caseIds), 1) === "MET");
   const misattributed = [synth("2026-09-22T01", { judged: (i) => (i === 2 ? { misattributed: true, onSubject: false, category: "defect" } : {}) }), synth("2026-09-22T02")];
   check("a misattributed explanation fails criterion 1 whatever a person says", status(evaluateQualityTarget(misattributed, approve(misattributed), caseIds), 1) === "NOT MET");
   const violated = [synth("2026-09-22T01", { orderViolation: "priority" }), synth("2026-09-22T02")];

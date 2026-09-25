@@ -33,7 +33,7 @@ import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 import { writeJsonFileAtomic } from "@src/session/atomicWrite";
 import { isExecutionBlocking, type FlowValidationCode } from "@src/validation/FlowValidator";
 
-import { CANARY, judgeAuthoringAnswer, type AuthoringJudgement, type ExplanationCategory, type UnsupportedKind } from "./authoringQualitySet";
+import { CANARY, judgeAuthoringAnswer, makesCausalClaim, type AuthoringJudgement, type ExplanationCategory, type UnsupportedKind } from "./authoringQualitySet";
 
 /** L4's proposed explanation quality target, as adopted by the owner. Never lowered to fit a result. */
 export const QUALITY_TARGET = Object.freeze({
@@ -335,7 +335,17 @@ export interface TargetEvaluation {
    * word for word. `visibleActionable` is criterion 3: the explanation a person sees holds a corrective action.
    */
   runs: Array<{ run: number; sent: number; delivered: number; onSubject: number; misattributed: number; actionable: number; repeatsProductAction: number; visibleActionable: number; ranked: number; orderViolations: number; withheld: number }>;
-  review: { screenClear: number; screenClearReviewed: number; screenClearCorrectAndActionable: number; screenHits: number; screenHitsReviewed: number; confirmedUnsupported: number };
+  review: {
+    screenClear: number;
+    screenClearReviewed: number;
+    screenClearCorrectAndActionable: number;
+    screenHits: number;
+    screenHitsReviewed: number;
+    /** Displayed answers that are neither a screen hit nor screen-clear and make a causal claim (R1). */
+    causalClaims: number;
+    causalClaimsReviewed: number;
+    confirmedUnsupported: number;
+  };
   criteria: Array<{ id: number; label: string; status: CriterionStatus; detail: string }>;
   verdict: CriterionStatus;
 }
@@ -347,6 +357,18 @@ export interface TargetEvaluation {
  * answer has no item, so its issues still count against the rate.
  */
 const visibleCorrective = (i: ReviewItem) => !i.judged.misattributed && i.judged.unsupported.length === 0 && (!!i.step || i.judged.actionable);
+
+/**
+ * Why a person must read an answer before criterion 1 can be MET, or `null` when reading it is optional. The
+ * Flow Designer shows every accepted answer, whatever the proxy made of it, so beside screen hits and
+ * screen-clear answers, any other that makes a causal claim needs a person too (R1, owner 2026-09-25): 7 such
+ * answers claimed a failed validation for a warning and no screen saw it, and no screen can show a cause right.
+ */
+export function requiredReading(item: ReviewItem): "screen hit" | "screen-clear" | "causal claim" | null {
+  if (item.judged.unsupported.length > 0) return "screen hit";
+  if (item.judged.category === "unverified") return "screen-clear";
+  return item.text !== null && makesCausalClaim(item.text) ? "causal claim" : null;
+}
 
 /**
  * The target over captures of ONE request and model. Run `k` is each case's `k`-th measurement, in
@@ -382,8 +404,10 @@ export function evaluateQualityTarget(captures: readonly ReviewCapture[], verdic
     });
   }
 
-  const screenHits = counted.filter((i) => i.judged.unsupported.length > 0);
+  const screenHits = counted.filter((i) => requiredReading(i) === "screen hit");
   const screenClear = counted.filter((i) => i.judged.category === "unverified");
+  const causal = counted.filter((i) => requiredReading(i) === "causal claim");
+  const causalReviewed = causal.filter((i) => verdictOf.has(i.id));
   const confirmed = counted.filter((i) => {
     const v = verdictOf.get(i.id);
     return v !== undefined && (v.unsupportedClaim || !v.grounded);
@@ -409,10 +433,10 @@ export function evaluateQualityTarget(captures: readonly ReviewCapture[], verdic
           ? "NOT MET"
           : completeRuns === 0
             ? "NOT MET"
-            : hitsReviewed.length < screenHits.length || clearReviewed.length < screenClear.length
+            : hitsReviewed.length < screenHits.length || clearReviewed.length < screenClear.length || causalReviewed.length < causal.length
               ? "PENDING"
               : "MET",
-      detail: `${misattributed} misattributed, ${confirmed.length} confirmed by a person; awaiting a person: ${screenHits.length - hitsReviewed.length} of ${screenHits.length} screen hits, ${screenClear.length - clearReviewed.length} of ${screenClear.length} screen-clear`
+      detail: `${misattributed} misattributed, ${confirmed.length} confirmed by a person; awaiting a person: ${screenHits.length - hitsReviewed.length} of ${screenHits.length} screen hits, ${screenClear.length - clearReviewed.length} of ${screenClear.length} screen-clear, ${causal.length - causalReviewed.length} of ${causal.length} other causal claims`
     },
     {
       id: 2,
@@ -460,6 +484,8 @@ export function evaluateQualityTarget(captures: readonly ReviewCapture[], verdic
       screenClearCorrectAndActionable: clearGood.length,
       screenHits: screenHits.length,
       screenHitsReviewed: hitsReviewed.length,
+      causalClaims: causal.length,
+      causalClaimsReviewed: causalReviewed.length,
       confirmedUnsupported: confirmed.length
     },
     criteria,
