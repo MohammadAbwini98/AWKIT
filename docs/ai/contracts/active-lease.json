@@ -1,23 +1,22 @@
 {
   "task": "awkit-djnl-10-ai-runtime-packaging-0924",
   "contract_path": "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json",
-  "holder": "project-state",
-  "status": "released",
+  "holder": "release",
+  "status": "active",
   "allowed_paths": [
-    ".beads/**",
-    "docs/ai/COMMANDS.md",
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/HANDOFF.md",
-    "docs/ai/KNOWN_ISSUES.md",
-    "docs/ai/TASK_LOG.md",
-    "docs/plans/ai-upgrade-v5/L6-fragments-and-templates.md",
-    "docs/plans/ai-upgrade-v5/L7-release-confirmation.md",
-    "docs/plans/ai-upgrade-v5/ROADMAP.md"
+    "build",
+    "resources/THIRD_PARTY_NOTICES.md",
+    "resources/dependency-manifest.json",
+    "resources/dependency-manifest.sig"
   ],
-  "acquired_at": "2026-09-25T14:07:30.874Z",
-  "acquired_at_commit": "25a6d047c48950bf7468fcc86a43c2e06186dfa8",
-  "baseline_dirty": [],
-  "baseline_dirty_fingerprints": {},
+  "acquired_at": "2026-09-25T17:31:09.253Z",
+  "acquired_at_commit": "242d1df4d0dd6ada3b9931c0e776c1fef81e3a05",
+  "baseline_dirty": [
+    "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json"
+  ],
+  "baseline_dirty_fingerprints": {
+    "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json": "d2de0d784cbd4120b1280b9f3b29ac8c1d949545a1b2441b71db81388bef450f"
+  },
   "baseline_watched_ignored": {
     ".env": "absent",
     ".claude/settings.local.json": "6238:1788551784499.886",
@@ -30,8 +29,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-25T14:08:24.686Z",
-  "released_reason": "project-state tracker notes for L4b R4 and the awkit-i6ot re-check exported, verify:roadmap-dashboard 177/177 Sources agree",
-  "archived_at": "2026-09-25T14:08:24.688Z"
+  "violations": []
 }

@@ -91,17 +91,12 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "project-state",
+      "agent_id": "release",
       "allowed_paths": [
-        ".beads/**",
-        "docs/ai/COMMANDS.md",
-        "docs/ai/CURRENT_STATE.md",
-        "docs/ai/HANDOFF.md",
-        "docs/ai/KNOWN_ISSUES.md",
-        "docs/ai/TASK_LOG.md",
-        "docs/plans/ai-upgrade-v5/L6-fragments-and-templates.md",
-        "docs/plans/ai-upgrade-v5/L7-release-confirmation.md",
-        "docs/plans/ai-upgrade-v5/ROADMAP.md"
+        "build",
+        "resources/THIRD_PARTY_NOTICES.md",
+        "resources/dependency-manifest.json",
+        "resources/dependency-manifest.sig"
       ]
     },
     "writer_sequence": [
