@@ -79,7 +79,7 @@ export const DX_REVISIONS: readonly DxRevision[] = Object.freeze([
   // number ending a sentence is held). The same pack, runtime, adapter and held-out set; DX-3 automated.
   Object.freeze({
     revision: 2,
-    commit: "the commit after b34c65ea that adds this entry",
+    commit: "dc3d0c18",
     modelId: "Qwen3.5-0.8B-unpinned",
     modelSha256: "f5b14da98939b60bbe1019a964eba656407e1e0b64f1fe3003ff6d650e93bfec",
     runtimeBuild: "node-llama-cpp@3.21.1+llama.cpp@v0.4.0",

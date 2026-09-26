@@ -164,7 +164,55 @@ Per the ruling above, a run over the cap keeps L4b open with no criterion adjust
   - Revision 2 is judged only on captures taken on its own inputs.
 - **R6, only if R5 fails:** Qwen3.5-2B, after it qualifies under L1.8. It is never the 4B.
 
-Revision 2's frozen identities and the evaluator's blobs are recorded below, before its first run.
+**Revision 2's DX-0, frozen at `dc3d0c18` (2026-09-26), before its first run.** Changing any of these voids
+revision 2's runs.
+
+| Input | Frozen value |
+|---|---|
+| Model pack | unchanged: Qwen3.5-0.8B Q4_K_M, sha256 `f5b14da9…93bfec` |
+| Runtime | unchanged: `node-llama-cpp@3.21.1+llama.cpp@v0.4.0` (`AiModelManifest.ts` `a6f2472e`) |
+| Request (R5) | instructions sha256 `abea5095fad32abbf71f58f1dd2aac5cdca76221e0d493a92bd21c3389de310c`, `authoringExplanation.ts` `a8413cc040d013ecc284895c02f7ea51f0a6fb16` |
+| Display gate (R4) | `authoringClaimScreen.ts` `b8142e0b7928dc7143ffba030ba3f5e662a3363f`. Its one change is the proven false positive: a number ending a request sentence is now held, so `invalidLoopBounds`' own step is no longer withheld as `FABRICATED_LITERAL`. Red first: the `number-ending-a-sentence-not-held` mutant fails 2 checks. |
+| Adapter | unchanged: `aiAssist.ts` `74180291` |
+| Held-out corpus | unchanged and confirmed: `0db8a581…` (`cef94893`) |
+| DX rubric | DX-0 to DX-5 as in §5, the 25 % cap per run, and this section's rulings. DX-3 is automated: the zero-escape and 80 % thresholds are unchanged. |
+
+**The evaluator at revision 2's runs** (blob ids, from `git ls-files -s`):
+
+| File | Role | Blob |
+|---|---|---|
+| `scripts/ai-harness/authoringDx.ts` | DX revisions; the automated DX-3 (`dx3Reading`); the evaluator | `af10ff519a7e3d0e676471c3b4a2cae42f558d60` |
+| `scripts/ai-harness/authoringQualitySet.ts` | the judge, with subject and remedy rules for the held-out set's three codes | `b285f170b2f71d97c2c71a9dc6ef48af7cb05f7a` |
+| `scripts/ai-harness/authoringQualityReview.ts` | captures and `rereadCapture`, unchanged | `1350dc59b44878888e23c439ee1e549564d96a9d` |
+| `scripts/ai-harness/authoringQualityLive.ts` | the live harness, unchanged | `8301d8c64fb980c7e093f7b1f3aad92f8c1703a8` |
+| `scripts/verify-ai-explanation-live.mts` | the launcher, unchanged | `bfa72737656b622c3cce96a94973676c01c47fb0` |
+| `scripts/verify-ai-authoring-review.mts` | the CLI: `--dx`, and `--dx --pending` (each text's DX-3 reading) | `c44840756bd8c551db5b17f8dadbaa900a3cef22` |
+| `scripts/verify-ai-authoring.mts` | §15 and §16: 382 checks without a model | `c9380e634710f7ff8011227e6e6fac41de484946` |
+| `scripts/verify-ai-display-gate-mutations.mts` | 37 DX mutants and 16 gate mutants | `c0c74a1a274c3822bcc36900a0cfd8fc78ec137e` |
+
+- **How DX-3 reads a text** (`dx3Reading`). Each point was fixed before any revision-2 output.
+  - A displayed text with any of these is an escape:
+    - a misattribution;
+    - an unsupported fact: a name, value, position or out-of-flow remedy;
+    - a claim its own line contradicts: severity, blocking, an automatic fix, a wrong remedy;
+    - an invented cause or run-time consequence;
+    - a leaked secret.
+  - Causes and outcomes are read in a vocabulary wider than R4's. It adds the forms R4's coverage limits name:
+    "since", "thus", "hence", "breaks", "could break", "lost", "does nothing", "prevents".
+  - A cause or outcome is supported only when every word of it is in the issue's own evidence line. A sentence
+    that states one may add no fact beyond that line and a fixed generic vocabulary.
+  - "Correct" means on subject with no defect. "Actionable" is the judge's reading of the model's own text,
+    never the product's step shown beside it.
+- **Calibration, on answers recorded before DX-3 existed** (R2's 34, `verify:ai-authoring` §16):
+  - none of the 26 the 2026-09-25 evaluation found correct has a defect;
+  - of the 8 it found unsupported, DX-3 finds 5 (#7, #17, #23, #24, #34);
+  - #5, #8 and #25 relate supported words wrongly ("or" read as "and"; "it never runs" said of the flow). A
+    lexical reading cannot see that. This is its recorded limit, and R4 withholds all three.
+- **Proof, without a model:**
+  - `verify:ai-authoring` 382/382;
+  - `verify:ai-dx-mutations` 82/0, 37 of 37 killed;
+  - `verify:ai-display-gate-mutations` 40/0, 16 of 16 killed;
+  - `typecheck:scripts` and `build` PASS.
 
 ## 1. Original model-output quality: NOT MET (unchanged by anything below)
 
