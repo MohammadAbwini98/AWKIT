@@ -111,7 +111,7 @@ export const DX_REVISIONS: readonly DxRevision[] = Object.freeze([
   // request-specific response enum. Revision 3's incomplete NOT MET evidence remains separate.
   Object.freeze({
     revision: 4,
-    commit: "PENDING_FREEZE",
+    commit: "7587f020",
     modelId: "Qwen3.5-0.8B-unpinned",
     modelSha256: "f5b14da98939b60bbe1019a964eba656407e1e0b64f1fe3003ff6d650e93bfec",
     runtimeBuild: "node-llama-cpp@3.21.1+llama.cpp@v0.4.0",
