@@ -15,10 +15,13 @@
 import type { AiJobOutcome, AiJobRequest } from "@src/ai/AiService";
 import {
   AUTHORING_LIMITS,
+  answerUsesOfferedTexts,
   authoringExplanationDecision,
   authoringRankingDecision,
   buildAuthoringRequest,
-  parseAuthoringAnswer
+  parseAuthoringAnswer,
+  type AuthoringAnswer,
+  type AuthoringRequest
 } from "@src/ai/authoringExplanation";
 import {
   sanitizeAssistRequestId,
@@ -122,6 +125,18 @@ export function policyCode(decision: AiPolicyDecision): AiAssistCode | null {
 
 const authoringView = (code: AiAssistCode): AuthoringAssistView => ({ ...assistStatus(code), explanations: [], ranking: [], truncated: 0 });
 
+/** Project a validated answer for the renderer; the display gate keeps unsafe model text out. */
+export function authoringAnswerView(answer: AuthoringAnswer, job: AuthoringRequest, modelId: string, policy: AiPolicyConfig): AuthoringAssistView {
+  const ranked = authoringRankingDecision(policy).decision === "suggest" ? answer.ranking : [];
+  const issueById = new Map(job.issues.map((ref) => [ref.id, ref.issue]));
+  return {
+    ...assistStatus("OK", modelId),
+    explanations: answer.explanations.map(({ issue, text, step, withheld }) => (withheld ? { issue, text: null, step, withheld } : { issue, text, step })),
+    ranking: ranked.map((id) => issueById.get(id)!),
+    truncated: job.truncated
+  };
+}
+
 export async function explainFlowValidation(senderId: number, input: unknown, deps: AiAssistDeps): Promise<AuthoringAssistView> {
   const request = sanitizeAuthoringAssistRequest(input);
   if (!request) return authoringView("INVALID_REQUEST");
@@ -151,18 +166,11 @@ export async function explainFlowValidation(senderId: number, input: unknown, de
   if (outcome.status !== "ok") return authoringView(outcomeCode(outcome));
   const answer = parseAuthoringAnswer(outcome.value, job);
   if (!answer.ok) return authoringView("OUTPUT_REJECTED");
+  if (!answerUsesOfferedTexts(answer, job)) return authoringView("OUTPUT_REJECTED");
 
   // The ranking is shown only where the policy says "suggest" (T1). At T0 it is dropped, not shown
   // as if it were a plain interpretation: an order of repairs is advice about what to change.
-  const ranked = authoringRankingDecision(policy).decision === "suggest" ? answer.ranking : [];
-  const issueById = new Map(job.issues.map((ref) => [ref.id, ref.issue]));
-  return {
-    ...assistStatus("OK", outcome.modelId),
-    // A withheld text (R4) never reaches the renderer: only why, beside the product's finding and step.
-    explanations: answer.explanations.map(({ issue, text, step, withheld }) => (withheld ? { issue, text: null, step, withheld } : { issue, text, step })),
-    ranking: ranked.map((id) => issueById.get(id)!),
-    truncated: job.truncated
-  };
+  return authoringAnswerView(answer, job, outcome.modelId, policy);
 }
 
 export interface FragmentAssistDeps extends Pick<AiAssistDeps, "submit" | "policy"> {

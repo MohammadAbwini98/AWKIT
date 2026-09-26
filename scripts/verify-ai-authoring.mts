@@ -59,11 +59,13 @@ import { FRAGMENT_ASSIST_LIMITS } from "@src/ai/fragmentAssist";
 import type { FlowFragment } from "@src/fragments/FlowFragment";
 import {
   AUTHORING_LIMITS,
+  answerUsesOfferedTexts,
   authoringExplanationDecision,
   authoringRankingDecision,
   buildAuthoringRequest,
   correctiveStep,
   endAtCompleteSentence,
+  offeredExplanationTexts,
   parseAuthoringAnswer,
   rankingKeepsPriority,
   type AuthoringRequest
@@ -77,7 +79,7 @@ import type { FlowProfile } from "@src/profiles/FlowProfile";
 import type { AiPolicyConfig } from "@src/security/authz/AiAutonomyPolicy";
 import { FLOW_VALIDATION_RULES, isExecutionBlocking, validateFlowDefinition, type FlowValidationCode, type FlowValidationReport } from "@src/validation/FlowValidator";
 
-import { assistJobId, cancelAssist, explainFlowValidation, summarizeFragment, type AiAssistDeps } from "../app/main/ai/aiAssist";
+import { assistJobId, authoringAnswerView, cancelAssist, explainFlowValidation, summarizeFragment, type AiAssistDeps } from "../app/main/ai/aiAssist";
 import { virtualClock } from "./lib/virtual-clock.mts";
 import {
   QUALITY_TARGET,
@@ -280,7 +282,7 @@ check("the answer schema has no field through which a fix KIND could be returned
 console.log("\n3 — a valid answer, decoded by the real output contract");
 const good = JSON.stringify({
   version: 1,
-  explanations: ids.map((id) => ({ issueId: id, text: `This step cannot run as configured (${id}).` })),
+  explanations: request.issues.map((ref) => ({ issueId: ref.id, text: ref.step })),
   ranking: [fixableId]
 });
 const h = harness([good]);
@@ -806,8 +808,8 @@ console.log("\n12 — corrective step, fix priority, the review store and the ad
   const instructions = request.prompt.instructions;
   // R2 (owner, 2026-09-25): "You explain why an automation flow failed validation" was false for a warning,
   // and 7 displayed answers echoed it as a warning's cause.
-  check("the request asks for the trusted action verbatim before optional detail", /return its Action sentence verbatim in text/.test(instructions));
-  check("...and makes the problem optional when the answer limit is tight", /If it fits, add a brief Problem/.test(instructions));
+  check("the request asks for the exact trusted action", /select its exact Action sentence for text/.test(instructions));
+  check("...and makes the exact problem optional", /include its exact Problem only when offered/.test(instructions));
   check("...without asking the model to reason about causes or consequences", /Do not infer a cause or consequence/.test(instructions));
   check("...and stops after the useful facts", /Stop after the action and problem/.test(instructions));
   check("the old ban on describing any repair stays gone: it forbade the corrective step itself", !/may not describe a repair/.test(instructions));
@@ -819,7 +821,7 @@ console.log("\n12 — corrective step, fix priority, the review store and the ad
   // (4) The fix order: optional, and blocking fixes first where one fix is more urgent than another.
   const priority = requestFor("priority");
   const [blockingFix, offPathFix] = priority.issues;
-  const texts = priority.issues.map((ref) => ({ issueId: ref.id, text: "Change the value to a legal one." }));
+  const texts = priority.issues.map((ref) => ({ issueId: ref.id, text: ref.step }));
   const answerWith = (ranking?: string[]) => parseAuthoringAnswer({ version: 1, explanations: texts, ...(ranking ? { ranking } : {}) }, priority);
   check("(precondition) the priority case has a blocking fix and one that can wait", priority.fixableIds.length === 2 && isExecutionBlocking(blockingFix.issue) && !isExecutionBlocking(offPathFix.issue));
   const inOrder = answerWith([blockingFix.id, offPathFix.id]);
@@ -1113,7 +1115,7 @@ console.log("\n13 — the product's corrective step, and complete sentences only
   // The step reaches the designer from the request, whatever the model wrote.
   const nonsense = harness([JSON.stringify({ version: 1, explanations: ids.map((id) => ({ issueId: id, text: "Add a connector into the End step." })) })]);
   const stepView = await explainFlowValidation(WINDOW, { requestId: "s13", profile: brokenFlow }, assistDeps(nonsense.service));
-  check("the designer receives the product's step beside each explanation, not the model's", stepView.code === "OK" && stepView.explanations.length === request.issues.length && stepView.explanations.every((e, i) => e.step === correctiveStep(request.issues[i].issue) && e.text === "Add a connector into the End step."), JSON.stringify(stepView).slice(0, 300));
+  check("the model's fabricated corrective action is rejected by the output contract", stepView.code === "OUTPUT_REJECTED" && stepView.explanations.length === 0 && !JSON.stringify(stepView).includes("Add a connector into the End step."), JSON.stringify(stepView).slice(0, 300));
   await nonsense.service.shutdown();
   const withStep = parseAiOutput(JSON.stringify({ version: 1, explanations: ids.map((id) => ({ issueId: id, text: "Fine.", step: "Delete the flow." })) }), request.schema);
   check("a model cannot supply a step: the answer schema has no field for one", !withStep.ok && withStep.code === "SCHEMA_REJECTED", JSON.stringify(withStep));
@@ -1173,18 +1175,20 @@ console.log("\n14 — R4: the display gate, on the 34 answers displayed after R1
       "Not shown: the AI's text gave a cause and said what happens when the flow runs, which the validator's findings do not establish. The finding and its corrective action stand."
   );
 
-  // Through the adapter behind ai:explainValidation, with the production AiService: what the designer receives.
-  // The model's text is replayed as the answer; a displayed fragment's "…" is the product's, so it is dropped.
+  // Replay historical free text through the production projection and display gate. The current
+  // constrained schema rejects these strings before the adapter, while the gate remains defence in depth.
   const rawAnswer = (run: 1 | 2, caseId: string) =>
     ({ version: 1, explanations: requestFor(caseId).issues.map((ref, i) => ({ issueId: ref.id, text: R2_DISPLAYED_ANSWERS.find((a) => a.run === run && a.caseId === caseId && a.index === i)!.text.replace(/…$/, "") })) });
   const views: Array<{ run: 1 | 2; caseId: string; view: AuthoringAssistView }> = [];
   for (const run of [1, 2] as const) {
     for (const labelled of LABELLED_SET) {
-      const h = harness([JSON.stringify(rawAnswer(run, labelled.id))]);
-      views.push({ run, caseId: labelled.id, view: await explainFlowValidation(WINDOW, { requestId: `r4-${run}-${labelled.id}`, profile: labelled.flow }, assistDeps(h.service, POLICY, [labelled.flow.id])) });
-      await h.service.shutdown();
+      const request = requestFor(labelled.id);
+      const parsed = parseAuthoringAnswer(rawAnswer(run, labelled.id), request);
+      if (!parsed.ok) throw new Error(`historical answer for ${labelled.id} did not parse`);
+      views.push({ run, caseId: labelled.id, view: authoringAnswerView(parsed, request, "historical-control", POLICY) });
     }
   }
+  check("the current schema rejects the historical free text before display", !parseAiOutput(JSON.stringify(rawAnswer(1, "cycle")), requestFor("cycle").schema).ok);
   const received = views.flatMap(({ run, caseId, view }) => view.explanations.map((e, index) => ({ run, caseId, index, e, answer: R2_DISPLAYED_ANSWERS.find((a) => a.run === run && a.caseId === caseId && a.index === index)!, view })));
   check("every one of the 34 is delivered: no issue dropped, withheld or not", views.every(({ caseId, view }) => view.code === "OK" && view.explanations.length === labelledOf(caseId).sent.length) && received.length === 34);
   check(
@@ -1689,6 +1693,25 @@ console.log("\n17 — the concise trusted action remains useful across both froz
     results.length > 0 && results.every((result) => result !== null && result.judgement.onSubject === result.sent && result.judgement.actionable === result.sent && result.judgement.displayWithheld === 0),
     results.map((result, index) => result && result.judgement.actionable !== result.sent ? `${index}: ${result.judgement.actionable}/${result.sent}` : "").filter(Boolean).join(", ")
   );
+  check("every offered text is built from the issue's trusted action and optional rule summary", requests.every((entry) => {
+    const schema = entry.schema as unknown as { properties: { explanations: { items: { properties: { text: { enum: string[] } } } } } };
+    const offered = schema.properties.explanations.items.properties.text.enum;
+    return JSON.stringify(offered) === JSON.stringify([...new Set(entry.issues.flatMap(offeredExplanationTexts))]) && entry.issues.every((ref) => offeredExplanationTexts(ref).every((text) => text.includes(ref.step) && text.length <= 120));
+  }));
+  const variants = requests.flatMap((entry) => entry.issues.flatMap((ref) => offeredExplanationTexts(ref).map((text) => {
+    const answer = parseAuthoringAnswer({ version: 1, explanations: entry.issues.map((issue) => ({ issueId: issue.id, text: issue.id === ref.id ? text : issue.step })) }, entry);
+    return answer.ok ? { answer, judgement: judgeAuthoringAnswer(entry, answer), sent: entry.issues.length } : null;
+  })));
+  check("every offered problem/action variant is on subject, actionable and shown", variants.length > 35 && variants.every((result) => result !== null && result.judgement.onSubject === result.sent && result.judgement.actionable === result.sent && result.judgement.displayWithheld === 0));
+  const two = requests.find((entry) => entry.issues.length === 2 && entry.issues[0].step !== entry.issues[1].step)!;
+  const chosen = { version: 1, explanations: two.issues.map((ref) => ({ issueId: ref.id, text: ref.step })) };
+  check("a concise valid response is accepted by the constrained schema", parseAiOutput(JSON.stringify(chosen), two.schema).ok);
+  check("omitting an action is rejected by the constrained schema", !parseAiOutput(JSON.stringify({ ...chosen, explanations: [{ issueId: two.issues[0].id, text: "Problem only." }, chosen.explanations[1]] }), two.schema).ok);
+  check("a fabricated correction or unsupported cause cannot decode", ["Restart the browser to fix this.", "The flow fails because the network is slow."].every((text) => !parseAiOutput(JSON.stringify({ ...chosen, explanations: [{ issueId: two.issues[0].id, text }, chosen.explanations[1]] }), two.schema).ok));
+  check("a secret-bearing response cannot decode", !parseAiOutput(JSON.stringify({ ...chosen, explanations: [{ issueId: two.issues[0].id, text: "token=abcd1234efgh" }, chosen.explanations[1]] }), two.schema).ok);
+  const swapped = parseAuthoringAnswer({ ...chosen, explanations: [...chosen.explanations].reverse().map((entry, index) => ({ ...entry, issueId: two.issues[index].id })) }, two);
+  check("a text offered for another issue is rejected by the product adapter", swapped.ok && !answerUsesOfferedTexts(swapped, two));
+  check("truncated JSON is rejected instead of displayed", !parseAiOutput(JSON.stringify(chosen).slice(0, -1), two.schema).ok);
 }
 
 for (const label of failedLabels) console.error(`  ✗ ${label}`);

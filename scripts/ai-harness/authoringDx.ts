@@ -106,6 +106,22 @@ export const DX_REVISIONS: readonly DxRevision[] = Object.freeze([
       "src/ai/authoringExplanation.ts": "38af77bb43a3d0ab352a6b1fc75f7fd37b565d02",
       "app/main/ai/aiAssist.ts": "74180291114b7eecc9718b8d2761f4dc90665e2b"
     })
+  }),
+  // Revision 4: the measured revision-3 omission and truncation are addressed by a bounded
+  // request-specific response enum. Revision 3's incomplete NOT MET evidence remains separate.
+  Object.freeze({
+    revision: 4,
+    commit: "PENDING_FREEZE",
+    modelId: "Qwen3.5-0.8B-unpinned",
+    modelSha256: "f5b14da98939b60bbe1019a964eba656407e1e0b64f1fe3003ff6d650e93bfec",
+    runtimeBuild: "node-llama-cpp@3.21.1+llama.cpp@v0.4.0",
+    instructionsSha256: "0f72ee35ddc72d1a03f3dbd397e5799081be868b5225f9a7906c6fd7b4961f9c",
+    blobs: Object.freeze({
+      "src/offline/AiModelManifest.ts": "a6f2472e72b589fb37aa1ba543d588830972d1b2",
+      "src/ai/authoringClaimScreen.ts": "b8142e0b7928dc7143ffba030ba3f5e662a3363f",
+      "src/ai/authoringExplanation.ts": "51b400f3d3593fcf4655117d8ad5842c8ef135d2",
+      "app/main/ai/aiAssist.ts": "5ce4c93b09570bf6c91a5f59392c006137268677"
+    })
   })
 ]);
 

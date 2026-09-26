@@ -31,9 +31,9 @@
  * such answers in 34). The screens and that gate are `authoringClaimScreen`, the one set of rules the
  * quality harness applies too.
  *
- * What crosses to the model: issue codes, severities, whether each blocks the run, active-path flags, the
- * anchor's KIND (node, connector or flow), rule summaries and corrective steps (product-authored constants)
- * and whether the validator emitted a fix. Never an anchor id, a validator message, a locator value, a typed value, a step
+ * What crosses to the model: issue codes, whether each blocks the run, the anchor's KIND (node,
+ * connector or flow), rule summaries and corrective steps (product-authored constants), and whether
+ * the validator emitted a fix. Never an anchor id, a validator message, a locator value, a typed value, a step
  * name or any profile literal — `safeFix.from`/`to` are deliberately withheld even though they are usually
  * enum casing, because "usually" is not a contract. So the prompt's size is a function of product
  * constants alone, which is what lets L1.8 bound its worst case.
@@ -64,7 +64,7 @@ export const AUTHORING_LIMITS = Object.freeze({
    * truncated, and the request says so.
    */
   maxIssues: 2,
-  /** Characters per explanation. Enough for two plain sentences; a longer answer is a malformed one. */
+  /** Parser ceiling; the current grammar offers only evidence-backed texts of at most 120 characters. */
   maxExplanationChars: 160,
   /**
    * This feature's own deadline: its L1.8 ceiling, 120 s at the output cap (`explanationAtCapMs` in
@@ -74,8 +74,8 @@ export const AUTHORING_LIMITS = Object.freeze({
    */
   timeoutMs: 125_000,
   /**
-   * Revision 3 asks for the supplied action and at most a brief problem, so the response budget is
-   * smaller than the earlier free-prose request. The L1.8 qualification still measures this cap.
+   * Revision 4 offers a supplied action and, where it fits, a supplied problem. The L1.8
+   * qualification measures this cap against the constrained grammar.
    */
   maxOutputTokens: 176,
   maxDataChars: 3_000
@@ -162,7 +162,7 @@ export interface AuthoringRejection {
 }
 
 /**
- * Revision 3 confines the language task to copying the trusted action and, when useful, a short problem.
+ * Revision 4 confines the language task to selecting the trusted action and, where it fits, problem.
  * `verify:ai-authoring` §12 holds the request clauses and §17 checks action-only responses on both corpora.
  */
 // The 0.8B echoes the task sentence: 16 of the 2026-09-23 captured answers opened "The automation flow
@@ -177,11 +177,29 @@ export interface AuthoringRejection {
 // whether it blocks the run, as the run gate decides (`isExecutionBlocking`). Nothing else changed.
 // R5 (DX revision 2) still led the 0.8B to rewrite consequence clauses and omit actions. Revision 3
 // presents the validator's summary as Problem and its corrective step as Action, and asks for the latter
-// verbatim. The model need not state a cause or a runtime consequence.
+// verbatim. Revision 4 constrains the output to those same facts after revision 3 still omitted the action.
 const INSTRUCTIONS =
-  "For each id, return its Action sentence verbatim in text. If it fits, add a brief Problem from the given words. " +
+  "For each id, select its exact Action sentence for text; include its exact Problem only when offered. " +
   "Do not infer a cause or consequence, or add a name, value, or another correction. Stop after the action and problem. " +
   "Rank only fixable ids, blocking issues first.";
+
+/** Bounded, trusted wordings offered to the model for one issue. No profile value enters these strings. */
+export function offeredExplanationTexts(ref: AuthoringIssueRef): string[] {
+  const summary = FLOW_VALIDATION_RULES[ref.issue.code].summary;
+  const problem = summary.includes(";") ? `${summary.split(";")[0].replace(/[.!?]$/, "")}.` : summary;
+  const expanded = `${problem} ${ref.step}`;
+  // Two offered texts must still fit the unchanged 176-token job budget with JSON framing.
+  return expanded.length <= 120 ? [ref.step, expanded] : [ref.step];
+}
+
+/** An enum covers every issue in the array; check that each chosen text belongs to its own issue. */
+export function answerUsesOfferedTexts(answer: AuthoringAnswer, request: AuthoringRequest): boolean {
+  const byId = new Map(request.issues.map((ref) => [ref.id, ref]));
+  return answer.explanations.every(({ issueId, text }) => {
+    const ref = byId.get(issueId);
+    return ref !== undefined && offeredExplanationTexts(ref).includes(text);
+  });
+}
 
 /**
  * The corrective step for each rule, product-authored: an instruction to the person, tied to the node or
@@ -272,6 +290,7 @@ export function buildAuthoringRequest(report: FlowValidationReport, options: { m
   const issues: AuthoringIssueRef[] = sent.map((issue, index) => ({ id: `i${index}`, issue, fixable: issue.safeFix !== undefined, step: correctiveStep(issue) }));
   const fixableIds = issues.filter((ref) => ref.fixable).map((ref) => ref.id);
   const ids = issues.map((ref) => ref.id);
+  const offeredTexts = [...new Set(issues.flatMap(offeredExplanationTexts))];
 
   // Only the anchor's kind, never its id: an id is the user's (a recorded step's is a UUID, dozens of
   // prompt tokens the model cannot use), and an answer is mapped back through `issues`, not through it.
@@ -314,7 +333,9 @@ export function buildAuthoringRequest(report: FlowValidationReport, options: { m
             properties: {
               // Closed enum from THIS report: the grammar cannot emit an id the report lacks.
               issueId: { type: "string", enum: ids },
-              text: { type: "string", maxLength: AUTHORING_LIMITS.maxExplanationChars }
+              // The grammar permits only validator-authored text; the adapter also binds it to the
+              // selected issue because this array schema shares one enum across its items.
+              text: { type: "string", enum: offeredTexts }
             }
           }
         },
