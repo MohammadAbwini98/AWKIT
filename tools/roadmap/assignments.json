@@ -17,5 +17,14 @@
     "    \"claimedAt\": \"2026-07-27T10:00:00Z\", \"expiresAt\": \"2026-07-28T10:00:00Z\",",
     "    \"note\": \"IPC authz sweep\" }"
   ],
-  "claims": []
+  "claims": [
+    {
+      "itemId": "bead:awkit-djnl.10",
+      "agent": "Codex",
+      "state": "in-progress",
+      "claimedAt": "2026-09-26T16:36:51Z",
+      "expiresAt": "2026-09-27T16:36:51Z",
+      "note": "Fresh Phase L release packages and clean-machine verification"
+    }
+  ]
 }

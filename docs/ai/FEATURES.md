@@ -1,5 +1,18 @@
 # FEATURES
 
+## Evidence-bounded authoring explanations (Phase L L4b, 2026-09-26)
+
+- The Flow Designer's AI explanation uses the validator's issue code, rule summary and supported
+  corrective action. The constrained model selects an issue-specific short action or short
+  problem-plus-action text; the main process checks membership for that same issue before applying
+  the existing display gate. An omitted or fabricated action, unsupported cause or consequence,
+  secret, swapped issue or truncated answer is refused.
+- The correction remains a separate validator-owned line. AI fix ranking is limited to already
+  emitted safe fixes and never applies one. The model is optional; validation and manual correction
+  continue with AI off. Qwen3.5-0.8B meets the frozen DX revision 4 gate (52/52 displayed correct
+  and actionable across two labelled runs and the held-out run).
+
+
 ## Failure evidence in run reports (Phase L L5a, 2026-09-19; deterministic, no AI)
 
 - A failed, cancelled or evidence-producing run's instance report carries `diagnostics`: what the page

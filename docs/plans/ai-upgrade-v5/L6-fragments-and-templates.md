@@ -2,6 +2,10 @@
 
 Shared rules, architecture and decisions: `ROADMAP.md`. Depends on L2 and L4. Core behavior is deterministic.
 
+**Accepted and closed 2026-09-26 (`awkit-djnl.9`).** After L4b closed, the approved deterministic
+scope passed `verify:flow-fragments` 103/0, `verify:flow-fragments-gui` 53/0 in real Electron, and
+`verify:ai-fragment-assist` 73/73. The deferred intelligence remains in `awkit-egkw` outside Phase L.
+
 **Status (2026-09-25): the deterministic scope is verified and `awkit-djnl.9` stays `in_progress` only
 because L4b (`awkit-djnl.6`) blocks it.** The owner decided on 2026-09-25 (`docs/ai/DECISIONS.md`):
 - L6 closes against its approved deterministic scope once L4b is genuinely accepted. That scope is: works

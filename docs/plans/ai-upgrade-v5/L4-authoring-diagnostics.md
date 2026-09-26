@@ -49,6 +49,13 @@ design-time data-source/secret reference checks (needs a library context like `r
 
 ## L4b — AI explanations (T0) and fix ranking (T1)
 
+**Accepted and closed 2026-09-26 (`awkit-djnl.6`).** Frozen DX revision 4 passed after revision 3's
+measured failure: L1.8 GO, 59,685 ms at the explanation cap, DX-0 through DX-5 MET, 52/52 displayed
+texts correct and actionable, and 0/17, 0/18, 0/17 undisplayed per complete run. The model selects
+issue-specific validator-authored problem/action wording through a constrained grammar; no fallback is
+counted. The exact freeze and result records are in
+`evidence/L4b-dx-revision-4-{freeze,result}-2026-09-26.md`. Prior failed records below remain historical.
+
 **Current status (2026-09-25, final): the owner chose option B.** `L4b: B, cap 25 %, held-out yes, reader owner`.
 DX-0 to DX-5 now accept L4b. The adopted target stays NOT MET on the record, and the DX-0 freeze is in
 `evidence/L4b-owner-decision-proposal-2026-09-25.md` §0. `awkit-djnl.6` stays `in_progress`. Next, in order:

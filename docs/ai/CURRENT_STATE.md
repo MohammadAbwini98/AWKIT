@@ -1,5 +1,20 @@
 # CURRENT_STATE
 
+## Phase L recovery: L4b and L6 CLOSED, L7 fresh packaging in progress (2026-09-26, latest)
+
+Phase L is **9/10 closed**. L4b's frozen DX revision 4 passed: Qwen3.5-0.8B L1.8 GO,
+validation explanation 59,685 ms at cap, DX-0 through DX-5 MET, 52/52 displayed correct and
+actionable, with 0/17, 0/18 and 0/17 undisplayed. Revision 3 and all earlier failures remain
+recorded separately. The model selects issue-specific validator-owned wording; no deterministic
+fallback is counted as model output. `awkit-djnl.6` is closed.
+
+L6's approved deterministic scope passed `verify:flow-fragments` 103/0,
+`verify:flow-fragments-gui` 53/0 in real Electron, and `verify:ai-fragment-assist` 73/73;
+`awkit-djnl.9` is closed. L7 is still open while fresh portable/NSIS artifacts and the
+clean-machine procedure are evaluated. The local issuer-key environment variable is unset;
+licensed walkthrough parts requiring it remain BLOCKED. The validation ledger still has
+65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases; the DX and package gates are separate.
+
 ## Phase L: DX-3 automated (owner), R5 tried as DX revision 2 and NOT MET, R6's 2B L1.8 NO-GO; Phase L NOT complete (2026-09-26, latest)
 
 **Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** Phase L is still 7 of

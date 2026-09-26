@@ -1,5 +1,19 @@
 # Agent Handoff
 
+## HANDOFF (2026-09-26, latest) — L4b and L6 closed; L7 fresh package and clean-machine work active
+
+- Phase L: **9/10 closed**. Frozen DX revision 4 passed on Qwen3.5-0.8B: 52/52 displayed correct/actionable,
+  0/17, 0/18 and 0/17 undisplayed; L1.8 GO at 59,685 ms. `awkit-djnl.6` closed. See the revision-4
+  freeze and result evidence; all prior failed revisions remain preserved.
+- L6: final-state 103/0, 53/0 real-Electron, 73/73; `awkit-djnl.9` closed under the owner's approved
+  deterministic scope. Deferred intelligence remains outside Phase L.
+- L7: fresh portable and NSIS packages, their gates and the clean-machine VM are the active remaining work.
+  The `AWKIT-CleanMachine` Hyper-V VM exists and is off; its July clean snapshot is available.
+  `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` is unset, so licensed walkthrough parts remain BLOCKED unless
+  an authorized issuer-key environment becomes available.
+- Ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+
 ## HANDOFF (2026-09-26, latest) — R5 (DX revision 2) NOT MET, R6's 2B L1.8 NO-GO; L4b open on a measured model blocker; Phase L NOT complete
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. Phase L is 7 of 10 closed.

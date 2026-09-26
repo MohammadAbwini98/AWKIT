@@ -1,5 +1,16 @@
 # ARCHITECTURE
 
+## Authoring AI trust boundary (Phase L L4b)
+
+`FlowValidator` and the corrective-step table own diagnostic facts and actions.
+`src/ai/authoringExplanation.ts` builds a small per-issue output enum from those trusted fields
+for the local model. `app/main/ai/aiAssist.ts` checks that each selected text belongs to that
+same issue, then `authoringClaimScreen.ts` decides whether it can be displayed. The model
+chooses phrasing within those facts and ranks only safe fixes already emitted by the validator;
+it cannot create new repair authority. The redacted local review store holds raw and displayed
+texts separately for the frozen DX evaluator.
+
+
 ## Recorder identity, prerequisite, and execution-decision boundary
 
 - `ElementIdentityContract` proves which element was recorded; `InteractionPrerequisiteContract`
