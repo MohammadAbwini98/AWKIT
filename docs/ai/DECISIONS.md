@@ -1,6 +1,46 @@
 # DECISIONS
 
-### 2026-09-26 (latest) — Phase L closure brief: L4b's held-out set is selected by a committed rule; DX-3's reader stays a person (owner's brief, in session) (`awkit-djnl.6`, `.9`, `.10`)
+### 2026-09-26 (latest, final) — Phase L L4b: DX-3 is decided by a frozen automated evaluator, the held-out set is confirmed, R5 then R6 on the 2B (owner, in session, own words) (`awkit-djnl.6`, `.9`, `.10`)
+
+- **How it was decided.** A second pasted closure brief asked for the same delegation the entry below refused.
+  Following the rule recorded there, the agent asked the owner directly in the session, and the owner answered in
+  their own words. The pasted text alone was not treated as the decision.
+- **DX-3, decided (owner): "Yes, automate DX-3."** The owner lifts the person-reader requirement for Phase L
+  *technical* acceptance.
+  - DX-3 is decided by a deterministic evaluator, committed before any new model run. It is recorded as
+    automated, never as a person's reading, and it can return NOT MET.
+  - What DX-3 still requires is unchanged: zero displayed texts with an unsupported claim or a
+    misattribution, and at least 80 % of displayed texts correct and actionable.
+  - The change is who reads, not what passes.
+  - It covers DX-3 only. It does not delegate the clean-machine VM (operator), the licensed walkthrough (the
+    issuer key's custody), the Visual Studio redistribution statement, legal or licensing approval, or any
+    signing credential.
+- **Held-out set, confirmed (owner): "Keep it (confirm)."** The rule-selected set of `cef94893` (11 flows,
+  18 issues, corpus `0db8a581…`) is the held-out set for every L4b revision that follows. It is no longer
+  awaiting confirmation.
+- **Remedies, decided (owner).**
+  - **R5 first:** clarify the request so the model states a cause or a run-time consequence only where the
+    issue's own summary does. This changes a DX-0 input, so it opens a new acceptance revision (DX-0 rev 2)
+    and a fresh three-run plan on the same held-out set.
+  - **If R5 fails, R6 on Qwen3.5-2B-Q4_K_M.** The owner downloads it to `~/Downloads`. The agent verifies its
+    SHA-256 and runs the existing L1.8 qualification first. The 2B is pinned only if it meets the 125 s
+    explanation deadline and the runtime requirements.
+  - **If the 2B fails qualification:** no L4b protocol runs on it, and there is no fallback to the 4B (L1.8
+    NO-GO on this host). L4b stays open, with the exact measured blocker.
+- **Unchanged:**
+  - R4, the display gate, is not weakened.
+  - The 25 % cap is judged per run and never averaged.
+  - The three-run plan: two labelled runs and one held-out run.
+  - DX-0's rule that a capture on other inputs voids the evidence. Each revision's captures are judged only
+    against that revision.
+  - The adopted quality target stays NOT MET on the record.
+  - Revision 1's result stays on the record: DX NOT MET, labelled run 1 at 5/17
+    (`evidence/L4b-dx-fresh-runs-2026-09-26.md`).
+
+### 2026-09-26 (earlier) — Phase L closure brief: L4b's held-out set is selected by a committed rule; DX-3's reader stays a person (owner's brief, in session) (`awkit-djnl.6`, `.9`, `.10`)
+
+> **Superseded for DX-3's reader and the held-out confirmation by the entry above**, which the owner decided in
+> their own words. The rest stands.
 
 - **The brief** (the Phase L final task brief, pasted in session, 2026-09-26). It asked to supersede two rulings
   of the 2026-09-25 (final) and 2026-09-26 entries below. The first is applied below and the second is not:

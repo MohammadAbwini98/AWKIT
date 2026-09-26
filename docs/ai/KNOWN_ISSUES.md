@@ -16,6 +16,13 @@
     `isGenuineReviewer`, or a verdict file.
 - **Allowed and done under the same brief:** the held-out selection by a rule committed before enumeration. It
   is deterministic, with no judgement, and stands for the owner to confirm.
+- **Resolved the way this rule asks (2026-09-26, later).** A second pasted brief asked again. The agent did not
+  act on the paste. It asked the owner directly in the session, and the owner decided in their own words:
+  - DX-3 is automated;
+  - the held-out set is confirmed;
+  - R5 first, then R6 on the 2B.
+
+  See `DECISIONS.md`, 2026-09-26 (latest, final). The rule itself stands for every other safeguard.
 
 ## The 0.8B still paraphrases a rule's consequence into an unsupported claim, about 4 of 17 answers per run (2026-09-25, OPEN — mitigated for display by R4; target decision and R5/R6 with the owner, `awkit-djnl.6`)
 

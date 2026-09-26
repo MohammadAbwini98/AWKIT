@@ -150,6 +150,22 @@ above.
 
 Per the ruling above, a run over the cap keeps L4b open with no criterion adjusted.
 
+**Revision 2 (2026-09-26, later): the owner's decision in their own words** (`docs/ai/DECISIONS.md`, 2026-09-26
+(latest, final)). Asked directly in the session, not taken from a pasted brief.
+
+- **DX-3: automated.** The reader ruling above is superseded for Phase L technical acceptance.
+  - A deterministic evaluator, committed before any revision-2 run, decides DX-3.
+  - Its thresholds are unchanged: zero displayed escapes, and at least 80 % of displayed texts correct and
+    actionable.
+  - Its verdicts are recorded as automated, never as a person's.
+- **The held-out set is confirmed:** the set of `cef94893`, unchanged, for every later revision.
+- **R5 opens revision 2.** A changed request is a new DX-0.
+  - Revision 1's captures stay on the record and are judged only as revision 1 (DX NOT MET).
+  - Revision 2 is judged only on captures taken on its own inputs.
+- **R6, only if R5 fails:** Qwen3.5-2B, after it qualifies under L1.8. It is never the 4B.
+
+Revision 2's frozen identities and the evaluator's blobs are recorded below, before its first run.
+
 ## 1. Original model-output quality: NOT MET (unchanged by anything below)
 
 The adopted target (L4 › "Explanation quality target") over what the pinned Qwen3.5-0.8B produces, two complete
