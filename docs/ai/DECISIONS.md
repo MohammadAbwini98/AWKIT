@@ -1,5 +1,11 @@
 # DECISIONS
 
+### 2026-09-26 — Phase L L4b: the owner authorizes a new evidence-bounded 0.8B revision
+
+- The owner requested revision 3 of the qualified Qwen3.5-0.8B authoring path, using the validator's trusted problem and corrective action, concise model output, and the existing held-out corpus. This supersedes the earlier "next, owner decisions only" stop for a further request change.
+- The 125-second deadline, DX-3 80% and zero-escape requirements, DX-4 per-run 25% cap, secret and unsupported-claim protections, evaluator, and corpus remain fixed. Revision 1 and 2 failures remain NOT MET.
+- Revision 3's identities and pre-inference checks are recorded in `docs/plans/ai-upgrade-v5/evidence/L4b-dx-revision-3-freeze-2026-09-26.md`. The request and registry must be committed and pushed before any revision-3 inference.
+
 ### 2026-09-26 (latest, final) — Phase L L4b: DX-3 is decided by a frozen automated evaluator, the held-out set is confirmed, R5 then R6 on the 2B (owner, in session, own words) (`awkit-djnl.6`, `.9`, `.10`)
 
 - **How it was decided.** A second pasted closure brief asked for the same delegation the entry below refused.
