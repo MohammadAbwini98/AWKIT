@@ -17,7 +17,8 @@
 param(
   [string] $VMName = "AWKIT-CleanMachine",
   [string] $DistDir = "C:\Users\moham\OneDrive\Desktop\AWTKIT\dist",
-  [string] $VmRoot = "C:\AWKIT-CleanMachineVM"
+  [string] $VmRoot = "C:\AWKIT-CleanMachineVM",
+  [string] $ModelPackPath = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -38,9 +39,16 @@ foreach ($n in @($portable, $setup)) {
   if (-not (Test-Path $src)) { throw ("artifact missing: " + $src) }
   Copy-Item $src (Join-Path $stage $n) -Force
 }
+$names = @($portable, $setup)
+if ($ModelPackPath) {
+  if (-not (Test-Path -LiteralPath $ModelPackPath -PathType Leaf)) { throw "model pack missing: $ModelPackPath" }
+  $packName = Split-Path -Leaf $ModelPackPath
+  Copy-Item -LiteralPath $ModelPackPath -Destination (Join-Path $stage $packName) -Force
+  $names += $packName
+}
 # Carry the expected hashes in with the payload so the guest verifies against what the host built,
 # not against a value retyped by hand.
-$manifest = foreach ($n in @($portable, $setup)) {
+$manifest = foreach ($n in $names) {
   $f = Join-Path $stage $n
   "{0}|{1}|{2}" -f $n, (Get-FileHash -Algorithm SHA256 $f).Hash.ToLower(), (Get-Item $f).Length
 }
@@ -97,12 +105,13 @@ if (Test-Path $iso) {
   Remove-Item $iso -Force
 }
 
-Write-Output "Building artifacts ISO (this takes a minute for ~450 MB)"
+Write-Output "Building artifacts ISO"
 $fsi = New-Object -ComObject IMAPI2FS.MsftFileSystemImage
 # UDF: ISO9660/Joliet cannot hold a file over 4 GB and truncates long names; UDF is what Windows
 # install media itself uses.
 $fsi.FileSystemsToCreate = 4
 $fsi.UDFRevision = 0x102
+$fsi.FreeMediaBlocks = 1000000  # 2 GiB; the two artifacts plus an optional model pack exceed CD defaults.
 $fsi.VolumeName = "AWKITREL"
 $fsi.Root.AddTree($stage, $false)
 $result = $fsi.CreateResultImage()

@@ -71,17 +71,18 @@ function readSignatures(files: string[]): void {
   const list = path.join(os.tmpdir(), `awkit-native-deps-${process.pid}.txt`);
   fs.writeFileSync(list, todo.join("\n"), "utf8");
   const script =
-    "$ErrorActionPreference='Stop'; [Console]::OutputEncoding=[Text.Encoding]::UTF8; " +
+    "$ErrorActionPreference='Stop'; Import-Module (Join-Path $PSHOME 'Modules\\Microsoft.PowerShell.Security') -ErrorAction Stop; [Console]::OutputEncoding=[Text.Encoding]::UTF8; " +
     `foreach ($p in Get-Content -LiteralPath '${list}') { $s = Get-AuthenticodeSignature -LiteralPath $p; ` +
     "$subject = if ($s.SignerCertificate) { $s.SignerCertificate.Subject } else { '' }; " +
     "Write-Output ('{0}|{1}|{2}' -f $p, $s.Status, $subject) }";
   const run = spawnSync("powershell", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8", timeout: 600_000, windowsHide: true, maxBuffer: 64 << 20 });
   fs.rmSync(list, { force: true });
+  if (run.status !== 0 || run.error) throw new Error(`Windows signature probe failed: ${run.error?.message ?? run.stderr?.trim() ?? `exit ${run.status}`}`);
   for (const line of `${run.stdout ?? ""}`.split(/\r?\n/)) {
     const [file, status, ...subject] = line.split("|");
     if (file && status) signatureCache.set(file.trim().toLowerCase(), { status: status.trim(), subject: subject.join("|").trim() });
   }
-  for (const file of todo) if (!signatureCache.has(file)) signatureCache.set(file, { status: "Unread", subject: "" });
+  for (const file of todo) if (!signatureCache.has(file)) throw new Error(`Windows signature probe returned no result for ${file}`);
 }
 
 /** "windows" for a System32 file validly signed as part of Windows; otherwise why not. */
