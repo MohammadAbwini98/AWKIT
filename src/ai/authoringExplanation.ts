@@ -179,11 +179,15 @@ export interface AuthoringRejection {
 // displayed answers echoed it as the cause of a warning, where nothing failed ("…failed validation because
 // the timeout for the first step…"). The sentence now presupposes nothing, and each issue's line says
 // whether it blocks the run, as the run gate decides (`isExecutionBlocking`). Nothing else changed.
+// R5 (owner, 2026-09-26, DX revision 2): the 0.8B stated a cause or a run-time consequence of its own for about 1
+// issue in 4, which R4 withholds. The request now says what is wrong in the summary's words, and a cause or a
+// consequence only where the summary states one; otherwise only what is wrong. Nothing else changed.
 const INSTRUCTIONS =
   "You explain each issue that validation found in an automation flow, for the person editing it. " +
   "Each issue has an id, its rule code, severity, whether it blocks the run, where it is, the rule's one-line summary and the action " +
   "that corrects it. For each issue, write one or two short sentences: first its action as given, then " +
-  "what is wrong. Never suggest another action, and never invent issues, ids, rules, step names, selectors, " +
+  "what is wrong, in its summary's words. Give a cause, or what happens when the flow runs, only if its summary " +
+  "states it; otherwise just say what is wrong. Never suggest another action, and never invent issues, ids, rules, step names, selectors, " +
   "values or connections. Only an issue marked fixable has a safe fix the application can apply; you may " +
   "put those ids in order of which is most worth doing first, errors on the run path first. " +
   "You may not rank an id that is not marked fixable.";

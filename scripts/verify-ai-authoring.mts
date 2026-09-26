@@ -38,8 +38,11 @@
  * the finding, its severity and the product's step do; the target counts no withheld answer as a success;
  * and held-out wording checks it beyond the 34. Section 15 holds L4b's delivered-experience evaluator (DX,
  * owner decision 2026-09-25) on scripted captures: it can say MET, and says NOT MET or PENDING for each way
- * short of DX-0 and DX-2 to DX-5 (inputs, runs, every text read, escapes, the 80 % and the 25 % cap at their
- * boundaries); and the held-out set's structural check on flows written here, each refusal with its reason.
+ * short of DX-0 and DX-2 to DX-5 (inputs and revisions, runs, the automated DX-3's escapes the gate lets through,
+ * the 80 % and the 25 % cap at their boundaries); and the held-out set's structural check on flows written here,
+ * each refusal with its reason. Section 16 holds DX revision 2 (owner, 2026-09-26): the judge's rules for the
+ * held-out set's three codes, DX-3 calibrated on R2's 34 recorded answers, and the claims R5 names, through the
+ * display gate and DX-3 alike.
  *
  * Run: npm run verify:ai-authoring
  */
@@ -72,7 +75,7 @@ import { AI_RUNTIME_PIN } from "@src/offline/AiModelManifest";
 import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 import type { FlowProfile } from "@src/profiles/FlowProfile";
 import type { AiPolicyConfig } from "@src/security/authz/AiAutonomyPolicy";
-import { FLOW_VALIDATION_RULES, isExecutionBlocking, validateFlowDefinition, type FlowValidationReport } from "@src/validation/FlowValidator";
+import { FLOW_VALIDATION_RULES, isExecutionBlocking, validateFlowDefinition, type FlowValidationCode, type FlowValidationReport } from "@src/validation/FlowValidator";
 
 import { assistJobId, cancelAssist, explainFlowValidation, summarizeFragment, type AiAssistDeps } from "../app/main/ai/aiAssist";
 import { virtualClock } from "./lib/virtual-clock.mts";
@@ -92,7 +95,7 @@ import {
   type ReviewItem,
   type ReviewVerdict
 } from "./ai-harness/authoringQualityReview";
-import { DX0, currentDx0Problems, dxPending, evaluateDx, heldOutCommitProblems, heldOutRequest, inventoryPath, readHeldOut } from "./ai-harness/authoringDx";
+import { DX0, HELD_OUT_DIR, currentDx0Problems, dx3Reading, dxReadings, evaluateDx, heldOutCommitProblems, heldOutRequest, inventoryPath, readHeldOut, type DxRevision } from "./ai-harness/authoringDx";
 import {
   CANARY,
   LABELLED_SET,
@@ -103,6 +106,7 @@ import {
   causalClaimControlFailures,
   correctiveControlFailures,
   displayGateControlFailures,
+  heldOutCodeControlFailures,
   judgeAuthoringAnswer,
   literalControlFailures,
   makesCausalClaim as harnessCausal,
@@ -806,6 +810,8 @@ console.log("\n12 — corrective step, fix priority, the review store and the ad
   check("...and each issue comes with whether it blocks the run", /severity, whether it blocks the run, where it is/.test(instructions));
   check("the instruction says each issue comes with the action that corrects it",/the rule's one-line summary and the action that corrects it/.test(instructions));
   check("...and asks for that action FIRST and as given, so the character limit cuts the explanation and not the action", /first its action as given, then what is wrong/.test(instructions));
+  // R5 (owner, 2026-09-26): a cause or a run-time consequence only where the summary states one, else only what is wrong.
+  check("...then what is wrong in its summary's words, and a cause or consequence only where the summary states one (R5)", /then what is wrong, in its summary's words\. Give a cause, or what happens when the flow runs, only if its summary states it; otherwise just say what is wrong\./.test(instructions));
   check("...and no other action: the action is the product's, grounded in the rule", /Never suggest another action/.test(instructions));
   check("...never inventing a step name, selector, value or connection", /never invent issues, ids, rules, step names, selectors, values or connections/.test(instructions));
   check("...nor a fix for an issue with no emitted fix", /Only an issue marked fixable has a safe fix the application can apply/.test(instructions));
@@ -1346,22 +1352,28 @@ try {
   writeFileSync(inventoryPath(heldDir), JSON.stringify({ ...inv, issues: 18 }));
   check("...and one that does not match its flows is refused as such", heldOutCommitProblems(heldDir, inv).some((p) => p.includes("does not match")));
 
-  // The evaluator. R2's run-1 answers leave 4 of 17 undisplayed, run 2's 6: the cap's two sides, not fitted.
+  // The evaluator. R2's run-1 answers leave 4 of 17 undisplayed, run 2's 6: the cap's two sides, not fitted. A text the
+  // gate shows is replaced by the product's own step, which the judge reads correct and actionable (§11), so DX-3 can
+  // say MET; `edit` scripts one text in its place, through the same parser and judge. The withheld texts stay R2's.
   const inputs: CaptureInputs = { modelSha256: DX0.modelSha256, runtimeBuild: DX0.runtimeBuild, blobs: { ...DX0.blobs }, heldOutSha256: inv.corpusSha256 };
-  const answerFor = (request: AuthoringRequest, run: 1 | 2, twin: string) => {
-    const texts = request.issues.map((ref, i) => ({ issueId: ref.id, text: R2_DISPLAYED_ANSWERS.find((a) => a.run === run && a.caseId === twin && a.index === i)!.text.replace(/…$/, "") }));
+  type Edit = (caseId: string, index: number) => string | undefined;
+  const answerFor = (request: AuthoringRequest, run: 1 | 2, twin: string, caseId: string, edit?: Edit) => {
+    const r2 = request.issues.map((ref, i) => ({ issueId: ref.id, text: R2_DISPLAYED_ANSWERS.find((a) => a.run === run && a.caseId === twin && a.index === i)!.text.replace(/…$/, "") }));
+    const first = parseAuthoringAnswer({ version: 1, explanations: r2 }, request);
+    if (!first.ok) throw new Error(`the replayed answer of ${twin} must parse`);
+    const texts = r2.map((t, i) => ({ ...t, text: edit?.(caseId, i) ?? (first.explanations[i].withheld ? t.text : request.issues[i].step) }));
     const parsed = parseAuthoringAnswer({ version: 1, explanations: texts }, request);
-    if (!parsed.ok) throw new Error(`the replayed answer of ${twin} must parse`);
+    if (!parsed.ok) throw new Error(`the scripted answer of ${twin} must parse`);
     return parsed;
   };
   let minute = 0;
   const at = () => new Date(Date.UTC(2026, 8, 27, 0, minute++));
-  const labelledCapture = (run: 1 | 2, ids = LABELLED_SET.map((c) => c.id), undelivered?: string) =>
+  const labelledCapture = (run: 1 | 2, ids = LABELLED_SET.map((c) => c.id), undelivered?: string, edit?: Edit) =>
     buildReviewCapture(
       DX0.modelId,
       ids.map((id) => {
         const request = requestFor(id);
-        const answer = id === undelivered ? null : answerFor(request, run, id);
+        const answer = id === undelivered ? null : answerFor(request, run, id, id, edit);
         return { caseId: id, request, answer, judged: answer ? judgeAuthoringAnswer(request, answer) : null, inferMs: 1 };
       }),
       at(),
@@ -1372,43 +1384,37 @@ try {
       DX0.modelId,
       inv.cases.map((c) => {
         const request = heldOutRequest(loaded.flows.get(c.id)!)!;
-        const answer = answerFor(request, run, c.file.replace(/\.json$/, ""));
+        const answer = answerFor(request, run, c.file.replace(/\.json$/, ""), c.id);
         return { caseId: c.id, request, answer, judged: judgeAuthoringAnswer(request, answer), inferMs: 1 };
       }),
       at(),
       inputs
     );
-  const approve = (captures: readonly ReviewCapture[], edit: (i: ReviewItem, v: ReviewVerdict) => ReviewVerdict = (_i, v) => v): ReviewVerdict[] =>
-    captures.flatMap((c) =>
-      c.items
-        .filter((i) => i.text !== null)
-        .map((i) => edit(i, { itemId: i.id, correct: true, actionable: true, grounded: true, unsupportedClaim: false, misattributed: false, reviewer: "MA", reviewedAt: "2026-09-27T00:00:00Z" }))
-    );
   const pass = [labelledCapture(1), labelledCapture(1), heldCapture(1)];
-  const met = evaluateDx(pass, approve(pass), inv, []);
+  const met = evaluateDx(pass, inv, []);
   check(
     "(precondition) the scripted captures are fresh, and run 1's answers leave 4 of 17 undisplayed in each labelled run and the held-out run",
     met.fresh === 3 && met.voided.length === 0 && met.runs.length === 3 && met.runs.every((r) => r.sent === 17 && r.sent - r.displayed === 4),
     JSON.stringify(met.runs)
   );
-  check("DX can say MET: two labelled runs and one held-out run at the cap, every text read, all correct", met.verdict === "MET", JSON.stringify(met.criteria));
+  check("DX can say MET: two labelled runs and one held-out run at the cap, every text read by the automated review, all displayed correct", met.verdict === "MET", JSON.stringify(met.criteria));
   check(
     "the adopted target over the same captures stays NOT MET: DX passes nothing on its behalf",
-    evaluateQualityTarget(pass, approve(pass), LABELLED_SET.map((c) => c.id)).verdict === "NOT MET"
+    evaluateQualityTarget(pass, [], LABELLED_SET.map((c) => c.id)).verdict === "NOT MET"
   );
   check("DX-5 reports the model before the gate: 17/17 on subject in labelled run 1, the withheld included", met.runs[0].ownOnSubject === 17 && dxStatus(met, "DX-5") === "MET");
   check("reading a capture again with today's judge and gate keeps what it was taken on", JSON.stringify(rereadCapture(pass[0], requestFor).capture.inputs) === JSON.stringify(inputs));
 
   // DX-4, never averaged, and every way an issue can go without a displayed text.
   const over = [labelledCapture(1), labelledCapture(2), heldCapture(1)];
-  const e4 = evaluateDx(over, approve(over), inv, []);
+  const e4 = evaluateDx(over, inv, []);
   check("DX-4: run 2's answers leave 6 of 17 undisplayed: NOT MET", dxStatus(e4, "DX-4") === "NOT MET" && e4.verdict === "NOT MET" && e4.runs[1].sent - e4.runs[1].displayed === 6);
   const shownMore = (c: ReviewCapture, n: number): ReviewCapture => {
     const ids = new Set(c.items.filter((i) => i.displayWithheld).slice(0, n).map((i) => i.id));
     return { ...c, items: c.items.map(({ displayWithheld, ...i }) => (ids.has(i.id) || !displayWithheld ? i : { ...i, displayWithheld })) };
   };
   const mixed = [shownMore(pass[0], 2), labelledCapture(2), shownMore(pass[2], 2)];
-  const eMix = evaluateDx(mixed, approve(mixed), inv, []);
+  const eMix = evaluateDx(mixed, inv, []);
   const totals = eMix.runs.reduce((t, r) => ({ off: t.off + r.sent - r.displayed, sent: t.sent + r.sent }), { off: 0, sent: 0 });
   check(
     "DX-4 is never averaged: 10 of 51 over three runs is within 25 %, and the run at 6 of 17 still fails it",
@@ -1434,12 +1440,12 @@ try {
     ["left unexplained", fifth(() => null)]
   ];
   for (const [how, captures] of fifths) {
-    const e = evaluateDx(captures, approve(captures), inv, []);
+    const e = evaluateDx(captures, inv, []);
     check(`DX-4 at the boundary: a 5th issue of 17 ${how} is NOT MET (4 was MET)`, dxStatus(e, "DX-4") === "NOT MET" && e.runs[0].sent - e.runs[0].displayed === 5, JSON.stringify(e.runs[0]));
   }
   const allShown = LABELLED_SET.find((c) => pass[0].items.filter((i) => i.caseId === c.id).every((i) => i.text !== null && !i.displayWithheld))!;
   const dropped = [labelledCapture(1, undefined, allShown.id), pass[1], pass[2]];
-  const eDrop = evaluateDx(dropped, approve(dropped), inv, []);
+  const eDrop = evaluateDx(dropped, inv, []);
   // Runs are formed in capture order, so the capture made here is labelled run 2.
   check(
     `DX-4: an answer never delivered (${allShown.id}) counts its issues as undisplayed: NOT MET`,
@@ -1447,48 +1453,72 @@ try {
     JSON.stringify(eDrop.runs)
   );
 
-  // DX-3: escapes, the 80 %, and every text read by a person.
-  const firstShown = pass[0].items.find((i) => i.text !== null && !i.displayWithheld)!;
-  const firstWithheld = pass[0].items.find((i) => i.displayWithheld)!;
-  const escapes: Array<[string, Partial<ReviewVerdict>]> = [
-    ["an unsupported claim", { unsupportedClaim: true }],
-    ["a claim not grounded in the request", { grounded: false }],
-    ["a misattribution", { misattributed: true }]
+  // DX-3: the automated technical review (owner, 2026-09-26). Escapes the display gate lets through, the 80 %, and the
+  // withheld texts, read and never credited. Each scripted text replaces the locator case's first answer in run 1.
+  // A scripted capture is newer than pass[1], so it is labelled run 2: these read the pooled figures, never runs[0].
+  const scripted = (edit: Edit) => labelledCapture(1, undefined, undefined, edit);
+  const textAt = (caseId: string, index: number, text: string): Edit => (c, i) => (c === caseId && i === index ? text : undefined);
+  const itemOf = (capture: ReviewCapture, caseId: string, index: number) => capture.items.find((i) => i.caseId === caseId && i.issueId === `i${index}`)!;
+  const locatorStep = requestFor("locator-orphan").issues[0].step;
+  const escapes: Array<[string, string, number, string]> = [
+    ["a misattribution (the other issue's action)", "locator-orphan", 0, requestFor("locator-orphan").issues[1].step],
+    ["an invented consequence in a word the gate does not read ('breaks')", "locator-orphan", 0, `${locatorStep} Otherwise the step breaks.`],
+    ["a hypothetical consequence ('could break')", "locator-orphan", 0, `${locatorStep} Without one the step could break.`],
+    ["an invented cause through a connective the gate does not read ('since')", "locator-orphan", 0, "Since the page loads slowly, add a locator to this step so that it knows which element to act on."],
+    ["the run not starting, said of a warning ('prevents'), which no severity screen reads", "warnings", 0, `${requestFor("warnings").issues[0].step} This prevents the run.`]
   ];
-  for (const [how, edit] of escapes) {
-    const e = evaluateDx(pass, approve(pass, (i, v) => (i.id === firstShown.id ? { ...v, ...edit } : v)), inv, []);
-    check(`DX-3: one displayed text with ${how}, confirmed by a person, is NOT MET whatever else holds`, dxStatus(e, "DX-3") === "NOT MET" && e.verdict === "NOT MET" && e.runs[0].escapes === 1);
+  for (const [how, caseId, index, text] of escapes) {
+    const capture = scripted(textAt(caseId, index, text));
+    const item = itemOf(capture, caseId, index);
+    const e = evaluateDx([capture, pass[1], pass[2]], inv, []);
+    check(
+      `DX-3: one displayed text with ${how} is an escape, NOT MET whatever else holds`,
+      !item.displayWithheld && dxStatus(e, "DX-3") === "NOT MET" && e.verdict === "NOT MET" && e.reading.escapes === 1,
+      JSON.stringify({ shown: !item.displayWithheld, reading: dx3Reading(item), dx3: dxStatus(e, "DX-3") })
+    );
   }
-  const caught = evaluateDx(pass, approve(pass, (i, v) => (i.id === firstWithheld.id ? { ...v, unsupportedClaim: true, correct: false } : v)), inv, []);
-  check("...the same verdict on a WITHHELD text is the gate working: no escape, still MET", caught.verdict === "MET" && caught.runs[0].escapes === 0);
-  const shownIds = pass.flatMap((c) => c.items).filter((i) => i.text !== null && !i.displayWithheld).map((i) => i.id);
-  const need = Math.ceil((shownIds.length * 4) / 5);
-  const goodOnly = (n: number, field: "correct" | "actionable") => {
-    const bad = new Set(shownIds.slice(n));
-    return approve(pass, (i, v) => (bad.has(i.id) ? { ...v, [field]: false } : v));
-  };
+  const blockingPrevents = itemOf(scripted(textAt("single", 0, `${requestFor("single").issues[0].step} This prevents the run.`)), "single", 0);
+  check("...while the same words of an issue that blocks the run are its own line's evidence: correct", dx3Reading(blockingPrevents).correct, JSON.stringify(dx3Reading(blockingPrevents)));
+  const firstShown = pass[0].items.find((i) => i.text !== null && !i.displayWithheld)!;
+  const leaked = [{ ...pass[0], items: pass[0].items.map((i) => (i.id === firstShown.id ? { ...i, text: null, withheld: "RESIDUAL_SECRET" as const } : i)) }, pass[1], pass[2]];
+  const eLeak = evaluateDx(leaked, inv, []);
+  check("DX-3: a residual secret the product would show is an escape (SECRET)", dxStatus(eLeak, "DX-3") === "NOT MET" && eLeak.reading.defects.SECRET === 1);
+  const withheldDefects = pass[0].items.filter((i) => i.displayWithheld && dx3Reading(i).defects.length > 0);
+  check("the same defects on WITHHELD texts are the gate working: run 1 withholds some, no escape, still MET", withheldDefects.length > 0 && met.reading.escapes === 0 && dxStatus(met, "DX-3") === "MET", JSON.stringify(withheldDefects.map((i) => [i.id, dx3Reading(i).defects])));
+  // Correct and actionable. A rule's own summary is on subject and correct, and names no action (REMEDY's comment).
+  // Beside it, R2's #17 (withheld) becomes a withheld text DX-3 reads correct AND actionable, which must never be credited.
+  const shownKeys = pass[0].items.filter((i) => !i.displayWithheld).map((i) => ({ caseId: i.caseId, index: Number(i.issueId.slice(1)), code: i.code }));
+  const shownTotal = pass.reduce((n, c) => n + c.items.filter((i) => i.text !== null && !i.displayWithheld).length, 0);
+  const need = Math.ceil((shownTotal * 4) / 5);
+  const correctWithheld = "Set this step's timeout to a positive number of milliseconds, because the timeout is zero, negative or not a finite number.";
+  const summaries = (n: number) =>
+    scripted((caseId, index) => {
+      if (caseId === "single" && index === 0) return correctWithheld;
+      const key = shownKeys.slice(0, n).find((k) => k.caseId === caseId && k.index === index);
+      return key ? FLOW_VALIDATION_RULES[key.code].summary : undefined;
+    });
+  const atNeed = evaluateDx([summaries(shownTotal - need), pass[1], pass[2]], inv, []);
+  const below = summaries(shownTotal - need + 1);
+  const belowNeed = evaluateDx([below, pass[1], pass[2]], inv, []);
   check(
-    `DX-3 at the boundary: ${need} of ${shownIds.length} displayed texts correct and actionable is MET, ${need - 1} is NOT MET, each way`,
-    dxStatus(evaluateDx(pass, goodOnly(need, "correct"), inv, []), "DX-3") === "MET" &&
-      dxStatus(evaluateDx(pass, goodOnly(need - 1, "correct"), inv, []), "DX-3") === "NOT MET" &&
-      dxStatus(evaluateDx(pass, goodOnly(need - 1, "actionable"), inv, []), "DX-3") === "NOT MET"
+    `DX-3 at the boundary: ${need} of ${shownTotal} displayed texts correct and actionable is MET, ${need - 1} is NOT MET`,
+    shownKeys.length >= shownTotal - need + 1 && atNeed.reading.displayed === shownTotal && atNeed.reading.correctAndActionable === need && dxStatus(atNeed, "DX-3") === "MET" && belowNeed.reading.correctAndActionable === need - 1 && dxStatus(belowNeed, "DX-3") === "NOT MET",
+    JSON.stringify({ at: atNeed.reading, below: belowNeed.reading })
   );
-  check("...and the withheld texts, every one judged correct, do not rescue it: they are never credited", evaluateDx(pass, goodOnly(need - 1, "correct"), inv, []).reading.correctAndActionable === need - 1);
-  const without = (id: string) => approve(pass).filter((v) => v.itemId !== id);
-  check("DX-3 is PENDING while one withheld text is unread: the owner reads those too", dxStatus(evaluateDx(pass, without(firstWithheld.id), inv, []), "DX-3") === "PENDING");
-  check("...and while one displayed text is unread", dxStatus(evaluateDx(pass, without(firstShown.id), inv, []), "DX-3") === "PENDING");
-  const noMisattribution = approve(pass, (i, v) => {
-    if (i.id !== firstShown.id) return v;
-    const { misattributed: _m, ...rest } = v;
-    return rest;
-  });
-  check("a verdict without --misattributed is no DX reading: PENDING", dxStatus(evaluateDx(pass, noMisattribution, inv, []), "DX-3") === "PENDING");
+  check("...a correct summary with no action is no escape: it only counts against the 80 %", belowNeed.reading.escapes === 0);
+  const withheldGood = itemOf(below, "single", 0);
   check(
-    "a verdict under an agent's or a placeholder's label is no reading, and cannot confirm a failure either: PENDING",
-    ["claude", "Codex", "YOUR_LABEL", "<label>"].every(
-      (label) => dxStatus(evaluateDx(pass, approve(pass, (i, v) => (i.id === firstShown.id ? { ...v, reviewer: label, unsupportedClaim: true } : v)), inv, []), "DX-3") === "PENDING"
-    )
+    "...and a withheld text read correct and actionable does not rescue it: it is never credited",
+    !!withheldGood.displayWithheld && dx3Reading(withheldGood).correct && dx3Reading(withheldGood).actionable && dxStatus(belowNeed, "DX-3") === "NOT MET",
+    JSON.stringify({ withheld: withheldGood.displayWithheld, reading: dx3Reading(withheldGood) })
   );
+  const vague = evaluateDx([scripted(textAt("locator-orphan", 0, "Please look at this part of the flow again.")), pass[1], pass[2]], inv, []);
+  check("an off-subject text is not correct and no escape", vague.reading.escapes === 0 && vague.reading.correctAndActionable === met.reading.correctAndActionable - 1, JSON.stringify(vague.reading));
+  // False withholding, reported per run: R2's #33 is a correct restatement the gate withholds (§14), and DX-3 reads it correct.
+  const cap2 = labelledCapture(2);
+  const r33 = itemOf(cap2, "warnings", 1);
+  const run2 = evaluateDx([pass[0], cap2, pass[2]], inv, []).runs.find((r) => r.corpus === "labelled" && r.run === 2);
+  check("false withholding is measured: R2's #33, withheld by the gate, is read correct and counted in its run", !!r33.displayWithheld && dx3Reading(r33).correct && (run2?.falseWithholding.withheldCorrect ?? 0) >= 1, JSON.stringify(run2?.falseWithholding));
 
   // DX-0: each input, and the tree.
   const swapped = (c: ReviewCapture) => [pass[0], c, pass[2]];
@@ -1502,44 +1532,47 @@ try {
     ["another held-out corpus", { ...pass[1], inputs: { ...inputs, heldOutSha256: "0".repeat(64) } }]
   ];
   for (const [how, capture] of voids) {
-    const e = evaluateDx(swapped(capture), approve(swapped(capture)), inv, []);
+    const e = evaluateDx(swapped(capture), inv, []);
     check(`DX-0: a capture taken on ${how} voids the fresh evidence: NOT MET`, dxStatus(e, "DX-0") === "NOT MET" && e.verdict === "NOT MET" && e.voided.length === 1);
   }
-  check("DX-0: a working tree off DX-0 is NOT MET", dxStatus(evaluateDx(pass, approve(pass), inv, ["src/ai/authoringClaimScreen.ts differs"]), "DX-0") === "NOT MET");
+  check("DX-0: a working tree off DX-0 is NOT MET", dxStatus(evaluateDx(pass, inv, ["src/ai/authoringClaimScreen.ts differs"]), "DX-0") === "NOT MET");
   const { inputs: _inputs, ...before } = pass[1];
-  const e0 = evaluateDx([pass[0], before, pass[2]], approve(pass), inv, []);
+  const e0 = evaluateDx([pass[0], before, pass[2]], inv, []);
   check("a capture from before DX (no inputs) is no fresh evidence and voids nothing: one labelled run, DX-2 PENDING", e0.voided.length === 0 && e0.fresh === 2 && dxStatus(e0, "DX-2") === "PENDING");
-  const noHeldOut = evaluateDx(pass, approve(pass), null, []);
+  const noHeldOut = evaluateDx(pass, null, []);
   check("with no committed held-out set every capture is void: no fresh run can come before it", noHeldOut.voided.length === 3 && dxStatus(noHeldOut, "DX-0") === "NOT MET");
+  // Revisions: an earlier revision's capture is its own record, kept and never counted; it voids nothing of this one.
+  const older: DxRevision = { ...DX0, revision: DX0.revision - 1, instructionsSha256: "0".repeat(64) };
+  const ofOlder: ReviewCapture = { ...pass[1], instructionsSha256: older.instructionsSha256 };
+  const eOld = evaluateDx([pass[0], ofOlder, pass[2]], inv, [], [older, DX0]);
+  check(
+    "a capture on an earlier revision's inputs is kept on the record, never counted, and voids nothing: DX-0 MET, one labelled run",
+    eOld.earlier.length === 1 && eOld.earlier[0].revision === older.revision && eOld.voided.length === 0 && eOld.fresh === 2 && dxStatus(eOld, "DX-0") === "MET" && dxStatus(eOld, "DX-2") === "PENDING",
+    JSON.stringify({ earlier: eOld.earlier, voided: eOld.voided })
+  );
+  check("...and the same capture, with no earlier revision it matches, still voids the evidence", evaluateDx([pass[0], ofOlder, pass[2]], inv, []).voided.length === 1);
 
   // DX-2: the planned runs, and a part that cannot be dropped.
-  check("DX-2: one labelled run is PENDING", dxStatus(evaluateDx([pass[0], pass[2]], approve(pass), inv, []), "DX-2") === "PENDING");
-  check("...and DX-3 is not judged before DX-2 holds: every text read and correct, still PENDING", dxStatus(evaluateDx([pass[0], pass[2]], approve(pass), inv, []), "DX-3") === "PENDING");
-  check("DX-2: no held-out run is PENDING", dxStatus(evaluateDx([pass[0], pass[1]], approve(pass), inv, []), "DX-2") === "PENDING");
+  check("DX-2: one labelled run is PENDING", dxStatus(evaluateDx([pass[0], pass[2]], inv, []), "DX-2") === "PENDING");
+  check("...and DX-3 is not judged before DX-2 holds: every displayed text correct, still PENDING", dxStatus(evaluateDx([pass[0], pass[2]], inv, []), "DX-3") === "PENDING");
+  check("DX-2: no held-out run is PENDING", dxStatus(evaluateDx([pass[0], pass[1]], inv, []), "DX-2") === "PENDING");
   const part = labelledCapture(1, ["casing", "branch"]);
   const withPart = [...pass, part];
-  check("a part left incomplete keeps DX-2 PENDING: it can be completed, never dropped", dxStatus(evaluateDx(withPart, approve(withPart), inv, []), "DX-2") === "PENDING");
-  const partShown = part.items.find((i) => i.text !== null && !i.displayWithheld);
-  check(
-    "...and an unsupported text in that part still fails DX-3",
-    dxStatus(evaluateDx(withPart, approve(withPart, (i, v) => (i.id === partShown?.id ? { ...v, unsupportedClaim: true } : v)), inv, []), "DX-3") === "NOT MET"
-  );
+  check("a part left incomplete keeps DX-2 PENDING: it can be completed, never dropped", dxStatus(evaluateDx(withPart, inv, []), "DX-2") === "PENDING");
+  const badPart = labelledCapture(1, ["casing", "branch"], undefined, textAt("casing", 0, `${requestFor("casing").issues[0].step} Otherwise the condition breaks.`));
+  check("...and an escape in that part still fails DX-3", dxStatus(evaluateDx([...pass, badPart], inv, []), "DX-3") === "NOT MET");
   const rest = labelledCapture(1, LABELLED_SET.map((c) => c.id).filter((id) => id !== "casing" && id !== "branch"));
   const completed = [...withPart, rest];
-  const e2 = evaluateDx(completed, approve(completed), inv, []);
+  const e2 = evaluateDx(completed, inv, []);
   check("completed, that run counts like the others: 3 labelled runs, MET", e2.runs.filter((r) => r.corpus === "labelled").length === 3 && e2.verdict === "MET");
 
-  // The reading packet and the verdict's new field.
-  const readable = (c: ReviewCapture) => c.items.filter((i) => i.text !== null).length;
-  const packet = dxPending(pass, [], inv);
+  // The automated review's own record: every fresh text with its reading.
+  const packet = dxReadings(pass, inv);
   check(
-    "the reading packet lists every fresh text, displayed and withheld alike, in item-id order",
-    packet.length === pass.reduce((n, c) => n + readable(c), 0) && packet.some((i) => i.displayWithheld) && packet.some((i) => !i.displayWithheld) && packet.every((i, k) => k === 0 || packet[k - 1].id < i.id)
+    "the review's record lists every fresh text with its DX-3 reading, displayed and withheld alike, in item-id order",
+    packet.length === pass.reduce((n, c) => n + c.items.length, 0) && packet.some((p) => p.item.displayWithheld) && packet.some((p) => !p.item.displayWithheld) && packet.every((p, k) => k === 0 || packet[k - 1].item.id < p.item.id)
   );
-  check(
-    "...drops what a person has read, and never lists a void capture's text",
-    dxPending(pass, approve([pass[0]]), inv).length === readable(pass[1]) + readable(pass[2]) && dxPending(swapped(voids[0][1]), [], inv).length === readable(pass[0]) + readable(pass[2])
-  );
+  check("...and never a void capture's text", dxReadings(swapped(voids[0][1]), inv).length === pass[0].items.length + pass[2].items.length);
   const storeDir = join(work, "dx-store");
   await writeReviewCapture(storeDir, pass[0]);
   const verdictBase = { itemId: firstShown.id, correct: true, actionable: true, grounded: true, unsupportedClaim: false, reviewer: "MA" };
@@ -1549,6 +1582,99 @@ try {
   check("--misattributed is recorded as given, and anything but yes or no is refused", !refusedField.ok && recorded.ok && stored.length === 1 && stored[0].misattributed === true);
 } catch (error) {
   check("§15 ran to its end", false, String((error as Error)?.stack ?? error));
+}
+
+console.log("\n16 — L4b DX revision 2: the held-out codes' judge rules, DX-3 on R2's 34, and the claims R5 names");
+try {
+  const failures = heldOutCodeControlFailures();
+  check("missingFlowReference, connectorStructure, invalidLoopBounds: relevant on subject and actionable, irrelevant off subject, fabricated a defect", failures.length === 0, failures.join("; "));
+  // R4's one change in revision 2, red first: invalidLoopBounds' own step ("…from 1 to 1000.") was withheld as a value
+  // never given, because a number ending a sentence was never read as held. Every rule's step, not only the labelled ones.
+  const requestOfCode = (code: FlowValidationCode) =>
+    buildAuthoringRequest({
+      flowId: "every-rule",
+      issues: [{ code, severity: FLOW_VALIDATION_RULES[code].severity, onActivePath: true, flowId: "every-rule", nodeId: "n1", message: "never sent" }],
+      reachableNodeIds: new Set(),
+      reachabilityKnown: true
+    })!;
+  const stepWithheld = (Object.keys(FLOW_VALIDATION_RULES) as FlowValidationCode[]).flatMap((code) => {
+    const request = requestOfCode(code);
+    const reasons = withholdReasons(request.issues[0], request.issues[0].step, supportedTextOf(request));
+    return reasons.length > 0 ? [`${code}: ${reasons.join(", ")}`] : [];
+  });
+  check(`every rule's own corrective step, restated as the whole answer, is shown by the gate (${Object.keys(FLOW_VALIDATION_RULES).length} rules)`, stepWithheld.length === 0, stepWithheld.join("; "));
+  check("...while a number the request never gave is still a fabricated value: 'to 5000'", unsupportedClaims(requestOfCode("invalidLoopBounds").issues[0], "Set the loop's iteration limit to 5000.", supportedTextOf(requestOfCode("invalidLoopBounds"))).includes("FABRICATED_LITERAL"));
+  const committed = readHeldOut(HELD_OUT_DIR);
+  const sentCodes = new Set([...LABELLED_SET.flatMap((c) => c.sent.map((s) => s.code)), ...(committed.ok ? committed.inventory.cases.flatMap((c) => c.sent.map((s) => s.code)) : [])]);
+  const unruled = [...sentCodes].filter((code) => SUBJECT[code] === undefined || REMEDY[code] === undefined);
+  check(
+    "every code the labelled set and the committed held-out set send has a subject and a remedy rule, the three new ones included: no text is unjudgeable",
+    committed.ok && ["missingFlowReference", "connectorStructure", "invalidLoopBounds"].every((c) => sentCodes.has(c as never)) && unruled.length === 0,
+    committed.ok ? `unruled: ${unruled.join(", ")}` : committed.problems.join("; ")
+  );
+
+  // A review item for `text` as the answer to issue `index` of a labelled case, judged as the store re-reads a capture:
+  // the shown text, not re-trimmed, beside the product's own step for the other issue.
+  const requestOf = (caseId: string) => buildAuthoringRequest(validateFlowDefinition(LABELLED_SET.find((c) => c.id === caseId)!.flow, { referenceableFlowIds: new Set([caseId]) }))!;
+  const itemFor = (caseId: string, index: number, text: string): ReviewItem => {
+    const request = requestOf(caseId);
+    const ref = request.issues[index];
+    const answer = { ok: true as const, explanations: request.issues.map((r, i) => ({ issueId: r.id, issue: r.issue, step: r.step, text: i === index ? text : r.step })), ranking: [] };
+    const p = judgeAuthoringAnswer(request, answer).perExplanation[index];
+    const lines = request.prompt.fields.flatMap((field) => ("text" in field && typeof field.text === "string" ? field.text.split("\n") : []));
+    return {
+      id: `calibration/${caseId}/${ref.id}`,
+      caseId,
+      issueId: ref.id,
+      code: ref.issue.code,
+      blocking: isExecutionBlocking(ref.issue),
+      fixable: ref.fixable,
+      evidence: lines.find((line) => line.startsWith(`${ref.id}: `)) ?? "",
+      step: ref.step,
+      text,
+      judged: { onSubject: p.onSubject, misattributed: p.misattributed, actionable: p.actionable, unsupported: p.unsupported, category: p.category }
+    };
+  };
+
+  // Calibration, on answers recorded before DX-3 was written: the 34 displayed after R1 and R2, with the 2026-09-25 AI
+  // evaluation's finding beside each. A lexical reading cannot see a supported word related wrongly ("or" read as "and",
+  // "it never runs" said of the flow): #5, #8 and #25 are its recorded limit, and the gate withholds all three.
+  const calibrated = R2_DISPLAYED_ANSWERS.map((a) => ({ n: a.n, unsupported: a.unsupported, defects: dx3Reading(itemFor(a.caseId, a.index, a.text)).defects }));
+  const flaggedCorrect = calibrated.filter((a) => !a.unsupported && a.defects.length > 0);
+  check("DX-3 on R2's 34: none of the 26 the evaluation found correct has a defect", calibrated.filter((a) => !a.unsupported).length === 26 && flaggedCorrect.length === 0, JSON.stringify(flaggedCorrect));
+  const found = calibrated.filter((a) => a.unsupported && a.defects.length > 0).map((a) => a.n);
+  check("...and it finds a defect in #7, #17, #23, #24 and #34 of the 8 found unsupported", [7, 17, 23, 24, 34].every((n) => found.includes(n)), JSON.stringify(calibrated.filter((a) => a.unsupported)));
+  // What the issue's own line contradicts is a defect of its own, even where no cause or outcome is claimed.
+  const contradicts = [
+    dx3Reading(itemFor("warnings", 0, `This timeout blocks the run. ${requestOf("warnings").issues[0].step}`)),
+    dx3Reading(itemFor("single", 0, "The application can fix this automatically. Set this step's timeout to a positive number of milliseconds."))
+  ];
+  check("DX-3: a severity or an automatic fix the issue's line contradicts is CONTRADICTS_EVIDENCE", contradicts.every((r) => r.defects.includes("CONTRADICTS_EVIDENCE") && !r.correct), JSON.stringify(contradicts));
+
+  // The claims R5 names (owner, 2026-09-26), through the display gate and DX-3 alike.
+  const claim = (caseId: string, index: number, text: string) => {
+    const request = requestOf(caseId);
+    return { shown: withholdReasons(request.issues[index], text, supportedTextOf(request)).length === 0, reading: dx3Reading(itemFor(caseId, index, text)) };
+  };
+  const positive = requestOf("single").issues[0].step;
+  const R5_CLAIMS: Array<[string, string, number, string, boolean]> = [
+    ["an observed fact the issue's line states ('blocks the run'), said of a blocking issue", "single", 0, `This timeout blocks the run. ${positive}`, true],
+    ["a supported cause, in the summary's own words", "cycle", 1, "The flow finishes at End, so it never runs.", true],
+    ["an unsupported cause", "single", 0, "The timeout is invalid because the page loads slowly.", false],
+    ["a supported consequence, a clause of the summary", "warnings", 1, "The run stops there and reports success without reaching End.", true],
+    ["a hypothetical consequence the evidence does not state", "single", 0, "This timeout could make the step fail.", false],
+    ["useful uncertainty wording, with no cause of its own", "single", 0, `${positive} The finding does not say why the timeout is invalid.`, true]
+  ];
+  for (const [what, caseId, index, text, supported] of R5_CLAIMS) {
+    const c = claim(caseId, index, text);
+    check(
+      `R5: ${what} is ${supported ? "shown, and DX-3 reads it correct" : "withheld, and DX-3 reads it invented"}`,
+      supported ? c.shown && c.reading.correct : !c.shown && c.reading.defects.some((d) => d === "INVENTED_CAUSE" || d === "INVENTED_CONSEQUENCE"),
+      JSON.stringify(c)
+    );
+  }
+} catch (error) {
+  check("§16 ran to its end", false, String((error as Error)?.stack ?? error));
 }
 
 for (const label of failedLabels) console.error(`  ✗ ${label}`);

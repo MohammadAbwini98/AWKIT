@@ -25,7 +25,7 @@
  */
 
 import { ACTION_AS_NAME, makesCausalClaim, sentencesOf, supportedTextOf, unsupportedClaims, withholdReasons, type ExplanationWithholdReason, type UnsupportedKind } from "@src/ai/authoringClaimScreen";
-import { AUTHORING_LIMITS, parseAuthoringAnswer, rankingKeepsPriority, type AuthoringAnswer, type AuthoringIssueRef, type AuthoringRequest } from "@src/ai/authoringExplanation";
+import { AUTHORING_LIMITS, buildAuthoringRequest, parseAuthoringAnswer, rankingKeepsPriority, type AuthoringAnswer, type AuthoringIssueRef, type AuthoringRequest } from "@src/ai/authoringExplanation";
 import type { FlowEdge, FlowProfile, FlowStep, StepType } from "@src/profiles/FlowProfile";
 import { findResidualSecrets } from "@src/semantic/SemanticPolicyValidator";
 import { FLOW_VALIDATION_RULES, isExecutionBlocking, type FlowValidationCode } from "@src/validation/FlowValidator";
@@ -195,7 +195,13 @@ export const SUBJECT: Readonly<Partial<Record<FlowValidationCode, RegExp>>> = Ob
   duplicateEdgeId: /duplicate|same id|share|unique|identifier|\bid\b/i,
   highTimeout: /timeout|time|wait|long|second|minute|hour/i,
   deadEndNode: /way out|dead[- ]end|outgoing|no (?:next|following|connector)|stops? there|nowhere|without reaching/i,
-  invalidTimeout: /timeout|time|wait|negative|zero|positive|number/i
+  invalidTimeout: /timeout|time|wait|negative|zero|positive|number/i,
+  // The held-out set's three codes the labelled set never sends (L4b DX revision 2, 2026-09-26). Written from each
+  // rule's summary and the product's corrective step, before any revision-2 output and without reading a
+  // held-out text. The flow reference names ANOTHER flow, never "the flow" every answer is about.
+  missingFlowReference: /\brun[ -]another[ -]flow\b|\b(?:another|other|saved|referenced|targeted|target|called|child|sub)[ -]?flows?\b|\bflows?\b[^.;]{0,40}\b(?:does(?:n't| not) exist|no longer exists?|not found|was deleted)\b|\breferenc/i,
+  connectorStructure: /connector|connection|\bedges?\b|\blinks?\b|structur/i,
+  invalidLoopBounds: /\bloop|iteration|\bbounds?\b|\blimit|\b1000\b|repeat/i
 });
 
 /**
@@ -217,7 +223,12 @@ export const REMEDY: Readonly<Partial<Record<FlowValidationCode, RegExp>>> = Obj
   duplicateEdgeId: /\bid\b|identifier|unique|regenerat|fix|repair/i,
   highTimeout: /timeout|time|wait|limit|second|minute/i,
   deadEndNode: /connector|way out|\bend\b|next|path|continue/i,
-  invalidTimeout: /timeout|time|wait|positive|number|value/i
+  invalidTimeout: /timeout|time|wait|positive|number|value/i,
+  // As SUBJECT's three above: from the product's step ("Choose a saved flow…", "Change or remove the connector…",
+  // "Set the loop's iteration limit to a number from 1 to 1000"), before any revision-2 output.
+  missingFlowReference: /\bflows?\b|referenc|target/i,
+  connectorStructure: /connector|connection|\bedges?\b|\blinks?\b/i,
+  invalidLoopBounds: /\bloop|iteration|\blimit|\bbounds?\b|\bnumber\b|\bcount\b|\b1000\b/i
 });
 
 /**
@@ -714,6 +725,65 @@ export const R2_DISPLAYED_ANSWERS: ReadonlyArray<{ n: number; run: 1 | 2; caseId
     ] as const
   ).map(([n, run, caseId, index, text, unsupported, withheld]) => ({ n, run, caseId, index, text, unsupported, withheld }))
 );
+
+/**
+ * The subject and remedy rules of the held-out set's three codes the labelled set never sends (L4b DX revision 2), on
+ * scripted answers through the product's own request builder and parser. Each rule reads a relevant explanation on
+ * subject, actionable and screen-clear; an irrelevant one off subject; a fabricated one a defect. And "the automation
+ * flow", which every explanation says, is never the flow reference's subject.
+ */
+export function heldOutCodeControlFailures(): string[] {
+  const failures: string[] = [];
+  const expect = (label: string, ok: boolean) => {
+    if (!ok) failures.push(label);
+  };
+  const read = (code: FlowValidationCode, anchor: { nodeId?: string; edgeId?: string }, text: string) => {
+    const flowId = "held-out-code-controls";
+    const request = buildAuthoringRequest({
+      flowId,
+      issues: [{ code, severity: FLOW_VALIDATION_RULES[code].severity, onActivePath: true, flowId, ...anchor, message: "never sent" }],
+      reachableNodeIds: new Set(),
+      reachabilityKnown: true
+    });
+    const parsed = request ? parseAuthoringAnswer({ version: 1, explanations: [{ issueId: "i0", text }] }, request) : undefined;
+    return request && parsed?.ok ? judgeAuthoringAnswer(request, parsed).perExplanation[0] : undefined;
+  };
+  const CASES: ReadonlyArray<{ code: FlowValidationCode; anchor: { nodeId?: string; edgeId?: string }; relevant: string[]; irrelevant: string[]; fabricated: string[] }> = [
+    {
+      code: "missingFlowReference",
+      anchor: { nodeId: "n1" },
+      relevant: ["Choose a saved flow for this Run Another Flow step.", "This step runs another flow that does not exist; select a saved flow for it."],
+      irrelevant: ["Add a locator to this step so that it knows which element to act on.", "The automation flow has an issue at this node; review the automation flow."],
+      fabricated: ['Choose the "Checkout" flow for this Run Another Flow step.']
+    },
+    {
+      code: "connectorStructure",
+      anchor: { edgeId: "e1" },
+      relevant: ["Change or remove the connector this finding points to, as the finding describes.", "Change or remove this connector: it does not follow a structural connector rule."],
+      irrelevant: ["Set this step's timeout to a positive number of milliseconds.", "Set the value this step needs in its settings."],
+      fabricated: ['Remove the "Retry" connector.']
+    },
+    {
+      code: "invalidLoopBounds",
+      anchor: { nodeId: "n1" },
+      relevant: ["Set the loop's iteration limit to a number from 1 to 1000.", "The loop's iteration bound is outside 1 to 1000; set its limit to a number in that range."],
+      irrelevant: ["Choose a saved flow for this Run Another Flow step.", "Add a locator to this step."],
+      fabricated: ["Set the loop's iteration limit to 5000."]
+    }
+  ];
+  for (const c of CASES) {
+    for (const text of c.relevant) {
+      const p = read(c.code, c.anchor, text);
+      expect(`${c.code}: relevant, on subject, actionable and screen-clear: "${text}"`, p?.onSubject === true && p.actionable && p.category === "unverified");
+    }
+    for (const text of c.irrelevant) expect(`${c.code}: irrelevant, off subject: "${text}"`, read(c.code, c.anchor, text)?.onSubject === false);
+    for (const text of c.fabricated) {
+      const p = read(c.code, c.anchor, text);
+      expect(`${c.code}: fabricated, a defect: "${text}"`, p?.category === "defect" && p.unsupported.includes("FABRICATED_LITERAL"));
+    }
+  }
+  return failures;
+}
 
 /**
  * The display gate (R4) beyond the 34 it was measured on: wording none of them used, the evidence itself

@@ -31,7 +31,8 @@ const ADAPTER = join(root, "app", "main", "ai", "aiAssist.ts");
 const DX = process.argv.includes("--dx");
 const DX_FILE = join(root, "scripts", "ai-harness", "authoringDx.ts");
 const REVIEW_FILE = join(root, "scripts", "ai-harness", "authoringQualityReview.ts");
-const FILES = DX ? [DX_FILE, REVIEW_FILE] : [GATE, PARSER, ADAPTER];
+const SET_FILE = join(root, "scripts", "ai-harness", "authoringQualitySet.ts");
+const FILES = DX ? [DX_FILE, REVIEW_FILE, SET_FILE] : [GATE, PARSER, ADAPTER];
 const ANCHOR = String.raw`(?<=^|[.!?]\\s|Action:\\s)`;
 
 interface Mutant {
@@ -55,6 +56,8 @@ const GATE_MUTANTS: readonly Mutant[] = [
   { id: "cause-connectives-without-due-to", file: GATE, find: "|due to|", replace: "|" },
   { id: "validation-failure-read-as-consequence", file: GATE, find: 'own.replace(VALIDATION_FAILED, " ")', replace: "own" },
   { id: "issue-id-as-step-not-a-position", file: GATE, find: '|\\b(?:steps?|nodes?|connectors?)\\s+["\'`“‘]?i\\d+\\b', replace: "" },
+  // DX revision 2's one R4 change: a number ending a sentence of the request is held ("…from 1 to 1000.").
+  { id: "number-ending-a-sentence-not-held", file: GATE, find: String.raw`(?![\\w,]|\\.\\d)`, replace: String.raw`(?![\\w.,])` },
   { id: "parser-drops-the-gate-decision", file: PARSER, find: "...(withheld.length > 0 ? { withheld } : {})", replace: "...({})" },
   { id: "adapter-sends-withheld-text", file: ADAPTER, find: "(withheld ? { issue, text: null, step, withheld } : { issue, text, step })", replace: "({ issue, text, step, ...(withheld ? { withheld } : {}) })" }
 ];
@@ -66,28 +69,35 @@ const GATE_CONTROLS: readonly Mutant[] = [
   { id: "control-adapter", file: ADAPTER, find: "(withheld ? { issue, text: null, step, withheld } : { issue, text, step })", replace: "(withheld ? { issue, text: null, step, withheld } : { issue, text, step })" }
 ];
 
-// L4b's DX evaluator and held-out check: every rule of §0 and §5 it applies, broken one at a time.
+// L4b's DX evaluator and held-out check: every rule of §0 and §5 it applies, broken one at a time. Since revision 2
+// (owner, 2026-09-26), DX-3 is the automated review, and the judge's rules for the held-out set's three codes are here.
 const CAP = "const overCap = runs.filter((r) => (r.sent - r.displayed) * wd > r.sent * wn);";
-const DX_VERDICTS = 'verdicts.filter((v) => isGenuineReviewer(v.reviewer) && typeof v.misattributed === "boolean")';
 const DX0_STATUS = 'status: voided.length > 0 || currentProblems.length > 0 ? "NOT MET" : "MET",';
 const DX_MUTANTS: readonly Mutant[] = [
   { id: "dx-cap-counts-only-the-gate", file: DX_FILE, find: CAP, replace: "const overCap = runs.filter((r) => r.gateWithheld * wd > r.sent * wn);" },
   { id: "dx-cap-averaged", file: DX_FILE, find: CAP, replace: "const overCap = runs.reduce((n, r) => n + r.sent - r.displayed, 0) * wd > runs.reduce((n, r) => n + r.sent, 0) * wn ? runs : [];" },
   { id: "dx-undelivered-uncounted", file: DX_FILE, find: "undelivered: sent - items.length,", replace: "undelivered: 0," },
   { id: "dx-withheld-credited", file: DX_FILE, find: "const good = displayed.filter(", replace: "const good = readable.filter(" },
-  { id: "dx-escape-forgiven", file: DX_FILE, find: "confirmed.length > 0", replace: "false" },
-  { id: "dx-misattribution-not-an-escape", file: DX_FILE, find: "v.unsupportedClaim || !v.grounded || v.misattributed === true", replace: "v.unsupportedClaim || !v.grounded" },
-  { id: "dx-agent-verdicts-count", file: DX_FILE, find: DX_VERDICTS, replace: 'verdicts.filter((v) => typeof v.misattributed === "boolean")' },
-  { id: "dx-misattribution-optional", file: DX_FILE, find: DX_VERDICTS, replace: "verdicts.filter((v) => isGenuineReviewer(v.reviewer))" },
-  { id: "dx-unread-withheld-accepted", file: DX_FILE, find: ": unread.length > 0", replace: ": unreadDisplayed.length > 0" },
+  { id: "dx-escape-forgiven", file: DX_FILE, find: 'status: escaped.length > 0 ? "NOT MET"', replace: 'status: false ? "NOT MET"' },
   { id: "dx3-judged-before-dx2", file: DX_FILE, find: ": !dx2Met", replace: ": false" },
+  { id: "dx3-actionable-not-required", file: DX_FILE, find: "readOf(i).correct && readOf(i).actionable", replace: "readOf(i).correct" },
+  { id: "dx3-misattribution-not-a-defect", file: DX_FILE, find: 'if (item.judged.misattributed) defects.add("MISATTRIBUTED");', replace: "" },
+  { id: "dx3-unsupported-facts-ignored", file: DX_FILE, find: 'if (screens.includes("FABRICATED_LITERAL") || screens.includes("OFF_DOMAIN")) defects.add("UNSUPPORTED_FACT");', replace: "" },
+  { id: "dx3-contradictions-ignored", file: DX_FILE, find: 'k === "SEVERITY_OVERSTATED" || k === "SEVERITY_UNDERSTATED" || k === "AUTO_FIX_CLAIMED" || k === "WRONG_REMEDY"', replace: "false" },
+  { id: "dx3-outcome-support-unchecked", file: DX_FILE, find: 'evidence.has(stem(w)))) defects.add("INVENTED_CONSEQUENCE");', replace: 'true)) defects.add("INVENTED_CONSEQUENCE");' },
+  { id: "dx3-added-facts-unchecked", file: DX_FILE, find: 'if (added.length > 0) defects.add(causal ? "INVENTED_CAUSE" : "INVENTED_CONSEQUENCE");', replace: "" },
+  { id: "dx3-cause-without-since", file: DX_FILE, find: "|which means|since|thus|", replace: "|which means|thus|" },
+  { id: "dx3-outcomes-without-breaks", file: DX_FILE, find: String.raw`/\bbreaks\b|\bbroke(?:n)?\b|\b(?:may|might|could|would|will)\s+break\b/gi,`, replace: "" },
+  { id: "dx3-not-running-for-any-severity", file: DX_FILE, find: "item.blocking && WHOLE_RUN.test(sentence)", replace: "WHOLE_RUN.test(sentence)" },
+  { id: "dx3-secret-ignored", file: DX_FILE, find: 'if (item.text === null) return { defects: ["SECRET"],', replace: "if (item.text === null) return { defects: []," },
+  { id: "dx-earlier-revision-voids", file: DX_FILE, find: "revisions.slice(0, -1).find(", replace: "revisions.slice(0, 0).find(" },
   { id: "dx-incomplete-run-dropped", file: DX_FILE, find: " && incomplete.length === 0", replace: "" },
   { id: "dx-void-ignored", file: DX_FILE, find: DX0_STATUS, replace: 'status: currentProblems.length > 0 ? "NOT MET" : "MET",' },
   { id: "dx-tree-unchecked", file: DX_FILE, find: DX0_STATUS, replace: 'status: voided.length > 0 ? "NOT MET" : "MET",' },
-  { id: "dx-model-unchecked", file: DX_FILE, find: 'if (capture.modelId !== DX0.modelId || inputs.modelSha256 !== DX0.modelSha256) problems.push("model");', replace: "" },
-  { id: "dx-runtime-unchecked", file: DX_FILE, find: 'if (inputs.runtimeBuild !== DX0.runtimeBuild) problems.push("runtime");', replace: "" },
-  { id: "dx-blobs-unchecked", file: DX_FILE, find: 'if (!blobsMatch(inputs.blobs)) problems.push("source blobs");', replace: "" },
-  { id: "dx-request-unchecked", file: DX_FILE, find: 'if (capture.instructionsSha256 !== DX0.instructionsSha256) problems.push("request");', replace: "" },
+  { id: "dx-model-unchecked", file: DX_FILE, find: 'if (capture.modelId !== rev.modelId || inputs.modelSha256 !== rev.modelSha256) problems.push("model");', replace: "" },
+  { id: "dx-runtime-unchecked", file: DX_FILE, find: 'if (inputs.runtimeBuild !== rev.runtimeBuild) problems.push("runtime");', replace: "" },
+  { id: "dx-blobs-unchecked", file: DX_FILE, find: 'if (!blobsMatch(inputs.blobs, rev)) problems.push("source blobs");', replace: "" },
+  { id: "dx-request-unchecked", file: DX_FILE, find: 'if (capture.instructionsSha256 !== rev.instructionsSha256) problems.push("request");', replace: "" },
   { id: "dx-held-out-unchecked", file: DX_FILE, find: 'if (heldOutSha256 === null || inputs.heldOutSha256 !== heldOutSha256) problems.push("held-out corpus");', replace: "" },
   { id: "dx-packet-lists-void", file: DX_FILE, find: ".filter((c) => c.inputs !== undefined && captureInputProblems(c, heldOutSha).length === 0)", replace: ".filter((c) => c.inputs !== undefined)" },
   { id: "held-out-hash-of-layout", file: DX_FILE, find: "const hash = sha256(JSON.stringify(value));", replace: "const hash = sha256(text);" },
@@ -96,12 +106,18 @@ const DX_MUTANTS: readonly Mutant[] = [
   { id: "held-out-secret-unchecked", file: DX_FILE, find: "if (secrets.length > 0) problems.push", replace: "if (false) problems.push" },
   { id: "held-out-minimum-dropped", file: DX_FILE, find: "issues < DX_RULES.minHeldOutIssues) problems.push", replace: "issues < 0) problems.push" },
   { id: "held-out-uncommitted-accepted", file: DX_FILE, find: "problems.push(`git cannot show that ${dir} is committed`);", replace: "" },
-  // The reviewer-label guard both evaluators rely on: an agent's name inside a longer label is no person's.
-  { id: "reviewer-agent-word-ignored", file: REVIEW_FILE, find: " && !AGENT_WORD.test(label)", replace: "" }
+  // The reviewer-label guard the adopted target relies on: an agent's name inside a longer label is no person's.
+  { id: "reviewer-agent-word-ignored", file: REVIEW_FILE, find: " && !AGENT_WORD.test(label)", replace: "" },
+  // The judge's rules for the held-out set's three codes (revision 2).
+  { id: "subject-flow-reference-dropped", file: SET_FILE, find: "  missingFlowReference: /\\brun[ -]another", replace: "  missingFlowReferenceDropped: /\\brun[ -]another" },
+  { id: "subject-flow-reference-reads-any-flow", file: SET_FILE, find: "  missingFlowReference: /\\brun[ -]another[ -]flow\\b|", replace: "  missingFlowReference: /\\bflow\\b|\\brun[ -]another[ -]flow\\b|" },
+  { id: "subject-connector-structure-dropped", file: SET_FILE, find: "  connectorStructure: /connector|connection|\\bedges?\\b|\\blinks?\\b|structur/i,", replace: "" },
+  { id: "remedy-loop-bounds-dropped", file: SET_FILE, find: "  invalidLoopBounds: /\\bloop|iteration|\\blimit|\\bbounds?\\b|\\bnumber\\b|\\bcount\\b|\\b1000\\b/i", replace: "  invalidLoopBoundsDropped: /x/" }
 ];
 const DX_CONTROLS: readonly Mutant[] = [
   { id: "control-dx", file: DX_FILE, find: "export function evaluateDx(", replace: "export function evaluateDx(" },
-  { id: "control-review", file: REVIEW_FILE, find: "export function isGenuineReviewer(", replace: "export function isGenuineReviewer(" }
+  { id: "control-review", file: REVIEW_FILE, find: "export function isGenuineReviewer(", replace: "export function isGenuineReviewer(" },
+  { id: "control-set", file: SET_FILE, find: "export function heldOutCodeControlFailures(", replace: "export function heldOutCodeControlFailures(" }
 ];
 
 const MUTANTS = DX ? DX_MUTANTS : GATE_MUTANTS;

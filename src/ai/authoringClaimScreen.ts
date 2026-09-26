@@ -144,7 +144,9 @@ function fabricatesLiteral(raw: string, supported: string): boolean {
   }
   for (const number of text.matchAll(NUMBER)) {
     // A small count ("2 connectors") restates "two or more"; a value or a unit is something the model was never told.
-    const held = new RegExp(`(?<![\\w.,])${number[1].replace(/[.,]/g, "\\$&")}(?![\\w.,])`).test(supported);
+    // Held where it ends a sentence too: invalidLoopBounds' own "…from 1 to 1000." was read as a value never given
+    // (DX revision 2, 2026-09-26). A decimal part ("1000.5") still makes it another number.
+    const held = new RegExp(`(?<![\\w.,])${number[1].replace(/[.,]/g, "\\$&")}(?![\\w,]|\\.\\d)`).test(supported);
     if (!held && (number[2] !== undefined || Number(number[1].replace(/,/g, "")) >= 3)) return true;
   }
   return SELECTOR.test(text);

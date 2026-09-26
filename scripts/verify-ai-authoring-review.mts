@@ -15,8 +15,8 @@
  *
  * L4b's delivered-experience acceptance (owner, 2026-09-25, option B; scripts/ai-harness/authoringDx.ts):
  *   npm run verify:ai-authoring-review -- --dx            DX-0 and DX-2 to DX-5; exit 0 MET, 1 NOT MET, 2 PENDING
- *   npm run verify:ai-authoring-review -- --dx --pending  every fresh text still awaiting a person's DX reading,
- *       displayed and withheld alike, with no gate or judge reading beside it (a DX verdict needs --misattributed)
+ *   npm run verify:ai-authoring-review -- --dx --pending  every fresh text of the current revision with the automated
+ *       DX-3 reading of it (owner, 2026-09-26: no person reads), displayed and withheld alike, in item-id order
  *   npm run verify:ai-authoring-review -- --held-out  check the held-out flows' structure and show their
  *       inventory; the first valid run writes inventory.json to commit beside them, later runs compare with it.
  *       Exit 0 valid, 1 invalid, 2 none yet
@@ -32,7 +32,7 @@ import { AI_RUNTIME_PIN } from "@src/offline/AiModelManifest";
 import { writeJsonFileAtomic } from "@src/session/atomicWrite";
 import { validateFlowDefinition } from "@src/validation/FlowValidator";
 
-import { DX0, HELD_OUT_DIR, currentDx0Problems, dxPending, evaluateDx, heldOutCommitProblems, heldOutRequest, inventoryPath, readHeldOut } from "./ai-harness/authoringDx";
+import { DX0, HELD_OUT_DIR, currentDx0Problems, dxReadings, evaluateDx, heldOutCommitProblems, heldOutRequest, inventoryPath, readHeldOut } from "./ai-harness/authoringDx";
 import { LABELLED_SET } from "./ai-harness/authoringQualitySet";
 import { evaluateQualityTarget, instructionsSha256, isGenuineReviewer, loadReviewStore, recordVerdict, requiredReading, rereadCapture, reviewDir, QUALITY_TARGET, type ReviewItem } from "./ai-harness/authoringQualityReview";
 
@@ -118,23 +118,22 @@ if (args[0] === "--dx") {
   const committed = heldOut.ok && commitProblems.length === 0 ? heldOut.inventory : null;
   const read = rereads.map((r) => r.capture);
   if (args.includes("--pending")) {
-    const pending = dxPending(read, store.verdicts, committed);
-    console.log(`\n${pending.length} fresh text(s) await a person's DX reading. Displayed and withheld texts are listed alike, in item-id order, with no gate or judge reading: read each against its evidence line.\n`);
-    for (const item of pending) {
+    const readings = dxReadings(read, committed);
+    console.log(`\n${readings.length} fresh text(s) of revision ${DX0.revision}, each with the automated DX-3 reading (owner, 2026-09-26: no person reads), in item-id order.\n`);
+    for (const { item, reading } of readings) {
       console.log(item.id);
       console.log(`  ${item.caseId.startsWith("ho-") ? "held-out" : "labelled"} case ${item.caseId}, ${item.issueId} ${item.code} (${item.blocking ? "blocks the run" : "does not block the run"}, ${item.fixable ? "fixable" : "no emitted fix"})`);
       console.log(`  evidence: ${item.evidence}`);
-      console.log(`  AI text:  ${item.text}`);
-      if (item.step) console.log(`  the product's corrective step beside it: ${item.step}`);
-      console.log("");
+      console.log(`  AI text:  ${item.text ?? "(not kept: something sensitive survived redaction)"}`);
+      console.log(`  display:  ${item.displayWithheld ? `withheld by the gate (${item.displayWithheld.join(", ")})` : "shown"}`);
+      console.log(`  DX-3:     ${reading.correct ? "correct" : "not correct"}, ${reading.actionable ? "actionable" : "not actionable"}${reading.onSubject ? "" : ", off subject"}${reading.judgeable ? "" : ", no judge rule"}${reading.defects.length > 0 ? `; defects ${reading.defects.join(", ")}` : ""}\n`);
     }
-    console.log("Record each under your own label: npm run verify:ai-authoring-review -- --record <item id> --correct yes|no --actionable yes|no --grounded yes|no --unsupported yes|no --misattributed yes|no --reviewer <label>");
     process.exit(0);
   }
-  const dx = evaluateDx(read, store.verdicts, committed, currentDx0Problems(current, AI_RUNTIME_PIN.build));
+  const dx = evaluateDx(read, committed, currentDx0Problems(current, AI_RUNTIME_PIN.build));
   const adopted = captures.some((c) => c.modelId === DX0.modelId) ? evaluateQualityTarget(captures.filter((c) => c.modelId === DX0.modelId), store.verdicts, LABELLED_SET.map((c) => c.id)).verdict : "NOT MET (nothing captured)";
-  console.log(`\nL4b delivered experience (DX): owner decision 2026-09-25, option B, cap 25 % per run, held-out set, the owner reads`);
-  console.log(`  DX-0 frozen at ${DX0.commit}: pack ${DX0.modelSha256.slice(0, 8)}, runtime ${DX0.runtimeBuild}, request ${DX0.instructionsSha256.slice(0, 8)}, ${Object.keys(DX0.blobs).length} source blobs`);
+  console.log(`\nL4b delivered experience (DX): owner decisions 2026-09-25 (option B, cap 25 % per run, held-out set) and 2026-09-26 (DX-3 automated)`);
+  console.log(`  DX-0 revision ${DX0.revision}, frozen at ${DX0.commit}: pack ${DX0.modelSha256.slice(0, 8)}, runtime ${DX0.runtimeBuild}, request ${DX0.instructionsSha256.slice(0, 8)}, ${Object.keys(DX0.blobs).length} source blobs`);
   console.log(`  held-out set: ${committed ? `committed, ${committed.cases.length} flow(s), ${committed.issues} issue(s), corpus sha256 ${committed.corpusSha256}` : heldOut.ok ? `NOT committed (${commitProblems.join("; ")})` : heldOut.notProvided ? "not provided yet" : `invalid (${commitProblems.join("; ")})`}`);
   console.log(`  the adopted quality target, unchanged and never passed by DX: ${adopted}`);
   console.log("  DX-1 deterministic guidance: proven by verify:ai-authoring §14 and verify:ai-assist-gui on the accepted build, run separately; not computed here");
