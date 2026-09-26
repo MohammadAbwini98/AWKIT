@@ -2,6 +2,14 @@
 
 Shared rules, architecture and decisions: `ROADMAP.md`. Depends on L1–L6. Confirms — does not discover.
 
+**2026-09-26 fresh-package correction:** after L4b and L6 closed, the first new portable build
+stopped safely before packaging. The Visual C++ files were present, validly signed, x64 and version
+14.44.35211, but the staging child `powershell.exe` inherited PowerShell 7's module path and could
+not autoload `Microsoft.PowerShell.Security`; it returned no signature rows. The staging probe now
+imports that module from its own `$PSHOME` and refuses a failed or incomplete probe. Reproduction:
+the original package failed at `prepare-ai-native-host`; the corrected staging command passed on
+all four app-local DLL placements. The fresh portable/NSIS rebuild and L7 gates follow this fix.
+
 **Status (2026-09-26, latest): open.**
 - **Why:** L7 depends on L1 to L6, and L4b and L6 are open. On this host, no runnable model meets both L1.8 and
   L4b's DX.

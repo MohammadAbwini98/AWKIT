@@ -2,6 +2,12 @@
 
 ## Phase L recovery: L4b and L6 CLOSED, L7 fresh packaging in progress (2026-09-26, latest)
 
+The first L7 portable rebuild stopped safely at MSVC signature staging because its Windows
+PowerShell child inherited PowerShell 7's module path. The validly signed VS 2022 DLLs were
+confirmed directly; staging now imports its own security module and fails on an incomplete
+signature probe. `node scripts/prepare-ai-native-host.mjs` passed after the correction. Fresh
+packages are still pending.
+
 Phase L is **9/10 closed**. L4b's frozen DX revision 4 passed: Qwen3.5-0.8B L1.8 GO,
 validation explanation 59,685 ms at cap, DX-0 through DX-5 MET, 52/52 displayed correct and
 actionable, with 0/17, 0/18 and 0/17 undisplayed. Revision 3 and all earlier failures remain

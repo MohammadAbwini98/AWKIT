@@ -362,12 +362,14 @@ function importsOf(file) {
 function signaturesOf(files) {
   const list = files.map((f) => `'${f.replace(/'/g, "''")}'`).join(",");
   const script =
-    "$ErrorActionPreference='Stop'; " +
+    "$ErrorActionPreference='Stop'; Import-Module (Join-Path $PSHOME 'Modules\\Microsoft.PowerShell.Security') -ErrorAction Stop; " +
     `foreach ($p in @(${list})) { $s = Get-AuthenticodeSignature -LiteralPath $p; $v = (Get-Item -LiteralPath $p).VersionInfo; ` +
     "$subject = if ($s.SignerCertificate) { $s.SignerCertificate.Subject } else { '' }; " +
     "Write-Output ('{0}|{1}|{2}.{3}.{4}' -f $s.Status, $subject, $v.FileMajorPart, $v.FileMinorPart, $v.FileBuildPart) }";
   const run = spawnSync("powershell", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8", windowsHide: true, timeout: 120_000 });
+  if (run.status !== 0 || run.error) throw new Error(`MSVC signature probe failed: ${run.error?.message ?? run.stderr?.trim() ?? `exit ${run.status}`}`);
   const lines = `${run.stdout ?? ""}`.split(/\r?\n/).filter(Boolean);
+  if (lines.length !== files.length) throw new Error(`MSVC signature probe returned ${lines.length} rows for ${files.length} files`);
   return files.map((_, i) => {
     const [status = "Unread", subject = "", version = "0.0.0"] = (lines[i] ?? "").split("|");
     return { status, subject, version: version.split(".").map(Number) };
