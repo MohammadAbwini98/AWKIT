@@ -267,30 +267,30 @@
       }
     },
     "packets:validationExplanation": {
-      "completedAt": "2026-09-26T10:59:46.572Z",
+      "completedAt": "2026-09-26T15:33:42.261Z",
       "ok": true,
       "steps": [
         {
           "label": "packets: validationExplanation #1",
           "ok": true,
-          "durationMs": 88012,
+          "durationMs": 46569,
           "detail": {
-            "promptTokens": 389,
-            "outputTokens": 161,
+            "promptTokens": 258,
+            "outputTokens": 116,
             "stopReason": "stop",
-            "promptMs": 38222,
-            "firstTokenMs": 38222,
-            "generationMs": 49770,
-            "wallMs": 87999,
-            "promptTokensPerSec": 10.2,
-            "generationTokensPerSec": 3.21,
-            "hostPeakWorkingSetMb": 1044,
-            "hostMaxWorkingSetMb": 1022,
+            "promptMs": 18087,
+            "firstTokenMs": 18087,
+            "generationMs": 28459,
+            "wallMs": 46553,
+            "promptTokensPerSec": 14.3,
+            "generationTokensPerSec": 4.04,
+            "hostPeakWorkingSetMb": 704,
+            "hostMaxWorkingSetMb": 701,
             "hostCpuAvgPct": 31,
-            "hostCpuMaxPct": 36,
+            "hostCpuMaxPct": 35,
             "mainLoopDelayP99Ms": 30,
-            "mainLoopDelayMaxMs": 38,
-            "maxOutputTokens": 192,
+            "mainLoopDelayMaxMs": 41,
+            "maxOutputTokens": 176,
             "answer": {
               "accepted": true,
               "sent": 2,
@@ -298,10 +298,10 @@
               "explained": 2,
               "onSubject": 2,
               "textChars": [
-                97,
-                97
+                114,
+                114
               ],
-              "ranked": 0,
+              "ranked": 2,
               "residualSecrets": 0
             }
           }
@@ -309,24 +309,24 @@
         {
           "label": "packets: validationExplanation #2",
           "ok": true,
-          "durationMs": 93421,
+          "durationMs": 52414,
           "detail": {
-            "promptTokens": 389,
-            "outputTokens": 161,
+            "promptTokens": 258,
+            "outputTokens": 116,
             "stopReason": "stop",
-            "promptMs": 38747,
-            "firstTokenMs": 38747,
-            "generationMs": 54662,
-            "wallMs": 93418,
-            "promptTokensPerSec": 10,
-            "generationTokensPerSec": 2.93,
-            "hostPeakWorkingSetMb": 1044,
-            "hostMaxWorkingSetMb": 1036,
+            "promptMs": 21694,
+            "firstTokenMs": 21694,
+            "generationMs": 30700,
+            "wallMs": 52411,
+            "promptTokensPerSec": 11.9,
+            "generationTokensPerSec": 3.75,
+            "hostPeakWorkingSetMb": 704,
+            "hostMaxWorkingSetMb": 661,
             "hostCpuAvgPct": 31,
             "hostCpuMaxPct": 33,
             "mainLoopDelayP99Ms": 30,
-            "mainLoopDelayMaxMs": 37,
-            "maxOutputTokens": 192,
+            "mainLoopDelayMaxMs": 38,
+            "maxOutputTokens": 176,
             "answer": {
               "accepted": true,
               "sent": 2,
@@ -334,10 +334,10 @@
               "explained": 2,
               "onSubject": 2,
               "textChars": [
-                97,
-                97
+                114,
+                114
               ],
-              "ranked": 0,
+              "ranked": 2,
               "residualSecrets": 0
             }
           }
@@ -349,26 +349,26 @@
         "benchThreads": 4,
         "packets:validationExplanation": {
           "threads": 4,
-          "loadMs": 10092,
-          "packetIdentity": "fec92d7092a99d19892d225f273ea358232d4c4e99bc491ac3f8e452ce3b04b7",
+          "loadMs": 7780,
+          "packetIdentity": "ec55b6925ed4c68debb1235d096a6ae5d6b915bf4dd1dca510551605a770bfe8",
           "iterations": [
             {
-              "promptTokens": 389,
-              "outputTokens": 161,
+              "promptTokens": 258,
+              "outputTokens": 116,
               "stopReason": "stop",
-              "promptMs": 38222,
-              "firstTokenMs": 38222,
-              "generationMs": 49770,
-              "wallMs": 87999,
-              "promptTokensPerSec": 10.2,
-              "generationTokensPerSec": 3.21,
-              "hostPeakWorkingSetMb": 1044,
-              "hostMaxWorkingSetMb": 1022,
+              "promptMs": 18087,
+              "firstTokenMs": 18087,
+              "generationMs": 28459,
+              "wallMs": 46553,
+              "promptTokensPerSec": 14.3,
+              "generationTokensPerSec": 4.04,
+              "hostPeakWorkingSetMb": 704,
+              "hostMaxWorkingSetMb": 701,
               "hostCpuAvgPct": 31,
-              "hostCpuMaxPct": 36,
+              "hostCpuMaxPct": 35,
               "mainLoopDelayP99Ms": 30,
-              "mainLoopDelayMaxMs": 38,
-              "maxOutputTokens": 192,
+              "mainLoopDelayMaxMs": 41,
+              "maxOutputTokens": 176,
               "answer": {
                 "accepted": true,
                 "sent": 2,
@@ -376,30 +376,30 @@
                 "explained": 2,
                 "onSubject": 2,
                 "textChars": [
-                  97,
-                  97
+                  114,
+                  114
                 ],
-                "ranked": 0,
+                "ranked": 2,
                 "residualSecrets": 0
               }
             },
             {
-              "promptTokens": 389,
-              "outputTokens": 161,
+              "promptTokens": 258,
+              "outputTokens": 116,
               "stopReason": "stop",
-              "promptMs": 38747,
-              "firstTokenMs": 38747,
-              "generationMs": 54662,
-              "wallMs": 93418,
-              "promptTokensPerSec": 10,
-              "generationTokensPerSec": 2.93,
-              "hostPeakWorkingSetMb": 1044,
-              "hostMaxWorkingSetMb": 1036,
+              "promptMs": 21694,
+              "firstTokenMs": 21694,
+              "generationMs": 30700,
+              "wallMs": 52411,
+              "promptTokensPerSec": 11.9,
+              "generationTokensPerSec": 3.75,
+              "hostPeakWorkingSetMb": 704,
+              "hostMaxWorkingSetMb": 661,
               "hostCpuAvgPct": 31,
               "hostCpuMaxPct": 33,
               "mainLoopDelayP99Ms": 30,
-              "mainLoopDelayMaxMs": 37,
-              "maxOutputTokens": 192,
+              "mainLoopDelayMaxMs": 38,
+              "maxOutputTokens": 176,
               "answer": {
                 "accepted": true,
                 "sent": 2,
@@ -407,10 +407,10 @@
                 "explained": 2,
                 "onSubject": 2,
                 "textChars": [
-                  97,
-                  97
+                  114,
+                  114
                 ],
-                "ranked": 0,
+                "ranked": 2,
                 "residualSecrets": 0
               }
             }
@@ -823,7 +823,7 @@
     }
   },
   "verdict": {
-    "evaluatedAt": "2026-09-26T10:59:46.579Z",
+    "evaluatedAt": "2026-09-26T15:33:42.268Z",
     "decision": "GO",
     "criteria": [
       {
@@ -852,7 +852,7 @@
       },
       {
         "id": "validationExplanationAtCap",
-        "measured": 104276,
+        "measured": 68627,
         "ceiling": 120000,
         "pass": true
       },
@@ -890,14 +890,14 @@
       },
       "validationExplanation": {
         "runs": 2,
-        "promptTokens": 389,
-        "promptTokensPerSec": 10.2,
-        "generationTokensPerSec": 3.21,
-        "firstTokenMsMedian": 38747,
-        "wallMsMedian": 93418,
-        "wallMsMax": 93418,
-        "atOutputCapMs": 104276,
-        "hostPeakWorkingSetMb": 1044,
+        "promptTokens": 258,
+        "promptTokensPerSec": 14.3,
+        "generationTokensPerSec": 4.04,
+        "firstTokenMsMedian": 21694,
+        "wallMsMedian": 52411,
+        "wallMsMax": 52411,
+        "atOutputCapMs": 68627,
+        "hostPeakWorkingSetMb": 704,
         "mainLoopDelayP99Ms": 30
       },
       "failureAnalysis": {
