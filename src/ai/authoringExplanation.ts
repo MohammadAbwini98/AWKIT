@@ -74,12 +74,10 @@ export const AUTHORING_LIMITS = Object.freeze({
    */
   timeoutMs: 125_000,
   /**
-   * The L1.8 budget for this feature (≤192 out). The runtime's grammar lets a model indent its JSON, and
-   * Qwen3.5-0.8B does: 151 tokens for two explanations of 116 characters, ~90 of them structure (L1.8).
-   * Two at `maxExplanationChars` plus a full ranking still fit, which matters because an answer cut off
-   * at the cap is invalid JSON and is discarded whole.
+   * Revision 3 asks for the supplied action and at most a brief problem, so the response budget is
+   * smaller than the earlier free-prose request. The L1.8 qualification still measures this cap.
    */
-  maxOutputTokens: 192,
+  maxOutputTokens: 176,
   maxDataChars: 3_000
 });
 
@@ -164,10 +162,8 @@ export interface AuthoringRejection {
 }
 
 /**
- * Every clause is load-bearing, and `verify:ai-authoring` §12 holds each one: the given action (the
- * corrective step) first, so the character limit cuts the explanation rather than the action; no other
- * action; the list of things never to invent; the fix limit; and the ranking's priority. Its length is
- * L1.8 prompt time: it is shorter than the one it replaced, because each issue's line carries its action.
+ * Revision 3 confines the language task to copying the trusted action and, when useful, a short problem.
+ * `verify:ai-authoring` §12 holds the request clauses and §17 checks action-only responses on both corpora.
  */
 // The 0.8B echoes the task sentence: 16 of the 2026-09-23 captured answers opened "The automation flow
 // failed validation because…", and none held an action. Both alternatives measured no better that day:
@@ -179,18 +175,13 @@ export interface AuthoringRejection {
 // displayed answers echoed it as the cause of a warning, where nothing failed ("…failed validation because
 // the timeout for the first step…"). The sentence now presupposes nothing, and each issue's line says
 // whether it blocks the run, as the run gate decides (`isExecutionBlocking`). Nothing else changed.
-// R5 (owner, 2026-09-26, DX revision 2): the 0.8B stated a cause or a run-time consequence of its own for about 1
-// issue in 4, which R4 withholds. The request now says what is wrong in the summary's words, and a cause or a
-// consequence only where the summary states one; otherwise only what is wrong. Nothing else changed.
+// R5 (DX revision 2) still led the 0.8B to rewrite consequence clauses and omit actions. Revision 3
+// presents the validator's summary as Problem and its corrective step as Action, and asks for the latter
+// verbatim. The model need not state a cause or a runtime consequence.
 const INSTRUCTIONS =
-  "You explain each issue that validation found in an automation flow, for the person editing it. " +
-  "Each issue has an id, its rule code, severity, whether it blocks the run, where it is, the rule's one-line summary and the action " +
-  "that corrects it. For each issue, write one or two short sentences: first its action as given, then " +
-  "what is wrong, in its summary's words. Give a cause, or what happens when the flow runs, only if its summary " +
-  "states it; otherwise just say what is wrong. Never suggest another action, and never invent issues, ids, rules, step names, selectors, " +
-  "values or connections. Only an issue marked fixable has a safe fix the application can apply; you may " +
-  "put those ids in order of which is most worth doing first, errors on the run path first. " +
-  "You may not rank an id that is not marked fixable.";
+  "For each id, return its Action sentence verbatim in text. If it fits, add a brief Problem from the given words. " +
+  "Do not infer a cause or consequence, or add a name, value, or another correction. Stop after the action and problem. " +
+  "Rank only fixable ids, blocking issues first.";
 
 /**
  * The corrective step for each rule, product-authored: an instruction to the person, tied to the node or
@@ -291,12 +282,9 @@ export function buildAuthoringRequest(report: FlowValidationReport, options: { m
       const { issue } = ref;
       const anchor = issue.nodeId ? "at a node" : issue.edgeId ? "at a connector" : "flow-wide";
       // "Action", never "Step": a step is a node here, and labelled "Step:" the 0.8B read the corrective
-      // step as a step's NAME ("The step 'Add a locator to this step' is missing a locator"). The action
-      // stays after the summary: put first, with the instruction to match, the 0.8B stopped restating
-      // it (2 of 10 actionable against 7 of 10, 2026-09-23). Whether it blocks the run is the run gate's own
-      // decision, stated for every issue (R2, 2026-09-25): a warning, or an error off the run path, does not.
+      // step as a step's name. Blocking status comes from the run gate, not from model inference.
       const blocks = isExecutionBlocking(issue) ? "blocks the run" : "does not block the run";
-      return `${ref.id}: ${issue.code} (${issue.severity}, ${blocks}, ${issue.onActivePath ? "on the run path" : "off the run path"}, ${anchor}${ref.fixable ? ", fixable" : ""}) — ${FLOW_VALIDATION_RULES[issue.code].summary} Action: ${ref.step}`;
+      return `${ref.id}: ${issue.code} (${blocks}, ${anchor}${ref.fixable ? ", fixable" : ""}) Problem: ${FLOW_VALIDATION_RULES[issue.code].summary} Action: ${ref.step}`;
     })
     .join("\n");
 

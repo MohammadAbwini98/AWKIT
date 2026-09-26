@@ -587,8 +587,8 @@ export function literalControlFailures(requestFor: (caseId: string) => Authoring
   expect("a quoted name the request holds only inside a longer word is invented", invented("casing", ['Remove the "Unsupported" connector.', 'Rename the "Supported" step.']));
 
   const step = (caseId: string, index: number) => requestFor(caseId)?.issues[index]?.step ?? "";
-  // Both from the 97996c48 captures, single-quoted: the request's own words.
-  expect("the request's own words single-quoted stay clear: the captured 'invalidTimeout' and 'on the run path'", clear("single", ["The timeout value is zero, negative, or not a finite number, which violates the validation rule for the 'invalidTimeout' rule."]) && clear("single", ["The timeout value is zero, negative, or not a finite number, which violates the validation rule for the 'on the run path' node."]));
+  expect("the request's own rule code stays clear when quoted", clear("single", ["The timeout value is zero, negative, or not a finite number, which violates the validation rule for the 'invalidTimeout' rule."]));
+  expect("an omitted location is no longer supported when quoted", invented("single", ["The timeout value is zero, negative, or not a finite number, which violates the validation rule for the 'on the run path' node."]));
   expect("...as do an issue id and its rule code", clear("casing", ["Issue 'i0' is 'unsupportedOperator': the condition's operator is not a known one.", step("casing", 1)]));
   expect("...and the given action's own target, quoted as a value", clear("casing", ["Review and apply the offered safe fix, which corrects the operator's casing to 'a listed value'.", step("casing", 1)]) && clear("cycle", ["Change the connector that closes this cycle to “Loop Back”.", "Remove this connector from the End step."]));
   expect("...and escaped quotation marks around them", clear("cycle", ['Add a \\"Loop Back\\" connector to break the cycle.', "Remove this connector from the End step."]));

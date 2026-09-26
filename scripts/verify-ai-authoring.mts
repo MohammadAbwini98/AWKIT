@@ -244,7 +244,7 @@ function seesEveryOfferedIssue(req: AuthoringRequest): boolean {
   const built = buildAiPrompt(req.prompt, new SemanticRedactor(), "0123456789abcdef");
   if (!built.ok || built.omittedFields.length > 0) return false;
   const lines = built.user.split("\n");
-  return req.issues.every((ref) => lines.some((line) => line.startsWith(`${ref.id}: ${ref.issue.code} `) && line.includes(FLOW_VALIDATION_RULES[ref.issue.code].summary) && line.endsWith(`Action: ${ref.step}`)));
+  return req.issues.every((ref) => lines.some((line) => line.startsWith(`${ref.id}: ${ref.issue.code} `) && line.includes(`Problem: ${FLOW_VALIDATION_RULES[ref.issue.code].summary}`) && line.endsWith(`Action: ${ref.step}`)));
 }
 check("every id the grammar offers has its whole line in the prompt", seesEveryOfferedIssue(request));
 
@@ -755,7 +755,7 @@ console.log("\n11 — the labelled set verify:ai-authoring-quality-live sends, a
     const lines = built?.prompt.fields.flatMap((f) => ("text" in f && typeof f.text === "string" ? f.text.split("\n") : [])) ?? [];
     return (built?.issues ?? []).map((ref, i) => {
       const line = lines.find((l) => l.startsWith(`${ref.id}: `)) ?? "";
-      return { blocks: line.includes(", blocks the run, "), doesNot: line.includes(", does not block the run, "), labelled: c.sent[i]?.blocking };
+      return { blocks: line.includes("(blocks the run, "), doesNot: line.includes("(does not block the run, "), labelled: c.sent[i]?.blocking };
     });
   });
   check(
@@ -806,18 +806,12 @@ console.log("\n12 — corrective step, fix priority, the review store and the ad
   const instructions = request.prompt.instructions;
   // R2 (owner, 2026-09-25): "You explain why an automation flow failed validation" was false for a warning,
   // and 7 displayed answers echoed it as a warning's cause.
-  check("the task sentence presupposes no failure, which a warnings-only report never had", /^You explain each issue that validation found in an automation flow, for the person editing it\. /.test(instructions) && !/fail/i.test(instructions));
-  check("...and each issue comes with whether it blocks the run", /severity, whether it blocks the run, where it is/.test(instructions));
-  check("the instruction says each issue comes with the action that corrects it",/the rule's one-line summary and the action that corrects it/.test(instructions));
-  check("...and asks for that action FIRST and as given, so the character limit cuts the explanation and not the action", /first its action as given, then what is wrong/.test(instructions));
-  // R5 (owner, 2026-09-26): a cause or a run-time consequence only where the summary states one, else only what is wrong.
-  check("...then what is wrong in its summary's words, and a cause or consequence only where the summary states one (R5)", /then what is wrong, in its summary's words\. Give a cause, or what happens when the flow runs, only if its summary states it; otherwise just say what is wrong\./.test(instructions));
-  check("...and no other action: the action is the product's, grounded in the rule", /Never suggest another action/.test(instructions));
-  check("...never inventing a step name, selector, value or connection", /never invent issues, ids, rules, step names, selectors, values or connections/.test(instructions));
-  check("...nor a fix for an issue with no emitted fix", /Only an issue marked fixable has a safe fix the application can apply/.test(instructions));
-  check("...and asks for fixes on the run path first when it orders them", /errors on the run path first/.test(instructions));
+  check("the request asks for the trusted action verbatim before optional detail", /return its Action sentence verbatim in text/.test(instructions));
+  check("...and makes the problem optional when the answer limit is tight", /If it fits, add a brief Problem/.test(instructions));
+  check("...without asking the model to reason about causes or consequences", /Do not infer a cause or consequence/.test(instructions));
+  check("...and stops after the useful facts", /Stop after the action and problem/.test(instructions));
   check("the old ban on describing any repair stays gone: it forbade the corrective step itself", !/may not describe a repair/.test(instructions));
-  check("the ranking is still limited to fixable ids", /You may not rank an id that is not marked fixable/.test(instructions));
+  check("the ranking is still limited to fixable ids", /Rank only fixable ids, blocking issues first/.test(instructions));
   // L1.8's margin was 2.7 s at the slowest rates with the 97996c48 instruction (875 characters); the
   // step moved into each issue's line, so the instruction must not grow to pay for it.
   check("the instruction is shorter than the 97996c48 one it replaced", instructions.length < 875, String(instructions.length));
@@ -1675,6 +1669,26 @@ try {
   }
 } catch (error) {
   check("§16 ran to its end", false, String((error as Error)?.stack ?? error));
+}
+
+console.log("\n17 — the concise trusted action remains useful across both frozen corpora");
+{
+  const held = readHeldOut(HELD_OUT_DIR);
+  const requests = [
+    ...LABELLED_SET.map((entry) => buildAuthoringRequest(validateFlowDefinition(entry.flow, { referenceableFlowIds: new Set([entry.flow.id]) }))),
+    ...(held.ok ? held.inventory.cases.map((entry) => heldOutRequest(held.flows.get(entry.id)!)) : [])
+  ].filter((entry): entry is AuthoringRequest => entry !== undefined);
+  const results = requests.map((entry) => {
+    const answer = parseAuthoringAnswer({ version: 1, explanations: entry.issues.map((ref) => ({ issueId: ref.id, text: ref.step })) }, entry);
+    if (!answer.ok) return null;
+    return { answer, judgement: judgeAuthoringAnswer(entry, answer), sent: entry.issues.length };
+  });
+  check("the labelled and held-out requests are all present", held.ok && requests.length === LABELLED_SET.length + held.inventory.cases.length);
+  check(
+    "a verbatim trusted action is on subject, actionable and shown for every sent issue",
+    results.length > 0 && results.every((result) => result !== null && result.judgement.onSubject === result.sent && result.judgement.actionable === result.sent && result.judgement.displayWithheld === 0),
+    results.map((result, index) => result && result.judgement.actionable !== result.sent ? `${index}: ${result.judgement.actionable}/${result.sent}` : "").filter(Boolean).join(", ")
+  );
 }
 
 for (const label of failedLabels) console.error(`  ✗ ${label}`);

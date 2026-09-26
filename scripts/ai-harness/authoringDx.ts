@@ -90,6 +90,22 @@ export const DX_REVISIONS: readonly DxRevision[] = Object.freeze([
       "src/ai/authoringExplanation.ts": "a8413cc040d013ecc284895c02f7ea51f0a6fb16",
       "app/main/ai/aiAssist.ts": "74180291114b7eecc9718b8d2761f4dc90665e2b"
     })
+  }),
+  // Revision 3: the same qualified 0.8B and held-out set, with a concise evidence-copying request.
+  // The prior failures remain separate evidence and cannot be counted in this revision.
+  Object.freeze({
+    revision: 3,
+    commit: "PENDING_FREEZE",
+    modelId: "Qwen3.5-0.8B-unpinned",
+    modelSha256: "f5b14da98939b60bbe1019a964eba656407e1e0b64f1fe3003ff6d650e93bfec",
+    runtimeBuild: "node-llama-cpp@3.21.1+llama.cpp@v0.4.0",
+    instructionsSha256: "407d8b735a371dc74d569884523bc6607187dc20a8e9146229f3d1ae0f8a7fce",
+    blobs: Object.freeze({
+      "src/offline/AiModelManifest.ts": "a6f2472e72b589fb37aa1ba543d588830972d1b2",
+      "src/ai/authoringClaimScreen.ts": "b8142e0b7928dc7143ffba030ba3f5e662a3363f",
+      "src/ai/authoringExplanation.ts": "38af77bb43a3d0ab352a6b1fc75f7fd37b565d02",
+      "app/main/ai/aiAssist.ts": "74180291114b7eecc9718b8d2761f4dc90665e2b"
+    })
   })
 ]);
 
