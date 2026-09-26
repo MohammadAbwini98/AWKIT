@@ -2,6 +2,20 @@
 
 Shared rules, architecture and decisions: `ROADMAP.md`. Depends on L1–L6. Confirms — does not discover.
 
+**Status (2026-09-26, latest): open.**
+- **Why:** L7 depends on L1 to L6, and L4b and L6 are open. On this host, no runnable model meets both L1.8 and
+  L4b's DX.
+- **Stale artifacts:** the packaged artifacts below, built from `62aab2dc`, predate the `dc3d0c18` product change
+  (R5's request and R4's number-screen fix). They were not rebuilt. A rebuild belongs after L4b's product state is
+  final.
+- **Its technical gates that do not need a package pass at the final state:** build, `typecheck:scripts`,
+  `verify:runner`, `verify:mock-site`, `validate:offline`, `verify:source-hygiene`,
+  `verify:verifier-classification` and `verify:licensing`.
+- **External prerequisites, unchanged and not engineering:**
+  - the clean-machine VM (an operator);
+  - the licensed walkthrough (the issuer key's custodian);
+  - the VS redistribution statement (the owner).
+
 ## Packaging
 
 Installer carries the pinned runtime and integration only; model pack separate, imported and checksum-verified;

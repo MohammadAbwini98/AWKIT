@@ -19,6 +19,13 @@ Verified on 2026-09-25 against a fresh `npm run build` at `e4a9abfd` (no L6 sour
 The 2026-09-24 note had deferred the T1 surface under the closeout delegation; the owner's decision above
 supersedes it.
 
+**Re-verified 2026-09-26 (latest), at the final product state `dc3d0c18`:**
+- `verify:flow-fragments` 103/0;
+- `verify:flow-fragments-gui` 53/0;
+- `verify:ai-fragment-assist` 73/73.
+
+L6 stays open only because L4b is not accepted (R5 NOT MET, R6's 2B L1.8 NO-GO).
+
 ## Deferred intelligence (owner decision 2026-09-25, tracked outside Phase L)
 
 These are kept as future work, unchanged:

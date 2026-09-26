@@ -4,6 +4,13 @@ Status: **IN PROGRESS — 7 of 10 milestones closed (updated 2026-09-26).** The 
 and L5a, plus L1, L3 and L5b. The last three were accepted, scope-limited, within the owner's limited GO.
 The implementing agent accepted them under the owner's closeout delegation; that is not a human sign-off
 (see `docs/ai/DECISIONS.md`). Still open:
+- **L4b, 2026-09-26 (latest): R5 tried as DX revision 2, NOT MET; R6's 2B is L1.8 NO-GO.**
+  - The owner decided in their own words: DX-3 automated, the held-out set confirmed, R5, then R6 on a qualified 2B.
+  - **Revision 2** (`evidence/L4b-dx-revision-2-r5-2026-09-26.md`): DX-4 at 5/17 and 6/17, and DX-3 at 56 %
+    correct and actionable, with 0 escapes.
+  - **The 2B:** the explanation takes 191.7 s and 204.5 s, against the 125 s deadline. It is not pinned, and no
+    run was taken on it.
+  - **The blocker:** on this host, no runnable model meets both L1.8 and DX. The next step is the owner's.
 - **L4b, 2026-09-26: DX NOT MET on the fresh runs.** Record: `evidence/L4b-dx-fresh-runs-2026-09-26.md`.
   - The held-out set was selected by a committed rule: 11 flows, 18 issues.
   - Two labelled runs and one held-out run were taken on DX-0.

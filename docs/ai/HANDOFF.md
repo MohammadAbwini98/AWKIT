@@ -1,6 +1,34 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-26, final) — L4b fresh DX runs taken, DX NOT MET on DX-4; Phase L NOT complete
+## HANDOFF (2026-09-26, latest) — R5 (DX revision 2) NOT MET, R6's 2B L1.8 NO-GO; L4b open on a measured model blocker; Phase L NOT complete
+
+- **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. Phase L is 7 of 10 closed.
+- **Decided by the owner in their own words** (`DECISIONS.md`, latest, final):
+  - DX-3 is automated;
+  - the held-out set is confirmed;
+  - R5, then R6 on the 2B only if it qualifies, and never the 4B.
+- **Done:**
+  - DX revision 2 frozen and pushed before any run (`dc3d0c18`, `193d2028`).
+  - L1.8 for R5: GO.
+  - The full fresh plan run: **DX NOT MET**. DX-4 at 5/17 and 6/17; DX-3 at 56 % with 0 escapes.
+  - R6: the 2B is L1.8 NO-GO. The explanation took 191.7 s and 204.5 s, against the 125 s deadline.
+  - Records: `evidence/L4b-dx-revision-2-r5-2026-09-26.md` and `evidence/L1.8-benchmark-full-host-Qwen3.5-2B-Q4_K_M.json`.
+- **The blocker is not an engineering defect.** On this qualifying host:
+  - the only model fast enough (0.8B) is not good enough for DX;
+  - the models that might be good enough (2B, 4B) are too slow for the 125 s deadline.
+- **Next, owner decisions only.** Each needs a new DX revision and the full fresh plan:
+  - a faster qualifying host, or a different L1.8 envelope;
+  - a revised explanation deadline;
+  - a further request change;
+  - a change to what DX measures;
+  - scoping authoring explanations out of Phase L's GO.
+- **Do not:**
+  - take runs beyond a plan;
+  - change a DX-0 input without an owner decision;
+  - retry the 2B's failure-analysis scenario (it only times out);
+  - fall back to the 4B.
+
+## HANDOFF (2026-09-26, final, superseded) — L4b fresh DX runs taken, DX NOT MET on DX-4; Phase L NOT complete
 
 - **Ledger:** unchanged at **65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases**. Phase L is 7 of 10 closed.
 - **Done:**

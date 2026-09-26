@@ -24,8 +24,16 @@
 
   See `DECISIONS.md`, 2026-09-26 (latest, final). The rule itself stands for every other safeguard.
 
-## The 0.8B still paraphrases a rule's consequence into an unsupported claim, about 4 of 17 answers per run (2026-09-25, OPEN — mitigated for display by R4; target decision and R5/R6 with the owner, `awkit-djnl.6`)
+## The 0.8B still paraphrases a rule's consequence into an unsupported claim, about 4 of 17 answers per run (2026-09-25, OPEN — mitigated for display by R4; R5 tried and NOT MET, R6's 2B too slow; the next step is the owner's, `awkit-djnl.6`)
 
+- **Update 2026-09-26 (latest): R5 did not fix it, and R6's 2B cannot run in time.**
+  - DX revision 2 (R5) withheld 5/17 and 6/17 on the labelled runs. The model still re-casts consequence
+    clauses around "the flow", and omits the action for about half the issues (DX-3: 56 %).
+  - The 2B is L1.8 NO-GO on this host: the explanation takes 191.7 s and 204.5 s, against the 125 s deadline.
+  - So on this host, no runnable model meets both L1.8 and DX. Records:
+    `evidence/L4b-dx-revision-2-r5-2026-09-26.md` and the 2B's L1.8 evidence.
+  - The subject-rule gap noted below is closed: the three codes have judge rules since revision 2.
+  - The number screen's false positive on `invalidLoopBounds` is fixed.
 - **Update 2026-09-26: fresh DX runs, and the rate sits on the cap.**
   - The gate withheld 5/17 and 4/17 on the two fresh labelled runs, all for `UNESTABLISHED_CAUSE` +
     `UNESTABLISHED_CONSEQUENCE`. With the design runs, that is 4, 6, 5 and 4.

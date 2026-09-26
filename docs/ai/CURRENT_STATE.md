@@ -1,6 +1,53 @@
 # CURRENT_STATE
 
-## Phase L: L4b's fresh DX runs taken; DX NOT MET on DX-4; Phase L NOT complete (2026-09-26, latest)
+## Phase L: DX-3 automated (owner), R5 tried as DX revision 2 and NOT MET, R6's 2B L1.8 NO-GO; Phase L NOT complete (2026-09-26, latest)
+
+**Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** Phase L is still 7 of
+10 milestones closed. L4b, L6 and L7 stay open.
+
+- **Owner decisions in their own words** (asked directly, not taken from the pasted brief; `DECISIONS.md`,
+  2026-09-26, latest, final):
+  - DX-3 is decided by a frozen automated evaluator;
+  - the held-out set of `cef94893` is confirmed;
+  - R5 first, then R6 on Qwen3.5-2B, pinned only if it qualifies under L1.8, and never the 4B.
+- **DX revision 2, frozen before any run** (`dc3d0c18`, `193d2028`):
+  - the automated DX-3 (`dx3Reading`);
+  - subject and remedy rules for the held-out set's three new codes;
+  - R5's request;
+  - R4's one proven false positive fixed, red first (a number ending a request sentence was never held);
+  - DX revisions, so revision 1's captures stay on the record.
+- **L1.8 for R5:** GO on all 8. The explanation at the output cap takes 104,276 ms against 120,000.
+- **Revision 2's fresh runs: DX NOT MET** (`evidence/L4b-dx-revision-2-r5-2026-09-26.md`).
+  - DX-4: labelled runs 5/17 and 6/17 over the cap of 4; held-out 2/18.
+  - DX-3: 0 displayed escapes, but 22 of 39 displayed texts correct and actionable (56 %, against 80 %).
+  - Root cause: the 0.8B still re-casts consequence clauses around "the flow", and omits the action for about
+    half the issues.
+- **R6: Qwen3.5-2B is L1.8 NO-GO on this host.** Its SHA-256 matches the published identity.
+  - The explanation takes 191.7 s and 204.5 s per request, against the 120 s ceiling and the 125 s feature deadline.
+  - Failure analysis timed out at 240 s twice.
+  - Not pinned; no L4b run was taken on it; no 4B fallback.
+- **The exact blocker for L4b.** No model this host can run meets both L1.8 and DX:
+  - the 0.8B passes L1.8 and fails DX;
+  - the 2B and the 4B fail L1.8.
+- **L6:** its deterministic scope re-verifies clean today. It closes only on an accepted L4b.
+- **L7:** it depends on L1 to L6. The packaged artifacts of `62aab2dc` predate the `dc3d0c18` product change, and
+  are not rebuilt. External: clean-machine VM (operator), issuer key (custodian), VS redistribution statement.
+
+| Gate (this session, final state) | Result |
+|---|---|
+| revision-2 fresh L4b runs (7 parts) | 9/0, 8/0, 9/0, 9/0, 5/0, 9/0, 8/0 |
+| `verify:ai-authoring-dx` | NOT MET (exit 1): DX-3 (56 %) and DX-4 (5/17, 6/17) |
+| `benchmark:ai-model-0-8b` (R5 request) · `benchmark:ai-model-2b` | GO on all 8 · NO-GO (explanation 191.7/204.5 s, failure analysis 240 s timeouts) |
+| `verify:ai-authoring` | 382/382 |
+| `verify:ai-dx-mutations` · `verify:ai-display-gate-mutations` | 82/0, 37/37 killed · 40/0, 16/16 killed |
+| `npm run build` · `typecheck:scripts` | PASS · PASS |
+| `verify:runner` · `verify:mock-site` · `validate:offline` | 138/0 · 242/242 · PASS |
+| `verify:ai-assist-gui` (DX-1, real Electron) | 185/0 |
+| `verify:flow-fragments` · `verify:flow-fragments-gui` · `verify:ai-fragment-assist` (L6) | 103/0 · 53/0 · 73/73 |
+| `verify:licensing` · `verify:source-hygiene` · `verify:verifier-classification` | 192/0 · 11/0 · 277 classified |
+| L7 packaged gates · clean-machine VM · licensed walkthrough | NOT RUN (stale artifacts) · NOT RUN (operator) · BLOCKED (issuer key) |
+
+## Phase L: L4b's fresh DX runs taken; DX NOT MET on DX-4; Phase L NOT complete (2026-09-26, earlier)
 
 **Validation ledger: unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.** Phase L is still 7 of
 10 milestones closed. L4b, L6 and L7 stay open.

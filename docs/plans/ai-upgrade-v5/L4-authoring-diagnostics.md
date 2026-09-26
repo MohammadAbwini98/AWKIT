@@ -1067,6 +1067,19 @@ kind; explanation quality target recorded and met before release. **Recorded** (
   - Whether the target measures the answers a person sees or all the model produces is the owner's
     decision (see R4 above). R5 and R6 await the owner.
 - Since `ddcfc35b` the corrective action a person sees is the product's, never model text.
+- **DX revision 2 (R5) and R6 (2026-09-26, latest): NOT MET, and L4b stays open.**
+  - The owner decided in their own words: DX-3 automated (`dx3Reading`), the held-out set confirmed, R5, then R6
+    on a qualified 2B.
+  - Revision 2 froze before any run:
+    - R5's request clause (a cause or consequence only where the summary states one);
+    - the judge's rules for the three held-out codes;
+    - R4's one proven false positive, fixed red first: a number ending a request sentence is now held.
+  - Its fresh plan (`evidence/L4b-dx-revision-2-r5-2026-09-26.md`):
+    - DX-4 at 5/17 and 6/17;
+    - DX-3 at 22 of 39 displayed correct and actionable, with 0 escapes;
+    - DX-0, DX-2 and DX-5 MET.
+  - R6: Qwen3.5-2B is L1.8 NO-GO (the explanation takes 191.7 s and 204.5 s against 125 s). It is not pinned and
+    not run. There is no 4B fallback.
 - **DX fresh runs (2026-09-26): DX NOT MET, so L4b stays open.** The record is
   `evidence/L4b-dx-fresh-runs-2026-09-26.md`.
   - The held-out set was selected by the rule committed at `f73fcd6b`: 11 flows, 18 issues, corpus `0db8a581…`.

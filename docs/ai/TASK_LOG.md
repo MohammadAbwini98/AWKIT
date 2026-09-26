@@ -1,5 +1,43 @@
 # TASK_LOG
 
+## 2026-09-26 (latest) — Phase L closure attempt 2: DX-3 automated, R5 as DX revision 2 NOT MET, R6's 2B L1.8 NO-GO (Claude)
+
+- **Task:** a second pasted Phase L closure brief.
+  - The agent asked the owner directly for the safeguard it lifts, and the owner decided in their own words:
+    DX-3 automated, the held-out set confirmed, R5 then R6 on a qualified 2B.
+- **Built before any run:**
+  - the automated DX-3 (`dx3Reading`);
+  - judge rules for `missingFlowReference`, `connectorStructure` and `invalidLoopBounds`;
+  - R5's request clause;
+  - R4's one proven false positive, fixed red first: a number ending a request sentence is held;
+  - DX revisions;
+  - `verify:ai-authoring` §16.
+- **Runs:**
+  - L1.8 for R5: GO (explanation at cap 104.3 s).
+  - The revision-2 plan: DX NOT MET. DX-4 at 5/17 and 6/17; DX-3 at 22 of 39 (56 %), 0 escapes.
+  - The 2B's L1.8: NO-GO (explanation 191.7 s and 204.5 s; failure analysis 240 s timeouts). Not pinned, not run.
+- **Files:**
+  - `scripts/ai-harness/{authoringDx,authoringQualitySet}.ts`;
+  - `scripts/verify-ai-authoring{,-review}.mts` and `scripts/verify-ai-display-gate-mutations.mts`;
+  - `src/ai/authoringClaimScreen.ts` (R4 fix) and `src/ai/authoringExplanation.ts` (R5);
+  - two new evidence files, the L1.8 0.8B evidence, the proposal, L4, L6, L7, ROADMAP, and
+    `docs/ai/{DECISIONS,CURRENT_STATE,HANDOFF,KNOWN_ISSUES,TASK_LOG}.md`.
+- **Tests:**
+  - `verify:ai-authoring` 382/382;
+  - `verify:ai-dx-mutations` 82/0 (37/37 killed) and `verify:ai-display-gate-mutations` 40/0 (16/16 killed);
+  - build and `typecheck:scripts` PASS;
+  - `verify:runner` 138/0, `verify:mock-site` 242/242, `validate:offline` PASS;
+  - `verify:ai-assist-gui` 185/0;
+  - `verify:flow-fragments` 103/0, `verify:flow-fragments-gui` 53/0, `verify:ai-fragment-assist` 73/73;
+  - `verify:licensing` 192/0, `verify:source-hygiene` 11/0, `verify:verifier-classification` 277;
+  - `verify:ai-authoring-dx` NOT MET.
+- **Not run:**
+  - the L7 packaged gates (artifacts predate `dc3d0c18`, and L7 cannot close before L4b);
+  - the clean-machine VM (operator);
+  - the licensed walkthrough (issuer key).
+- **Result:** Phase L is 7 of 10, NOT complete. L4b is blocked by the measured model/host limit, and L6 and L7
+  follow it.
+
 ## 2026-09-26 (final) — Phase L closure attempt: L4b held-out selected by rule, fresh DX runs, DX NOT MET (Claude)
 
 - **Task:** the owner's pasted Phase L final brief: complete and close Phase L autonomously.
