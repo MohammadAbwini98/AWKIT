@@ -18,6 +18,12 @@ export const AI_HOST_PROTOCOL_VERSION = 1;
 export const AI_CONTEXT_TOKENS = 4096;
 export const AI_MAX_PROMPT_TOKENS = 3072;
 export const AI_MAX_OUTPUT_TOKENS = 512;
+/** Bounds the host enforces on GPU requests (L8a.3); values outside them are protocol violations. */
+export const AI_MAX_GPU_LAYERS = 1024;
+export const AI_MAX_VRAM_RESERVE_BYTES = 68719476736;
+
+/** The backend a host process runs, fixed when the manager forks it. */
+export type AiHostBackend = "cpu" | "vulkan";
 
 export type AiHostReason =
   // ── raised by the host ──
@@ -30,7 +36,15 @@ export type AiHostReason =
   | "AI_UNKNOWN_REQUEST"
   | "AI_PROTOCOL_VIOLATION"
   | "AI_HOST_INTERNAL_ERROR"
+  /** A GPU host could not install its backend (no pack directory, or no resolve hook in this runtime). */
+  | "AI_GPU_BACKEND_UNAVAILABLE"
+  /** The runtime bound no usable GPU device (it reports this as a missing binary, L8a.0). */
+  | "AI_GPU_NO_USABLE_DEVICE"
+  /** A GPU load with the requested layer count failed (typically memory); the caller may retry smaller. */
+  | "AI_GPU_LOAD_FAILED"
   // ── raised by the manager, never by the host ──
+  /** The backend pack failed its load-time integrity check, so no GPU host was started. */
+  | "AI_GPU_BACKEND_REFUSED"
   | "AI_HOST_EXITED"
   /** A cancel the host did not honour within `cancelGraceMs`, so the manager killed it (the model is gone). */
   | "AI_HOST_KILLED_ON_CANCEL"
@@ -46,6 +60,35 @@ export interface AiLoadRequest {
   modelPath: string;
   contextTokens: number;
   threads: number;
+  /**
+   * Layers to offload. A GPU host requires 1..AI_MAX_GPU_LAYERS; the CPU host accepts only absent or 0.
+   * Resolved once from `gpuPlan` and sent as a number, never "auto" (L8a.0).
+   */
+  gpuLayers?: number;
+}
+
+/** Measure a GPU host's devices, VRAM and the model's per-layer need; loads nothing. GPU hosts only. */
+export interface AiGpuPlanRequest {
+  type: "gpuPlan";
+  modelPath: string;
+  contextTokens: number;
+  threads: number;
+  /** VRAM kept free beside the model and context; null is the runtime's own padding. */
+  reserveBytes: number | null;
+}
+
+/** Numbers only, path-free: what the runtime measured and estimated. */
+export interface AiGpuPlan {
+  /** Vulkan devices the runtime binds. */
+  deviceCount: number;
+  totalLayers: number;
+  /** The largest layer count whose estimate fits beside the reserve; 0 when not even one does. */
+  fitLayers: number;
+  /** Estimated VRAM for every layer plus the context, excluding the reserve. */
+  fullRequiredBytes: number;
+  reserveBytes: number;
+  freeBytes: number;
+  totalBytes: number;
 }
 
 export interface AiInferRequest {
@@ -66,6 +109,7 @@ export interface AiInferRequest {
 export type AiHostRequestPayload =
   | { type: "hello"; expected: { protocolVersion: number } }
   | AiLoadRequest
+  | AiGpuPlanRequest
   | AiInferRequest
   | { type: "cancel"; jobId: string }
   | { type: "unload" }
@@ -78,12 +122,17 @@ export interface AiHostHello {
   compatible: boolean;
   /** Pinned runtime identity, e.g. the llama.cpp build tag; compared against the manifest. */
   runtime: { name: string; build: string };
+  /** Absent from a host older than L8a.3, which is the CPU host. */
+  backend?: AiHostBackend;
   platform: string;
   arch: string;
 }
 
 export interface AiLoadResult {
   loadMs: number;
+  backend?: AiHostBackend;
+  /** Layers the runtime actually offloaded; 0 on the CPU host. */
+  gpuLayers?: number;
 }
 
 export interface AiInferResult {
@@ -105,6 +154,11 @@ export interface AiHostTransport {
   call<T = unknown>(request: AiHostRequestPayload, timeoutMs: number): Promise<T>;
   /** False once the circuit is open or the transport is disposed. */
   isAvailable(): boolean;
+  /**
+   * Stop the host process now (freeing its RAM and any VRAM); unlike `dispose`, the next call starts a
+   * fresh one. Optional: a transport without it keeps its process until disposed.
+   */
+  release?(): Promise<void>;
   dispose(): Promise<unknown>;
 }
 

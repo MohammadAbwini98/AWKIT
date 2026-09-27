@@ -17,6 +17,10 @@
  * `crash()` simulates the host process dying; one crash more than the restart policy allows opens the
  * circuit for the session, as it does for the real manager.
  *
+ * Backends (L8a.3) follow the real host too: a CPU fake refuses `gpuPlan` and any offloaded layer, a
+ * Vulkan fake requires 1..AI_MAX_GPU_LAYERS layers, and `release()` stops the "process" without
+ * disposing it, so the next call has no model and must hello again.
+ *
  * Framework-agnostic: no Electron.
  */
 
@@ -25,7 +29,10 @@ import { isAbsolute, relative, resolve as resolvePath } from "node:path";
 import {
   AI_HOST_PROTOCOL_VERSION,
   AI_HOST_RESTART_POLICY,
+  AI_MAX_GPU_LAYERS,
   AiHostCallError,
+  type AiGpuPlan,
+  type AiHostBackend,
   type AiHostHello,
   type AiHostReason,
   type AiHostRequestPayload,
@@ -61,6 +68,14 @@ export interface FakeAiHostOptions {
   loadDelayMs?: number;
   loadFails?: boolean;
   respond?: (request: AiInferRequest, index: number) => FakeInferStep | string;
+  /** Default "cpu". */
+  backend?: AiHostBackend;
+  /** `hello` rejects with this reason (e.g. the manager refusing a tampered pack before forking). */
+  helloFails?: AiHostReason;
+  /** A Vulkan fake's plan, or the reason `gpuPlan` fails with. */
+  gpuPlan?: AiGpuPlan | { fail: AiHostReason };
+  /** A Vulkan load with more layers than this fails with AI_GPU_LOAD_FAILED (out of memory). */
+  gpuLoadFailAbove?: number;
 }
 
 interface PendingInference {
@@ -75,9 +90,13 @@ export class FakeAiHostTransport implements AiHostTransport {
   readonly requests: AiHostRequestPayload[] = [];
   readonly modelRoot: string;
   loadedPath: string | null = null;
+  /** The layer count the current model was loaded with. */
+  loadedGpuLayers: number | null = null;
   crashes = 0;
   /** Hosts killed to honour a cancel; never a restart strike. */
   kills = 0;
+  /** Hosts stopped by `release()`. */
+  releases = 0;
   maxConcurrentInferences = 0;
   private active = 0;
   private inferIndex = 0;
@@ -123,6 +142,19 @@ export class FakeAiHostTransport implements AiHostTransport {
   crash(): void {
     this.crashes += 1;
     this.loadedPath = null;
+    this.loadedGpuLayers = null;
+    for (const [jobId, pending] of this.pending) {
+      this.pending.delete(jobId);
+      pending.reject(new AiHostCallError("AI_HOST_EXITED", true));
+    }
+  }
+
+  /** The manager stops the process on purpose: no strike, no model, the next call starts a fresh one. */
+  async release(): Promise<void> {
+    if (this.disposed) return;
+    this.releases += 1;
+    this.loadedPath = null;
+    this.loadedGpuLayers = null;
     for (const [jobId, pending] of this.pending) {
       this.pending.delete(jobId);
       pending.reject(new AiHostCallError("AI_HOST_EXITED", true));
@@ -140,10 +172,12 @@ export class FakeAiHostTransport implements AiHostTransport {
   private async handle(request: AiHostRequestPayload): Promise<unknown> {
     switch (request.type) {
       case "hello": {
+        if (this.options.helloFails) throw new AiHostCallError(this.options.helloFails);
         const hello: AiHostHello = {
           protocolVersion: AI_HOST_PROTOCOL_VERSION,
           compatible: this.options.compatible ?? true,
           runtime: { name: "llama.cpp", build: this.options.runtimeBuild ?? "b-fake" },
+          backend: this.backend(),
           platform: process.platform,
           arch: process.arch
         };
@@ -152,10 +186,30 @@ export class FakeAiHostTransport implements AiHostTransport {
       case "load": {
         const rel = relative(this.modelRoot, resolvePath(request.modelPath));
         if (!rel || rel.startsWith("..") || isAbsolute(rel)) throw new AiHostCallError("AI_MODEL_PATH_OUTSIDE_ROOT");
+        const gpu = this.backend() === "vulkan";
+        const layers = request.gpuLayers;
+        const layersOk = gpu
+          ? Number.isInteger(layers) && (layers as number) >= 1 && (layers as number) <= AI_MAX_GPU_LAYERS
+          : layers === undefined || layers === 0;
+        if (!layersOk) throw new AiHostCallError("AI_PROTOCOL_VIOLATION");
         await delay(this.options.loadDelayMs ?? 5);
-        if (this.options.loadFails) throw new AiHostCallError("AI_MODEL_LOAD_FAILED");
+        if (this.options.loadFails) throw new AiHostCallError(gpu ? "AI_GPU_LOAD_FAILED" : "AI_MODEL_LOAD_FAILED");
+        if (gpu && this.options.gpuLoadFailAbove !== undefined && (layers as number) > this.options.gpuLoadFailAbove) {
+          throw new AiHostCallError("AI_GPU_LOAD_FAILED");
+        }
         this.loadedPath = request.modelPath;
-        return { loadMs: this.options.loadDelayMs ?? 5 };
+        this.loadedGpuLayers = gpu ? (layers as number) : 0;
+        return { loadMs: this.options.loadDelayMs ?? 5, backend: this.backend(), gpuLayers: this.loadedGpuLayers };
+      }
+      case "gpuPlan": {
+        if (this.backend() !== "vulkan") throw new AiHostCallError("AI_PROTOCOL_VIOLATION");
+        const plan = this.options.gpuPlan;
+        if (!plan) throw new AiHostCallError("AI_GPU_NO_USABLE_DEVICE");
+        if ("fail" in plan) throw new AiHostCallError(plan.fail);
+        // The real host plans with its own model released, so free VRAM is not understated.
+        this.loadedPath = null;
+        this.loadedGpuLayers = null;
+        return { ...plan };
       }
       case "infer":
         return this.infer(request);
@@ -185,12 +239,17 @@ export class FakeAiHostTransport implements AiHostTransport {
       }
       case "unload":
         this.loadedPath = null;
+        this.loadedGpuLayers = null;
         return { unloaded: true };
       case "shutdown":
         return {};
       default:
         throw new AiHostCallError("AI_UNKNOWN_REQUEST");
     }
+  }
+
+  private backend(): AiHostBackend {
+    return this.options.backend ?? "cpu";
   }
 
   private async infer(request: AiInferRequest): Promise<AiInferResult> {

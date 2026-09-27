@@ -39,6 +39,7 @@ const STATE_LABELS: Record<string, string> = {
   CIRCUIT_OPEN: "Stopped after repeated runtime crashes",
   MODEL_MISSING: "No model pack imported",
   MODEL_INVALID: "The model pack failed verification",
+  GPU_UNAVAILABLE: "GPU-Only mode cannot run on this machine",
   SHUTDOWN: "Shutting down"
 };
 

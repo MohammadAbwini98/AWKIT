@@ -55,6 +55,22 @@ export interface AiModelPackView {
   displayName: string | null;
 }
 
+/**
+ * Where the model runs (L8a.3): the configured mode, the backend actually used, the layers on the GPU,
+ * and why a GPU mode fell back to CPU or refused. Numbers are bytes; nothing names a path or a device.
+ */
+export interface AiExecutionView {
+  mode: "cpu" | "gpu-offload" | "gpu-only";
+  backend: "cpu" | "vulkan";
+  gpuLayers: number;
+  totalLayers: number | null;
+  requestedLayers: number | null;
+  fallbackReason: string | null;
+  refusal: { reason: string; requiredBytes: number | null; availableBytes: number | null } | null;
+  /** Short, safe sentence for the fallback or refusal reason. */
+  message: string | null;
+}
+
 export interface AiStatusView {
   enabled: boolean;
   state: "available" | "unavailable" | "loading" | "busy" | "error";
@@ -63,6 +79,7 @@ export interface AiStatusView {
   holdReason: string | null;
   queueDepth: number;
   modelPack: AiModelPackView;
+  execution: AiExecutionView;
 }
 
 export interface AiFeatureView {
@@ -80,11 +97,21 @@ export interface AiSettingsView {
   idleUnloadMinutes: number;
   maxIdleUnloadMinutes: number;
   features: AiFeatureView[];
+  executionMode: "cpu" | "gpu-offload" | "gpu-only";
+  /** Null is the runtime's own system-derived padding. */
+  vramReserveMb: number | null;
+  minVramReserveMb: number;
+  maxVramReserveMb: number;
 }
 
 export interface AiDiagnosticsView {
   runtime: { included: boolean; pinnedBuild: string | null; hostState: string; circuitOpen: boolean; lastReason: string | null };
+  /** The GPU host's process state (L8a.3); stopped whenever no GPU mode is in use. */
+  gpuHost: { state: string; circuitOpen: boolean; lastReason: string | null };
   modelPack: AiModelPackView & { sha256: string | null; sizeBytes: number | null; manifestEntries: number };
+  execution: AiExecutionView;
+  /** Display adapters by PCI vendor ID (E2); null when they cannot be read. Never a device name. */
+  adapters: Array<{ vendorId: string; nvidia: boolean; software: boolean }> | null;
   threads: number;
   counters: { completed: number; failed: number; cancelled: number; rejected: number; yielded: number };
 }

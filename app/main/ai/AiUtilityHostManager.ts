@@ -11,6 +11,11 @@
  * outside it. Raw runtime text never escapes: callers receive stable `AiHostReason` codes, and
  * details go to a log with the model root masked. Optional throughout: nothing here throws into
  * startup, blocks quit, or touches a run.
+ *
+ * A GPU manager (L8a.3) runs the backend pack's load-time integrity check immediately before EVERY
+ * fork, and forks the host with exactly the app-managed directory that check verified: a missing,
+ * altered, extra or replaced file means no GPU host starts at all (AI_GPU_BACKEND_REFUSED, never a
+ * crash strike). The backend is fixed for the host's life, like the model root.
  */
 
 import { utilityProcess, type UtilityProcess } from "electron";
@@ -61,10 +66,15 @@ export class AiUtilityHostManager implements AiHostTransport {
   private disposed = false;
   private expectingExit = false;
 
+  /** The pack directory the running GPU host was forked with, masked in logs like the model root. */
+  private backendDir: string | null = null;
+
   constructor(
     private readonly options: {
       hostPath: string;
       modelRoot: string;
+      /** A GPU backend. `verify` is the pack's load-time integrity check, run before every fork. */
+      backend?: { kind: "vulkan"; verify: () => Promise<{ ok: true; dir: string } | { ok: false }> };
       log?: (level: "info" | "warn" | "error", message: string) => void;
     }
   ) {}
@@ -84,7 +94,9 @@ export class AiUtilityHostManager implements AiHostTransport {
   }
 
   private log(level: "info" | "warn" | "error", message: string): void {
-    this.options.log?.(level, message.split(this.options.modelRoot).join("<model-root>"));
+    let masked = message.split(this.options.modelRoot).join("<model-root>");
+    if (this.backendDir) masked = masked.split(this.backendDir).join("<backend-pack>");
+    this.options.log?.(level, masked);
   }
 
   private ensureStarted(): Promise<{ child: UtilityProcess; pid: number }> {
@@ -97,16 +109,33 @@ export class AiUtilityHostManager implements AiHostTransport {
     return this.starting;
   }
 
-  private start(): Promise<{ child: UtilityProcess; pid: number }> {
+  private async start(): Promise<{ child: UtilityProcess; pid: number }> {
     this.state = "starting";
     this.expectingExit = false;
+    const env: NodeJS.ProcessEnv = { ...process.env, AWKIT_AI_MODEL_ROOT: this.options.modelRoot };
+    // Nothing inherited may pick the backend: only this manager's own option does.
+    delete env.AWKIT_AI_BACKEND;
+    delete env.AWKIT_AI_BACKEND_DIR;
+    if (this.options.backend) {
+      const verdict = await this.options.backend.verify().catch((): { ok: false } => ({ ok: false }));
+      if (!verdict.ok) {
+        this.state = "stopped";
+        this.lastReason = "AI_GPU_BACKEND_REFUSED";
+        this.log("warn", "ai gpu host not started: the backend pack failed its integrity check");
+        throw new AiHostCallError("AI_GPU_BACKEND_REFUSED");
+      }
+      this.backendDir = verdict.dir;
+      env.AWKIT_AI_BACKEND = this.options.backend.kind;
+      env.AWKIT_AI_BACKEND_DIR = verdict.dir;
+    }
     return new Promise((resolve, reject) => {
       let child: UtilityProcess;
       try {
         child = utilityProcess.fork(this.options.hostPath, [], {
           stdio: "pipe",
-          // Fixed once at process start: the host confines every model path beneath it.
-          env: { ...process.env, AWKIT_AI_MODEL_ROOT: this.options.modelRoot }
+          // Fixed once at process start: the host confines every model path beneath it, and loads a GPU
+          // backend only from the directory verified just above.
+          env
         });
       } catch (error) {
         this.state = "degraded";
@@ -138,7 +167,7 @@ export class AiUtilityHostManager implements AiHostTransport {
           return;
         }
         if (isAiHostResponse(message)) {
-          for (const [jobId, callId] of this.inFlight) if (callId === message.id) this.release(jobId, false);
+          for (const [jobId, callId] of this.inFlight) if (callId === message.id) this.settleInFlight(jobId, false);
           const call = this.pending.get(message.id);
           if (!call) return;
           this.pending.delete(message.id);
@@ -165,7 +194,7 @@ export class AiUtilityHostManager implements AiHostTransport {
     this.live = undefined;
     const killed = this.killedOnCancel;
     this.killedOnCancel = undefined;
-    for (const [jobId, callId] of [...this.inFlight]) this.release(jobId, callId === killed);
+    for (const [jobId, callId] of [...this.inFlight]) this.settleInFlight(jobId, callId === killed);
     for (const [id, call] of this.pending) {
       clearTimeout(call.timer);
       call.reject(id === killed ? new AiHostCallError("AI_HOST_KILLED_ON_CANCEL") : new AiHostCallError("AI_HOST_EXITED", true));
@@ -221,7 +250,7 @@ export class AiUtilityHostManager implements AiHostTransport {
     return new Promise((resolve) => this.freeWaiters.set(jobId, [...(this.freeWaiters.get(jobId) ?? []), resolve]));
   }
 
-  private release(jobId: string, killed: boolean): void {
+  private settleInFlight(jobId: string, killed: boolean): void {
     this.inFlight.delete(jobId);
     for (const resolve of this.freeWaiters.get(jobId) ?? []) resolve(killed);
     this.freeWaiters.delete(jobId);
@@ -253,6 +282,20 @@ export class AiUtilityHostManager implements AiHostTransport {
   async dispose(): Promise<void> {
     if (this.disposed) return;
     this.disposed = true;
+    await this.stopHost();
+  }
+
+  /**
+   * Stop the host now (its RAM, any VRAM and the backend files it loaded are freed) without disposing:
+   * an intentional exit, so no restart strike, and the next call forks a fresh, re-verified host.
+   */
+  async release(): Promise<void> {
+    if (this.disposed) return;
+    await this.stopHost();
+  }
+
+  private async stopHost(): Promise<void> {
+    await this.starting?.catch(() => undefined);
     const host = this.live;
     if (!host) {
       this.state = "stopped";
@@ -278,7 +321,7 @@ export class AiUtilityHostManager implements AiHostTransport {
       }
       await exited(AI_HOST_TIMEOUTS.terminateGraceMs);
     }
-    this.live = undefined;
+    if (this.live === host) this.live = undefined;
     this.state = "stopped";
   }
 }

@@ -24,17 +24,26 @@ import {
   type AiBackendPackStatus,
   type BackendTrust
 } from "@src/ai/AiBackendPack";
+import {
+  AI_GPU_REASON_MESSAGES,
+  classifyAdapters,
+  describeAdapters,
+  type AiExecutionProfile,
+  type AiGpuReadiness
+} from "@src/ai/AiExecutionProfile";
 import { AiModelPackStore, type AiModelPackStatus } from "@src/ai/AiModelPack";
 import { revertAiAction } from "@src/ai/AiRevert";
 import { AiService, type AiServiceDeps } from "@src/ai/AiService";
 import { FakeAiHostTransport, type FakeInferStep } from "@src/ai/FakeAiHostTransport";
-import { AiSettingsStore, MAX_IDLE_UNLOAD_MINUTES, sanitizeAiSettingsPatch } from "@src/ai/AiSettings";
+import { AiSettingsStore, MAX_IDLE_UNLOAD_MINUTES, MAX_VRAM_RESERVE_MB, MIN_VRAM_RESERVE_MB, sanitizeAiSettingsPatch } from "@src/ai/AiSettings";
+import type { AiHostBackend } from "@src/ai/contracts/AiHostProtocol";
 import type {
   AiAdminResponse,
   AiAuditView,
   AiBackendPackView,
   AiBackendPreflightResponse,
   AiDiagnosticsView,
+  AiExecutionView,
   AiModelPackView,
   AiSettingsView,
   AiStatusView
@@ -54,6 +63,7 @@ import {
 import { getRuntimeDataRoot } from "../appPaths";
 import { createFlowProfileStore } from "../profileStores";
 import { AiUtilityHostManager } from "./AiUtilityHostManager";
+import { displayAdapterVendorIds } from "./gpuAdapters";
 
 const aiRoot = (): string => join(getRuntimeDataRoot(), "ai");
 const modelsDir = (): string => join(aiRoot(), "models");
@@ -62,6 +72,7 @@ let settingsStore: AiSettingsStore | null = null;
 let auditStore: AiActionStore | null = null;
 let packStore: AiModelPackStore | null = null;
 let hostManager: AiUtilityHostManager | null = null;
+let gpuHostManager: AiUtilityHostManager | null = null;
 let service: AiService | null = null;
 
 const settings = (): AiSettingsStore => (settingsStore ??= new AiSettingsStore(join(aiRoot(), "ai-settings.json")));
@@ -83,13 +94,43 @@ function resolveHostPath(): string | null {
   return fs.existsSync(candidate) ? candidate : null;
 }
 
-/** A transport exists only when the host is present AND the manifest pins its runtime build. */
-function transport(): AiUtilityHostManager | null {
-  if (hostManager) return hostManager;
+/**
+ * A transport exists only when the host is present AND the manifest pins its runtime build. The GPU
+ * host additionally needs the pin to admit Vulkan; the pack itself is checked before every fork.
+ */
+function transport(backend: AiHostBackend = "cpu"): AiUtilityHostManager | null {
   const hostPath = resolveHostPath();
   if (!hostPath || !AI_RUNTIME_PIN.build) return null;
-  hostManager = new AiUtilityHostManager({ hostPath, modelRoot: modelsDir(), log: logAi });
-  return hostManager;
+  if (backend === "cpu") {
+    hostManager ??= new AiUtilityHostManager({ hostPath, modelRoot: modelsDir(), log: logAi });
+    return hostManager;
+  }
+  if (!AI_RUNTIME_PIN.backends.includes("vulkan")) return null;
+  gpuHostManager ??= new AiUtilityHostManager({
+    hostPath,
+    modelRoot: modelsDir(),
+    backend: {
+      kind: "vulkan",
+      // The L8a.2 load-time guard, run immediately before every GPU host starts.
+      verify: async () => {
+        const verdict = await backendPack().verifyForLoad();
+        return verdict.ok ? { ok: true, dir: verdict.dir } : { ok: false };
+      }
+    },
+    log: logAi
+  });
+  return gpuHostManager;
+}
+
+/** E2 readiness for a GPU mode, cheap and before any GPU host starts: the pack's status and the adapters. */
+async function gpuReadiness(): Promise<AiGpuReadiness> {
+  const pack = await backendPack()
+    .status()
+    .catch(() => null);
+  if (!pack || pack.status === "unavailable") return { ok: false, reason: "BACKEND_UNAVAILABLE" };
+  if (pack.status === "not-installed") return { ok: false, reason: "BACKEND_PACK_MISSING" };
+  if (pack.status === "invalid") return { ok: false, reason: "BACKEND_PACK_INVALID" };
+  return classifyAdapters(await displayAdapterVendorIds());
 }
 
 const inferenceThreads = (): number => deriveInferenceThreads(detectMachineCapabilities("local").logicalCpuCount);
@@ -131,6 +172,7 @@ export function getAiService(): AiService {
   const testProvider = service ? null : testProviderDeps();
   service ??= new AiService({
     transport,
+    gpu: gpuReadiness,
     model: async () => {
       const status = await modelPack().status();
       if (status.status === "missing") return { ok: false, reason: "MODEL_MISSING" };
@@ -152,7 +194,9 @@ export function getAiService(): AiService {
         enabled: current.enabled,
         yieldDuringRuns: current.yieldDuringRuns,
         idleUnloadMs: current.idleUnloadMinutes * 60_000,
-        minFreeMemoryMb: executionEngine.getAiAdmissionView().minFreeMemoryMb
+        minFreeMemoryMb: executionEngine.getAiAdmissionView().minFreeMemoryMb,
+        executionMode: current.executionMode,
+        vramReserveBytes: current.vramReserveMb === null ? null : current.vramReserveMb * 1024 ** 2
       };
     },
     admission: () => executionEngine.getAiAdmissionView(),
@@ -183,6 +227,20 @@ const readPack = (): Promise<AiModelPackStatus> =>
     .status()
     .catch((): AiModelPackStatus => ({ status: "invalid", reason: "REGISTRY_UNREADABLE" }));
 
+/**
+ * The effective profile, with the CONFIGURED mode: until a job loads the model, the profile still
+ * describes the last load (or none), and the mode shown must be what the administrator chose.
+ */
+function executionView(profile: AiExecutionProfile, mode: AiExecutionView["mode"]): AiExecutionView {
+  const reason = profile.refusal?.reason ?? profile.fallbackReason;
+  return {
+    ...profile,
+    mode,
+    refusal: profile.refusal ? { ...profile.refusal } : null,
+    message: reason ? AI_GPU_REASON_MESSAGES[reason] : null
+  };
+}
+
 export async function aiStatusView(): Promise<AiStatusView> {
   const [status, pack, current] = await Promise.all([getAiService().status(), readPack(), settings().read()]);
   const state = status.state;
@@ -192,7 +250,8 @@ export async function aiStatusView(): Promise<AiStatusView> {
     reason: state.kind === "unavailable" ? state.reason : state.kind === "error" ? state.code : null,
     holdReason: status.holdReason,
     queueDepth: status.queueDepth,
-    modelPack: packView(pack)
+    modelPack: packView(pack),
+    execution: executionView(status.execution, current.executionMode)
   };
 }
 
@@ -210,7 +269,11 @@ export async function aiSettingsView(): Promise<AiSettingsView> {
       configured: current.featureTiers[id] ?? null,
       effective: effectiveAiTier(id, config),
       demotion: snapshot.demotions[id] ?? null
-    }))
+    })),
+    executionMode: current.executionMode,
+    vramReserveMb: current.vramReserveMb,
+    minVramReserveMb: MIN_VRAM_RESERVE_MB,
+    maxVramReserveMb: MAX_VRAM_RESERVE_MB
   };
 }
 
@@ -238,8 +301,9 @@ export async function restoreAiFeature(feature: AiFeatureId): Promise<AiAdminRes
 }
 
 export async function aiDiagnosticsView(): Promise<AiDiagnosticsView> {
-  const [status, pack] = await Promise.all([getAiService().status(), readPack()]);
+  const [status, pack, current, adapters] = await Promise.all([getAiService().status(), readPack(), settings().read(), displayAdapterVendorIds()]);
   const host = hostManager?.status();
+  const gpuHost = gpuHostManager?.status();
   const installed = pack.status === "installed" ? pack.entry : null;
   return {
     runtime: {
@@ -249,12 +313,15 @@ export async function aiDiagnosticsView(): Promise<AiDiagnosticsView> {
       circuitOpen: host?.circuitOpen ?? false,
       lastReason: host?.lastReason ?? null
     },
+    gpuHost: { state: gpuHost?.state ?? "stopped", circuitOpen: gpuHost?.circuitOpen ?? false, lastReason: gpuHost?.lastReason ?? null },
     modelPack: {
       ...packView(pack),
       sha256: installed?.sha256 ?? null,
       sizeBytes: installed?.sizeBytes ?? null,
       manifestEntries: AI_MODEL_MANIFEST.length
     },
+    execution: executionView(status.execution, current.executionMode),
+    adapters: adapters === null ? null : describeAdapters(adapters),
     threads: inferenceThreads(),
     counters: status.counters
   };
@@ -424,6 +491,8 @@ export async function importAiBackendPack(owner: number, token: string): Promise
   const controller = new AbortController();
   activeImport = { owner, controller };
   try {
+    // A GPU host keeps the old pack's DLLs loaded, and Windows cannot delete a loaded DLL.
+    await releaseGpuHost();
     const result = await backendPack().import(pending.source, { signal: controller.signal });
     if (result.ok) return { code: "OK", ok: true, detail: result.unchanged ? "UNCHANGED" : "INSTALLED" };
     if (result.code === "CANCELLED") return { code: "IMPORT_CANCELLED", ok: false, detail: "CANCELLED", message: backendRefusalMessage("CANCELLED") };
@@ -456,6 +525,7 @@ export async function removeAiBackendPack(): Promise<AiAdminResponse> {
   if (activeImport) return { code: "NOT_AVAILABLE", ok: false, message: "Wait for the running import to finish or cancel it first." };
   pendingPreflight = null;
   try {
+    await releaseGpuHost();
     await backendPack().remove();
     return { code: "OK", ok: true };
   } catch {
@@ -463,11 +533,18 @@ export async function removeAiBackendPack(): Promise<AiAdminResponse> {
   }
 }
 
+/** Unload an idle model and stop the GPU host so nothing holds the pack; the next job re-plans. */
+async function releaseGpuHost(): Promise<void> {
+  if (service) await service.releaseModel().catch(() => undefined);
+  await gpuHostManager?.release().catch(() => undefined);
+}
+
 /** Staged shutdown: bounded, never throws, and a no-op when nothing was ever constructed. */
 export async function disposeAiSubsystem(): Promise<void> {
   const active = service;
   service = null;
   await active?.shutdown().catch(() => undefined);
-  if (!active) await hostManager?.dispose().catch(() => undefined);
+  if (!active) await Promise.all([hostManager?.dispose(), gpuHostManager?.dispose()].map((done) => done?.catch(() => undefined)));
   hostManager = null;
+  gpuHostManager = null;
 }

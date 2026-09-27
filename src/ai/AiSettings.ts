@@ -28,6 +28,14 @@ import {
 import { replaceFileAtomically } from "../storage/atomicReplace";
 import { runExclusive } from "../storage/folderWriteCoordinator";
 
+/**
+ * Where the model runs (L8a, E4). "cpu" is CPU & RAM only, the default and the only mode that needs
+ * nothing beyond the installer. "gpu-offload" offloads the largest safe layer count and falls back to
+ * CPU with a visible reason; "gpu-only" offloads every layer or refuses, never silently falling back.
+ */
+export type AiExecutionMode = "cpu" | "gpu-offload" | "gpu-only";
+export const AI_EXECUTION_MODES: readonly AiExecutionMode[] = Object.freeze(["cpu", "gpu-offload", "gpu-only"]);
+
 export interface AiSettings {
   enabled: boolean;
   yieldDuringRuns: boolean;
@@ -35,19 +43,30 @@ export interface AiSettings {
   idleUnloadMinutes: number;
   /** Absent means the feature runs at its ceiling. */
   featureTiers: Partial<Record<AiFeatureId, AiTier>>;
+  executionMode: AiExecutionMode;
+  /** VRAM kept free beside the model; null is the runtime's own system-derived padding. */
+  vramReserveMb: number | null;
 }
 
 export type AiSettingsPatch = Partial<AiSettings>;
 
 export const MAX_IDLE_UNLOAD_MINUTES = 240;
+/** Committed bounds for an administrator's VRAM reserve. Outside them a value is refused, not clamped. */
+export const MIN_VRAM_RESERVE_MB = 128;
+export const MAX_VRAM_RESERVE_MB = 32768;
 
 /** AI is opt-in: nothing runs until an administrator imports a pack and turns it on. */
 export const DEFAULT_AI_SETTINGS: Readonly<AiSettings> = Object.freeze({
   enabled: false,
   yieldDuringRuns: true,
   idleUnloadMinutes: 10,
-  featureTiers: {}
+  featureTiers: {},
+  executionMode: "cpu",
+  vramReserveMb: null
 });
+
+const isReserveMb = (value: unknown): value is number =>
+  typeof value === "number" && Number.isInteger(value) && value >= MIN_VRAM_RESERVE_MB && value <= MAX_VRAM_RESERVE_MB;
 
 export type AiSettingsSanitizeResult = { ok: true; value: AiSettingsPatch } | { ok: false; errors: string[] };
 
@@ -90,6 +109,17 @@ export function sanitizeAiSettingsPatch(input: unknown): AiSettingsSanitizeResul
       patch.featureTiers = next;
     }
   }
+  if (raw.executionMode !== undefined) {
+    if (!AI_EXECUTION_MODES.includes(raw.executionMode as AiExecutionMode)) errors.push("executionMode must be cpu, gpu-offload or gpu-only.");
+    else patch.executionMode = raw.executionMode as AiExecutionMode;
+  }
+  if (raw.vramReserveMb !== undefined) {
+    if (raw.vramReserveMb !== null && !isReserveMb(raw.vramReserveMb)) {
+      errors.push(`The VRAM reserve must be a whole number of MB from ${MIN_VRAM_RESERVE_MB} to ${MAX_VRAM_RESERVE_MB}, or the system default.`);
+    } else {
+      patch.vramReserveMb = raw.vramReserveMb as number | null;
+    }
+  }
   return errors.length > 0 ? { ok: false, errors } : { ok: true, value: patch };
 }
 
@@ -110,7 +140,10 @@ export function normalizeAiSettings(raw: unknown): AiSettings {
       typeof minutes === "number" && Number.isInteger(minutes) && minutes >= 0 && minutes <= MAX_IDLE_UNLOAD_MINUTES
         ? minutes
         : DEFAULT_AI_SETTINGS.idleUnloadMinutes,
-    featureTiers: tiers
+    featureTiers: tiers,
+    // A file from before L8a, or a value this version does not know, is CPU & RAM only.
+    executionMode: AI_EXECUTION_MODES.includes(source.executionMode as AiExecutionMode) ? (source.executionMode as AiExecutionMode) : "cpu",
+    vramReserveMb: isReserveMb(source.vramReserveMb) ? source.vramReserveMb : null
   };
 }
 
