@@ -10,11 +10,20 @@
  */
 
 import { app } from "electron";
+import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path, { join } from "node:path";
 
 import { deriveInferenceThreads } from "@src/ai/AiAdmission";
 import { AiActionStore, type AiAppendResult } from "@src/ai/AiActionStore";
+import {
+  AiBackendPackStore,
+  backendRefusalMessage,
+  backendTrustSources,
+  resolveBackendTrust,
+  type AiBackendPackStatus,
+  type BackendTrust
+} from "@src/ai/AiBackendPack";
 import { AiModelPackStore, type AiModelPackStatus } from "@src/ai/AiModelPack";
 import { revertAiAction } from "@src/ai/AiRevert";
 import { AiService, type AiServiceDeps } from "@src/ai/AiService";
@@ -23,12 +32,15 @@ import { AiSettingsStore, MAX_IDLE_UNLOAD_MINUTES, sanitizeAiSettingsPatch } fro
 import type {
   AiAdminResponse,
   AiAuditView,
+  AiBackendPackView,
+  AiBackendPreflightResponse,
   AiDiagnosticsView,
   AiModelPackView,
   AiSettingsView,
   AiStatusView
 } from "@src/ai/contracts/AiApi";
-import { AI_MODEL_MANIFEST, AI_RUNTIME_PIN } from "@src/offline/AiModelManifest";
+import { AI_BACKEND_MANIFEST, AI_MODEL_MANIFEST, AI_RUNTIME_PIN } from "@src/offline/AiModelManifest";
+import { readSignedDependencyManifest } from "@src/offline/SupplyChainIntegrity";
 import { detectMachineCapabilities } from "@src/runner/concurrency/MachineCapabilityDetector";
 import { executionEngine } from "@src/runner/ExecutionEngine";
 import {
@@ -309,6 +321,145 @@ export async function removeAiModelPack(): Promise<AiAdminResponse> {
     return { code: "OK", ok: true };
   } catch {
     return { code: "NOT_AVAILABLE", ok: false, message: "The model pack could not be removed." };
+  }
+}
+
+// ── GPU backend pack (L8a.2) ──────────────────────────────────────────────────────────────────────
+//
+// Imported and verified only; nothing loads it yet (L8a.3), so CPU inference is untouched by every
+// path below. The store's `verifyForLoad` is the boundary the host must pass before any backend load.
+
+let backendStore: AiBackendPackStore | null = null;
+const PREFLIGHT_TTL_MS = 10 * 60_000;
+/** The folder the last ready checklist covered, named to the renderer only by its token. */
+let pendingPreflight: { token: string; owner: number; source: string; at: number } | null = null;
+let activeImport: { owner: number; controller: AbortController } | null = null;
+
+function backendPack(): AiBackendPackStore {
+  if (backendStore) return backendStore;
+  const entry = AI_BACKEND_MANIFEST.find((candidate) => candidate.id === "vulkan") ?? null;
+  const build = AI_RUNTIME_PIN.build;
+  const sources = backendTrustSources({ packaged: app.isPackaged, resourcesPath: process.resourcesPath, appPath: app.getAppPath() });
+  backendStore = new AiBackendPackStore({
+    root: join(aiRoot(), "backends"),
+    entry,
+    runtimeBuild: build,
+    trust: async (): Promise<BackendTrust> =>
+      entry && build
+        ? resolveBackendTrust({ signed: await readSignedDependencyManifest(sources.resourcesRoot), hostRoot: sources.hostRoot, entry, runtimeBuild: build })
+        : { ok: false, code: "SIGNED_MANIFEST_MISMATCH", detail: "no backend is pinned" }
+  });
+  // Staging a crash or cancellation left behind is removed once per session, queued ahead of any import.
+  void backendStore.recover().catch(() => undefined);
+  return backendStore;
+}
+
+export async function aiBackendPackView(): Promise<AiBackendPackView> {
+  const store = backendPack();
+  const status = await store
+    .status()
+    .catch((): AiBackendPackStatus => ({ status: "invalid", reason: "REGISTRY_UNREADABLE", path: null, record: null }));
+  const entry = AI_BACKEND_MANIFEST.find((candidate) => candidate.id === "vulkan") ?? null;
+  const record = status.status === "installed" || status.status === "invalid" ? status.record : null;
+  const refused = status.status === "invalid" || status.status === "unavailable" ? status : null;
+  return {
+    backend: entry?.id ?? null,
+    pinnedBuild: AI_RUNTIME_PIN.build,
+    packageVersion: entry?.packageVersion ?? null,
+    status: status.status,
+    reason: refused?.reason ?? null,
+    message: refused ? backendRefusalMessage(refused.reason, "path" in refused ? refused.path : null) : null,
+    sizeBytes: record?.sizeBytes ?? null,
+    fileCount: record?.fileCount ?? null,
+    installedAt: record?.installedAt ?? null,
+    lastVerifiedAt: record?.lastVerifiedAt ?? null,
+    importing: store.importProgress()
+  };
+}
+
+/** Check the folder the main process just picked; a ready folder is remembered for its owner only. */
+export async function preflightAiBackendPack(owner: number, source: string): Promise<AiBackendPreflightResponse> {
+  const preflight = await backendPack()
+    .preflight(source)
+    .catch(() => null);
+  if (!preflight) {
+    return { code: "IMPORT_REFUSED", ok: false, detail: "COPY_FAILED", message: backendRefusalMessage("COPY_FAILED"), preflight: null };
+  }
+  const token = preflight.ready ? randomBytes(16).toString("hex") : "";
+  pendingPreflight = preflight.ready ? { token, owner, source, at: Date.now() } : null;
+  const view = {
+    token,
+    ready: preflight.ready,
+    backend: preflight.backend,
+    pinnedBuild: preflight.runtimeBuild,
+    packageVersion: preflight.packageVersion,
+    source,
+    destination: preflight.destination,
+    requiredBytes: preflight.requiredBytes,
+    headroomBytes: preflight.headroomBytes,
+    availableBytes: preflight.availableBytes,
+    identicalInstalled: preflight.identicalInstalled,
+    filesValidated: preflight.filesValidated,
+    fileCount: preflight.fileCount,
+    checks: preflight.checks
+  };
+  if (preflight.ready) return { code: "OK", ok: true, preflight: view };
+  return {
+    code: "IMPORT_REFUSED",
+    ok: false,
+    detail: preflight.code ?? "COPY_FAILED",
+    message: backendRefusalMessage(preflight.code ?? "COPY_FAILED", preflight.path),
+    preflight: view
+  };
+}
+
+/** Import the folder a ready checklist covered. The renderer names it only by that checklist's token. */
+export async function importAiBackendPack(owner: number, token: string): Promise<AiAdminResponse> {
+  const pending = pendingPreflight;
+  if (!pending || pending.token !== token || pending.owner !== owner || Date.now() - pending.at > PREFLIGHT_TTL_MS) {
+    return { code: "INVALID_REQUEST", ok: false, message: "Check the pack folder again before importing." };
+  }
+  if (activeImport) return { code: "NOT_AVAILABLE", ok: false, message: "A backend pack import is already running." };
+  pendingPreflight = null;
+  const controller = new AbortController();
+  activeImport = { owner, controller };
+  try {
+    const result = await backendPack().import(pending.source, { signal: controller.signal });
+    if (result.ok) return { code: "OK", ok: true, detail: result.unchanged ? "UNCHANGED" : "INSTALLED" };
+    if (result.code === "CANCELLED") return { code: "IMPORT_CANCELLED", ok: false, detail: "CANCELLED", message: backendRefusalMessage("CANCELLED") };
+    return { code: "IMPORT_REFUSED", ok: false, detail: result.code, message: backendRefusalMessage(result.code, result.path) };
+  } catch {
+    return { code: "IMPORT_REFUSED", ok: false, detail: "COPY_FAILED", message: backendRefusalMessage("COPY_FAILED") };
+  } finally {
+    activeImport = null;
+  }
+}
+
+/** Cancel the caller's running import (while it is still cancellable) or drop its checklist. */
+export function cancelAiBackendPack(owner: number): AiAdminResponse {
+  if (activeImport?.owner === owner) activeImport.controller.abort();
+  if (pendingPreflight?.owner === owner) pendingPreflight = null;
+  return { code: "OK", ok: true };
+}
+
+/** Run the load-time integrity guard now, so Settings can show a current verification. */
+export async function verifyAiBackendPack(): Promise<AiAdminResponse> {
+  const verdict = await backendPack()
+    .verifyForLoad()
+    .catch(() => null);
+  if (!verdict) return { code: "VERIFY_FAILED", ok: false, detail: "REGISTRY_UNREADABLE", message: backendRefusalMessage("REGISTRY_UNREADABLE") };
+  if (verdict.ok) return { code: "OK", ok: true };
+  return { code: verdict.reason === "NOT_INSTALLED" ? "NOT_FOUND" : "VERIFY_FAILED", ok: false, detail: verdict.reason, message: verdict.message };
+}
+
+export async function removeAiBackendPack(): Promise<AiAdminResponse> {
+  if (activeImport) return { code: "NOT_AVAILABLE", ok: false, message: "Wait for the running import to finish or cancel it first." };
+  pendingPreflight = null;
+  try {
+    await backendPack().remove();
+    return { code: "OK", ok: true };
+  } catch {
+    return { code: "NOT_AVAILABLE", ok: false, message: "The backend pack could not be removed." };
   }
 }
 

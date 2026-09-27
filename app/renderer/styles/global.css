@@ -6008,8 +6008,19 @@ th {
   padding: var(--space-2);
 }
 
-.settings-card-head h2 {
+.settings-card-head :is(h2, h3) {
   font-size: var(--text-md);
+  margin: 0;
+}
+
+/* A titled part inside one settings card (Local AI › GPU backend pack). */
+.settings-subsection {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.settings-subsection h4 {
+  font-size: var(--text-sm);
   margin: 0;
 }
 

@@ -32,6 +32,7 @@ export type AiReasonCode =
   | "SETTINGS_REJECTED"
   | "IMPORT_REFUSED"
   | "IMPORT_CANCELLED"
+  | "VERIFY_FAILED"
   | "REVERT_REFUSED"
   | "PROMOTION_REFUSED"
   | "NOT_FOUND"
@@ -91,6 +92,58 @@ export interface AiDiagnosticsView {
 export interface AiAuditView {
   records: AiActionRecord[];
   total: number;
+}
+
+/**
+ * The GPU backend pack (L8a.2). Installed means validated and copied into the app-managed folder; it
+ * says nothing about a GPU being used, which is L8a.3's execution mode.
+ */
+export interface AiBackendPackView {
+  backend: string | null;
+  pinnedBuild: string | null;
+  packageVersion: string | null;
+  status: "unavailable" | "not-installed" | "installed" | "invalid";
+  /** Stable refusal code for an invalid or unavailable pack. */
+  reason: string | null;
+  /** Short, safe sentence for that code; the only path it may name is a file inside the pack. */
+  message: string | null;
+  sizeBytes: number | null;
+  fileCount: number | null;
+  installedAt: string | null;
+  lastVerifiedAt: string | null;
+  importing: { phase: "copying" | "verifying" | "promoting"; doneBytes: number; totalBytes: number } | null;
+}
+
+/**
+ * The checklist shown before any copy. The ONE local-AI view that carries paths, because the owner
+ * requires the user to see what is copied from where: the folder the user just picked in main's own
+ * dialog, and the app-managed destination. They are display strings only. The import names the
+ * checked folder by `token`, so no renderer-supplied path is ever acted on.
+ */
+export interface AiBackendPreflightView {
+  /** One-time token for `importBackendPack`; empty when the folder is not ready to import. */
+  token: string;
+  ready: boolean;
+  backend: string | null;
+  pinnedBuild: string | null;
+  packageVersion: string | null;
+  source: string;
+  destination: string;
+  requiredBytes: number;
+  headroomBytes: number;
+  availableBytes: number | null;
+  identicalInstalled: boolean;
+  filesValidated: number;
+  fileCount: number;
+  checks: Array<{ id: string; state: "pass" | "fail" | "skipped"; detail: string }>;
+}
+
+export interface AiBackendPreflightResponse extends AiAdminResponse {
+  preflight: AiBackendPreflightView | null;
+}
+
+export function sanitizeBackendPreflightToken(input: unknown): string | null {
+  return typeof input === "string" && /^[0-9a-f]{32}$/.test(input) ? input : null;
 }
 
 /**

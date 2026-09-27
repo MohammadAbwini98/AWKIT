@@ -19,6 +19,8 @@ import type {
 import type {
   AiAdminResponse,
   AiAuditView,
+  AiBackendPackView,
+  AiBackendPreflightResponse,
   AiDiagnosticsView,
   AiSettingsView,
   AiStatusView,
@@ -446,7 +448,14 @@ const api = {
     attachInspectionProposal: (request: InspectionAttachRequest) => invoke("ai:attachInspectionProposal", request) as Promise<InspectionAttachView>,
     cancelAssist: (requestId: string) => invoke("ai:cancelAssist", requestId) as Promise<AiAdminResponse>,
     importModelPack: () => invoke("ai:importModelPack") as Promise<AiAdminResponse>,
-    removeModelPack: () => invoke("ai:removeModelPack") as Promise<AiAdminResponse>
+    removeModelPack: () => invoke("ai:removeModelPack") as Promise<AiAdminResponse>,
+    // L8a.2 GPU backend pack. The folder is picked in main; import names it only by the checklist's token.
+    getBackendPack: () => invoke("ai:getBackendPack") as Promise<AiBackendPackView>,
+    preflightBackendPack: () => invoke("ai:preflightBackendPack") as Promise<AiBackendPreflightResponse>,
+    importBackendPack: (token: string) => invoke("ai:importBackendPack", token) as Promise<AiAdminResponse>,
+    cancelBackendPack: () => invoke("ai:cancelBackendPack") as Promise<AiAdminResponse>,
+    verifyBackendPack: () => invoke("ai:verifyBackendPack") as Promise<AiAdminResponse>,
+    removeBackendPack: () => invoke("ai:removeBackendPack") as Promise<AiAdminResponse>
   },
   executions: {
     list: () => invoke("execution:list") as Promise<unknown[]>,

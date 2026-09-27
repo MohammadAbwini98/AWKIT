@@ -10,6 +10,7 @@ import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { useSession } from "../security/SessionContext";
 import { usePermissions } from "../security/usePermissions";
 import { ReauthDialog } from "./admin/ReauthDialog";
+import { LocalAiBackendPack } from "./LocalAiBackendPack";
 import { useSensitiveSemanticAction, type SensitiveAdminResponse } from "../semantic/useSensitiveSemanticAction";
 
 const api = () => window.playwrightFlowStudio.ai;
@@ -337,6 +338,8 @@ export function LocalAiSettings() {
             too often drops to Suggest until you restore it. Protected sign-in pages, sensitive actions and run control
             are never touched by AI.
           </p>
+
+          <LocalAiBackendPack sessionRef={sessionRef} />
         </>
       ) : null}
 

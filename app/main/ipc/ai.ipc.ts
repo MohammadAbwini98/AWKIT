@@ -3,8 +3,10 @@
  *
  * Every channel is authorized in the MAIN process before it touches the subsystem; the renderer's
  * checks only decide what to render. There is deliberately no channel that carries prompt text, names
- * a model file or returns a filesystem path: an assist job names data that main re-validates and
- * builds its own prompt from, and model import opens its file dialog here, in main.
+ * a model file or accepts a filesystem path: an assist job names data that main re-validates and
+ * builds its own prompt from, and model and backend-pack import open their dialogs here, in main. The
+ * backend-pack checklist is the one view that shows paths (the picked folder and the app-managed
+ * destination), for display only.
  *
  * Read channels throw on denial (nothing for the renderer to recover); mutating channels answer with
  * a code, because a stale re-authentication window on `ai.manage` is the ordinary case for an
@@ -17,12 +19,15 @@ import {
   authorizeAiAction,
   sanitizeActionId,
   sanitizeAuditPage,
+  sanitizeBackendPreflightToken,
   sanitizeFeatureId,
   sanitizeFlowEditorState,
   sanitizeProfileId,
   sanitizePromotionRequest,
   type AiAdminResponse,
   type AiAuditView,
+  type AiBackendPackView,
+  type AiBackendPreflightResponse,
   type AiDiagnosticsView,
   type AiSettingsView,
   type AiStatusView,
@@ -54,16 +59,22 @@ import {
 } from "../ai/aiAssist";
 import {
   aiAuditView,
+  aiBackendPackView,
   aiDiagnosticsView,
   aiPolicyConfig,
   aiSettingsView,
   aiStatusView,
+  cancelAiBackendPack,
   getAiService,
+  importAiBackendPack,
   importAiModelPack,
+  preflightAiBackendPack,
+  removeAiBackendPack,
   removeAiModelPack,
   restoreAiFeature,
   revertAiActionFromAudit,
-  updateAiSettings
+  updateAiSettings,
+  verifyAiBackendPack
 } from "../ai/aiRuntime";
 import { clearFlowEditorState, flowLocatorUpgrades, promoteFlowLocatorUpgrade, setFlowEditorState } from "../ai/locatorUpgradeService";
 
@@ -279,5 +290,45 @@ export function registerAiIpc(): void {
 
   ipcMain.handle("ai:removeModelPack", async (event): Promise<AiAdminResponse> => {
     return (await authorize(event, Permission.AI_MANAGE, true)) ?? removeAiModelPack();
+  });
+
+  // L8a.2 GPU backend pack. No new permission: AI_MANAGE throughout, with re-authentication for every
+  // step that picks, copies or deletes. The folder dialog opens here, in main; the renderer receives a
+  // checklist and a one-time token and can only name the checked folder by that token.
+  ipcMain.handle("ai:getBackendPack", async (event): Promise<AiBackendPackView> => {
+    await assertSenderPermission(event, Permission.AI_MANAGE);
+    return aiBackendPackView();
+  });
+
+  ipcMain.handle("ai:preflightBackendPack", async (event): Promise<AiBackendPreflightResponse> => {
+    const denied = await authorize(event, Permission.AI_MANAGE, true);
+    if (denied) return { ...denied, preflight: null };
+    const owner = BrowserWindow.fromWebContents(event.sender);
+    const options: Electron.OpenDialogOptions = { title: "Select the GPU backend pack folder", properties: ["openDirectory"] };
+    const picked = owner ? await dialog.showOpenDialog(owner, options) : await dialog.showOpenDialog(options);
+    if (picked.canceled || !picked.filePaths[0]) return { code: "IMPORT_CANCELLED", ok: false, preflight: null };
+    return preflightAiBackendPack(event.sender.id, picked.filePaths[0]);
+  });
+
+  ipcMain.handle("ai:importBackendPack", async (event, token: unknown): Promise<AiAdminResponse> => {
+    const denied = await authorize(event, Permission.AI_MANAGE, true);
+    if (denied) return denied;
+    const id = sanitizeBackendPreflightToken(token);
+    return id ? importAiBackendPack(event.sender.id, id) : { code: "INVALID_REQUEST", ok: false, message: "Check the pack folder again before importing." };
+  });
+
+  // Cancels only the asking window's own import or checklist, so it needs no re-authentication.
+  ipcMain.handle("ai:cancelBackendPack", async (event): Promise<AiAdminResponse> => {
+    await assertSenderPermission(event, Permission.AI_MANAGE);
+    return cancelAiBackendPack(event.sender.id);
+  });
+
+  // Runs the load-time integrity guard. It can only narrow what loads (mark a pack invalid), never widen it.
+  ipcMain.handle("ai:verifyBackendPack", async (event): Promise<AiAdminResponse> => {
+    return (await authorize(event, Permission.AI_MANAGE, false)) ?? verifyAiBackendPack();
+  });
+
+  ipcMain.handle("ai:removeBackendPack", async (event): Promise<AiAdminResponse> => {
+    return (await authorize(event, Permission.AI_MANAGE, true)) ?? removeAiBackendPack();
   });
 }
