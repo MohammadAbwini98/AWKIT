@@ -1,39 +1,17 @@
 {
   "task": "awkit-djnl-11-l8a3-gpu-modes-0927",
   "contract_path": "docs/ai/contracts/awkit-djnl-11-l8a3-gpu-modes-0927.json",
-  "holder": "runtime",
-  "status": "released",
+  "holder": "release",
+  "status": "active",
   "allowed_paths": [
-    "native-hosts/ai/ai-host.cjs"
+    "build",
+    "resources/dependency-manifest.json",
+    "resources/dependency-manifest.sig"
   ],
-  "acquired_at": "2026-09-27T16:21:03.097Z",
-  "acquired_at_commit": "c3054fe58f2f558ea04613380a58e00f3c627a9b",
-  "baseline_dirty": [
-    "app/main/ai/aiRuntime.ts",
-    "app/main/ai/gpuAdapters.ts",
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-djnl-11-l8a3-gpu-modes-0927.json",
-    "package.json",
-    "scripts/ai-harness/gpuLive.ts",
-    "scripts/ai-harness/harnessMain.ts",
-    "scripts/verify-ai-gpu-host.mts",
-    "scripts/verify-ai-gpu-modes.mts",
-    "scripts/verify-ai-host.mts",
-    "tools/roadmap/assignments.json"
-  ],
-  "baseline_dirty_fingerprints": {
-    "app/main/ai/aiRuntime.ts": "0988af698b6723bce887f1c344d71b2ec1c795f5ba29d186cee1d3c040e6fc71",
-    "app/main/ai/gpuAdapters.ts": "280481778cf97751c5bbca5cb73ce3cf7451ec1e867c15c76df553ed68766005",
-    "docs/ai/contracts/active-lease.json": "4f12a36c96a055428594ddf7a58d889cae8ce39029a1cdaacbff6e5977d7cee2",
-    "docs/ai/contracts/awkit-djnl-11-l8a3-gpu-modes-0927.json": "d86b8e31c56726de2413bac53f0496e420e20d3e828c89846ef38c9c414bff00",
-    "package.json": "c91ee902c8c228f202e08804bc8b7c20a72fef6f7a7c9ed9f0b6a3d24f8a2456",
-    "scripts/ai-harness/gpuLive.ts": "2734d8eb999d776cca12a189da19e1429c954757ffea8738750da909e961b36d",
-    "scripts/ai-harness/harnessMain.ts": "d7cf654c859cf750651d2fe8837d60591a42f83063a79bbc37a087b0101b047a",
-    "scripts/verify-ai-gpu-host.mts": "64d0927191d840bd1ffe2d80592469ace00491c786ca4260eeeec1fc4af82213",
-    "scripts/verify-ai-gpu-modes.mts": "095847e740369c2bf3ca6836d2ece9d13a77a3c0d023527041f5ec7f1486fafb",
-    "scripts/verify-ai-host.mts": "1d7959aa185aac40a0465cd48966ba6510d12de61ea64fa083b0d6fcc094f1cc",
-    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
-  },
+  "acquired_at": "2026-09-27T16:35:55.982Z",
+  "acquired_at_commit": "083c218959aed6630c35046e2628d0b17f30f136",
+  "baseline_dirty": [],
+  "baseline_dirty_fingerprints": {},
   "baseline_watched_ignored": {
     ".env": "absent",
     ".claude/settings.local.json": "6238:1788551784499.886",
@@ -46,8 +24,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-27T16:21:20.195Z",
-  "released_reason": "plan bisection committed, host verification continues unleased",
-  "archived_at": "2026-09-27T16:21:20.197Z"
+  "violations": []
 }
