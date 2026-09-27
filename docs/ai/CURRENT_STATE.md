@@ -34,9 +34,9 @@
     `verify:offline-supply-chain` 25/0;
   - build, `typecheck:scripts` and `verify:verifier-classification` (281) PASS;
   - `package:portable` from clean `c76be866`, with in-pipeline strict validation PASS.
-- **BLOCKED:** mutation checks on hash validation, path confinement, staged revalidation and the
-  load guard. The session's permission classifier refused the temporary source edit; they await
-  the owner's approval.
+- **Mutation checks:** three of the four were caught — hash validation 130/9, staged revalidation
+  135/4, load-time guard 129/10. All were reverted. **Path confinement is BLOCKED:** the session's
+  permission classifier refused its temporary edit twice. It awaits an owner-run mutation.
 - **Pre-existing FAIL:** `verify:ai-settings-gui` 26/30. Its assertions date from before the
   2026-09-20 pin (runtime "not included", 0 accepted packs); L8a.2 did not cause it.
 - **NVIDIA:** real GPU qualification stays BLOCKED (no `0x10DE` adapter here; E11). Vendor

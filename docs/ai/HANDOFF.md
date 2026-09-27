@@ -15,11 +15,13 @@
   - map the ESM resolve hook (L8a.0) to `<dir>/dist/index.js`;
   - the VC++ runtime is already beside the binaries in `bins/win-x64-vulkan/`.
   - Guard gap to close there: a file swapped between `verifyForLoad` and the actual load.
-- **BLOCKED, owner action:** the four mutation checks (hash validation, path confinement, staged
-  revalidation, load guard). The auto-mode permission classifier refused the temporary edit of
-  `src/ai/AiBackendPack.ts`, and it was not retried. Approve that edit, or run the mutations
-  yourself: disable one check, run `npm run verify:ai-backend-pack`, expect specific FAILs,
-  revert.
+- **Mutation checks:** hash validation (130/9), staged revalidation (135/4) and the load guard
+  (129/10) were caught and reverted after the owner said "Try again".
+- **BLOCKED, owner action:** the path-confinement mutation. The auto-mode permission classifier
+  refused it twice, and it was not worked around. To run it yourself:
+  1. make `confined()` in `src/ai/AiBackendPack.ts` return the joined target without `inside()`;
+  2. run `npm run verify:ai-backend-pack` and expect the escaping-runtime-name case to FAIL;
+  3. revert.
 - **Owner decisions still open:** E11 (no NVIDIA adapter here, so real GPU qualification is
   BLOCKED until a compatible NVIDIA machine) and E2 (vendor ID not exposed by the runtime; report
   unknown, never claim NVIDIA).

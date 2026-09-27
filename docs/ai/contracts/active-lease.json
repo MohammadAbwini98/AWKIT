@@ -2,7 +2,7 @@
   "task": "awkit-djnl-11-l8a2-backend-import-0927",
   "contract_path": "docs/ai/contracts/awkit-djnl-11-l8a2-backend-import-0927.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     ".beads/issues.jsonl"
   ],
@@ -26,5 +26,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-27T15:45:36.664Z",
+  "released_reason": "Beads note on awkit-djnl.11 committed at 757cec77 and exported, the issue stays open for L8a.3",
+  "archived_at": "2026-09-27T15:45:36.665Z"
 }

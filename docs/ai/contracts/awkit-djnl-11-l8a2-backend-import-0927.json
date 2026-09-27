@@ -107,7 +107,10 @@
       "description": "Validation, staged copy, VC++ runtime sourcing, revalidation, atomic promotion, idempotence, rollback, cancellation and restart recovery, path confinement and the load-time integrity guard behave as specified, with mutation checks on hash validation, path confinement, staged revalidation and the load-time guard.",
       "evidence_required": [
         "verify:ai-backend-pack",
-        "mutation:ai-backend-pack"
+        "mutation:hash-validation",
+        "mutation:staged-revalidation",
+        "mutation:load-time-guard",
+        "mutation:path-confinement"
       ]
     },
     {
@@ -138,13 +141,40 @@
       "observed": "139 passed, 0 failed, 0 not run, first green run. A 44 (the refusal matrix by checklist and import: missing, same-size modified, resized, renamed, other build, other backend, extra DLL, MZ image named .txt, runtime DLL in the pack, extra .mjs, extra plain file, extra empty folder, junction inside and as root, file symlink (created: this account holds the privilege), too many entries, traversal and absolute manifest paths; nothing left behind), B 9 (trust and space: unsigned manifest, unverified runtime, runtime bytes differing from their trusted hash while copying, one byte short of pack+runtime+headroom, unmeasurable space), C 20 (import, byte-identical copy, app runtime beside the backend, registry with no absolute or source path, confinement, idempotence, escaping runtime name refused with nothing written outside), D 9 (cancel mid-copy and of a replacement, crash leftovers recovered, a junction removed without being followed, unreadable registry keeps packs), E 14 (source changed while copying, staged tamper and planted DLL, failed promotion: previous pack intact each time; cross-build replacement), F 16 (the load guard: altered, deleted, planted, runtime-replaced, truncated, junction-swapped, outside registry, deleted registry; sticky, never repaired, CPU fallback), G 9, H 8 (the committed signed manifest verifies, a one-byte change is refused, signed/built-in disagreement, missing and mismatched runtime assets, dev staged runtime verifies), I 9 (the real 24-file pack end to end; exactly 24+3 files, runtime byte-identical to build/native-hosts; the raw npm folder refused; dist/win-unpacked's shipped runtime verifies against its shipped signed manifest)."
     },
     {
-      "id": "mutation:ai-backend-pack",
+      "id": "mutation:hash-validation",
       "type": "verifier",
       "required": true,
-      "command": "temporarily disable, one at a time, compareHashes' comparison, confined()'s containment test, the staged revalidation and verifyUnlocked's inspectInstalled call in src/ai/AiBackendPack.ts; run npm run verify:ai-backend-pack; expect specific FAILs; revert",
+      "command": "src/ai/AiBackendPack.ts compareHashes: comparison disabled (false &&), npm run verify:ai-backend-pack, reverted",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "Caught, 130/9: the checklist no longer refused a same-size modification, staged tamper and its rollback check failed, and the load guard admitted an altered pack and a replaced runtime DLL (with the sticky/re-import checks). The copy-time hash still refused the import, as designed. Run after the owner said 'Try again' to the first classifier refusal; reverted, git diff empty."
+    },
+    {
+      "id": "mutation:staged-revalidation",
+      "type": "verifier",
+      "required": true,
+      "command": "src/ai/AiBackendPack.ts import: the STAGED_MISMATCH return disabled (false &&), npm run verify:ai-backend-pack, reverted",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "Caught, 135/4: exactly the staged-file tamper and planted-DLL cases and their 'previous pack untouched' checks failed (the tampered staging was promoted). Reverted, git diff empty."
+    },
+    {
+      "id": "mutation:load-time-guard",
+      "type": "verifier",
+      "required": true,
+      "command": "src/ai/AiBackendPack.ts verifyUnlocked: inspectInstalled skipped (problem = null), npm run verify:ai-backend-pack, reverted",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "Caught, 129/10: the guard admitted altered, deleted, planted, runtime-replaced, truncated and junction-swapped packs, nothing was marked invalid, and restoring bytes revived a pack; the registry-level refusals (outside dir, deleted registry) still held, as they precede the inspection. Reverted, git diff empty."
+    },
+    {
+      "id": "mutation:path-confinement",
+      "type": "verifier",
+      "required": true,
+      "command": "src/ai/AiBackendPack.ts confined(): return the joined target without the inside() test, npm run verify:ai-backend-pack, revert (expected: the escaping runtime-name case writes outside the backends root and fails)",
       "artifact": null,
       "result": "BLOCKED",
-      "observed": "The first mutation edit (disabling the hash comparison) was refused by the session's auto-mode permission classifier as weakening a security check. Per the denial it was not retried or worked around; the verifier run that followed exercised unmodified code (139/0) and is NOT a mutation result. Needs the owner's approval of the temporary edit, or the owner running the four mutations."
+      "observed": "Refused twice by the session's auto-mode permission classifier as weakening a security check: first as part of the initial batch, then again after the owner's 'Try again', which admitted the other three. Not retried or worked around. The unmutated check itself is covered by 'a runtime file name escaping the staging is refused ... nothing was written outside the backends root' (PASS). Needs the owner to run this one mutation or allow the edit."
     },
     {
       "id": "verify:ai-backend-pack-gui",
@@ -257,7 +287,7 @@
     "status": "implemented",
     "qa_status": "BLOCKED",
     "qa_basis": "verify:ai-backend-pack 139/0, verify:ai-backend-pack-gui 59/59, verify:ai-backend-pack-packaged 61/61, verify:ai-permissions 117/0, verify:ai-fallback 38/0, verify:ipc-contract 10/10, verify:offline-supply-chain 25/0, build, typecheck:scripts, verify:verifier-classification 282, package:portable with in-pipeline strict validation, verify:ai-packaged-runtime 104/0.",
-    "qa_known_limitations": "BLOCKED: the four requested mutation checks (the auto-mode permission classifier refused the temporary edit; not retried). BLOCKED: real NVIDIA qualification (no 0x10DE adapter, E11); vendor identity reported unknown (E2). Nothing loads the pack yet (L8a.3), and the gap between verifyForLoad and the actual load is L8a.3's. verify:ai-settings-gui 26/30 is a pre-existing stale-assertion FAIL. No NSIS rebuild.",
+    "qa_known_limitations": "Mutation checks: hash validation 130/9, staged revalidation 135/4 and load-time guard 129/10 caught; path confinement BLOCKED (the auto-mode permission classifier refused its temporary edit twice; not worked around). BLOCKED: real NVIDIA qualification (no 0x10DE adapter, E11); vendor identity reported unknown (E2). Nothing loads the pack yet (L8a.3), and the gap between verifyForLoad and the actual load is L8a.3's. verify:ai-settings-gui 26/30 is a pre-existing stale-assertion FAIL. No NSIS rebuild.",
     "qc_status": "pending"
   },
   "write_lease": {
@@ -292,6 +322,22 @@
         "acquired_at_commit": "2c531c409398a00d16d71b5419c801479ed17165",
         "released_at": "2026-09-27T15:14:24.804Z",
         "released_reason": "portable 0.1.51 packaged from clean c76be866 with in-pipeline strict validation PASS and the signed manifest committed at d60ba9c4, verify:ai-packaged-runtime 91 PASS 5 FAIL all in the live-inference section D timeouts",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-11-l8a2-backend-import-0927:project-state:2026-09-27T15:34:37.597Z",
+        "task": "awkit-djnl-11-l8a2-backend-import-0927",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/issues.jsonl"
+        ],
+        "acquired_at": "2026-09-27T15:34:37.597Z",
+        "acquired_at_commit": "dfda33a69f9f3ac59af6560ca504a6d050576905",
+        "released_at": "2026-09-27T15:45:36.664Z",
+        "released_reason": "Beads note on awkit-djnl.11 committed at 757cec77 and exported, the issue stays open for L8a.3",
         "amendments": [],
         "overrides": [],
         "violations": []

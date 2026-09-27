@@ -38,8 +38,10 @@
   - `verify:failure-capture-overhead` 17 PASS / 1 INCONCLUSIVE (timing; zero AI calls on the run
     path PASS);
   - `package:portable` from clean `c76be866` with in-pipeline strict validation PASS.
-- **BLOCKED:** the four mutation checks (the permission classifier refused the temporary source
-  edit; not retried) and real NVIDIA qualification (E11).
+- **Mutations:** hash validation 130/9, staged revalidation 135/4 and load guard 129/10 caught and
+  reverted. The first classifier refusal was retried only after the owner's "Try again".
+- **BLOCKED:** the path-confinement mutation (refused twice by the permission classifier; not
+  worked around) and real NVIDIA qualification (E11).
 - **FAIL, pre-existing:** `verify:ai-settings-gui` 26/30, from stale pre-pin assertions.
 - **NOT RUN:** NSIS rebuild, independent QC.
 
