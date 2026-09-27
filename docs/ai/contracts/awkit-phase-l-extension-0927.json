@@ -82,8 +82,8 @@
       "required": true,
       "command": "bd ready and bd blocked",
       "artifact": null,
-      "result": "BLOCKED",
-      "observed": "bd ready: 3 issues (the epic, L8a awkit-djnl.11, awkit-egkw). bd blocked: 19, including L8b and L9 on L8a as intended, but also the Phase M and N epics and every M and N child, because the reopened epic re-blocks awkit-akb and awkit-vra and bd propagates that through parent-child. Before the change bd ready listed 5 (both epics, M1, N1, awkit-egkw). The owner-decided removal of awkit-akb -> awkit-djnl and awkit-vra -> awkit-djnl is BLOCKED: the lease guard's project-state Beads grammar admits bd dep add but no bd dep remove. The two commands were handed to the owner, who chose to defer them."
+      "result": "PASS",
+      "observed": "Final state, after the owner ran both bd dep remove commands: bd ready lists 7 (the Phase L, M and N epics, L8a awkit-djnl.11, M1 awkit-akb.1, N1 awkit-vra.1, awkit-egkw), bd stats dependency-Blocked 15, and bd show awkit-djnl has no BLOCKS section. Earlier the same day, before the removal: bd ready: 3 issues (the epic, L8a awkit-djnl.11, awkit-egkw). bd blocked: 19, including L8b and L9 on L8a as intended, but also the Phase M and N epics and every M and N child, because the reopened epic re-blocks awkit-akb and awkit-vra and bd propagates that through parent-child. Before the change bd ready listed 5 (both epics, M1, N1, awkit-egkw). The owner-decided removal of awkit-akb -> awkit-djnl and awkit-vra -> awkit-djnl is BLOCKED: the lease guard's project-state Beads grammar admits bd dep add but no bd dep remove. The two commands were handed to the owner, who first deferred them and then ran both."
     },
     {
       "id": "beads-export",
@@ -92,7 +92,7 @@
       "command": "bd export -o .beads/issues.jsonl",
       "artifact": ".beads/issues.jsonl",
       "result": "PASS",
-      "observed": "Printed 'Exported 325 issues to .beads/issues.jsonl'. bd stats: Total 325, Open 22, In Progress 0, dependency-Blocked 19, Closed 301, Ready 3."
+      "observed": "Printed 'Exported 325 issues to .beads/issues.jsonl' twice: after filing, and again under a re-granted lease after the owner's edge removal. Final bd stats: Total 325, Open 22, In Progress 0, dependency-Blocked 15, Closed 301, Ready 7."
     },
     {
       "id": "verify:roadmap-dashboard",
@@ -101,7 +101,7 @@
       "command": "npm run verify:roadmap-dashboard",
       "artifact": null,
       "result": "PASS",
-      "observed": "A measuring run before the pins moved failed exactly the three tracker pins (got 325 issues, 24 outstanding / 301 closed, 189 edges), 174/177. After the pins moved to those measured values, the final-state run printed 177/177 including '14 phases', 'no cycles in the real data', both narrative tallies agreeing at 65/2/0 and 'the Overview banner reads \"Sources agree\"'. npm run build PASS on the final state; git diff --check clean (line-ending notices only)."
+      "observed": "A measuring run before the pins moved failed exactly the three tracker pins (got 325 issues, 24 outstanding / 301 closed, 189 edges), 174/177. After the pins moved to those measured values, the final-state run printed 177/177 including '14 phases', 'no cycles in the real data', both narrative tallies agreeing at 65/2/0 and 'the Overview banner reads \"Sources agree\"'. npm run build PASS; git diff --check clean (line-ending notices only). After the owner's edge removal a measuring run failed only the edge pin (got 187), 176/177; the pin moved 189 -> 187 and the final-state run is recorded in the task log."
     }
   ],
   "git": {
@@ -112,11 +112,10 @@
     "push_authorized": true
   },
   "completion": {
-    "status": "blocked",
-    "blocked_on": "PHL-EXT-BEADS's second half: removing the epic-level edges awkit-akb -> awkit-djnl and awkit-vra -> awkit-djnl needs bd dep remove, which the lease guard's Beads grammar does not admit. The owner deferred running 'bd dep remove awkit-akb awkit-djnl' and 'bd dep remove awkit-vra awkit-djnl' themselves. After they run: bd export -o .beads/issues.jsonl and move the edge pin in scripts/verify-roadmap-dashboard.mjs by the measured change (expected 189 -> 187). Everything else in this contract is met.",
+    "status": "implemented",
     "qa_status": "PASS",
     "qa_basis": "Tracker structure, ready set and export inspected with bd show, bd ready, bd blocked and bd stats; final state passed npm run build and verify:roadmap-dashboard 177/177 with Sources agree.",
-    "qa_known_limitations": "As in the 2026-09-19 registration, src/roadmap/ImplementationRoadmap.ts, scripts/verify-roadmap-dashboard.mjs and the docs/ai and docs/plans updates are ordinary unleased direct-loop edits made after the lease was released, so they sit outside this contract's project-state routing by design. The Program Status dashboard GUI was not opened; the verifier served the new snapshot. Until the owner removes the two epic edges, bd reports Phases M and N blocked while the dashboard (which treats epics as containers) shows M1 and N1 ready.",
+    "qa_known_limitations": "As in the 2026-09-19 registration, src/roadmap/ImplementationRoadmap.ts, scripts/verify-roadmap-dashboard.mjs and the docs/ai and docs/plans updates are ordinary unleased direct-loop edits made after the lease was released, so they sit outside this contract's project-state routing by design. The Program Status dashboard GUI was not opened; the verifier served the new snapshot. The two epic-edge removals were run by the owner in their own terminal, because the guard grammar has no bd dep remove; the agent verified them with bd ready and bd show. That is why completion.status is implemented rather than complete.",
     "qc_status": "NOT_REQUIRED"
   },
   "write_lease": {
@@ -133,6 +132,22 @@
         "acquired_at_commit": "3a5926ae55391f904182816b66aac3405a61ca6a",
         "released_at": "2026-09-27T09:39:28.918Z",
         "released_reason": "L8a awkit-djnl.11, L8b awkit-djnl.12 and L9 awkit-djnl.13 filed under the reopened Phase L epic with five blocks edges, export refreshed to 325 issues. The M and N epic-edge removal is pending the owner because the guard grammar has no bd dep remove.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-phase-l-extension-0927:project-state:2026-09-27T09:59:48.898Z",
+        "task": "awkit-phase-l-extension-0927",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-27T09:59:48.898Z",
+        "acquired_at_commit": "5de16a5d4a1198e0f382ecee22c8c13dc72d64ff",
+        "released_at": "2026-09-27T10:00:06.128Z",
+        "released_reason": "Owner removed awkit-akb and awkit-vra epic edges on awkit-djnl, export refreshed at 325 issues, Phase M and N readiness restored",
         "amendments": [],
         "overrides": [],
         "violations": []

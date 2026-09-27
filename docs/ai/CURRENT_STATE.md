@@ -18,10 +18,9 @@ evidence. New open milestones, with nothing implemented:
 Evidence for all three is planned on the development machine with the packaged build. Decisions E1–E12 are in
 `docs/plans/ai-upgrade-v5/ROADMAP.md` › *Phase L extension (2026-09-27)* and `DECISIONS.md`.
 
-The Phase M/N epic-level edge removal (E10) is **pending the owner**. Until
-`bd dep remove awkit-akb awkit-djnl` and `bd dep remove awkit-vra awkit-djnl` run, `bd ready`
-reports Phases M and N as blocked by the reopened Phase L epic. The current code is unchanged:
-the local-AI host is still CPU-only. Validation ledger unchanged at
+The Phase M/N epic-level edges were removed by the owner (E10), so Phases M and N stay independent
+of the reopened Phase L epic: `bd ready` lists both epics, M1 and N1. The current code is
+unchanged: the local-AI host is still CPU-only. Validation ledger unchanged at
 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
 ## Phase L recovery: L4b, L6 and L7 technical acceptance complete (2026-09-27)

@@ -26,7 +26,7 @@
   - E7 trust boundary: `AI_MANAGE` + re-auth, no new permission, an unverified-model acknowledgement;
   - E8 bounded per-feature time budgets, the historical 120/125 s values preserved;
   - E9 one honest job-status contract; determinate progress only with a known denominator;
-  - E10 Phase M/N epic-level edges removed (pending the owner, see below);
+  - E10 Phase M/N epic-level edges removed (run by the owner, see below);
   - E11 evidence on the development machine with the packaged build, including the loader-isolation proof;
   - E12 supersessions appended, not rewritten.
 - **Superseded:** the 2026-09-19 model-manifest rule "no online refresh, no user override, and a pack
@@ -34,12 +34,10 @@
   the qualified list; any **compatible** GGUF may be registered under E1/E6/E7. The ROADMAP
   Objective's "one local, CPU-only model" and the Model baseline's "no GPU" are superseded as noted
   there. The historical text stays in place.
-- **Pending owner action.** The agent lease guard's Beads grammar has no dependency removal, so the
-  E10 commands `bd dep remove awkit-akb awkit-djnl` and `bd dep remove awkit-vra awkit-djnl` were
-  handed to the owner, who deferred them. Until they run, `bd ready` reports Phases M and N as
-  blocked by the reopened Phase L epic. Afterwards, refresh the export with
-  `bd export -o .beads/issues.jsonl` and move the dashboard verifier's edge pin by the measured
-  change.
+- **E10 executed by the owner.** The agent lease guard's Beads grammar has no dependency removal,
+  so the owner ran `bd dep remove awkit-akb awkit-djnl` and `bd dep remove awkit-vra awkit-djnl`
+  the same day. `bd ready` again lists both phase epics, M1 and N1; the export was refreshed and the
+  dashboard verifier's edge pin moved 189 → 187 (measured).
 - Nothing is implemented. No runtime, GPU, model-registration, Settings, timeout, progress or ETA
   behavior changed.
 

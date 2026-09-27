@@ -29,5 +29,5 @@
 - **Compatible vs Qualified:** any compatible GGUF may be registered (copied, never referenced);
   quality qualification carries across hardware, latency class is measured locally.
 - **Evidence on the development machine** with the packaged build; no external-machine benchmark.
-- **Phase M/N independence:** epic-level edges decided for removal; the removal is pending the owner.
+- **Phase M/N independence:** epic-level edges removed (run by the owner); M1/N1 keep their L7 edge.
 - Decisions E1–E12 in `ROADMAP.md` › *Phase L extension (2026-09-27)*.

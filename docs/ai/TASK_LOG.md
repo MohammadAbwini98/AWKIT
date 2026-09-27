@@ -11,8 +11,9 @@
   - Phase L now reads 10 of 13 (77%) and `ImplementationRoadmap.ts` reads `in-progress`
     (overall 11 of 14 phases).
   - Decisions E1–E12 were recorded.
-  - The Phase M/N epic-edge removal is BLOCKED by the guard grammar (no `bd dep remove`) and was
-    handed to the owner, who deferred it.
+  - The Phase M/N epic-edge removal was BLOCKED for the agent by the guard grammar (no
+    `bd dep remove`). The owner ran both commands, in a follow-up commit, and M/N readiness was
+    restored.
 - **Files:**
   - `.beads/issues.jsonl`
   - `docs/ai/contracts/awkit-phase-l-extension-0927.json`
@@ -22,7 +23,8 @@
   - `scripts/verify-roadmap-dashboard.mjs`
 - **Verification:**
   - Beads, via `bd show`, `bd ready`, `bd blocked` and `bd stats`: 325 issues, 22 open, 301 closed.
-  - Roadmap dashboard pins moved to the measured values: 325, 24/301 and 189 edges.
+  - Roadmap dashboard pins moved to the measured values: 325 and 24/301, with 189 edges, then 187
+    after the owner's edge removal.
   - The build, the dashboard verifier and `git diff --check` results are in the final report and
     contract.
   - `verify:verifier-classification` was NOT RUN: no verifier was added.

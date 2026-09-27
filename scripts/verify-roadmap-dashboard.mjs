@@ -696,11 +696,12 @@ try {
   // Closing L1, L3 and L5b removed no edge.
   // Then 189 on 2026-09-27: the Phase L extension added three parent-child links (L8a, L8b, L9 under
   // `awkit-djnl`) and five blocks edges (L8a after L1 and L7, L8b after L8a, L9 after L8a and L8b).
-  // The decided removal of `awkit-akb → awkit-djnl` and `awkit-vra → awkit-djnl` is pending the
-  // owner (the guard grammar has no `bd dep remove`); when it runs this pin moves 189 → 187.
+  // Then 187 the same day: the owner ran `bd dep remove awkit-akb awkit-djnl` and
+  // `bd dep remove awkit-vra awkit-djnl` (the guard grammar has no dependency removal), so Phases M
+  // and N no longer wait on the reopened Phase L epic. Two edges removed, none added; measured.
   check(
-    "189 edges are present to classify",
-    beads.stats.edges === 189,
+    "187 edges are present to classify",
+    beads.stats.edges === 187,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(

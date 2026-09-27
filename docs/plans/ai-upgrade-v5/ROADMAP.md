@@ -328,12 +328,9 @@ milestones: with Phase L back to `in-progress` it reads 11 of 14 phases complete
   elapsed time. ETA history is bounded non-sensitive aggregates under `%LOCALAPPDATA%`. Accessible
   progress (`aria-valuenow` only when determinate, throttled announcements, focus contract).
 - **E10 — Phases M and N stay independent.** The epic-level edges `awkit-akb → awkit-djnl` and
-  `awkit-vra → awkit-djnl` are to be removed; M1 and N1 keep their edge on closed L7.
-  **Pending owner action (2026-09-27):** the agent lease guard's Beads grammar has no dependency
-  removal, so the two `bd dep remove` commands were handed to the owner, who deferred them. Until
-  they run, reopening Phase L makes `bd ready` report Phase M and N (including M1 and N1) as
-  blocked; the Program Status dashboard, which treats epics as containers, still shows M1 and N1
-  as ready.
+  `awkit-vra → awkit-djnl` are removed; M1 and N1 keep their edge on closed L7. The agent lease
+  guard's Beads grammar has no dependency removal, so the owner ran both `bd dep remove` commands
+  on 2026-09-27; `bd ready` again lists both phase epics, M1 and N1.
 - **E11 — Evidence scope: the development machine.** Phase L was accepted on the development
   machine, so L8a/L8b/L9 evidence is taken there too, on the **packaged build**. No external
   machine, clean-VM GPU run or second adapter is required. The loader-isolation proof (nothing
@@ -389,9 +386,8 @@ services, UI components, model integrations or runtime behavior.
 
 The Beads `blocks` edges are the source of truth for this order. The Phase M epic is also blocked by
 the Phase L epic, while M1 is explicitly blocked by L7 so implementation cannot be inferred ready
-before Phase L release confirmation. *2026-09-27:* the epic-level edge is decided for removal (E10),
-so the Phase L extension does not hold Phase M back; M1's edge on closed L7 stays. The removal is
-pending the owner's `bd dep remove awkit-akb awkit-djnl`.
+before Phase L release confirmation. *2026-09-27:* the epic-level edge was removed (E10),
+so the Phase L extension does not hold Phase M back; M1's edge on closed L7 stays.
 
 #### M1 — Optional source registration and deterministic indexing
 
@@ -480,8 +476,7 @@ schemas, services, UI components, models or runtime behavior.
 
 The Beads `blocks` edges are the source of truth for this order. The Phase N epic is blocked by the
 Phase L epic and N1 is explicitly blocked by L7, establishing the safe integration foundation.
-*2026-09-27:* the epic-level edge is decided for removal (E10); N1's edge on closed L7 stays. The
-removal is pending the owner's `bd dep remove awkit-vra awkit-djnl`. No
+*2026-09-27:* the epic-level edge was removed (E10); N1's edge on closed L7 stays. No
 Phase N item depends on Phase M, so the two phases remain independently implementable.
 
 #### N1 — Visual Capture Infrastructure

@@ -10,11 +10,9 @@
 
   Plans are `docs/plans/ai-upgrade-v5/L8a-…`, `L8b-…` and `L9-…`, with decisions E1–E12 in
   `ROADMAP.md`. Nothing is implemented.
-- **Owner action pending:** run `bd dep remove awkit-akb awkit-djnl` and
-  `bd dep remove awkit-vra awkit-djnl`. The agent guard grammar has no dependency removal. After
-  that, run `bd export -o .beads/issues.jsonl` and move the edge pin in
-  `scripts/verify-roadmap-dashboard.mjs` from 189 to the measured value (expected 187). Until then,
-  `bd ready` shows Phases M and N as blocked.
+- The owner removed the Phase M/N epic-level edges on the Phase L epic (the agent guard grammar has
+  no dependency removal). The export was refreshed and the edge pin moved 189 → 187. `bd ready`
+  lists both phase epics, M1, N1 and L8a.
 - **Recommended next slice:** L8a.0, the backend gate on the packaged build. It stages the Vulkan
   pack and measures size and the driver floor. It also probes the 3.21.1 VRAM, device and layer
   APIs and device pinning, and proves that DLLs load only from the app-managed folder. L9.1, the

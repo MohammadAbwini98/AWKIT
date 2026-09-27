@@ -6,13 +6,13 @@
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-09-27T08:56:05.659Z",
-  "acquired_at_commit": "3a5926ae55391f904182816b66aac3405a61ca6a",
+  "acquired_at": "2026-09-27T09:59:48.898Z",
+  "acquired_at_commit": "5de16a5d4a1198e0f382ecee22c8c13dc72d64ff",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-phase-l-extension-0927.json"
+    ".beads/issues.jsonl"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-phase-l-extension-0927.json": "7c106f79aa52d94daa9158328186bb08861f05856f1fdf429873cdc3ac21c1a8"
+    ".beads/issues.jsonl": "580a254512ef50ee99d7293b5d61f68a4270695aabd1ab808dce6cbf9ddcc8dc"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -27,7 +27,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-27T09:39:28.918Z",
-  "released_reason": "L8a awkit-djnl.11, L8b awkit-djnl.12 and L9 awkit-djnl.13 filed under the reopened Phase L epic with five blocks edges, export refreshed to 325 issues. The M and N epic-edge removal is pending the owner because the guard grammar has no bd dep remove.",
-  "archived_at": "2026-09-27T09:39:28.920Z"
+  "released_at": "2026-09-27T10:00:06.128Z",
+  "released_reason": "Owner removed awkit-akb and awkit-vra epic edges on awkit-djnl, export refreshed at 325 issues, Phase M and N readiness restored",
+  "archived_at": "2026-09-27T10:00:06.129Z"
 }
