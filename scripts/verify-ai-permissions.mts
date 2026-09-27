@@ -123,7 +123,15 @@ console.log("\nEvery AI channel is gated in main, and the preload exposes exactl
     // does, so the same pair plus AI_USE. It carries ids only.
     "ai:attachInspectionProposal": [["AI_USE", "PAGE_RECORDER", "RECORDER_ELEMENT_SPY"], false],
     "ai:importModelPack": [["AI_MANAGE"], true],
-    "ai:removeModelPack": [["AI_MANAGE"], true]
+    "ai:removeModelPack": [["AI_MANAGE"], true],
+    // L8a.2 GPU backend pack: no new permission. Picking, copying and deleting re-authenticate; reading
+    // status, cancelling one's own import and running the integrity guard (which can only narrow) do not.
+    "ai:getBackendPack": [["AI_MANAGE"], false],
+    "ai:preflightBackendPack": [["AI_MANAGE"], true],
+    "ai:importBackendPack": [["AI_MANAGE"], true],
+    "ai:cancelBackendPack": [["AI_MANAGE"], false],
+    "ai:verifyBackendPack": [["AI_MANAGE"], false],
+    "ai:removeBackendPack": [["AI_MANAGE"], true]
   };
   const source = await readFile("app/main/ipc/ai.ipc.ts", "utf8");
   // One block per handler: from its `ipcMain.handle("ai:…"` to the next one.
@@ -139,7 +147,7 @@ console.log("\nEvery AI channel is gated in main, and the preload exposes exactl
     check(`${channel} ${expected[1] ? "requires" : "does not require"} re-authentication`, sensitive === expected[1]);
     const gate = body.search(/assertSenderPermission|authorize\(/);
     const action = body.search(
-      /aiStatusView|aiSettingsView|updateAiSettings|restoreAiFeature|aiDiagnosticsView|aiAuditView|revertAiActionFromAudit|flowLocatorUpgrades|promoteFlowLocatorUpgrade|setFlowEditorState|explainFlowValidation\(|summarizeFragment\(|analyzeFailure\(|deleteFailureAnalysis\(|proposeInspectionLocator\(|attachInspectionProposal\(|cancelAssist\(|importAiModelPack|removeAiModelPack|showOpenDialog/
+      /aiStatusView|aiSettingsView|updateAiSettings|restoreAiFeature|aiDiagnosticsView|aiAuditView|revertAiActionFromAudit|flowLocatorUpgrades|promoteFlowLocatorUpgrade|setFlowEditorState|explainFlowValidation\(|summarizeFragment\(|analyzeFailure\(|deleteFailureAnalysis\(|proposeInspectionLocator\(|attachInspectionProposal\(|cancelAssist\(|importAiModelPack|removeAiModelPack|showOpenDialog|aiBackendPackView|importAiBackendPack|cancelAiBackendPack|verifyAiBackendPack|removeAiBackendPack/
     );
     check(`${channel} authorizes before doing anything else`, gate >= 0 && action > gate, `gate@${gate} action@${action}`);
   }
