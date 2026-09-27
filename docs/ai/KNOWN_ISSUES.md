@@ -114,8 +114,13 @@
     the staged copy.
   - **Pattern:** before asserting that an output repeats, assert that the input repeated.
 
-## The packaged local-AI runtime needs the Microsoft Visual C++ runtime, which the installer does not carry (2026-09-24, RESOLVED in the packages 2026-09-25; clean-machine proof NOT RUN, `awkit-i6ot`)
+## The packaged local-AI runtime needs the Microsoft Visual C++ runtime, which the installer does not carry (2026-09-24, RESOLVED with clean-machine proof 2026-09-27, `awkit-i6ot` CLOSED)
 
+- **2026-09-27 final:** fresh NSIS and portable 0.1.51 packages both passed the clean
+  Windows 11 Hyper-V VM procedure without a global CRT or network. Each imported the pinned
+  model, returned a real local explanation, and loaded all three CRT DLLs from its own
+  resources. `awkit-i6ot` is closed. See the fresh L7 evidence. The historical investigation
+  below is retained as recorded.
 - **Update 2026-09-25 (latest): resolved in the packages.**
   - The owner installed `VC.Tools.x86.x64` and `VC.Redist.14.Latest`, so the x64 CRT 14.44.35211 is
     staged app-locally.

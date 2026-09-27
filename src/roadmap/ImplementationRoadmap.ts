@@ -118,10 +118,10 @@ export const implementationRoadmap: RoadmapPhase[] = [
   {
     id: "L",
     title: "Local AI & Intelligent Automation",
-    status: "in-progress",
+    status: "complete",
     deliverables: ["L0 Decisions & owner audit", "L1 AI foundation, autonomy policy & performance gate", "L2 Deterministic Recorder & Element Spy", "L3 Intelligent locators", "L4 Authoring diagnostics & AI explanations", "L5 Failure evidence & failure intelligence", "L6 Reusable fragments & templates", "L7 Release confirmation"],
     acceptance: "With no model installed the product behaves exactly as today; with the model, every automatic change is proven, audited and one-click revertible, and no model call runs on the synchronous execution path.",
-    implementationNote: "Plan: docs/plans/ai-upgrade-v5/ROADMAP.md (commit 0d6e0fd) - one local CPU-only model (Qwen3.5-4B GGUF, separate offline model pack) with event-driven automation under policy-tiered autonomy T0-T3. Tracked as Beads epic awkit-djnl with ten dependency-ordered milestones: L0 .2, L1 .1, L2 .3, L3 .4, L4a .5, L4b .6, L5a .7, L5b .8, L6 .9 and L7 .10. L0 completed 2026-09-19 (awkit-djnl.2 closed): owner audit in the plan ROADMAP and decisions in docs/ai/DECISIONS.md, so L1, L2, L4a and L5a are ready. No product code has changed and no model is bundled or required."
+    implementationNote: "Phase L's ten technical milestones are complete (2026-09-27). Frozen Qwen3.5-0.8B DX revision 4 passed the L4b quality and latency gates; L6 passed under its approved deterministic scope; fresh portable and NSIS 0.1.51 packages passed offline, packaged and clean-machine local-AI gates. The licensed walkthrough is BLOCKED on an unavailable issuer key. Packaging human QC and the Visual Studio redistribution statement remain external release prerequisites. See docs/plans/ai-upgrade-v5/ROADMAP.md and the L7 evidence."
   },
   {
     id: "M",

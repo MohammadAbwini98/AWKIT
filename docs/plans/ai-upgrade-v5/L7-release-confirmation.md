@@ -2,15 +2,27 @@
 
 Shared rules, architecture and decisions: `ROADMAP.md`. Depends on L1–L6. Confirms — does not discover.
 
-**2026-09-26 fresh-package correction:** after L4b and L6 closed, the first new portable build
-stopped safely before packaging. The Visual C++ files were present, validly signed, x64 and version
-14.44.35211, but the staging child `powershell.exe` inherited PowerShell 7's module path and could
-not autoload `Microsoft.PowerShell.Security`; it returned no signature rows. The staging probe now
-imports that module from its own `$PSHOME` and refuses a failed or incomplete probe. Reproduction:
-the original package failed at `prepare-ai-native-host`; the corrected staging command passed on
-all four app-local DLL placements. The fresh portable/NSIS rebuild and L7 gates follow this fix.
+**Status (2026-09-27, current): L7 technical acceptance complete.** L4b and L6 are
+closed. Fresh portable and NSIS 0.1.51 artifacts were built from clean product commit `7bc84636`
+and their applicable packaged, offline, runtime, GUI and source gates pass. The NSIS install also
+passed the clean Hyper-V VM procedure with a real local 0.8B explanation and all three CRT DLLs
+loaded from the app's own resources. The portable passed the same procedure from restored S0. See
+`evidence/L7-fresh-package-clean-vm-2026-09-27.md` for artifact hashes, gate results and VM evidence.
+The licensed walkthrough remains BLOCKED on the unavailable offline issuer key, independently of
+the technical package result. Packaging human QC and the Visual Studio redistribution statement
+remain owner/legal release prerequisites; no sign-off is claimed for either.
 
-**Status (2026-09-26, latest): open.**
+The dated sections below preserve the earlier packaging investigation and open states. The
+2026-09-27 status and fresh evidence above supersede them.
+
+**2026-09-26 packaging correction (historical):** after L4b and L6 closed, the first new portable
+build stopped safely before packaging. The Visual C++ files were present, validly signed, x64
+and version 14.44.35211, but the staging child `powershell.exe` inherited PowerShell 7's module
+path and could not autoload `Microsoft.PowerShell.Security`; it returned no signature rows. The
+staging probe now imports that module from its own `$PSHOME` and refuses a failed or incomplete
+probe. The same defect in the native dependency verifier was corrected before its isolated PASS.
+
+**Status (2026-09-26, superseded): open.**
 - **Why:** L7 depends on L1 to L6, and L4b and L6 are open. On this host, no runnable model meets both L1.8 and
   L4b's DX.
 - **Stale artifacts:** the packaged artifacts below, built from `62aab2dc`, predate the `dc3d0c18` product change
@@ -329,8 +341,8 @@ asks for one, and an implementer's approval is not QC.
 | Pending candidates never executed | `verify:ai-locator-attempts` §15; `verify:ai-locator-upgrade` (a pending candidate changes nothing). |
 | Packaging supply chain | The QC-3/QC-4 staging refusals, the QC-6 model scan and the QC-7 license review above; `verify:offline-supply-chain` 25/0. |
 
-**Open from the security side:** `awkit-i6ot`, the MSVC runtime, is an availability and packaging issue,
-not a confidentiality one. KNOWN_ISSUES keeps one limit: the host's `hello` reports "compatible" from
+**Historical security review (2026-09-24):** `awkit-i6ot`, the MSVC runtime, was an availability and packaging issue,
+not a confidentiality one. It is resolved by the fresh package and clean-machine proof above. KNOWN_ISSUES keeps one limit: the host's `hello` reports "compatible" from
 package metadata alone.
 
 ## Quality & autonomy gates

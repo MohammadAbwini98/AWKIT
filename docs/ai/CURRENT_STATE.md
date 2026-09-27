@@ -1,14 +1,18 @@
 # CURRENT_STATE
 
-## Phase L recovery: L4b and L6 CLOSED, L7 fresh packaging in progress (2026-09-26, latest)
+## Phase L recovery: L4b, L6 and L7 technical acceptance complete (2026-09-27, latest)
 
-The first L7 portable rebuild stopped safely at MSVC signature staging because its Windows
-PowerShell child inherited PowerShell 7's module path. The validly signed VS 2022 DLLs were
-confirmed directly; staging now imports its own security module and fails on an incomplete
-signature probe. `node scripts/prepare-ai-native-host.mjs` passed after the correction. Fresh
-packages are still pending.
+Fresh portable and NSIS 0.1.51 artifacts were built from clean product commit `7bc84636`,
+after correcting Windows PowerShell signature-module loading in staging. The native-dependency
+verifier was corrected the same way. Fresh offline, packaged-runtime, AI host, GUI and loader
+gates pass (`docs/plans/ai-upgrade-v5/evidence/L7-fresh-package-clean-vm-2026-09-27.md`). A
+clean Windows 11 VM without global Visual C++ runtime passed both NSIS and portable from
+separate S0 restores: model import, real AI explanation and app-local CRT module proof.
+The licensed walkthrough remains BLOCKED because the offline issuer key is unavailable.
+Packaging human QC and the Visual Studio redistribution statement remain external release
+prerequisites; they are not claimed complete.
 
-Phase L is **9/10 closed**. L4b's frozen DX revision 4 passed: Qwen3.5-0.8B L1.8 GO,
+Phase L technical acceptance is **10/10 closed**. L4b's frozen DX revision 4 passed: Qwen3.5-0.8B L1.8 GO,
 validation explanation 59,685 ms at cap, DX-0 through DX-5 MET, 52/52 displayed correct and
 actionable, with 0/17, 0/18 and 0/17 undisplayed. Revision 3 and all earlier failures remain
 recorded separately. The model selects issue-specific validator-owned wording; no deterministic
@@ -16,9 +20,7 @@ fallback is counted as model output. `awkit-djnl.6` is closed.
 
 L6's approved deterministic scope passed `verify:flow-fragments` 103/0,
 `verify:flow-fragments-gui` 53/0 in real Electron, and `verify:ai-fragment-assist` 73/73;
-`awkit-djnl.9` is closed. L7 is still open while fresh portable/NSIS artifacts and the
-clean-machine procedure are evaluated. The local issuer-key environment variable is unset;
-licensed walkthrough parts requiring it remain BLOCKED. The validation ledger still has
+`awkit-djnl.9` is closed. The validation ledger still has
 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases; the DX and package gates are separate.
 
 ## Phase L: DX-3 automated (owner), R5 tried as DX revision 2 and NOT MET, R6's 2B L1.8 NO-GO; Phase L NOT complete (2026-09-26, latest)

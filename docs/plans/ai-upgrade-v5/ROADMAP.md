@@ -1,15 +1,18 @@
 # SpecterStudio Phase L — Local AI & Intelligent Automation (V5)
 
-**2026-09-26 recovery update:** Phase L is **9 of 10 milestones closed**. L4b (`awkit-djnl.6`)
+**2026-09-27 closeout:** Phase L is **10 of 10 technical milestones closed**. L4b (`awkit-djnl.6`)
 closed on frozen DX revision 4: L1.8 GO at 59,685 ms explanation cap, DX-0 through DX-5 MET,
 52/52 displayed correct and actionable, 0/17, 0/18 and 0/17 undisplayed. The model selects
 validator-owned, issue-specific action wording; no fallback is counted. L6 (`awkit-djnl.9`) closed
 under its approved deterministic scope after 103/0, 53/0 real-Electron and 73/73 checks. The
-earlier revision 2/3 failures below remain historical. L7 (`awkit-djnl.10`) is the only open
-milestone; its fresh package and clean-machine gates are in progress. Evidence:
-`evidence/L4b-dx-revision-4-result-2026-09-26.md`.
+earlier revision 2/3 failures below remain historical. L7 (`awkit-djnl.10`) passed fresh
+portable and NSIS 0.1.51 packaged gates and both clean-machine local-AI runs. The licensed
+walkthrough is BLOCKED on the offline issuer key; packaging human QC and the VS redistribution
+statement remain external release prerequisites. Evidence:
+`evidence/L4b-dx-revision-4-result-2026-09-26.md` and
+`evidence/L7-fresh-package-clean-vm-2026-09-27.md`.
 
-Status: **IN PROGRESS — 7 of 10 milestones closed (updated 2026-09-26).** The closed ones are L0, L2, L4a
+Historical status (superseded 2026-09-27): **IN PROGRESS — 7 of 10 milestones closed (updated 2026-09-26).** The closed ones are L0, L2, L4a
 and L5a, plus L1, L3 and L5b. The last three were accepted, scope-limited, within the owner's limited GO.
 The implementing agent accepted them under the owner's closeout delegation; that is not a human sign-off
 (see `docs/ai/DECISIONS.md`). Still open:
@@ -62,7 +65,7 @@ The implementing agent accepted them under the owner's closeout delegation; that
 
 The limited GO (2026-09-23) covers on-demand explanations, locator proposals and manual failure analysis
 only. Owner audit below; decisions ratified in `docs/ai/DECISIONS.md`.
-Roadmap Phase `L` (`in-progress`), Beads epic `awkit-djnl`.
+Roadmap Phase `L` (`complete`), Beads epic `awkit-djnl`.
 Supersedes the external V1–V4 drafts (`SpecterStudio_AI_Upgrade_*`).
 This file is the only copy of cross-cutting content (rules, architecture, autonomy policy, decisions).
 Milestone files `L0`–`L7` hold only milestone-specific tasks.

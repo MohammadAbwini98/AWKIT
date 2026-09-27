@@ -1,5 +1,19 @@
 # DECISIONS
 
+### 2026-09-27 — Phase L technical closeout and external release gates
+
+- Under the owner's technical closeout delegation, Codex operated and reviewed the clean
+  Windows 11 Hyper-V VM procedure on the fresh NSIS and portable 0.1.51 packages. Both passed
+  real local 0.8B inference and app-local CRT module loading without a global CRT or network.
+  This closes `awkit-i6ot`, L7 (`awkit-djnl.10`) and the ten-milestone Phase L epic.
+- `verify:packaged-licensing` remains **28 PASS / 0 FAIL / 2 BLOCKED**, and
+  `verify:packaged-walkthrough` remains **42 PASS / 0 FAIL / 1 BLOCKED**. The exact missing
+  prerequisite is an authorized `AWKIT_PACKAGED_LICENSE_ISSUER_KEY`; neither gate is counted as
+  a PASS. Packaging human QC and the Visual Studio redistribution statement remain owner/legal
+  release decisions, and this technical closeout does not represent their sign-off.
+- Thresholds for inactive T2 auto-application and automatic failure analysis remain provisional
+  because those modes are outside the approved limited GO. No Phase M or N implementation starts.
+
 ### 2026-09-26 — Phase L L4b: the owner authorizes a new evidence-bounded 0.8B revision
 
 - The owner requested revision 3 of the qualified Qwen3.5-0.8B authoring path, using the validator's trusted problem and corrective action, concise model output, and the existing held-out corpus. This supersedes the earlier "next, owner decisions only" stop for a further request change.

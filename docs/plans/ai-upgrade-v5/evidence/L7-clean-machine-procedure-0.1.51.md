@@ -1,9 +1,10 @@
 # Clean-machine procedure: SpecterStudio 0.1.51, local AI with no global Visual C++ runtime
 
-> **Status: NOT RUN.** An authorized operator runs this, and the owner (or a delegate) reviews the evidence.
-> Nothing here passes until both have happened. PASS closes the last clause of `awkit-i6ot`: the runtime loads
-> from the installed package on a machine without the Visual C++ runtime. It supersedes the shorter runbook in
-> L7 › `awkit-i6ot`.
+> **Status: PASS (2026-09-27).** Codex operated the authorized clean Hyper-V VM and reviewed the evidence under
+> the owner's delegated technical closeout. Both NSIS and portable passed from S0. The complete result, current
+> hashes, screenshots and remaining issuer-key BLOCKED gate are in
+> `L7-fresh-package-clean-vm-2026-09-27.md`. This is an implementing-agent review, not independent QC or legal sign-off.
+> This procedure supersedes the shorter runbook in L7 › `awkit-i6ot`.
 
 **What it proves:** on a Windows machine that never had the Visual C++ 2015–2022 runtime, with no network, the
 final portable and NSIS artifacts:
@@ -18,16 +19,18 @@ final portable and NSIS artifacts:
 
 ## 1. Inputs and provenance
 
-All from `dist/release-provenance.json`: built from clean `62aab2dc`, `treeDirty: false`, 2026-09-25T18:42:19Z.
+Current artifacts are from `dist/release-provenance.json`: built from clean
+`7bc8463675ee0adcfe455fe45d0ece0e428fa6e0`, `treeDirty: false`. The earlier
+`62aab2dc` artifacts and hashes are historical and were superseded before the VM run.
 
 | File | Bytes | SHA-256 |
 |---|---|---|
-| `SpecterStudio Setup 0.1.51.exe` (NSIS) | 272,026,668 | `f34a83e4112ea3e86676541ffbb335bf6b4a59a73b7ee96fba807129a7615030` |
-| `SpecterStudio 0.1.51.exe` (portable) | 243,160,364 | `11888cfbb2afe32e328257dcd398efabaca6bda867c16762d15257abd3e118f2` |
+| `SpecterStudio Setup 0.1.51.exe` (NSIS) | 272,028,146 | `4684796c6f0416ed56732728acaebc895c4356443302749dbcdb7d60c58f8739` |
+| `SpecterStudio 0.1.51.exe` (portable) | 243,164,322 | `7a5d22292e3a01e3d6aed39a770cd67012090b7089df5bae592e99ad1b8c464a` |
 | `Qwen3.5-0.8B-Q4_K_M.gguf` (model pack, shipped separately) | 527,502,816 | `f5b14da98939b60bbe1019a964eba656407e1e0b64f1fe3003ff6d650e93bfec` |
 
-- **Signed dependency manifest inside both:** sha256 `dc0532bb…`, Ed25519 key `ed25519:aa5b9dd8…` (committed at
-  `c337b267`).
+- **Signed dependency manifest inside both:** sha256
+  `1c59dc05c65a9f90eba41621dc7ce4269558629bc666798035887f5c5b3eda1f`.
 - **The app-local runtime it carries:** `msvcp140.dll`, `vcruntime140.dll` and `vcruntime140_1.dll`, file version
   14.44.35211, in `resources\native-hosts\ai\node_modules\@node-llama-cpp\win-x64\bins\win-x64\`. Also
   `vcruntime140.dll` beside the reflink addon.

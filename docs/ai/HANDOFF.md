@@ -1,5 +1,20 @@
 # Agent Handoff
 
+## HANDOFF (2026-09-27, latest) — Phase L technical closeout complete, external release gates recorded
+
+- Phase L is **10/10 closed** in Beads and the roadmap. L4b's frozen DX revision 4 and L6's
+  approved deterministic scope remain accepted. L7 passed fresh packaged, offline and clean
+  Hyper-V VM local-AI gates on both NSIS and portable 0.1.51. Evidence is in
+  `docs/plans/ai-upgrade-v5/evidence/L7-fresh-package-clean-vm-2026-09-27.md`.
+- Licensed packaged walkthrough: **BLOCKED** because the offline issuer key is unavailable.
+  An authorized custodian can set `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` in the validation
+  environment and run `npm run verify:packaged-licensing` and
+  `npm run verify:packaged-walkthrough`; no key material belongs in the repository.
+- Packaging human QC and the Visual Studio redistribution statement remain owner/legal release
+  prerequisites. The implementing-agent VM evidence review is not independent QC. Inactive T2
+  and automatic-analysis thresholds remain provisional under the limited GO. Phase M and N
+  remain unstarted. Ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
 ## HANDOFF (2026-09-26, latest) — L4b and L6 closed; L7 fresh package and clean-machine work active
 
 - Phase L: **9/10 closed**. Frozen DX revision 4 passed on Qwen3.5-0.8B: 52/52 displayed correct/actionable,

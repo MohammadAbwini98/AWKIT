@@ -609,11 +609,11 @@ try {
   // L5b `awkit-djnl.8` closed (three out of outstanding), and `awkit-i6ot` filed OPEN (one in).
   // Then 25/297 of 322 on 2026-09-25: `awkit-egkw` filed OPEN for L6's deferred intelligence, with no
   // dependency edge, and `awkit-i6ot` moved to in_progress (still outstanding). Nothing closed.
-  // Then 24/298 of 322 on 2026-09-26: accepted L4b `.6` and L6 `.9` closed. The committed
-  // export measures 24/298; neither close changed a dependency edge. Keep this exact pin aligned
-  // with the export, and move it again only if another bead is actually closed.
-    "24 outstanding / 298 closed",
-    beads.stats.outstanding === 24 && beads.stats.closed === 298,
+  // Then 20/302 of 322 on 2026-09-27: the refreshed export includes L6 `.9`'s earlier close,
+  // and closes the clean-machine defect `awkit-i6ot`, L7 `.10`, and the Phase L epic.
+  // No dependency edge changed. Keep this exact pin aligned with the export.
+    "20 outstanding / 302 closed",
+    beads.stats.outstanding === 20 && beads.stats.closed === 302,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

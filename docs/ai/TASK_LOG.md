@@ -1,5 +1,29 @@
 # TASK_LOG
 
+## 2026-09-27 — Phase L 10/10 technical closeout on fresh packages (Codex)
+
+- **Task:** finish the owner's L4b recovery and downstream L6/L7 closeout on `main`,
+  preserving prior failed DX evidence and leaving Phase M/N unstarted.
+- **Result:** frozen DX revision 4 on Qwen3.5-0.8B met DX-0 through DX-5 and L1.8;
+  L4b and L6 closed. Fresh portable and NSIS 0.1.51 from clean `7bc84636` passed
+  packaged gates. Codex operated and reviewed a clean Windows 11 Hyper-V VM from S0 for
+  each package: local model import, real explanation, app-local CRT module proof and no
+  network. Closed `awkit-i6ot`, L7 and the Phase L epic; 10/10 technical milestones closed.
+- **Files:** `.beads/{issues,interactions}.jsonl`, `src/roadmap/ImplementationRoadmap.ts`,
+  `scripts/verify-roadmap-dashboard.mjs`, `tools/roadmap/assignments.json`, Phase L
+  roadmap/L7/runbook/fresh evidence, and `docs/ai/{CURRENT_STATE,DECISIONS,HANDOFF,
+  KNOWN_ISSUES,TASK_LOG}.md`. The prior L4b capture count was corrected to 35.
+- **Verification:** build PASS; `typecheck:scripts` PASS; L4b DX MET, 52/52 displayed
+  correct/actionable, 0/17, 0/18 and 0/17 undisplayed; L6 103/0, 53/0 real Electron,
+  73/73; strict offline 1,465/1,465; packaged runtime 25/0, validation 119/0,
+  native dependencies 14/0, AI packaged runtime 104/0 and AI packaged app 24/0;
+  clean VM NSIS and portable PASS. Roadmap dashboard 177/177, Sources agree;
+  verifier classification 277 classified. See L7 fresh evidence for the complete gate list.
+- **External:** packaged licensing 28 PASS / 0 FAIL / 2 BLOCKED and packaged walkthrough
+  42 PASS / 0 FAIL / 1 BLOCKED on the unavailable offline issuer key. Human packaging
+  QC and the VS redistribution statement remain owner/legal release prerequisites;
+  no sign-off is claimed. Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED.
+
 ## 2026-09-26 (latest) — Phase L closure attempt 2: DX-3 automated, R5 as DX revision 2 NOT MET, R6's 2B L1.8 NO-GO (Claude)
 
 - **Task:** a second pasted Phase L closure brief.

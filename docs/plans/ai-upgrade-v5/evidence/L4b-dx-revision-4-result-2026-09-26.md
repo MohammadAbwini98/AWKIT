@@ -16,7 +16,7 @@ The measured revision-3 defect was model prose that omitted the action, invented
 
 | Criterion | Result | Evidence |
 |---|---|---|
-| DX-0 | MET | Seven revision-4 captures match the frozen identities; 16 prior captures are preserved and excluded. |
+| DX-0 | MET | Seven revision-4 captures match the frozen identities; 35 prior captures are preserved and excluded. |
 | DX-1 | MET | `verify:ai-authoring` 388/388, real-Electron `verify:ai-assist-gui` 182/182, DX mutations 37/37 killed, display-gate mutations 16/16 killed. |
 | DX-2 | MET | Two complete labelled runs and one complete held-out run, in the frozen order. |
 | DX-3 | MET | **52/52** displayed texts correct and actionable; zero displayed defects, unsupported claims, misattributions or unjudgeable texts. |
