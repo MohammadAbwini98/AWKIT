@@ -176,5 +176,25 @@
     "status": "pending",
     "qa_status": "pending",
     "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-11-l8a2-backend-import-0927:release:2026-09-27T14:11:34.445Z",
+        "task": "awkit-djnl-11-l8a2-backend-import-0927",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "src/offline/SupplyChainIntegrity.ts"
+        ],
+        "acquired_at": "2026-09-27T14:11:34.445Z",
+        "acquired_at_commit": "ebfcddca0d495ff8670845a4f0a86e0cc5d6d928",
+        "released_at": "2026-09-27T14:14:18.927Z",
+        "released_reason": "signed-manifest reader committed at fd4b5141 with build and verify:offline-supply-chain 25/0 PASS, the rest of L8a.2 is unleased routine work",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
   }
 }

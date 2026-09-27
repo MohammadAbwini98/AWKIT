@@ -2,7 +2,7 @@
   "task": "awkit-djnl-11-l8a2-backend-import-0927",
   "contract_path": "docs/ai/contracts/awkit-djnl-11-l8a2-backend-import-0927.json",
   "holder": "release",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "src/offline/SupplyChainIntegrity.ts"
   ],
@@ -26,5 +26,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-27T14:14:18.927Z",
+  "released_reason": "signed-manifest reader committed at fd4b5141 with build and verify:offline-supply-chain 25/0 PASS, the rest of L8a.2 is unleased routine work",
+  "archived_at": "2026-09-27T14:14:18.928Z"
 }
