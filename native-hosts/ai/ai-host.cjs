@@ -6,10 +6,16 @@
  * nothing else. It never decides what a prompt contains, never logs or persists a prompt or a
  * response, and never returns raw runtime text: failures are the stable, path-free reason codes below.
  *
- * Runtime: node-llama-cpp (llama.cpp) on the CPU only, loaded lazily by the first `load`. It is
+ * Runtime: node-llama-cpp (llama.cpp), loaded lazily by the first `load` or `gpuPlan`. It is
  * resolved from this file's own module paths: `native-hosts/ai/node_modules` when staged, the
  * repository's `node_modules` in development. `build: "never"` means a missing or unusable prebuilt
  * binary is an error, never a download or a source build, so the host stays offline.
+ *
+ * Backend (L8a.3), fixed ONCE at fork by the manager, never per request: the CPU prebuilt (`gpu: false`,
+ * no layer offloaded: CPU & RAM only), or Vulkan from the imported pack the main process verified byte
+ * for byte immediately before forking (`AWKIT_AI_BACKEND_DIR`). node-llama-cpp finds a GPU prebuilt only
+ * by importing its package name, so one resolve hook maps that single specifier into the pack; nothing
+ * GPU is ever loaded from `node_modules`, `resources` or PATH.
  *
  * Like the Zvec host it is never bundled: native runtimes are shipped and versioned as one unit
  * beside the host, not pulled into an electron-vite chunk.
@@ -28,12 +34,16 @@ const AI_MAX_PROMPT_TOKENS = 3072;
 const AI_MAX_OUTPUT_TOKENS = 512;
 const MAX_SCHEMA_DEPTH = 6;
 
+const AI_MAX_GPU_LAYERS = 1024;
+const AI_MAX_VRAM_RESERVE_BYTES = 68719476736;
+
 const MAX_THREADS = 16;
 const MAX_PROPERTIES = 64;
 const MAX_GRAMMAR_CACHE = 16;
 const MAX_EARLY_CANCELS = 32;
 const RUNTIME_PACKAGE = "node-llama-cpp";
 const BINARY_PACKAGE = "@node-llama-cpp/win-x64";
+const VULKAN_PACKAGE = "@node-llama-cpp/win-x64-vulkan";
 const JOB_ID = /^[A-Za-z0-9._:#-]{1,160}$/;
 
 /**
@@ -52,6 +62,9 @@ const TEMPLATE = Object.freeze({
  * single request can point the host at another directory (the Zvec host's rule).
  */
 const MODEL_ROOT = process.env.AWKIT_AI_MODEL_ROOT ? path.resolve(process.env.AWKIT_AI_MODEL_ROOT) : null;
+/** The same rule for the backend: anything but an explicit Vulkan fork is the CPU host. */
+const BACKEND = process.env.AWKIT_AI_BACKEND === "vulkan" ? "vulkan" : "cpu";
+const BACKEND_DIR = BACKEND === "vulkan" && process.env.AWKIT_AI_BACKEND_DIR ? path.resolve(process.env.AWKIT_AI_BACKEND_DIR) : null;
 
 /** An error carrying a stable, path-free reason code that is safe to relay. */
 class HostError extends Error {
@@ -128,13 +141,53 @@ function describeRuntime() {
   const release = packageDir ? readJson(path.join(packageDir, "llama", "binariesGithubRelease.json")) : null;
   const binary = binaryDir ? readJson(path.join(binaryDir, "package.json")) : null;
   if (!pkg || typeof pkg.version !== "string" || !release || typeof release.release !== "string") {
-    return { build: null, binaryPresent: false };
+    return { build: null, binaryPresent: false, backendPresent: false };
   }
   const addon = binaryDir !== null && fs.existsSync(path.join(binaryDir, "bins", "win-x64", "llama-addon.node"));
   return {
     build: `${RUNTIME_PACKAGE}@${pkg.version}+llama.cpp@${release.release}`,
-    binaryPresent: Boolean(binary && binary.version === pkg.version && addon)
+    binaryPresent: Boolean(binary && binary.version === pkg.version && addon),
+    backendPresent: backendPresent(pkg.version)
   };
+}
+
+/**
+ * The GPU pack this host was forked with is the pinned prebuilt for this exact runtime version. The
+ * main process already verified every byte; this is the host's own shape check before it relies on it.
+ */
+function backendPresent(runtimeVersion) {
+  if (BACKEND === "cpu") return true;
+  if (!BACKEND_DIR) return false;
+  const pkg = readJson(path.join(BACKEND_DIR, "package.json"));
+  return Boolean(
+    pkg &&
+      pkg.name === VULKAN_PACKAGE &&
+      pkg.version === runtimeVersion &&
+      fs.existsSync(path.join(BACKEND_DIR, "dist", "index.js")) &&
+      fs.existsSync(path.join(BACKEND_DIR, "bins", "win-x64-vulkan", "llama-addon.node"))
+  );
+}
+
+let backendHooked = false;
+
+/**
+ * Map the one GPU prebuilt specifier to the verified pack's own entry (L8a.0's loader proof). The pack
+ * computes its binaries directory from that file's location, so every GPU binary comes from the pack.
+ */
+function hookBackend() {
+  if (BACKEND === "cpu" || backendHooked) return;
+  const { register } = require("node:module");
+  const { pathToFileURL } = require("node:url");
+  if (!BACKEND_DIR || typeof register !== "function") throw new HostError("AI_GPU_BACKEND_UNAVAILABLE");
+  const target = pathToFileURL(path.join(BACKEND_DIR, "dist", "index.js")).href;
+  const hook =
+    "export async function resolve(specifier, context, next) { return specifier === " +
+    JSON.stringify(VULKAN_PACKAGE) +
+    " ? { url: " +
+    JSON.stringify(target) +
+    ", shortCircuit: true } : next(specifier, context); }";
+  register(`data:text/javascript,${encodeURIComponent(hook)}`);
+  backendHooked = true;
 }
 
 /**
@@ -205,6 +258,36 @@ function runtimeModule() {
   return runtimePromise;
 }
 
+/**
+ * The one runtime instance, on this host's backend. A Vulkan host that cannot bind a usable device is
+ * AI_GPU_NO_USABLE_DEVICE (node-llama-cpp reports "no visible device" as a missing binary, L8a.0).
+ */
+async function ensureLlama(threads) {
+  if (llama) return llama;
+  hookBackend();
+  const runtime = await runtimeModule();
+  let instance;
+  try {
+    instance = await runtime.getLlama({
+      gpu: BACKEND === "vulkan" ? "vulkan" : false,
+      build: "never",
+      skipDownload: true,
+      progressLogs: false,
+      logLevel: runtime.LlamaLogLevel.disabled,
+      logger: () => undefined,
+      maxThreads: threads
+    });
+  } catch {
+    throw new HostError(BACKEND === "vulkan" ? "AI_GPU_NO_USABLE_DEVICE" : "AI_MODEL_LOAD_FAILED");
+  }
+  if (BACKEND === "vulkan" && (instance.gpu !== "vulkan" || instance.supportsGpuOffloading !== true)) {
+    await instance.dispose().catch(() => undefined);
+    throw new HostError("AI_GPU_NO_USABLE_DEVICE");
+  }
+  llama = instance;
+  return llama;
+}
+
 async function releaseModel() {
   const current = loaded;
   loaded = null;
@@ -266,33 +349,37 @@ function hello(req) {
       process.platform === "win32" &&
       process.arch === "x64" &&
       runtime.build !== null &&
-      runtime.binaryPresent,
+      runtime.binaryPresent &&
+      runtime.backendPresent,
     runtime: { name: "llama.cpp", build: runtime.build ?? "unavailable" },
+    backend: BACKEND,
     platform: process.platform,
     arch: process.arch
   };
+}
+
+/**
+ * CPU & RAM only is the CPU backend with no layer offloaded. A GPU host always offloads at least one
+ * layer: Vulkan with none still puts the whole context in VRAM (L8a.0), so it is never a CPU mode.
+ */
+function requestedGpuLayers(value) {
+  if (BACKEND === "vulkan") return boundedInt(value, 1, AI_MAX_GPU_LAYERS);
+  return value === undefined || value === 0 ? 0 : null;
 }
 
 async function load(req) {
   const modelPath = confineModelPath(req.modelPath);
   const contextSize = boundedInt(req.contextTokens, 256, AI_CONTEXT_TOKENS);
   const threads = boundedInt(req.threads, 1, MAX_THREADS);
-  if (contextSize === null || threads === null) throw new HostError("AI_PROTOCOL_VIOLATION");
+  const gpuLayers = requestedGpuLayers(req.gpuLayers);
+  if (contextSize === null || threads === null || gpuLayers === null) throw new HostError("AI_PROTOCOL_VIOLATION");
   const started = performance.now();
   await releaseModel();
   const runtime = await runtimeModule();
+  const instance = await ensureLlama(threads);
   let model = null;
   try {
-    llama ??= await runtime.getLlama({
-      gpu: false,
-      build: "never",
-      skipDownload: true,
-      progressLogs: false,
-      logLevel: runtime.LlamaLogLevel.disabled,
-      logger: () => undefined,
-      maxThreads: threads
-    });
-    model = await llama.loadModel({ modelPath, gpuLayers: 0, useMmap: true, useMlock: false });
+    model = await instance.loadModel({ modelPath, gpuLayers, useMmap: true, useMlock: false });
     const context = await model.createContext({ contextSize, threads, batchSize: Math.min(512, contextSize), sequences: 1 });
     const sequence = context.getSequence();
     loaded = {
@@ -304,9 +391,62 @@ async function load(req) {
     };
   } catch {
     if (model) await model.dispose().catch(() => undefined);
+    throw new HostError(BACKEND === "vulkan" ? "AI_GPU_LOAD_FAILED" : "AI_MODEL_LOAD_FAILED");
+  }
+  return {
+    loadMs: Math.round(performance.now() - started),
+    backend: BACKEND,
+    gpuLayers: BACKEND === "vulkan" && Number.isInteger(model.gpuLayers) ? model.gpuLayers : 0
+  };
+}
+
+/**
+ * The offload plan, from the runtime's own measurement (L8a.0: its estimates matched measured VRAM
+ * within 0.1 MB): the devices it binds, free VRAM, and the model and context estimates per layer count.
+ * The largest count whose estimate fits beside the reserve is reported; the main process decides what
+ * a mode does with it. Plans with this host's own model released, so free VRAM is not understated.
+ */
+async function gpuPlan(req) {
+  if (BACKEND !== "vulkan") throw new HostError("AI_PROTOCOL_VIOLATION");
+  const modelPath = confineModelPath(req.modelPath);
+  const contextSize = boundedInt(req.contextTokens, 256, AI_CONTEXT_TOKENS);
+  const threads = boundedInt(req.threads, 1, MAX_THREADS);
+  const reserve = req.reserveBytes === null ? null : boundedInt(req.reserveBytes, 0, AI_MAX_VRAM_RESERVE_BYTES);
+  if (contextSize === null || threads === null || (req.reserveBytes !== null && reserve === null)) throw new HostError("AI_PROTOCOL_VIOLATION");
+  await releaseModel();
+  const runtime = await runtimeModule();
+  const instance = await ensureLlama(threads);
+  let deviceCount;
+  let vram;
+  try {
+    deviceCount = (await instance.getGpuDeviceNames()).length;
+    vram = await instance.getVramState();
+  } catch {
+    throw new HostError("AI_GPU_NO_USABLE_DEVICE");
+  }
+  if (!(deviceCount >= 1) || !(vram.total > 0)) throw new HostError("AI_GPU_NO_USABLE_DEVICE");
+  try {
+    const insights = await runtime.GgufInsights.from(await runtime.readGgufFileInfo(modelPath), instance);
+    const totalLayers = insights.totalLayers;
+    if (boundedInt(totalLayers, 1, AI_MAX_GPU_LAYERS) === null) throw new Error("layers");
+    const reserveBytes = reserve ?? Math.max(0, Math.round(instance.vramPaddingSize));
+    const need = async (layers) => {
+      const weights = await insights.estimateModelResourceRequirementsV2({ gpuLayers: layers, useMmap: true, gpuSupportsMmap: instance.gpuSupportsMmap });
+      const context = await insights.estimateContextResourceRequirementsV2({ contextSize, modelGpuLayers: layers, batchSize: Math.min(512, contextSize), sequences: 1 });
+      return weights.gpuVram + context.gpuVram;
+    };
+    const fullRequiredBytes = Math.round(await need(totalLayers));
+    let fitLayers = 0;
+    for (let layers = totalLayers; layers >= 1; layers -= 1) {
+      if ((await need(layers)) + reserveBytes <= vram.free) {
+        fitLayers = layers;
+        break;
+      }
+    }
+    return { deviceCount, totalLayers, fitLayers, fullRequiredBytes, reserveBytes, freeBytes: vram.free, totalBytes: vram.total };
+  } catch {
     throw new HostError("AI_MODEL_LOAD_FAILED");
   }
-  return { loadMs: Math.round(performance.now() - started) };
 }
 
 async function infer(req) {
@@ -409,6 +549,7 @@ const IMMEDIATE = new Map([
 // the load that follows it).
 const SERIAL = new Map([
   ["load", load],
+  ["gpuPlan", gpuPlan],
   ["infer", infer],
   ["unload", unload],
   ["shutdown", shutdown]

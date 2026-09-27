@@ -1,18 +1,18 @@
 {
-  "task": "awkit-djnl-11-l8a2-backend-import-0927",
-  "contract_path": "docs/ai/contracts/awkit-djnl-11-l8a2-backend-import-0927.json",
-  "holder": "project-state",
-  "status": "released",
+  "task": "awkit-djnl-11-l8a3-gpu-modes-0927",
+  "contract_path": "docs/ai/contracts/awkit-djnl-11-l8a3-gpu-modes-0927.json",
+  "holder": "runtime",
+  "status": "active",
   "allowed_paths": [
-    ".beads/issues.jsonl"
+    "native-hosts/ai/ai-host.cjs"
   ],
-  "acquired_at": "2026-09-27T15:34:37.597Z",
-  "acquired_at_commit": "dfda33a69f9f3ac59af6560ca504a6d050576905",
+  "acquired_at": "2026-09-27T15:58:26.428Z",
+  "acquired_at_commit": "eb3e009b897f45608249df37c914266c80ab63b9",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-djnl-11-l8a2-backend-import-0927.json"
+    "docs/ai/contracts/awkit-djnl-11-l8a3-gpu-modes-0927.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-djnl-11-l8a2-backend-import-0927.json": "19dbea2b3e5314f4e7abd91e615cedd859f05d132a6f5225e14e9fc9794e4766"
+    "docs/ai/contracts/awkit-djnl-11-l8a3-gpu-modes-0927.json": "dbbfc770f1d719ce1eb315bffd4f2780436914d7aa68073d432e07ef31166665"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -26,8 +26,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-27T15:45:36.664Z",
-  "released_reason": "Beads note on awkit-djnl.11 committed at 757cec77 and exported, the issue stays open for L8a.3",
-  "archived_at": "2026-09-27T15:45:36.665Z"
+  "violations": []
 }
