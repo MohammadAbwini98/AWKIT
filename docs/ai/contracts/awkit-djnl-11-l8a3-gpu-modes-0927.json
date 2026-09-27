@@ -241,6 +241,22 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-djnl-11-l8a3-gpu-modes-0927:project-state:2026-09-27T16:52:50.167Z",
+        "task": "awkit-djnl-11-l8a3-gpu-modes-0927",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/issues.jsonl"
+        ],
+        "acquired_at": "2026-09-27T16:52:50.167Z",
+        "acquired_at_commit": "08bfcd4faa7473f41efee4835a88a523fff4db84",
+        "released_at": "2026-09-27T16:53:22.758Z",
+        "released_reason": "Beads note for L8a.3 exported and committed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }

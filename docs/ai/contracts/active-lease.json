@@ -2,7 +2,7 @@
   "task": "awkit-djnl-11-l8a3-gpu-modes-0927",
   "contract_path": "docs/ai/contracts/awkit-djnl-11-l8a3-gpu-modes-0927.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     ".beads/issues.jsonl"
   ],
@@ -22,5 +22,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-27T16:53:22.758Z",
+  "released_reason": "Beads note for L8a.3 exported and committed",
+  "archived_at": "2026-09-27T16:53:22.759Z"
 }

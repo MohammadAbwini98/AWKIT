@@ -17,13 +17,5 @@
     "    \"claimedAt\": \"2026-07-27T10:00:00Z\", \"expiresAt\": \"2026-07-28T10:00:00Z\",",
     "    \"note\": \"IPC authz sweep\" }"
   ],
-  "claims": [
-    {
-      "itemId": "bead:awkit-djnl-11-l8a3-gpu-modes-0927",
-      "agent": "Documentation / Project-State Specialist",
-      "state": "in-progress",
-      "claimedAt": "2026-09-27T16:52:50.167Z",
-      "note": "write lease: .beads/issues.jsonl"
-    }
-  ]
+  "claims": []
 }
