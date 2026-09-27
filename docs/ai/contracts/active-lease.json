@@ -1,15 +1,13 @@
 {
   "task": "awkit-djnl-11-l8a3-gpu-modes-0927",
   "contract_path": "docs/ai/contracts/awkit-djnl-11-l8a3-gpu-modes-0927.json",
-  "holder": "release",
-  "status": "released",
+  "holder": "project-state",
+  "status": "active",
   "allowed_paths": [
-    "build",
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig"
+    ".beads/issues.jsonl"
   ],
-  "acquired_at": "2026-09-27T16:35:55.982Z",
-  "acquired_at_commit": "083c218959aed6630c35046e2628d0b17f30f136",
+  "acquired_at": "2026-09-27T16:52:50.167Z",
+  "acquired_at_commit": "08bfcd4faa7473f41efee4835a88a523fff4db84",
   "baseline_dirty": [],
   "baseline_dirty_fingerprints": {},
   "baseline_watched_ignored": {
@@ -20,12 +18,9 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1790520362847.308"
+    "build": "dir(1):native-hosts:1790527062367.2827"
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-27T16:49:12.496Z",
-  "released_reason": "signed manifest regenerated and committed, packaged runtime verifier 104 passed 0 failed on the fresh package",
-  "archived_at": "2026-09-27T16:49:12.497Z"
+  "violations": []
 }
