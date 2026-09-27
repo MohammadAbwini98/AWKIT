@@ -2,7 +2,7 @@
   "task": "awkit-djnl-11-l8a1-backend-manifest-0927",
   "contract_path": "docs/ai/contracts/awkit-djnl-11-l8a1-backend-manifest-0927.json",
   "holder": "release",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "build",
     "resources/dependency-manifest.json",
@@ -27,5 +27,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-27T11:18:19.602Z",
+  "released_reason": "portable 0.1.51 packaged from clean dadd17bb with in-pipeline strict validation passing the new backend rules, signed manifest with aiGpuBackends committed at 3e105d7b, verify:ai-backend-manifest 40 of 40",
+  "archived_at": "2026-09-27T11:18:19.603Z"
 }

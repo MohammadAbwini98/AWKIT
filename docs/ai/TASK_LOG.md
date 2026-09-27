@@ -1,6 +1,39 @@
 # TASK_LOG
 
-## 2026-09-27 (latest) — L8a.0 Vulkan backend gate on the packaged build (Claude)
+## 2026-09-27 (latest) — L8a.1 GPU backend manifest, backend-aware pin, signed and validated (Claude)
+
+- **Task:** L8a.1 from the L8a plan: backend manifest, backend-aware runtime pin, signed manifest
+  and offline validation.
+- **Result:** implemented under contract `awkit-djnl-11-l8a1-backend-manifest-0927`, with two
+  release leases, both released.
+  - The manifest source is the 24 Vulkan files re-measured against the installed prebuilt.
+  - `AI_BACKEND_MANIFEST` has a fail-closed resolver and a structural check.
+  - `AI_RUNTIME_PIN.backends` is `["cpu", "vulkan"]`.
+  - `aiGpuBackends` is in the signed dependency manifest, and strict validation checks it.
+  - Decided: the VC++ runtime stays out of the backend manifest; L8a.2 copies the installer's
+    copies.
+  - Found and fixed during the work: under the validator's dot-sourced `Set-StrictMode Latest`, an
+    `if` expression unrolled a one-element match list.
+- **Files:**
+  - `src/offline/{ai-backend-manifest.json,AiModelManifest.ts}`
+  - `scripts/{generate-dependency-manifest.ps1,validate-offline-bundle.ps1,verify-ai-backend-manifest.mts}`
+  - `scripts/lib/verifier-classification.ts`
+  - `package.json`
+  - `resources/dependency-manifest.{json,sig}`
+  - the contract
+  - `docs/plans/ai-upgrade-v5/L8a-hardware-adaptive-inference-runtime.md`
+  - `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md`
+- **Verification:**
+  - `verify:ai-backend-manifest` 40/0: 39/1 before packaging (D awaiting the signed section),
+    38/2 under a caught validator mutation.
+  - `package:portable` from clean `dadd17bb`, with in-pipeline strict validation PASS.
+  - `verify:ai-packaged-runtime` 104/0.
+  - build PASS; `typecheck:scripts` PASS; `verify:verifier-classification` PASS (279).
+  - `verify:roadmap-dashboard` 177/177, "Sources agree".
+- NOT RUN: an NSIS rebuild and independent QC. `bd` unchanged (`awkit-djnl.11` open). Validation
+  ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED.
+
+## 2026-09-27 — L8a.0 Vulkan backend gate on the packaged build (Claude)
 
 - **Task:** L8a.0 from the L8a plan. On the packaged build: stage the Vulkan pack; measure its
   size and the driver/Vulkan floor; probe the 3.21.1 VRAM, device and layer APIs and device

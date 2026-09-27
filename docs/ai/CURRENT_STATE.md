@@ -1,6 +1,28 @@
 # CURRENT_STATE
 
-## L8a.0 backend gate run: Vulkan mechanics proven, NVIDIA evidence NOT RUN (2026-09-27, latest)
+## L8a.1 GPU backend manifest implemented and signed (2026-09-27, latest)
+
+- `src/offline/ai-backend-manifest.json` pins the 24 runtime files of
+  `@node-llama-cpp/win-x64-vulkan@3.21.1` for `node-llama-cpp@3.21.1+llama.cpp@v0.4.0`.
+- `AiModelManifest.ts` exports it as the frozen, fail-closed `AI_BACKEND_MANIFEST`.
+  `AI_RUNTIME_PIN` gains `backends: ["cpu", "vulkan"]`.
+- The Ed25519-signed dependency manifest carries it as `aiGpuBackends` (`bundled: false`).
+- Strict `validate:offline` checks four things: the source, its agreement with the pin, that the
+  signed copy equals the source, and that no pinned GPU binary ships (by hash).
+- The VC++ runtime is not in the backend manifest. L8a.2 copies the installer's own copies beside
+  an imported pack, which supersedes the L8a.0 note.
+- **Evidence:**
+  - new `verify:ai-backend-manifest` 40/0, with one caught validator mutation;
+  - fresh `package:portable` 0.1.51 from clean `dadd17bb`, whose in-pipeline strict validation
+    passed;
+  - signed manifest committed at `3e105d7b`;
+  - `verify:ai-packaged-runtime` 104/0 on that package.
+- Nothing imports or loads a GPU pack yet, and the host handshake still compares only the build
+  string (L8a.2/L8a.3). The two L8a.0 owner decisions (E11 hardware, E2 vendor ID) remain open.
+- Phase L stays 10 of 13 closed. Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED
+  across 67 cases.
+
+## L8a.0 backend gate run: Vulkan mechanics proven, NVIDIA evidence NOT RUN (2026-09-27)
 
 New verifier `npm run verify:ai-gpu-backend-gate` (packaged-application class): **28 PASS / 0
 FAIL, exit 2**. The NVIDIA evidence is NOT RUN because this development machine has no NVIDIA

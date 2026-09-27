@@ -105,7 +105,8 @@
       "required": true,
       "command": "npm run verify:ai-backend-manifest",
       "artifact": null,
-      "result": "pending"
+      "result": "PASS",
+      "observed": "Final state: 40 passed, 0 failed. A 26/26 (source resolves to the frozen vulkan entry, pin backends cpu+vulkan, 15 structural and 5 resolver negative controls refused), B 2/2 (24 installed runtime files = 24 pinned, every size and SHA-256 equal), C 10/10 (validator control clean; signed copy absent, different, bundled; source build, traversal, case-variant duplicate, no addon; pin without vulkan; a pinned binary shipped under another name: each draws its own message), D 2/2 (committed signed manifest verifies and its aiGpuBackends equals the source). Before packaging D failed as expected (no section yet), 39/1. The first run failed all of C: under the dot-sourced Set-StrictMode Latest, an if expression unrolled a one-element match list and .Count threw PropertyNotFoundStrict; fixed by wrapping the whole if in @() and initializing $aiPinBody. Mutation: with the validator's pinned-binary hash collection disabled, exactly the control (tightened to require a non-zero binary count) and the shipped-binary case failed, 38/2; reverted."
     },
     {
       "id": "package:portable",
@@ -113,7 +114,8 @@
       "required": true,
       "command": "npm run package:portable",
       "artifact": "dist/win-unpacked",
-      "result": "pending"
+      "result": "PASS",
+      "observed": "From clean dadd17bb: build, host staging (AI tree 1465 files, 51.5 MB, CPU only), fresh-state 10/10, dependency manifest generated and signed with ed25519:aa5b9dd8..., strict validation passed, portable SpecterStudio 0.1.51.exe written. The signed manifest was committed at 3e105d7b. verify:ai-packaged-runtime on this package: 104 passed, 0 failed, including the live harness 13/13 with the pinned 0.8B and the packaged tree equal to the current staging."
     },
     {
       "id": "validate:offline-strict",
@@ -121,7 +123,8 @@
       "required": true,
       "command": "npm run validate:offline -- -Strict",
       "artifact": "resources/dependency-manifest.json",
-      "result": "pending"
+      "result": "PASS",
+      "observed": "Run by package-portable.ps1 as validate-offline-bundle.ps1 -Strict, on the same inputs that were then committed: 'Local-AI GPU backend manifest: 1 backend(s), 24 files pinned for node-llama-cpp@3.21.1+llama.cpp@v0.4.0; the signed copy matches the source.', 'none of its 20 pinned binaries is among the 1465 shipped local-AI files (compared by SHA-256).', 'Strict mode: passed.' Not rerun separately: its inputs did not change after that run."
     },
     {
       "id": "build",
@@ -129,7 +132,8 @@
       "required": true,
       "command": "npm run build",
       "artifact": null,
-      "result": "pending"
+      "result": "PASS",
+      "observed": "tsc --noEmit and electron-vite build passed after the manifest and pin change, and again inside package:portable. npm run typecheck:scripts passed with the new verifier."
     },
     {
       "id": "verify:verifier-classification",
@@ -137,7 +141,8 @@
       "required": true,
       "command": "npm run verify:verifier-classification",
       "artifact": null,
-      "result": "pending"
+      "result": "PASS",
+      "observed": "279 verify:/validate: scripts classified, integration 52, classification reconciled."
     }
   ],
   "git": {
@@ -148,8 +153,10 @@
     "push_authorized": false
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "pending",
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qa_basis": "verify:ai-backend-manifest 40/0 with one caught validator mutation, package:portable with in-pipeline strict validation, verify:ai-packaged-runtime 104/0 on the fresh package, build, typecheck:scripts and verify:verifier-classification.",
+    "qa_known_limitations": "The Vulkan pack is pinned and validated, but nothing imports or loads it yet (L8a.2, L8a.3); the host handshake still compares only the build string. The release does not yet produce a distributable pack folder: the pack is the pinned npm prebuilt's runtime files. No NSIS installer was rebuilt; only the portable. QC was not performed by an independent reviewer.",
     "qc_status": "pending"
   },
   "write_lease": {
@@ -171,6 +178,27 @@
         "acquired_at_commit": "8f8e3954faa89d38a61954e146356aacb1974edc",
         "released_at": "2026-09-27T11:05:49.514Z",
         "released_reason": "backend manifest, backend-aware pin and signed-manifest generator committed at c2eb46c1, build PASS, validator and verifier are unleased routine work before the package lease",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-11-l8a1-backend-manifest-0927:release:2026-09-27T11:10:59.896Z",
+        "task": "awkit-djnl-11-l8a1-backend-manifest-0927",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "build",
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig",
+          "scripts/generate-dependency-manifest.ps1",
+          "src/offline/AiModelManifest.ts",
+          "src/offline/ai-backend-manifest.json"
+        ],
+        "acquired_at": "2026-09-27T11:10:59.896Z",
+        "acquired_at_commit": "b972b778c0dd270941ebf401662ab41af9c3bbf8",
+        "released_at": "2026-09-27T11:18:19.602Z",
+        "released_reason": "portable 0.1.51 packaged from clean dadd17bb with in-pipeline strict validation passing the new backend rules, signed manifest with aiGpuBackends committed at 3e105d7b, verify:ai-backend-manifest 40 of 40",
         "amendments": [],
         "overrides": [],
         "violations": []

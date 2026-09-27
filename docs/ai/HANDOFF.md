@@ -1,6 +1,30 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-27, latest) — L8a.0 gate run; two owner decisions before NVIDIA work
+## HANDOFF (2026-09-27, latest) — L8a.1 backend manifest done; L8a.2 is next
+
+- **L8a.1 is implemented** under contract `awkit-djnl-11-l8a1-backend-manifest-0927` (release
+  lease, now released).
+  - `AI_BACKEND_MANIFEST` (24 Vulkan files) is backed by `src/offline/ai-backend-manifest.json`.
+  - `AI_RUNTIME_PIN.backends` is `["cpu", "vulkan"]`.
+  - The signed dependency manifest carries `aiGpuBackends`, and strict `validate:offline` checks it.
+  - Evidence: `verify:ai-backend-manifest` 40/0 and `verify:ai-packaged-runtime` 104/0 on a fresh
+    portable.
+  - Contract status `implemented`, QA PASS, **QC pending**: no independent reviewer has looked at
+    it.
+- **Supersedes the L8a.0 note:** the VC++ runtime is not part of the backend manifest. L8a.2
+  copies the installer's own validated copies beside an imported pack.
+- **Next: L8a.2** (component import).
+  - A Settings checklist; select a pack folder and validate it file by file against
+    `AI_BACKEND_MANIFEST`.
+  - Copy it plus the installer's VC++ runtime into the app-managed folder, with a hash check
+    during copy, a disk-space preflight and path confinement.
+  - A tamper check at every load; gate it with `AI_MANAGE` + re-auth.
+  - Also still owed: a release step that produces a distributable pack folder.
+- **Owner decisions still open (from L8a.0):** E11 (no NVIDIA adapter on this machine) and E2 (the
+  runtime exposes no PCI vendor ID). Neither blocks L8a.2.
+- Ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## HANDOFF (2026-09-27) — L8a.0 gate run; two owner decisions before NVIDIA work
 
 - `npm run verify:ai-gpu-backend-gate` is **28 PASS / 0 FAIL, exit 2**. NVIDIA evidence is NOT
   RUN: this machine's only GPU is an AMD Radeon Pro 555X (`VEN_1002`). It was mutation-tested

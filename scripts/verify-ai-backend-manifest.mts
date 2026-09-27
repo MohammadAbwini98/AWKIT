@@ -233,7 +233,7 @@ try {
   const control = validate(scratchRoot, "control", {});
   check(
     "control — a consistent root draws no backend problem, matches the signed copy and finds no pinned binary shipped",
-    !backendProblem(control) && /1 backend\(s\), \d+ files pinned for .*; the signed copy matches the source\./.test(control) && /none of its \d+ pinned binaries is among the 1 shipped local-AI files/.test(control),
+    !backendProblem(control) && /1 backend\(s\), \d+ files pinned for .*; the signed copy matches the source\./.test(control) && /none of its [1-9]\d* pinned binaries is among the 1 shipped local-AI files/.test(control),
     detail(control)
   );
   const cases: [string, Scratch, RegExp][] = [
