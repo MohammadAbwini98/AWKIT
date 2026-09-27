@@ -1,6 +1,35 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-27, latest) — L8a.1 backend manifest done; L8a.2 is next
+## HANDOFF (2026-09-27, latest) — L8a.2 backend-pack import done; L8a.3 is next
+
+- **L8a.2 is implemented** under contract `awkit-djnl-11-l8a2-backend-import-0927` (two release
+  leases: the signed-manifest reader, then the package run; both released).
+  - The store is `src/ai/AiBackendPack.ts`. Main-process wiring is in `app/main/ai/aiRuntime.ts`
+    and `app/main/ipc/ai.ipc.ts`: six `ai:*BackendPack` channels, all `AI_MANAGE`, with re-auth to
+    pick, import and remove. The UI is `app/renderer/pages/LocalAiBackendPack.tsx`.
+  - Contract status `implemented`, QA PASS. **QC pending** (no independent reviewer).
+- **For L8a.3:**
+  - call `AiBackendPackStore.verifyForLoad()` before EVERY backend load, and load only from the
+    `dir` it returns;
+  - on `{ ok: false }`, keep CPU (`fallback: "cpu"`) and surface its `message`;
+  - map the ESM resolve hook (L8a.0) to `<dir>/dist/index.js`;
+  - the VC++ runtime is already beside the binaries in `bins/win-x64-vulkan/`.
+  - Guard gap to close there: a file swapped between `verifyForLoad` and the actual load.
+- **BLOCKED, owner action:** the four mutation checks (hash validation, path confinement, staged
+  revalidation, load guard). The auto-mode permission classifier refused the temporary edit of
+  `src/ai/AiBackendPack.ts`, and it was not retried. Approve that edit, or run the mutations
+  yourself: disable one check, run `npm run verify:ai-backend-pack`, expect specific FAILs,
+  revert.
+- **Owner decisions still open:** E11 (no NVIDIA adapter here, so real GPU qualification is
+  BLOCKED until a compatible NVIDIA machine) and E2 (vendor ID not exposed by the runtime; report
+  unknown, never claim NVIDIA).
+- **Separate, pre-existing:** `verify:ai-settings-gui` 26/30 has stale pre-pin assertions (a task
+  chip was offered).
+- Also still owed from L8a.1: a release step that produces a distributable pack folder (today:
+  the 24 manifest files of the npm prebuilt, without README or `.lib`).
+- Ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## HANDOFF (2026-09-27) — L8a.1 backend manifest done; L8a.2 is next
 
 - **L8a.1 is implemented** under contract `awkit-djnl-11-l8a1-backend-manifest-0927` (release
   lease, now released).

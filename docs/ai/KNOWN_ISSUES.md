@@ -1,5 +1,17 @@
 # KNOWN_ISSUES
 
+## A main-process string literal ending in the word "import" breaks the main bundle (2026-09-27, OPEN — upstream electron-vite; worked around, know it)
+
+- **Symptom:** `npm run build` passes `tsc`, then electron-vite fails with `Unterminated string literal` at
+  `// -- CommonJS Shims --` inside `out/main/main.js`.
+- **Cause:** electron-vite's `esmShimPlugin` finds the last static import with a regex
+  (`ESMStaticImportRe` in `node_modules/electron-vite/dist/chunks/lib-*.mjs`) and splices its shim after it.
+  A literal such as `"…free disk space for the import",` followed by another quoted string matches as
+  `import "<specifier>"`, so the shim lands inside the next literal. Found in L8a.2's refusal messages.
+- **Rule:** in `app/main`/`src` code that reaches the main bundle, never end a string with ` import`
+  directly before its closing quote. Reword the message (`src/ai/AiBackendPack.ts` carries a comment where it
+  happened). `tsc` cannot catch it; only `electron-vite build` does.
+
 ## The pasted Phase L brief asked the agent to self-accept L4b; the safety classifier refused, and the agent must not retry it (2026-09-26, BY DESIGN — know it before the next closure attempt)
 
 - **What happened:** the brief asked the agent to act as DX-3's reader. The owner's recorded ruling (2026-09-25,

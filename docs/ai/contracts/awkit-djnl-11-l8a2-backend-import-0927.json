@@ -23,6 +23,7 @@
     "renderer_visual_change": true,
     "interaction_change": true,
     "accessibility_change": true,
+    "general_engineering_change": true,
     "packaging_change": true,
     "project_state_change": true,
     "cross_layer_count": 4
@@ -107,7 +108,8 @@
       "id": "IMPORT",
       "description": "Validation, staged copy, VC++ runtime sourcing, revalidation, atomic promotion, idempotence, rollback, cancellation and restart recovery, path confinement and the load-time integrity guard behave as specified, with mutation checks on hash validation, path confinement, staged revalidation and the load-time guard.",
       "evidence_required": [
-        "verify:ai-backend-pack"
+        "verify:ai-backend-pack",
+        "mutation:ai-backend-pack"
       ]
     },
     {
@@ -134,8 +136,17 @@
       "required": true,
       "command": "npm run verify:ai-backend-pack",
       "artifact": null,
-      "result": "pending",
-      "observed": null
+      "result": "PASS",
+      "observed": "139 passed, 0 failed, 0 not run, first green run. A 44 (the refusal matrix by checklist and import: missing, same-size modified, resized, renamed, other build, other backend, extra DLL, MZ image named .txt, runtime DLL in the pack, extra .mjs, extra plain file, extra empty folder, junction inside and as root, file symlink (created: this account holds the privilege), too many entries, traversal and absolute manifest paths; nothing left behind), B 9 (trust and space: unsigned manifest, unverified runtime, runtime bytes differing from their trusted hash while copying, one byte short of pack+runtime+headroom, unmeasurable space), C 20 (import, byte-identical copy, app runtime beside the backend, registry with no absolute or source path, confinement, idempotence, escaping runtime name refused with nothing written outside), D 9 (cancel mid-copy and of a replacement, crash leftovers recovered, a junction removed without being followed, unreadable registry keeps packs), E 14 (source changed while copying, staged tamper and planted DLL, failed promotion: previous pack intact each time; cross-build replacement), F 16 (the load guard: altered, deleted, planted, runtime-replaced, truncated, junction-swapped, outside registry, deleted registry; sticky, never repaired, CPU fallback), G 9, H 8 (the committed signed manifest verifies, a one-byte change is refused, signed/built-in disagreement, missing and mismatched runtime assets, dev staged runtime verifies), I 9 (the real 24-file pack end to end; exactly 24+3 files, runtime byte-identical to build/native-hosts; the raw npm folder refused; dist/win-unpacked's shipped runtime verifies against its shipped signed manifest)."
+    },
+    {
+      "id": "mutation:ai-backend-pack",
+      "type": "verifier",
+      "required": true,
+      "command": "temporarily disable, one at a time, compareHashes' comparison, confined()'s containment test, the staged revalidation and verifyUnlocked's inspectInstalled call in src/ai/AiBackendPack.ts; run npm run verify:ai-backend-pack; expect specific FAILs; revert",
+      "artifact": null,
+      "result": "BLOCKED",
+      "observed": "The first mutation edit (disabling the hash comparison) was refused by the session's auto-mode permission classifier as weakening a security check. Per the denial it was not retried or worked around; the verifier run that followed exercised unmodified code (139/0) and is NOT a mutation result. Needs the owner's approval of the temporary edit, or the owner running the four mutations."
     },
     {
       "id": "verify:ai-backend-pack-gui",
@@ -143,8 +154,8 @@
       "required": true,
       "command": "npm run verify:ai-backend-pack-gui",
       "artifact": null,
-      "result": "pending",
-      "observed": null
+      "result": "PASS",
+      "observed": "59/59 in the real development Electron app on an isolated profile with the real pinned pack: fresh state not installed and GPU use not active; closed dialog shows nothing; extra-DLL folder refused by name as an alert with focus on the checklist heading and no import offered; valid folder's full preflight (9 passed checks, source, destination, 96.7 MB with runtime, free space and 256 MB headroom, 24 of 24, identical-pack state, warning) with nothing copied before confirmation; accessible progress bar and Cancel Import sampled while copying; registry holds the directory name only; 24 + 3 files on disk with the runtime byte-identical to build/native-hosts; a flipped byte refused by Verify, persisted HASH_MISMATCH, not repaired; replacement into a new directory with the old one removed; confirmed removal with focus inside the alertdialog; no GPU-in-use text; no renderer errors."
     },
     {
       "id": "verify:ai-permissions",
@@ -152,8 +163,8 @@
       "required": true,
       "command": "npm run verify:ai-permissions",
       "artifact": null,
-      "result": "pending",
-      "observed": null
+      "result": "PASS",
+      "observed": "117 passed, 0 failed: the six ai:*BackendPack channels each assert AI_MANAGE before acting; preflight, import and remove re-authenticate, status, cancel and verify do not; the preload exposes exactly the gated channels."
     },
     {
       "id": "build",
@@ -161,8 +172,8 @@
       "required": true,
       "command": "npm run build",
       "artifact": null,
-      "result": "pending",
-      "observed": null
+      "result": "PASS",
+      "observed": "tsc --noEmit and electron-vite build PASS on the final sources, and again inside package:portable. typecheck:scripts PASS. The first bundle attempt failed: electron-vite's ESM shim regex spliced into a string literal ending in 'import'; the message was reworded (KNOWN_ISSUES)."
     },
     {
       "id": "verify:verifier-classification",
@@ -170,8 +181,71 @@
       "required": true,
       "command": "npm run verify:verifier-classification",
       "artifact": null,
-      "result": "pending",
-      "observed": null
+      "result": "PASS",
+      "observed": "281 verify:/validate: scripts classified (integration 53, real-browser 120), reconciled."
+    },
+    {
+      "id": "verify:ai-fallback",
+      "type": "verifier",
+      "required": false,
+      "command": "npm run verify:ai-fallback",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "38/0 after admitting ai:importBackendPack(token) to the exact bridge-argument roster (it failed 36/2 first, as designed, on the new argument)."
+    },
+    {
+      "id": "verify:ipc-contract",
+      "type": "verifier",
+      "required": false,
+      "command": "npm run verify:ipc-contract",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "10/10 (270 handlers, 248 exposed, 23 backend-only)."
+    },
+    {
+      "id": "verify:offline-supply-chain",
+      "type": "verifier",
+      "required": false,
+      "command": "npm run verify:offline-supply-chain",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "25/0 after SupplyChainIntegrity.ts shared its signature checks with readSignedDependencyManifest."
+    },
+    {
+      "id": "package:portable",
+      "type": "packaged",
+      "required": false,
+      "command": "npm run package:portable",
+      "artifact": "dist/win-unpacked",
+      "result": "PASS",
+      "observed": "From clean c76be866: build, host staging (AI 1465 files, 51.5 MB, CPU only, MSVC 14.44.35112), fresh-state 10/10, signed manifest (ed25519:aa5b9dd8...), in-pipeline validate-offline-bundle -Strict passed including 'none of its 20 pinned binaries is among the 1465 shipped local-AI files', portable SpecterStudio 0.1.51.exe written. Signed manifest committed at d60ba9c4."
+    },
+    {
+      "id": "verify:ai-backend-pack-packaged",
+      "type": "packaged",
+      "required": false,
+      "command": "npm run verify:ai-backend-pack-packaged",
+      "artifact": "dist/win-unpacked",
+      "result": "PASS",
+      "observed": "61/61: the verify:ai-backend-pack-gui walkthrough on dist/win-unpacked/SpecterStudio.exe (app.isPackaged true, payload not older than source, licence bypass stripped); runtime DLLs beside the imported backend byte-identical to those shipped in resources/native-hosts/ai; trust from the packaged resources/resources signed manifest."
+    },
+    {
+      "id": "verify:ai-packaged-runtime",
+      "type": "packaged",
+      "required": false,
+      "command": "npm run verify:ai-packaged-runtime",
+      "artifact": "dist/win-unpacked",
+      "result": "PASS",
+      "observed": "104 passed, 0 failed on the single rerun. The first run on the fresh package was 91/5: all 5 in section D, live 0.8B inference hitting the 120 s deadline (166/120/120 s) right after the ~500 MB package write; the host tree was unchanged (section E: 'the tree is exactly the current source's staging') and no L8a.2 code is on that path. On the rerun section D passed all 13 live steps."
+    },
+    {
+      "id": "verify:ai-settings-gui",
+      "type": "verifier",
+      "required": false,
+      "command": "npm run verify:ai-settings-gui",
+      "artifact": null,
+      "result": "FAIL",
+      "observed": "26/30, pre-existing: the 4 failing checks assert 'runtime not included' and '0 accepted model packs', which stopped being true at a28050c7 (2026-09-20) after the verifier was written at 016c37cf (2026-09-19). Not caused by L8a.2; offered as a separate task."
     }
   ],
   "git": {
@@ -182,8 +256,10 @@
     "push_authorized": false
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "pending",
+    "status": "implemented",
+    "qa_status": "BLOCKED",
+    "qa_basis": "verify:ai-backend-pack 139/0, verify:ai-backend-pack-gui 59/59, verify:ai-backend-pack-packaged 61/61, verify:ai-permissions 117/0, verify:ai-fallback 38/0, verify:ipc-contract 10/10, verify:offline-supply-chain 25/0, build, typecheck:scripts, verify:verifier-classification 282, package:portable with in-pipeline strict validation, verify:ai-packaged-runtime 104/0.",
+    "qa_known_limitations": "BLOCKED: the four requested mutation checks (the auto-mode permission classifier refused the temporary edit; not retried). BLOCKED: real NVIDIA qualification (no 0x10DE adapter, E11); vendor identity reported unknown (E2). Nothing loads the pack yet (L8a.3), and the gap between verifyForLoad and the actual load is L8a.3's. verify:ai-settings-gui 26/30 is a pre-existing stale-assertion FAIL. No NSIS rebuild.",
     "qc_status": "pending"
   },
   "write_lease": {
@@ -200,6 +276,24 @@
         "acquired_at_commit": "ebfcddca0d495ff8670845a4f0a86e0cc5d6d928",
         "released_at": "2026-09-27T14:14:18.927Z",
         "released_reason": "signed-manifest reader committed at fd4b5141 with build and verify:offline-supply-chain 25/0 PASS, the rest of L8a.2 is unleased routine work",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-11-l8a2-backend-import-0927:release:2026-09-27T14:42:19.379Z",
+        "task": "awkit-djnl-11-l8a2-backend-import-0927",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "build",
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig"
+        ],
+        "acquired_at": "2026-09-27T14:42:19.379Z",
+        "acquired_at_commit": "2c531c409398a00d16d71b5419c801479ed17165",
+        "released_at": "2026-09-27T15:14:24.804Z",
+        "released_reason": "portable 0.1.51 packaged from clean c76be866 with in-pipeline strict validation PASS and the signed manifest committed at d60ba9c4, verify:ai-packaged-runtime 91 PASS 5 FAIL all in the live-inference section D timeouts",
         "amendments": [],
         "overrides": [],
         "violations": []

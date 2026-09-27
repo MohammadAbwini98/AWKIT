@@ -1,6 +1,49 @@
 # TASK_LOG
 
-## 2026-09-27 (latest) — L8a.1 GPU backend manifest, backend-aware pin, signed and validated (Claude)
+## 2026-09-27 (latest) — L8a.2 secure Vulkan backend-pack import (Claude)
+
+- **Task:** L8a.2 from the L8a plan: a Settings workflow that validates the pinned Vulkan pack and
+  imports it into an app-managed, versioned folder, with a reusable load-time integrity guard. No
+  GPU loading (L8a.3).
+- **Result:** implemented under contract `awkit-djnl-11-l8a2-backend-import-0927`.
+  - A release lease added `readSignedDependencyManifest` to `SupplyChainIntegrity.ts`; the
+    supply-chain check now shares its signature logic.
+  - `AiBackendPackStore`:
+    - preflight (nine checks);
+    - hashed staged copy with this build's signed-manifest-verified VC++ runtime;
+    - revalidation; rename to a new versioned directory; registry holding the directory name
+      only;
+    - rollback, idempotence, cancel, crash recovery (never following a junction);
+    - `verifyForLoad` (sticky invalid, `fallback: "cpu"`).
+  - Six `AI_MANAGE` channels and a Settings subsection.
+  - Found and fixed: electron-vite's ESM-shim regex spliced its shim into a string literal ending in
+    "import" (`KNOWN_ISSUES.md`).
+- **Files:**
+  - `src/ai/{AiBackendPack.ts,contracts/AiApi.ts}`, `src/offline/SupplyChainIntegrity.ts`
+  - `app/main/{ai/aiRuntime.ts,ipc/ai.ipc.ts,preload.ts}`
+  - `app/renderer/pages/{LocalAiBackendPack,LocalAiSettings}.tsx`, `app/renderer/styles/global.css`
+  - `scripts/{verify-ai-backend-pack.mts,verify-ai-backend-pack-gui.mjs,verify-ai-permissions.mts,verify-ai-fallback.mts}`
+    (the GUI verifier also runs `--packaged`)
+  - `scripts/lib/verifier-classification.ts`, `package.json`
+  - `resources/dependency-manifest.{json,sig}`
+  - the contract, the L8a plan, `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,KNOWN_ISSUES}.md`
+- **Verification:**
+  - `verify:ai-backend-pack` 139/0; `verify:ai-backend-pack-gui` 59/59;
+    `verify:ai-backend-pack-packaged` 61/61 on `dist/win-unpacked`;
+  - `verify:ai-packaged-runtime` 104/0 on the re-run. The first run was 91/5: section D
+    live-inference timeouts right after the package write, on an unchanged host tree;
+  - `verify:ai-permissions` 117/0; `verify:ai-fallback` 38/0 (after admitting the token);
+    `verify:ipc-contract` 10/10; `verify:offline-supply-chain` 25/0;
+  - build, `typecheck:scripts`, `verify:verifier-classification` (281) PASS;
+  - `verify:failure-capture-overhead` 17 PASS / 1 INCONCLUSIVE (timing; zero AI calls on the run
+    path PASS);
+  - `package:portable` from clean `c76be866` with in-pipeline strict validation PASS.
+- **BLOCKED:** the four mutation checks (the permission classifier refused the temporary source
+  edit; not retried) and real NVIDIA qualification (E11).
+- **FAIL, pre-existing:** `verify:ai-settings-gui` 26/30, from stale pre-pin assertions.
+- **NOT RUN:** NSIS rebuild, independent QC.
+
+## 2026-09-27 — L8a.1 GPU backend manifest, backend-aware pin, signed and validated (Claude)
 
 - **Task:** L8a.1 from the L8a plan: backend manifest, backend-aware runtime pin, signed manifest
   and offline validation.

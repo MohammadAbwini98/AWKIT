@@ -1,6 +1,50 @@
 # CURRENT_STATE
 
-## L8a.1 GPU backend manifest implemented and signed (2026-09-27, latest)
+## L8a.2 secure Vulkan backend-pack import implemented (2026-09-27, latest)
+
+- **Settings → Local AI → GPU backend pack (Vulkan)** imports the pinned 24-file pack into
+  `%LOCALAPPDATA%/SpecterStudio/ai/backends/vulkan-<version>-<id>/`. The main process opens the
+  folder dialog. The renderer sees a checklist and a one-time token, and never supplies a path.
+- **Checks, before anything is copied:** a preflight with nine items — folder, links/reparse,
+  backend + build identity, file set (no unexpected executable/native library), sizes, SHA-256,
+  signed manifest, app VC++ runtime, disk space + 256 MB headroom. It also shows source,
+  destination, pack size and whether an identical pack is installed, plus a copy warning.
+  Nothing in the folder is loaded or run.
+- **Import** (`src/ai/AiBackendPack.ts`):
+  1. hashed copy into staging;
+  2. this build's own `msvcp140`/`vcruntime140`/`vcruntime140_1`, verified against the
+     Ed25519-signed dependency manifest (new `readSignedDependencyManifest` in
+     `src/offline/SupplyChainIntegrity.ts`), copied beside the backend;
+  3. staged revalidation;
+  4. rename to a new versioned directory, then the registry write.
+  - Failures keep the previous pack; an identical re-import copies nothing; staging is cleaned
+    after a cancel, failure or restart.
+- **Load-time guard:** `AiBackendPackStore.verifyForLoad()` is the boundary L8a.3 must call
+  before every backend load. It refuses a missing, altered, extra or junction-swapped file, marks
+  the pack invalid (sticky), never repairs, and answers with `fallback: "cpu"`.
+- **Still true:** nothing loads the pack yet, the host is CPU-only, and the UI says GPU use is not
+  active. No new permission: `AI_MANAGE`, with re-auth to pick, import and remove.
+- **Evidence:**
+  - `verify:ai-backend-pack` 139/0 (new);
+  - `verify:ai-backend-pack-gui` 59/59 in real Electron (new);
+  - `verify:ai-backend-pack-packaged` 61/61, the same walkthrough on `dist/win-unpacked` (new);
+  - `verify:ai-packaged-runtime` 104/0 on the fresh package. The first run was 91/5 from
+    live-inference timeouts just after packaging; the single re-run passed;
+  - `verify:ai-permissions` 117/0; `verify:ai-fallback` 38/0; `verify:ipc-contract` 10/10;
+    `verify:offline-supply-chain` 25/0;
+  - build, `typecheck:scripts` and `verify:verifier-classification` (281) PASS;
+  - `package:portable` from clean `c76be866`, with in-pipeline strict validation PASS.
+- **BLOCKED:** mutation checks on hash validation, path confinement, staged revalidation and the
+  load guard. The session's permission classifier refused the temporary source edit; they await
+  the owner's approval.
+- **Pre-existing FAIL:** `verify:ai-settings-gui` 26/30. Its assertions date from before the
+  2026-09-20 pin (runtime "not included", 0 accepted packs); L8a.2 did not cause it.
+- **NVIDIA:** real GPU qualification stays BLOCKED (no `0x10DE` adapter here; E11). Vendor
+  identity stays unknown until proven (E2). QC pending.
+- Phase L stays 10 of 13 closed. Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED
+  across 67 cases.
+
+## L8a.1 GPU backend manifest implemented and signed (2026-09-27)
 
 - `src/offline/ai-backend-manifest.json` pins the 24 runtime files of
   `@node-llama-cpp/win-x64-vulkan@3.21.1` for `node-llama-cpp@3.21.1+llama.cpp@v0.4.0`.
