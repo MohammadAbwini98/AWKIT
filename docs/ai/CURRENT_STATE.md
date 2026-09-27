@@ -1,6 +1,50 @@
 # CURRENT_STATE
 
-## L8a.2 secure Vulkan backend-pack import implemented (2026-09-27, latest)
+## L8a.3 execution modes implemented: CPU, GPU-Offload, GPU-Only (2026-09-27, latest)
+
+- **Settings shape:** `AiSettings.executionMode` (`cpu` default, `gpu-offload`, `gpu-only`) and
+  `vramReserveMb` (null = the runtime's own padding, else 128–32768). Bad values are refused, never
+  clamped; old settings files load as CPU. No Settings UI yet (L8a.4) — only `ai:updateSettings`
+  (`AI_MANAGE` + re-auth) can set them.
+- **Host (`native-hosts/ai/ai-host.cjs`):** the backend is fixed at fork. CPU is unchanged and refuses
+  every GPU request. A Vulkan host loads the backend only from the directory the manager forked it
+  with, through the L8a.0 resolve hook. New `gpuPlan` sizes the offload from the runtime's own GGUF
+  estimators (bisection over layers) against free VRAM and the reserve. `load` takes a bounded
+  `gpuLayers` (1–1024 on Vulkan).
+- **Manager:** `AiBackendPackStore.verifyForLoad()` runs before **every** Vulkan host fork. A refusal
+  never forks (`AI_GPU_BACKEND_REFUSED`) and counts no crash strike.
+- **Modes (`src/ai/AiService.ts`, `src/ai/AiExecutionProfile.ts`):**
+  - GPU-Offload loads the largest fitting layer count, retries with fewer layers at most twice, then
+    runs on CPU with the reason kept.
+  - GPU-Only loads every layer or refuses with the exact shortfall. It never falls back.
+  - CPU never starts the GPU host.
+  - A mode or reserve change reloads at the next load.
+- **Eligibility (E2):** NVIDIA = PCI vendor `0x10DE` from Electron's GPU info, never a name. A mixed
+  or unknown adapter set is `VENDOR_UNPROVEN`. The Vulkan device count must be explained by NVIDIA
+  adapters alone. The effective profile and reason are in status and diagnostics.
+- **Evidence:**
+  - `verify:ai-host` 185 checks, 20/20 mutations;
+  - `verify:ai-gpu-modes` 138/0 (new). Mutations caught: GPU-Only silently falling back (111/27) and
+    an unbounded retry (135/3);
+  - `verify:ai-gpu-host` 23/23 (new, real Electron). Here (adapters `0x1002` + `0x1414`) the product
+    answers `NO_COMPATIBLE_ADAPTER`: GPU-Offload runs on CPU with that reason, GPU-Only refuses.
+    Mechanics, labelled and on AMD: 25/25 layers on Vulkan, every llama/ggml binary from the pack, a
+    tampered pack refused before fork;
+  - `verify:ai-packaged-runtime` 104/0 on the fresh package; `package:portable` with strict offline
+    validation PASS; only the `ai-host.cjs` hash moved in the signed manifest;
+  - `verify:failure-capture-overhead` 18/0; 12 AI regression verifiers PASS; build,
+    `typecheck:scripts`, `verify:verifier-classification` (284) PASS.
+- **Open:**
+  - NVIDIA qualification BLOCKED (E11);
+  - E2 hybrid device correlation;
+  - the gap between `verifyForLoad` and the child's DLL load is narrowed to one fork, not closed;
+  - QC pending.
+  - Pre-existing FAILs, not L8a.3: `verify:ai-authoring` (DX-0 freeze, `KNOWN_ISSUES.md`) and
+    `verify:ai-settings-gui` 26/30.
+- Phase L stays 10 of 13 closed. Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED
+  across 67 cases.
+
+## L8a.2 secure Vulkan backend-pack import implemented (2026-09-27)
 
 - **Settings → Local AI → GPU backend pack (Vulkan)** imports the pinned 24-file pack into
   `%LOCALAPPDATA%/SpecterStudio/ai/backends/vulkan-<version>-<id>/`. The main process opens the

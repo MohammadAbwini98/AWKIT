@@ -1,6 +1,55 @@
 # TASK_LOG
 
-## 2026-09-27 (latest) — L8a.2 secure Vulkan backend-pack import (Claude)
+## 2026-09-27 (latest) — L8a.3 host protocol, three execution modes, offload sizing, fallback/refusal reasons (Claude)
+
+- **Task:** L8a.3 from the L8a plan. No Settings UI (L8a.4), no VRAM-exhaustion-after-load or GPU
+  cancel measurement (L8a.5).
+- **Result:** implemented under contract `awkit-djnl-11-l8a3-gpu-modes-0927`.
+  - The host's backend is fixed at fork: CPU unchanged, or Vulkan from the verified pack via the
+    L8a.0 resolve hook.
+  - `gpuPlan` is built from the runtime's estimators. It began as a linear scan (45 s when nothing
+    fit) and became a bisection (9.4 s).
+  - Bounded `gpuLayers`.
+  - The manager runs `verifyForLoad` before every Vulkan fork.
+  - E4 modes in `AiService`; E2 eligibility by PCI vendor ID; execution profile in status and
+    diagnostics.
+- **Commits:**
+  - `d567ba0c` host;
+  - `c3054fe5` product;
+  - `d9293ad3` bisection;
+  - `e84be32f` verifiers;
+  - `22af52fa` signed manifest;
+  - plus contract/lease bookkeeping.
+- **Files:**
+  - `native-hosts/ai/ai-host.cjs`
+  - `src/ai/{AiSettings,AiExecutionProfile,AiService,FakeAiHostTransport}.ts`,
+    `src/ai/contracts/{AiHostProtocol,AiApi}.ts`
+  - `app/main/ai/{AiUtilityHostManager,aiRuntime,gpuAdapters}.ts`,
+    `app/renderer/pages/LocalAiSettings.tsx`
+  - `scripts/{verify-ai-host,verify-ai-gpu-modes,verify-ai-gpu-host,verify-element-spy}.mts`,
+    `scripts/ai-harness/{gpuLive,harnessMain}.ts`
+  - `scripts/lib/verifier-classification.ts`, `package.json`, `resources/dependency-manifest.{json,sig}`
+  - the contract, the L8a plan, `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,KNOWN_ISSUES}.md`
+- **Verification:**
+  - `verify:ai-host` 185 checks, 20/20 mutations;
+  - `verify:ai-gpu-modes` 138/0, with two mutations caught (111/27, 135/3);
+  - `verify:ai-gpu-host` 23/23;
+  - `verify:ai-packaged-runtime` 104/0 on the fresh package; `package:portable` with strict offline
+    validation PASS;
+  - `verify:failure-capture-overhead` 18/0;
+  - PASS: ai-failure-analysis-budget, ai-locator-upgrade-budget, ai-host-electron, ai-fallback,
+    ai-deadlines, ai-adapter, ai-error-analysis, ai-fragment-assist, ai-locator-attempts,
+    ai-locator-repair, ai-redaction, element-spy;
+  - build, `typecheck:scripts`, `verify:verifier-classification` (284) PASS.
+- **BLOCKED:** real NVIDIA qualification (E11; this machine has `0x1002` + `0x1414` only).
+- **FAIL, pre-existing:** `verify:ai-authoring` (DX-0 freeze since L8a.1) and
+  `verify:ai-settings-gui` 26/30.
+- **NOT RUN:**
+  - `verify:ai-inference-profile` (drives the runtime directly, no L8a.3 input);
+  - NSIS rebuild;
+  - independent QC.
+
+## 2026-09-27 — L8a.2 secure Vulkan backend-pack import (Claude)
 
 - **Task:** L8a.2 from the L8a plan: a Settings workflow that validates the pinned Vulkan pack and
   imports it into an app-managed, versioned folder, with a reusable load-time integrity guard. No

@@ -1,5 +1,15 @@
 # KNOWN_ISSUES
 
+## `verify:ai-authoring` FAILs its DX-0 freeze since L8a.1 (2026-09-27, OPEN — pre-existing, not caused by L8a.3)
+
+- **Symptom:** `verify:ai-authoring` fails the DX-0 "frozen inputs" check for `src/ai/AiModelManifest.ts`.
+- **Cause:** `scripts/ai-harness/authoringDx.ts` freezes the **whole file's** git blob (`a6f2472e`). L8a.1
+  added `AI_BACKEND_MANIFEST` to that file (blob now `145c726b`) without touching the model entries the
+  freeze exists to protect.
+- **Fix owed:** freeze the model manifest entries (or their hashes), not the file blob, then re-run
+  `verify:ai-authoring`. A task chip was offered in the L8a.3 session. Until then, treat this one FAIL as
+  pre-existing and look at its other checks.
+
 ## A main-process string literal ending in the word "import" breaks the main bundle (2026-09-27, OPEN — upstream electron-vite; worked around, know it)
 
 - **Symptom:** `npm run build` passes `tsc`, then electron-vite fails with `Unterminated string literal` at

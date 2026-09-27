@@ -1,6 +1,29 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-27, latest) — L8a.2 backend-pack import done; L8a.3 is next
+## HANDOFF (2026-09-27, latest) — L8a.3 execution modes done; L8a.4 is next
+
+- **L8a.3 is implemented** under contract `awkit-djnl-11-l8a3-gpu-modes-0927` (two runtime leases for
+  `ai-host.cjs`, one release lease for the signed manifest; all released). Status `implemented`, QA
+  PASS, **QC pending**.
+- **For L8a.4 (Settings UI + diagnostics):**
+  - settings: `executionMode` and `vramReserveMb` already exist in `AiSettings` and the settings
+    view, with bounds (`AiSettingsView`);
+  - state to show: `status().execution` / diagnostics `execution`, `gpuHost`, `adapters`
+    (`AiExecutionView` in `src/ai/contracts/AiApi.ts`);
+  - reason text: `AI_GPU_REASON_MESSAGES` in `src/ai/AiExecutionProfile.ts` — reuse it, don't write a
+    second copy;
+  - `LocalAiSettings.tsx` only learned the `GPU_UNAVAILABLE` state label.
+- **For L8a.5:** VRAM exhaustion after load and GPU cancel/kill timing are not handled or measured.
+- **Still open:**
+  - NVIDIA qualification BLOCKED (E11);
+  - E2 hybrid correlation;
+  - the `verifyForLoad`-to-DLL-load gap (narrowed to one fork);
+  - the L8a.2 path-confinement mutation (owner-run).
+- **Pre-existing FAILs:** `verify:ai-authoring` (DX-0 freeze of the whole `AiModelManifest.ts` blob,
+  see `KNOWN_ISSUES.md`) and `verify:ai-settings-gui` 26/30. Task chips were offered for both.
+- Ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## HANDOFF (2026-09-27) — L8a.2 backend-pack import done; L8a.3 is next
 
 - **L8a.2 is implemented** under contract `awkit-djnl-11-l8a2-backend-import-0927` (two release
   leases: the signed-manifest reader, then the package run; both released).

@@ -30,6 +30,7 @@
     "activated_agents": [
       "manager",
       "architect",
+      "frontend",
       "software",
       "runtime",
       "qa",
@@ -50,7 +51,10 @@
       "app/main/ai/AiUtilityHostManager.ts",
       "app/main/ai/aiRuntime.ts",
       "app/main/ai/gpuAdapters.ts",
+      "app/renderer/pages/LocalAiSettings.tsx",
       "scripts/verify-ai-host.mts",
+      "scripts/verify-element-spy.mts",
+      "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
       "scripts/verify-ai-gpu-modes.mts",
       "scripts/verify-ai-gpu-host.mts",
       "scripts/ai-harness/harnessMain.ts",
@@ -79,11 +83,9 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "release",
+      "agent_id": "project-state",
       "allowed_paths": [
-        "build",
-        "resources/dependency-manifest.json",
-        "resources/dependency-manifest.sig"
+        ".beads/issues.jsonl"
       ]
     }
   },
@@ -184,8 +186,8 @@
     "push_authorized": false
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "pending",
+    "status": "implemented",
+    "qa_status": "PASS",
     "qc_status": "pending"
   },
   "write_lease": {
@@ -218,6 +220,24 @@
         "acquired_at_commit": "c3054fe58f2f558ea04613380a58e00f3c627a9b",
         "released_at": "2026-09-27T16:21:20.195Z",
         "released_reason": "plan bisection committed, host verification continues unleased",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-11-l8a3-gpu-modes-0927:release:2026-09-27T16:35:55.982Z",
+        "task": "awkit-djnl-11-l8a3-gpu-modes-0927",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "build",
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig"
+        ],
+        "acquired_at": "2026-09-27T16:35:55.982Z",
+        "acquired_at_commit": "083c218959aed6630c35046e2628d0b17f30f136",
+        "released_at": "2026-09-27T16:49:12.496Z",
+        "released_reason": "signed manifest regenerated and committed, packaged runtime verifier 104 passed 0 failed on the fresh package",
         "amendments": [],
         "overrides": [],
         "violations": []
