@@ -2,7 +2,7 @@
   "task": "awkit-djnl-11-l8a1-backend-manifest-0927",
   "contract_path": "docs/ai/contracts/awkit-djnl-11-l8a1-backend-manifest-0927.json",
   "holder": "release",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
     "build",
     "resources/dependency-manifest.json",
@@ -11,14 +11,10 @@
     "src/offline/AiModelManifest.ts",
     "src/offline/ai-backend-manifest.json"
   ],
-  "acquired_at": "2026-09-27T11:02:19.030Z",
-  "acquired_at_commit": "8f8e3954faa89d38a61954e146356aacb1974edc",
-  "baseline_dirty": [
-    "docs/ai/contracts/awkit-djnl-11-l8a1-backend-manifest-0927.json"
-  ],
-  "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-djnl-11-l8a1-backend-manifest-0927.json": "d3df03f52283b47aaea559afb3565e67ad592758edcb189fe25b42c239c57576"
-  },
+  "acquired_at": "2026-09-27T11:10:59.896Z",
+  "acquired_at_commit": "b972b778c0dd270941ebf401662ab41af9c3bbf8",
+  "baseline_dirty": [],
+  "baseline_dirty_fingerprints": {},
   "baseline_watched_ignored": {
     ".env": "absent",
     ".claude/settings.local.json": "6238:1788551784499.886",
@@ -31,8 +27,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-27T11:05:49.514Z",
-  "released_reason": "backend manifest, backend-aware pin and signed-manifest generator committed at c2eb46c1, build PASS, validator and verifier are unleased routine work before the package lease",
-  "archived_at": "2026-09-27T11:05:49.515Z"
+  "violations": []
 }
