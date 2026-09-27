@@ -1,20 +1,18 @@
 {
   "task": "awkit-djnl-11-l8a2-backend-import-0927",
   "contract_path": "docs/ai/contracts/awkit-djnl-11-l8a2-backend-import-0927.json",
-  "holder": "release",
-  "status": "released",
+  "holder": "project-state",
+  "status": "active",
   "allowed_paths": [
-    "build",
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig"
+    ".beads/issues.jsonl"
   ],
-  "acquired_at": "2026-09-27T14:42:19.379Z",
-  "acquired_at_commit": "2c531c409398a00d16d71b5419c801479ed17165",
+  "acquired_at": "2026-09-27T15:34:37.597Z",
+  "acquired_at_commit": "dfda33a69f9f3ac59af6560ca504a6d050576905",
   "baseline_dirty": [
     "docs/ai/contracts/awkit-djnl-11-l8a2-backend-import-0927.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-djnl-11-l8a2-backend-import-0927.json": "92febc41b55ffc9c86ae9554f50018eff9564ab47ba2dd442d663ac734eaa105"
+    "docs/ai/contracts/awkit-djnl-11-l8a2-backend-import-0927.json": "19dbea2b3e5314f4e7abd91e615cedd859f05d132a6f5225e14e9fc9794e4766"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -24,12 +22,9 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1790507565706.4785"
+    "build": "dir(1):native-hosts:1790520362847.308"
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-27T15:14:24.804Z",
-  "released_reason": "portable 0.1.51 packaged from clean c76be866 with in-pipeline strict validation PASS and the signed manifest committed at d60ba9c4, verify:ai-packaged-runtime 91 PASS 5 FAIL all in the live-inference section D timeouts",
-  "archived_at": "2026-09-27T15:14:24.810Z"
+  "violations": []
 }
