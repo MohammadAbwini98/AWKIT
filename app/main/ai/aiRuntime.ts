@@ -24,13 +24,7 @@ import {
   type AiBackendPackStatus,
   type BackendTrust
 } from "@src/ai/AiBackendPack";
-import {
-  AI_GPU_REASON_MESSAGES,
-  classifyAdapters,
-  describeAdapters,
-  type AiExecutionProfile,
-  type AiGpuReadiness
-} from "@src/ai/AiExecutionProfile";
+import { AI_GPU_REASON_MESSAGES, describeAdapters, type AiExecutionProfile } from "@src/ai/AiExecutionProfile";
 import { AiModelPackStore, type AiModelPackStatus } from "@src/ai/AiModelPack";
 import { revertAiAction } from "@src/ai/AiRevert";
 import { AiService, type AiServiceDeps } from "@src/ai/AiService";
@@ -63,7 +57,7 @@ import {
 import { getRuntimeDataRoot } from "../appPaths";
 import { createFlowProfileStore } from "../profileStores";
 import { AiUtilityHostManager } from "./AiUtilityHostManager";
-import { displayAdapterVendorIds } from "./gpuAdapters";
+import { displayAdapterVendorIds, gpuReadiness } from "./gpuAdapters";
 
 const aiRoot = (): string => join(getRuntimeDataRoot(), "ai");
 const modelsDir = (): string => join(aiRoot(), "models");
@@ -122,16 +116,6 @@ function transport(backend: AiHostBackend = "cpu"): AiUtilityHostManager | null 
   return gpuHostManager;
 }
 
-/** E2 readiness for a GPU mode, cheap and before any GPU host starts: the pack's status and the adapters. */
-async function gpuReadiness(): Promise<AiGpuReadiness> {
-  const pack = await backendPack()
-    .status()
-    .catch(() => null);
-  if (!pack || pack.status === "unavailable") return { ok: false, reason: "BACKEND_UNAVAILABLE" };
-  if (pack.status === "not-installed") return { ok: false, reason: "BACKEND_PACK_MISSING" };
-  if (pack.status === "invalid") return { ok: false, reason: "BACKEND_PACK_INVALID" };
-  return classifyAdapters(await displayAdapterVendorIds());
-}
 
 const inferenceThreads = (): number => deriveInferenceThreads(detectMachineCapabilities("local").logicalCpuCount);
 
@@ -172,7 +156,7 @@ export function getAiService(): AiService {
   const testProvider = service ? null : testProviderDeps();
   service ??= new AiService({
     transport,
-    gpu: gpuReadiness,
+    gpu: () => gpuReadiness(backendPack()),
     model: async () => {
       const status = await modelPack().status();
       if (status.status === "missing") return { ok: false, reason: "MODEL_MISSING" };

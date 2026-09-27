@@ -2,7 +2,7 @@
   "task": "awkit-djnl-11-l8a3-gpu-modes-0927",
   "contract_path": "docs/ai/contracts/awkit-djnl-11-l8a3-gpu-modes-0927.json",
   "holder": "runtime",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "native-hosts/ai/ai-host.cjs"
   ],
@@ -46,5 +46,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-27T16:21:20.195Z",
+  "released_reason": "plan bisection committed, host verification continues unleased",
+  "archived_at": "2026-09-27T16:21:20.197Z"
 }

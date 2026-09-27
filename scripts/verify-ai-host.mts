@@ -24,7 +24,7 @@ import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { isDeepStrictEqual } from "node:util";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const HOST_PATH = path.join(ROOT, "native-hosts", "ai", "ai-host.cjs");
@@ -52,9 +52,19 @@ interface Generation {
 }
 
 const SECRET = "C:\\Users\\victim\\private\\model.gguf token=sk-live-abc";
+const MIB = 1024 ** 2;
 
-function fakeRuntime() {
+function fakeRuntime(gpuBackend: false | "vulkan" = false) {
   const control = {
+    // GPU surfaces (L8a.3): what a Vulkan runtime reports and estimates.
+    devices: ["Fake adapter"] as string[],
+    freeBytes: 800 * MIB,
+    totalLayers: 10,
+    llamaGpu: gpuBackend as false | "vulkan",
+    failDevices: false,
+    modelEstimates: [] as Record<string, unknown>[],
+    contextEstimates: [] as Record<string, unknown>[],
+    ggufReads: [] as string[],
     log: [] as string[],
     getLlamaOptions: [] as Record<string, unknown>[],
     loadModelOptions: [] as Record<string, unknown>[],
@@ -78,12 +88,28 @@ function fakeRuntime() {
     return Array.from({ length: count }, (_, index) => index);
   };
   const llama = {
+    get gpu() {
+      return control.llamaGpu;
+    },
+    get supportsGpuOffloading() {
+      return control.llamaGpu !== false;
+    },
+    gpuSupportsMmap: false,
+    vramPaddingSize: 64 * MIB,
+    async getGpuDeviceNames() {
+      if (control.failDevices) throw new Error(SECRET);
+      return [...control.devices];
+    },
+    async getVramState() {
+      return { total: 4096 * MIB, used: 4096 * MIB - control.freeBytes, free: control.freeBytes };
+    },
     async loadModel(options: Record<string, unknown>) {
       control.loadModelOptions.push(options);
       control.log.push("loadModel");
       await sleep(control.loadDelayMs);
       if (control.failLoad) throw new Error(SECRET);
       return {
+        gpuLayers: options.gpuLayers,
         tokenizer,
         async createContext(options: Record<string, unknown>) {
           control.contextOptions.push(options);
@@ -156,6 +182,29 @@ function fakeRuntime() {
       control.log.push("getLlama");
       if (control.failGetLlama) throw new Error(SECRET);
       return llama;
+    },
+    async readGgufFileInfo(file: string) {
+      control.ggufReads.push(file);
+      return { fake: "gguf info" };
+    },
+    GgufInsights: {
+      async from(info: unknown, given: unknown) {
+        if (given !== llama) throw new Error("insights for a foreign runtime");
+        return {
+          get totalLayers() {
+            return control.totalLayers;
+          },
+          // Weights 100 MiB per layer; context 50 MiB plus 10 MiB per offloaded layer.
+          async estimateModelResourceRequirementsV2(options: Record<string, unknown>) {
+            control.modelEstimates.push(options);
+            return { cpuRam: 0, gpuVram: 100 * MIB * (options.gpuLayers as number) };
+          },
+          async estimateContextResourceRequirementsV2(options: Record<string, unknown>) {
+            control.contextEstimates.push(options);
+            return { cpuRam: 0, gpuVram: 50 * MIB + 10 * MIB * (options.modelGpuLayers as number) };
+          }
+        };
+      }
     }
   };
   return { runtime, control };
@@ -169,6 +218,10 @@ interface HostOptions {
   runtime?: unknown;
   importFails?: boolean;
   noParentPort?: boolean;
+  /** Extra environment the manager would fork with (the backend, L8a.3). */
+  env?: Record<string, string>;
+  /** Stands in for `node:module`; by default a `register` that only records its URL. */
+  moduleApi?: Record<string, unknown>;
 }
 
 interface HostHandle {
@@ -176,6 +229,8 @@ interface HostHandle {
   exitCode: number | null;
   importCalls: number;
   bootError: unknown;
+  /** Every URL the host passed to `module.register`. */
+  registered: string[];
   raw(message: unknown): void;
   send(payload: Record<string, unknown>): string;
   reply(id: string, timeoutMs?: number): Promise<any>;
@@ -191,6 +246,7 @@ function startHost(source: string, options: HostOptions): HostHandle {
     exitCode: null,
     importCalls: 0,
     bootError: null,
+    registered: [],
     raw(message) {
       for (const listener of listeners) listener({ data: structuredClone(message) });
     },
@@ -221,7 +277,7 @@ function startHost(source: string, options: HostOptions): HostHandle {
     }
   };
   const fakeProcess = {
-    env: options.modelRoot === null ? {} : { AWKIT_AI_MODEL_ROOT: options.modelRoot },
+    env: { ...(options.modelRoot === null ? {} : { AWKIT_AI_MODEL_ROOT: options.modelRoot }), ...options.env },
     parentPort: options.noParentPort ? undefined : parentPort,
     platform: "win32",
     arch: "x64",
@@ -237,10 +293,14 @@ function startHost(source: string, options: HostOptions): HostHandle {
     return options.runtime;
   };
   const body = source.replace(RUNTIME_IMPORT, "__importRuntime(RUNTIME_PACKAGE)");
+  const realRequire = createRequire(HOST_PATH);
+  // A real `module.register` would install a loader hook in THIS process; record it instead.
+  const moduleApi = options.moduleApi ?? { register: (url: string) => void handle.registered.push(url) };
+  const hostRequire = (id: string) => (id === "node:module" ? moduleApi : realRequire(id));
   try {
     // eslint-disable-next-line no-new-func
     new Function("require", "module", "exports", "process", "__filename", "__dirname", "__importRuntime", body)(
-      createRequire(HOST_PATH),
+      hostRequire,
       fakeModule,
       fakeModule.exports,
       fakeProcess,
@@ -267,6 +327,17 @@ interface Fixture {
   modulesNoAddon: string;
   modulesVersionSkew: string;
   modulesEmpty: string;
+  /** An imported Vulkan pack for the pinned runtime version, and one for another version. */
+  pack: string;
+  packOtherVersion: string;
+}
+
+function writePack(dir: string, version: string): void {
+  fs.mkdirSync(path.join(dir, "dist"), { recursive: true });
+  fs.mkdirSync(path.join(dir, "bins", "win-x64-vulkan"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "package.json"), JSON.stringify({ name: "@node-llama-cpp/win-x64-vulkan", version, type: "module" }));
+  fs.writeFileSync(path.join(dir, "dist", "index.js"), "export {};\n");
+  fs.writeFileSync(path.join(dir, "bins", "win-x64-vulkan", "llama-addon.node"), "");
 }
 
 function writeRuntimeTree(dir: string, { addon, binaryVersion }: { addon: boolean; binaryVersion: string }): void {
@@ -306,7 +377,11 @@ function makeFixture(): Fixture {
   writeRuntimeTree(modulesNoAddon, { addon: false, binaryVersion: "3.21.1" });
   writeRuntimeTree(modulesVersionSkew, { addon: true, binaryVersion: "3.20.0" });
   fs.mkdirSync(modulesEmpty, { recursive: true });
-  return { dir, modelRoot, modelFile, otherModelFile, outsideFile, junctionFile, modules, modulesNoAddon, modulesVersionSkew, modulesEmpty };
+  const pack = path.join(dir, "backends", "vulkan-3.21.1-test");
+  const packOtherVersion = path.join(dir, "backends", "vulkan-3.20.0-test");
+  writePack(pack, "3.21.1");
+  writePack(packOtherVersion, "3.20.0");
+  return { dir, modelRoot, modelFile, otherModelFile, outsideFile, junctionFile, modules, modulesNoAddon, modulesVersionSkew, modulesEmpty, pack, packOtherVersion };
 }
 
 const BOUNDED_SCHEMA = {
@@ -402,7 +477,8 @@ async function runSuite(source: string, quiet: boolean): Promise<{ passed: numbe
     // Scanned without comments, so prose about "no TCP listener" or `import()` cannot trip a check.
     const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
     const requires = [...code.matchAll(/require\(\s*"([^"]+)"\s*\)/g)].map((match) => match[1]).sort();
-    check("the host requires only node:fs and node:path", isDeepStrictEqual(requires, ["node:fs", "node:path"]), requires);
+    // node:module and node:url only register the GPU backend's resolve hook (L8a.3).
+    check("the host requires only node:fs, node:module, node:path and node:url", isDeepStrictEqual(requires, ["node:fs", "node:module", "node:path", "node:url"]), requires);
     check("no listener, socket, HTTP, child process or worker", !/\.listen\(|createServer|node:net|node:http|child_process|worker_threads|\bfetch\(/.test(code));
     check("nothing is logged or written", !/console\.|process\.std(?:out|err)|writeFile|appendFile|createWriteStream|mkdirSync/.test(code));
     check("the only dynamic import is the runtime package", (code.match(/\bimport\(/g) ?? []).length === 1 && /const RUNTIME_PACKAGE = "node-llama-cpp";/.test(code));
@@ -669,6 +745,117 @@ async function runSuite(source: string, quiet: boolean): Promise<{ passed: numbe
       check("shutdown disposes the context, model and runtime", ["context.dispose", "model.dispose", "llama.dispose"].every((entry) => control.log.includes(entry)), control.log);
       check("the host exits 0 after answering", host.exitCode === 0, host.exitCode);
     }
+
+    // ── J. Backends (L8a.3) ────────────────────────────────────────────────────────────────────
+    section("J. Backends");
+    const plan = (host: HostHandle, overrides: Record<string, unknown> = {}) =>
+      host.call({ type: "gpuPlan", modelPath: fixture.modelFile, contextTokens: 4096, threads: 3, reserveBytes: null, ...overrides });
+    const vulkanEnv = (dir: string | null) => ({ AWKIT_AI_BACKEND: "vulkan", ...(dir ? { AWKIT_AI_BACKEND_DIR: dir } : {}) });
+    const vulkanHost = (runtime: unknown, dir: string | null = fixture.pack, extra: Partial<HostOptions> = {}) =>
+      startHost(source, { modelRoot: fixture.modelRoot, modulePaths: [fixture.modules], runtime, env: vulkanEnv(dir), ...extra });
+    {
+      const { runtime, control } = fakeRuntime();
+      const host = fullHost(runtime);
+      check("an unforked backend is the CPU host", (await host.call({ type: "hello", expected: { protocolVersion: 1 } })).value?.backend === "cpu");
+      check("the CPU host refuses a GPU plan", (await plan(host)).reason === "AI_PROTOCOL_VIOLATION");
+      check("the CPU host refuses offloaded layers", (await load(host, { gpuLayers: 3 })).reason === "AI_PROTOCOL_VIOLATION");
+      check("the CPU host accepts an explicit zero", (await load(host, { gpuLayers: 0 })).ok === true);
+      check("the CPU host never registers a loader hook", host.registered.length === 0);
+      check("the CPU host loads with gpu: false", control.getLlamaOptions.every((options) => options.gpu === false));
+      const odd = startHost(source, { modelRoot: fixture.modelRoot, modulePaths: [fixture.modules], runtime: fakeRuntime().runtime, env: { AWKIT_AI_BACKEND: "cuda", AWKIT_AI_BACKEND_DIR: fixture.pack } });
+      check("an unknown backend name is the CPU host", (await odd.call({ type: "hello", expected: { protocolVersion: 1 } })).value?.backend === "cpu");
+    }
+    {
+      const hello = async (dir: string | null) => (await vulkanHost(fakeRuntime("vulkan").runtime, dir).call({ type: "hello", expected: { protocolVersion: 1 } })).value;
+      const ok = await hello(fixture.pack);
+      check("a Vulkan host with the pinned pack is compatible and says so", ok?.compatible === true && ok?.backend === "vulkan", ok);
+      check("a Vulkan host with a pack for another version is incompatible", (await hello(fixture.packOtherVersion))?.compatible === false);
+      check("a Vulkan host with no pack directory is incompatible", (await hello(null))?.compatible === false);
+      check("a Vulkan host with a missing pack directory is incompatible", (await hello(path.join(fixture.dir, "nowhere")))?.compatible === false);
+    }
+    {
+      const { runtime, control } = fakeRuntime("vulkan");
+      const host = vulkanHost(runtime);
+      const result = await plan(host);
+      check("a GPU plan answers", result.ok === true, result);
+      const value = result.value ?? {};
+      check("it counts the runtime's devices", value.deviceCount === 1);
+      check("it reports the model's layers", value.totalLayers === 10);
+      check("free and total VRAM come from the runtime", value.freeBytes === 800 * MIB && value.totalBytes === 4096 * MIB);
+      check("a null reserve is the runtime's own padding", value.reserveBytes === 64 * MIB);
+      check("the full need is the runtime's weights + context estimate", value.fullRequiredBytes === (100 * 10 + 50 + 10 * 10) * MIB, value.fullRequiredBytes);
+      // 110 MiB per layer + 50 MiB + 64 MiB reserve within 800 MiB: at most 6 layers.
+      check("the fit is the largest layer count beside the reserve", value.fitLayers === 6, value.fitLayers);
+      check("the estimates use mmap and the request's context size", control.modelEstimates.every((o) => o.useMmap === true) && control.contextEstimates.every((o) => o.contextSize === 4096 && o.sequences === 1));
+      check("the GGUF header is read from the confined path", control.ggufReads[0] === fs.realpathSync(fixture.modelFile));
+      const options = control.getLlamaOptions[0] ?? {};
+      check("the runtime is asked for Vulkan, never built, never downloaded", options.gpu === "vulkan" && options.build === "never" && options.skipDownload === true, options);
+      check("exactly one loader hook is registered", host.registered.length === 1, host.registered.length);
+      const hookSource = decodeURIComponent(host.registered[0]?.replace(/^data:text\/javascript,/, "") ?? "");
+      const hook = await import(`data:text/javascript,${encodeURIComponent(hookSource)}`);
+      const next = (specifier: string) => ({ passedThrough: specifier });
+      const mapped = await hook.resolve("@node-llama-cpp/win-x64-vulkan", {}, next);
+      check("the hook maps the Vulkan prebuilt to the pack's own entry", mapped?.url === pathToFileURL(path.join(fixture.pack, "dist", "index.js")).href && mapped?.shortCircuit === true, mapped);
+      check("the hook passes every other specifier through", (await hook.resolve("node-llama-cpp", {}, next))?.passedThrough === "node-llama-cpp" && (await hook.resolve("@node-llama-cpp/win-x64", {}, next))?.passedThrough === "@node-llama-cpp/win-x64");
+      check("a second plan reuses the runtime and the hook", (await plan(host)).ok === true && host.registered.length === 1 && control.getLlamaOptions.length === 1);
+      check("an explicit reserve is applied", (await plan(host, { reserveBytes: 400 * MIB })).value?.fitLayers === 3);
+      check("a reserve larger than free VRAM fits nothing", (await plan(host, { reserveBytes: 1024 * MIB })).value?.fitLayers === 0);
+      // Every fit from 0 to all layers, against a brute-force answer from the same estimates.
+      const exact: number[] = [];
+      for (let reserveMib = 0; reserveMib <= 800; reserveMib += 55) {
+        const got = (await plan(host, { reserveBytes: reserveMib * MIB })).value?.fitLayers;
+        let want = 0;
+        for (let layers = 10; layers >= 1; layers -= 1) {
+          if ((110 * layers + 50 + reserveMib) * MIB <= 800 * MIB) {
+            want = layers;
+            break;
+          }
+        }
+        if (got !== want) exact.push(reserveMib);
+      }
+      check("the fit equals a brute-force search for every reserve", exact.length === 0, exact);
+      control.totalLayers = 100;
+      control.modelEstimates.length = 0;
+      await plan(host, { reserveBytes: 1024 * MIB });
+      check("the fit search is logarithmic: 100 layers take at most 8 weight estimates", control.modelEstimates.length <= 8, control.modelEstimates.length);
+      control.totalLayers = 10;
+      for (const [label, reserveBytes] of [["a negative reserve", -1], ["a fractional reserve", 1.5], ["a reserve above the bound", 68719476737], ["a string reserve", "64"], ["a missing reserve", undefined]] as const) {
+        check(`${label} is a protocol violation`, (await plan(host, { reserveBytes })).reason === "AI_PROTOCOL_VIOLATION");
+      }
+      check("a plan outside the model root is refused", (await plan(host, { modelPath: fixture.outsideFile })).reason === "AI_MODEL_PATH_OUTSIDE_ROOT");
+
+      for (const [label, gpuLayers] of [["zero layers", 0], ["no layer count", undefined], ["1025 layers", 1025], ["a fractional count", 2.5]] as const) {
+        check(`a Vulkan load with ${label} is a protocol violation`, (await load(host, { gpuLayers })).reason === "AI_PROTOCOL_VIOLATION");
+      }
+      const loaded = await load(host, { gpuLayers: 6 });
+      check("a Vulkan load offloads the requested layers", loaded.ok === true && control.loadModelOptions.at(-1)?.gpuLayers === 6, loaded);
+      check("it reports the backend and the layers the runtime offloaded", loaded.value?.backend === "vulkan" && loaded.value?.gpuLayers === 6, loaded.value);
+      control.log.length = 0;
+      await plan(host);
+      check("a plan releases the host's own model first", control.log.indexOf("context.dispose") >= 0 && control.log.indexOf("model.dispose") >= 0, control.log);
+      control.failLoad = true;
+      const failed = await load(host, { gpuLayers: 6 });
+      check("a failed Vulkan load is AI_GPU_LOAD_FAILED", failed.reason === "AI_GPU_LOAD_FAILED");
+      check("no runtime error text crosses the boundary", !leaks(host));
+    }
+    {
+      const noDevice = fakeRuntime("vulkan");
+      noDevice.control.devices = [];
+      check("no Vulkan device is AI_GPU_NO_USABLE_DEVICE", (await plan(vulkanHost(noDevice.runtime))).reason === "AI_GPU_NO_USABLE_DEVICE");
+      const unreadable = fakeRuntime("vulkan");
+      unreadable.control.failDevices = true;
+      check("an unreadable device list is AI_GPU_NO_USABLE_DEVICE", (await plan(vulkanHost(unreadable.runtime))).reason === "AI_GPU_NO_USABLE_DEVICE");
+      const noBinary = fakeRuntime("vulkan");
+      noBinary.control.failGetLlama = true;
+      const refused = vulkanHost(noBinary.runtime);
+      check("a runtime that cannot bind Vulkan is AI_GPU_NO_USABLE_DEVICE", (await plan(refused)).reason === "AI_GPU_NO_USABLE_DEVICE" && !leaks(refused));
+      const cpuFallback = fakeRuntime("vulkan");
+      cpuFallback.control.llamaGpu = false;
+      check("a runtime that fell back to CPU is not a GPU host", (await plan(vulkanHost(cpuFallback.runtime))).reason === "AI_GPU_NO_USABLE_DEVICE");
+      check("a Vulkan host with no pack directory cannot hook its backend", (await plan(vulkanHost(fakeRuntime("vulkan").runtime, null))).reason === "AI_GPU_BACKEND_UNAVAILABLE");
+      const noRegister = vulkanHost(fakeRuntime("vulkan").runtime, fixture.pack, { moduleApi: {} });
+      check("a runtime without module.register cannot hook its backend", (await plan(noRegister)).reason === "AI_GPU_BACKEND_UNAVAILABLE");
+    }
   } catch (error) {
     failed += 1;
     if (!quiet) console.error(`  ✗ suite aborted — ${error instanceof Error ? error.stack : String(error)}`);
@@ -689,7 +876,16 @@ const MUTATIONS: { name: string; from: string; to: string }[] = [
   { name: "thinking left on (think block not closed)", from: '<think>\\n\\n</think>\\n\\n"', to: '<think>\\n"' },
   { name: "page text parsed for special tokens", from: "    user,\n    new SpecialTokensText(TEMPLATE.assistantOpen)", to: "    new SpecialTokensText(user),\n    new SpecialTokensText(TEMPLATE.assistantOpen)" },
   { name: "thinking flag not enforced", from: 'if (req.thinking !== false) throw new HostError("AI_PROTOCOL_VIOLATION");', to: "" },
-  { name: "GPU allowed", from: "gpu: false,", to: 'gpu: "auto",' },
+  { name: "GPU allowed on the CPU host", from: 'gpu: BACKEND === "vulkan" ? "vulkan" : false,', to: 'gpu: "auto",' },
+  { name: "Vulkan host accepts zero layers", from: "if (BACKEND === \"vulkan\") return boundedInt(value, 1, AI_MAX_GPU_LAYERS);", to: "if (BACKEND === \"vulkan\") return boundedInt(value, 0, AI_MAX_GPU_LAYERS);" },
+  { name: "CPU host accepts offloaded layers", from: "return value === undefined || value === 0 ? 0 : null;", to: "return value === undefined ? 0 : value;" },
+  { name: "GPU plan on the CPU host", from: 'if (BACKEND !== "vulkan") throw new HostError("AI_PROTOCOL_VIOLATION");', to: "" },
+  { name: "plan ignores the reserve", from: "const fits = async (layers) => (await need(layers)) + reserveBytes <= vram.free;", to: "const fits = async (layers) => (await need(layers)) <= vram.free;" },
+  // A mutant must terminate: one that never narrows the range loops forever and exhausts the heap.
+  { name: "fit search skips candidates", from: "else high = middle - 1;", to: "else high = middle - 2;" },
+  { name: "hook maps every specifier", from: '"export async function resolve(specifier, context, next) { return specifier === " +', to: '"export async function resolve(specifier, context, next) { return true || specifier === " +' },
+  { name: "pack version not checked", from: "pkg.version === runtimeVersion &&", to: "true &&" },
+  { name: "a CPU-fallen runtime accepted as the GPU host", from: 'if (BACKEND === "vulkan" && (instance.gpu !== "vulkan" || instance.supportsGpuOffloading !== true)) {', to: "if (false) {" },
   { name: "source build allowed", from: 'build: "never",', to: 'build: "auto",' },
   { name: "queued cancel forgotten", from: "if (earlyCancels.delete(req.jobId)) return cancelledResult(tokens.length, 0, started, null);", to: "" },
   { name: "shutdown waits behind inference", from: 'if (req.type === "shutdown" && active) active.controller.abort();', to: "" },

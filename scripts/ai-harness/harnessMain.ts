@@ -27,6 +27,7 @@
  *   - failureAnalysisBudget / locatorUpgradeBudget: that request's prompt and longest acceptable answer,
  *     counted on the pack's own tokenizer, vocabulary only (scripts/ai-harness/failureAnalysisBudget.ts,
  *     scripts/ai-harness/locatorUpgradeBudget.ts).
+ *   - gpu: L8a.3 execution modes on the real CPU and Vulkan hosts (scripts/ai-harness/gpuLive.ts).
  *   - profile: the L1.8 inference diagnosis (scripts/ai-harness/profile.ts). The one mode that
  *     drives the runtime directly in this process rather than through the host, because the split
  *     it measures (grammar vs decode vs prefill) is unobservable through a host that returns its
@@ -60,6 +61,7 @@ import { runBench } from "./bench";
 import { runErrorQualityLive } from "./errorQualityLive";
 import { runFailureAnalysisBudget } from "./failureAnalysisBudget";
 import { runFailureAnalysisLive, runLocatorUpgradeLive } from "./featureLive";
+import { runGpuLive } from "./gpuLive";
 import { runLocatorQualityLive } from "./locatorQualityLive";
 import { runLocatorUpgradeBudget } from "./locatorUpgradeBudget";
 import { runProfile } from "./profile";
@@ -802,6 +804,7 @@ async function run(): Promise<void> {
     else if (mode === "locatorUpgradeBudget") await runLocatorUpgradeBudget({ step, record });
     else if (mode === "bench") await runBench({ step, record, makeLiveContext, makeManager });
     else if (mode === "profile") await runProfile({ step, record, flush });
+    else if (mode === "gpu") await runGpuLive({ step, record, log: (line) => logLines.push(line) });
     else await step(`unknown mode ${mode}`, () => Promise.reject(new Error("unknown mode")));
   } catch (error) {
     steps.push({ label: "harness aborted", ok: false, durationMs: 0, error: String((error as Error)?.stack ?? error) });
