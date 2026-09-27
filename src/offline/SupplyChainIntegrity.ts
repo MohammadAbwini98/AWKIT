@@ -38,6 +38,53 @@ function publicKeyId(publicKeyPem: string): string {
   return `ed25519:${sha256(publicKey.export({ type: "spki", format: "der" }))}`;
 }
 
+/** Everything wrong with the manifest's Ed25519 signature against the shipped key; empty when it verifies. */
+function signatureIssues(manifestBytes: Buffer, signatureJson: string, publicKeyPem: string): string[] {
+  const issues: string[] = [];
+  const signature = JSON.parse(signatureJson) as ManifestSignatureRecord;
+  const publicKey = createPublicKey(publicKeyPem);
+  if (signature.schemaVersion !== 1 || signature.algorithm !== "Ed25519") {
+    issues.push("Dependency-manifest signature metadata is unsupported.");
+  }
+  if (signature.keyId !== publicKeyId(publicKeyPem)) {
+    issues.push("Dependency-manifest signature key does not match the shipped release key.");
+  }
+  if (signature.manifest !== "dependency-manifest.json") {
+    issues.push("Dependency-manifest signature targets an unexpected file.");
+  }
+  if (signature.manifestSha256 !== sha256(manifestBytes)) {
+    issues.push("Dependency-manifest content does not match its signed SHA-256.");
+  } else if (!verify(null, manifestBytes, publicKey, Buffer.from(signature.signatureBase64, "base64"))) {
+    issues.push("Dependency-manifest Ed25519 signature is invalid.");
+  }
+  return issues;
+}
+
+/**
+ * The dependency manifest, parsed, only when its exact bytes carry a valid Ed25519 signature from the
+ * shipped release key (L8a.2). A caller that trusts a hash from it — the GPU backend import trusts the
+ * application's own Visual C++ runtime and the signed backend manifest this way — gets nothing from an
+ * unsigned, re-signed or altered copy.
+ */
+export async function readSignedDependencyManifest(
+  resourcesRoot: string
+): Promise<{ ok: true; manifest: unknown } | { ok: false; issues: string[] }> {
+  try {
+    const [manifestBytes, signatureJson, publicKeyPem] = await Promise.all([
+      readFile(join(resourcesRoot, "dependency-manifest.json")),
+      readFile(join(resourcesRoot, "dependency-manifest.sig"), "utf8"),
+      readFile(join(resourcesRoot, "trust", "offline-manifest-public.pem"), "utf8")
+    ]);
+    const issues = signatureIssues(manifestBytes, signatureJson, publicKeyPem);
+    if (issues.length > 0) return { ok: false, issues };
+    const text = manifestBytes.toString("utf8");
+    // PowerShell may write a UTF-8 BOM; the signature covers it, JSON.parse does not accept it.
+    return { ok: true, manifest: JSON.parse(text.charCodeAt(0) === 0xfeff ? text.slice(1) : text) };
+  } catch (error) {
+    return { ok: false, issues: [`Signed dependency manifest unreadable: ${error instanceof Error ? error.message : String(error)}`] };
+  }
+}
+
 export async function validateOfflineSupplyChain(
   resourcesRoot: string,
   manifest: DependencyManifest | null
@@ -59,24 +106,8 @@ export async function validateOfflineSupplyChain(
       readFile(policyPath),
       readFile(browserExecutablePath)
     ]);
-    const signature = JSON.parse(signatureJson) as ManifestSignatureRecord;
     const policy = JSON.parse(policyBytes.toString("utf8")) as OfflineBrowserPolicy;
-    const publicKey = createPublicKey(publicKeyPem);
-
-    if (signature.schemaVersion !== 1 || signature.algorithm !== "Ed25519") {
-      issues.push("Dependency-manifest signature metadata is unsupported.");
-    }
-    if (signature.keyId !== publicKeyId(publicKeyPem)) {
-      issues.push("Dependency-manifest signature key does not match the shipped release key.");
-    }
-    if (signature.manifest !== "dependency-manifest.json") {
-      issues.push("Dependency-manifest signature targets an unexpected file.");
-    }
-    if (signature.manifestSha256 !== sha256(manifestBytes)) {
-      issues.push("Dependency-manifest content does not match its signed SHA-256.");
-    } else if (!verify(null, manifestBytes, publicKey, Buffer.from(signature.signatureBase64, "base64"))) {
-      issues.push("Dependency-manifest Ed25519 signature is invalid.");
-    }
+    issues.push(...signatureIssues(manifestBytes, signatureJson, publicKeyPem));
 
     const chromium = manifest.browsers.find((browser) => browser.name === "chromium");
     const provenance = chromium?.payloadProvenance;

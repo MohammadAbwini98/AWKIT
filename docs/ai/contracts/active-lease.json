@@ -1,20 +1,19 @@
 {
-  "task": "awkit-djnl-11-l8a1-backend-manifest-0927",
-  "contract_path": "docs/ai/contracts/awkit-djnl-11-l8a1-backend-manifest-0927.json",
+  "task": "awkit-djnl-11-l8a2-backend-import-0927",
+  "contract_path": "docs/ai/contracts/awkit-djnl-11-l8a2-backend-import-0927.json",
   "holder": "release",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
-    "build",
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig",
-    "scripts/generate-dependency-manifest.ps1",
-    "src/offline/AiModelManifest.ts",
-    "src/offline/ai-backend-manifest.json"
+    "src/offline/SupplyChainIntegrity.ts"
   ],
-  "acquired_at": "2026-09-27T11:10:59.896Z",
-  "acquired_at_commit": "b972b778c0dd270941ebf401662ab41af9c3bbf8",
-  "baseline_dirty": [],
-  "baseline_dirty_fingerprints": {},
+  "acquired_at": "2026-09-27T14:11:34.445Z",
+  "acquired_at_commit": "ebfcddca0d495ff8670845a4f0a86e0cc5d6d928",
+  "baseline_dirty": [
+    "docs/ai/contracts/awkit-djnl-11-l8a2-backend-import-0927.json"
+  ],
+  "baseline_dirty_fingerprints": {
+    "docs/ai/contracts/awkit-djnl-11-l8a2-backend-import-0927.json": "54a82edeaa22fec3c4aff20f2dd8441482b9447dfb3cf5dd5006547cff61bfc2"
+  },
   "baseline_watched_ignored": {
     ".env": "absent",
     ".claude/settings.local.json": "6238:1788551784499.886",
@@ -23,12 +22,9 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1790441465498.754"
+    "build": "dir(1):native-hosts:1790507565706.4785"
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-27T11:18:19.602Z",
-  "released_reason": "portable 0.1.51 packaged from clean dadd17bb with in-pipeline strict validation passing the new backend rules, signed manifest with aiGpuBackends committed at 3e105d7b, verify:ai-backend-manifest 40 of 40",
-  "archived_at": "2026-09-27T11:18:19.603Z"
+  "violations": []
 }

@@ -1,0 +1,180 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-11-l8a2-backend-import-0927",
+    "title": "L8a.2: secure Vulkan backend-pack import into an app-managed, versioned runtime folder",
+    "objective": "Phase L L8a.2 (awkit-djnl.11). A Settings workflow that imports the pinned Vulkan backend pack (AI_BACKEND_MANIFEST, node-llama-cpp@3.21.1+llama.cpp@v0.4.0) from a user-selected folder into %LOCALAPPDATA%/SpecterStudio/ai/backends: a preflight checklist (backend, build, source, destination, required size, free space with headroom, identical-pack detection, files validated, a local-copy warning and explicit confirmation), validation against the built-in manifest cross-checked with the Ed25519-signed dependency manifest (paths, sizes, SHA-256, build and backend identity, no traversal, no reparse point or alias outside the selected root, no unexpected executable or native payload, never loading native code from the source), a staged copy hashed while written, the application's own signed-manifest-verified Visual C++ runtime copied beside the backend (never from the pack), revalidation of the staging, atomic promotion into a new versioned directory, idempotent re-import, rollback that preserves the previous valid pack, and safe cleanup of staging after cancellation, failure or restart. Registration persists only the app-managed directory name and status. A reusable load-time integrity guard refuses a missing, altered, extra or replaced file, marks the pack invalid with a concise reason, never repairs or executes it, and leaves CPU inference available. No GPU loading, layer offload, device selection, CUDA, model registration or L8a.3 behavior.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 3
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "ebfcddca",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "offline_boundary_change": true,
+    "electron_main_change": true,
+    "ipc_change": true,
+    "public_contract_change": true,
+    "filesystem_write_change": true,
+    "renderer_visual_change": true,
+    "interaction_change": true,
+    "accessibility_change": true,
+    "packaging_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 4
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "architect",
+      "uiux",
+      "frontend",
+      "software",
+      "runtime",
+      "integration",
+      "qa",
+      "qc",
+      "persistence",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      "src/offline/SupplyChainIntegrity.ts",
+      "src/ai/AiBackendPack.ts",
+      "src/ai/contracts/AiApi.ts",
+      "app/main/ai/aiRuntime.ts",
+      "app/main/ipc/ai.ipc.ts",
+      "app/main/preload.ts",
+      "app/renderer/pages/LocalAiSettings.tsx",
+      "app/renderer/pages/LocalAiBackendPack.tsx",
+      "scripts/verify-ai-backend-pack.mts",
+      "scripts/verify-ai-backend-pack-gui.mjs",
+      "scripts/verify-ai-permissions.mts",
+      "scripts/lib/verifier-classification.ts",
+      "package.json",
+      "docs/ai/contracts/awkit-djnl-11-l8a2-backend-import-0927.json",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/plans/ai-upgrade-v5/L8a-hardware-adaptive-inference-runtime.md",
+      ".beads/issues.jsonl"
+    ],
+    "consultants": [
+      "architect",
+      "uiux",
+      "integration",
+      "persistence"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "release",
+      "allowed_paths": [
+        "src/offline/SupplyChainIntegrity.ts"
+      ]
+    }
+  },
+  "constraints": {
+    "security": [
+      "No new permission: every backend-pack channel is gated on AI_MANAGE in main, and each mutation re-authenticates.",
+      "Native code in a selected folder is only read and hashed, never loaded, executed or probed.",
+      "The Visual C++ runtime beside the backend comes only from the application's own tree, verified against the Ed25519-signed dependency manifest."
+    ],
+    "offline": [
+      "No download, internet access, admin right, global Node or runtime, driver installation or source compilation.",
+      "Nothing is written into resources or app.asar; every write stays under the app-managed backends folder."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "IMPORT",
+      "description": "Validation, staged copy, VC++ runtime sourcing, revalidation, atomic promotion, idempotence, rollback, cancellation and restart recovery, path confinement and the load-time integrity guard behave as specified, with mutation checks on hash validation, path confinement, staged revalidation and the load-time guard.",
+      "evidence_required": [
+        "verify:ai-backend-pack"
+      ]
+    },
+    {
+      "id": "SETTINGS",
+      "description": "The Settings workflow imports, verifies, reports tampering and removes the pack in the real Electron app with accessible controls and no claim that a GPU is active.",
+      "evidence_required": [
+        "verify:ai-backend-pack-gui",
+        "verify:ai-permissions"
+      ]
+    },
+    {
+      "id": "BUILD",
+      "description": "Typecheck, bundles, script typecheck, verifier registry and the unchanged packaged runtime pass.",
+      "evidence_required": [
+        "build",
+        "verify:verifier-classification"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:ai-backend-pack",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-backend-pack",
+      "artifact": null,
+      "result": "pending",
+      "observed": null
+    },
+    {
+      "id": "verify:ai-backend-pack-gui",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-backend-pack-gui",
+      "artifact": null,
+      "result": "pending",
+      "observed": null
+    },
+    {
+      "id": "verify:ai-permissions",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-permissions",
+      "artifact": null,
+      "result": "pending",
+      "observed": null
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "pending",
+      "observed": null
+    },
+    {
+      "id": "verify:verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "artifact": null,
+      "result": "pending",
+      "observed": null
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": false
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  }
+}
