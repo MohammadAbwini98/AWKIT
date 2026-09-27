@@ -151,5 +151,30 @@
     "status": "pending",
     "qa_status": "pending",
     "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-11-l8a1-backend-manifest-0927:release:2026-09-27T11:02:19.030Z",
+        "task": "awkit-djnl-11-l8a1-backend-manifest-0927",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "build",
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig",
+          "scripts/generate-dependency-manifest.ps1",
+          "src/offline/AiModelManifest.ts",
+          "src/offline/ai-backend-manifest.json"
+        ],
+        "acquired_at": "2026-09-27T11:02:19.030Z",
+        "acquired_at_commit": "8f8e3954faa89d38a61954e146356aacb1974edc",
+        "released_at": "2026-09-27T11:05:49.514Z",
+        "released_reason": "backend manifest, backend-aware pin and signed-manifest generator committed at c2eb46c1, build PASS, validator and verifier are unleased routine work before the package lease",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
   }
 }

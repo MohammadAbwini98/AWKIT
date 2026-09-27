@@ -2,7 +2,7 @@
   "task": "awkit-djnl-11-l8a1-backend-manifest-0927",
   "contract_path": "docs/ai/contracts/awkit-djnl-11-l8a1-backend-manifest-0927.json",
   "holder": "release",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "build",
     "resources/dependency-manifest.json",
@@ -31,5 +31,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-27T11:05:49.514Z",
+  "released_reason": "backend manifest, backend-aware pin and signed-manifest generator committed at c2eb46c1, build PASS, validator and verifier are unleased routine work before the package lease",
+  "archived_at": "2026-09-27T11:05:49.515Z"
 }

@@ -453,6 +453,8 @@ $aiPinSource = Join-Path $root "src\offline\AiModelManifest.ts"
 $aiRuntimePin = $null
 $aiRuntimeNpmPin = $null
 $aiPinProblems = New-Object System.Collections.Generic.List[string]
+# Set only when the declaration parses; strict mode (dot-sourced above) refuses an unset variable.
+$aiPinBody = $null
 if (-not (Test-Path -LiteralPath $aiPinSource -PathType Leaf)) {
   $aiPinProblems.Add("AI_RUNTIME_PIN: src/offline/AiModelManifest.ts is missing.")
 } else {
@@ -595,6 +597,129 @@ if ($null -eq $ai -or $ai.enabled -ne $true) {
     $aiChecked++
   }
   Write-Host "Local-AI runtime: $aiChecked/$($aiAssetPaths.Count) assets checksum-verified ($($ai.runtimeBuild), CPU only, no model pack)."
+}
+
+# === Local-AI GPU backend manifest (Phase L, L8a.1) ===
+# Nothing GPU ships in the installer (E3). src/offline/ai-backend-manifest.json pins, for the pinned runtime
+# build, every file of each GPU backend pack a user may supply. It must be well formed and agree with
+# AI_RUNTIME_PIN (its build and its backend set), the signed dependency manifest must carry an identical copy
+# as aiGpuBackends (a strict release without one FAILS), and no pinned GPU backend binary may ship in the
+# local-AI tree. That last check compares SHA-256, so a renamed copy is caught as well.
+function Get-AiBackendCanonical {
+  param($Section)
+  $lines = New-Object System.Collections.Generic.List[string]
+  $lines.Add("runtimeBuild=$($Section.runtimeBuild)")
+  foreach ($backend in @($Section.backends | Sort-Object { [string]$_.id })) {
+    $lines.Add("backend=$($backend.id)|$($backend.package)|$($backend.packageVersion)")
+    foreach ($file in @($backend.files | Sort-Object { [string]$_.path })) {
+      $lines.Add("file=$($backend.id)|$($file.path)|$($file.size)|$($file.sha256)")
+    }
+  }
+  return ($lines -join "`n")
+}
+
+$aiBackendPrefix = "Local-AI GPU backend manifest:"
+$aiBackendSourcePath = Join-Path $root "src\offline\ai-backend-manifest.json"
+$aiBackendSource = $null
+$aiBackendProblems = $failures.Count
+if (-not (Test-Path -LiteralPath $aiBackendSourcePath -PathType Leaf)) {
+  $failures.Add("$aiBackendPrefix src/offline/ai-backend-manifest.json is missing.")
+} else {
+  try {
+    $aiBackendSource = Get-Content -Raw -LiteralPath $aiBackendSourcePath | ConvertFrom-Json
+  } catch {
+    $failures.Add("$aiBackendPrefix src/offline/ai-backend-manifest.json is not valid JSON: $($_.Exception.Message)")
+  }
+}
+$aiBackendBinaryHashes = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+if ($null -ne $aiBackendSource) {
+  if (-not (Test-Property $aiBackendSource "schema") -or $aiBackendSource.schema.name -cne "awkit-ai-backend-manifest" -or $aiBackendSource.schema.version -ne 1) {
+    $failures.Add("$aiBackendPrefix schema must be awkit-ai-backend-manifest version 1.")
+  }
+  if ([string]::IsNullOrWhiteSpace($aiRuntimePin) -or [string]$aiBackendSource.runtimeBuild -cne $aiRuntimePin) {
+    $failures.Add("$aiBackendPrefix runtimeBuild '$($aiBackendSource.runtimeBuild)' is not AI_RUNTIME_PIN.build '$aiRuntimePin'.")
+  }
+  $aiBackendIds = New-Object System.Collections.Generic.List[string]
+  $aiBackendFileCount = 0
+  $aiBackends = @($aiBackendSource.backends | Where-Object { $null -ne $_ })
+  if ($aiBackends.Count -eq 0) {
+    $failures.Add("$aiBackendPrefix lists no backend.")
+  }
+  foreach ($backend in $aiBackends) {
+    $id = [string]$backend.id
+    $label = "$aiBackendPrefix backend '$id'"
+    if (@("vulkan") -cnotcontains $id) {
+      $failures.Add("$label is not a known GPU backend (vulkan).")
+    }
+    if ($aiBackendIds.Contains($id)) {
+      $failures.Add("$label is listed more than once.")
+    }
+    $aiBackendIds.Add($id)
+    if ([string]$backend.package -cne "@node-llama-cpp/win-x64-$id") {
+      $failures.Add("$label names package '$($backend.package)', not @node-llama-cpp/win-x64-$id.")
+    }
+    if ($null -eq $aiRuntimeNpmPin -or [string]$backend.packageVersion -cne $aiRuntimeNpmPin) {
+      $failures.Add("$label is version '$($backend.packageVersion)', not the pinned node-llama-cpp $aiRuntimeNpmPin.")
+    }
+    $paths = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+    $files = @($backend.files | Where-Object { $null -ne $_ })
+    if ($files.Count -eq 0) {
+      $failures.Add("$label pins no file.")
+    }
+    foreach ($file in $files) {
+      $path = [string]$file.path
+      $aiBackendFileCount++
+      if ($path -cnotmatch '^[A-Za-z0-9._@+-]+(/[A-Za-z0-9._@+-]+)*$' -or $path -match '(^|/)\.\.?(/|$)' -or $path -match '\.gguf$') {
+        $failures.Add("$label pins an unsafe path: '$path'.")
+      } elseif (-not $paths.Add($path)) {
+        $failures.Add("$label pins a path more than once (compared case-insensitively): '$path'.")
+      }
+      if (-not ($file.size -is [int] -or $file.size -is [long]) -or [long]$file.size -le 0) {
+        $failures.Add("$label pins '$path' with an invalid size '$($file.size)'.")
+      }
+      if ([string]$file.sha256 -cnotmatch '^[0-9a-f]{64}$') {
+        $failures.Add("$label pins '$path' with an invalid SHA-256 (64 lowercase hex characters).")
+      } elseif ($path -match '\.(dll|node|exe)$') {
+        [void]$aiBackendBinaryHashes.Add([string]$file.sha256)
+      }
+    }
+    if (-not $paths.Contains("bins/win-x64-$id/llama-addon.node")) {
+      $failures.Add("$label does not pin its addon bins/win-x64-$id/llama-addon.node.")
+    }
+  }
+
+  # AI_RUNTIME_PIN's backend set must be exactly the shipped CPU backend plus every manifest backend.
+  # @(...) around the whole if: an if expression unrolls a one-element result to the bare match.
+  $aiPinBackendLists = @(if ($null -ne $aiPinBody) { [regex]::Matches($aiPinBody, '(?m)^\s*backends\s*:\s*Object\.freeze\(\[(?<list>[^\]]*)\]') })
+  if ($aiPinBackendLists.Count -ne 1) {
+    $failures.Add("$aiBackendPrefix AI_RUNTIME_PIN must declare exactly one backends: Object.freeze([...]) list (found $($aiPinBackendLists.Count)).")
+  } else {
+    $aiPinBackends = @([regex]::Matches($aiPinBackendLists[0].Groups['list'].Value, '"([a-z0-9-]+)"') | ForEach-Object { $_.Groups[1].Value })
+    $aiExpectedBackends = @("cpu") + @($aiBackendIds)
+    if ((($aiPinBackends | Sort-Object) -join ",") -cne (($aiExpectedBackends | Sort-Object) -join ",")) {
+      $failures.Add("$aiBackendPrefix AI_RUNTIME_PIN.backends [$($aiPinBackends -join ', ')] is not cpu plus the manifest's backends [$($aiExpectedBackends -join ', ')].")
+    }
+  }
+
+  $signedBackends = if (Test-Property $manifestJson "aiGpuBackends") { $manifestJson.aiGpuBackends } else { $null }
+  if ($null -eq $signedBackends) {
+    Add-Problem "$aiBackendPrefix the signed dependency manifest has no aiGpuBackends section, so a GPU backend pack could not be checked against signed hashes; regenerate it (npm run package:portable)." $Strict
+  } elseif ($signedBackends.bundled -ne $false) {
+    $failures.Add("$aiBackendPrefix the signed aiGpuBackends must declare bundled=false: no GPU component ships in the installer.")
+  } elseif ((Get-AiBackendCanonical $signedBackends) -cne (Get-AiBackendCanonical $aiBackendSource)) {
+    $failures.Add("$aiBackendPrefix the signed aiGpuBackends differs from src/offline/ai-backend-manifest.json; regenerate the dependency manifest.")
+  } elseif ($failures.Count -eq $aiBackendProblems) {
+    Write-Host "$aiBackendPrefix $($aiBackendIds.Count) backend(s), $aiBackendFileCount files pinned for $($aiBackendSource.runtimeBuild); the signed copy matches the source."
+  }
+
+  if ($null -ne $ai -and $ai.enabled -eq $true) {
+    $aiShippedBackend = @($ai.assets | Where-Object { $aiBackendBinaryHashes.Contains([string]$_.sha256) } | ForEach-Object { [string]$_.relativePath })
+    if ($aiShippedBackend.Count -gt 0) {
+      $failures.Add("$aiBackendPrefix the installer ships $($aiShippedBackend.Count) pinned GPU backend binary(ies), which may only ever be user-supplied: $(($aiShippedBackend | Select-Object -First 5) -join ', ')")
+    } else {
+      Write-Host "$aiBackendPrefix none of its $($aiBackendBinaryHashes.Count) pinned binaries is among the $(@($ai.assets).Count) shipped local-AI files (compared by SHA-256)."
+    }
+  }
 }
 
 foreach ($warning in $warnings) {
