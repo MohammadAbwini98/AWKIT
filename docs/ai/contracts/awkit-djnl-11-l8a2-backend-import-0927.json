@@ -63,6 +63,13 @@
       "docs/ai/HANDOFF.md",
       "docs/ai/TASK_LOG.md",
       "docs/plans/ai-upgrade-v5/L8a-hardware-adaptive-inference-runtime.md",
+      "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
+      "docs/ai/KNOWN_ISSUES.md",
+      "scripts/verify-ai-fallback.mts",
+      "app/renderer/styles/global.css",
+      "build",
+      "resources/dependency-manifest.json",
+      "resources/dependency-manifest.sig",
       ".beads/issues.jsonl"
     ],
     "consultants": [
@@ -78,7 +85,9 @@
     "writer": {
       "agent_id": "release",
       "allowed_paths": [
-        "src/offline/SupplyChainIntegrity.ts"
+        "build",
+        "resources/dependency-manifest.json",
+        "resources/dependency-manifest.sig"
       ]
     }
   },

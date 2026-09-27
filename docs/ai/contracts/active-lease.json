@@ -2,17 +2,19 @@
   "task": "awkit-djnl-11-l8a2-backend-import-0927",
   "contract_path": "docs/ai/contracts/awkit-djnl-11-l8a2-backend-import-0927.json",
   "holder": "release",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
-    "src/offline/SupplyChainIntegrity.ts"
+    "build",
+    "resources/dependency-manifest.json",
+    "resources/dependency-manifest.sig"
   ],
-  "acquired_at": "2026-09-27T14:11:34.445Z",
-  "acquired_at_commit": "ebfcddca0d495ff8670845a4f0a86e0cc5d6d928",
+  "acquired_at": "2026-09-27T14:42:19.379Z",
+  "acquired_at_commit": "2c531c409398a00d16d71b5419c801479ed17165",
   "baseline_dirty": [
     "docs/ai/contracts/awkit-djnl-11-l8a2-backend-import-0927.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-djnl-11-l8a2-backend-import-0927.json": "54a82edeaa22fec3c4aff20f2dd8441482b9447dfb3cf5dd5006547cff61bfc2"
+    "docs/ai/contracts/awkit-djnl-11-l8a2-backend-import-0927.json": "92febc41b55ffc9c86ae9554f50018eff9564ab47ba2dd442d663ac734eaa105"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -26,8 +28,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-27T14:14:18.927Z",
-  "released_reason": "signed-manifest reader committed at fd4b5141 with build and verify:offline-supply-chain 25/0 PASS, the rest of L8a.2 is unleased routine work",
-  "archived_at": "2026-09-27T14:14:18.928Z"
+  "violations": []
 }
