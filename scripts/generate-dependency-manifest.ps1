@@ -131,6 +131,36 @@ if ($null -ne $aiHostManifest) {
   }
 }
 
+# === Local-AI GPU backend manifest (Phase L, L8a.1) ===
+# Nothing GPU ships in the installer (E3). The release-owned backend manifest pins, by path, size and
+# SHA-256, every file of each GPU backend pack a user may supply for the pinned runtime build. It is folded
+# in verbatim so the pack is checked against signed hashes, and validate-offline-bundle.ps1 compares this
+# signed copy with src/offline/ai-backend-manifest.json. A release without the source is refused.
+$aiBackendManifestPath = Join-Path $root "src\offline\ai-backend-manifest.json"
+if (-not (Test-Path -LiteralPath $aiBackendManifestPath -PathType Leaf)) {
+  throw "The GPU backend manifest is missing: src/offline/ai-backend-manifest.json"
+}
+$aiBackendSource = Get-Content -Raw -LiteralPath $aiBackendManifestPath | ConvertFrom-Json
+$aiGpuBackends = [ordered]@{
+  bundled = $false
+  source = "src/offline/ai-backend-manifest.json"
+  runtimeBuild = [string]$aiBackendSource.runtimeBuild
+  backends = @($aiBackendSource.backends | ForEach-Object {
+    [ordered]@{
+      id = [string]$_.id
+      package = [string]$_.package
+      packageVersion = [string]$_.packageVersion
+      files = @($_.files | ForEach-Object {
+        [ordered]@{
+          path = [string]$_.path
+          size = [long]$_.size
+          sha256 = [string]$_.sha256
+        }
+      })
+    }
+  })
+}
+
 $browserExists = Test-Path $browserPath
 $browserPayloadDigest = if ($browserExists) {
   Assert-AwkitBrowserTree -BrowserRoot $browserRoot -Policy $browserPolicy
@@ -301,6 +331,7 @@ $manifest = [ordered]@{
   }
   semanticNative = $semanticNative
   aiRuntime = $aiRuntime
+  aiGpuBackends = $aiGpuBackends
 }
 
 New-Item -ItemType Directory -Force -Path $resourcesRoot | Out-Null

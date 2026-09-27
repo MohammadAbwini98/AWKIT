@@ -1,18 +1,23 @@
 {
-  "task": "awkit-phase-l-extension-0927",
-  "contract_path": "docs/ai/contracts/awkit-phase-l-extension-0927.json",
-  "holder": "project-state",
-  "status": "released",
+  "task": "awkit-djnl-11-l8a1-backend-manifest-0927",
+  "contract_path": "docs/ai/contracts/awkit-djnl-11-l8a1-backend-manifest-0927.json",
+  "holder": "release",
+  "status": "active",
   "allowed_paths": [
-    ".beads/**"
+    "build",
+    "resources/dependency-manifest.json",
+    "resources/dependency-manifest.sig",
+    "scripts/generate-dependency-manifest.ps1",
+    "src/offline/AiModelManifest.ts",
+    "src/offline/ai-backend-manifest.json"
   ],
-  "acquired_at": "2026-09-27T09:59:48.898Z",
-  "acquired_at_commit": "5de16a5d4a1198e0f382ecee22c8c13dc72d64ff",
+  "acquired_at": "2026-09-27T11:02:19.030Z",
+  "acquired_at_commit": "8f8e3954faa89d38a61954e146356aacb1974edc",
   "baseline_dirty": [
-    ".beads/issues.jsonl"
+    "docs/ai/contracts/awkit-djnl-11-l8a1-backend-manifest-0927.json"
   ],
   "baseline_dirty_fingerprints": {
-    ".beads/issues.jsonl": "580a254512ef50ee99d7293b5d61f68a4270695aabd1ab808dce6cbf9ddcc8dc"
+    "docs/ai/contracts/awkit-djnl-11-l8a1-backend-manifest-0927.json": "d3df03f52283b47aaea559afb3565e67ad592758edcb189fe25b42c239c57576"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -26,8 +31,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-27T10:00:06.128Z",
-  "released_reason": "Owner removed awkit-akb and awkit-vra epic edges on awkit-djnl, export refreshed at 325 issues, Phase M and N readiness restored",
-  "archived_at": "2026-09-27T10:00:06.129Z"
+  "violations": []
 }

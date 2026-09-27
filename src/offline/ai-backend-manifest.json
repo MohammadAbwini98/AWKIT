@@ -1,0 +1,37 @@
+{
+  "schema": { "name": "awkit-ai-backend-manifest", "version": 1 },
+  "runtimeBuild": "node-llama-cpp@3.21.1+llama.cpp@v0.4.0",
+  "backends": [
+    {
+      "id": "vulkan",
+      "package": "@node-llama-cpp/win-x64-vulkan",
+      "packageVersion": "3.21.1",
+      "files": [
+        { "path": "LICENSE", "size": 1065, "sha256": "c34e5ffca98ede216da5157cff6df2ee6762a48d3391797edb6593df24849501" },
+        { "path": "bins/win-x64-vulkan/_nlcBuildMetadata.json", "size": 224, "sha256": "5c94ecb30f1ee9653c6481744da1bc7c0249c4cbada028c3d9e9239c86ca4df7" },
+        { "path": "bins/win-x64-vulkan/ggml-base.dll", "size": 1281536, "sha256": "4bd57738a46cec235fc4ed1d16fcd5a52cd37828b25e7c3ecf4ec944ad0faf23" },
+        { "path": "bins/win-x64-vulkan/ggml-cpu-alderlake.dll", "size": 1840640, "sha256": "29979ea704d5f5105ee60e9efc70cff1685a474624c2805dc8d72d2dccb36fb4" },
+        { "path": "bins/win-x64-vulkan/ggml-cpu-cannonlake.dll", "size": 2133504, "sha256": "88feca4021c13e1b5ace76acfc44cb6c1c7654c47e8c327aa2a77f627997e1b6" },
+        { "path": "bins/win-x64-vulkan/ggml-cpu-cascadelake.dll", "size": 2132480, "sha256": "9a3532e062fcc82a3e73c13a0525f6da89796771c22f587233049197a58b4f6c" },
+        { "path": "bins/win-x64-vulkan/ggml-cpu-cooperlake.dll", "size": 2131968, "sha256": "035b72e78bf9ccdb0afb0928e18444395756346766ab1b86769b5157bbcd68de" },
+        { "path": "bins/win-x64-vulkan/ggml-cpu-haswell.dll", "size": 1841152, "sha256": "3b8c58b9d68ce778c1cdacfd93a41514b0988647b1e8640e42d452e808a28858" },
+        { "path": "bins/win-x64-vulkan/ggml-cpu-icelake.dll", "size": 2132480, "sha256": "d8498cf5bbcdc1a0fcc5190e692823326cdf6bf2a0aae7f1c3e0d9251a5382eb" },
+        { "path": "bins/win-x64-vulkan/ggml-cpu-ivybridge.dll", "size": 1598976, "sha256": "d9a64cd834b84338df9b0c5f51d8e3bedcd982614399713b77ca2bf7dd7241a8" },
+        { "path": "bins/win-x64-vulkan/ggml-cpu-piledriver.dll", "size": 1597952, "sha256": "48eea797c49f7a84f5ec7484e4918f783be0ab9a072f3f4236fefa4224a639b2" },
+        { "path": "bins/win-x64-vulkan/ggml-cpu-sandybridge.dll", "size": 1582080, "sha256": "afb11cf3eaa028025d8475a61f294a0d1228c0dd907e6f7ca77ce35d6e470ad9" },
+        { "path": "bins/win-x64-vulkan/ggml-cpu-sapphirerapids.dll", "size": 2873344, "sha256": "11a79d51e49ca1e9edfc4a0c03d6a9cf2f19367262df775794b33a92536b0105" },
+        { "path": "bins/win-x64-vulkan/ggml-cpu-skylakex.dll", "size": 2133504, "sha256": "b28af5cfd194c00925aaa9a83bb036f175b25a09e66ffc8c2f4f8c019d3cef3f" },
+        { "path": "bins/win-x64-vulkan/ggml-cpu-sse42.dll", "size": 1268736, "sha256": "e332c25da488ae1f600967993dabf1b09dfef633eb0265ba7aaac1aad1c2d509" },
+        { "path": "bins/win-x64-vulkan/ggml-cpu-x64.dll", "size": 1242112, "sha256": "ef3500a020fcbd7dba2846f8831af2df2f844dd2eb59cf3a517236f83f0bd425" },
+        { "path": "bins/win-x64-vulkan/ggml-cpu-zen4.dll", "size": 2131968, "sha256": "6e4f1aacde1fdece2ec6432ca24bc40c4098890bbb60d2cc5a68938d87255663" },
+        { "path": "bins/win-x64-vulkan/ggml-vulkan.dll", "size": 54617088, "sha256": "6058a8a6291780651547b133db5854e00c531deb903eecf8324571ab6a2ae309" },
+        { "path": "bins/win-x64-vulkan/ggml.vulkan.v0.4.0.dll", "size": 171008, "sha256": "fb79741033a74d7af6f6bc71c448aa33a727e8b4a95c4899d71cf2fdc89acba9" },
+        { "path": "bins/win-x64-vulkan/llama-addon.node", "size": 1028608, "sha256": "0ee264f83cee435c327c13ed035fd0e317f300bd267e83c03c5c454c67e953d9" },
+        { "path": "bins/win-x64-vulkan/llama-common.dll", "size": 9275392, "sha256": "9a1b3c4f5e6204af3e3d7b795f80e42a45c00d2aa7e2c409b787e8a9b469c31f" },
+        { "path": "bins/win-x64-vulkan/llama.vulkan.v0.4.0.dll", "size": 7694336, "sha256": "2aca9a5189e31e98dc4f2fbcd4e7582ceba59836ff1eb05dbed350d4ceb29f04" },
+        { "path": "dist/index.js", "size": 422, "sha256": "032284f3124f6952b49b78f2f0098fba0102fc276780028e6859a45f560f53cb" },
+        { "path": "package.json", "size": 849, "sha256": "3939932ca215a4566b8cc85b6694b29fdc23a509c22a6f1d7fdae1dbfaae784d" }
+      ]
+    }
+  ]
+}

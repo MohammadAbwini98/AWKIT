@@ -1,0 +1,155 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-11-l8a1-backend-manifest-0927",
+    "title": "L8a.1: release-owned GPU backend manifest, backend-aware runtime pin, signed manifest and offline validation",
+    "objective": "Phase L L8a.1 (awkit-djnl.11). Add the release-owned backend manifest for user-supplied GPU backend packs beside AI_MODEL_MANIFEST (src/offline/ai-backend-manifest.json, exported typed as AI_BACKEND_MANIFEST from src/offline/AiModelManifest.ts): the pinned node-llama-cpp@3.21.1+llama.cpp@v0.4.0 build and, for the Vulkan backend, every file of @node-llama-cpp/win-x64-vulkan@3.21.1 by path, size and SHA-256 as measured by the L8a.0 gate, with a structural validator that refuses unsafe paths, bad hashes, duplicates and a missing addon. Make AI_RUNTIME_PIN backend-aware with an explicit backend set (cpu shipped, vulkan user-supplied) without breaking its strict single-build parsers. Fold the backend manifest into the Ed25519-signed dependency manifest as aiGpuBackends (bundled: false) in scripts/generate-dependency-manifest.ps1, and have scripts/validate-offline-bundle.ps1 check the source manifest's structure, its agreement with the pin, the signed copy's equality with the source, and that no pinned GPU backend binary ships in the installer. Prove it with a new verify:ai-backend-manifest (the source against the installed prebuilt, structural negative controls, the validator's new rules black-box on scratch roots, and the committed signed manifest) and a fresh package:portable whose in-pipeline strict validation runs the new rules. The installer's own app-local Visual C++ runtime is copied beside an imported pack by L8a.2, so it is not part of the backend manifest. No host protocol, handshake, mode, Settings, import or permission change: those are L8a.2 and L8a.3.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 3
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "8f8e3954",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "offline_boundary_change": true,
+    "packaging_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 2
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "qa",
+      "qc",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      "src/offline/AiModelManifest.ts",
+      "src/offline/ai-backend-manifest.json",
+      "scripts/generate-dependency-manifest.ps1",
+      "scripts/validate-offline-bundle.ps1",
+      "scripts/verify-ai-backend-manifest.mts",
+      "scripts/lib/verifier-classification.ts",
+      "package.json",
+      "build",
+      "resources/dependency-manifest.json",
+      "resources/dependency-manifest.sig",
+      "docs/ai/contracts/awkit-djnl-11-l8a1-backend-manifest-0927.json",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/plans/ai-upgrade-v5/L8a-hardware-adaptive-inference-runtime.md"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "release",
+      "allowed_paths": [
+        "src/offline/AiModelManifest.ts",
+        "src/offline/ai-backend-manifest.json",
+        "scripts/generate-dependency-manifest.ps1",
+        "build",
+        "resources/dependency-manifest.json",
+        "resources/dependency-manifest.sig"
+      ]
+    }
+  },
+  "constraints": {
+    "security": [
+      "Do not alter signing-key custody; the dependency manifest is signed only by the existing pipeline.",
+      "No GPU binary enters the installer; the backend manifest carries hashes only."
+    ],
+    "offline": [
+      "No runtime download, GPU requirement, global runtime or admin right is introduced."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "MANIFEST",
+      "description": "The backend manifest pins every runtime file of the installed @node-llama-cpp/win-x64-vulkan@3.21.1 exactly (set, size and SHA-256), agrees with AI_RUNTIME_PIN's build and backend set, and its structural validator refuses each negative control.",
+      "evidence_required": [
+        "verify:ai-backend-manifest"
+      ]
+    },
+    {
+      "id": "SIGNED",
+      "description": "A fresh package carries the backend manifest in the signed dependency manifest as aiGpuBackends, and strict offline validation checks it against the source and finds no pinned GPU binary in the installer.",
+      "evidence_required": [
+        "package:portable",
+        "validate:offline-strict"
+      ]
+    },
+    {
+      "id": "BUILD",
+      "description": "Typecheck, bundles and the script typecheck pass; the verifier is registered.",
+      "evidence_required": [
+        "build",
+        "verify:verifier-classification"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:ai-backend-manifest",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-backend-manifest",
+      "artifact": null,
+      "result": "pending"
+    },
+    {
+      "id": "package:portable",
+      "type": "packaged",
+      "required": true,
+      "command": "npm run package:portable",
+      "artifact": "dist/win-unpacked",
+      "result": "pending"
+    },
+    {
+      "id": "validate:offline-strict",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run validate:offline -- -Strict",
+      "artifact": "resources/dependency-manifest.json",
+      "result": "pending"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "pending"
+    },
+    {
+      "id": "verify:verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "artifact": null,
+      "result": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": false
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  }
+}
