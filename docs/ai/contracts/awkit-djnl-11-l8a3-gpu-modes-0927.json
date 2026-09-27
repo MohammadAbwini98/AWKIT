@@ -185,5 +185,25 @@
     "status": "pending",
     "qa_status": "pending",
     "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-11-l8a3-gpu-modes-0927:runtime:2026-09-27T15:58:26.428Z",
+        "task": "awkit-djnl-11-l8a3-gpu-modes-0927",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "native-hosts/ai/ai-host.cjs"
+        ],
+        "acquired_at": "2026-09-27T15:58:26.428Z",
+        "acquired_at_commit": "eb3e009b897f45608249df37c914266c80ab63b9",
+        "released_at": "2026-09-27T15:59:41.249Z",
+        "released_reason": "host change committed, its verification needs the unleased verify-ai-host update and the protocol, service and manager changes",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
   }
 }

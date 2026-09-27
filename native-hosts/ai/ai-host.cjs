@@ -435,13 +435,20 @@ async function gpuPlan(req) {
       const context = await insights.estimateContextResourceRequirementsV2({ contextSize, modelGpuLayers: layers, batchSize: Math.min(512, contextSize), sequences: 1 });
       return weights.gpuVram + context.gpuVram;
     };
+    const fits = async (layers) => (await need(layers)) + reserveBytes <= vram.free;
     const fullRequiredBytes = Math.round(await need(totalLayers));
-    let fitLayers = 0;
-    for (let layers = totalLayers; layers >= 1; layers -= 1) {
-      if ((await need(layers)) + reserveBytes <= vram.free) {
-        fitLayers = layers;
-        break;
+    let fitLayers = totalLayers;
+    if (fullRequiredBytes + reserveBytes > vram.free) {
+      // The need grows with the layer count, so bisect: each estimate costs about a second on a real
+      // model, and a linear scan took 45 s to find that nothing fits (L8a.3). 0 means none fits.
+      let low = 0;
+      let high = totalLayers - 1;
+      while (low < high) {
+        const middle = Math.ceil((low + high) / 2);
+        if (await fits(middle)) low = middle;
+        else high = middle - 1;
       }
+      fitLayers = low;
     }
     return { deviceCount, totalLayers, fitLayers, fullRequiredBytes, reserveBytes, freeBytes: vram.free, totalBytes: vram.total };
   } catch {
