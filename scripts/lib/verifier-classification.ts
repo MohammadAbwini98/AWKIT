@@ -534,6 +534,10 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "real-browser",
     why: "Phase L L8a.2 (awkit-djnl.11): real-Electron walkthrough of Settings › Local AI › GPU backend pack on an isolated profile with the real pinned pack and only the folder dialog answered in main: not installed and GPU use not active on a fresh profile; a closed dialog shows nothing; an extra-DLL folder refused by name with focus on the checklist and no import offered; a valid folder's full preflight (backend, build, source, destination, size, free space, headroom, 24 of 24 validated, identical-pack state, warning) with nothing copied before confirmation; accessible progress and cancel while copying; on-disk registry and 24 + 3 files with this build's own runtime DLLs; a flipped byte refused by Verify and persisted invalid without repair; replacement into a new directory; confirmed removal; no GPU-in-use claim and no renderer errors."
   },
+  "verify:ai-backend-pack-packaged": {
+    class: "packaged-application",
+    why: "Phase L L8a.2 (awkit-djnl.11): verify:ai-backend-pack-gui's whole walkthrough against dist/win-unpacked/SpecterStudio.exe (app.isPackaged asserted), with the licence bypass stripped and a dist/ older than the sources refused. Proves the packaged path handling end to end: trust from the packaged resources/resources signed manifest, the app's runtime DLLs byte-identical to the copies shipped in resources/native-hosts/ai, and the backends folder under the isolated LOCALAPPDATA. Exit 2 without a packaged app, never 0."
+  },
   "verify:ai-model-live": {
     class: "real-browser",
     why: "Credential-style gate on the owner-installed node-llama-cpp and downloaded Qwen3.5-4B pack (NOT RUN without them): measures the pack, requires the runtime pin and manifest entry, imports through AiModelPackStore with the real manifest, then drives the production AiService and AiUtilityHostManager against the real host in a real Electron utility process for constrained decoding, determinism, injection text, thinking off, special-token literalness, truncation, cancel, deadline, yield, crash recovery and shutdown."

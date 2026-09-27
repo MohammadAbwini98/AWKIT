@@ -19,6 +19,11 @@
  *   • nothing on screen claims a GPU is in use, and no renderer error is logged.
  *
  * Needs `npm run build` first (it launches `out/`). Run: npm run verify:ai-backend-pack-gui
+ *
+ * `--packaged` (npm run verify:ai-backend-pack-packaged, under tsx) runs the same walkthrough against
+ * `dist/win-unpacked/SpecterStudio.exe`: trust then comes from the packaged `resources/resources` signed
+ * manifest and `resources/native-hosts/ai`, the licence bypass is stripped as for every packaged gate, and
+ * a `dist/` older than the sources is refused. Without a packaged app it exits 2 (NOT RUN), never 0.
  */
 
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -27,12 +32,23 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { _electron as electron } from "playwright";
 
+import { stalePackagedPayload } from "./helpers/packaged-artifacts.mjs";
 import { isolatedLaunchEnv, resolveMainWindow, signInFirstRun } from "./lib/gui-verify-harness.mjs";
 import { makeChecker, navClick, watchConsole } from "./lib/e2e-qa-lib.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const { check, note, summarize, shotDir } = makeChecker("ai-backend-pack-gui");
-const { env, electronArgs, dataRoot, cleanup } = isolatedLaunchEnv("awkit-ai-backend-pack-gui");
+const packaged = process.argv.includes("--packaged");
+const EXE = path.join(root, "dist", "win-unpacked", "SpecterStudio.exe");
+if (packaged && !existsSync(EXE)) {
+  console.log("NOT RUN: dist/win-unpacked carries no packaged app — run `npm run package:portable` — exit 2, never a pass");
+  process.exit(2);
+}
+const { check, note, summarize, shotDir } = makeChecker(packaged ? "ai-backend-pack-packaged" : "ai-backend-pack-gui");
+const { env, electronArgs, dataRoot, cleanup } = isolatedLaunchEnv(packaged ? "awkit-ai-backend-pack-packaged" : "awkit-ai-backend-pack-gui");
+// The runtime copies the app ships: packaged beside the CPU prebuilt in resources, in development the staged host.
+const shippedRuntime = packaged
+  ? path.join(root, "dist", "win-unpacked", "resources", "native-hosts", "ai", "node_modules", "@node-llama-cpp", "win-x64", "bins", "win-x64")
+  : path.join(root, "build", "native-hosts", "ai", "node_modules", "@node-llama-cpp", "win-x64", "bins", "win-x64");
 const backends = path.join(dataRoot, "SpecterStudio", "ai", "backends");
 const BINS = "bins/win-x64-vulkan";
 const VC = ["msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll"];
@@ -100,7 +116,15 @@ async function noReauthPrompt(label) {
 }
 
 try {
-  app = await electron.launch({ args: [root, ...electronArgs], cwd: root, env });
+  if (packaged) {
+    const stale = await stalePackagedPayload(root);
+    check("the packaged payload is not older than the source", stale === null, stale ?? undefined);
+    const { sanitizeAppEnv } = await import("./helpers/packaged-license.mts");
+    app = await electron.launch({ executablePath: EXE, args: electronArgs, env: sanitizeAppEnv(env), timeout: 60000 });
+    check("the packaged app is what launched", (await app.evaluate(({ app: electronApp }) => electronApp.isPackaged)) === true);
+  } else {
+    app = await electron.launch({ args: [root, ...electronArgs], cwd: root, env });
+  }
   win = await resolveMainWindow(app);
   console_ = watchConsole(win);
   await win.waitForLoadState("domcontentloaded");
@@ -190,10 +214,9 @@ try {
   const files = dir ? filesUnder(path.join(backends, dir)).sort() : [];
   const expected = [...vulkan.files.map((f) => f.path), ...VC.map((n) => `${BINS}/${n}`)].sort();
   check("on disk: exactly the 24 pack files plus 3 runtime DLLs", files.join() === expected.join(), `${files.length}`);
-  const staged = path.join(root, "build", "native-hosts", "ai", "node_modules", "@node-llama-cpp", "win-x64", "bins", "win-x64");
   check(
-    "on disk: the runtime DLLs are this build's own copies",
-    dir !== "" && VC.every((n) => readFileSync(path.join(backends, dir, ...BINS.split("/"), n)).equals(readFileSync(path.join(staged, n))))
+    `on disk: the runtime DLLs are this build's own copies (${packaged ? "shipped in resources/native-hosts/ai" : "the staged host"})`,
+    dir !== "" && VC.every((n) => readFileSync(path.join(backends, dir, ...BINS.split("/"), n)).equals(readFileSync(path.join(shippedRuntime, n))))
   );
   check("the source folder is untouched and still holds no runtime DLL", VC.every((n) => !existsSync(path.join(goodPack, ...BINS.split("/"), n))));
   await win.screenshot({ path: path.join(shotDir, "02-installed.png") }).catch(() => undefined);

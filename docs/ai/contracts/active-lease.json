@@ -2,7 +2,7 @@
   "task": "awkit-djnl-11-l8a2-backend-import-0927",
   "contract_path": "docs/ai/contracts/awkit-djnl-11-l8a2-backend-import-0927.json",
   "holder": "release",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "build",
     "resources/dependency-manifest.json",
@@ -28,5 +28,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-27T15:14:24.804Z",
+  "released_reason": "portable 0.1.51 packaged from clean c76be866 with in-pipeline strict validation PASS and the signed manifest committed at d60ba9c4, verify:ai-packaged-runtime 91 PASS 5 FAIL all in the live-inference section D timeouts",
+  "archived_at": "2026-09-27T15:14:24.810Z"
 }
