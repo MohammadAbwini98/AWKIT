@@ -79,9 +79,11 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "runtime",
+      "agent_id": "release",
       "allowed_paths": [
-        "native-hosts/ai/ai-host.cjs"
+        "build",
+        "resources/dependency-manifest.json",
+        "resources/dependency-manifest.sig"
       ]
     }
   },
@@ -134,8 +136,8 @@
       "required": true,
       "command": "npm run verify:ai-host",
       "artifact": null,
-      "result": "pending",
-      "observed": null
+      "result": "PASS",
+      "observed": "185 checks, 20/20 mutations caught (backend fixed at fork, pack-only resolve hook, gpuLayers bounds, CPU host refusing GPU requests, plan from the runtime estimators)"
     },
     {
       "id": "verify:ai-gpu-modes",
@@ -143,8 +145,8 @@
       "required": true,
       "command": "npm run verify:ai-gpu-modes",
       "artifact": null,
-      "result": "pending",
-      "observed": null
+      "result": "PASS",
+      "observed": "138/0; mutations caught: GPU-Only silently falling back to CPU (111/27), unbounded GPU-Offload retry (135/3), both reverted"
     },
     {
       "id": "verify:ai-gpu-host",
@@ -152,8 +154,8 @@
       "required": true,
       "command": "npm run verify:ai-gpu-host",
       "artifact": null,
-      "result": "pending",
-      "observed": null
+      "result": "PASS",
+      "observed": "23/23 in real Electron: adapters 0x1002+0x1414 give NO_COMPATIBLE_ADAPTER, GPU-Offload runs on CPU with that reason and starts no GPU host, GPU-Only refuses. Mechanics labelled (AMD, not NVIDIA qualification): 25/25 layers on Vulkan, every llama/ggml binary loaded from the pack, tampered pack refused before fork, guard ran 5 times, no-fit plan 9.4 s"
     },
     {
       "id": "build",
@@ -161,8 +163,8 @@
       "required": true,
       "command": "npm run build",
       "artifact": null,
-      "result": "pending",
-      "observed": null
+      "result": "PASS",
+      "observed": "tsc --noEmit and all bundles; typecheck:scripts PASS"
     },
     {
       "id": "verify:verifier-classification",
@@ -170,8 +172,8 @@
       "required": true,
       "command": "npm run verify:verifier-classification",
       "artifact": null,
-      "result": "pending",
-      "observed": null
+      "result": "PASS",
+      "observed": "284 scripts classified, verify:ai-gpu-modes and verify:ai-gpu-host registered"
     }
   ],
   "git": {
