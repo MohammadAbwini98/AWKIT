@@ -21,6 +21,7 @@ import type { FailureAnalysisBody, StoredFailureAnalysis } from "../../reports/E
 import { isAiFeatureId, type AiFeatureId, type AiTier } from "../../security/authz/AiAutonomyPolicy";
 import type { FlowValidationIssue } from "../../validation/FlowValidator";
 import type { AiActionRecord } from "../AiActionRecord";
+import type { AiLoadStage } from "../AiExecutionProfile";
 import type { ExplanationWithholdReason } from "../authoringClaimScreen";
 import type { LocatorPromotionRefusal } from "../locatorPromotion";
 import type { PendingUpgradeState } from "../pendingUpgrade";
@@ -60,15 +61,26 @@ export interface AiModelPackView {
  * and why a GPU mode fell back to CPU or refused. Numbers are bytes; nothing names a path or a device.
  */
 export interface AiExecutionView {
+  /** The CONFIGURED mode. */
   mode: "cpu" | "gpu-offload" | "gpu-only";
   backend: "cpu" | "vulkan";
   gpuLayers: number;
   totalLayers: number | null;
   requestedLayers: number | null;
+  /** Null unless `applied`: a reason found under another mode or reserve is not reported. */
   fallbackReason: string | null;
   refusal: { reason: string; requiredBytes: number | null; availableBytes: number | null } | null;
   /** Short, safe sentence for the fallback or refusal reason. */
   message: string | null;
+  /** The runtime's own VRAM figures at this load's plan; null when no GPU plan ran. */
+  vram: { totalBytes: number; freeBytes: number; reserveBytes: number; fullRequiredBytes: number } | null;
+  /** (L8a.4) The fields above come from a load made under the configured mode and reserve. */
+  applied: boolean;
+  modelLoaded: boolean;
+  /** What a model load is doing now; null when none is in progress. */
+  stage: AiLoadStage | null;
+  /** GPU readiness right now (backend pack, then E2 adapters), as the next GPU load would decide it. */
+  gpuReadiness: { ok: boolean; nvidiaAdapters: number; reason: string | null; message: string | null };
 }
 
 export interface AiStatusView {

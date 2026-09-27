@@ -11,6 +11,7 @@ import { useSession } from "../security/SessionContext";
 import { usePermissions } from "../security/usePermissions";
 import { ReauthDialog } from "./admin/ReauthDialog";
 import { LocalAiBackendPack } from "./LocalAiBackendPack";
+import { ExecutionDiagnostics, LocalAiExecution, effectiveLabel, gpuUseLabel } from "./LocalAiExecution";
 import { useSensitiveSemanticAction, type SensitiveAdminResponse } from "../semantic/useSensitiveSemanticAction";
 
 const api = () => window.playwrightFlowStudio.ai;
@@ -39,7 +40,7 @@ const STATE_LABELS: Record<string, string> = {
   CIRCUIT_OPEN: "Stopped after repeated runtime crashes",
   MODEL_MISSING: "No model pack imported",
   MODEL_INVALID: "The model pack failed verification",
-  GPU_UNAVAILABLE: "GPU-Only mode cannot run on this machine",
+  GPU_UNAVAILABLE: "Unavailable: GPU-Only refused to load the model",
   SHUTDOWN: "Shutting down"
 };
 
@@ -138,6 +139,14 @@ export function LocalAiSettings() {
     void load();
   }, [load]);
 
+  // While a model load is in progress, re-read its real stage; nothing is timed or estimated here.
+  const loadingNow = status?.state === "loading" || Boolean(status?.execution.stage);
+  useEffect(() => {
+    if (!loadingNow) return;
+    const timer = setTimeout(() => void load(), 1000);
+    return () => clearTimeout(timer);
+  }, [loadingNow, status, load]);
+
   const runThenReload = useCallback(
     async (call: () => Promise<SensitiveAdminResponse>, notice: string) => {
       await action.run(call, notice);
@@ -204,6 +213,8 @@ export function LocalAiSettings() {
           <strong>{stateLabel(status)}</strong>
           <span>Model pack</span>
           <strong>{packLabel(status.modelPack)}</strong>
+          <span>Runs on</span>
+          <strong aria-live="polite">{effectiveLabel(status.execution)}</strong>
           {status.holdReason ? (
             <>
               <span>Queue</span>
@@ -340,7 +351,8 @@ export function LocalAiSettings() {
             are never touched by AI.
           </p>
 
-          <LocalAiBackendPack sessionRef={sessionRef} />
+          <LocalAiExecution execution={status?.execution ?? null} sessionRef={sessionRef} settings={settings} onChanged={load} />
+          <LocalAiBackendPack gpuUse={gpuUseLabel(settings.executionMode, status?.execution ?? null)} sessionRef={sessionRef} />
         </>
       ) : null}
 
@@ -362,6 +374,7 @@ export function LocalAiSettings() {
           <strong>{diagnostics.modelPack.manifestEntries}</strong>
           <span>Inference threads</span>
           <strong>{diagnostics.threads}</strong>
+          <ExecutionDiagnostics diagnostics={diagnostics} />
           <span>Jobs</span>
           <strong>
             {diagnostics.counters.completed} completed, {diagnostics.counters.failed} failed, {diagnostics.counters.cancelled} cancelled,{" "}

@@ -14,6 +14,7 @@
  * refuses with the exact shortfall, and never falls back silently.
  */
 
+import type { AiExecutionView } from "./contracts/AiApi";
 import type { AiGpuPlan } from "./contracts/AiHostProtocol";
 import type { AiExecutionMode } from "./AiSettings";
 
@@ -114,7 +115,14 @@ export interface AiExecutionProfile {
   fallbackReason: AiGpuReason | null;
   /** Why GPU-Only refused; the AI is unavailable until the mode changes or the cause is fixed. */
   refusal: { reason: AiGpuReason; requiredBytes: number | null; availableBytes: number | null } | null;
+  /** The runtime's own VRAM figures from this load's plan (bytes); null when no plan ran. */
+  vram: AiGpuVram | null;
 }
+
+export type AiGpuVram = Pick<AiGpuPlan, "totalBytes" | "freeBytes" | "reserveBytes" | "fullRequiredBytes">;
+
+export const vramOf = (plan: AiGpuPlan | null): AiGpuVram | null =>
+  plan ? { totalBytes: plan.totalBytes, freeBytes: plan.freeBytes, reserveBytes: plan.reserveBytes, fullRequiredBytes: plan.fullRequiredBytes } : null;
 
 export const CPU_PROFILE: Readonly<AiExecutionProfile> = Object.freeze({
   mode: "cpu",
@@ -123,5 +131,49 @@ export const CPU_PROFILE: Readonly<AiExecutionProfile> = Object.freeze({
   totalLayers: null,
   requestedLayers: null,
   fallbackReason: null,
-  refusal: null
+  refusal: null,
+  vram: null
 });
+
+/**
+ * What a model load is doing right now (L8a.4). Stages, never a percentage: the runtime measures no
+ * progress inside a load.
+ */
+export type AiLoadStage =
+  | "unloading"
+  | "verifying-model"
+  | "checking-gpu"
+  | "starting-gpu-host"
+  | "planning-gpu"
+  | "loading-gpu"
+  | "retrying-gpu"
+  | "loading-cpu"
+  | "falling-back";
+
+/**
+ * The renderer's view of where the model runs (L8a.4). `mode` is the CONFIGURED mode. A profile made
+ * under another mode or reserve is not `applied`: its fallback or refusal reason answered a different
+ * question, so it is not reported, and the new setting takes effect at the next load.
+ */
+export function toExecutionView(
+  status: { execution: AiExecutionProfile; executionApplied: boolean; loadedModelId: string | null; loadStage: AiLoadStage | null },
+  mode: AiExecutionMode,
+  readiness: AiGpuReadiness
+): AiExecutionView {
+  const { execution: profile, executionApplied: applied } = status;
+  const reason = applied ? (profile.refusal?.reason ?? profile.fallbackReason) : null;
+  return {
+    ...profile,
+    mode,
+    fallbackReason: applied ? profile.fallbackReason : null,
+    refusal: applied && profile.refusal ? { ...profile.refusal } : null,
+    vram: profile.vram ? { ...profile.vram } : null,
+    message: reason ? AI_GPU_REASON_MESSAGES[reason] : null,
+    applied,
+    modelLoaded: status.loadedModelId !== null,
+    stage: status.loadStage,
+    gpuReadiness: readiness.ok
+      ? { ok: true, nvidiaAdapters: readiness.nvidiaAdapters, reason: null, message: null }
+      : { ok: false, nvidiaAdapters: 0, reason: readiness.reason, message: AI_GPU_REASON_MESSAGES[readiness.reason] }
+  };
+}

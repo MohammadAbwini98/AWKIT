@@ -6083,6 +6083,86 @@ th {
   gap: 8px;
 }
 
+/* Settings › Local AI › Where the model runs (L8a.4): a native radio group, one described option per row. */
+.ai-mode-group {
+  border: 0;
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  min-width: 0;
+  padding: 0;
+}
+
+.ai-mode-group legend {
+  color: var(--awkit-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  margin-bottom: var(--space-2);
+  padding: 0;
+}
+
+.ai-mode-option {
+  align-items: flex-start;
+  background: var(--awkit-surface-inset);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-md);
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.ai-mode-option.is-selected {
+  background: var(--awkit-accent-soft);
+  border-color: var(--awkit-accent-muted);
+}
+
+.ai-mode-option input {
+  accent-color: var(--awkit-accent);
+  flex: none;
+  height: 16px;
+  margin: 2px 0 0;
+  width: 16px;
+}
+
+.ai-mode-option label {
+  color: var(--awkit-text);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.ai-mode-option p {
+  color: var(--awkit-text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  margin: var(--space-1) 0 0;
+}
+
+.ai-reserve-field {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.ai-reserve-field > label {
+  color: var(--awkit-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.ai-reserve-field input[aria-invalid="true"] {
+  border-color: var(--awkit-danger);
+}
+
+div.form-message.warn {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+
+div.form-message.warn p {
+  margin: 0;
+}
+
 /* Secrets card (audit §15) — add form + stored-secret rows. Name-only management; no values shown. */
 .settings-secret-form {
   align-items: end;

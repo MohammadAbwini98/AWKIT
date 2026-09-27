@@ -24,20 +24,19 @@ import {
   type AiBackendPackStatus,
   type BackendTrust
 } from "@src/ai/AiBackendPack";
-import { AI_GPU_REASON_MESSAGES, describeAdapters, type AiExecutionProfile } from "@src/ai/AiExecutionProfile";
+import { describeAdapters, toExecutionView, type AiGpuReadiness } from "@src/ai/AiExecutionProfile";
 import { AiModelPackStore, type AiModelPackStatus } from "@src/ai/AiModelPack";
 import { revertAiAction } from "@src/ai/AiRevert";
 import { AiService, type AiServiceDeps } from "@src/ai/AiService";
 import { FakeAiHostTransport, type FakeInferStep } from "@src/ai/FakeAiHostTransport";
 import { AiSettingsStore, MAX_IDLE_UNLOAD_MINUTES, MAX_VRAM_RESERVE_MB, MIN_VRAM_RESERVE_MB, sanitizeAiSettingsPatch } from "@src/ai/AiSettings";
-import type { AiHostBackend } from "@src/ai/contracts/AiHostProtocol";
+import type { AiGpuPlan, AiHostBackend, AiHostReason } from "@src/ai/contracts/AiHostProtocol";
 import type {
   AiAdminResponse,
   AiAuditView,
   AiBackendPackView,
   AiBackendPreflightResponse,
   AiDiagnosticsView,
-  AiExecutionView,
   AiModelPackView,
   AiSettingsView,
   AiStatusView
@@ -128,24 +127,72 @@ const inferenceThreads = (): number => deriveInferenceThreads(detectMachineCapab
  */
 const TEST_PROVIDER_ENV = "AWKIT_TEST_AI_PROVIDER";
 
+/**
+ * The test provider's GPU side (L8a.4 GUI verifier): `AWKIT_TEST_AI_GPU` names a JSON file giving the
+ * backend pack's state, the display adapters' PCI vendor IDs and the fake GPU host's plan, re-read on
+ * every use. Only with the test provider, so never in a packaged build. The production E2 classifier
+ * still decides from these IDs, and nothing here qualifies any real GPU.
+ */
+const TEST_GPU_ENV = "AWKIT_TEST_AI_GPU";
+interface TestGpuFixture {
+  pack: AiBackendPackStatus["status"];
+  adapters: number[] | null;
+  plan?: AiGpuPlan | { fail: AiHostReason };
+  gpuLoadFailAbove?: number;
+  /** A slow GPU load, so the verifier can watch a load's stage. */
+  loadDelayMs?: number;
+}
+
+function testGpuFixture(): TestGpuFixture | null {
+  if (app.isPackaged || !process.env[TEST_PROVIDER_ENV] || !process.env[TEST_GPU_ENV]) return null;
+  try {
+    return JSON.parse(fs.readFileSync(process.env[TEST_GPU_ENV], "utf8")) as TestGpuFixture;
+  } catch {
+    return null;
+  }
+}
+
+const adapterVendorIds = (): Promise<number[] | null> => {
+  const fixture = testGpuFixture();
+  return fixture ? Promise.resolve(fixture.adapters) : displayAdapterVendorIds();
+};
+
+/** The one readiness answer: what the next GPU load decides, and what status and diagnostics show. */
+function currentGpuReadiness(): Promise<AiGpuReadiness> {
+  const fixture = testGpuFixture();
+  return fixture ? gpuReadiness({ status: async () => ({ status: fixture.pack }) }, adapterVendorIds) : gpuReadiness(backendPack());
+}
+
 function testProviderDeps(): Pick<AiServiceDeps, "transport" | "model" | "verifyModel" | "expectedRuntimeBuild"> | null {
   if (app.isPackaged) return null;
   const script = process.env[TEST_PROVIDER_ENV];
   if (!script) return null;
   const modelRoot = join(aiRoot(), "test-provider");
-  const fake = new FakeAiHostTransport({
+  const respond = (): FakeInferStep => {
+    try {
+      return JSON.parse(fs.readFileSync(script, "utf8")) as FakeInferStep;
+    } catch {
+      return { text: "{}" };
+    }
+  };
+  const fake = new FakeAiHostTransport({ modelRoot, respond });
+  const gpuFake = new FakeAiHostTransport({
     modelRoot,
-    respond: (): FakeInferStep => {
-      try {
-        return JSON.parse(fs.readFileSync(script, "utf8")) as FakeInferStep;
-      } catch {
-        return { text: "{}" };
-      }
+    respond,
+    backend: "vulkan",
+    get gpuPlan() {
+      return testGpuFixture()?.plan;
+    },
+    get gpuLoadFailAbove() {
+      return testGpuFixture()?.gpuLoadFailAbove;
+    },
+    get loadDelayMs() {
+      return testGpuFixture()?.loadDelayMs;
     }
   });
   logAi("warn", "test AI provider active (non-packaged build)");
   return {
-    transport: () => fake,
+    transport: (backend) => (backend === "vulkan" ? gpuFake : fake),
     model: async () => ({ ok: true, modelId: "test-deterministic-provider", modelPath: join(modelRoot, "test.gguf"), contextTokens: 4096 }),
     verifyModel: async () => true,
     expectedRuntimeBuild: undefined
@@ -156,7 +203,7 @@ export function getAiService(): AiService {
   const testProvider = service ? null : testProviderDeps();
   service ??= new AiService({
     transport,
-    gpu: () => gpuReadiness(backendPack()),
+    gpu: currentGpuReadiness,
     model: async () => {
       const status = await modelPack().status();
       if (status.status === "missing") return { ok: false, reason: "MODEL_MISSING" };
@@ -211,22 +258,8 @@ const readPack = (): Promise<AiModelPackStatus> =>
     .status()
     .catch((): AiModelPackStatus => ({ status: "invalid", reason: "REGISTRY_UNREADABLE" }));
 
-/**
- * The effective profile, with the CONFIGURED mode: until a job loads the model, the profile still
- * describes the last load (or none), and the mode shown must be what the administrator chose.
- */
-function executionView(profile: AiExecutionProfile, mode: AiExecutionView["mode"]): AiExecutionView {
-  const reason = profile.refusal?.reason ?? profile.fallbackReason;
-  return {
-    ...profile,
-    mode,
-    refusal: profile.refusal ? { ...profile.refusal } : null,
-    message: reason ? AI_GPU_REASON_MESSAGES[reason] : null
-  };
-}
-
 export async function aiStatusView(): Promise<AiStatusView> {
-  const [status, pack, current] = await Promise.all([getAiService().status(), readPack(), settings().read()]);
+  const [status, pack, current, readiness] = await Promise.all([getAiService().status(), readPack(), settings().read(), currentGpuReadiness()]);
   const state = status.state;
   return {
     enabled: current.enabled,
@@ -235,7 +268,7 @@ export async function aiStatusView(): Promise<AiStatusView> {
     holdReason: status.holdReason,
     queueDepth: status.queueDepth,
     modelPack: packView(pack),
-    execution: executionView(status.execution, current.executionMode)
+    execution: toExecutionView(status, current.executionMode, readiness)
   };
 }
 
@@ -264,11 +297,17 @@ export async function aiSettingsView(): Promise<AiSettingsView> {
 export async function updateAiSettings(patch: unknown): Promise<AiAdminResponse> {
   const sanitized = sanitizeAiSettingsPatch(patch);
   if (!sanitized.ok) return { code: "SETTINGS_REJECTED", ok: false, message: sanitized.errors.join(" ") };
+  let before: Awaited<ReturnType<AiSettingsStore["read"]>>;
   try {
+    before = await settings().read();
     await settings().update(sanitized.value);
   } catch {
     return { code: "SETTINGS_REJECTED", ok: false, message: "The AI settings could not be saved." };
   }
+  // A new mode or reserve drops an idle load now (freeing the GPU host and its VRAM) rather than
+  // keeping it under the old setting; a running job finishes first and the next one reloads.
+  const { executionMode = before.executionMode, vramReserveMb = before.vramReserveMb } = sanitized.value;
+  if (executionMode !== before.executionMode || vramReserveMb !== before.vramReserveMb) await getAiService().releaseModel();
   // A switch-off rejects queued work at once rather than on the next admission retry.
   getAiService().notifyAdmissionChanged();
   return { code: "OK", ok: true };
@@ -285,7 +324,13 @@ export async function restoreAiFeature(feature: AiFeatureId): Promise<AiAdminRes
 }
 
 export async function aiDiagnosticsView(): Promise<AiDiagnosticsView> {
-  const [status, pack, current, adapters] = await Promise.all([getAiService().status(), readPack(), settings().read(), displayAdapterVendorIds()]);
+  const [status, pack, current, adapters, readiness] = await Promise.all([
+    getAiService().status(),
+    readPack(),
+    settings().read(),
+    adapterVendorIds(),
+    currentGpuReadiness()
+  ]);
   const host = hostManager?.status();
   const gpuHost = gpuHostManager?.status();
   const installed = pack.status === "installed" ? pack.entry : null;
@@ -304,7 +349,7 @@ export async function aiDiagnosticsView(): Promise<AiDiagnosticsView> {
       sizeBytes: installed?.sizeBytes ?? null,
       manifestEntries: AI_MODEL_MANIFEST.length
     },
-    execution: executionView(status.execution, current.executionMode),
+    execution: toExecutionView(status, current.executionMode, readiness),
     adapters: adapters === null ? null : describeAdapters(adapters),
     threads: inferenceThreads(),
     counters: status.counters

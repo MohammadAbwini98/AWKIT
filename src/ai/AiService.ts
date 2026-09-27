@@ -28,9 +28,11 @@ import {
   decideGpuLoad,
   retryLayers,
   unprovenDevices,
+  vramOf,
   type AiExecutionProfile,
   type AiGpuReadiness,
-  type AiGpuReason
+  type AiGpuReason,
+  type AiLoadStage
 } from "./AiExecutionProfile";
 import { isBoundedSchema, parseAiOutput, type AiOutputSchema } from "./AiOutputContract";
 import { buildAiPrompt, type AiPromptSpec } from "./AiPromptBuilder";
@@ -133,6 +135,10 @@ export interface AiServiceStatus {
   loadedModelId: string | null;
   /** Where the model runs now, or why a GPU mode is not running on the GPU. */
   execution: AiExecutionProfile;
+  /** `execution` came from a load under the current mode and reserve; false until the next load after a change. */
+  executionApplied: boolean;
+  /** What a model load is doing now, or null. */
+  loadStage: AiLoadStage | null;
   counters: { completed: number; failed: number; cancelled: number; rejected: number; yielded: number };
 }
 
@@ -216,6 +222,11 @@ export class AiService {
   /** The mode and reserve the current load was made for; a different one reloads. */
   private profileKey: string | null = null;
   private profile: AiExecutionProfile = CPU_PROFILE;
+  /** The mode and reserve `profile` was produced under; unlike `profileKey` it survives an unload. */
+  private profileFor: string | null = null;
+  /** The current load's GPU plan, for the profile's VRAM figures. */
+  private plan: AiGpuPlan | null = null;
+  private stage: AiLoadStage | null = null;
   /** The mode and reserve GPU-Only last refused under, so status reports it until they change. */
   private refusedKey: string | null = null;
   private lastError: AiHostReason | null = null;
@@ -291,12 +302,19 @@ export class AiService {
   }
 
   async status(): Promise<AiServiceStatus> {
+    const settings = await this.deps.settings().catch(() => null);
     return {
       state: await this.state(),
       queueDepth: this.queue.length,
       holdReason: this.holdReason,
       loadedModelId: this.loadedModelId,
-      execution: { ...this.profile, refusal: this.profile.refusal ? { ...this.profile.refusal } : null },
+      execution: {
+        ...this.profile,
+        refusal: this.profile.refusal ? { ...this.profile.refusal } : null,
+        vram: this.profile.vram ? { ...this.profile.vram } : null
+      },
+      executionApplied: settings !== null && this.profileFor === this.executionKey(settings),
+      loadStage: this.stage,
       counters: { ...this.counters }
     };
   }
@@ -508,9 +526,12 @@ export class AiService {
     const key = this.executionKey(settings);
     const active = this.deps.transport(this.backend);
     if (this.loadedModelId === model.modelId && this.profileKey === key && this.handshaken.has(this.backend) && active?.isAvailable()) return "ready";
-    await this.dropLoad();
-    this.loading = true;
+    if (this.loadedModelId !== null) this.stage = "unloading";
     try {
+      await this.dropLoad();
+      this.loading = true;
+      this.plan = null;
+      this.stage = "verifying-model";
       if (this.deps.verifyModel && !(await this.deps.verifyModel(model).catch(() => false))) {
         this.lastError = "AI_MODEL_LOAD_FAILED";
         return { status: "failed", code: "LOAD_FAILED", yields: 0 };
@@ -521,6 +542,7 @@ export class AiService {
         const gpu = await this.loadOnGpu(mode, settings.vramReserveBytes ?? null, model);
         if (gpu.kind === "ready") {
           this.profileKey = key;
+          this.profileFor = key;
           this.refusedKey = null;
           return "ready";
         }
@@ -532,8 +554,10 @@ export class AiService {
             totalLayers: gpu.totalLayers,
             requestedLayers: null,
             fallbackReason: null,
-            refusal: { reason: gpu.reason, requiredBytes: gpu.requiredBytes, availableBytes: gpu.availableBytes }
+            refusal: { reason: gpu.reason, requiredBytes: gpu.requiredBytes, availableBytes: gpu.availableBytes },
+            vram: vramOf(this.plan)
           };
+          this.profileFor = key;
           this.refusedKey = key;
           this.deps.log?.("warn", `ai gpu-only refused: ${gpu.reason}`);
           return { status: "rejected", code: "UNAVAILABLE", reason: "GPU_UNAVAILABLE" };
@@ -544,6 +568,7 @@ export class AiService {
       return await this.loadOnCpu(mode, key, fallbackReason, model);
     } finally {
       this.loading = false;
+      this.stage = null;
     }
   }
 
@@ -556,6 +581,7 @@ export class AiService {
     const transport = this.deps.transport("cpu");
     if (!transport) return { status: "rejected", code: "UNAVAILABLE", reason: "RUNTIME_MISSING" };
     if (!transport.isAvailable()) return { status: "rejected", code: "UNAVAILABLE", reason: "CIRCUIT_OPEN" };
+    this.stage = fallbackReason ? "falling-back" : "loading-cpu";
     if (!this.handshaken.has("cpu")) {
       let hello: AiHostHello;
       try {
@@ -585,8 +611,9 @@ export class AiService {
       this.backend = "cpu";
       this.loadedModelId = model.modelId;
       this.profileKey = key;
+      this.profileFor = key;
       this.refusedKey = null;
-      this.profile = { ...CPU_PROFILE, mode, fallbackReason };
+      this.profile = { ...CPU_PROFILE, mode, fallbackReason, vram: vramOf(this.plan) };
       return "ready";
     } catch (error) {
       this.lastError = error instanceof AiHostCallError ? error.reason : "AI_HOST_INTERNAL_ERROR";
@@ -618,6 +645,7 @@ export class AiService {
     };
     const reasonOf = (error: unknown): AiHostReason | null => (error instanceof AiHostCallError ? error.reason : null);
 
+    this.stage = "checking-gpu";
     const readiness: AiGpuReadiness = this.deps.gpu
       ? await this.deps.gpu().catch((): AiGpuReadiness => ({ ok: false, reason: "BACKEND_UNAVAILABLE" }))
       : { ok: false, reason: "BACKEND_UNAVAILABLE" };
@@ -626,6 +654,7 @@ export class AiService {
     if (!transport || !transport.isAvailable()) return notOnGpu("BACKEND_UNAVAILABLE");
 
     if (!this.handshaken.has("vulkan")) {
+      this.stage = "starting-gpu-host";
       let hello: AiHostHello;
       try {
         hello = await this.hello(transport);
@@ -640,12 +669,14 @@ export class AiService {
     }
 
     const contextTokens = Math.min(model.contextTokens, AI_CONTEXT_TOKENS);
+    this.stage = "planning-gpu";
     let plan: AiGpuPlan;
     try {
       plan = await transport.call<AiGpuPlan>(
         { type: "gpuPlan", modelPath: model.modelPath, contextTokens, threads: this.deps.threads, reserveBytes },
         AI_HOST_TIMEOUTS.loadMs
       );
+      this.plan = plan;
     } catch (error) {
       const reason = reasonOf(error);
       return settle(
@@ -670,6 +701,7 @@ export class AiService {
 
     let layers = decision.layers;
     for (let retries = 0; ; retries += 1) {
+      this.stage = retries === 0 ? "loading-gpu" : "retrying-gpu";
       try {
         const result = await transport.call<AiLoadResult>(
           { type: "load", modelPath: model.modelPath, contextTokens, threads: this.deps.threads, gpuLayers: layers },
@@ -684,7 +716,8 @@ export class AiService {
           totalLayers: plan.totalLayers,
           requestedLayers: decision.layers,
           fallbackReason: null,
-          refusal: null
+          refusal: null,
+          vram: vramOf(plan)
         };
         return { kind: "ready" };
       } catch (error) {

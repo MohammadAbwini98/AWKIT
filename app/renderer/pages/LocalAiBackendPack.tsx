@@ -31,7 +31,7 @@ const CHECK_TITLES: Record<string, string> = {
 const STATE_WORDS = { pass: "passed", fail: "failed", skipped: "not checked" } as const;
 const PHASE_LABELS = { copying: "Copying and hashing", verifying: "Re-verifying the copy", promoting: "Activating" } as const;
 
-function formatBytes(bytes: number | null): string {
+export function formatBytes(bytes: number | null): string {
   if (bytes === null) return "unknown";
   const mb = bytes / 1024 ** 2;
   return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb.toFixed(1)} MB`;
@@ -48,9 +48,9 @@ function describe(response: SensitiveAdminResponse): string {
  * Select a folder (main opens the dialog), review a checklist that main computed without loading
  * anything from the folder, confirm, watch the staged copy, and later verify or remove the pack. Every
  * step needs `ai.manage`; picking, importing and removing re-authenticate. Installing the pack never
- * means a GPU is in use: execution modes arrive with L8a.3.
+ * means a GPU is in use: only a GPU execution mode loads it, and `gpuUse` reports what actually runs.
  */
-export function LocalAiBackendPack({ sessionRef }: { sessionRef: string }) {
+export function LocalAiBackendPack({ sessionRef, gpuUse }: { sessionRef: string; gpuUse: string }) {
   const [view, setView] = useState<AiBackendPackView | null>(null);
   const [preflight, setPreflight] = useState<AiBackendPreflightView | null>(null);
   const [importing, setImporting] = useState(false);
@@ -133,9 +133,9 @@ export function LocalAiBackendPack({ sessionRef }: { sessionRef: string }) {
         <h3 id="ai-backend-pack-title">GPU backend pack (Vulkan)</h3>
       </div>
       <p className="settings-card-hint">
-        Optional files that a later update will use to run the model on a compatible GPU. Installing them only places
-        verified copies in this app's data folder: the model keeps running on CPU &amp; RAM, and no GPU is used by this
-        version. Nothing is downloaded, and nothing in the folder you pick is run.
+        Optional files that GPU-Offload and GPU-Only load to run the model on a compatible NVIDIA GPU. Installing them
+        only places verified copies in this app&apos;s data folder; the execution mode above decides whether they are
+        used. Nothing is downloaded, and nothing in the folder you pick is run.
       </p>
 
       {loadError ? (
@@ -183,7 +183,7 @@ export function LocalAiBackendPack({ sessionRef }: { sessionRef: string }) {
             </>
           ) : null}
           <span>GPU use</span>
-          <strong>Not active — the model runs on CPU &amp; RAM</strong>
+          <strong>{gpuUse}</strong>
         </div>
       ) : null}
 

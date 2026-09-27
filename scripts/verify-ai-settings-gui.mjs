@@ -1,28 +1,38 @@
 /**
- * verify:ai-settings-gui — real Electron walkthrough of Settings › Local AI (Phase L, L1.5).
+ * verify:ai-settings-gui — real Electron walkthrough of Settings › Local AI (Phase L, L1.5 and L8a.4).
  *
  * Launches the BUILT app on an isolated profile, signs in as the first-run Super User and drives the
  * panel through the real preload bridge, IPC authorization and the dedicated AI settings store.
  *
  * What it pins, and what makes it fail:
- *   • a fresh profile shows AI OFF, no model pack, no runtime, zero accepted packs and an empty audit
- *     log (the "app unchanged without a model" acceptance, as a user sees it);
- *   • each tier selector offers only tiers up to that feature's ceiling (a T1 feature never offers
- *     Auto-apply; a T0 feature offers only Observe);
- *   • turning AI on and lowering a tier persist to `ai/ai-settings.json` under the isolated data root,
- *     checked on DISK rather than by asking the app, and survive navigating away;
- *   • no renderer error is logged across the journey.
+ *   • a fresh profile shows AI OFF, no model pack, the runtime included at the manifest's pinned build,
+ *     the manifest's accepted-pack count and an empty audit log (both read from the SOURCE, so they
+ *     cannot go stale again the way the pre-pin "not included / 0 packs" expectations did);
+ *   • each tier selector offers only tiers up to that feature's ceiling;
+ *   • turning AI on and lowering a tier persist to `ai/ai-settings.json`, checked on DISK;
+ *   • L8a.4, production path (no test seam): the three execution modes as a labelled, described radio
+ *     group driven by the KEYBOARD; the choice on disk; the GPU check from the real readiness answer;
+ *     the VRAM reserve disabled in CPU mode, an out-of-range value REFUSED (not clamped) with an
+ *     accessible error, a valid one saved, the default restored; both themes use the Hologram tokens;
+ *   • L8a.4 after a RESTART, with the deterministic test provider and its GPU fixture (a non-packaged
+ *     seam that qualifies no hardware): the mode and reserve survived; GPU-Only refusal and
+ *     GPU-Offload fallback are told apart for a missing pack, no NVIDIA adapter, a mixed or unreadable
+ *     adapter set and low VRAM; fixture GPU-Offload and GPU-Only placements render with their layer
+ *     counts and are labelled unqualified; a mode change unloads the idle model; a slow load shows its
+ *     real stage; a settings file from before L8a loads as CPU and keeps its other fields;
+ *   • no renderer error is logged across either launch.
  *
  * Needs `npm run build` first (it launches `out/`). Run: npm run verify:ai-settings-gui
  */
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { _electron as electron } from "playwright";
 
-import { isolatedLaunchEnv, resolveMainWindow, signInFirstRun } from "./lib/gui-verify-harness.mjs";
-import { makeChecker, navClick, watchConsole } from "./lib/e2e-qa-lib.mjs";
+import { DEFAULT_CREDS, isolatedLaunchEnv, resolveMainWindow, signInFirstRun } from "./lib/gui-verify-harness.mjs";
+import { loginAs, makeChecker, navClick, watchConsole } from "./lib/e2e-qa-lib.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const { check, note, summarize, shotDir } = makeChecker("ai-settings-gui");
@@ -30,16 +40,60 @@ const { env, electronArgs, dataRoot, cleanup } = isolatedLaunchEnv("awkit-ai-set
 const settingsFile = path.join(dataRoot, "SpecterStudio", "ai", "ai-settings.json");
 const readSettingsFile = () => (existsSync(settingsFile) ? JSON.parse(readFileSync(settingsFile, "utf8")) : null);
 
+// The runtime pin and the accepted packs, from the manifest source itself.
+const manifestSource = readFileSync(path.join(root, "src", "offline", "AiModelManifest.ts"), "utf8");
+const pinnedBuild = manifestSource.match(/AI_RUNTIME_PIN[\s\S]*?build:\s*"([^"]+)"/)?.[1] ?? null;
+const acceptedPacks = (manifestSource.match(/export const AI_MODEL_MANIFEST[\s\S]*?\n\]\);/)?.[0].match(/sha256:\s*"[0-9a-f]{64}"/g) ?? []).length;
+
+// Launch 2's test provider and GPU fixture. The fixture file starts ABSENT: the production readiness answers.
+const work = mkdtempSync(path.join(tmpdir(), "awkit-ai-settings-gui-fixture-"));
+const providerFile = path.join(work, "provider.json");
+const gpuFile = path.join(work, "gpu.json");
+writeFileSync(providerFile, JSON.stringify({ text: "{}" }));
+const GIB = 1024 ** 3;
+const MIB = 1024 ** 2;
+const plan = (fitLayers) => ({ deviceCount: 1, totalLayers: 24, fitLayers, fullRequiredBytes: 3 * GIB, reserveBytes: 256 * MIB, freeBytes: 2 * GIB, totalBytes: 8 * GIB });
+const fixture = (value) => writeFileSync(gpuFile, JSON.stringify(value));
+
+// A flow whose validator finds an issue, so asking for an explanation submits a real AI job.
+const probeFlow = {
+  id: "l8a4-gpu-probe",
+  name: "GPU probe",
+  version: 1,
+  createdAt: "2026-09-27T00:00:00.000Z",
+  updatedAt: "2026-09-27T00:00:00.000Z",
+  nodes: [
+    { id: "start", type: "start", name: "Start", position: { x: 0, y: 0 } },
+    { id: "click", type: "click", name: "Click without a locator", position: { x: 0, y: 120 } },
+    { id: "end", type: "end", name: "End", position: { x: 0, y: 240 } }
+  ],
+  edges: [
+    { id: "e0", source: "start", target: "click", type: "success" },
+    { id: "e1", source: "click", target: "end", type: "success" }
+  ]
+};
+
 let app;
 let win;
 let console_;
+let asked = 0;
 
 const panelOf = (page) => page.locator(".settings-card").filter({ has: page.getByRole("heading", { name: "Local AI", exact: true }) });
 
 async function openSettings() {
-  await navClick(win, "Settings");
   const panel = panelOf(win);
-  await panel.waitFor({ state: "visible", timeout: 15000 });
+  // Right after sign-in the app restores its saved route when its settings read resolves, which can land
+  // after a click and put the Dashboard back. Navigate again (bounded) rather than wait on a lost click.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await navClick(win, "Settings");
+    if (await panel.waitFor({ state: "visible", timeout: 5000 }).then(() => true, () => false)) return panel;
+  }
+  await panel.waitFor({ state: "visible", timeout: 5000 }).catch(async (error) => {
+    // Evidence for the failure: what the window showed instead of the panel.
+    await win.screenshot({ path: path.join(shotDir, "settings-open-timeout.png") }).catch(() => undefined);
+    note(`window text: ${(await win.locator("body").innerText().catch(() => "")).slice(0, 400)}`);
+    throw error;
+  });
   return panel;
 }
 
@@ -57,11 +111,77 @@ async function sees(locator, label, timeout = 10000) {
   return ok;
 }
 
-try {
-  app = await electron.launch({ args: [root, ...electronArgs], cwd: root, env });
+const radio = (panel, name) => panel.getByRole("radio", { name, exact: true });
+const reserveInput = (panel) => panel.getByRole("spinbutton", { name: "GPU memory reserve (MB)" });
+const describedBy = (locator) =>
+  locator.evaluate((el) =>
+    (el.getAttribute("aria-describedby") ?? "")
+      .split(/\s+/)
+      .map((id) => document.getElementById(id)?.textContent ?? "")
+      .join(" ")
+  );
+
+/** The "Runs on" value in the status list. */
+const runsOnOf = (text) => text.match(/Runs on\s*\n?([^\n]+)/)?.[1]?.trim() ?? "";
+const runsOn = async (panel) => runsOnOf(await panel.innerText());
+
+/**
+ * Refresh, THEN read, until the panel matches. Reading first would let the previous state satisfy a
+ * pattern two scenarios share (it did: an unreadable adapter list "passed" on the mixed set's text).
+ */
+async function panelMatches(panel, predicate, timeout) {
+  const deadline = Date.now() + timeout;
+  let text = "";
+  do {
+    await panel.getByRole("button", { name: "Refresh" }).click();
+    await win.waitForTimeout(300);
+    text = await panel.innerText();
+  } while (!predicate(text) && Date.now() < deadline);
+  return text;
+}
+
+async function runsOnMatches(panel, pattern, label, timeout = 10000) {
+  const text = runsOnOf(await panelMatches(panel, (all) => pattern.test(runsOnOf(all)), timeout));
+  check(label, pattern.test(text), text);
+  return text;
+}
+
+/** Submit one real AI job through the renderer bridge (the Flow Designer's explain call). */
+async function askAi() {
+  asked += 1;
+  const answer = await win.evaluate(
+    ({ requestId, profile }) => window.playwrightFlowStudio.ai.explainValidation({ requestId, profile }),
+    { requestId: `l8a4-ask-${asked}`, profile: probeFlow }
+  );
+  return answer.code;
+}
+
+/** The radio shows the SAVED mode, so it changes once the save lands (after any re-auth), not on click. */
+async function chooseMode(panel, name, notice) {
+  await radio(panel, name).click();
+  await sees(panel.getByText(notice), `choosing ${name} is confirmed`);
+  const saved = await win
+    .waitForFunction((label) => [...document.querySelectorAll("input[name='ai-execution-mode']")].some((r) => r.checked && r.labels?.[0]?.textContent === label), name, { timeout: 5000 })
+    .then(() => true, () => false);
+  check(`...and ${name} shows as the selected mode`, saved);
+}
+
+async function launch(extraEnv) {
+  app = await electron.launch({ args: [root, ...electronArgs], cwd: root, env: { ...env, ...extraEnv } });
   win = await resolveMainWindow(app);
   console_ = watchConsole(win);
   await win.waitForLoadState("domcontentloaded");
+}
+
+function noRendererErrors(label) {
+  const relevantErrors = console_.errors.filter((e) => !/Autofill|DevTools/i.test(e.text));
+  check(label, relevantErrors.length === 0, console_.summary());
+}
+
+try {
+  check("(precondition) the manifest source names a pinned build and at least one accepted pack", pinnedBuild !== null && acceptedPacks >= 1, `${pinnedBuild} / ${acceptedPacks}`);
+
+  await launch({});
   console_.setLabel("first-run super user");
   await signInFirstRun(win);
 
@@ -73,8 +193,16 @@ try {
   const fresh = await panel.innerText();
   check("AI reads as turned off on a fresh profile", /Turned off/.test(fresh), fresh.slice(0, 300));
   check("no model pack is imported", /Not imported/.test(fresh));
-  check("the runtime is reported as not included in this build", /Not included in this build/.test(fresh));
-  check("zero model packs are accepted by this build", /Accepted model packs\s*0/.test(fresh), fresh.match(/Accepted model packs\s*\S*/)?.[0]);
+  check(
+    "the runtime is reported as included, at the manifest's pinned build",
+    fresh.includes(`Included (llama.cpp ${pinnedBuild})`),
+    fresh.match(/Runtime\s*\n?[^\n]*/)?.[0]
+  );
+  check(
+    "the accepted model packs are the manifest's",
+    new RegExp(`Accepted model packs\\s*${acceptedPacks}\\b`).test(fresh),
+    `${fresh.match(/Accepted model packs\s*\S*/)?.[0]} (manifest: ${acceptedPacks})`
+  );
   check("the audit log is empty and says so", /No AI change has been applied yet/.test(fresh));
   check("no settings file exists before any change", readSettingsFile() === null);
 
@@ -101,10 +229,9 @@ try {
   console_.setLabel("enable");
   await enable.click();
   await sees(panel.getByText("Local AI turned on."), "turning AI on is confirmed");
-  // With AI on, status names the FIRST blocker. This build ships no runtime, which outranks the
-  // missing pack (importing a pack would not help); the Model pack row still reports "Not imported".
-  const runtimeMissing = "The AI runtime is not included in this build";
-  await sees(panel.getByText(runtimeMissing, { exact: true }), "once on, status names the first blocker: no runtime in this build");
+  // With AI on, status names the FIRST blocker. The runtime ships pinned, so it is the missing pack.
+  const modelMissing = "No model pack imported";
+  await sees(panel.getByText(modelMissing, { exact: true }), "once on, status names the first blocker: no model pack imported");
   check("the pack row still reports the missing pack", /Model pack\s*Not imported/.test(await panel.innerText()));
   check("the switch is written to ai-settings.json", readSettingsFile()?.enabled === true, JSON.stringify(readSettingsFile()));
 
@@ -118,7 +245,7 @@ try {
   // Navigating away and back re-reads from main, so this is persistence, not React state.
   await navClick(win, "Dashboard");
   panel = await openSettings();
-  await sees(panel.getByText(runtimeMissing, { exact: true }), "the re-opened panel re-reads its status from main");
+  await sees(panel.getByText(modelMissing, { exact: true }), "the re-opened panel re-reads its status from main");
   check("the switch survives navigating away", await panel.getByRole("checkbox", { name: "Enable local AI" }).isChecked());
   check(
     "the lowered tier survives navigating away",
@@ -133,12 +260,243 @@ try {
   await sees(panel.getByText("Turned off", { exact: true }), "the panel returns to turned off");
   check("and is written to disk", readSettingsFile()?.enabled === false);
 
-  const relevantErrors = console_.errors.filter((e) => !/Autofill|DevTools/i.test(e.text));
-  check("no renderer errors across the Local AI journey", relevantErrors.length === 0, console_.summary());
+  // ── L8a.4: execution mode, production path ──────────────────────────────────────────────────
+  console_.setLabel("execution mode");
+  const modes = panel.getByRole("group", { name: "Execution mode" });
+  await sees(modes, "the execution modes are one labelled group");
+  const cpu = radio(panel, "CPU & RAM only");
+  const offload = radio(panel, "GPU-Offload");
+  const only = radio(panel, "GPU-Only");
+  check("exactly three modes, named for a non-specialist", (await modes.getByRole("radio").count()) === 3 && (await cpu.count()) === 1 && (await offload.count()) === 1 && (await only.count()) === 1);
+  check("CPU & RAM only is selected on a fresh profile", (await cpu.isChecked()) && !(await offload.isChecked()) && !(await only.isChecked()));
+  const cpuHelp = await describedBy(cpu);
+  const offloadHelp = await describedBy(offload);
+  const onlyHelp = await describedBy(only);
+  check("CPU mode says the GPU runtime is never started and it is the default", /GPU runtime is never started/.test(cpuHelp) && /default/.test(cpuHelp), cpuHelp);
+  check("GPU-Offload says partial offload and a CPU fallback with a reason", /as many model layers on it as safely fit/.test(offloadHelp) && /runs on CPU & RAM and the reason is shown/.test(offloadHelp), offloadHelp);
+  check("GPU-Only says every layer or unavailable, never a silent CPU switch", /Every model layer must fit/.test(onlyHelp) && /never switches to CPU & RAM on its own/.test(onlyHelp), onlyHelp);
+  check("the group tells when a change applies", /next time the model loads/.test(await describedBy(modes)));
+  const reserve = reserveInput(panel);
+  check("the VRAM reserve is disabled in CPU mode (it would have no effect)", (await reserve.count()) === 1 && (await reserve.isDisabled()));
+  check("the reserve hint states its unit and the contract's bounds", /128–32768 MB/.test(await describedBy(reserve)) && /Windows/.test(await describedBy(reserve)), await describedBy(reserve));
+  check("Status names where the model runs before any load", /^Not loaded; CPU & RAM only is used the next time the model loads$/.test(await runsOn(panel)), await runsOn(panel));
+
+  console_.setLabel("keyboard");
+  await cpu.focus();
+  await win.keyboard.press("ArrowDown");
+  await sees(panel.getByText("Execution mode set to GPU-Offload. It takes effect the next time the model loads."), "an arrow key selects GPU-Offload and it is confirmed");
+  check("GPU-Offload is written to disk", readSettingsFile()?.executionMode === "gpu-offload", JSON.stringify(readSettingsFile()));
+  const focus = await win.evaluate(() => ({ id: document.activeElement?.id ?? "", ring: getComputedStyle(document.activeElement ?? document.body).boxShadow }));
+  check("keyboard focus stays on the chosen mode after the save", focus.id === "ai-mode-gpu-offload", focus.id);
+  check("...with a visible focus ring", focus.ring !== "none" && focus.ring !== "", focus.ring);
+  const gpuCheck = panel.locator("#ai-execution-gpu-check");
+  await sees(gpuCheck, "a GPU check is shown once a GPU mode is chosen");
+  check(
+    "the GPU check is the production answer here: no backend pack, so GPU-Offload runs on CPU & RAM",
+    /No GPU backend pack is installed\. GPU-Offload will run the model on CPU & RAM/.test(await gpuCheck.innerText()),
+    await gpuCheck.innerText()
+  );
+  check("the reserve is enabled in a GPU mode", !(await reserve.isDisabled()));
+  check("Status says the new mode applies at the next load", /GPU-Offload is used the next time the model loads/.test(await runsOn(panel)), await runsOn(panel));
+
+  console_.setLabel("theme");
+  const themeOf = () =>
+    win.evaluate(() => {
+      const option = document.querySelector(".ai-mode-option.is-selected");
+      const probe = document.createElement("div");
+      probe.style.background = "var(--awkit-accent-soft)";
+      probe.style.color = "var(--awkit-text)";
+      document.body.appendChild(probe);
+      const token = getComputedStyle(probe);
+      const out = {
+        optionBg: option ? getComputedStyle(option).backgroundColor : "",
+        tokenBg: token.backgroundColor,
+        label: option ? getComputedStyle(option.querySelector("label")).color : "",
+        tokenText: token.color,
+        transition: option ? getComputedStyle(option).transitionDuration : ""
+      };
+      probe.remove();
+      return out;
+    });
+  // Through the app's own switch, which re-derives the accent tokens for the theme. Setting data-theme by
+  // hand would leave the light accent tokens inline (and did); the OS scheme is ignored once the
+  // appearance is saved as light or dark.
+  const themeIs = (theme) =>
+    win.waitForFunction((want) => document.documentElement.dataset.theme === want, theme, { timeout: 5000 }).then(() => true, () => false);
+  const darkSwitch = win.getByRole("switch", { name: "Dark appearance" });
+  const setTheme = async (theme) => {
+    if (((await darkSwitch.getAttribute("aria-checked")) === "true") !== (theme === "dark")) await darkSwitch.click();
+    return themeIs(theme);
+  };
+  const startedDark = (await darkSwitch.getAttribute("aria-checked")) === "true";
+  check("(precondition) the app applied the light theme", await setTheme("light"));
+  await win.waitForTimeout(200);
+  const light = await themeOf();
+  await win.screenshot({ path: path.join(shotDir, "03-execution-light.png") }).catch(() => undefined);
+  check("(precondition) the app applied the dark theme", await setTheme("dark"));
+  await win.waitForTimeout(200);
+  const dark = await themeOf();
+  await win.screenshot({ path: path.join(shotDir, "04-execution-dark.png") }).catch(() => undefined);
+  await setTheme(startedDark ? "dark" : "light");
+  check("light theme: the selected mode uses the Hologram tokens", light.optionBg === light.tokenBg && light.label === light.tokenText, JSON.stringify(light));
+  check("dark theme: the selected mode uses the Hologram tokens", dark.optionBg === dark.tokenBg && dark.label === dark.tokenText, JSON.stringify(dark));
+  check("...and the two themes really differ", light.optionBg !== dark.optionBg && light.label !== dark.label);
+  check("the mode options carry no motion (nothing for reduced motion to remove)", light.transition === "0s", light.transition);
+
+  console_.setLabel("reserve");
+  await reserve.fill("64");
+  await reserve.press("Enter");
+  const reserveAlert = panel.locator("#ai-vram-reserve-error");
+  await sees(reserveAlert, "an out-of-range reserve is refused with an error beside the field");
+  check("the error is main's own bounds sentence", /whole number of MB from 128 to 32768/.test(await reserveAlert.innerText()), await reserveAlert.innerText());
+  check("the error is announced and tied to the field", (await reserveAlert.getAttribute("role")) === "alert" && (await reserve.getAttribute("aria-invalid")) === "true" && /from 128 to 32768/.test(await describedBy(reserve)));
+  check("nothing was clamped: the file keeps the system default", readSettingsFile()?.vramReserveMb === null, JSON.stringify(readSettingsFile()));
+  check("the refused entry stays visible for correction", (await reserve.inputValue()) === "64");
+  check("keyboard focus stays in the field after Enter", (await win.evaluate(() => document.activeElement?.id)) === "ai-vram-reserve");
+  await reserve.fill("1024");
+  await reserve.press("Enter");
+  await sees(panel.getByText("GPU memory reserve set to 1024 MB. It takes effect the next time the model loads."), "a valid reserve is saved and confirmed");
+  check("1024 MB is written to disk", readSettingsFile()?.vramReserveMb === 1024, JSON.stringify(readSettingsFile()));
+  check("the error clears once the value is accepted", (await reserveAlert.count()) === 0 && (await reserve.getAttribute("aria-invalid")) === null);
+  await panel.getByRole("button", { name: "Use System Default" }).click();
+  await sees(panel.getByText("GPU memory reserve set to the system default. It takes effect the next time the model loads."), "restoring the system default is confirmed");
+  check("the default is written as null", readSettingsFile()?.vramReserveMb === null, JSON.stringify(readSettingsFile()));
+  check("the field shows the default as empty", (await reserve.inputValue()) === "" && (await reserve.getAttribute("placeholder")) === "System default");
+  await reserve.fill("1024");
+  await reserve.press("Enter");
+  await sees(panel.getByText("GPU memory reserve set to 1024 MB. It takes effect the next time the model loads."), "the reserve is set again before the restart");
+
+  await offload.focus();
+  await win.keyboard.press("ArrowDown");
+  await sees(panel.getByText("Execution mode set to GPU-Only. It takes effect the next time the model loads."), "an arrow key selects GPU-Only");
+  check("GPU-Only is written to disk", readSettingsFile()?.executionMode === "gpu-only");
+  check("the GPU check says GPU-Only will refuse", /GPU-Only will refuse to load the model/.test(await gpuCheck.innerText()), await gpuCheck.innerText());
+  check("the backend pack panel still says GPU use is not active", /GPU use\s*Not active yet — GPU-Only is selected/.test(await panel.innerText()));
+  await panel.scrollIntoViewIfNeeded().catch(() => undefined);
+  await win.screenshot({ path: path.join(shotDir, "05-execution-gpu-only.png") }).catch(() => undefined);
+  noRendererErrors("no renderer errors across the first launch");
+  await app.close();
+  app = null;
+
+  // ── L8a.4 after a restart, with the deterministic provider and its GPU fixture ──────────────
+  await launch({ AWKIT_TEST_AI_PROVIDER: providerFile, AWKIT_TEST_AI_GPU: gpuFile });
+  console_.setLabel("restart");
+  await loginAs(win, DEFAULT_CREDS.username, DEFAULT_CREDS.password);
+  await win.waitForSelector(".app-shell", { timeout: 25000 });
+  panel = await openSettings();
+  await sees(radio(panel, "GPU-Only"), "the panel is back after the restart");
+  check("GPU-Only survived the restart", await radio(panel, "GPU-Only").isChecked());
+  check("the 1024 MB reserve survived the restart", (await reserveInput(panel).inputValue()) === "1024");
+  await panel.getByRole("checkbox", { name: "Enable local AI" }).click();
+  await sees(panel.getByText("Local AI turned on."), "AI is turned on for the fixture launch");
+
+  console_.setLabel("refusal: no pack (production readiness)");
+  check("(fixture) a GPU-Only job is refused", (await askAi()) === "UNAVAILABLE");
+  await runsOnMatches(panel, /^Not running: GPU-Only refused\. No GPU backend pack is installed\.$/, "GPU-Only refusal names the missing pack (the real readiness answer)");
+  await sees(panel.getByText("Unavailable: GPU-Only refused to load the model", { exact: true }), "the AI status reads unavailable, not an error");
+  const refusalAlert = panel.getByRole("alert").filter({ hasText: "GPU-Only refused to load the model" });
+  await sees(refusalAlert, "the refusal is announced where the mode is chosen");
+  await panel.getByRole("button", { name: "Switch to GPU-Offload" }).click();
+  await sees(panel.getByText("Execution mode set to GPU-Offload. It takes effect the next time the model loads."), "the one-click switch to GPU-Offload is confirmed");
+  check("...and written to disk", readSettingsFile()?.executionMode === "gpu-offload");
+  check("(fixture) a GPU-Offload job is answered", (await askAi()) !== "UNAVAILABLE");
+  await runsOnMatches(panel, /^CPU & RAM \(GPU-Offload fell back: No GPU backend pack is installed\.\)$/, "GPU-Offload falls back to CPU & RAM and says why");
+  check("fallback and refusal read differently", !/refused/.test(await runsOn(panel)));
+  await panel.scrollIntoViewIfNeeded().catch(() => undefined);
+  await win.screenshot({ path: path.join(shotDir, "06-offload-fallback.png") }).catch(() => undefined);
+
+  console_.setLabel("no NVIDIA adapter");
+  fixture({ pack: "installed", adapters: [0x1002, 0x1414] });
+  await chooseMode(panel, "GPU-Only", "Execution mode set to GPU-Only. It takes effect the next time the model loads.");
+  await askAi();
+  await runsOnMatches(panel, /^Not running: GPU-Only refused\. No NVIDIA display adapter was detected\.$/, "no NVIDIA adapter: GPU-Only refuses with that reason");
+  const noNvidia = await panel.innerText();
+  check("diagnostics list the adapters by PCI vendor ID only", /Display adapters \(PCI vendor\)\s*0x1002, 0x1414 \(software\)/.test(noNvidia), noNvidia.match(/Display adapters[^\n]*\n?[^\n]*/)?.[0]);
+  check("diagnostics give readiness from the same reason sentence", /GPU readiness now\s*Not ready: No NVIDIA display adapter was detected\./.test(noNvidia));
+
+  console_.setLabel("mixed adapters");
+  fixture({ pack: "installed", adapters: [0x10de, 0x1002] });
+  await askAi();
+  await runsOnMatches(panel, /^Not running: GPU-Only refused\. The GPU the runtime would use cannot be proven to be NVIDIA\.$/, "a mixed adapter set is unproven, never treated as NVIDIA");
+  check("the NVIDIA adapter is still shown by vendor ID", /0x10de \(NVIDIA\), 0x1002/.test(await panel.innerText()));
+
+  console_.setLabel("unreadable adapters");
+  fixture({ pack: "installed", adapters: null });
+  await askAi();
+  // The mixed set gave the same reason, so wait on what only this state shows.
+  const unreadable = await panelMatches(panel, (text) => /Display adapters \(PCI vendor\)\s*Could not be read/.test(text), 10000);
+  check("diagnostics say the adapter list could not be read", /Display adapters \(PCI vendor\)\s*Could not be read/.test(unreadable), unreadable.match(/Display adapters[^\n]*\n?[^\n]*/)?.[0]);
+  check("...and an unreadable list is unproven, never NVIDIA", /^Not running: GPU-Only refused\. The GPU the runtime would use cannot be proven to be NVIDIA\.$/.test(runsOnOf(unreadable)), runsOnOf(unreadable));
+
+  console_.setLabel("low VRAM");
+  fixture({ pack: "installed", adapters: [0x10de], plan: plan(10) });
+  await askAi();
+  await runsOnMatches(
+    panel,
+    /^Not running: GPU-Only refused\. There is not enough free GPU memory for the model\. Needs 3\.3 GB including the reserve; 2\.0 GB is free\.$/,
+    "low VRAM: GPU-Only refuses with the exact shortfall"
+  );
+  check("diagnostics show the runtime's VRAM figures from the plan", /GPU memory at the last plan\s*2\.0 GB free of 8\.0 GB; every layer needs 3\.0 GB plus a 256\.0 MB reserve/.test(await panel.innerText()));
+
+  console_.setLabel("fixture GPU-Offload");
+  await chooseMode(panel, "GPU-Offload", "Execution mode set to GPU-Offload. It takes effect the next time the model loads.");
+  await askAi();
+  await runsOnMatches(panel, /^GPU-Offload: 10 of 24 layers on the GPU, the rest on CPU & RAM$/, "(fixture) GPU-Offload places the layers that fit");
+  const offloaded = await panel.innerText();
+  check("diagnostics: Vulkan backend and 10 of 24 layers", /Backend\s*Vulkan, from the GPU backend pack/.test(offloaded) && /GPU layers\s*10 of 24/.test(offloaded));
+  check("the backend pack panel reports the placement", /GPU use\s*In use: GPU-Offload: 10 of 24 layers on the GPU/.test(offloaded));
+  check("a fixture success is labelled unqualified, never NVIDIA-qualified", /compatible but unqualified/.test(offloaded) && !/qualified NVIDIA|NVIDIA-qualified/i.test(offloaded));
+  await panel.scrollIntoViewIfNeeded().catch(() => undefined);
+  await win.screenshot({ path: path.join(shotDir, "07-fixture-offload.png") }).catch(() => undefined);
+
+  console_.setLabel("mode change unloads");
+  await chooseMode(panel, "CPU & RAM only", "Execution mode set to CPU & RAM only. It takes effect the next time the model loads.");
+  await runsOnMatches(panel, /^Not loaded; CPU & RAM only is used the next time the model loads$/, "a mode change unloads the idle model at once (no stale GPU load)");
+  check("the old placement is no longer reported", !/GPU use\s*In use/.test(await panel.innerText()));
+  await askAi();
+  await runsOnMatches(panel, /^CPU & RAM$/, "the next job runs on CPU & RAM");
+
+  console_.setLabel("fixture GPU-Only");
+  fixture({ pack: "installed", adapters: [0x10de], plan: plan(24), loadDelayMs: 3000 });
+  await chooseMode(panel, "GPU-Only", "Execution mode set to GPU-Only. It takes effect the next time the model loads.");
+  const pending = askAi();
+  await runsOnMatches(panel, /^Loading the model with layers on the GPU…$/, "a slow load shows its real stage", 5000);
+  await pending;
+  // No Refresh here: the panel re-reads by itself while a load is in progress.
+  const finished = await panel.getByText("GPU-Only: all 24 layers on the GPU", { exact: true }).first().waitFor({ timeout: 6000 }).then(() => true, () => false);
+  check("(fixture) GPU-Only places every layer, and the panel updated itself after the load", finished, await runsOn(panel));
+
+  console_.setLabel("offload low VRAM fallback");
+  fixture({ pack: "installed", adapters: [0x10de], plan: plan(0) });
+  await chooseMode(panel, "GPU-Offload", "Execution mode set to GPU-Offload. It takes effect the next time the model loads.");
+  await askAi();
+  await runsOnMatches(panel, /^CPU & RAM \(GPU-Offload fell back: There is not enough free GPU memory for the model\.\)$/, "GPU-Offload with nothing fitting falls back to CPU & RAM");
+
+  console_.setLabel("legacy settings file");
+  const legacy = { schemaVersion: 1, enabled: true, yieldDuringRuns: true, idleUnloadMinutes: 10, featureTiers: { locatorSemanticUpgrade: "T0" } };
+  writeFileSync(settingsFile, `${JSON.stringify(legacy, null, 2)}\n`);
+  await panel.getByRole("button", { name: "Refresh" }).click();
+  const legacyCpu = await radio(panel, "CPU & RAM only").waitFor({ state: "visible" }).then(async () => {
+    const deadline = Date.now() + 5000;
+    while (Date.now() < deadline && !(await radio(panel, "CPU & RAM only").isChecked())) await win.waitForTimeout(100);
+    return radio(panel, "CPU & RAM only").isChecked();
+  });
+  check("a settings file from before L8a reads as CPU & RAM only", legacyCpu);
+  check("...with the system-default reserve, disabled in CPU mode", (await reserveInput(panel).inputValue()) === "" && (await reserveInput(panel).isDisabled()));
+  await chooseMode(panel, "GPU-Offload", "Execution mode set to GPU-Offload. It takes effect the next time the model loads.");
+  const upgraded = readSettingsFile();
+  check(
+    "the first change writes the new fields and keeps the old ones",
+    upgraded?.executionMode === "gpu-offload" && upgraded?.vramReserveMb === null && upgraded?.enabled === true && upgraded?.featureTiers?.locatorSemanticUpgrade === "T0",
+    JSON.stringify(upgraded)
+  );
+
+  noRendererErrors("no renderer errors across the restart and fixture states");
   note(`settings file: ${JSON.stringify(readSettingsFile())}`);
 } finally {
   await app?.close().catch(() => undefined);
   cleanup?.();
+  rmSync(work, { recursive: true, force: true });
 }
 
 const failed = summarize();

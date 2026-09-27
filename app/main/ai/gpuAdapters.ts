@@ -21,10 +21,13 @@ export async function displayAdapterVendorIds(): Promise<number[] | null> {
 }
 
 /** A GPU mode's readiness before any GPU host starts: the backend pack's cheap status, then E2. */
-export async function gpuReadiness(pack: { status(): Promise<AiBackendPackStatus> }): Promise<AiGpuReadiness> {
+export async function gpuReadiness(
+  pack: { status(): Promise<Pick<AiBackendPackStatus, "status">> },
+  vendorIds: () => Promise<number[] | null> = displayAdapterVendorIds
+): Promise<AiGpuReadiness> {
   const status = await pack.status().catch(() => null);
   if (!status || status.status === "unavailable") return { ok: false, reason: "BACKEND_UNAVAILABLE" };
   if (status.status === "not-installed") return { ok: false, reason: "BACKEND_PACK_MISSING" };
   if (status.status === "invalid") return { ok: false, reason: "BACKEND_PACK_INVALID" };
-  return classifyAdapters(await displayAdapterVendorIds());
+  return classifyAdapters(await vendorIds());
 }
