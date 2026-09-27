@@ -14,3 +14,20 @@
   across ≥N replays and ≥2 data rows, audited and revertible.
 - **S1 fixed**: L4b is explanation-first; AI ranks only validator-emitted `safeFix` kinds.
 - Coalescing signature uses path templates; L1 benchmark covers upgrade job, replay path and coalesced batch.
+
+## 2026-09-27 — Phase L extension (after the 10/10 closeout)
+
+- **Scope widened by the owner, nothing regressed:** L8a hardware-adaptive inference runtime
+  (`awkit-djnl.11`), L8b external compatible-model registration and qualification (`.12`), L9 adaptive
+  time budgets, progress and ETA (`.13`). Phase L reads 10 of 13 milestones closed (77%).
+- **Modes, not a planner:** CPU & RAM only (default), GPU-Offload and GPU-Only, chosen by an
+  administrator. The earlier drafts' Auto, GPU-preferred and manual-override modes were dropped.
+- **GPU components user-supplied:** no GPU binary in the installer; a Settings checklist validates each
+  component against a hash-pinned backend manifest, copies it into an app-managed folder and loads it
+  only from there. Vulkan first; CUDA later.
+- **Capability, not product names:** NVIDIA by PCI vendor ID and runtime-reported capability.
+- **Compatible vs Qualified:** any compatible GGUF may be registered (copied, never referenced);
+  quality qualification carries across hardware, latency class is measured locally.
+- **Evidence on the development machine** with the packaged build; no external-machine benchmark.
+- **Phase M/N independence:** epic-level edges decided for removal; the removal is pending the owner.
+- Decisions E1–E12 in `ROADMAP.md` › *Phase L extension (2026-09-27)*.

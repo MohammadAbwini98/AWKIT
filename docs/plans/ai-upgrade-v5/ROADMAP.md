@@ -1,6 +1,14 @@
 # SpecterStudio Phase L — Local AI & Intelligent Automation (V5)
 
-**2026-09-27 closeout:** Phase L is **10 of 10 technical milestones closed**. L4b (`awkit-djnl.6`)
+**2026-09-27 extension (latest): Phase L is IN PROGRESS again — 10 of 13 milestones closed (77%).**
+After the closeout below, the owner widened the accepted scope with three new open milestones:
+L8a hardware-adaptive inference runtime (`awkit-djnl.11`), L8b external compatible-model
+registration and qualification (`awkit-djnl.12`) and L9 adaptive time budgets, progress and ETA
+(`awkit-djnl.13`). The percentage fell because the scope grew, **not** because anything regressed:
+L0–L7 stay closed with their original evidence. Nothing in L8a/L8b/L9 is implemented. Decisions
+E1–E12 are in *Phase L extension (2026-09-27)* below and in `docs/ai/DECISIONS.md`.
+
+**2026-09-27 closeout (the original ten milestones):** Phase L is **10 of 10 technical milestones closed**. L4b (`awkit-djnl.6`)
 closed on frozen DX revision 4: L1.8 GO at 59,685 ms explanation cap, DX-0 through DX-5 MET,
 52/52 displayed correct and actionable, 0/17, 0/18 and 0/17 undisplayed. The model selects
 validator-owned, issue-specific action wording; no fallback is counted. L6 (`awkit-djnl.9`) closed
@@ -65,10 +73,11 @@ The implementing agent accepted them under the owner's closeout delegation; that
 
 The limited GO (2026-09-23) covers on-demand explanations, locator proposals and manual failure analysis
 only. Owner audit below; decisions ratified in `docs/ai/DECISIONS.md`.
-Roadmap Phase `L` (`complete`), Beads epic `awkit-djnl`.
+Roadmap Phase `L` (`in-progress` since the 2026-09-27 extension; `complete` for the original ten),
+Beads epic `awkit-djnl`.
 Supersedes the external V1–V4 drafts (`SpecterStudio_AI_Upgrade_*`).
 This file is the only copy of cross-cutting content (rules, architecture, autonomy policy, decisions).
-Milestone files `L0`–`L7` hold only milestone-specific tasks.
+Milestone files `L0`–`L9` hold only milestone-specific tasks.
 
 ## Objective
 
@@ -77,6 +86,10 @@ authority or a dependency:
 
 > **SpecterStudio captures, proves, and applies. AI proposes, ranks, explains, and correlates.
 > Automation is event-driven and policy-tiered; every automatic change is proven, audited, and revertible.**
+
+*Superseded in part on 2026-09-27 (E1–E4):* "one local, CPU-only model" now reads "one local model at a
+time, on CPU & RAM by default, optionally offloaded to a compatible NVIDIA GPU by an administrator's
+choice, from the curated packs or any compatible GGUF". The GPU is never required.
 
 ## Shared implementation rules (inherited by every milestone)
 
@@ -103,6 +116,12 @@ grammar/JSON-schema constrained decoding + runtime schema validation · one infe
 imported through Settings. A single source-controlled manifest (`src/ai/modelManifest.ts` or equivalent) pins model
 version, filename, size, SHA-256, runtime compatibility, license/notice reference, capability flags. Manifest changes
 ship with an app release; no online refresh in Phase L.
+
+*Superseded in part on 2026-09-27:* the envelope's "no GPU" becomes "no GPU **required**" (E4), and
+"only manifest-listed packs are accepted" becomes "curated packs are the qualified list; any compatible
+GGUF may be registered" (E1, E6, E7). The manifest keeps pinning the curated packs and gains a backend
+manifest for user-supplied GPU components (E3). The historical text above remains the record of what
+L0–L7 were accepted against.
 
 ## Architecture — five layers, one direction of authority
 
@@ -180,6 +199,9 @@ privacy policy and model-manifest owner, and wins wherever it refines the text b
 | L5 | Failure evidence (L5a) & intelligence (L5b) | L0 / L1+L5a | `L5-failure-evidence-and-analysis.md` | `.7` / `.8` |
 | L6 | Fragments & templates | L2, L4 | `L6-fragments-and-templates.md` | `awkit-djnl.9` |
 | L7 | Release confirmation | L1–L6 | `L7-release-confirmation.md` | `awkit-djnl.10` |
+| L8a | Hardware-adaptive inference runtime (2026-09-27 extension, open) | L1, L7 | `L8a-hardware-adaptive-inference-runtime.md` | `awkit-djnl.11` |
+| L8b | External compatible-model registration & qualification (extension, open) | L8a | `L8b-external-model-compatibility.md` | `awkit-djnl.12` |
+| L9 | Adaptive time budgets, progress & ETA (extension, open) | L8a, L8b (acceptance) | `L9-adaptive-time-progress-eta.md` | `awkit-djnl.13` |
 
 Beads is the source of truth for order and status (`bd ready` shows what can start); L0/L1 numbers are
 swapped because the first L1 was filed with an inverted `--deps` edge and the titles were exchanged.
@@ -187,8 +209,8 @@ swapped because the first L1 was filed with an inverted `--deps` edge and the ti
 ```
 L0 ─┬─ L1 ─────────┬─ L3 ──┐
     ├─ L2 ─────────┘       ├─ L6 ─┐
-    ├─ L4a ── L4b (needs L1)┘      ├─ L7
-    └─ L5a ── L5b (needs L1) ──────┘
+    ├─ L4a ── L4b (needs L1)┘      ├─ L7 ── L8a (needs L1) ─┬─ L8b ── L9
+    └─ L5a ── L5b (needs L1) ──────┘                        └─────────┘
 ```
 
 AI-dependent work (L3, L4b, L5b, AI parts of L6) may be **implemented** against the deterministic
@@ -232,6 +254,108 @@ as-is; *New* = no owner exists yet.
 - One inference at a time, yielding to Playwright; every queue, cap, and retry bounded.
 - No raw prompt/response persistence by default.
 
+## Phase L extension (2026-09-27) — L8a, L8b, L9
+
+Status: **OPEN — planned, zero implementation.** The owner widened Phase L's accepted scope after
+the 10/10 closeout. L0–L7 are not reopened, renumbered or re-evaluated; their evidence stands. The
+stability guarantees above apply unchanged to every new milestone.
+
+| ID | Milestone | Depends (Beads `blocks`) | Beads |
+|---|---|---|---|
+| L8a | Hardware-adaptive inference runtime | closed L1, closed L7 | `awkit-djnl.11` |
+| L8b | External compatible-model registration & qualification | L8a | `awkit-djnl.12` |
+| L9 | Adaptive time budgets, progress & ETA UX | L8a, L8b (acceptance; L9.1 may start in parallel) | `awkit-djnl.13` |
+
+Phase L now reads **10 of 13 milestones closed (77%)**. The program-wide roadmap counts phases, not
+milestones: with Phase L back to `in-progress` it reads 11 of 14 phases complete (79%).
+
+### Owner decisions (2026-09-27; ratified in `docs/ai/DECISIONS.md`)
+
+- **E1 — The model stays external and optional; registration copies.** No model in the installer or
+  portable. The user selects a compatible GGUF in Settings → Local AI; it is **copied** into the
+  app-managed model root after a disk-space preflight, hashed during the copy, with path
+  confinement and tamper/replacement protection unchanged. Never a referenced path or a hard link.
+  AI disabled, no model, load failure, unsupported GPU or host failure never affects a
+  deterministic feature.
+- **E2 — NVIDIA eligibility is capability-based, never product-based.** NVIDIA = PCI vendor ID
+  0x10DE as reported by the runtime. Enumerate every adapter on the running machine (hybrid
+  graphics included). Suitability comes from backend/driver compatibility, runtime-reported
+  capability, usable VRAM against model + context + buffers + reserve, and current workload. No
+  GPU-name table, no fixed VRAM minimum, and no claim that every NVIDIA GPU works. AMD/Intel
+  adapters are detected but not enabled.
+- **E3 — GPU components are user-supplied, pinned and copied; Vulkan first.** Nothing GPU ships
+  in the installer. Selecting a GPU mode opens a required-components checklist; the user points to
+  each component and the mode cannot activate until all validate. The llama.cpp GPU backend pack
+  is checked file-by-file against a release-owned backend manifest (exact SHA-256 for the pinned
+  `node-llama-cpp@3.21.1+llama.cpp@v0.4.0` build); NVIDIA CUDA DLLs, once CUDA is added, by name,
+  version range and NVIDIA Authenticode signature. Components are copied into an app-managed folder
+  and loaded only from there. Vulkan (driver-supplied `vulkan-1.dll`) is the first backend; CUDA is
+  a later manifest entry with its own evidence. The runtime pin becomes backend-aware.
+- **E4 — Three administrator-selected modes; no automatic planner.** CPU & RAM only (default,
+  today's behavior), GPU-Offload (largest safe partial offload, full if it fits, bounded retry then
+  CPU with a reason) and GPU-Only (every layer on the GPU or a refusal naming the shortfall; never a
+  silent CPU fallback). Auto, GPU-preferred and manual layer override are dropped. Offload sizing
+  uses the runtime's own VRAM measurement and fit, probed on 3.21.1, plus a bounded reserve. VRAM
+  exhaustion after load demotes or unloads with its own reason and never trips the restart
+  circuit as a crash. Adapter choice exists only if the runtime can pin a device.
+- **E5 — Offline runtime contract.** App-local, pinned components only; no download, driver
+  install, source build, CDN, cloud, admin right, global Node or global inference runtime. The
+  handshake reports runtime build, backend, adapters, selected adapter, VRAM where reliable,
+  requested/effective layers, fallback reason and threads, path-free. GGUF parsing and backend
+  probing happen only in the utility host. Crash boundary, bounded queue, one inference at a time,
+  cancel/kill-restart, idle unload, Playwright yielding and zero synchronous-path model calls are
+  unchanged; `WorkloadWeights` and the yield policy are unchanged in Phase L. The ≤3 s cancel
+  ceiling is re-measured on GPU.
+- **E6 — Compatible is not Qualified.** Compatibility is a static header stage plus a bounded
+  dynamic probe (load, one constrained generation, thinking verifiably off), both in the host.
+  **Quality qualification** is keyed by model hash + runtime build + backend + offload class +
+  context + KV/attention settings + feature + budget and carries across hardware; the **latency
+  class** adds a hardware class and is measured locally or not claimed. One configuration never
+  qualifies another. Labels: Compatible, Qualified, Compatible but unqualified, Incompatible.
+  Existing 0.8B/2B/4B CPU evidence stays with its historical key. `AiActionRecord` records the
+  effective profile. The licensing fingerprint is never used.
+- **E7 — Trust boundary.** Accepting arbitrary GGUF files supersedes the 2026-09-19 manifest-only
+  rule; threat model recorded (GGUF-parser advisories, host runs with user privileges). Keep
+  `AI_MANAGE` + re-auth, add no permission, require an "unverified model" acknowledgement. Every
+  `src/offline/**`, security and packaging slice is Risk-3 and lease-gated.
+- **E8 — Feature time budgets.** Bounded per-feature budgets; ceilings, request timeouts, cancel
+  grace and ETA ranges kept separate; admin values only within committed bounds and refused
+  outside them; the historical 120/125 s values stay as closed-profile evidence; a raised timeout
+  never converts an old failure into a pass.
+- **E9 — Honest progress and ETA.** One job-status contract (state, queue position, stage,
+  elapsed, ETA range with confidence and cold/warm, effective profile, cancel, terminal reason).
+  Determinate only with a known denominator; generation indeterminate; never a percentage from
+  elapsed time. ETA history is bounded non-sensitive aggregates under `%LOCALAPPDATA%`. Accessible
+  progress (`aria-valuenow` only when determinate, throttled announcements, focus contract).
+- **E10 — Phases M and N stay independent.** The epic-level edges `awkit-akb → awkit-djnl` and
+  `awkit-vra → awkit-djnl` are to be removed; M1 and N1 keep their edge on closed L7.
+  **Pending owner action (2026-09-27):** the agent lease guard's Beads grammar has no dependency
+  removal, so the two `bd dep remove` commands were handed to the owner, who deferred them. Until
+  they run, reopening Phase L makes `bd ready` report Phase M and N (including M1 and N1) as
+  blocked; the Program Status dashboard, which treats epics as containers, still shows M1 and N1
+  as ready.
+- **E11 — Evidence scope: the development machine.** Phase L was accepted on the development
+  machine, so L8a/L8b/L9 evidence is taken there too, on the **packaged build**. No external
+  machine, clean-VM GPU run or second adapter is required. The loader-isolation proof (nothing
+  resolved from PATH, a system CUDA Toolkit or the dev tree) is mandatory precisely because the
+  development machine carries the most global tooling. Claims stay truthful: GPU modes are
+  verified on the development machine's adapter; every other adapter is Compatible but
+  unqualified until run.
+- **E12 — Supersessions, appended not rewritten.** The Objective's "one local, CPU-only model",
+  the Model baseline's "no GPU" and manifest-only admission, and `DECISIONS.md` 2026-09-19
+  "no user override" are superseded as noted in place; the historical text stays.
+
+### Future touchpoints (not edited by this registration)
+
+AI settings/store/API (`src/ai/AiSettings.ts`, `AiService.ts`, `contracts/AiApi.ts`), renderer
+`app/renderer/pages/LocalAiSettings.tsx`, `src/ai/contracts/AiHostProtocol.ts`,
+`app/main/ai/AiUtilityHostManager.ts`, `app/main/ai/aiRuntime.ts`, `native-hosts/ai/ai-host.cjs`,
+`src/offline/AiModelManifest.ts`, `src/ai/AiModelPack.ts`, `src/ai/AiAdmission.ts`,
+`src/ai/AiActionRecord.ts`, `app/main/ipc/ai.ipc.ts`, `app/main/preload.ts`, the feature UIs,
+`scripts/prepare-ai-native-host.mjs`, `scripts/validate-offline-bundle.ps1` and
+`scripts/lib/verifier-classification.ts`. Planned verifiers are named in each milestone file and
+registered only when they exist.
+
 ## Phase M — Optional Application Knowledge Base (AKB)
 
 Status: **PLANNED — zero implementation progress**. Roadmap Phase `M` (`pending`), Beads epic
@@ -265,7 +389,9 @@ services, UI components, model integrations or runtime behavior.
 
 The Beads `blocks` edges are the source of truth for this order. The Phase M epic is also blocked by
 the Phase L epic, while M1 is explicitly blocked by L7 so implementation cannot be inferred ready
-before Phase L release confirmation.
+before Phase L release confirmation. *2026-09-27:* the epic-level edge is decided for removal (E10),
+so the Phase L extension does not hold Phase M back; M1's edge on closed L7 stays. The removal is
+pending the owner's `bd dep remove awkit-akb awkit-djnl`.
 
 #### M1 — Optional source registration and deterministic indexing
 
@@ -353,7 +479,9 @@ schemas, services, UI components, models or runtime behavior.
 | N8 | Integration and acceptance verification | N4, N5, N6, N7 | `awkit-vra.8` |
 
 The Beads `blocks` edges are the source of truth for this order. The Phase N epic is blocked by the
-Phase L epic and N1 is explicitly blocked by L7, establishing the safe integration foundation. No
+Phase L epic and N1 is explicitly blocked by L7, establishing the safe integration foundation.
+*2026-09-27:* the epic-level edge is decided for removal (E10); N1's edge on closed L7 stays. The
+removal is pending the owner's `bd dep remove awkit-vra awkit-djnl`. No
 Phase N item depends on Phase M, so the two phases remain independently implementable.
 
 #### N1 — Visual Capture Infrastructure

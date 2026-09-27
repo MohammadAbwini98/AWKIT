@@ -1,0 +1,142 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-phase-l-extension-0927",
+    "title": "Extend closed Phase L with L8a, L8b and L9 (hardware-adaptive local AI, external models, time budgets and progress)",
+    "objective": "Planning and registration only. Reopen the Phase L epic awkit-djnl for the owner's post-closeout scope expansion of 2026-09-27 and file three open milestone children: L8a Hardware-Adaptive Inference Runtime (three user-selected modes CPU & RAM only, GPU-Offload and GPU-Only; user-supplied, hash-pinned, copied Vulkan-first GPU components), L8b External Compatible-Model Registration & Qualification, and L9 Adaptive Time Budgets, Progress & ETA UX. Blocks edges: L8a after closed L1 (awkit-djnl.1) and closed L7 (awkit-djnl.10); L8b after L8a; L9 after L8a and L8b. Remove the epic-level edges awkit-akb -> awkit-djnl and awkit-vra -> awkit-djnl so Phases M and N stay independent (M1 and N1 keep their edge on closed L7). Refresh .beads/issues.jsonl with bd export -o. L0-L7 stay closed with their evidence. The plan documents, docs/ai narrative, src/roadmap/ImplementationRoadmap.ts and the verifier pins are ordinary unleased direct-loop edits made after this lease is released. No runtime, GPU, model-registration, Settings, timeout, progress or ETA behavior is implemented.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 0
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "3a5926ae",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "docs/ai/contracts/awkit-phase-l-extension-0927.json",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/ARCHITECTURE.md",
+      "docs/plans/ai-upgrade-v5/ROADMAP.md",
+      "docs/plans/ai-upgrade-v5/CHANGELOG.md",
+      "docs/plans/ai-upgrade-v5/L8a-hardware-adaptive-inference-runtime.md",
+      "docs/plans/ai-upgrade-v5/L8b-external-model-compatibility.md",
+      "docs/plans/ai-upgrade-v5/L9-adaptive-time-progress-eta.md"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "PHL-EXT-BEADS",
+      "description": "The Phase L epic is open with exactly thirteen children: the ten original milestones still closed and three new open milestones L8a, L8b and L9, with blocks edges L8a after awkit-djnl.1 and awkit-djnl.10, L8b after L8a, L9 after L8a and L8b. The epic-level edges from awkit-akb and awkit-vra to awkit-djnl are gone, so M1 and N1 readiness is unchanged.",
+      "evidence_required": [
+        "beads-structure",
+        "beads-ready-set"
+      ]
+    },
+    {
+      "id": "PHL-EXT-EXPORT",
+      "description": ".beads/issues.jsonl is refreshed with bd export -o .beads/issues.jsonl, and verify:roadmap-dashboard passes with Sources agree after its pins move to measured values.",
+      "evidence_required": [
+        "beads-export",
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "beads-structure",
+      "type": "inspection",
+      "required": true,
+      "command": "bd show awkit-djnl and the output of each bd create and bd dep add",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "bd update awkit-djnl --status open reopened the epic with a scope-expansion note. bd create --parent awkit-djnl returned awkit-djnl.11 (L8a), awkit-djnl.12 (L8b) and awkit-djnl.13 (L9). Each of the five bd dep add calls printed 'X depends on Y (blocks)': .11 on .1, .11 on .10, .12 on .11, .13 on .11, .13 on .12. The original ten children stay closed."
+    },
+    {
+      "id": "beads-ready-set",
+      "type": "inspection",
+      "required": true,
+      "command": "bd ready and bd blocked",
+      "artifact": null,
+      "result": "BLOCKED",
+      "observed": "bd ready: 3 issues (the epic, L8a awkit-djnl.11, awkit-egkw). bd blocked: 19, including L8b and L9 on L8a as intended, but also the Phase M and N epics and every M and N child, because the reopened epic re-blocks awkit-akb and awkit-vra and bd propagates that through parent-child. Before the change bd ready listed 5 (both epics, M1, N1, awkit-egkw). The owner-decided removal of awkit-akb -> awkit-djnl and awkit-vra -> awkit-djnl is BLOCKED: the lease guard's project-state Beads grammar admits bd dep add but no bd dep remove. The two commands were handed to the owner, who chose to defer them."
+    },
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "Printed 'Exported 325 issues to .beads/issues.jsonl'. bd stats: Total 325, Open 22, In Progress 0, dependency-Blocked 19, Closed 301, Ready 3."
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "A measuring run before the pins moved failed exactly the three tracker pins (got 325 issues, 24 outstanding / 301 closed, 189 edges), 174/177. After the pins moved to those measured values, the final-state run printed 177/177 including '14 phases', 'no cycles in the real data', both narrative tallies agreeing at 65/2/0 and 'the Overview banner reads \"Sources agree\"'. npm run build PASS on the final state; git diff --check clean (line-ending notices only)."
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "blocked",
+    "blocked_on": "PHL-EXT-BEADS's second half: removing the epic-level edges awkit-akb -> awkit-djnl and awkit-vra -> awkit-djnl needs bd dep remove, which the lease guard's Beads grammar does not admit. The owner deferred running 'bd dep remove awkit-akb awkit-djnl' and 'bd dep remove awkit-vra awkit-djnl' themselves. After they run: bd export -o .beads/issues.jsonl and move the edge pin in scripts/verify-roadmap-dashboard.mjs by the measured change (expected 189 -> 187). Everything else in this contract is met.",
+    "qa_status": "PASS",
+    "qa_basis": "Tracker structure, ready set and export inspected with bd show, bd ready, bd blocked and bd stats; final state passed npm run build and verify:roadmap-dashboard 177/177 with Sources agree.",
+    "qa_known_limitations": "As in the 2026-09-19 registration, src/roadmap/ImplementationRoadmap.ts, scripts/verify-roadmap-dashboard.mjs and the docs/ai and docs/plans updates are ordinary unleased direct-loop edits made after the lease was released, so they sit outside this contract's project-state routing by design. The Program Status dashboard GUI was not opened; the verifier served the new snapshot. Until the owner removes the two epic edges, bd reports Phases M and N blocked while the dashboard (which treats epics as containers) shows M1 and N1 ready.",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-phase-l-extension-0927:project-state:2026-09-27T08:56:05.659Z",
+        "task": "awkit-phase-l-extension-0927",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-27T08:56:05.659Z",
+        "acquired_at_commit": "3a5926ae55391f904182816b66aac3405a61ca6a",
+        "released_at": "2026-09-27T09:39:28.918Z",
+        "released_reason": "L8a awkit-djnl.11, L8b awkit-djnl.12 and L9 awkit-djnl.13 filed under the reopened Phase L epic with five blocks edges, export refreshed to 325 issues. The M and N epic-edge removal is pending the owner because the guard grammar has no bd dep remove.",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

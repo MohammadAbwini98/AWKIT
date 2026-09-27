@@ -134,7 +134,8 @@ try {
   // 320 since 2026-09-22: Phase N epic `awkit-vra` and its eight planned workstreams were filed.
   // 321 since 2026-09-24: the Phase L closeout filed `awkit-i6ot` (the packaged AI runtime's MSVC dependency).
   // 322 since 2026-09-25: the owner deferred L6's unbuilt intelligence to `awkit-egkw`.
-  check("322 issues parse", beads.stats.total === 322, `got ${beads.stats.total}`);
+  // 325 since 2026-09-27: the Phase L extension filed L8a/L8b/L9 (`awkit-djnl.11`…`.13`).
+  check("325 issues parse", beads.stats.total === 325, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -612,8 +613,12 @@ try {
   // Then 20/302 of 322 on 2026-09-27: the refreshed export includes L6 `.9`'s earlier close,
   // and closes the clean-machine defect `awkit-i6ot`, L7 `.10`, and the Phase L epic.
   // No dependency edge changed. Keep this exact pin aligned with the export.
-    "20 outstanding / 302 closed",
-    beads.stats.outstanding === 20 && beads.stats.closed === 302,
+  // Then 24/301 of 325 later on 2026-09-27, the Phase L extension (contract
+  // `awkit-phase-l-extension-0927`): the owner widened Phase L after closeout, so the epic
+  // `awkit-djnl` was reopened (one out of closed) and L8a `.11`, L8b `.12` and L9 `.13` were filed
+  // OPEN (three in). Measured after `bd export -o .beads/issues.jsonl`, not derived.
+    "24 outstanding / 301 closed",
+    beads.stats.outstanding === 24 && beads.stats.closed === 301,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -689,9 +694,13 @@ try {
   // N6 after N3/N4/N5, N7 after N3/N5/N6, and N8 after N4/N5/N6/N7. Phase M is not an edge.
   // Then 181 on 2026-09-24: `awkit-i6ot` was filed with one `blocks` edge on `awkit-djnl.10` (L7).
   // Closing L1, L3 and L5b removed no edge.
+  // Then 189 on 2026-09-27: the Phase L extension added three parent-child links (L8a, L8b, L9 under
+  // `awkit-djnl`) and five blocks edges (L8a after L1 and L7, L8b after L8a, L9 after L8a and L8b).
+  // The decided removal of `awkit-akb → awkit-djnl` and `awkit-vra → awkit-djnl` is pending the
+  // owner (the guard grammar has no `bd dep remove`); when it runs this pin moves 189 → 187.
   check(
-    "181 edges are present to classify",
-    beads.stats.edges === 181,
+    "189 edges are present to classify",
+    beads.stats.edges === 189,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(

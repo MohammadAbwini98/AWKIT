@@ -1,5 +1,48 @@
 # DECISIONS
 
+### 2026-09-27 (latest) — Phase L extension: L8a hardware-adaptive runtime, L8b external models, L9 time budgets and progress (owner, in session) (`awkit-djnl.11`, `.12`, `.13`)
+
+- **How it was decided.** The owner supplied an executive prompt, then answered each open question
+  in the session in their own words: Vulkan-first; remove the Phase M/N epic-level edges; split L8
+  into L8a/L8b; copy models into the app-managed root with a disk-space preflight; three
+  user-selected modes (GPU-Only, GPU-Offload, CPU & RAM only) where a GPU mode requires the user to
+  point to the required packages or files; and no external-machine benchmark, because Phase L was
+  accepted on the development machine.
+- **Scope, not regression.** Phase L is reopened for three new open milestones. L0–L7 stay closed
+  with their evidence; Phase L reads 10 of 13 closed (77%) and the roadmap phase status returns to
+  `in-progress`.
+- **Recorded decisions E1–E12** (full text: `docs/plans/ai-upgrade-v5/ROADMAP.md` › *Phase L
+  extension (2026-09-27)*):
+  - E1 the model stays external and optional, and registration copies (never references or hard-links);
+  - E2 NVIDIA eligibility by PCI vendor ID 0x10DE and runtime-reported capability, never by product
+    name, with no fixed VRAM minimum;
+  - E3 GPU components are user-supplied, hash-pinned by a release-owned backend manifest, copied into
+    an app-managed folder and loaded only from there; Vulkan first, CUDA later;
+  - E4 three administrator-selected modes (CPU & RAM only default, GPU-Offload, GPU-Only), no
+    automatic planner; GPU-Only refuses rather than silently falling back to CPU;
+  - E5 the offline runtime contract and utility-host boundary are unchanged; the ≤3 s cancel
+    ceiling is re-measured on GPU;
+  - E6 Compatible is not Qualified: a hardware-portable quality key and a locally measured latency class;
+  - E7 trust boundary: `AI_MANAGE` + re-auth, no new permission, an unverified-model acknowledgement;
+  - E8 bounded per-feature time budgets, the historical 120/125 s values preserved;
+  - E9 one honest job-status contract; determinate progress only with a known denominator;
+  - E10 Phase M/N epic-level edges removed (pending the owner, see below);
+  - E11 evidence on the development machine with the packaged build, including the loader-isolation proof;
+  - E12 supersessions appended, not rewritten.
+- **Superseded:** the 2026-09-19 model-manifest rule "no online refresh, no user override, and a pack
+  whose SHA-256 is not in it is refused at import" now reads: curated packs remain pinned and form
+  the qualified list; any **compatible** GGUF may be registered under E1/E6/E7. The ROADMAP
+  Objective's "one local, CPU-only model" and the Model baseline's "no GPU" are superseded as noted
+  there. The historical text stays in place.
+- **Pending owner action.** The agent lease guard's Beads grammar has no dependency removal, so the
+  E10 commands `bd dep remove awkit-akb awkit-djnl` and `bd dep remove awkit-vra awkit-djnl` were
+  handed to the owner, who deferred them. Until they run, `bd ready` reports Phases M and N as
+  blocked by the reopened Phase L epic. Afterwards, refresh the export with
+  `bd export -o .beads/issues.jsonl` and move the dashboard verifier's edge pin by the measured
+  change.
+- Nothing is implemented. No runtime, GPU, model-registration, Settings, timeout, progress or ETA
+  behavior changed.
+
 ### 2026-09-27 — Phase L technical closeout and external release gates
 
 - Under the owner's technical closeout delegation, Codex operated and reviewed the clean

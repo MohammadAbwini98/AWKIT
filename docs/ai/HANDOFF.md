@@ -1,6 +1,29 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-27, latest) — Phase L technical closeout complete, external release gates recorded
+## HANDOFF (2026-09-27, latest) — Phase L extended: L8a/L8b/L9 registered, planned only
+
+- Phase L is **10 of 13 closed (77%)**, `in-progress`, after the owner's post-closeout scope
+  expansion. New open milestones:
+  - L8a `awkit-djnl.11`;
+  - L8b `awkit-djnl.12`;
+  - L9 `awkit-djnl.13`.
+
+  Plans are `docs/plans/ai-upgrade-v5/L8a-…`, `L8b-…` and `L9-…`, with decisions E1–E12 in
+  `ROADMAP.md`. Nothing is implemented.
+- **Owner action pending:** run `bd dep remove awkit-akb awkit-djnl` and
+  `bd dep remove awkit-vra awkit-djnl`. The agent guard grammar has no dependency removal. After
+  that, run `bd export -o .beads/issues.jsonl` and move the edge pin in
+  `scripts/verify-roadmap-dashboard.mjs` from 189 to the measured value (expected 187). Until then,
+  `bd ready` shows Phases M and N as blocked.
+- **Recommended next slice:** L8a.0, the backend gate on the packaged build. It stages the Vulkan
+  pack and measures size and the driver floor. It also probes the 3.21.1 VRAM, device and layer
+  APIs and device pinning, and proves that DLLs load only from the app-managed folder. L9.1, the
+  job-status contract, may run in parallel.
+- Ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. External release gates are
+  unchanged: the licensed walkthrough is BLOCKED on the issuer key, and packaging human QC and the
+  VS redistribution statement are still owed.
+
+## HANDOFF (2026-09-27) — Phase L technical closeout complete, external release gates recorded
 
 - Phase L is **10/10 closed** in Beads and the roadmap. L4b's frozen DX revision 4 and L6's
   approved deterministic scope remain accepted. L7 passed fresh packaged, offline and clean

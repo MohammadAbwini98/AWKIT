@@ -672,6 +672,41 @@ native-hosts/ai/        ai-host.cjs: node-llama-cpp 3.21.1 in the utility proces
                           never builds or downloads). Needs the owner-installed runtime and pack to load.
 ```
 
+### Planned Phase L extension (2026-09-27; L8a/L8b/L9 — NOT implemented)
+
+Everything below is **planned** (`docs/plans/ai-upgrade-v5/ROADMAP.md` › *Phase L extension*,
+decisions E1–E12). The current code is the CPU-only boundary above.
+
+```text
+Settings → Local AI (renderer LocalAiSettings.tsx)
+  mode: CPU & RAM only (default) | GPU-Offload | GPU-Only
+  GPU mode → required-components checklist (Browse; validated; copied)
+        │  AI_MANAGE + re-auth (no new permission)
+        ▼
+main (ai.ipc.ts → aiRuntime.ts)
+  component import: hash vs release-owned backend manifest (src/offline, Risk-3)
+                    → copy into %LOCALAPPDATA%/SpecterStudio app-managed runtime folder
+  model import:     disk-space preflight → copy into model root → compatibility stages (L8b)
+  effective profile persisted (backend, adapter, offload) — never prompts
+        │  AiHostProtocol: backend + bounded gpuLayers; extended path-free handshake
+        ▼
+utility host (ai-host.cjs) — the ONLY place GGUF headers are parsed and backends probed
+  loads GPU binaries only from the app-managed folder (loader-isolation proof)
+  NVIDIA by PCI vendor ID 0x10DE + runtime-reported capability, never product name
+  GPU-Offload: largest safe partial → bounded retry → CPU with reason
+  GPU-Only:    full offload or refusal with the exact shortfall
+  VRAM exhausted after load → own reason; not counted as a crash by the restart circuit
+        │  job events (L9): state, stage, elapsed, ETA range, effective profile
+        ▼
+renderer: one accessible progress contract for every long AI job
+```
+
+Invariants carried over unchanged: separate crash domain, bounded queue, one inference at a time,
+cancel and kill-restart, idle unload (also frees VRAM), yielding to Playwright, zero model calls on
+the synchronous run path, and every deterministic feature working with AI off or unavailable.
+Qualification splits into a hardware-portable quality key and a locally measured latency class; the
+curated manifest packs become the qualified list.
+
 ## Run-lifetime failure evidence (Phase L L5a; deterministic, no model)
 
 ```text

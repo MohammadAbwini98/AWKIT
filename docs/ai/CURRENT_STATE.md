@@ -1,6 +1,30 @@
 # CURRENT_STATE
 
-## Phase L recovery: L4b, L6 and L7 technical acceptance complete (2026-09-27, latest)
+## Phase L extended after closeout: L8a, L8b and L9 registered, planned only (2026-09-27, latest)
+
+The owner widened Phase L's accepted scope after the 10/10 closeout. Phase L now reads **10 of 13
+milestones closed (77%)** and the roadmap phase status is back to `in-progress`; the program-wide
+roadmap reads 11 of 14 phases complete (79%). Nothing regressed: L0–L7 stay closed with their
+evidence. New open milestones, with nothing implemented:
+
+- **L8a** `awkit-djnl.11`: hardware-adaptive inference runtime. Three administrator-selected modes
+  (CPU & RAM only by default, GPU-Offload and GPU-Only). NVIDIA eligibility is by vendor ID and
+  capability. GPU components are user-supplied, hash-pinned and copied; Vulkan comes first.
+- **L8b** `awkit-djnl.12`: external compatible-model registration by copy, with Compatible vs
+  Qualified labels.
+- **L9** `awkit-djnl.13`: bounded per-feature time budgets, one honest job-status contract, and
+  progress and ETA ranges.
+
+Evidence for all three is planned on the development machine with the packaged build. Decisions E1–E12 are in
+`docs/plans/ai-upgrade-v5/ROADMAP.md` › *Phase L extension (2026-09-27)* and `DECISIONS.md`.
+
+The Phase M/N epic-level edge removal (E10) is **pending the owner**. Until
+`bd dep remove awkit-akb awkit-djnl` and `bd dep remove awkit-vra awkit-djnl` run, `bd ready`
+reports Phases M and N as blocked by the reopened Phase L epic. The current code is unchanged:
+the local-AI host is still CPU-only. Validation ledger unchanged at
+65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## Phase L recovery: L4b, L6 and L7 technical acceptance complete (2026-09-27)
 
 Fresh portable and NSIS 0.1.51 artifacts were built from clean product commit `7bc84636`,
 after correcting Windows PowerShell signature-module loading in staging. The native-dependency

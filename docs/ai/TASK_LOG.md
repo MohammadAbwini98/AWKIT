@@ -1,5 +1,33 @@
 # TASK_LOG
 
+## 2026-09-27 (latest) — Phase L extension planned and registered: L8a, L8b, L9 (Claude)
+
+- **Task:** review the owner's executive prompt for extending the closed Phase L, record the owner's
+  answers, write the full plan, update the AI architecture, and register the extension in the
+  roadmap sources. This was planning only.
+- **Result:**
+  - The Phase L epic `awkit-djnl` was reopened. L8a `.11`, L8b `.12` and L9 `.13` were filed OPEN,
+    with blocks edges: L8a after L1 and L7, L8b after L8a, and L9 after L8a and L8b.
+  - Phase L now reads 10 of 13 (77%) and `ImplementationRoadmap.ts` reads `in-progress`
+    (overall 11 of 14 phases).
+  - Decisions E1–E12 were recorded.
+  - The Phase M/N epic-edge removal is BLOCKED by the guard grammar (no `bd dep remove`) and was
+    handed to the owner, who deferred it.
+- **Files:**
+  - `.beads/issues.jsonl`
+  - `docs/ai/contracts/awkit-phase-l-extension-0927.json`
+  - `docs/plans/ai-upgrade-v5/{ROADMAP,CHANGELOG,L8a-hardware-adaptive-inference-runtime,L8b-external-model-compatibility,L9-adaptive-time-progress-eta}.md`
+  - `docs/ai/{DECISIONS,ARCHITECTURE,CURRENT_STATE,HANDOFF,TASK_LOG}.md`
+  - `src/roadmap/ImplementationRoadmap.ts`
+  - `scripts/verify-roadmap-dashboard.mjs`
+- **Verification:**
+  - Beads, via `bd show`, `bd ready`, `bd blocked` and `bd stats`: 325 issues, 22 open, 301 closed.
+  - Roadmap dashboard pins moved to the measured values: 325, 24/301 and 189 edges.
+  - The build, the dashboard verifier and `git diff --check` results are in the final report and
+    contract.
+  - `verify:verifier-classification` was NOT RUN: no verifier was added.
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED.
+
 ## 2026-09-27 — Phase L 10/10 technical closeout on fresh packages (Codex)
 
 - **Task:** finish the owner's L4b recovery and downstream L6/L7 closeout on `main`,

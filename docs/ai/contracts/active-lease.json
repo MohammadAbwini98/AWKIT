@@ -1,23 +1,19 @@
 {
-  "task": "awkit-djnl-10-ai-runtime-packaging-0924",
-  "contract_path": "docs/ai/contracts/awkit-djnl-10-ai-runtime-packaging-0924.json",
+  "task": "awkit-phase-l-extension-0927",
+  "contract_path": "docs/ai/contracts/awkit-phase-l-extension-0927.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
-    ".beads/**",
-    "docs/ai/COMMANDS.md",
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/HANDOFF.md",
-    "docs/ai/KNOWN_ISSUES.md",
-    "docs/ai/TASK_LOG.md",
-    "docs/plans/ai-upgrade-v5/L6-fragments-and-templates.md",
-    "docs/plans/ai-upgrade-v5/L7-release-confirmation.md",
-    "docs/plans/ai-upgrade-v5/ROADMAP.md"
+    ".beads/**"
   ],
-  "acquired_at": "2026-09-25T23:48:39.584Z",
-  "acquired_at_commit": "b33dad24afbb8a06bf2c65dec35fdf9130852214",
-  "baseline_dirty": [],
-  "baseline_dirty_fingerprints": {},
+  "acquired_at": "2026-09-27T08:56:05.659Z",
+  "acquired_at_commit": "3a5926ae55391f904182816b66aac3405a61ca6a",
+  "baseline_dirty": [
+    "docs/ai/contracts/awkit-phase-l-extension-0927.json"
+  ],
+  "baseline_dirty_fingerprints": {
+    "docs/ai/contracts/awkit-phase-l-extension-0927.json": "7c106f79aa52d94daa9158328186bb08861f05856f1fdf429873cdc3ac21c1a8"
+  },
   "baseline_watched_ignored": {
     ".env": "absent",
     ".claude/settings.local.json": "6238:1788551784499.886",
@@ -26,12 +22,12 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1790361556477.0342"
+    "build": "dir(1):native-hosts:1790441465498.754"
   },
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-25T23:49:40.199Z",
-  "released_reason": "tracker notes for awkit-djnl.6 and awkit-djnl.10 committed at e5d91c82, nothing closed, no edge changed",
-  "archived_at": "2026-09-25T23:49:40.204Z"
+  "released_at": "2026-09-27T09:39:28.918Z",
+  "released_reason": "L8a awkit-djnl.11, L8b awkit-djnl.12 and L9 awkit-djnl.13 filed under the reopened Phase L epic with five blocks edges, export refreshed to 325 issues. The M and N epic-edge removal is pending the owner because the guard grammar has no bd dep remove.",
+  "archived_at": "2026-09-27T09:39:28.920Z"
 }
