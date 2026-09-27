@@ -1,6 +1,38 @@
 # TASK_LOG
 
-## 2026-09-27 (latest) — Phase L extension planned and registered: L8a, L8b, L9 (Claude)
+## 2026-09-27 (latest) — L8a.0 Vulkan backend gate on the packaged build (Claude)
+
+- **Task:** L8a.0 from the L8a plan. On the packaged build: stage the Vulkan pack; measure its
+  size and the driver/Vulkan floor; probe the 3.21.1 VRAM, device and layer APIs and device
+  pinning; prove DLLs resolve only from the app-managed folder.
+- **Result:** the new `verify:ai-gpu-backend-gate` gives **28 PASS / 0 FAIL, exit 2**. NVIDIA
+  evidence is NOT RUN because the development machine has no NVIDIA adapter (only an AMD Radeon
+  Pro 555X, `VEN_1002`).
+  - The Vulkan mechanics were measured on the AMD adapter:
+    - loader isolation in a real utility process, via an ESM resolve hook;
+    - the app-local VC++ runtime is required;
+    - `GGML_VK_VISIBLE_DEVICES` pinning is supported;
+    - estimates match measurement within 0.1 MB;
+    - Vulkan with 0 layers still uses about 0.7 GB of VRAM.
+  - Two owner decisions were recorded: E11's hardware premise, and E2's vendor ID, which the
+    runtime does not expose.
+  - Mutation-tested: (A) no decoys and no beside runtime gave 3 FAIL; (B) the pack in the
+    resources tree with no hook gave 3 FAIL.
+- **Files:**
+  - `scripts/verify-ai-gpu-backend-gate.mts`
+  - `package.json`
+  - `scripts/lib/verifier-classification.ts`
+  - `docs/plans/ai-upgrade-v5/L8a-hardware-adaptive-inference-runtime.md`
+  - `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md`
+- **Verification:**
+  - `verify:ai-gpu-backend-gate` 28/0, exit 2 (NVIDIA NOT RUN)
+  - `typecheck:scripts` PASS
+  - `verify:verifier-classification` PASS: 278 classified, packaged-application 15
+  - `verify:roadmap-dashboard` 177/177, "Sources agree"
+- `bd` unchanged (`awkit-djnl.11` open). Validation ledger unchanged at 65 PASS / 2 NOT RUN /
+  0 BLOCKED.
+
+## 2026-09-27 — Phase L extension planned and registered: L8a, L8b, L9 (Claude)
 
 - **Task:** review the owner's executive prompt for extending the closed Phase L, record the owner's
   answers, write the full plan, update the AI architecture, and register the extension in the

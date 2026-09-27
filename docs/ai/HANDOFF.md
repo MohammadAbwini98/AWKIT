@@ -1,6 +1,29 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-27, latest) — Phase L extended: L8a/L8b/L9 registered, planned only
+## HANDOFF (2026-09-27, latest) — L8a.0 gate run; two owner decisions before NVIDIA work
+
+- `npm run verify:ai-gpu-backend-gate` is **28 PASS / 0 FAIL, exit 2**. NVIDIA evidence is NOT
+  RUN: this machine's only GPU is an AMD Radeon Pro 555X (`VEN_1002`). It was mutation-tested
+  twice (loader layout, pack location) and both mutations were caught. The record, hashes and
+  measurements are in the L8a plan › *L8a.0 record*.
+- **Owner decisions needed before L8a.3/L8a.5:**
+  1. E11 assumes an NVIDIA adapter on the development machine, and there is none. Options:
+     provide one; accept the vendor-independent Vulkan mechanics plus fake-host cases; or admit
+     this AMD adapter for development evidence.
+  2. E2's "vendor ID as reported by the runtime" is not exposed by node-llama-cpp 3.21.1. Take the
+     vendor from Windows and decide how to map a Vulkan device to its PCI adapter without names.
+- **Settled for the next slices:**
+  - the pack must include the app-local VC++ runtime (L8a.1 manifest);
+  - the host loads the pack through an ESM resolve hook for the one pack specifier (L8a.3);
+  - CPU mode stays `gpu: false`;
+  - pass a resolved layer count, not `"auto"`;
+  - map GPU `NoBinaryFoundError` to an explicit no-device reason.
+- **Next without the decisions:** L8a.1 (backend manifest, Risk-3 `src/offline/**`, release lease)
+  does not depend on either decision. L9.1 may run in parallel.
+- `bd` is unchanged: `awkit-djnl.11` stays open. Ledger unchanged at 65 PASS / 2 NOT RUN /
+  0 BLOCKED across 67 cases.
+
+## HANDOFF (2026-09-27) — Phase L extended: L8a/L8b/L9 registered, planned only
 
 - Phase L is **10 of 13 closed (77%)**, `in-progress`, after the owner's post-closeout scope
   expansion. New open milestones:

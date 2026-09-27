@@ -1,6 +1,31 @@
 # CURRENT_STATE
 
-## Phase L extended after closeout: L8a, L8b and L9 registered, planned only (2026-09-27, latest)
+## L8a.0 backend gate run: Vulkan mechanics proven, NVIDIA evidence NOT RUN (2026-09-27, latest)
+
+New verifier `npm run verify:ai-gpu-backend-gate` (packaged-application class): **28 PASS / 0
+FAIL, exit 2**. The NVIDIA evidence is NOT RUN because this development machine has no NVIDIA
+adapter. Its only GPU is an AMD Radeon Pro 555X, `VEN_1002`, 4 GiB. The record is in
+`docs/plans/ai-upgrade-v5/L8a-hardware-adaptive-inference-runtime.md` › *L8a.0 record*. Product
+code is unchanged, and the local-AI host is still CPU-only.
+
+- Pinned `@node-llama-cpp/win-x64-vulkan@3.21.1`: 24 files, unsigned, so validation is by hash
+  only.
+- The pack must carry the app-local VC++ runtime, making it 96.7 MB. The installer's GPU delta
+  stays 0 bytes.
+- The binary requires Vulkan 1.2 and binds System32's driver loader, not Electron's copy.
+- Loader isolation in a real utility process: the backend loads only from the app-managed folder,
+  through an ESM resolve hook.
+- Adapter pinning by per-spawn `GGML_VK_VISIBLE_DEVICES` is supported.
+- The runtime's VRAM estimates match measurement.
+- Vulkan with 0 layers still allocates about 0.7 GB of VRAM, so CPU mode must stay the CPU
+  backend.
+- Two owner decisions are open: E11 has no NVIDIA adapter to run on, and 3.21.1 exposes no PCI
+  vendor ID for E2.
+
+Phase L stays 10 of 13 closed; L8a `awkit-djnl.11` remains open. Validation ledger unchanged at
+65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## Phase L extended after closeout: L8a, L8b and L9 registered, planned only (2026-09-27)
 
 The owner widened Phase L's accepted scope after the 10/10 closeout. Phase L now reads **10 of 13
 milestones closed (77%)** and the roadmap phase status is back to `in-progress`; the program-wide

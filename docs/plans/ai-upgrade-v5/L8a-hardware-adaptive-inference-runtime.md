@@ -4,9 +4,11 @@ Shared rules, architecture and the Phase L extension decisions (E1–E12): `ROAD
 *Phase L extension (2026-09-27)*. Beads `awkit-djnl.11`. Depends on closed L1 (`awkit-djnl.1`) and
 closed L7 (`awkit-djnl.10`). Blocks L8b (`awkit-djnl.12`) and L9 (`awkit-djnl.13`).
 
-**Status (2026-09-27): OPEN — planned, zero implementation.** Registered by the owner's
-post-closeout scope expansion. Nothing in this file is implemented or verified; every verifier
-named below is planned and does not exist yet.
+**Status (2026-09-27): OPEN — L8a.0 gate run; no product code changed.** Registered by the owner's
+post-closeout scope expansion. L8a.0's `verify:ai-gpu-backend-gate` now exists and its record is
+below: 28 PASS / 0 FAIL. The NVIDIA evidence is **NOT RUN (exit 2)** because the development
+machine has no NVIDIA adapter. L8a.1–L8a.5 are not started; the verifiers they name are planned
+and do not exist yet.
 
 ## Objective
 
@@ -160,9 +162,158 @@ the runtime default is used and diagnostics say so.
   adapter is "Compatible but unqualified" until someone runs it; the capability rule (E2) still
   decides eligibility. No external machine, clean VM GPU run or second adapter is required.
 
+## L8a.0 record (2026-09-27)
+
+`npm run verify:ai-gpu-backend-gate` (`scripts/verify-ai-gpu-backend-gate.mts`), run against
+`dist/win-unpacked` 0.1.51 and Electron 33.4.11: **28 passed, 0 failed, NVIDIA evidence NOT RUN →
+exit 2, never a pass.** Two mutations were each caught:
+- no decoys and no runtime beside the pack: 3 loader checks FAIL. The backend then silently bound
+  the global VC++ runtime in System32, which is the clean-machine failure.
+- the pack inside the packaged tree's `node_modules`, with no hook: 3 checks FAIL.
+
+The full machine record is written to `%TEMP%\awkit-l8a0-record.json` on each run.
+
+**Host (E11 premise does not hold).** Windows enumerates one display adapter: PCI `VEN_1002
+DEV_67EF`, an AMD Radeon Pro 555X with 4 GiB VRAM and driver 30.0.13045.22003 (2025-06-11). There
+is **no `0x10DE` adapter**, so "GPU modes live on the development machine's NVIDIA adapter" cannot
+be produced here. Sections D–F measure the backend's own mechanics on the AMD adapter. Those
+mechanics are vendor-independent: the loader boundary, pinning and the sizing APIs. E2 still
+excludes AMD from the product.
+
+**Component list (pinned pack).**
+- `@node-llama-cpp/win-x64-vulkan@3.21.1`, llama.cpp `v0.4.0`, build metadata win/x64/vulkan.
+- 24 files, 100,711,424 bytes. All 20 PE images are x64 and Authenticode **NotSigned**, so
+  validation can only be by exact hash (E3 as planned).
+- No file is byte-identical to the CPU prebuilt, so the pack must be complete on its own.
+- Imports from outside the pack: Windows' own DLLs, `vulkan-1.dll` (2 binaries) and the VC++
+  runtime.
+
+| SHA-256 | Bytes | File |
+|---|---:|---|
+| `4bd57738a46cec235fc4ed1d16fcd5a52cd37828b25e7c3ecf4ec944ad0faf23` | 1,281,536 | `bins/win-x64-vulkan/ggml-base.dll` |
+| `29979ea704d5f5105ee60e9efc70cff1685a474624c2805dc8d72d2dccb36fb4` | 1,840,640 | `bins/win-x64-vulkan/ggml-cpu-alderlake.dll` |
+| `88feca4021c13e1b5ace76acfc44cb6c1c7654c47e8c327aa2a77f627997e1b6` | 2,133,504 | `bins/win-x64-vulkan/ggml-cpu-cannonlake.dll` |
+| `9a3532e062fcc82a3e73c13a0525f6da89796771c22f587233049197a58b4f6c` | 2,132,480 | `bins/win-x64-vulkan/ggml-cpu-cascadelake.dll` |
+| `035b72e78bf9ccdb0afb0928e18444395756346766ab1b86769b5157bbcd68de` | 2,131,968 | `bins/win-x64-vulkan/ggml-cpu-cooperlake.dll` |
+| `3b8c58b9d68ce778c1cdacfd93a41514b0988647b1e8640e42d452e808a28858` | 1,841,152 | `bins/win-x64-vulkan/ggml-cpu-haswell.dll` |
+| `d8498cf5bbcdc1a0fcc5190e692823326cdf6bf2a0aae7f1c3e0d9251a5382eb` | 2,132,480 | `bins/win-x64-vulkan/ggml-cpu-icelake.dll` |
+| `d9a64cd834b84338df9b0c5f51d8e3bedcd982614399713b77ca2bf7dd7241a8` | 1,598,976 | `bins/win-x64-vulkan/ggml-cpu-ivybridge.dll` |
+| `48eea797c49f7a84f5ec7484e4918f783be0ab9a072f3f4236fefa4224a639b2` | 1,597,952 | `bins/win-x64-vulkan/ggml-cpu-piledriver.dll` |
+| `afb11cf3eaa028025d8475a61f294a0d1228c0dd907e6f7ca77ce35d6e470ad9` | 1,582,080 | `bins/win-x64-vulkan/ggml-cpu-sandybridge.dll` |
+| `11a79d51e49ca1e9edfc4a0c03d6a9cf2f19367262df775794b33a92536b0105` | 2,873,344 | `bins/win-x64-vulkan/ggml-cpu-sapphirerapids.dll` |
+| `b28af5cfd194c00925aaa9a83bb036f175b25a09e66ffc8c2f4f8c019d3cef3f` | 2,133,504 | `bins/win-x64-vulkan/ggml-cpu-skylakex.dll` |
+| `e332c25da488ae1f600967993dabf1b09dfef633eb0265ba7aaac1aad1c2d509` | 1,268,736 | `bins/win-x64-vulkan/ggml-cpu-sse42.dll` |
+| `ef3500a020fcbd7dba2846f8831af2df2f844dd2eb59cf3a517236f83f0bd425` | 1,242,112 | `bins/win-x64-vulkan/ggml-cpu-x64.dll` |
+| `6e4f1aacde1fdece2ec6432ca24bc40c4098890bbb60d2cc5a68938d87255663` | 2,131,968 | `bins/win-x64-vulkan/ggml-cpu-zen4.dll` |
+| `6058a8a6291780651547b133db5854e00c531deb903eecf8324571ab6a2ae309` | 54,617,088 | `bins/win-x64-vulkan/ggml-vulkan.dll` |
+| `fb79741033a74d7af6f6bc71c448aa33a727e8b4a95c4899d71cf2fdc89acba9` | 171,008 | `bins/win-x64-vulkan/ggml.vulkan.v0.4.0.dll` |
+| `0ee264f83cee435c327c13ed035fd0e317f300bd267e83c03c5c454c67e953d9` | 1,028,608 | `bins/win-x64-vulkan/llama-addon.node` |
+| `9a1b3c4f5e6204af3e3d7b795f80e42a45c00d2aa7e2c409b787e8a9b469c31f` | 9,275,392 | `bins/win-x64-vulkan/llama-common.dll` |
+| `2aca9a5189e31e98dc4f2fbcd4e7582ceba59836ff1eb05dbed350d4ceb29f04` | 7,694,336 | `bins/win-x64-vulkan/llama.vulkan.v0.4.0.dll` |
+| `5c94ecb30f1ee9653c6481744da1bc7c0249c4cbada028c3d9e9239c86ca4df7` | 224 | `bins/win-x64-vulkan/_nlcBuildMetadata.json` |
+| `032284f3124f6952b49b78f2f0098fba0102fc276780028e6859a45f560f53cb` | 422 | `dist/index.js` |
+| `c34e5ffca98ede216da5157cff6df2ee6762a48d3391797edb6593df24849501` | 1,065 | `LICENSE` |
+| `3939932ca215a4566b8cc85b6694b29fdc23a509c22a6f1d7fdae1dbfaae784d` | 849 | `package.json` |
+
+**The pack must carry the app-local VC++ runtime.** Every pack binary imports `msvcp140.dll` /
+`vcruntime140.dll`. The gate staged the installer's own validated copies (14.44.35211, ≥ the
+pack's linker stamp 14.0) beside the binaries.
+- Isolated from System32: the pack loads with them and does **not** load without them.
+- Without isolation it binds the developer machine's global runtime instead.
+
+L8a.1's manifest therefore lists these three files and reuses the L7 Microsoft-signature and
+version-floor rule.
+
+**Package-size delta.**
+- Installer: **0 bytes**. `dist/win-unpacked` holds no llama.cpp/ggml GPU backend (a control
+  proves the scan flags one), and its host manifest stays the pinned CPU-only runtime.
+- The installer's AI tree is 51.5 MB, of which the CPU prebuilt is 44.6 MB.
+- The separate Vulkan pack the user imports is **96.7 MB** (101,443,488 bytes with the runtime).
+
+**Driver / Vulkan floor.**
+- `ggml-vulkan.dll` states its own floor: "ggml_vulkan: Error: Vulkan 1.2 required."
+- The backend bound `C:\Windows\System32\vulkan-1.dll`, the driver-installed loader: here 1.2.189.2,
+  signed "Microsoft Windows Hardware Compatibility Publisher". It did **not** bind Electron's
+  unsigned "Vulkan Loader - Dev Build" copy that ships in the application directory.
+- No third-party driver-stack module loaded outside Windows and Electron on this host.
+- NVIDIA driver floor: **NOT MEASURED**, because there is no NVIDIA adapter.
+
+**Loader isolation (the L7 method), in a real Electron utility process.**
+- Layout: the packaged `resources/native-hosts/ai` tree plus the pack in a separate app-managed
+  folder.
+- Every name this host could supply from outside the layout was rewritten to a decoy, except the
+  Vulkan loader: `msvcp140`, `vcruntime140` and `vcruntime140_1` (89 imports).
+- Then the process's own module list showed:
+  - the only `llama-addon.node` and `ggml-vulkan.dll` came from the app-managed folder, and so did
+    the renamed runtime;
+  - none of the 9 names the layout must satisfy came from outside it, from the repository or from
+    a CUDA Toolkit;
+  - ggml's own log says `load_backend: loaded Vulkan backend from <app-managed>\…\ggml-vulkan.dll`.
+- CPU mode with the pack present loads nothing from the pack and no Vulkan loader.
+- **Mechanism:** node-llama-cpp finds a prebuilt only by `import("@node-llama-cpp/win-x64-vulkan")`
+  from its own location, so a pack outside `resources/` is reachable only through an ESM resolve
+  hook. The hook (`module.register`, Node 20.18 in Electron 33) maps that one specifier to
+  `<app-managed>/vulkan/dist/index.js`, and the package computes `binsDir` from its own location.
+  L8a.3 adopts that hook in `ai-host.cjs`, pointed at the manager-fixed app-managed folder.
+
+**Runtime API probe (3.21.1, called for real).**
+- `getLlama({ gpu: "vulkan", build: "never" })` takes 3.7 s, including node-llama-cpp's binary test
+  child.
+- It reports `gpu "vulkan"`, `supportsGpuOffloading true`, `gpuSupportsMmap false` and
+  `vramPaddingSize` 343,597,383 bytes (the runtime default reserve: 8% of 4 GiB).
+- `getVramState` returns `{ total, used, free }`. `getGpuDeviceNames` works, and `getSwapState`
+  works.
+- **The runtime exposes no PCI vendor ID.** The binding's device info has only `deviceNames`. The
+  ggml log offers the driver *name* ("AMD proprietary driver"), which E2 forbids as a key.
+
+**Adapter pinning.**
+- `GGML_VK_VISIBLE_DEVICES`, set per spawn on the utility process, reached every probe, and `=0`
+  gave exactly device 0. **Pinning is SUPPORTED by per-spawn environment.**
+- A value naming no device makes `getLlama` throw `NoBinaryFoundError`: the binary-test child
+  fails, so "no visible device" does not surface as a reason of its own.
+- Multi-adapter selection is not exercised, because the host has one adapter.
+
+**Sizing APIs and measured offload.** Pinned Qwen3.5-0.8B, 25 layers, `isHybrid true`, context
+4096, batch 512:
+- `resolveModelGpuLayersV2("auto" | { fitContext } | "max")` all resolve to 25 on 4 GiB.
+- The runtime's model and context VRAM estimates matched the measured `used` deltas to within
+  0.1 MB:
+  - 0 layers: model +0, context +698 MB;
+  - 12 layers: model +333 MB, context +524 MB;
+  - 25 layers: model +493 MB, context +556 MB.
+- VRAM returns to baseline after dispose.
+- Load time was 4.5 s at 0 layers, 4.8 s at 12, 7.5 s with `"max"` and 12.3 s with `"auto"` (the
+  same 25 layers; the resolution costs about 5 s).
+- First token took about 1.0–1.7 s at 0 layers, 0.7 s at 12 and 0.3 s at 25. Every run produced
+  grammar-valid JSON. Generations were 6 tokens, so tokens/s is indicative only.
+
+**What this settles for L8a.1–L8a.3:**
+- **CPU & RAM only must stay the CPU backend (`gpu: false`), never Vulkan with 0 layers.** Vulkan
+  with `gpuLayers 0` still puts about 0.7 GB of context in VRAM.
+- Resolve the layer count once and load with a number rather than `"auto"`.
+- The runtime's own estimators are usable as the sizing basis (no hand-written estimator), at
+  least for this model.
+- Map `NoBinaryFoundError`-with-GPU to an explicit "no usable device" reason in the host.
+
 ## Risks and open decisions
 
-- Device pinning may not be supported by 3.21.1 → adapter picker deferred (decided by L8a.0).
-- Vulkan driver floor unknown until measured.
-- Backend pack size and how the release produces it (from the pinned npm prebuilt) — L8a.0.
+- **Owner decision — E11 cannot be met on this machine.** The development machine has no NVIDIA
+  adapter. Choose one:
+  - provide one (a second machine or an eGPU);
+  - accept the vendor-independent mechanics proven here plus fake-host cases, with NVIDIA
+    "Compatible but unqualified";
+  - re-scope E2 to admit this AMD adapter for development evidence.
+
+  Until then, every NVIDIA-specific acceptance item is NOT RUN.
+- **Owner decision — E2 "vendor ID as reported by the runtime" is unavailable in 3.21.1.** The
+  vendor has to come from Windows (`Win32_VideoController` PNP `VEN_10DE`, as this gate reads it).
+  A name-free way to match a Vulkan device index to that PCI adapter is still needed. On a
+  single-adapter host it is trivial; a hybrid laptop needs LUID or PCI-bus correlation that
+  node-llama-cpp does not expose.
+- ~~Device pinning may not be supported by 3.21.1~~: supported by per-spawn
+  `GGML_VK_VISIBLE_DEVICES` (L8a.0).
+- ~~Vulkan driver floor unknown~~: Vulkan API 1.2 per the binary. A concrete NVIDIA driver version
+  is not measured (no adapter).
+- ~~Backend pack size~~: 96.7 MB including the app-local VC++ runtime. The release produces it
+  from the pinned npm prebuilt plus the installer's validated runtime.
 - A driver update can invalidate a working GPU mode; the unavailable-with-reason path covers it.

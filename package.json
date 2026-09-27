@@ -306,6 +306,7 @@
     "verify:ai-packaged-runtime": "tsx scripts/verify-ai-packaged-runtime.mts",
     "verify:ai-packaged-app": "tsx scripts/verify-ai-packaged-app.mts",
     "verify:native-dependencies": "tsx scripts/verify-native-dependencies.mts",
+    "verify:ai-gpu-backend-gate": "tsx scripts/verify-ai-gpu-backend-gate.mts",
     "verify:ai-model-live": "tsx scripts/verify-ai-model-live.mts",
     "verify:ai-model-live-0-8b": "tsx scripts/verify-ai-model-live.mts --pack Qwen3.5-0.8B-Q4_K_M.gguf",
     "verify:ai-explanation-live": "tsx scripts/verify-ai-explanation-live.mts",
