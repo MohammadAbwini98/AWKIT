@@ -544,7 +544,8 @@ export async function runLocatorQualityLive(api: FeatureLiveApi, options: { lab?
         value: structuredClone(plans[Math.min(calls.length, plans.length - 1)]),
         modelId: "scripted-control",
         usage: { promptTokens: 0, outputTokens: 0, firstTokenMs: 0, generationMs: 0 },
-        yields: 0
+        yields: 0,
+        profile: { runtimeBuild: "scripted-control", backend: "cpu", offload: "cpu" }
       };
       calls.push({ request, outcome });
       return outcome;

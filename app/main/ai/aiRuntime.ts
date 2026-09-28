@@ -24,14 +24,19 @@ import {
   type AiBackendPackStatus,
   type BackendTrust
 } from "@src/ai/AiBackendPack";
-import { describeAdapters, toExecutionView, type AiGpuReadiness } from "@src/ai/AiExecutionProfile";
-import { runStaticStage, staticStanding } from "@src/ai/AiModelCompatibility";
-import { AiModelPackStore, type AiModelPackStatus } from "@src/ai/AiModelPack";
+import { describeAdapters, offloadClassOf, toExecutionView, type AiGpuReadiness } from "@src/ai/AiExecutionProfile";
+import { compatibilityStanding, runCompatibilityStages, staticStanding } from "@src/ai/AiModelCompatibility";
+import { AiModelPackStore, MODEL_IMPORT_HEADROOM_BYTES, type AiModelPackStatus } from "@src/ai/AiModelPack";
+import { describeQualification, hardwareClassOf, type AiRunConfiguration } from "@src/ai/AiQualification";
 import { revertAiAction } from "@src/ai/AiRevert";
-import { AiService, type AiServiceDeps } from "@src/ai/AiService";
+import { AiService, type AiServiceDeps, type AiServiceStatus } from "@src/ai/AiService";
+import { AUTHORING_LIMITS } from "@src/ai/authoringExplanation";
+import { FAILURE_ANALYSIS_LIMITS } from "@src/ai/failureAnalysis";
 import { FakeAiHostTransport, type FakeInferStep } from "@src/ai/FakeAiHostTransport";
-import { AiSettingsStore, MAX_IDLE_UNLOAD_MINUTES, MAX_VRAM_RESERVE_MB, MIN_VRAM_RESERVE_MB, sanitizeAiSettingsPatch } from "@src/ai/AiSettings";
-import type { AiGpuPlan, AiHostBackend, AiHostReason } from "@src/ai/contracts/AiHostProtocol";
+import { FRAGMENT_ASSIST_LIMITS } from "@src/ai/fragmentAssist";
+import { LOCATOR_ATTEMPT_LIMITS } from "@src/ai/locatorUpgradeAttempts";
+import { AiSettingsStore, MAX_IDLE_UNLOAD_MINUTES, MAX_VRAM_RESERVE_MB, MIN_VRAM_RESERVE_MB, sanitizeAiSettingsPatch, type AiExecutionMode } from "@src/ai/AiSettings";
+import { AI_CONTEXT_TOKENS, type AiGpuPlan, type AiHostBackend, type AiHostReason } from "@src/ai/contracts/AiHostProtocol";
 import type {
   AiAdminResponse,
   AiAuditView,
@@ -39,6 +44,7 @@ import type {
   AiBackendPreflightResponse,
   AiDiagnosticsView,
   AiModelPackView,
+  AiModelPreflightResponse,
   AiSettingsView,
   AiStatusView
 } from "@src/ai/contracts/AiApi";
@@ -208,9 +214,21 @@ export function getAiService(): AiService {
     model: async () => {
       const status = await modelPack().status();
       if (status.status === "missing") return { ok: false, reason: "MODEL_MISSING" };
-      // A model the manifest does not list is never loaded before every compatibility stage passes: the
-      // static stage (L8b.2) can only refuse it, and the probe that could admit it is L8b.3.
-      if (status.status === "registered") return { ok: false, reason: staticFailure(status) ? "MODEL_INCOMPATIBLE" : "MODEL_UNCHECKED" };
+      if (status.status === "registered") {
+        // A model the manifest does not list is loaded only once both compatibility stages passed for this
+        // runtime build (L8b.2, L8b.3) AND an administrator acknowledged it as unverified (L8b.5, E7).
+        const standing = registeredStanding(status);
+        if (standing === null) return { ok: false, reason: "MODEL_UNCHECKED" };
+        if (standing !== "compatible") return { ok: false, reason: "MODEL_INCOMPATIBLE" };
+        if (status.acknowledgedAt === null) return { ok: false, reason: "MODEL_UNACKNOWLEDGED" };
+        return {
+          ok: true,
+          modelId: externalModelId(status.external.sha256),
+          modelPath: modelPack().modelPath(status.external.sha256),
+          // Its header showed at least this much (CONTEXT_TOO_SMALL otherwise); every request is capped here anyway.
+          contextTokens: AI_CONTEXT_TOKENS
+        };
+      }
       if (status.status !== "installed") return { ok: false, reason: "MODEL_INVALID" };
       return {
         ok: true,
@@ -221,7 +239,9 @@ export function getAiService(): AiService {
     },
     verifyModel: async (model) => {
       const status = await modelPack().status();
-      return status.status === "installed" && status.entry.id === model.modelId && modelPack().verifyForLoad(status.entry.sha256);
+      if (status.status === "installed") return status.entry.id === model.modelId && modelPack().verifyForLoad(status.entry.sha256);
+      if (status.status === "registered") return externalModelId(status.external.sha256) === model.modelId && modelPack().verifyForLoad(status.external.sha256);
+      return false;
     },
     settings: async () => {
       const current = await settings().read();
@@ -249,22 +269,76 @@ export async function aiPolicyConfig(): Promise<AiPolicyConfig> {
   return { enabled: current.enabled, featureTiers: current.featureTiers, demotedFeatures: Object.keys(snapshot.demotions) };
 }
 
-/** A registered model failed the static stage (L8b.2) under the runtime in use. */
-function staticFailure(status: Extract<AiModelPackStatus, { status: "registered" }>): boolean {
-  const standing = staticStanding(status.staticCheck, AI_RUNTIME_PIN.build);
-  return standing !== null && standing !== "passed";
+/** A registered model's compatibility under the runtime in use (L8b.2, L8b.3). */
+const registeredStanding = (status: Extract<AiModelPackStatus, { status: "registered" }>) => compatibilityStanding(status, AI_RUNTIME_PIN.build);
+
+/** The id a registered model's answers and audit records carry: never its file name or a path. */
+const externalModelId = (sha256: string): string => `external-${sha256.slice(0, 12)}`;
+
+/**
+ * Each feature's current output budget: the last field of its quality key (L8b.4, E6). A budget raised
+ * later no longer matches the key its evidence was measured at, so the feature reads unqualified again.
+ */
+const FEATURE_OUTPUT_BUDGETS: Readonly<Partial<Record<AiFeatureId, number>>> = Object.freeze({
+  validationExplanation: AUTHORING_LIMITS.maxOutputTokens,
+  // Ranked inside the explanation's own request.
+  safeFixRanking: AUTHORING_LIMITS.maxOutputTokens,
+  locatorSemanticUpgrade: LOCATOR_ATTEMPT_LIMITS.maxOutputTokens,
+  locatorRepair: LOCATOR_ATTEMPT_LIMITS.maxOutputTokens,
+  failureAnalysis: FAILURE_ANALYSIS_LIMITS.maxOutputTokens,
+  // Both answered by the fragment assist's one request.
+  fragmentSummary: FRAGMENT_ASSIST_LIMITS.maxOutputTokens,
+  fragmentParameterMapping: FRAGMENT_ASSIST_LIMITS.maxOutputTokens
+});
+
+/**
+ * The configuration a label is about: CPU & RAM only is decided by the mode; a GPU mode only by a load
+ * made under the current mode and reserve (GPU-Offload may have fallen back to the CPU).
+ */
+function runConfiguration(status: AiServiceStatus, mode: AiExecutionMode): AiRunConfiguration | null {
+  if (mode === "cpu") return { backend: "cpu", offload: "cpu", contextTokens: AI_CONTEXT_TOKENS };
+  if (!status.executionApplied || status.loadedModelId === null) return null;
+  const { backend, gpuLayers, totalLayers } = status.execution;
+  return { backend, offload: backend === "cpu" ? "cpu" : offloadClassOf(gpuLayers, totalLayers), contextTokens: AI_CONTEXT_TOKENS };
 }
 
-function packView(status: AiModelPackStatus): AiModelPackView {
+function packView(status: AiModelPackStatus, configuration: AiRunConfiguration | null, vramTotalBytes: number | null): AiModelPackView {
+  const qualification = (compatibility: Parameters<typeof describeQualification>[0]["compatibility"], sha256: string) => {
+    const caps = detectMachineCapabilities("local");
+    return describeQualification({
+      compatibility,
+      modelSha256: sha256,
+      runtimeBuild: AI_RUNTIME_PIN.build,
+      configuration,
+      featureBudgets: FEATURE_OUTPUT_BUDGETS,
+      hardwareClass: hardwareClassOf({ logicalCpus: caps.logicalCpuCount, totalMemoryMb: caps.totalMemoryMb, vramTotalBytes })
+    });
+  };
   if (status.status === "installed") {
-    return { status: "installed", reason: null, modelId: status.entry.id, displayName: status.entry.displayName };
+    return {
+      status: "installed",
+      reason: null,
+      modelId: status.entry.id,
+      displayName: status.entry.displayName,
+      acknowledged: null,
+      // A curated pack is compatible by its release's own evidence; qualified only where the list says so.
+      qualification: qualification("compatible", status.entry.sha256)
+    };
   }
-  if (status.status === "missing") return { status: "missing", reason: null, modelId: null, displayName: null };
+  if (status.status === "missing") return { status: "missing", reason: null, modelId: null, displayName: null, acknowledged: null, qualification: null };
   if (status.status === "registered") {
-    const standing = staticStanding(status.staticCheck, AI_RUNTIME_PIN.build);
-    return { status: "registered", reason: standing === "passed" ? "STATIC_PASSED" : standing, modelId: null, displayName: status.external.fileName };
+    const standing = registeredStanding(status);
+    const headerOnly = standing === null && staticStanding(status.staticCheck, AI_RUNTIME_PIN.build) === "passed";
+    return {
+      status: "registered",
+      reason: standing === "compatible" ? "COMPATIBLE" : headerOnly ? "STATIC_PASSED" : standing,
+      modelId: null,
+      displayName: status.external.fileName,
+      acknowledged: status.acknowledgedAt !== null,
+      qualification: qualification(standing, status.external.sha256)
+    };
   }
-  return { status: status.status, reason: status.reason, modelId: null, displayName: null };
+  return { status: status.status, reason: status.reason, modelId: null, displayName: null, acknowledged: null, qualification: null };
 }
 
 const readPack = (): Promise<AiModelPackStatus> =>
@@ -281,7 +355,7 @@ export async function aiStatusView(): Promise<AiStatusView> {
     reason: state.kind === "unavailable" ? state.reason : state.kind === "error" ? state.code : null,
     holdReason: status.holdReason,
     queueDepth: status.queueDepth,
-    modelPack: packView(pack),
+    modelPack: packView(pack, runConfiguration(status, current.executionMode), status.execution.vram?.totalBytes ?? null),
     execution: toExecutionView(status, current.executionMode, readiness)
   };
 }
@@ -358,7 +432,7 @@ export async function aiDiagnosticsView(): Promise<AiDiagnosticsView> {
     },
     gpuHost: { state: gpuHost?.state ?? "stopped", circuitOpen: gpuHost?.circuitOpen ?? false, lastReason: gpuHost?.lastReason ?? null },
     modelPack: {
-      ...packView(pack),
+      ...packView(pack, runConfiguration(status, current.executionMode), status.execution.vram?.totalBytes ?? null),
       sha256: installed?.sha256 ?? null,
       sizeBytes: installed?.sizeBytes ?? null,
       manifestEntries: AI_MODEL_MANIFEST.length
@@ -408,24 +482,102 @@ function revertMessage(code: string): string {
   }
 }
 
-export async function importAiModelPack(sourcePath: string): Promise<AiAdminResponse> {
+const MODEL_IMPORT_MESSAGES: Record<string, string> = {
+  NOT_A_FILE: "The selected item is not a file.",
+  NOT_GGUF: "The selected file is not a GGUF model.",
+  INSUFFICIENT_SPACE: "There is not enough free disk space in the app's data folder for this model and 256 MB to spare.",
+  COPY_FAILED: "The model pack could not be copied into the app's data folder."
+};
+
+/** The file the last ready model preflight covered, named to the renderer only by its token (L8b.5, E1). */
+let pendingModelPreflight: { token: string; owner: number; source: string; at: number } | null = null;
+
+/**
+ * Both compatibility stages on the active registered model, in the host (L8b.2, L8b.3). "not-run" when the
+ * host cannot run them now; the model then stays unchecked until a re-check.
+ */
+async function runModelStages(): Promise<string> {
+  const stage = await runCompatibilityStages({
+    store: modelPack(),
+    inspect: (file) => getAiService().inspectModel(file),
+    probe: (file) => getAiService().probeModel(file),
+    runtimeBuild: AI_RUNTIME_PIN.build
+  }).catch(() => "not-run" as const);
+  logAi(stage === "not-run" ? "warn" : "info", `registered model compatibility: ${stage}`);
+  return stage;
+}
+
+/**
+ * Step one of an import: what copying the file main's own dialog just picked would need, measured before
+ * anything is copied. A file that fits is remembered for its owner, behind a one-time token.
+ */
+export async function preflightAiModelPack(owner: number, source: string): Promise<AiModelPreflightResponse> {
+  const result = await modelPack()
+    .preflight(source)
+    .catch(() => null);
+  pendingModelPreflight = null;
+  if (!result) return { code: "IMPORT_REFUSED", ok: false, detail: "COPY_FAILED", message: MODEL_IMPORT_MESSAGES.COPY_FAILED, preflight: null };
+  if (!result.ok) return { code: "IMPORT_REFUSED", ok: false, detail: result.code, message: MODEL_IMPORT_MESSAGES[result.code], preflight: null };
+  const { fileName, sizeBytes, freeBytes, requiredBytes, spaceOk } = result.preflight;
+  const token = spaceOk ? randomBytes(16).toString("hex") : "";
+  if (spaceOk) pendingModelPreflight = { token, owner, source, at: Date.now() };
+  const preflight = { token, fileName, sizeBytes, freeBytes, requiredBytes, headroomBytes: MODEL_IMPORT_HEADROOM_BYTES, spaceOk };
+  return spaceOk
+    ? { code: "OK", ok: true, preflight }
+    : { code: "IMPORT_REFUSED", ok: false, detail: "INSUFFICIENT_SPACE", message: MODEL_IMPORT_MESSAGES.INSUFFICIENT_SPACE, preflight };
+}
+
+/** Step two: copy the file a ready preflight covered, then check a registered model's compatibility. */
+export async function importAiModelPack(owner: number, token: string): Promise<AiAdminResponse> {
+  const pending = pendingModelPreflight;
+  if (!pending || pending.token !== token || pending.owner !== owner || Date.now() - pending.at > PREFLIGHT_TTL_MS) {
+    return { code: "INVALID_REQUEST", ok: false, message: "Choose the model file again before importing." };
+  }
+  pendingModelPreflight = null;
   await getAiService().releaseModel();
   const result = await modelPack()
-    .import(sourcePath)
+    .import(pending.source)
     .catch(() => ({ ok: false as const, code: "COPY_FAILED" as const }));
-  // A registered model's header is read in the host now (L8b.2); if it cannot be, the model stays unchecked.
-  if (result.ok && result.entry === null) {
-    const stage = await runStaticStage({ store: modelPack(), inspect: (file) => getAiService().inspectModel(file), runtimeBuild: AI_RUNTIME_PIN.build }).catch(() => "not-run");
-    logAi(stage === "not-run" ? "warn" : "info", `registered model header check: ${stage}`);
-  }
+  if (result.ok && result.entry === null) await runModelStages();
   if (result.ok) return { code: "OK", ok: true, detail: result.entry !== null ? result.entry.id : result.external.fileName };
-  const messages: Record<string, string> = {
-    NOT_A_FILE: "The selected item is not a file.",
-    NOT_GGUF: "The selected file is not a GGUF model.",
-    INSUFFICIENT_SPACE: "There is not enough free disk space in the app's data folder for this model and 256 MB to spare.",
-    COPY_FAILED: "The model pack could not be copied into the app's data folder."
-  };
-  return { code: "IMPORT_REFUSED", ok: false, detail: result.code, message: messages[result.code] };
+  return { code: "IMPORT_REFUSED", ok: false, detail: result.code, message: MODEL_IMPORT_MESSAGES[result.code] };
+}
+
+/**
+ * Run a registered model's compatibility stages again, for this runtime build (a verdict from another
+ * build no longer counts), or after they could not run at import.
+ */
+export async function checkAiModelPack(): Promise<AiAdminResponse> {
+  if ((await readPack()).status !== "registered") {
+    return { code: "NOT_FOUND", ok: false, message: "Only a registered model the app does not list is checked for compatibility." };
+  }
+  await getAiService().releaseModel();
+  const stage = await runModelStages();
+  if (stage === "not-run") {
+    return {
+      code: "NOT_AVAILABLE",
+      ok: false,
+      detail: "NOT_RUN",
+      message: "The check could not run now: the local AI runtime is unavailable, runs are active or memory is low. Try again later."
+    };
+  }
+  return { code: "OK", ok: true, detail: stage === "compatible" ? "COMPATIBLE" : stage };
+}
+
+/**
+ * The administrator's "unverified model" acknowledgement (L8b.5, E7), for the active registered model
+ * only once it is compatible. Recorded on that exact file; a new import needs a new one.
+ */
+export async function acknowledgeAiModelPack(): Promise<AiAdminResponse> {
+  const status = await readPack();
+  if (status.status !== "registered") return { code: "NOT_FOUND", ok: false, message: "There is no registered model to acknowledge." };
+  if (registeredStanding(status) !== "compatible") {
+    return { code: "NOT_AVAILABLE", ok: false, detail: "NOT_COMPATIBLE", message: "Only a model that passed its compatibility checks can be acknowledged." };
+  }
+  const recorded = await modelPack()
+    .acknowledge(status.external.sha256)
+    .catch(() => false);
+  return recorded ? { code: "OK", ok: true } : { code: "NOT_AVAILABLE", ok: false, message: "The model changed meanwhile. Review it again." };
 }
 
 export async function removeAiModelPack(): Promise<AiAdminResponse> {

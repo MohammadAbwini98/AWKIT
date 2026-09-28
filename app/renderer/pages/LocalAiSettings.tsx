@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, CheckCircle2, Cpu, PackagePlus, RotateCcw, Trash2, Undo2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Cpu, PackagePlus, RefreshCw, RotateCcw, ShieldCheck, Trash2, Undo2 } from "lucide-react";
 
-import type { AiActionRecord } from "@src/ai/AiActionRecord";
-import type { AiDiagnosticsView, AiSettingsView, AiStatusView } from "@src/ai/contracts/AiApi";
+import type { AiActionRecord, AiEffectiveProfile } from "@src/ai/AiActionRecord";
+import type { AiRunConfiguration } from "@src/ai/AiQualification";
+import type { AiDiagnosticsView, AiModelPreflightView, AiSettingsView, AiStatusView } from "@src/ai/contracts/AiApi";
 import type { AiFeatureId, AiTier } from "@src/security/authz/AiAutonomyPolicy";
 import { Permission } from "@src/security/authz/Permissions";
 
@@ -10,7 +11,7 @@ import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { useSession } from "../security/SessionContext";
 import { usePermissions } from "../security/usePermissions";
 import { ReauthDialog } from "./admin/ReauthDialog";
-import { LocalAiBackendPack } from "./LocalAiBackendPack";
+import { formatBytes, LocalAiBackendPack } from "./LocalAiBackendPack";
 import { ExecutionDiagnostics, LocalAiExecution, effectiveLabel, gpuUseLabel } from "./LocalAiExecution";
 import { useSensitiveSemanticAction, type SensitiveAdminResponse } from "../semantic/useSensitiveSemanticAction";
 
@@ -42,6 +43,7 @@ const STATE_LABELS: Record<string, string> = {
   MODEL_INVALID: "The model pack failed verification",
   MODEL_UNCHECKED: "The registered model has not been checked for compatibility, so it is not used",
   MODEL_INCOMPATIBLE: "The registered model is not compatible, so it is not used",
+  MODEL_UNACKNOWLEDGED: "The registered model is compatible but not acknowledged as unverified yet, so it is not used",
   GPU_UNAVAILABLE: "Unavailable: GPU-Only refused to load the model",
   SHUTDOWN: "Shutting down"
 };
@@ -66,17 +68,59 @@ const PACK_LABELS: Record<string, string> = {
   NOT_IN_MANIFEST: "this version no longer lists the pack"
 };
 
-/** The static header check's result for a registered model (L8b.2). */
-const STATIC_CHECK_LABELS: Record<string, string> = {
-  STATIC_PASSED: "header check passed; the load check is not available yet (not used)",
-  GGUF_UNREADABLE: "not compatible: the runtime cannot read the file (not used)",
-  GGUF_VERSION: "not compatible: unsupported GGUF version (not used)",
-  ARCHITECTURE_UNSUPPORTED: "not compatible: this runtime does not support the model's architecture (not used)",
-  TENSOR_TYPE_UNSUPPORTED: "not compatible: this runtime does not support the model's quantization (not used)",
-  CHAT_TEMPLATE: "not compatible: the model does not use the chat format the app prompts with (not used)",
-  CONTEXT_TOO_SMALL: "not compatible: the model's context is shorter than 4,096 tokens (not used)",
-  LAYER_COUNT: "not compatible: the model's layer count is out of range (not used)"
+/** Why a registered model is not compatible: its failed header (L8b.2) or probe (L8b.3) check. */
+const CHECK_REASONS: Record<string, string> = {
+  GGUF_UNREADABLE: "the runtime cannot read the file",
+  GGUF_VERSION: "unsupported GGUF version",
+  ARCHITECTURE_UNSUPPORTED: "this runtime does not support the model's architecture",
+  TENSOR_TYPE_UNSUPPORTED: "this runtime does not support the model's quantization",
+  CHAT_TEMPLATE: "the model does not use the chat format the app prompts with",
+  CONTEXT_TOO_SMALL: "the model's context is shorter than 4,096 tokens",
+  LAYER_COUNT: "the model's layer count is out of range",
+  PROBE_LOAD_FAILED: "the runtime could not load it",
+  PROBE_GENERATION_FAILED: "it could not generate an answer",
+  THINKING_NOT_DISABLED: "its thinking cannot be shown to be off",
+  PROBE_OUTPUT_INVALID: "its answer did not match the required format"
 };
+
+function registeredLabel(pack: AiStatusView["modelPack"]): string {
+  if (pack.reason === "COMPATIBLE") {
+    return pack.acknowledged ? "compatible, acknowledged as unverified" : "compatible, not used until you acknowledge it as unverified";
+  }
+  if (pack.reason === "STATIC_PASSED") return "header check passed; the load check has not run yet (not used)";
+  if (pack.reason && CHECK_REASONS[pack.reason]) return `not compatible: ${CHECK_REASONS[pack.reason]} (not used)`;
+  return "registered, not checked for compatibility yet (not used)";
+}
+
+/** Where a configuration runs: the backend and, on a GPU, how much of the model. */
+function configurationLabel(configuration: Pick<AiRunConfiguration, "backend" | "offload">): string {
+  if (configuration.backend === "cpu") return "CPU & RAM";
+  if (configuration.offload === "full") return "the GPU (every layer)";
+  return `the GPU (${configuration.offload.replace("partial:", "")} layers)`;
+}
+
+const QUALIFICATION_REASONS: Record<string, string> = {
+  NO_QUALITY_EVIDENCE: "no quality evidence exists for this model",
+  NOT_QUALIFIED_ON_THIS_CONFIGURATION: "its quality evidence is for another configuration",
+  CONFIGURATION_NOT_DECIDED: "where it runs is decided by the GPU mode's next load, and nothing is claimed before it"
+};
+
+/** L8b.4's labels, each with its reason. Speed is never claimed until it is measured on this machine. */
+function qualificationLabel(pack: AiStatusView["modelPack"]): string | null {
+  const q = pack.qualification;
+  if (!q) return null;
+  if (q.label === "unchecked") return "Not checked for this runtime";
+  if (q.label === "incompatible") return `Incompatible: ${CHECK_REASONS[q.reason ?? ""] ?? q.reason ?? "a check failed"}`;
+  if (q.label === "qualified" && q.configuration) {
+    const features = q.qualifiedFeatures.map((id) => FEATURE_LABELS[id]).join(", ");
+    return `Qualified on ${configurationLabel(q.configuration)} for ${features}; every other feature is compatible but unqualified`;
+  }
+  return `Compatible but unqualified: ${QUALIFICATION_REASONS[q.reason ?? ""] ?? "no quality evidence for this configuration"}. It runs with the app's standard limits and makes no quality claim`;
+}
+
+function profileLabel(profile: AiEffectiveProfile | undefined): string {
+  return profile ? configurationLabel(profile) : "—";
+}
 
 /** Every AI failure carries a safe sentence; this only covers the codes that arrive without one. */
 function describeAi(response: SensitiveAdminResponse): string {
@@ -90,10 +134,7 @@ function stateLabel(status: AiStatusView): string {
 
 function packLabel(pack: AiStatusView["modelPack"]): string {
   if (pack.status === "installed") return pack.displayName ?? "Installed";
-  if (pack.status === "registered") {
-    const check = (pack.reason && STATIC_CHECK_LABELS[pack.reason]) ?? "registered, not checked for compatibility yet (not used)";
-    return `${pack.displayName ?? "Registered model"}: ${check}`;
-  }
+  if (pack.status === "registered") return `${pack.displayName ?? "Registered model"}: ${registeredLabel(pack)}`;
   const base = PACK_LABELS[pack.status] ?? pack.status;
   return pack.reason ? `${base}: ${PACK_LABELS[pack.reason] ?? pack.reason}` : base;
 }
@@ -132,6 +173,8 @@ export function LocalAiSettings() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [confirmRevert, setConfirmRevert] = useState<AiActionRecord | null>(null);
+  const [preflight, setPreflight] = useState<AiModelPreflightView | null>(null);
+  const [confirmAcknowledge, setConfirmAcknowledge] = useState(false);
 
   const action = useSensitiveSemanticAction(describeAi);
 
@@ -173,18 +216,36 @@ export function LocalAiSettings() {
     [action, load]
   );
 
-  const importPack = useCallback(async () => {
-    let cancelled = false;
+  // L8b.5 (E1): the file's size and the free space are shown BEFORE anything is copied.
+  const choosePack = useCallback(async () => {
+    let quiet = false;
+    let ready: AiModelPreflightView | null = null;
     await action.run(async () => {
-      const response = await api().importModelPack();
-      if (response.code !== "IMPORT_CANCELLED") return response;
-      cancelled = true;
-      return { code: "OK", ok: true };
-    }, "Model copied into the app's data folder and checksummed. Its status is below.");
-    // A closed file dialog is not a success worth announcing.
-    if (cancelled) action.dismiss();
-    await load();
-  }, [action, load]);
+      const response = await api().preflightModelPack();
+      if (response.code === "IMPORT_CANCELLED" || (response.ok && response.preflight)) {
+        quiet = true;
+        ready = response.ok ? response.preflight : null;
+        return { code: "OK", ok: true };
+      }
+      const p = response.preflight;
+      // A file that does not fit says by how much.
+      return p && !p.spaceOk
+        ? { ...response, message: `${response.message ?? ""} Needed: ${formatBytes(p.requiredBytes)}; free: ${p.freeBytes === null ? "cannot be measured" : formatBytes(p.freeBytes)}.` }
+        : response;
+    }, "");
+    // A closed file dialog, or a checklist still to confirm, is not a success worth announcing.
+    if (quiet) action.dismiss();
+    setPreflight(ready);
+  }, [action]);
+
+  const importPack = useCallback(
+    (token: string) =>
+      runThenReload(
+        () => api().importModelPack(token),
+        "Model copied into the app's data folder and checksummed. A model this version does not list was then checked for compatibility; its status is below."
+      ),
+    [runThenReload]
+  );
 
   const saveTier = (feature: AiFeatureId, tier: AiTier): void => {
     if (!settings) return;
@@ -195,7 +256,10 @@ export function LocalAiSettings() {
   };
 
   // A registered model (L8b.1) can be replaced and removed like a curated pack.
-  const installed = status?.modelPack.status === "installed" || status?.modelPack.status === "registered";
+  const registered = status?.modelPack.status === "registered";
+  const installed = status?.modelPack.status === "installed" || registered;
+  const awaitingAcknowledgement = registered && status?.modelPack.reason === "COMPATIBLE" && status.modelPack.acknowledged === false;
+  const qualification = status ? qualificationLabel(status.modelPack) : null;
 
   return (
     <section className="work-panel settings-card" aria-labelledby="settings-local-ai-title">
@@ -232,6 +296,14 @@ export function LocalAiSettings() {
           <strong>{stateLabel(status)}</strong>
           <span>Model pack</span>
           <strong>{packLabel(status.modelPack)}</strong>
+          {qualification ? (
+            <>
+              <span>Qualification</span>
+              <strong>{qualification}</strong>
+              <span>Speed on this machine</span>
+              <strong>Not measured, so not claimed</strong>
+            </>
+          ) : null}
           <span>Runs on</span>
           <strong aria-live="polite">{effectiveLabel(status.execution)}</strong>
           {status.holdReason ? (
@@ -296,10 +368,27 @@ export function LocalAiSettings() {
           </div>
 
           <div className="settings-actions">
-            <button className="toolbar-button" disabled={action.busy} type="button" onClick={() => void importPack()}>
+            <button className="toolbar-button" disabled={action.busy} type="button" onClick={() => void choosePack()}>
               <PackagePlus size={15} aria-hidden="true" />
               {installed ? "Replace Model Pack…" : "Import Model Pack…"}
             </button>
+            {awaitingAcknowledgement ? (
+              <button className="toolbar-button" disabled={action.busy} type="button" onClick={() => setConfirmAcknowledge(true)}>
+                <ShieldCheck size={15} aria-hidden="true" />
+                Use Unverified Model…
+              </button>
+            ) : null}
+            {registered ? (
+              <button
+                className="toolbar-button"
+                disabled={action.busy}
+                type="button"
+                onClick={() => void runThenReload(() => api().checkModelPack(), "Compatibility checked again. The result is below.")}
+              >
+                <RefreshCw size={15} aria-hidden="true" />
+                Check Compatibility Again
+              </button>
+            ) : null}
             {installed ? (
               <button className="toolbar-button modal-danger" disabled={action.busy} type="button" onClick={() => setConfirmRemove(true)}>
                 <Trash2 size={15} aria-hidden="true" />
@@ -415,6 +504,7 @@ export function LocalAiSettings() {
                   <th scope="col" className="sys-th"><span className="sys-th-button">Tier</span></th>
                   <th scope="col" className="sys-th"><span className="sys-th-button">Flow / step</span></th>
                   <th scope="col" className="sys-th"><span className="sys-th-button">Proof</span></th>
+                  <th scope="col" className="sys-th"><span className="sys-th-button">Ran on</span></th>
                   <th scope="col" className="sys-th"><span className="sys-th-button">Status</span></th>
                 </tr>
               </thead>
@@ -428,6 +518,7 @@ export function LocalAiSettings() {
                       {record.target.flowId} / {record.target.stepId}
                     </td>
                     <td>{proofLabel(record)}</td>
+                    <td>{profileLabel(record.profile)}</td>
                     <td className="sys-td-actions">
                       {record.reverted ? (
                         `Reverted ${new Date(record.reverted.at).toLocaleString()}`
@@ -467,6 +558,48 @@ export function LocalAiSettings() {
           onConfirm={() => {
             setConfirmRemove(false);
             void runThenReload(() => api().removeModelPack(), "Model pack removed.");
+          }}
+        />
+      ) : null}
+
+      {preflight ? (
+        <ConfirmDialog
+          cancelLabel="Cancel"
+          confirmLabel="Copy and check"
+          icon="connect"
+          title="Import this model?"
+          message={
+            `File: ${preflight.fileName}\nSize: ${formatBytes(preflight.sizeBytes)}\n` +
+            `Free space in the app's data folder: ${preflight.freeBytes === null ? "cannot be measured" : formatBytes(preflight.freeBytes)}\n` +
+            `Needed: ${formatBytes(preflight.requiredBytes)} (the file and ${formatBytes(preflight.headroomBytes)} to spare)\n\n` +
+            "The file is copied into the app's data folder and checksummed; the original is not changed. A model this " +
+            "version does not list is then checked for compatibility on this machine, loading it once, and is not used " +
+            "until you accept it as unverified."
+          }
+          onCancel={() => setPreflight(null)}
+          onConfirm={() => {
+            const token = preflight.token;
+            setPreflight(null);
+            void importPack(token);
+          }}
+        />
+      ) : null}
+
+      {confirmAcknowledge && status ? (
+        <ConfirmDialog
+          cancelLabel="Cancel"
+          confirmLabel="Use unverified model"
+          title="Use a model this version does not list?"
+          message={
+            `${status.modelPack.displayName ?? "This model"} passed its compatibility checks on this machine, but SpecterStudio ` +
+            "does not list it and holds no quality evidence for it, so its suggestions and explanations may be worse than a " +
+            "listed model's.\n\nEverything it proposes is still proven before it is applied, and every AI change stays in the " +
+            "audit log with a revert. Replacing the file needs this acknowledgement again.\n\nUse it?"
+          }
+          onCancel={() => setConfirmAcknowledge(false)}
+          onConfirm={() => {
+            setConfirmAcknowledge(false);
+            void runThenReload(() => api().acknowledgeModelPack(), "Unverified model accepted. It is used the next time AI loads a model.");
           }}
         />
       ) : null}

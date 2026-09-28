@@ -21,6 +21,7 @@ import type {
   AiAuditView,
   AiBackendPackView,
   AiBackendPreflightResponse,
+  AiModelPreflightResponse,
   AiDiagnosticsView,
   AiSettingsView,
   AiStatusView,
@@ -447,7 +448,11 @@ const api = {
     // L3 U1. Ids only: attaches main's own proven proposal to a recorded step as a pending candidate.
     attachInspectionProposal: (request: InspectionAttachRequest) => invoke("ai:attachInspectionProposal", request) as Promise<InspectionAttachView>,
     cancelAssist: (requestId: string) => invoke("ai:cancelAssist", requestId) as Promise<AiAdminResponse>,
-    importModelPack: () => invoke("ai:importModelPack") as Promise<AiAdminResponse>,
+    // L8b.5: the file is picked in main; the preflight's one-time token names it for the copy.
+    preflightModelPack: () => invoke("ai:preflightModelPack") as Promise<AiModelPreflightResponse>,
+    importModelPack: (token: string) => invoke("ai:importModelPack", token) as Promise<AiAdminResponse>,
+    checkModelPack: () => invoke("ai:checkModelPack") as Promise<AiAdminResponse>,
+    acknowledgeModelPack: () => invoke("ai:acknowledgeModelPack") as Promise<AiAdminResponse>,
     removeModelPack: () => invoke("ai:removeModelPack") as Promise<AiAdminResponse>,
     // L8a.2 GPU backend pack. The folder is picked in main; import names it only by the checklist's token.
     getBackendPack: () => invoke("ai:getBackendPack") as Promise<AiBackendPackView>,

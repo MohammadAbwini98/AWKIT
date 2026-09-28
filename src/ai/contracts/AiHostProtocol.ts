@@ -118,6 +118,43 @@ export type AiModelHeader =
       chatTemplate: "chatml" | "other" | "missing";
     };
 
+/**
+ * The dynamic stage (L8b.3): load a confined model on the CPU host, run the fixed probe below, and
+ * release it again. CPU hosts only; it leaves nothing loaded. Cancellable by `jobId`.
+ */
+export interface AiProbeRequest {
+  type: "probe";
+  jobId: string;
+  modelPath: string;
+  contextTokens: number;
+  threads: number;
+}
+
+/**
+ * The probe's fixed prompt and schema, mirrored by the host (verify:ai-host checks the two agree). The
+ * question is the host's own, never caller text, and the answer is one enum value.
+ */
+export const AI_PROBE = Object.freeze({
+  system: "You answer with JSON only.",
+  user: "Is water wet? Answer yes or no.",
+  schema: { type: "object", properties: { answer: { type: "string", enum: ["yes", "no"] } }, required: ["answer"], additionalProperties: false },
+  /** Unconstrained, greedy tokens read for a think marker; never returned. */
+  thinkTokens: 16,
+  /** The schema-constrained answer's bound. */
+  outputTokens: 32
+} as const);
+
+/**
+ * What the probe observed. `loaded: false` means the runtime could not load the model or create its
+ * context. `thinkingOff` is whether the first `AI_PROBE.thinkTokens` tokens after the product's own
+ * thinking-off prompt opened no think block. `text` is the grammar-constrained answer only, which the
+ * main process validates with `parseAiOutput` like any product answer. `failed` means the loaded model
+ * could not generate (its runtime error text stays in the host); `cancelled` means the probe observed nothing.
+ */
+export type AiModelProbe =
+  | { loaded: false }
+  | { loaded: true; loadMs: number; thinkingOff: boolean; text: string; stopReason: "stop" | "length" | "cancelled" | "failed" };
+
 export interface AiInferRequest {
   type: "infer";
   jobId: string;
@@ -138,6 +175,7 @@ export type AiHostRequestPayload =
   | AiLoadRequest
   | AiGpuPlanRequest
   | AiInspectRequest
+  | AiProbeRequest
   | AiInferRequest
   | { type: "cancel"; jobId: string }
   | { type: "unload" }
@@ -211,6 +249,8 @@ export const AI_HOST_TIMEOUTS = {
    * header can claim endless entries), so it answers before this and its queue is freed.
    */
   inspectMs: 30_000,
+  /** A cold load (`loadMs`) plus the probe's 48 bounded tokens on a slow CPU; a timed-out probe is cancelled. */
+  probeMs: 240_000,
   cancelMs: 2_000,
   /**
    * How long a cancelled inference may keep the host before the manager kills and lazily restarts

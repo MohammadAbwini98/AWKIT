@@ -25,6 +25,9 @@
  *   closed when the space cannot be measured.
  * - L8b.2: the host's static header verdict is recorded on it (`recordStaticCheck`) with the runtime
  *   build that produced it; a new import registers the model again without one.
+ * - L8b.3: the host's probe verdict is recorded the same way (`recordProbeCheck`).
+ * - L8b.5 (E7): an administrator's "unverified model" acknowledgement is recorded on that exact file
+ *   (`acknowledge`); a new import, even of the same file, needs a new one.
  */
 
 import { createHash } from "node:crypto";
@@ -37,7 +40,7 @@ import { pipeline } from "node:stream/promises";
 import { isValidAiModelManifestEntry, type AiModelManifestEntry } from "../offline/AiModelManifest";
 import { replaceFileAtomically } from "../storage/atomicReplace";
 import { runExclusive } from "../storage/folderWriteCoordinator";
-import { isAiStaticCheck, type AiStaticCheck } from "./AiModelCompatibility";
+import { isAiProbeCheck, isAiStaticCheck, type AiProbeCheck, type AiStaticCheck } from "./AiModelCompatibility";
 
 /** A model the manifest does not list (L8b.1). `fileName` is the source's own name, shown, never used as a path. */
 export interface AiExternalModel {
@@ -54,11 +57,27 @@ export interface AiStaticCheckRecord {
   checkedAt: string;
 }
 
+/** The probe's result (L8b.3), valid only for the runtime build that produced it. */
+export interface AiProbeCheckRecord {
+  runtimeBuild: string;
+  /** Null when the probe passed. */
+  failed: AiProbeCheck | null;
+  checkedAt: string;
+}
+
 export type AiModelPackStatus =
   | { status: "missing" }
   | { status: "installed"; entry: AiModelManifestEntry; installedAt: string }
-  /** Copied and hashed; not loaded until its compatibility stages pass (L8b.1, L8b.2). */
-  | { status: "registered"; external: AiExternalModel; installedAt: string; staticCheck: AiStaticCheckRecord | null }
+  /** Copied and hashed; not loaded until its compatibility stages pass and it is acknowledged (L8b.1–L8b.5). */
+  | {
+      status: "registered";
+      external: AiExternalModel;
+      installedAt: string;
+      staticCheck: AiStaticCheckRecord | null;
+      probeCheck: AiProbeCheckRecord | null;
+      /** When an administrator acknowledged this file as an unverified model (E7); null until then. */
+      acknowledgedAt: string | null;
+    }
   | { status: "invalid"; reason: "FILE_MISSING" | "SIZE_MISMATCH" | "HASH_MISMATCH" | "REGISTRY_UNREADABLE" }
   | { status: "incompatible"; reason: "NOT_IN_MANIFEST" };
 
@@ -81,10 +100,19 @@ export interface AiModelImportPreflight {
   spaceOk: boolean;
 }
 
+/** A registered model's record. Every field after the name is optional, so older registries load unchanged. */
+interface ExternalRecord {
+  sizeBytes: number;
+  fileName: string;
+  staticCheck?: AiStaticCheckRecord;
+  probeCheck?: AiProbeCheckRecord;
+  acknowledgedAt?: string;
+}
+
 interface Registry {
   schemaVersion: 1;
   /** `external` is present only for a model the manifest does not list; its absence is the pre-L8b shape. */
-  active: { sha256: string; installedAt: string; external?: { sizeBytes: number; fileName: string; staticCheck?: AiStaticCheckRecord } } | null;
+  active: { sha256: string; installedAt: string; external?: ExternalRecord } | null;
 }
 
 const GGUF_MAGIC = "GGUF";
@@ -129,18 +157,22 @@ function isDisplayFileName(name: unknown): name is string {
   );
 }
 
-function isStaticCheckRecord(value: unknown): value is AiStaticCheckRecord {
-  if (typeof value !== "object" || value === null) return false;
+function isCheckRecord(value: unknown, isCheck: (failed: unknown) => boolean): boolean {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
   const { runtimeBuild, failed, checkedAt } = value as Record<string, unknown>;
   return (
     typeof runtimeBuild === "string" &&
     runtimeBuild.length >= 1 &&
     runtimeBuild.length <= 200 &&
-    (failed === null || isAiStaticCheck(failed)) &&
-    typeof checkedAt === "string" &&
-    !Number.isNaN(Date.parse(checkedAt))
+    (failed === null || isCheck(failed)) &&
+    isTimestamp(checkedAt)
   );
 }
+
+const isTimestamp = (value: unknown): value is string => typeof value === "string" && value.length <= 40 && !Number.isNaN(Date.parse(value));
+const isStaticCheckRecord = (value: unknown): value is AiStaticCheckRecord => isCheckRecord(value, isAiStaticCheck);
+const isProbeCheckRecord = (value: unknown): value is AiProbeCheckRecord => isCheckRecord(value, isAiProbeCheck);
+const copyCheck = <T extends { runtimeBuild: string; failed: unknown; checkedAt: string }>(check: T): T => ({ runtimeBuild: check.runtimeBuild, failed: check.failed, checkedAt: check.checkedAt }) as T;
 
 export async function sha256File(path: string): Promise<string> {
   const hash = createHash("sha256");
@@ -188,12 +220,20 @@ export class AiModelPackStore {
       const external: unknown = (active as { external?: unknown }).external;
       if (external === undefined) return { schemaVersion: 1, active: { sha256: active.sha256, installedAt: active.installedAt } };
       if (typeof external !== "object" || external === null) return "unreadable";
-      const { sizeBytes, fileName, staticCheck } = external as { sizeBytes?: unknown; fileName?: unknown; staticCheck?: unknown };
+      const { sizeBytes, fileName, staticCheck, probeCheck, acknowledgedAt } = external as Record<string, unknown>;
       if (typeof sizeBytes !== "number" || !Number.isSafeInteger(sizeBytes) || sizeBytes <= 0 || !isDisplayFileName(fileName)) return "unreadable";
-      // Optional (L8b.2): an L8b.1 registry has none. A malformed one is a forged or damaged registry.
+      // Each is optional (L8b.2, L8b.3, L8b.5): an older registry has none. A malformed one is a forged or damaged registry.
       if (staticCheck !== undefined && !isStaticCheckRecord(staticCheck)) return "unreadable";
-      const checked = staticCheck === undefined ? {} : { staticCheck: { runtimeBuild: staticCheck.runtimeBuild, failed: staticCheck.failed, checkedAt: staticCheck.checkedAt } };
-      return { schemaVersion: 1, active: { sha256: active.sha256, installedAt: active.installedAt, external: { sizeBytes, fileName, ...checked } } };
+      if (probeCheck !== undefined && !isProbeCheckRecord(probeCheck)) return "unreadable";
+      if (acknowledgedAt !== undefined && !isTimestamp(acknowledgedAt)) return "unreadable";
+      const record: ExternalRecord = {
+        sizeBytes,
+        fileName,
+        ...(staticCheck === undefined ? {} : { staticCheck: copyCheck(staticCheck) }),
+        ...(probeCheck === undefined ? {} : { probeCheck: copyCheck(probeCheck) }),
+        ...(acknowledgedAt === undefined ? {} : { acknowledgedAt })
+      };
+      return { schemaVersion: 1, active: { sha256: active.sha256, installedAt: active.installedAt, external: record } };
     } catch {
       return "unreadable";
     }
@@ -225,8 +265,15 @@ export class AiModelPackStore {
     if (this.verified.get(active.sha256)?.ok === false) return { status: "invalid", reason: "HASH_MISMATCH" };
     // A model registered before a release listed it reads as that curated entry from then on.
     if (entry) return { status: "installed", entry, installedAt: active.installedAt };
-    const { sizeBytes, fileName, staticCheck } = active.external!;
-    return { status: "registered", external: { sha256: active.sha256, sizeBytes, fileName }, installedAt: active.installedAt, staticCheck: staticCheck ?? null };
+    const { sizeBytes, fileName, staticCheck, probeCheck, acknowledgedAt } = active.external!;
+    return {
+      status: "registered",
+      external: { sha256: active.sha256, sizeBytes, fileName },
+      installedAt: active.installedAt,
+      staticCheck: staticCheck ?? null,
+      probeCheck: probeCheck ?? null,
+      acknowledgedAt: acknowledgedAt ?? null
+    };
   }
 
   /**
@@ -234,12 +281,28 @@ export class AiModelPackStore {
    * written, when that model is no longer the active registered one: a verdict never moves to a replacement.
    */
   recordStaticCheck(sha256: string, check: AiStaticCheckRecord): Promise<boolean> {
+    return isStaticCheckRecord(check) ? this.updateExternal(sha256, (external) => ({ ...external, staticCheck: copyCheck(check) })) : Promise.resolve(false);
+  }
+
+  /** Record the probe's result (L8b.3), under the same rule as `recordStaticCheck`. */
+  recordProbeCheck(sha256: string, check: AiProbeCheckRecord): Promise<boolean> {
+    return isProbeCheckRecord(check) ? this.updateExternal(sha256, (external) => ({ ...external, probeCheck: copyCheck(check) })) : Promise.resolve(false);
+  }
+
+  /**
+   * Record an administrator's "unverified model" acknowledgement (L8b.5, E7) on the active registered
+   * model named by its checksum. It admits nothing by itself: the model is used only when its
+   * compatibility stages passed too. False when that model is no longer the active registered one.
+   */
+  acknowledge(sha256: string): Promise<boolean> {
+    return this.updateExternal(sha256, (external) => ({ ...external, acknowledgedAt: new Date(this.now()).toISOString() }));
+  }
+
+  private updateExternal(sha256: string, change: (external: ExternalRecord) => ExternalRecord): Promise<boolean> {
     return runExclusive(this.modelsDir, async () => {
-      if (!isStaticCheckRecord(check)) return false;
       const registry = await this.readRegistry();
       if (registry === "unreadable" || registry.active?.sha256 !== sha256 || !registry.active.external) return false;
-      const { sizeBytes, fileName } = registry.active.external;
-      await this.writeRegistry({ schemaVersion: 1, active: { ...registry.active, external: { sizeBytes, fileName, staticCheck: { ...check } } } });
+      await this.writeRegistry({ schemaVersion: 1, active: { ...registry.active, external: change(registry.active.external) } });
       return true;
     });
   }

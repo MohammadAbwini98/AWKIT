@@ -157,6 +157,25 @@ try {
     rejects("an unparseable timestamp", { createdAt: "yesterday" });
     rejects("another revert handle", { revertHandle: { kind: "arbitraryFile", path: "C:/x" } });
     rejects("a schema version other than 1", { schemaVersion: 2 });
+
+    // L8b.5 (E6): the effective profile the proposal was produced under. Optional, so older records load.
+    const profile = { runtimeBuild: "node-llama-cpp@3.21.1+llama.cpp@v0.4.0", backend: "vulkan", offload: "partial:10" };
+    const profiled = sanitizeAiActionRecord(record({ profile: { ...profile, deviceName: "GPU 0" } }));
+    check(
+      "a record keeps its effective profile, rebuilt from its known fields",
+      profiled.ok && JSON.stringify(profiled.record.profile) === JSON.stringify(profile),
+      JSON.stringify(profiled)
+    );
+    const cpu = sanitizeAiActionRecord(record({ profile: { runtimeBuild: "b", backend: "cpu", offload: "cpu" } }));
+    check("a CPU & RAM profile is kept", cpu.ok && cpu.record.profile?.offload === "cpu");
+    const older = sanitizeAiActionRecord(record());
+    check("a record written before L8b.5 (no profile) loads unchanged", older.ok && !("profile" in older.record));
+    rejects("a profile with an unknown backend", { profile: { ...profile, backend: "cuda" } });
+    rejects("a CPU backend claiming offloaded layers", { profile: { ...profile, backend: "cpu", offload: "full" } });
+    rejects("a GPU backend claiming no offload", { profile: { ...profile, backend: "vulkan", offload: "cpu" } });
+    rejects("a malformed offload class", { profile: { ...profile, offload: "partial:0" } });
+    rejects("a control character in the runtime build", { profile: { ...profile, runtimeBuild: `b${String.fromCharCode(10)}x` } });
+    rejects("a profile that is not an object", { profile: "cpu" });
   }
 
   console.log("\nRetention — newest 5,000, at most 90 days:\n");

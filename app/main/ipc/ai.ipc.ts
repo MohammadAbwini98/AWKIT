@@ -29,6 +29,7 @@ import {
   type AiBackendPackView,
   type AiBackendPreflightResponse,
   type AiDiagnosticsView,
+  type AiModelPreflightResponse,
   type AiSettingsView,
   type AiStatusView,
   type AuthoringAssistView,
@@ -58,6 +59,7 @@ import {
   type FailureReportAccess
 } from "../ai/aiAssist";
 import {
+  acknowledgeAiModelPack,
   aiAuditView,
   aiBackendPackView,
   aiDiagnosticsView,
@@ -65,10 +67,12 @@ import {
   aiSettingsView,
   aiStatusView,
   cancelAiBackendPack,
+  checkAiModelPack,
   getAiService,
   importAiBackendPack,
   importAiModelPack,
   preflightAiBackendPack,
+  preflightAiModelPack,
   removeAiBackendPack,
   removeAiModelPack,
   restoreAiFeature,
@@ -274,9 +278,11 @@ export function registerAiIpc(): void {
     return cancelAssist(event.sender.id, requestId, (jobId) => abortInspectionLocator(jobId) || getAiService().cancel(jobId));
   });
 
-  ipcMain.handle("ai:importModelPack", async (event): Promise<AiAdminResponse> => {
+  // L8b.5 (E1): model import is two steps. The file dialog opens here, in main, and the renderer gets the
+  // disk-space preflight and a one-time token; the copy names the checked file only by that token.
+  ipcMain.handle("ai:preflightModelPack", async (event): Promise<AiModelPreflightResponse> => {
     const denied = await authorize(event, Permission.AI_MANAGE, true);
-    if (denied) return denied;
+    if (denied) return { ...denied, preflight: null };
     const owner = BrowserWindow.fromWebContents(event.sender);
     const options: Electron.OpenDialogOptions = {
       title: "Import AI model pack",
@@ -284,8 +290,25 @@ export function registerAiIpc(): void {
       filters: [{ name: "GGUF model pack", extensions: ["gguf"] }]
     };
     const picked = owner ? await dialog.showOpenDialog(owner, options) : await dialog.showOpenDialog(options);
-    if (picked.canceled || !picked.filePaths[0]) return { code: "IMPORT_CANCELLED", ok: false };
-    return importAiModelPack(picked.filePaths[0]);
+    if (picked.canceled || !picked.filePaths[0]) return { code: "IMPORT_CANCELLED", ok: false, preflight: null };
+    return preflightAiModelPack(event.sender.id, picked.filePaths[0]);
+  });
+
+  ipcMain.handle("ai:importModelPack", async (event, token: unknown): Promise<AiAdminResponse> => {
+    const denied = await authorize(event, Permission.AI_MANAGE, true);
+    if (denied) return denied;
+    const id = sanitizeBackendPreflightToken(token);
+    return id ? importAiModelPack(event.sender.id, id) : { code: "INVALID_REQUEST", ok: false, message: "Choose the model file again before importing." };
+  });
+
+  // L8b.3 and L8b.5: re-run a registered model's compatibility stages, and acknowledge a compatible one as
+  // unverified (E7). Both can admit a model to use, so both re-authenticate.
+  ipcMain.handle("ai:checkModelPack", async (event): Promise<AiAdminResponse> => {
+    return (await authorize(event, Permission.AI_MANAGE, true)) ?? checkAiModelPack();
+  });
+
+  ipcMain.handle("ai:acknowledgeModelPack", async (event): Promise<AiAdminResponse> => {
+    return (await authorize(event, Permission.AI_MANAGE, true)) ?? acknowledgeAiModelPack();
   });
 
   ipcMain.handle("ai:removeModelPack", async (event): Promise<AiAdminResponse> => {

@@ -20,6 +20,7 @@ import type { FlowProfile, FlowStep, LocatorCandidate, LocatorContext, PendingLo
 import { createLocatorApprovalBinding, locatorBindingMatches } from "../profiles/locatorApproval";
 import { decideAiAction, type AiPolicyReason } from "../security/authz/AiAutonomyPolicy";
 import type { LocatorProofResult } from "../runner/locatorProof";
+import { sanitizeEffectiveProfile } from "./AiActionRecord";
 import type { CompiledLocatorPlan } from "./locatorPlan";
 
 /**
@@ -87,10 +88,13 @@ export function createPendingUpgrade(input: {
    */
   proofEvidence?: PendingProofEvidence;
   modelId: string;
+  /** Where the answer came from (L8b.5); stored only when well formed. */
+  profile?: unknown;
   now: Date;
 }): PendingLocatorUpgrade | undefined {
   const binding = createLocatorApprovalBinding(input.step);
   if (!binding) return undefined;
+  const profile = sanitizeEffectiveProfile(input.profile);
   return {
     schemaVersion: 1,
     candidate: { ...input.compiled.candidate },
@@ -100,6 +104,7 @@ export function createPendingUpgrade(input: {
     meaningChange: input.meaningChange,
     binding,
     modelId: input.modelId,
+    ...(profile ? { profile } : {}),
     createdAt: input.now.toISOString()
   };
 }

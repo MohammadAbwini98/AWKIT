@@ -1,15 +1,20 @@
 /**
- * L8b.2 live: the static header stage on the REAL host (`native-hosts/ai/ai-host.cjs`) in a real utility
- * process, reading with the pinned runtime's own GGUF reader. Harness mode `inspect`.
+ * L8b.2 and L8b.3 live: the static header stage and the dynamic probe on the REAL host
+ * (`native-hosts/ai/ai-host.cjs`) in a real utility process, with the pinned runtime. Harness mode `inspect`.
  *
- *  - The real models staged in AWKIT_HARNESS_MODEL_ROOT must pass: the curated packs, and a real model the
- *    manifest does not list.
+ *  - The real models staged in AWKIT_HARNESS_MODEL_ROOT must pass both: the curated packs, and a real model
+ *    the manifest does not list. The probe loads each once, reads its first unconstrained tokens after the
+ *    product's thinking-off prompt for a think marker, and answers the probe schema.
  *  - Hand-built header-only GGUF files, one per check, must each fail that check and no other, and one
  *    compatible header of another architecture must pass. That includes a header claiming endless
  *    entries, which the runtime's reader would read as zeros forever: the host's deadline must end it
- *    and leave the host answering.
- *  - The product path: `AiModelPackStore` imports a non-manifest file, `runStaticStage` runs it through
- *    `AiService.inspectModel` (with AI switched off) and records the verdict on that model only.
+ *    and leave the host answering. The compatible header has no weights, so its probe must fail the load
+ *    without taking the host down.
+ *  - The same host with its thinking-off pre-fill removed (AWKIT_HARNESS_MUTANT_HOST_PATH) must read
+ *    THINKING_NOT_DISABLED on a real Qwen3.5 model: the check observes the model, not the template text.
+ *  - The product path: `AiModelPackStore` imports a non-manifest file, `runCompatibilityStages` runs it
+ *    through `AiService.inspectModel` and `probeModel` (with AI switched off) and records each verdict on
+ *    that model only.
  *  - The main process never loads the runtime, and the host never restarts.
  */
 
@@ -17,10 +22,16 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { AiUtilityHostManager } from "@main/ai/AiUtilityHostManager";
-import { runStaticStage, staticStanding, staticVerdict } from "@src/ai/AiModelCompatibility";
+import { compatibilityStanding, probeVerdict, runCompatibilityStages, staticVerdict } from "@src/ai/AiModelCompatibility";
 import { AiModelPackStore } from "@src/ai/AiModelPack";
 import { AiService } from "@src/ai/AiService";
-import { AI_HOST_PROTOCOL_VERSION, AI_HOST_TIMEOUTS, type AiHostHello, type AiModelHeader } from "@src/ai/contracts/AiHostProtocol";
+import {
+  AI_HOST_PROTOCOL_VERSION,
+  AI_HOST_TIMEOUTS,
+  type AiHostHello,
+  type AiModelHeader,
+  type AiModelProbe
+} from "@src/ai/contracts/AiHostProtocol";
 import { AI_MODEL_MANIFEST } from "@src/offline/AiModelManifest";
 
 import { ggufHeader, LLAMA3, modelHeader } from "../helpers/gguf-header.mts";
@@ -121,7 +132,52 @@ export async function runModelInspect({ step, record, log }: Deps): Promise<void
     if (reason !== "AI_MODEL_PATH_OUTSIDE_ROOT") throw new Error(String(reason));
     return { reason };
   });
+
+  // ── L8b.3: the probe on the real host ──
+  const threads = Number(process.env.AWKIT_HARNESS_THREADS ?? "4");
+  let probes = 0;
+  const probe = async (host: AiUtilityHostManager, file: string) => {
+    const started = Date.now();
+    const reply = await host.call<AiModelProbe>(
+      { type: "probe", jobId: `probe-${++probes}`, modelPath: path.join(modelRoot, file), contextTokens: 4096, threads },
+      AI_HOST_TIMEOUTS.probeMs
+    );
+    const verdict = probeVerdict(reply);
+    return { reply, standing: verdict.ok ? "passed" : verdict.failed, ms: Date.now() - started };
+  };
+  const probed: Record<string, unknown> = {};
+  for (const pack of packs) {
+    await step(`${pack.curated ? "the curated pack" : "the real model the manifest does not list,"} ${pack.id} passes the probe: loads, thinking stays off, answers the schema`, async () => {
+      const result = await probe(manager, pack.file);
+      probed[pack.id] = result;
+      if (result.standing !== "passed") throw new Error(`${result.standing}: ${JSON.stringify(result.reply)}`);
+      return result;
+    });
+  }
+  record("probes", probed);
+  const headerOnly = `${String(0).padStart(64, "c")}.gguf`;
+  await step("a compatible header with no weights fails the probe's load: PROBE_LOAD_FAILED", async () => {
+    const result = await probe(manager, headerOnly);
+    if (result.standing !== "PROBE_LOAD_FAILED") throw new Error(`got ${result.standing}: ${JSON.stringify(result.reply)}`);
+    return result;
+  });
+  await step("the host survived every probe, the failed load included (same process, no restart)", async () => {
+    const value = await manager.call<AiHostHello>({ type: "hello", expected: { protocolVersion: AI_HOST_PROTOCOL_VERSION } }, 15_000);
+    const status = manager.status();
+    if (!value.compatible || status.pid !== pid || status.unexpectedExits !== 0) throw new Error(JSON.stringify(status));
+    return { pid: status.pid, unexpectedExits: status.unexpectedExits };
+  });
   await manager.dispose();
+
+  const mutantPath = required("AWKIT_HARNESS_MUTANT_HOST_PATH");
+  const mutant = new AiUtilityHostManager({ hostPath: mutantPath, modelRoot, log: (level, message) => log(`${level}: ${message}`) });
+  await step(`with the thinking-off pre-fill removed, the same host reads THINKING_NOT_DISABLED on the real ${packs[0].id}`, async () => {
+    const result = await probe(mutant, packs[0].file);
+    record("mutantProbe", result);
+    if (result.standing !== "THINKING_NOT_DISABLED") throw new Error(`got ${result.standing}: ${JSON.stringify(result.reply)}`);
+    return result;
+  });
+  await mutant.dispose();
 
   // ── The product path: store, stage and service, with AI switched off ──
   const storeRoot = path.join(path.dirname(modelRoot), "store-models");
@@ -139,13 +195,20 @@ export async function runModelInspect({ step, record, log }: Deps): Promise<void
     log: (level, message) => log(`${level}: ${message}`)
   });
   const store = new AiModelPackStore(storeRoot, AI_MODEL_MANIFEST);
-  const stage = () => runStaticStage({ store, inspect: (file) => service.inspectModel(file), runtimeBuild: build });
+  let probesAsked = 0;
+  const stage = () =>
+    runCompatibilityStages({
+      store,
+      inspect: (file) => service.inspectModel(file),
+      probe: (file) => (probesAsked++, service.probeModel(file)),
+      runtimeBuild: build
+    });
   const llama = path.join(sources, "Llama-3-style.gguf");
   const qwen2 = path.join(sources, "Qwen2-style.gguf");
   fs.writeFileSync(llama, model({ arch: "llama", template: LLAMA3 }));
   fs.writeFileSync(qwen2, model());
 
-  await step("an imported non-manifest model is checked in the host and its failure recorded (AI off)", async () => {
+  await step("an imported non-manifest model is checked in the host, its header failure recorded, and it is never probed (AI off)", async () => {
     const imported = await store.import(llama);
     if (!imported.ok || imported.entry !== null) throw new Error(JSON.stringify(imported));
     const before = await store.status();
@@ -155,18 +218,22 @@ export async function runModelInspect({ step, record, log }: Deps): Promise<void
     if (result !== "CHAT_TEMPLATE" || after.status !== "registered" || after.staticCheck?.failed !== "CHAT_TEMPLATE" || after.staticCheck.runtimeBuild !== build) {
       throw new Error(`${result}: ${JSON.stringify(after)}`);
     }
-    if (staticStanding(after.staticCheck, build) !== "CHAT_TEMPLATE" || staticStanding(after.staticCheck, `${build}-other`) !== null) throw new Error("standing");
+    if (probesAsked !== 0 || after.probeCheck !== null) throw new Error("a model that failed its header was probed");
+    if (compatibilityStanding(after, build) !== "CHAT_TEMPLATE" || compatibilityStanding(after, `${build}-other`) !== null) throw new Error("standing");
     return { result, staticCheck: after.staticCheck };
   });
-  await step("a replacement starts unchecked and records its own pass", async () => {
+  await step("a replacement starts unchecked, passes its header, and its probe records the failed load", async () => {
     const imported = await store.import(qwen2);
     if (!imported.ok || imported.entry !== null) throw new Error(JSON.stringify(imported));
     const before = await store.status();
     const result = await stage();
     const after = await store.status();
-    if (before.status !== "registered" || before.staticCheck !== null) throw new Error(`the old verdict carried over: ${JSON.stringify(before)}`);
-    if (result !== "passed" || after.status !== "registered" || after.staticCheck?.failed !== null) throw new Error(`${result}: ${JSON.stringify(after)}`);
-    return { result, staticCheck: after.staticCheck };
+    if (before.status !== "registered" || before.staticCheck !== null || before.probeCheck !== null) throw new Error(`the old verdict carried over: ${JSON.stringify(before)}`);
+    if (result !== "PROBE_LOAD_FAILED" || after.status !== "registered" || after.staticCheck?.failed !== null || after.probeCheck?.failed !== "PROBE_LOAD_FAILED") {
+      throw new Error(`${result}: ${JSON.stringify(after)}`);
+    }
+    if (probesAsked !== 1 || compatibilityStanding(after, build) !== "PROBE_LOAD_FAILED") throw new Error(`probes ${probesAsked}`);
+    return { result, staticCheck: after.staticCheck, probeCheck: after.probeCheck };
   });
   await service.shutdown();
 

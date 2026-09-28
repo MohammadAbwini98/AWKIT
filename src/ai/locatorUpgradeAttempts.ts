@@ -568,6 +568,7 @@ export async function runLocatorUpgradeAttempts(
       proof: mode === "repair" ? "repair-proven" : proof.outcome === "proven" ? "capture-proven" : "unprovable-now",
       proofEvidence: proofEvidenceOf(proof),
       modelId: outcome.modelId,
+      profile: outcome.profile,
       now: now()
     });
     if (!pending) return done("superseded", "NO_BINDING");

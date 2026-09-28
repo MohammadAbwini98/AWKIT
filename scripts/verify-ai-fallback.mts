@@ -108,6 +108,13 @@ console.log("Degraded modes return a code and never touch the host:\n");
       state: "MODEL_INCOMPATIBLE"
     },
     {
+      // L8b.5 (E7): a compatible one no administrator acknowledged as unverified is never loaded.
+      label: "a compatible registered model not acknowledged as unverified",
+      build: (fake) => service({ transport: fake, model: async () => ({ ok: false, reason: "MODEL_UNACKNOWLEDGED" }) }),
+      want: "UNAVAILABLE/MODEL_UNACKNOWLEDGED",
+      state: "MODEL_UNACKNOWLEDGED"
+    },
+    {
       label: "a model resolver that throws",
       build: (fake) =>
         service({
@@ -344,13 +351,15 @@ console.log("\nThe renderer cannot run a prompt:\n");
   // L8a.2: `ai:importBackendPack` carries only the one-time token of a checklist main computed for a
   // folder its OWN dialog picked; `sanitizeBackendPreflightToken` admits 32 hex characters and main
   // binds the token to the asking window, so no path ever crosses the bridge.
+  // L8b.5: `ai:importModelPack` likewise carries only the token of the preflight main computed for a file
+  // its OWN dialog picked, through the same sanitizer, bound to the asking window.
   const argumentsTaken = [...preload.matchAll(/(ai:[A-Za-z]+)", ([a-zA-Z]+)\)/g)].map((m) => `${m[1]}(${m[2]})`);
   // Without this the .every() below passes on an empty list the moment the pattern stops matching.
-  check("the bridge's arguments were actually read", argumentsTaken.length === 15, argumentsTaken.join(","));
+  check("the bridge's arguments were actually read", argumentsTaken.length === 16, argumentsTaken.join(","));
   check(
-    "only settings, a feature id, an audit page, an action id, a flow id, a promotion, editor state, named assist jobs and a backend-pack checklist token cross the bridge",
+    "only settings, a feature id, an audit page, an action id, a flow id, a promotion, editor state, named assist jobs and backend-pack and model-file checklist tokens cross the bridge",
     argumentsTaken.every((call) =>
-      /^ai:(updateSettings\(patch\)|restoreFeature\(feature\)|listAudit\(page\)|revert\(actionId\)|listUpgrades\(flowId\)|promoteUpgrade\(request\)|setEditorState\(state\)|explainValidation\(request\)|summarizeFragment\(request\)|analyzeFailure\(request\)|deleteFailureAnalysis\(target\)|proposeInspectionLocator\(request\)|attachInspectionProposal\(request\)|cancelAssist\(requestId\)|importBackendPack\(token\))$/.test(call)
+      /^ai:(updateSettings\(patch\)|restoreFeature\(feature\)|listAudit\(page\)|revert\(actionId\)|listUpgrades\(flowId\)|promoteUpgrade\(request\)|setEditorState\(state\)|explainValidation\(request\)|summarizeFragment\(request\)|analyzeFailure\(request\)|deleteFailureAnalysis\(target\)|proposeInspectionLocator\(request\)|attachInspectionProposal\(request\)|cancelAssist\(requestId\)|importBackendPack\(token\)|importModelPack\(token\))$/.test(call)
     ),
     argumentsTaken.join(",")
   );

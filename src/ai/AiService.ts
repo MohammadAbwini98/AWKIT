@@ -27,6 +27,7 @@ import {
   CPU_PROFILE,
   decideGpuLoad,
   GPU_LOSS_LIMIT,
+  offloadClassOf,
   retryLayers,
   unprovenDevices,
   vramOf,
@@ -52,8 +53,10 @@ import {
   type AiHostTransport,
   type AiInferResult,
   type AiLoadResult,
-  type AiModelHeader
+  type AiModelHeader,
+  type AiModelProbe
 } from "./contracts/AiHostProtocol";
+import type { AiEffectiveProfile } from "./AiActionRecord";
 
 export interface AiServiceLimits {
   maxQueue: number;
@@ -106,7 +109,8 @@ export interface AiJobUsage {
 }
 
 export type AiJobOutcome =
-  | { status: "ok"; value: unknown; modelId: string; usage: AiJobUsage; yields: number }
+  /** `profile` (L8b.5, E6): where this answer was produced, since backend numerics can change output. */
+  | { status: "ok"; value: unknown; modelId: string; usage: AiJobUsage; yields: number; profile: AiEffectiveProfile }
   | { status: "rejected"; code: AiRejectCode; reason?: AiUnavailableReason }
   | { status: "cancelled"; yields: number }
   | { status: "failed"; code: AiFailCode; yields: number };
@@ -120,8 +124,10 @@ export type AiUnavailableReason =
   | "MODEL_INVALID"
   /** A registered model the manifest does not list whose compatibility stages have not all passed (L8b.1). */
   | "MODEL_UNCHECKED"
-  /** A registered model that failed a compatibility check (L8b.2). */
+  /** A registered model that failed a compatibility check (L8b.2, L8b.3). */
   | "MODEL_INCOMPATIBLE"
+  /** A compatible registered model no administrator has acknowledged as unverified yet (L8b.5, E7). */
+  | "MODEL_UNACKNOWLEDGED"
   /** GPU-Only refused; the execution profile names why. */
   | "GPU_UNAVAILABLE"
   | "SHUTDOWN";
@@ -162,7 +168,7 @@ export interface AiServiceSettings {
 
 export type AiModelResolution =
   | { ok: true; modelId: string; modelPath: string; contextTokens: number }
-  | { ok: false; reason: "MODEL_MISSING" | "MODEL_INVALID" | "MODEL_UNCHECKED" | "MODEL_INCOMPATIBLE" };
+  | { ok: false; reason: "MODEL_MISSING" | "MODEL_INVALID" | "MODEL_UNCHECKED" | "MODEL_INCOMPATIBLE" | "MODEL_UNACKNOWLEDGED" };
 
 export interface AiServiceDeps {
   /** The host for a backend; null when it is not part of this build. The CPU host decides "runtime missing". */
@@ -578,6 +584,46 @@ export class AiService {
   }
 
   /**
+   * L8b.3's dynamic stage: the CPU host loads a registered model once, checks that thinking stays off and
+   * answers a fixed schema, then releases it. Null when it cannot run: no host, an open circuit, a refused
+   * handshake, a failure or a timeout (then cancelled on the host), or admission holding. A probe loads a
+   * whole model, so it waits for the same capacity an inference does (runs active, free memory). It runs
+   * whether or not AI is switched on: it is part of an administrator's import.
+   */
+  async probeModel(modelPath: string): Promise<AiModelProbe | null> {
+    const transport = this.deps.transport("cpu");
+    if (this.disposed || !transport?.isAvailable()) return null;
+    const settings = await this.deps.settings().catch(() => null);
+    if (!settings || !this.admit(settings).admit) return null;
+    if ((await this.cpuHandshake(transport)) !== "ready") return null;
+    // The probe replaces whatever the CPU host holds and releases it afterwards, so the next job reloads.
+    if (this.backend === "cpu") {
+      this.loadedModelId = null;
+      this.profileKey = null;
+    }
+    const jobId = `probe#${++this.attempt}`;
+    try {
+      return await transport.call<AiModelProbe>(
+        { type: "probe", jobId, modelPath, contextTokens: AI_CONTEXT_TOKENS, threads: this.deps.threads },
+        AI_HOST_TIMEOUTS.probeMs
+      );
+    } catch (error) {
+      const reason: AiHostReason = error instanceof AiHostCallError ? error.reason : "AI_HOST_INTERNAL_ERROR";
+      this.lastError = reason;
+      // Past its deadline the host is still generating: free it (bounded) before anything else is sent.
+      const settled =
+        reason === "AI_HOST_TIMEOUT"
+          ? await transport.call({ type: "cancel", jobId }, AI_HOST_TIMEOUTS.cancelMs).then(
+              () => reason,
+              (cancel: unknown) => (cancel instanceof AiHostCallError ? cancel.reason : reason)
+            )
+          : reason;
+      if (settled === "AI_HOST_EXITED" || settled === "AI_HOST_KILLED_ON_CANCEL") this.forgetHost("cpu");
+      return null;
+    }
+  }
+
+  /**
    * Handshake and model load on the host the execution mode calls for. Returns "ready" or the job's
    * outcome. A loaded model is kept while the model, mode and reserve are unchanged; anything else drops
    * the load first. This runs between jobs, so a mode change never lands mid-inference.
@@ -888,7 +934,12 @@ export class AiService {
           firstTokenMs: result.timings?.firstTokenMs ?? 0,
           generationMs: result.timings?.generationMs ?? 0
         },
-        yields: job.yields
+        yields: job.yields,
+        profile: {
+          runtimeBuild: this.deps.expectedRuntimeBuild ?? "unpinned",
+          backend,
+          offload: backend === "cpu" ? "cpu" : offloadClassOf(this.profile.gpuLayers, this.profile.totalLayers)
+        }
       });
     } finally {
       this.running = null;

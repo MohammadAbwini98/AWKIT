@@ -44,6 +44,16 @@ export interface AiRevertHandle {
   kind: "locatorProvenance";
 }
 
+/**
+ * Where a model answer was produced (L8b.5, E6): the runtime build, the backend and the offload class.
+ * Backend numerics can change output, so an applied change records the profile its proposal came from.
+ */
+export interface AiEffectiveProfile {
+  runtimeBuild: string;
+  backend: "cpu" | "vulkan";
+  offload: "cpu" | "full" | `partial:${number}`;
+}
+
 export interface AiActionRecord {
   schemaVersion: 1;
   id: string;
@@ -54,9 +64,24 @@ export interface AiActionRecord {
   evidenceIds: string[];
   proof: { result: AiActionProofResult; replays?: number; dataRows?: number };
   modelId: string;
+  /** Additive (L8b.5): absent on records written before it, and on proposals stored before it. */
+  profile?: AiEffectiveProfile;
   createdAt: string;
   revertHandle: AiRevertHandle;
   reverted?: { at: string };
+}
+
+const OFFLOAD = /^(?:cpu|full|partial:[1-9]\d{0,3})$/;
+
+/** A well-formed profile rebuilt from its known fields, or undefined. A CPU backend offloads nothing. */
+export function sanitizeEffectiveProfile(value: unknown): AiEffectiveProfile | undefined {
+  const raw = object(value);
+  const runtimeBuild = identifier(raw?.runtimeBuild);
+  const backend = raw?.backend;
+  const offload = raw?.offload;
+  if (!runtimeBuild || (backend !== "cpu" && backend !== "vulkan") || typeof offload !== "string" || !OFFLOAD.test(offload)) return undefined;
+  if ((backend === "cpu") !== (offload === "cpu")) return undefined;
+  return { runtimeBuild, backend, offload: offload as AiEffectiveProfile["offload"] };
 }
 
 export type AiRecordSanitizeResult = { ok: true; record: AiActionRecord } | { ok: false; errors: string[] };
@@ -115,6 +140,8 @@ export function sanitizeAiActionRecord(input: unknown): AiRecordSanitizeResult {
 
   const modelId = identifier(raw.modelId);
   if (!modelId) errors.push("modelId");
+  const profile = raw.profile === undefined ? undefined : sanitizeEffectiveProfile(raw.profile);
+  if (raw.profile !== undefined && !profile) errors.push("profile");
   const createdAt = timestamp(raw.createdAt);
   if (!createdAt) errors.push("createdAt");
   if (object(raw.revertHandle)?.kind !== "locatorProvenance") errors.push("revertHandle");
@@ -143,6 +170,7 @@ export function sanitizeAiActionRecord(input: unknown): AiRecordSanitizeResult {
         ...(dataRows !== undefined ? { dataRows } : {})
       },
       modelId: modelId!,
+      ...(profile ? { profile } : {}),
       createdAt: createdAt!,
       revertHandle: { kind: "locatorProvenance" },
       ...(reverted ? { reverted } : {})

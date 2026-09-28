@@ -714,7 +714,7 @@ try {
       submit: async (request) => {
         submitted.push(request);
         return submitted.length === 1
-          ? { status: "ok", value: JSON.parse(PLANS.dataBound), modelId: "stub", usage: { promptTokens: 1, outputTokens: 1, firstTokenMs: 0, generationMs: 0 }, yields: 0 }
+          ? { status: "ok", value: JSON.parse(PLANS.dataBound), modelId: "stub", usage: { promptTokens: 1, outputTokens: 1, firstTokenMs: 0, generationMs: 0 }, yields: 0, profile: { runtimeBuild: "b-stub", backend: "cpu", offload: "cpu" } }
           : { status: "cancelled", yields: 0 };
       },
       cancel: () => false
@@ -845,7 +845,7 @@ try {
       { requestId: "req-d1", mode, step: archive, boundValues: [], upgradeContext, userRequested: true, maxAttempts: 1 },
       {
         ai: {
-          submit: async () => ({ status: "ok", value: plan, modelId: "stub", usage: { promptTokens: 1, outputTokens: 1, firstTokenMs: 0, generationMs: 0 }, yields: 0 }),
+          submit: async () => ({ status: "ok", value: plan, modelId: "stub", usage: { promptTokens: 1, outputTokens: 1, firstTokenMs: 0, generationMs: 0 }, yields: 0, profile: { runtimeBuild: "b-stub", backend: "cpu", offload: "cpu" } }),
           cancel: () => false
         },
         prove: async () => {

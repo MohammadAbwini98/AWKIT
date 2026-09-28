@@ -263,6 +263,7 @@ console.log("\nE. VRAM sizing and bounded retry\n");
   check("sufficient VRAM: GPU-Offload loads every layer on the GPU host", ok.status === "ok" && loads(full.gpu).map((l) => l.gpuLayers).join() === "24", loads(full.gpu));
   check("...infers there, never on the CPU host", full.gpu?.inferRequests().length === 1 && types(full.cpu).length === 0);
   check("...and reports vulkan 24/24", profile.backend === "vulkan" && profile.gpuLayers === 24 && profile.totalLayers === 24 && profile.requestedLayers === 24 && profile.fallbackReason === null, profile);
+  check("...and the answer carries that effective profile: Vulkan, every layer (L8b.5)", ok.status === "ok" && ok.profile.backend === "vulkan" && ok.profile.offload === "full", ok);
   check("...with the plan asked for the configured context and threads", full.gpu?.requests.some((r) => r.type === "gpuPlan" && r.contextTokens === 4096 && r.threads === 4 && r.reserveBytes === null));
   await full.run("full-2");
   check("the next job reuses the load (no second plan)", full.gpu?.requests.filter((r) => r.type === "gpuPlan").length === 1 && loads(full.gpu).length === 1);
@@ -271,9 +272,10 @@ console.log("\nE. VRAM sizing and bounded retry\n");
   check("sufficient VRAM: GPU-Only loads every layer", (await onlyFull.run("only-full")).status === "ok" && loads(onlyFull.gpu).map((l) => l.gpuLayers).join() === "24");
 
   const low = world({ mode: "gpu-offload", gpu: { gpuPlan: plan(10) } });
-  await low.run("low-1");
+  const lowOk = await low.run("low-1");
   const lowProfile = (await low.service.status()).execution;
   check("low VRAM: GPU-Offload offloads the largest fitting count", loads(low.gpu).map((l) => l.gpuLayers).join() === "10" && lowProfile.gpuLayers === 10 && lowProfile.totalLayers === 24, lowProfile);
+  check("...and the answer carries a partial offload of 10 layers as its profile (L8b.5)", lowOk.status === "ok" && lowOk.profile.offload === "partial:10", lowOk);
 
   const lowOnly = world({ mode: "gpu-only", gpu: { gpuPlan: plan(10) } });
   await lowOnly.run("low-only");

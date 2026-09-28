@@ -135,6 +135,14 @@ export interface AiExecutionProfile {
 
 export type AiGpuVram = Pick<AiGpuPlan, "totalBytes" | "freeBytes" | "reserveBytes" | "fullRequiredBytes">;
 
+/** A load's offload class, as a quality key names it (L8b.4, E6): none, every layer, or how many. */
+export type AiOffloadClass = "cpu" | "full" | `partial:${number}`;
+
+export function offloadClassOf(gpuLayers: number, totalLayers: number | null): AiOffloadClass {
+  if (!Number.isInteger(gpuLayers) || gpuLayers <= 0) return "cpu";
+  return totalLayers !== null && gpuLayers >= totalLayers ? "full" : `partial:${gpuLayers}`;
+}
+
 export const vramOf = (plan: AiGpuPlan | null): AiGpuVram | null =>
   plan ? { totalBytes: plan.totalBytes, freeBytes: plan.freeBytes, reserveBytes: plan.reserveBytes, fullRequiredBytes: plan.fullRequiredBytes } : null;
 

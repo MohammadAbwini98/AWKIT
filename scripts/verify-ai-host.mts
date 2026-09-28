@@ -9,8 +9,9 @@
  * model-path confinement (traversal, extension, junction escape), load options (CPU only, never
  * build or download), schema-to-grammar translation, the thinking-disabled template with page text
  * kept out of special-token parsing, prompt and context bounds, cancellation (running and not yet
- * started), strict arrival order, one inference at a time, shutdown, and that no raw runtime error
- * text ever crosses the boundary. It also checks source constants against the TypeScript contract.
+ * started), strict arrival order, one inference at a time, shutdown, the L8b.2 header read, the L8b.3
+ * probe (its think check never relays what the model generated), and that no raw runtime error text
+ * ever crosses the boundary. It also checks source constants against the TypeScript contract.
  *
  * Then it mutates the source IN MEMORY and requires every mutation to fail the suite, so a guard
  * the suite does not exercise is a failure here rather than a false green. The real process
@@ -25,6 +26,8 @@ import path from "node:path";
 import { createRequire } from "node:module";
 import { isDeepStrictEqual } from "node:util";
 import { fileURLToPath, pathToFileURL } from "node:url";
+
+import { AI_PROBE } from "@src/ai/contracts/AiHostProtocol";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const HOST_PATH = path.join(ROOT, "native-hosts", "ai", "ai-host.cjs");
@@ -97,7 +100,21 @@ function fakeRuntime(gpuBackend: false | "vulkan" = false) {
     loadDelayMs: 0,
     disposeDelayMs: 0,
     failGetLlama: false,
-    failLoad: false
+    failLoad: false,
+    /**
+     * L8b.3: whether the model opens a think block. Unset, it follows the prompt as a Qwen3.5 model does:
+     * thinking stays off only when the assistant turn pre-fills a closed, empty think block.
+     */
+    probeThinks: undefined as boolean | undefined,
+    detokenizeCalls: [] as { count: number; special: unknown }[]
+  };
+  /** What a real detokenizer writes: a special token's text only when special tokens are shown. */
+  const detokenize = (tokens: readonly number[], special?: boolean): string => {
+    control.detokenizeCalls.push({ count: tokens.length, special });
+    const assistant = [...(control.lastParts ?? [])].reverse().find((part): part is FakeSpecial => part instanceof FakeSpecial);
+    const thinks = control.probeThinks ?? !assistant?.value.endsWith("</think>\n\n");
+    const text = thinks ? `<think>\n${SECRET}` : `{"answer": "yes"} ${SECRET}`;
+    return special === true ? text : text.replace("<think>", "");
   };
   const tokenizer = { fake: "tokenizer" };
   const tokenize = (parts: unknown[]): number[] => {
@@ -130,6 +147,7 @@ function fakeRuntime(gpuBackend: false | "vulkan" = false) {
       return {
         gpuLayers: options.gpuLayers,
         tokenizer,
+        detokenize,
         async createContext(options: Record<string, unknown>) {
           control.contextOptions.push(options);
           control.log.push("createContext");
@@ -173,7 +191,8 @@ function fakeRuntime(gpuBackend: false | "vulkan" = false) {
         for (let index = 0; index < (step.chunks ?? 3); index += 1) {
           await sleep(step.chunkDelayMs ?? 1);
           if (options.signal.aborted) throw abortError();
-          options.onToken([index]);
+          // Optional in the real runtime: the probe's constrained answer passes none.
+          options.onToken?.([index]);
         }
         if (step.hang) {
           await new Promise((_, reject) => options.signal.addEventListener("abort", () => reject(abortError()), { once: true }));
@@ -442,6 +461,13 @@ const EXPECTED_GRAMMAR = {
     notes: { type: "array", items: { type: "string", maxLength: 40 }, maxItems: 3, minItems: 1 }
   },
   required: ["choice", "confidence"],
+  additionalProperties: false
+};
+
+const EXPECTED_PROBE_GRAMMAR = {
+  type: "object",
+  properties: { answer: { enum: ["yes", "no"] } },
+  required: ["answer"],
   additionalProperties: false
 };
 
@@ -1012,6 +1038,156 @@ async function runSuite(source: string, quiet: boolean): Promise<{ passed: numbe
       check("the serial queue is free after it", (await host.call({ type: "unload" }, 1_000)).ok === true);
       check("the aborted read leaks nothing", !leaks(host));
     }
+
+    // ── L. probe: the dynamic stage (L8b.3) ──────────────────────────────────────────────────────
+    section("L. probe");
+    {
+      const literal = source.match(/const PROBE = Object\.freeze\((\{[\s\S]*?\n\})\);/)?.[1];
+      // eslint-disable-next-line no-new-func
+      const hostProbe = literal ? new Function(`return (${literal});`)() : null;
+      check("the host's probe prompt, schema and bounds are AiHostProtocol's", isDeepStrictEqual(hostProbe, JSON.parse(JSON.stringify(AI_PROBE))), hostProbe);
+    }
+    {
+      const { runtime, control } = fakeRuntime();
+      const host = fullHost(runtime);
+      const payload = (overrides: Record<string, unknown> = {}) => ({ type: "probe", jobId: "probe-1", modelPath: fixture.modelFile, contextTokens: 4096, threads: 3, ...overrides });
+      const probe = (overrides: Record<string, unknown> = {}) => host.call(payload(overrides));
+      const answer = (response = '{"answer":"yes"}', stopReason = "eogToken") => control.generations.push({}, { response, stopReason });
+
+      answer();
+      const ok = await probe();
+      check("a probe answers on the CPU host", ok.ok === true && ok.value?.loaded === true, ok);
+      check(
+        "it returns only whether thinking stayed off, the constrained answer, how it stopped and the load time",
+        isDeepStrictEqual(Object.keys(ok.value ?? {}).sort(), ["loadMs", "loaded", "stopReason", "text", "thinkingOff"]) &&
+          ok.value.thinkingOff === true &&
+          ok.value.text === '{"answer":"yes"}' &&
+          ok.value.stopReason === "stop" &&
+          Number.isInteger(ok.value.loadMs),
+        ok.value
+      );
+      check("it loads on the CPU, no layer offloaded, from the confined real path", control.loadModelOptions.at(-1)?.gpuLayers === 0 && control.loadModelOptions.at(-1)?.modelPath === fs.realpathSync(fixture.modelFile));
+      check("the runtime is the CPU one", control.getLlamaOptions.at(-1)?.gpu === false && control.getLlamaOptions.at(-1)?.build === "never");
+      check("the context gets the requested size and threads", control.contextOptions.at(-1)?.contextSize === 4096 && control.contextOptions.at(-1)?.threads === 3);
+      const [free, constrained] = control.generateCalls.slice(-2);
+      check("the think check is unconstrained, greedy and bounded", free?.grammar === undefined && free?.options.maxTokens === AI_PROBE.thinkTokens && free?.options.temperature === 0, free?.options);
+      check(
+        "the answer is generated under the probe schema's grammar, bounded",
+        constrained?.grammar !== undefined && constrained?.options.maxTokens === AI_PROBE.outputTokens && isDeepStrictEqual(control.grammarSchemas.at(-1), EXPECTED_PROBE_GRAMMAR),
+        control.grammarSchemas.at(-1)
+      );
+      check("both generations are abortable", free?.options.signal instanceof AbortSignal && constrained?.options.signal instanceof AbortSignal);
+      check("the think marker is read with special tokens shown", control.detokenizeCalls.at(-1)?.special === true && control.detokenizeCalls.at(-1)?.count === 3, control.detokenizeCalls.at(-1));
+      const parts = control.lastParts ?? [];
+      check(
+        "the prompt is the host's own, in the product's thinking-off template",
+        parts.length === 5 &&
+          parts[1] === AI_PROBE.system &&
+          parts[3] === AI_PROBE.user &&
+          parts[4] instanceof FakeSpecial &&
+          (parts[4] as FakeSpecial).value === ASSISTANT_OPEN,
+        parts.map((part) => (part instanceof FakeSpecial ? `special:${part.value}` : part))
+      );
+      const probeLog = control.log.slice(control.log.lastIndexOf("loadModel"));
+      check(
+        "history is cleared between the two generations",
+        probeLog.indexOf("clearHistory") > probeLog.indexOf("generate.end") && probeLog.indexOf("clearHistory") < probeLog.lastIndexOf("generate"),
+        probeLog
+      );
+      check("the model and its context are released afterwards", probeLog.at(-2) === "context.dispose" && probeLog.at(-1) === "model.dispose", probeLog);
+      check("nothing stays loaded: an inference after the probe finds no model", (await host.call(inferPayload())).reason === "AI_MODEL_NOT_LOADED");
+      check("the unconstrained text never crosses the boundary", !leaks(host));
+
+      await load(host);
+      answer('{"answer":"no"}');
+      const loadsBefore = control.log.lastIndexOf("loadModel");
+      await probe();
+      const released = control.log.slice(loadsBefore + 1);
+      check("a model already loaded is released before the probe loads its own", released.indexOf("model.dispose") >= 0 && released.indexOf("model.dispose") < released.indexOf("loadModel"), released);
+      check("...and is not there afterwards", (await host.call(inferPayload())).reason === "AI_MODEL_NOT_LOADED");
+
+      control.probeThinks = true;
+      answer();
+      const thinks = await probe();
+      control.probeThinks = undefined;
+      // A completed probe only: a failed one also reads thinkingOff false, which proves nothing.
+      check("a model that opens a think block reports thinking on", thinks.ok === true && thinks.value?.thinkingOff === false && thinks.value?.stopReason === "stop", thinks.value);
+      check("...without relaying what it thought", !leaks(host));
+
+      control.failLoad = true;
+      const unloadable = await probe();
+      control.failLoad = false;
+      check("a model the runtime cannot load is loaded: false, as an answer", unloadable.ok === true && isDeepStrictEqual(unloadable.value, { loaded: false }), unloadable);
+      check("...with none of the runtime's text", !leaks(host));
+
+      control.generations.push({ throws: true });
+      const disposesBefore = control.log.filter((entry) => entry === "model.dispose").length;
+      const broken = await probe();
+      check("a generation that fails is reported as failed, not as a verdict on thinking", broken.ok === true && broken.value?.stopReason === "failed" && broken.value?.text === "", broken.value);
+      check("...and the model is still released", control.log.filter((entry) => entry === "model.dispose").length === disposesBefore + 1);
+      check("...with none of the runtime's text", !leaks(host));
+
+      answer('{"answer":', "maxTokens");
+      check("an answer cut at its bound is reported as length", (await probe()).value?.stopReason === "length");
+
+      const loads = control.loadModelOptions.length;
+      check("a path outside the root is refused", (await probe({ modelPath: fixture.outsideFile })).reason === "AI_MODEL_PATH_OUTSIDE_ROOT");
+      check("traversal out of the root is refused", (await probe({ modelPath: path.join(fixture.modelRoot, "..", "outside", path.basename(fixture.outsideFile)) })).reason === "AI_MODEL_PATH_OUTSIDE_ROOT");
+      if (fixture.junctionFile) check("a junction escaping the root is refused", (await probe({ modelPath: fixture.junctionFile })).reason === "AI_MODEL_PATH_OUTSIDE_ROOT");
+      for (const [label, overrides] of [
+        ["context 0", { contextTokens: 0 }],
+        ["context above 4K", { contextTokens: 4097 }],
+        ["0 threads", { threads: 0 }],
+        ["a malformed job id", { jobId: "probe one!" }],
+        ["no job id", { jobId: undefined }]
+      ] as const) {
+        check(`a probe with ${label} is a protocol violation`, (await probe(overrides)).reason === "AI_PROTOCOL_VIOLATION");
+      }
+      check("refused probes never loaded anything", control.loadModelOptions.length === loads);
+
+      const dead = fakeRuntime();
+      dead.control.failGetLlama = true;
+      const deadHost = fullHost(dead.runtime);
+      const noRuntime = await deadHost.call(payload());
+      check("a runtime that cannot start is an error (the probe did not run), never a verdict", noRuntime.ok === false && noRuntime.reason === "AI_MODEL_LOAD_FAILED" && !leaks(deadHost), noRuntime);
+
+      const gpu = fakeRuntime("vulkan");
+      const gpuHost = startHost(source, {
+        modelRoot: fixture.modelRoot,
+        modulePaths: [fixture.modules],
+        runtime: gpu.runtime,
+        env: { AWKIT_AI_BACKEND: "vulkan", AWKIT_AI_BACKEND_DIR: fixture.pack }
+      });
+      check("a GPU host refuses the probe", (await gpuHost.call(payload())).reason === "AI_PROTOCOL_VIOLATION" && gpu.control.loadModelOptions.length === 0);
+    }
+    {
+      const { runtime, control } = fakeRuntime();
+      const host = fullHost(runtime);
+      control.generations.push({ hang: true });
+      const running = host.send({ type: "probe", jobId: "probe-7", modelPath: fixture.modelFile, contextTokens: 4096, threads: 3 });
+      for (let wait = 0; wait < 200 && !control.log.includes("generate"); wait += 1) await sleep(2);
+      const cancelled = await host.call({ type: "cancel", jobId: "probe-7" });
+      const result = await host.reply(running);
+      check("a running probe is cancellable", cancelled.value?.cancelled === true && result.ok === true && result.value?.stopReason === "cancelled", [cancelled, result]);
+      check("...and still releases its model", control.log.at(-1) === "model.dispose", control.log.slice(-4));
+      check("...leaking nothing", !leaks(host));
+
+      control.loadDelayMs = 30;
+      const ahead = host.send({ type: "load", modelPath: fixture.modelFile, contextTokens: 4096, threads: 3 });
+      const queued = host.send({ type: "probe", jobId: "probe-8", modelPath: fixture.modelFile, contextTokens: 4096, threads: 3 });
+      const early = await host.call({ type: "cancel", jobId: "probe-8" });
+      const generationsBefore = control.generateCalls.length;
+      const queuedResult = await host.reply(queued);
+      control.loadDelayMs = 0;
+      check("a probe cancelled while queued resolves cancelled when it starts", early.value?.cancelled === false && queuedResult.value?.stopReason === "cancelled", queuedResult);
+      check("...never generating", control.generateCalls.length === generationsBefore && (await host.reply(ahead)).ok === true);
+
+      control.generations.push({ hang: true });
+      const shutdownProbe = host.send({ type: "probe", jobId: "probe-9", modelPath: fixture.modelFile, contextTokens: 4096, threads: 3 });
+      for (let wait = 0; wait < 200 && control.generateCalls.length === generationsBefore; wait += 1) await sleep(2);
+      const shutdown = await host.call({ type: "shutdown" });
+      check("shutdown does not wait behind a running probe", shutdown.ok === true && (await host.reply(shutdownProbe)).value?.stopReason === "cancelled");
+    }
   } catch (error) {
     failed += 1;
     if (!quiet) console.error(`  ✗ suite aborted — ${error instanceof Error ? error.stack : String(error)}`);
@@ -1059,7 +1235,17 @@ const MUTATIONS: { name: string; from: string; to: string }[] = [
   { name: "any template read as ChatML", from: 'template.includes("<|im_start|>") && template.includes("<|im_end|>") ? "chatml" : "other"', to: '"chatml"' },
   { name: "unsafe header counts accepted", from: "return Number.isSafeInteger(value) && value >= 0 ? value : null;", to: "return value ?? null;" },
   { name: "header read unbounded", from: "      logWarnings: false,\n      signal: AbortSignal.timeout(INSPECT_DEADLINE_MS)\n", to: "      logWarnings: false\n" },
-  { name: "prototype metadata read for an architecture", from: "(Object.hasOwn(object, key) && isPlainObject(object[key]) ? object[key] : {})", to: "(object[key] ?? {})" }
+  { name: "prototype metadata read for an architecture", from: "(Object.hasOwn(object, key) && isPlainObject(object[key]) ? object[key] : {})", to: "(object[key] ?? {})" },
+  // L8b.3's dynamic probe.
+  { name: "probe think check ignores the model's tokens", from: "const thinkingOff = !model.detokenize(opened, true).includes(THINK_OPEN);", to: "const thinkingOff = true;" },
+  { name: "think marker read without special tokens", from: "model.detokenize(opened, true)", to: "model.detokenize(opened, false)" },
+  { name: "probe answer unconstrained", from: "        grammar: await grammarFor(toGrammarSchema(PROBE.schema, 0)),\n", to: "" },
+  { name: "probe leaves its model loaded", from: "    if (context) await context.dispose().catch(() => undefined);\n    if (model) await model.dispose().catch(() => undefined);\n", to: "" },
+  { name: "probe keeps a model loaded before it", from: "  await releaseModel();\n  const runtime = await runtimeModule();\n  const instance = await ensureLlama(threads);\n  const started = performance.now();", to: "  const runtime = await runtimeModule();\n  const instance = await ensureLlama(threads);\n  const started = performance.now();" },
+  { name: "probe path not confined", from: "const modelPath = confineModelPath(req.modelPath);\n  const contextSize = boundedInt(req.contextTokens, 256, AI_CONTEXT_TOKENS);\n  const threads = boundedInt(req.threads, 1, MAX_THREADS);\n  if (contextSize === null || threads === null || typeof req.jobId", to: "const modelPath = req.modelPath;\n  const contextSize = boundedInt(req.contextTokens, 256, AI_CONTEXT_TOKENS);\n  const threads = boundedInt(req.threads, 1, MAX_THREADS);\n  if (contextSize === null || threads === null || typeof req.jobId" },
+  { name: "probe on a GPU host", from: 'if (BACKEND !== "cpu") throw new HostError("AI_PROTOCOL_VIOLATION");', to: "" },
+  { name: "probe relays its unconstrained text", from: "text: answer.response,", to: "text: model.detokenize(opened, true) + answer.response," },
+  { name: "probe not cancellable", from: "active = { jobId: req.jobId, controller: stop };", to: "" }
 ];
 
 async function main(): Promise<void> {

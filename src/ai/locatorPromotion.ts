@@ -365,6 +365,8 @@ export function promoteLocatorUpgrade(profile: FlowProfile, stepId: string, inpu
       // would read as an unmet threshold instead of an inapplicable one.
       proof: repair ? { result: "repair-proven" } : { result: "replay-proven", replays: evaluation.replays, dataRows: evaluation.dataRows },
       modelId: pending.modelId,
+      // The profile the proposal was produced under (L8b.5); a candidate stored before it has none.
+      ...(pending.profile ? { profile: { ...pending.profile } } : {}),
       createdAt: input.nowIso,
       revertHandle: { kind: "locatorProvenance" }
     }

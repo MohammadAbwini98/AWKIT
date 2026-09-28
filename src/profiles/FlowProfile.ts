@@ -472,6 +472,11 @@ export interface PendingLocatorUpgrade {
   /** `createLocatorApprovalBinding` of the step it describes; dropped at save once it stops matching. */
   binding: LocatorApprovalBinding;
   modelId: string;
+  /**
+   * Where the model produced this proposal (L8b.5, E6): runtime build, backend and offload class, copied
+   * into the `AiActionRecord` if it is applied. Additive: absent on a candidate stored before it.
+   */
+  profile?: { runtimeBuild: string; backend: "cpu" | "vulkan"; offload: "cpu" | "full" | `partial:${number}` };
   createdAt: string;
 }
 

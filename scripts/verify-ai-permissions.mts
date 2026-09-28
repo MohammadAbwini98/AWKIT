@@ -122,7 +122,12 @@ console.log("\nEvery AI channel is gated in main, and the preload exposes exactl
     // L3 U1 (owner decision D2): attaching a proven proposal writes the Recorder draft, as "Use in action"
     // does, so the same pair plus AI_USE. It carries ids only.
     "ai:attachInspectionProposal": [["AI_USE", "PAGE_RECORDER", "RECORDER_ELEMENT_SPY"], false],
+    // L8b.5: picking and copying a model re-authenticate, and so do the re-check and the unverified-model
+    // acknowledgement, because each can admit a model to use. No new permission.
+    "ai:preflightModelPack": [["AI_MANAGE"], true],
     "ai:importModelPack": [["AI_MANAGE"], true],
+    "ai:checkModelPack": [["AI_MANAGE"], true],
+    "ai:acknowledgeModelPack": [["AI_MANAGE"], true],
     "ai:removeModelPack": [["AI_MANAGE"], true],
     // L8a.2 GPU backend pack: no new permission. Picking, copying and deleting re-authenticate; reading
     // status, cancelling one's own import and running the integrity guard (which can only narrow) do not.
@@ -147,7 +152,7 @@ console.log("\nEvery AI channel is gated in main, and the preload exposes exactl
     check(`${channel} ${expected[1] ? "requires" : "does not require"} re-authentication`, sensitive === expected[1]);
     const gate = body.search(/assertSenderPermission|authorize\(/);
     const action = body.search(
-      /aiStatusView|aiSettingsView|updateAiSettings|restoreAiFeature|aiDiagnosticsView|aiAuditView|revertAiActionFromAudit|flowLocatorUpgrades|promoteFlowLocatorUpgrade|setFlowEditorState|explainFlowValidation\(|summarizeFragment\(|analyzeFailure\(|deleteFailureAnalysis\(|proposeInspectionLocator\(|attachInspectionProposal\(|cancelAssist\(|importAiModelPack|removeAiModelPack|showOpenDialog|aiBackendPackView|importAiBackendPack|cancelAiBackendPack|verifyAiBackendPack|removeAiBackendPack/
+      /aiStatusView|aiSettingsView|updateAiSettings|restoreAiFeature|aiDiagnosticsView|aiAuditView|revertAiActionFromAudit|flowLocatorUpgrades|promoteFlowLocatorUpgrade|setFlowEditorState|explainFlowValidation\(|summarizeFragment\(|analyzeFailure\(|deleteFailureAnalysis\(|proposeInspectionLocator\(|attachInspectionProposal\(|cancelAssist\(|importAiModelPack|preflightAiModelPack|checkAiModelPack|acknowledgeAiModelPack|removeAiModelPack|showOpenDialog|aiBackendPackView|importAiBackendPack|cancelAiBackendPack|verifyAiBackendPack|removeAiBackendPack/
     );
     check(`${channel} authorizes before doing anything else`, gate >= 0 && action > gate, `gate@${gate} action@${action}`);
   }

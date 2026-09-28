@@ -39,7 +39,8 @@ import {
   type AiHostTransport,
   type AiInferRequest,
   type AiInferResult,
-  type AiModelHeader
+  type AiModelHeader,
+  type AiModelProbe
 } from "./contracts/AiHostProtocol";
 
 export interface FakeInferStep {
@@ -79,7 +80,12 @@ export interface FakeAiHostOptions {
   gpuLoadFailAbove?: number;
   /** What `inspect` answers (L8b.2), or the reason it fails with. Default: the curated Qwen3.5 header. */
   header?: AiModelHeader | { fail: AiHostReason };
+  /** What `probe` answers (L8b.3), or the reason it fails with. Default: a Qwen3.5 model that passes. */
+  probe?: AiModelProbe | { fail: AiHostReason };
 }
+
+/** A probe the real host answers for a curated Qwen3.5 pack (measured in verify:ai-model-inspect). */
+export const FAKE_PASSING_PROBE: AiModelProbe = Object.freeze({ loaded: true, loadMs: 5, thinkingOff: true, text: '{"answer":"yes"}', stopReason: "stop" });
 
 /** The facts the real host reads from the curated Qwen3.5 packs (measured in verify:ai-model-inspect). */
 export const FAKE_QWEN_HEADER: AiModelHeader = Object.freeze({
@@ -233,6 +239,18 @@ export class FakeAiHostTransport implements AiHostTransport {
         const header = this.options.header ?? FAKE_QWEN_HEADER;
         if ("fail" in header) throw new AiHostCallError(header.fail);
         return { ...header };
+      }
+      case "probe": {
+        // The real host: CPU only, a confined path, and the model it held is released either way.
+        if (this.backend() !== "cpu") throw new AiHostCallError("AI_PROTOCOL_VIOLATION");
+        const rel = relative(this.modelRoot, resolvePath(request.modelPath));
+        if (!rel || rel.startsWith("..") || isAbsolute(rel)) throw new AiHostCallError("AI_MODEL_PATH_OUTSIDE_ROOT");
+        this.loadedPath = null;
+        this.loadedGpuLayers = null;
+        await delay(this.options.loadDelayMs ?? 5);
+        const probe = this.options.probe ?? FAKE_PASSING_PROBE;
+        if ("fail" in probe) throw new AiHostCallError(probe.fail);
+        return { ...probe };
       }
       case "infer":
         return this.infer(request);

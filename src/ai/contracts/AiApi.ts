@@ -22,6 +22,7 @@ import { isAiFeatureId, type AiFeatureId, type AiTier } from "../../security/aut
 import type { FlowValidationIssue } from "../../validation/FlowValidator";
 import type { AiActionRecord } from "../AiActionRecord";
 import type { AiLoadStage } from "../AiExecutionProfile";
+import type { AiQualificationView } from "../AiQualification";
 import type { ExplanationWithholdReason } from "../authoringClaimScreen";
 import type { LocatorPromotionRefusal } from "../locatorPromotion";
 import type { PendingUpgradeState } from "../pendingUpgrade";
@@ -52,10 +53,37 @@ export interface AiAdminResponse {
 export interface AiModelPackView {
   /** `registered` (L8b.1): a model the manifest does not list, copied, not loaded until its compatibility stages pass. */
   status: "missing" | "installed" | "registered" | "invalid" | "incompatible";
-  /** For `registered`: `STATIC_PASSED`, the failed static check (L8b.2), or null when not checked for this runtime. */
+  /**
+   * For `registered`: `COMPATIBLE` (both stages passed), `STATIC_PASSED` (the header passed, the probe has
+   * not run for this runtime), the failed check (L8b.2, L8b.3), or null when not checked for this runtime.
+   */
   reason: string | null;
   modelId: string | null;
   displayName: string | null;
+  /** For `registered` (L8b.5, E7): whether an administrator acknowledged it as unverified. Null otherwise. */
+  acknowledged: boolean | null;
+  /** L8b.4 labels for the configuration the model runs in; null with no usable model file. */
+  qualification: AiQualificationView | null;
+}
+
+/**
+ * What importing the model file the main process just picked would need (L8b.5, E1), shown before any
+ * copy. The file's own name only, never its folder. Import names it by `token`.
+ */
+export interface AiModelPreflightView {
+  /** One-time token for `importModelPack`; empty when the file cannot be imported. */
+  token: string;
+  fileName: string;
+  sizeBytes: number;
+  /** Free space in the app's model folder; null when it cannot be measured (the import then refuses). */
+  freeBytes: number | null;
+  requiredBytes: number;
+  headroomBytes: number;
+  spaceOk: boolean;
+}
+
+export interface AiModelPreflightResponse extends AiAdminResponse {
+  preflight: AiModelPreflightView | null;
 }
 
 /**
@@ -183,6 +211,7 @@ export interface AiBackendPreflightResponse extends AiAdminResponse {
   preflight: AiBackendPreflightView | null;
 }
 
+/** A one-time checklist token: the backend pack's (L8a.2) and the model file's (L8b.5). */
 export function sanitizeBackendPreflightToken(input: unknown): string | null {
   return typeof input === "string" && /^[0-9a-f]{32}$/.test(input) ? input : null;
 }

@@ -370,7 +370,7 @@ async function main(): Promise<void> {
         jobs.push(job);
         const plan = plans.shift();
         if (plan === "hang") return new Promise<AiJobOutcome>((resolve) => (hanging = resolve));
-        return { status: "ok", value: plan, modelId: "test-fake", usage: { promptTokens: 0, outputTokens: 0, firstTokenMs: 0, generationMs: 0 }, yields: 0 };
+        return { status: "ok", value: plan, modelId: "test-fake", usage: { promptTokens: 0, outputTokens: 0, firstTokenMs: 0, generationMs: 0 }, yields: 0, profile: { runtimeBuild: "b-fake", backend: "cpu", offload: "cpu" } };
       },
       cancel: () => {
         const settle = hanging;
@@ -383,7 +383,7 @@ async function main(): Promise<void> {
     const answerHanging = (value: unknown): boolean => {
       const settle = hanging;
       hanging = null;
-      settle?.({ status: "ok", value, modelId: "test-fake", usage: { promptTokens: 0, outputTokens: 0, firstTokenMs: 0, generationMs: 0 }, yields: 0 });
+      settle?.({ status: "ok", value, modelId: "test-fake", usage: { promptTokens: 0, outputTokens: 0, firstTokenMs: 0, generationMs: 0 }, yields: 0, profile: { runtimeBuild: "b-fake", backend: "cpu", offload: "cpu" } });
       return settle !== null;
     };
     // The same wiring as ai.ipc.ts's inspectionTarget (asserted in E): the Recorder's live target, the product's proof.
@@ -936,7 +936,7 @@ async function main(): Promise<void> {
       reason: null,
       holdReason: null,
       queueDepth: 0,
-      modelPack: { status: "installed", reason: null, modelId: "test-fake", displayName: "Test" },
+      modelPack: { status: "installed", reason: null, modelId: "test-fake", displayName: "Test", acknowledged: null, qualification: null },
       execution: {
         mode: "cpu",
         backend: "cpu",

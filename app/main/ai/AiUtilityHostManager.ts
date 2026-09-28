@@ -233,7 +233,8 @@ export class AiUtilityHostManager implements AiHostTransport {
         reject(new AiHostCallError("AI_HOST_UNAVAILABLE"));
         return;
       }
-      if (request.type === "infer") this.inFlight.set(request.jobId, id);
+      // A probe (L8b.3) generates too, so a cancel the runtime cannot honour kills it the same way.
+      if (request.type === "infer" || request.type === "probe") this.inFlight.set(request.jobId, id);
       if (request.type === "cancel") this.killIfStillBusy(host, request.jobId);
     });
     if (request.type !== "cancel") return answer;

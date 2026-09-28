@@ -155,10 +155,12 @@ async function runStep(page: Page, target: FlowStep, store: FileLocatorRecoveryS
 function pendingFor(target: FlowStep, key: string, createdAt: Date): PendingLocatorUpgrade {
   const compiled = compileLocatorPlan(propose(key), target.locator?.context);
   if (!compiled.ok) throw new Error(`fixture ${key} did not compile: ${compiled.code}`);
-  const pending = createPendingUpgrade({ step: target, compiled, meaningChange: false, proof: "capture-proven", modelId: "fake-provider", now: createdAt });
+  const pending = createPendingUpgrade({ step: target, compiled, meaningChange: false, proof: "capture-proven", modelId: "fake-provider", profile: PROPOSAL_PROFILE, now: createdAt });
   if (!pending) throw new Error("no pending upgrade");
   return pending;
 }
+/** L8b.5: where the fake proposals were "produced"; a GPU profile, so a CPU default cannot pass for it. */
+const PROPOSAL_PROFILE = { runtimeBuild: "b-fake", backend: "vulkan", offload: "partial:10" } as const;
 const withPending = (target: FlowStep, pending: PendingLocatorUpgrade): FlowStep => ({ ...target, locator: { ...target.locator!, pendingUpgrade: pending } });
 
 const ENABLED: AiPolicyConfig = { enabled: true };
@@ -388,6 +390,11 @@ try {
   check("...naming the flow, the step, the tier and the proof counts", snapshot.records[0].target.flowId === FLOW_ID && snapshot.records[0].target.stepId === archive.id && snapshot.records[0].tier === "T1" && snapshot.records[0].proof.replays === 3 && snapshot.records[0].proof.dataRows === 2);
   check("...with digests as evidence, never a locator, page text or model output", snapshot.records[0].evidenceIds.every((id) => /^(candidate|binding):[0-9a-f]{64}$/.test(id)) && !/Archive|button|lu-/.test(JSON.stringify(snapshot.records[0])));
   check("...and the revert handle points at the step, not at the record", snapshot.records[0].revertHandle.kind === "locatorProvenance");
+  check(
+    "...and it records the effective profile the proposal was produced under (L8b.5)",
+    JSON.stringify(snapshot.records[0].profile) === JSON.stringify(PROPOSAL_PROFILE),
+    JSON.stringify(snapshot.records[0].profile)
+  );
 
   console.log("\nThe promoted locator executes, survives a reload, and is idempotent");
   page = await freshPage();
