@@ -1,0 +1,320 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-12-l8b2-static-checks-0928",
+    "title": "L8b.2: static GGUF header checks in the utility host",
+    "objective": "Phase L L8b.2 (awkit-djnl.12). The utility host gains an inspect request that reads a confined model file's GGUF header with the pinned runtime's own JavaScript reader (filesystem only, never a URL or split-part sibling, nothing native loaded) and returns path-free facts: readability, GGUF version, whether the runtime names the architecture and every tensor type, context length, layer count and the chat template's shape. A pure verdict in src/ai decides (first failing check: unreadable, version, architecture, tensor type, chat template, context below 4096, layer count). After an import registers a non-manifest model, the main process runs the stage through AiService (the CPU host's own handshake) and records the verdict on that model in the registry with the runtime build that produced it; a verdict from another build no longer counts. A failed check reads MODEL_INCOMPATIBLE with its reason in Settings; a pass still reads MODEL_UNCHECKED because the L8b.3 probe is what can admit a model. The main process never parses GGUF. No new channel or permission.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 3
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "d5480dda",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "offline_boundary_change": true,
+    "execution_change": true,
+    "authorization_change": true,
+    "electron_main_change": true,
+    "persisted_shape_change": true,
+    "filesystem_write_change": true,
+    "public_contract_change": true,
+    "renderer_visual_change": true,
+    "general_engineering_change": true,
+    "packaging_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 3
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "architect",
+      "uiux",
+      "frontend",
+      "software",
+      "runtime",
+      "integration",
+      "qa",
+      "qc",
+      "security",
+      "persistence",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      "native-hosts/ai/ai-host.cjs",
+      "src/ai/contracts/AiHostProtocol.ts",
+      "src/ai/contracts/AiApi.ts",
+      "src/ai/AiModelCompatibility.ts",
+      "src/ai/AiModelPack.ts",
+      "src/ai/AiService.ts",
+      "src/ai/FakeAiHostTransport.ts",
+      "app/main/ai/aiRuntime.ts",
+      "app/renderer/pages/LocalAiSettings.tsx",
+      "scripts/verify-ai-host.mts",
+      "scripts/verify-ai-model-compatibility.mts",
+      "scripts/verify-ai-model-inspect.mts",
+      "scripts/verify-ai-fallback.mts",
+      "scripts/verify-ai-model-pack.mts",
+      "scripts/ai-harness/harnessMain.ts",
+      "scripts/ai-harness/modelInspect.ts",
+      "scripts/lib/verifier-classification.ts",
+      "package.json",
+      "build",
+      "resources/dependency-manifest.json",
+      "resources/dependency-manifest.sig",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/plans/ai-upgrade-v5/L8b-external-model-compatibility.md",
+      "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
+      "docs/ai/contracts/awkit-djnl-12-l8b2-static-checks-0928.json",
+      "docs/ai/contracts/active-lease.json",
+      ".beads/issues.jsonl"
+    ],
+    "consultants": [
+      "architect",
+      "uiux",
+      "integration",
+      "security",
+      "persistence"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "release",
+      "allowed_paths": [
+        "build",
+        "resources/dependency-manifest.json",
+        "resources/dependency-manifest.sig"
+      ]
+    }
+  },
+  "constraints": {
+    "security": [
+      "GGUF parsing happens only in the utility host, on a path confined to the model root by lexical and real-path containment; the main process never parses a header.",
+      "The reader is told the file is a local file and never to open split-part siblings, so no network reader and no file beside the model is ever opened.",
+      "Nothing but numbers, a vetted short architecture name and a template shape crosses the boundary; no metadata text, template text or runtime error text.",
+      "No new permission or channel: the check runs inside ai:importModelPack (AI_MANAGE with re-authentication)."
+    ],
+    "offline": [
+      "Nothing is downloaded; the pinned runtime's own reader is used, and the host script change regenerates the signed dependency manifest through a fresh package."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "HOST",
+      "description": "The host's inspect confines the path, calls the runtime's reader with filesystem-only and no-split options, reports every fact from the header, returns unreadable for a file the reader refuses without leaking error text, and keeps every other request unchanged; each new guard mutation-tested.",
+      "evidence_required": [
+        "verify:ai-host"
+      ]
+    },
+    {
+      "id": "VERDICT",
+      "description": "The pure verdict fails each check on its own and reads a malformed host reply as unreadable; the standing ignores a verdict from another runtime build; the stage records only on the model it ran on; the registry's new optional field loads old registries and rejects forged ones; AiService's inspect uses the CPU handshake and answers null when the host cannot run it; an incompatible model never reaches the host.",
+      "evidence_required": [
+        "verify:ai-model-compatibility",
+        "verify:ai-fallback",
+        "verify:ai-model-pack"
+      ]
+    },
+    {
+      "id": "LIVE",
+      "description": "The real host in Electron reads the three curated packs as compatible and each hand-built header as failing its own check, survives a malformed file, and the main process never loads the runtime.",
+      "evidence_required": [
+        "verify:ai-model-inspect"
+      ]
+    },
+    {
+      "id": "REGRESSION",
+      "description": "Settings, the backend pack and the host's other behaviour are unchanged.",
+      "evidence_required": [
+        "verify:ai-settings-gui",
+        "verify:ai-backend-pack",
+        "verify:ai-gpu-modes"
+      ]
+    },
+    {
+      "id": "BUILD",
+      "description": "Typecheck, bundles, script typecheck and the verifier registry pass.",
+      "evidence_required": [
+        "build",
+        "typecheck:scripts",
+        "verify:verifier-classification"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:ai-host",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-host",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": ""
+    },
+    {
+      "id": "verify:ai-model-compatibility",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-model-compatibility",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": ""
+    },
+    {
+      "id": "verify:ai-fallback",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-fallback",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": ""
+    },
+    {
+      "id": "verify:ai-model-pack",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-model-pack",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": ""
+    },
+    {
+      "id": "verify:ai-model-inspect",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-model-inspect",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": ""
+    },
+    {
+      "id": "verify:ai-settings-gui",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-settings-gui",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": ""
+    },
+    {
+      "id": "verify:ai-backend-pack",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-backend-pack",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": ""
+    },
+    {
+      "id": "verify:ai-gpu-modes",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-gpu-modes",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": ""
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": ""
+    },
+    {
+      "id": "typecheck:scripts",
+      "type": "build",
+      "required": true,
+      "command": "npm run typecheck:scripts",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": ""
+    },
+    {
+      "id": "verify:verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": ""
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-12-l8b2-static-checks-0928:runtime:2026-09-28T16:01:33.349Z",
+        "task": "awkit-djnl-12-l8b2-static-checks-0928",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "native-hosts/ai/ai-host.cjs"
+        ],
+        "acquired_at": "2026-09-28T16:01:33.349Z",
+        "acquired_at_commit": "d5480dda258b262f3d9577cb370bfe8365aed41b",
+        "released_at": "2026-09-28T16:02:24.019Z",
+        "released_reason": "host inspect request written, verified next by the unleased verify-ai-host update",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-12-l8b2-static-checks-0928:runtime:2026-09-28T17:44:17.842Z",
+        "task": "awkit-djnl-12-l8b2-static-checks-0928",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "native-hosts/ai/ai-host.cjs"
+        ],
+        "acquired_at": "2026-09-28T17:44:17.842Z",
+        "acquired_at_commit": "d5480dda258b262f3d9577cb370bfe8365aed41b",
+        "released_at": "2026-09-28T17:44:39.515Z",
+        "released_reason": "host header read bounded by a 20 s deadline below the manager's, verified next by the unleased verify-ai-host update",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-12-l8b2-static-checks-0928:runtime:2026-09-28T18:00:54.071Z",
+        "task": "awkit-djnl-12-l8b2-static-checks-0928",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "native-hosts/ai/ai-host.cjs"
+        ],
+        "acquired_at": "2026-09-28T18:00:54.071Z",
+        "acquired_at_commit": "d5480dda258b262f3d9577cb370bfe8365aed41b",
+        "released_at": "2026-09-28T18:01:34.676Z",
+        "released_reason": "host inspect request and its deadline committed in dd7ddb8d",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

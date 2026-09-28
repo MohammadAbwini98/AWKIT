@@ -1,15 +1,23 @@
 {
-  "task": "awkit-djnl-12-l8b1-registration-0928",
-  "contract_path": "docs/ai/contracts/awkit-djnl-12-l8b1-registration-0928.json",
-  "holder": "project-state",
-  "status": "released",
+  "task": "awkit-djnl-12-l8b2-static-checks-0928",
+  "contract_path": "docs/ai/contracts/awkit-djnl-12-l8b2-static-checks-0928.json",
+  "holder": "release",
+  "status": "active",
   "allowed_paths": [
-    ".beads/issues.jsonl"
+    "build",
+    "resources/dependency-manifest.json",
+    "resources/dependency-manifest.sig"
   ],
-  "acquired_at": "2026-09-28T13:38:28.762Z",
-  "acquired_at_commit": "817ba8fc5a3878f09641b9e4c84f4a81d970bd68",
-  "baseline_dirty": [],
-  "baseline_dirty_fingerprints": {},
+  "acquired_at": "2026-09-28T18:02:17.573Z",
+  "acquired_at_commit": "aeb180175c1112cabf4fcae754ece068e3e73865",
+  "baseline_dirty": [
+    "docs/ai/contracts/active-lease.json",
+    "docs/ai/contracts/awkit-djnl-12-l8b2-static-checks-0928.json"
+  ],
+  "baseline_dirty_fingerprints": {
+    "docs/ai/contracts/active-lease.json": "a83b94b39f474d55c6f1376650423c7f6e918cac1b95abcc97f8870d0bcf3c7a",
+    "docs/ai/contracts/awkit-djnl-12-l8b2-static-checks-0928.json": "32684b16cf9235bea84c7c7802fa1e8298959d81aff88571d479a5f311f9677a"
+  },
   "baseline_watched_ignored": {
     ".env": "absent",
     ".claude/settings.local.json": "6238:1788551784499.886",
@@ -22,8 +30,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-28T13:39:14.544Z",
-  "released_reason": "Beads note for L8b.1 exported and committed",
-  "archived_at": "2026-09-28T13:39:14.546Z"
+  "violations": []
 }
