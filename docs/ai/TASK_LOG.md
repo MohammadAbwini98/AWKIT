@@ -1,6 +1,22 @@
 # TASK_LOG
 
-## 2026-09-28 (latest) — L8a.5: GPU lifecycle measured, GPU lost after load handled, packaged CPU re-proved (Claude)
+## 2026-09-28 (latest) — L8a closed on the owner's E11 decision (Claude)
+
+- **Task:** the owner said "accept the AMD mechanics for E11 and close L8a".
+- **Result:** contract `awkit-djnl-11-l8a-close-0928`.
+  - E11 is recorded in `docs/ai/DECISIONS.md`, the ROADMAP E11 entry and the L8a plan.
+  - `awkit-djnl.11` is closed, and Phase L reads 11 of 13 (`ROADMAP.md`, `ImplementationRoadmap.ts`).
+  - Two follow-up Beads issues carry the open items.
+  - No code changed. The Settings UI already labels NVIDIA placements "compatible but unqualified",
+    and no verifier's NVIDIA result was changed.
+- **Files:**
+  - `docs/ai/{DECISIONS,CURRENT_STATE,HANDOFF,TASK_LOG}.md`;
+  - `docs/plans/ai-upgrade-v5/{ROADMAP,L8a-hardware-adaptive-inference-runtime}.md`;
+  - `src/roadmap/ImplementationRoadmap.ts`, the contract, `.beads/issues.jsonl`.
+- **Verification:** `verify:roadmap-dashboard` (see the commit).
+- **Not done:** independent QC; NVIDIA qualification (no 0x10DE adapter). Both are carried forward.
+
+## 2026-09-28 — L8a.5: GPU lifecycle measured, GPU lost after load handled, packaged CPU re-proved (Claude)
 
 - **Task:** start L8a.5 from the L8a plan: the GPU cancel ceiling, kill-restart-reload cost, VRAM
   exhaustion after load, and packaged evidence.

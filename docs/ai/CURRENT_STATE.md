@@ -1,6 +1,27 @@
 # CURRENT_STATE
 
-## L8a.5 implemented: GPU lost after load handled, lifecycle measured on source and packaged trees (2026-09-28, latest)
+## L8a closed on the owner's E11 decision; Phase L 11 of 13 (2026-09-28, latest)
+
+- **E11 decided** (`docs/ai/DECISIONS.md`): L8a's GPU evidence is the vendor-independent mechanics on
+  this machine's AMD adapter (source and packaged trees) plus the deterministic fake-host cases.
+  - E2 is unchanged: AMD is not eligible, and the product answers `NO_COMPATIBLE_ADAPTER` here.
+  - NVIDIA placements read "compatible but unqualified" in Settings.
+  - `verify:ai-gpu-backend-gate`'s NVIDIA section stays NOT RUN.
+- **`awkit-djnl.11` closed.** L8a.0–L8a.5 are implemented with QA PASS; their records are in
+  `docs/plans/ai-upgrade-v5/L8a-hardware-adaptive-inference-runtime.md`. L8b (`awkit-djnl.12`) and L9
+  (`awkit-djnl.13`) are no longer blocked by it.
+- **Carried forward, not waived** (follow-up Beads issues under `awkit-djnl`):
+  - the `verify:ai-authoring` DX-0 freeze regression from L8a.1;
+  - independent QC of L8a.1–L8a.5;
+  - NVIDIA qualification on a real 0x10DE adapter;
+  - E2 hybrid/multi-GPU correlation;
+  - the `verifyForLoad`-to-DLL-load gap;
+  - the L8a.2 path-confinement mutation;
+  - the routing-matrix gap for `scripts/ai-harness/**`.
+- No code changed. Phase L reads 11 of 13 milestones closed. Validation ledger unchanged at 65 PASS /
+  2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## L8a.5 implemented: GPU lost after load handled, lifecycle measured on source and packaged trees (2026-09-28)
 
 - **Measured on the real Vulkan host** (`verify:ai-gpu-lifecycle` 29/0, MECHANICS on AMD, qualifies no
   NVIDIA). Every layer (25/25) and a partial load (12/25):

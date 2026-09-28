@@ -4,9 +4,15 @@ Shared rules, architecture and the Phase L extension decisions (E1–E12): `ROAD
 *Phase L extension (2026-09-27)*. Beads `awkit-djnl.11`. Depends on closed L1 (`awkit-djnl.1`) and
 closed L7 (`awkit-djnl.10`). Blocks L8b (`awkit-djnl.12`) and L9 (`awkit-djnl.13`).
 
-**Status (2026-09-28): OPEN — L8a.0 gate run; L8a.1 through L8a.5 implemented.** Registered by the
-owner's post-closeout scope expansion. Closing L8a waits on the E11 owner decision (no NVIDIA adapter
-here) and independent QC.
+**Status (2026-09-28): CLOSED — L8a.0 gate run; L8a.1 through L8a.5 implemented; E11 decided by the
+owner.** Registered by the owner's post-closeout scope expansion.
+- L8a's GPU evidence is the vendor-independent mechanics on this machine's AMD adapter plus the fake-host
+  cases.
+- NVIDIA stays Compatible but unqualified, and E2 is unchanged.
+- Carried forward in follow-up Beads issues, not waived:
+  - independent QC;
+  - the `verify:ai-authoring` DX-0 freeze regression;
+  - the open items in "Risks and open decisions".
 - L8a.5:
   - lifecycle measured on the source and packaged trees (29/0, 33/0; AMD mechanics);
   - `LOST_AFTER_LOAD` handled (182/0, 6/6 mutations);
@@ -687,14 +693,11 @@ successful load is a loss for its mode and reserve.
 
 ## Risks and open decisions
 
-- **Owner decision — E11 cannot be met on this machine.** The development machine has no NVIDIA
-  adapter. Choose one:
-  - provide one (a second machine or an eGPU);
-  - accept the vendor-independent mechanics proven here plus fake-host cases, with NVIDIA
-    "Compatible but unqualified";
-  - re-scope E2 to admit this AMD adapter for development evidence.
-
-  Until then, every NVIDIA-specific acceptance item is NOT RUN.
+- ~~**Owner decision — E11 cannot be met on this machine.**~~ **Decided 2026-09-28:** the owner
+  accepted the vendor-independent mechanics proven here plus the fake-host cases, with NVIDIA
+  "Compatible but unqualified" (`docs/ai/DECISIONS.md`).
+  - The NVIDIA-specific items stay NOT RUN; nothing claims them.
+  - Running them on a real 0x10DE adapter is a follow-up, not an L8a gate.
 - **Owner decision — E2 "vendor ID as reported by the runtime" is unavailable in 3.21.1.** The
   vendor has to come from Windows (`Win32_VideoController` PNP `VEN_10DE`, as this gate reads it).
   A name-free way to match a Vulkan device index to that PCI adapter is still needed. On a

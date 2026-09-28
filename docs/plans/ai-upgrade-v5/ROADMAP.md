@@ -1,12 +1,17 @@
 # SpecterStudio Phase L — Local AI & Intelligent Automation (V5)
 
-**2026-09-27 extension (latest): Phase L is IN PROGRESS again — 10 of 13 milestones closed (77%).**
+**2026-09-28 (latest): L8a closed — Phase L reads 11 of 13 milestones closed (85%).** L8a
+(`awkit-djnl.11`, L8a.0–L8a.5) closed on the owner's E11 decision: the AMD mechanics plus the
+fake-host cases are its GPU evidence, and NVIDIA stays Compatible but unqualified. L8b
+(`awkit-djnl.12`) and L9 (`awkit-djnl.13`) are open and not implemented.
+
+**2026-09-27 extension: Phase L is IN PROGRESS again — 10 of 13 milestones closed (77%).**
 After the closeout below, the owner widened the accepted scope with three new open milestones:
 L8a hardware-adaptive inference runtime (`awkit-djnl.11`), L8b external compatible-model
 registration and qualification (`awkit-djnl.12`) and L9 adaptive time budgets, progress and ETA
 (`awkit-djnl.13`). The percentage fell because the scope grew, **not** because anything regressed:
-L0–L7 stay closed with their original evidence. Nothing in L8a/L8b/L9 is implemented. Decisions
-E1–E12 are in *Phase L extension (2026-09-27)* below and in `docs/ai/DECISIONS.md`.
+L0–L7 stay closed with their original evidence. At that point nothing in L8a/L8b/L9 was implemented.
+Decisions E1–E12 are in *Phase L extension (2026-09-27)* below and in `docs/ai/DECISIONS.md`.
 
 **2026-09-27 closeout (the original ten milestones):** Phase L is **10 of 10 technical milestones closed**. L4b (`awkit-djnl.6`)
 closed on frozen DX revision 4: L1.8 GO at 59,685 ms explanation cap, DX-0 through DX-5 MET,
@@ -256,18 +261,19 @@ as-is; *New* = no owner exists yet.
 
 ## Phase L extension (2026-09-27) — L8a, L8b, L9
 
-Status: **OPEN — planned, zero implementation.** The owner widened Phase L's accepted scope after
-the 10/10 closeout. L0–L7 are not reopened, renumbered or re-evaluated; their evidence stands. The
-stability guarantees above apply unchanged to every new milestone.
+Status: **OPEN — L8a closed 2026-09-28; L8b and L9 planned, not implemented.** The owner widened Phase
+L's accepted scope after the 10/10 closeout. L0–L7 are not reopened, renumbered or re-evaluated; their
+evidence stands. The stability guarantees above apply unchanged to every new milestone.
 
 | ID | Milestone | Depends (Beads `blocks`) | Beads |
 |---|---|---|---|
-| L8a | Hardware-adaptive inference runtime | closed L1, closed L7 | `awkit-djnl.11` |
+| L8a | Hardware-adaptive inference runtime (**closed 2026-09-28**, E11 decided) | closed L1, closed L7 | `awkit-djnl.11` |
 | L8b | External compatible-model registration & qualification | L8a | `awkit-djnl.12` |
 | L9 | Adaptive time budgets, progress & ETA UX | L8a, L8b (acceptance; L9.1 may start in parallel) | `awkit-djnl.13` |
 
-Phase L now reads **10 of 13 milestones closed (77%)**. The program-wide roadmap counts phases, not
-milestones: with Phase L back to `in-progress` it reads 11 of 14 phases complete (79%).
+Phase L now reads **11 of 13 milestones closed (85%)** (L8a closed 2026-09-28). The program-wide
+roadmap counts phases, not milestones: with Phase L still `in-progress` it reads 11 of 14 phases
+complete (79%).
 
 ### Owner decisions (2026-09-27; ratified in `docs/ai/DECISIONS.md`)
 
@@ -338,6 +344,11 @@ milestones: with Phase L back to `in-progress` it reads 11 of 14 phases complete
   development machine carries the most global tooling. Claims stay truthful: GPU modes are
   verified on the development machine's adapter; every other adapter is Compatible but
   unqualified until run.
+  - **Decided 2026-09-28 (owner):** the development machine has no NVIDIA adapter, so L8a's GPU
+    evidence is the vendor-independent mechanics proven on its AMD adapter (source and packaged
+    trees) plus the fake-host cases.
+  - E2 is unchanged (AMD is still not eligible), NVIDIA stays Compatible but unqualified, and nothing
+    claims NVIDIA qualification. See `docs/ai/DECISIONS.md`.
 - **E12 — Supersessions, appended not rewritten.** The Objective's "one local, CPU-only model",
   the Model baseline's "no GPU" and manifest-only admission, and `DECISIONS.md` 2026-09-19
   "no user override" are superseded as noted in place; the historical text stays.

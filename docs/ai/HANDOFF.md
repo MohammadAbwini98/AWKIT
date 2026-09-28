@@ -1,6 +1,23 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-28, latest) — L8a.5 implemented; every L8a slice is in, E11 decides the rest
+## HANDOFF (2026-09-28, latest) — L8a closed; L8b and L9 are unblocked
+
+- **L8a (`awkit-djnl.11`) is closed** on the owner's E11 decision: the AMD mechanics plus the fake-host
+  cases are its GPU evidence, and NVIDIA stays Compatible but unqualified. The closeout contract is
+  `awkit-djnl-11-l8a-close-0928`.
+- **Next Phase L work:**
+  - L8b external compatible-model registration and qualification (`awkit-djnl.12`,
+    `docs/plans/ai-upgrade-v5/L8b-external-model-compatibility.md`);
+  - then L9 (`awkit-djnl.13`; L9.1 may start in parallel).
+- **Carried forward:** two follow-up Beads issues under `awkit-djnl`.
+  - The first fixes the `verify:ai-authoring` DX-0 freeze (freeze the model entries, not the whole
+    `AiModelManifest.ts` blob).
+  - The second holds independent QC of L8a.1–L8a.5, NVIDIA qualification when hardware exists, E2
+    hybrid correlation, the `verifyForLoad`-to-DLL-load gap, the L8a.2 path-confinement mutation and the
+    `scripts/ai-harness/**` routing gap.
+- Ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## HANDOFF (2026-09-28) — L8a.5 implemented; every L8a slice is in, E11 decides the rest
 
 - **Contract** `awkit-djnl-11-l8a5-gpu-lifecycle-0928`: status `implemented`, QA PASS, QC pending. The
   release lease (package and signed manifest) and the project-state lease are both released.

@@ -1,6 +1,31 @@
 # DECISIONS
 
-### 2026-09-27 (latest) — Phase L extension: L8a hardware-adaptive runtime, L8b external models, L9 time budgets and progress (owner, in session) (`awkit-djnl.11`, `.12`, `.13`)
+### 2026-09-28 (latest) — E11 decided: the AMD mechanics are L8a's GPU evidence; L8a closes (owner, in session) (`awkit-djnl.11`)
+
+- **The question.** E11 wanted L8a's GPU evidence on the development machine's NVIDIA adapter. That
+  machine has none: AMD `0x1002` plus the software adapter `0x1414`. The L8a plan recorded three choices:
+  - provide an NVIDIA machine;
+  - accept the vendor-independent mechanics plus the fake-host cases;
+  - re-scope E2.
+- **Decision (the owner, in their words: "accept the AMD mechanics for E11 and close L8a"):** L8a's GPU
+  evidence is the mechanics proven on the real Vulkan host with this machine's AMD adapter, on the
+  source and packaged trees, together with the deterministic fake-host cases. Among them:
+  - the pack guard before every fork, and every GPU binary loaded from the pack;
+  - the runtime's plan, and full and partial offload with inference;
+  - the service's GPU-Offload, GPU-Only and CPU paths;
+  - cancel within the 3 s ceiling, and the kill-restart-reload cost;
+  - VRAM exhaustion after load and `LOST_AFTER_LOAD`.
+- **What it does NOT change:**
+  - E2 is untouched: an AMD adapter is still not eligible, and the product answers
+    `NO_COMPATIBLE_ADAPTER` here.
+  - NVIDIA adapters stay "compatible but unqualified" in the UI until someone runs them.
+  - No verifier reports NVIDIA qualification as passed: `verify:ai-gpu-backend-gate`'s NVIDIA section
+    stays NOT RUN (exit 2).
+- **Carried forward, not waived:** independent QC of L8a.1–L8a.5, the `verify:ai-authoring` DX-0 freeze
+  regression from L8a.1, and the other open L8a items. They are in follow-up Beads issues under
+  `awkit-djnl`.
+
+### 2026-09-27 — Phase L extension: L8a hardware-adaptive runtime, L8b external models, L9 time budgets and progress (owner, in session) (`awkit-djnl.11`, `.12`, `.13`)
 
 - **How it was decided.** The owner supplied an executive prompt, then answered each open question
   in the session in their own words: Vulkan-first; remove the Phase M/N epic-level edges; split L8

@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-11-l8a-close-0928",
+    "title": "Close L8a on the owner's E11 decision",
+    "objective": "The owner decided E11: L8a's GPU evidence is the vendor-independent mechanics proven on the development machine's AMD adapter (source and packaged trees) plus the deterministic fake-host cases. NVIDIA stays Compatible but unqualified, E2 is unchanged, and no verifier's NVIDIA result changes. Record the decision, close awkit-djnl.11, update Phase L's milestone count, and carry every still-open L8a item into follow-up Beads issues rather than waive it. No product code changes.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "ec176afa",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      "docs/ai/DECISIONS.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/plans/ai-upgrade-v5/ROADMAP.md",
+      "docs/plans/ai-upgrade-v5/L8a-hardware-adaptive-inference-runtime.md",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "docs/ai/contracts/awkit-djnl-11-l8a-close-0928.json",
+      "docs/ai/contracts/active-lease.json",
+      ".beads/issues.jsonl"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/issues.jsonl"
+      ]
+    }
+  },
+  "constraints": {
+    "security": [
+      "No product code, permission or verifier result changes; NVIDIA qualification is not claimed."
+    ],
+    "offline": [
+      "Nothing is packaged or downloaded."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "CLOSE",
+      "description": "E11 recorded; awkit-djnl.11 closed with the open items in follow-up issues; the roadmap sources agree.",
+      "evidence_required": [
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "pending",
+      "observed": "after the Beads close"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  }
+}
