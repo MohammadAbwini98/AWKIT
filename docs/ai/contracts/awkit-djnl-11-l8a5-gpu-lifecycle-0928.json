@@ -70,11 +70,9 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "release",
+      "agent_id": "project-state",
       "allowed_paths": [
-        "build",
-        "resources/dependency-manifest.json",
-        "resources/dependency-manifest.sig"
+        ".beads/issues.jsonl"
       ]
     }
   },
@@ -157,8 +155,8 @@
       "required": true,
       "command": "npm run package:portable",
       "artifact": null,
-      "result": "pending",
-      "observed": "run under the release lease"
+      "result": "PASS",
+      "observed": "0.1.51 at 2970d227: strict offline validation passed, 1465/1465 local-AI files checksum-verified, none of the 20 pinned GPU binaries shipped; the signed manifest moved only its generation time and source commit (35ea9ca7)"
     },
     {
       "id": "verify:ai-packaged-runtime",
@@ -166,8 +164,8 @@
       "required": true,
       "command": "npm run verify:ai-packaged-runtime",
       "artifact": null,
-      "result": "pending",
-      "observed": "after the package"
+      "result": "PASS",
+      "observed": "104/0; the packaged tree is exactly the current source's staging, and real 0.8B inference runs on the staged copy"
     },
     {
       "id": "verify:ai-packaged-app",
@@ -175,8 +173,8 @@
       "required": true,
       "command": "npm run verify:ai-packaged-app",
       "artifact": null,
-      "result": "pending",
-      "observed": "after the package"
+      "result": "PASS",
+      "observed": "24/0: CPU & RAM only re-proved in the packaged EXE, a real inference in its own utility host with the C++ runtime from the packaged tree"
     },
     {
       "id": "verify:ai-gpu-packaged",
@@ -184,8 +182,17 @@
       "required": true,
       "command": "npm run verify:ai-gpu-packaged",
       "artifact": null,
-      "result": "pending",
-      "observed": "after the package"
+      "result": "FAIL",
+      "observed": "26 passed, 2 failed. The L8a.3 modes on the packaged AI tree all PASS (freshness guard, packaged-trust import, 21 steps: PRODUCT NO_COMPATIBLE_ADAPTER, MECHANICS 25/25 layers on Vulkan). The lifecycle half fails at its first step with AI_GPU_BACKEND_REFUSED, a harness defect: the modes run ends by invalidating the imported pack on purpose (sticky until re-import), and the launcher reuses that pack. The fix (one mode per run, or a fresh import per mode) is in scripts/verify-ai-gpu-host.mts, which this session's lease guard marked TERMINAL. See KNOWN_ISSUES."
+    },
+    {
+      "id": "verify:failure-capture-overhead",
+      "type": "verifier",
+      "required": false,
+      "command": "npm run verify:failure-capture-overhead",
+      "artifact": "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
+      "result": "BLOCKED",
+      "observed": "INCONCLUSIVE (exit 2, run 17): 15 passed, 0 failed, 3 inconclusive. Zero AI calls on the run path PASS; the duration and Node CPU intervals straddle their ceilings on this noisy development host. The vocabulary has no INCONCLUSIVE; recorded as BLOCKED on a measurement-quiet host."
     },
     {
       "id": "build",
@@ -224,7 +231,7 @@
   },
   "completion": {
     "status": "pending",
-    "qa_status": "pending",
+    "qa_status": "FAIL",
     "qc_status": "pending"
   },
   "write_lease": {

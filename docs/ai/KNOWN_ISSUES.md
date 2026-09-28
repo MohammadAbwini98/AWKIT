@@ -1,5 +1,27 @@
 # KNOWN_ISSUES
 
+## `verify:ai-gpu-packaged` FAILs its lifecycle half on a pack the modes half invalidated (2026-09-28, OPEN — harness defect, L8a.5)
+
+- **Symptom:** the L8a.3 modes on `dist/win-unpacked`'s AI tree all pass. The L8a.5 lifecycle half then
+  fails its first step with `AI_GPU_BACKEND_REFUSED` (26 passed, 2 failed).
+- **Cause:** the launcher (`scripts/verify-ai-gpu-host.mts --packaged`) runs both harness modes on ONE
+  imported pack. `gpuLive.ts` ends by flipping a byte of that pack to prove an altered pack is refused, and
+  the store keeps a pack invalid until it is re-imported (the L8a.2 design). The product is correct: it
+  refused the altered pack.
+- **Fix owed:** run one mode per invocation, adding a `verify:ai-gpu-lifecycle-packaged` script (both
+  modes together take most of the tool's 10-minute limit anyway), or import a fresh pack per mode. Then
+  register the script and re-run both on the package.
+- **Why it was not fixed in the session that found it:** see the next entry.
+
+## Editing outside a held lease burns the denial budget per call — a batch of edits reaches TERMINAL at once (2026-09-28, OPEN — know it)
+
+- While a release lease (`build`, `resources/dependency-manifest.*`) was held, four parallel edits to
+  `scripts/verify-ai-gpu-host.mts` were refused one by one. The third identical refusal marked that
+  file's gate TERMINAL for the session, so the harness defect above stayed unfixed.
+- `package.json` was accepted in the same batch.
+- **Rule:** release a lease as soon as its paths are committed, before editing anything else. Never batch
+  edits while a lease is held unless every path is in its scope.
+
 ## `verify:ai-authoring` FAILs its DX-0 freeze since L8a.1 (2026-09-27, OPEN — pre-existing, not caused by L8a.3)
 
 - **Symptom:** `verify:ai-authoring` fails the DX-0 "frozen inputs" check for `src/ai/AiModelManifest.ts`.

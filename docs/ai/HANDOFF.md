@@ -1,6 +1,32 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-28, latest) — L8a.4 Settings UI and diagnostics done; L8a.5 is next
+## HANDOFF (2026-09-28, latest) — L8a.5 mostly done; the packaged lifecycle run is owed
+
+- **Contract** `awkit-djnl-11-l8a5-gpu-lifecycle-0928`: status `pending`, QA FAIL (one packaged
+  verifier), QC pending. The release lease (package and signed manifest) is released; the writer is routed
+  to project-state for the Beads note.
+- **Done:**
+  - `verify:ai-gpu-lifecycle` 29/0: cancel ceiling, kill-restart-reload cost and VRAM taken after load, on
+    the real Vulkan host;
+  - `LOST_AFTER_LOAD` handling in `AiService`: `verify:ai-gpu-modes` 182/0, 6/6 mutations;
+  - a fresh 0.1.51 package: `verify:ai-packaged-runtime` 104/0, `verify:ai-packaged-app` 24/0.
+- **Next, first:** fix `scripts/verify-ai-gpu-host.mts --packaged` (`KNOWN_ISSUES.md`, top entry).
+  - Run one mode per invocation: add `verify:ai-gpu-lifecycle-packaged` (`--packaged --lifecycle`),
+    register it, and make `--packaged` alone run only the modes. Or import a fresh pack per mode.
+  - Then run both against the current package. It is fresh for `ai-host.cjs`; the verifier's
+    byte-identity guard will say so.
+- **Then:** record the packaged lifecycle numbers in the L8a plan and the contract, and set QA.
+- **Do not claim:** NVIDIA qualification (E11 BLOCKED; AMD mechanics only), or a host OOM classifier
+  (deliberately not built; the runtime's VRAM reading lags other processes).
+- **Still open from earlier slices:**
+  - `verify:ai-authoring` DX-0 freeze FAIL (L8a.1);
+  - the L8a.2 path-confinement mutation (owner-run);
+  - the routing-matrix gap for `scripts/ai-harness/**`;
+  - the `verifyForLoad`-to-DLL-load gap;
+  - E2 hybrid/multi-GPU correlation.
+- Ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## HANDOFF (2026-09-28) — L8a.4 Settings UI and diagnostics done; L8a.5 is next
 
 - **L8a.4 is implemented** under contract `awkit-djnl-11-l8a4-settings-diagnostics-0928`: status
   `implemented`, QA PASS, **QC pending**.

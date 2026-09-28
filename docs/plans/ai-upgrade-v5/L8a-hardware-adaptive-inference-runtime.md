@@ -5,8 +5,13 @@ Shared rules, architecture and the Phase L extension decisions (E1–E12): `ROAD
 closed L7 (`awkit-djnl.10`). Blocks L8b (`awkit-djnl.12`) and L9 (`awkit-djnl.13`).
 
 **Status (2026-09-28): OPEN — L8a.0 gate run; L8a.1 backend manifest, L8a.2 backend-pack
-import, L8a.3 execution modes and L8a.4 Settings UI and diagnostics implemented.** Registered by the
-owner's post-closeout scope expansion. L8a.5 is next and not started.
+import, L8a.3 execution modes and L8a.4 Settings UI and diagnostics implemented; L8a.5 in progress.**
+Registered by the owner's post-closeout scope expansion.
+- L8a.5:
+  - lifecycle measured (`verify:ai-gpu-lifecycle` 29/0, AMD mechanics);
+  - `LOST_AFTER_LOAD` handled (182/0, 6/6 mutations);
+  - CPU re-proved on a fresh package (104/0, 24/0);
+  - the packaged lifecycle run is owed (harness defect). See the record.
 - L8a.4:
   - `verify:ai-settings-gui` 124/124 and `verify:ai-gpu-modes` 164/0 (section G);
   - 11/11 mutations caught;
@@ -617,6 +622,61 @@ qualifies no hardware.
 - Independent QC pending.
 - `verify:failure-capture-overhead` INCONCLUSIVE on this host (Node CPU interval). Zero AI calls on
   the run path PASS.
+
+## L8a.5 record (2026-09-28, in progress)
+
+Contract `awkit-djnl-11-l8a5-gpu-lifecycle-0928`. Commits:
+- `b4663aed`: the lifecycle verifier;
+- `b07ccade`: the loss handling;
+- `55dc3a9c`: the packaged mode;
+- `35ea9ca7`: the signed manifest from a fresh package, under a release lease.
+
+**Measured, MECHANICS on this machine's AMD adapter (`verify:ai-gpu-lifecycle`, 29/0).** None of this
+qualifies NVIDIA (E11).
+
+| Placement | Cold load | Cancel, prompt processing | Cancel, generation | Killed, back with the model |
+|---|---|---|---|---|
+| every layer (25/25) | 11.4 s | 1062 ms (kill) | 22 ms (host) | 12.8 s |
+| partial (12/25) | 8.6 s | 1070 ms (kill) | 57 ms (host) | 11.0 s |
+
+- The runtime does not observe an abort during prompt processing on Vulkan either. The awkit-g555 kill
+  at the 1 s grace keeps it within the 3 s ceiling.
+- Of the kill-to-ready time, 44 ms is the exit being seen and 0.65–1.1 s is re-fork + pack guard +
+  handshake; the Vulkan model load dominates.
+
+**VRAM exhaustion after load (probe).**
+- With the model loaded on every layer, two more GPU hosts loaded beside it and the third failed
+  (`AI_GPU_LOAD_FAILED`).
+- The loaded host answered short and long prompts at normal speed and recovered normally. llama.cpp
+  reserves its buffers at load, so on this driver the next load is what fails under pressure, and the
+  L8a.3 retry, fallback and refusal already handle that.
+- The runtime's free-VRAM reading lagged other processes: 3.58 GB was reported while 2.2 GB was taken.
+  So no host-side OOM classifier was built (item 7's "its own reason" is not diagnosed from VRAM), and
+  `ai-host.cjs` is unchanged.
+
+**`LOST_AFTER_LOAD` (item 7, `AiService`).** A Vulkan host whose inference fails or that exits after a
+successful load is a loss for its mode and reserve.
+- First loss: fails the job, frees the GPU, and the next job re-plans against the VRAM free by then (it
+  drops layers, or GPU-Only reports the new shortfall).
+- At `GPU_LOSS_LIMIT` (2): GPU-Offload runs on CPU & RAM for the session and GPU-Only refuses, both with
+  `LOST_AFTER_LOAD`, until the mode or reserve changes.
+- Two losses keep the GPU host below its own restart circuit, and the CPU host's circuit never sees them.
+  Cancels, kills that honour them and CPU host crashes are not losses.
+- `verify:ai-gpu-modes` section H: 182/0, with 6/6 mutations caught.
+
+**Packaged.**
+- `package:portable` passed strict offline validation: 1465/1465 local-AI files, no GPU binary shipped.
+- `verify:ai-packaged-runtime` 104/0. `verify:ai-packaged-app` 24/0: CPU & RAM only re-proved in the
+  packaged EXE.
+- `verify:ai-gpu-packaged`: the L8a.3 modes pass on the packaged AI tree. Its lifecycle half fails on a
+  pack the modes half invalidated (harness defect, `KNOWN_ISSUES.md`), so the packaged cancel and
+  reload numbers are **owed**.
+
+**BLOCKED / open.**
+- The packaged lifecycle run (the fix to the launcher).
+- Real NVIDIA qualification (E11).
+- Independent QC.
+- `verify:failure-capture-overhead` INCONCLUSIVE on this host (zero AI calls on the run path PASS).
 
 ## Risks and open decisions
 

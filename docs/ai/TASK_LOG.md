@@ -1,6 +1,59 @@
 # TASK_LOG
 
-## 2026-09-28 (latest) — L8a.4 Settings UI and GPU diagnostics: verification, mutation coverage, closeout (Claude)
+## 2026-09-28 (latest) — L8a.5: GPU lifecycle measured, GPU lost after load handled, packaged CPU re-proved (Claude)
+
+- **Task:** start L8a.5 from the L8a plan: the GPU cancel ceiling, kill-restart-reload cost, VRAM
+  exhaustion after load, and packaged evidence.
+- **Result:** contract `awkit-djnl-11-l8a5-gpu-lifecycle-0928`. Everything except the packaged lifecycle
+  run is done; status `pending`, QA FAIL, QC pending.
+  - A live probe came first (execute, don't infer): VRAM taken after load did not affect the loaded
+    host, and the runtime's free-VRAM reading lags. So no host OOM classifier was built, and
+    `ai-host.cjs` is unchanged.
+  - `LOST_AFTER_LOAD` is handled in the service: the first loss re-plans, and at `GPU_LOSS_LIMIT` (2)
+    the setting stays off the GPU for the session.
+- **Commits:**
+  - `b4663aed` lifecycle verifier;
+  - `b07ccade` loss handling;
+  - `55dc3a9c` packaged mode;
+  - `89d20c69` and `12d4e834` contract;
+  - `2970d227` lease claim;
+  - `35ea9ca7` signed manifest;
+  - `7d62a243` lease release;
+  - plus this closeout.
+- **Files:**
+  - `src/ai/{AiService,AiExecutionProfile}.ts`, `app/renderer/pages/LocalAiExecution.tsx`;
+  - `scripts/ai-harness/{gpuLifecycle,harnessMain,bench}.ts`, `scripts/verify-ai-gpu-{host,modes}.mts`,
+    `scripts/lib/verifier-classification.ts`, `package.json`;
+  - `resources/dependency-manifest.{json,sig}`, `docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json`;
+  - the contract, the L8a plan, `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,KNOWN_ISSUES}.md`,
+    `.beads/issues.jsonl`.
+- **Mutations:** 6/6 caught and reverted:
+
+  | Mutation | Result |
+  |---|---|
+  | loss never counted | 172/10 |
+  | limit never enforced | 176/6 |
+  | live GPU host not released | 178/4 |
+  | CPU crash counted | 181/1 |
+  | cancel-kill counted | 181/1 |
+  | setting key ignored | 180/2 |
+
+- **Verification:**
+  - PASS: `verify:ai-gpu-lifecycle` 29/0, `verify:ai-gpu-modes` 182/0, `verify:ai-settings-gui` 124/124,
+    `verify:ai-gpu-host` 23/23, adapter 117/0, fallback 38/0, deadlines 41/41;
+  - PASS: build, `typecheck:scripts`, `verify:verifier-classification` 286;
+  - PASS: `package:portable` with strict offline validation, `verify:ai-packaged-runtime` 104/0,
+    `verify:ai-packaged-app` 24/0.
+- **FAIL:** `verify:ai-gpu-packaged` 26/2. The modes half passes; the lifecycle half reuses a pack the
+  modes half invalidated (harness defect, `KNOWN_ISSUES.md`).
+- **BLOCKED:**
+  - the fix to `scripts/verify-ai-gpu-host.mts`: its edit gate went TERMINAL after edits made while the
+    release lease was held;
+  - NVIDIA qualification (E11).
+- **INCONCLUSIVE:** `verify:failure-capture-overhead` run 17 (zero AI calls on the run path PASS).
+- **NOT RUN:** independent QC; the NSIS installer.
+
+## 2026-09-28 — L8a.4 Settings UI and GPU diagnostics: verification, mutation coverage, closeout (Claude)
 
 - **Task:** close L8a.4 from the L8a plan. The product was committed as `0b121998` in an earlier
   session that stopped at its usage limit. No L8a.5 work.
