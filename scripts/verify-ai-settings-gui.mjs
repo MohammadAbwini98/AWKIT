@@ -21,12 +21,17 @@
  *     counts and are labelled unqualified; a mode change unloads the idle model, and so does a change of
  *     the reserve alone (the next load then reads as current again); a slow load shows its real stage;
  *     a settings file from before L8a loads as CPU and keeps its other fields;
+ *   • L8b.5, production path: choosing a model file shows its size, the free space and what the copy
+ *     needs BEFORE anything is copied (checked on disk), Cancel copies nothing, confirming copies it
+ *     under its checksum and runs the real host's compatibility check; a file the runtime cannot read
+ *     reads not compatible with its reason, its qualification Incompatible, speed unclaimed, with a
+ *     re-check and no acknowledgement offered, and it can be removed;
  *   • no renderer error is logged across either launch.
  *
  * Needs `npm run build` first (it launches `out/`). Run: npm run verify:ai-settings-gui
  */
 
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -213,6 +218,49 @@ try {
   check("pausing AI while runs are active defaults to on", (await pause.count()) === 1 && (await pause.isChecked()));
   check("import is offered", (await panel.getByRole("button", { name: "Import Model Pack…" }).count()) === 1);
   check("remove is not offered without a pack", (await panel.getByRole("button", { name: "Remove Model Pack" }).count()) === 0);
+
+  // ── L8b.5: the disk-space preflight comes BEFORE any copy, and a model the runtime cannot read is Incompatible ──
+  console_.setLabel("model preflight");
+  const modelsDir = path.join(dataRoot, "SpecterStudio", "ai", "models");
+  const ggufsInProfile = () => (existsSync(modelsDir) ? readdirSync(modelsDir).filter((name) => name.endsWith(".gguf")) : []);
+  // A GGUF magic and version with nothing after them: importable, but no model the runtime can read.
+  const bareGguf = path.join(work, "Bare-Header.gguf");
+  writeFileSync(bareGguf, Buffer.concat([Buffer.from("GGUF", "latin1"), Buffer.from([3, 0, 0, 0]), Buffer.alloc(4096)]));
+  await app.evaluate(({ dialog }, file) => {
+    dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] });
+  }, bareGguf);
+  const preflightDialog = win.getByRole("alertdialog", { name: "Import this model?" });
+  await panel.getByRole("button", { name: "Import Model Pack…" }).click();
+  if (await sees(preflightDialog, "choosing a model file shows what the copy needs before copying")) {
+    const shown = await preflightDialog.innerText();
+    check(
+      "...its file name, size, the free space in the app's data folder and what is needed",
+      /Bare-Header\.gguf is [\d.]+ [KMG]B\./.test(shown) && /The app's data folder has [\d.]+ [KMG]B free, and the copy needs [\d.]+ [KMG]B: the file and 256\.0 MB to spare\./.test(shown),
+      shown
+    );
+    check("...and says a model this version does not list is checked and then needs accepting", /checked for compatibility on this machine/.test(shown) && /until you accept it as unverified/.test(shown), shown);
+    check("keyboard focus starts on Cancel, the safe choice", await win.evaluate(() => document.activeElement?.textContent === "Cancel"));
+    check("nothing is copied while the preflight is shown", ggufsInProfile().length === 0, ggufsInProfile().join(","));
+    await preflightDialog.getByRole("button", { name: "Cancel" }).click();
+    await preflightDialog.waitFor({ state: "hidden", timeout: 5000 }).catch(() => undefined);
+    check("cancelling copies nothing and the pack stays not imported", ggufsInProfile().length === 0 && /Model pack\s*Not imported/.test(await panel.innerText()));
+  }
+  await panel.getByRole("button", { name: "Import Model Pack…" }).click();
+  await preflightDialog.getByRole("button", { name: "Copy and check" }).click();
+  await sees(panel.getByText(/Model copied into the app's data folder and checksummed/), "confirming copies the file and runs its compatibility check");
+  check("the copy lands in the writable profile, under its checksum", /^[0-9a-f]{64}\.gguf$/.test(ggufsInProfile()[0] ?? "") && ggufsInProfile().length === 1, ggufsInProfile().join(","));
+  const registeredText = await panelMatches(panel, (text) => /cannot read the file/.test(text), 20000);
+  check("the registered model reads not compatible, with its reason", /Model pack\s*Bare-Header\.gguf: not compatible: the runtime cannot read the file \(not used\)/.test(registeredText), registeredText.match(/Model pack[^\n]*\n?[^\n]*/)?.[0]);
+  check("...and its qualification reads Incompatible, with the same reason", /Qualification\s*Incompatible: the runtime cannot read the file/.test(registeredText), registeredText.match(/Qualification[^\n]*\n?[^\n]*/)?.[0]);
+  check("...and speed is not claimed", /Speed on this machine\s*Not measured, so not claimed/.test(registeredText));
+  check("an incompatible model offers a re-check but never the unverified-model acknowledgement", (await panel.getByRole("button", { name: "Check Compatibility Again" }).count()) === 1 && (await panel.getByRole("button", { name: "Use Unverified Model…" }).count()) === 0);
+  await panel.getByRole("button", { name: "Check Compatibility Again" }).click();
+  await sees(panel.getByText("Compatibility checked again. The result is below."), "the re-check runs and confirms");
+  await panel.getByRole("button", { name: "Remove Model Pack" }).click();
+  await win.getByRole("alertdialog", { name: "Remove the local AI model pack?" }).getByRole("button", { name: "Remove model pack" }).click();
+  await sees(panel.getByText("Model pack removed."), "the registered model can be removed");
+  check("...and its file is gone", ggufsInProfile().length === 0, ggufsInProfile().join(","));
+  noRendererErrors("no renderer errors across the preflight, import, re-check and removal");
 
   // ── Tier selectors are bounded by each feature's ceiling ────────────────────────────────────
   const featureRows = panel.locator("table[aria-label='Local AI features and their autonomy tiers'] tbody tr");

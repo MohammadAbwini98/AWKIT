@@ -566,12 +566,11 @@ export function LocalAiSettings() {
         <ConfirmDialog
           cancelLabel="Cancel"
           confirmLabel="Copy and check"
-          icon="connect"
           title="Import this model?"
           message={
-            `File: ${preflight.fileName}\nSize: ${formatBytes(preflight.sizeBytes)}\n` +
-            `Free space in the app's data folder: ${preflight.freeBytes === null ? "cannot be measured" : formatBytes(preflight.freeBytes)}\n` +
-            `Needed: ${formatBytes(preflight.requiredBytes)} (the file and ${formatBytes(preflight.headroomBytes)} to spare)\n\n` +
+            `${preflight.fileName} is ${formatBytes(preflight.sizeBytes)}. The app's data folder has ` +
+            `${preflight.freeBytes === null ? "an unmeasured amount of space" : formatBytes(preflight.freeBytes)} free, and the copy needs ` +
+            `${formatBytes(preflight.requiredBytes)}: the file and ${formatBytes(preflight.headroomBytes)} to spare. ` +
             "The file is copied into the app's data folder and checksummed; the original is not changed. A model this " +
             "version does not list is then checked for compatibility on this machine, loading it once, and is not used " +
             "until you accept it as unverified."
@@ -593,8 +592,8 @@ export function LocalAiSettings() {
           message={
             `${status.modelPack.displayName ?? "This model"} passed its compatibility checks on this machine, but SpecterStudio ` +
             "does not list it and holds no quality evidence for it, so its suggestions and explanations may be worse than a " +
-            "listed model's.\n\nEverything it proposes is still proven before it is applied, and every AI change stays in the " +
-            "audit log with a revert. Replacing the file needs this acknowledgement again.\n\nUse it?"
+            "listed model's. Everything it proposes is still proven before it is applied, and every AI change stays in the " +
+            "audit log with a revert. Replacing the file needs this acknowledgement again. Use it?"
           }
           onCancel={() => setConfirmAcknowledge(false)}
           onConfirm={() => {
