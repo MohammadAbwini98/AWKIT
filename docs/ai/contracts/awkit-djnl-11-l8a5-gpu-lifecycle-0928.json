@@ -1,0 +1,227 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-11-l8a5-gpu-lifecycle-0928",
+    "title": "L8a.5: GPU cancel ceiling, kill-restart-reload cost, VRAM exhaustion after load, packaged evidence",
+    "objective": "Phase L L8a.5 (awkit-djnl.11). Measure on the real Vulkan host, for every layer and for a partial load: cancel latency against the L1.8 3 s ceiling during prompt processing and during generation, and the cost of a host killed and brought back with the model. Probe how a loaded host behaves while other processes take the adapter's VRAM. Handle a GPU lost after a successful load (the host's inference failed or it exited) as its own reason, LOST_AFTER_LOAD. The first loss frees the GPU and re-plans against the VRAM free by then. At GPU_LOSS_LIMIT the setting stays off the GPU for the session: GPU-Offload runs on CPU & RAM and GPU-Only refuses, until the mode or reserve changes, and the CPU host's restart circuit never sees it. Prove CPU & RAM only again and the GPU paths on a fresh packaged build. No host OOM classifier: the runtime's free-VRAM reading lags other processes (measured), so the cause is not diagnosed. No NVIDIA qualification without a 0x10DE adapter (E11).",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 3
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "10273dc3",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "execution_change": true,
+    "renderer_visual_change": true,
+    "general_engineering_change": true,
+    "packaging_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 3
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "architect",
+      "frontend",
+      "software",
+      "runtime",
+      "qa",
+      "qc",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      "src/ai/AiService.ts",
+      "src/ai/AiExecutionProfile.ts",
+      "app/renderer/pages/LocalAiExecution.tsx",
+      "scripts/ai-harness/gpuLifecycle.ts",
+      "scripts/ai-harness/harnessMain.ts",
+      "scripts/ai-harness/bench.ts",
+      "scripts/verify-ai-gpu-host.mts",
+      "scripts/verify-ai-gpu-modes.mts",
+      "scripts/lib/verifier-classification.ts",
+      "package.json",
+      "build",
+      "resources/dependency-manifest.json",
+      "resources/dependency-manifest.sig",
+      "docs/ai/contracts/awkit-djnl-11-l8a5-gpu-lifecycle-0928.json",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/plans/ai-upgrade-v5/L8a-hardware-adaptive-inference-runtime.md",
+      "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
+      ".beads/issues.jsonl"
+    ],
+    "consultants": [
+      "architect"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "release",
+      "allowed_paths": [
+        "build",
+        "resources/dependency-manifest.json",
+        "resources/dependency-manifest.sig"
+      ]
+    }
+  },
+  "constraints": {
+    "security": [
+      "No new permission, channel or setting; the host protocol and ai-host.cjs are unchanged.",
+      "The GPU still starts only through the L8a.2 pack guard before every fork, and E2 still decides eligibility."
+    ],
+    "offline": [
+      "Nothing GPU enters the installer; the package is rebuilt only so the signed manifest's source commit matches HEAD for the strict gate."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "LOSS",
+      "description": "A GPU lost after load fails that job, frees the GPU and re-plans; at GPU_LOSS_LIMIT GPU-Offload runs on CPU and GPU-Only refuses, both with LOST_AFTER_LOAD, until the mode or reserve changes; cancels, kills that honour them and CPU host crashes are no loss; each guarantee mutation-tested.",
+      "evidence_required": [
+        "verify:ai-gpu-modes",
+        "mutation:l8a5"
+      ]
+    },
+    {
+      "id": "LIVE",
+      "description": "Cancel within the 3 s ceiling in both phases, and the kill-restart-reload cost, for every layer and a partial load on the real Vulkan host; VRAM taken after load observed.",
+      "evidence_required": [
+        "verify:ai-gpu-lifecycle"
+      ]
+    },
+    {
+      "id": "PACKAGED",
+      "description": "A fresh package passes strict offline validation; CPU & RAM only runs a real inference in the packaged EXE; the GPU modes and lifecycle run on the packaged AI tree.",
+      "evidence_required": [
+        "package:portable",
+        "verify:ai-packaged-runtime",
+        "verify:ai-packaged-app",
+        "verify:ai-gpu-packaged"
+      ]
+    },
+    {
+      "id": "BUILD",
+      "description": "Typecheck, bundles, script typecheck, regressions and the verifier registry pass.",
+      "evidence_required": [
+        "build",
+        "typecheck:scripts",
+        "verify:verifier-classification"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:ai-gpu-modes",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-gpu-modes",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "182/0 (18 new in section H)"
+    },
+    {
+      "id": "mutation:l8a5",
+      "type": "verifier",
+      "required": true,
+      "command": "manual source mutation, verifier run, revert",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "6/6 caught and reverted: loss never counted (172/10), limit never enforced (176/6), live GPU host not released (178/4), CPU crash counted (181/1), cancel-kill counted (181/1), setting key ignored (180/2)"
+    },
+    {
+      "id": "verify:ai-gpu-lifecycle",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-gpu-lifecycle",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "29/0 on the AMD Vulkan adapter, MECHANICS only; see the plan record"
+    },
+    {
+      "id": "package:portable",
+      "type": "build",
+      "required": true,
+      "command": "npm run package:portable",
+      "artifact": null,
+      "result": "pending",
+      "observed": "run under the release lease"
+    },
+    {
+      "id": "verify:ai-packaged-runtime",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-packaged-runtime",
+      "artifact": null,
+      "result": "pending",
+      "observed": "after the package"
+    },
+    {
+      "id": "verify:ai-packaged-app",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-packaged-app",
+      "artifact": null,
+      "result": "pending",
+      "observed": "after the package"
+    },
+    {
+      "id": "verify:ai-gpu-packaged",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-gpu-packaged",
+      "artifact": null,
+      "result": "pending",
+      "observed": "after the package"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc --noEmit and all bundles"
+    },
+    {
+      "id": "typecheck:scripts",
+      "type": "build",
+      "required": true,
+      "command": "npm run typecheck:scripts",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "clean"
+    },
+    {
+      "id": "verify:verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "286 classified, verify:ai-gpu-lifecycle and verify:ai-gpu-packaged registered"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  }
+}
