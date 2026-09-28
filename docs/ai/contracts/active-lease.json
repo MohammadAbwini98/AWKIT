@@ -1,22 +1,22 @@
 {
-  "task": "awkit-djnl-12-l8b2-static-checks-0928",
-  "contract_path": "docs/ai/contracts/awkit-djnl-12-l8b2-static-checks-0928.json",
+  "task": "awkit-djnl-12-l8b3-l8b5-0929",
+  "contract_path": "docs/ai/contracts/awkit-djnl-12-l8b3-l8b5-0929.json",
   "holder": "release",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
     "build",
     "resources/dependency-manifest.json",
     "resources/dependency-manifest.sig"
   ],
-  "acquired_at": "2026-09-28T18:02:17.573Z",
-  "acquired_at_commit": "aeb180175c1112cabf4fcae754ece068e3e73865",
+  "acquired_at": "2026-09-28T23:57:16.636Z",
+  "acquired_at_commit": "33d218f4ef784b2ab30470fc97323cdcf2742d8b",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-djnl-12-l8b2-static-checks-0928.json"
+    "docs/ai/contracts/awkit-djnl-12-l8b3-l8b5-0929.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "a83b94b39f474d55c6f1376650423c7f6e918cac1b95abcc97f8870d0bcf3c7a",
-    "docs/ai/contracts/awkit-djnl-12-l8b2-static-checks-0928.json": "32684b16cf9235bea84c7c7802fa1e8298959d81aff88571d479a5f311f9677a"
+    "docs/ai/contracts/active-lease.json": "f33210bf507a3235d235ffe90f32354e59f8dc26b4c9533db33307e5fffa56c5",
+    "docs/ai/contracts/awkit-djnl-12-l8b3-l8b5-0929.json": "a2fd09f7623c49c54a1c20de3bb29e2425ca1acff7a593d61b381e1466e01884"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -26,12 +26,9 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1790592808294.1416"
+    "build": "dir(1):native-hosts:1790621803216.8665"
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-28T19:04:28.530Z",
-  "released_reason": "signed manifest regenerated from clean 519f7087 and committed in 5b08eb89, strict offline validation and verify:ai-packaged-app 28/0 passed",
-  "archived_at": "2026-09-28T19:04:28.531Z"
+  "violations": []
 }
