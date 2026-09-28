@@ -26,6 +26,7 @@ import { decideAiAdmission, type AiAdmissionHoldReason, type AiAdmissionView } f
 import {
   CPU_PROFILE,
   decideGpuLoad,
+  GPU_LOSS_LIMIT,
   retryLayers,
   unprovenDevices,
   vramOf,
@@ -229,6 +230,8 @@ export class AiService {
   private stage: AiLoadStage | null = null;
   /** The mode and reserve GPU-Only last refused under, so status reports it until they change. */
   private refusedKey: string | null = null;
+  /** GPU losses after a successful load under one mode and reserve (L8a.5); a new setting starts over. */
+  private gpuLosses: { key: string; count: number } | null = null;
   private lastError: AiHostReason | null = null;
   private holdReason: AiAdmissionHoldReason | null = null;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -492,6 +495,17 @@ export class AiService {
     }
   }
 
+  /**
+   * The GPU host's inference failed or the host exited after a successful load (L8a.5): count the loss
+   * for this setting and free the GPU. A failed inference leaves the host alive and holding VRAM.
+   */
+  private async gpuLost(settings: AiServiceSettings): Promise<void> {
+    const key = this.executionKey(settings);
+    this.gpuLosses = { key, count: this.gpuLosses?.key === key ? this.gpuLosses.count + 1 : 1 };
+    this.deps.log?.("warn", `ai gpu lost after load (${this.gpuLosses.count} of ${GPU_LOSS_LIMIT} for this setting)`);
+    await this.releaseGpuHost();
+  }
+
   /** Stop the GPU host, if any, so its VRAM and the backend files it loaded are freed. */
   private async releaseGpuHost(): Promise<void> {
     const gpu = this.deps.transport("vulkan");
@@ -539,7 +553,7 @@ export class AiService {
       const mode = settings.executionMode ?? "cpu";
       let fallbackReason: AiGpuReason | null = null;
       if (mode !== "cpu") {
-        const gpu = await this.loadOnGpu(mode, settings.vramReserveBytes ?? null, model);
+        const gpu = await this.loadOnGpu(mode, settings.vramReserveBytes ?? null, model, key);
         if (gpu.kind === "ready") {
           this.profileKey = key;
           this.profileFor = key;
@@ -630,7 +644,8 @@ export class AiService {
   private async loadOnGpu(
     mode: Exclude<AiExecutionMode, "cpu">,
     reserveBytes: number | null,
-    model: Extract<AiModelResolution, { ok: true }>
+    model: Extract<AiModelResolution, { ok: true }>,
+    key: string
   ): Promise<
     | { kind: "ready" }
     | { kind: "fallback"; reason: AiGpuReason }
@@ -646,6 +661,8 @@ export class AiService {
     const reasonOf = (error: unknown): AiHostReason | null => (error instanceof AiHostCallError ? error.reason : null);
 
     this.stage = "checking-gpu";
+    // Lost after load too often under this setting: it stays off the GPU for the session (L8a.5).
+    if (this.gpuLosses?.key === key && this.gpuLosses.count >= GPU_LOSS_LIMIT) return notOnGpu("LOST_AFTER_LOAD");
     const readiness: AiGpuReadiness = this.deps.gpu
       ? await this.deps.gpu().catch((): AiGpuReadiness => ({ ok: false, reason: "BACKEND_UNAVAILABLE" }))
       : { ok: false, reason: "BACKEND_UNAVAILABLE" };
@@ -795,6 +812,7 @@ export class AiService {
 
       // Whatever else happened, a host that exited or was killed no longer holds the model.
       if (failure === "AI_HOST_EXITED" || failure === "AI_MODEL_NOT_LOADED" || failure === "AI_HOST_KILLED_ON_CANCEL") this.forgetHost(backend);
+      if (backend === "vulkan" && (failure === "AI_HOST_EXITED" || failure === "AI_INFERENCE_FAILED")) await this.gpuLost(settings);
       if (job.userCancelled) {
         this.finish(job, { status: "cancelled", yields: job.yields });
         return;

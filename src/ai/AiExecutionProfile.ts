@@ -30,7 +30,9 @@ export type AiGpuReason =
   | "VENDOR_UNPROVEN"
   | "NO_USABLE_DEVICE"
   | "INSUFFICIENT_VRAM"
-  | "GPU_LOAD_FAILED";
+  | "GPU_LOAD_FAILED"
+  /** L8a.5: the GPU host failed or exited after a successful load, GPU_LOSS_LIMIT times for this setting. */
+  | "LOST_AFTER_LOAD";
 
 /** One short, safe sentence per reason; numbers for a VRAM shortfall travel separately. */
 export const AI_GPU_REASON_MESSAGES: Readonly<Record<AiGpuReason, string>> = Object.freeze({
@@ -41,7 +43,8 @@ export const AI_GPU_REASON_MESSAGES: Readonly<Record<AiGpuReason, string>> = Obj
   VENDOR_UNPROVEN: "The GPU the runtime would use cannot be proven to be NVIDIA.",
   NO_USABLE_DEVICE: "The runtime found no usable GPU device.",
   INSUFFICIENT_VRAM: "There is not enough free GPU memory for the model.",
-  GPU_LOAD_FAILED: "The model could not be loaded on the GPU."
+  GPU_LOAD_FAILED: "The model could not be loaded on the GPU.",
+  LOST_AFTER_LOAD: "The GPU failed after the model loaded, for example because other apps took its memory."
 });
 
 /** Main-process readiness before any GPU host is started: the backend pack and the adapters. */
@@ -101,6 +104,17 @@ export function retryLayers(layers: number, retriesUsed: number): number | null 
   const next = Math.floor(layers / 2);
   return next >= 1 ? next : null;
 }
+
+/**
+ * GPU losses after a successful load (L8a.5) tolerated per mode and reserve in a session: the GPU host's
+ * inference failed or the host exited. The first loss drops the load, and the next job re-plans against
+ * the VRAM that is free by then, so it loads fewer layers (or GPU-Only refuses with the shortfall) when
+ * another application took memory. At the limit the setting stays off the GPU for the session: GPU-Offload
+ * runs on CPU & RAM and GPU-Only refuses, both with LOST_AFTER_LOAD, until the mode or reserve changes.
+ * The cause is not diagnosed: the runtime's free-VRAM reading lags other processes (measured, L8a.5).
+ * Two, so a GPU host never reaches its own restart circuit (a third exit) through losses alone.
+ */
+export const GPU_LOSS_LIMIT = 2;
 
 /** What actually runs, as reported in status and diagnostics. */
 export interface AiExecutionProfile {

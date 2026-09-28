@@ -62,7 +62,7 @@ function placement(e: AiExecutionView): string {
 export function effectiveLabel(e: AiExecutionView): string {
   if (e.stage) return `${STAGE_LABELS[e.stage]}…`;
   if (e.applied && e.refusal) return `Not running: GPU-Only refused. ${e.message ?? ""}${shortfall(e.refusal)}`;
-  if (e.applied) return e.modelLoaded ? placement(e) : `Not loaded (unloaded while idle). Last load: ${placement(e)}`;
+  if (e.applied) return e.modelLoaded ? placement(e) : `Not loaded. Last load: ${placement(e)}`;
   return e.modelLoaded
     ? `Still loaded with the previous setting; ${MODE_LABELS[e.mode]} takes effect at the next model load`
     : `Not loaded; ${MODE_LABELS[e.mode]} is used the next time the model loads`;

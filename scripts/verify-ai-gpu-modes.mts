@@ -16,6 +16,10 @@
  * surviving the load; a fallback or refusal found under an old mode or reserve still reported (reason,
  * sentence or GPU-Only unavailability) after the setting changed; the next load's profile not belonging
  * to the current mode and reserve; the plan's VRAM figures not reported, or invented where no plan ran.
+ * L8a.5 (section H): a GPU lost after a successful load (the host's inference failed or it exited) not
+ * freeing the GPU, not re-planning against the VRAM free by then, or not keeping the setting off the GPU
+ * at GPU_LOSS_LIMIT (GPU-Offload on CPU, GPU-Only refusing, both with LOST_AFTER_LOAD, until the mode or
+ * reserve changes); a cancel, a kill to honour one, or a CPU host crash counted as a GPU loss.
  *
  * Real NVIDIA hardware is NOT exercised here (E11). Run: npm run verify:ai-gpu-modes
  */
@@ -28,6 +32,7 @@ import {
   decideGpuLoad,
   describeAdapters,
   GPU_LOAD_RETRIES,
+  GPU_LOSS_LIMIT,
   NVIDIA_PCI_VENDOR_ID,
   retryLayers,
   toExecutionView,
@@ -40,7 +45,7 @@ import type { AiOutputSchema } from "@src/ai/AiOutputContract";
 import { AiService, type AiJobRequest, type AiServiceSettings } from "@src/ai/AiService";
 import { DEFAULT_AI_SETTINGS, MAX_VRAM_RESERVE_MB, MIN_VRAM_RESERVE_MB, normalizeAiSettings, sanitizeAiSettingsPatch, type AiExecutionMode } from "@src/ai/AiSettings";
 import type { AiGpuPlan, AiHostRequestPayload, AiLoadRequest } from "@src/ai/contracts/AiHostProtocol";
-import { FakeAiHostTransport, type FakeAiHostOptions } from "@src/ai/FakeAiHostTransport";
+import { FakeAiHostTransport, type FakeAiHostOptions, type FakeInferStep } from "@src/ai/FakeAiHostTransport";
 
 let passed = 0;
 let failed = 0;
@@ -195,7 +200,7 @@ console.log("\nB. E2 and E4 policy\n");
   check("GPU-Only never falls back", decideGpuLoad("gpu-only", plan(0)).action === "refuse");
   check(`the retry halves the layers at most ${GPU_LOAD_RETRIES} times`, retryLayers(20, 0) === 10 && retryLayers(10, 1) === 5 && retryLayers(5, 2) === null);
   check("the retry never goes below one layer", retryLayers(1, 0) === null);
-  const reasons: AiGpuReason[] = ["BACKEND_PACK_MISSING", "BACKEND_PACK_INVALID", "BACKEND_UNAVAILABLE", "NO_COMPATIBLE_ADAPTER", "VENDOR_UNPROVEN", "NO_USABLE_DEVICE", "INSUFFICIENT_VRAM", "GPU_LOAD_FAILED"];
+  const reasons: AiGpuReason[] = ["BACKEND_PACK_MISSING", "BACKEND_PACK_INVALID", "BACKEND_UNAVAILABLE", "NO_COMPATIBLE_ADAPTER", "VENDOR_UNPROVEN", "NO_USABLE_DEVICE", "INSUFFICIENT_VRAM", "GPU_LOAD_FAILED", "LOST_AFTER_LOAD"];
   check("every reason has one short sentence", reasons.every((r) => typeof AI_GPU_REASON_MESSAGES[r] === "string" && AI_GPU_REASON_MESSAGES[r].length < 100) && Object.keys(AI_GPU_REASON_MESSAGES).length === reasons.length);
 }
 
@@ -567,6 +572,114 @@ console.log("\nG. L8a.4: load stages, current-setting ownership and the plan's V
     "...and a refusal before any plan has no shortfall to give, while readiness names its reason and sentence",
     noPackView.refusal?.reason === "BACKEND_PACK_MISSING" && noPackView.refusal.requiredBytes === null && noPackView.refusal.availableBytes === null && noPackView.gpuReadiness.ok === false && noPackView.gpuReadiness.reason === "BACKEND_PACK_MISSING" && noPackView.gpuReadiness.message === AI_GPU_REASON_MESSAGES.BACKEND_PACK_MISSING,
     noPackView
+  );
+}
+
+// ── H. L8a.5: the GPU lost after a successful load ──────────────────────────────────────────────
+console.log("\nH. L8a.5: the GPU lost after a successful load\n");
+{
+  const script =
+    (steps: Array<FakeInferStep | undefined>) =>
+    (_request: unknown, index: number): FakeInferStep | string =>
+      steps[index] ?? '{"ok":true}';
+  const plans = (transport: FakeAiHostTransport | null) => (transport?.requests ?? []).filter((request) => request.type === "gpuPlan").length;
+  check("the loss limit is two, below the GPU host's own restart circuit", GPU_LOSS_LIMIT === 2);
+
+  // GPU-Offload: a loss, a re-plan against the VRAM free by then, a second loss, then CPU for the session.
+  const offloadPlan = plan(24);
+  const off = world({ mode: "gpu-offload", gpu: { gpuPlan: offloadPlan, respond: script([{ crash: true }, undefined, { crash: true }]) } });
+  const lost = await off.run("lost-1");
+  check("GPU-Offload: the GPU host exiting after the load fails that job", lost.status === "failed" && lost.code === "HOST_ERROR", lost);
+  check("...the load is forgotten and the GPU host released", (await off.service.status()).loadedModelId === null && (off.gpu?.releases ?? 0) >= 1);
+  offloadPlan.fitLayers = 10; // another application now holds part of the VRAM
+  const replanned = await off.run("lost-2");
+  const replannedProfile = (await off.service.status()).execution;
+  check(
+    "...the next job re-plans against the VRAM free now and drops layers (24, then 10)",
+    replanned.status === "ok" && plans(off.gpu) === 2 && loads(off.gpu).map((l) => l.gpuLayers).join() === "24,10" && replannedProfile.backend === "vulkan" && replannedProfile.gpuLayers === 10,
+    { layers: loads(off.gpu).map((l) => l.gpuLayers), profile: replannedProfile }
+  );
+  const second = await off.run("lost-3");
+  check("a second loss under the same setting fails that job too", second.status === "failed" && second.code === "HOST_ERROR", second);
+  const gpuRequests = off.gpu?.requests.length ?? 0;
+  const onCpu = await off.run("lost-4");
+  const onCpuStatus = await off.service.status();
+  check(
+    "at the limit GPU-Offload runs on CPU & RAM with LOST_AFTER_LOAD, and starts no GPU host",
+    onCpu.status === "ok" && onCpuStatus.execution.backend === "cpu" && onCpuStatus.execution.fallbackReason === "LOST_AFTER_LOAD" && loads(off.cpu).length === 1 && (off.gpu?.requests.length ?? 0) === gpuRequests,
+    { outcome: onCpu, execution: onCpuStatus.execution }
+  );
+  check("...the view reports it as current, with the reason's sentence", toExecutionView(onCpuStatus, "gpu-offload", NVIDIA_ONE).message === AI_GPU_REASON_MESSAGES.LOST_AFTER_LOAD);
+  check("...the CPU host's circuit never saw the GPU losses, and the GPU host's stays closed", off.cpu.crashes === 0 && off.gpu?.crashes === 2 && off.gpu.isAvailable() && off.cpu.isAvailable());
+  await off.run("lost-5");
+  check("...and it stays off the GPU for the session", (off.gpu?.requests.length ?? 0) === gpuRequests && (await off.service.status()).execution.fallbackReason === "LOST_AFTER_LOAD");
+  off.settings.vramReserveBytes = 512 * MIB;
+  const fresh = await off.run("lost-6");
+  check("a reserve change starts over: the next job plans and loads on the GPU", fresh.status === "ok" && plans(off.gpu) === 3 && (await off.service.status()).execution.backend === "vulkan");
+
+  // GPU-Only: every loss is reported, the re-plan refuses a new shortfall, the limit refuses outright.
+  const onlyPlan = plan(24);
+  const only = world({ mode: "gpu-only", gpu: { gpuPlan: onlyPlan, respond: script([{ fail: "AI_INFERENCE_FAILED" }, { crash: true }]) } });
+  const failedInference = await only.run("only-lost-1");
+  check(
+    "GPU-Only: an inference failing on the loaded GPU host fails the job, and the live host is stopped (its VRAM freed)",
+    failedInference.status === "failed" && (only.gpu?.releases ?? 0) >= 1 && only.gpu?.crashes === 0 && (await only.service.status()).loadedModelId === null,
+    failedInference
+  );
+  onlyPlan.fitLayers = 10;
+  const shortfall = await only.run("only-lost-2");
+  const shortfallRefusal = (await only.service.status()).execution.refusal;
+  check(
+    "...the next job re-plans and refuses with the new shortfall, never falling back",
+    shortfall.status === "rejected" && shortfallRefusal?.reason === "INSUFFICIENT_VRAM" && loads(only.cpu).length === 0,
+    shortfallRefusal
+  );
+  onlyPlan.fitLayers = 24;
+  const secondLoss = await only.run("only-lost-3");
+  check("...with the memory back it loads every layer again, and a second loss fails that job", secondLoss.status === "failed" && loads(only.gpu).length === 2, secondLoss);
+  const onlyRequests = only.gpu?.requests.length ?? 0;
+  const refusedAtLimit = await only.run("only-lost-4");
+  const refusedStatus = await only.service.status();
+  check(
+    "at the limit GPU-Only refuses with LOST_AFTER_LOAD, never a silent CPU fallback, and starts no GPU host",
+    refusedAtLimit.status === "rejected" &&
+      refusedAtLimit.reason === "GPU_UNAVAILABLE" &&
+      refusedStatus.execution.refusal?.reason === "LOST_AFTER_LOAD" &&
+      loads(only.cpu).length === 0 &&
+      (only.gpu?.requests.length ?? 0) === onlyRequests,
+    { outcome: refusedAtLimit, execution: refusedStatus.execution }
+  );
+  check(
+    "...the AI reads unavailable, with the reason's sentence",
+    refusedStatus.state.kind === "unavailable" && toExecutionView(refusedStatus, "gpu-only", NVIDIA_ONE).message === AI_GPU_REASON_MESSAGES.LOST_AFTER_LOAD
+  );
+  only.settings.executionMode = "gpu-offload";
+  const switched = await only.run("only-lost-5");
+  check("a mode change starts over: GPU-Offload plans and loads on the GPU", switched.status === "ok" && (await only.service.status()).execution.backend === "vulkan");
+
+  // Not losses: cancels (even one that kills the GPU host) and a crash of the CPU host.
+  const cancels = world({ mode: "gpu-offload", gpu: { gpuPlan: plan(24), respond: script([{ hang: true, killOnCancel: true }, { hang: true }, { hang: true, killOnCancel: true }]) } });
+  for (const id of ["cancel-a", "cancel-b", "cancel-c"]) {
+    const pending = cancels.run(id);
+    await sleep(40);
+    cancels.service.cancel(id);
+    await pending;
+  }
+  const afterCancels = await cancels.run("cancel-d");
+  check(
+    "three cancels, two of which kill the GPU host, are no loss: the next job still runs on the GPU",
+    afterCancels.status === "ok" && (await cancels.service.status()).execution.backend === "vulkan" && (cancels.gpu?.kills ?? 0) === 2,
+    { outcome: afterCancels, kills: cancels.gpu?.kills }
+  );
+  const cpuSide = world({ mode: "gpu-offload", gpu: { gpuPlan: plan(0) }, cpu: { respond: script([{ crash: true }, { crash: true }]) } });
+  await cpuSide.run("cpu-crash-1");
+  await cpuSide.run("cpu-crash-2");
+  const cpuSideOk = await cpuSide.run("cpu-crash-3");
+  const cpuSideProfile = (await cpuSide.service.status()).execution;
+  check(
+    "two CPU host crashes are no GPU loss: GPU-Offload still plans each load and keeps its own reason",
+    cpuSideOk.status === "ok" && cpuSideProfile.fallbackReason === "INSUFFICIENT_VRAM" && plans(cpuSide.gpu) === 3,
+    { outcome: cpuSideOk, profile: cpuSideProfile, plans: plans(cpuSide.gpu) }
   );
 }
 
