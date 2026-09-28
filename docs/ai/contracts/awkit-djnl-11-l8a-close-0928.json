@@ -22,6 +22,7 @@
     "manager": "manager",
     "activated_agents": [
       "manager",
+      "software",
       "project-state"
     ],
     "expected_paths": [
