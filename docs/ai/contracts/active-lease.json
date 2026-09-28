@@ -2,7 +2,7 @@
   "task": "awkit-djnl-11-l8a5-gpu-lifecycle-0928",
   "contract_path": "docs/ai/contracts/awkit-djnl-11-l8a5-gpu-lifecycle-0928.json",
   "holder": "release",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "build",
     "resources/dependency-manifest.json",
@@ -24,5 +24,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-28T11:09:01.584Z",
+  "released_reason": "portable package built with strict offline validation, signed manifest committed, packaged runtime 104/0 and packaged app 24/0",
+  "archived_at": "2026-09-28T11:09:01.585Z"
 }

@@ -226,5 +226,27 @@
     "status": "pending",
     "qa_status": "pending",
     "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-11-l8a5-gpu-lifecycle-0928:release:2026-09-28T10:51:44.535Z",
+        "task": "awkit-djnl-11-l8a5-gpu-lifecycle-0928",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "build",
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig"
+        ],
+        "acquired_at": "2026-09-28T10:51:44.535Z",
+        "acquired_at_commit": "12d4e8348a19cdebeeec5d266a81597daf60a2bf",
+        "released_at": "2026-09-28T11:09:01.584Z",
+        "released_reason": "portable package built with strict offline validation, signed manifest committed, packaged runtime 104/0 and packaged app 24/0",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
   }
 }
