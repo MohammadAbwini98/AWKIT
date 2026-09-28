@@ -1,13 +1,13 @@
 {
-  "task": "awkit-djnl-11-l8a5-gpu-lifecycle-0928",
-  "contract_path": "docs/ai/contracts/awkit-djnl-11-l8a5-gpu-lifecycle-0928.json",
+  "task": "awkit-djnl-11-l8a-close-0928",
+  "contract_path": "docs/ai/contracts/awkit-djnl-11-l8a-close-0928.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/issues.jsonl"
   ],
-  "acquired_at": "2026-09-28T12:55:54.369Z",
-  "acquired_at_commit": "2c4be3f3f5e5ea3c045e88858844eda6789a6875",
+  "acquired_at": "2026-09-28T13:10:04.383Z",
+  "acquired_at_commit": "a9b6a5715d19269d11a16dac4aa0ee8dbaf99656",
   "baseline_dirty": [],
   "baseline_dirty_fingerprints": {},
   "baseline_watched_ignored": {
@@ -23,7 +23,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-28T12:57:00.432Z",
-  "released_reason": "Beads note for L8a.5 exported and committed",
-  "archived_at": "2026-09-28T12:57:00.433Z"
+  "released_at": "2026-09-28T13:11:23.693Z",
+  "released_reason": "awkit-djnl.11 closed with follow-ups awkit-djnl.14 and awkit-djnl.15, exported and committed",
+  "archived_at": "2026-09-28T13:11:23.694Z"
 }

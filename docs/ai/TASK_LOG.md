@@ -13,7 +13,10 @@
   - `docs/ai/{DECISIONS,CURRENT_STATE,HANDOFF,TASK_LOG}.md`;
   - `docs/plans/ai-upgrade-v5/{ROADMAP,L8a-hardware-adaptive-inference-runtime}.md`;
   - `src/roadmap/ImplementationRoadmap.ts`, the contract, `.beads/issues.jsonl`.
-- **Verification:** `verify:roadmap-dashboard` (see the commit).
+- **Verification:** `verify:roadmap-dashboard` 177/177 with "Sources agree".
+  - The first run failed 174/177, only on its hard-coded tracker baselines.
+  - Those moved to the measured 327 issues, 25 outstanding / 302 closed and 189 edges in
+    `scripts/verify-roadmap-dashboard.mjs`.
 - **Not done:** independent QC; NVIDIA qualification (no 0x10DE adapter). Both are carried forward.
 
 ## 2026-09-28 — L8a.5: GPU lifecycle measured, GPU lost after load handled, packaged CPU re-proved (Claude)

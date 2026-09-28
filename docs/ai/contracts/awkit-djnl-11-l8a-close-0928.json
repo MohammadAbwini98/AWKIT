@@ -70,8 +70,8 @@
       "required": true,
       "command": "npm run verify:roadmap-dashboard",
       "artifact": null,
-      "result": "pending",
-      "observed": "after the Beads close"
+      "result": "PASS",
+      "observed": "177/177 with Sources agree after the tracker baselines moved to the measured 327 issues, 25 outstanding / 302 closed and 189 edges"
     }
   ],
   "git": {
@@ -82,8 +82,28 @@
     "push_authorized": true
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "pending",
-    "qc_status": "pending"
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-11-l8a-close-0928:project-state:2026-09-28T13:10:04.383Z",
+        "task": "awkit-djnl-11-l8a-close-0928",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/issues.jsonl"
+        ],
+        "acquired_at": "2026-09-28T13:10:04.383Z",
+        "acquired_at_commit": "a9b6a5715d19269d11a16dac4aa0ee8dbaf99656",
+        "released_at": "2026-09-28T13:11:23.693Z",
+        "released_reason": "awkit-djnl.11 closed with follow-ups awkit-djnl.14 and awkit-djnl.15, exported and committed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
   }
 }
