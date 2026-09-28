@@ -4,12 +4,12 @@
                    "version":  3,
                    "sourceTemplate":  "playwright_flow_studio_updated_phases/12_OFFLINE_DEPENDENCY_MANIFEST_TEMPLATE.md"
                },
-    "manifestGeneratedAt":  "2026-09-27T16:38:06.7319844Z",
+    "manifestGeneratedAt":  "2026-09-28T10:53:50.1410736Z",
     "application":  {
                         "name":  "SpecterStudio",
                         "version":  "0.1.51",
                         "buildMode":  "production-offline",
-                        "sourceCommit":  "bb200263c30244da16d274c061bdc59c83cc4a00",
+                        "sourceCommit":  "2970d227c06e868f3ec4ecffbd8fe0569c24f5cb",
                         "sourceTreeDirty":  false
                     },
     "offline":  {
