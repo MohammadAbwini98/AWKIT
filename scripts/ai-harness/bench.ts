@@ -51,7 +51,7 @@ const WORDS =
   "profile settings dashboard report export import filter search table column header footer dialog panel toolbar " +
   "button link field label required optional warning error message notice summary detail history pending complete";
 
-function prose(chars: number, seed: number): string {
+export function prose(chars: number, seed: number): string {
   const words = WORDS.split(" ");
   const out: string[] = [];
   let length = 0;
@@ -86,7 +86,7 @@ interface Packet {
  * were measured with it: a long prompt to cancel inside, and an inference to contend with.
  */
 const steps = ids("step", 12);
-const SYNTHETIC_FAILURE = {
+export const SYNTHETIC_FAILURE = {
   spec: {
     instructions:
       "Analyze the failed run. Pick the most likely primary cause from the offered categories, the related steps by id, " +
@@ -116,7 +116,7 @@ function packets(): Packet[] {
   return [locatorUpgradePacket(), validationExplanationPacket(), failureAnalysisPacket()];
 }
 
-function built(spec: AiPromptSpec, nonce = NONCE): { system: string; user: string } {
+export function built(spec: AiPromptSpec, nonce = NONCE): { system: string; user: string } {
   const prompt = buildAiPrompt(spec, new SemanticRedactor(), nonce);
   if (!prompt.ok) throw new Error(`synthetic packet refused by the prompt builder: ${prompt.code}`);
   return { system: prompt.system, user: prompt.user };
@@ -194,7 +194,7 @@ async function loadModel(manager: AiUtilityHostManager, threads: number): Promis
 }
 
 /** Cancel a job; true when its host had to be killed, so the restarted host has no model. */
-function cancelJob(manager: AiUtilityHostManager, jobId: string): Promise<boolean> {
+export function cancelJob(manager: AiUtilityHostManager, jobId: string): Promise<boolean> {
   return manager.call({ type: "cancel", jobId }, 5_000).then(
     () => false,
     (error: unknown) => {
