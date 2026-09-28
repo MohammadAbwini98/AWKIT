@@ -552,7 +552,11 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   },
   "verify:ai-gpu-packaged": {
     class: "packaged-application",
-    why: "Phase L L8a.5 (awkit-djnl.11): verify:ai-gpu-host and verify:ai-gpu-lifecycle against dist/win-unpacked's AI tree: the packaged ai-host.cjs (byte-identical to the source host or the package is stale and FAILS), the packaged pinned runtime and CPU prebuilt, and the Vulkan pack imported with trust from the packaged signed manifest and runtime DLLs, driven by the source managers and service in a real Electron utility process (the L8a.0 method). PRODUCT: this machine's E2 answer through the packaged host; MECHANICS: the pack guard, plan, offloaded load and inference, the service's GPU paths, cancel latency against the L1.8 3 s ceiling, kill-restart-reload cost and VRAM taken after load. Never NVIDIA qualification without a 0x10DE adapter (E11). Exit 2 without dist/win-unpacked, the runtime, the Vulkan prebuilt or the model; 2 when a cancel lands after its inference finished."
+    why: "Phase L L8a.5 (awkit-djnl.11): verify:ai-gpu-host's L8a.3 modes against dist/win-unpacked's AI tree: the packaged ai-host.cjs (byte-identical to the source host or the package is stale and FAILS), the packaged pinned runtime and CPU prebuilt, and the Vulkan pack imported with trust from the packaged signed manifest and runtime DLLs, driven by the source managers and service in a real Electron utility process (the L8a.0 method). PRODUCT: this machine's E2 answer through the packaged host; MECHANICS: the pack guard, plan, offloaded load and inference, and the service's GPU-Offload, GPU-Only and CPU paths. Never NVIDIA qualification without a 0x10DE adapter (E11). Exit 2 without dist/win-unpacked, the runtime, the Vulkan prebuilt or the model."
+  },
+  "verify:ai-gpu-lifecycle-packaged": {
+    class: "packaged-application",
+    why: "Phase L L8a.5 (awkit-djnl.11): verify:ai-gpu-lifecycle against dist/win-unpacked's AI tree, with its own freshly imported pack and the same stale-package guard and packaged trust as verify:ai-gpu-packaged: cancel latency against the L1.8 3 s ceiling in both phases and the kill-restart-reload cost for every layer and a partial load, and VRAM taken after load observed. MECHANICS on this machine's adapter, never NVIDIA qualification (E11). Exit 2 without the package, runtime, Vulkan prebuilt or model, or when a cancel lands after its inference finished."
   },
   "verify:ai-model-live": {
     class: "real-browser",

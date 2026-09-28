@@ -22,7 +22,8 @@
  * It also records how a loaded host behaves while other GPU hosts take the adapter's VRAM. A cancel
  * that lands after the inference finished is INCONCLUSIVE (exit 2), never a pass.
  *
- * `--packaged` (L8a.5, npm run verify:ai-gpu-packaged) runs both modes against dist/win-unpacked's AI
+ * `--packaged` (L8a.5: npm run verify:ai-gpu-packaged, and with `--lifecycle`
+ * verify:ai-gpu-lifecycle-packaged) runs one mode per run against dist/win-unpacked's AI
  * tree: the packaged host, the packaged pinned runtime and CPU prebuilt, and pack trust from the packaged
  * signed manifest and runtime DLLs. The source managers and service drive it in a real Electron utility
  * process, as the L8a.0 gate did. The packaged EXE's own CPU path is verify:ai-packaged-app. A package
@@ -48,7 +49,9 @@ const CANCEL_CEILING_MS = 3_000;
 let inconclusive = 0;
 const packagedResources = path.join(ROOT, "dist", "win-unpacked", "resources");
 const hostPath = packaged ? path.join(packagedResources, "native-hosts", "ai", "ai-host.cjs") : HOST_PATH;
-const modes = packaged ? ["gpu", "gpuLifecycle"] : [lifecycle ? "gpuLifecycle" : "gpu"];
+// One harness mode per run: the modes run ends by invalidating the imported pack on purpose (sticky
+// until re-import), and both modes together take most of 10 minutes.
+const modes = [lifecycle ? "gpuLifecycle" : "gpu"];
 
 let passed = 0;
 let failed = 0;
@@ -70,11 +73,7 @@ const PACK_NAME = "Qwen3.5-0.8B-Q4_K_M.gguf";
 const installedVulkan = path.join(ROOT, "node_modules", "@node-llama-cpp", "win-x64-vulkan");
 
 console.log(
-  packaged
-    ? "verify:ai-gpu-packaged — L8a.3 modes and L8a.5 lifecycle on dist/win-unpacked's AI tree\n"
-    : lifecycle
-      ? "verify:ai-gpu-lifecycle — L8a.5 cancel, kill-restart-reload and VRAM exhaustion on the real Vulkan host\n"
-      : "verify:ai-gpu-host — L8a.3 modes on the real CPU and Vulkan hosts\n"
+  `${lifecycle ? `verify:ai-gpu-lifecycle${packaged ? "-packaged" : ""} — L8a.5 cancel, kill-restart-reload and VRAM exhaustion` : `verify:ai-gpu-${packaged ? "packaged" : "host"} — L8a.3 modes`} on ${packaged ? "dist/win-unpacked's AI tree" : "the real CPU and Vulkan hosts"}\n`
 );
 if (packaged) {
   if (!existsSync(hostPath)) notRun("no dist/win-unpacked AI tree: run npm run package:portable first");
@@ -115,7 +114,6 @@ try {
   if (!imported.ok) throw new Error("import failed");
 
   for (const mode of modes) {
-    if (packaged) console.log(`\n── ${mode === "gpu" ? "L8a.3 modes" : "L8a.5 lifecycle"} on the packaged AI tree ──\n`);
     const report = await runAiHarness(
       harnessDir,
       {
