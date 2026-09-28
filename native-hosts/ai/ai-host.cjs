@@ -19,6 +19,9 @@
  *
  * Like the Zvec host it is never bundled: native runtimes are shipped and versioned as one unit
  * beside the host, not pulled into an electron-vite chunk.
+ *
+ * It is also the only place a GGUF header is parsed (L8b.2, `inspect`): the main process never reads
+ * one, so a model file the administrator imported is only ever interpreted in this process.
  */
 
 "use strict";
@@ -45,6 +48,14 @@ const RUNTIME_PACKAGE = "node-llama-cpp";
 const BINARY_PACKAGE = "@node-llama-cpp/win-x64";
 const VULKAN_PACKAGE = "@node-llama-cpp/win-x64-vulkan";
 const JOB_ID = /^[A-Za-z0-9._:#-]{1,160}$/;
+/** A plain short architecture name; anything else is reported as null, never relayed as text. */
+const ARCHITECTURE_NAME = /^[a-z0-9_.-]{1,64}$/;
+/**
+ * Bounds a header read. Past the end of a file the runtime's reader sees zeros, never an error, so a
+ * header claiming billions of entries would otherwise hold this serial queue indefinitely. Below the
+ * manager's inspect deadline, so the host answers first and the queue is free for the next request.
+ */
+const INSPECT_DEADLINE_MS = 20000;
 
 /**
  * Qwen3.5 chat template with thinking disabled: the template's `enable_thinking: false` branch
@@ -456,6 +467,53 @@ async function gpuPlan(req) {
   }
 }
 
+/** A non-negative safe integer from the header (a uint64 past 2^53 arrives as a bigint), or null. */
+function headerCount(value) {
+  return Number.isSafeInteger(value) && value >= 0 ? value : null;
+}
+
+/**
+ * The static stage (L8b.2): the model's GGUF header through the pinned runtime's own reader, which is
+ * JavaScript and loads nothing native. It is told the file is local (never a URL) and not to open
+ * split-part siblings, so it reads this one confined file. Only numbers, a vetted architecture name and
+ * the chat template's shape leave the host; a file the reader refuses is `readable: false`.
+ */
+async function inspect(req) {
+  const modelPath = confineModelPath(req.modelPath);
+  const runtime = await runtimeModule();
+  let info;
+  try {
+    info = await runtime.readGgufFileInfo(modelPath, {
+      sourceType: "filesystem",
+      spliceSplitFiles: false,
+      readTensorInfo: true,
+      logWarnings: false,
+      signal: AbortSignal.timeout(INSPECT_DEADLINE_MS)
+    });
+  } catch {
+    return { readable: false };
+  }
+  const metadata = isPlainObject(info?.metadata) ? info.metadata : {};
+  const own = (object, key) => (Object.hasOwn(object, key) && isPlainObject(object[key]) ? object[key] : {});
+  const general = own(metadata, "general");
+  const architecture = typeof general.architecture === "string" && ARCHITECTURE_NAME.test(general.architecture) ? general.architecture : null;
+  const layout = architecture === null ? {} : own(metadata, architecture);
+  const template = own(metadata, "tokenizer").chat_template;
+  const knownTypes = new Set(Object.values(runtime.GgmlType).filter((value) => typeof value === "number"));
+  const tensors = Array.isArray(info.tensorInfo) ? info.tensorInfo : [];
+  return {
+    readable: true,
+    ggufVersion: headerCount(info.version),
+    architecture,
+    architectureKnown: architecture !== null && Object.values(runtime.GgufArchitectureType).includes(architecture),
+    contextLength: headerCount(layout.context_length),
+    blockCount: headerCount(layout.block_count),
+    tensorCount: tensors.length,
+    unknownTensorTypes: tensors.filter((tensor) => !knownTypes.has(tensor?.ggmlType)).length,
+    chatTemplate: typeof template !== "string" ? "missing" : template.includes("<|im_start|>") && template.includes("<|im_end|>") ? "chatml" : "other"
+  };
+}
+
 async function infer(req) {
   if (!loaded) throw new HostError("AI_MODEL_NOT_LOADED");
   if (!isPlainObject(req.jsonSchema)) throw new HostError("AI_SCHEMA_REQUIRED");
@@ -557,6 +615,7 @@ const IMMEDIATE = new Map([
 const SERIAL = new Map([
   ["load", load],
   ["gpuPlan", gpuPlan],
+  ["inspect", inspect],
   ["infer", infer],
   ["unload", unload],
   ["shutdown", shutdown]
