@@ -279,6 +279,22 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-djnl-11-l8a5-gpu-lifecycle-0928:project-state:2026-09-28T12:55:54.369Z",
+        "task": "awkit-djnl-11-l8a5-gpu-lifecycle-0928",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/issues.jsonl"
+        ],
+        "acquired_at": "2026-09-28T12:55:54.369Z",
+        "acquired_at_commit": "2c4be3f3f5e5ea3c045e88858844eda6789a6875",
+        "released_at": "2026-09-28T12:57:00.432Z",
+        "released_reason": "Beads note for L8a.5 exported and committed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }

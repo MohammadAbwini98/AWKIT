@@ -6,8 +6,8 @@
   "allowed_paths": [
     ".beads/issues.jsonl"
   ],
-  "acquired_at": "2026-09-28T11:16:50.791Z",
-  "acquired_at_commit": "4a7c608f40944f2c846db312b8c6b3695ef753b2",
+  "acquired_at": "2026-09-28T12:55:54.369Z",
+  "acquired_at_commit": "2c4be3f3f5e5ea3c045e88858844eda6789a6875",
   "baseline_dirty": [],
   "baseline_dirty_fingerprints": {},
   "baseline_watched_ignored": {
@@ -23,7 +23,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-28T12:41:37.578Z",
-  "released_reason": "re-sequenced: the owner asked to retry the packaged lifecycle fix first, the Beads note follows",
-  "archived_at": "2026-09-28T12:41:37.579Z"
+  "released_at": "2026-09-28T12:57:00.432Z",
+  "released_reason": "Beads note for L8a.5 exported and committed",
+  "archived_at": "2026-09-28T12:57:00.433Z"
 }
