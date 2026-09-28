@@ -18,8 +18,9 @@
  *     seam that qualifies no hardware): the mode and reserve survived; GPU-Only refusal and
  *     GPU-Offload fallback are told apart for a missing pack, no NVIDIA adapter, a mixed or unreadable
  *     adapter set and low VRAM; fixture GPU-Offload and GPU-Only placements render with their layer
- *     counts and are labelled unqualified; a mode change unloads the idle model; a slow load shows its
- *     real stage; a settings file from before L8a loads as CPU and keeps its other fields;
+ *     counts and are labelled unqualified; a mode change unloads the idle model, and so does a change of
+ *     the reserve alone (the next load then reads as current again); a slow load shows its real stage;
+ *     a settings file from before L8a loads as CPU and keeps its other fields;
  *   • no renderer error is logged across either launch.
  *
  * Needs `npm run build` first (it launches `out/`). Run: npm run verify:ai-settings-gui
@@ -471,6 +472,22 @@ try {
   await chooseMode(panel, "GPU-Offload", "Execution mode set to GPU-Offload. It takes effect the next time the model loads.");
   await askAi();
   await runsOnMatches(panel, /^CPU & RAM \(GPU-Offload fell back: There is not enough free GPU memory for the model\.\)$/, "GPU-Offload with nothing fitting falls back to CPU & RAM");
+
+  // A reserve change alone, the mode untouched, must also drop the idle load: releasing only on a mode
+  // change would keep the model loaded under the old reserve ("Still loaded with the previous setting").
+  console_.setLabel("reserve change unloads");
+  const offloadReserve = reserveInput(panel);
+  await offloadReserve.fill("2048");
+  await offloadReserve.press("Enter");
+  await sees(panel.getByText("GPU memory reserve set to 2048 MB. It takes effect the next time the model loads."), "a reserve-only change is saved and confirmed");
+  check("...the mode is unchanged on disk and the reserve is new", readSettingsFile()?.executionMode === "gpu-offload" && readSettingsFile()?.vramReserveMb === 2048, JSON.stringify(readSettingsFile()));
+  await runsOnMatches(panel, /^Not loaded; GPU-Offload is used the next time the model loads$/, "a reserve-only change unloads the idle model at once (no load kept under the old reserve)");
+  await askAi();
+  await runsOnMatches(
+    panel,
+    /^CPU & RAM \(GPU-Offload fell back: There is not enough free GPU memory for the model\.\)$/,
+    "the next load is made under the new reserve: its result reads as current again"
+  );
 
   console_.setLabel("legacy settings file");
   const legacy = { schemaVersion: 1, enabled: true, yieldDuringRuns: true, idleUnloadMinutes: 10, featureTiers: { locatorSemanticUpgrade: "T0" } };

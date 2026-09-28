@@ -12,7 +12,10 @@
  * without the exact shortfall; a missing/tampered pack, no adapter or no usable device reaching a GPU
  * load; a mode or reserve change not reloading, or reloading mid-inference; a GPU host left holding VRAM
  * after a fallback, a refusal, an idle unload or a release; cancel, crash and shutdown not following the
- * active host.
+ * active host. L8a.4 (section G): a load not reporting its real stage at each host request, or a stage
+ * surviving the load; a fallback or refusal found under an old mode or reserve still reported (reason,
+ * sentence or GPU-Only unavailability) after the setting changed; the next load's profile not belonging
+ * to the current mode and reserve; the plan's VRAM figures not reported, or invented where no plan ran.
  *
  * Real NVIDIA hardware is NOT exercised here (E11). Run: npm run verify:ai-gpu-modes
  */
@@ -27,6 +30,7 @@ import {
   GPU_LOAD_RETRIES,
   NVIDIA_PCI_VENDOR_ID,
   retryLayers,
+  toExecutionView,
   unprovenDevices,
   type AiGpuReadiness,
   type AiGpuReason
@@ -35,7 +39,7 @@ import type { AiAdmissionView } from "@src/ai/AiAdmission";
 import type { AiOutputSchema } from "@src/ai/AiOutputContract";
 import { AiService, type AiJobRequest, type AiServiceSettings } from "@src/ai/AiService";
 import { DEFAULT_AI_SETTINGS, MAX_VRAM_RESERVE_MB, MIN_VRAM_RESERVE_MB, normalizeAiSettings, sanitizeAiSettingsPatch, type AiExecutionMode } from "@src/ai/AiSettings";
-import type { AiGpuPlan, AiLoadRequest } from "@src/ai/contracts/AiHostProtocol";
+import type { AiGpuPlan, AiHostRequestPayload, AiLoadRequest } from "@src/ai/contracts/AiHostProtocol";
 import { FakeAiHostTransport, type FakeAiHostOptions } from "@src/ai/FakeAiHostTransport";
 
 let passed = 0;
@@ -90,6 +94,7 @@ function world(options: {
   cpu?: FakeAiHostOptions;
   gpu?: FakeAiHostOptions | null;
   idleUnloadMs?: number;
+  verifyModel?: () => Promise<boolean>;
 }): World {
   const respond = () => '{"ok":true}';
   const cpu = new FakeAiHostTransport({ modelRoot: MODEL_ROOT, respond, ...options.cpu });
@@ -107,6 +112,7 @@ function world(options: {
     transport: (backend) => (backend === "cpu" ? cpu : gpu),
     ...(readiness === null ? {} : { gpu: typeof readiness === "function" ? readiness : async () => readiness ?? NVIDIA_ONE }),
     model: async () => ({ ok: true, modelId: "model-a", modelPath: join(MODEL_ROOT, "model-a.gguf"), contextTokens: 4096 }),
+    ...(options.verifyModel ? { verifyModel: options.verifyModel } : {}),
     settings: async () => settings,
     admission: () => IDLE,
     threads: 4,
@@ -345,6 +351,223 @@ console.log("\nF. Mode changes and host lifecycle\n");
   await shutdown.run("shutdown-1");
   await shutdown.service.shutdown();
   check("shutdown disposes both hosts", !shutdown.cpu.isAvailable() && !shutdown.gpu?.isAvailable());
+}
+
+// ── G. L8a.4: load stages, current-setting ownership, VRAM figures ──────────────────────────────
+console.log("\nG. L8a.4: load stages, current-setting ownership and the plan's VRAM figures\n");
+{
+  /**
+   * A world whose readiness check, model verification and every host request record the service's own
+   * `status().loadStage` at the moment they run: each stage is observed where the load actually is.
+   */
+  function traced(options: Parameters<typeof world>[0]): World & { seen: string[]; loadingStates: Set<string> } {
+    const seen: string[] = [];
+    // The AI state read while a load stage (other than the unload before it) was set.
+    const loadingStates = new Set<string>();
+    let probe: World | null = null;
+    const at = async (label: string): Promise<void> => {
+      const status = await probe!.service.status();
+      seen.push(`${label}@${status.loadStage ?? "idle"}`);
+      if (status.loadStage && status.loadStage !== "unloading") loadingStates.add(status.state.kind);
+    };
+    const readiness = options.readiness === undefined ? NVIDIA_ONE : options.readiness;
+    const w = world({
+      ...options,
+      readiness:
+        readiness === null
+          ? null
+          : async () => {
+              await at("readiness");
+              return typeof readiness === "function" ? readiness() : readiness;
+            },
+      verifyModel: async () => {
+        await at("verify");
+        return true;
+      }
+    });
+    probe = w;
+    for (const [name, host] of [["cpu", w.cpu], ["gpu", w.gpu]] as const) {
+      if (!host) continue;
+      const call = host.call.bind(host);
+      host.call = (async (request: AiHostRequestPayload, timeoutMs: number) => {
+        await at(`${name}:${request.type}`);
+        return call(request, timeoutMs);
+      }) as typeof host.call;
+    }
+    return Object.assign(w, { seen, loadingStates });
+  }
+  const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
+  // Load stages, in the production AiLoadStage vocabulary.
+  const offload = traced({ mode: "gpu-offload", gpu: { gpuPlan: plan(20), gpuLoadFailAbove: 12 } });
+  const idle = await offload.service.status();
+  check("before any job: no load stage, nothing loaded, the AI available", idle.loadStage === null && idle.loadedModelId === null && idle.state.kind === "available", idle);
+  await offload.run("stage-offload");
+  const offloadStages = ["verify@verifying-model", "readiness@checking-gpu", "gpu:hello@starting-gpu-host", "gpu:gpuPlan@planning-gpu", "gpu:load@loading-gpu", "gpu:load@retrying-gpu", "gpu:infer@idle"];
+  check("GPU-Offload: verify, readiness, GPU host start, plan, load and the smaller retry each report their own stage", same(offload.seen, offloadStages), offload.seen);
+  check("...the AI reads loading, never available or busy, while a stage is set", [...offload.loadingStates].join() === "loading", [...offload.loadingStates]);
+  const ready = await offload.service.status();
+  check("...and the stage clears once the model is ready (the inference ran with none)", ready.loadStage === null && ready.loadedModelId === "model-a" && ready.state.kind === "available", ready);
+
+  const falling = traced({ mode: "gpu-offload", gpu: { gpuPlan: plan(0) } });
+  await falling.run("stage-fallback");
+  check(
+    "GPU-Offload fallback: the CPU handshake and load report falling-back, not a plain CPU load",
+    same(falling.seen, ["verify@verifying-model", "readiness@checking-gpu", "gpu:hello@starting-gpu-host", "gpu:gpuPlan@planning-gpu", "cpu:hello@falling-back", "cpu:load@falling-back", "cpu:infer@idle"]),
+    falling.seen
+  );
+
+  const cpu = traced({ gpu: { gpuPlan: plan(24) } });
+  await cpu.run("stage-cpu");
+  check("CPU & RAM only: loading-cpu, and no GPU readiness check at all", same(cpu.seen, ["verify@verifying-model", "cpu:hello@loading-cpu", "cpu:load@loading-cpu", "cpu:infer@idle"]), cpu.seen);
+  cpu.settings.executionMode = "gpu-offload";
+  const firstSwitch = cpu.seen.length;
+  await cpu.run("stage-switch");
+  check(
+    "a mode change: the old load is dropped under unloading, then the GPU load runs its stages",
+    same(cpu.seen.slice(firstSwitch), ["cpu:unload@unloading", "verify@verifying-model", "readiness@checking-gpu", "gpu:hello@starting-gpu-host", "gpu:gpuPlan@planning-gpu", "gpu:load@loading-gpu", "gpu:infer@idle"]),
+    cpu.seen.slice(firstSwitch)
+  );
+
+  const refusing = traced({ mode: "gpu-only", gpu: { gpuPlan: plan(10) } });
+  await refusing.run("stage-refusal");
+  const refusedStatus = await refusing.service.status();
+  check("GPU-Only refusal: the stages stop at the plan, nothing is loaded", same(refusing.seen, ["verify@verifying-model", "readiness@checking-gpu", "gpu:hello@starting-gpu-host", "gpu:gpuPlan@planning-gpu"]), refusing.seen);
+  check("...the stage clears, and the refusal is reported by state and profile, not by a stage", refusedStatus.loadStage === null && refusedStatus.state.kind === "unavailable" && refusedStatus.execution.refusal?.reason === "INSUFFICIENT_VRAM", refusedStatus);
+
+  const failing = traced({ mode: "gpu-only", gpu: { gpuPlan: plan(24), loadFails: true } });
+  await failing.run("stage-failure");
+  check(
+    "GPU-Only load failure: one loading-gpu attempt, no retrying-gpu, then the stage clears",
+    same(failing.seen, ["verify@verifying-model", "readiness@checking-gpu", "gpu:hello@starting-gpu-host", "gpu:gpuPlan@planning-gpu", "gpu:load@loading-gpu"]) && (await failing.service.status()).loadStage === null,
+    failing.seen
+  );
+
+  const unready = traced({ mode: "gpu-only", readiness: { ok: false, reason: "BACKEND_PACK_MISSING" } });
+  await unready.run("stage-unready");
+  check("GPU-Only without a pack: refused at checking-gpu, before any GPU host starts", same(unready.seen, ["verify@verifying-model", "readiness@checking-gpu"]) && types(unready.gpu).length === 0, unready.seen);
+
+  // Current-setting ownership: a reason is reported only for the mode AND reserve that produced it.
+  const reservePlan = plan(0, { reserveBytes: 512 * MIB });
+  const own = world({ mode: "gpu-offload", reserveBytes: 512 * MIB, gpu: { gpuPlan: reservePlan } });
+  const current = async () => {
+    const status = await own.service.status();
+    return { status, view: toExecutionView(status, own.settings.executionMode ?? "cpu", NVIDIA_ONE) };
+  };
+  await own.run("own-fallback");
+  let now = await current();
+  check(
+    "1. GPU-Offload falls back and it reads as current: reason, its sentence, the configured mode, loaded",
+    now.status.executionApplied && now.view.applied && now.view.mode === "gpu-offload" && now.view.backend === "cpu" && now.view.fallbackReason === "INSUFFICIENT_VRAM" && now.view.message === AI_GPU_REASON_MESSAGES.INSUFFICIENT_VRAM && now.view.modelLoaded,
+    now.view
+  );
+  check(
+    "...with the VRAM figures of the plan that decided it (required, free, total, reserve)",
+    same(now.view.vram, { totalBytes: 8 * GIB, freeBytes: 2 * GIB, reserveBytes: 512 * MIB, fullRequiredBytes: 3 * GIB }),
+    now.view.vram
+  );
+
+  own.settings.vramReserveBytes = 1024 * MIB;
+  now = await current();
+  check(
+    "2. the reserve alone changes: the fallback no longer reads as current (no reason, sentence or refusal)",
+    !now.status.executionApplied && !now.view.applied && now.view.mode === "gpu-offload" && now.view.fallbackReason === null && now.view.message === null && now.view.refusal === null,
+    now.view
+  );
+  check("...the change itself loads and plans nothing; the next job applies it", loads(own.cpu).length === 1 && loads(own.gpu).length === 0 && own.gpu?.requests.filter((r) => r.type === "gpuPlan").length === 1);
+
+  own.settings.executionMode = "gpu-only";
+  now = await current();
+  check(
+    "3. the mode changes too: the configured mode is shown and the old fallback is still not current",
+    !now.status.executionApplied && !now.view.applied && now.view.mode === "gpu-only" && now.view.fallbackReason === null && now.view.message === null,
+    now.view
+  );
+
+  reservePlan.reserveBytes = 1024 * MIB; // the runtime plans with the reserve it was asked for
+  const refused = await own.run("own-refusal");
+  now = await current();
+  check("4. GPU-Only refuses under the new settings, planned with the new reserve", refused.status === "rejected" && own.gpu?.requests.some((r) => r.type === "gpuPlan" && r.reserveBytes === 1024 * MIB), refused);
+  check(
+    "...and the refusal is current and belongs to them: made in GPU-Only, the exact shortfall, its sentence",
+    now.status.executionApplied &&
+      now.status.execution.mode === "gpu-only" &&
+      now.view.applied &&
+      now.view.refusal?.reason === "INSUFFICIENT_VRAM" &&
+      now.view.refusal.requiredBytes === 3 * GIB + 1024 * MIB &&
+      now.view.refusal.availableBytes === 2 * GIB &&
+      now.view.message === AI_GPU_REASON_MESSAGES.INSUFFICIENT_VRAM &&
+      now.view.fallbackReason === null &&
+      now.view.vram?.reserveBytes === 1024 * MIB,
+    now.view
+  );
+  check("...and the AI reads unavailable under exactly these settings", now.status.state.kind === "unavailable" && now.status.state.reason === "GPU_UNAVAILABLE", now.status.state);
+
+  own.settings.vramReserveBytes = 2048 * MIB;
+  now = await current();
+  check(
+    "5. the reserve alone changes: the old refusal is lifted from the AI state and the view",
+    !(now.status.state.kind === "unavailable" && now.status.state.reason === "GPU_UNAVAILABLE") && !now.view.applied && now.view.refusal === null && now.view.message === null,
+    { state: now.status.state, view: now.view }
+  );
+
+  own.settings.executionMode = "gpu-offload";
+  reservePlan.fitLayers = 24;
+  reservePlan.reserveBytes = 2048 * MIB;
+  const succeeded = await own.run("own-success");
+  now = await current();
+  check(
+    "6. a success under GPU-Offload with a 2048 MB reserve is current and belongs to them",
+    succeeded.status === "ok" &&
+      now.status.executionApplied &&
+      now.status.execution.mode === "gpu-offload" &&
+      now.view.applied &&
+      now.view.modelLoaded &&
+      now.view.backend === "vulkan" &&
+      now.view.fallbackReason === null &&
+      now.view.refusal === null &&
+      now.view.message === null,
+    now.view
+  );
+  check(
+    "...planned with that reserve: all 24 of 24 layers on the GPU and that plan's VRAM figures",
+    own.gpu?.requests.some((r) => r.type === "gpuPlan" && r.reserveBytes === 2048 * MIB) &&
+      now.view.gpuLayers === 24 &&
+      now.view.totalLayers === 24 &&
+      now.view.requestedLayers === 24 &&
+      same(now.view.vram, { totalBytes: 8 * GIB, freeBytes: 2 * GIB, reserveBytes: 2048 * MIB, fullRequiredBytes: 3 * GIB }),
+    now.view
+  );
+  own.settings.executionMode = "gpu-only";
+  const modeOnly = (await current()).status.executionApplied;
+  own.settings.executionMode = "gpu-offload";
+  const restored = (await current()).status.executionApplied;
+  check("7. the mode alone decides too: another mode is not current, the producing one is again", modeOnly === false && restored === true, { modeOnly, restored });
+
+  // VRAM figures: the plan's own numbers where a plan ran, never invented where none did.
+  const partial = world({ mode: "gpu-offload", gpu: { gpuPlan: plan(10) } });
+  await partial.run("vram-partial");
+  const partialView = toExecutionView(await partial.service.status(), "gpu-offload", NVIDIA_ONE);
+  check(
+    "a partial offload reports the layers placed against the total and asked, with the plan's VRAM",
+    partialView.backend === "vulkan" && partialView.gpuLayers === 10 && partialView.totalLayers === 24 && partialView.requestedLayers === 10 && same(partialView.vram, { totalBytes: 8 * GIB, freeBytes: 2 * GIB, reserveBytes: 256 * MIB, fullRequiredBytes: 3 * GIB }),
+    partialView
+  );
+  const cpuOnly = world({ gpu: { gpuPlan: plan(24) } });
+  await cpuOnly.run("vram-cpu");
+  const noPack = world({ mode: "gpu-offload", readiness: { ok: false, reason: "BACKEND_PACK_MISSING" } });
+  await noPack.run("vram-no-pack");
+  const noPackOnly = world({ mode: "gpu-only", readiness: { ok: false, reason: "BACKEND_PACK_MISSING" } });
+  await noPackOnly.run("vram-no-pack-only");
+  const noPlan = [cpuOnly, noPack, noPackOnly].map((w) => w.service.status());
+  const noPlanVram = (await Promise.all(noPlan)).map((status) => status.execution.vram);
+  check("no VRAM figures where no plan ran: CPU mode, a GPU-Offload fallback and a GPU-Only refusal before the plan", noPlanVram.every((vram) => vram === null) && noPlanVram.length === 3, noPlanVram);
+  const noPackView = toExecutionView(await noPackOnly.service.status(), "gpu-only", { ok: false, reason: "BACKEND_PACK_MISSING" });
+  check(
+    "...and a refusal before any plan has no shortfall to give, while readiness names its reason and sentence",
+    noPackView.refusal?.reason === "BACKEND_PACK_MISSING" && noPackView.refusal.requiredBytes === null && noPackView.refusal.availableBytes === null && noPackView.gpuReadiness.ok === false && noPackView.gpuReadiness.reason === "BACKEND_PACK_MISSING" && noPackView.gpuReadiness.message === AI_GPU_REASON_MESSAGES.BACKEND_PACK_MISSING,
+    noPackView
+  );
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

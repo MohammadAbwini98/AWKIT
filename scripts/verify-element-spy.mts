@@ -937,7 +937,21 @@ async function main(): Promise<void> {
       holdReason: null,
       queueDepth: 0,
       modelPack: { status: "installed", reason: null, modelId: "test-fake", displayName: "Test" },
-      execution: { mode: "cpu", backend: "cpu", gpuLayers: 0, totalLayers: null, requestedLayers: null, fallbackReason: null, refusal: null, message: null }
+      execution: {
+        mode: "cpu",
+        backend: "cpu",
+        gpuLayers: 0,
+        totalLayers: null,
+        requestedLayers: null,
+        fallbackReason: null,
+        refusal: null,
+        message: null,
+        vram: null,
+        applied: true,
+        modelLoaded: true,
+        stage: null,
+        gpuReadiness: { ok: false, nvidiaAdapters: 0, reason: "BACKEND_PACK_MISSING", message: null }
+      }
     };
     const panel = (status: AiStatusView | null, phase: AiAssistPhase<InspectionLocatorView>) =>
       renderToStaticMarkup(createElement(ElementSpyAiPanel, { status, phase, onPropose: () => undefined, onCancel: () => undefined }));

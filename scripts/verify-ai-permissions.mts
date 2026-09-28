@@ -173,8 +173,21 @@ console.log("\nThe test AI provider cannot be reached from a packaged build:\n")
   const gate = body.indexOf("if (app.isPackaged) return null;");
   const read = body.indexOf("process.env[TEST_PROVIDER_ENV]");
   check("it returns before reading the variable in a packaged build", gate >= 0 && read > gate, `gate@${gate} read@${read}`);
+  // L8a.4: `AWKIT_TEST_AI_GPU` (the fake GPU's pack state, adapter IDs and plan) has one reader too,
+  // which must also return in a packaged build before reading either variable.
+  const gpuBody = /function testGpuFixture\([^]*?\n\}/.exec(runtime)?.[0] ?? "";
+  check("the test GPU fixture has one reader to inspect", gpuBody.length > 0);
+  const gpuGate = gpuBody.indexOf("if (app.isPackaged ||");
+  const gpuReads = [...gpuBody.matchAll(/process\.env\[TEST_(?:PROVIDER|GPU)_ENV\]/g)].map((m) => m.index ?? -1);
+  check(
+    "it returns in a packaged build before reading either variable",
+    gpuGate >= 0 && gpuReads.length === 3 && gpuReads.every((at) => at > gpuGate),
+    `gate@${gpuGate} reads@${gpuReads.join(",")}`
+  );
   const readers = [...runtime.matchAll(/TEST_PROVIDER_ENV\]|AWKIT_TEST_AI_PROVIDER/g)].length;
-  check("...and the variable is read nowhere else", readers === 2, String(readers));
+  check("...and the provider variable is read nowhere else (its constant and those two readers)", readers === 3, String(readers));
+  const gpuReaders = [...runtime.matchAll(/TEST_GPU_ENV\]|AWKIT_TEST_AI_GPU/g)].length;
+  check("...and the GPU variable is read nowhere else (its doc comment, its constant and that reader)", gpuReaders === 4, String(gpuReaders));
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);
