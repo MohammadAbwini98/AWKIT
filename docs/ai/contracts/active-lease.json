@@ -2,7 +2,7 @@
   "task": "awkit-djnl-12-l8b2-static-checks-0928",
   "contract_path": "docs/ai/contracts/awkit-djnl-12-l8b2-static-checks-0928.json",
   "holder": "release",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "build",
     "resources/dependency-manifest.json",
@@ -30,5 +30,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-28T19:04:28.530Z",
+  "released_reason": "signed manifest regenerated from clean 519f7087 and committed in 5b08eb89, strict offline validation and verify:ai-packaged-app 28/0 passed",
+  "archived_at": "2026-09-28T19:04:28.531Z"
 }

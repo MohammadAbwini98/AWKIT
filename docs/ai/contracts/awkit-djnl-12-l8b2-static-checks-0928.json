@@ -159,8 +159,8 @@
       "required": true,
       "command": "npm run verify:ai-host",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": ""
+      "result": "PASS",
+      "observed": "227/0 with 30 of 30 mutations caught, final state 5b08eb89"
     },
     {
       "id": "verify:ai-model-compatibility",
@@ -168,8 +168,8 @@
       "required": true,
       "command": "npm run verify:ai-model-compatibility",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": ""
+      "result": "PASS",
+      "observed": "81/0 (6 of 6 mutations caught at aeb18017)"
     },
     {
       "id": "verify:ai-fallback",
@@ -177,8 +177,8 @@
       "required": true,
       "command": "npm run verify:ai-fallback",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": ""
+      "result": "PASS",
+      "observed": "46/0, including a registered model that failed a check: UNAVAILABLE/MODEL_INCOMPATIBLE with zero host calls"
     },
     {
       "id": "verify:ai-model-pack",
@@ -186,8 +186,8 @@
       "required": true,
       "command": "npm run verify:ai-model-pack",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": ""
+      "result": "PASS",
+      "observed": "74/0"
     },
     {
       "id": "verify:ai-model-inspect",
@@ -195,8 +195,8 @@
       "required": true,
       "command": "npm run verify:ai-model-inspect",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": ""
+      "result": "PASS",
+      "observed": "25/0 on the real host: both curated packs and the unlisted Qwen3.5-2B pass, thirteen hand-built headers each fail their own check, the main process never loaded the runtime"
     },
     {
       "id": "verify:ai-settings-gui",
@@ -204,8 +204,8 @@
       "required": true,
       "command": "npm run verify:ai-settings-gui",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": ""
+      "result": "PASS",
+      "observed": "124/124"
     },
     {
       "id": "verify:ai-backend-pack",
@@ -213,8 +213,8 @@
       "required": true,
       "command": "npm run verify:ai-backend-pack",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": ""
+      "result": "PASS",
+      "observed": "139/0, including the regenerated signed manifest verifying and the packaged layout"
     },
     {
       "id": "verify:ai-gpu-modes",
@@ -222,8 +222,8 @@
       "required": true,
       "command": "npm run verify:ai-gpu-modes",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": ""
+      "result": "PASS",
+      "observed": "182/0"
     },
     {
       "id": "build",
@@ -231,8 +231,8 @@
       "required": true,
       "command": "npm run build",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": ""
+      "result": "PASS",
+      "observed": "tsc --noEmit and all bundles"
     },
     {
       "id": "typecheck:scripts",
@@ -240,8 +240,8 @@
       "required": true,
       "command": "npm run typecheck:scripts",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": ""
+      "result": "PASS",
+      "observed": "clean"
     },
     {
       "id": "verify:verifier-classification",
@@ -249,8 +249,17 @@
       "required": true,
       "command": "npm run verify:verifier-classification",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": ""
+      "result": "PASS",
+      "observed": "289 classified"
+    },
+    {
+      "id": "packaged:l8b2",
+      "type": "packaged",
+      "required": false,
+      "command": "npm run package:portable, then npm run verify:ai-packaged-app",
+      "artifact": "dist/SpecterStudio 0.1.51.exe",
+      "result": "PASS",
+      "observed": "fresh portable package from clean 519f7087, strict offline validation passed, signed manifest committed in 5b08eb89; verify:ai-packaged-app 28/0 including the import-time header check (a Llama-3 template reads MODEL_INCOMPATIBLE, a compatible header stays MODEL_UNCHECKED)"
     }
   ],
   "git": {
@@ -261,8 +270,8 @@
     "push_authorized": true
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "pending",
+    "status": "implemented",
+    "qa_status": "PASS",
     "qc_status": "pending"
   },
   "write_lease": {
@@ -311,6 +320,24 @@
         "acquired_at_commit": "d5480dda258b262f3d9577cb370bfe8365aed41b",
         "released_at": "2026-09-28T18:01:34.676Z",
         "released_reason": "host inspect request and its deadline committed in dd7ddb8d",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-12-l8b2-static-checks-0928:release:2026-09-28T18:02:17.573Z",
+        "task": "awkit-djnl-12-l8b2-static-checks-0928",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "build",
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig"
+        ],
+        "acquired_at": "2026-09-28T18:02:17.573Z",
+        "acquired_at_commit": "aeb180175c1112cabf4fcae754ece068e3e73865",
+        "released_at": "2026-09-28T19:04:28.530Z",
+        "released_reason": "signed manifest regenerated from clean 519f7087 and committed in 5b08eb89, strict offline validation and verify:ai-packaged-app 28/0 passed",
         "amendments": [],
         "overrides": [],
         "violations": []
