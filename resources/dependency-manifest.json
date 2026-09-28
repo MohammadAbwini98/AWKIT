@@ -4,12 +4,12 @@
                    "version":  3,
                    "sourceTemplate":  "playwright_flow_studio_updated_phases/12_OFFLINE_DEPENDENCY_MANIFEST_TEMPLATE.md"
                },
-    "manifestGeneratedAt":  "2026-09-28T10:53:50.1410736Z",
+    "manifestGeneratedAt":  "2026-09-28T18:57:11.2812881Z",
     "application":  {
                         "name":  "SpecterStudio",
                         "version":  "0.1.51",
                         "buildMode":  "production-offline",
-                        "sourceCommit":  "2970d227c06e868f3ec4ecffbd8fe0569c24f5cb",
+                        "sourceCommit":  "519f70872f4d790290fa1cdec71d484e66431939",
                         "sourceTreeDirty":  false
                     },
     "offline":  {
@@ -233,12 +233,12 @@
                       "modelPackBundled":  false,
                       "stagedRoot":  "native-hosts/ai",
                       "fileCount":  1465,
-                      "totalBytes":  53981142,
+                      "totalBytes":  53984180,
                       "assets":  [
                                      {
                                          "relativePath":  "native-hosts/ai/ai-host.cjs",
-                                         "size":  25784,
-                                         "sha256":  "8a6f0083e0216c1c4f21b4f1735118649dfacc456dc8362c036ea178383f2a79"
+                                         "size":  28822,
+                                         "sha256":  "bbc8a1378b079ee8a9f1d4fcc426278355b79b60db8659de91f6805dee7aa01e"
                                      },
                                      {
                                          "relativePath":  "native-hosts/ai/node_modules/@huggingface/jinja/LICENSE",
