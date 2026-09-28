@@ -1,6 +1,41 @@
 # TASK_LOG
 
-## 2026-09-28 (latest) — L8a closed on the owner's E11 decision (Claude)
+## 2026-09-28 (latest) — L8b.1: copy registration of a non-manifest GGUF with a space preflight (Claude)
+
+- **Task:** the owner said "start L8b". L8b.1 from the L8b plan (the preflight UI is L8b.5 by the plan).
+- **Result:** implemented under contract `awkit-djnl-12-l8b1-registration-0928`, commit `10ea7862`.
+  - A GGUF the manifest does not list is copied, hashed and registered: never curated, never loaded,
+    `MODEL_UNCHECKED`.
+  - Import needs the file plus 256 MB free and fails closed.
+  - `preflight()` measures without copying.
+  - Old registries load unchanged. The E7 supersession is noted in place in `DECISIONS.md`.
+- **Files:**
+  - `src/ai/{AiModelPack,AiBackendPack,AiService}.ts`, `src/ai/contracts/AiApi.ts`;
+  - `app/main/ai/aiRuntime.ts`, `app/renderer/pages/LocalAiSettings.tsx`;
+  - `scripts/{verify-ai-model-pack,verify-ai-fallback}.mts`, `scripts/lib/verifier-classification.ts`;
+  - `docs/ai/{DECISIONS,CURRENT_STATE,HANDOFF,TASK_LOG}.md`, the L8b plan,
+    `src/roadmap/ImplementationRoadmap.ts`, the contract, `.beads/issues.jsonl`,
+    `docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json` (run 18).
+- **Mutations:** 4/4 caught and reverted:
+
+  | Mutation | Result |
+  |---|---|
+  | space gate skipped | 69/5 |
+  | registry validation dropped | 68/6 |
+  | full path as the name | 66/8 |
+  | size check skipped | 73/1 |
+
+- **Verification:**
+  - PASS: `verify:ai-model-pack` 74/0, `verify:ai-fallback` 42/0, `verify:ai-backend-pack` 139/0;
+  - PASS: `verify:ai-settings-gui` 124/124, `verify:ai-backend-pack-gui` 59/59;
+  - PASS: build, `typecheck:scripts`, `verify:verifier-classification` 287.
+- **INCONCLUSIVE:** `verify:failure-capture-overhead` run 18 (zero AI calls on the run path PASS).
+- **NOT RUN:**
+  - the packaged import: no package was rebuilt, since this slice ships no packaging change;
+  - `verify:ai-model-live`: the curated path is unchanged;
+  - `verify:ai-adapter` and `verify:ai-deadlines`: the `AiService` change is type-only.
+
+## 2026-09-28 — L8a closed on the owner's E11 decision (Claude)
 
 - **Task:** the owner said "accept the AMD mechanics for E11 and close L8a".
 - **Result:** contract `awkit-djnl-11-l8a-close-0928`.

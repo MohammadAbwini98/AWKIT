@@ -1654,6 +1654,10 @@ ruling.
   no online refresh, no user override, and a pack whose SHA-256 is not in it is refused at import. The
   pinned llama.cpp runtime ships in the installer and belongs in the signed dependency manifest; the
   model pack never does.
+  > **Superseded in part** (E7, 2026-09-27; implemented by L8b.1, 2026-09-28):
+  > - A GGUF whose SHA-256 is not in the manifest is copied and **registered**, not refused.
+  > - It is never loaded until L8b's compatibility stages pass, and it is never presented as curated.
+  > - The manifest still defines the curated packs, and every other rule above stands.
 - **Routing for new code:** `src/ai/**` has no routing-matrix owner today. L1 registers it and
   classifies the autonomy-policy module as `authorization_change`, so T3 or ceiling edits are lease-gated.
 

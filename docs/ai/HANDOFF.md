@@ -1,6 +1,20 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-28, latest) — L8a closed; L8b and L9 are unblocked
+## HANDOFF (2026-09-28, latest) — L8b.1 done; L8b.2 (static header checks in the host) is next
+
+- **L8b (`awkit-djnl.12`) is in progress.** L8b.1 is implemented under contract
+  `awkit-djnl-12-l8b1-registration-0928`; see the record in
+  `docs/plans/ai-upgrade-v5/L8b-external-model-compatibility.md`.
+- **What L8b.2 builds on:**
+  - `AiModelPackStore.status()` returns `registered` with `external: { sha256, sizeBytes, fileName }`;
+  - `aiRuntime`'s model resolver maps it to `MODEL_UNCHECKED`. Replace that with the compatibility
+    result once the host can read the header.
+  - GGUF parsing must stay in the utility host (never main).
+  - `ai-host.cjs` is Risk-3 domain `runtime`: take a runtime lease.
+- **For L8b.5:** `preflight()` already exists for the two-step disk-space UI; no IPC exposes it yet.
+- Ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## HANDOFF (2026-09-28) — L8a closed; L8b and L9 are unblocked
 
 - **L8a (`awkit-djnl.11`) is closed** on the owner's E11 decision: the AMD mechanics plus the fake-host
   cases are its GPU evidence, and NVIDIA stays Compatible but unqualified. The closeout contract is

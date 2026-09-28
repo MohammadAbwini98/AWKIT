@@ -1,6 +1,28 @@
 # CURRENT_STATE
 
-## L8a closed on the owner's E11 decision; Phase L 11 of 13 (2026-09-28, latest)
+## L8b.1 implemented: any GGUF is copied and registered, never loaded until checked (2026-09-28, latest)
+
+- **Registration** (`src/ai/AiModelPack.ts`, E1/E7).
+  - Settings → Local AI → Import now accepts a GGUF the manifest does not list. It is copied with the
+    same single hashed pass, stored as `<sha256>.gguf`, and registered with its size and file name. The
+    name is display only.
+  - It reads **registered, not checked for compatibility yet (not used)**. The runtime refuses it with
+    `MODEL_UNCHECKED` until L8b.2 (static checks) and L8b.3 (probe) exist.
+  - Curated packs are unchanged.
+- **Space:** every import needs free space for the file plus 256 MB, measured at copy time, and fails
+  closed when unmeasurable. `preflight()` reports the numbers without copying; its UI is L8b.5.
+- **Migration:** the registry gained one optional field, and pre-L8b registries load unchanged.
+- **Evidence:**
+  - `verify:ai-model-pack` 74/0 with 4/4 mutations; `verify:ai-fallback` 42/0;
+  - `verify:ai-backend-pack` 139/0; `verify:ai-settings-gui` 124/124; `verify:ai-backend-pack-gui` 59/59;
+  - build, `typecheck:scripts`, `verify:verifier-classification` (287) PASS;
+  - `verify:failure-capture-overhead` INCONCLUSIVE on this host.
+- **Next:** L8b.2, static GGUF header checks in the utility host (runtime; `ai-host.cjs` needs a runtime
+  lease).
+- Phase L reads 11 of 13 milestones closed. Validation ledger unchanged at 65 PASS / 2 NOT RUN /
+  0 BLOCKED across 67 cases.
+
+## L8a closed on the owner's E11 decision; Phase L 11 of 13 (2026-09-28)
 
 - **E11 decided** (`docs/ai/DECISIONS.md`): L8a's GPU evidence is the vendor-independent mechanics on
   this machine's AMD adapter (source and packaged trees) plus the deterministic fake-host cases.

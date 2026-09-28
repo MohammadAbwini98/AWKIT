@@ -1,0 +1,222 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-12-l8b1-registration-0928",
+    "title": "L8b.1: copy registration of a non-manifest GGUF with a disk-space gate",
+    "objective": "Phase L L8b.1 (awkit-djnl.12). E7 supersedes the manifest-only rule: a GGUF the manifest does not list is copied with the existing single hashed pass, stored under its SHA-256 and registered with its size and display-only file name. It is never curated and never loaded (MODEL_UNCHECKED) until the L8b.2 static and L8b.3 probe stages exist. Every import needs free space for the file plus 256 MB, measured at copy time and failing closed; preflight() reports the numbers without copying (its UI is L8b.5). The registry gains one optional field so old registries load unchanged, and a forged one reads unreadable. Tamper, swap, deletion, symlinked-source and path protections are re-proved for a registered model. No new channel or permission; no host change.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "d19889d2",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "electron_main_change": true,
+    "persisted_shape_change": true,
+    "filesystem_write_change": true,
+    "public_contract_change": true,
+    "renderer_visual_change": true,
+    "general_engineering_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 3
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "architect",
+      "uiux",
+      "frontend",
+      "software",
+      "runtime",
+      "integration",
+      "qa",
+      "qc",
+      "persistence",
+      "project-state"
+    ],
+    "expected_paths": [
+      "src/ai/AiModelPack.ts",
+      "src/ai/AiBackendPack.ts",
+      "src/ai/AiService.ts",
+      "src/ai/contracts/AiApi.ts",
+      "app/main/ai/aiRuntime.ts",
+      "app/renderer/pages/LocalAiSettings.tsx",
+      "scripts/verify-ai-model-pack.mts",
+      "scripts/verify-ai-fallback.mts",
+      "scripts/lib/verifier-classification.ts",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/plans/ai-upgrade-v5/L8b-external-model-compatibility.md",
+      "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
+      "docs/ai/contracts/awkit-djnl-12-l8b1-registration-0928.json",
+      "docs/ai/contracts/active-lease.json",
+      ".beads/issues.jsonl"
+    ],
+    "consultants": [
+      "architect",
+      "uiux",
+      "integration",
+      "persistence"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/issues.jsonl"
+      ]
+    }
+  },
+  "constraints": {
+    "security": [
+      "No new permission or channel: import stays ai:importModelPack under AI_MANAGE with re-authentication, and the renderer never supplies a path.",
+      "A registered model is never loaded before its compatibility stages exist; the host's path confinement is unchanged."
+    ],
+    "offline": [
+      "Nothing is downloaded; the model is copied into the app-managed models folder, never into resources or app.asar."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "REGISTER",
+      "description": "A non-manifest GGUF is copied, hashed and registered (never curated or loaded); the space gate and preflight hold; old registries load unchanged and forged ones read unreadable; tamper, swap, deletion and symlinked-source protections hold; each guarantee mutation-tested.",
+      "evidence_required": [
+        "verify:ai-model-pack",
+        "mutation:l8b1"
+      ]
+    },
+    {
+      "id": "REGRESSION",
+      "description": "A registered-unchecked model never reaches the host; the backend pack and the Settings panels still pass.",
+      "evidence_required": [
+        "verify:ai-fallback",
+        "verify:ai-backend-pack",
+        "verify:ai-settings-gui",
+        "verify:ai-backend-pack-gui"
+      ]
+    },
+    {
+      "id": "BUILD",
+      "description": "Typecheck, bundles, script typecheck and the verifier registry pass.",
+      "evidence_required": [
+        "build",
+        "typecheck:scripts",
+        "verify:verifier-classification"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:ai-model-pack",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-model-pack",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "74/0 (38 new L8b.1 checks; the two manifest-only refusals re-asserted as registration per E7)"
+    },
+    {
+      "id": "mutation:l8b1",
+      "type": "verifier",
+      "required": true,
+      "command": "manual source mutation, verifier run, revert",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "4/4 caught and reverted: space gate skipped (69/5), registry validation dropped (68/6), full source path stored as the name (66/8), size check skipped for a registered model (73/1)"
+    },
+    {
+      "id": "verify:ai-fallback",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-fallback",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "42/0, including a registered model not yet checked: UNAVAILABLE/MODEL_UNCHECKED with zero host calls"
+    },
+    {
+      "id": "verify:ai-backend-pack",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-backend-pack",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "139/0 after its free-space helper moved into AiModelPack"
+    },
+    {
+      "id": "verify:ai-settings-gui",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-settings-gui",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "124/124"
+    },
+    {
+      "id": "verify:ai-backend-pack-gui",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-backend-pack-gui",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "59/59"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc --noEmit and all bundles"
+    },
+    {
+      "id": "typecheck:scripts",
+      "type": "build",
+      "required": true,
+      "command": "npm run typecheck:scripts",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "clean"
+    },
+    {
+      "id": "verify:verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "287 classified"
+    },
+    {
+      "id": "verify:failure-capture-overhead",
+      "type": "verifier",
+      "required": false,
+      "command": "npm run verify:failure-capture-overhead",
+      "artifact": "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
+      "result": "BLOCKED",
+      "observed": "INCONCLUSIVE (exit 2, run 18): 17 passed, 0 failed, 1 inconclusive; zero AI calls on the run path PASS; the evidence-duration interval straddles its ceiling on this noisy host. Recorded as BLOCKED on a measurement-quiet host (the vocabulary has no INCONCLUSIVE)."
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "pending"
+  }
+}
