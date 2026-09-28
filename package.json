@@ -307,6 +307,7 @@
     "verify:ai-host-electron": "tsx scripts/verify-ai-host-electron.mts",
     "verify:ai-packaged-runtime": "tsx scripts/verify-ai-packaged-runtime.mts",
     "verify:ai-packaged-app": "tsx scripts/verify-ai-packaged-app.mts",
+    "verify:ai-model-registration": "tsx scripts/verify-ai-model-registration.mts",
     "verify:native-dependencies": "tsx scripts/verify-native-dependencies.mts",
     "verify:ai-gpu-backend-gate": "tsx scripts/verify-ai-gpu-backend-gate.mts",
     "verify:ai-backend-manifest": "tsx scripts/verify-ai-backend-manifest.mts",

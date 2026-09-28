@@ -11,8 +11,9 @@
  *   1. diagnostics: the packaged main process finds its runtime in resources/native-hosts/ai and reports
  *      the pinned build, and a fresh install has NO model pack (the installer never carries one);
  *   2. with AI enabled and no pack, AI is unavailable for the model, never for a missing runtime;
- *   3. the pinned Qwen3.5-0.8B pack from ~/Downloads imports through `ai:importModelPack` (the file dialog
- *      is answered in the main process, the only stub) into the writable profile, never into resources;
+ *   3. the pinned Qwen3.5-0.8B pack from ~/Downloads imports through `ai:preflightModelPack` and
+ *      `ai:importModelPack` (the file dialog is answered in the main process, the only stub) into the
+ *      writable profile, never into resources;
  *   4. a validation explanation of a broken flow runs a REAL inference in the packaged app's own utility
  *      host under the feature's own deadline, and the answer names the pinned model;
  *   5. the non-packaged test provider is unreachable: AWKIT_TEST_AI_PROVIDER points at a scripted answer
@@ -20,8 +21,11 @@
  *   6. the L7 clean-machine procedure's step 9, same PowerShell: exactly one process, a child of the main
  *      process, holds llama.cpp binaries from resources\native-hosts\ai (the AI host), and it loaded
  *      msvcp140, vcruntime140 and vcruntime140_1 from that tree;
- *   7. L8b.2: importing a model the manifest does not list runs its header check in the packaged host, so a
- *      Llama-3-template header reads MODEL_INCOMPATIBLE and a compatible one STATIC_PASSED but unused.
+ *   7. L8b.2 and L8b.3: importing a model the manifest does not list runs its header check and probe in the
+ *      packaged host, so a Llama-3-template header reads MODEL_INCOMPATIBLE on its template, and a compatible
+ *      header with no weights passes its header but fails the probe's load. Every import is two steps: the
+ *      disk-space preflight, then the copy named by its one-time token (L8b.5); the curated 0.8B reads
+ *      Qualified on its historical CPU key (L8b.4).
  *
  * Exit, the `gateExitCode` convention: NOT RUN (exit 2, with the reason, never a pass) without a packaged
  * tree that carries native-hosts/ai or without the pack. A stale packaged tree FAILS (exit 1). A TIMEOUT on
@@ -210,15 +214,38 @@ try {
   const noPack: any = await win.evaluate(() => (window as any).playwrightFlowStudio.ai.getStatus());
   check("status is unavailable for MODEL_MISSING, not RUNTIME_MISSING", noPack?.state === "unavailable" && noPack?.reason === "MODEL_MISSING", `${noPack?.state}/${noPack?.reason}`);
 
-  console.log("\n3. The pinned pack imports into the writable profile");
-  await app.evaluate(({ dialog }, file) => {
-    dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [file] })) as typeof dialog.showOpenDialog;
-  }, pack);
+  console.log("\n3. The pinned pack imports into the writable profile, after its disk-space preflight (L8b.5)");
+  const pickFile = (file: string) =>
+    app!.evaluate(({ dialog }, picked) => {
+      dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [picked] })) as typeof dialog.showOpenDialog;
+    }, file);
+  const preflightModel = (): Promise<any> => win.evaluate(() => (window as any).playwrightFlowStudio.ai.preflightModelPack());
+  const importModel = (token: string): Promise<any> => win.evaluate((t) => (window as any).playwrightFlowStudio.ai.importModelPack(t), token);
+  await pickFile(pack);
+  const pre = await preflightModel();
+  check(
+    "the preflight names the pack, its size, the free space and the need before any copy",
+    pre?.ok === true && pre.preflight?.fileName === PACK_NAME && pre.preflight?.sizeBytes === entry.sizeBytes && pre.preflight?.spaceOk === true && /^[0-9a-f]{32}$/.test(pre.preflight?.token ?? ""),
+    JSON.stringify(pre?.preflight ?? pre)
+  );
+  check("...and nothing is copied by it", findFiles(localAppData, (name) => name.toLowerCase().endsWith(".gguf")).length === 0);
   const started = Date.now();
-  const imported: any = await win.evaluate(() => (window as any).playwrightFlowStudio.ai.importModelPack());
-  check(`ai:importModelPack accepts the pinned pack (${Math.round((Date.now() - started) / 1000)} s)`, imported?.ok === true && imported?.detail === entry.id, JSON.stringify(imported));
+  const imported: any = await importModel(pre?.preflight?.token ?? "");
+  check(`ai:importModelPack copies the pinned pack it names by token (${Math.round((Date.now() - started) / 1000)} s)`, imported?.ok === true && imported?.detail === entry.id, JSON.stringify(imported));
+  const reused: any = await importModel(pre?.preflight?.token ?? "");
+  check("the token is one-time: a second import with it is refused", reused?.ok === false && reused?.code === "INVALID_REQUEST", JSON.stringify(reused));
   const after = await diagnostics();
   check("diagnostics now report that pack installed", after?.modelPack?.status === "installed" && after?.modelPack?.modelId === entry.id && after?.modelPack?.sha256 === entry.sha256, JSON.stringify(after?.modelPack));
+  const curatedStatus: any = await win.evaluate(() => (window as any).playwrightFlowStudio.ai.getStatus());
+  const qualification = curatedStatus?.modelPack?.qualification;
+  check(
+    "L8b.4: the curated 0.8B reads Qualified on CPU & RAM for its three limited-GO features, speed unclaimed",
+    qualification?.label === "qualified" &&
+      JSON.stringify(qualification?.qualifiedFeatures) === JSON.stringify(["locatorSemanticUpgrade", "failureAnalysis", "validationExplanation"]) &&
+      qualification?.configuration?.backend === "cpu" &&
+      qualification?.latency?.claimed === false,
+    JSON.stringify(qualification)
+  );
   const inProfile = findFiles(localAppData, (name) => name.toLowerCase().endsWith(".gguf"));
   const inResources = scanForModelFiles(path.join(UNPACKED, "resources"));
   check("the imported pack lives under the writable %LOCALAPPDATA% profile", inProfile.length === 1, inProfile.join(", "));
@@ -256,28 +283,30 @@ try {
     for (const row of rows.filter((candidate) => !hostRows.includes(candidate))) console.log(`    recorded, another process: PID ${row.PID} ${row.Module} ${row.Path}`);
   }
 
-  console.log("\n7. L8b.2: a model the manifest does not list is header-checked in the packaged host at import");
+  console.log("\n7. L8b.2 and L8b.3: a model the manifest does not list is header-checked and probed in the packaged host at import");
   const importHeader = async (name: string, bytes: Buffer) => {
     const file = path.join(localAppData, name);
     fs.writeFileSync(file, bytes);
-    await app!.evaluate(({ dialog }, picked) => {
-      dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [picked] })) as typeof dialog.showOpenDialog;
-    }, file);
-    const result: any = await win.evaluate(() => (window as any).playwrightFlowStudio.ai.importModelPack());
+    await pickFile(file);
+    const checklist = await preflightModel();
+    const result: any = await importModel(checklist?.preflight?.token ?? "");
     const status: any = await win.evaluate(() => (window as any).playwrightFlowStudio.ai.getStatus());
     return { result, status };
   };
   const llama = await importHeader("Llama-3-style.gguf", modelHeader({ arch: "llama", template: LLAMA3 }));
   check("a Llama-3-template header imports as a registered model", llama.result?.ok === true && llama.result?.detail === "Llama-3-style.gguf", JSON.stringify(llama.result));
   check(
-    "its header check failed on the chat template, and AI reads MODEL_INCOMPATIBLE",
-    llama.status?.modelPack?.status === "registered" && llama.status?.modelPack?.reason === "CHAT_TEMPLATE" && llama.status?.reason === "MODEL_INCOMPATIBLE",
+    "its header check failed on the chat template, and AI reads MODEL_INCOMPATIBLE, qualification Incompatible",
+    llama.status?.modelPack?.status === "registered" &&
+      llama.status?.modelPack?.reason === "CHAT_TEMPLATE" &&
+      llama.status?.reason === "MODEL_INCOMPATIBLE" &&
+      llama.status?.modelPack?.qualification?.label === "incompatible",
     JSON.stringify({ pack: llama.status?.modelPack, reason: llama.status?.reason })
   );
   const qwen2 = await importHeader("Qwen2-style.gguf", modelHeader());
   check(
-    "a compatible header passes the check but stays unused until the L8b.3 probe (MODEL_UNCHECKED)",
-    qwen2.result?.ok === true && qwen2.status?.modelPack?.status === "registered" && qwen2.status?.modelPack?.reason === "STATIC_PASSED" && qwen2.status?.reason === "MODEL_UNCHECKED",
+    "a compatible header with no weights passes its header check, then fails the probe's load (PROBE_LOAD_FAILED), and AI reads MODEL_INCOMPATIBLE",
+    qwen2.result?.ok === true && qwen2.status?.modelPack?.status === "registered" && qwen2.status?.modelPack?.reason === "PROBE_LOAD_FAILED" && qwen2.status?.reason === "MODEL_INCOMPATIBLE",
     JSON.stringify({ pack: qwen2.status?.modelPack, reason: qwen2.status?.reason })
   );
   const afterCheck = await diagnostics();
