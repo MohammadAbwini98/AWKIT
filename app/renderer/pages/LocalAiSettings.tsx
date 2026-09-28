@@ -41,6 +41,7 @@ const STATE_LABELS: Record<string, string> = {
   MODEL_MISSING: "No model pack imported",
   MODEL_INVALID: "The model pack failed verification",
   MODEL_UNCHECKED: "The registered model has not been checked for compatibility, so it is not used",
+  MODEL_INCOMPATIBLE: "The registered model is not compatible, so it is not used",
   GPU_UNAVAILABLE: "Unavailable: GPU-Only refused to load the model",
   SHUTDOWN: "Shutting down"
 };
@@ -65,6 +66,18 @@ const PACK_LABELS: Record<string, string> = {
   NOT_IN_MANIFEST: "this version no longer lists the pack"
 };
 
+/** The static header check's result for a registered model (L8b.2). */
+const STATIC_CHECK_LABELS: Record<string, string> = {
+  STATIC_PASSED: "header check passed; the load check is not available yet (not used)",
+  GGUF_UNREADABLE: "not compatible: the runtime cannot read the file (not used)",
+  GGUF_VERSION: "not compatible: unsupported GGUF version (not used)",
+  ARCHITECTURE_UNSUPPORTED: "not compatible: this runtime does not support the model's architecture (not used)",
+  TENSOR_TYPE_UNSUPPORTED: "not compatible: this runtime does not support the model's quantization (not used)",
+  CHAT_TEMPLATE: "not compatible: the model does not use the chat format the app prompts with (not used)",
+  CONTEXT_TOO_SMALL: "not compatible: the model's context is shorter than 4,096 tokens (not used)",
+  LAYER_COUNT: "not compatible: the model's layer count is out of range (not used)"
+};
+
 /** Every AI failure carries a safe sentence; this only covers the codes that arrive without one. */
 function describeAi(response: SensitiveAdminResponse): string {
   if (response.message) return response.message;
@@ -77,7 +90,10 @@ function stateLabel(status: AiStatusView): string {
 
 function packLabel(pack: AiStatusView["modelPack"]): string {
   if (pack.status === "installed") return pack.displayName ?? "Installed";
-  if (pack.status === "registered") return `${pack.displayName ?? "Registered model"}: registered, not checked for compatibility yet (not used)`;
+  if (pack.status === "registered") {
+    const check = (pack.reason && STATIC_CHECK_LABELS[pack.reason]) ?? "registered, not checked for compatibility yet (not used)";
+    return `${pack.displayName ?? "Registered model"}: ${check}`;
+  }
   const base = PACK_LABELS[pack.status] ?? pack.status;
   return pack.reason ? `${base}: ${PACK_LABELS[pack.reason] ?? pack.reason}` : base;
 }

@@ -91,6 +91,33 @@ export interface AiGpuPlan {
   totalBytes: number;
 }
 
+/** Read a model's GGUF header with the pinned runtime's own reader (L8b.2); loads nothing. */
+export interface AiInspectRequest {
+  type: "inspect";
+  modelPath: string;
+}
+
+/**
+ * Path-free facts from a GGUF header. `readable: false` means the runtime's reader refused the file.
+ * The host names only what the pinned runtime knows; `AiModelCompatibility` decides from these.
+ */
+export type AiModelHeader =
+  | { readable: false }
+  | {
+      readable: true;
+      ggufVersion: number | null;
+      /** `general.architecture` when it is a plain short name, else null. */
+      architecture: string | null;
+      architectureKnown: boolean;
+      contextLength: number | null;
+      blockCount: number | null;
+      tensorCount: number;
+      /** Tensors whose type the pinned runtime does not name. */
+      unknownTensorTypes: number;
+      /** ChatML is what the host prompts with; any other template cannot be driven. */
+      chatTemplate: "chatml" | "other" | "missing";
+    };
+
 export interface AiInferRequest {
   type: "infer";
   jobId: string;
@@ -110,6 +137,7 @@ export type AiHostRequestPayload =
   | { type: "hello"; expected: { protocolVersion: number } }
   | AiLoadRequest
   | AiGpuPlanRequest
+  | AiInspectRequest
   | AiInferRequest
   | { type: "cancel"; jobId: string }
   | { type: "unload" }
@@ -178,6 +206,11 @@ export const AI_HOST_TIMEOUTS = {
   helloMs: 5_000,
   /** A 4B Q4 model loads in seconds from a warm cache; a cold disk is slower. */
   loadMs: 120_000,
+  /**
+   * A header read, queued behind any running inference. The host stops its own read at 20 s (a crafted
+   * header can claim endless entries), so it answers before this and its queue is freed.
+   */
+  inspectMs: 30_000,
   cancelMs: 2_000,
   /**
    * How long a cancelled inference may keep the host before the manager kills and lazily restarts

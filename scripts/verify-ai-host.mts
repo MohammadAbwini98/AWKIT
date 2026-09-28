@@ -54,6 +54,19 @@ interface Generation {
 const SECRET = "C:\\Users\\victim\\private\\model.gguf token=sk-live-abc";
 const MIB = 1024 ** 2;
 
+/** A Qwen3.5-shaped header as the runtime's reader returns it; its template text carries the secret. */
+function qwenInfo(): Record<string, unknown> {
+  return {
+    version: 3,
+    metadata: {
+      general: { architecture: "qwen35", name: SECRET },
+      qwen35: { context_length: 262144, block_count: 24 },
+      tokenizer: { chat_template: `{% for m in messages %}<|im_start|>{{ m.role }} ${SECRET}<|im_end|>{% endfor %}` }
+    },
+    tensorInfo: [{ name: SECRET, ggmlType: 0 }, { name: "blk.0", ggmlType: 12 }, { name: "blk.1", ggmlType: 14 }]
+  };
+}
+
 function fakeRuntime(gpuBackend: false | "vulkan" = false) {
   const control = {
     // GPU surfaces (L8a.3): what a Vulkan runtime reports and estimates.
@@ -65,6 +78,12 @@ function fakeRuntime(gpuBackend: false | "vulkan" = false) {
     modelEstimates: [] as Record<string, unknown>[],
     contextEstimates: [] as Record<string, unknown>[],
     ggufReads: [] as string[],
+    /** Options each header read was given (L8b.2), in order. */
+    ggufOptions: [] as unknown[],
+    /** What the reader returns, or throws with the secret when null. */
+    ggufInfo: qwenInfo() as Record<string, unknown> | null,
+    ggufVerbatim: false,
+    ggufHang: false,
     log: [] as string[],
     getLlamaOptions: [] as Record<string, unknown>[],
     loadModelOptions: [] as Record<string, unknown>[],
@@ -183,10 +202,24 @@ function fakeRuntime(gpuBackend: false | "vulkan" = false) {
       if (control.failGetLlama) throw new Error(SECRET);
       return llama;
     },
-    async readGgufFileInfo(file: string) {
+    async readGgufFileInfo(file: string, options?: Record<string, any>) {
       control.ggufReads.push(file);
-      return { fake: "gguf info" };
+      // Shallow: an AbortSignal cannot be cloned.
+      control.ggufOptions.push(options === undefined ? undefined : { ...options });
+      // A header claiming endless entries: the real reader keeps reading zeros until its signal aborts.
+      if (control.ggufHang) {
+        return new Promise((_, reject) => {
+          if (!options?.signal) return;
+          options.signal.addEventListener("abort", () => reject(new Error(SECRET)), { once: true });
+        });
+      }
+      if (control.ggufInfo === null) throw new Error(SECRET);
+      // Cloned unless the case needs an exact object (one whose keys are inherited, not its own).
+      return control.ggufVerbatim ? control.ggufInfo : structuredClone(control.ggufInfo);
     },
+    // The pinned runtime's enums, cut down: a string enum and a numeric (reverse-mapped) one.
+    GgufArchitectureType: { llama: "llama", qwen35: "qwen35" },
+    GgmlType: { F32: 0, 0: "F32", Q4_K: 12, 12: "Q4_K", Q6_K: 14, 14: "Q6_K" },
     GgufInsights: {
       async from(info: unknown, given: unknown) {
         if (given !== llama) throw new Error("insights for a foreign runtime");
@@ -856,6 +889,129 @@ async function runSuite(source: string, quiet: boolean): Promise<{ passed: numbe
       const noRegister = vulkanHost(fakeRuntime("vulkan").runtime, fixture.pack, { moduleApi: {} });
       check("a runtime without module.register cannot hook its backend", (await plan(noRegister)).reason === "AI_GPU_BACKEND_UNAVAILABLE");
     }
+
+    // ── K. inspect: the static header stage (L8b.2) ──────────────────────────────────────────────
+    section("K. inspect");
+    {
+      const { runtime, control } = fakeRuntime();
+      const host = fullHost(runtime);
+      const inspect = (modelPath: string = fixture.modelFile) => host.call({ type: "inspect", modelPath });
+      const facts = async (info: Record<string, unknown> | null) => {
+        control.ggufInfo = info;
+        return (await inspect()).value;
+      };
+      const base = await inspect();
+      check("inspect answers the header's facts", base.ok === true, base);
+      check(
+        "every fact is read from the header, and nothing else is returned",
+        isDeepStrictEqual(base.value, {
+          readable: true,
+          ggufVersion: 3,
+          architecture: "qwen35",
+          architectureKnown: true,
+          contextLength: 262144,
+          blockCount: 24,
+          tensorCount: 3,
+          unknownTensorTypes: 0,
+          chatTemplate: "chatml"
+        }),
+        base.value
+      );
+      check("the header is read from the confined real path", control.ggufReads.at(-1) === fs.realpathSync(fixture.modelFile));
+      const options = (control.ggufOptions.at(-1) ?? {}) as Record<string, unknown>;
+      check("the reader is told the file is local, never a URL", options.sourceType === "filesystem", options);
+      check("the reader never opens split-part siblings", options.spliceSplitFiles === false, options);
+      check("the reader reads tensor types, silently", options.readTensorInfo === true && options.logWarnings === false, options);
+      check("the reader is given a live abort signal", options.signal instanceof AbortSignal && options.signal.aborted === false);
+      check("inspect loads nothing native (no runtime instance, no model)", control.getLlamaOptions.length === 0 && control.loadModelOptions.length === 0);
+      check("no metadata, template or tensor-name text crosses the boundary", !leaks(host));
+      check("a path outside the root is refused", (await inspect(fixture.outsideFile)).reason === "AI_MODEL_PATH_OUTSIDE_ROOT");
+      check("traversal out of the root is refused", (await inspect(path.join(fixture.modelRoot, "..", "outside", path.basename(fixture.outsideFile)))).reason === "AI_MODEL_PATH_OUTSIDE_ROOT");
+      check("a refused path is never read", control.ggufReads.length === 1, control.ggufReads.length);
+
+      const refused = await facts(null);
+      check("a file the reader refuses is unreadable, as an answer", isDeepStrictEqual(refused, { readable: false }), refused);
+      check("the reader's error text never crosses the boundary", !leaks(host));
+
+      const unknownArch = qwenInfo();
+      (unknownArch.metadata as any).general.architecture = "notanarch";
+      (unknownArch.metadata as any).notanarch = { context_length: 8192, block_count: 12 };
+      const unknown = await facts(unknownArch);
+      check("an architecture the runtime does not name is reported unknown", unknown?.architecture === "notanarch" && unknown?.architectureKnown === false && unknown?.contextLength === 8192, unknown);
+      for (const [label, name] of [["a path-like name", SECRET], ["a name with spaces", "qwen 35"], ["an over-long name", "a".repeat(65)], ["a non-string name", 7]] as const) {
+        const odd = qwenInfo();
+        (odd.metadata as any).general.architecture = name;
+        const got = await facts(odd);
+        check(`${label} is reported as null, never relayed`, got?.architecture === null && got?.architectureKnown === false && got?.contextLength === null, got);
+      }
+      check("an odd architecture name never crosses the boundary", !leaks(host));
+      for (const key of ["__proto__", "constructor", "toString"]) {
+        const proto = qwenInfo();
+        (proto.metadata as any).general.architecture = key;
+        const got = await facts(proto);
+        check(`architecture "${key}" reads no prototype data`, got?.architectureKnown === false && got?.contextLength === null && got?.blockCount === null, got);
+      }
+      control.ggufVerbatim = true;
+      const inherited = await facts({
+        version: 3,
+        metadata: Object.create({ general: { architecture: "qwen35" }, qwen35: { context_length: 262144, block_count: 24 } }),
+        tensorInfo: []
+      });
+      control.ggufVerbatim = false;
+      check("only the header's own keys are read, never inherited ones", inherited?.architecture === null && inherited?.contextLength === null, inherited);
+
+      const types = qwenInfo();
+      (types.tensorInfo as any[]).push({ name: "blk.2", ggmlType: 99 }, { name: "blk.3" });
+      check("tensors of a type the runtime does not name are counted", (await facts(types))?.unknownTensorTypes === 2);
+      const noTensors = qwenInfo();
+      delete noTensors.tensorInfo;
+      const empty = await facts(noTensors);
+      check("no tensor info is zero tensors", empty?.tensorCount === 0 && empty?.unknownTensorTypes === 0, empty);
+
+      const template = async (value: unknown) => {
+        const info = qwenInfo();
+        (info.metadata as any).tokenizer = value === undefined ? {} : { chat_template: value };
+        return (await facts(info))?.chatTemplate;
+      };
+      check("a template with only one ChatML marker is other", (await template("<|start_header_id|>user<|im_end|>")) === "other");
+      check("a non-ChatML template is other", (await template("{{ bos_token }}<|start_header_id|>{{ role }}<|end_header_id|>")) === "other");
+      check("no template is missing", (await template(undefined)) === "missing");
+      check("a non-string template is missing", (await template(["<|im_start|>", "<|im_end|>"])) === "missing");
+      const noTokenizer = qwenInfo();
+      delete (noTokenizer.metadata as any).tokenizer;
+      check("no tokenizer metadata is missing", (await facts(noTokenizer))?.chatTemplate === "missing");
+
+      for (const [label, value] of [["a bigint", 262144n], ["a negative count", -1], ["a fraction", 4096.5], ["a string", "4096"]] as const) {
+        const info = qwenInfo();
+        (info.metadata as any).qwen35 = { context_length: value, block_count: value };
+        const got = await facts(info);
+        check(`${label} context and layer count read as null`, got?.contextLength === null && got?.blockCount === null, got);
+      }
+      const future = qwenInfo();
+      future.version = 4;
+      check("a newer GGUF version is reported as it is", (await facts(future))?.ggufVersion === 4);
+      const noMetadata = await facts({ version: 3, tensorInfo: [] });
+      check("a header without metadata reads every fact as absent", noMetadata?.readable === true && noMetadata?.architecture === null && noMetadata?.chatTemplate === "missing", noMetadata);
+      check("the host still answers after every odd header", (await host.call({ type: "hello", expected: { protocolVersion: 1 } })).value?.compatible === true);
+    }
+    {
+      // The deadline itself, shortened so the suite does not wait 20 s; the rewrite must match once.
+      const deadline = source.match(/const INSPECT_DEADLINE_MS = (\d+);/);
+      check(
+        "the host's header deadline is below the manager's inspect deadline",
+        deadline !== null && Number(deadline[1]) > 0 && Number(deadline[1]) < Number(PROTOCOL_SOURCE.match(/inspectMs: ([\d_]+),/)?.[1].replace(/_/g, "")),
+        deadline?.[1]
+      );
+      const { runtime, control } = fakeRuntime();
+      control.ggufHang = true;
+      const short = source.split("const INSPECT_DEADLINE_MS = 20000;").length === 2 ? source.replace("const INSPECT_DEADLINE_MS = 20000;", "const INSPECT_DEADLINE_MS = 50;") : source;
+      const host = startHost(short, { modelRoot: fixture.modelRoot, modulePaths: [fixture.modules], runtime });
+      const endless = await host.call({ type: "inspect", modelPath: fixture.modelFile }, 1_000);
+      check("an endless header read ends at the deadline as unreadable", endless.ok === true && endless.value?.readable === false, endless);
+      control.ggufHang = false;
+      check("the serial queue is free after it", (await host.call({ type: "unload" }, 1_000)).ok === true);
+      check("the aborted read leaks nothing", !leaks(host));
+    }
   } catch (error) {
     failed += 1;
     if (!quiet) console.error(`  ✗ suite aborted — ${error instanceof Error ? error.stack : String(error)}`);
@@ -892,7 +1048,18 @@ const MUTATIONS: { name: string; from: string; to: string }[] = [
   { name: "requests no longer serialized", from: "const run = chain.then(fn);", to: "const run = Promise.resolve().then(fn);" },
   { name: "enum translated to a free string", from: "return { enum: [...schema.enum] };", to: 'return { type: "string", maxLength: 64 };' },
   { name: "prompt bound removed", from: "if (tokens.length > maxPromptTokens || tokens.length + maxOutputTokens > current.contextSize) {", to: "if (false) {" },
-  { name: "prototype lookup for dispatch", from: "const immediate = IMMEDIATE.get(req.type);", to: "const immediate = IMMEDIATE.get(req.type) ?? ({})[req.type];" }
+  { name: "prototype lookup for dispatch", from: "const immediate = IMMEDIATE.get(req.type);", to: "const immediate = IMMEDIATE.get(req.type) ?? ({})[req.type];" },
+  // L8b.2's static header stage.
+  { name: "inspect path not confined", from: "const modelPath = confineModelPath(req.modelPath);\n  const runtime = await runtimeModule();\n  let info;", to: "const modelPath = req.modelPath;\n  const runtime = await runtimeModule();\n  let info;" },
+  { name: "inspect may take the network reader", from: '      sourceType: "filesystem",\n      spliceSplitFiles: false,', to: "      spliceSplitFiles: false," },
+  { name: "inspect opens split-part siblings", from: "      spliceSplitFiles: false,\n      readTensorInfo: true,", to: "      spliceSplitFiles: true,\n      readTensorInfo: true," },
+  { name: "architecture name relayed unvetted", from: "ARCHITECTURE_NAME.test(general.architecture) ? general.architecture : null", to: "general.architecture ? general.architecture : null" },
+  { name: "architecture support not checked", from: "architecture !== null && Object.values(runtime.GgufArchitectureType).includes(architecture)", to: "architecture !== null" },
+  { name: "unknown tensor types not counted", from: "!knownTypes.has(tensor?.ggmlType)", to: "false" },
+  { name: "any template read as ChatML", from: 'template.includes("<|im_start|>") && template.includes("<|im_end|>") ? "chatml" : "other"', to: '"chatml"' },
+  { name: "unsafe header counts accepted", from: "return Number.isSafeInteger(value) && value >= 0 ? value : null;", to: "return value ?? null;" },
+  { name: "header read unbounded", from: "      logWarnings: false,\n      signal: AbortSignal.timeout(INSPECT_DEADLINE_MS)\n", to: "      logWarnings: false\n" },
+  { name: "prototype metadata read for an architecture", from: "(Object.hasOwn(object, key) && isPlainObject(object[key]) ? object[key] : {})", to: "(object[key] ?? {})" }
 ];
 
 async function main(): Promise<void> {

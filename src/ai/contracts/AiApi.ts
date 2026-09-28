@@ -50,8 +50,9 @@ export interface AiAdminResponse {
 }
 
 export interface AiModelPackView {
-  /** `registered` (L8b.1): a model the manifest does not list, copied but not checked for compatibility, never loaded. */
+  /** `registered` (L8b.1): a model the manifest does not list, copied, not loaded until its compatibility stages pass. */
   status: "missing" | "installed" | "registered" | "invalid" | "incompatible";
+  /** For `registered`: `STATIC_PASSED`, the failed static check (L8b.2), or null when not checked for this runtime. */
   reason: string | null;
   modelId: string | null;
   displayName: string | null;

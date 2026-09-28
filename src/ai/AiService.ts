@@ -51,7 +51,8 @@ import {
   type AiHostReason,
   type AiHostTransport,
   type AiInferResult,
-  type AiLoadResult
+  type AiLoadResult,
+  type AiModelHeader
 } from "./contracts/AiHostProtocol";
 
 export interface AiServiceLimits {
@@ -117,8 +118,10 @@ export type AiUnavailableReason =
   | "CIRCUIT_OPEN"
   | "MODEL_MISSING"
   | "MODEL_INVALID"
-  /** A registered model the manifest does not list, not yet checked for compatibility (L8b.1). */
+  /** A registered model the manifest does not list whose compatibility stages have not all passed (L8b.1). */
   | "MODEL_UNCHECKED"
+  /** A registered model that failed a compatibility check (L8b.2). */
+  | "MODEL_INCOMPATIBLE"
   /** GPU-Only refused; the execution profile names why. */
   | "GPU_UNAVAILABLE"
   | "SHUTDOWN";
@@ -159,7 +162,7 @@ export interface AiServiceSettings {
 
 export type AiModelResolution =
   | { ok: true; modelId: string; modelPath: string; contextTokens: number }
-  | { ok: false; reason: "MODEL_MISSING" | "MODEL_INVALID" | "MODEL_UNCHECKED" };
+  | { ok: false; reason: "MODEL_MISSING" | "MODEL_INVALID" | "MODEL_UNCHECKED" | "MODEL_INCOMPATIBLE" };
 
 export interface AiServiceDeps {
   /** The host for a backend; null when it is not part of this build. The CPU host decides "runtime missing". */
@@ -531,6 +534,49 @@ export class AiService {
     return transport.call<AiHostHello>({ type: "hello", expected: { protocolVersion: AI_HOST_PROTOCOL_VERSION } }, AI_HOST_TIMEOUTS.helloMs);
   }
 
+  /** The CPU host's handshake, once per host: the pinned runtime build on the CPU backend. */
+  private async cpuHandshake(transport: AiHostTransport): Promise<"ready" | AiJobOutcome> {
+    if (this.handshaken.has("cpu")) return "ready";
+    let hello: AiHostHello;
+    try {
+      hello = await this.hello(transport);
+    } catch (error) {
+      this.lastError = error instanceof AiHostCallError ? error.reason : "AI_HOST_INTERNAL_ERROR";
+      return { status: "failed", code: "HOST_ERROR", yields: 0 };
+    }
+    const build = this.deps.expectedRuntimeBuild;
+    if (
+      !hello?.compatible ||
+      hello.protocolVersion !== AI_HOST_PROTOCOL_VERSION ||
+      (hello.backend !== undefined && hello.backend !== "cpu") ||
+      (build !== undefined && hello.runtime?.build !== build)
+    ) {
+      this.incompatible = true;
+      this.lastError = "AI_RUNTIME_INCOMPATIBLE";
+      return { status: "rejected", code: "UNAVAILABLE", reason: "RUNTIME_INCOMPATIBLE" };
+    }
+    this.handshaken.add("cpu");
+    return "ready";
+  }
+
+  /**
+   * L8b.2's static stage: the CPU host reads a registered model's GGUF header (the main process never
+   * parses one). Null when the host cannot run it (absent, circuit open, handshake refused, failed or
+   * timed out), which leaves the model unchecked. Runs whether or not AI is switched on: it is part of
+   * an administrator's import, and loads nothing.
+   */
+  async inspectModel(modelPath: string): Promise<AiModelHeader | null> {
+    const transport = this.deps.transport("cpu");
+    if (this.disposed || !transport?.isAvailable() || (await this.cpuHandshake(transport)) !== "ready") return null;
+    try {
+      return await transport.call<AiModelHeader>({ type: "inspect", modelPath }, AI_HOST_TIMEOUTS.inspectMs);
+    } catch (error) {
+      this.lastError = error instanceof AiHostCallError ? error.reason : "AI_HOST_INTERNAL_ERROR";
+      if (error instanceof AiHostCallError && error.reason === "AI_HOST_EXITED") this.forgetHost("cpu");
+      return null;
+    }
+  }
+
   /**
    * Handshake and model load on the host the execution mode calls for. Returns "ready" or the job's
    * outcome. A loaded model is kept while the model, mode and reserve are unchanged; anything else drops
@@ -598,27 +644,8 @@ export class AiService {
     if (!transport) return { status: "rejected", code: "UNAVAILABLE", reason: "RUNTIME_MISSING" };
     if (!transport.isAvailable()) return { status: "rejected", code: "UNAVAILABLE", reason: "CIRCUIT_OPEN" };
     this.stage = fallbackReason ? "falling-back" : "loading-cpu";
-    if (!this.handshaken.has("cpu")) {
-      let hello: AiHostHello;
-      try {
-        hello = await this.hello(transport);
-      } catch (error) {
-        this.lastError = error instanceof AiHostCallError ? error.reason : "AI_HOST_INTERNAL_ERROR";
-        return { status: "failed", code: "HOST_ERROR", yields: 0 };
-      }
-      const build = this.deps.expectedRuntimeBuild;
-      if (
-        !hello?.compatible ||
-        hello.protocolVersion !== AI_HOST_PROTOCOL_VERSION ||
-        (hello.backend !== undefined && hello.backend !== "cpu") ||
-        (build !== undefined && hello.runtime?.build !== build)
-      ) {
-        this.incompatible = true;
-        this.lastError = "AI_RUNTIME_INCOMPATIBLE";
-        return { status: "rejected", code: "UNAVAILABLE", reason: "RUNTIME_INCOMPATIBLE" };
-      }
-      this.handshaken.add("cpu");
-    }
+    const handshake = await this.cpuHandshake(transport);
+    if (handshake !== "ready") return handshake;
     try {
       await transport.call(
         { type: "load", modelPath: model.modelPath, contextTokens: Math.min(model.contextTokens, AI_CONTEXT_TOKENS), threads: this.deps.threads },

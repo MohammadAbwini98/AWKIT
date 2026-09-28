@@ -101,6 +101,13 @@ console.log("Degraded modes return a code and never touch the host:\n");
       state: "MODEL_UNCHECKED"
     },
     {
+      // L8b.2: one that failed a compatibility check is never loaded either.
+      label: "a registered model that failed a compatibility check",
+      build: (fake) => service({ transport: fake, model: async () => ({ ok: false, reason: "MODEL_INCOMPATIBLE" }) }),
+      want: "UNAVAILABLE/MODEL_INCOMPATIBLE",
+      state: "MODEL_INCOMPATIBLE"
+    },
+    {
       label: "a model resolver that throws",
       build: (fake) =>
         service({

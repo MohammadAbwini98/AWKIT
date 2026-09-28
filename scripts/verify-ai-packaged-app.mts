@@ -19,7 +19,9 @@
  *      and the answer must still come from the real model;
  *   6. the L7 clean-machine procedure's step 9, same PowerShell: exactly one process, a child of the main
  *      process, holds llama.cpp binaries from resources\native-hosts\ai (the AI host), and it loaded
- *      msvcp140, vcruntime140 and vcruntime140_1 from that tree.
+ *      msvcp140, vcruntime140 and vcruntime140_1 from that tree;
+ *   7. L8b.2: importing a model the manifest does not list runs its header check in the packaged host, so a
+ *      Llama-3-template header reads MODEL_INCOMPATIBLE and a compatible one STATIC_PASSED but unused.
  *
  * Exit, the `gateExitCode` convention: NOT RUN (exit 2, with the reason, never a pass) without a packaged
  * tree that carries native-hosts/ai or without the pack. A stale packaged tree FAILS (exit 1). A TIMEOUT on
@@ -39,6 +41,7 @@ import { _electron as electron, type ElectronApplication, type Page } from "play
 import { AI_MODEL_MANIFEST, AI_RUNTIME_PIN } from "../src/offline/AiModelManifest";
 import { measurePack, ROOT } from "./ai-harness/launch.mts";
 import { FLOW } from "./ai-harness/validationExplanationPacket";
+import { LLAMA3, modelHeader } from "./helpers/gguf-header.mts";
 import { scanForModelFiles } from "./helpers/model-pack-scan.mts";
 import { stalePackagedPayload } from "./helpers/packaged-artifacts.mjs";
 import { sanitizeAppEnv } from "./helpers/packaged-license.mts";
@@ -252,6 +255,33 @@ try {
     check("each from resources\\native-hosts\\ai, not System32 or PATH", hostRows.length === 3 && hostRows.every((row) => row.Path.toLowerCase().startsWith(aiDir)), hostRows.map((row) => row.Path).join("; "));
     for (const row of rows.filter((candidate) => !hostRows.includes(candidate))) console.log(`    recorded, another process: PID ${row.PID} ${row.Module} ${row.Path}`);
   }
+
+  console.log("\n7. L8b.2: a model the manifest does not list is header-checked in the packaged host at import");
+  const importHeader = async (name: string, bytes: Buffer) => {
+    const file = path.join(localAppData, name);
+    fs.writeFileSync(file, bytes);
+    await app!.evaluate(({ dialog }, picked) => {
+      dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [picked] })) as typeof dialog.showOpenDialog;
+    }, file);
+    const result: any = await win.evaluate(() => (window as any).playwrightFlowStudio.ai.importModelPack());
+    const status: any = await win.evaluate(() => (window as any).playwrightFlowStudio.ai.getStatus());
+    return { result, status };
+  };
+  const llama = await importHeader("Llama-3-style.gguf", modelHeader({ arch: "llama", template: LLAMA3 }));
+  check("a Llama-3-template header imports as a registered model", llama.result?.ok === true && llama.result?.detail === "Llama-3-style.gguf", JSON.stringify(llama.result));
+  check(
+    "its header check failed on the chat template, and AI reads MODEL_INCOMPATIBLE",
+    llama.status?.modelPack?.status === "registered" && llama.status?.modelPack?.reason === "CHAT_TEMPLATE" && llama.status?.reason === "MODEL_INCOMPATIBLE",
+    JSON.stringify({ pack: llama.status?.modelPack, reason: llama.status?.reason })
+  );
+  const qwen2 = await importHeader("Qwen2-style.gguf", modelHeader());
+  check(
+    "a compatible header passes the check but stays unused until the L8b.3 probe (MODEL_UNCHECKED)",
+    qwen2.result?.ok === true && qwen2.status?.modelPack?.status === "registered" && qwen2.status?.modelPack?.reason === "STATIC_PASSED" && qwen2.status?.reason === "MODEL_UNCHECKED",
+    JSON.stringify({ pack: qwen2.status?.modelPack, reason: qwen2.status?.reason })
+  );
+  const afterCheck = await diagnostics();
+  check("the header checks left the host healthy (circuit closed)", afterCheck?.runtime?.circuitOpen === false, JSON.stringify(afterCheck?.runtime));
 } catch (error) {
   check("the packaged-app gate ran to completion", false, error instanceof Error ? error.message : String(error));
 } finally {

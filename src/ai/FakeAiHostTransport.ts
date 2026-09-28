@@ -38,7 +38,8 @@ import {
   type AiHostRequestPayload,
   type AiHostTransport,
   type AiInferRequest,
-  type AiInferResult
+  type AiInferResult,
+  type AiModelHeader
 } from "./contracts/AiHostProtocol";
 
 export interface FakeInferStep {
@@ -76,7 +77,22 @@ export interface FakeAiHostOptions {
   gpuPlan?: AiGpuPlan | { fail: AiHostReason };
   /** A Vulkan load with more layers than this fails with AI_GPU_LOAD_FAILED (out of memory). */
   gpuLoadFailAbove?: number;
+  /** What `inspect` answers (L8b.2), or the reason it fails with. Default: the curated Qwen3.5 header. */
+  header?: AiModelHeader | { fail: AiHostReason };
 }
+
+/** The facts the real host reads from the curated Qwen3.5 packs (measured in verify:ai-model-inspect). */
+export const FAKE_QWEN_HEADER: AiModelHeader = Object.freeze({
+  readable: true,
+  ggufVersion: 3,
+  architecture: "qwen35",
+  architectureKnown: true,
+  contextLength: 262144,
+  blockCount: 24,
+  tensorCount: 320,
+  unknownTensorTypes: 0,
+  chatTemplate: "chatml"
+});
 
 interface PendingInference {
   resolve: (result: AiInferResult) => void;
@@ -210,6 +226,13 @@ export class FakeAiHostTransport implements AiHostTransport {
         this.loadedPath = null;
         this.loadedGpuLayers = null;
         return { ...plan };
+      }
+      case "inspect": {
+        const rel = relative(this.modelRoot, resolvePath(request.modelPath));
+        if (!rel || rel.startsWith("..") || isAbsolute(rel)) throw new AiHostCallError("AI_MODEL_PATH_OUTSIDE_ROOT");
+        const header = this.options.header ?? FAKE_QWEN_HEADER;
+        if ("fail" in header) throw new AiHostCallError(header.fail);
+        return { ...header };
       }
       case "infer":
         return this.infer(request);

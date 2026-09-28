@@ -25,6 +25,7 @@ import {
   type BackendTrust
 } from "@src/ai/AiBackendPack";
 import { describeAdapters, toExecutionView, type AiGpuReadiness } from "@src/ai/AiExecutionProfile";
+import { runStaticStage, staticStanding } from "@src/ai/AiModelCompatibility";
 import { AiModelPackStore, type AiModelPackStatus } from "@src/ai/AiModelPack";
 import { revertAiAction } from "@src/ai/AiRevert";
 import { AiService, type AiServiceDeps } from "@src/ai/AiService";
@@ -207,8 +208,9 @@ export function getAiService(): AiService {
     model: async () => {
       const status = await modelPack().status();
       if (status.status === "missing") return { ok: false, reason: "MODEL_MISSING" };
-      // A model the manifest does not list is never loaded before its compatibility stages exist (L8b.1).
-      if (status.status === "registered") return { ok: false, reason: "MODEL_UNCHECKED" };
+      // A model the manifest does not list is never loaded before every compatibility stage passes: the
+      // static stage (L8b.2) can only refuse it, and the probe that could admit it is L8b.3.
+      if (status.status === "registered") return { ok: false, reason: staticFailure(status) ? "MODEL_INCOMPATIBLE" : "MODEL_UNCHECKED" };
       if (status.status !== "installed") return { ok: false, reason: "MODEL_INVALID" };
       return {
         ok: true,
@@ -247,12 +249,21 @@ export async function aiPolicyConfig(): Promise<AiPolicyConfig> {
   return { enabled: current.enabled, featureTiers: current.featureTiers, demotedFeatures: Object.keys(snapshot.demotions) };
 }
 
+/** A registered model failed the static stage (L8b.2) under the runtime in use. */
+function staticFailure(status: Extract<AiModelPackStatus, { status: "registered" }>): boolean {
+  const standing = staticStanding(status.staticCheck, AI_RUNTIME_PIN.build);
+  return standing !== null && standing !== "passed";
+}
+
 function packView(status: AiModelPackStatus): AiModelPackView {
   if (status.status === "installed") {
     return { status: "installed", reason: null, modelId: status.entry.id, displayName: status.entry.displayName };
   }
   if (status.status === "missing") return { status: "missing", reason: null, modelId: null, displayName: null };
-  if (status.status === "registered") return { status: "registered", reason: null, modelId: null, displayName: status.external.fileName };
+  if (status.status === "registered") {
+    const standing = staticStanding(status.staticCheck, AI_RUNTIME_PIN.build);
+    return { status: "registered", reason: standing === "passed" ? "STATIC_PASSED" : standing, modelId: null, displayName: status.external.fileName };
+  }
   return { status: status.status, reason: status.reason, modelId: null, displayName: null };
 }
 
@@ -402,6 +413,11 @@ export async function importAiModelPack(sourcePath: string): Promise<AiAdminResp
   const result = await modelPack()
     .import(sourcePath)
     .catch(() => ({ ok: false as const, code: "COPY_FAILED" as const }));
+  // A registered model's header is read in the host now (L8b.2); if it cannot be, the model stays unchecked.
+  if (result.ok && result.entry === null) {
+    const stage = await runStaticStage({ store: modelPack(), inspect: (file) => getAiService().inspectModel(file), runtimeBuild: AI_RUNTIME_PIN.build }).catch(() => "not-run");
+    logAi(stage === "not-run" ? "warn" : "info", `registered model header check: ${stage}`);
+  }
   if (result.ok) return { code: "OK", ok: true, detail: result.entry !== null ? result.entry.id : result.external.fileName };
   const messages: Record<string, string> = {
     NOT_A_FILE: "The selected item is not a file.",

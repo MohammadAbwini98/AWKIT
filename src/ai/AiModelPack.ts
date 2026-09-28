@@ -23,6 +23,8 @@
  *   L8b.3) exist.
  * - Every import first needs free space for the file plus headroom (`preflight` reports it), and fails
  *   closed when the space cannot be measured.
+ * - L8b.2: the host's static header verdict is recorded on it (`recordStaticCheck`) with the runtime
+ *   build that produced it; a new import registers the model again without one.
  */
 
 import { createHash } from "node:crypto";
@@ -35,6 +37,7 @@ import { pipeline } from "node:stream/promises";
 import { isValidAiModelManifestEntry, type AiModelManifestEntry } from "../offline/AiModelManifest";
 import { replaceFileAtomically } from "../storage/atomicReplace";
 import { runExclusive } from "../storage/folderWriteCoordinator";
+import { isAiStaticCheck, type AiStaticCheck } from "./AiModelCompatibility";
 
 /** A model the manifest does not list (L8b.1). `fileName` is the source's own name, shown, never used as a path. */
 export interface AiExternalModel {
@@ -43,11 +46,19 @@ export interface AiExternalModel {
   fileName: string;
 }
 
+/** The static stage's result (L8b.2), valid only for the runtime build that produced it. */
+export interface AiStaticCheckRecord {
+  runtimeBuild: string;
+  /** Null when every static check passed. */
+  failed: AiStaticCheck | null;
+  checkedAt: string;
+}
+
 export type AiModelPackStatus =
   | { status: "missing" }
   | { status: "installed"; entry: AiModelManifestEntry; installedAt: string }
-  /** Copied and hashed, compatibility not checked yet: never loaded (L8b.1). */
-  | { status: "registered"; external: AiExternalModel; installedAt: string }
+  /** Copied and hashed; not loaded until its compatibility stages pass (L8b.1, L8b.2). */
+  | { status: "registered"; external: AiExternalModel; installedAt: string; staticCheck: AiStaticCheckRecord | null }
   | { status: "invalid"; reason: "FILE_MISSING" | "SIZE_MISMATCH" | "HASH_MISMATCH" | "REGISTRY_UNREADABLE" }
   | { status: "incompatible"; reason: "NOT_IN_MANIFEST" };
 
@@ -73,7 +84,7 @@ export interface AiModelImportPreflight {
 interface Registry {
   schemaVersion: 1;
   /** `external` is present only for a model the manifest does not list; its absence is the pre-L8b shape. */
-  active: { sha256: string; installedAt: string; external?: { sizeBytes: number; fileName: string } } | null;
+  active: { sha256: string; installedAt: string; external?: { sizeBytes: number; fileName: string; staticCheck?: AiStaticCheckRecord } } | null;
 }
 
 const GGUF_MAGIC = "GGUF";
@@ -115,6 +126,19 @@ function isDisplayFileName(name: unknown): name is string {
     name !== ".." &&
     !/[\\/:*?"<>|]/.test(name) &&
     ![...name].some((char) => char.charCodeAt(0) < 32)
+  );
+}
+
+function isStaticCheckRecord(value: unknown): value is AiStaticCheckRecord {
+  if (typeof value !== "object" || value === null) return false;
+  const { runtimeBuild, failed, checkedAt } = value as Record<string, unknown>;
+  return (
+    typeof runtimeBuild === "string" &&
+    runtimeBuild.length >= 1 &&
+    runtimeBuild.length <= 200 &&
+    (failed === null || isAiStaticCheck(failed)) &&
+    typeof checkedAt === "string" &&
+    !Number.isNaN(Date.parse(checkedAt))
   );
 }
 
@@ -164,9 +188,12 @@ export class AiModelPackStore {
       const external: unknown = (active as { external?: unknown }).external;
       if (external === undefined) return { schemaVersion: 1, active: { sha256: active.sha256, installedAt: active.installedAt } };
       if (typeof external !== "object" || external === null) return "unreadable";
-      const { sizeBytes, fileName } = external as { sizeBytes?: unknown; fileName?: unknown };
+      const { sizeBytes, fileName, staticCheck } = external as { sizeBytes?: unknown; fileName?: unknown; staticCheck?: unknown };
       if (typeof sizeBytes !== "number" || !Number.isSafeInteger(sizeBytes) || sizeBytes <= 0 || !isDisplayFileName(fileName)) return "unreadable";
-      return { schemaVersion: 1, active: { sha256: active.sha256, installedAt: active.installedAt, external: { sizeBytes, fileName } } };
+      // Optional (L8b.2): an L8b.1 registry has none. A malformed one is a forged or damaged registry.
+      if (staticCheck !== undefined && !isStaticCheckRecord(staticCheck)) return "unreadable";
+      const checked = staticCheck === undefined ? {} : { staticCheck: { runtimeBuild: staticCheck.runtimeBuild, failed: staticCheck.failed, checkedAt: staticCheck.checkedAt } };
+      return { schemaVersion: 1, active: { sha256: active.sha256, installedAt: active.installedAt, external: { sizeBytes, fileName, ...checked } } };
     } catch {
       return "unreadable";
     }
@@ -198,7 +225,23 @@ export class AiModelPackStore {
     if (this.verified.get(active.sha256)?.ok === false) return { status: "invalid", reason: "HASH_MISMATCH" };
     // A model registered before a release listed it reads as that curated entry from then on.
     if (entry) return { status: "installed", entry, installedAt: active.installedAt };
-    return { status: "registered", external: { sha256: active.sha256, ...active.external! }, installedAt: active.installedAt };
+    const { sizeBytes, fileName, staticCheck } = active.external!;
+    return { status: "registered", external: { sha256: active.sha256, sizeBytes, fileName }, installedAt: active.installedAt, staticCheck: staticCheck ?? null };
+  }
+
+  /**
+   * Record the static stage's result (L8b.2) on the registered model it was run on. False, and nothing
+   * written, when that model is no longer the active registered one: a verdict never moves to a replacement.
+   */
+  recordStaticCheck(sha256: string, check: AiStaticCheckRecord): Promise<boolean> {
+    return runExclusive(this.modelsDir, async () => {
+      if (!isStaticCheckRecord(check)) return false;
+      const registry = await this.readRegistry();
+      if (registry === "unreadable" || registry.active?.sha256 !== sha256 || !registry.active.external) return false;
+      const { sizeBytes, fileName } = registry.active.external;
+      await this.writeRegistry({ schemaVersion: 1, active: { ...registry.active, external: { sizeBytes, fileName, staticCheck: { ...check } } } });
+      return true;
+    });
   }
 
   /** What importing `sourcePath` would need, measured before anything is copied (L8b.1). */
