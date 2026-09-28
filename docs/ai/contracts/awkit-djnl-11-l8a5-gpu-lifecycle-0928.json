@@ -27,6 +27,7 @@
     "activated_agents": [
       "manager",
       "architect",
+      "uiux",
       "frontend",
       "software",
       "runtime",
@@ -60,7 +61,9 @@
       ".beads/issues.jsonl"
     ],
     "consultants": [
-      "architect"
+      "architect",
+      "uiux",
+      "runtime"
     ],
     "reviewers": [
       "qa",
