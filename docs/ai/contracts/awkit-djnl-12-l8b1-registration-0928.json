@@ -218,5 +218,25 @@
     "status": "implemented",
     "qa_status": "PASS",
     "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-12-l8b1-registration-0928:project-state:2026-09-28T13:38:28.762Z",
+        "task": "awkit-djnl-12-l8b1-registration-0928",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/issues.jsonl"
+        ],
+        "acquired_at": "2026-09-28T13:38:28.762Z",
+        "acquired_at_commit": "817ba8fc5a3878f09641b9e4c84f4a81d970bd68",
+        "released_at": "2026-09-28T13:39:14.544Z",
+        "released_reason": "Beads note for L8b.1 exported and committed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
   }
 }
