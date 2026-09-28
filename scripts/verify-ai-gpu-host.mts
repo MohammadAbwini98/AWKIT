@@ -22,10 +22,16 @@
  * It also records how a loaded host behaves while other GPU hosts take the adapter's VRAM. A cancel
  * that lands after the inference finished is INCONCLUSIVE (exit 2), never a pass.
  *
+ * `--packaged` (L8a.5, npm run verify:ai-gpu-packaged) runs both modes against dist/win-unpacked's AI
+ * tree: the packaged host, the packaged pinned runtime and CPU prebuilt, and pack trust from the packaged
+ * signed manifest and runtime DLLs. The source managers and service drive it in a real Electron utility
+ * process, as the L8a.0 gate did. The packaged EXE's own CPU path is verify:ai-packaged-app. A package
+ * whose host differs from the source host is stale and FAILS, and a missing package exits 2.
+ *
  * Run: npm run verify:ai-gpu-host
  */
 
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -33,12 +39,16 @@ import { AiBackendPackStore, backendTrustSources, resolveBackendTrust } from "@s
 import { AI_BACKEND_MANIFEST, AI_MODEL_MANIFEST, AI_RUNTIME_PIN } from "@src/offline/AiModelManifest";
 import { readSignedDependencyManifest } from "@src/offline/SupplyChainIntegrity";
 
-import { HOST_PATH, ROOT, buildAiHarness, measurePack, printSteps, runAiHarness, runtimeInstalled, stageModelRoot } from "./ai-harness/launch.mts";
+import { HOST_PATH, ROOT, buildAiHarness, measurePack, printSteps, runAiHarness, runtimeInstalled, stageModelRoot, type HarnessReport } from "./ai-harness/launch.mts";
 
 const lifecycle = process.argv.includes("--lifecycle");
+const packaged = process.argv.includes("--packaged");
 /** L1.8: a cancel settles within 3 s, on every backend. */
 const CANCEL_CEILING_MS = 3_000;
 let inconclusive = 0;
+const packagedResources = path.join(ROOT, "dist", "win-unpacked", "resources");
+const hostPath = packaged ? path.join(packagedResources, "native-hosts", "ai", "ai-host.cjs") : HOST_PATH;
+const modes = packaged ? ["gpu", "gpuLifecycle"] : [lifecycle ? "gpuLifecycle" : "gpu"];
 
 let passed = 0;
 let failed = 0;
@@ -60,10 +70,17 @@ const PACK_NAME = "Qwen3.5-0.8B-Q4_K_M.gguf";
 const installedVulkan = path.join(ROOT, "node_modules", "@node-llama-cpp", "win-x64-vulkan");
 
 console.log(
-  lifecycle
-    ? "verify:ai-gpu-lifecycle — L8a.5 cancel, kill-restart-reload and VRAM exhaustion on the real Vulkan host\n"
-    : "verify:ai-gpu-host — L8a.3 modes on the real CPU and Vulkan hosts\n"
+  packaged
+    ? "verify:ai-gpu-packaged — L8a.3 modes and L8a.5 lifecycle on dist/win-unpacked's AI tree\n"
+    : lifecycle
+      ? "verify:ai-gpu-lifecycle — L8a.5 cancel, kill-restart-reload and VRAM exhaustion on the real Vulkan host\n"
+      : "verify:ai-gpu-host — L8a.3 modes on the real CPU and Vulkan hosts\n"
 );
+if (packaged) {
+  if (!existsSync(hostPath)) notRun("no dist/win-unpacked AI tree: run npm run package:portable first");
+  // A package older than the host it should carry is stale evidence, never a pass.
+  check("the packaged host is the source host, byte for byte (the package is not stale)", readFileSync(hostPath).equals(readFileSync(HOST_PATH)));
+}
 const runtime = runtimeInstalled();
 if (!runtime.installed || runtime.build !== AI_RUNTIME_PIN.build) notRun(`the pinned runtime ${AI_RUNTIME_PIN.build} is not installed`);
 const entry = AI_BACKEND_MANIFEST.find((candidate) => candidate.id === "vulkan");
@@ -86,7 +103,7 @@ try {
     copyFileSync(path.join(installedVulkan, ...file.path.split("/")), target);
   }
   const backendsRoot = path.join(scratch, "backends");
-  const sources = backendTrustSources({ packaged: false, resourcesPath: "", appPath: ROOT });
+  const sources = backendTrustSources(packaged ? { packaged: true, resourcesPath: packagedResources, appPath: ROOT } : { packaged: false, resourcesPath: "", appPath: ROOT });
   const store = new AiBackendPackStore({
     root: backendsRoot,
     entry,
@@ -97,71 +114,24 @@ try {
   check("the pinned Vulkan pack imports through the production store and trust chain", imported.ok, JSON.stringify(imported));
   if (!imported.ok) throw new Error("import failed");
 
-  const report = await runAiHarness(
-    harnessDir,
-    {
-      AWKIT_HARNESS_MODE: lifecycle ? "gpuLifecycle" : "gpu",
-      AWKIT_HARNESS_HOST_PATH: HOST_PATH,
-      AWKIT_HARNESS_MODEL_ROOT: staged.modelRoot,
-      AWKIT_HARNESS_MODEL_PATH: staged.modelPath,
-      AWKIT_HARNESS_MODEL_ID: model.id,
-      AWKIT_HARNESS_BACKENDS_ROOT: backendsRoot,
-      AWKIT_HARNESS_THREADS: String(Math.max(1, Math.min(8, os.cpus().length - 2)))
-    },
-    { timeoutMs: lifecycle ? 1_500_000 : 540_000 }
-  );
-  if (!report) {
-    check("the harness wrote a report", false, "no report: Electron never reached app.whenReady() or timed out");
-  } else if (lifecycle) {
-    printSteps(report, check);
-    check("the harness finished", report.complete === true, `stopped in: ${String(report.inFlight)}`);
-    check("no raw model or pack path reached the managers' log", !(report.log ?? []).some((line) => line.includes(staged.modelRoot) || line.includes(backendsRoot)));
-    console.log(`\n  · plan: ${JSON.stringify(report.plan)}`);
-    type Cancel = { latencyMs: number; cancelAfterMs: number; settledBy: string } | null;
-    type Placement = { layers: number; cold?: unknown; baseline?: unknown; cancelDuringPrompt?: Cancel; cancelDuringGeneration?: Cancel; killRestartReload?: Record<string, number | boolean> | null };
-    const placements = (report.placements ?? {}) as Record<string, Placement>;
-    check("both placements were measured", Object.keys(placements).length === 2, Object.keys(placements).join());
-    for (const [key, placement] of Object.entries(placements)) {
-      console.log(`\n  ${key} (${placement.layers} layers on the GPU)`);
-      console.log(`  · cold: ${JSON.stringify(placement.cold)}`);
-      console.log(`  · long prompt, uncancelled: ${JSON.stringify(placement.baseline)}`);
-      for (const [phase, measured] of [["prompt processing", placement.cancelDuringPrompt], ["generation", placement.cancelDuringGeneration]] as const) {
-        if (!measured) continue; // its step already failed above
-        if (measured.settledBy === "host" || measured.settledBy === "kill") {
-          check(
-            `${key}: a cancel during ${phase} settled in ${measured.latencyMs} ms (by the ${measured.settledBy}), within the ${CANCEL_CEILING_MS} ms L1.8 ceiling`,
-            measured.latencyMs <= CANCEL_CEILING_MS,
-            JSON.stringify(measured)
-          );
-        } else {
-          inconclusive += 1;
-          console.log(`  ? ${key}: cancel during ${phase} INCONCLUSIVE — the inference ${measured.settledBy} before the cancel landed at ${measured.cancelAfterMs} ms`);
-        }
-      }
-      const back = placement.killRestartReload;
-      if (back) {
-        check(`${key}: a host killed from outside is one unexpected exit, and the circuit stays closed`, back.strikes === 1 && back.circuitOpen === false, JSON.stringify(back));
-        console.log(`  · killed → back with the model: exit seen ${back.exitSeenMs} ms, re-fork + guard + handshake ${back.restartMs} ms, reload ${back.reloadMs} ms, total ${back.totalMs} ms`);
-      }
-    }
-    console.log(`\n  · exhaustion (observations): ${JSON.stringify(report.exhaustion, null, 2)}`);
-    const nvidia = Array.isArray(report.adapters) && (report.adapters as Array<{ nvidia: boolean }>).some((adapter) => adapter.nvidia);
-    console.log(nvidia ? "" : "\n  · NVIDIA qualification: BLOCKED — MECHANICS on this machine's adapter; they qualify nothing (E11).");
-  } else {
-    printSteps(report, check);
-    check("the harness ran every step", report.steps.length >= 20, `${report.steps.length} steps`);
-    check("no raw model or pack path reached the managers' log", !(report.log ?? []).some((line) => line.includes(staged.modelRoot) || line.includes(backendsRoot)));
-    console.log(`\n  · adapters: ${JSON.stringify(report.adapters)}`);
-    console.log(`  · product readiness: ${JSON.stringify(report.productReadiness)}`);
-    console.log(`  · plan: ${JSON.stringify(report.plan)}`);
-    console.log(`  · load: ${JSON.stringify(report.load)}`);
-    console.log(`  · pack guard runs: ${String(report.guardRuns)}`);
-    const nvidia = Array.isArray(report.adapters) && (report.adapters as Array<{ nvidia: boolean }>).some((adapter) => adapter.nvidia);
-    console.log(
-      nvidia
-        ? "  · an NVIDIA adapter is present: the MECHANICS steps ran on it."
-        : "  · NVIDIA qualification: BLOCKED — no 0x10DE adapter on this machine (E11); the MECHANICS steps ran on a non-NVIDIA adapter and qualify nothing."
+  for (const mode of modes) {
+    if (packaged) console.log(`\n── ${mode === "gpu" ? "L8a.3 modes" : "L8a.5 lifecycle"} on the packaged AI tree ──\n`);
+    const report = await runAiHarness(
+      harnessDir,
+      {
+        AWKIT_HARNESS_MODE: mode,
+        AWKIT_HARNESS_HOST_PATH: hostPath,
+        AWKIT_HARNESS_MODEL_ROOT: staged.modelRoot,
+        AWKIT_HARNESS_MODEL_PATH: staged.modelPath,
+        AWKIT_HARNESS_MODEL_ID: model.id,
+        AWKIT_HARNESS_BACKENDS_ROOT: backendsRoot,
+        AWKIT_HARNESS_THREADS: String(Math.max(1, Math.min(8, os.cpus().length - 2)))
+      },
+      { timeoutMs: mode === "gpuLifecycle" ? 1_500_000 : 540_000 }
     );
+    if (!report) check(`the ${mode} harness wrote a report`, false, "no report: Electron never reached app.whenReady() or timed out");
+    else if (mode === "gpuLifecycle") reportLifecycle(report, [staged.modelRoot, backendsRoot]);
+    else reportModes(report, [staged.modelRoot, backendsRoot]);
   }
 } finally {
   rmSync(harnessDir, { recursive: true, force: true });
@@ -171,3 +141,62 @@ try {
 
 console.log(`\n${passed} passed, ${failed} failed${inconclusive ? `, ${inconclusive} inconclusive` : ""}`);
 process.exit(failed === 0 && passed > 0 ? (inconclusive > 0 ? 2 : 0) : 1);
+
+function noPrivatePath(report: HarnessReport, privatePaths: string[]): void {
+  check("no raw model or pack path reached the managers' log", !(report.log ?? []).some((line) => privatePaths.some((hidden) => line.includes(hidden))));
+}
+
+function nvidiaLine(report: HarnessReport): string {
+  const nvidia = Array.isArray(report.adapters) && (report.adapters as Array<{ nvidia: boolean }>).some((adapter) => adapter.nvidia);
+  return nvidia
+    ? "  · an NVIDIA adapter is present: the MECHANICS steps ran on it."
+    : "  · NVIDIA qualification: BLOCKED — no 0x10DE adapter on this machine (E11); the MECHANICS steps ran on a non-NVIDIA adapter and qualify nothing.";
+}
+
+function reportModes(report: HarnessReport, privatePaths: string[]): void {
+  printSteps(report, check);
+  check("the harness ran every step", report.steps.length >= 20, `${report.steps.length} steps`);
+  noPrivatePath(report, privatePaths);
+  console.log(`\n  · adapters: ${JSON.stringify(report.adapters)}`);
+  console.log(`  · product readiness: ${JSON.stringify(report.productReadiness)}`);
+  console.log(`  · plan: ${JSON.stringify(report.plan)}`);
+  console.log(`  · load: ${JSON.stringify(report.load)}`);
+  console.log(`  · pack guard runs: ${String(report.guardRuns)}`);
+  console.log(nvidiaLine(report));
+}
+
+function reportLifecycle(report: HarnessReport, privatePaths: string[]): void {
+  printSteps(report, check);
+  check("the harness finished", report.complete === true, `stopped in: ${String(report.inFlight)}`);
+  noPrivatePath(report, privatePaths);
+  console.log(`\n  · plan: ${JSON.stringify(report.plan)}`);
+  type Cancel = { latencyMs: number; cancelAfterMs: number; settledBy: string } | null;
+  type Placement = { layers: number; cold?: unknown; baseline?: unknown; cancelDuringPrompt?: Cancel; cancelDuringGeneration?: Cancel; killRestartReload?: Record<string, number | boolean> | null };
+  const placements = (report.placements ?? {}) as Record<string, Placement>;
+  check("both placements were measured", Object.keys(placements).length === 2, Object.keys(placements).join());
+  for (const [key, placement] of Object.entries(placements)) {
+    console.log(`\n  ${key} (${placement.layers} layers on the GPU)`);
+    console.log(`  · cold: ${JSON.stringify(placement.cold)}`);
+    console.log(`  · long prompt, uncancelled: ${JSON.stringify(placement.baseline)}`);
+    for (const [phase, measured] of [["prompt processing", placement.cancelDuringPrompt], ["generation", placement.cancelDuringGeneration]] as const) {
+      if (!measured) continue; // its step already failed above
+      if (measured.settledBy === "host" || measured.settledBy === "kill") {
+        check(
+          `${key}: a cancel during ${phase} settled in ${measured.latencyMs} ms (by the ${measured.settledBy}), within the ${CANCEL_CEILING_MS} ms L1.8 ceiling`,
+          measured.latencyMs <= CANCEL_CEILING_MS,
+          JSON.stringify(measured)
+        );
+      } else {
+        inconclusive += 1;
+        console.log(`  ? ${key}: cancel during ${phase} INCONCLUSIVE — the inference ${measured.settledBy} before the cancel landed at ${measured.cancelAfterMs} ms`);
+      }
+    }
+    const back = placement.killRestartReload;
+    if (back) {
+      check(`${key}: a host killed from outside is one unexpected exit, and the circuit stays closed`, back.strikes === 1 && back.circuitOpen === false, JSON.stringify(back));
+      console.log(`  · killed → back with the model: exit seen ${back.exitSeenMs} ms, re-fork + guard + handshake ${back.restartMs} ms, reload ${back.reloadMs} ms, total ${back.totalMs} ms`);
+    }
+  }
+  console.log(`\n  · exhaustion (observations): ${JSON.stringify(report.exhaustion, null, 2)}`);
+  console.log(`\n${nvidiaLine(report)}`);
+}
