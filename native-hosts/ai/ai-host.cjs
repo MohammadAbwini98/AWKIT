@@ -21,7 +21,8 @@
  * beside the host, not pulled into an electron-vite chunk.
  *
  * It is also the only place a GGUF header is parsed (L8b.2, `inspect`): the main process never reads
- * one, so a model file the administrator imported is only ever interpreted in this process.
+ * one, so a model file the administrator imported is only ever interpreted in this process. The same
+ * holds for the L8b.3 `probe`, which loads such a model once to prove it answers with thinking off.
  */
 
 "use strict";
@@ -56,6 +57,20 @@ const ARCHITECTURE_NAME = /^[a-z0-9_.-]{1,64}$/;
  * manager's inspect deadline, so the host answers first and the queue is free for the next request.
  */
 const INSPECT_DEADLINE_MS = 20000;
+
+/**
+ * The dynamic stage (L8b.3). Mirrors AI_PROBE in src/ai/contracts/AiHostProtocol.ts; verify:ai-host
+ * checks the two agree. The question is the host's own, never caller text.
+ */
+const PROBE = Object.freeze({
+  system: "You answer with JSON only.",
+  user: "Is water wet? Answer yes or no.",
+  schema: { type: "object", properties: { answer: { type: "string", enum: ["yes", "no"] } }, required: ["answer"], additionalProperties: false },
+  thinkTokens: 16,
+  outputTokens: 32
+});
+/** How a think block opens in a model's own detokenized text, special tokens shown. */
+const THINK_OPEN = "<think>";
 
 /**
  * Qwen3.5 chat template with thinking disabled: the template's `enable_thinking: false` branch
@@ -514,6 +529,77 @@ async function inspect(req) {
   };
 }
 
+/**
+ * The dynamic stage (L8b.3), on the CPU host only. It loads the confined model as `load` does, then:
+ *  1. generates PROBE.thinkTokens tokens UNCONSTRAINED and greedy after the product's own thinking-off
+ *     prompt, and reports only whether they opened a think block; their text never leaves this process;
+ *  2. answers PROBE.schema under its grammar, which the main process validates like any product answer.
+ * The model is released afterwards whatever happens, so the probe leaves nothing loaded. A model the
+ * runtime cannot load is `loaded: false`, an answer; a runtime that cannot start is an error (not run).
+ */
+async function probe(req) {
+  if (BACKEND !== "cpu") throw new HostError("AI_PROTOCOL_VIOLATION");
+  const modelPath = confineModelPath(req.modelPath);
+  const contextSize = boundedInt(req.contextTokens, 256, AI_CONTEXT_TOKENS);
+  const threads = boundedInt(req.threads, 1, MAX_THREADS);
+  if (contextSize === null || threads === null || typeof req.jobId !== "string" || !JOB_ID.test(req.jobId)) {
+    throw new HostError("AI_PROTOCOL_VIOLATION");
+  }
+  await releaseModel();
+  const runtime = await runtimeModule();
+  const instance = await ensureLlama(threads);
+  const started = performance.now();
+  let model = null;
+  let context = null;
+  try {
+    try {
+      model = await instance.loadModel({ modelPath, gpuLayers: 0, useMmap: true, useMlock: false });
+      context = await model.createContext({ contextSize, threads, batchSize: Math.min(512, contextSize), sequences: 1 });
+    } catch {
+      return { loaded: false };
+    }
+    const loadMs = Math.round(performance.now() - started);
+    const outcome = (fields) => ({ loaded: true, loadMs, thinkingOff: false, text: "", ...fields });
+    if (earlyCancels.delete(req.jobId)) return outcome({ stopReason: "cancelled" });
+    const sequence = context.getSequence();
+    const completion = new runtime.LlamaCompletion({ contextSequence: sequence });
+    const tokens = chatPrompt(runtime, PROBE.system, PROBE.user).tokenize(model.tokenizer);
+    const stop = new AbortController();
+    active = { jobId: req.jobId, controller: stop };
+    try {
+      const opened = [];
+      await completion.generateCompletionWithMeta(tokens, {
+        maxTokens: PROBE.thinkTokens,
+        signal: stop.signal,
+        stopOnAbortSignal: false,
+        temperature: 0,
+        seed: 0,
+        onToken(chunk) {
+          opened.push(...chunk);
+        }
+      });
+      const thinkingOff = !model.detokenize(opened, true).includes(THINK_OPEN);
+      await sequence.clearHistory();
+      const answer = await completion.generateCompletionWithMeta(tokens, {
+        grammar: await grammarFor(toGrammarSchema(PROBE.schema, 0)),
+        maxTokens: PROBE.outputTokens,
+        signal: stop.signal,
+        stopOnAbortSignal: false,
+        temperature: 0,
+        seed: 0
+      });
+      if (answer.metadata.stopReason === "abort") return outcome({ thinkingOff, stopReason: "cancelled" });
+      return outcome({ thinkingOff, text: answer.response, stopReason: answer.metadata.stopReason === "maxTokens" ? "length" : "stop" });
+    } catch {
+      return outcome({ stopReason: stop.signal.aborted ? "cancelled" : "failed" });
+    }
+  } finally {
+    active = null;
+    if (context) await context.dispose().catch(() => undefined);
+    if (model) await model.dispose().catch(() => undefined);
+  }
+}
+
 async function infer(req) {
   if (!loaded) throw new HostError("AI_MODEL_NOT_LOADED");
   if (!isPlainObject(req.jsonSchema)) throw new HostError("AI_SCHEMA_REQUIRED");
@@ -616,6 +702,7 @@ const SERIAL = new Map([
   ["load", load],
   ["gpuPlan", gpuPlan],
   ["inspect", inspect],
+  ["probe", probe],
   ["infer", infer],
   ["unload", unload],
   ["shutdown", shutdown]
