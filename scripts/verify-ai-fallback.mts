@@ -94,6 +94,13 @@ console.log("Degraded modes return a code and never touch the host:\n");
       state: "MODEL_INVALID"
     },
     {
+      // L8b.1: a registered model the manifest does not list is never loaded before it is checked.
+      label: "a registered model not yet checked for compatibility",
+      build: (fake) => service({ transport: fake, model: async () => ({ ok: false, reason: "MODEL_UNCHECKED" }) }),
+      want: "UNAVAILABLE/MODEL_UNCHECKED",
+      state: "MODEL_UNCHECKED"
+    },
+    {
       label: "a model resolver that throws",
       build: (fake) =>
         service({

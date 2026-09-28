@@ -28,7 +28,7 @@
 
 import { createHash, randomBytes } from "node:crypto";
 import { createReadStream, createWriteStream, realpath as realpathCallback } from "node:fs";
-import { lstat, mkdir, open, readdir, readFile, rm, stat, statfs, unlink, writeFile } from "node:fs/promises";
+import { lstat, mkdir, open, readdir, readFile, rm, stat, unlink, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, posix, relative } from "node:path";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
@@ -37,7 +37,7 @@ import { promisify } from "node:util";
 import { isValidAiBackendManifestEntry, type AiBackendFile, type AiBackendManifestEntry, type AiGpuBackend } from "../offline/AiModelManifest";
 import { replaceFileAtomically } from "../storage/atomicReplace";
 import { runExclusive } from "../storage/folderWriteCoordinator";
-import { sha256File } from "./AiModelPack";
+import { measureFreeBytes, sha256File } from "./AiModelPack";
 
 /** The Visual C++ runtime every pack binary imports (L8a.0). Always the app's own copies, never the pack's. */
 export const AI_BACKEND_VC_RUNTIME: readonly string[] = Object.freeze(["msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll"]);
@@ -433,15 +433,6 @@ export interface AiBackendPackOptions {
     afterStage?: (staging: string) => Promise<void>;
     beforePromote?: () => Promise<void>;
   };
-}
-
-async function measureFreeBytes(dir: string): Promise<number | null> {
-  try {
-    const info = await statfs(dir);
-    return Number(info.bavail) * Number(info.bsize);
-  } catch {
-    return null;
-  }
 }
 
 /** Remove one entry of ours without ever following a link or junction out of the backends root. */

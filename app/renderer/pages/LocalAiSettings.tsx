@@ -40,6 +40,7 @@ const STATE_LABELS: Record<string, string> = {
   CIRCUIT_OPEN: "Stopped after repeated runtime crashes",
   MODEL_MISSING: "No model pack imported",
   MODEL_INVALID: "The model pack failed verification",
+  MODEL_UNCHECKED: "The registered model has not been checked for compatibility, so it is not used",
   GPU_UNAVAILABLE: "Unavailable: GPU-Only refused to load the model",
   SHUTDOWN: "Shutting down"
 };
@@ -76,6 +77,7 @@ function stateLabel(status: AiStatusView): string {
 
 function packLabel(pack: AiStatusView["modelPack"]): string {
   if (pack.status === "installed") return pack.displayName ?? "Installed";
+  if (pack.status === "registered") return `${pack.displayName ?? "Registered model"}: registered, not checked for compatibility yet (not used)`;
   const base = PACK_LABELS[pack.status] ?? pack.status;
   return pack.reason ? `${base}: ${PACK_LABELS[pack.reason] ?? pack.reason}` : base;
 }
@@ -162,7 +164,7 @@ export function LocalAiSettings() {
       if (response.code !== "IMPORT_CANCELLED") return response;
       cancelled = true;
       return { code: "OK", ok: true };
-    }, "Model pack imported and verified.");
+    }, "Model copied into the app's data folder and checksummed. Its status is below.");
     // A closed file dialog is not a success worth announcing.
     if (cancelled) action.dismiss();
     await load();
@@ -176,7 +178,8 @@ export function LocalAiSettings() {
     void runThenReload(() => api().updateSettings({ featureTiers }), `${FEATURE_LABELS[feature]} set to ${TIER_LABELS[tier]}.`);
   };
 
-  const installed = status?.modelPack.status === "installed";
+  // A registered model (L8b.1) can be replaced and removed like a curated pack.
+  const installed = status?.modelPack.status === "installed" || status?.modelPack.status === "registered";
 
   return (
     <section className="work-panel settings-card" aria-labelledby="settings-local-ai-title">

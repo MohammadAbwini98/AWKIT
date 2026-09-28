@@ -207,6 +207,8 @@ export function getAiService(): AiService {
     model: async () => {
       const status = await modelPack().status();
       if (status.status === "missing") return { ok: false, reason: "MODEL_MISSING" };
+      // A model the manifest does not list is never loaded before its compatibility stages exist (L8b.1).
+      if (status.status === "registered") return { ok: false, reason: "MODEL_UNCHECKED" };
       if (status.status !== "installed") return { ok: false, reason: "MODEL_INVALID" };
       return {
         ok: true,
@@ -250,6 +252,7 @@ function packView(status: AiModelPackStatus): AiModelPackView {
     return { status: "installed", reason: null, modelId: status.entry.id, displayName: status.entry.displayName };
   }
   if (status.status === "missing") return { status: "missing", reason: null, modelId: null, displayName: null };
+  if (status.status === "registered") return { status: "registered", reason: null, modelId: null, displayName: status.external.fileName };
   return { status: status.status, reason: status.reason, modelId: null, displayName: null };
 }
 
@@ -333,7 +336,7 @@ export async function aiDiagnosticsView(): Promise<AiDiagnosticsView> {
   ]);
   const host = hostManager?.status();
   const gpuHost = gpuHostManager?.status();
-  const installed = pack.status === "installed" ? pack.entry : null;
+  const installed = pack.status === "installed" ? pack.entry : pack.status === "registered" ? pack.external : null;
   return {
     runtime: {
       included: resolveHostPath() !== null,
@@ -399,12 +402,11 @@ export async function importAiModelPack(sourcePath: string): Promise<AiAdminResp
   const result = await modelPack()
     .import(sourcePath)
     .catch(() => ({ ok: false as const, code: "COPY_FAILED" as const }));
-  if (result.ok) return { code: "OK", ok: true, detail: result.entry.id };
+  if (result.ok) return { code: "OK", ok: true, detail: result.entry !== null ? result.entry.id : result.external.fileName };
   const messages: Record<string, string> = {
     NOT_A_FILE: "The selected item is not a file.",
     NOT_GGUF: "The selected file is not a GGUF model.",
-    SIZE_NOT_IN_MANIFEST: "This model pack is not one this version of SpecterStudio accepts.",
-    NOT_IN_MANIFEST: "This model pack's checksum is not one this version of SpecterStudio accepts.",
+    INSUFFICIENT_SPACE: "There is not enough free disk space in the app's data folder for this model and 256 MB to spare.",
     COPY_FAILED: "The model pack could not be copied into the app's data folder."
   };
   return { code: "IMPORT_REFUSED", ok: false, detail: result.code, message: messages[result.code] };

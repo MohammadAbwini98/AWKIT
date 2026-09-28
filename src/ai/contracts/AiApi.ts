@@ -50,7 +50,8 @@ export interface AiAdminResponse {
 }
 
 export interface AiModelPackView {
-  status: "missing" | "installed" | "invalid" | "incompatible";
+  /** `registered` (L8b.1): a model the manifest does not list, copied but not checked for compatibility, never loaded. */
+  status: "missing" | "installed" | "registered" | "invalid" | "incompatible";
   reason: string | null;
   modelId: string | null;
   displayName: string | null;

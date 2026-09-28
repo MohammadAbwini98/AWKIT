@@ -720,7 +720,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   },
   "verify:ai-model-pack": {
     class: "integration",
-    why: "Real temp-folder AiModelPackStore with synthetic GGUF files and an injected manifest: format/size/checksum refusals leave nothing behind, single-pass hashed import, cheap status plus once-per-session load verification catching tamper/truncate/delete, retirement, replacement sweep and removal; then checks the production AiModelManifest entries."
+    why: "Real temp-folder AiModelPackStore with synthetic GGUF files and an injected manifest: format refusals and the free-space gate (file plus 256 MB, fail closed when unmeasurable) leave nothing behind, single-pass hashed import, cheap status plus once-per-session load verification catching tamper/truncate/delete, retirement, replacement sweep and removal. L8b.1 (E7): the preflight measures and copies nothing; a GGUF the manifest does not list is registered (stored under its SHA-256, the source's name kept for display only, never curated, never loaded) with tamper, swap, deletion and symlinked-source checks; forged registries read unreadable and pre-L8b registries load unchanged. Then checks the production AiModelManifest entries."
   },
   "verify:ai-audit-revert": {
     class: "integration",

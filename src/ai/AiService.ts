@@ -117,6 +117,8 @@ export type AiUnavailableReason =
   | "CIRCUIT_OPEN"
   | "MODEL_MISSING"
   | "MODEL_INVALID"
+  /** A registered model the manifest does not list, not yet checked for compatibility (L8b.1). */
+  | "MODEL_UNCHECKED"
   /** GPU-Only refused; the execution profile names why. */
   | "GPU_UNAVAILABLE"
   | "SHUTDOWN";
@@ -157,7 +159,7 @@ export interface AiServiceSettings {
 
 export type AiModelResolution =
   | { ok: true; modelId: string; modelPath: string; contextTokens: number }
-  | { ok: false; reason: "MODEL_MISSING" | "MODEL_INVALID" };
+  | { ok: false; reason: "MODEL_MISSING" | "MODEL_INVALID" | "MODEL_UNCHECKED" };
 
 export interface AiServiceDeps {
   /** The host for a backend; null when it is not part of this build. The CPU host decides "runtime missing". */
