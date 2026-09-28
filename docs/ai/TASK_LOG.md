@@ -1,6 +1,65 @@
 # TASK_LOG
 
-## 2026-09-27 (latest) — L8a.3 host protocol, three execution modes, offload sizing, fallback/refusal reasons (Claude)
+## 2026-09-28 (latest) — L8a.4 Settings UI and GPU diagnostics: verification, mutation coverage, closeout (Claude)
+
+- **Task:** close L8a.4 from the L8a plan. The product was committed as `0b121998` in an earlier
+  session that stopped at its usage limit. No L8a.5 work.
+- **Result:** implemented under contract `awkit-djnl-11-l8a4-settings-diagnostics-0928`. QA PASS, QC
+  pending.
+- **Found and fixed at closeout** (both unrun in the product session):
+  - `typecheck:scripts` FAIL: `scripts/verify-element-spy.mts` built an `AiExecutionView` without
+    `vram`, `applied`, `modelLoaded`, `stage` and `gpuReadiness`;
+  - `verify:ai-permissions` 116/1: the packaged-build check counted exactly two readers of the test
+    provider variable, and `testGpuFixture` added a third. The code was still gated. The check now
+    also requires `testGpuFixture` to return on `app.isPackaged` before reading either variable,
+    with exact counts.
+- **New coverage:**
+  - `verify:ai-gpu-modes` section G, 26 checks:
+    - load stages observed at each readiness check, model verification and host request;
+    - the current-setting sequence: fallback, reserve-only change, mode change, GPU-Only refusal
+      under the new settings, reserve-only lift, success under another configuration, mode-only
+      toggle;
+    - the plan's VRAM figures, and none where no plan ran.
+  - `verify:ai-settings-gui`: a reserve-only change releases the idle model, and the next load
+    reads as current.
+- **Mutations: 11/11 caught, all reverted** (production sources byte-identical to `HEAD` afterwards):
+
+  | Mutation | Caught by | Result |
+  |---|---|---|
+  | A1 `executionApplied` ignores the key | gpu-modes | 160/4 |
+  | A2 `toExecutionView` ignores `applied` | gpu-modes | 161/3 |
+  | A3 GPU-Only unavailability survives a change | gpu-modes | 163/1 |
+  | B1 no idle release | settings-gui | 122/124 |
+  | B2 release on a mode change only | settings-gui | 123/124 (new step only) |
+  | C out-of-range reserve clamped | gpu-modes | 162/2 |
+  | D GPU-Only falls back | gpu-modes | 125/39 |
+  | E1 fallback reason dropped | gpu-modes | 148/16 |
+  | E2 reason sentence dropped | gpu-modes | 162/2 |
+  | F fixture without `app.isPackaged` | ai-permissions | 119/1 |
+  | G stage never cleared | gpu-modes | 156/8 |
+
+- **Files:**
+  - `scripts/{verify-ai-gpu-modes,verify-ai-permissions,verify-element-spy}.mts`,
+    `scripts/verify-ai-settings-gui.mjs`, `scripts/lib/verifier-classification.ts`;
+  - the contract; `docs/plans/ai-upgrade-v5/L8a-hardware-adaptive-inference-runtime.md` and
+    `evidence/L5a-overhead-gate.json` (run 16);
+  - `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md`, `.beads/issues.jsonl`.
+- **Verification (final state):**
+  - PASS: build; `typecheck:scripts`; `verify:ai-settings-gui` 124/124; `verify:ai-gpu-modes`
+    164/0; `verify:ai-permissions` 120/0;
+  - PASS: `verify:ai-host` 185 + 20/20; `verify:ai-gpu-host` 23/23; `verify:ai-backend-pack-gui`
+    59/59 (no stale wording); `verify:ai-assist-gui` 182/0; `verify:element-spy` 205/0;
+  - PASS: adapter 117/0, fallback 38/0, deadlines 41/41, `verify:ipc-contract` 10/10, source hygiene
+    11/0, `verify:verifier-classification` 284, `verify:agent-routing` 1143/1143.
+- **INCONCLUSIVE:** `verify:failure-capture-overhead` 17/0 with 1 inconclusive. The Node CPU interval
+  [-15.5, 78] ms straddles the 58.6 ms ceiling on this host. Zero AI calls on the run path PASS.
+- **BLOCKED:** real NVIDIA qualification (E11; this machine has `0x1002` + `0x1414` only).
+- **NOT RUN:**
+  - independent QC;
+  - `verify:ai-packaged-runtime` and `validate:offline`: no host, packaging or offline input changed;
+  - NSIS rebuild.
+
+## 2026-09-27 — L8a.3 host protocol, three execution modes, offload sizing, fallback/refusal reasons (Claude)
 
 - **Task:** L8a.3 from the L8a plan. No Settings UI (L8a.4), no VRAM-exhaustion-after-load or GPU
   cancel measurement (L8a.5).

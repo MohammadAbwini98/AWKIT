@@ -1,6 +1,35 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-27, latest) — L8a.3 execution modes done; L8a.4 is next
+## HANDOFF (2026-09-28, latest) — L8a.4 Settings UI and diagnostics done; L8a.5 is next
+
+- **L8a.4 is implemented** under contract `awkit-djnl-11-l8a4-settings-diagnostics-0928`: status
+  `implemented`, QA PASS, **QC pending**.
+  - Product commit `0b121998`; closeout test commit `b36d6664`.
+  - One project-state lease for `.beads/issues.jsonl`.
+- **For L8a.5** (GPU cancel ceiling, kill-restart-reload cost, VRAM exhaustion after load, packaged
+  evidence):
+  - the load stages live in `AiService` (`stage`, `AiLoadStage`);
+  - a result is current only while `executionApplied` holds;
+  - `updateAiSettings` already releases an idle load on a mode or reserve change;
+  - nothing handles or measures VRAM exhaustion after load or GPU cancel/kill timing yet.
+- **Coverage to keep green:**
+  - `verify:ai-gpu-modes` section G;
+  - the reserve-only release step in `verify:ai-settings-gui`;
+  - the packaged-gate check for `testGpuFixture` in `verify:ai-permissions`, which counts exact
+    readers. A new reader of either test variable must update that check deliberately.
+- **Still open:**
+  - NVIDIA qualification BLOCKED (E11);
+  - E2 hybrid/multi-GPU correlation;
+  - the `verifyForLoad`-to-DLL-load gap;
+  - the L8a.2 path-confinement mutation (owner-run);
+  - the routing-matrix gap for `scripts/ai-harness/**`;
+  - `verify:ai-authoring` DX-0 freeze FAIL (L8a.1).
+- `verify:ai-settings-gui` is no longer a pre-existing FAIL: 124/124.
+- `verify:failure-capture-overhead` was INCONCLUSIVE on this host (Node CPU interval); zero AI calls
+  on the run path PASS.
+- Ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## HANDOFF (2026-09-27) — L8a.3 execution modes done; L8a.4 is next
 
 - **L8a.3 is implemented** under contract `awkit-djnl-11-l8a3-gpu-modes-0927` (two runtime leases for
   `ai-host.cjs`, one release lease for the signed manifest; all released). Status `implemented`, QA

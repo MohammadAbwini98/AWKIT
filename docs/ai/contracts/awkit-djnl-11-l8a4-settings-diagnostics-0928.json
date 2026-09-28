@@ -1,0 +1,318 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-11-l8a4-settings-diagnostics-0928",
+    "title": "L8a.4: execution-mode Settings UI and runtime-connected GPU diagnostics",
+    "objective": "Phase L L8a.4 (awkit-djnl.11). Settings > Local AI gains Where the model runs: CPU & RAM only, GPU-Offload and GPU-Only as one keyboard-driven radio group, and the VRAM reserve (128-32768 MB or the system default), refused and never clamped when out of range, disabled in CPU mode. The panel shows what the runtime reports and nothing inferred: the configured mode, the effective backend and layers, the load stage (AiLoadStage, never a percentage), the plan's VRAM figures, GPU readiness now (backend pack, then E2 on PCI vendor IDs), and a GPU-Offload fallback or GPU-Only refusal with its sentence from AI_GPU_REASON_MESSAGES. A result is reported only for the mode AND reserve that produced it (AiService executionApplied, toExecutionView), and a change of either releases an idle load at once. The non-packaged test provider gains a GPU fixture (AWKIT_TEST_AI_GPU) read only after app.isPackaged, which qualifies no hardware. No L8a.5 work: no GPU cancel ceiling, kill-restart-reload cost, VRAM exhaustion after load or packaged GPU evidence; no NVIDIA qualification without a 0x10DE adapter (E11).",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 3
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "ceb53e10",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "execution_change": true,
+    "electron_main_change": true,
+    "renderer_visual_change": true,
+    "interaction_change": true,
+    "accessibility_change": true,
+    "general_engineering_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 3
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "uiux",
+      "frontend",
+      "software",
+      "runtime",
+      "qa",
+      "qc",
+      "project-state"
+    ],
+    "expected_paths": [
+      "src/ai/AiExecutionProfile.ts",
+      "src/ai/AiService.ts",
+      "src/ai/contracts/AiApi.ts",
+      "app/main/ai/aiRuntime.ts",
+      "app/main/ai/gpuAdapters.ts",
+      "app/renderer/pages/LocalAiSettings.tsx",
+      "app/renderer/pages/LocalAiExecution.tsx",
+      "app/renderer/pages/LocalAiBackendPack.tsx",
+      "app/renderer/styles/global.css",
+      "scripts/verify-ai-settings-gui.mjs",
+      "scripts/verify-ai-gpu-modes.mts",
+      "scripts/verify-ai-permissions.mts",
+      "scripts/verify-element-spy.mts",
+      "scripts/lib/verifier-classification.ts",
+      "docs/ai/contracts/awkit-djnl-11-l8a4-settings-diagnostics-0928.json",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/plans/ai-upgrade-v5/L8a-hardware-adaptive-inference-runtime.md",
+      "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
+      ".beads/issues.jsonl"
+    ],
+    "consultants": [
+      "uiux"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/issues.jsonl"
+      ]
+    }
+  },
+  "constraints": {
+    "security": [
+      "No new permission or channel: the mode and reserve are written only by ai:updateSettings (AI_MANAGE with re-authentication); the status and diagnostics views stay path-free.",
+      "The test GPU fixture is read only with the test provider and only after app.isPackaged returns false; verify:ai-permissions pins this statically.",
+      "GPU eligibility stays the E2 PCI vendor-ID classifier; the renderer shows reasons from AI_GPU_REASON_MESSAGES and decides nothing."
+    ],
+    "offline": [
+      "No download, runtime pack or model binary is added; nothing is written into resources or app.asar."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "UI",
+      "description": "The Settings UI: three labelled, described execution modes driven by the keyboard with focus kept and a visible ring, the choice persisted and surviving a restart, the VRAM reserve refused (not clamped) with an accessible error, Hologram tokens in both themes, GPU-Only refusal told apart from GPU-Offload fallback for each real reason, fixture placements labelled unqualified, a mode change and a reserve-only change each releasing the idle load, a slow load showing its real stage.",
+      "evidence_required": [
+        "verify:ai-settings-gui"
+      ]
+    },
+    {
+      "id": "SERVICE",
+      "description": "Service-level L8a.4 regressions on the production AiService: the load stage at each step of the real load path and cleared after it, a result current only for the mode and reserve that produced it (each alone withdraws it), the next load's profile belonging to the new settings, and the plan's VRAM figures reported only where a plan ran; the L8a.3 mode coverage unchanged.",
+      "evidence_required": [
+        "verify:ai-gpu-modes"
+      ]
+    },
+    {
+      "id": "MUTATION",
+      "description": "Deliberate mutations of the L8a.4 guarantees are each caught and reverted: stale reason (service guard, view guard, GPU-Only state), idle release (both variants), clamping, GPU-Only fallback, hidden fallback reason (code and sentence), packaged fixture gate, stage never cleared.",
+      "evidence_required": [
+        "mutation:l8a4"
+      ]
+    },
+    {
+      "id": "ISOLATION",
+      "description": "The test provider and the test GPU fixture cannot be reached from a packaged build.",
+      "evidence_required": [
+        "verify:ai-permissions"
+      ]
+    },
+    {
+      "id": "REGRESSION",
+      "description": "AI regressions over the changed service, runtime, contract and renderer code pass, and the backend-pack panel still reads truthfully after its wording changed.",
+      "evidence_required": [
+        "verify:ai-host",
+        "verify:ai-adapter",
+        "verify:ai-fallback",
+        "verify:ai-deadlines",
+        "verify:ai-backend-pack-gui",
+        "verify:ai-gpu-host",
+        "verify:ai-assist-gui",
+        "verify:element-spy",
+        "verify:ipc-contract",
+        "verify:source-hygiene"
+      ]
+    },
+    {
+      "id": "BUILD",
+      "description": "Typecheck, bundles, script typecheck and the verifier registry pass.",
+      "evidence_required": [
+        "build",
+        "typecheck:scripts",
+        "verify:verifier-classification"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:ai-settings-gui",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-settings-gui",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "124/124 on the clean final build (120 from 0b121998 plus 4 reserve-only release checks)"
+    },
+    {
+      "id": "verify:ai-gpu-modes",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-gpu-modes",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "164/0 (138 L8a.3 checks unchanged plus 26 in section G)"
+    },
+    {
+      "id": "mutation:l8a4",
+      "type": "mutation",
+      "required": true,
+      "command": "manual source mutation, verifier run, revert",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "11/11 caught and reverted: A1 executionApplied ignores the key (gpu-modes 160/4); A2 toExecutionView reports regardless of applied (161/3); A3 GPU-Only unavailable survives a change (163/1); B1 no idle release (settings-gui 122/124); B2 release on mode change only (123/124, caught only by the new reserve-only check); C out-of-range reserve clamped (gpu-modes 162/2); D GPU-Only falls back (125/39); E1 fallback reason dropped (148/16); E2 reason sentence dropped (162/2); F testGpuFixture without app.isPackaged (ai-permissions 119/1); G stage never cleared (156/8)"
+    },
+    {
+      "id": "verify:ai-permissions",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-permissions",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "120/0; was 116/1 after 0b121998 (its reader count predated testGpuFixture)"
+    },
+    {
+      "id": "verify:ai-host",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-host",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "185 checks, 20/20 mutations caught"
+    },
+    {
+      "id": "verify:ai-adapter",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-adapter",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "117/0"
+    },
+    {
+      "id": "verify:ai-fallback",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-fallback",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "38/0"
+    },
+    {
+      "id": "verify:ai-deadlines",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-deadlines",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "41/41"
+    },
+    {
+      "id": "verify:ai-backend-pack-gui",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-backend-pack-gui",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "59/59; no stale assertion: GPU use still reads not active in CPU mode with no pack"
+    },
+    {
+      "id": "verify:ai-gpu-host",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-gpu-host",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "23/23 on the real CPU and Vulkan hosts; product answer NO_COMPATIBLE_ADAPTER (0x1002 + 0x1414); mechanics on AMD, labelled; NVIDIA qualification BLOCKED (E11)"
+    },
+    {
+      "id": "verify:ai-assist-gui",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-assist-gui",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "182/0 through the rewired test provider"
+    },
+    {
+      "id": "verify:element-spy",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:element-spy",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "205/0"
+    },
+    {
+      "id": "verify:ipc-contract",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ipc-contract",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "10/10 (270 handlers, 248 exposed)"
+    },
+    {
+      "id": "verify:source-hygiene",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:source-hygiene",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "11/0"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc --noEmit and all bundles on the reverted final source"
+    },
+    {
+      "id": "typecheck:scripts",
+      "type": "build",
+      "required": true,
+      "command": "npm run typecheck:scripts",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "was FAIL after 0b121998 (verify-element-spy.mts AiExecutionView fixture lacked the five L8a.4 fields)"
+    },
+    {
+      "id": "verify:verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "284 scripts classified; the verify:ai-gpu-modes, verify:ai-settings-gui and verify:ai-permissions descriptions updated for L8a.4"
+    },
+    {
+      "id": "verify:failure-capture-overhead",
+      "type": "verifier",
+      "required": false,
+      "command": "npm run verify:failure-capture-overhead",
+      "artifact": "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
+      "result": "BLOCKED",
+      "observed": "INCONCLUSIVE (exit 2): 17 passed, 0 failed, 1 inconclusive. Zero AI calls on the run path PASS (139-module closure walk from ExecutionEngine) and duration overhead PASS; Node CPU per-instance overhead median 15.5 ms with 95 % interval [-15.5, 78] ms against a 58.6 ms ceiling on this development host (run 16). The evidence vocabulary has no INCONCLUSIVE, so it is recorded as BLOCKED on a measurement-quiet host; L8a.4 changes nothing on the run path."
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "pending"
+  }
+}

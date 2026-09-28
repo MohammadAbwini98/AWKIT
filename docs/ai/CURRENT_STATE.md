@@ -1,6 +1,54 @@
 # CURRENT_STATE
 
-## L8a.3 execution modes implemented: CPU, GPU-Offload, GPU-Only (2026-09-27, latest)
+## L8a.4 execution-mode Settings UI and runtime-connected GPU diagnostics implemented (2026-09-28, latest)
+
+- **Settings → Local AI → Where the model runs** (`app/renderer/pages/LocalAiExecution.tsx`):
+  - CPU & RAM only (default), GPU-Offload and GPU-Only as one keyboard-driven radio group;
+  - the VRAM reserve: 128–32768 MB or the system default, refused (never clamped) with an
+    accessible error, disabled in CPU mode;
+  - only `ai:updateSettings` (`AI_MANAGE` + re-auth) writes either.
+- **Diagnostics come from the runtime:** status and diagnostics carry `toExecutionView`
+  (`src/ai/AiExecutionProfile.ts`). It holds:
+  - the configured mode, backend and layers;
+  - the load stage (`AiLoadStage`, never a percentage) and the plan's VRAM figures;
+  - GPU readiness now;
+  - a fallback or refusal with its `AI_GPU_REASON_MESSAGES` sentence.
+
+  The renderer decides nothing.
+- **A result belongs to its settings:** `AiService.status().executionApplied`. A fallback or refusal
+  is reported only for the mode AND reserve that produced it; changing either withdraws it, GPU-Only
+  unavailability included.
+- **Idle release:** `updateAiSettings` releases an idle load and the GPU host when the mode or the
+  reserve changes. A running job finishes first.
+- **Test seam:** `AWKIT_TEST_AI_GPU` (fixture pack state, adapter IDs, plan) is read only with the
+  test provider and only after `app.isPackaged`. It qualifies no hardware.
+- **Two regressions of `0b121998` found and fixed at closeout:**
+  - `typecheck:scripts` failed: the element-spy fixture lacked the five new view fields;
+  - `verify:ai-permissions` failed 116/1: its reader count predated the GPU fixture. The check now
+    also pins the fixture's packaged gate.
+- **Evidence:**
+  - `verify:ai-gpu-modes` 164/0 (section G, 26 new) and `verify:ai-settings-gui` 124/124 (a
+    reserve-only release added);
+  - `verify:ai-permissions` 120/0; 11/11 mutations caught and reverted;
+  - `verify:ai-host` 185 checks + 20/20 mutations, `verify:ai-gpu-host` 23/23,
+    `verify:ai-backend-pack-gui` 59/59, `verify:ai-assist-gui` 182/0, `verify:element-spy` 205/0;
+  - adapter 117/0, fallback 38/0, deadlines 41/41, `verify:ipc-contract` 10/10, source hygiene
+    11/0;
+  - build, `typecheck:scripts`, `verify:verifier-classification` (284) PASS;
+  - `verify:failure-capture-overhead` INCONCLUSIVE: the Node CPU interval straddles its ceiling on
+    this host. Zero AI calls on the run path PASS.
+- **Open, L8a.4:** NVIDIA qualification BLOCKED (E11; adapters `0x1002` + `0x1414`); independent QC
+  pending.
+- **Open, earlier slices, unchanged:**
+  - `verify:ai-authoring` DX-0 freeze FAIL (L8a.1);
+  - the L8a.2 path-confinement mutation (owner-run);
+  - the routing-matrix gap for `scripts/ai-harness/**`;
+  - the `verifyForLoad`-to-DLL-load gap;
+  - E2 hybrid/multi-GPU correlation.
+- Phase L stays 10 of 13 closed. Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED
+  across 67 cases.
+
+## L8a.3 execution modes implemented: CPU, GPU-Offload, GPU-Only (2026-09-27)
 
 - **Settings shape:** `AiSettings.executionMode` (`cpu` default, `gpu-offload`, `gpu-only`) and
   `vramReserveMb` (null = the runtime's own padding, else 128–32768). Bad values are refused, never
