@@ -1,21 +1,22 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-28, latest) — L8a.5 mostly done; the packaged lifecycle run is owed
+## HANDOFF (2026-09-28, latest) — L8a.5 implemented; every L8a slice is in, E11 decides the rest
 
-- **Contract** `awkit-djnl-11-l8a5-gpu-lifecycle-0928`: status `pending`, QA FAIL (one packaged
-  verifier), QC pending. The release lease (package and signed manifest) is released; the writer is routed
-  to project-state for the Beads note.
+- **Contract** `awkit-djnl-11-l8a5-gpu-lifecycle-0928`: status `implemented`, QA PASS, QC pending. The
+  release lease (package and signed manifest) and the project-state lease are both released.
 - **Done:**
-  - `verify:ai-gpu-lifecycle` 29/0: cancel ceiling, kill-restart-reload cost and VRAM taken after load, on
-    the real Vulkan host;
+  - `verify:ai-gpu-lifecycle` 29/0 and `verify:ai-gpu-lifecycle-packaged` 33/0: cancel ceiling,
+    kill-restart-reload cost and VRAM taken after load, on the source and packaged trees;
   - `LOST_AFTER_LOAD` handling in `AiService`: `verify:ai-gpu-modes` 182/0, 6/6 mutations;
-  - a fresh 0.1.51 package: `verify:ai-packaged-runtime` 104/0, `verify:ai-packaged-app` 24/0.
-- **Next, first:** fix `scripts/verify-ai-gpu-host.mts --packaged` (`KNOWN_ISSUES.md`, top entry).
-  - Run one mode per invocation: add `verify:ai-gpu-lifecycle-packaged` (`--packaged --lifecycle`),
-    register it, and make `--packaged` alone run only the modes. Or import a fresh pack per mode.
-  - Then run both against the current package. It is fresh for `ai-host.cjs`; the verifier's
-    byte-identity guard will say so.
-- **Then:** record the packaged lifecycle numbers in the L8a plan and the contract, and set QA.
+  - a fresh 0.1.51 package: `verify:ai-packaged-runtime` 104/0, `verify:ai-packaged-app` 24/0,
+    `verify:ai-gpu-packaged` 24/0.
+- **The packaged run observed the real failure:** with VRAM overcommitted, the loaded GPU host exited
+  mid-inference. That exit is the signal `LOST_AFTER_LOAD` counts.
+- **Next:**
+  - owner decision E11 (an NVIDIA machine, or accept the AMD mechanics plus fake-host cases as
+    "Compatible but unqualified");
+  - independent QC of L8a.1–L8a.5.
+  - L8a (`awkit-djnl.11`) blocks L8b (`awkit-djnl.12`) and L9 (`awkit-djnl.13`).
 - **Do not claim:** NVIDIA qualification (E11 BLOCKED; AMD mechanics only), or a host OOM classifier
   (deliberately not built; the runtime's VRAM reading lags other processes).
 - **Still open from earlier slices:**

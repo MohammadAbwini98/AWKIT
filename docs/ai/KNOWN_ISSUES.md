@@ -1,6 +1,12 @@
 # KNOWN_ISSUES
 
-## `verify:ai-gpu-packaged` FAILs its lifecycle half on a pack the modes half invalidated (2026-09-28, OPEN — harness defect, L8a.5)
+## `verify:ai-gpu-packaged` FAILed its lifecycle half on a pack the modes half invalidated (2026-09-28, RESOLVED the same day — harness defect, L8a.5)
+
+- **Resolved:** after the lease was released, the launcher runs one mode per invocation, and the new
+  `verify:ai-gpu-lifecycle-packaged` (`--packaged --lifecycle`) imports its own pack.
+  - `verify:ai-gpu-packaged`: 24/0.
+  - `verify:ai-gpu-lifecycle-packaged`: 33/0.
+- The history below is kept for the lesson in the next entry.
 
 - **Symptom:** the L8a.3 modes on `dist/win-unpacked`'s AI tree all pass. The L8a.5 lifecycle half then
   fails its first step with `AI_GPU_BACKEND_REFUSED` (26 passed, 2 failed).
@@ -11,13 +17,15 @@
 - **Fix owed:** run one mode per invocation, adding a `verify:ai-gpu-lifecycle-packaged` script (both
   modes together take most of the tool's 10-minute limit anyway), or import a fresh pack per mode. Then
   register the script and re-run both on the package.
-- **Why it was not fixed in the session that found it:** see the next entry.
+- **Why the first attempt was blocked:** see the next entry. With no lease held, the same file edited
+  normally.
 
 ## Editing outside a held lease burns the denial budget per call — a batch of edits reaches TERMINAL at once (2026-09-28, OPEN — know it)
 
 - While a release lease (`build`, `resources/dependency-manifest.*`) was held, four parallel edits to
   `scripts/verify-ai-gpu-host.mts` were refused one by one. The third identical refusal marked that
-  file's gate TERMINAL for the session, so the harness defect above stayed unfixed.
+  file's gate TERMINAL. The fix waited until the lease was released and the owner asked to try again;
+  then the same edits were accepted.
 - `package.json` was accepted in the same batch.
 - **Rule:** release a lease as soon as its paths are committed, before editing anything else. Never batch
   edits while a lease is held unless every path is in its scope.

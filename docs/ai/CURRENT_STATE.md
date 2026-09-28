@@ -1,6 +1,6 @@
 # CURRENT_STATE
 
-## L8a.5 in progress: GPU lost after load handled, lifecycle measured, packaged CPU re-proved (2026-09-28, latest)
+## L8a.5 implemented: GPU lost after load handled, lifecycle measured on source and packaged trees (2026-09-28, latest)
 
 - **Measured on the real Vulkan host** (`verify:ai-gpu-lifecycle` 29/0, MECHANICS on AMD, qualifies no
   NVIDIA). Every layer (25/25) and a partial load (12/25):
@@ -9,9 +9,13 @@
     it);
   - a host killed from outside is back with the model in 12.8 and 11.0 s. Exit seen 44 ms, re-fork + pack
     guard + handshake 0.65–1.1 s, and the Vulkan model load dominates (10–12 s).
-- **VRAM taken after load did not hurt the loaded host:** llama.cpp reserves its buffers at load, so other
-  processes' loads fail instead. The runtime's free-VRAM reading also lags other processes (3.58 GB
-  reported while 2.2 GB was taken), so no host-side OOM classifier was built; `ai-host.cjs` is unchanged.
+- **VRAM taken after load, two runs:**
+  - The first (source tree): the third filler's load failed, and the loaded host kept answering.
+  - The second (packaged tree): the runtime kept reporting 3.58 GB free, six fillers loaded every layer
+    (about 7.7 GB on a 4 GB adapter), and the loaded host then **exited mid-inference** (one strike,
+    circuit closed).
+  - So on this driver, exhaustion after load shows up as a host exit, and the free-VRAM reading cannot
+    diagnose it. No host-side OOM classifier was built, and `ai-host.cjs` is unchanged.
 - **`LOST_AFTER_LOAD`** (`src/ai/AiService.ts`, `GPU_LOSS_LIMIT` = 2 in `AiExecutionProfile.ts`): a Vulkan
   host whose inference fails or that exits after a successful load.
   - First loss: frees the GPU; the next job re-plans against the VRAM free by then.
@@ -25,19 +29,18 @@
     commit;
   - `verify:ai-packaged-runtime` 104/0; `verify:ai-packaged-app` 24/0 (CPU & RAM only re-proved in the
     packaged EXE);
-  - `verify:ai-gpu-packaged` FAIL: the L8a.3 modes on the packaged AI tree pass, but its lifecycle half
-    reuses a pack the modes half invalidated. That is a harness defect, and its fix is owed (see
-    `KNOWN_ISSUES.md`).
+  - `verify:ai-gpu-packaged` 24/0 (L8a.3 modes on the packaged AI tree);
+  - `verify:ai-gpu-lifecycle-packaged` 33/0: cancels 1097/172 ms (every layer) and 1060/68 ms
+    (partial), killed and back in 14.7 and 11.8 s. The first combined packaged run had a harness defect,
+    now fixed (`KNOWN_ISSUES.md`).
 - **Evidence:**
   - `verify:ai-gpu-modes` 182/0 (section H, 6/6 mutations), `verify:ai-settings-gui` 124/124,
     `verify:ai-gpu-host` 23/23;
   - adapter, fallback and deadlines PASS; build, `typecheck:scripts`, `verify:verifier-classification`
-    (286) PASS;
+    (287) PASS;
   - `verify:failure-capture-overhead` INCONCLUSIVE on this host (zero AI calls on the run path PASS).
-- **Open, L8a.5:**
-  - the packaged lifecycle evidence (the harness fix above);
-  - NVIDIA qualification BLOCKED (E11);
-  - QC pending.
+- **Open, L8a.5:** NVIDIA qualification BLOCKED (E11); QC pending. Every L8a slice is now implemented;
+  closing L8a (`awkit-djnl.11`) waits on the E11 owner decision, which in turn blocks L8b and L9.
 - **Open, earlier slices:** unchanged (see the L8a.4 section below).
 - Phase L stays 10 of 13 closed. Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67
   cases.

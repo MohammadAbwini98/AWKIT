@@ -1,15 +1,13 @@
 {
   "task": "awkit-djnl-11-l8a5-gpu-lifecycle-0928",
   "contract_path": "docs/ai/contracts/awkit-djnl-11-l8a5-gpu-lifecycle-0928.json",
-  "holder": "release",
+  "holder": "project-state",
   "status": "released",
   "allowed_paths": [
-    "build",
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig"
+    ".beads/issues.jsonl"
   ],
-  "acquired_at": "2026-09-28T10:51:44.535Z",
-  "acquired_at_commit": "12d4e8348a19cdebeeec5d266a81597daf60a2bf",
+  "acquired_at": "2026-09-28T11:16:50.791Z",
+  "acquired_at_commit": "4a7c608f40944f2c846db312b8c6b3695ef753b2",
   "baseline_dirty": [],
   "baseline_dirty_fingerprints": {},
   "baseline_watched_ignored": {
@@ -20,12 +18,12 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1790527062367.2827"
+    "build": "dir(1):native-hosts:1790592808294.1416"
   },
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-28T11:09:01.584Z",
-  "released_reason": "portable package built with strict offline validation, signed manifest committed, packaged runtime 104/0 and packaged app 24/0",
-  "archived_at": "2026-09-28T11:09:01.585Z"
+  "released_at": "2026-09-28T12:41:37.578Z",
+  "released_reason": "re-sequenced: the owner asked to retry the packaged lifecycle fix first, the Beads note follows",
+  "archived_at": "2026-09-28T12:41:37.579Z"
 }

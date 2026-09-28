@@ -108,7 +108,8 @@
         "package:portable",
         "verify:ai-packaged-runtime",
         "verify:ai-packaged-app",
-        "verify:ai-gpu-packaged"
+        "verify:ai-gpu-packaged",
+        "verify:ai-gpu-lifecycle-packaged"
       ]
     },
     {
@@ -182,8 +183,17 @@
       "required": true,
       "command": "npm run verify:ai-gpu-packaged",
       "artifact": null,
-      "result": "FAIL",
-      "observed": "26 passed, 2 failed. The L8a.3 modes on the packaged AI tree all PASS (freshness guard, packaged-trust import, 21 steps: PRODUCT NO_COMPATIBLE_ADAPTER, MECHANICS 25/25 layers on Vulkan). The lifecycle half fails at its first step with AI_GPU_BACKEND_REFUSED, a harness defect: the modes run ends by invalidating the imported pack on purpose (sticky until re-import), and the launcher reuses that pack. The fix (one mode per run, or a fresh import per mode) is in scripts/verify-ai-gpu-host.mts, which this session's lease guard marked TERMINAL. See KNOWN_ISSUES."
+      "result": "PASS",
+      "observed": "24/0 after the one-mode-per-run fix (the first combined run was 26/2: its lifecycle half reused a pack the modes half invalidated on purpose). Freshness guard, packaged-trust import, PRODUCT NO_COMPATIBLE_ADAPTER on this machine, MECHANICS 25/25 layers on Vulkan through the packaged host."
+    },
+    {
+      "id": "verify:ai-gpu-lifecycle-packaged",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-gpu-lifecycle-packaged",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "33/0 on the packaged AI tree, AMD mechanics: every layer cancel 1097 ms (prompt, kill) and 172 ms (generation, host), killed and back in 14.7 s; partial 1060 ms, 68 ms and 11.8 s. The runtime kept reporting 3.58 GB free, six fillers loaded every layer (about 7.7 GB on a 4 GB adapter), and the loaded probe host then exited mid-inference (AI_HOST_EXITED, one strike, circuit closed): VRAM exhaustion after load on this driver, the signal LOST_AFTER_LOAD counts."
     },
     {
       "id": "verify:failure-capture-overhead",
@@ -219,7 +229,7 @@
       "command": "npm run verify:verifier-classification",
       "artifact": null,
       "result": "PASS",
-      "observed": "286 classified, verify:ai-gpu-lifecycle and verify:ai-gpu-packaged registered"
+      "observed": "287 classified: verify:ai-gpu-lifecycle, verify:ai-gpu-packaged and verify:ai-gpu-lifecycle-packaged registered"
     }
   ],
   "git": {
@@ -230,8 +240,8 @@
     "push_authorized": true
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "FAIL",
+    "status": "implemented",
+    "qa_status": "PASS",
     "qc_status": "pending"
   },
   "write_lease": {
@@ -250,6 +260,22 @@
         "acquired_at_commit": "12d4e8348a19cdebeeec5d266a81597daf60a2bf",
         "released_at": "2026-09-28T11:09:01.584Z",
         "released_reason": "portable package built with strict offline validation, signed manifest committed, packaged runtime 104/0 and packaged app 24/0",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-11-l8a5-gpu-lifecycle-0928:project-state:2026-09-28T11:16:50.791Z",
+        "task": "awkit-djnl-11-l8a5-gpu-lifecycle-0928",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/issues.jsonl"
+        ],
+        "acquired_at": "2026-09-28T11:16:50.791Z",
+        "acquired_at_commit": "4a7c608f40944f2c846db312b8c6b3695ef753b2",
+        "released_at": "2026-09-28T12:41:37.578Z",
+        "released_reason": "re-sequenced: the owner asked to retry the packaged lifecycle fix first, the Beads note follows",
         "amendments": [],
         "overrides": [],
         "violations": []

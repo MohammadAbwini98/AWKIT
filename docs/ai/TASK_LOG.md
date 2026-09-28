@@ -4,8 +4,9 @@
 
 - **Task:** start L8a.5 from the L8a plan: the GPU cancel ceiling, kill-restart-reload cost, VRAM
   exhaustion after load, and packaged evidence.
-- **Result:** contract `awkit-djnl-11-l8a5-gpu-lifecycle-0928`. Everything except the packaged lifecycle
-  run is done; status `pending`, QA FAIL, QC pending.
+- **Result:** contract `awkit-djnl-11-l8a5-gpu-lifecycle-0928`: implemented, QA PASS, QC pending.
+  - The packaged lifecycle run was first blocked (see below). It was fixed and run after the owner said
+    "Try again".
   - A live probe came first (execute, don't infer): VRAM taken after load did not affect the loaded
     host, and the runtime's free-VRAM reading lags. So no host OOM classifier was built, and
     `ai-host.cjs` is unchanged.
@@ -41,15 +42,16 @@
 - **Verification:**
   - PASS: `verify:ai-gpu-lifecycle` 29/0, `verify:ai-gpu-modes` 182/0, `verify:ai-settings-gui` 124/124,
     `verify:ai-gpu-host` 23/23, adapter 117/0, fallback 38/0, deadlines 41/41;
-  - PASS: build, `typecheck:scripts`, `verify:verifier-classification` 286;
+  - PASS: build, `typecheck:scripts`, `verify:verifier-classification` 287;
   - PASS: `package:portable` with strict offline validation, `verify:ai-packaged-runtime` 104/0,
     `verify:ai-packaged-app` 24/0.
-- **FAIL:** `verify:ai-gpu-packaged` 26/2. The modes half passes; the lifecycle half reuses a pack the
-  modes half invalidated (harness defect, `KNOWN_ISSUES.md`).
-- **BLOCKED:**
-  - the fix to `scripts/verify-ai-gpu-host.mts`: its edit gate went TERMINAL after edits made while the
-    release lease was held;
-  - NVIDIA qualification (E11).
+- **PASS (packaged GPU):**
+  - `verify:ai-gpu-packaged` 24/0;
+  - `verify:ai-gpu-lifecycle-packaged` 33/0. In this run the loaded host exited mid-inference once VRAM
+    was overcommitted: exhaustion after load observed.
+  - The first combined packaged run was FAIL 26/2 on a harness defect. Its fix was blocked while the
+    release lease was held (`KNOWN_ISSUES.md`) and landed after the lease was released.
+- **BLOCKED:** NVIDIA qualification (E11).
 - **INCONCLUSIVE:** `verify:failure-capture-overhead` run 17 (zero AI calls on the run path PASS).
 - **NOT RUN:** independent QC; the NSIS installer.
 

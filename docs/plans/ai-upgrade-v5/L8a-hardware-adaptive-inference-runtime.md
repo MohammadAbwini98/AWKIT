@@ -4,14 +4,14 @@ Shared rules, architecture and the Phase L extension decisions (E1–E12): `ROAD
 *Phase L extension (2026-09-27)*. Beads `awkit-djnl.11`. Depends on closed L1 (`awkit-djnl.1`) and
 closed L7 (`awkit-djnl.10`). Blocks L8b (`awkit-djnl.12`) and L9 (`awkit-djnl.13`).
 
-**Status (2026-09-28): OPEN — L8a.0 gate run; L8a.1 backend manifest, L8a.2 backend-pack
-import, L8a.3 execution modes and L8a.4 Settings UI and diagnostics implemented; L8a.5 in progress.**
-Registered by the owner's post-closeout scope expansion.
+**Status (2026-09-28): OPEN — L8a.0 gate run; L8a.1 through L8a.5 implemented.** Registered by the
+owner's post-closeout scope expansion. Closing L8a waits on the E11 owner decision (no NVIDIA adapter
+here) and independent QC.
 - L8a.5:
-  - lifecycle measured (`verify:ai-gpu-lifecycle` 29/0, AMD mechanics);
+  - lifecycle measured on the source and packaged trees (29/0, 33/0; AMD mechanics);
   - `LOST_AFTER_LOAD` handled (182/0, 6/6 mutations);
-  - CPU re-proved on a fresh package (104/0, 24/0);
-  - the packaged lifecycle run is owed (harness defect). See the record.
+  - CPU & RAM only re-proved on a fresh package (104/0, 24/0), with the GPU modes on it at 24/0.
+  - See the record.
 - L8a.4:
   - `verify:ai-settings-gui` 124/124 and `verify:ai-gpu-modes` 164/0 (section G);
   - 11/11 mutations caught;
@@ -623,7 +623,7 @@ qualifies no hardware.
 - `verify:failure-capture-overhead` INCONCLUSIVE on this host (Node CPU interval). Zero AI calls on
   the run path PASS.
 
-## L8a.5 record (2026-09-28, in progress)
+## L8a.5 record (2026-09-28)
 
 Contract `awkit-djnl-11-l8a5-gpu-lifecycle-0928`. Commits:
 - `b4663aed`: the lifecycle verifier;
@@ -638,6 +638,8 @@ qualifies NVIDIA (E11).
 |---|---|---|---|---|
 | every layer (25/25) | 11.4 s | 1062 ms (kill) | 22 ms (host) | 12.8 s |
 | partial (12/25) | 8.6 s | 1070 ms (kill) | 57 ms (host) | 11.0 s |
+| every layer, packaged AI tree | 12.2 s | 1097 ms (kill) | 172 ms (host) | 14.7 s |
+| partial, packaged AI tree | 10.4 s | 1060 ms (kill) | 68 ms (host) | 11.8 s |
 
 - The runtime does not observe an abort during prompt processing on Vulkan either. The awkit-g555 kill
   at the 1 s grace keeps it within the 3 s ceiling.
@@ -651,8 +653,12 @@ qualifies NVIDIA (E11).
   reserves its buffers at load, so on this driver the next load is what fails under pressure, and the
   L8a.3 retry, fallback and refusal already handle that.
 - The runtime's free-VRAM reading lagged other processes: 3.58 GB was reported while 2.2 GB was taken.
-  So no host-side OOM classifier was built (item 7's "its own reason" is not diagnosed from VRAM), and
-  `ai-host.cjs` is unchanged.
+- On the packaged tree the reading never moved from 3.58 GB. Six more hosts loaded every layer (about
+  7.7 GB on a 4 GB adapter), and the loaded host then **exited mid-inference** (`AI_HOST_EXITED`, one
+  strike, circuit closed).
+- So exhaustion after load does happen on this driver, as a host exit, and the free-VRAM reading cannot
+  diagnose it. No host-side OOM classifier was built (item 7's "its own reason" is the loss after load,
+  not a VRAM diagnosis), and `ai-host.cjs` is unchanged.
 
 **`LOST_AFTER_LOAD` (item 7, `AiService`).** A Vulkan host whose inference fails or that exits after a
 successful load is a loss for its mode and reserve.
@@ -668,12 +674,13 @@ successful load is a loss for its mode and reserve.
 - `package:portable` passed strict offline validation: 1465/1465 local-AI files, no GPU binary shipped.
 - `verify:ai-packaged-runtime` 104/0. `verify:ai-packaged-app` 24/0: CPU & RAM only re-proved in the
   packaged EXE.
-- `verify:ai-gpu-packaged`: the L8a.3 modes pass on the packaged AI tree. Its lifecycle half fails on a
-  pack the modes half invalidated (harness defect, `KNOWN_ISSUES.md`), so the packaged cancel and
-  reload numbers are **owed**.
+- `verify:ai-gpu-packaged` 24/0: the L8a.3 modes on the packaged AI tree, with trust from the packaged
+  signed manifest.
+- `verify:ai-gpu-lifecycle-packaged` 33/0: the table rows above.
+- The first combined run had a harness defect, fixed by running one mode per invocation
+  (`KNOWN_ISSUES.md`).
 
 **BLOCKED / open.**
-- The packaged lifecycle run (the fix to the launcher).
 - Real NVIDIA qualification (E11).
 - Independent QC.
 - `verify:failure-capture-overhead` INCONCLUSIVE on this host (zero AI calls on the run path PASS).
