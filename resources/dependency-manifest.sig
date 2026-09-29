@@ -3,6 +3,6 @@
   "algorithm": "Ed25519",
   "keyId": "ed25519:aa5b9dd853c3c804d1d8d2381cfe39cc0af0cb02f441651c36a3e80a4d8f6488",
   "manifest": "dependency-manifest.json",
-  "manifestSha256": "42fffa87240a7e288454bd4aed81b789a2e1679315861890f613fa9764409104",
-  "signatureBase64": "oPUD2qn+/ScrIGAZQX6UP6l2oXIhZBYVnbt7GKgqtbWHMegr+D4hkjkn6ApGH1vGawUFiDGUdxC+bF0nZWlwBQ=="
+  "manifestSha256": "f2cbc5079a1e6e072999d93c34a6d467c98d36c46e6cf2053702f75232785957",
+  "signatureBase64": "4GdyD7R/j0tXx6Zo2GTpQd/U9osBbBS2m2E9sPUUiMcLA6TFspa3Apip1Cy14fS3gEt0c3Afh5O06Z4ZyWsHBg=="
 }
