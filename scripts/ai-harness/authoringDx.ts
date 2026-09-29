@@ -35,6 +35,7 @@ import path from "node:path";
 import { sentencesOf } from "@src/ai/authoringClaimScreen";
 import { buildAuthoringRequest } from "@src/ai/authoringExplanation";
 import { AI_ASSIST_MAX_NODES, sanitizeAuthoringAssistRequest } from "@src/ai/contracts/AiApi";
+import { AI_MODEL_MANIFEST } from "@src/offline/AiModelManifest";
 import type { FlowProfile } from "@src/profiles/FlowProfile";
 import { findResidualSecrets } from "@src/semantic/SemanticPolicyValidator";
 import { FLOW_VALIDATION_RULES, isExecutionBlocking, validateFlowDefinition } from "@src/validation/FlowValidator";
@@ -57,6 +58,12 @@ export interface DxRevision {
   instructionsSha256: string;
   /** `git ls-files -s` blob ids: the runtime pin, and the three files the R4 mutation run covers. */
   blobs: Readonly<Record<string, string>>;
+  /**
+   * SHA-256 of the model entries in `blobs[MODEL_MANIFEST_PATH]` (`modelEntriesSha256`): what that file is frozen for
+   * (awkit-djnl.14). L8a.1 added the GPU backend manifest beside them, which no authoring run reads. Derived from the
+   * frozen blob by `verify:ai-authoring`, never written to fit a run.
+   */
+  modelEntriesSha256: string;
 }
 
 export const DX_REVISIONS: readonly DxRevision[] = Object.freeze([
@@ -68,6 +75,7 @@ export const DX_REVISIONS: readonly DxRevision[] = Object.freeze([
     modelSha256: "f5b14da98939b60bbe1019a964eba656407e1e0b64f1fe3003ff6d650e93bfec",
     runtimeBuild: "node-llama-cpp@3.21.1+llama.cpp@v0.4.0",
     instructionsSha256: "ab4b891fa050b9c0fbc85f6c04c93ff9b8effdc77167cbafbef0f7d35a9a3fa5",
+    modelEntriesSha256: "92396f818503ef10e11dcd9b751ad9318184ec5506dd1254dcef271c22a46baa",
     blobs: Object.freeze({
       "src/offline/AiModelManifest.ts": "a6f2472e72b589fb37aa1ba543d588830972d1b2",
       "src/ai/authoringClaimScreen.ts": "3c3204fa350cb922e7b092705ede63f12ddf42a3",
@@ -84,6 +92,7 @@ export const DX_REVISIONS: readonly DxRevision[] = Object.freeze([
     modelSha256: "f5b14da98939b60bbe1019a964eba656407e1e0b64f1fe3003ff6d650e93bfec",
     runtimeBuild: "node-llama-cpp@3.21.1+llama.cpp@v0.4.0",
     instructionsSha256: "abea5095fad32abbf71f58f1dd2aac5cdca76221e0d493a92bd21c3389de310c",
+    modelEntriesSha256: "92396f818503ef10e11dcd9b751ad9318184ec5506dd1254dcef271c22a46baa",
     blobs: Object.freeze({
       "src/offline/AiModelManifest.ts": "a6f2472e72b589fb37aa1ba543d588830972d1b2",
       "src/ai/authoringClaimScreen.ts": "b8142e0b7928dc7143ffba030ba3f5e662a3363f",
@@ -100,6 +109,7 @@ export const DX_REVISIONS: readonly DxRevision[] = Object.freeze([
     modelSha256: "f5b14da98939b60bbe1019a964eba656407e1e0b64f1fe3003ff6d650e93bfec",
     runtimeBuild: "node-llama-cpp@3.21.1+llama.cpp@v0.4.0",
     instructionsSha256: "407d8b735a371dc74d569884523bc6607187dc20a8e9146229f3d1ae0f8a7fce",
+    modelEntriesSha256: "92396f818503ef10e11dcd9b751ad9318184ec5506dd1254dcef271c22a46baa",
     blobs: Object.freeze({
       "src/offline/AiModelManifest.ts": "a6f2472e72b589fb37aa1ba543d588830972d1b2",
       "src/ai/authoringClaimScreen.ts": "b8142e0b7928dc7143ffba030ba3f5e662a3363f",
@@ -116,6 +126,7 @@ export const DX_REVISIONS: readonly DxRevision[] = Object.freeze([
     modelSha256: "f5b14da98939b60bbe1019a964eba656407e1e0b64f1fe3003ff6d650e93bfec",
     runtimeBuild: "node-llama-cpp@3.21.1+llama.cpp@v0.4.0",
     instructionsSha256: "0f72ee35ddc72d1a03f3dbd397e5799081be868b5225f9a7906c6fd7b4961f9c",
+    modelEntriesSha256: "92396f818503ef10e11dcd9b751ad9318184ec5506dd1254dcef271c22a46baa",
     blobs: Object.freeze({
       "src/offline/AiModelManifest.ts": "a6f2472e72b589fb37aa1ba543d588830972d1b2",
       "src/ai/authoringClaimScreen.ts": "b8142e0b7928dc7143ffba030ba3f5e662a3363f",
@@ -281,7 +292,21 @@ export function gitBlobs(paths: readonly string[], cwd = process.cwd()): Record<
   return Object.fromEntries(paths.map((p, k) => [p, ids[k] ?? ""]));
 }
 
-const blobsMatch = (blobs: Readonly<Record<string, string>> | undefined, rev: DxRevision) => blobs !== undefined && Object.entries(rev.blobs).every(([p, id]) => blobs[p] === id);
+/** The one frozen source compared by what it pins rather than by its bytes. */
+export const MODEL_MANIFEST_PATH = "src/offline/AiModelManifest.ts";
+
+/** SHA-256 of the pinned model entries, as the module exports them. */
+export const modelEntriesSha256 = (entries: readonly unknown[] = AI_MODEL_MANIFEST) => sha256(JSON.stringify(entries));
+
+/**
+ * The frozen sources `inputs` does not hold as revision `rev` froze them (empty when it holds them all). The model
+ * manifest matches by its blob (captures taken before awkit-djnl.14 record only that) or by its model entries.
+ */
+export function sourcesOff(inputs: Pick<CaptureInputs, "blobs" | "modelEntriesSha256">, rev: DxRevision = DX0): string[] {
+  return Object.entries(rev.blobs)
+    .filter(([p, id]) => inputs.blobs?.[p] !== id && !(p === MODEL_MANIFEST_PATH && inputs.modelEntriesSha256 === rev.modelEntriesSha256))
+    .map(([p]) => p);
+}
 
 /** Why a capture is not revision `rev`'s DX-0 evidence for the committed held-out corpus `heldOutSha256` (empty when it is). */
 export function captureInputProblems(capture: ReviewCapture, heldOutSha256: string | null, rev: DxRevision = DX0): string[] {
@@ -290,7 +315,7 @@ export function captureInputProblems(capture: ReviewCapture, heldOutSha256: stri
   const problems: string[] = [];
   if (capture.modelId !== rev.modelId || inputs.modelSha256 !== rev.modelSha256) problems.push("model");
   if (inputs.runtimeBuild !== rev.runtimeBuild) problems.push("runtime");
-  if (!blobsMatch(inputs.blobs, rev)) problems.push("source blobs");
+  if (sourcesOff(inputs, rev).length > 0) problems.push("source blobs");
   if (capture.instructionsSha256 !== rev.instructionsSha256) problems.push("request");
   if (heldOutSha256 === null || inputs.heldOutSha256 !== heldOutSha256) problems.push("held-out corpus");
   return problems;
@@ -302,9 +327,13 @@ const earlierRevisionOf = (capture: ReviewCapture, heldOutSha256: string | null,
 
 /** Why the working tree no longer holds DX-0's sources and request (empty when it does). Needs git. */
 export function currentDx0Problems(instructionsSha256: string, runtimeBuild: string | null): string[] {
-  const now = gitBlobs(Object.keys(DX0.blobs));
+  const tree = { blobs: gitBlobs(Object.keys(DX0.blobs)), modelEntriesSha256: modelEntriesSha256() };
   return [
-    ...Object.entries(DX0.blobs).filter(([p, id]) => now[p] !== id).map(([p, id]) => `${p} is ${now[p].slice(0, 8)}, frozen ${id.slice(0, 8)}`),
+    ...sourcesOff(tree).map((p) =>
+      p === MODEL_MANIFEST_PATH
+        ? `${p}'s model entries are ${tree.modelEntriesSha256.slice(0, 8)}, frozen ${DX0.modelEntriesSha256.slice(0, 8)}`
+        : `${p} is ${tree.blobs[p].slice(0, 8)}, frozen ${DX0.blobs[p].slice(0, 8)}`
+    ),
     ...(instructionsSha256 !== DX0.instructionsSha256 ? [`request instructions sha256 ${instructionsSha256.slice(0, 8)}, frozen ${DX0.instructionsSha256.slice(0, 8)}`] : []),
     ...(runtimeBuild !== DX0.runtimeBuild ? [`AI_RUNTIME_PIN.build ${runtimeBuild}, frozen ${DX0.runtimeBuild}`] : [])
   ];

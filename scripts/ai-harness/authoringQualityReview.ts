@@ -102,6 +102,8 @@ export interface CaptureInputs {
   modelSha256: string;
   runtimeBuild: string;
   blobs: Record<string, string>;
+  /** SHA-256 of the pinned model entries (authoringDx `modelEntriesSha256`). Absent from captures taken before awkit-djnl.14, which match by the manifest's blob. */
+  modelEntriesSha256?: string;
   heldOutSha256: string;
 }
 

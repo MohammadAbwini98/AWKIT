@@ -46,10 +46,12 @@
  *
  * Run: npm run verify:ai-authoring
  */
+import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve as resolvePath } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import type { AiAdmissionView } from "@src/ai/AiAdmission";
 import { AI_SERVICE_LIMITS, AiService, type AiServiceLimits, type AiServiceSettings } from "@src/ai/AiService";
@@ -73,7 +75,7 @@ import {
 import { buildAiPrompt } from "@src/ai/AiPromptBuilder";
 import { parseAiOutput } from "@src/ai/AiOutputContract";
 import { AI_ASSIST_MAX_NODES, type AuthoringAssistView } from "@src/ai/contracts/AiApi";
-import { AI_RUNTIME_PIN } from "@src/offline/AiModelManifest";
+import { AI_MODEL_MANIFEST, AI_RUNTIME_PIN } from "@src/offline/AiModelManifest";
 import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 import type { FlowProfile } from "@src/profiles/FlowProfile";
 import type { AiPolicyConfig } from "@src/security/authz/AiAutonomyPolicy";
@@ -97,7 +99,22 @@ import {
   type ReviewItem,
   type ReviewVerdict
 } from "./ai-harness/authoringQualityReview";
-import { DX0, HELD_OUT_DIR, currentDx0Problems, dx3Reading, dxReadings, evaluateDx, heldOutCommitProblems, heldOutRequest, inventoryPath, readHeldOut, type DxRevision } from "./ai-harness/authoringDx";
+import {
+  DX0,
+  DX_REVISIONS,
+  HELD_OUT_DIR,
+  MODEL_MANIFEST_PATH,
+  currentDx0Problems,
+  dx3Reading,
+  dxReadings,
+  evaluateDx,
+  heldOutCommitProblems,
+  heldOutRequest,
+  inventoryPath,
+  modelEntriesSha256,
+  readHeldOut,
+  type DxRevision
+} from "./ai-harness/authoringDx";
 import {
   CANARY,
   LABELLED_SET,
@@ -1291,7 +1308,20 @@ try {
   const dxStatus = (e: ReturnType<typeof evaluateDx>, id: string) => e.criteria.find((c) => c.id === id)!.status;
 
   const offDx0 = currentDx0Problems(instructionsSha256(requestFor("cycle")), AI_RUNTIME_PIN.build);
-  check("(precondition) the working tree is on DX-0: the four frozen blobs, the request's instructions and the runtime pin", offDx0.length === 0, offDx0.join("; "));
+  check("(precondition) the working tree is on DX-0: the frozen sources, the request's instructions and the runtime pin", offDx0.length === 0, offDx0.join("; "));
+  // awkit-djnl.14: the model manifest is frozen by its model entries, not its bytes. Each revision's digest is derived
+  // here from the manifest blob that revision froze, so it can never be written to fit.
+  const derivedEntries: Record<string, string> = {};
+  for (const blob of new Set(DX_REVISIONS.map((r) => r.blobs[MODEL_MANIFEST_PATH]))) {
+    const file = join(work, `manifest-${blob}.ts`);
+    writeFileSync(file, execFileSync("git", ["show", blob], { encoding: "utf8" }));
+    derivedEntries[blob] = modelEntriesSha256((await import(pathToFileURL(file).href)).AI_MODEL_MANIFEST);
+  }
+  check(
+    "each revision's frozen model entries are the digest of the entries in the manifest blob it froze",
+    Object.keys(derivedEntries).length > 0 && DX_REVISIONS.every((r) => r.modelEntriesSha256 === derivedEntries[r.blobs[MODEL_MANIFEST_PATH]]),
+    JSON.stringify(derivedEntries)
+  );
 
   // The held-out set's format: the nine labelled flows under new ids, the canary replaced.
   const heldFlow = (c: LabelledCase) => ({ ...JSON.parse(JSON.stringify(c.flow).replace(new RegExp(CANARY, "gi"), "Demo")), id: `held-${c.id}` });
@@ -1353,7 +1383,7 @@ try {
   // The evaluator. R2's run-1 answers leave 4 of 17 undisplayed, run 2's 6: the cap's two sides, not fitted. A text the
   // gate shows is replaced by the product's own step, which the judge reads correct and actionable (§11), so DX-3 can
   // say MET; `edit` scripts one text in its place, through the same parser and judge. The withheld texts stay R2's.
-  const inputs: CaptureInputs = { modelSha256: DX0.modelSha256, runtimeBuild: DX0.runtimeBuild, blobs: { ...DX0.blobs }, heldOutSha256: inv.corpusSha256 };
+  const inputs: CaptureInputs = { modelSha256: DX0.modelSha256, runtimeBuild: DX0.runtimeBuild, blobs: { ...DX0.blobs }, modelEntriesSha256: DX0.modelEntriesSha256, heldOutSha256: inv.corpusSha256 };
   type Edit = (caseId: string, index: number) => string | undefined;
   const answerFor = (request: AuthoringRequest, run: 1 | 2, twin: string, caseId: string, edit?: Edit) => {
     const r2 = request.issues.map((ref, i) => ({ issueId: ref.id, text: R2_DISPLAYED_ANSWERS.find((a) => a.run === run && a.caseId === twin && a.index === i)!.text.replace(/…$/, "") }));
@@ -1525,7 +1555,9 @@ try {
     ["another model id", { ...pass[1], modelId: "Qwen3.5-2B-unpinned" }],
     ["another runtime", { ...pass[1], inputs: { ...inputs, runtimeBuild: "node-llama-cpp@3.22.0+llama.cpp@v0.5.0" } }],
     ["a changed display gate", { ...pass[1], inputs: { ...inputs, blobs: { ...inputs.blobs, "src/ai/authoringClaimScreen.ts": "0".repeat(40) } } }],
-    ["a frozen source not recorded", { ...pass[1], inputs: { ...inputs, blobs: Object.fromEntries(Object.entries(inputs.blobs).slice(1)) } }],
+    ["a frozen source not recorded", { ...pass[1], inputs: { ...inputs, blobs: Object.fromEntries(Object.entries(inputs.blobs).filter(([p]) => p !== "app/main/ai/aiAssist.ts")) } }],
+    ["changed model entries", { ...pass[1], inputs: { ...inputs, blobs: { ...inputs.blobs, [MODEL_MANIFEST_PATH]: "0".repeat(40) }, modelEntriesSha256: modelEntriesSha256(AI_MODEL_MANIFEST.map((e) => ({ ...e, contextTokens: 4_096 }))) } }],
+    ["a manifest recorded by neither its blob nor its model entries", { ...pass[1], inputs: { ...inputs, blobs: { ...inputs.blobs, [MODEL_MANIFEST_PATH]: "0".repeat(40) }, modelEntriesSha256: undefined } }],
     ["another request", { ...pass[1], instructionsSha256: "0".repeat(64) }],
     ["another held-out corpus", { ...pass[1], inputs: { ...inputs, heldOutSha256: "0".repeat(64) } }]
   ];
@@ -1533,6 +1565,12 @@ try {
     const e = evaluateDx(swapped(capture), inv, []);
     check(`DX-0: a capture taken on ${how} voids the fresh evidence: NOT MET`, dxStatus(e, "DX-0") === "NOT MET" && e.verdict === "NOT MET" && e.voided.length === 1);
   }
+  // awkit-djnl.14: the manifest file changes for reasons of its own (L8a.1's GPU backend manifest); its model entries decide.
+  const moved = evaluateDx(swapped({ ...pass[1], inputs: { ...inputs, blobs: { ...inputs.blobs, [MODEL_MANIFEST_PATH]: "f".repeat(40) } } }), inv, []);
+  check("DX-0: a capture whose manifest file moved but whose model entries did not is fresh evidence: MET", moved.voided.length === 0 && dxStatus(moved, "DX-0") === "MET", JSON.stringify(moved.voided));
+  const { modelEntriesSha256: _entries, ...beforeDjnl14 } = inputs;
+  const legacy = evaluateDx(swapped({ ...pass[1], inputs: beforeDjnl14 }), inv, []);
+  check("...and one taken before awkit-djnl.14, recording the frozen blob only, still is", legacy.voided.length === 0 && dxStatus(legacy, "DX-0") === "MET", JSON.stringify(legacy.voided));
   check("DX-0: a working tree off DX-0 is NOT MET", dxStatus(evaluateDx(pass, inv, ["src/ai/authoringClaimScreen.ts differs"]), "DX-0") === "NOT MET");
   const { inputs: _inputs, ...before } = pass[1];
   const e0 = evaluateDx([pass[0], before, pass[2]], inv, []);
