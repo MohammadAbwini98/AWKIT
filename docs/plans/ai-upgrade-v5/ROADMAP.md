@@ -1,6 +1,16 @@
 # SpecterStudio Phase L — Local AI & Intelligent Automation (V5)
 
-**2026-09-28 (latest): L8a closed — Phase L reads 11 of 13 milestones closed (85%).** L8a
+**2026-09-29 (latest): L9 closed — Phase L reads 13 of 13 milestones closed (100%).** L9
+(`awkit-djnl.13`, L9.1–L9.5) closed with QA PASS: one job-status contract pushed to the owning window,
+bounded time budgets refused (never clamped) outside their committed bounds, one honest progress view
+(determinate only from bytes copied or the runtime's own load fraction), and measured cold and warm ETA
+ranges that survive a restart. Its packaged live evidence ran on the development machine under E11: the
+real 0.8B in CPU & RAM, GPU-Offload (this machine's fallback) and GPU-Only (refused), plus the GPU
+placements as mechanics on the AMD adapter; NVIDIA stays BLOCKED (`awkit-djnl.15`). Independent QC of
+L8a, L8b and L9 is carried forward (`awkit-djnl.15`, `.16`, `.17`), as is the DX-0 freeze bug
+(`awkit-djnl.14`).
+
+**2026-09-28: L8a closed — Phase L reads 11 of 13 milestones closed (85%).** L8a
 (`awkit-djnl.11`, L8a.0–L8a.5) closed on the owner's E11 decision: the AMD mechanics plus the
 fake-host cases are its GPU evidence, and NVIDIA stays Compatible but unqualified. L8b
 (`awkit-djnl.12`) and L9 (`awkit-djnl.13`) are open and not implemented.
@@ -204,9 +214,9 @@ privacy policy and model-manifest owner, and wins wherever it refines the text b
 | L5 | Failure evidence (L5a) & intelligence (L5b) | L0 / L1+L5a | `L5-failure-evidence-and-analysis.md` | `.7` / `.8` |
 | L6 | Fragments & templates | L2, L4 | `L6-fragments-and-templates.md` | `awkit-djnl.9` |
 | L7 | Release confirmation | L1–L6 | `L7-release-confirmation.md` | `awkit-djnl.10` |
-| L8a | Hardware-adaptive inference runtime (2026-09-27 extension, open) | L1, L7 | `L8a-hardware-adaptive-inference-runtime.md` | `awkit-djnl.11` |
-| L8b | External compatible-model registration & qualification (extension, open) | L8a | `L8b-external-model-compatibility.md` | `awkit-djnl.12` |
-| L9 | Adaptive time budgets, progress & ETA (extension, open) | L8a, L8b (acceptance) | `L9-adaptive-time-progress-eta.md` | `awkit-djnl.13` |
+| L8a | Hardware-adaptive inference runtime (2026-09-27 extension, closed 2026-09-28) | L1, L7 | `L8a-hardware-adaptive-inference-runtime.md` | `awkit-djnl.11` |
+| L8b | External compatible-model registration & qualification (extension, closed 2026-09-29) | L8a | `L8b-external-model-compatibility.md` | `awkit-djnl.12` |
+| L9 | Adaptive time budgets, progress & ETA (extension, closed 2026-09-29) | L8a, L8b (acceptance) | `L9-adaptive-time-progress-eta.md` | `awkit-djnl.13` |
 
 Beads is the source of truth for order and status (`bd ready` shows what can start); L0/L1 numbers are
 swapped because the first L1 was filed with an inverted `--deps` edge and the titles were exchanged.
@@ -261,7 +271,7 @@ as-is; *New* = no owner exists yet.
 
 ## Phase L extension (2026-09-27) — L8a, L8b, L9
 
-Status: **OPEN — L8a closed 2026-09-28, L8b closed 2026-09-29; L9 planned, not implemented.** The owner widened Phase
+Status: **CLOSED — L8a closed 2026-09-28, L8b and L9 closed 2026-09-29.** The owner widened Phase
 L's accepted scope after the 10/10 closeout. L0–L7 are not reopened, renumbered or re-evaluated; their
 evidence stands. The stability guarantees above apply unchanged to every new milestone.
 
@@ -269,11 +279,10 @@ evidence stands. The stability guarantees above apply unchanged to every new mil
 |---|---|---|---|
 | L8a | Hardware-adaptive inference runtime (**closed 2026-09-28**, E11 decided) | closed L1, closed L7 | `awkit-djnl.11` |
 | L8b | External compatible-model registration & qualification (**closed 2026-09-29**, QC carried forward) | L8a | `awkit-djnl.12` |
-| L9 | Adaptive time budgets, progress & ETA UX | L8a, L8b (acceptance; L9.1 may start in parallel) | `awkit-djnl.13` |
+| L9 | Adaptive time budgets, progress & ETA UX (**closed 2026-09-29**, QC carried forward) | L8a, L8b (acceptance; L9.1 may start in parallel) | `awkit-djnl.13` |
 
-Phase L now reads **12 of 13 milestones closed (92%)** (L8a closed 2026-09-28, L8b 2026-09-29). The
-program-wide roadmap counts phases, not milestones: with Phase L still `in-progress` it reads 11 of 14
-phases complete (79%).
+Phase L now reads **13 of 13 milestones closed (100%)** (L8a closed 2026-09-28, L8b and L9 2026-09-29).
+The epic `awkit-djnl` stays open only as the container of the carried-forward follow-ups (`.14`–`.17`).
 
 ### Owner decisions (2026-09-27; ratified in `docs/ai/DECISIONS.md`)
 

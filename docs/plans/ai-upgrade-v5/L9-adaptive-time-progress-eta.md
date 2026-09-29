@@ -4,9 +4,9 @@ Shared rules and the Phase L extension decisions (E1–E12): `ROADMAP.md` › *P
 (2026-09-27)*. Beads `awkit-djnl.13`. Depends on L8a (`awkit-djnl.11`) and L8b (`awkit-djnl.12`)
 for **acceptance**; builds on the closed L4b / L5b / L6 feature surfaces.
 
-**Status (2026-09-27): OPEN — planned, zero implementation.** The job-status contract (L9.1) may be
-built in parallel with L8a/L8b, following the L1 → L3 precedent: the `blocks` edges encode
-acceptance, not the start of work.
+**Status (2026-09-29): CLOSED — L9.1–L9.5 implemented with QA PASS** (contract
+`awkit-djnl-13-l9-0929`; commits `16de408b`, `a748b4b6`, `5cd3a195`, `ccfdd07c`). Independent QC is
+carried forward in `awkit-djnl.17`. See *L9 record (2026-09-29)* at the end.
 
 ## Objective
 
@@ -108,3 +108,73 @@ One contract for every long AI operation:
 
 - Whether 3.21.1 reports load/prompt-evaluation progress at all — decided by L8a.0's probe; without
   it those stages stay indeterminate.
+  - **Settled (L9.1):** the runtime reports its load fraction (`onLoadProgress`), which the host
+    forwards in steps of at least 5 % for the request that asked. It reports nothing during prompt
+    evaluation, so that stage and generation stay indeterminate; the first token marks generation.
+
+## L9 record (2026-09-29)
+
+**What was built.**
+
+- **L9.1** `src/ai/AiJobStatus.ts`: the one job-status contract and its tracker (state, queue position
+  and hold reason, stage, elapsed, ETA range with samples, confidence and cold or warm, effective
+  profile, budget, cancel, terminal reason). `AiService` reports every job; `aiRuntime` reports the
+  model copy (`model-import`, determinate by bytes), the compatibility check and the backend-pack copy.
+  Main sends each status to the owning window only (`ai:jobStatus`, `ai:listJobs` under `AI_USE`);
+  `ai:cancelModelJob` (`AI_MANAGE`) stops only that window's model copy or check. The host
+  (`16de408b`) forwards the runtime's load fraction and the first token, a stage and a number only.
+- **L9.2** `src/ai/AiTimeBudgets.ts`: seven bounded budgets whose defaults are the closed evidence values
+  (125 s explanation, 185 s failure analysis and each locator attempt, 30 s fragments, 120 s load, 240 s
+  probe, 30 min copy). `sanitizeAiSettingsPatch` refuses a value outside its bounds with main's own
+  sentence, never clamps; a stored out-of-range value reads as the default. A moved budget makes the
+  features under it read Compatible but unqualified (`TIME_BUDGET_CHANGED`). Settings → Local AI →
+  Time limits.
+- **L9.3** `app/renderer/components/shared/AiJobProgress.tsx`: one accessible progress view on the
+  explanation bar, the fragment dialog, failure analysis, the Element Spy, model import and check, and
+  the backend-pack copy. `aria-valuenow` only with a real denominator; stage and elapsed time in the
+  value text; polite announcements at most every 5 s; the indeterminate sweep stops under reduced
+  motion; Hologram tokens only.
+- **L9.4** `src/ai/AiEtaHistory.ts`: per latency class (quality key plus hardware class), the last 20
+  cold and 20 warm durations of completed jobs, at most 64 keys, versioned, written through
+  `replaceFileAtomically` under the runtime data root; keys and integers only. Settings shows what was
+  measured here as a measurement, never a qualification.
+- **L9.5** every surface wired, and a product defect fixed on the way: a compatibility check that
+  stopped at the model header loaded nothing, yet was recorded as a cold probe, so Settings claimed a
+  measured speed for an incompatible model. A job is cold now only once the probe starts loading.
+
+**Evidence (all on the final source; packaged on a fresh package of clean `80906caf`).**
+
+| Acceptance | Evidence | Result |
+|---|---|---|
+| Fake clock, every transition, budgets, history | `verify:ai-job-status` | 142/142; `verify:ai-job-status-mutations` 53/53 killed, 7/7 controls clean |
+| Feature deadlines | `verify:ai-deadlines` | 42/42 |
+| Host progress | `verify:ai-host` | 279/0, 46/46 mutations |
+| GUI in real Electron | `verify:ai-progress-gui` | 41/41; 7/7 GUI mutants caught and restored |
+| Settings GUI | `verify:ai-settings-gui` | 140/140 |
+| Contracts | `verify:ai-permissions`, `verify:ai-fallback`, `verify:ai-model-compatibility` | 135/0, 51/0, 188/0 |
+| Packaged, real model, each L8a mode, restart | `verify:ai-progress-packaged` | 33/0; a host mutant killed 3 checks |
+| GPU placements (E11 mechanics, AMD) | `verify:ai-progress-gpu-packaged` | 11/0; NVIDIA BLOCKED |
+| Build | `build`, `typecheck:scripts`, `verify:verifier-classification` | PASS (295 scripts) |
+
+Regressions on the same state: `verify:ai-assist-gui` 182/0, `verify:element-spy` 205/0,
+`verify:ai-backend-pack-gui` 59/59, `verify:ai-model-pack` 74/0, `verify:ai-gpu-modes` 184/0,
+`verify:ai-adapter` 117/0, `verify:ai-locator-attempts` 191/191, `verify:ipc-contract` 10/10,
+`verify:source-hygiene` 11/0, `verify:failure-capture-overhead` 18/0 PASS (run 20),
+`verify:ai-packaged-app` 32/0, `verify:ai-model-registration` 33/0, `verify:ai-packaged-runtime` 104/0,
+`verify:ai-gpu-packaged` 24/0; strict offline validation PASS inside packaging. For the host file the
+coverage map names three more: `verify:ai-failure-analysis-budget` 7/0, `verify:ai-locator-upgrade-budget`
+8/0 and `verify:ai-inference-profile` 14/0 (its committed L1.8 evidence restored afterwards).
+
+**Not PASS, recorded as they are.**
+
+- NVIDIA placement: **BLOCKED** (no `0x10DE` adapter, E11); carried in `awkit-djnl.15`.
+- `verify:ai-authoring` 387/388 and `verify:ai-display-gate-mutations` FAIL at its controls: the same
+  pre-existing DX-0 frozen-manifest precondition (`awkit-djnl.14`), unchanged by L9.
+- `validate:offline -- -Strict` at HEAD `5cd3a195`: FAIL on the HEAD-equality clause only, by design (the
+  manifest records `80906caf`, the commit it was generated from); the release-source run inside
+  packaging passed.
+
+**Qualification and budgets.** At the default budgets nothing changes: the 0.8B stays Qualified on its
+historical CPU key for its three limited-GO features. An administrator who moves a feature's budget
+un-qualifies exactly the features under it until they are re-measured; old evidence is never re-labelled.
+Latency is still never claimed by a qualification; Settings shows the measured speed apart from it.

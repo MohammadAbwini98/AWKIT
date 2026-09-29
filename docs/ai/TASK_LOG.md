@@ -1,6 +1,34 @@
 # TASK_LOG
 
-## 2026-09-29 (latest) — L8b.2 closeout and L8b.3–L8b.5: probe, qualification, Settings; L8b closed (Claude)
+## 2026-09-29 (latest) — L9 resumed and closed: job status, time budgets, honest progress, measured ETA; Phase L 13 of 13 (Claude)
+
+- **Task:** resume L9 (`awkit-djnl.13`) after the previous session stopped at its usage limit, right after
+  writing `scripts/verify-ai-progress-gui.mts`; finish, verify, close, commit and push.
+- **Start state:** remote had nothing new; local `main` was one ahead (`16de408b`, the host's L9.1
+  progress forwarding); the rest of L9 was uncommitted and preserved as it was.
+- **Done this session:**
+  - the GUI verifier typechecked and ran: its fake answer sent a `ranking` the schema forbids when no
+    finding is fixable, and it read one Settings field before Settings reloaded; both fixed in the
+    verifier, then 41/41;
+  - `verify:ai-settings-gui` caught a product defect (139/140): a header-only compatibility check was
+    recorded as a measured cold probe; `aiRuntime` now marks a check cold only when the probe starts;
+  - wrote `verify:ai-progress-packaged` (the real packaged EXE, the real 0.8B, all three modes, a
+    restart) and a `gpuProgress` harness mode behind `verify:ai-progress-gpu-packaged`;
+  - mutation evidence: `verify:ai-job-status-mutations` (53 in-memory mutants; five first survivors were
+    weak checks, all tightened), 7 GUI mutants built and restored one by one, and a packaged mutant (the
+    host without load-progress forwarding, source and packaged copies);
+  - release lease, fresh package from clean `80906caf`, signed manifest `5cd3a195`; Beads closeout.
+- **Commits:** `a748b4b6` (L9), `80906caf` (lease), `5cd3a195` (manifest), `ccfdd07c` (packaged evidence),
+  `004f62ba` (Beads), and this state update.
+- **Tests:** see the L9 plan's record: every contract gate PASS; regressions green, including the
+  packaged L7/L8 gates; the overhead gate PASS (run 20).
+- **Not PASS:** NVIDIA placement BLOCKED (E11); `verify:ai-authoring` 387/388 and
+  `verify:ai-display-gate-mutations` controls FAIL on the pre-existing DX-0 precondition (`awkit-djnl.14`);
+  `validate:offline -- -Strict` fails its HEAD-equality clause at later HEADs by design.
+- **Result:** L9 closed, QA PASS, QC carried forward (`awkit-djnl.17`). Phase L 13 of 13; the roadmap
+  phase is complete.
+
+## 2026-09-29 — L8b.2 closeout and L8b.3–L8b.5: probe, qualification, Settings; L8b closed (Claude)
 
 - **Task:** check the GitHub repository, then finalize L8b completely.
 - **GitHub:** no open pull requests; CI green on every recent `main` push. `gh` is outside the lease

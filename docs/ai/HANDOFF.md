@@ -1,6 +1,25 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-29, latest) — L8b closed; L9 is next
+## HANDOFF (2026-09-29, latest) — L9 closed; Phase L is 13 of 13
+
+- **L9 (`awkit-djnl.13`) is closed** under contract `awkit-djnl-13-l9-0929` with QA PASS. The record,
+  evidence table and the items that are not PASS are in
+  `docs/plans/ai-upgrade-v5/L9-adaptive-time-progress-eta.md` › *L9 record*.
+- **Open follow-ups under `awkit-djnl`** (the epic stays open only for them):
+  - `.14` the `verify:ai-authoring` DX-0 freeze bug (also why `verify:ai-display-gate-mutations` fails
+    its controls);
+  - `.15` L8a QC, NVIDIA qualification when a `0x10DE` adapter exists, open GPU items;
+  - `.16` L8b QC and the dialog line breaks (its item 2, the latency class, is now measured by L9's
+    history; its item 4, the overhead gate, passed run 20);
+  - `.17` L9 QC, the unload stage label, and whether a GPU-Only job should carry its cause.
+- **Signed dependency manifest** records clean `80906caf` (the L9.1 host). Any further `ai-host.cjs`
+  change needs a release lease and a fresh package from a clean tree, lease bookkeeping committed first.
+- **Mutation tooling:** `verify:ai-job-status-mutations` reuses the in-memory hook of
+  `verify:ai-display-gate-mutations` (`--job-status`); GUI and packaged mutants were run by hand and are
+  recorded in the contract.
+- Ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## HANDOFF (2026-09-29) — L8b closed; L9 is next
 
 - **L8b (`awkit-djnl.12`) is closed.** L8b.2 (contract `awkit-djnl-12-l8b2-static-checks-0928`) and
   L8b.3–L8b.5 (contract `awkit-djnl-12-l8b3-l8b5-0929`) are implemented with QA PASS. Their records are in

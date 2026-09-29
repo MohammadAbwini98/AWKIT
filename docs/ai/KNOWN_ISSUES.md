@@ -1,5 +1,29 @@
 # KNOWN_ISSUES
 
+## A job is cold only once it loads: a header-only check is not a measured probe (2026-09-29, RESOLVED in L9 — know the trap)
+
+- **Symptom:** after importing an incompatible model, Settings claimed a measured speed ("Compatibility
+  check 0 s cold (1 run)"). `verify:ai-settings-gui` read 139/140.
+- **Cause:** `runModelStages` marked the compatibility-check job cold before the header stage. A check
+  that stopped at the header loaded nothing, still closed `completed`, and joined the ETA history.
+- **Fix:** the job becomes cold only when the probe starts loading, so a header-only check has no warmth
+  and is never recorded. **Rule:** set a job's warmth where the load actually happens, never at open.
+
+## `verify:ai-inference-profile` rewrites the committed L1.8 evidence on every run (2026-09-29, OPEN — know it)
+
+- The diagnostic writes `docs/plans/ai-upgrade-v5/evidence/L1.8-inference-profile.json`, which is the
+  L1.8 isolation record of 2026-09-20 whose numbers the L1 plan cites. A re-run (the coverage map lists it
+  for any `ai-host.cjs` change) replaces them with that day's measurements on a contended host.
+- **Rule:** after running it for regression, restore the committed file (`git show HEAD:<path>`) unless
+  a new L1.8 measurement is the point; on 2026-09-29 it passed 14/0 and the file was restored byte for
+  byte.
+
+## A mode change reports the old model's unload as `model-load` (2026-09-29, OPEN — cosmetic, `awkit-djnl.17`)
+
+- `jobStageOf("unloading")` maps to `model-load` (indeterminate, no progress). The packaged app unloads
+  when the mode is saved, so a user rarely sees it; a harness that changes the mode between jobs does.
+  Order checks on the **last** `model-load`, as `scripts/ai-harness/gpuProgress.ts` does.
+
 ## The shared `ConfirmDialog` renders `\n` line breaks as spaces (2026-09-29, OPEN — cosmetic)
 
 - `.modal-body` has no `white-space` rule, so every confirm message written with `\n\n` paragraph breaks

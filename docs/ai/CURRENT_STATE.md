@@ -1,6 +1,44 @@
 # CURRENT_STATE
 
-## L8b closed: compatible external models, honest labels, acknowledged before use; Phase L 12 of 13 (2026-09-29, latest)
+## L9 closed: bounded time budgets, honest progress and measured ETA; Phase L 13 of 13 (2026-09-29, latest)
+
+- **What a user sees now:**
+  - Every long local-AI job (validation explanation, fragment description, failure analysis, Element Spy
+    locator, model copy and check, GPU backend-pack copy) shows one progress view: its stage, elapsed
+    time and, once this machine has measured runs like it, a range such as "About 20 s to 30 s left
+    (from 3 earlier warm runs here)". With no history it says so; it never guesses.
+  - The bar is determinate only while bytes are copied or the runtime reports its own load fraction.
+    Reading the request and writing the answer are indeterminate. Nothing is computed from elapsed time.
+  - Settings → Local AI → **Time limits**: one bounded limit per kind of AI work. An out-of-range value is
+    refused with main's own bounds, never clamped; **Use default** restores it. A moved limit makes the
+    features under it read Compatible but unqualified until re-measured.
+  - Settings' **Speed on this machine** shows what was measured here, cold and warm, never a claim.
+- **Where it lives:** `src/ai/AiJobStatus.ts`, `AiTimeBudgets.ts`, `AiEtaHistory.ts`;
+  `app/renderer/components/shared/AiJobProgress.tsx`; `app/renderer/pages/LocalAiTimeBudgets.tsx`;
+  `ai:jobStatus` and `ai:listJobs` (`AI_USE`, owning window only), `ai:cancelModelJob` (`AI_MANAGE`). The
+  host forwards the load fraction and the first token (`16de408b`). The ETA history is
+  `<data root>/ai/ai-eta-history.json`.
+- **Fixed on the way:** a compatibility check that stopped at the header loaded nothing yet was recorded
+  as a cold probe, so Settings claimed a speed for an incompatible model (`verify:ai-settings-gui` caught
+  it). A job is cold only once the probe starts loading.
+- **Evidence** (full table in `docs/plans/ai-upgrade-v5/L9-adaptive-time-progress-eta.md`):
+  - `verify:ai-job-status` 142/142 with 53/53 in-memory mutants (`verify:ai-job-status-mutations`);
+  - `verify:ai-progress-gui` 41/41 with 7/7 GUI mutants; `verify:ai-settings-gui` 140/140;
+  - `verify:ai-progress-packaged` 33/0 on a fresh package with the real 0.8B in CPU & RAM, GPU-Offload
+    (falls back here: `BACKEND_PACK_MISSING`) and GPU-Only (refused), across a restart; a host mutant
+    killed 3 checks; `verify:ai-progress-gpu-packaged` 11/0 (E11 mechanics on AMD);
+  - `verify:ai-host` 279/0 (46/46 mutations), deadlines, permissions, fallback, compatibility PASS; the
+    packaged L7/L8 gates re-ran green; strict offline validation PASS inside packaging;
+  - `verify:failure-capture-overhead` PASS 18/0 (run 20).
+- **Not PASS:** NVIDIA placement BLOCKED (E11, `awkit-djnl.15`); `verify:ai-authoring` 387/388 and
+  `verify:ai-display-gate-mutations` FAIL on the pre-existing DX-0 precondition (`awkit-djnl.14`);
+  `validate:offline -- -Strict` fails only its HEAD-equality clause at later HEADs, by design.
+- **Carried forward** (Beads): independent QC of L9 (`awkit-djnl.17`), with L8a's and L8b's (`.15`,
+  `.16`).
+- Phase L reads 13 of 13 milestones closed; the roadmap phase is complete and the epic stays open for
+  the follow-ups. Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## L8b closed: compatible external models, honest labels, acknowledged before use; Phase L 12 of 13 (2026-09-29)
 
 - **What an administrator can do now** (Settings → Local AI):
   - Import any GGUF. The file's size, the free space and what the copy needs are shown **before** anything
