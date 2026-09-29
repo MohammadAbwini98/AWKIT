@@ -405,7 +405,7 @@ async function load(req) {
   const instance = await ensureLlama(threads);
   let model = null;
   try {
-    model = await instance.loadModel({ modelPath, gpuLayers, useMmap: true, useMlock: false });
+    model = await instance.loadModel({ modelPath, gpuLayers, useMmap: true, useMlock: false, onLoadProgress: loadProgressFor(req.id) });
     const context = await model.createContext({ contextSize, threads, batchSize: Math.min(512, contextSize), sequences: 1 });
     const sequence = context.getSequence();
     loaded = {
@@ -553,7 +553,7 @@ async function probe(req) {
   let context = null;
   try {
     try {
-      model = await instance.loadModel({ modelPath, gpuLayers: 0, useMmap: true, useMlock: false });
+      model = await instance.loadModel({ modelPath, gpuLayers: 0, useMmap: true, useMlock: false, onLoadProgress: loadProgressFor(req.id) });
       context = await model.createContext({ contextSize, threads, batchSize: Math.min(512, contextSize), sequences: 1 });
     } catch {
       return { loaded: false };
@@ -640,7 +640,10 @@ async function infer(req) {
       temperature,
       seed,
       onToken(chunk) {
-        if (firstTokenAt === null) firstTokenAt = performance.now();
+        if (firstTokenAt === null) {
+          firstTokenAt = performance.now();
+          progress(req.id, { stage: "generation" });
+        }
         outputTokens += chunk.length;
       }
     });
@@ -688,6 +691,28 @@ async function shutdown() {
   llama = null;
   if (instance) await instance.dispose().catch(() => undefined);
   return { shutdown: true };
+}
+
+// ── Progress (L9.1) ──────────────────────────────────────────────────────────────────────────────
+
+/**
+ * What a request in flight is doing, sent under that request's own id and only where the runtime itself
+ * reports it: its load fraction, and the first generated token. A stage and a number, never text.
+ */
+function progress(id, update) {
+  reply({ version: PROTOCOL_VERSION, type: "progress", id, ...update });
+}
+
+/** The runtime's own `onLoadProgress`, clamped to 0..1, in steps of at least 5 % and its end once. */
+function loadProgressFor(id) {
+  let last = -1;
+  return (fraction) => {
+    if (typeof fraction !== "number" || !Number.isFinite(fraction)) return;
+    const value = Math.min(1, Math.max(0, fraction));
+    if (value === last || (value < 1 && value - last < 0.05)) return;
+    last = value;
+    progress(id, { stage: "load", fraction: value });
+  };
 }
 
 // ── Dispatch ─────────────────────────────────────────────────────────────────────────────────────
