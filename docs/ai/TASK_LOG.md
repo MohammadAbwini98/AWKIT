@@ -21,9 +21,14 @@
   - `verify:element-spy` 206/0;
   - `verify:ai-settings-gui` 141/141;
   - `verify:ai-progress-gui` 41/0.
-- **Not run:** `verify:ai-progress-packaged` and `verify:ai-progress-gpu-packaged`, because the
-  package predates the fix and needs a fresh package.
-- **Result:** `.17` closed. The epic stays open for `.14`, `.15` and `.16`.
+- **Then a fresh package:** the user asked for CodeCraft to build it. `codecraft_run_task` works, but
+  its MCP request timed out before packaging started, so it was run in-session:
+  - release lease `8a419a4c`;
+  - `npm run package:portable` PASS, with strict offline validation;
+  - manifest `ae1a7b8a`;
+  - `verify:ai-progress-packaged` 33/0, `verify:ai-progress-gpu-packaged` 11/0,
+    `verify:ai-packaged-runtime` 104/0.
+- **Result:** `.17` closed and its packaged gates PASS. The epic stays open for `.14`, `.15` and `.16`.
 
 ## 2026-09-29 — L9 resumed and closed: job status, time budgets, honest progress, measured ETA; Phase L 13 of 13 (Claude)
 

@@ -2,7 +2,7 @@
   "task": "awkit-djnl-13-l9-0929",
   "contract_path": "docs/ai/contracts/awkit-djnl-13-l9-0929.json",
   "holder": "release",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "build",
     "resources/dependency-manifest.json",
@@ -28,5 +28,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-29T20:46:35.876Z",
+  "released_reason": "fresh package of clean 8a419a4c with strict offline validation passed, signed manifest committed in ae1a7b8a, the packaged gates run outside this lease",
+  "archived_at": "2026-09-29T20:46:35.877Z"
 }

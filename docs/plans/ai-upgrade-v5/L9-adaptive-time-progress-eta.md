@@ -211,7 +211,17 @@ from main's own status sentence.
 
 **Evidence.** `build` PASS; `verify:ai-job-status` 148/148; `verify:ai-job-status-mutations` 67/0 (57/57
 killed, 7/7 controls clean); `verify:element-spy` 206/0; `verify:ai-settings-gui` 141/141;
-`verify:ai-progress-gui` 41/0. **NOT RUN:** `verify:ai-progress-packaged` and
-`verify:ai-progress-gpu-packaged`. The current package predates `7f5deca1` (main bundle only; the
-host and the signed manifest are unchanged), and the GPU harness now expects the new no-history rule.
-Both need a fresh package.
+`verify:ai-progress-gui` 41/0.
+
+**Packaged, on a fresh package of clean `8a419a4c`** (signed manifest `ae1a7b8a`, strict offline
+validation passed during packaging, host assets unchanged):
+
+- `verify:ai-progress-packaged` 33/0 with the real 0.8B. The cold history now holds 1 sample before
+  the restart, not the L9 close's 2: GPU-Offload's cold fallback run is no longer recorded as a CPU
+  measurement.
+- `verify:ai-progress-gpu-packaged` 11/0. GPU-Offload's first cold load now reports no "no history"
+  (E11 mechanics on AMD; NVIDIA still BLOCKED).
+- `verify:ai-packaged-runtime` 104/0: the packaged tree is exactly the current source's staging.
+
+The package build and the gates were run in-session. CodeCraft's `run_task` works, but the MCP
+request timed out before packaging even started.

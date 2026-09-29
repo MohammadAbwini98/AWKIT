@@ -25,11 +25,14 @@
   - `verify:element-spy` 206/0;
   - `verify:ai-settings-gui` 141/141;
   - `verify:ai-progress-gui` 41/0.
-- **Not PASS:**
-  - `verify:ai-progress-packaged` and `verify:ai-progress-gpu-packaged` **NOT RUN**: the package
-    predates the fix, and a fresh package is needed.
-  - The QC was done by a Claude session. The planned CodeCraft pass could not run, because its
-    tools fail schema validation in this client.
+- **Packaged** (fresh package of clean `8a419a4c`, signed manifest `ae1a7b8a`, strict offline
+  validation passed):
+  - `verify:ai-progress-packaged` 33/0: the cold history now holds 1 sample before the restart, not 2,
+    because the fallback run is no longer recorded;
+  - `verify:ai-progress-gpu-packaged` 11/0 (NVIDIA BLOCKED, E11);
+  - `verify:ai-packaged-runtime` 104/0.
+- **Not independent:** the QC was done by a Claude session. CodeCraft's review tools fail schema
+  validation in this client, and its `run_task` timed out on packaging.
 - **Follow-ups:** Phase L's epic stays open for `.14`, `.15` and `.16`. Validation ledger unchanged at
   65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

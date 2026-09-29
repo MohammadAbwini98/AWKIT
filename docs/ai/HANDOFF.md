@@ -7,12 +7,13 @@
     `docs/plans/ai-upgrade-v5/L9-adaptive-time-progress-eta.md` › *QC follow-up*.
   - The QC was done by a Claude session. CodeCraft's MCP tools all fail client-side schema validation
     (a draft-07 `outputSchema`), so no second model reviewed the fixes.
-- **Next packaged run:**
-  - The fix changes the main bundle only: the host and the signed manifest are unchanged.
-  - `verify:ai-progress-packaged` and `verify:ai-progress-gpu-packaged` are NOT RUN on it until a
-    fresh package exists.
-  - The GPU harness (`scripts/ai-harness/gpuProgress.ts`) now expects a GPU mode's first load to
-    claim no "no history", so it fails against the old package by design.
+- **Fresh package done:**
+  - Built from clean `8a419a4c`; signed manifest `ae1a7b8a`; host assets unchanged.
+  - `verify:ai-progress-packaged` 33/0, `verify:ai-progress-gpu-packaged` 11/0,
+    `verify:ai-packaged-runtime` 104/0.
+  - `validate:offline -- -Strict` at later HEADs fails only its HEAD-equality clause, by design.
+- **CodeCraft:** `codecraft_run_task` works (answers as `glm-5.3`), but a single MCP request times out
+  long before packaging or a packaged gate finishes. Use it only for short jobs.
 - **Open under `awkit-djnl`:** `.14` (DX-0 freeze bug), `.15` (L8a QC, NVIDIA), `.16` (L8b QC).
 - Ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

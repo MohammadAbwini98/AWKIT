@@ -407,6 +407,24 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-djnl-13-l9-0929:release:2026-09-29T20:38:15.954Z",
+        "task": "awkit-djnl-13-l9-0929",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "build",
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig"
+        ],
+        "acquired_at": "2026-09-29T20:38:15.954Z",
+        "acquired_at_commit": "ceebc33c957ab2d0ead8d866f832333f1c98a61e",
+        "released_at": "2026-09-29T20:46:35.876Z",
+        "released_reason": "fresh package of clean 8a419a4c with strict offline validation passed, signed manifest committed in ae1a7b8a, the packaged gates run outside this lease",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }
