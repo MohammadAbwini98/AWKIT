@@ -1,23 +1,15 @@
 {
   "task": "awkit-djnl-12-l8b3-l8b5-0929",
   "contract_path": "docs/ai/contracts/awkit-djnl-12-l8b3-l8b5-0929.json",
-  "holder": "release",
-  "status": "released",
+  "holder": "project-state",
+  "status": "active",
   "allowed_paths": [
-    "build",
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig"
+    ".beads/issues.jsonl"
   ],
-  "acquired_at": "2026-09-28T23:57:16.636Z",
-  "acquired_at_commit": "33d218f4ef784b2ab30470fc97323cdcf2742d8b",
-  "baseline_dirty": [
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-djnl-12-l8b3-l8b5-0929.json"
-  ],
-  "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "f33210bf507a3235d235ffe90f32354e59f8dc26b4c9533db33307e5fffa56c5",
-    "docs/ai/contracts/awkit-djnl-12-l8b3-l8b5-0929.json": "a2fd09f7623c49c54a1c20de3bb29e2425ca1acff7a593d61b381e1466e01884"
-  },
+  "acquired_at": "2026-09-29T00:26:01.973Z",
+  "acquired_at_commit": "58e70fd61631daf26a9fa336e765f49cdfa14bf7",
+  "baseline_dirty": [],
+  "baseline_dirty_fingerprints": {},
   "baseline_watched_ignored": {
     ".env": "absent",
     ".claude/settings.local.json": "6238:1788551784499.886",
@@ -26,12 +18,9 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1790621803216.8665"
+    "build": "dir(1):native-hosts:1790639966650.9912"
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-29T00:11:44.442Z",
-  "released_reason": "signed manifest from clean 7eeff437 committed in 7b35277c, strict validation and verify:ai-packaged-app 32/0 passed, the registration gate needs a verifier wait fix outside this lease",
-  "archived_at": "2026-09-29T00:11:44.446Z"
+  "violations": []
 }
