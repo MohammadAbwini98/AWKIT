@@ -1,21 +1,15 @@
 {
-  "task": "awkit-djnl-13-l9-0929",
-  "contract_path": "docs/ai/contracts/awkit-djnl-13-l9-0929.json",
-  "holder": "release",
-  "status": "released",
+  "task": "awkit-djnl-11-l8a-close-0928",
+  "contract_path": "docs/ai/contracts/awkit-djnl-11-l8a-close-0928.json",
+  "holder": "project-state",
+  "status": "active",
   "allowed_paths": [
-    "build",
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig"
+    ".beads/issues.jsonl"
   ],
-  "acquired_at": "2026-09-29T20:38:15.954Z",
-  "acquired_at_commit": "ceebc33c957ab2d0ead8d866f832333f1c98a61e",
-  "baseline_dirty": [
-    "docs/ai/contracts/awkit-djnl-13-l9-0929.json"
-  ],
-  "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-djnl-13-l9-0929.json": "cdfb6461e24d4ad525e5e55c123084be4d81acaf9f9ad7ee739e74fd3ae08ea5"
-  },
+  "acquired_at": "2026-09-29T21:21:08.706Z",
+  "acquired_at_commit": "3c821b6a48c3d067e70cb877ddc5dff5d0ab2e11",
+  "baseline_dirty": [],
+  "baseline_dirty_fingerprints": {},
   "baseline_watched_ignored": {
     ".env": "absent",
     ".claude/settings.local.json": "6238:1788551784499.886",
@@ -24,12 +18,9 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1790696745774.2986"
+    "build": "dir(1):native-hosts:1790714496401.672"
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-29T20:46:35.876Z",
-  "released_reason": "fresh package of clean 8a419a4c with strict offline validation passed, signed manifest committed in ae1a7b8a, the packaged gates run outside this lease",
-  "archived_at": "2026-09-29T20:46:35.877Z"
+  "violations": []
 }
