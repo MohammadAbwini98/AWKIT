@@ -2,18 +2,14 @@
   "task": "awkit-djnl-13-l9-0929",
   "contract_path": "docs/ai/contracts/awkit-djnl-13-l9-0929.json",
   "holder": "project-state",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
     ".beads/issues.jsonl"
   ],
-  "acquired_at": "2026-09-29T16:50:58.606Z",
-  "acquired_at_commit": "ccfdd07c4fa29ccf350334538955b885896c6349",
-  "baseline_dirty": [
-    "docs/ai/contracts/awkit-djnl-13-l9-0929.json"
-  ],
-  "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-djnl-13-l9-0929.json": "0edc657724e95b472dbf9db06caae2c9bff68c2be3e7393e2a6f3806f9b7cd05"
-  },
+  "acquired_at": "2026-09-29T20:22:28.927Z",
+  "acquired_at_commit": "7f5deca1a92d1b45a9e3e92c8f86354c2f325456",
+  "baseline_dirty": [],
+  "baseline_dirty_fingerprints": {},
   "baseline_watched_ignored": {
     ".env": "absent",
     ".claude/settings.local.json": "6238:1788551784499.886",
@@ -26,8 +22,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-29T16:52:30.437Z",
-  "released_reason": "Beads closeout committed in 004f62ba, awkit-djnl.13 closed and awkit-djnl.17 opened, the dashboard baselines and state documents are updated next outside this lease",
-  "archived_at": "2026-09-29T16:52:30.439Z"
+  "violations": []
 }
