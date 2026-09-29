@@ -173,7 +173,9 @@ export async function runGpuProgress({ step, record, log }: { step: Step; record
     if (outcome.status !== "ok" || seen.state !== "completed") throw new Error(JSON.stringify({ outcome, seen }));
     if (!loaded(seen) || seen.loadFractions.length === 0 || !seen.progressOnlyInLoad || !seen.fractionsRise) throw new Error(JSON.stringify(seen));
     if (seen.profile?.backend !== "vulkan" || seen.profile.device !== "gpu" || seen.profile.mode !== "gpu-offload" || seen.profile.offload === "cpu") throw new Error(JSON.stringify(seen.profile));
-    if (seen.cold !== true || !seen.noHistoryWhileRunning || seen.etas.length > 0) throw new Error(`first run: ${JSON.stringify(seen)}`);
+    // A GPU mode's first load does not know its placement yet, so it claims neither an ETA nor "no history"
+    // (awkit-djnl.17): claiming a first run here would be false wherever history exists for the placement.
+    if (seen.cold !== true || seen.noHistoryWhileRunning || seen.etas.length > 0) throw new Error(`first run: ${JSON.stringify(seen)}`);
     return { stages: seen.stages, loadFractions: seen.loadFractions, offload: seen.profile.offload };
   });
   await step("MECHANICS GPU-Offload, warm with no warm history: no load, no estimate, and it says so", async () => {

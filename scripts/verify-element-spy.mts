@@ -960,6 +960,20 @@ async function main(): Promise<void> {
     check("AI panel: the proposal button is offered when local AI is ready", /data-testid="element-spy-ai-propose"(?![^>]*disabled)/.test(idleHtml) && idleHtml.includes("Find stronger locator with AI"));
     const offHtml = panel({ ...ready, enabled: false }, { kind: "idle" });
     check("AI panel: switched off, the button is disabled and says why", /data-testid="element-spy-ai-propose"[^>]*disabled/.test(offHtml) && offHtml.includes("Local AI is turned off"));
+    // awkit-djnl.17: a GPU-Only refusal names its cause in main's own sentence, the one Settings shows.
+    const refusedStatus: AiStatusView = {
+      ...ready,
+      state: "unavailable",
+      reason: "GPU_UNAVAILABLE",
+      execution: { ...ready.execution, mode: "gpu-only", refusal: { reason: "BACKEND_PACK_MISSING", requiredBytes: null, availableBytes: null }, message: "No GPU backend pack is installed." }
+    };
+    const gpuOnlyHtml = panel(refusedStatus, { kind: "idle" });
+    const plainHtml = panel({ ...ready, state: "unavailable", reason: "MODEL_MISSING" }, { kind: "idle" });
+    check(
+      "AI panel: a GPU-Only refusal says what to fix, in main's sentence; any other unavailability does not mention GPU-Only",
+      gpuOnlyHtml.includes("GPU-Only refused. No GPU backend pack is installed.") && plainHtml.includes("Local AI is not available") && !plainHtml.includes("GPU-Only"),
+      gpuOnlyHtml.match(/Local AI is not available[^<]*/)?.[0]
+    );
     const loadingHtml = panel(ready, { kind: "loading" });
     check("AI panel: while asking, only Cancel is offered", loadingHtml.includes('data-testid="element-spy-ai-cancel"') && !loadingHtml.includes('data-testid="element-spy-ai-propose"'));
     const provenHtml = panel(ready, { kind: "done", view: provenView, subject: provenView.inspectedAt ?? "" });

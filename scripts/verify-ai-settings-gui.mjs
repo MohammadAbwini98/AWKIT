@@ -256,6 +256,11 @@ try {
   check("an incompatible model offers a re-check but never the unverified-model acknowledgement", (await panel.getByRole("button", { name: "Check Compatibility Again" }).count()) === 1 && (await panel.getByRole("button", { name: "Use Unverified Model…" }).count()) === 0);
   await panel.getByRole("button", { name: "Check Compatibility Again" }).click();
   await sees(panel.getByText("Compatibility checked again. The result is below."), "the re-check runs and confirms");
+  // awkit-djnl.17: one model copy or check at a time. The slot is claimed before any await, so of two checks
+  // started together exactly one runs and the other is refused at once, never both running.
+  const both = await win.evaluate(() => Promise.all([window.playwrightFlowStudio.ai.checkModelPack(), window.playwrightFlowStudio.ai.checkModelPack()]));
+  const busy = both.filter((r) => r.code === "NOT_AVAILABLE" && /already running/.test(r.message ?? ""));
+  check("two checks started together: exactly one runs, the other is refused as already running", busy.length === 1 && both.some((r) => r.ok === true), JSON.stringify(both));
   await panel.getByRole("button", { name: "Remove Model Pack" }).click();
   await win.getByRole("alertdialog", { name: "Remove the local AI model pack?" }).getByRole("button", { name: "Remove model pack" }).click();
   await sees(panel.getByText("Model pack removed."), "the registered model can be removed");

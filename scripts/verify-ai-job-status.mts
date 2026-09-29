@@ -343,6 +343,8 @@ function harness(options: {
   /** Replaces the fixed settings, for a job that must see them change. */
   settingsNow?: () => AiServiceSettings;
   gpu?: () => Promise<AiGpuReadiness>;
+  /** A Vulkan host beside the CPU one; without it every backend is the CPU fake. */
+  gpuFake?: Partial<FakeAiHostOptions>;
   estimates?: Map<string, AiEtaEstimate>;
 } = {}) {
   const published: Array<{ owner: number; status: AiJobStatus }> = [];
@@ -362,8 +364,11 @@ function harness(options: {
     respond: (_request, index) => script[Math.min(index, script.length - 1)] ?? ANSWER,
     ...options.fake
   });
+  const gpuFake = options.gpuFake
+    ? new FakeAiHostTransport({ modelRoot: MODEL_ROOT, backend: "vulkan", loadDelayMs: 3_000, respond: () => ANSWER, ...options.gpuFake })
+    : null;
   const service = new AiService({
-    transport: () => fake,
+    transport: (backend) => (backend === "vulkan" && gpuFake ? gpuFake : fake),
     ...(options.gpu ? { gpu: options.gpu } : {}),
     model: async () => ({ ok: true, modelId: "fake-model", modelPath: path.join(MODEL_ROOT, "model.gguf"), contextTokens: 4096 }),
     verifyModel: async () => true,
@@ -533,8 +538,43 @@ try {
     await clock.settle(offload.service.submit(job("fallback")), BUDGET);
     const fb = lastOf(offload.of("r-fallback"));
     check("GPU-Offload without a usable GPU runs on CPU & RAM, and the profile says why", fb?.state === "completed" && fb.profile?.device === "cpu" && fb.profile.mode === "gpu-offload" && fb.profile.fallbackReason === "BACKEND_PACK_MISSING", fb?.profile);
-    check("...its first load under a GPU mode claims no expected placement for an ETA", offload.of("r-fallback").every((s) => s.eta === null));
+    // Before the load decides the placement nothing is claimed: no ETA, and no "first run here" either, since
+    // history exists for both placements (awkit-djnl.17).
+    check("...its first load under a GPU mode claims no expected placement for an ETA, nor no-history", offload.of("r-fallback").every((s) => s.eta === null && !s.noHistory));
     await stop(offload);
+
+    // A GPU load that reports its fraction and then fails, twice retried, then CPU & RAM: each attempt starts
+    // with no progress, so the bar never shows the previous attempt's fraction or runs backwards.
+    const plan = { deviceCount: 1, totalLayers: 24, fitLayers: 24, fullRequiredBytes: 3 * 1024 ** 3, reserveBytes: 256 * 1024 ** 2, freeBytes: 6 * 1024 ** 3, totalBytes: 8 * 1024 ** 3 };
+    const flaky = harness({
+      settings: { executionMode: "gpu-offload" },
+      gpu: async () => ({ ok: true, nvidiaAdapters: 1 }),
+      gpuFake: { gpuPlan: plan, gpuLoadFailAbove: 0, loadProgress: [0.4, 0.8] },
+      estimates: everywhere
+    });
+    await clock.settle(flaky.service.submit(job("flaky")), BUDGET);
+    const fl = flaky.of("r-flaky");
+    const fractions = fl.map((s) => s.progress?.done ?? null);
+    let lastFraction: number | null = null;
+    let backwards = false;
+    for (const value of fractions) {
+      if (value !== null && lastFraction !== null && value < lastFraction) backwards = true;
+      lastFraction = value;
+    }
+    const seen = fractions.filter((v): v is number => v !== null);
+    check(
+      "(precondition) the GPU attempts reported their fraction, failed and fell back to CPU & RAM",
+      lastOf(fl)?.state === "completed" && lastOf(fl)?.profile?.fallbackReason === "GPU_LOAD_FAILED" && seen.filter((v) => v === 800).length >= 2 && seen.includes(250),
+      { seen, profile: lastOf(fl)?.profile }
+    );
+    check("each load attempt starts with no progress: the fraction never runs backwards between statuses", !backwards, fractions);
+    await clock.settle(flaky.service.submit(job("flaky-warm")), BUDGET);
+    check(
+      "a cold run that fell back is not recorded as a CPU measurement; the warm run after it is",
+      flaky.recorded.length === 1 && flaky.recorded[0].sample.cold === false && flaky.recorded[0].sample.profile?.fallbackReason === "GPU_LOAD_FAILED",
+      flaky.recorded.map((r) => ({ cold: r.sample.cold, fallback: r.sample.profile?.fallbackReason }))
+    );
+    await stop(flaky);
     const only = harness({ settings: { executionMode: "gpu-only" }, gpu: noPack });
     await clock.settle(only.service.submit(job("refused")), BUDGET);
     const rf = lastOf(only.of("r-refused"));
@@ -605,6 +645,8 @@ section("D. ETA history");
   check("one sample is a point range of low confidence", one?.minMs === 42_000 && one.maxMs === 42_000 && one.samples === 1 && one.confidence === "low", one);
   const three = estimateFromSamples([30_000, 50_000, 40_000]);
   check("three samples span min to max, medium confidence", three?.minMs === 30_000 && three.maxMs === 50_000 && three.confidence === "medium", three);
+  const nine = estimateFromSamples([10, 20, 30, 40, 50, 60, 70, 80, 9_000].map((n) => n * 1_000));
+  check("nine samples still span min to max: the range is trimmed only from ten", nine?.minMs === 10_000 && nine.maxMs === 9_000_000 && nine.samples === 9, nine);
   const ten = estimateFromSamples([10, 20, 30, 40, 50, 60, 70, 80, 90, 10_000].map((n) => n * 1_000));
   check("ten samples trim the outer tenths and read high confidence", ten?.minMs === 10_000 && ten.maxMs === 90_000 && ten.confidence === "high" && ten.samples === 10, ten);
   check("no samples is no estimate", estimateFromSamples([]) === null);
@@ -689,6 +731,20 @@ section("D. ETA history");
   const corruptStore = new AiEtaHistoryStore(corrupt, Date.now, () => undefined);
   check("a corrupt file reads as no history", (await corruptStore.estimate(key, true)) === null);
   check("...is preserved beside it, and a new history starts", fs.readdirSync(path.dirname(corrupt)).some((name) => name.startsWith("h.json.corrupt-")) && (await corruptStore.record(key, true, 3_000)));
+  // Valid JSON that is not this version's history (no version, an older one) is not a newer file: it must
+  // not leave history unwritable for good (awkit-djnl.17). Only a newer version is left untouched.
+  for (const [label, body] of [["an empty object", "{}"], ["an older version", JSON.stringify({ schemaVersion: AI_ETA_HISTORY_VERSION - 1, entries: {} })]] as const) {
+    const odd = path.join(TMP, `eta-odd-${label.replace(/\W+/g, "-")}`, "h.json");
+    fs.mkdirSync(path.dirname(odd), { recursive: true });
+    fs.writeFileSync(odd, body);
+    const oddStore = new AiEtaHistoryStore(odd, Date.now, () => undefined);
+    const written = await oddStore.record(key, true, 4_000);
+    check(
+      `a file holding ${label} is preserved beside it and a new history starts, never left unwritable`,
+      written && fs.readdirSync(path.dirname(odd)).some((name) => name.startsWith("h.json.corrupt-")) && (await oddStore.estimate(key, true))?.samples === 1,
+      fs.readdirSync(path.dirname(odd))
+    );
+  }
   const forged = path.join(TMP, "eta-forged", "h.json");
   fs.mkdirSync(path.dirname(forged), { recursive: true });
   fs.writeFileSync(forged, JSON.stringify({ schemaVersion: 1, entries: { [key]: { cold: [1_000, -3, "x", 2.5, 2_000], warm: "nope", updatedAt: "yesterday" }, [`bad key ${SECRET}`]: { cold: [1], warm: [] } } }));

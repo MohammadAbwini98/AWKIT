@@ -624,7 +624,20 @@ const MODEL_IMPORT_MESSAGES: Record<string, string> = {
 let pendingModelPreflight: { token: string; owner: number; source: string; at: number } | null = null;
 
 /** The model copy or compatibility check running now (one at a time), for its owner's cancel (L9.1). */
-let activeModelJob: { owner: number; cancel: () => void; cancelled: boolean } | null = null;
+type ModelJob = { owner: number; cancel: () => void; cancelled: boolean };
+let activeModelJob: ModelJob | null = null;
+
+/**
+ * Take the one model-job slot, or null when another copy or check holds it. Synchronous on purpose: taken
+ * before any await, so two requests can never both pass the check and then both run (awkit-djnl.17).
+ */
+function claimModelJob(owner: number | null, cancel: () => void): ModelJob | null {
+  if (activeModelJob) return null;
+  activeModelJob = { owner: owner ?? -1, cancel, cancelled: false };
+  return activeModelJob;
+}
+
+const MODEL_JOB_BUSY: AiAdminResponse = { code: "NOT_AVAILABLE", ok: false, message: "A model copy or check is already running." };
 
 /** Throttled byte progress: at most every 200 ms, and always the last byte. */
 function byteReporter(key: string): (done: number, total: number) => void {
@@ -643,8 +656,10 @@ function byteReporter(key: string): (done: number, total: number) => void {
  * "compatibility-check" job (L9.1): the probe's load progress is the runtime's own, the rest indeterminate,
  * under the compatibility-probe budget; its ETA comes from earlier probes of the same model here.
  */
-async function runModelStages(owner: number | null): Promise<string> {
+async function runModelStages(owner: number | null, job: ModelJob): Promise<string> {
   const key = `compatibility-check:${owner ?? "none"}`;
+  // The caller holds the slot; from here a cancel stops the probe (a copy before it is already done).
+  job.cancel = () => void getAiService().cancelProbe();
   const budgets = await currentBudgets();
   const status = await readPack();
   const modelId = status.status === "registered" ? externalModelId(status.external.sha256) : null;
@@ -659,7 +674,6 @@ async function runModelStages(owner: number | null): Promise<string> {
     stage: "compatibility-check"
   });
   jobTracker().update(key, { profile });
-  const job = { owner: owner ?? -1, cancelled: false, cancel: () => void getAiService().cancelProbe() };
   // A probe always loads the model: cold, on CPU & RAM (L8b.3). A check that stops at the header loaded
   // nothing, so it stays neither cold nor warm and never joins the probe's measured history.
   const probe = (file: string) => {
@@ -667,29 +681,24 @@ async function runModelStages(owner: number | null): Promise<string> {
     jobTracker().update(key, { cold: true });
     return getAiService().probeModel(file, onProgress);
   };
-  if (owner !== null) activeModelJob = job;
   const onProgress = (update: AiHostProgressUpdate) => {
     if (update.stage !== "load") return;
     // Loading ends at the runtime's own 100 %; the probe's generation after it has no denominator.
     if (update.fraction >= 1) jobTracker().update(key, { stage: "compatibility-check" });
     else jobTracker().update(key, { stage: "model-load", progress: { done: Math.round(update.fraction * 1000), total: 1000, unit: "fraction" } });
   };
-  try {
-    const stage = await runCompatibilityStages({
-      store: modelPack(),
-      inspect: (file) => getAiService().inspectModel(file),
-      // A cancel that arrived during the header read stops the probe from starting at all.
-      probe,
-      runtimeBuild: AI_RUNTIME_PIN.build
-    }).catch(() => "not-run" as const);
-    logAi(stage === "not-run" ? "warn" : "info", `registered model compatibility: ${stage}`);
-    if (job.cancelled) jobTracker().close(key, "cancelled", "CANCELLED");
-    else if (stage !== "not-run") jobTracker().close(key, "completed", stage === "compatible" ? "COMPATIBLE" : stage);
-    else jobTracker().close(key, getAiService().probeEndedBy() === "AI_HOST_TIMEOUT" ? "timed-out" : "failed", getAiService().probeEndedBy() ?? "NOT_RUN");
-    return stage;
-  } finally {
-    if (activeModelJob === job) activeModelJob = null;
-  }
+  const stage = await runCompatibilityStages({
+    store: modelPack(),
+    inspect: (file) => getAiService().inspectModel(file),
+    // A cancel that arrived during the header read stops the probe from starting at all.
+    probe,
+    runtimeBuild: AI_RUNTIME_PIN.build
+  }).catch(() => "not-run" as const);
+  logAi(stage === "not-run" ? "warn" : "info", `registered model compatibility: ${stage}`);
+  if (job.cancelled) jobTracker().close(key, "cancelled", "CANCELLED");
+  else if (stage !== "not-run") jobTracker().close(key, "completed", stage === "compatible" ? "COMPATIBLE" : stage);
+  else jobTracker().close(key, getAiService().probeEndedBy() === "AI_HOST_TIMEOUT" ? "timed-out" : "failed", getAiService().probeEndedBy() ?? "NOT_RUN");
+  return stage;
 }
 
 /** Cancel the asking window's model copy or compatibility check. */
@@ -727,39 +736,40 @@ export async function importAiModelPack(owner: number, token: string): Promise<A
   if (!pending || pending.token !== token || pending.owner !== owner || Date.now() - pending.at > PREFLIGHT_TTL_MS) {
     return { code: "INVALID_REQUEST", ok: false, message: "Choose the model file again before importing." };
   }
-  pendingModelPreflight = null;
-  await getAiService().releaseModel();
-  // L9: the copy and its hash are the owner's "model-import" job: determinate by bytes, under the
-  // component-copy budget, cancellable until the copy is done.
-  const key = `model-import:${owner}`;
-  const budgetMs = (await currentBudgets()).componentCopy;
+  // One model job at a time, claimed before any await; a refused request keeps its checklist token.
   const controller = new AbortController();
-  const deadline = AbortSignal.timeout(budgetMs);
-  const job = { owner, cancelled: false, cancel: () => controller.abort() };
-  activeModelJob = job;
-  jobTracker().open(key, { kind: "modelImport", owner, jobId: "model-import", budgetMs, cancellable: true, state: "running", stage: "copy-hash" });
-  let result: Awaited<ReturnType<AiModelPackStore["import"]>>;
+  const job = claimModelJob(owner, () => controller.abort());
+  if (!job) return MODEL_JOB_BUSY;
+  pendingModelPreflight = null;
   try {
-    result = await modelPack()
+    await getAiService().releaseModel();
+    // L9: the copy and its hash are the owner's "model-import" job: determinate by bytes, under the
+    // component-copy budget, cancellable until the copy is done.
+    const key = `model-import:${owner}`;
+    const budgetMs = (await currentBudgets()).componentCopy;
+    const deadline = AbortSignal.timeout(budgetMs);
+    jobTracker().open(key, { kind: "modelImport", owner, jobId: "model-import", budgetMs, cancellable: true, state: "running", stage: "copy-hash" });
+    const result = await modelPack()
       .import(pending.source, { signal: AbortSignal.any([controller.signal, deadline]), onProgress: byteReporter(key) })
-      .catch(() => ({ ok: false as const, code: "COPY_FAILED" as const }));
+      .catch((): Awaited<ReturnType<AiModelPackStore["import"]>> => ({ ok: false, code: "COPY_FAILED" }));
+    if (!result.ok) {
+      if (result.code === "ABORTED") {
+        const timedOut = deadline.aborted && !job.cancelled;
+        jobTracker().close(key, timedOut ? "timed-out" : "cancelled", timedOut ? "TIMEOUT" : "CANCELLED");
+        return timedOut
+          ? { code: "IMPORT_REFUSED", ok: false, detail: "TIMEOUT", message: "Copying the model took longer than its time limit, so it was stopped. Nothing was kept." }
+          : { code: "IMPORT_CANCELLED", ok: false, detail: "CANCELLED", message: "Import cancelled. Nothing was kept." };
+      }
+      jobTracker().close(key, "failed", result.code);
+      return { code: "IMPORT_REFUSED", ok: false, detail: result.code, message: MODEL_IMPORT_MESSAGES[result.code] };
+    }
+    jobTracker().close(key, "completed");
+    // The same slot covers the checks that follow a copy, so nothing starts between the two.
+    if (result.entry === null) await runModelStages(owner, job);
+    return { code: "OK", ok: true, detail: result.entry !== null ? result.entry.id : result.external.fileName };
   } finally {
     if (activeModelJob === job) activeModelJob = null;
   }
-  if (!result.ok) {
-    if (result.code === "ABORTED") {
-      const timedOut = deadline.aborted && !job.cancelled;
-      jobTracker().close(key, timedOut ? "timed-out" : "cancelled", timedOut ? "TIMEOUT" : "CANCELLED");
-      return timedOut
-        ? { code: "IMPORT_REFUSED", ok: false, detail: "TIMEOUT", message: "Copying the model took longer than its time limit, so it was stopped. Nothing was kept." }
-        : { code: "IMPORT_CANCELLED", ok: false, detail: "CANCELLED", message: "Import cancelled. Nothing was kept." };
-    }
-    jobTracker().close(key, "failed", result.code);
-    return { code: "IMPORT_REFUSED", ok: false, detail: result.code, message: MODEL_IMPORT_MESSAGES[result.code] };
-  }
-  jobTracker().close(key, "completed");
-  if (result.entry === null) await runModelStages(owner);
-  return { code: "OK", ok: true, detail: result.entry !== null ? result.entry.id : result.external.fileName };
 }
 
 /**
@@ -770,18 +780,23 @@ export async function checkAiModelPack(owner: number | null = null): Promise<AiA
   if ((await readPack()).status !== "registered") {
     return { code: "NOT_FOUND", ok: false, message: "Only a registered model the app does not list is checked for compatibility." };
   }
-  if (activeModelJob) return { code: "NOT_AVAILABLE", ok: false, message: "A model copy or check is already running." };
-  await getAiService().releaseModel();
-  const stage = await runModelStages(owner);
-  if (stage === "not-run") {
-    return {
-      code: "NOT_AVAILABLE",
-      ok: false,
-      detail: "NOT_RUN",
-      message: "The check did not finish: it was cancelled or ran past its time limit, or the local AI runtime is unavailable, runs are active or memory is low. Try again later."
-    };
+  const job = claimModelJob(owner, () => void getAiService().cancelProbe());
+  if (!job) return MODEL_JOB_BUSY;
+  try {
+    await getAiService().releaseModel();
+    const stage = await runModelStages(owner, job);
+    if (stage === "not-run") {
+      return {
+        code: "NOT_AVAILABLE",
+        ok: false,
+        detail: "NOT_RUN",
+        message: "The check did not finish: it was cancelled or ran past its time limit, or the local AI runtime is unavailable, runs are active or memory is low. Try again later."
+      };
+    }
+    return { code: "OK", ok: true, detail: stage === "compatible" ? "COMPATIBLE" : stage };
+  } finally {
+    if (activeModelJob === job) activeModelJob = null;
   }
-  return { code: "OK", ok: true, detail: stage === "compatible" ? "COMPATIBLE" : stage };
 }
 
 /**
@@ -905,6 +920,8 @@ export async function importAiBackendPack(owner: number, token: string): Promise
   if (!pending || pending.token !== token || pending.owner !== owner || Date.now() - pending.at > PREFLIGHT_TTL_MS) {
     return { code: "INVALID_REQUEST", ok: false, message: "Check the pack folder again before importing." };
   }
+  // Read before the slot is taken: the try that frees it starts below, so nothing may throw in between.
+  const budgetMs = (await currentBudgets()).componentCopy;
   if (activeImport) return { code: "NOT_AVAILABLE", ok: false, message: "A backend pack import is already running." };
   pendingPreflight = null;
   const controller = new AbortController();
@@ -912,7 +929,6 @@ export async function importAiBackendPack(owner: number, token: string): Promise
   // L9: the owner's "backend-import" job, determinate by bytes from the store's own staged-copy counters,
   // under the component-copy budget. A cancel and the deadline end it through the same signal.
   const key = `backend-import:${owner}`;
-  const budgetMs = (await currentBudgets()).componentCopy;
   const deadline = AbortSignal.timeout(budgetMs);
   jobTracker().open(key, { kind: "backendImport", owner, jobId: "backend-import", budgetMs, cancellable: true, state: "running", stage: "copy-hash" });
   const watch = setInterval(() => {

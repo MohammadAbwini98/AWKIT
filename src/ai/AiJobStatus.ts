@@ -166,6 +166,8 @@ interface TrackedJob {
   cold: boolean | null;
   estimate: AiEtaEstimate | null | "pending";
   estimateToken: number;
+  /** The last estimate was asked for a known placement; only then does "no estimate" mean no history. */
+  askedWithProfile: boolean;
   profile: AiJobProfile | null;
   budgetMs: number | null;
   cancellable: boolean;
@@ -221,6 +223,7 @@ export class AiJobTracker {
       cold: null,
       estimate: null,
       estimateToken: 0,
+      askedWithProfile: false,
       profile: null,
       budgetMs: init.budgetMs,
       cancellable: init.cancellable,
@@ -234,10 +237,12 @@ export class AiJobTracker {
     if (!job || isTerminal(job.state)) return;
     if (patch.state === "running" && job.runningSince === null) job.runningSince = this.now();
     if (patch.state === "queued") {
-      // Requeued (it yielded to a run): its running time so far no longer predicts the rest.
+      // Requeued (it yielded to a run): its running time so far no longer predicts the rest, and an answer
+      // to the question asked before it is stale.
       job.runningSince = null;
       job.cold = null;
       job.estimate = null;
+      job.estimateToken += 1;
     }
     // A cancel requested while running is not undone by a later running update.
     if (patch.state !== undefined && !(job.state === "cancelling" && patch.state === "running")) job.state = patch.state;
@@ -271,7 +276,10 @@ export class AiJobTracker {
     job.holdReason = null;
     job.cancellable = false;
     job.progress = null;
-    if (state === "completed" && job.cold !== null && job.runningSince !== null) {
+    // A cold run that fell back from a GPU mode also spent the GPU attempt, so it is no measurement of the
+    // CPU placement it is keyed under. A warm one ran on the CPU only and is.
+    const fellBackCold = job.cold === true && Boolean(job.profile?.fallbackReason);
+    if (state === "completed" && job.cold !== null && job.runningSince !== null && !fellBackCold) {
       try {
         this.deps.record?.({ kind: job.kind, cold: job.cold, profile: job.profile }, at - job.runningSince);
       } catch {
@@ -294,6 +302,7 @@ export class AiJobTracker {
 
   private requestEstimate(job: TrackedJob): void {
     const token = (job.estimateToken += 1);
+    job.askedWithProfile = job.profile !== null;
     if (job.cold === null || !this.deps.estimate) {
       job.estimate = null;
       return;
@@ -343,7 +352,8 @@ export class AiJobTracker {
       progress: job.progress ? { ...job.progress } : null,
       elapsedMs: at - job.startedAt,
       eta,
-      noHistory: job.cold !== null && job.estimate === null && job.runningSince !== null,
+      // A GPU mode's first load does not know its placement yet: then nothing is claimed, not "no history".
+      noHistory: job.cold !== null && job.estimate === null && job.runningSince !== null && job.askedWithProfile,
       cold: job.cold,
       profile: job.profile ? { ...job.profile } : null,
       budgetMs: job.budgetMs,

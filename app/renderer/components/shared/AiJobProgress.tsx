@@ -75,7 +75,8 @@ function etaSentence(status: AiJobStatus, sinceMs: number): string | null {
   const max = eta.remainingMaxMs - sinceMs;
   if (eta.overrun || max < 0) {
     const limit = status.budgetMs ? ` It stops at its ${formatDuration(status.budgetMs)} limit.` : "";
-    return `Taking longer than the longest of ${eta.samples} earlier ${eta.warmth} run${eta.samples === 1 ? "" : "s"} here.${limit}`;
+    // "The range", not "the longest": from ten runs the range leaves out the slowest tenth.
+    return `Taking longer than the measured range of ${eta.samples} earlier ${eta.warmth} run${eta.samples === 1 ? "" : "s"} here.${limit}`;
   }
   const low = formatDuration(Math.max(0, min));
   const high = formatDuration(max);
@@ -160,7 +161,9 @@ export function AiJobProgress({
   const percent = progress ? Math.min(100, Math.floor((progress.done / progress.total) * 100)) : null;
   const eta = status ? etaSentence(status, sinceMs) : null;
   const detail = progress?.unit === "bytes" ? `${bytes(progress.done)} of ${bytes(progress.total)}` : percent !== null ? `${percent}%` : null;
-  const valueText = [stage, detail, elapsed ? `${elapsed} elapsed` : null].filter(Boolean).join(", ");
+  // Stage and measured progress only: elapsed time changes every second, and a screen reader reporting the
+  // bar would read it out each time. It is shown in the text below, never announced.
+  const valueText = [stage, detail].filter(Boolean).join(", ");
 
   return (
     <div className="ai-job-progress" data-testid={testId} data-job-state={status?.state ?? "starting"} data-job-stage={status?.stage ?? "starting"}>

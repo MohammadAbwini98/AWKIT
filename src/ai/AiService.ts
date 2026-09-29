@@ -502,7 +502,9 @@ export class AiService {
 
   /** The running job's stage, in the job-status vocabulary. */
   private reportStage(stage: AiJobStage): void {
-    if (this.running) this.deps.jobs?.update(this.running.request.requestId, { stage });
+    // Every load step (a retry, a fallback, an unload) maps to model-load, so a stage report alone would keep
+    // the previous attempt's fraction: each step starts with none until the runtime reports its own.
+    if (this.running) this.deps.jobs?.update(this.running.request.requestId, { stage, progress: null });
   }
 
   /** A load stage, reported to status (`loadStage`) and to the running job. */

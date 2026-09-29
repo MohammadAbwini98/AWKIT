@@ -30,8 +30,11 @@ export const AI_ETA_HISTORY_LIMITS = Object.freeze({
   samplesPerKey: 20,
   /** Longer than any budget allows; a larger value is not a job duration. */
   maxSampleMs: 3 * 60 * 60_000,
-  /** At and above this many samples the range trims the outer tenths instead of spanning min to max. */
-  trimFrom: 5
+  /**
+   * At and above this many samples the range trims the outer tenths instead of spanning min to max. Below
+   * ten, nearest-rank tenths ARE the min and max, so a smaller threshold would claim a trim that never happens.
+   */
+  trimFrom: 10
 });
 
 /**
@@ -90,17 +93,23 @@ export class AiEtaHistoryStore {
     } catch {
       return { writable: true, entries: new Map() };
     }
-    let parsed: Partial<HistoryFile>;
+    let parsed: Partial<HistoryFile> | null = null;
     try {
       parsed = JSON.parse(raw) as Partial<HistoryFile>;
     } catch {
+      /* preserved below */
+    }
+    const version = parsed?.schemaVersion;
+    // A newer version's file is left exactly as it is: this version neither reads nor rewrites it.
+    if (typeof version === "number" && version > AI_ETA_HISTORY_VERSION) return { writable: false, entries: new Map() };
+    // Anything else that is not this version (not JSON, `{}`, an older or missing version) is kept beside
+    // it and a new history starts, rather than leaving history unwritable for good.
+    if (!parsed || version !== AI_ETA_HISTORY_VERSION) {
       const target = `${this.filePath}.corrupt-${this.now()}`;
       await rename(this.filePath, target).catch(() => undefined);
-      this.log(`history file was not valid JSON; preserved as ${target}, ETA reads as no history`);
+      this.log(`history file was not a version-${AI_ETA_HISTORY_VERSION} history; preserved as ${target}, ETA reads as no history`);
       return { writable: true, entries: new Map() };
     }
-    // A newer version's file is left exactly as it is: this version neither reads nor rewrites it.
-    if (parsed?.schemaVersion !== AI_ETA_HISTORY_VERSION) return { writable: false, entries: new Map() };
     const entries = new Map<string, Entry>();
     const stored = typeof parsed.entries === "object" && parsed.entries !== null ? (parsed.entries as Record<string, unknown>) : {};
     for (const [key, value] of Object.entries(stored)) {

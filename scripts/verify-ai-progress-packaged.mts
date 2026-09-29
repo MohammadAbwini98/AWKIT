@@ -339,7 +339,9 @@ try {
   check("CPU & RAM explanations are keyed by the pack's checksum, this runtime and configuration and the machine class", Boolean(cpuKey), Object.keys(history?.entries ?? {}));
   check(
     "it holds whole-millisecond durations only: no step name, prompt or answer, and no path",
-    Object.values(history?.entries ?? {}).every((e) => [...e.cold, ...e.warm].every(Number.isInteger)) && !flowWords.some((word) => raw.includes(word)) && !raw.includes(localAppData.replace(/\\/g, "\\\\")),
+    // Non-empty first: with no history at all every "none of these" would hold vacuously.
+    Object.keys(history?.entries ?? {}).length > 0 &&
+      Object.values(history?.entries ?? {}).every((e) => [...e.cold, ...e.warm].every(Number.isInteger)) && !flowWords.some((word) => raw.includes(word)) && !raw.includes(localAppData.replace(/\\/g, "\\\\")),
     flowWords.filter((word) => raw.includes(word))
   );
   console.log(`  · cold samples before the restart: ${coldBeforeRestart}`);

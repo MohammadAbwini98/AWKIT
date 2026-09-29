@@ -102,6 +102,10 @@ export function useAiAssistJob<V extends AiAssistStatus>(resetKey: string) {
 export function aiUnavailableSentence(status: AiStatusView | null, fallback: string): string | null {
   if (!status) return null;
   if (!status.enabled) return `Local AI is turned off. ${fallback}`;
-  if (status.state === "unavailable") return `Local AI is not available on this machine. ${fallback}`;
+  if (status.state === "unavailable") {
+    // A GPU-Only refusal names its cause in main's own sentence (what Settings shows), so it can be fixed.
+    const refusal = status.execution.applied && status.execution.refusal && status.execution.message ? ` GPU-Only refused. ${status.execution.message}` : "";
+    return `Local AI is not available on this machine.${refusal} ${fallback}`;
+  }
   return null;
 }

@@ -128,13 +128,19 @@ provide(SLOW);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────────────────────────
 interface Sample {
+  /** performance.now() in the page when this sample was taken. */
+  t: number;
   state: string | null;
   stage: string | null;
   valueNow: string | null;
   valueText: string | null;
   name: string | null;
+  /** The visible status line. */
+  text: string | null;
   eta: string | null;
   announce: string | null;
+  /** The live region's aria-live, read while the job runs (after it the view is gone). */
+  live: string | null;
 }
 
 /** Sample the progress view every 50 ms in the page, so no short stage is missed between reads. */
@@ -147,14 +153,18 @@ async function startSampling(win: Page, testId: string): Promise<void> {
       const box = document.querySelector(`[data-testid="${id}"]`);
       if (!box) return;
       const bar = box.querySelector('[role="progressbar"]');
+      const announce = box.querySelector(`[data-testid="${id}-announce"]`);
       w.__samples.push({
+        t: performance.now(),
         state: box.getAttribute("data-job-state"),
         stage: box.getAttribute("data-job-stage"),
         valueNow: bar?.getAttribute("aria-valuenow") ?? null,
         valueText: bar?.getAttribute("aria-valuetext") ?? null,
         name: bar?.getAttribute("aria-label") ?? null,
+        text: box.querySelector(`[data-testid="${id}-text"]`)?.textContent ?? null,
         eta: box.querySelector(`[data-testid="${id}-eta"]`)?.textContent ?? null,
-        announce: box.querySelector(`[data-testid="${id}-announce"]`)?.textContent ?? null
+        announce: announce?.textContent ?? null,
+        live: announce?.getAttribute("aria-live") ?? null
       });
     }, 50);
   }, testId);
@@ -238,13 +248,31 @@ try {
   check("while the model loads the bar is determinate from the runtime's own fraction", loading.length > 0 && loading.every((s) => /^\d+$/.test(s.valueNow ?? "")), loading.map((s) => s.valueNow));
   const generating = cold.filter((s) => s.stage === "prompt-evaluation" || s.stage === "generation");
   check("prompt evaluation and generation are indeterminate: no aria-valuenow at all", generating.length > 0 && generating.every((s) => s.valueNow === null), generating.map((s) => s.valueNow));
-  check("the value text names the stage and the elapsed time", generating.some((s) => /Writing the answer/.test(s.valueText ?? "")) && generating.some((s) => /\d+ s elapsed/.test(s.valueText ?? "")), generating.map((s) => s.valueText).slice(-2));
+  // Elapsed changes every second: in the value text a screen reader reporting the bar would read it out each
+  // time (awkit-djnl.17), so it is shown in the visible line only.
+  check(
+    "the value text names the stage and never the elapsed time, which the visible line shows",
+    generating.some((s) => /Writing the answer/.test(s.valueText ?? "")) && cold.every((s) => !/elapsed/.test(s.valueText ?? "")) && generating.some((s) => /\d+ s elapsed/.test(s.text ?? "")),
+    { valueText: generating.map((s) => s.valueText).slice(-1), text: generating.map((s) => s.text).slice(-1) }
+  );
   check("the bar's accessible name is fixed", cold.every((s) => s.name === "Local AI explanation progress"));
   check("with no history it says there is no estimate yet, never a guess", cold.some((s) => /No time estimate yet/.test(s.eta ?? "")) && !cold.some((s) => /About .* left/.test(s.eta ?? "")), distinct(cold.map((s) => s.eta)));
-  const announced = distinct(cold.map((s) => s.announce).filter((a): a is string => Boolean(a)));
-  check("stage changes are announced politely, fewer times than they happen (throttled)", announced.length >= 1 && announced.length < stages.length, { announced, stages });
-  check("the announcements are stage names only", announced.every((a) => /^(Queued|Starting|Preparing the request|Verifying the model file|Loading the model|Reading the request|Writing the answer|Checking the answer)/.test(a)), announced);
-  check("the live region is polite", (await win.getByTestId("ai-assist-bar").count()) === 1 && (await win.evaluate(() => [...document.querySelectorAll('[data-testid$="-announce"]')].every((n) => n.getAttribute("aria-live") === "polite"))));
+  // When each announcement first appeared, timed in the page: the throttle is a spacing, not a sample count.
+  const changes: Array<{ t: number; text: string }> = [];
+  for (const s of cold) if (s.announce && s.announce !== changes.at(-1)?.text) changes.push({ t: s.t, text: s.announce });
+  const announced = changes.map((c) => c.text);
+  const gaps = changes.slice(1).map((c, i) => Math.round(c.t - changes[i].t));
+  check("stage changes are announced at least 5 s apart (throttled), several times over the run", changes.length >= 2 && gaps.every((gap) => gap >= 4_800), { announced, gaps });
+  check(
+    "the announcements are stage names and nothing else",
+    announced.length > 0 &&
+      announced.every((a) =>
+        /^(Queued( \(\d+(st|nd|rd|th) in line\))?|Starting|Checking compatibility|Copying and checksumming|Verifying the model file|Checking the GPU|Loading the model|Preparing the request|Reading the request|Writing the answer|Checking the answer|Finishing)$/.test(a)
+      ),
+    announced
+  );
+  // Read while the job ran: once it is done the view is gone, and a check then would pass on nothing.
+  check("the live region is polite, in every sample taken while the job ran", cold.length > 0 && cold.every((s) => s.live === "polite"), distinct(cold.map((s) => s.live)));
   check("once done, the progress view is gone", (await win.getByTestId("ai-assist-progress").count()) === 0);
 
   // ── 2. Warm runs ─────────────────────────────────────────────────────────────────────────────────
