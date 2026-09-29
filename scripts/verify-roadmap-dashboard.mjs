@@ -629,8 +629,10 @@ try {
   // Then 25/304 of 329 later on 2026-09-29, the L9 close (contract `awkit-djnl-13-l9-0929`):
   // `awkit-djnl.13` closed (one out, one closed) and its follow-up `awkit-djnl.17` was filed OPEN
   // (one in). Measured after the export.
-    "25 outstanding / 304 closed",
-    beads.stats.outstanding === 25 && beads.stats.closed === 304,
+  // Then 24/305 of 329 later on 2026-09-29, the L9 QC follow-up: `awkit-djnl.17` closed (one out,
+  // one closed). Measured after the export.
+    "24 outstanding / 305 closed",
+    beads.stats.outstanding === 24 && beads.stats.closed === 305,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

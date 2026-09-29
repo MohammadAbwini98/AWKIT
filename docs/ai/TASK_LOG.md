@@ -1,6 +1,31 @@
 # TASK_LOG
 
-## 2026-09-29 (latest) — L9 resumed and closed: job status, time budgets, honest progress, measured ETA; Phase L 13 of 13 (Claude)
+## 2026-09-29 (latest) — L9 QC follow-up `awkit-djnl.17` finished and closed (Claude)
+
+- **Task:** "continue and finalize phase L9". The user first asked for CodeCraft; its MCP tools all failed
+  client-side `outputSchema` validation, so the user said to continue without it.
+- **Start state:** a previous session's uncommitted `.17` QC fixes in 13 files (source plus verifiers).
+- **Done:**
+  - reviewed the diff, including the model-job slot and cancel window, the tracker's estimate and
+    no-history rules, and the history version handling;
+  - ran the gates listed under Tests;
+  - committed the fixes and closed `.17`;
+  - made the two decisions `.17` asked for: no unloading label, and the GPU-Only job keeps
+    `GPU_UNAVAILABLE` while the panels show the cause.
+- **Commits:** `7f5deca1` (fixes), `59f18633` (Beads, under a project-state lease on the L9 contract),
+  and this state update.
+- **Tests:**
+  - `build` PASS;
+  - `verify:ai-job-status` 148/148;
+  - `verify:ai-job-status-mutations` 67/0 (57/57 killed);
+  - `verify:element-spy` 206/0;
+  - `verify:ai-settings-gui` 141/141;
+  - `verify:ai-progress-gui` 41/0.
+- **Not run:** `verify:ai-progress-packaged` and `verify:ai-progress-gpu-packaged`, because the
+  package predates the fix and needs a fresh package.
+- **Result:** `.17` closed. The epic stays open for `.14`, `.15` and `.16`.
+
+## 2026-09-29 — L9 resumed and closed: job status, time budgets, honest progress, measured ETA; Phase L 13 of 13 (Claude)
 
 - **Task:** resume L9 (`awkit-djnl.13`) after the previous session stopped at its usage limit, right after
   writing `scripts/verify-ai-progress-gui.mts`; finish, verify, close, commit and push.

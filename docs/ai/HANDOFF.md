@@ -1,6 +1,22 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-29, latest) — L9 closed; Phase L is 13 of 13
+## HANDOFF (2026-09-29, latest) — L9 QC follow-up `.17` closed
+
+- **`awkit-djnl.17` is closed:**
+  - Nine QC findings are fixed in `7f5deca1`. The record is in
+    `docs/plans/ai-upgrade-v5/L9-adaptive-time-progress-eta.md` › *QC follow-up*.
+  - The QC was done by a Claude session. CodeCraft's MCP tools all fail client-side schema validation
+    (a draft-07 `outputSchema`), so no second model reviewed the fixes.
+- **Next packaged run:**
+  - The fix changes the main bundle only: the host and the signed manifest are unchanged.
+  - `verify:ai-progress-packaged` and `verify:ai-progress-gpu-packaged` are NOT RUN on it until a
+    fresh package exists.
+  - The GPU harness (`scripts/ai-harness/gpuProgress.ts`) now expects a GPU mode's first load to
+    claim no "no history", so it fails against the old package by design.
+- **Open under `awkit-djnl`:** `.14` (DX-0 freeze bug), `.15` (L8a QC, NVIDIA), `.16` (L8b QC).
+- Ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## HANDOFF (2026-09-29) — L9 closed; Phase L is 13 of 13
 
 - **L9 (`awkit-djnl.13`) is closed** under contract `awkit-djnl-13-l9-0929` with QA PASS. The record,
   evidence table and the items that are not PASS are in

@@ -5,8 +5,8 @@ Shared rules and the Phase L extension decisions (E1–E12): `ROADMAP.md` › *P
 for **acceptance**; builds on the closed L4b / L5b / L6 feature surfaces.
 
 **Status (2026-09-29): CLOSED — L9.1–L9.5 implemented with QA PASS** (contract
-`awkit-djnl-13-l9-0929`; commits `16de408b`, `a748b4b6`, `5cd3a195`, `ccfdd07c`). Independent QC is
-carried forward in `awkit-djnl.17`. See *L9 record (2026-09-29)* at the end.
+`awkit-djnl-13-l9-0929`; commits `16de408b`, `a748b4b6`, `5cd3a195`, `ccfdd07c`). The QC follow-up
+`awkit-djnl.17` is closed too (`7f5deca1`). See *L9 record (2026-09-29)* and *QC follow-up* at the end.
 
 ## Objective
 
@@ -178,3 +178,40 @@ coverage map names three more: `verify:ai-failure-analysis-budget` 7/0, `verify:
 historical CPU key for its three limited-GO features. An administrator who moves a feature's budget
 un-qualifies exactly the features under it until they are re-measured; old evidence is never re-labelled.
 Latency is still never claimed by a qualification; Settings shows the measured speed apart from it.
+
+## QC follow-up (`awkit-djnl.17`, 2026-09-29)
+
+A Claude session, not a separate reviewer model, reviewed L9.1 to L9.5 (the planned CodeCraft pass
+could not run: its tools fail schema validation in this client). The nine findings are fixed in
+`7f5deca1`. Every testable one has a check, and a mutant that undoes it is killed:
+
+- **Model jobs ran concurrently.** Two checks, or a check and a copy, could both pass the busy test
+  before either took the slot. The slot is now claimed synchronously, before any await.
+- **"No history" was claimed too early.** A GPU mode's first load claimed no history before its
+  placement was known. It now claims nothing until the estimate is asked for a known placement.
+- **Fallback runs polluted CPU history.** A cold run that fell back from a GPU mode was recorded as a
+  CPU measurement, but it also spent the GPU attempt. It is no longer recorded; a warm run still is.
+- **The bar showed a stale fraction.** Every load step (retry, fallback, unload) now starts with no
+  progress, so the bar never shows the previous attempt's fraction or runs backwards.
+- **A requeue kept its pending estimate.** Requeueing now invalidates it.
+- **Some history files became unwritable for good.** JSON that is not this version (`{}`, older, no
+  version) is now preserved beside itself and a new history starts. Only a newer version is left
+  untouched.
+- **The trim threshold was misstated.** It is now stated as 10. Below ten, nearest-rank tenths are the
+  min and max, so nothing changes in behaviour. The overrun sentence now says "the measured range",
+  not "the longest".
+- **Screen readers heard elapsed time.** It is no longer in the bar's value text, which a screen reader
+  would re-read every second. It is shown only in the visible line.
+- **The GPU-Only refusal hid its cause.** The AI panels now show main's own cause sentence, the one
+  Settings shows.
+
+**Decisions.** No separate unloading label: saving a mode unloads the model at once, so users rarely see
+this stage. The GPU-Only job keeps the stable `GPU_UNAVAILABLE` terminal code, and its cause is shown
+from main's own status sentence.
+
+**Evidence.** `build` PASS; `verify:ai-job-status` 148/148; `verify:ai-job-status-mutations` 67/0 (57/57
+killed, 7/7 controls clean); `verify:element-spy` 206/0; `verify:ai-settings-gui` 141/141;
+`verify:ai-progress-gui` 41/0. **NOT RUN:** `verify:ai-progress-packaged` and
+`verify:ai-progress-gpu-packaged`. The current package predates `7f5deca1` (main bundle only; the
+host and the signed manifest are unchanged), and the GPU harness now expects the new no-history rule.
+Both need a fresh package.

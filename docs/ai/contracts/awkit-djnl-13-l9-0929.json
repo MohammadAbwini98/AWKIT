@@ -389,6 +389,22 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-djnl-13-l9-0929:project-state:2026-09-29T20:22:28.927Z",
+        "task": "awkit-djnl-13-l9-0929",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/issues.jsonl"
+        ],
+        "acquired_at": "2026-09-29T20:22:28.927Z",
+        "acquired_at_commit": "7f5deca1a92d1b45a9e3e92c8f86354c2f325456",
+        "released_at": "2026-09-29T20:23:19.253Z",
+        "released_reason": "Beads closeout committed in 59f18633, awkit-djnl.17 closed, the dashboard baselines and state documents are updated next outside this lease",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }

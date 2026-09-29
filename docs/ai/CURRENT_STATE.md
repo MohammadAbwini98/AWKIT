@@ -1,6 +1,39 @@
 # CURRENT_STATE
 
-## L9 closed: bounded time budgets, honest progress and measured ETA; Phase L 13 of 13 (2026-09-29, latest)
+## L9 QC follow-up closed (`awkit-djnl.17`, 2026-09-29, latest)
+
+- **What changed for a user:**
+  - Only one model copy or compatibility check runs at a time. A second one is refused at once
+    ("already running") rather than both running.
+  - The progress bar never shows a failed load attempt's fraction, and never runs backwards.
+  - A GPU mode's first load no longer says "no time estimate yet" before it knows where the model runs.
+  - Screen readers no longer hear the elapsed time re-read every second.
+  - A GPU-Only refusal now says what to fix in the explanation, fragment and Element Spy panels,
+    not only in Settings.
+- **ETA history:**
+  - A cold run that fell back from a GPU mode is no longer recorded as a CPU measurement.
+  - A history file that is not this version (`{}`, older, versionless) is preserved beside itself and
+    restarted instead of staying unwritable. A newer version is still left untouched.
+- **Decisions:**
+  - No separate "unloading" stage label.
+  - The GPU-Only job keeps the stable `GPU_UNAVAILABLE` terminal code, and its cause comes from
+    main's status sentence.
+- **Evidence** (`7f5deca1`):
+  - `build` PASS;
+  - `verify:ai-job-status` 148/148;
+  - `verify:ai-job-status-mutations` 67/0 (57/57 mutants killed);
+  - `verify:element-spy` 206/0;
+  - `verify:ai-settings-gui` 141/141;
+  - `verify:ai-progress-gui` 41/0.
+- **Not PASS:**
+  - `verify:ai-progress-packaged` and `verify:ai-progress-gpu-packaged` **NOT RUN**: the package
+    predates the fix, and a fresh package is needed.
+  - The QC was done by a Claude session. The planned CodeCraft pass could not run, because its
+    tools fail schema validation in this client.
+- **Follow-ups:** Phase L's epic stays open for `.14`, `.15` and `.16`. Validation ledger unchanged at
+  65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## L9 closed: bounded time budgets, honest progress and measured ETA; Phase L 13 of 13 (2026-09-29)
 
 - **What a user sees now:**
   - Every long local-AI job (validation explanation, fragment description, failure analysis, Element Spy
