@@ -319,8 +319,13 @@ try {
       only.last?.state === "failed" && typeof only.last.terminalReason === "string" && !only.stages.includes("model-load") && only.loads.length === 0 && only.statuses.every((s) => s.eta === null),
       { stages: only.stages, last: only.last?.state, reason: only.last?.terminalReason }
     );
-    check("...the same reason the Settings panel gives for the refusal", only.last?.terminalReason === readiness?.refusal?.reason, { job: only.last?.terminalReason, settings: readiness?.refusal });
-    console.log(`  · GPU-Only refused here: ${only.last?.terminalReason}`);
+    // The job carries the service's refusal code (the contract verify:ai-job-status pins); Settings names the cause.
+    check(
+      "...its terminal reason is the service's refusal, GPU_UNAVAILABLE, and Settings names this machine's cause",
+      only.last?.terminalReason === "GPU_UNAVAILABLE" && typeof readiness?.refusal?.reason === "string" && readiness.refusal.reason.length > 0,
+      { job: only.last?.terminalReason, settings: readiness?.refusal }
+    );
+    console.log(`  · GPU-Only refused here: ${only.last?.terminalReason} (${readiness?.refusal?.reason})`);
   }
   const cpuSet = await setMode(win, "cpu");
   check("CPU & RAM only is saved again", cpuSet?.ok === true, cpuSet);

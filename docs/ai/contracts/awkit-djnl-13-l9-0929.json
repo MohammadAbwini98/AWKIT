@@ -48,6 +48,7 @@
     ],
     "expected_paths": [
       "native-hosts/ai/ai-host.cjs",
+      "dist/win-unpacked/resources/native-hosts/ai/ai-host.cjs",
       "src/ai/contracts/AiHostProtocol.ts",
       "src/ai/contracts/AiApi.ts",
       "src/ai/AiJobStatus.ts",
@@ -122,11 +123,9 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "release",
+      "agent_id": "runtime",
       "allowed_paths": [
-        "build",
-        "resources/dependency-manifest.json",
-        "resources/dependency-manifest.sig"
+        "native-hosts/ai/ai-host.cjs"
       ]
     }
   },
@@ -271,8 +270,8 @@
       "required": true,
       "command": "npm run verify:ai-progress-packaged",
       "artifact": "dist/win-unpacked/SpecterStudio.exe",
-      "result": "pending",
-      "observed": null
+      "result": "PASS",
+      "observed": "33/0 on the fresh package of clean 80906caf with the real Qwen3.5-0.8B: the model copy determinate by bytes to exactly the file size; CPU & RAM cold (runtime load fraction as the only determinate progress, no history, no ETA, 125 s budget), warm without then with one warm sample; GPU-Offload is this machine's real product answer, a cold CPU reload with BACKEND_PACK_MISSING in the job profile; GPU-Only refused, terminal reason GPU_UNAVAILABLE with Settings naming BACKEND_PACK_MISSING, no load, no progress; history versioned under the profile keyed by the pack checksum; after a restart the cold ETA is the 2 cold samples on disk. Mutation: the host's load-progress forwarding removed from both the source and packaged host (byte-equality kept) killed 3 checks (30/33); both restored, source git-identical to HEAD, 33/0 again, and verify:ai-packaged-runtime 104/0 proved the packaged tree equals the signed staging. One verifier correction before green: the GPU-Only terminal reason is the service's GPU_UNAVAILABLE, as verify:ai-job-status pins, with the cause in Settings"
     },
     {
       "id": "verify:ai-progress-gpu-packaged",
@@ -280,8 +279,8 @@
       "required": true,
       "command": "npm run verify:ai-progress-gpu-packaged",
       "artifact": "dist/win-unpacked/resources/native-hosts/ai",
-      "result": "pending",
-      "observed": null
+      "result": "PASS",
+      "observed": "11/0, MECHANICS on this machine's AMD adapter under E11 (NVIDIA qualification BLOCKED: no 0x10DE adapter, carried in awkit-djnl.15): the packaged Vulkan host through the production service, tracker and history; GPU-Offload cold placed 25/25 layers with the runtime's load fraction 288 to 1000 as the job's determinate progress, warm without history then one measured warm sample; GPU-Only reloaded with every layer and its own load fraction; CPU & RAM after, cold with its own fraction and no borrowed GPU estimate; each placement's history kept apart. One harness correction before green: after an in-harness mode change the old model's unload is also reported as model-load, so the load order is checked on the last model-load"
     },
     {
       "id": "build",
@@ -319,8 +318,8 @@
     "push_authorized": true
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "pending",
+    "status": "implemented",
+    "qa_status": "PASS",
     "qc_status": "pending"
   },
   "write_lease": {
@@ -337,6 +336,40 @@
         "acquired_at_commit": "8279da7306ab18b7e5fc2fbfd195cd5e99e63632",
         "released_at": "2026-09-29T10:24:29.313Z",
         "released_reason": "host progress committed in 16de408b with verify:ai-host 279/0 and 46 of 46 mutations caught",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-13-l9-0929:release:2026-09-29T15:44:00.136Z",
+        "task": "awkit-djnl-13-l9-0929",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "build",
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig"
+        ],
+        "acquired_at": "2026-09-29T15:44:00.136Z",
+        "acquired_at_commit": "a748b4b6e6ea842629d610c50cfb664823d0128e",
+        "released_at": "2026-09-29T15:59:22.375Z",
+        "released_reason": "fresh package of clean 80906caf with strict offline validation passed, signed manifest committed in 5cd3a195, the packaged gates run outside this lease",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-13-l9-0929:runtime:2026-09-29T16:10:20.092Z",
+        "task": "awkit-djnl-13-l9-0929",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "native-hosts/ai/ai-host.cjs"
+        ],
+        "acquired_at": "2026-09-29T16:10:20.092Z",
+        "acquired_at_commit": "5cd3a1958479b1188e01a303c970147f1dc6adb3",
+        "released_at": "2026-09-29T16:16:59.057Z",
+        "released_reason": "packaged-gate mutation run done, host load-progress forwarding removed in source and packaged copies killed 3 checks of verify:ai-progress-packaged, source host restored byte-identical to HEAD",
         "amendments": [],
         "overrides": [],
         "violations": []

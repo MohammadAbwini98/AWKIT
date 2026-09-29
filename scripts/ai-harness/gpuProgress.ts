@@ -161,10 +161,11 @@ export async function runGpuProgress({ step, record, log }: { step: Step; record
     record(label, { outcome: outcome.status, ...seen });
     return { outcome, seen };
   };
+  // A mode change first drops the old load, reported under model-load too: the LAST model-load is the new one.
   const loaded = (seen: ReturnType<typeof summarize>) =>
     seen.stages.includes("backend-probe") &&
-    seen.stages.indexOf("model-load") > seen.stages.indexOf("backend-probe") &&
-    seen.stages.indexOf("prompt-evaluation") > seen.stages.indexOf("model-load") &&
+    seen.stages.lastIndexOf("model-load") > seen.stages.indexOf("backend-probe") &&
+    seen.stages.indexOf("prompt-evaluation") > seen.stages.lastIndexOf("model-load") &&
     seen.stages.indexOf("generation") > seen.stages.indexOf("prompt-evaluation");
 
   await step("MECHANICS GPU-Offload, cold: the runtime's own load fraction is the job's determinate progress on the Vulkan host", async () => {
