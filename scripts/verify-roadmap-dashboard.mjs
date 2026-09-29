@@ -631,8 +631,10 @@ try {
   // (one in). Measured after the export.
   // Then 24/305 of 329 later on 2026-09-29, the L9 QC follow-up: `awkit-djnl.17` closed (one out,
   // one closed). Measured after the export.
-    "24 outstanding / 305 closed",
-    beads.stats.outstanding === 24 && beads.stats.closed === 305,
+  // Then 23/306 of 329 on 2026-09-30: `awkit-djnl.14` (the DX-0 freeze) closed (one out, one closed).
+  // Measured after the export.
+    "23 outstanding / 306 closed",
+    beads.stats.outstanding === 23 && beads.stats.closed === 306,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

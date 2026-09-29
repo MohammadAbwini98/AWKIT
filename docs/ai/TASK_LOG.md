@@ -1,6 +1,28 @@
 # TASK_LOG
 
-## 2026-09-29 (latest) — L9 QC follow-up `awkit-djnl.17` finished and closed (Claude)
+## 2026-09-30 (latest) — `awkit-djnl.14`: DX-0 freezes the model entries, not the manifest file (Claude with CodeCraft)
+
+- **Task:** "use codecraft-agent to work on awkit-djnl.14".
+- **Cause:** `authoringDx.ts` froze the whole blob of `src/offline/AiModelManifest.ts`. L8a.1 added
+  `AI_BACKEND_MANIFEST` and `AI_RUNTIME_PIN.backends` to that file, but left the model entries and the
+  pin's `build` byte-identical.
+- **Fix:**
+  - Each DX revision carries `modelEntriesSha256`, and captures record it.
+  - `sourcesOff` matches the manifest by blob (older captures) or by entries digest.
+  - `verify:ai-authoring` derives the digest from each frozen blob, so it is never written to fit.
+- **Who did what:** CodeCraft `run_task` (`glm-5.3`, profile `edit`) made the `CaptureInputs` field, the
+  explanation-live wiring, the revision fields, `sourcesOff` and the mutation entries. Four of its
+  requests timed out on the client (two after applying their edits, one halfway, one not at all).
+  Claude did the rest, measured the digest and ran every gate.
+- **Tests:**
+  - `verify:ai-authoring` 393/393;
+  - `verify:ai-display-gate-mutations` 22/0;
+  - `verify:ai-dx-mutations` 45/0 (39/39);
+  - `typecheck:scripts` PASS.
+- **Commits:** `3c821b6a` (fix), `563ff86c` (Beads, under the L8a close contract), and this state
+  update.
+
+## 2026-09-29 — L9 QC follow-up `awkit-djnl.17` finished and closed (Claude)
 
 - **Task:** "continue and finalize phase L9". The user first asked for CodeCraft; its MCP tools all failed
   client-side `outputSchema` validation, so the user said to continue without it.

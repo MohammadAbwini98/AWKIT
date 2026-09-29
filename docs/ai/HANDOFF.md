@@ -1,6 +1,20 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-29, latest) — L9 QC follow-up `.17` closed
+## HANDOFF (2026-09-30, latest) — DX-0 freeze fixed, `.14` closed
+
+- **`awkit-djnl.14` is closed** (`3c821b6a`): the DX-0 check freezes the model manifest by its model
+  entries. `verify:ai-authoring` 393/393; both mutation runs green. The record is in
+  `docs/ai/KNOWN_ISSUES.md`.
+- **Any future change to a frozen AI model entry** needs a new DX revision in `authoringDx.ts`
+  (never an edit to an old one). `verify:ai-authoring` derives each revision's entries digest from its
+  frozen blob.
+- **CodeCraft:** `run_task` is reliable only for single-file, one- or two-edit tasks, answering in
+  about 15 s. Anything larger times out on the client, sometimes after applying only part of the task:
+  always check `git diff` after a timeout.
+- **Open under `awkit-djnl`:** `.15` (L8a QC, NVIDIA), `.16` (L8b QC).
+- Ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## HANDOFF (2026-09-29) — L9 QC follow-up `.17` closed
 
 - **`awkit-djnl.17` is closed:**
   - Nine QC findings are fixed in `7f5deca1`. The record is in

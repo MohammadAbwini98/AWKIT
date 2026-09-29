@@ -72,7 +72,19 @@
 - **Rule:** release a lease as soon as its paths are committed, before editing anything else. Never batch
   edits while a lease is held unless every path is in its scope.
 
-## `verify:ai-authoring` FAILs its DX-0 freeze since L8a.1 (2026-09-27, OPEN — pre-existing, not caused by L8a.3)
+## `verify:ai-authoring` FAILs its DX-0 freeze since L8a.1 (2026-09-27, RESOLVED 2026-09-30 in `3c821b6a`, `awkit-djnl.14`)
+
+- **Resolved:** DX-0 now freezes the manifest by the SHA-256 of `AI_MODEL_MANIFEST`
+  (`modelEntriesSha256`), not by the file's blob.
+  - `verify:ai-authoring` derives each revision's digest from the manifest blob that revision froze.
+    That blob, `a6f2472e`, gives the same digest as today's tree.
+  - Captures taken before the fix still match by their recorded blob.
+- **Results:**
+  - `verify:ai-authoring` 393/393;
+  - `verify:ai-display-gate-mutations` 22/0, with its controls clean again;
+  - `verify:ai-dx-mutations` 45/0.
+- **Lesson:** freeze what a gate protects, not the file that happens to hold it. A whole-file blob
+  breaks on any unrelated addition to the file.
 
 - **Symptom:** `verify:ai-authoring` fails the DX-0 "frozen inputs" check for `src/ai/AiModelManifest.ts`.
 - **Cause:** `scripts/ai-harness/authoringDx.ts` freezes the **whole file's** git blob (`a6f2472e`). L8a.1

@@ -1,6 +1,27 @@
 # CURRENT_STATE
 
-## L9 QC follow-up closed (`awkit-djnl.17`, 2026-09-29, latest)
+## DX-0 freeze fixed (`awkit-djnl.14`, 2026-09-30, latest)
+
+- **What changed:** L4b's DX-0 check freezes `src/offline/AiModelManifest.ts` by its model entries
+  (a SHA-256 of `AI_MODEL_MANIFEST`), not by the whole file.
+  - L8a.1's GPU backend manifest, added to the same file, no longer fails the check.
+  - A change to a model entry still does.
+  - `verify:ai-authoring` derives the frozen digest from the frozen blob, so no hand-written value is
+    trusted.
+  - Captures taken earlier still match by their blob, so no DX evidence changed status.
+- **Where:** `scripts/ai-harness/authoringDx.ts` (`MODEL_MANIFEST_PATH`, `modelEntriesSha256`,
+  `sourcesOff`); captures record `modelEntriesSha256` (`verify-ai-explanation-live.mts`).
+- **Evidence** (`3c821b6a`):
+  - `verify:ai-authoring` 393/393, was 387/388;
+  - `verify:ai-display-gate-mutations` 22/0, controls clean, where they failed before;
+  - `verify:ai-dx-mutations` 45/0 (39/39 mutants, 2 new);
+  - `typecheck:scripts` PASS.
+- **How it was done:** CodeCraft's `run_task` (`glm-5.3`) made about half the edits. Its larger requests
+  time out on the client, so Claude made and verified the rest.
+- **Follow-ups:** Phase L's epic stays open for `.15` and `.16`. Validation ledger unchanged at
+  65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## L9 QC follow-up closed (`awkit-djnl.17`, 2026-09-29)
 
 - **What changed for a user:**
   - Only one model copy or compatibility check runs at a time. A second one is refused at once
