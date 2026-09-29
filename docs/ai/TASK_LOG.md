@@ -1,6 +1,41 @@
 # TASK_LOG
 
-## 2026-09-28 (latest) — L8b.1: copy registration of a non-manifest GGUF with a space preflight (Claude)
+## 2026-09-29 (latest) — L8b.2 closeout and L8b.3–L8b.5: probe, qualification, Settings; L8b closed (Claude)
+
+- **Task:** check the GitHub repository, then finalize L8b completely.
+- **GitHub:** no open pull requests; CI green on every recent `main` push. `gh` is outside the lease
+  guard's grammar, so this was read in the browser.
+- **L8b.2 closeout:** the signed manifest the previous session generated had a dirty tree and a stale
+  source commit (strict validation would fail). A fresh package from clean `519f7087` was committed in
+  `5b08eb89`. All eleven contract gates were re-run against the final state and recorded.
+- **L8b.3–L8b.5:** see `docs/plans/ai-upgrade-v5/L8b-external-model-compatibility.md`.
+  - Host `probe` (`79c99a0f`); qualified list (`86aacc1e`); service, store, labels, IPC, Settings and
+    profile (`2bef0033`); GUI (`99351b69`); packaged gates (`33d218f4`, `2d961a41`); manifest
+    (`7b35277c`).
+- **Files:**
+  - `native-hosts/ai/ai-host.cjs`, `src/offline/AiQualifiedList.ts`;
+  - `src/ai/{AiModelCompatibility,AiQualification,AiModelPack,AiService,AiActionRecord,AiExecutionProfile,FakeAiHostTransport,pendingUpgrade,locatorUpgradeAttempts,locatorPromotion}.ts`;
+  - `src/ai/contracts/{AiHostProtocol,AiApi}.ts`, `src/profiles/FlowProfile.ts`;
+  - `app/main/ai/{aiRuntime,AiUtilityHostManager}.ts`, `app/main/ipc/ai.ipc.ts`, `app/main/preload.ts`;
+  - `app/renderer/pages/LocalAiSettings.tsx`;
+  - thirteen verifiers and the harness, the new `scripts/verify-ai-model-registration.mts`,
+    `package.json`, `scripts/lib/verifier-classification.ts`, and the signed manifest.
+- **Tests:**
+  - `verify:ai-host` 269/0 (39/39 mutations), `verify:ai-model-compatibility` 188/0 (3/3 mutations);
+  - `verify:ai-model-inspect` 31/0, `verify:ai-model-registration` 33/0, `verify:ai-packaged-app` 32/0;
+  - `verify:ai-settings-gui` 140/140, fallback 50/0, permissions 129/0, audit-revert 78/0;
+  - gpu-modes 184/0, locator-upgrade 79/0, locator-attempts 191/191, element-spy 205/0, model-pack 74/0;
+  - both host budget gates PASS; build, `typecheck:scripts` and `verify:verifier-classification` (290)
+    PASS;
+  - `verify:failure-capture-overhead` INCONCLUSIVE (run 19); `verify:ai-inference-profile` NOT RUN.
+- **Found and fixed on the way:**
+  - the fake runtime always called `onToken`, which hid every probe behind a failure (one thinking check
+    passed vacuously);
+  - `isVisible()` answers before Settings has read its status;
+  - a probe could land on a replacement's missing header verdict (a guard, now mutation-tested).
+- **Result:** L8b closed, QA PASS, QC pending (carried forward).
+
+## 2026-09-28 — L8b.1: copy registration of a non-manifest GGUF with a space preflight (Claude)
 
 - **Task:** the owner said "start L8b". L8b.1 from the L8b plan (the preflight UI is L8b.5 by the plan).
 - **Result:** implemented under contract `awkit-djnl-12-l8b1-registration-0928`, commit `10ea7862`.

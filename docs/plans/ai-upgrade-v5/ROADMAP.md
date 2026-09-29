@@ -261,19 +261,19 @@ as-is; *New* = no owner exists yet.
 
 ## Phase L extension (2026-09-27) — L8a, L8b, L9
 
-Status: **OPEN — L8a closed 2026-09-28; L8b and L9 planned, not implemented.** The owner widened Phase
+Status: **OPEN — L8a closed 2026-09-28, L8b closed 2026-09-29; L9 planned, not implemented.** The owner widened Phase
 L's accepted scope after the 10/10 closeout. L0–L7 are not reopened, renumbered or re-evaluated; their
 evidence stands. The stability guarantees above apply unchanged to every new milestone.
 
 | ID | Milestone | Depends (Beads `blocks`) | Beads |
 |---|---|---|---|
 | L8a | Hardware-adaptive inference runtime (**closed 2026-09-28**, E11 decided) | closed L1, closed L7 | `awkit-djnl.11` |
-| L8b | External compatible-model registration & qualification | L8a | `awkit-djnl.12` |
+| L8b | External compatible-model registration & qualification (**closed 2026-09-29**, QC carried forward) | L8a | `awkit-djnl.12` |
 | L9 | Adaptive time budgets, progress & ETA UX | L8a, L8b (acceptance; L9.1 may start in parallel) | `awkit-djnl.13` |
 
-Phase L now reads **11 of 13 milestones closed (85%)** (L8a closed 2026-09-28). The program-wide
-roadmap counts phases, not milestones: with Phase L still `in-progress` it reads 11 of 14 phases
-complete (79%).
+Phase L now reads **12 of 13 milestones closed (92%)** (L8a closed 2026-09-28, L8b 2026-09-29). The
+program-wide roadmap counts phases, not milestones: with Phase L still `in-progress` it reads 11 of 14
+phases complete (79%).
 
 ### Owner decisions (2026-09-27; ratified in `docs/ai/DECISIONS.md`)
 

@@ -1,6 +1,30 @@
 # DECISIONS
 
-### 2026-09-28 (latest) — E11 decided: the AMD mechanics are L8a's GPU evidence; L8a closes (owner, in session) (`awkit-djnl.11`)
+### 2026-09-29 (latest) — L8b closes: how compatibility, qualification and the unverified-model acknowledgement are decided (implementer, within E1, E6 and E7) (`awkit-djnl.12`)
+
+- **Thinking is shown off by observing the model, not by reading its template.** The CPU host's probe
+  generates 16 unconstrained, greedy tokens after the product's own thinking-off prompt and reports only
+  whether they opened a think block; the text never leaves the host. This is the one place the host
+  generates without a grammar, and the prompt is the host's own fixed text. The probe then answers a fixed
+  schema under its grammar, validated in main with `parseAiOutput`.
+  - Why: a template can claim a thinking switch it does not honour. The real 0.8B reads
+    `THINKING_NOT_DISABLED` once the pre-fill is removed, so the check is observed to fail on a real model.
+- **The chat-template static check is shape-only** (ChatML or not). This settles L8b's open question.
+- **A compatible model is used only after an administrator acknowledges it as unverified** (E7). The
+  acknowledgement is recorded on that exact file, only once it is compatible; a new import of any file
+  needs a new one. Until then the AI reads `MODEL_UNACKNOWLEDGED`. Curated packs need none.
+- **The qualified list holds only the historical CPU evidence:** Qwen3.5-0.8B on CPU & RAM, 4K context,
+  runtime KV defaults, the pinned build, for exactly the owner's three limited-GO features at the output
+  budgets L1.8 measured (2026-09-23). The 4B (L1.8 NO-GO) and 2B (FAIL) get no entry; they read Compatible
+  but unqualified. One configuration never qualifies another, so a GPU run of the 0.8B is unqualified.
+- **Latency is never claimed yet.** The latency class (quality key on a coarse hardware class, never the
+  licensing fingerprint) is defined; nothing measures it before L9's ETA history.
+- **An unqualified model runs with exactly the product's bounded budgets**; nothing is raised for it.
+- **No new permission.** Preflight, import, re-check and acknowledgement are `AI_MANAGE` with
+  re-authentication, and import names the file only by a one-time token.
+- **Independent QC of L8b.1–L8b.5 is carried forward** (Beads), as it was for L8a.
+
+### 2026-09-28 — E11 decided: the AMD mechanics are L8a's GPU evidence; L8a closes (owner, in session) (`awkit-djnl.11`)
 
 - **The question.** E11 wanted L8a's GPU evidence on the development machine's NVIDIA adapter. That
   machine has none: AMD `0x1002` plus the software adapter `0x1414`. The L8a plan recorded three choices:

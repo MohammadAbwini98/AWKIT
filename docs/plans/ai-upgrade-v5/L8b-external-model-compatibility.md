@@ -3,9 +3,9 @@
 Shared rules and the Phase L extension decisions (E1–E12): `ROADMAP.md` › *Phase L extension
 (2026-09-27)*. Beads `awkit-djnl.12`. Depends on L8a (`awkit-djnl.11`). Blocks L9 (`awkit-djnl.13`).
 
-**Status (2026-09-28): IN PROGRESS — L8b.1 implemented; L8b.2–L8b.5 not started.** See the L8b.1
-record at the end. The verifiers named under *Acceptance* are planned, not written yet;
-`verify:ai-model-pack` carries L8b.1.
+**Status (2026-09-29): CLOSED — L8b.1–L8b.5 implemented, QA PASS, independent QC pending (carried
+forward).** The records follow the plan, newest last. Both planned verifiers exist and pass:
+`verify:ai-model-compatibility` (188/0) and `verify:ai-model-registration` (33/0 on the packaged build).
 
 ## Objective
 
@@ -165,3 +165,109 @@ Contract `awkit-djnl-12-l8b1-registration-0928`. Commit `10ea7862`.
   PASS).
 - **NOT RUN:** the packaged import (no package rebuilt for this slice); `verify:ai-model-live`
   (unchanged curated path).
+
+## L8b.2 record (2026-09-28)
+
+Contract `awkit-djnl-12-l8b2-static-checks-0928`. Commits `dd7ddb8d` (host), `aeb18017`, manifest
+`5b08eb89`.
+
+- The CPU host's `inspect` reads a confined model's GGUF header with the pinned runtime's own reader:
+  filesystem only, no split-part siblings, nothing native loaded, a 20 s deadline below the manager's.
+  Only numbers, a vetted short architecture name and the template's shape cross the boundary.
+- `staticVerdict` (`src/ai/AiModelCompatibility.ts`) decides, first failure wins: `GGUF_UNREADABLE`,
+  `GGUF_VERSION`, `ARCHITECTURE_UNSUPPORTED`, `TENSOR_TYPE_UNSUPPORTED`, `CHAT_TEMPLATE`,
+  `CONTEXT_TOO_SMALL`, `LAYER_COUNT`. The verdict is recorded on the model with the runtime build that
+  produced it; a verdict from another build no longer counts.
+- **Settled open question:** the chat-template check is static and shape-only (ChatML or not). Whether
+  thinking can be turned off is the probe's job, observed on the model.
+- Evidence: `verify:ai-host` 227/0 (30/30 mutations), `verify:ai-model-compatibility` 81/0,
+  `verify:ai-model-inspect` 25/0 on the real host, `verify:ai-packaged-app` 28/0 on a fresh package.
+
+## L8b.3–L8b.5 record (2026-09-29)
+
+Contract `awkit-djnl-12-l8b3-l8b5-0929`. Commits `79c99a0f` (host), `86aacc1e` (qualified list),
+`2bef0033`, `99351b69`, `33d218f4`, manifest `7b35277c`, `2d961a41`.
+
+**L8b.3, the probe.** A new CPU-host request, `probe`:
+- It loads the confined model exactly as `load` does, then generates 16 tokens unconstrained and greedy
+  after the product's own thinking-off prompt (ChatML with the empty think block pre-filled). It reports
+  only whether they opened a think block; their text never leaves the host.
+- It then answers a fixed schema (`{"answer": "yes"|"no"}`) under its grammar, bounded to 32 tokens. The
+  main process validates it with `parseAiOutput`, like any product answer.
+- The model is always released afterwards. The probe is cancellable. A load failure is an answer
+  (`loaded: false`); a runtime that cannot start is an error, so the stage is not run.
+- `probeVerdict`, first failure wins: `PROBE_LOAD_FAILED`, `PROBE_GENERATION_FAILED`,
+  `THINKING_NOT_DISABLED`, `PROBE_OUTPUT_INVALID`. A malformed reply fails; a cancelled one is not run.
+- `runCompatibilityStages` probes only a model whose own header passed for this runtime build, so a
+  replacement imported meanwhile is never probed on another file's verdict. A mutation that dropped this
+  guard recorded a replacement **Compatible with no header check at all**.
+- `AiService.probeModel` waits for admission (a probe loads a whole model), handshakes the CPU host,
+  forgets the host's loaded model, and cancels a probe past its 240 s deadline on the host. The host
+  manager now tracks probe job ids like inference ones, so a cancel it cannot honour kills the host.
+
+**L8b.4, qualification.**
+- The release-owned list `src/offline/AiQualifiedList.ts` (Risk 3) holds quality keys: model SHA-256,
+  runtime build, backend, offload class, context, KV settings, feature, output budget.
+- It holds only the historical CPU evidence: Qwen3.5-0.8B on CPU & RAM for the owner's three limited-GO
+  features (`locatorSemanticUpgrade` 256, `validationExplanation` 176, `failureAnalysis` 256 output
+  tokens), from the L1.8 GO. The 4B (NO-GO) and 2B (FAIL) have no entry, so they are compatible but never
+  qualified.
+- `src/ai/AiQualification.ts` derives the live key from the configuration the model runs in. CPU mode is
+  decided by the mode; a GPU mode only by a load under the current setting, and before one nothing is
+  claimed.
+- Labels, each with a reason: Incompatible (the failed check), unchecked, Qualified (for the named
+  features), Compatible but unqualified (`NO_QUALITY_EVIDENCE`, `NOT_QUALIFIED_ON_THIS_CONFIGURATION`,
+  `CONFIGURATION_NOT_DECIDED`).
+- The latency class is the quality key on a coarse hardware class (powers of two, never the licensing
+  fingerprint). Nothing measures it before L9, so latency is never claimed.
+- An unqualified model runs with exactly the product's own bounded budgets; nothing is raised for it.
+
+**L8b.5, Settings, acknowledgement and the effective profile.**
+- **Two-step import:** `ai:preflightModelPack` opens the dialog in main and returns the file's name,
+  size, the free space and the need, with a one-time token. `ai:importModelPack(token)` copies it. The
+  renderer never supplies a path.
+- **Acknowledgement:** `ai:acknowledgeModelPack` records "unverified model" acceptance on that exact file,
+  only once it is compatible. A new import, even of the same file, needs a new one. Until then the AI
+  reads `MODEL_UNACKNOWLEDGED`.
+- **Re-check:** `ai:checkModelPack` re-runs both stages (a new runtime build, or a check that could not
+  run at import).
+- All three are `AI_MANAGE` with re-authentication; no new permission.
+- **Settings** shows the preflight before any copy, the pack's compatibility label with its reason, a
+  Qualification row, "Speed on this machine: not measured, so not claimed", Check Compatibility Again,
+  and Use Unverified Model… with a confirmation. The audit table gains a "Ran on" column.
+- **`AiActionRecord.profile`** (optional): runtime build, backend and offload class. It is carried from
+  the job outcome through the pending candidate to the record. Old records and old candidates load
+  unchanged; a malformed profile is refused.
+
+**Evidence (final state).**
+
+| Gate | Result |
+|---|---|
+| `verify:ai-host` | 269/0, 39/39 mutations (9 new for the probe) |
+| `verify:ai-model-compatibility` | 188/0, 3/3 manual mutations caught (thinking check, probe-after-replacement guard, probe admission) |
+| `verify:ai-model-inspect` (real host) | 31/0: the 0.8B, 4B and unlisted 2B pass the probe (36, 142 and 92 s); a weightless header fails the load without restarting the host; the host with the pre-fill removed reads `THINKING_NOT_DISABLED` on the real 0.8B |
+| `verify:ai-model-registration` (packaged) | 33/0: the 2B registered, Compatible but unqualified, acknowledged in Settings; malformed and unknown-architecture headers Incompatible; a real inference on an unlisted 0.8B copy; a byte flipped after hashing refused (`HASH_MISMATCH`) |
+| `verify:ai-packaged-app` (packaged) | 32/0: two-step import, the curated 0.8B Qualified on its CPU key |
+| `verify:ai-settings-gui` | 140/140 |
+| Other gates | fallback 50/0, permissions 129/0, audit-revert 78/0, gpu-modes 184/0, locator-upgrade 79/0, locator-attempts 191/191, element-spy 205/0, model-pack 74/0 |
+| Build | build, `typecheck:scripts`, `verify:verifier-classification` (290) PASS; strict offline validation on a fresh package from clean `7eeff437` |
+| Guards of the edited host and `src/ai` | `verify:ai-failure-analysis-budget` 7/0, `verify:ai-locator-upgrade-budget` 8/0 on the real tokenizer; `verify:failure-capture-overhead` INCONCLUSIVE (run 19: 15 passed, 0 failed, 3 timing intervals straddle their ceilings on this noisy host; zero AI calls on the run path PASS); `verify:ai-inference-profile` NOT RUN (an L1.8 diagnostic measurement; the host's inference path is unchanged) |
+
+**Acceptance, mapped.**
+- Registration of a compatible non-manifest GGUF, preflight first: `verify:ai-model-registration` A.
+- Traversal, junction and symlink: refused by the host's confinement (`verify:ai-host`) and the store's
+  copy (`verify:ai-model-pack`).
+- Mutation after hashing: `verify:ai-model-registration` D.
+- Malformed GGUF, unsupported architecture: `verify:ai-model-registration` B, `verify:ai-model-inspect`.
+- Thinking not disableable: `verify:ai-model-inspect`'s host mutant on the real 0.8B.
+- Curated models: the 0.8B reads Qualified on its historical CPU key; a GPU run reads Compatible but
+  unqualified (`verify:ai-model-compatibility` J). The 4B reads Compatible but unqualified, because its
+  historical evidence is a NO-GO.
+- Migration: pre-L8b.3 registries and pre-L8b.5 action records load unchanged; `ai-settings.json` is
+  untouched by L8b.
+
+**Carried forward (Beads `awkit-djnl.16`):**
+- independent QC of L8b.1–L8b.5;
+- the latency class is defined but measured by L9's ETA history;
+- a shared `ConfirmDialog` renders `\n` line breaks as spaces (see KNOWN_ISSUES);
+- `verify:failure-capture-overhead` stays INCONCLUSIVE on this host; a measurement-quiet host decides it.

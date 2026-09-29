@@ -1,5 +1,23 @@
 # KNOWN_ISSUES
 
+## The shared `ConfirmDialog` renders `\n` line breaks as spaces (2026-09-29, OPEN — cosmetic)
+
+- `.modal-body` has no `white-space` rule, so every confirm message written with `\n\n` paragraph breaks
+  (model removal, revert, and others) renders as one paragraph. Found while writing L8b.5's preflight,
+  which now reads as plain sentences instead.
+- **Fix owed, not taken here:** `white-space: pre-line` on `.modal-body` changes every existing dialog,
+  and GUI verifiers that read those dialogs' `innerText` would see new line breaks. It needs its own
+  change with those verifiers re-run. Tracked with the L8b follow-ups in Beads.
+
+## Lease bookkeeping must be committed BEFORE packaging, or the signed manifest records a dirty tree (2026-09-29, OPEN — know it)
+
+- `scripts/generate-dependency-manifest.ps1` records `sourceTreeDirty` from `git status`, excluding only
+  the manifest itself. Granting a release lease dirties `active-lease.json` and `assignments.json`, and a
+  package built then signs `sourceTreeDirty: true` and the parent commit, which strict validation refuses.
+  L8b.2's first manifest had exactly this and was regenerated.
+- **Rule:** grant, commit the contract, `active-lease.json` and `assignments.json` (the lease allows
+  them), THEN `npm run package:portable`.
+
 ## `verify:ai-gpu-packaged` FAILed its lifecycle half on a pack the modes half invalidated (2026-09-28, RESOLVED the same day — harness defect, L8a.5)
 
 - **Resolved:** after the lease was released, the launcher runs one mode per invocation, and the new

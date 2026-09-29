@@ -98,6 +98,7 @@
       "docs/ai/KNOWN_ISSUES.md",
       "docs/plans/ai-upgrade-v5/L8b-external-model-compatibility.md",
       "docs/plans/ai-upgrade-v5/ROADMAP.md",
+      "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
       "docs/ai/contracts/awkit-djnl-12-l8b3-l8b5-0929.json",
       "docs/ai/contracts/active-lease.json",
       "tools/roadmap/assignments.json",
@@ -114,11 +115,9 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "release",
+      "agent_id": "project-state",
       "allowed_paths": [
-        "build",
-        "resources/dependency-manifest.json",
-        "resources/dependency-manifest.sig"
+        ".beads/issues.jsonl"
       ]
     }
   },
@@ -198,8 +197,8 @@
       "required": true,
       "command": "npm run verify:ai-host",
       "artifact": null,
-      "result": "pending",
-      "observed": ""
+      "result": "PASS",
+      "observed": "269/0 with 39 of 39 mutations caught (9 new for the probe), final state"
     },
     {
       "id": "verify:ai-model-compatibility",
@@ -207,8 +206,8 @@
       "required": true,
       "command": "npm run verify:ai-model-compatibility",
       "artifact": null,
-      "result": "pending",
-      "observed": ""
+      "result": "PASS",
+      "observed": "188/0; 3 of 3 manual mutations caught and reverted: thinking check disabled (182/5), probe-after-replacement guard removed (187/1, the replacement was recorded compatible with no header check), probe admission gate removed (186/2)"
     },
     {
       "id": "verify:ai-fallback",
@@ -216,8 +215,8 @@
       "required": true,
       "command": "npm run verify:ai-fallback",
       "artifact": null,
-      "result": "pending",
-      "observed": ""
+      "result": "PASS",
+      "observed": "50/0, including a compatible registered model not acknowledged: UNAVAILABLE/MODEL_UNACKNOWLEDGED with zero host calls, and the model-file token as the only new bridge argument"
     },
     {
       "id": "verify:ai-model-pack",
@@ -225,8 +224,8 @@
       "required": true,
       "command": "npm run verify:ai-model-pack",
       "artifact": null,
-      "result": "pending",
-      "observed": ""
+      "result": "PASS",
+      "observed": "74/0"
     },
     {
       "id": "verify:ai-model-inspect",
@@ -234,8 +233,8 @@
       "required": true,
       "command": "npm run verify:ai-model-inspect",
       "artifact": null,
-      "result": "pending",
-      "observed": ""
+      "result": "PASS",
+      "observed": "31/0 on the real host: the 0.8B, 4B and unlisted 2B pass the probe (36, 142 and 92 s), a weightless header fails the probe load without a restart, the host with the thinking-off pre-fill removed reads THINKING_NOT_DISABLED on the real 0.8B"
     },
     {
       "id": "verify:ai-settings-gui",
@@ -243,8 +242,8 @@
       "required": true,
       "command": "npm run verify:ai-settings-gui",
       "artifact": null,
-      "result": "pending",
-      "observed": ""
+      "result": "PASS",
+      "observed": "140/140, including the preflight before any copy (checked on disk), an unreadable file Incompatible with its reason, re-check and removal"
     },
     {
       "id": "verify:ai-permissions",
@@ -252,8 +251,8 @@
       "required": true,
       "command": "npm run verify:ai-permissions",
       "artifact": null,
-      "result": "pending",
-      "observed": ""
+      "result": "PASS",
+      "observed": "129/0: preflightModelPack, importModelPack, checkModelPack and acknowledgeModelPack assert AI_MANAGE with re-authentication before acting, the preload exposes exactly the gated channels"
     },
     {
       "id": "verify:ai-audit-revert",
@@ -261,26 +260,26 @@
       "required": true,
       "command": "npm run verify:ai-audit-revert",
       "artifact": null,
-      "result": "pending",
-      "observed": ""
+      "result": "PASS",
+      "observed": "78/0: the effective profile kept and rebuilt, pre-L8b.5 records load unchanged, six malformed profiles refused; verify:ai-locator-upgrade 79/0 shows the profile carried from the pending candidate into the applied record"
     },
     {
       "id": "verify:ai-model-registration",
       "type": "packaged",
       "required": true,
       "command": "npm run verify:ai-model-registration",
-      "artifact": null,
-      "result": "pending",
-      "observed": ""
+      "artifact": "dist/win-unpacked/SpecterStudio.exe",
+      "result": "PASS",
+      "observed": "33/0 on the fresh package from clean 7eeff437 (after a verifier wait fix): the unlisted 2B registered through the preflight and both packaged-host stages, Compatible but unqualified, acknowledged in Settings; malformed and unknown-architecture headers Incompatible; a real inference on an unlisted 0.8B copy named external-<sha12>; a byte flipped after hashing refused as HASH_MISMATCH"
     },
     {
       "id": "verify:ai-packaged-app",
       "type": "packaged",
       "required": true,
       "command": "npm run verify:ai-packaged-app",
-      "artifact": null,
-      "result": "pending",
-      "observed": ""
+      "artifact": "dist/win-unpacked/SpecterStudio.exe",
+      "result": "PASS",
+      "observed": "32/0 on the same package: two-step import with a one-time token, the curated 0.8B Qualified on CPU for its three limited-GO features, a weightless header failing the probe load"
     },
     {
       "id": "build",
@@ -288,8 +287,8 @@
       "required": true,
       "command": "npm run build",
       "artifact": null,
-      "result": "pending",
-      "observed": ""
+      "result": "PASS",
+      "observed": "tsc --noEmit and all bundles, inside the fresh package whose strict offline validation passed"
     },
     {
       "id": "typecheck:scripts",
@@ -297,8 +296,8 @@
       "required": true,
       "command": "npm run typecheck:scripts",
       "artifact": null,
-      "result": "pending",
-      "observed": ""
+      "result": "PASS",
+      "observed": "clean, final state"
     },
     {
       "id": "verify:verifier-classification",
@@ -306,8 +305,17 @@
       "required": true,
       "command": "npm run verify:verifier-classification",
       "artifact": null,
-      "result": "pending",
-      "observed": ""
+      "result": "PASS",
+      "observed": "290 classified, verify:ai-model-registration registered as packaged-application"
+    },
+    {
+      "id": "verify:failure-capture-overhead",
+      "type": "verifier",
+      "required": false,
+      "command": "npm run verify:failure-capture-overhead",
+      "artifact": "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
+      "result": "BLOCKED",
+      "observed": "INCONCLUSIVE (exit 2, run 19): 15 passed, 0 failed, 3 timing intervals straddle their ceilings on this noisy host; zero AI calls on the run path PASS. Recorded as BLOCKED on a measurement-quiet host (the vocabulary has no INCONCLUSIVE)."
     }
   ],
   "git": {
@@ -318,8 +326,8 @@
     "push_authorized": true
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "pending",
+    "status": "implemented",
+    "qa_status": "PASS",
     "qc_status": "pending"
   },
   "write_lease": {

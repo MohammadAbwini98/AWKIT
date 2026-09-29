@@ -1,6 +1,38 @@
 # CURRENT_STATE
 
-## L8b.1 implemented: any GGUF is copied and registered, never loaded until checked (2026-09-28, latest)
+## L8b closed: compatible external models, honest labels, acknowledged before use; Phase L 12 of 13 (2026-09-29, latest)
+
+- **What an administrator can do now** (Settings → Local AI):
+  - Import any GGUF. The file's size, the free space and what the copy needs are shown **before** anything
+    is copied.
+  - A model the app does not list is checked on this machine: a static header check (L8b.2), then a probe
+    that loads it once, shows its thinking stays off, and answers a fixed schema (L8b.3). Both run in the
+    utility host, never in main.
+  - A compatible model reads **Compatible but unqualified** and stays unused until the administrator
+    clicks **Use Unverified Model…** and confirms. A failed check reads **Incompatible** with its reason.
+    **Check Compatibility Again** re-runs both stages.
+  - The curated 0.8B reads **Qualified on CPU & RAM** for its three limited-GO features. Speed is never
+    claimed until L9 measures it.
+  - The audit log's new "Ran on" column shows the backend and offload each applied change came from.
+- **Where it lives:**
+  - `native-hosts/ai/ai-host.cjs` (`inspect`, `probe`);
+  - `src/ai/AiModelCompatibility.ts`, `src/ai/AiQualification.ts`;
+  - `src/offline/AiQualifiedList.ts` (Risk 3, release-owned);
+  - `AiModelPack` (verdicts, acknowledgement), `AiService.probeModel`;
+  - four `ai:` channels, all `AI_MANAGE` with re-authentication.
+- **Evidence** (full table in `docs/plans/ai-upgrade-v5/L8b-external-model-compatibility.md`):
+  - `verify:ai-model-registration` 33/0 on the packaged build;
+  - `verify:ai-packaged-app` 32/0; `verify:ai-model-inspect` 31/0 on the real host;
+  - `verify:ai-host` 269/0 with 39/39 mutations; `verify:ai-model-compatibility` 188/0;
+  - `verify:ai-settings-gui` 140/140; build and strict offline validation PASS;
+  - `verify:failure-capture-overhead` INCONCLUSIVE on this host.
+- **Carried forward** (Beads): independent QC of L8b.1–L8b.5; the latency class measured by L9; the
+  shared dialog's line breaks.
+- **Next:** L9 adaptive time budgets, progress and ETA (`awkit-djnl.13`), now unblocked.
+- Phase L reads 12 of 13 milestones closed. Validation ledger unchanged at 65 PASS / 2 NOT RUN /
+  0 BLOCKED across 67 cases.
+
+## L8b.1 implemented: any GGUF is copied and registered, never loaded until checked (2026-09-28)
 
 - **Registration** (`src/ai/AiModelPack.ts`, E1/E7).
   - Settings → Local AI → Import now accepts a GGUF the manifest does not list. It is copied with the

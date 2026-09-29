@@ -1,6 +1,25 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-28, latest) — L8b.1 done; L8b.2 (static header checks in the host) is next
+## HANDOFF (2026-09-29, latest) — L8b closed; L9 is next
+
+- **L8b (`awkit-djnl.12`) is closed.** L8b.2 (contract `awkit-djnl-12-l8b2-static-checks-0928`) and
+  L8b.3–L8b.5 (contract `awkit-djnl-12-l8b3-l8b5-0929`) are implemented with QA PASS. Their records are in
+  `docs/plans/ai-upgrade-v5/L8b-external-model-compatibility.md`.
+- **What L9 builds on:**
+  - `AiService.probeModel` and the import's stages are the long, staged operations E9's job-status
+    contract must report. Today they report nothing while they run: an import can take a minute and more
+    (the 2B probe measured 92 s here).
+  - The latency class is defined in `src/ai/AiQualification.ts` (`latencyClassId`, `hardwareClassOf`);
+    L9's ETA history is what measures it. Until then Settings says speed is not claimed.
+- **Carried forward** in a new Beads follow-up under `awkit-djnl`:
+  - independent QC of L8b.1–L8b.5;
+  - the shared `ConfirmDialog` renders `\n` as spaces (KNOWN_ISSUES).
+- **Signed dependency manifest** matches the host at `7b35277c`; any further `ai-host.cjs` change needs
+  a release lease and a fresh package from a clean tree, with the lease bookkeeping committed FIRST, or
+  the manifest records a dirty tree.
+- Ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## HANDOFF (2026-09-28) — L8b.1 done; L8b.2 (static header checks in the host) is next
 
 - **L8b (`awkit-djnl.12`) is in progress.** L8b.1 is implemented under contract
   `awkit-djnl-12-l8b1-registration-0928`; see the record in
