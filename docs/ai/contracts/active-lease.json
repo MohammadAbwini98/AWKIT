@@ -2,7 +2,7 @@
   "task": "awkit-djnl-12-l8b3-l8b5-0929",
   "contract_path": "docs/ai/contracts/awkit-djnl-12-l8b3-l8b5-0929.json",
   "holder": "release",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "build",
     "resources/dependency-manifest.json",
@@ -30,5 +30,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-29T00:11:44.442Z",
+  "released_reason": "signed manifest from clean 7eeff437 committed in 7b35277c, strict validation and verify:ai-packaged-app 32/0 passed, the registration gate needs a verifier wait fix outside this lease",
+  "archived_at": "2026-09-29T00:11:44.446Z"
 }

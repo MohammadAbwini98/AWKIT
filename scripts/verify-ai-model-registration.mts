@@ -196,7 +196,8 @@ try {
     await panel.waitFor({ state: "visible", timeout: 5_000 }).catch(() => undefined);
   }
   const accept = panel.getByRole("button", { name: "Use Unverified Model…" });
-  check("Settings offers the unverified-model acknowledgement", await accept.isVisible().catch(() => false));
+  // A wait, not `isVisible()`: that answers at once, before the panel has read its status.
+  check("Settings offers the unverified-model acknowledgement", await accept.waitFor({ state: "visible", timeout: 15_000 }).then(() => true, () => false));
   await accept.click();
   const dialog = win.getByRole("alertdialog", { name: "Use a model this version does not list?" });
   await dialog.waitFor({ state: "visible", timeout: 10_000 }).catch(() => undefined);

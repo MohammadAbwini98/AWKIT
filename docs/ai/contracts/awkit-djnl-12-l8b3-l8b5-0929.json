@@ -371,6 +371,24 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-djnl-12-l8b3-l8b5-0929:release:2026-09-28T23:57:16.636Z",
+        "task": "awkit-djnl-12-l8b3-l8b5-0929",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "build",
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig"
+        ],
+        "acquired_at": "2026-09-28T23:57:16.636Z",
+        "acquired_at_commit": "33d218f4ef784b2ab30470fc97323cdcf2742d8b",
+        "released_at": "2026-09-29T00:11:44.442Z",
+        "released_reason": "signed manifest from clean 7eeff437 committed in 7b35277c, strict validation and verify:ai-packaged-app 32/0 passed, the registration gate needs a verifier wait fix outside this lease",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }
