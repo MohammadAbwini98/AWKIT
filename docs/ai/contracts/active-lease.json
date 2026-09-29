@@ -1,26 +1,18 @@
 {
   "task": "awkit-djnl-13-l9-0929",
   "contract_path": "docs/ai/contracts/awkit-djnl-13-l9-0929.json",
-  "holder": "runtime",
-  "status": "released",
+  "holder": "project-state",
+  "status": "active",
   "allowed_paths": [
-    "native-hosts/ai/ai-host.cjs"
+    ".beads/issues.jsonl"
   ],
-  "acquired_at": "2026-09-29T16:10:20.092Z",
-  "acquired_at_commit": "5cd3a1958479b1188e01a303c970147f1dc6adb3",
+  "acquired_at": "2026-09-29T16:50:58.606Z",
+  "acquired_at_commit": "ccfdd07c4fa29ccf350334538955b885896c6349",
   "baseline_dirty": [
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-djnl-13-l9-0929.json",
-    "scripts/ai-harness/gpuProgress.ts",
-    "scripts/verify-ai-progress-packaged.mts",
-    "tools/roadmap/assignments.json"
+    "docs/ai/contracts/awkit-djnl-13-l9-0929.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "18c9480a422efdd3a15cae6861c77263e5ef31b579ceac69a728fa80bc4c98cc",
-    "docs/ai/contracts/awkit-djnl-13-l9-0929.json": "4d09707e2de0a978eb6f886957b221ad3802879a9cfba89d1059553e50e7525f",
-    "scripts/ai-harness/gpuProgress.ts": "516db5d191b291bb839a643cf7bbe101e5d8bc15a774609a4b3bdab426666270",
-    "scripts/verify-ai-progress-packaged.mts": "dd860ff84781bcd9e38483df08b8baea1b6e653effeed27f780ecb752bcf2b19",
-    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
+    "docs/ai/contracts/awkit-djnl-13-l9-0929.json": "0edc657724e95b472dbf9db06caae2c9bff68c2be3e7393e2a6f3806f9b7cd05"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -34,8 +26,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-29T16:16:59.057Z",
-  "released_reason": "packaged-gate mutation run done, host load-progress forwarding removed in source and packaged copies killed 3 checks of verify:ai-progress-packaged, source host restored byte-identical to HEAD",
-  "archived_at": "2026-09-29T16:16:59.059Z"
+  "violations": []
 }

@@ -123,9 +123,9 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "runtime",
+      "agent_id": "project-state",
       "allowed_paths": [
-        "native-hosts/ai/ai-host.cjs"
+        ".beads/issues.jsonl"
       ]
     }
   },
