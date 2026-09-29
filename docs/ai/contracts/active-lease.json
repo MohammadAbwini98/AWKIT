@@ -2,7 +2,7 @@
   "task": "awkit-djnl-12-l8b3-l8b5-0929",
   "contract_path": "docs/ai/contracts/awkit-djnl-12-l8b3-l8b5-0929.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     ".beads/issues.jsonl"
   ],
@@ -22,5 +22,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-29T00:27:09.352Z",
+  "released_reason": "Beads closeout committed in ca688b55, awkit-djnl.12 closed and awkit-djnl.16 opened, the dashboard's tracker baselines are updated next outside this lease",
+  "archived_at": "2026-09-29T00:27:09.353Z"
 }

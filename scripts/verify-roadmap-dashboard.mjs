@@ -136,7 +136,8 @@ try {
   // 322 since 2026-09-25: the owner deferred L6's unbuilt intelligence to `awkit-egkw`.
   // 325 since 2026-09-27: the Phase L extension filed L8a/L8b/L9 (`awkit-djnl.11`…`.13`).
   // 327 since 2026-09-28: the L8a close filed its follow-ups `awkit-djnl.14` and `awkit-djnl.15`.
-  check("327 issues parse", beads.stats.total === 327, `got ${beads.stats.total}`);
+  // 328 since 2026-09-29: the L8b close filed its follow-up `awkit-djnl.16`.
+  check("328 issues parse", beads.stats.total === 328, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -621,8 +622,11 @@ try {
   // Then 25/302 of 327 on 2026-09-28, the L8a close (contract `awkit-djnl-11-l8a-close-0928`):
   // `awkit-djnl.11` closed on the owner's E11 decision (one out, one closed) and its follow-ups
   // `awkit-djnl.14` and `.15` were filed OPEN (two in). Measured after the export.
-    "25 outstanding / 302 closed",
-    beads.stats.outstanding === 25 && beads.stats.closed === 302,
+  // Then 25/303 of 328 on 2026-09-29, the L8b close (contract `awkit-djnl-12-l8b3-l8b5-0929`):
+  // `awkit-djnl.12` closed (one out, one closed) and its follow-up `awkit-djnl.16` was filed OPEN
+  // (one in). Measured after the export.
+    "25 outstanding / 303 closed",
+    beads.stats.outstanding === 25 && beads.stats.closed === 303,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -705,9 +709,11 @@ try {
   // and N no longer wait on the reopened Phase L epic. Two edges removed, none added; measured.
   // Then 189 on 2026-09-28: the L8a close filed `awkit-djnl.14` and `.15` under `awkit-djnl` (two
   // parent-child links); closing `awkit-djnl.11` removed no edge. Measured.
+  // Then 190 on 2026-09-29: the L8b close filed `awkit-djnl.16` under `awkit-djnl` (one parent-child
+  // link); closing `awkit-djnl.12` removed no edge. Measured.
   check(
-    "189 edges are present to classify",
-    beads.stats.edges === 189,
+    "190 edges are present to classify",
+    beads.stats.edges === 190,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(
