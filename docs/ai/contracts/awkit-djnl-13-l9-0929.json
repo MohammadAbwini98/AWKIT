@@ -122,9 +122,11 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "runtime",
+      "agent_id": "release",
       "allowed_paths": [
-        "native-hosts/ai/ai-host.cjs"
+        "build",
+        "resources/dependency-manifest.json",
+        "resources/dependency-manifest.sig"
       ]
     }
   },
