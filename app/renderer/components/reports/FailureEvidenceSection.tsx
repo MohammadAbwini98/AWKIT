@@ -5,6 +5,7 @@ import { storedFailureAnalysisFor, type FailureAnalysisView } from "@src/ai/cont
 import type { ConcurrentRunReport, StoredFailureAnalysis } from "@src/reports/ExecutionReport";
 import type { InstanceDiagnostics } from "@src/runner/evidence/FailureEvidenceCollector";
 
+import { AiJobProgress } from "../shared/AiJobProgress";
 import { aiUnavailableSentence, useAiAssistJob } from "../shared/useAiAssistJob";
 
 const api = () => window.playwrightFlowStudio;
@@ -201,6 +202,9 @@ export function FailureEvidenceSection({ executionId, instanceId }: { executionI
             <span className={`ai-assist-message${refused ? " error" : ""}`} role="status" data-testid="failure-ai-message">
               {refused ? <AlertTriangle size={12} aria-hidden="true" /> : null} {message}
             </span>
+            {phase.kind === "loading" ? (
+              <AiJobProgress status={job.progress.status} receivedAt={job.progress.receivedAt} label="Local AI failure analysis progress" testId="failure-ai-progress" />
+            ) : null}
           </div>
           {shown ? (
             <div className="ai-explanation" data-testid="failure-ai-result" data-insufficient={shown.analysis.insufficient ? "true" : "false"}>

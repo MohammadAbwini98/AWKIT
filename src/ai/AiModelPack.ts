@@ -81,7 +81,14 @@ export type AiModelPackStatus =
   | { status: "invalid"; reason: "FILE_MISSING" | "SIZE_MISMATCH" | "HASH_MISMATCH" | "REGISTRY_UNREADABLE" }
   | { status: "incompatible"; reason: "NOT_IN_MANIFEST" };
 
-export type AiModelImportCode = "NOT_A_FILE" | "NOT_GGUF" | "INSUFFICIENT_SPACE" | "COPY_FAILED";
+/** `ABORTED` (L9): the caller's signal ended the copy (a cancel or its time budget); nothing was kept. */
+export type AiModelImportCode = "NOT_A_FILE" | "NOT_GGUF" | "INSUFFICIENT_SPACE" | "COPY_FAILED" | "ABORTED";
+
+export interface AiModelImportOptions {
+  signal?: AbortSignal;
+  /** Bytes copied (and hashed) so far out of the file's size: a known denominator (L9.3). */
+  onProgress?: (doneBytes: number, totalBytes: number) => void;
+}
 export type AiModelImportResult =
   | { ok: true; entry: AiModelManifestEntry; external: null }
   | { ok: true; entry: null; external: AiExternalModel }
@@ -357,8 +364,9 @@ export class AiModelPackStore {
     return ok;
   }
 
-  import(sourcePath: string): Promise<AiModelImportResult> {
+  import(sourcePath: string, options: AiModelImportOptions = {}): Promise<AiModelImportResult> {
     return runExclusive(this.modelsDir, async () => {
+      if (options.signal?.aborted) return { ok: false, code: "ABORTED" };
       const checked = await this.checkSource(sourcePath);
       if (!checked.ok) return checked;
       // Measured again here, not trusted from a preflight: the disk may have filled since.
@@ -368,6 +376,8 @@ export class AiModelPackStore {
       const tmp = join(this.modelsDir, `.import-${process.pid}-${this.now()}.tmp`);
       const hash = createHash("sha256");
       let written = 0;
+      const total = checked.sizeBytes;
+      const report = options.onProgress;
       try {
         await pipeline(
           createReadStream(sourcePath),
@@ -375,14 +385,20 @@ export class AiModelPackStore {
             transform(chunk: Buffer, _encoding, callback) {
               hash.update(chunk);
               written += chunk.length;
+              try {
+                report?.(written, total);
+              } catch {
+                /* a progress listener never disturbs the copy */
+              }
               callback(null, chunk);
             }
           }),
-          createWriteStream(tmp, { flags: "wx" })
+          createWriteStream(tmp, { flags: "wx" }),
+          { signal: options.signal }
         );
       } catch {
         await rm(tmp, { force: true });
-        return { ok: false, code: "COPY_FAILED" };
+        return { ok: false, code: options.signal?.aborted ? "ABORTED" : "COPY_FAILED" };
       }
 
       const sha256 = hash.digest("hex");

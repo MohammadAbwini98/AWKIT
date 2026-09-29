@@ -24,25 +24,29 @@ import {
   type AiBackendPackStatus,
   type BackendTrust
 } from "@src/ai/AiBackendPack";
+import { AiEtaHistoryStore } from "@src/ai/AiEtaHistory";
 import { describeAdapters, offloadClassOf, toExecutionView, type AiGpuReadiness } from "@src/ai/AiExecutionProfile";
+import { AiJobTracker, type AiJobKind, type AiJobProfile, type AiJobSample, type AiJobStatus } from "@src/ai/AiJobStatus";
 import { compatibilityStanding, runCompatibilityStages, staticStanding } from "@src/ai/AiModelCompatibility";
 import { AiModelPackStore, MODEL_IMPORT_HEADROOM_BYTES, type AiModelPackStatus } from "@src/ai/AiModelPack";
-import { describeQualification, hardwareClassOf, type AiRunConfiguration } from "@src/ai/AiQualification";
+import { AI_KV_CACHE_SETTINGS, describeQualification, hardwareClassOf, qualityKeyId, type AiRunConfiguration } from "@src/ai/AiQualification";
 import { revertAiAction } from "@src/ai/AiRevert";
 import { AiService, type AiServiceDeps, type AiServiceStatus } from "@src/ai/AiService";
+import { AI_BUDGET_IDS, AI_BUDGET_LABELS, AI_TIME_BUDGETS, featuresWithChangedBudget, resolveAiTimeBudgets, type AiTimeBudgets } from "@src/ai/AiTimeBudgets";
 import { AUTHORING_LIMITS } from "@src/ai/authoringExplanation";
 import { FAILURE_ANALYSIS_LIMITS } from "@src/ai/failureAnalysis";
 import { FakeAiHostTransport, type FakeInferStep } from "@src/ai/FakeAiHostTransport";
 import { FRAGMENT_ASSIST_LIMITS } from "@src/ai/fragmentAssist";
 import { LOCATOR_ATTEMPT_LIMITS } from "@src/ai/locatorUpgradeAttempts";
 import { AiSettingsStore, MAX_IDLE_UNLOAD_MINUTES, MAX_VRAM_RESERVE_MB, MIN_VRAM_RESERVE_MB, sanitizeAiSettingsPatch, type AiExecutionMode } from "@src/ai/AiSettings";
-import { AI_CONTEXT_TOKENS, type AiGpuPlan, type AiHostBackend, type AiHostReason } from "@src/ai/contracts/AiHostProtocol";
+import { AI_CONTEXT_TOKENS, AI_PROBE, type AiGpuPlan, type AiHostBackend, type AiHostProgressUpdate, type AiHostReason } from "@src/ai/contracts/AiHostProtocol";
 import type {
   AiAdminResponse,
   AiAuditView,
   AiBackendPackView,
   AiBackendPreflightResponse,
   AiDiagnosticsView,
+  AiMeasuredSpeed,
   AiModelPackView,
   AiModelPreflightResponse,
   AiSettingsView,
@@ -78,6 +82,83 @@ let service: AiService | null = null;
 const settings = (): AiSettingsStore => (settingsStore ??= new AiSettingsStore(join(aiRoot(), "ai-settings.json")));
 const audit = (): AiActionStore => (auditStore ??= new AiActionStore(join(aiRoot(), "ai-actions.json")));
 const modelPack = (): AiModelPackStore => (packStore ??= new AiModelPackStore(modelsDir(), AI_MODEL_MANIFEST));
+
+// ── L9: job status, ETA history and time budgets ─────────────────────────────────────────────────────
+
+let etaStore: AiEtaHistoryStore | null = null;
+let tracker: AiJobTracker | null = null;
+let jobPublisher: ((owner: number, status: AiJobStatus) => void) | null = null;
+/** Set when the non-packaged test provider replaced the model, so its jobs still have a history key. */
+let testProviderModel: string | null = null;
+
+const etaHistory = (): AiEtaHistoryStore => (etaStore ??= new AiEtaHistoryStore(join(aiRoot(), "ai-eta-history.json")));
+
+/** Where job statuses go: the IPC layer sends each to its owning window only. */
+export function setAiJobPublisher(publish: ((owner: number, status: AiJobStatus) => void) | null): void {
+  jobPublisher = publish;
+}
+
+function jobTracker(): AiJobTracker {
+  tracker ??= new AiJobTracker({
+    estimate: async (sample) => {
+      const key = await latencyKey(sample);
+      return key ? etaHistory().estimate(key, sample.cold) : null;
+    },
+    record: (sample, runMs) => {
+      void latencyKey(sample)
+        .then((key) => (key ? etaHistory().record(key, sample.cold, runMs) : false))
+        .catch(() => undefined);
+    },
+    publish: (owner, status) => jobPublisher?.(owner, status)
+  });
+  return tracker;
+}
+
+/** The asking window's jobs: running, queued and recently finished ones. */
+export function aiJobsFor(owner: number): AiJobStatus[] {
+  return jobTracker().list(owner);
+}
+
+const currentBudgets = async (): Promise<AiTimeBudgets> => resolveAiTimeBudgets((await settings().read()).timeBudgetSeconds);
+
+/** The checksum the ETA history keys a model by: the file's own, or the test provider's fixed name. */
+async function modelKeyOf(modelId: string | null): Promise<string | null> {
+  if (!modelId) return null;
+  if (testProviderModel !== null) return modelId === testProviderModel ? `test-provider-${modelId}` : null;
+  const status = await readPack();
+  if (status.status === "installed" && status.entry.id === modelId) return status.entry.sha256;
+  if (status.status === "registered" && externalModelId(status.external.sha256) === modelId) return status.external.sha256;
+  return null;
+}
+
+/** The output budget a kind of job runs with: a feature's, or the probe's own. */
+const outputBudgetOf = (kind: AiJobKind): number | null =>
+  kind === "compatibilityCheck" ? AI_PROBE.outputTokens : ((FEATURE_OUTPUT_BUDGETS as Partial<Record<string, number>>)[kind] ?? null);
+
+function hardwareClassNow(vramTotalBytes: number | null): string {
+  const caps = detectMachineCapabilities("local");
+  return hardwareClassOf({ logicalCpus: caps.logicalCpuCount, totalMemoryMb: caps.totalMemoryMb, vramTotalBytes });
+}
+
+/**
+ * The latency class a job belongs to (E6): its quality key — model checksum, runtime build, backend,
+ * offload class, context, KV settings, the job kind and its output budget — on this machine's coarse
+ * hardware class. Null when any part is unknown (no profile yet, a model this build cannot name): then
+ * no ETA is shown and nothing is recorded, rather than a guess under another configuration's key.
+ */
+async function latencyKey(sample: AiJobSample): Promise<string | null> {
+  const profile = sample.profile;
+  const outputTokens = outputBudgetOf(sample.kind);
+  if (!profile || outputTokens === null || !AI_RUNTIME_PIN.build) return null;
+  const modelSha256 = await modelKeyOf(profile.modelId);
+  if (!modelSha256) return null;
+  const vram = profile.backend === "vulkan" ? ((await getAiService().status()).execution.vram?.totalBytes ?? null) : null;
+  return latencyKeyFor(sample.kind, modelSha256, { backend: profile.backend, offload: profile.offload as AiRunConfiguration["offload"], contextTokens: AI_CONTEXT_TOKENS }, hardwareClassNow(vram), outputTokens);
+}
+
+function latencyKeyFor(kind: AiJobKind, modelSha256: string, configuration: AiRunConfiguration, hardwareClass: string, outputTokens: number): string {
+  return `${qualityKeyId({ modelSha256, runtimeBuild: AI_RUNTIME_PIN.build ?? "unpinned", ...configuration, kvCache: AI_KV_CACHE_SETTINGS, feature: kind, outputTokens })}@${hardwareClass}`;
+}
 
 function logAi(level: "info" | "warn" | "error", message: string): void {
   const line = `[ai] ${message}`;
@@ -133,6 +214,7 @@ const inferenceThreads = (): number => deriveInferenceThreads(detectMachineCapab
  * model pack only: the queue, admission, prompt builder and output contract stay the production ones.
  */
 const TEST_PROVIDER_ENV = "AWKIT_TEST_AI_PROVIDER";
+const TEST_PROVIDER_MODEL = "test-deterministic-provider";
 
 /**
  * The test provider's GPU side (L8a.4 GUI verifier): `AWKIT_TEST_AI_GPU` names a JSON file giving the
@@ -182,7 +264,14 @@ function testProviderDeps(): Pick<AiServiceDeps, "transport" | "model" | "verify
       return { text: "{}" };
     }
   };
-  const fake = new FakeAiHostTransport({ modelRoot, respond });
+  // A slow load, so the GUI verifier can watch the runtime-reported load progress (L9.3).
+  const fake = new FakeAiHostTransport({
+    modelRoot,
+    respond,
+    get loadDelayMs() {
+      return (respond() as FakeInferStep & { loadDelayMs?: number }).loadDelayMs;
+    }
+  });
   const gpuFake = new FakeAiHostTransport({
     modelRoot,
     respond,
@@ -200,7 +289,7 @@ function testProviderDeps(): Pick<AiServiceDeps, "transport" | "model" | "verify
   logAi("warn", "test AI provider active (non-packaged build)");
   return {
     transport: (backend) => (backend === "vulkan" ? gpuFake : fake),
-    model: async () => ({ ok: true, modelId: "test-deterministic-provider", modelPath: join(modelRoot, "test.gguf"), contextTokens: 4096 }),
+    model: async () => ({ ok: true, modelId: TEST_PROVIDER_MODEL, modelPath: join(modelRoot, "test.gguf"), contextTokens: 4096 }),
     verifyModel: async () => true,
     expectedRuntimeBuild: undefined
   };
@@ -208,6 +297,7 @@ function testProviderDeps(): Pick<AiServiceDeps, "transport" | "model" | "verify
 
 export function getAiService(): AiService {
   const testProvider = service ? null : testProviderDeps();
+  if (testProvider) testProviderModel = TEST_PROVIDER_MODEL;
   service ??= new AiService({
     transport,
     gpu: currentGpuReadiness,
@@ -251,13 +341,15 @@ export function getAiService(): AiService {
         idleUnloadMs: current.idleUnloadMinutes * 60_000,
         minFreeMemoryMb: executionEngine.getAiAdmissionView().minFreeMemoryMb,
         executionMode: current.executionMode,
-        vramReserveBytes: current.vramReserveMb === null ? null : current.vramReserveMb * 1024 ** 2
+        vramReserveBytes: current.vramReserveMb === null ? null : current.vramReserveMb * 1024 ** 2,
+        budgets: resolveAiTimeBudgets(current.timeBudgetSeconds)
       };
     },
     admission: () => executionEngine.getAiAdmissionView(),
     threads: inferenceThreads(),
     expectedRuntimeBuild: AI_RUNTIME_PIN.build ?? undefined,
     log: logAi,
+    jobs: jobTracker(),
     ...testProvider
   });
   return service;
@@ -302,18 +394,18 @@ function runConfiguration(status: AiServiceStatus, mode: AiExecutionMode): AiRun
   return { backend, offload: backend === "cpu" ? "cpu" : offloadClassOf(gpuLayers, totalLayers), contextTokens: AI_CONTEXT_TOKENS };
 }
 
-function packView(status: AiModelPackStatus, configuration: AiRunConfiguration | null, vramTotalBytes: number | null): AiModelPackView {
-  const qualification = (compatibility: Parameters<typeof describeQualification>[0]["compatibility"], sha256: string) => {
-    const caps = detectMachineCapabilities("local");
-    return describeQualification({
+function packView(status: AiModelPackStatus, configuration: AiRunConfiguration | null, vramTotalBytes: number | null, budgets: AiTimeBudgets): AiModelPackView {
+  const qualification = (compatibility: Parameters<typeof describeQualification>[0]["compatibility"], sha256: string) =>
+    describeQualification({
       compatibility,
       modelSha256: sha256,
       runtimeBuild: AI_RUNTIME_PIN.build,
       configuration,
       featureBudgets: FEATURE_OUTPUT_BUDGETS,
-      hardwareClass: hardwareClassOf({ logicalCpus: caps.logicalCpuCount, totalMemoryMb: caps.totalMemoryMb, vramTotalBytes })
+      hardwareClass: hardwareClassNow(vramTotalBytes),
+      // L9.2: a feature whose time budget moved is not qualified by evidence measured under the old one.
+      changedBudgetFeatures: featuresWithChangedBudget(budgets)
     });
-  };
   if (status.status === "installed") {
     return {
       status: "installed",
@@ -349,15 +441,40 @@ const readPack = (): Promise<AiModelPackStatus> =>
 export async function aiStatusView(): Promise<AiStatusView> {
   const [status, pack, current, readiness] = await Promise.all([getAiService().status(), readPack(), settings().read(), currentGpuReadiness()]);
   const state = status.state;
+  const configuration = runConfiguration(status, current.executionMode);
   return {
     enabled: current.enabled,
     state: state.kind,
     reason: state.kind === "unavailable" ? state.reason : state.kind === "error" ? state.code : null,
     holdReason: status.holdReason,
     queueDepth: status.queueDepth,
-    modelPack: packView(pack, runConfiguration(status, current.executionMode), status.execution.vram?.totalBytes ?? null),
-    execution: toExecutionView(status, current.executionMode, readiness)
+    modelPack: packView(pack, configuration, status.execution.vram?.totalBytes ?? null, resolveAiTimeBudgets(current.timeBudgetSeconds)),
+    execution: toExecutionView(status, current.executionMode, readiness),
+    measuredSpeed: await measuredSpeed(pack, configuration, status.execution.vram?.totalBytes ?? null).catch(() => [])
   };
+}
+
+/** The kinds a latency class is measured for: every feature, and the compatibility probe. */
+const MEASURED_KINDS: readonly AiJobKind[] = [...AI_FEATURE_IDS, "compatibilityCheck"];
+
+/**
+ * L9.4: what the ETA history measured on this machine for the configuration AI runs in now. Nothing for
+ * a configuration no load has decided yet (a GPU mode before its load), so nothing is attributed to it.
+ */
+async function measuredSpeed(pack: AiModelPackStatus, configuration: AiRunConfiguration | null, vramTotalBytes: number | null): Promise<AiMeasuredSpeed[]> {
+  if (!configuration) return [];
+  const sha = testProviderModel !== null ? `test-provider-${testProviderModel}` : pack.status === "installed" ? pack.entry.sha256 : pack.status === "registered" ? pack.external.sha256 : null;
+  if (!sha) return [];
+  const hardware = hardwareClassNow(configuration.backend === "vulkan" ? vramTotalBytes : null);
+  const measured: AiMeasuredSpeed[] = [];
+  for (const kind of MEASURED_KINDS) {
+    const outputTokens = outputBudgetOf(kind);
+    if (outputTokens === null) continue;
+    const key = latencyKeyFor(kind, sha, configuration, hardware, outputTokens);
+    const [cold, warm] = await Promise.all([etaHistory().estimate(key, true), etaHistory().estimate(key, false)]);
+    if (cold || warm) measured.push({ kind, cold, warm });
+  }
+  return measured;
 }
 
 export async function aiSettingsView(): Promise<AiSettingsView> {
@@ -378,7 +495,20 @@ export async function aiSettingsView(): Promise<AiSettingsView> {
     executionMode: current.executionMode,
     vramReserveMb: current.vramReserveMb,
     minVramReserveMb: MIN_VRAM_RESERVE_MB,
-    maxVramReserveMb: MAX_VRAM_RESERVE_MB
+    maxVramReserveMb: MAX_VRAM_RESERVE_MB,
+    budgets: AI_BUDGET_IDS.map((id) => {
+      const bounds = AI_TIME_BUDGETS[id];
+      const configured = current.timeBudgetSeconds[id];
+      return {
+        id,
+        label: AI_BUDGET_LABELS[id],
+        seconds: configured ?? bounds.defaultMs / 1000,
+        defaultSeconds: bounds.defaultMs / 1000,
+        minSeconds: bounds.minMs / 1000,
+        maxSeconds: bounds.maxMs / 1000,
+        configured: configured !== undefined
+      };
+    })
   };
 }
 
@@ -432,7 +562,7 @@ export async function aiDiagnosticsView(): Promise<AiDiagnosticsView> {
     },
     gpuHost: { state: gpuHost?.state ?? "stopped", circuitOpen: gpuHost?.circuitOpen ?? false, lastReason: gpuHost?.lastReason ?? null },
     modelPack: {
-      ...packView(pack, runConfiguration(status, current.executionMode), status.execution.vram?.totalBytes ?? null),
+      ...packView(pack, runConfiguration(status, current.executionMode), status.execution.vram?.totalBytes ?? null, resolveAiTimeBudgets(current.timeBudgetSeconds)),
       sha256: installed?.sha256 ?? null,
       sizeBytes: installed?.sizeBytes ?? null,
       manifestEntries: AI_MODEL_MANIFEST.length
@@ -483,6 +613,7 @@ function revertMessage(code: string): string {
 }
 
 const MODEL_IMPORT_MESSAGES: Record<string, string> = {
+  ABORTED: "Import cancelled. Nothing was kept.",
   NOT_A_FILE: "The selected item is not a file.",
   NOT_GGUF: "The selected file is not a GGUF model.",
   INSUFFICIENT_SPACE: "There is not enough free disk space in the app's data folder for this model and 256 MB to spare.",
@@ -492,19 +623,82 @@ const MODEL_IMPORT_MESSAGES: Record<string, string> = {
 /** The file the last ready model preflight covered, named to the renderer only by its token (L8b.5, E1). */
 let pendingModelPreflight: { token: string; owner: number; source: string; at: number } | null = null;
 
+/** The model copy or compatibility check running now (one at a time), for its owner's cancel (L9.1). */
+let activeModelJob: { owner: number; cancel: () => void; cancelled: boolean } | null = null;
+
+/** Throttled byte progress: at most every 200 ms, and always the last byte. */
+function byteReporter(key: string): (done: number, total: number) => void {
+  let last = 0;
+  return (done, total) => {
+    const at = Date.now();
+    if (done < total && at - last < 200) return;
+    last = at;
+    jobTracker().update(key, { progress: { done, total, unit: "bytes" } });
+  };
+}
+
 /**
  * Both compatibility stages on the active registered model, in the host (L8b.2, L8b.3). "not-run" when the
- * host cannot run them now; the model then stays unchecked until a re-check.
+ * host cannot run them now; the model then stays unchecked until a re-check. Reported as the owner's
+ * "compatibility-check" job (L9.1): the probe's load progress is the runtime's own, the rest indeterminate,
+ * under the compatibility-probe budget; its ETA comes from earlier probes of the same model here.
  */
-async function runModelStages(): Promise<string> {
-  const stage = await runCompatibilityStages({
-    store: modelPack(),
-    inspect: (file) => getAiService().inspectModel(file),
-    probe: (file) => getAiService().probeModel(file),
-    runtimeBuild: AI_RUNTIME_PIN.build
-  }).catch(() => "not-run" as const);
-  logAi(stage === "not-run" ? "warn" : "info", `registered model compatibility: ${stage}`);
-  return stage;
+async function runModelStages(owner: number | null): Promise<string> {
+  const key = `compatibility-check:${owner ?? "none"}`;
+  const budgets = await currentBudgets();
+  const status = await readPack();
+  const modelId = status.status === "registered" ? externalModelId(status.external.sha256) : null;
+  const profile: AiJobProfile = { modelId, mode: "cpu", backend: "cpu", device: "cpu", offload: "cpu", fallbackReason: null };
+  jobTracker().open(key, {
+    kind: "compatibilityCheck",
+    owner,
+    jobId: "compatibility-check",
+    budgetMs: budgets.compatibilityProbe,
+    cancellable: true,
+    state: "running",
+    stage: "compatibility-check"
+  });
+  jobTracker().update(key, { profile });
+  const job = { owner: owner ?? -1, cancelled: false, cancel: () => void getAiService().cancelProbe() };
+  // A probe always loads the model: cold, on CPU & RAM (L8b.3). A check that stops at the header loaded
+  // nothing, so it stays neither cold nor warm and never joins the probe's measured history.
+  const probe = (file: string) => {
+    if (job.cancelled) return Promise.resolve(null);
+    jobTracker().update(key, { cold: true });
+    return getAiService().probeModel(file, onProgress);
+  };
+  if (owner !== null) activeModelJob = job;
+  const onProgress = (update: AiHostProgressUpdate) => {
+    if (update.stage !== "load") return;
+    // Loading ends at the runtime's own 100 %; the probe's generation after it has no denominator.
+    if (update.fraction >= 1) jobTracker().update(key, { stage: "compatibility-check" });
+    else jobTracker().update(key, { stage: "model-load", progress: { done: Math.round(update.fraction * 1000), total: 1000, unit: "fraction" } });
+  };
+  try {
+    const stage = await runCompatibilityStages({
+      store: modelPack(),
+      inspect: (file) => getAiService().inspectModel(file),
+      // A cancel that arrived during the header read stops the probe from starting at all.
+      probe,
+      runtimeBuild: AI_RUNTIME_PIN.build
+    }).catch(() => "not-run" as const);
+    logAi(stage === "not-run" ? "warn" : "info", `registered model compatibility: ${stage}`);
+    if (job.cancelled) jobTracker().close(key, "cancelled", "CANCELLED");
+    else if (stage !== "not-run") jobTracker().close(key, "completed", stage === "compatible" ? "COMPATIBLE" : stage);
+    else jobTracker().close(key, getAiService().probeEndedBy() === "AI_HOST_TIMEOUT" ? "timed-out" : "failed", getAiService().probeEndedBy() ?? "NOT_RUN");
+    return stage;
+  } finally {
+    if (activeModelJob === job) activeModelJob = null;
+  }
+}
+
+/** Cancel the asking window's model copy or compatibility check. */
+export function cancelAiModelJob(owner: number): AiAdminResponse {
+  const job = activeModelJob;
+  if (!job || job.owner !== owner) return { code: "NOT_FOUND", ok: false, message: "There is no model job of yours to cancel." };
+  job.cancelled = true;
+  job.cancel();
+  return { code: "OK", ok: true };
 }
 
 /**
@@ -535,30 +729,56 @@ export async function importAiModelPack(owner: number, token: string): Promise<A
   }
   pendingModelPreflight = null;
   await getAiService().releaseModel();
-  const result = await modelPack()
-    .import(pending.source)
-    .catch(() => ({ ok: false as const, code: "COPY_FAILED" as const }));
-  if (result.ok && result.entry === null) await runModelStages();
-  if (result.ok) return { code: "OK", ok: true, detail: result.entry !== null ? result.entry.id : result.external.fileName };
-  return { code: "IMPORT_REFUSED", ok: false, detail: result.code, message: MODEL_IMPORT_MESSAGES[result.code] };
+  // L9: the copy and its hash are the owner's "model-import" job: determinate by bytes, under the
+  // component-copy budget, cancellable until the copy is done.
+  const key = `model-import:${owner}`;
+  const budgetMs = (await currentBudgets()).componentCopy;
+  const controller = new AbortController();
+  const deadline = AbortSignal.timeout(budgetMs);
+  const job = { owner, cancelled: false, cancel: () => controller.abort() };
+  activeModelJob = job;
+  jobTracker().open(key, { kind: "modelImport", owner, jobId: "model-import", budgetMs, cancellable: true, state: "running", stage: "copy-hash" });
+  let result: Awaited<ReturnType<AiModelPackStore["import"]>>;
+  try {
+    result = await modelPack()
+      .import(pending.source, { signal: AbortSignal.any([controller.signal, deadline]), onProgress: byteReporter(key) })
+      .catch(() => ({ ok: false as const, code: "COPY_FAILED" as const }));
+  } finally {
+    if (activeModelJob === job) activeModelJob = null;
+  }
+  if (!result.ok) {
+    if (result.code === "ABORTED") {
+      const timedOut = deadline.aborted && !job.cancelled;
+      jobTracker().close(key, timedOut ? "timed-out" : "cancelled", timedOut ? "TIMEOUT" : "CANCELLED");
+      return timedOut
+        ? { code: "IMPORT_REFUSED", ok: false, detail: "TIMEOUT", message: "Copying the model took longer than its time limit, so it was stopped. Nothing was kept." }
+        : { code: "IMPORT_CANCELLED", ok: false, detail: "CANCELLED", message: "Import cancelled. Nothing was kept." };
+    }
+    jobTracker().close(key, "failed", result.code);
+    return { code: "IMPORT_REFUSED", ok: false, detail: result.code, message: MODEL_IMPORT_MESSAGES[result.code] };
+  }
+  jobTracker().close(key, "completed");
+  if (result.entry === null) await runModelStages(owner);
+  return { code: "OK", ok: true, detail: result.entry !== null ? result.entry.id : result.external.fileName };
 }
 
 /**
  * Run a registered model's compatibility stages again, for this runtime build (a verdict from another
  * build no longer counts), or after they could not run at import.
  */
-export async function checkAiModelPack(): Promise<AiAdminResponse> {
+export async function checkAiModelPack(owner: number | null = null): Promise<AiAdminResponse> {
   if ((await readPack()).status !== "registered") {
     return { code: "NOT_FOUND", ok: false, message: "Only a registered model the app does not list is checked for compatibility." };
   }
+  if (activeModelJob) return { code: "NOT_AVAILABLE", ok: false, message: "A model copy or check is already running." };
   await getAiService().releaseModel();
-  const stage = await runModelStages();
+  const stage = await runModelStages(owner);
   if (stage === "not-run") {
     return {
       code: "NOT_AVAILABLE",
       ok: false,
       detail: "NOT_RUN",
-      message: "The check could not run now: the local AI runtime is unavailable, runs are active or memory is low. Try again later."
+      message: "The check did not finish: it was cancelled or ran past its time limit, or the local AI runtime is unavailable, runs are active or memory is low. Try again later."
     };
   }
   return { code: "OK", ok: true, detail: stage === "compatible" ? "COMPATIBLE" : stage };
@@ -689,16 +909,44 @@ export async function importAiBackendPack(owner: number, token: string): Promise
   pendingPreflight = null;
   const controller = new AbortController();
   activeImport = { owner, controller };
+  // L9: the owner's "backend-import" job, determinate by bytes from the store's own staged-copy counters,
+  // under the component-copy budget. A cancel and the deadline end it through the same signal.
+  const key = `backend-import:${owner}`;
+  const budgetMs = (await currentBudgets()).componentCopy;
+  const deadline = AbortSignal.timeout(budgetMs);
+  jobTracker().open(key, { kind: "backendImport", owner, jobId: "backend-import", budgetMs, cancellable: true, state: "running", stage: "copy-hash" });
+  const watch = setInterval(() => {
+    const progress = backendPack().importProgress();
+    if (!progress) return;
+    jobTracker().update(key, {
+      stage: progress.phase === "promoting" ? "finalization" : "copy-hash",
+      cancellable: progress.phase !== "promoting",
+      progress: progress.totalBytes > 0 ? { done: progress.doneBytes, total: progress.totalBytes, unit: "bytes" } : null
+    });
+  }, 250);
+  watch.unref?.();
   try {
     // A GPU host keeps the old pack's DLLs loaded, and Windows cannot delete a loaded DLL.
     await releaseGpuHost();
-    const result = await backendPack().import(pending.source, { signal: controller.signal });
-    if (result.ok) return { code: "OK", ok: true, detail: result.unchanged ? "UNCHANGED" : "INSTALLED" };
-    if (result.code === "CANCELLED") return { code: "IMPORT_CANCELLED", ok: false, detail: "CANCELLED", message: backendRefusalMessage("CANCELLED") };
+    const result = await backendPack().import(pending.source, { signal: AbortSignal.any([controller.signal, deadline]) });
+    if (result.ok) {
+      jobTracker().close(key, "completed", result.unchanged ? "UNCHANGED" : "INSTALLED");
+      return { code: "OK", ok: true, detail: result.unchanged ? "UNCHANGED" : "INSTALLED" };
+    }
+    if (result.code === "CANCELLED") {
+      const timedOut = deadline.aborted && !controller.signal.aborted;
+      jobTracker().close(key, timedOut ? "timed-out" : "cancelled", timedOut ? "TIMEOUT" : "CANCELLED");
+      return timedOut
+        ? { code: "IMPORT_REFUSED", ok: false, detail: "TIMEOUT", message: "Copying the backend pack took longer than its time limit, so it was stopped. Nothing was installed." }
+        : { code: "IMPORT_CANCELLED", ok: false, detail: "CANCELLED", message: backendRefusalMessage("CANCELLED") };
+    }
+    jobTracker().close(key, "failed", result.code);
     return { code: "IMPORT_REFUSED", ok: false, detail: result.code, message: backendRefusalMessage(result.code, result.path) };
   } catch {
+    jobTracker().close(key, "failed", "COPY_FAILED");
     return { code: "IMPORT_REFUSED", ok: false, detail: "COPY_FAILED", message: backendRefusalMessage("COPY_FAILED") };
   } finally {
+    clearInterval(watch);
     activeImport = null;
   }
 }

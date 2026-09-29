@@ -6,8 +6,9 @@
  *    settings + feature + output budget. It carries across hardware. A configuration is qualified for a
  *    feature only when the release-owned `AI_QUALIFIED_CONFIGURATIONS` lists exactly that key, so one
  *    configuration never qualifies another.
- *  - The latency class: the quality key plus a coarse hardware class. Measured locally or not claimed;
- *    nothing measures it yet (L9's ETA history will), so it is never claimed here.
+ *  - The latency class: the quality key plus a coarse hardware class. Measured locally or not claimed:
+ *    L9's ETA history (`AiEtaHistory`) measures it on this machine and Settings shows those measurements
+ *    as measurements; qualification itself never claims a latency.
  *  - Labels, each with a reason: Incompatible (the failed check), unchecked (a stage has not run for this
  *    runtime), Qualified (for the features named), Compatible but unqualified.
  *
@@ -74,7 +75,9 @@ export type AiQualificationReason =
   /** No quality evidence exists for this model at all. */
   | "NO_QUALITY_EVIDENCE"
   /** A GPU mode's configuration is decided by its next load; nothing is claimed before it. */
-  | "CONFIGURATION_NOT_DECIDED";
+  | "CONFIGURATION_NOT_DECIDED"
+  /** L9.2 (E8): the evidence was measured under a feature's default time budget, which was changed. */
+  | "TIME_BUDGET_CHANGED";
 
 export interface AiQualificationView {
   label: AiModelLabel;
@@ -83,7 +86,7 @@ export interface AiQualificationView {
   /** The features qualified in this configuration, in the product's feature order. */
   qualifiedFeatures: AiFeatureId[];
   configuration: AiRunConfiguration | null;
-  /** Measured locally or not claimed (E6). Nothing measures it before L9, so it is never claimed. */
+  /** Measured locally or not claimed (E6): a qualification never claims one; L9's history measures it. */
   latency: { claimed: false; hardwareClass: string | null };
 }
 
@@ -97,6 +100,11 @@ export function describeQualification(input: {
   /** Each feature's current `maxOutputTokens`; a feature without one is never qualified. */
   featureBudgets: Readonly<Partial<Record<AiFeatureId, number>>>;
   hardwareClass: string | null;
+  /**
+   * Features whose time budget is not the default their evidence ran under (L9.2, E8). A changed budget
+   * needs its own re-benchmark; it never re-labels old evidence, so those features are not qualified.
+   */
+  changedBudgetFeatures?: readonly AiFeatureId[];
   list?: readonly AiQualifiedConfiguration[];
 }): AiQualificationView {
   const list = input.list ?? AI_QUALIFIED_CONFIGURATIONS;
@@ -114,13 +122,16 @@ export function describeQualification(input: {
   const evidence = list.some((entry) => isValidAiQualifiedConfiguration(entry) && entry.modelSha256 === sha);
   const configuration = input.configuration;
   if (!configuration) return view("compatible-unqualified", evidence ? "CONFIGURATION_NOT_DECIDED" : "NO_QUALITY_EVIDENCE");
-  const qualified = AI_FEATURE_IDS.filter((feature) => {
+  const listed = AI_FEATURE_IDS.filter((feature) => {
     const outputTokens = input.featureBudgets[feature];
     return (
       outputTokens !== undefined &&
       isQualified({ modelSha256: sha, runtimeBuild: build, ...configuration, kvCache: AI_KV_CACHE_SETTINGS, feature, outputTokens }, list)
     );
   });
+  const changed = new Set(input.changedBudgetFeatures ?? []);
+  const qualified = listed.filter((feature) => !changed.has(feature));
   if (qualified.length > 0) return view("qualified", null, qualified);
+  if (listed.length > 0) return view("compatible-unqualified", "TIME_BUDGET_CHANGED");
   return view("compatible-unqualified", evidence ? "NOT_QUALIFIED_ON_THIS_CONFIGURATION" : "NO_QUALITY_EVIDENCE");
 }

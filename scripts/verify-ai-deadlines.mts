@@ -24,6 +24,7 @@ import { tmpdir } from "node:os";
 
 import type { AiAdmissionView } from "@src/ai/AiAdmission";
 import { AI_SERVICE_LIMITS, AiService } from "@src/ai/AiService";
+import { AI_TIME_BUDGETS, FEATURE_BUDGET, MAX_INFERENCE_BUDGET_MS } from "@src/ai/AiTimeBudgets";
 import { AUTHORING_LIMITS } from "@src/ai/authoringExplanation";
 import { AI_HOST_TIMEOUTS } from "@src/ai/contracts/AiHostProtocol";
 import { FakeAiHostTransport, type FakeInferStep } from "@src/ai/FakeAiHostTransport";
@@ -107,10 +108,19 @@ check(
   DEADLINES.length === 4 && DEADLINES.every(({ ms }) => ms <= AI_SERVICE_LIMITS.maxJobTimeoutMs),
   JSON.stringify(DEADLINES.map(({ feature, ms }) => [feature, ms]))
 );
+// L9.2: an administrator may set a feature's budget up to its committed maximum, so the service's limit is
+// the largest of those maxima: still bounded, never a free extension beyond every budget's own bound.
 check(
-  "...and its limit is the longest of them, not a free extension beyond every feature",
-  AI_SERVICE_LIMITS.maxJobTimeoutMs === Math.max(...DEADLINES.map(({ ms }) => ms)),
+  "...and its limit is the longest committed maximum of an inference budget, not a free extension beyond every one",
+  AI_SERVICE_LIMITS.maxJobTimeoutMs === MAX_INFERENCE_BUDGET_MS &&
+    Object.values(FEATURE_BUDGET).some((id) => AI_TIME_BUDGETS[id].maxMs === AI_SERVICE_LIMITS.maxJobTimeoutMs) &&
+    Object.values(FEATURE_BUDGET).every((id) => AI_TIME_BUDGETS[id].maxMs <= AI_SERVICE_LIMITS.maxJobTimeoutMs),
   String(AI_SERVICE_LIMITS.maxJobTimeoutMs)
+);
+check(
+  "...and every feature's deadline is its budget's committed default",
+  DEADLINES.every(({ feature, ms }) => AI_TIME_BUDGETS[FEATURE_BUDGET[(feature === "locatorAttempt" ? "locatorSemanticUpgrade" : feature) as keyof typeof FEATURE_BUDGET]].defaultMs === ms),
+  JSON.stringify(DEADLINES.map(({ feature, ms }) => [feature, ms]))
 );
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────────────────────────

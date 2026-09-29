@@ -22,7 +22,12 @@ import { isAiFeatureId, type AiFeatureId, type AiTier } from "../../security/aut
 import type { FlowValidationIssue } from "../../validation/FlowValidator";
 import type { AiActionRecord } from "../AiActionRecord";
 import type { AiLoadStage } from "../AiExecutionProfile";
+import type { AiEtaEstimate, AiJobKind, AiJobStatus } from "../AiJobStatus";
 import type { AiQualificationView } from "../AiQualification";
+import type { AiBudgetId } from "../AiTimeBudgets";
+
+/** L9.1: the one job-status contract, as the owning window receives it on `ai:jobStatus`. */
+export type { AiEtaEstimate, AiJobStatus, AiJobKind } from "../AiJobStatus";
 import type { ExplanationWithholdReason } from "../authoringClaimScreen";
 import type { LocatorPromotionRefusal } from "../locatorPromotion";
 import type { PendingUpgradeState } from "../pendingUpgrade";
@@ -113,6 +118,17 @@ export interface AiExecutionView {
   gpuReadiness: { ok: boolean; nvidiaAdapters: number; reason: string | null; message: string | null };
 }
 
+/**
+ * L9.4: how long a kind of job has taken ON THIS MACHINE for the configuration AI runs in now (the latency
+ * class, E6), from the ETA history: running time only, cold (it loaded the model) and warm apart. A
+ * measurement, never a qualification or a promise.
+ */
+export interface AiMeasuredSpeed {
+  kind: AiJobKind;
+  cold: AiEtaEstimate | null;
+  warm: AiEtaEstimate | null;
+}
+
 export interface AiStatusView {
   enabled: boolean;
   state: "available" | "unavailable" | "loading" | "busy" | "error";
@@ -122,6 +138,20 @@ export interface AiStatusView {
   queueDepth: number;
   modelPack: AiModelPackView;
   execution: AiExecutionView;
+  /** Measured locally; empty when nothing has been measured for this configuration yet. */
+  measuredSpeed: AiMeasuredSpeed[];
+}
+
+/** L9.2: one time budget as Settings shows it, in seconds, with its committed bounds. */
+export interface AiBudgetView {
+  id: AiBudgetId;
+  label: string;
+  seconds: number;
+  defaultSeconds: number;
+  minSeconds: number;
+  maxSeconds: number;
+  /** An administrator set it; false is the committed default. */
+  configured: boolean;
 }
 
 export interface AiFeatureView {
@@ -144,6 +174,7 @@ export interface AiSettingsView {
   vramReserveMb: number | null;
   minVramReserveMb: number;
   maxVramReserveMb: number;
+  budgets: AiBudgetView[];
 }
 
 export interface AiDiagnosticsView {

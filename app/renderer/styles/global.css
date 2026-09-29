@@ -1653,6 +1653,70 @@ div.validation-issue-row {
   font-weight: var(--weight-semibold);
 }
 
+/* L9.3: the shared local-AI job progress. Determinate fill only with a known denominator; otherwise an
+   indeterminate sweep, which reduced motion replaces with a still, dimmed full track. */
+.ai-job-progress {
+  display: grid;
+  flex-basis: 100%;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.ai-job-progress-track {
+  background: var(--awkit-surface-inset);
+  border-radius: var(--radius-pill);
+  height: var(--space-2);
+  overflow: hidden;
+  position: relative;
+}
+
+.ai-job-progress-fill {
+  background: var(--awkit-accent);
+  border-radius: inherit;
+  height: 100%;
+  transition: width var(--awkit-dur-slow) var(--awkit-ease-out);
+}
+
+.ai-job-progress-track.indeterminate .ai-job-progress-fill {
+  animation: awkit-progress-sweep 1.4s var(--awkit-ease-in-out) infinite;
+  width: 40%;
+}
+
+.ai-job-progress-text,
+.ai-job-progress-eta {
+  color: var(--awkit-text-muted);
+  font-size: var(--text-xs);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.ai-job-progress-stage {
+  color: var(--awkit-text);
+  font-weight: var(--weight-semibold);
+}
+
+.ai-budget-input {
+  max-width: 12ch;
+}
+
+@keyframes awkit-progress-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-job-progress-track.indeterminate .ai-job-progress-fill {
+    animation: none;
+    opacity: 0.45;
+    transform: none;
+    width: 100%;
+  }
+}
+
 /* L6: the fragment summary sits inside the insert dialog's detail, so the bar drops its divider. */
 .fragment-ai-summary {
   display: grid;

@@ -215,9 +215,28 @@ export type AiHostResponse =
 
 export type AiHostEvent = { version: 1; type: "ready"; pid: number } | { version: 1; type: "fatal"; reason: AiHostReason };
 
+/**
+ * L9.1: what a request in flight is doing, sent only for the request that asked (`id`) and only where
+ * the runtime itself reports it: `load` with the runtime's own load fraction (0..1) during a `load` or a
+ * `probe`, and `generation` once, at the first generated token of an `infer`. Nothing else, never text.
+ */
+export type AiHostProgress = { version: 1; type: "progress"; id: string; stage: "load"; fraction: number } | { version: 1; type: "progress"; id: string; stage: "generation" };
+
+/** The progress a transport hands its caller: the message without its envelope. */
+export type AiHostProgressUpdate = { stage: "load"; fraction: number } | { stage: "generation" };
+
+export function isAiHostProgress(message: unknown): message is AiHostProgress {
+  if (typeof message !== "object" || message === null) return false;
+  const m = message as { version?: unknown; type?: unknown; id?: unknown; stage?: unknown; fraction?: unknown };
+  if (m.version !== AI_HOST_PROTOCOL_VERSION || m.type !== "progress" || typeof m.id !== "string") return false;
+  if (m.stage === "generation") return true;
+  return m.stage === "load" && typeof m.fraction === "number" && Number.isFinite(m.fraction) && m.fraction >= 0 && m.fraction <= 1;
+}
+
 /** What `AiService` needs from a host: the Electron manager in production, the fake everywhere else. */
 export interface AiHostTransport {
-  call<T = unknown>(request: AiHostRequestPayload, timeoutMs: number): Promise<T>;
+  /** `onProgress` hears this request's own progress messages, if the host sends any. */
+  call<T = unknown>(request: AiHostRequestPayload, timeoutMs: number, onProgress?: (progress: AiHostProgressUpdate) => void): Promise<T>;
   /** False once the circuit is open or the transport is disposed. */
   isAvailable(): boolean;
   /**

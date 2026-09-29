@@ -13,6 +13,10 @@
  *
  * `--dx` (verify:ai-dx-mutations) runs the same way over L4b's DX evaluator and held-out check instead
  * (scripts/ai-harness/authoringDx.ts, `verify:ai-authoring` §15): each rule it applies, broken one at a time.
+ *
+ * `--job-status` (verify:ai-job-status-mutations) runs `verify:ai-job-status` over L9's job-status tracker,
+ * ETA history, time budgets, settings sanitizer, qualification and the service's job reporting: each honesty
+ * rule and bound, broken one at a time.
  */
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -23,16 +27,26 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const VERIFIER = join(root, "scripts", "verify-ai-authoring.mts");
+const DX = process.argv.includes("--dx");
+const JOB_STATUS = process.argv.includes("--job-status");
+const VERIFIER = join(root, "scripts", JOB_STATUS ? "verify-ai-job-status.mts" : "verify-ai-authoring.mts");
+/** The verifier's own summary line: passed and total checks. */
+const SUMMARY = JOB_STATUS ? /AI job status: (\d+)\/(\d+) checks passed\./ : /fix ranking: (\d+)\/(\d+) checks passed\./;
 const HOOKS = pathToFileURL(join(root, "scripts", "helpers", "source-mutant-hooks.mjs")).href;
 const GATE = join(root, "src", "ai", "authoringClaimScreen.ts");
 const PARSER = join(root, "src", "ai", "authoringExplanation.ts");
 const ADAPTER = join(root, "app", "main", "ai", "aiAssist.ts");
-const DX = process.argv.includes("--dx");
 const DX_FILE = join(root, "scripts", "ai-harness", "authoringDx.ts");
 const REVIEW_FILE = join(root, "scripts", "ai-harness", "authoringQualityReview.ts");
 const SET_FILE = join(root, "scripts", "ai-harness", "authoringQualitySet.ts");
-const FILES = DX ? [DX_FILE, REVIEW_FILE, SET_FILE] : [GATE, PARSER, ADAPTER];
+const JOBS = join(root, "src", "ai", "AiJobStatus.ts");
+const HISTORY = join(root, "src", "ai", "AiEtaHistory.ts");
+const BUDGETS = join(root, "src", "ai", "AiTimeBudgets.ts");
+const SETTINGS = join(root, "src", "ai", "AiSettings.ts");
+const QUALIFICATION = join(root, "src", "ai", "AiQualification.ts");
+const SERVICE = join(root, "src", "ai", "AiService.ts");
+const MODEL_PACK = join(root, "src", "ai", "AiModelPack.ts");
+const FILES = JOB_STATUS ? [JOBS, HISTORY, BUDGETS, SETTINGS, QUALIFICATION, SERVICE, MODEL_PACK] : DX ? [DX_FILE, REVIEW_FILE, SET_FILE] : [GATE, PARSER, ADAPTER];
 const ANCHOR = String.raw`(?<=^|[.!?]\\s|Action:\\s)`;
 
 interface Mutant {
@@ -120,8 +134,74 @@ const DX_CONTROLS: readonly Mutant[] = [
   { id: "control-set", file: SET_FILE, find: "export function heldOutCodeControlFailures(", replace: "export function heldOutCodeControlFailures(" }
 ];
 
-const MUTANTS = DX ? DX_MUTANTS : GATE_MUTANTS;
-const CONTROLS = DX ? DX_CONTROLS : GATE_CONTROLS;
+// L9: every honesty rule and bound the job-status contract, the ETA history and the budgets promise.
+const JOB_STATUS_MUTANTS: readonly Mutant[] = [
+  { id: "progress-in-any-stage", file: JOBS, find: "job.progress = MEASURABLE_STAGES.has(job.stage) ? validProgress(patch.progress) : null;", replace: "job.progress = validProgress(patch.progress);" },
+  { id: "stage-change-keeps-progress", file: JOBS, find: "      job.stage = patch.stage;\n      job.progress = null;", replace: "      job.stage = patch.stage;" },
+  { id: "progress-past-its-denominator", file: JOBS, find: "{ done: Math.min(done, total), total, unit }", replace: "{ done, total, unit }" },
+  { id: "overrun-never-said", file: JOBS, find: "overrun: ran > estimate.maxMs", replace: "overrun: false" },
+  { id: "eta-not-counted-down", file: JOBS, find: "remainingMaxMs: Math.max(0, estimate.maxMs - ran),", replace: "remainingMaxMs: estimate.maxMs," },
+  { id: "every-terminal-job-recorded", file: JOBS, find: 'if (state === "completed" && job.cold !== null && job.runningSince !== null) {', replace: "if (job.cold !== null && job.runningSince !== null) {" },
+  { id: "unknown-warmth-recorded", file: JOBS, find: 'if (state === "completed" && job.cold !== null && job.runningSince !== null) {', replace: 'if (state === "completed" && job.runningSince !== null) {' },
+  { id: "no-history-never-said", file: JOBS, find: "noHistory: job.cold !== null && job.estimate === null && job.runningSince !== null,", replace: "noHistory: false," },
+  { id: "no-history-while-pending", file: JOBS, find: "noHistory: job.cold !== null && job.estimate === null && job.runningSince !== null,", replace: 'noHistory: job.cold !== null && (job.estimate === null || job.estimate === "pending") && job.runningSince !== null,' },
+  { id: "late-estimate-accepted", file: JOBS, find: "if (job.estimateToken !== token || isTerminal(job.state)) return;", replace: "if (isTerminal(job.state)) return;" },
+  { id: "requeue-keeps-eta", file: JOBS, find: 'if (patch.state === "queued") {', replace: 'if (patch.state === "queued" && false) {' },
+  { id: "cancel-undone-by-running", file: JOBS, find: '!(job.state === "cancelling" && patch.state === "running")', replace: "true" },
+  { id: "terminal-job-mutable", file: JOBS, find: "  update(key: string, patch: AiJobPatch): void {\n    const job = this.jobs.get(key);\n    if (!job || isTerminal(job.state)) return;", replace: "  update(key: string, patch: AiJobPatch): void {\n    const job = this.jobs.get(key);\n    if (!job) return;" },
+  { id: "lists-other-owners-jobs", file: JOBS, find: ".filter((job) => job.owner === owner)", replace: ".filter(() => true)" },
+  { id: "publishes-unowned-work", file: JOBS, find: "if (!job || job.owner === null || !this.deps.publish) return;", replace: "if (!job || !this.deps.publish) return;" },
+  { id: "inverted-range-trusted", file: JOBS, find: "return finite(minMs) && finite(maxMs) && minMs <= maxMs &&", replace: "return finite(minMs) && finite(maxMs) &&" },
+  { id: "finished-jobs-kept-forever", file: JOBS, find: "for (const job of finished) if (now - (job.endedAt ?? now) > retainMs) this.jobs.delete(job.key);", replace: "" },
+  { id: "confidence-inflated", file: JOBS, find: 'return samples >= 10 ? "high" : samples >= 3 ? "medium" : "low";', replace: 'return "high";' },
+  { id: "history-any-key", file: HISTORY, find: "const KEY = /^[A-Za-z0-9._|:@+-]{8,400}$/;", replace: String.raw`const KEY = /^[\s\S]{1,4000}$/;` },
+  { id: "history-any-duration", file: HISTORY, find: "typeof value === \"number\" && Number.isInteger(value) && value > 0 && value <= AI_ETA_HISTORY_LIMITS.maxSampleMs;", replace: 'typeof value === "number";' },
+  { id: "history-cold-and-warm-mixed", file: HISTORY, find: "return entry ? estimateFromSamples(cold ? entry.cold : entry.warm) : null;", replace: "return entry ? estimateFromSamples([...entry.cold, ...entry.warm]) : null;" },
+  { id: "history-samples-uncapped", file: HISTORY, find: "cold: entry.cold.slice(-AI_ETA_HISTORY_LIMITS.samplesPerKey),", replace: "cold: entry.cold," },
+  { id: "history-keys-uncapped", file: HISTORY, find: "[[key, entries.get(key)!] as const, ...others].slice(0, AI_ETA_HISTORY_LIMITS.maxKeys);", replace: "[[key, entries.get(key)!] as const, ...others];" },
+  { id: "history-drops-the-newest", file: HISTORY, find: ".sort((a, b) => Date.parse(b[1].updatedAt) - Date.parse(a[1].updatedAt));", replace: ".sort((a, b) => Date.parse(a[1].updatedAt) - Date.parse(b[1].updatedAt));" },
+  { id: "history-newer-version-overwritten", file: HISTORY, find: "if (!snapshot.writable) return false;", replace: "" },
+  { id: "history-corrupt-file-lost", file: HISTORY, find: "await rename(this.filePath, target).catch(() => undefined);", replace: "" },
+  { id: "history-never-trims", file: HISTORY, find: "const trim = sorted.length >= AI_ETA_HISTORY_LIMITS.trimFrom;", replace: "const trim = false;" },
+  { id: "history-writes-unserialized", file: HISTORY, find: "return runExclusive(dirname(this.filePath), async () => {", replace: "return runExclusive(dirname(this.filePath) + Math.random(), async () => {" },
+  { id: "budget-bounds-ignored", file: BUDGETS, find: "seconds * SECOND >= bounds.minMs && seconds * SECOND <= bounds.maxMs;", replace: "seconds > 0;" },
+  { id: "changed-budget-unnoticed", file: BUDGETS, find: ".filter((feature) => budgets[FEATURE_BUDGET[feature]] !== AI_TIME_BUDGETS[FEATURE_BUDGET[feature]].defaultMs);", replace: ".filter(() => false);" },
+  { id: "explanation-default-moved", file: BUDGETS, find: "authoringExplanation: Object.freeze({ defaultMs: 125 * SECOND,", replace: "authoringExplanation: Object.freeze({ defaultMs: 120 * SECOND," },
+  { id: "service-limit-unbounded", file: BUDGETS, find: "export const MAX_INFERENCE_BUDGET_MS = Math.max(...INFERENCE_BUDGETS.map((id) => AI_TIME_BUDGETS[id].maxMs));", replace: "export const MAX_INFERENCE_BUDGET_MS = Number.MAX_SAFE_INTEGER;" },
+  { id: "settings-clamp-instead-of-refuse", file: SETTINGS, find: "else if (!isBudgetSeconds(id, seconds)) errors.push(budgetBoundsSentence(id));", replace: "else if (!isBudgetSeconds(id, seconds)) next[id] = Math.min(Math.max(Math.round(Number(seconds) || 0), 15), 600);" },
+  { id: "settings-unknown-budget-ignored", file: SETTINGS, find: 'if (!isAiBudgetId(id)) errors.push("timeBudgetSeconds names an unknown budget.");', replace: "if (!isAiBudgetId(id)) continue;" },
+  { id: "settings-stored-out-of-range-kept", file: SETTINGS, find: "for (const id of AI_BUDGET_IDS) if (isBudgetSeconds(id, storedBudgets[id])) timeBudgetSeconds[id]", replace: 'for (const id of AI_BUDGET_IDS) if (typeof storedBudgets[id] === "number") timeBudgetSeconds[id]' },
+  { id: "changed-budget-still-qualified", file: QUALIFICATION, find: "const qualified = listed.filter((feature) => !changed.has(feature));", replace: "const qualified = listed;" },
+  { id: "changed-budget-reason-dropped", file: QUALIFICATION, find: 'if (listed.length > 0) return view("compatible-unqualified", "TIME_BUDGET_CHANGED");', replace: "" },
+  { id: "feature-budget-ignored", file: SERVICE, find: "const timeoutMs = settings.budgets ? settings.budgets[FEATURE_BUDGET[request.feature]] : request.timeoutMs;", replace: "const timeoutMs = request.timeoutMs;" },
+  { id: "load-budget-ignored", file: SERVICE, find: "const loadMs = settings.budgets?.modelLoad ?? AI_HOST_TIMEOUTS.loadMs;", replace: "const loadMs = AI_HOST_TIMEOUTS.loadMs;" },
+  { id: "probe-budget-ignored", file: SERVICE, find: "settings.budgets?.compatibilityProbe ?? AI_HOST_TIMEOUTS.probeMs,", replace: "AI_HOST_TIMEOUTS.probeMs," },
+  { id: "generation-never-reported", file: SERVICE, find: 'if (update.stage === "generation") this.deps.jobs?.update(job.request.requestId, { stage: "generation" });', replace: "" },
+  { id: "generation-before-first-token", file: SERVICE, find: 'profile: this.jobProfile(settings.executionMode ?? "cpu"), stage: "prompt-evaluation" });', replace: 'profile: this.jobProfile(settings.executionMode ?? "cpu"), stage: "generation" });' },
+  { id: "load-progress-dropped", file: SERVICE, find: "if (progress && this.running) this.deps.jobs?.update(this.running.request.requestId, { progress });", replace: "" },
+  { id: "warm-job-read-as-cold", file: SERVICE, find: "{ cold: false, profile: this.jobProfile(mode) }", replace: "{ cold: true, profile: this.jobProfile(mode) }" },
+  { id: "timeout-read-as-failure", file: SERVICE, find: 'outcome.code === "TIMEOUT" ? "timed-out" : "failed"', replace: '"failed"' },
+  { id: "cancelling-not-reported", file: SERVICE, find: 'this.deps.jobs?.update(requestId, { state: "cancelling", cancellable: false });', replace: "" },
+  { id: "queue-positions-not-reported", file: SERVICE, find: "    this.queue.splice(index === -1 ? this.queue.length : index, 0, job);\n    this.reportQueue();", replace: "    this.queue.splice(index === -1 ? this.queue.length : index, 0, job);" },
+  { id: "hold-reason-not-reported", file: SERVICE, find: "queuePosition: index + 1, holdReason: this.holdReason })", replace: "queuePosition: index + 1, holdReason: null })" },
+  { id: "owner-id-unchecked", file: SERVICE, find: "REQUEST_ID.test(request.owner.requestId))) &&", replace: "true)) &&" },
+  { id: "gpu-placement-assumed-for-eta", file: SERVICE, find: ": this.profileFor === key && this.refusedKey !== key", replace: ": true" },
+  { id: "fallback-reason-dropped", file: SERVICE, find: "fallbackReason: this.profile.fallbackReason", replace: "fallbackReason: null" },
+  { id: "copy-progress-unreported", file: MODEL_PACK, find: "report?.(written, total);", replace: "" },
+  { id: "cancelled-copy-reads-as-failure", file: MODEL_PACK, find: 'return { ok: false, code: options.signal?.aborted ? "ABORTED" : "COPY_FAILED" };', replace: 'return { ok: false, code: "COPY_FAILED" };' }
+];
+const JOB_STATUS_CONTROLS: readonly Mutant[] = [
+  { id: "control-tracker", file: JOBS, find: "export class AiJobTracker {", replace: "export class AiJobTracker {" },
+  { id: "control-history", file: HISTORY, find: "export class AiEtaHistoryStore {", replace: "export class AiEtaHistoryStore {" },
+  { id: "control-budgets", file: BUDGETS, find: "export function resolveAiTimeBudgets(", replace: "export function resolveAiTimeBudgets(" },
+  { id: "control-settings", file: SETTINGS, find: "export function normalizeAiSettings(", replace: "export function normalizeAiSettings(" },
+  { id: "control-qualification", file: QUALIFICATION, find: "export function describeQualification(", replace: "export function describeQualification(" },
+  { id: "control-service", file: SERVICE, find: "export class AiService {", replace: "export class AiService {" },
+  { id: "control-model-pack", file: MODEL_PACK, find: "export class AiModelPackStore {", replace: "export class AiModelPackStore {" }
+];
+
+const MUTANTS = JOB_STATUS ? JOB_STATUS_MUTANTS : DX ? DX_MUTANTS : GATE_MUTANTS;
+const CONTROLS = JOB_STATUS ? JOB_STATUS_CONTROLS : DX ? DX_CONTROLS : GATE_CONTROLS;
 
 let passed = 0;
 let failed = 0;
@@ -163,7 +243,7 @@ function run(mutant: Mutant): Promise<Outcome> {
     const timer = setTimeout(() => child.kill(), 300_000);
     child.on("close", (code) => {
       clearTimeout(timer);
-      const summary = /fix ranking: (\d+)\/(\d+) checks passed\./.exec(out);
+      const summary = SUMMARY.exec(out);
       done({
         mutant,
         code,
@@ -188,11 +268,19 @@ async function runAll(mutants: readonly Mutant[], concurrency = 4): Promise<Outc
   return mutants.map((m) => results.find((r) => r.mutant === m)!);
 }
 
-console.log(`${DX ? "L4b DX evaluator" : "R4 display gate"} — mutation run of verify:ai-authoring (no source file is written)\n`);
+console.log(
+  `${JOB_STATUS ? "L9 job status, ETA history and budgets" : DX ? "L4b DX evaluator" : "R4 display gate"} — mutation run of ${JOB_STATUS ? "verify:ai-job-status" : "verify:ai-authoring"} (no source file is written)\n`
+);
 const hashesBefore = FILES.map(sha);
 
 console.log("Preconditions");
-for (const m of [...CONTROLS, ...MUTANTS]) check(`${m.id}: its text occurs exactly once in ${m.file.slice(root.length + 1)}`, occurrences(m) === 1, `${occurrences(m)} occurrences`);
+// One check naming every offender, so the mutant results below are not pushed out of a bounded log.
+const misplaced = [...CONTROLS, ...MUTANTS].filter((m) => occurrences(m) !== 1);
+check(
+  `every control's and mutant's text occurs exactly once in its file (${CONTROLS.length + MUTANTS.length} checked)`,
+  misplaced.length === 0,
+  misplaced.map((m) => `${m.id}: ${occurrences(m)} in ${m.file.slice(root.length + 1)}`).join("; ")
+);
 if (failed > 0) {
   console.log(`\n${passed} passed, ${failed} failed — FAIL (a mutant that does not apply cannot be run)`);
   process.exit(1);
@@ -217,8 +305,10 @@ for (const r of outcomes) {
   const killed = r.loaded && r.code !== 0 && r.totalChecks !== null && r.passedChecks !== null && r.passedChecks < r.totalChecks;
   const how = !r.loaded ? "never loaded" : r.totalChecks === null ? `crashed (exit ${r.code}), not an assertion` : killed ? `killed ${r.totalChecks - r.passedChecks!} check(s)` : "SURVIVED";
   check(`${r.mutant.id}: ${how}`, killed, r.failures.slice(0, 2).join(" | ") || r.tail);
-  if (killed) console.log(`      e.g. ${r.failures[0]}`);
+  if (killed) console.log(`      e.g. ${r.failures[0]?.slice(0, 160)}`);
 }
+const notKilled = outcomes.filter((r) => !(r.loaded && r.code !== 0 && r.totalChecks !== null && r.passedChecks !== null && r.passedChecks < r.totalChecks));
+if (notKilled.length > 0) console.log(`\n  not killed: ${notKilled.map((r) => r.mutant.id).join(", ")}`);
 check(`every mutant was run (${outcomes.length} of ${MUTANTS.length})`, outcomes.length === MUTANTS.length && MUTANTS.length > 0);
 check("no mutated source file changed", FILES.every((f, i) => sha(f) === hashesBefore[i]));
 rmSync(work, { recursive: true, force: true });

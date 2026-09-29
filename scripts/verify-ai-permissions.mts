@@ -95,6 +95,9 @@ console.log("\nEvery AI channel is gated in main, and the preload exposes exactl
 {
   // The expected gate per channel, restated here: [permissions asserted, requires re-authentication].
   const EXPECTED_CHANNELS: Record<string, [string[], boolean]> = {
+    // L9.1: the asking window's own job statuses, and cancelling its own model copy or check.
+    "ai:listJobs": [["AI_USE"], false],
+    "ai:cancelModelJob": [["AI_MANAGE"], false],
     "ai:getStatus": [["AI_USE"], false],
     "ai:getSettings": [["AI_MANAGE"], false],
     "ai:updateSettings": [["AI_MANAGE"], true],
@@ -152,7 +155,7 @@ console.log("\nEvery AI channel is gated in main, and the preload exposes exactl
     check(`${channel} ${expected[1] ? "requires" : "does not require"} re-authentication`, sensitive === expected[1]);
     const gate = body.search(/assertSenderPermission|authorize\(/);
     const action = body.search(
-      /aiStatusView|aiSettingsView|updateAiSettings|restoreAiFeature|aiDiagnosticsView|aiAuditView|revertAiActionFromAudit|flowLocatorUpgrades|promoteFlowLocatorUpgrade|setFlowEditorState|explainFlowValidation\(|summarizeFragment\(|analyzeFailure\(|deleteFailureAnalysis\(|proposeInspectionLocator\(|attachInspectionProposal\(|cancelAssist\(|importAiModelPack|preflightAiModelPack|checkAiModelPack|acknowledgeAiModelPack|removeAiModelPack|showOpenDialog|aiBackendPackView|importAiBackendPack|cancelAiBackendPack|verifyAiBackendPack|removeAiBackendPack/
+      /aiJobsFor|cancelAiModelJob|aiStatusView|aiSettingsView|updateAiSettings|restoreAiFeature|aiDiagnosticsView|aiAuditView|revertAiActionFromAudit|flowLocatorUpgrades|promoteFlowLocatorUpgrade|setFlowEditorState|explainFlowValidation\(|summarizeFragment\(|analyzeFailure\(|deleteFailureAnalysis\(|proposeInspectionLocator\(|attachInspectionProposal\(|cancelAssist\(|importAiModelPack|preflightAiModelPack|checkAiModelPack|acknowledgeAiModelPack|removeAiModelPack|showOpenDialog|aiBackendPackView|importAiBackendPack|cancelAiBackendPack|verifyAiBackendPack|removeAiBackendPack/
     );
     check(`${channel} authorizes before doing anything else`, gate >= 0 && action > gate, `gate@${gate} action@${action}`);
   }

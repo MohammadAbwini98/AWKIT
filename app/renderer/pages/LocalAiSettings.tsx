@@ -1,18 +1,20 @@
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, CheckCircle2, Cpu, PackagePlus, RefreshCw, RotateCcw, ShieldCheck, Trash2, Undo2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Cpu, PackagePlus, RefreshCw, RotateCcw, ShieldCheck, Trash2, Undo2, X } from "lucide-react";
 
 import type { AiActionRecord, AiEffectiveProfile } from "@src/ai/AiActionRecord";
 import type { AiRunConfiguration } from "@src/ai/AiQualification";
-import type { AiDiagnosticsView, AiModelPreflightView, AiSettingsView, AiStatusView } from "@src/ai/contracts/AiApi";
+import type { AiDiagnosticsView, AiEtaEstimate, AiMeasuredSpeed, AiModelPreflightView, AiSettingsView, AiStatusView } from "@src/ai/contracts/AiApi";
 import type { AiFeatureId, AiTier } from "@src/security/authz/AiAutonomyPolicy";
 import { Permission } from "@src/security/authz/Permissions";
 
+import { AiJobProgress, formatDuration, useAiJobStatus } from "../components/shared/AiJobProgress";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { useSession } from "../security/SessionContext";
 import { usePermissions } from "../security/usePermissions";
 import { ReauthDialog } from "./admin/ReauthDialog";
 import { formatBytes, LocalAiBackendPack } from "./LocalAiBackendPack";
 import { ExecutionDiagnostics, LocalAiExecution, effectiveLabel, gpuUseLabel } from "./LocalAiExecution";
+import { LocalAiTimeBudgets } from "./LocalAiTimeBudgets";
 import { useSensitiveSemanticAction, type SensitiveAdminResponse } from "../semantic/useSensitiveSemanticAction";
 
 const api = () => window.playwrightFlowStudio.ai;
@@ -102,8 +104,29 @@ function configurationLabel(configuration: Pick<AiRunConfiguration, "backend" | 
 const QUALIFICATION_REASONS: Record<string, string> = {
   NO_QUALITY_EVIDENCE: "no quality evidence exists for this model",
   NOT_QUALIFIED_ON_THIS_CONFIGURATION: "its quality evidence is for another configuration",
-  CONFIGURATION_NOT_DECIDED: "where it runs is decided by the GPU mode's next load, and nothing is claimed before it"
+  CONFIGURATION_NOT_DECIDED: "where it runs is decided by the GPU mode's next load, and nothing is claimed before it",
+  TIME_BUDGET_CHANGED: "a feature's time limit was changed from the default its quality evidence was measured under"
 };
+
+function measuredRange(estimate: AiEtaEstimate, warmth: "cold" | "warm"): string {
+  const low = formatDuration(estimate.minMs);
+  const high = formatDuration(estimate.maxMs);
+  return `${low === high ? high : `${low} to ${high}`} ${warmth} (${estimate.samples} run${estimate.samples === 1 ? "" : "s"})`;
+}
+
+/**
+ * L9.4: the latency class measured on this machine, from completed runs only: a measurement for the
+ * configuration AI runs in now, never a qualification or a promise. Nothing measured says so.
+ */
+function speedLabel(measured: readonly AiMeasuredSpeed[]): string {
+  if (measured.length === 0) return "Not measured, so not claimed";
+  return `Measured here: ${measured
+    .map((m) => {
+      const parts = [m.warm ? measuredRange(m.warm, "warm") : null, m.cold ? measuredRange(m.cold, "cold") : null].filter(Boolean).join(", ");
+      return `${m.kind === "compatibilityCheck" ? "Compatibility check" : FEATURE_LABELS[m.kind as AiFeatureId] ?? m.kind} ${parts}`;
+    })
+    .join("; ")}`;
+}
 
 /** L8b.4's labels, each with its reason. Speed is never claimed until it is measured on this machine. */
 function qualificationLabel(pack: AiStatusView["modelPack"]): string | null {
@@ -175,6 +198,11 @@ export function LocalAiSettings() {
   const [confirmRevert, setConfirmRevert] = useState<AiActionRecord | null>(null);
   const [preflight, setPreflight] = useState<AiModelPreflightView | null>(null);
   const [confirmAcknowledge, setConfirmAcknowledge] = useState(false);
+  // L9.1: while a model copy or check runs, its job status (these two have fixed names, one at a time).
+  const [modelJobSince, setModelJobSince] = useState<number | null>(null);
+  const importJob = useAiJobStatus(modelJobSince === null ? null : "model-import", modelJobSince ?? 0);
+  const checkJob = useAiJobStatus(modelJobSince === null ? null : "compatibility-check", modelJobSince ?? 0);
+  const runningModelJob = [checkJob, importJob].find((job) => job.status && !["completed", "failed", "timed-out", "cancelled"].includes(job.status.state)) ?? null;
 
   const action = useSensitiveSemanticAction(describeAi);
 
@@ -238,13 +266,26 @@ export function LocalAiSettings() {
     setPreflight(ready);
   }, [action]);
 
+  /** Run a model copy or check with its progress shown, and stop watching once it answered. */
+  const withModelJob = useCallback(
+    async (call: () => Promise<SensitiveAdminResponse>, notice: string) => {
+      setModelJobSince(Date.now());
+      try {
+        await runThenReload(call, notice);
+      } finally {
+        setModelJobSince(null);
+      }
+    },
+    [runThenReload]
+  );
+
   const importPack = useCallback(
     (token: string) =>
-      runThenReload(
+      withModelJob(
         () => api().importModelPack(token),
         "Model copied into the app's data folder and checksummed. A model this version does not list was then checked for compatibility; its status is below."
       ),
-    [runThenReload]
+    [withModelJob]
   );
 
   const saveTier = (feature: AiFeatureId, tier: AiTier): void => {
@@ -300,8 +341,12 @@ export function LocalAiSettings() {
             <>
               <span>Qualification</span>
               <strong>{qualification}</strong>
+            </>
+          ) : null}
+          {qualification || status.measuredSpeed.length > 0 ? (
+            <>
               <span>Speed on this machine</span>
-              <strong>Not measured, so not claimed</strong>
+              <strong data-testid="ai-measured-speed">{speedLabel(status.measuredSpeed)}</strong>
             </>
           ) : null}
           <span>Runs on</span>
@@ -383,7 +428,7 @@ export function LocalAiSettings() {
                 className="toolbar-button"
                 disabled={action.busy}
                 type="button"
-                onClick={() => void runThenReload(() => api().checkModelPack(), "Compatibility checked again. The result is below.")}
+                onClick={() => void withModelJob(() => api().checkModelPack(), "Compatibility checked again. The result is below.")}
               >
                 <RefreshCw size={15} aria-hidden="true" />
                 Check Compatibility Again
@@ -400,6 +445,25 @@ export function LocalAiSettings() {
               Refresh
             </button>
           </div>
+
+          {modelJobSince !== null ? (
+            <div className="settings-subsection" data-testid="ai-model-job">
+              <AiJobProgress
+                status={runningModelJob?.status ?? null}
+                receivedAt={runningModelJob?.receivedAt ?? 0}
+                label={runningModelJob?.status?.jobId === "compatibility-check" ? "Model compatibility check progress" : "Model import progress"}
+                testId="ai-model-job-progress"
+              />
+              {runningModelJob?.status?.cancellable ? (
+                <div className="settings-actions">
+                  <button className="toolbar-button" type="button" onClick={() => void api().cancelModelJob()}>
+                    <X size={15} aria-hidden="true" />
+                    {runningModelJob.status.jobId === "compatibility-check" ? "Cancel Check" : "Cancel Import"}
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="sys-table-scroll">
             <table className="sys-table" aria-label="Local AI features and their autonomy tiers">
@@ -459,6 +523,7 @@ export function LocalAiSettings() {
             are never touched by AI.
           </p>
 
+          <LocalAiTimeBudgets sessionRef={sessionRef} settings={settings} onChanged={load} />
           <LocalAiExecution execution={status?.execution ?? null} sessionRef={sessionRef} settings={settings} onChanged={load} />
           <LocalAiBackendPack gpuUse={gpuUseLabel(settings.executionMode, status?.execution ?? null)} sessionRef={sessionRef} />
         </>

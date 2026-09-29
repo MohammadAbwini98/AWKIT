@@ -29,6 +29,12 @@
  * process, as the L8a.0 gate did. The packaged EXE's own CPU path is verify:ai-packaged-app. A package
  * whose host differs from the source host is stale and FAILS, and a missing package exits 2.
  *
+ * `--progress` (L9: npm run verify:ai-progress-gpu-packaged, with `--packaged`) runs
+ * `scripts/ai-harness/gpuProgress.ts` instead: the job-status contract through the production service,
+ * tracker and ETA history on the real Vulkan and CPU hosts. GPU-Offload cold (the runtime's own load
+ * fraction as determinate progress), warm without and with warm history, GPU-Only, then CPU & RAM, each
+ * placement measured apart. MECHANICS on this adapter, not NVIDIA qualification (E11).
+ *
  * Run: npm run verify:ai-gpu-host
  */
 
@@ -44,6 +50,7 @@ import { HOST_PATH, ROOT, buildAiHarness, measurePack, printSteps, runAiHarness,
 
 const lifecycle = process.argv.includes("--lifecycle");
 const packaged = process.argv.includes("--packaged");
+const progress = process.argv.includes("--progress");
 /** L1.8: a cancel settles within 3 s, on every backend. */
 const CANCEL_CEILING_MS = 3_000;
 let inconclusive = 0;
@@ -51,7 +58,7 @@ const packagedResources = path.join(ROOT, "dist", "win-unpacked", "resources");
 const hostPath = packaged ? path.join(packagedResources, "native-hosts", "ai", "ai-host.cjs") : HOST_PATH;
 // One harness mode per run: the modes run ends by invalidating the imported pack on purpose (sticky
 // until re-import), and both modes together take most of 10 minutes.
-const modes = [lifecycle ? "gpuLifecycle" : "gpu"];
+const modes = [lifecycle ? "gpuLifecycle" : progress ? "gpuProgress" : "gpu"];
 
 let passed = 0;
 let failed = 0;
@@ -73,7 +80,13 @@ const PACK_NAME = "Qwen3.5-0.8B-Q4_K_M.gguf";
 const installedVulkan = path.join(ROOT, "node_modules", "@node-llama-cpp", "win-x64-vulkan");
 
 console.log(
-  `${lifecycle ? `verify:ai-gpu-lifecycle${packaged ? "-packaged" : ""} — L8a.5 cancel, kill-restart-reload and VRAM exhaustion` : `verify:ai-gpu-${packaged ? "packaged" : "host"} — L8a.3 modes`} on ${packaged ? "dist/win-unpacked's AI tree" : "the real CPU and Vulkan hosts"}\n`
+  `${
+    lifecycle
+      ? `verify:ai-gpu-lifecycle${packaged ? "-packaged" : ""} — L8a.5 cancel, kill-restart-reload and VRAM exhaustion`
+      : progress
+        ? `verify:ai-progress-gpu${packaged ? "-packaged" : ""} — L9 job status per placement`
+        : `verify:ai-gpu-${packaged ? "packaged" : "host"} — L8a.3 modes`
+  } on ${packaged ? "dist/win-unpacked's AI tree" : "the real CPU and Vulkan hosts"}\n`
 );
 if (packaged) {
   if (!existsSync(hostPath)) notRun("no dist/win-unpacked AI tree: run npm run package:portable first");
@@ -129,6 +142,7 @@ try {
     );
     if (!report) check(`the ${mode} harness wrote a report`, false, "no report: Electron never reached app.whenReady() or timed out");
     else if (mode === "gpuLifecycle") reportLifecycle(report, [staged.modelRoot, backendsRoot]);
+    else if (mode === "gpuProgress") reportProgress(report, [staged.modelRoot, backendsRoot]);
     else reportModes(report, [staged.modelRoot, backendsRoot]);
   }
 } finally {
@@ -160,6 +174,14 @@ function reportModes(report: HarnessReport, privatePaths: string[]): void {
   console.log(`  · plan: ${JSON.stringify(report.plan)}`);
   console.log(`  · load: ${JSON.stringify(report.load)}`);
   console.log(`  · pack guard runs: ${String(report.guardRuns)}`);
+  console.log(nvidiaLine(report));
+}
+
+function reportProgress(report: HarnessReport, privatePaths: string[]): void {
+  printSteps(report, check);
+  check("the harness finished every step", report.complete === true && report.steps.length >= 7, `${report.steps.length} steps, stopped in: ${String(report.inFlight)}`);
+  noPrivatePath(report, privatePaths);
+  for (const key of ["offloadCold", "offloadWarmFirst", "offloadWarmMeasured", "gpuOnly", "cpuCold"]) console.log(`  · ${key}: ${JSON.stringify(report[key])}`);
   console.log(nvidiaLine(report));
 }
 

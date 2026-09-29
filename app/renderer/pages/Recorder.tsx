@@ -29,8 +29,9 @@ import {
   X,
   XCircle
 } from "lucide-react";
-import type { AiStatusView, InspectionLocatorView } from "@src/ai/contracts/AiApi";
+import type { AiJobStatus, AiStatusView, InspectionLocatorView } from "@src/ai/contracts/AiApi";
 import { describeCandidate, describeProposedScope } from "@src/ai/locatorStatus";
+import { AiJobProgress } from "../components/shared/AiJobProgress";
 import { aiUnavailableSentence, useAiAssistJob, type AiAssistPhase } from "../components/shared/useAiAssistJob";
 import { usePageChrome } from "../state/pageChrome";
 import { Toast, type ToastState } from "../components/shared/Toast";
@@ -1934,6 +1935,7 @@ function ElementSpyAi({ inspectedAt, actionId, onAttached }: { inspectedAt: stri
     <ElementSpyAiPanel
       status={job.status}
       phase={job.phase}
+      progress={job.progress}
       onPropose={() =>
         job.start("l3spy", inspectedAt, (id) => {
           requestId.current = id;
@@ -1953,12 +1955,15 @@ function ElementSpyAi({ inspectedAt, actionId, onAttached }: { inspectedAt: stri
 export function ElementSpyAiPanel({
   status,
   phase,
+  progress,
   onPropose,
   onCancel,
   attach
 }: {
   status: AiStatusView | null;
   phase: AiAssistPhase<InspectionLocatorView>;
+  /** L9: the in-flight request's job status (each attempt reports under the one request id). */
+  progress?: { status: AiJobStatus | null; receivedAt: number };
   onPropose: () => void;
   onCancel: () => void;
   /** L3 U1: attach the shown proposal to the step chosen in "Use in step". */
@@ -1992,6 +1997,9 @@ export function ElementSpyAiPanel({
         <span className={`ai-assist-message${refused ? " error" : ""}`} role="status" data-testid="element-spy-ai-message">
           {refused ? <AlertCircle size={12} aria-hidden="true" /> : null} {message}
         </span>
+        {phase.kind === "loading" && progress ? (
+          <AiJobProgress status={progress.status} receivedAt={progress.receivedAt} label="Local AI locator progress" testId="element-spy-ai-progress" />
+        ) : null}
       </div>
       {proposal ? (
         <div className="recorder-spy-primary" data-testid="element-spy-ai-result">

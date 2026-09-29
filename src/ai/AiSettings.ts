@@ -27,6 +27,7 @@ import {
 } from "../security/authz/AiAutonomyPolicy";
 import { replaceFileAtomically } from "../storage/atomicReplace";
 import { runExclusive } from "../storage/folderWriteCoordinator";
+import { AI_BUDGET_IDS, budgetBoundsSentence, isAiBudgetId, isBudgetSeconds, type AiBudgetId } from "./AiTimeBudgets";
 
 /**
  * Where the model runs (L8a, E4). "cpu" is CPU & RAM only, the default and the only mode that needs
@@ -46,6 +47,8 @@ export interface AiSettings {
   executionMode: AiExecutionMode;
   /** VRAM kept free beside the model; null is the runtime's own system-derived padding. */
   vramReserveMb: number | null;
+  /** L9.2: per-budget request timeouts in seconds; absent is the committed default (`AI_TIME_BUDGETS`). */
+  timeBudgetSeconds: Partial<Record<AiBudgetId, number>>;
 }
 
 export type AiSettingsPatch = Partial<AiSettings>;
@@ -62,7 +65,8 @@ export const DEFAULT_AI_SETTINGS: Readonly<AiSettings> = Object.freeze({
   idleUnloadMinutes: 10,
   featureTiers: {},
   executionMode: "cpu",
-  vramReserveMb: null
+  vramReserveMb: null,
+  timeBudgetSeconds: {}
 });
 
 const isReserveMb = (value: unknown): value is number =>
@@ -120,6 +124,21 @@ export function sanitizeAiSettingsPatch(input: unknown): AiSettingsSanitizeResul
       patch.vramReserveMb = raw.vramReserveMb as number | null;
     }
   }
+  // Like featureTiers, the map replaces the stored one; a budget left out returns to its default.
+  if (raw.timeBudgetSeconds !== undefined) {
+    const budgets = raw.timeBudgetSeconds;
+    if (typeof budgets !== "object" || budgets === null || Array.isArray(budgets)) {
+      errors.push("timeBudgetSeconds must be an object.");
+    } else {
+      const next: Partial<Record<AiBudgetId, number>> = {};
+      for (const [id, seconds] of Object.entries(budgets as Record<string, unknown>)) {
+        if (!isAiBudgetId(id)) errors.push("timeBudgetSeconds names an unknown budget.");
+        else if (!isBudgetSeconds(id, seconds)) errors.push(budgetBoundsSentence(id));
+        else next[id] = seconds;
+      }
+      patch.timeBudgetSeconds = next;
+    }
+  }
   return errors.length > 0 ? { ok: false, errors } : { ok: true, value: patch };
 }
 
@@ -133,6 +152,10 @@ export function normalizeAiSettings(raw: unknown): AiSettings {
     tiers[feature] = isConfigurableAiTier(feature, storedTiers[feature]) ? (storedTiers[feature] as AiTier) : "T0";
   }
   const minutes = source.idleUnloadMinutes;
+  // A file from before L9, or a stored value outside today's bounds, reads as the default: never clamped.
+  const storedBudgets = typeof source.timeBudgetSeconds === "object" && source.timeBudgetSeconds !== null ? (source.timeBudgetSeconds as Record<string, unknown>) : {};
+  const timeBudgetSeconds: Partial<Record<AiBudgetId, number>> = {};
+  for (const id of AI_BUDGET_IDS) if (isBudgetSeconds(id, storedBudgets[id])) timeBudgetSeconds[id] = storedBudgets[id] as number;
   return {
     enabled: source.enabled === true,
     yieldDuringRuns: source.yieldDuringRuns !== false,
@@ -143,7 +166,8 @@ export function normalizeAiSettings(raw: unknown): AiSettings {
     featureTiers: tiers,
     // A file from before L8a, or a value this version does not know, is CPU & RAM only.
     executionMode: AI_EXECUTION_MODES.includes(source.executionMode as AiExecutionMode) ? (source.executionMode as AiExecutionMode) : "cpu",
-    vramReserveMb: isReserveMb(source.vramReserveMb) ? source.vramReserveMb : null
+    vramReserveMb: isReserveMb(source.vramReserveMb) ? source.vramReserveMb : null,
+    timeBudgetSeconds
   };
 }
 
@@ -170,7 +194,7 @@ export class AiSettingsStore {
     }
   }
 
-  /** Apply an already-sanitized patch. `featureTiers` replaces the stored map rather than merging. */
+  /** Apply an already-sanitized patch. `featureTiers` and `timeBudgetSeconds` replace the stored maps rather than merging. */
   update(patch: AiSettingsPatch): Promise<AiSettings> {
     return runExclusive(dirname(this.filePath), async () => {
       const next = normalizeAiSettings({ ...(await this.read()), ...patch });

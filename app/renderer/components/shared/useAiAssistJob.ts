@@ -4,6 +4,7 @@ import type { AiAssistStatus, AiStatusView } from "@src/ai/contracts/AiApi";
 import { Permission } from "@src/security/authz/Permissions";
 
 import { usePermissions } from "../../security/usePermissions";
+import { useAiJobStatus } from "./AiJobProgress";
 
 export type AiAssistPhase<V> =
   | { kind: "idle" }
@@ -21,12 +22,17 @@ const failed = (message: string): AiAssistStatus => ({ code: "FAILED", ok: false
  * never painted. Cancel is immediate in the UI and also reaches main, which releases the job; a late
  * answer is dropped by the token. `resetKey` changing (another flow, another fragment) abandons
  * whatever is in flight. Only a user with AI_USE sees any of it.
+ *
+ * L9.1: while a request is in flight, `progress` follows its job status (stage, elapsed, measured ETA),
+ * which main pushes to this window only.
  */
 export function useAiAssistJob<V extends AiAssistStatus>(resetKey: string) {
   const { can } = usePermissions();
   const visible = can(Permission.AI_USE);
   const [status, setStatus] = useState<AiStatusView | null>(null);
   const [phase, setPhase] = useState<AiAssistPhase<V>>({ kind: "idle" });
+  const [active, setActive] = useState<string | null>(null);
+  const progress = useAiJobStatus(active);
   const token = useRef(0);
   const sequence = useRef(0);
   const inFlight = useRef<string | null>(null);
@@ -45,6 +51,7 @@ export function useAiAssistJob<V extends AiAssistStatus>(resetKey: string) {
     token.current += 1;
     const pending = inFlight.current;
     inFlight.current = null;
+    setActive(null);
     if (pending) void window.playwrightFlowStudio.ai.cancelAssist(pending).catch(() => undefined);
   }, []);
 
@@ -59,6 +66,7 @@ export function useAiAssistJob<V extends AiAssistStatus>(resetKey: string) {
       const current = (token.current += 1);
       const requestId = `${prefix}-${Date.now().toString(36)}-${(sequence.current += 1)}`;
       inFlight.current = requestId;
+      setActive(requestId);
       setPhase({ kind: "loading" });
       call(requestId)
         .then(
@@ -68,6 +76,7 @@ export function useAiAssistJob<V extends AiAssistStatus>(resetKey: string) {
         .then(({ view, ok }) => {
           if (inFlight.current === requestId) inFlight.current = null;
           if (current !== token.current) return;
+          setActive(null);
           setPhase(ok ? { kind: "done", view: view as V, subject } : { kind: "failed", view });
           refreshStatus();
         });
@@ -86,7 +95,7 @@ export function useAiAssistJob<V extends AiAssistStatus>(resetKey: string) {
     setPhase({ kind: "idle" });
   }, [abandon]);
 
-  return { visible, status, phase, start, cancel, clear };
+  return { visible, status, phase, start, cancel, clear, progress };
 }
 
 /** Why the control is disabled, or null when local AI can be asked. */

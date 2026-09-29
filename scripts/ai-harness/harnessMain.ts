@@ -30,6 +30,8 @@
  *   - gpu: L8a.3 execution modes on the real CPU and Vulkan hosts (scripts/ai-harness/gpuLive.ts).
  *   - gpuLifecycle: L8a.5 cancel latency, kill-restart-reload cost and VRAM exhaustion after load on the
  *     real Vulkan host (scripts/ai-harness/gpuLifecycle.ts).
+ *   - gpuProgress: L9's job status on the real Vulkan and CPU hosts: load progress, cold and warm, the ETA
+ *     history per placement (scripts/ai-harness/gpuProgress.ts).
  *   - inspect: L8b.2's static header stage on the real host, over the curated packs and hand-built
  *     headers (scripts/ai-harness/modelInspect.ts).
  *   - profile: the L1.8 inference diagnosis (scripts/ai-harness/profile.ts). The one mode that
@@ -67,6 +69,7 @@ import { runFailureAnalysisBudget } from "./failureAnalysisBudget";
 import { runFailureAnalysisLive, runLocatorUpgradeLive } from "./featureLive";
 import { runGpuLifecycle } from "./gpuLifecycle";
 import { runGpuLive } from "./gpuLive";
+import { runGpuProgress } from "./gpuProgress";
 import { runLocatorQualityLive } from "./locatorQualityLive";
 import { runLocatorUpgradeBudget } from "./locatorUpgradeBudget";
 import { runModelInspect } from "./modelInspect";
@@ -812,6 +815,7 @@ async function run(): Promise<void> {
     else if (mode === "profile") await runProfile({ step, record, flush });
     else if (mode === "gpu") await runGpuLive({ step, record, log: (line) => logLines.push(line) });
     else if (mode === "gpuLifecycle") await runGpuLifecycle({ step, record, log: (line) => logLines.push(line) });
+    else if (mode === "gpuProgress") await runGpuProgress({ step, record, log: (line) => logLines.push(line) });
     else if (mode === "inspect") await runModelInspect({ step, record, log: (line) => logLines.push(line) });
     else await step(`unknown mode ${mode}`, () => Promise.reject(new Error("unknown mode")));
   } catch (error) {

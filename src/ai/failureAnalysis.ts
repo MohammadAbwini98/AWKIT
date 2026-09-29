@@ -30,6 +30,7 @@
 
 import type { AiPromptSpec } from "./AiPromptBuilder";
 import type { AiOutputSchema } from "./AiOutputContract";
+import { AI_TIME_BUDGETS } from "./AiTimeBudgets";
 import type { ConcurrentRunReport, FailureAnalysisBody, StoredFailureAnalysis } from "../reports/ExecutionReport";
 import { requestRelations, type ExecutionEvidenceEvent, type RequestRelation } from "../runner/evidence/ExecutionEvidence";
 import { DIRECT_FAILURE_CAUSES, type FailureCauseBaseline } from "../runner/evidence/FailureCauseBaseline";
@@ -88,8 +89,9 @@ export const FAILURE_ANALYSIS_LIMITS: Readonly<FailureAnalysisLimits> = Object.f
    * This feature's own deadline: its L1.8 ceiling, 180 s at the output cap (`backgroundJobAtCapMs` in
    * `benchmark:ai-model`), plus the same 5 s over measured overhead as `AUTHORING_LIMITS.timeoutMs`. The
    * shared 30 s cancelled every real analysis on Qwen3.5-0.8B (`verify:ai-failure-analysis-live`).
+   * L9.2: the default of the `failureAnalysis` budget, which an administrator may change in bounds.
    */
-  timeoutMs: 185_000,
+  timeoutMs: AI_TIME_BUDGETS.failureAnalysis.defaultMs,
   /**
    * This feature's L1.8 output budget. At 512, the cap alone projected to 110–200 s of generation at the
    * decode rates Qwen3.5-0.8B has shown on the qualifying host, before any prompt evaluation. The longest

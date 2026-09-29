@@ -4,6 +4,7 @@ import { AlertTriangle, Sparkles, X } from "lucide-react";
 import type { AiStatusView, AuthoringAssistView } from "@src/ai/contracts/AiApi";
 import type { FlowProfile } from "@src/profiles/FlowProfile";
 
+import { AiJobProgress } from "../shared/AiJobProgress";
 import { aiUnavailableSentence, useAiAssistJob, type AiAssistPhase } from "../shared/useAiAssistJob";
 import { validationFindingKey } from "./flowValidationPresentation";
 
@@ -23,6 +24,8 @@ export interface AuthoringAssist {
   explanationsFor: (findingKey: string) => AuthoringAssistView["explanations"];
   /** 1-based position in the AI's suggested fix order, or null. */
   rankOf: (findingKey: string) => number | null;
+  /** L9: the in-flight request's job status. */
+  progress: ReturnType<typeof useAiAssistJob>["progress"];
 }
 
 /**
@@ -63,7 +66,8 @@ export function useAuthoringAssist(flowId: string, profile: FlowProfile, snapsho
     explain: () => job.start("l4b", snapshot, (requestId) => window.playwrightFlowStudio.ai.explainValidation({ requestId, profile })),
     cancel: job.cancel,
     explanationsFor: (key) => explanations.get(key) ?? [],
-    rankOf: (key) => ranks.get(key) ?? null
+    rankOf: (key) => ranks.get(key) ?? null,
+    progress: job.progress
   };
 }
 
@@ -122,6 +126,9 @@ export function AuthoringAssistBar({
       <span className={`ai-assist-message${refused ? " error" : ""}`} role="status" data-testid="ai-assist-message">
         {refused ? <AlertTriangle size={12} aria-hidden="true" /> : null} {message}
       </span>
+      {phase.kind === "loading" ? (
+        <AiJobProgress status={assist.progress.status} receivedAt={assist.progress.receivedAt} label="Local AI explanation progress" testId="ai-assist-progress" />
+      ) : null}
       {done && done.ranking.length ? (
         <span className="ai-assist-fixes" data-testid="ai-assist-ranking">
           AI suggests an order for {done.ranking.length} safe fix{done.ranking.length === 1 ? "" : "es"}. Nothing is changed until you review and confirm.

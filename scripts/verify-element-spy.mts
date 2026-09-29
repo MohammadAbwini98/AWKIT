@@ -951,7 +951,8 @@ async function main(): Promise<void> {
         modelLoaded: true,
         stage: null,
         gpuReadiness: { ok: false, nvidiaAdapters: 0, reason: "BACKEND_PACK_MISSING", message: null }
-      }
+      },
+      measuredSpeed: []
     };
     const panel = (status: AiStatusView | null, phase: AiAssistPhase<InspectionLocatorView>) =>
       renderToStaticMarkup(createElement(ElementSpyAiPanel, { status, phase, onPropose: () => undefined, onCancel: () => undefined }));

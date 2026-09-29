@@ -13,7 +13,7 @@
  * authorized administrator and the UI must be able to prompt and retry (the semantic IPC pattern).
  */
 
-import { BrowserWindow, dialog, ipcMain, type IpcMainInvokeEvent } from "electron";
+import { BrowserWindow, dialog, ipcMain, webContents, type IpcMainInvokeEvent } from "electron";
 
 import {
   authorizeAiAction,
@@ -29,6 +29,7 @@ import {
   type AiBackendPackView,
   type AiBackendPreflightResponse,
   type AiDiagnosticsView,
+  type AiJobStatus,
   type AiModelPreflightResponse,
   type AiSettingsView,
   type AiStatusView,
@@ -45,9 +46,13 @@ import { Permission } from "@src/security/authz/Permissions";
 
 import { createFlowFragmentStore, createFlowProfileStore, createReportStore } from "../profileStores";
 import { assertSenderPermission } from "../security/sessionContext";
+import type { AiJobRequest } from "@src/ai/AiService";
+import type { LocatorUpgradeProvider } from "@src/ai/locatorUpgradeAttempts";
+
 import {
   abortInspectionLocator,
   analyzeFailure,
+  assistJobId,
   attachInspectionProposal,
   cancelAssist,
   deleteFailureAnalysis,
@@ -63,10 +68,12 @@ import {
   aiAuditView,
   aiBackendPackView,
   aiDiagnosticsView,
+  aiJobsFor,
   aiPolicyConfig,
   aiSettingsView,
   aiStatusView,
   cancelAiBackendPack,
+  cancelAiModelJob,
   checkAiModelPack,
   getAiService,
   importAiBackendPack,
@@ -77,6 +84,7 @@ import {
   removeAiModelPack,
   restoreAiFeature,
   revertAiActionFromAudit,
+  setAiJobPublisher,
   updateAiSettings,
   verifyAiBackendPack
 } from "../ai/aiRuntime";
@@ -87,9 +95,26 @@ async function authorize(event: IpcMainInvokeEvent, permission: Permission, sens
   return auth.ok ? null : { code: auth.code, ok: false, message: auth.message };
 }
 
-function assistDeps(): AiAssistDeps {
+/**
+ * L9.1: an assist job's status goes to the window that asked, under the id that window gave it. The job id
+ * `aiAssist` builds is `assistJobId(sender, requestId)`, plus `.a<n>` for each Element Spy attempt (all
+ * attempts report under the one request). Main knows the sender here, so nothing is taken from the renderer.
+ */
+function withOwner(job: AiJobRequest, senderId: number): AiJobRequest {
+  const prefix = assistJobId(senderId, "");
+  if (!job.requestId.startsWith(prefix)) return job;
+  const requestId = job.requestId.slice(prefix.length).replace(/\.a\d+$/, "");
+  return requestId ? { ...job, owner: { window: senderId, requestId } } : job;
+}
+
+/** The one service, submitting as `senderId`'s jobs. */
+function ownedService(senderId: number): LocatorUpgradeProvider {
+  return { submit: (job) => getAiService().submit(withOwner(job, senderId)), cancel: (id) => getAiService().cancel(id) };
+}
+
+function assistDeps(senderId: number): AiAssistDeps {
   return {
-    submit: (job) => getAiService().submit(job),
+    submit: ownedService(senderId).submit,
     policy: aiPolicyConfig,
     savedFlowIds: async () => (await createFlowProfileStore().list()).map((flow) => flow.id)
   };
@@ -129,6 +154,18 @@ function reportAccess(): FailureReportAccess {
 }
 
 export function registerAiIpc(): void {
+  // L9.1: a job's status goes to the window that started it, and nowhere else. It carries codes, stage
+  // names and numbers only; a window that went away simply receives nothing.
+  setAiJobPublisher((owner, status) => {
+    const target = webContents.fromId(owner);
+    if (target && !target.isDestroyed()) target.send("ai:jobStatus", status);
+  });
+
+  ipcMain.handle("ai:listJobs", async (event): Promise<AiJobStatus[]> => {
+    await assertSenderPermission(event, Permission.AI_USE);
+    return aiJobsFor(event.sender.id);
+  });
+
   ipcMain.handle("ai:getStatus", async (event): Promise<AiStatusView> => {
     await assertSenderPermission(event, Permission.AI_USE);
     return aiStatusView();
@@ -205,7 +242,7 @@ export function registerAiIpc(): void {
       const code = denied.code === "REAUTH_REQUIRED" ? "REAUTH_REQUIRED" : "NOT_AUTHORIZED";
       return { code, ok: false, message: denied.message, explanations: [], ranking: [], truncated: 0 };
     }
-    return explainFlowValidation(event.sender.id, request, assistDeps());
+    return explainFlowValidation(event.sender.id, request, assistDeps(event.sender.id));
   });
 
   // L6 T0. Names a stored fragment; main reads it from the store. The library needs PAGE_FLOWS.
@@ -216,7 +253,7 @@ export function registerAiIpc(): void {
       return { code, ok: false, message: denied.message, fragmentId: "", summary: null };
     }
     const fragments = createFlowFragmentStore();
-    return summarizeFragment(event.sender.id, request, { ...assistDeps(), fragment: (id) => fragments.get(id) });
+    return summarizeFragment(event.sender.id, request, { ...assistDeps(event.sender.id), fragment: (id) => fragments.get(id) });
   });
 
   // L5b T0 on demand. Names a stored run and one of its instances; main reads the report's own L5a
@@ -227,7 +264,7 @@ export function registerAiIpc(): void {
       const code = denied.code === "REAUTH_REQUIRED" ? "REAUTH_REQUIRED" : "NOT_AUTHORIZED";
       return { code, ok: false, message: denied.message, instanceId: "", coalescedCount: 0, analysis: null };
     }
-    return analyzeFailure(event.sender.id, request, { ...assistDeps(), ...reportAccess() });
+    return analyzeFailure(event.sender.id, request, { ...assistDeps(event.sender.id), ...reportAccess() });
   });
 
   // L5b. Deletes the stored analysis covering one instance: the same pair that can create one. No
@@ -249,7 +286,7 @@ export function registerAiIpc(): void {
       const code = denied.code === "REAUTH_REQUIRED" ? "REAUTH_REQUIRED" : "NOT_AUTHORIZED";
       return { code, ok: false, message: denied.message, inspectedAt: null, proposal: null, attemptsUsed: 0 };
     }
-    return proposeInspectionLocator(event.sender.id, request, { policy: aiPolicyConfig, ai: getAiService(), target: inspectionTarget });
+    return proposeInspectionLocator(event.sender.id, request, { policy: aiPolicyConfig, ai: ownedService(event.sender.id), target: inspectionTarget });
   });
 
   // L3 U1 (owner decision D2): attach that window's proven proposal to one recorded draft step as a
@@ -304,7 +341,14 @@ export function registerAiIpc(): void {
   // L8b.3 and L8b.5: re-run a registered model's compatibility stages, and acknowledge a compatible one as
   // unverified (E7). Both can admit a model to use, so both re-authenticate.
   ipcMain.handle("ai:checkModelPack", async (event): Promise<AiAdminResponse> => {
-    return (await authorize(event, Permission.AI_MANAGE, true)) ?? checkAiModelPack();
+    return (await authorize(event, Permission.AI_MANAGE, true)) ?? checkAiModelPack(event.sender.id);
+  });
+
+  // L9.1: stops only the asking window's own model copy or compatibility check. Stopping can only narrow
+  // what happens (nothing is kept), so it needs no re-authentication, like cancelBackendPack.
+  ipcMain.handle("ai:cancelModelJob", async (event): Promise<AiAdminResponse> => {
+    await assertSenderPermission(event, Permission.AI_MANAGE);
+    return cancelAiModelJob(event.sender.id);
   });
 
   ipcMain.handle("ai:acknowledgeModelPack", async (event): Promise<AiAdminResponse> => {

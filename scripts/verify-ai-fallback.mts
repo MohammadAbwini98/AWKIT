@@ -353,7 +353,17 @@ console.log("\nThe renderer cannot run a prompt:\n");
   // binds the token to the asking window, so no path ever crosses the bridge.
   // L8b.5: `ai:importModelPack` likewise carries only the token of the preflight main computed for a file
   // its OWN dialog picked, through the same sanitizer, bound to the asking window.
-  const argumentsTaken = [...preload.matchAll(/(ai:[A-Za-z]+)", ([a-zA-Z]+)\)/g)].map((m) => `${m[1]}(${m[2]})`);
+  // L9.1: `ai:listJobs` and `ai:cancelModelJob` take nothing. `ai:jobStatus` is the one channel main SENDS
+  // on: the bridge subscribes with ipcRenderer.on and unsubscribes with removeListener, and nothing crosses
+  // to main through it. Only invoke arguments cross, so only they are read here; the subscription is pinned
+  // separately below so a new send-direction channel cannot hide behind this narrowing.
+  const argumentsTaken = [...preload.matchAll(/invoke\("(ai:[A-Za-z]+)", ([a-zA-Z]+)\)/g)].map((m) => `${m[1]}(${m[2]})`);
+  const subscriptions = [...preload.matchAll(/ipcRenderer\.(on|once|removeListener|removeAllListeners|send|sendSync|postMessage)\("(ai:[A-Za-z]+)"/g)].map((m) => `${m[1]}:${m[2]}`);
+  check(
+    "the only non-invoke ai channel is the job-status subscription main sends on, subscribed and removed",
+    JSON.stringify(subscriptions) === JSON.stringify(["on:ai:jobStatus", "removeListener:ai:jobStatus"]),
+    subscriptions.join(",")
+  );
   // Without this the .every() below passes on an empty list the moment the pattern stops matching.
   check("the bridge's arguments were actually read", argumentsTaken.length === 16, argumentsTaken.join(","));
   check(

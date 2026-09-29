@@ -25,6 +25,7 @@
 import type { AiOutputSchema } from "./AiOutputContract";
 import type { AiJobOutcome, AiJobPriority, AiJobRequest } from "./AiService";
 import type { AiPromptSpec } from "./AiPromptBuilder";
+import { AI_TIME_BUDGETS } from "./AiTimeBudgets";
 import {
   LOCATOR_PLAN_MAX_ATTEMPTS,
   LOCATOR_PLAN_SCHEMA,
@@ -48,8 +49,9 @@ export const LOCATOR_ATTEMPT_LIMITS = Object.freeze({
    * the output cap (`backgroundJobAtCapMs` in `benchmark:ai-model`), plus the same 5 s over measured
    * overhead as `AUTHORING_LIMITS.timeoutMs`. The shared 30 s ended every real attempt on Qwen3.5-0.8B
    * (`verify:ai-locator-upgrade-live`).
+   * L9.2: the default of the `locatorAssistance` budget, which an administrator may change in bounds.
    */
-  timeoutMs: 185_000,
+  timeoutMs: AI_TIME_BUDGETS.locatorAssistance.defaultMs,
   /**
    * At 512 the cap alone projected past the 180 s L1.8 ceiling. 256 is the lowest cap every valid plan
    * fits: any candidate the capture offers, whole, scoped by any container it offers. One cut at the cap

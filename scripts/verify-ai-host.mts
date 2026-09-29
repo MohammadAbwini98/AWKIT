@@ -98,6 +98,8 @@ function fakeRuntime(gpuBackend: false | "vulkan" = false) {
     concurrent: 0,
     maxConcurrent: 0,
     loadDelayMs: 0,
+    /** L9.1: the fractions the runtime reports through `onLoadProgress` while a model loads. */
+    loadProgress: [] as number[],
     disposeDelayMs: 0,
     failGetLlama: false,
     failLoad: false,
@@ -142,6 +144,7 @@ function fakeRuntime(gpuBackend: false | "vulkan" = false) {
     async loadModel(options: Record<string, unknown>) {
       control.loadModelOptions.push(options);
       control.log.push("loadModel");
+      for (const fraction of control.loadProgress) (options.onLoadProgress as ((value: number) => void) | undefined)?.(fraction);
       await sleep(control.loadDelayMs);
       if (control.failLoad) throw new Error(SECRET);
       return {
@@ -310,7 +313,8 @@ function startHost(source: string, options: HostOptions): HostHandle {
     async reply(id, timeoutMs = 2_000) {
       const deadline = Date.now() + timeoutMs;
       while (Date.now() < deadline) {
-        const found = handle.posted.find((message) => message?.id === id);
+        // L9.1: a request's progress messages share its id; its answer is the one that is not progress.
+        const found = handle.posted.find((message) => message?.id === id && message?.type !== "progress");
         if (found) return found;
         await sleep(1);
       }
@@ -1188,6 +1192,77 @@ async function runSuite(source: string, quiet: boolean): Promise<{ passed: numbe
       const shutdown = await host.call({ type: "shutdown" });
       check("shutdown does not wait behind a running probe", shutdown.ok === true && (await host.reply(shutdownProbe)).value?.stopReason === "cancelled");
     }
+
+    // ── M. Progress (L9.1) ─────────────────────────────────────────────────────────────────────
+    section("M. Progress");
+    {
+      const { runtime, control } = fakeRuntime();
+      const host = fullHost(runtime);
+      const progressOf = (id: string) => host.posted.filter((m) => m?.type === "progress" && m.id === id);
+      const answerIndex = (id: string) => host.posted.findIndex((m) => m?.id === id && m?.type !== "progress");
+      const ONLY_LOAD_KEYS = ["fraction", "id", "stage", "type", "version"];
+
+      control.loadProgress = [0, 0.01, 0.02, 0.3, 0.31, 0.6, Number.NaN, 1.5, 1];
+      const loadId = host.send({ type: "load", modelPath: fixture.modelFile, contextTokens: 4096, threads: 3 });
+      const loaded = await host.reply(loadId);
+      const loadUpdates = progressOf(loadId);
+      check("a load reports the runtime's own load fraction for its own request", loaded.ok === true && loadUpdates.length > 0, loadUpdates);
+      check(
+        "...in steps of at least 5 %, clamped to 0..1, a non-number dropped, the end sent once",
+        isDeepStrictEqual(
+          loadUpdates.map((m) => m.fraction),
+          [0, 0.3, 0.6, 1]
+        ),
+        loadUpdates.map((m) => m.fraction)
+      );
+      check(
+        "...each carrying a stage and a fraction only",
+        loadUpdates.every((m) => m.version === 1 && m.stage === "load" && isDeepStrictEqual(Object.keys(m).sort(), ONLY_LOAD_KEYS)),
+        loadUpdates
+      );
+      check("...all before the load's own answer", loadUpdates.length > 0 && host.posted.lastIndexOf(loadUpdates.at(-1)) < answerIndex(loadId));
+
+      control.loadProgress = [];
+      control.generations.push({ chunks: 3 });
+      const inferId = host.send(inferPayload({ jobId: "progress#1" }));
+      const inferred = await host.reply(inferId);
+      const generation = progressOf(inferId);
+      check(
+        "an inference reports generation exactly once, at its first token, with no text",
+        inferred.ok === true && generation.length === 1 && generation[0].stage === "generation" && isDeepStrictEqual(Object.keys(generation[0]).sort(), ["id", "stage", "type", "version"]),
+        generation
+      );
+      check("...before its answer", generation.length === 1 && host.posted.indexOf(generation[0]) < answerIndex(inferId));
+
+      control.generations.push({ chunks: 0, hang: true });
+      const stuck = host.send(inferPayload({ jobId: "progress#2" }));
+      await sleep(20);
+      check("an inference with no token yet reports no generation (it is still reading the prompt)", progressOf(stuck).length === 0);
+      await host.call({ type: "cancel", jobId: "progress#2" });
+      await host.reply(stuck);
+
+      control.loadProgress = [0.5, 1];
+      const refused = host.send({ type: "load", modelPath: fixture.outsideFile, contextTokens: 4096, threads: 3 });
+      await host.reply(refused);
+      check("a refused load reports no progress", progressOf(refused).length === 0);
+      const probeId = host.send({ type: "probe", jobId: "probe-p", modelPath: fixture.modelFile, contextTokens: 4096, threads: 3 });
+      const probed = await host.reply(probeId);
+      check(
+        "a probe reports its own load fraction under its own request id",
+        probed.ok === true &&
+          isDeepStrictEqual(
+            progressOf(probeId).map((m) => m.fraction),
+            [0.5, 1]
+          ),
+        progressOf(probeId)
+      );
+      const everyProgress = host.posted.filter((m) => m?.type === "progress");
+      check(
+        "no progress message carries anything but a stage and a number",
+        everyProgress.length >= 7 && everyProgress.every((m) => Object.keys(m).every((key) => ONLY_LOAD_KEYS.includes(key))) && !leaks(host),
+        everyProgress.length
+      );
+    }
   } catch (error) {
     failed += 1;
     if (!quiet) console.error(`  ✗ suite aborted — ${error instanceof Error ? error.stack : String(error)}`);
@@ -1245,7 +1320,27 @@ const MUTATIONS: { name: string; from: string; to: string }[] = [
   { name: "probe path not confined", from: "const modelPath = confineModelPath(req.modelPath);\n  const contextSize = boundedInt(req.contextTokens, 256, AI_CONTEXT_TOKENS);\n  const threads = boundedInt(req.threads, 1, MAX_THREADS);\n  if (contextSize === null || threads === null || typeof req.jobId", to: "const modelPath = req.modelPath;\n  const contextSize = boundedInt(req.contextTokens, 256, AI_CONTEXT_TOKENS);\n  const threads = boundedInt(req.threads, 1, MAX_THREADS);\n  if (contextSize === null || threads === null || typeof req.jobId" },
   { name: "probe on a GPU host", from: 'if (BACKEND !== "cpu") throw new HostError("AI_PROTOCOL_VIOLATION");', to: "" },
   { name: "probe relays its unconstrained text", from: "text: answer.response,", to: "text: model.detokenize(opened, true) + answer.response," },
-  { name: "probe not cancellable", from: "active = { jobId: req.jobId, controller: stop };", to: "" }
+  { name: "probe not cancellable", from: "active = { jobId: req.jobId, controller: stop };", to: "" },
+  // L9.1's progress messages.
+  {
+    name: "load progress not forwarded",
+    from: "model = await instance.loadModel({ modelPath, gpuLayers, useMmap: true, useMlock: false, onLoadProgress: loadProgressFor(req.id) });",
+    to: "model = await instance.loadModel({ modelPath, gpuLayers, useMmap: true, useMlock: false });"
+  },
+  {
+    name: "probe load progress not forwarded",
+    from: "model = await instance.loadModel({ modelPath, gpuLayers: 0, useMmap: true, useMlock: false, onLoadProgress: loadProgressFor(req.id) });",
+    to: "model = await instance.loadModel({ modelPath, gpuLayers: 0, useMmap: true, useMlock: false });"
+  },
+  { name: "load progress unthrottled", from: "if (value === last || (value < 1 && value - last < 0.05)) return;", to: "if (value === last) return;" },
+  { name: "load fraction not clamped", from: "const value = Math.min(1, Math.max(0, fraction));", to: "const value = fraction;" },
+  { name: "generation progress not sent", from: '          progress(req.id, { stage: "generation" });\n', to: "" },
+  {
+    name: "generation progress sent per token",
+    from: '          progress(req.id, { stage: "generation" });\n        }\n        outputTokens += chunk.length;',
+    to: '        }\n        progress(req.id, { stage: "generation" });\n        outputTokens += chunk.length;'
+  },
+  { name: "progress sent under another id", from: 'reply({ version: PROTOCOL_VERSION, type: "progress", id, ...update });', to: 'reply({ version: PROTOCOL_VERSION, type: "progress", id: "progress", ...update });' }
 ];
 
 async function main(): Promise<void> {

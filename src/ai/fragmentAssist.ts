@@ -19,6 +19,7 @@
 
 import type { AiPromptSpec } from "./AiPromptBuilder";
 import type { AiOutputSchema } from "./AiOutputContract";
+import { AI_TIME_BUDGETS } from "./AiTimeBudgets";
 import type { FlowFragment } from "../fragments/FlowFragment";
 import type { FlowStep } from "../profiles/FlowProfile";
 import type { WorkflowRuntimeInput } from "../profiles/WorkflowProfile";
@@ -35,7 +36,8 @@ export const FRAGMENT_ASSIST_LIMITS = Object.freeze({
   maxLibraryScanned: 500,
   maxSummaryChars: 400,
   maxMappings: 16,
-  timeoutMs: 30_000,
+  /** L9.2: the default of the `fragmentAssistance` budget, which an administrator may change in bounds. */
+  timeoutMs: AI_TIME_BUDGETS.fragmentAssistance.defaultMs,
   maxOutputTokens: 512,
   maxDataChars: 3_000
 });

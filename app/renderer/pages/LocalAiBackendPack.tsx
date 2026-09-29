@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, CircleDashed, FolderOpen, HardDrive, Shiel
 
 import type { AiBackendPackView, AiBackendPreflightView } from "@src/ai/contracts/AiApi";
 
+import { AiJobProgress, useAiJobStatus } from "../components/shared/AiJobProgress";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { ReauthDialog } from "./admin/ReauthDialog";
 import { useSensitiveSemanticAction, type SensitiveAdminResponse } from "../semantic/useSensitiveSemanticAction";
@@ -29,7 +30,6 @@ const CHECK_TITLES: Record<string, string> = {
 };
 
 const STATE_WORDS = { pass: "passed", fail: "failed", skipped: "not checked" } as const;
-const PHASE_LABELS = { copying: "Copying and hashing", verifying: "Re-verifying the copy", promoting: "Activating" } as const;
 
 export function formatBytes(bytes: number | null): string {
   if (bytes === null) return "unknown";
@@ -54,6 +54,8 @@ export function LocalAiBackendPack({ sessionRef, gpuUse }: { sessionRef: string;
   const [view, setView] = useState<AiBackendPackView | null>(null);
   const [preflight, setPreflight] = useState<AiBackendPreflightView | null>(null);
   const [importing, setImporting] = useState(false);
+  const [importSince, setImportSince] = useState(0);
+  const job = useAiJobStatus(importing ? "backend-import" : null, importSince);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const checklistHeading = useRef<HTMLHeadingElement>(null);
@@ -104,6 +106,7 @@ export function LocalAiBackendPack({ sessionRef, gpuUse }: { sessionRef: string;
     const token = preflight?.token;
     if (!token) return;
     await action.run(async () => {
+      setImportSince(Date.now());
       setImporting(true);
       try {
         const response = await api().importBackendPack(token);
@@ -124,7 +127,6 @@ export function LocalAiBackendPack({ sessionRef, gpuUse }: { sessionRef: string;
   const installed = view?.status === "installed";
   const present = installed || view?.status === "invalid";
   const progress = view?.importing ?? null;
-  const percent = progress && progress.totalBytes > 0 ? Math.min(100, Math.round((progress.doneBytes / progress.totalBytes) * 100)) : 0;
 
   return (
     <section className="settings-subsection" aria-labelledby="ai-backend-pack-title">
@@ -284,20 +286,8 @@ export function LocalAiBackendPack({ sessionRef, gpuUse }: { sessionRef: string;
 
       {importing ? (
         <div className="settings-subsection">
-          <div
-            aria-label="Backend pack import progress"
-            aria-valuemax={100}
-            aria-valuemin={0}
-            aria-valuenow={percent}
-            aria-valuetext={progress ? `${PHASE_LABELS[progress.phase]}: ${formatBytes(progress.doneBytes)} of ${formatBytes(progress.totalBytes)}` : "Starting"}
-            className="report-progress-track"
-            role="progressbar"
-          >
-            <div className="report-progress-fill" style={{ width: `${percent}%` }} />
-          </div>
-          <p className="form-message" role="status">
-            {progress ? `${PHASE_LABELS[progress.phase]} — ${formatBytes(progress.doneBytes)} of ${formatBytes(progress.totalBytes)}` : "Starting the import…"}
-          </p>
+          {/* L9.3: the shared job view; determinate only once the staged copy reports its byte total. */}
+          <AiJobProgress status={job.status} receivedAt={job.receivedAt} label="Backend pack import progress" testId="ai-backend-import-progress" />
           <div className="settings-actions">
             <button className="toolbar-button" disabled={progress?.phase === "promoting"} type="button" onClick={() => void cancel()}>
               <X size={15} aria-hidden="true" />

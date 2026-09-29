@@ -23,6 +23,7 @@ import type {
   AiBackendPreflightResponse,
   AiModelPreflightResponse,
   AiDiagnosticsView,
+  AiJobStatus,
   AiSettingsView,
   AiStatusView,
   AuthoringAssistRequest,
@@ -460,7 +461,17 @@ const api = {
     importBackendPack: (token: string) => invoke("ai:importBackendPack", token) as Promise<AiAdminResponse>,
     cancelBackendPack: () => invoke("ai:cancelBackendPack") as Promise<AiAdminResponse>,
     verifyBackendPack: () => invoke("ai:verifyBackendPack") as Promise<AiAdminResponse>,
-    removeBackendPack: () => invoke("ai:removeBackendPack") as Promise<AiAdminResponse>
+    removeBackendPack: () => invoke("ai:removeBackendPack") as Promise<AiAdminResponse>,
+    // L9.1: this window's own jobs (status only: codes, stages and numbers), and a push of each change.
+    listJobs: () => invoke("ai:listJobs") as Promise<AiJobStatus[]>,
+    cancelModelJob: () => invoke("ai:cancelModelJob") as Promise<AiAdminResponse>,
+    onJobStatus: (callback: (status: AiJobStatus) => void) => {
+      const listener = (_event: unknown, status: AiJobStatus) => callback(status);
+      ipcRenderer.on("ai:jobStatus", listener);
+      return () => {
+        ipcRenderer.removeListener("ai:jobStatus", listener);
+      };
+    }
   },
   executions: {
     list: () => invoke("execution:list") as Promise<unknown[]>,

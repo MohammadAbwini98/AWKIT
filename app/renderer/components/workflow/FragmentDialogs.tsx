@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import { AlertTriangle, Blocks, Bookmark, Sparkles, TriangleAlert, X } from "lucide-react";
 
 import { useModalFocusContract } from "../shared/useModalFocusContract";
+import { AiJobProgress } from "../shared/AiJobProgress";
 import { aiUnavailableSentence, useAiAssistJob } from "../shared/useAiAssistJob";
 import type { FragmentSummaryView } from "@src/ai/contracts/AiApi";
 import { findSimilarFragments } from "@src/ai/fragmentAssist";
@@ -286,6 +287,9 @@ function FragmentAiSummary({ fragmentId }: { fragmentId: string }) {
         <span className={`ai-assist-message${refused ? " error" : ""}`} role="status" data-testid="fragment-ai-message">
           {refused ? <AlertTriangle size={12} aria-hidden="true" /> : null} {message}
         </span>
+        {phase.kind === "loading" ? (
+          <AiJobProgress status={job.progress.status} receivedAt={job.progress.receivedAt} label="Local AI fragment description progress" testId="fragment-ai-progress" />
+        ) : null}
       </div>
       {done?.summary ? (
         <p className="ai-explanation" data-testid="fragment-ai-summary-text">

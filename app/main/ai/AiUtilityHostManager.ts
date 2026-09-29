@@ -26,7 +26,9 @@ import {
   AI_HOST_TIMEOUTS,
   AiHostCallError,
   isAiHostEvent,
+  isAiHostProgress,
   isAiHostResponse,
+  type AiHostProgressUpdate,
   type AiHostReason,
   type AiHostRequestPayload,
   type AiHostTransport
@@ -47,6 +49,7 @@ interface PendingCall {
   resolve: (value: unknown) => void;
   reject: (error: Error) => void;
   timer: NodeJS.Timeout;
+  onProgress?: (progress: AiHostProgressUpdate) => void;
 }
 
 export class AiUtilityHostManager implements AiHostTransport {
@@ -166,6 +169,16 @@ export class AiUtilityHostManager implements AiHostTransport {
           }
           return;
         }
+        // L9.1: only a well-formed progress message for a call still pending reaches its caller.
+        if (isAiHostProgress(message)) {
+          const listener = this.pending.get(message.id)?.onProgress;
+          try {
+            listener?.(message.stage === "load" ? { stage: "load", fraction: message.fraction } : { stage: "generation" });
+          } catch {
+            /* a caller's progress handler never disturbs the call */
+          }
+          return;
+        }
         if (isAiHostResponse(message)) {
           for (const [jobId, callId] of this.inFlight) if (callId === message.id) this.settleInFlight(jobId, false);
           const call = this.pending.get(message.id);
@@ -216,7 +229,7 @@ export class AiUtilityHostManager implements AiHostTransport {
    * once its inference has left the host, answered or killed (bounded by `timeoutMs` more), and
    * rejects with AI_HOST_KILLED_ON_CANCEL when a kill was needed, so the caller knows the model went.
    */
-  async call<T = unknown>(request: AiHostRequestPayload, timeoutMs: number): Promise<T> {
+  async call<T = unknown>(request: AiHostRequestPayload, timeoutMs: number, onProgress?: (progress: AiHostProgressUpdate) => void): Promise<T> {
     const host = await this.ensureStarted();
     const id = `a${++this.sequence}`;
     const answer = new Promise<T>((resolve, reject) => {
@@ -224,7 +237,7 @@ export class AiUtilityHostManager implements AiHostTransport {
         this.pending.delete(id);
         reject(new AiHostCallError("AI_HOST_TIMEOUT"));
       }, timeoutMs);
-      this.pending.set(id, { resolve: resolve as (value: unknown) => void, reject, timer });
+      this.pending.set(id, { resolve: resolve as (value: unknown) => void, reject, timer, ...(onProgress ? { onProgress } : {}) });
       try {
         host.child.postMessage({ version: AI_HOST_PROTOCOL_VERSION, id, ...request });
       } catch {

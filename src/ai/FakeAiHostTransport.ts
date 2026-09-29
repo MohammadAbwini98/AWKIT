@@ -34,6 +34,7 @@ import {
   type AiGpuPlan,
   type AiHostBackend,
   type AiHostHello,
+  type AiHostProgressUpdate,
   type AiHostReason,
   type AiHostRequestPayload,
   type AiHostTransport,
@@ -61,6 +62,12 @@ export interface FakeInferStep {
    * restarted host has no model, and no restart strike is recorded.
    */
   killOnCancel?: boolean;
+  /**
+   * Prompt evaluation time (L9.1): the first token, and the host's `generation` progress, arrive this
+   * long after the inference starts. Default 1 ms. A `hang` never produces a token, as a model stuck in
+   * prompt evaluation does not.
+   */
+  promptMs?: number;
 }
 
 export interface FakeAiHostOptions {
@@ -82,6 +89,11 @@ export interface FakeAiHostOptions {
   header?: AiModelHeader | { fail: AiHostReason };
   /** What `probe` answers (L8b.3), or the reason it fails with. Default: a Qwen3.5 model that passes. */
   probe?: AiModelProbe | { fail: AiHostReason };
+  /**
+   * The load fractions a `load` or `probe` reports while it loads (L9.1), spread over `loadDelayMs`, as
+   * the real host forwards the runtime's own `onLoadProgress`. Default [0.5, 1]; false reports none.
+   */
+  loadProgress?: readonly number[] | false;
 }
 
 /** A probe the real host answers for a curated Qwen3.5 pack (measured in verify:ai-model-inspect). */
@@ -145,18 +157,35 @@ export class FakeAiHostTransport implements AiHostTransport {
     return this.requests.map((request) => request.type);
   }
 
-  async call<T = unknown>(request: AiHostRequestPayload, timeoutMs: number): Promise<T> {
+  async call<T = unknown>(request: AiHostRequestPayload, timeoutMs: number, onProgress?: (progress: AiHostProgressUpdate) => void): Promise<T> {
     if (this.disposed) throw new AiHostCallError("AI_DISPOSED");
     if (this.circuitOpen) throw new AiHostCallError("AI_CIRCUIT_OPEN");
     this.requests.push(structuredClone(request));
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let settled = false;
     const deadline = new Promise<never>((_, reject) => {
       timer = setTimeout(() => reject(new AiHostCallError("AI_HOST_TIMEOUT")), timeoutMs);
     });
+    // Like the manager: progress reaches the caller only while its call is pending.
+    const progress = (update: AiHostProgressUpdate) => {
+      if (!settled) onProgress?.(update);
+    };
     try {
-      return (await Promise.race([this.handle(request), deadline])) as T;
+      return (await Promise.race([this.handle(request, progress), deadline])) as T;
     } finally {
+      settled = true;
       clearTimeout(timer);
+    }
+  }
+
+  /** The real host's `onLoadProgress` forwarding: the configured fractions spread over the load delay. */
+  private async loadWithProgress(progress: (update: AiHostProgressUpdate) => void): Promise<void> {
+    const total = this.options.loadDelayMs ?? 5;
+    const fractions = this.options.loadProgress === false ? [] : (this.options.loadProgress ?? [0.5, 1]);
+    if (fractions.length === 0) return delay(total);
+    for (const fraction of fractions) {
+      await delay(total / fractions.length);
+      progress({ stage: "load", fraction });
     }
   }
 
@@ -191,7 +220,7 @@ export class FakeAiHostTransport implements AiHostTransport {
     }
   }
 
-  private async handle(request: AiHostRequestPayload): Promise<unknown> {
+  private async handle(request: AiHostRequestPayload, progress: (update: AiHostProgressUpdate) => void): Promise<unknown> {
     switch (request.type) {
       case "hello": {
         if (this.options.helloFails) throw new AiHostCallError(this.options.helloFails);
@@ -214,7 +243,7 @@ export class FakeAiHostTransport implements AiHostTransport {
           ? Number.isInteger(layers) && (layers as number) >= 1 && (layers as number) <= AI_MAX_GPU_LAYERS
           : layers === undefined || layers === 0;
         if (!layersOk) throw new AiHostCallError("AI_PROTOCOL_VIOLATION");
-        await delay(this.options.loadDelayMs ?? 5);
+        await this.loadWithProgress(progress);
         if (this.options.loadFails) throw new AiHostCallError(gpu ? "AI_GPU_LOAD_FAILED" : "AI_MODEL_LOAD_FAILED");
         if (gpu && this.options.gpuLoadFailAbove !== undefined && (layers as number) > this.options.gpuLoadFailAbove) {
           throw new AiHostCallError("AI_GPU_LOAD_FAILED");
@@ -247,13 +276,13 @@ export class FakeAiHostTransport implements AiHostTransport {
         if (!rel || rel.startsWith("..") || isAbsolute(rel)) throw new AiHostCallError("AI_MODEL_PATH_OUTSIDE_ROOT");
         this.loadedPath = null;
         this.loadedGpuLayers = null;
-        await delay(this.options.loadDelayMs ?? 5);
+        await this.loadWithProgress(progress);
         const probe = this.options.probe ?? FAKE_PASSING_PROBE;
         if ("fail" in probe) throw new AiHostCallError(probe.fail);
         return { ...probe };
       }
       case "infer":
-        return this.infer(request);
+        return this.infer(request, progress);
       case "cancel": {
         // A real runtime stops generating asynchronously, after the message crosses the process
         // boundary. Resolving synchronously here would hide a caller that does not wait for it.
@@ -293,7 +322,7 @@ export class FakeAiHostTransport implements AiHostTransport {
     return this.options.backend ?? "cpu";
   }
 
-  private async infer(request: AiInferRequest): Promise<AiInferResult> {
+  private async infer(request: AiInferRequest, progress: (update: AiHostProgressUpdate) => void): Promise<AiInferResult> {
     if (!this.loadedPath) throw new AiHostCallError("AI_MODEL_NOT_LOADED");
     if (!request.jsonSchema || typeof request.jsonSchema !== "object") throw new AiHostCallError("AI_SCHEMA_REQUIRED");
     if (request.thinking !== false) throw new AiHostCallError("AI_PROTOCOL_VIOLATION");
@@ -315,6 +344,11 @@ export class FakeAiHostTransport implements AiHostTransport {
           return;
         }
         if (step.hang) return;
+        // The first token ends prompt evaluation; it can never come after the answer.
+        const promptMs = Math.min(step.promptMs ?? 1, delayMs);
+        setTimeout(() => {
+          if (this.pending.has(request.jobId)) progress({ stage: "generation" });
+        }, promptMs);
         setTimeout(() => {
           if (!this.pending.delete(request.jobId)) return;
           resolve({
@@ -322,7 +356,7 @@ export class FakeAiHostTransport implements AiHostTransport {
             promptTokens,
             outputTokens: Math.min(step.outputTokens ?? 16, request.maxOutputTokens),
             stopReason: "stop",
-            timings: { promptMs: 1, generationMs: delayMs, firstTokenMs: 1 }
+            timings: { promptMs, generationMs: delayMs - promptMs, firstTokenMs: promptMs }
           });
         }, delayMs);
       });

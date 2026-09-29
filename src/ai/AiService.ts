@@ -16,6 +16,10 @@
  *  - Where the model runs (L8a.3) follows the execution mode: the CPU host by default; for a GPU mode
  *    the GPU host, sized from its own plan, with GPU-Offload falling back to the CPU host (reason kept)
  *    and GPU-Only refusing. A mode change reloads at the next job, never mid-inference.
+ *  - Time (L9): each request runs under its feature's budget from settings, a load under the model-load
+ *    budget and a probe under the compatibility-probe budget; without budgets the request's own timeout
+ *    and the host defaults apply. Every job reports its status to the injected `AiJobTracker`: queue
+ *    position and hold, stage, the runtime's own load progress, cold or warm, profile, terminal reason.
  */
 
 import { randomBytes } from "node:crypto";
@@ -36,9 +40,11 @@ import {
   type AiGpuReason,
   type AiLoadStage
 } from "./AiExecutionProfile";
+import type { AiJobProfile, AiJobStage, AiJobTracker } from "./AiJobStatus";
 import { isBoundedSchema, parseAiOutput, type AiOutputSchema } from "./AiOutputContract";
 import { buildAiPrompt, type AiPromptSpec } from "./AiPromptBuilder";
 import type { AiExecutionMode } from "./AiSettings";
+import { FEATURE_BUDGET, MAX_INFERENCE_BUDGET_MS, type AiTimeBudgets } from "./AiTimeBudgets";
 import {
   AI_CONTEXT_TOKENS,
   AI_HOST_PROTOCOL_VERSION,
@@ -49,6 +55,7 @@ import {
   type AiGpuPlan,
   type AiHostBackend,
   type AiHostHello,
+  type AiHostProgressUpdate,
   type AiHostReason,
   type AiHostTransport,
   type AiInferResult,
@@ -72,13 +79,22 @@ export interface AiServiceLimits {
 export const AI_SERVICE_LIMITS: Readonly<AiServiceLimits> = Object.freeze({
   maxQueue: 16,
   maxYields: 3,
-  /** The longest per-feature deadline (failure analysis and locator attempts, 185 s); above it a job is refused. */
-  maxJobTimeoutMs: 185_000,
+  /**
+   * The longest request any budget may be configured to (L9.2, the committed maximum of the inference
+   * budgets); above it a job is refused. Bounded, never a free extension past every budget.
+   */
+  maxJobTimeoutMs: MAX_INFERENCE_BUDGET_MS,
   yieldCheckMs: 250,
   admissionRetryMs: 1_000
 });
 
 export type AiJobPriority = "interactive" | "background";
+
+/** L9.1: the window that asked, and the id it knows the job by; its status is published there only. */
+export interface AiJobOwner {
+  window: number;
+  requestId: string;
+}
 
 export interface AiJobRequest {
   /** Caller correlation and cancellation key. */
@@ -88,7 +104,9 @@ export interface AiJobRequest {
   prompt: AiPromptSpec;
   schema: AiOutputSchema;
   maxOutputTokens: number;
+  /** The feature's default; a configured budget in settings replaces it (L9.2). */
   timeoutMs: number;
+  owner?: AiJobOwner;
 }
 
 export type AiRejectCode =
@@ -164,6 +182,8 @@ export interface AiServiceSettings {
   executionMode?: AiExecutionMode;
   /** VRAM kept free beside the model; absent or null is the runtime's own padding. */
   vramReserveBytes?: number | null;
+  /** L9.2: every budget in ms; absent is each request's own timeout and the host defaults. */
+  budgets?: AiTimeBudgets;
 }
 
 export type AiModelResolution =
@@ -188,10 +208,14 @@ export interface AiServiceDeps {
   redactor?: () => SemanticRedactor;
   nonce?: () => string;
   log?: (level: "info" | "warn", message: string) => void;
+  /** L9.1: where every job's status goes. Absent, nothing is reported. */
+  jobs?: AiJobTracker;
 }
 
 interface QueuedJob {
   request: AiJobRequest;
+  /** The request timeout in force: the feature's budget, fixed at submit. */
+  timeoutMs: number;
   system: string;
   user: string;
   yields: number;
@@ -216,6 +240,16 @@ function unref(timer: ReturnType<typeof setTimeout>): ReturnType<typeof setTimeo
   (timer as { unref?: () => void }).unref?.();
   return timer;
 }
+
+/** What a load stage is, in the job-status vocabulary (L9.1). */
+function jobStageOf(stage: AiLoadStage): AiJobStage {
+  if (stage === "verifying-model") return "copy-hash";
+  if (stage === "checking-gpu" || stage === "starting-gpu-host" || stage === "planning-gpu") return "backend-probe";
+  return "model-load";
+}
+
+/** The runtime's load fraction as a known denominator, or nothing: only a `load` update is measurable. */
+const loadProgress = (update: AiHostProgressUpdate) => (update.stage === "load" ? { done: Math.round(update.fraction * 1000), total: 1000, unit: "fraction" as const } : null);
 
 export class AiService {
   private readonly limits: AiServiceLimits;
@@ -248,6 +282,9 @@ export class AiService {
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private attempt = 0;
+  /** The host job id of the compatibility probe running now, if any. */
+  private probing: string | null = null;
+  private probeFailure: AiHostReason | null = null;
   private readonly counters = { completed: 0, failed: 0, cancelled: 0, rejected: 0, yielded: 0 };
 
   constructor(private readonly deps: AiServiceDeps) {
@@ -271,9 +308,18 @@ export class AiService {
         return reject("DUPLICATE_REQUEST");
       }
       if (this.queue.length >= this.limits.maxQueue) return reject("QUEUE_FULL");
+      // L9.2: the feature's budget replaces the request's default; both are inside maxJobTimeoutMs.
+      const timeoutMs = settings.budgets ? settings.budgets[FEATURE_BUDGET[request.feature]] : request.timeoutMs;
       return await new Promise<AiJobOutcome>((resolve) => {
+        this.deps.jobs?.open(request.requestId, {
+          kind: request.feature,
+          owner: request.owner?.window ?? null,
+          jobId: request.owner?.requestId ?? request.requestId,
+          budgetMs: timeoutMs,
+          cancellable: true
+        });
         this.enqueue(
-          { request, system: prompt.system, user: prompt.user, yields: 0, userCancelled: false, hostJobId: null, settled: false, resolve },
+          { request, timeoutMs, system: prompt.system, user: prompt.user, yields: 0, userCancelled: false, hostJobId: null, settled: false, resolve },
           false
         );
         void this.pump();
@@ -289,10 +335,12 @@ export class AiService {
     if (index >= 0) {
       const [job] = this.queue.splice(index, 1);
       this.finish(job, { status: "cancelled", yields: job.yields });
+      this.reportQueue();
       return true;
     }
     if (this.running?.request.requestId === requestId) {
       this.running.userCancelled = true;
+      this.deps.jobs?.update(requestId, { state: "cancelling", cancellable: false });
       if (this.running.hostJobId) void this.cancelOnHost(this.running.hostJobId);
       return true;
     }
@@ -363,6 +411,13 @@ export class AiService {
       (request.priority === "interactive" || request.priority === "background") &&
       typeof request.prompt === "object" &&
       request.prompt !== null &&
+      (request.owner === undefined ||
+        (typeof request.owner === "object" &&
+          request.owner !== null &&
+          Number.isSafeInteger(request.owner.window) &&
+          request.owner.window >= 0 &&
+          typeof request.owner.requestId === "string" &&
+          REQUEST_ID.test(request.owner.requestId))) &&
       isBoundedSchema(request.schema) &&
       Number.isInteger(request.maxOutputTokens) &&
       request.maxOutputTokens >= 1 &&
@@ -419,6 +474,12 @@ export class AiService {
     else if (outcome.status === "cancelled") this.counters.cancelled += 1;
     else this.counters.rejected += 1;
     this.deps.log?.("info", `ai job ${job.request.feature}: ${outcome.status}${"code" in outcome ? `/${outcome.code}` : ""}`);
+    // L9.1: the terminal state and reason, in the contract's words. A deadline is its own state.
+    const id = job.request.requestId;
+    if (outcome.status === "ok") this.deps.jobs?.close(id, "completed");
+    else if (outcome.status === "cancelled") this.deps.jobs?.close(id, "cancelled", "CANCELLED");
+    else if (outcome.status === "failed") this.deps.jobs?.close(id, outcome.code === "TIMEOUT" ? "timed-out" : "failed", outcome.code);
+    else this.deps.jobs?.close(id, "failed", outcome.reason ?? outcome.code);
     job.resolve(outcome);
   }
 
@@ -429,6 +490,44 @@ export class AiService {
     if (job.request.priority === "interactive") index = front ? 0 : firstBackground;
     else index = front ? firstBackground : -1;
     this.queue.splice(index === -1 ? this.queue.length : index, 0, job);
+    this.reportQueue();
+  }
+
+  /** Every queued job's position and why the queue waits, when it does. */
+  private reportQueue(): void {
+    this.queue.forEach((queued, index) =>
+      this.deps.jobs?.update(queued.request.requestId, { state: "queued", stage: "queued", queuePosition: index + 1, holdReason: this.holdReason })
+    );
+  }
+
+  /** The running job's stage, in the job-status vocabulary. */
+  private reportStage(stage: AiJobStage): void {
+    if (this.running) this.deps.jobs?.update(this.running.request.requestId, { stage });
+  }
+
+  /** A load stage, reported to status (`loadStage`) and to the running job. */
+  private setStage(stage: AiLoadStage): void {
+    this.stage = stage;
+    this.reportStage(jobStageOf(stage));
+  }
+
+  /** The runtime's load progress for the running job; anything else it sends is not a load fraction. */
+  private readonly onLoadProgress = (update: AiHostProgressUpdate): void => {
+    const progress = loadProgress(update);
+    if (progress && this.running) this.deps.jobs?.update(this.running.request.requestId, { progress });
+  };
+
+  /** Where the running job's answer comes from, never a device name. */
+  private jobProfile(mode: AiExecutionMode): AiJobProfile {
+    const backend = this.profile.backend;
+    return {
+      modelId: this.loadedModelId,
+      mode,
+      backend,
+      device: backend === "cpu" ? "cpu" : "gpu",
+      offload: backend === "cpu" ? "cpu" : offloadClassOf(this.profile.gpuLayers, this.profile.totalLayers),
+      fallbackReason: this.profile.fallbackReason
+    };
   }
 
   private admissionView(): AiAdmissionView {
@@ -468,12 +567,17 @@ export class AiService {
         }
         const decision = this.admit(settings);
         if (!decision.admit) {
-          this.holdReason = decision.reason;
+          if (this.holdReason !== decision.reason) {
+            this.holdReason = decision.reason;
+            this.reportQueue();
+          }
           this.retryTimer = unref(setTimeout(() => void this.pump(), this.limits.admissionRetryMs));
           break;
         }
         this.holdReason = null;
         const job = this.queue.shift()!;
+        this.deps.jobs?.update(job.request.requestId, { state: "running", stage: "prompt-preparation", holdReason: null, queuePosition: null });
+        this.reportQueue();
         this.executing = this.execute(job, settings).catch(() => {
           this.finish(job, { status: "failed", code: "HOST_ERROR", yields: job.yields });
         });
@@ -590,7 +694,8 @@ export class AiService {
    * whole model, so it waits for the same capacity an inference does (runs active, free memory). It runs
    * whether or not AI is switched on: it is part of an administrator's import.
    */
-  async probeModel(modelPath: string): Promise<AiModelProbe | null> {
+  async probeModel(modelPath: string, onProgress?: (update: AiHostProgressUpdate) => void): Promise<AiModelProbe | null> {
+    this.probeFailure = null;
     const transport = this.deps.transport("cpu");
     if (this.disposed || !transport?.isAvailable()) return null;
     const settings = await this.deps.settings().catch(() => null);
@@ -602,14 +707,17 @@ export class AiService {
       this.profileKey = null;
     }
     const jobId = `probe#${++this.attempt}`;
+    this.probing = jobId;
     try {
       return await transport.call<AiModelProbe>(
         { type: "probe", jobId, modelPath, contextTokens: AI_CONTEXT_TOKENS, threads: this.deps.threads },
-        AI_HOST_TIMEOUTS.probeMs
+        settings.budgets?.compatibilityProbe ?? AI_HOST_TIMEOUTS.probeMs,
+        onProgress
       );
     } catch (error) {
       const reason: AiHostReason = error instanceof AiHostCallError ? error.reason : "AI_HOST_INTERNAL_ERROR";
       this.lastError = reason;
+      this.probeFailure = reason;
       // Past its deadline the host is still generating: free it (bounded) before anything else is sent.
       const settled =
         reason === "AI_HOST_TIMEOUT"
@@ -620,7 +728,25 @@ export class AiService {
           : reason;
       if (settled === "AI_HOST_EXITED" || settled === "AI_HOST_KILLED_ON_CANCEL") this.forgetHost("cpu");
       return null;
+    } finally {
+      if (this.probing === jobId) this.probing = null;
     }
+  }
+
+  /** Why the last probe produced no answer (a deadline, an exit, …); null when it answered. */
+  probeEndedBy(): AiHostReason | null {
+    return this.probeFailure;
+  }
+
+  /** Cancel the running compatibility probe on the host (L9.1). False when none is running. */
+  cancelProbe(): boolean {
+    const jobId = this.probing;
+    const transport = this.deps.transport("cpu");
+    if (!jobId || !transport) return false;
+    void transport.call({ type: "cancel", jobId }, AI_HOST_TIMEOUTS.cancelMs).catch((error: unknown) => {
+      if (error instanceof AiHostCallError && (error.reason === "AI_HOST_KILLED_ON_CANCEL" || error.reason === "AI_HOST_EXITED")) this.forgetHost("cpu");
+    });
+    return true;
   }
 
   /**
@@ -632,22 +758,37 @@ export class AiService {
     const model = await this.deps.model().catch((): AiModelResolution => ({ ok: false, reason: "MODEL_INVALID" }));
     if (!model.ok) return { status: "rejected", code: "UNAVAILABLE", reason: model.reason };
     const key = this.executionKey(settings);
+    const mode = settings.executionMode ?? "cpu";
     const active = this.deps.transport(this.backend);
-    if (this.loadedModelId === model.modelId && this.profileKey === key && this.handshaken.has(this.backend) && active?.isAvailable()) return "ready";
-    if (this.loadedModelId !== null) this.stage = "unloading";
+    if (this.loadedModelId === model.modelId && this.profileKey === key && this.handshaken.has(this.backend) && active?.isAvailable()) {
+      if (this.running) this.deps.jobs?.update(this.running.request.requestId, { cold: false, profile: this.jobProfile(mode) });
+      return "ready";
+    }
+    // L9.1: this job loads the model. Its ETA is cold, estimated for where it is expected to run: CPU & RAM
+    // by the mode, a GPU mode only where the last load under this very setting says so.
+    if (this.running) {
+      const expected: AiJobProfile | null =
+        mode === "cpu"
+          ? { modelId: model.modelId, mode, backend: "cpu", device: "cpu", offload: "cpu", fallbackReason: null }
+          : this.profileFor === key && this.refusedKey !== key
+            ? { ...this.jobProfile(mode), modelId: model.modelId }
+            : null;
+      this.deps.jobs?.update(this.running.request.requestId, { cold: true, profile: expected });
+    }
+    const loadMs = settings.budgets?.modelLoad ?? AI_HOST_TIMEOUTS.loadMs;
+    if (this.loadedModelId !== null) this.setStage("unloading");
     try {
       await this.dropLoad();
       this.loading = true;
       this.plan = null;
-      this.stage = "verifying-model";
+      this.setStage("verifying-model");
       if (this.deps.verifyModel && !(await this.deps.verifyModel(model).catch(() => false))) {
         this.lastError = "AI_MODEL_LOAD_FAILED";
         return { status: "failed", code: "LOAD_FAILED", yields: 0 };
       }
-      const mode = settings.executionMode ?? "cpu";
       let fallbackReason: AiGpuReason | null = null;
       if (mode !== "cpu") {
-        const gpu = await this.loadOnGpu(mode, settings.vramReserveBytes ?? null, model, key);
+        const gpu = await this.loadOnGpu(mode, settings.vramReserveBytes ?? null, model, key, loadMs);
         if (gpu.kind === "ready") {
           this.profileKey = key;
           this.profileFor = key;
@@ -673,7 +814,7 @@ export class AiService {
         fallbackReason = gpu.reason;
         this.deps.log?.("warn", `ai gpu-offload falling back to CPU: ${gpu.reason}`);
       }
-      return await this.loadOnCpu(mode, key, fallbackReason, model);
+      return await this.loadOnCpu(mode, key, fallbackReason, model, loadMs);
     } finally {
       this.loading = false;
       this.stage = null;
@@ -684,18 +825,20 @@ export class AiService {
     mode: AiExecutionMode,
     key: string,
     fallbackReason: AiGpuReason | null,
-    model: Extract<AiModelResolution, { ok: true }>
+    model: Extract<AiModelResolution, { ok: true }>,
+    loadMs: number
   ): Promise<"ready" | AiJobOutcome> {
     const transport = this.deps.transport("cpu");
     if (!transport) return { status: "rejected", code: "UNAVAILABLE", reason: "RUNTIME_MISSING" };
     if (!transport.isAvailable()) return { status: "rejected", code: "UNAVAILABLE", reason: "CIRCUIT_OPEN" };
-    this.stage = fallbackReason ? "falling-back" : "loading-cpu";
+    this.setStage(fallbackReason ? "falling-back" : "loading-cpu");
     const handshake = await this.cpuHandshake(transport);
     if (handshake !== "ready") return handshake;
     try {
       await transport.call(
         { type: "load", modelPath: model.modelPath, contextTokens: Math.min(model.contextTokens, AI_CONTEXT_TOKENS), threads: this.deps.threads },
-        AI_HOST_TIMEOUTS.loadMs
+        loadMs,
+        this.onLoadProgress
       );
       this.backend = "cpu";
       this.loadedModelId = model.modelId;
@@ -720,7 +863,8 @@ export class AiService {
     mode: Exclude<AiExecutionMode, "cpu">,
     reserveBytes: number | null,
     model: Extract<AiModelResolution, { ok: true }>,
-    key: string
+    key: string,
+    loadMs: number
   ): Promise<
     | { kind: "ready" }
     | { kind: "fallback"; reason: AiGpuReason }
@@ -735,7 +879,7 @@ export class AiService {
     };
     const reasonOf = (error: unknown): AiHostReason | null => (error instanceof AiHostCallError ? error.reason : null);
 
-    this.stage = "checking-gpu";
+    this.setStage("checking-gpu");
     // Lost after load too often under this setting: it stays off the GPU for the session (L8a.5).
     if (this.gpuLosses?.key === key && this.gpuLosses.count >= GPU_LOSS_LIMIT) return notOnGpu("LOST_AFTER_LOAD");
     const readiness: AiGpuReadiness = this.deps.gpu
@@ -746,7 +890,7 @@ export class AiService {
     if (!transport || !transport.isAvailable()) return notOnGpu("BACKEND_UNAVAILABLE");
 
     if (!this.handshaken.has("vulkan")) {
-      this.stage = "starting-gpu-host";
+      this.setStage("starting-gpu-host");
       let hello: AiHostHello;
       try {
         hello = await this.hello(transport);
@@ -761,12 +905,12 @@ export class AiService {
     }
 
     const contextTokens = Math.min(model.contextTokens, AI_CONTEXT_TOKENS);
-    this.stage = "planning-gpu";
+    this.setStage("planning-gpu");
     let plan: AiGpuPlan;
     try {
       plan = await transport.call<AiGpuPlan>(
         { type: "gpuPlan", modelPath: model.modelPath, contextTokens, threads: this.deps.threads, reserveBytes },
-        AI_HOST_TIMEOUTS.loadMs
+        loadMs
       );
       this.plan = plan;
     } catch (error) {
@@ -793,11 +937,12 @@ export class AiService {
 
     let layers = decision.layers;
     for (let retries = 0; ; retries += 1) {
-      this.stage = retries === 0 ? "loading-gpu" : "retrying-gpu";
+      this.setStage(retries === 0 ? "loading-gpu" : "retrying-gpu");
       try {
         const result = await transport.call<AiLoadResult>(
           { type: "load", modelPath: model.modelPath, contextTokens, threads: this.deps.threads, gpuLayers: layers },
-          AI_HOST_TIMEOUTS.loadMs
+          loadMs,
+          this.onLoadProgress
         );
         this.backend = "vulkan";
         this.loadedModelId = model.modelId;
@@ -846,6 +991,8 @@ export class AiService {
         this.finish(job, { status: "cancelled", yields: job.yields });
         return;
       }
+      // Where the answer comes from, now that the load decided it; prompt evaluation starts.
+      this.deps.jobs?.update(job.request.requestId, { profile: this.jobProfile(settings.executionMode ?? "cpu"), stage: "prompt-evaluation" });
 
       const hostJobId = `${job.request.requestId}#${++this.attempt}`;
       job.hostJobId = hostJobId;
@@ -876,7 +1023,11 @@ export class AiService {
             temperature: 0,
             seed: 0
           },
-          job.request.timeoutMs
+          job.timeoutMs,
+          // The first token ends prompt evaluation; generation has no known denominator (L9.3).
+          (update) => {
+            if (update.stage === "generation") this.deps.jobs?.update(job.request.requestId, { stage: "generation" });
+          }
         );
       } catch (error) {
         failure = error instanceof AiHostCallError ? error.reason : "AI_HOST_INTERNAL_ERROR";
@@ -918,6 +1069,7 @@ export class AiService {
         return;
       }
       // A job asked to yield that finished first keeps its result: the work is already done.
+      this.deps.jobs?.update(job.request.requestId, { stage: "validation" });
       const parsed = parseAiOutput(result.text, job.request.schema);
       if (!parsed.ok) {
         this.finish(job, { status: "failed", code: parsed.code, yields: job.yields });
