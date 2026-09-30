@@ -1,6 +1,28 @@
 # DECISIONS
 
-### 2026-09-30 (latest) — L10 closed as NO-GO, and `LocatorFactory` refuses rather than guesses in three drift shapes (owner, in session) (`awkit-djnl.18`, `awkit-epbe`)
+### 2026-09-30 (latest) — L11 Performance-oriented DOM intelligence registered; AWKIT proof stays the only automatic authority (owner request, implementer design) (`awkit-djnl.19`)
+
+- **Owner decision.** Phase L gains L11 (`awkit-djnl.19`): replace the expensive candidate-discovery
+  portion of locator recovery with one bounded DOM snapshot, and implement parser-only Scrapling as a
+  replaceable DOM-intelligence provider for candidate evidence, Spy/Designer diagnosis and AI context.
+  L10 stays closed as NO-GO with its evidence unchanged. This is a new objective, not a reopening of
+  L10 under a relaxed DI5: **DI5 still holds** (no new threshold, no trust in a provider score).
+- **Implementer design** (`docs/plans/ai-upgrade-v5/L11-performance-dom-intelligence.md`, E1–E10):
+  - The measured cost is Playwright round trips, so both recovery loops become one `evaluateAll` each.
+    Pruning the scan to the recorded tag or role is exact (a pruned element scores at most 0.70, below
+    the 0.78 runner-up floor), so the 200-element cap can grow without changing any decision.
+  - With the margin taken over every pruned visible element, a provider candidate passes AWKIT's proof
+    only if it is already AWKIT's own best match. So the runner never executes a provider candidate
+    AWKIT did not choose; the provider supplies non-executing repair suggestions after a refusal and
+    on-demand Spy/Designer diagnosis, where the user applies a suggestion explicitly.
+  - The host is embedded CPython with a pinned hash, a finite JSON-lines protocol, an audit hook that
+    refuses network, process, FFI, write and forbidden-module operations, and a tree stripped of
+    Scrapling's fetchers, spiders, engines, AI, shell and CLI code and of `tld`.
+- **Independent review:** CodeCraft `claude-fable-5.1` architecture review BLOCKED (timeout, then an
+  empty answer on the smaller retry); the pruning, index-mapping and stale-snapshot arguments were
+  checked natively and are re-proven by the benchmark and verifiers.
+
+### 2026-09-30 — L10 closed as NO-GO, and `LocatorFactory` refuses rather than guesses in three drift shapes (owner, in session) (`awkit-djnl.18`, `awkit-epbe`)
 
 - **L10 closed as NO-GO.** The owner accepted the L10.0 result on both gates, so L10.1–L10.7 are
   descoped. Reopening needs a new owner decision on one of the two routes in the L10.0 report.

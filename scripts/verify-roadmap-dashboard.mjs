@@ -140,7 +140,8 @@ try {
   // 329 later on 2026-09-29: the L9 close filed its follow-up `awkit-djnl.17`.
   // 330 on 2026-09-30: the L10 registration filed `awkit-djnl.18` (contract `awkit-phase-l-l10-registration-0930`).
   // 331 later on 2026-09-30: L10.0 filed the locator defects it found as `awkit-epbe`.
-  check("331 issues parse", beads.stats.total === 331, `got ${beads.stats.total}`);
+  // 332 later on 2026-09-30: the L11 registration filed `awkit-djnl.19` (contract `awkit-l11-registration-0930`).
+  check("332 issues parse", beads.stats.total === 332, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -645,8 +646,10 @@ try {
   // Then 22/309 of 331 later on 2026-09-30 (contract `awkit-l10-close-epbe-fix-0930`): L10
   // `awkit-djnl.18` closed as NO-GO on the owner decision and `awkit-epbe` closed after its fix (two
   // out, two closed, nothing filed). Measured after the export.
-    "22 outstanding / 309 closed",
-    beads.stats.outstanding === 22 && beads.stats.closed === 309,
+  // Then 23/309 of 332 later on 2026-09-30, the L11 registration (contract `awkit-l11-registration-0930`):
+  // L11 `awkit-djnl.19` filed OPEN (one in), nothing closed, the epic already open. Measured.
+    "23 outstanding / 309 closed",
+    beads.stats.outstanding === 23 && beads.stats.closed === 309,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -737,9 +740,11 @@ try {
   // parent-child link) with three blocks edges on closed L3 `.4`, L5a `.7` and L7 `.10`. Measured.
   // Then 196 later on 2026-09-30: `awkit-epbe` was filed with one `discovered-from: awkit-djnl.18`
   // edge and no parent-child link (it is not Phase L scope). Measured.
+  // Then 201 later on 2026-09-30: the L11 registration filed `awkit-djnl.19` under `awkit-djnl` (one
+  // parent-child link) with four blocks edges on closed L3 `.4`, L5a `.7`, L7 `.10` and L10 `.18`. Measured.
   check(
-    "196 edges are present to classify",
-    beads.stats.edges === 196,
+    "201 edges are present to classify",
+    beads.stats.edges === 201,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(

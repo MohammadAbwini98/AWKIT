@@ -1,6 +1,15 @@
 # CURRENT_STATE
 
-## L10 closed as NO-GO; `LocatorFactory` wrong-element shapes fixed (`awkit-djnl.18`, `awkit-epbe`, 2026-09-30, latest)
+## L11 Performance-oriented DOM intelligence registered (`awkit-djnl.19`, 2026-09-30, latest)
+
+- **Registered on a new owner decision**, implementation in progress under
+  `docs/plans/ai-upgrade-v5/L11-performance-dom-intelligence.md`. L10 stays closed as NO-GO; DI5 is
+  unchanged.
+- **Phase L: 14 of 15 milestones closed, `in-progress`.**
+- **Tracker:** 332 issues, 23/309, 201 edges; dashboard pins moved to those measured values.
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## L10 closed as NO-GO; `LocatorFactory` wrong-element shapes fixed (`awkit-djnl.18`, `awkit-epbe`, 2026-09-30)
 
 - **L10 is closed as NO-GO** on the owner's decision. L10.0 found both gates NO-GO. L10.1–L10.7 are
   descoped and were never started. No Scrapling, Python runtime, host or provider ships. Reopening

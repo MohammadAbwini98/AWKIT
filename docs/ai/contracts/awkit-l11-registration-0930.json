@@ -1,0 +1,127 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-l11-registration-0930",
+    "title": "Register Phase L milestone L11 Performance-oriented DOM intelligence (single-snapshot recovery, parser-only Scrapling behind AWKIT proof)",
+    "objective": "Registration only, on the owner's new decision of 2026-09-30 (a different objective from the closed L10, which stays closed as NO-GO with its evidence untouched). File one open milestone child under the open Phase L epic awkit-djnl: L11 Performance-oriented DOM intelligence, whose workstreams L11.A-L11.I live in docs/plans/ai-upgrade-v5/L11-performance-dom-intelligence.md. Blocks edges: L11 after closed L3 (awkit-djnl.4), closed L5a (awkit-djnl.7), closed L7 (awkit-djnl.10) and closed L10 (awkit-djnl.18, whose L10.0 evidence L11 must answer). Record the owner decision on the epic notes. Refresh .beads/issues.jsonl with bd export -o. No existing bead changes status; awkit-djnl.15 and the epic stay open. The plan document, docs/ai narrative, src/roadmap/ImplementationRoadmap.ts and the dashboard verifier pins are ordinary unleased direct-loop edits made after this lease is released. No implementation happens under this contract.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 0
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "483ca5c9",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
+        "git_status": " M",
+        "sha256": "8f4abe942559750cdbbd0859a428676defb2cf7ff9b539da78a03c2d8aa232a5"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "docs/ai/contracts/awkit-l11-registration-0930.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "L11-REG-BEADS",
+      "description": "The Phase L epic stays open with one new open milestone child L11 whose blocks edges are exactly closed awkit-djnl.4 (L3), awkit-djnl.7 (L5a), awkit-djnl.10 (L7) and awkit-djnl.18 (L10). Every other child keeps its status.",
+      "evidence_required": [
+        "beads-structure"
+      ]
+    },
+    {
+      "id": "L11-REG-EXPORT",
+      "description": ".beads/issues.jsonl is refreshed with bd export -o .beads/issues.jsonl, and verify:roadmap-dashboard passes with Sources agree after its pins move to measured values.",
+      "evidence_required": [
+        "beads-export",
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "beads-structure",
+      "type": "inspection",
+      "required": true,
+      "command": "bd show of the new milestone and bd show awkit-djnl",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "bd create --parent awkit-djnl returned awkit-djnl.19 (P2 task, OPEN, spec docs/plans/ai-upgrade-v5/L11-performance-dom-intelligence.md). Each of the four bd dep add calls printed 'awkit-djnl.19 ... depends on Y (blocks)' for awkit-djnl.4, .7, .10 and .18. bd update awkit-djnl --append-notes recorded the owner decision (the first attempt was refused by the shell guard for a semicolon in the note and rerun without it). Before the change the epic showed 17 of 18 children closed with .15 open; no existing child changed status."
+    },
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "Printed 'Exported 332 issues to .beads/issues.jsonl' after the epic note. bd stats: Total 332, Open 21, In Progress 0, Blocked 13, Closed 309, Ready 8."
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "A measuring run failed exactly the three tracker pins (got 332 issues, 23 outstanding / 309 closed, 201 edges), 174/177, with Sources agree already true. After the pins moved to those values and ImplementationRoadmap.ts, CURRENT_STATE.md and DECISIONS.md were updated, the run printed 177/177 including 'no cycles in the real data', both narrative tallies agreeing at 65/2/0 and 'the Overview banner reads \"Sources agree\"'. verify:dom-intelligence-gate 27/0 after the DECISIONS edit."
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qa_basis": "Tracker structure and export inspected with bd create, bd dep add, bd update and bd stats output; final state passed verify:roadmap-dashboard 177/177 with Sources agree and verify:dom-intelligence-gate 27/0.",
+    "qa_known_limitations": "The plan, docs/ai narrative, src/roadmap/ImplementationRoadmap.ts and the dashboard verifier pins are ordinary unleased direct-loop edits made after the lease was released, outside this contract's project-state routing by design, as in earlier registrations. The preserved L5a evidence file is a regression-run rewrite from an earlier task and is kept out of every commit. CodeCraft architecture review BLOCKED (claude-fable-5.1 timeout, then an empty answer on the smaller retry).",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-l11-registration-0930:project-state:2026-09-30T19:58:52.482Z",
+        "task": "awkit-l11-registration-0930",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-30T19:58:52.482Z",
+        "acquired_at_commit": "483ca5c9050ef4f945f1337cbb762e70a3b23d68",
+        "released_at": "2026-09-30T20:03:13.724Z",
+        "released_reason": "L11 awkit-djnl.19 filed OPEN under the Phase L epic with blocks edges on closed L3 .4, L5a .7, L7 .10 and L10 .18, epic notes appended, export refreshed to 332 issues",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

@@ -1,19 +1,19 @@
 {
-  "task": "awkit-l10-close-epbe-fix-0930",
-  "contract_path": "docs/ai/contracts/awkit-l10-close-epbe-fix-0930.json",
+  "task": "awkit-l11-registration-0930",
+  "contract_path": "docs/ai/contracts/awkit-l11-registration-0930.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-09-30T17:25:08.297Z",
-  "acquired_at_commit": "6aedad35b86f599eb20e6e4557ff94a1cc829878",
+  "acquired_at": "2026-09-30T19:58:52.482Z",
+  "acquired_at_commit": "483ca5c9050ef4f945f1337cbb762e70a3b23d68",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-l10-close-epbe-fix-0930.json",
+    "docs/ai/contracts/awkit-l11-registration-0930.json",
     "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-l10-close-epbe-fix-0930.json": "79023e6bc3aa799379b827b35f628eb03cc3b948b5665bb3a61f984ad346d553",
+    "docs/ai/contracts/awkit-l11-registration-0930.json": "01669fa84a9655b62f581975e6aec9637b9a56178403cd6cd762e43c32743e11",
     "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json": "8f4abe942559750cdbbd0859a428676defb2cf7ff9b539da78a03c2d8aa232a5"
   },
   "baseline_watched_ignored": {
@@ -29,7 +29,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-30T17:25:57.314Z",
-  "released_reason": "awkit-epbe closed after the 6aedad35 fix and awkit-djnl.18 closed as NO-GO on the owner decision, export refreshed to 331 issues with 309 closed",
-  "archived_at": "2026-09-30T17:25:57.317Z"
+  "released_at": "2026-09-30T20:03:13.724Z",
+  "released_reason": "L11 awkit-djnl.19 filed OPEN under the Phase L epic with blocks edges on closed L3 .4, L5a .7, L7 .10 and L10 .18, epic notes appended, export refreshed to 332 issues",
+  "archived_at": "2026-09-30T20:03:13.726Z"
 }
