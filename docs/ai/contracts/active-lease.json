@@ -1,20 +1,20 @@
 {
-  "task": "awkit-djnl-15-confinement-mutation-0930",
-  "contract_path": "docs/ai/contracts/awkit-djnl-15-confinement-mutation-0930.json",
-  "holder": "project-state",
-  "status": "released",
+  "task": "awkit-fresh-package-0930",
+  "contract_path": "docs/ai/contracts/awkit-fresh-package-0930.json",
+  "holder": "release",
+  "status": "active",
   "allowed_paths": [
-    ".beads/issues.jsonl"
+    "build",
+    "resources/dependency-manifest.json",
+    "resources/dependency-manifest.sig"
   ],
-  "acquired_at": "2026-09-30T11:05:19.270Z",
-  "acquired_at_commit": "cb37e17ed204a46cea5df9eadf69629fbc829c28",
+  "acquired_at": "2026-09-30T11:11:12.195Z",
+  "acquired_at_commit": "d54ec3ee15f2f664e87bef893e7619938630aaad",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-djnl-11-l8a2-backend-import-0927.json",
-    "docs/ai/contracts/awkit-djnl-15-confinement-mutation-0930.json"
+    "docs/ai/contracts/awkit-fresh-package-0930.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-djnl-11-l8a2-backend-import-0927.json": "772641acfb7ecfb70b13ee9766bea8dea2de33396fd13732a5cb1cd6647859f5",
-    "docs/ai/contracts/awkit-djnl-15-confinement-mutation-0930.json": "ba26150039342e0278e1ef99c463bd63cc7a369d13eef1c34a7e0bf75ecb7f10"
+    "docs/ai/contracts/awkit-fresh-package-0930.json": "f6a1da1e7c9c33e2a819499dfdd2aa88d3c902c26cd11167c858384b1f124fa8"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -28,8 +28,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-09-30T11:05:44.370Z",
-  "released_reason": "confinement mutation result noted on awkit-djnl.15 and exported, state documents are updated next outside this lease",
-  "archived_at": "2026-09-30T11:05:44.371Z"
+  "violations": []
 }

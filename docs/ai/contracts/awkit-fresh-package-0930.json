@@ -1,0 +1,146 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-fresh-package-0930",
+    "title": "Fresh portable package of main carrying the 2026-09-30 renderer and main-process changes, and its packaged gates",
+    "objective": "Build a fresh portable package from a clean main (package:portable, strict offline validation in the pipeline) so the packaged tree carries the .modal-body line-break fix and the latencyClassId consolidation, commit the regenerated signed dependency manifest, and run the packaged gates against it: verify:ai-backend-pack-packaged (the one NOT RUN because the old package predated the fix), verify:ai-packaged-runtime, verify:ai-packaged-app, verify:ai-model-registration, verify:ai-progress-packaged, and the GPU packaged gates as AMD mechanics (NVIDIA stays BLOCKED, E11). Lease bookkeeping is committed before packaging so the manifest records a clean tree. No product code changes.",
+    "requested_by": "repository owner",
+    "risk_level": 3,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "d54ec3ee",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "packaging_change": true,
+    "offline_boundary_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "qa",
+      "qc",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      "build",
+      "resources/dependency-manifest.json",
+      "resources/dependency-manifest.sig",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-fresh-package-0930.json",
+      "tools/roadmap/assignments.json"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "release",
+      "allowed_paths": [
+        "build",
+        "resources/dependency-manifest.json",
+        "resources/dependency-manifest.sig"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "native-hosts/**",
+        "tools/agents/**"
+      ]
+    },
+    "reviewers": [
+      "qa",
+      "qc"
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "PACKAGE",
+      "description": "A portable package built from a clean committed main passes the in-pipeline strict offline validation, and the regenerated signed manifest records sourceTreeDirty false.",
+      "evidence_required": [
+        "package:portable"
+      ]
+    },
+    {
+      "id": "PACKAGED",
+      "description": "The packaged gates pass on that artifact; the GPU packaged gates are AMD mechanics only, and NVIDIA stays BLOCKED.",
+      "evidence_required": [
+        "verify:ai-backend-pack-packaged",
+        "verify:ai-packaged-runtime",
+        "verify:ai-packaged-app"
+      ]
+    },
+    {
+      "id": "STATE",
+      "description": "The state documents record the package and the gates, and the dashboard's sources agree.",
+      "evidence_required": [
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "package:portable",
+      "type": "packaged",
+      "command": "npm run package:portable",
+      "artifact": "dist/win-unpacked",
+      "required": true,
+      "result": "pending"
+    },
+    {
+      "id": "verify:ai-backend-pack-packaged",
+      "type": "packaged",
+      "command": "npm run verify:ai-backend-pack-packaged",
+      "artifact": null,
+      "required": true,
+      "result": "pending"
+    },
+    {
+      "id": "verify:ai-packaged-runtime",
+      "type": "packaged",
+      "command": "npm run verify:ai-packaged-runtime",
+      "artifact": null,
+      "required": true,
+      "result": "pending"
+    },
+    {
+      "id": "verify:ai-packaged-app",
+      "type": "packaged",
+      "command": "npm run verify:ai-packaged-app",
+      "artifact": null,
+      "required": true,
+      "result": "pending"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "pending"
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": []
+  }
+}
