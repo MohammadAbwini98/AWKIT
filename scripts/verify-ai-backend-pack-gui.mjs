@@ -259,6 +259,13 @@ try {
   const focusInside = await win.evaluate(() => Boolean(document.activeElement?.closest("[role='alertdialog']")));
   check("focus is inside the confirmation dialog", focusInside);
   check("nothing is removed before confirming", packDirs().length === 1);
+  // awkit-djnl.16: the shared dialog keeps a message's paragraph breaks (innerText follows white-space).
+  const confirmBody = await confirm.locator(".modal-body").innerText();
+  check(
+    "the confirmation keeps its paragraph breaks",
+    /on CPU & RAM\.\n\nThe folder you imported from is not touched\.\n\nContinue\?$/.test(confirmBody),
+    JSON.stringify(confirmBody)
+  );
   await confirm.getByRole("button", { name: "Remove backend pack" }).click();
   await sees(panel.getByText("GPU backend pack removed."), "removal is announced");
   await sees(panel.getByText("Not installed", { exact: true }), "the pack reads as not installed again");

@@ -5688,6 +5688,7 @@ th {
   font-size: var(--text-sm);
   line-height: var(--leading-sm);
   margin: 0;
+  white-space: pre-line; /* a message's "\n\n" paragraph breaks; JSX text never carries a newline */
 }
 
 .modal-actions {
