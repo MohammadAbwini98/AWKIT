@@ -1,6 +1,48 @@
 # CURRENT_STATE
 
-## L11 Performance-oriented DOM intelligence registered (`awkit-djnl.19`, 2026-09-30, latest)
+## L11 in progress: snapshot recovery, parser-only host, product wiring and Spy/Designer/Settings UI (`awkit-djnl.19`, 2026-10-01, latest)
+
+- **L11 is PARTIAL and stays open.** The owner's requirement is `CODECRAFT_MODE=required`, but no
+  CodeCraft MCP server is configured in the 2026-10-01 session, so CodeCraft is **BLOCKED** and this
+  stage was reviewed natively.
+- **What is implemented and pushed:**
+  - `6621e56f`: single-snapshot recovery is the default. The legacy loops remain behind
+    `AWKIT_LOCATOR_RECOVERY_ENGINE=legacy`.
+  - `42148257`, `e980b098` and `91e20639`: the pinned runtime, the parser-only host and the staged
+    runtime.
+  - `56d6b140`: Recorder references, runner repair suggestions, the provider owner and the IPC.
+- **This stage (L11.E and part of L11.H):**
+  - **Designer.** "Find current element" is mounted under the locator editor. It diagnoses the
+    *saved* step on the Element Spy's live page.
+    - "Use this locator" is offered only for an element AWKIT's identity proof picked
+      (`isApplicableSuggestion`). The page must not be a protected surface, and the locator must be
+      generator-unique with no container chain.
+    - Using it fills the editor fields through `editLocator`, the same path as typing. The draft is
+      marked dirty and nothing is saved or promoted.
+  - **Element Spy.** The same diagnosis is mounted read-only for the selected draft action. It shows
+    the proof and ambiguity scores, the provenance (AWKIT proof or DOM-intelligence evidence), the
+    latencies and the page/frame context.
+  - **Settings.** A new DOM Intelligence card shows status, provider, parser-only mode, version,
+    browser and network access, and the recovery engine.
+- **Gates at this state:**
+  - `verify:locator-diagnosis` 48/0, 3 of 3 mutations killed.
+  - `verify:dom-intelligence-gui` 20/0.
+  - `verify:element-spy` 206/0.
+  - The HEAD re-proof of `56d6b140` is all green: build, typecheck:scripts, wrong-element 14/0
+    (forced-miss p50 25 ms, p95 64 ms), recorder 297/0, frame-chain 41/0, runner 138/0,
+    locator-guard 35/0, blueprint-recovery 56/56, blueprint-recovery-browser 24/0, ai-fallback 51/0,
+    ipc-contract 10/10, dom-intelligence-host 93/0 and verifier-classification (now 300).
+- **Still open for L11:**
+  - L11.F frames, popups and virtualized fixtures.
+  - L11.G AI-context normalization and its comparison.
+  - L11.H run provenance and reporting.
+  - L11.I packaging: `package:portable`, `validate:offline -Strict` and the signed manifest.
+  - The old-vs-new acceptance benchmark, and mutation evidence for the host and recovery layers.
+  - The GUI Available/version path: NOT RUN, because the dev runtime is not staged under
+    `build/native-hosts`.
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## L11 Performance-oriented DOM intelligence registered (`awkit-djnl.19`, 2026-09-30)
 
 - **Registered on a new owner decision**, implementation in progress under
   `docs/plans/ai-upgrade-v5/L11-performance-dom-intelligence.md`. L10 stays closed as NO-GO; DI5 is

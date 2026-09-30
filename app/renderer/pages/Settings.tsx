@@ -34,6 +34,7 @@ import { OracleDriverSettings } from "./OracleDriverSettings";
 import { JavaRuntimeSettings } from "./JavaRuntimeSettings";
 import { SemanticIndexSettings } from "./SemanticIndexSettings";
 import { LocalAiSettings } from "./LocalAiSettings";
+import { DomIntelligenceSettings } from "./DomIntelligenceSettings";
 import type { DebugLogEntry } from "../../main/debugLogService";
 import { usePageChrome } from "../state/pageChrome";
 import {
@@ -598,6 +599,7 @@ export function SettingsPage() {
 
               <div className="settings-panel-column">
                 <JavaRuntimeSettings />
+                <DomIntelligenceSettings />
                 {can(Permission.SEMANTIC_SEARCH) ? <SemanticIndexSettings /> : null}
                 {can(Permission.AI_USE) || can(Permission.AI_MANAGE) || can(Permission.AI_AUDIT_VIEW) ? <LocalAiSettings /> : null}
               </div>

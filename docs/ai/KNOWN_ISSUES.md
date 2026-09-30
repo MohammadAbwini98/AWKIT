@@ -1,5 +1,14 @@
 # KNOWN_ISSUES
 
+## Exact-text source guards go stale when a call gains an argument (2026-10-01)
+
+- **Seen:** `56d6b140` added `domReferencesOut` to the Recorder save's `buildRecordedFlow` call. That
+  silently broke `verify:element-spy`'s U1 regex, even though the save's behavior was unchanged. It
+  was caught only because the suite was rerun at the next stage.
+- **Fixed:** the guard now admits exactly that one extra option.
+- **Rule:** after changing a call that a source guard pins, rerun the suites that guard it. The
+  classification's structural-coverage map lists only some of them.
+
 ## `LocatorFactory` can act on a wrong element in three drift shapes (2026-09-30, RESOLVED `6aedad35` — `awkit-epbe`)
 
 - **Fixed, the step now refuses.** The viewport tiebreak is removed, positional alternatives are

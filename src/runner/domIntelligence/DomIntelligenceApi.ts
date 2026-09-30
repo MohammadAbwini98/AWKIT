@@ -11,7 +11,7 @@
  * properties are dropped, so a renderer cannot smuggle anything the handler would then trust.
  */
 
-import type { LocatorDiagnosis } from "../LocatorFactory";
+import type { DiagnosisElement, LocatorDiagnosis } from "../LocatorFactory";
 import type { DomIntelligenceStatus } from "./DomIntelligenceProvider";
 
 export interface DomIntelligenceStatusView extends DomIntelligenceStatus {
@@ -42,6 +42,32 @@ export function sanitizeDiagnosisRequest(value: unknown): DomDiagnosisRequest | 
     return { source: "draft", actionId: raw.actionId };
   }
   return undefined;
+}
+
+/** Strategies the Designer's locator editor holds as plain fields (the generator never suggests xpath here). */
+const EDITOR_STRATEGIES = new Set(["role", "label", "placeholder", "text", "testId", "id", "css", "tagName"]);
+
+/**
+ * The Designer's "Use this locator" gate: only for an element AWKIT's own identity proof picked, on a page
+ * that is not a protected surface, with a locator the Recorder's generator proved unique on its own and the
+ * editor can hold. Anything else (an unproven candidate, a container chain) stays evidence only.
+ */
+export function isApplicableSuggestion(
+  suggestion: DiagnosisElement["locator"] | undefined,
+  proven: boolean,
+  protectedSurface: boolean
+): suggestion is DiagnosisElement["locator"] {
+  const quality = suggestion?.quality as { isUnique?: boolean; disambiguation?: string } | undefined;
+  return Boolean(
+    proven &&
+      !protectedSurface &&
+      suggestion &&
+      EDITOR_STRATEGIES.has(suggestion.strategy) &&
+      typeof suggestion.value === "string" &&
+      suggestion.value.length > 0 &&
+      quality?.isUnique === true &&
+      quality.disambiguation !== "container"
+  );
 }
 
 export const DIAGNOSIS_FAILURE_MESSAGES: Readonly<Record<DomDiagnosisFailureCode, string>> = {

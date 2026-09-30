@@ -79,6 +79,7 @@ import { reviewStepAsync, summarizeReviews, classLabel } from "@src/profiles/asy
 import { locatorContainerChain, type StepLocator } from "@src/profiles/FlowProfile";
 import { classifyLocatorQuality, LOCATOR_QUALITY_CLASS_LABEL, type LocatorQualityClass } from "@src/recorder/LocatorQualityClass";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
+import { LocatorDiagnosisSection } from "../components/workflow/LocatorDiagnosisSection";
 import { RECORDED_URL_SENSITIVE_QUERY_KEYS } from "@src/recorder/recordedUrlPolicy";
 
 export function Recorder() {
@@ -1131,6 +1132,10 @@ export function Recorder() {
                   setSpyMessage(message);
                 }}
               />
+            ) : null}
+            {/* L11: read-only diagnosis of the selected action on this live page; no apply here. */}
+            {spy?.inspection ? (
+              <LocatorDiagnosisSection request={spyActionId ? { source: "draft", actionId: spyActionId } : null} testId="element-spy-diagnosis" />
             ) : null}
             {spyMessage ? (
               <p className="recorder-spy-message" role="status" data-testid="element-spy-message">

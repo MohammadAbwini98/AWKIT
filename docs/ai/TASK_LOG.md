@@ -1,6 +1,42 @@
 # TASK_LOG
 
-## 2026-09-30 (latest) — L10 closed as NO-GO; `awkit-epbe` LocatorFactory wrong-element fix (Claude)
+## 2026-10-01 (latest) — L11 re-proof of `56d6b140`, then Stage 1: Spy/Designer diagnosis UI and the Settings status card (Claude)
+
+- **Task:** continue `awkit-djnl.19` from `56d6b140`. First re-prove HEAD, then finish the Designer,
+  Spy and Settings UI.
+- **Result:**
+  - HEAD re-proven: 13 of 13 gates pass.
+  - The Designer mounts "Find current element". Its "Use this locator" is gated on AWKIT's proof and
+    edits the unsaved draft only.
+  - The Spy mounts the same diagnosis, read-only.
+  - Settings shows the DOM Intelligence card.
+  - The diagnosis now reports the page alias it read.
+  - `verify:element-spy`'s U1 save-path source guard is fixed. It had gone stale when `56d6b140`
+    added `domReferencesOut`. The guard now admits exactly that one extra option.
+- **Files:**
+  - `app/renderer/components/workflow/{LocatorDiagnosisSection,FlowNodePropertiesPanel}.tsx`
+  - `app/renderer/pages/{Recorder,Settings,DomIntelligenceSettings}.tsx`
+  - `app/main/ipc/domIntelligence.ipc.ts`
+  - `src/runner/LocatorFactory.ts`
+  - `src/runner/domIntelligence/DomIntelligenceApi.ts`
+  - `scripts/verify-{locator-diagnosis,dom-intelligence-gui}.mts`
+  - `scripts/verify-element-spy.mts`
+  - `scripts/lib/verifier-classification.ts`
+  - `package.json`
+  - `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,DECISIONS,KNOWN_ISSUES}.md`
+- **Verification:**
+  - `verify:locator-diagnosis` 48/0. Mutations 3 of 3 killed: the gate ignoring the proof, an
+    apply path on the Spy, and every provider candidate marked proven.
+  - `verify:dom-intelligence-gui` 20/0.
+  - `verify:element-spy` 206/0.
+  - `npm run build` PASS and typecheck:scripts PASS.
+  - ipc-contract 10/10, ai-fallback 51/0, verifier-classification reconciled (300).
+- **Not run:**
+  - The GUI Available/version path. The dev runtime is not staged.
+  - CodeCraft: BLOCKED, because no server is configured.
+  - The packaged gates.
+
+## 2026-09-30 — L10 closed as NO-GO; `awkit-epbe` LocatorFactory wrong-element fix (Claude)
 
 - **Task:** the owner asked to close L10 as NO-GO and fix `awkit-epbe`.
 - **Result:**

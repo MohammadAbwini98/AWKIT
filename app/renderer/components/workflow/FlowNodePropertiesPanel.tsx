@@ -15,6 +15,7 @@ import {
   isSensitiveInteractionStep
 } from "@src/profiles/interactionPrerequisiteDecision";
 import { LocatorUpgradeSection } from "./LocatorUpgradeSection";
+import { LocatorDiagnosisSection } from "./LocatorDiagnosisSection";
 import { confirmDirectActionPatch, interactionReviewForNode, type DesignerValidationFinding } from "./flowValidationPresentation";
 import { useNavigation } from "../../state/navigation";
 
@@ -671,6 +672,21 @@ export function FlowNodePropertiesPanel({
                     quality={locatorClassification}
                     stepId={selectedNode.id}
                     onApplied={onSavedFlowChanged}
+                  />
+                ) : null}
+                {selectedNode ? (
+                  <LocatorDiagnosisSection
+                    request={flowId ? { source: "flow", flowId, stepId: selectedNode.id } : null}
+                    testId="designer-locator-diagnosis"
+                    note={editorDirty ? "Find current element checks the saved locator. Save to check your edits." : undefined}
+                    onUseSuggestion={(suggestion) =>
+                      editLocator({
+                        locatorStrategy: suggestion.strategy as FlowDesignerNodeData["locatorStrategy"],
+                        locatorValue: suggestion.value,
+                        locatorName: suggestion.name ?? "",
+                        locatorExact: suggestion.exact ?? false
+                      })
+                    }
                   />
                 ) : null}
                 {data.locatorQuality ? (

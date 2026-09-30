@@ -100,7 +100,8 @@ export function registerDomIntelligenceIpc(): void {
     }
     if (!step) return failure("STEP_NOT_FOUND");
     if (!step.locator) return failure("NO_LOCATOR");
-    const page = recorderService.getLivePage(step.pageAlias ?? "main");
+    const alias = step.pageAlias ?? "main";
+    const page = recorderService.getLivePage(alias);
     if (!page) return failure("NO_LIVE_PAGE");
     try {
       const diagnosis = await new LocatorFactory(page).diagnose(step, {
@@ -109,7 +110,7 @@ export function registerDomIntelligenceIpc(): void {
         expected: await expectedIdentity(step, flowId),
         describe: true
       });
-      return { ok: true, diagnosis: redactDiagnosis(diagnosis) };
+      return { ok: true, diagnosis: { ...redactDiagnosis(diagnosis), page: alias } };
     } catch {
       return failure("FAILED");
     }

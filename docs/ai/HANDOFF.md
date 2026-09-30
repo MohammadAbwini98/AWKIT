@@ -1,6 +1,28 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-30, latest) — L10 closed NO-GO, `awkit-epbe` fixed; Phase L waits only on `.15`
+## HANDOFF (2026-10-01, latest) — L11 Stage 1 (Spy/Designer/Settings UI) done; L11 stays open
+
+- **Done:** the Designer and Spy mounts of `LocatorDiagnosisSection`, the Settings DOM Intelligence
+  card and the `isApplicableSuggestion` gate (`DomIntelligenceApi.ts`).
+  - `verify:locator-diagnosis` 48/0, with mutations killed.
+  - `verify:dom-intelligence-gui` 20/0.
+- **Next, in order:**
+  1. L11.F frame, popup, route, virtualized and delayed-render fixtures.
+  2. L11.G normalization comparison.
+  3. L11.H run-provenance reporting of repair suggestions.
+  4. The old-vs-new benchmark as acceptance evidence.
+  5. L11.I packaging. It needs a release lease.
+- **CodeCraft:** no CodeCraft MCP server was configured in the 2026-10-01 session, so it was
+  BLOCKED. Check `session_connectors_status` before promising a CodeCraft review.
+- **GUI suites that open the Recorder** must pass `PLAYWRIGHT_BROWSERS_PATH`. The isolated
+  `LOCALAPPDATA` hides the Playwright cache. See `verify-dom-intelligence-gui.mts`.
+- **To prove the Settings card's Available/version path in the GUI,** stage the dev runtime with
+  `npm run prepare:dom-intelligence-host`. It is not an unleased command form.
+- **Still not committed, on purpose:** `docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json`.
+  The earlier handoff below explains why.
+- Ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## HANDOFF (2026-09-30) — L10 closed NO-GO, `awkit-epbe` fixed; Phase L waits only on `.15`
 
 - **Owner decision taken:** L10 (`awkit-djnl.18`) is closed as NO-GO. Do not start L10.1–L10.7.
   Reopening needs a new owner decision on one of the two routes in the L10.0 report.

@@ -1,6 +1,23 @@
 # DECISIONS
 
-### 2026-09-30 (latest) — L11 Performance-oriented DOM intelligence registered; AWKIT proof stays the only automatic authority (owner request, implementer design) (`awkit-djnl.19`)
+### 2026-10-01 (latest) — L11 Designer "Use this locator" is offered only for an AWKIT-proven element (implementer) (`awkit-djnl.19`)
+
+- **Offered only when all hold:**
+  - AWKIT's own identity proof picked the element. That is either the snapshot proof, or a provider
+    candidate AWKIT re-proved.
+  - The page is not a protected surface.
+  - The Recorder's generator proved the locator unique on its own.
+  - The Designer's editor can hold it: not xpath, no container chain.
+- A provider score alone never makes an element applicable.
+- **Applying goes through the existing `editLocator` path, like typing.** The draft becomes dirty and
+  the recorded identity, guard and prerequisite are cleared. A step that had a recorded identity is
+  marked `needs-review` until the user reviews it. Nothing is saved or promoted.
+- **The Element Spy mount has no apply path.** Its existing "Use in action" stays the Spy's only
+  edit.
+- The gate is `isApplicableSuggestion` in `DomIntelligenceApi.ts`, proven by
+  `verify:locator-diagnosis`.
+
+### 2026-09-30 — L11 Performance-oriented DOM intelligence registered; AWKIT proof stays the only automatic authority (owner request, implementer design) (`awkit-djnl.19`)
 
 - **Owner decision.** Phase L gains L11 (`awkit-djnl.19`): replace the expensive candidate-discovery
   portion of locator recovery with one bounded DOM snapshot, and implement parser-only Scrapling as a

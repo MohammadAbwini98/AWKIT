@@ -140,6 +140,8 @@ export interface LocatorDiagnosis {
   /** A sensitive step never recovers; the diagnosis still shows the proof for the user's own decision. */
   sensitive: boolean;
   identity: "recorded" | "none";
+  /** The Recorder page alias the diagnosis read (set by the IPC handler, never a URL). */
+  page?: string;
   frame?: "main" | "child";
   recorded: { status: "resolved" | "ambiguous" | "missing" | "error"; strategy?: string; matches?: number; detail?: string };
   snapshot?: {

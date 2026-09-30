@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, ScanSearch } from "lucide-react";
 
-import type { DomDiagnosisRequest, DomDiagnosisResponse } from "@src/runner/domIntelligence/DomIntelligenceApi";
+import { isApplicableSuggestion, type DomDiagnosisRequest, type DomDiagnosisResponse } from "@src/runner/domIntelligence/DomIntelligenceApi";
 import type { DomCandidateProof } from "@src/runner/domIntelligence/DomIntelligenceProvider";
 import type { DiagnosisElement, LocatorDiagnosis } from "@src/runner/LocatorFactory";
+import { Permission } from "@src/security/authz/Permissions";
+
+import { usePermissions } from "../../security/usePermissions";
 
 /**
  * L11 "Find current element" (awkit-djnl.19, plan E4): a read-only diagnosis of one step on the Element
@@ -13,8 +16,9 @@ import type { DiagnosisElement, LocatorDiagnosis } from "@src/runner/LocatorFact
  *
  * It never changes a locator. In the Designer a suggestion can be copied into the editor's locator fields
  * (`onUseSuggestion`), which is the user's own edit: it stays unsaved until they save, exactly like typing
- * it. Only a suggestion the Recorder's generator proved unique on its own is offered; one that needs a
- * container chain says to re-record instead.
+ * it. A suggestion is offered only for an element AWKIT's identity proof picked, on a page that is not a
+ * protected surface, with a locator the Recorder's generator proved unique on its own and the editor can
+ * hold; anything else (a container chain, an unproven candidate) stays evidence only.
  */
 
 type Suggestion = DiagnosisElement["locator"];
@@ -54,25 +58,26 @@ function describeElement(element: DiagnosisElement | undefined): string {
   return element.owner.name ? `${role} “${element.owner.name}”` : role;
 }
 
-function usable(suggestion: Suggestion | undefined): suggestion is Suggestion {
-  const quality = suggestion?.quality as { isUnique?: boolean; disambiguation?: string } | undefined;
-  return Boolean(suggestion && quality?.isUnique === true && quality.disambiguation !== "container" && suggestion.strategy !== "xpath");
-}
+const usable = isApplicableSuggestion;
 
 export function LocatorDiagnosisSection({
   request,
   onUseSuggestion,
+  note,
   testId = "locator-diagnosis"
 }: {
   /** The step to diagnose; null disables the action (nothing selected). */
   request: DomDiagnosisRequest | null;
   /** Designer only: copy a suggestion into the editor's locator fields (unsaved until the user saves). */
   onUseSuggestion?: (suggestion: Suggestion) => void;
+  /** A hint under the action (e.g. the Designer's unsaved-edits note). */
+  note?: string;
   testId?: string;
 }) {
   const [busy, setBusy] = useState(false);
   const [diagnosis, setDiagnosis] = useState<LocatorDiagnosis | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { can } = usePermissions();
   const token = useRef(0);
   const key = request ? JSON.stringify(request) : "";
 
@@ -103,7 +108,17 @@ export function LocatorDiagnosisSection({
     }
   };
 
+  if (!can(Permission.PAGE_RECORDER)) return null;
+
   const recorded = diagnosis?.recorded;
+  const protectedSurface = diagnosis?.provider.reason === "protected-surface";
+  const snapshot = diagnosis?.snapshot;
+  const proofSuggestion = snapshot?.element?.locator;
+  const useButton = (suggestion: Suggestion, id: string) => (
+    <button className="toolbar-button" type="button" data-testid={`${testId}-use-${id}`} onClick={() => onUseSuggestion?.(suggestion)}>
+      Use this locator
+    </button>
+  );
   return (
     <div className="locator-status" data-testid={testId}>
       <div className="locator-status-head">
@@ -112,6 +127,7 @@ export function LocatorDiagnosisSection({
           {busy ? "Checking the live page…" : "Find current element"}
         </button>
       </div>
+      {note ? <p className="form-message">{note}</p> : null}
 
       <div role="status" aria-live="polite" data-testid={`${testId}-result`}>
         {error ? (
@@ -133,15 +149,18 @@ export function LocatorDiagnosisSection({
                       : "Finds nothing on this page."}
               </dd>
             </div>
-            <div className="locator-evidence-row" data-evidence="identity" data-snapshot-outcome={diagnosis.snapshot?.outcome ?? "none"}>
+            <div className="locator-evidence-row" data-evidence="identity" data-snapshot-outcome={snapshot?.outcome ?? "none"}>
               <dt>Recorded element</dt>
               <dd>
-                {!diagnosis.snapshot
+                {!snapshot
                   ? "No recorded identity is available for this step, so AWKIT cannot prove which element it was."
-                  : diagnosis.snapshot.outcome === "proven"
-                    ? `Found: ${describeElement(diagnosis.snapshot.element)} (similarity ${diagnosis.snapshot.score ?? "?"}).`
-                    : `Not proven: ${REFUSAL[diagnosis.snapshot.reason ?? ""] ?? "no unique match"}.`}
+                  : snapshot.outcome === "proven"
+                    ? `Found by AWKIT identity proof: ${describeElement(snapshot.element)} (similarity ${snapshot.score ?? "?"}` +
+                      `${snapshot.runnerUpScore !== undefined ? `, next closest ${snapshot.runnerUpScore}` : ""}).`
+                    : `Not proven: ${REFUSAL[snapshot.reason ?? ""] ?? "no unique match"}` +
+                      `${snapshot.score !== undefined ? ` (closest ${snapshot.score}${snapshot.runnerUpScore !== undefined ? `, next ${snapshot.runnerUpScore}` : ""})` : ""}.`}
                 {diagnosis.sensitive ? " This is a sensitive action: a run never recovers it automatically." : ""}
+                {onUseSuggestion && usable(proofSuggestion, snapshot?.outcome === "proven", protectedSurface) ? useButton(proofSuggestion, "proof") : null}
               </dd>
             </div>
             <div className="locator-evidence-row" data-evidence="candidates" data-provider-outcome={diagnosis.provider.outcome}>
@@ -151,7 +170,13 @@ export function LocatorDiagnosisSection({
                   ? PROVIDER_REASON[diagnosis.provider.reason ?? ""] ?? "Not available."
                   : diagnosis.provider.candidates.length === 0
                     ? "No similar element was found."
-                    : `${diagnosis.provider.candidates.length} found by parser-only DOM intelligence, each checked by AWKIT:`}
+                    : `${diagnosis.provider.candidates.length} found by parser-only DOM intelligence (evidence only), each checked by AWKIT:`}
+              </dd>
+            </div>
+            <div className="locator-evidence-row" data-evidence="context" data-frame={diagnosis.frame ?? "unknown"}>
+              <dt>Checked on</dt>
+              <dd data-testid={`${testId}-context`}>
+                Page “{diagnosis.page ?? "main"}” · {diagnosis.frame === "child" ? "inside a frame" : "top document"}
               </dd>
             </div>
           </dl>
@@ -164,18 +189,9 @@ export function LocatorDiagnosisSection({
               return (
                 <li key={candidate.index} className="locator-evidence-row" data-proof={candidate.proof}>
                   <span className={`locator-status-badge tone-${proof.tone}`}>{proof.label}</span>{" "}
-                  {describeElement(candidate.element)} · match {Math.round(candidate.providerScore)}%
-                  {candidate.awkitScore !== undefined ? ` · identity ${candidate.awkitScore}` : ""}
-                  {onUseSuggestion && usable(suggestion) ? (
-                    <button
-                      className="toolbar-button"
-                      type="button"
-                      data-testid={`${testId}-use-${candidate.index}`}
-                      onClick={() => onUseSuggestion(suggestion)}
-                    >
-                      Use this locator
-                    </button>
-                  ) : null}
+                  {describeElement(candidate.element)} · DOM intelligence match {Math.round(candidate.providerScore)}%
+                  {candidate.awkitScore !== undefined ? ` · AWKIT identity ${candidate.awkitScore}` : ""}
+                  {onUseSuggestion && usable(suggestion, candidate.proof === "proven", protectedSurface) ? useButton(suggestion, String(candidate.index)) : null}
                 </li>
               );
             })}
@@ -184,9 +200,9 @@ export function LocatorDiagnosisSection({
         {diagnosis ? (
           <span className="locator-status-headline" data-testid={`${testId}-timing`}>
             Checked in {Math.round(diagnosis.timings.totalMs)} ms
-            {diagnosis.snapshot ? ` (identity ${Math.round(diagnosis.snapshot.ms)} ms` : " ("}
-            {diagnosis.provider.ms !== undefined ? `${diagnosis.snapshot ? ", " : ""}DOM intelligence ${Math.round(diagnosis.provider.ms)} ms)` : ")"}
-            {diagnosis.frame === "child" ? " · inside a frame" : ""}. Nothing on the page was changed.
+            {snapshot ? ` (identity ${Math.round(snapshot.ms)} ms` : " ("}
+            {diagnosis.provider.ms !== undefined ? `${snapshot ? ", " : ""}DOM intelligence ${Math.round(diagnosis.provider.ms)} ms)` : ")"}.
+            Nothing on the page was changed.
           </span>
         ) : null}
       </div>

@@ -924,7 +924,8 @@ async function main(): Promise<void> {
     check("U1: the preload exposes it with ids only", /attachInspectionProposal: \(request: InspectionAttachRequest\) => invoke\("ai:attachInspectionProposal", request\)/.test(preload));
     check(
       "U1: saving passes main's own candidates to the finalizer, never the renderer's",
-      /buildRecordedFlow\(name, actions, blueprints, \{ pendingUpgrades: recorderService\.draftPendingUpgrades\(\) \}\)/.test(await readFile("app/main/ipc/recorder.ipc.ts", "utf8"))
+      // L11 added the DOM-reference out-parameter beside it; that is the only other option admitted.
+      /buildRecordedFlow\(name, actions, blueprints, \{\s*pendingUpgrades: recorderService\.draftPendingUpgrades\(\),?(?:\s*domReferencesOut: domReferences)?\s*\}\)/.test(await readFile("app/main/ipc/recorder.ipc.ts", "utf8"))
     );
 
     // ── F: result panel rendered from a real inspection ──────────────────────────────────────────
