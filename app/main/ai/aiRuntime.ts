@@ -827,8 +827,8 @@ export async function removeAiModelPack(): Promise<AiAdminResponse> {
 
 // ── GPU backend pack (L8a.2) ──────────────────────────────────────────────────────────────────────
 //
-// Imported and verified only; nothing loads it yet (L8a.3), so CPU inference is untouched by every
-// path below. The store's `verifyForLoad` is the boundary the host must pass before any backend load.
+// Imported and verified here. Only the GPU host loads it (L8a.3), from the directory `verifyForLoad`
+// returns just before each fork; CPU inference never depends on it.
 
 let backendStore: AiBackendPackStore | null = null;
 const PREFLIGHT_TTL_MS = 10 * 60_000;

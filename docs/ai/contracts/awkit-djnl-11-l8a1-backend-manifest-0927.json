@@ -157,7 +157,8 @@
     "qa_status": "PASS",
     "qa_basis": "verify:ai-backend-manifest 40/0 with one caught validator mutation, package:portable with in-pipeline strict validation, verify:ai-packaged-runtime 104/0 on the fresh package, build, typecheck:scripts and verify:verifier-classification.",
     "qa_known_limitations": "The Vulkan pack is pinned and validated, but nothing imports or loads it yet (L8a.2, L8a.3); the host handshake still compares only the build string. The release does not yet produce a distributable pack folder: the pack is the pinned npm prebuilt's runtime files. No NSIS installer was rebuilt; only the portable. QC was not performed by an independent reviewer.",
-    "qc_status": "pending"
+    "qc_status": "APPROVED",
+    "qc_basis": "Independent QC 2026-09-30 (awkit-djnl.15, contract awkit-djnl-15-l8a-qc-0930): a second model family (GPT-5.6 Luna through CodeCraft) reviewed isValidAiBackendManifestEntry, resolveAiBackendManifest and the signed-trust comparison on the current code and found no defect; checked against source by Claude. No change was needed."
   },
   "write_lease": {
     "history": [

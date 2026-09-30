@@ -242,7 +242,8 @@
   "completion": {
     "status": "implemented",
     "qa_status": "PASS",
-    "qc_status": "pending"
+    "qc_status": "APPROVED",
+    "qc_basis": "Independent QC 2026-09-30 (awkit-djnl.15, contract awkit-djnl-15-l8a-qc-0930): gpuLost counts only an exit or failed inference on the Vulkan host after a load, keyed by mode and reserve. Cancels, cancel kills and CPU crashes are excluded. The GPU_LOSS_LIMIT of 2 stays below the host's restart circuit, and GPU-Only never falls back. The E2/E4 policy packet reviewed by GPT-5.6 Luna found nothing. verify:ai-gpu-modes section H is green in the 184/0 run. The lifecycle timings remain AMD mechanics; NVIDIA stays BLOCKED."
   },
   "write_lease": {
     "history": [

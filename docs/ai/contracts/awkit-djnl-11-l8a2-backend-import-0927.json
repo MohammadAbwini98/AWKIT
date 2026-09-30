@@ -288,7 +288,8 @@
     "qa_status": "BLOCKED",
     "qa_basis": "verify:ai-backend-pack 139/0, verify:ai-backend-pack-gui 59/59, verify:ai-backend-pack-packaged 61/61, verify:ai-permissions 117/0, verify:ai-fallback 38/0, verify:ipc-contract 10/10, verify:offline-supply-chain 25/0, build, typecheck:scripts, verify:verifier-classification 282, package:portable with in-pipeline strict validation, verify:ai-packaged-runtime 104/0.",
     "qa_known_limitations": "Mutation checks: hash validation 130/9, staged revalidation 135/4 and load-time guard 129/10 caught; path confinement BLOCKED (the auto-mode permission classifier refused its temporary edit twice; not worked around). BLOCKED: real NVIDIA qualification (no 0x10DE adapter, E11); vendor identity reported unknown (E2). Nothing loads the pack yet (L8a.3), and the gap between verifyForLoad and the actual load is L8a.3's. verify:ai-settings-gui 26/30 is a pre-existing stale-assertion FAIL. No NSIS rebuild.",
-    "qc_status": "pending"
+    "qc_status": "APPROVED",
+    "qc_basis": "Independent QC 2026-09-30 (awkit-djnl.15, contract awkit-djnl-15-l8a-qc-0930): GPT-5.6 Luna through CodeCraft reviewed the load guard, scan, confinement and the import IPC; each finding was checked against source. No product defect. The TOCTOU findings reduce to the known verifyForLoad-to-DLL-load gap; a refusal is not sticky if its registry write fails (best effort: the registry is same-user writable and every load re-hashes); a stale import token after a throwing or cancelled check is LOW (the renderer clears its token before every pick, and the import re-validates and needs re-auth); the double-import race is false (synchronous check and slot, serialized store). The stale 'nothing loads it yet' comment in aiRuntime.ts was corrected. verify:ai-backend-pack 139/0 on 2026-09-30. The path-confinement mutation is still BLOCKED: the classifier refused the temporary edit again."
   },
   "write_lease": {
     "history": [

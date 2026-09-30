@@ -1,6 +1,34 @@
 # TASK_LOG
 
-## 2026-09-30 (latest) — `awkit-djnl.14`: DX-0 freezes the model entries, not the manifest file (Claude with CodeCraft)
+## 2026-09-30 (latest) — `awkit-djnl.15`: L8a independent QC done, NVIDIA still BLOCKED, ai-harness routed (Claude with CodeCraft)
+
+- **Task:** "use codecraft-agent to continue Phase L from awkit-djnl.15". Contract
+  `awkit-djnl-15-l8a-qc-0930`.
+- **Who did what:**
+  - CodeCraft `codecraft_ask` with `gpt-5.6-luna` was the independent reviewer, on five compact packets.
+    `run_task` and `codecraft_review_code` (`gpt-5.6-sol`) timed out, and `gemini-3.7-flash` returned
+    empty.
+  - Claude checked every finding against source and ran every gate.
+- **Result:**
+  - QC of L8a.1–L8a.5 found no product defect; the five contracts are `qc_status: APPROVED`.
+  - One stale comment in `app/main/ai/aiRuntime.ts` was fixed.
+  - `scripts/ai-harness/**` is now QA-owned in the routing matrix; the derived definitions were
+    regenerated and the routing verifier re-pinned (+3).
+  - NVIDIA qualification BLOCKED: no `0x10DE` adapter.
+  - E2 hybrid correlation BLOCKED.
+  - The load window is OPEN for an owner decision.
+  - The confinement mutation is BLOCKED again: the classifier refused it.
+  - `.15` stays open.
+- **Tests:**
+  - `verify:ai-gpu-host` 23/23;
+  - `verify:ai-gpu-modes` 184/0;
+  - `verify:ai-backend-pack` 139/0;
+  - `verify:ai-gpu-backend-gate` 28/0 with NVIDIA NOT RUN (exit 2);
+  - `verify:agent-routing` 1146/1146;
+  - `build` and `typecheck:scripts` PASS.
+- **Commits:** see `git log` for this entry's date.
+
+## 2026-09-30 — `awkit-djnl.14`: DX-0 freezes the model entries, not the manifest file (Claude with CodeCraft)
 
 - **Task:** "use codecraft-agent to work on awkit-djnl.14".
 - **Cause:** `authoringDx.ts` froze the whole blob of `src/offline/AiModelManifest.ts`. L8a.1 added

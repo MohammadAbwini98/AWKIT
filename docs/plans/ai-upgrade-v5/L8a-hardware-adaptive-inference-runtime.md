@@ -10,8 +10,8 @@ owner.** Registered by the owner's post-closeout scope expansion.
   cases.
 - NVIDIA stays Compatible but unqualified, and E2 is unchanged.
 - Carried forward in follow-up Beads issues, not waived:
-  - independent QC;
-  - the `verify:ai-authoring` DX-0 freeze regression;
+  - independent QC, **done 2026-09-30** (see the `awkit-djnl.15` record);
+  - the `verify:ai-authoring` DX-0 freeze regression, fixed by `awkit-djnl.14`;
   - the open items in "Risks and open decisions".
 - L8a.5:
   - lifecycle measured on the source and packaged trees (29/0, 33/0; AMD mechanics);
@@ -690,6 +690,69 @@ successful load is a loss for its mode and reserve.
 - Real NVIDIA qualification (E11).
 - Independent QC.
 - `verify:failure-capture-overhead` INCONCLUSIVE on this host (zero AI calls on the run path PASS).
+
+## `awkit-djnl.15` follow-up record (2026-09-30)
+
+Contract `awkit-djnl-15-l8a-qc-0930`. The issue stays open for items 2–5.
+
+**1. Independent QC of L8a.1–L8a.5: done, no product defect.**
+- GPT-5.6 Luna, a second model family, reviewed the current code through CodeCraft in five packets:
+  - the pack load guard and confinement;
+  - the host's backend hook, load bounds and plan;
+  - the E2/E4 policy with `loadOnGpu`;
+  - the manifest and signed trust;
+  - the import IPC.
+- Every finding was checked against source before it counted:
+  - **Refuted.** The hook registering "too late": node-llama-cpp 3.21.1 reaches the Vulkan prebuilt
+    only through a lazy `import()` in `compileLLamaCpp.js`, after `hookBackend`, and never through
+    `require`. A double import: the busy check and the slot assignment run with no `await` between
+    them, and the store is serialized.
+  - **Reduces to item 4.** The guard's TOCTOU findings.
+  - **LOW, kept as is.**
+    - A refusal is not sticky if its registry write fails. The registry is same-user writable anyway,
+      and every load re-hashes the pack.
+    - A stale import token after a throwing or cancelled check. The renderer clears its token before
+      every pick, and an import re-validates and needs re-auth.
+    - A NaN reserve if a future runtime dropped `vramPaddingSize`. The pinned 3.21.1 has it (L8a.0).
+  - **Fixed.** A stale comment in `aiRuntime.ts` still said nothing loads the pack.
+- No GPU product name and no VRAM minimum appears in `src`, `app` or `native-hosts`. The only VRAM
+  figures are the administrator's reserve bounds.
+- The five slice contracts are `qc_status: APPROVED`.
+
+**2. NVIDIA qualification: BLOCKED (E11).** This machine has no `0x10DE` adapter. Chromium reports
+`0x1002` + `0x1414`, and Windows enumerates only `VEN_1002 DEV_67EF`.
+- `verify:ai-gpu-host` 23/23:
+  - the product answers `NO_COMPATIBLE_ADAPTER`;
+  - GPU-Offload runs on CPU & RAM with that reason, and GPU-Only refuses;
+  - the Vulkan MECHANICS ran on AMD with 25/25 layers (4 GiB total, 3.58 GB free, reserve 343.6 MB).
+- `verify:ai-gpu-backend-gate` 28/0, with NVIDIA evidence NOT RUN (exit 2).
+- `verify:ai-gpu-modes` 184/0 and `verify:ai-backend-pack` 139/0.
+- The lifecycle and packaged pairs were not re-run: the product inputs are unchanged since their last
+  PASS, and on this machine they measure only AMD mechanics.
+
+**3. E2 hybrid correlation: BLOCKED.** The pinned runtime exposes no LUID or PCI bus. Mixed adapter
+sets stay `VENDOR_UNPROVEN`.
+
+**4. The `verifyForLoad`-to-DLL-load window: OPEN, owner decision.**
+- Node on Windows always opens files with share-write and share-delete, so the main process cannot
+  hold the verified files read-locked while the child loads them.
+- An exclusive open would block the child's own load.
+- The window is one fork, same-user only.
+- Closing it would take a native helper. Accepting it is the owner's call.
+
+**5. Path-confinement mutation: BLOCKED.** The auto-mode permission classifier refused the temporary
+edit again, and it was not worked around. To run it yourself:
+1. make `confined()` in `src/ai/AiBackendPack.ts` return the joined target without `inside()`;
+2. run `npm run verify:ai-backend-pack`;
+3. expect "a runtime file name escaping the staging is refused" and its "nothing was written
+   outside" check to FAIL;
+4. revert.
+
+**6. Routing gap: fixed.**
+- `scripts/ai-harness/**` is QA-owned in `tools/agents/routing-matrix.mjs`, in `ownsPaths` and the
+  path map.
+- The derived definitions were regenerated, and `verify:agent-routing` is re-pinned to 1145 (+3).
+- `verify:agent-routing` 1146/1146.
 
 ## Risks and open decisions
 

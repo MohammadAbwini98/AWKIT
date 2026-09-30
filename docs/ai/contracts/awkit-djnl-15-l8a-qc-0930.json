@@ -1,0 +1,218 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-15-l8a-qc-0930",
+    "title": "awkit-djnl.15: independent QC of L8a.1-L8a.5, NVIDIA qualification attempt, the ai-harness routing gap",
+    "objective": "Work the six items of awkit-djnl.15. (1) Independent QC of L8a.1-L8a.5 by a second model family (CodeCraft, GPT-5.6 Luna) on the current code, every finding reproduced or refuted against source before it counts; the five slice contracts move to qc_status APPROVED with the record. (2) NVIDIA qualification: run the qualification verifiers on this machine and report the adapters it really has; with no 0x10DE adapter the NVIDIA items stay BLOCKED, never PASS. (3) E2 hybrid correlation and (4) the verifyForLoad-to-DLL-load gap: re-examined, carried with the reason. (5) The L8a.2 path-confinement mutation: attempted, BLOCKED if the permission classifier refuses it again, never worked around. (6) Map scripts/ai-harness/** to QA in the routing matrix, regenerate the derived definitions and re-pin the routing verifier's count. awkit-djnl.15 closes only if every item is met; otherwise it stays open with a progress note. The lease writes .beads/** and the derived routing matrix only; the unleased edits (tools/agents/routing-matrix.mjs, the rendered platform definitions, scripts/verify-agent-routing.mjs, a stale comment in app/main/ai/aiRuntime.ts, the five L8a contracts and the state documents) are ordinary direct-loop work.",
+    "requested_by": "repository owner",
+    "risk_level": 2,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "f1ac1fed",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "agent_infrastructure_change": true,
+    "electron_main_change": true,
+    "cross_layer_count": 2
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "runtime",
+      "qa",
+      "qc",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      ".claude/agents/awkit-qa-engineer.md",
+      ".codex/skills/agent-routing/SKILL.md",
+      ".gemini/skills/agent-routing/SKILL.md",
+      "app/main/ai/aiRuntime.ts",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-djnl-11-l8a1-backend-manifest-0927.json",
+      "docs/ai/contracts/awkit-djnl-11-l8a2-backend-import-0927.json",
+      "docs/ai/contracts/awkit-djnl-11-l8a3-gpu-modes-0927.json",
+      "docs/ai/contracts/awkit-djnl-11-l8a4-settings-diagnostics-0928.json",
+      "docs/ai/contracts/awkit-djnl-11-l8a5-gpu-lifecycle-0928.json",
+      "docs/ai/contracts/awkit-djnl-15-l8a-qc-0930.json",
+      "docs/ai/routing/ROUTING_MATRIX.md",
+      "docs/plans/ai-upgrade-v5/L8a-hardware-adaptive-inference-runtime.md",
+      "scripts/verify-agent-routing.mjs",
+      "tools/agents/routing-matrix.mjs"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**",
+        "docs/ai/routing/ROUTING_MATRIX.md"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "native-hosts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": [
+      "qa",
+      "qc"
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "QC",
+      "description": "Independent QC of L8a.1-L8a.5 recorded with every finding classified; the GPU regressions pass on the final source state.",
+      "evidence_required": [
+        "codecraft-qc",
+        "verify:ai-gpu-modes",
+        "verify:ai-gpu-host",
+        "verify:ai-backend-pack",
+        "build"
+      ]
+    },
+    {
+      "id": "ROUTING",
+      "description": "scripts/ai-harness/** has a declared owner and the routing registry, its derived documents and its pinned count agree.",
+      "evidence_required": [
+        "verify:agent-routing"
+      ]
+    },
+    {
+      "id": "STATE",
+      "description": "The tracker and state documents say what is done and what stays BLOCKED, and the dashboard's sources agree.",
+      "evidence_required": [
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "codecraft-qc",
+      "type": "inspection",
+      "command": "CodeCraft codecraft_ask, model gpt-5.6-luna, five packets (backend-pack guard, host backend/plan, E2/E4 policy, manifest and trust, import IPC)",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "No product defect. Policy, manifest and trust: NONE. Host: the late-hook and CJS findings are false positives (node-llama-cpp 3.21.1 reaches the Vulkan prebuilt only through a lazy import() in compileLLamaCpp.js, after hookBackend); NaN reserve needs a runtime without vramPaddingSize (pinned 3.21.1 has it, L8a.0). Guard: TOCTOU findings reduce to item 4; non-sticky refusal on a failed registry write is best effort (the registry is same-user writable, every load re-hashes). IPC: the double-import race is false (check and slot assignment are synchronous; store.import is serialized); a stale token after a throwing or cancelled check is LOW (the renderer clears its token before every pick, import re-validates and needs re-auth). One stale comment in aiRuntime.ts fixed. gpt-5.6-sol timed out; gemini-3.7-flash returned empty."
+    },
+    {
+      "id": "verify:ai-gpu-modes",
+      "type": "verifier",
+      "command": "npm run verify:ai-gpu-modes",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "184/0"
+    },
+    {
+      "id": "verify:ai-gpu-host",
+      "type": "verifier",
+      "command": "npm run verify:ai-gpu-host",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "23/23; adapters 0x1002 + 0x1414, product readiness NO_COMPATIBLE_ADAPTER, GPU-Offload on CPU with that reason, GPU-Only refused; MECHANICS on AMD Vulkan 25/25 layers, plan free 3584307744 of 4294967296 bytes, reserve 343597383."
+    },
+    {
+      "id": "verify:ai-backend-pack",
+      "type": "verifier",
+      "command": "npm run verify:ai-backend-pack",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "139/0 (baseline for the item 5 mutation, which the classifier refused)"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "command": "npm run build",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "tsc --noEmit and all bundles; typecheck:scripts PASS"
+    },
+    {
+      "id": "verify:agent-routing",
+      "type": "verifier",
+      "command": "npm run verify:agent-routing",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "1146/1146 after render-docs and render-platform-agents; the unconditional pin moved 1142 -> 1145 for the three checks the new QA domain adds (ownsPaths resolution, domain inside ownsPaths, expected-path activation), junction probe ran (1)."
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177, Overview 'Sources agree', 329 issues, 23 outstanding / 306 closed, 191 edges, ledger 65 PASS / 2 NOT RUN / 0 BLOCKED restated in both newest narratives. verify:verifier-classification reconciled at 295 (no new script)."
+    },
+    {
+      "id": "nvidia-qualification",
+      "type": "verifier",
+      "command": "npm run verify:ai-gpu-backend-gate",
+      "artifact": null,
+      "required": false,
+      "result": "BLOCKED",
+      "notes": "28 passed, 0 failed, NVIDIA evidence NOT RUN (exit 2): Windows enumerates one adapter, VEN_1002 DEV_67EF; no 0x10DE adapter on this machine (E11)."
+    },
+    {
+      "id": "path-confinement-mutation",
+      "type": "verifier",
+      "command": "confined() without inside() in src/ai/AiBackendPack.ts, then npm run verify:ai-backend-pack",
+      "artifact": null,
+      "required": false,
+      "result": "BLOCKED",
+      "notes": "The auto-mode permission classifier refused the temporary edit (Security Test Removal); not worked around. Owner-run."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "APPROVED",
+    "qc_basis": "This contract's own diff (routing-matrix entries, the +3 re-pin, the derived QA definition, the aiRuntime.ts comment) was reviewed by GPT-5.6 Luna through CodeCraft: APPROVED, owner choice matches the QA test/measurement entries, no glob collision with runtime's zvec-harness or prepare scripts, the re-pin matches the three checks per domain, the comment is accurate.",
+    "note":"This contract's own work is complete: QC recorded, routing gap fixed, state reconciled. awkit-djnl.15 itself stays OPEN: NVIDIA qualification and E2 correlation BLOCKED on hardware/runtime, the verifyForLoad-to-DLL-load window awaits an owner decision, and the path-confinement mutation is BLOCKED (owner-run)."
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-15-l8a-qc-0930:project-state:2026-09-30T07:27:02.969Z",
+        "task": "awkit-djnl-15-l8a-qc-0930",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**",
+          "docs/ai/routing/ROUTING_MATRIX.md"
+        ],
+        "acquired_at": "2026-09-30T07:27:02.969Z",
+        "acquired_at_commit": "f1ac1fed5f18a9468956ba854af213d4dfef26f2",
+        "released_at": "2026-09-30T07:29:07.511Z",
+        "released_reason": "awkit-djnl.15 progress note appended and exported, routing matrix regenerated, contracts and state documents are updated next outside this lease",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

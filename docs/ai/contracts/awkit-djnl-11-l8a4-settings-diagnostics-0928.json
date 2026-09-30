@@ -315,7 +315,8 @@
   "completion": {
     "status": "implemented",
     "qa_status": "PASS",
-    "qc_status": "pending"
+    "qc_status": "APPROVED",
+    "qc_basis": "Independent QC 2026-09-30 (awkit-djnl.15, contract awkit-djnl-15-l8a-qc-0930): the settings sanitizer refuses rather than clamps, and an old or unknown value reads as CPU/null. toExecutionView reports a reason only for the setting that produced it. LocalAiExecution holds no policy and says 'compatible but unqualified' for NVIDIA. No defect. verify:ai-gpu-modes section G is green in the 184/0 run."
   },
   "write_lease": {
     "history": [

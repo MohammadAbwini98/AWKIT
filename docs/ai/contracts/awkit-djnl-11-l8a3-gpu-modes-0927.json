@@ -188,7 +188,8 @@
   "completion": {
     "status": "implemented",
     "qa_status": "PASS",
-    "qc_status": "pending"
+    "qc_status": "APPROVED",
+    "qc_basis": "Independent QC 2026-09-30 (awkit-djnl.15, contract awkit-djnl-15-l8a-qc-0930): GPT-5.6 Luna through CodeCraft reviewed the host's backend hook, load bounds and offload plan, and the E2/E4 policy and AiService.loadOnGpu. The policy review found nothing. The host findings were refuted against source: node-llama-cpp 3.21.1 imports the Vulkan prebuilt only lazily (compileLLamaCpp.js), after hookBackend, and never through require; a NaN reserve needs a runtime without vramPaddingSize, which the pinned 3.21.1 has (L8a.0). No name-based GPU branching or VRAM minimum exists in src, app or native-hosts. Re-run 2026-09-30: verify:ai-gpu-modes 184/0, verify:ai-gpu-host 23/23 (adapters 0x1002 + 0x1414, NO_COMPATIBLE_ADAPTER)."
   },
   "write_lease": {
     "history": [

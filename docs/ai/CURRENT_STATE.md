@@ -1,6 +1,29 @@
 # CURRENT_STATE
 
-## DX-0 freeze fixed (`awkit-djnl.14`, 2026-09-30, latest)
+## L8a independent QC done; NVIDIA still BLOCKED (`awkit-djnl.15`, 2026-09-30, latest)
+
+- **QC:** a second model family (GPT-5.6 Luna through CodeCraft) reviewed L8a.1–L8a.5 on the current
+  code. Every finding was checked against source.
+  - No product defect.
+  - One stale comment in `aiRuntime.ts` was fixed.
+  - The five slice contracts are `qc_status: APPROVED`.
+  - The record is in `docs/plans/ai-upgrade-v5/L8a-hardware-adaptive-inference-runtime.md` ›
+    *`awkit-djnl.15` follow-up record*.
+- **Hardware on this machine:** Chromium reports `0x1002` + `0x1414`, and Windows reports `VEN_1002`
+  only. There is no NVIDIA adapter.
+  - The product's effective profile: GPU-Offload runs on CPU & RAM (`NO_COMPATIBLE_ADAPTER`), and
+    GPU-Only refuses.
+  - `verify:ai-gpu-host` 23/23; `verify:ai-gpu-backend-gate` 28/0 with NVIDIA NOT RUN.
+- **Routing:** `scripts/ai-harness/**` is QA-owned; `verify:agent-routing` 1146/1146.
+- **Still open under `.15`:**
+  - NVIDIA qualification (BLOCKED, E11);
+  - E2 hybrid correlation (BLOCKED, runtime);
+  - the `verifyForLoad`-to-DLL-load window (owner decision);
+  - the path-confinement mutation (BLOCKED, owner-run).
+- **Follow-ups:** Phase L's epic stays open for `.15` and `.16`. Validation ledger unchanged at
+  65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## DX-0 freeze fixed (`awkit-djnl.14`, 2026-09-30)
 
 - **What changed:** L4b's DX-0 check freezes `src/offline/AiModelManifest.ts` by its model entries
   (a SHA-256 of `AI_MODEL_MANIFEST`), not by the whole file.

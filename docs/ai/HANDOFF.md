@@ -1,6 +1,23 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-30, latest) — DX-0 freeze fixed, `.14` closed
+## HANDOFF (2026-09-30, latest) — `.15` QC and routing done; its hardware items stay BLOCKED
+
+- **`awkit-djnl.15` stays open**, but only for what this machine or this session cannot do:
+  - NVIDIA qualification on a real `0x10DE` adapter: run `verify:ai-gpu-backend-gate`,
+    `verify:ai-gpu-host`, `verify:ai-gpu-lifecycle` and the packaged pair there;
+  - E2 hybrid correlation (the runtime exposes no LUID or PCI bus);
+  - an owner decision on the `verifyForLoad`-to-DLL-load window;
+  - the owner-run path-confinement mutation. The steps are in the L8a doc's `.15` record.
+- **Done:** independent QC of L8a.1–L8a.5 (no product defect, contracts APPROVED) and the
+  `scripts/ai-harness/**` routing owner (QA).
+- **CodeCraft:** only `codecraft_ask` with `gpt-5.6-luna` and a packet of about 100 lines answered.
+  - `run_task` timed out even on a one-file read.
+  - `codecraft_review_code` with `gpt-5.6-sol` timed out.
+  - `gemini-3.7-flash` returned empty.
+- **Next:** `.16` (L8b QC, the `ConfirmDialog` line breaks).
+- Ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## HANDOFF (2026-09-30) — DX-0 freeze fixed, `.14` closed
 
 - **`awkit-djnl.14` is closed** (`3c821b6a`): the DX-0 check freezes the model manifest by its model
   entries. `verify:ai-authoring` 393/393; both mutation runs green. The record is in

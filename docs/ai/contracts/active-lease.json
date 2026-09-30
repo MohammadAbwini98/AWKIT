@@ -1,15 +1,32 @@
 {
-  "task": "awkit-djnl-11-l8a-close-0928",
-  "contract_path": "docs/ai/contracts/awkit-djnl-11-l8a-close-0928.json",
+  "task": "awkit-djnl-15-l8a-qc-0930",
+  "contract_path": "docs/ai/contracts/awkit-djnl-15-l8a-qc-0930.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
-    ".beads/issues.jsonl"
+    ".beads/**",
+    "docs/ai/routing/ROUTING_MATRIX.md"
   ],
-  "acquired_at": "2026-09-29T21:21:08.706Z",
-  "acquired_at_commit": "3c821b6a48c3d067e70cb877ddc5dff5d0ab2e11",
-  "baseline_dirty": [],
-  "baseline_dirty_fingerprints": {},
+  "acquired_at": "2026-09-30T07:27:02.969Z",
+  "acquired_at_commit": "f1ac1fed5f18a9468956ba854af213d4dfef26f2",
+  "baseline_dirty": [
+    ".claude/agents/awkit-qa-engineer.md",
+    ".codex/skills/agent-routing/SKILL.md",
+    ".gemini/skills/agent-routing/SKILL.md",
+    "app/main/ai/aiRuntime.ts",
+    "docs/ai/contracts/awkit-djnl-15-l8a-qc-0930.json",
+    "scripts/verify-agent-routing.mjs",
+    "tools/agents/routing-matrix.mjs"
+  ],
+  "baseline_dirty_fingerprints": {
+    ".claude/agents/awkit-qa-engineer.md": "fa456a05d162ea1933200f6169727efa5e5db237eaf846cee82e77c69dd9a14c",
+    ".codex/skills/agent-routing/SKILL.md": "e499b48e8fb7bf5948b480d5c9d0d3bf0f0796f24194024946af026016629a99",
+    ".gemini/skills/agent-routing/SKILL.md": "7b460afe527e59b9ce0a173d2dc44ce7b72220289ddd4319552ce093ae56bfc1",
+    "app/main/ai/aiRuntime.ts": "e9fb25fa5be8ee49ab1f746b296ddba2031ba040d2f2ba56ee3873906c389ae2",
+    "docs/ai/contracts/awkit-djnl-15-l8a-qc-0930.json": "bc36c3c2f6e1761c5247c8997090c2df4148e3be058dc639325dfc274755113e",
+    "scripts/verify-agent-routing.mjs": "30f23fab8131c00cfb6967ca62e4f0605206c26629f298242f67f7ce248a5c74",
+    "tools/agents/routing-matrix.mjs": "7309e426750568ad5f1303dd09589a3d338501db59ecd1449e3724d46acd3e1c"
+  },
   "baseline_watched_ignored": {
     ".env": "absent",
     ".claude/settings.local.json": "6238:1788551784499.886",
@@ -23,7 +40,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-29T21:21:40.114Z",
-  "released_reason": "Beads closeout committed in 563ff86c, awkit-djnl.14 closed, the dashboard pin and state documents are updated next outside this lease",
-  "archived_at": "2026-09-29T21:21:40.115Z"
+  "released_at": "2026-09-30T07:29:07.511Z",
+  "released_reason": "awkit-djnl.15 progress note appended and exported, routing matrix regenerated, contracts and state documents are updated next outside this lease",
+  "archived_at": "2026-09-30T07:29:07.512Z"
 }
