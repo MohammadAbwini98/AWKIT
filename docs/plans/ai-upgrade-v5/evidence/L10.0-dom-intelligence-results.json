@@ -1,0 +1,1444 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-30T15:46:02.902Z",
+  "fixtureSetHash": "063f91eb0686665a57bf5f10871f08895e8bbacc376a368432072d18c91fb6b1",
+  "casePageHashes": [
+    {
+      "id": "wrapper-insertion",
+      "baseline": "4ceec3415b7d6ab78fdc9a5de1c8802b92fddc7991c1ccac8d982392b4d2e08e",
+      "mutated": "28626af7a5ab5b5741327ca08078f375d53d34dcc1dcf855b1ae1d4e5d6a11ec"
+    },
+    {
+      "id": "moved-within-region",
+      "baseline": "4ceec3415b7d6ab78fdc9a5de1c8802b92fddc7991c1ccac8d982392b4d2e08e",
+      "mutated": "e78833eb3eac89cc05337a11851a7706ffa9480e72f03d9300e0338c907e64b8"
+    },
+    {
+      "id": "id-changed",
+      "baseline": "4ceec3415b7d6ab78fdc9a5de1c8802b92fddc7991c1ccac8d982392b4d2e08e",
+      "mutated": "8e95395c630b0223de591cbcba25f1269740bf9d2af54733aae868445639446e"
+    },
+    {
+      "id": "id-removed",
+      "baseline": "4ceec3415b7d6ab78fdc9a5de1c8802b92fddc7991c1ccac8d982392b4d2e08e",
+      "mutated": "89146a87b94f5148ce9688d748289596fce562d7aa2d497f7bc6eb079964ee88"
+    },
+    {
+      "id": "class-changed",
+      "baseline": "4ceec3415b7d6ab78fdc9a5de1c8802b92fddc7991c1ccac8d982392b4d2e08e",
+      "mutated": "be86c377392612fa8c94bbd7c84e9f2e3917dd6491845604dc3c87dc9a37aa73"
+    },
+    {
+      "id": "aria-retained",
+      "baseline": "a2bf887d4cffb08dc06588a81a09af1acf4481d8210eaa0bd82de6afd0c95967",
+      "mutated": "da7a8c13d8551de29057a2aab48362269e92b290aeff1c2cb5075ceaf28366e1"
+    },
+    {
+      "id": "text-drift",
+      "baseline": "4ceec3415b7d6ab78fdc9a5de1c8802b92fddc7991c1ccac8d982392b4d2e08e",
+      "mutated": "8b481983f43a6b2989c939a6fd287f1d68c6e97e963ac7c4176fa9962a8c7faf"
+    },
+    {
+      "id": "sibling-reorder",
+      "baseline": "4ceec3415b7d6ab78fdc9a5de1c8802b92fddc7991c1ccac8d982392b4d2e08e",
+      "mutated": "1057827c1f976adb65c1ca211d3ef552b7d8fb8546981d7800e62af3387d21a9"
+    },
+    {
+      "id": "duplicate-text-decoy",
+      "baseline": "4ceec3415b7d6ab78fdc9a5de1c8802b92fddc7991c1ccac8d982392b4d2e08e",
+      "mutated": "c336f1187c554df7627b9e3f5dccb14470f6f47dfec888d1bc0554ead361d8d6"
+    },
+    {
+      "id": "same-tag-decoy-target-removed",
+      "baseline": "4ceec3415b7d6ab78fdc9a5de1c8802b92fddc7991c1ccac8d982392b4d2e08e",
+      "mutated": "bb36a2efc66472abbde6a4b4c26c1b0e59c25eec757d1093fb0a2662935625d1"
+    },
+    {
+      "id": "other-region-decoy-target-removed",
+      "baseline": "4ceec3415b7d6ab78fdc9a5de1c8802b92fddc7991c1ccac8d982392b4d2e08e",
+      "mutated": "0090583ea43a9349670be24c7e7a8bcf5959f61ee4837269d894fc29c52cbcd8"
+    },
+    {
+      "id": "page-variant-same-url",
+      "baseline": "4ceec3415b7d6ab78fdc9a5de1c8802b92fddc7991c1ccac8d982392b4d2e08e",
+      "mutated": "36eda5af53344ed4b637df07a4ec8d598c35f1846b0972aa64d50369a5c1c2f2"
+    },
+    {
+      "id": "combined-drift",
+      "baseline": "4ceec3415b7d6ab78fdc9a5de1c8802b92fddc7991c1ccac8d982392b4d2e08e",
+      "mutated": "dd878b7e2a738f6df7434038e7b92c831c56feb9f60ff38b82a86ad4cf8cf29c"
+    },
+    {
+      "id": "large-dom-shift",
+      "baseline": "2376d21102a17af33389f1ff0b55760337228925bed79673b9e5b1bbd471a7af",
+      "mutated": "00f4892a72e7e0529d90d60455c7ae9359c70247d08729f47ee8d1962c4d7b7c"
+    },
+    {
+      "id": "field-relabel",
+      "baseline": "4ceec3415b7d6ab78fdc9a5de1c8802b92fddc7991c1ccac8d982392b4d2e08e",
+      "mutated": "b4f1830feb43e6d9fbb278293ddbccc0d49b6faed7b70b9f737c05475223c3d8"
+    },
+    {
+      "id": "list-item-link",
+      "baseline": "4ceec3415b7d6ab78fdc9a5de1c8802b92fddc7991c1ccac8d982392b4d2e08e",
+      "mutated": "92d1315deb4a44ef2276f8bf88a4975cb33b283ba35874721e34d771330e2896"
+    }
+  ],
+  "normalizationPageHash": "ab162ffbfa754ad4868a469cce4c3a795b076680d4c4b30f9b0f291bd3558401",
+  "environment": {
+    "node": "v18.16.0",
+    "platform": "win32-x64",
+    "playwright": "1.61.0",
+    "python": "3.12.10"
+  },
+  "install": {
+    "pins": [
+      "scrapling==0.4.15",
+      "lxml==6.1.3",
+      "cssselect==1.5.0",
+      "orjson==3.12.0",
+      "tld==0.13.2",
+      "w3lib==2.5.0",
+      "typing_extensions==4.16.0"
+    ],
+    "pipFreeze": [
+      "cssselect==1.5.0",
+      "lxml==6.1.3",
+      "orjson==3.12.0",
+      "scrapling==0.4.15",
+      "tld==0.13.2",
+      "typing_extensions==4.16.0",
+      "w3lib==2.5.0"
+    ],
+    "pipCheck": {
+      "status": 0,
+      "output": "No broken requirements found."
+    },
+    "wheels": [
+      {
+        "file": "cssselect-1.5.0-py3-none-any.whl",
+        "bytes": 20797,
+        "sha256": "1d1aded98e82bdde447ded990a191fd6916177c4f0c914fb62eccd58e2ffcdcc"
+      },
+      {
+        "file": "lxml-6.1.3-cp312-cp312-win_amd64.whl",
+        "bytes": 4005999,
+        "sha256": "3e9a00d1c2c30936f7add097c41afc5da6556c580909104aafd382cac92a855c"
+      },
+      {
+        "file": "orjson-3.12.0-cp312-cp312-win_amd64.whl",
+        "bytes": 122106,
+        "sha256": "010811c1b69773450a01cef97727a67b223242f350b77d4ca000e59a9ef2155a"
+      },
+      {
+        "file": "scrapling-0.4.15-py3-none-any.whl",
+        "bytes": 180463,
+        "sha256": "ae66bde9f63afb793ad6f93bd76b451e29f1631347465a553c4e7765c0ecc1f2"
+      },
+      {
+        "file": "tld-0.13.2-py2.py3-none-any.whl",
+        "bytes": 296743,
+        "sha256": "9b8fdbdb880e7ba65b216a4937f2c94c49a7226723783d5838fc958ac76f4e0c"
+      },
+      {
+        "file": "typing_extensions-4.16.0-py3-none-any.whl",
+        "bytes": 45571,
+        "sha256": "481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8"
+      },
+      {
+        "file": "w3lib-2.5.0-py3-none-any.whl",
+        "bytes": 37047,
+        "sha256": "136fd5edfe64b53b8579838e2a7e803495bbbe6b69ddfaeed3c29a794b44f6ba"
+      }
+    ],
+    "totalWheelBytes": 4708726
+  },
+  "inventory": {
+    "python": "3.12.10",
+    "distributions": [
+      {
+        "name": "cssselect",
+        "version": "1.5.0",
+        "license": "BSD-3-Clause",
+        "licenseClassifiers": [],
+        "requiresDist": [],
+        "installedBytes": 168201
+      },
+      {
+        "name": "lxml",
+        "version": "6.1.3",
+        "license": "BSD-3-Clause",
+        "licenseClassifiers": [],
+        "requiresDist": [
+          "cssselect>=0.7; extra == \"cssselect\"",
+          "html5lib; extra == \"html5\"",
+          "BeautifulSoup4; extra == \"htmlsoup\"",
+          "lxml_html_clean; extra == \"html-clean\""
+        ],
+        "installedBytes": 9288813
+      },
+      {
+        "name": "orjson",
+        "version": "3.12.0",
+        "license": "MPL-2.0 AND (Apache-2.0 OR MIT)",
+        "licenseClassifiers": [
+          "License :: OSI Approved :: Apache Software License",
+          "License :: OSI Approved :: MIT License",
+          "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)"
+        ],
+        "requiresDist": [],
+        "installedBytes": 326865
+      },
+      {
+        "name": "pip",
+        "version": "25.0.1",
+        "license": "MIT",
+        "licenseClassifiers": [
+          "License :: OSI Approved :: MIT License"
+        ],
+        "requiresDist": [],
+        "installedBytes": 11446009
+      },
+      {
+        "name": "scrapling",
+        "version": "0.4.15",
+        "license": "BSD 3-Clause License",
+        "licenseClassifiers": [
+          "License :: OSI Approved :: BSD License"
+        ],
+        "requiresDist": [
+          "lxml>=6.1.1",
+          "cssselect>=1.5.0",
+          "orjson>=3.11.8",
+          "tld>=0.13.2",
+          "w3lib>=2.4.1",
+          "typing_extensions",
+          "click>=8.3.0; extra == \"fetchers\"",
+          "curl_cffi>=0.16.1; extra == \"fetchers\"",
+          "playwright>=1.62.0; extra == \"fetchers\"",
+          "patchright>=1.62.1; extra == \"fetchers\"",
+          "browserforge>=1.2.4; extra == \"fetchers\"",
+          "apify-fingerprint-datapoints>=0.15.0; extra == \"fetchers\"",
+          "msgspec>=0.21.1; extra == \"fetchers\"",
+          "anyio>=4.14.0; extra == \"fetchers\"",
+          "protego>=0.6.2; extra == \"fetchers\"",
+          "markdownify>=1.2.0; extra == \"rag\"",
+          "scrapling[fetchers]; extra == \"rag\"",
+          "mcp>=2.0.0; extra == \"ai\"",
+          "markdownify>=1.2.0; extra == \"ai\"",
+          "scrapling[fetchers]; extra == \"ai\"",
+          "IPython>=8.37; extra == \"shell\"",
+          "markdownify>=1.2.0; extra == \"shell\"",
+          "scrapling[fetchers]; extra == \"shell\"",
+          "scrapling[ai,shell]; extra == \"all\""
+        ],
+        "installedBytes": 1613603
+      },
+      {
+        "name": "tld",
+        "version": "0.13.2",
+        "license": "MPL-1.1 OR GPL-2.0-only OR LGPL-2.1-or-later",
+        "licenseClassifiers": [],
+        "requiresDist": [
+          "tld[build,dev,docs,lint,test]; extra == \"all\"",
+          "build; extra == \"build\"",
+          "pkginfo; extra == \"build\"",
+          "twine; extra == \"build\"",
+          "wheel; extra == \"build\"",
+          "doc8; extra == \"lint\"",
+          "mypy; extra == \"lint\"",
+          "pydoclint; extra == \"lint\"",
+          "ruff; extra == \"lint\"",
+          "detect-secrets; extra == \"dev\"",
+          "ipython; extra == \"dev\"",
+          "uv; extra == \"dev\"",
+          "coverage; extra == \"test\"",
+          "fake.py; extra == \"test\"",
+          "pytest; extra == \"test\"",
+          "pytest-codeblock; extra == \"test\"",
+          "pytest-cov; extra == \"test\"",
+          "pytest-ordering; extra == \"test\"",
+          "tox; extra == \"test\"",
+          "sphinx; extra == \"docs\"",
+          "sphinx-autobuild; extra == \"docs\"",
+          "sphinx-rtd-theme>=1.3.0; extra == \"docs\"",
+          "sphinx-no-pragma; extra == \"docs\"",
+          "sphinx-llms-txt-link; extra == \"docs\"",
+          "sphinx-source-tree; python_version > \"3.9\" and extra == \"docs\""
+        ],
+        "installedBytes": 1200713
+      },
+      {
+        "name": "typing_extensions",
+        "version": "4.16.0",
+        "license": "PSF-2.0",
+        "licenseClassifiers": [],
+        "requiresDist": [],
+        "installedBytes": 349579
+      },
+      {
+        "name": "w3lib",
+        "version": "2.5.0",
+        "license": "BSD-3-Clause",
+        "licenseClassifiers": [],
+        "requiresDist": [],
+        "installedBytes": 212849
+      }
+    ],
+    "scraplingPackageBreakdown": {
+      "__init__.py": 1523,
+      "__pycache__": 89161,
+      "cli.py": 21719,
+      "core": 290991,
+      "engines": 559375,
+      "fetchers": 42385,
+      "integrations": 13942,
+      "parser.py": 59047,
+      "py.typed": 2,
+      "spiders": 265681
+    },
+    "defaultAdaptiveDbPath": "scrapling/elements_storage.db",
+    "defaultAdaptiveDbExists": false,
+    "loadedStdlibModules": 143,
+    "loadedStdlibBytes": 5207701,
+    "runtimeDlls": {
+      "python312.dll": 6945272,
+      "python3.dll": 70376,
+      "vcruntime140.dll": 120400,
+      "vcruntime140_1.dll": 49776
+    },
+    "forbiddenModulesLoaded": []
+  },
+  "forbiddenModulesLoadedAtReady": [],
+  "coldStartMs": {
+    "samples": [
+      607.1,
+      337.3,
+      349.8,
+      764.6,
+      637.9
+    ],
+    "n": 5,
+    "p50": 607.1,
+    "p95": 764.57,
+    "max": 764.57
+  },
+  "importMs": {
+    "n": 5,
+    "p50": 135.79,
+    "p95": 332.48,
+    "max": 332.48
+  },
+  "firstCallMs": 57.23,
+  "memory": {
+    "afterReady": {
+      "workingSetBytes": 28954624,
+      "peakWorkingSetBytes": 28958720
+    },
+    "atEnd": {
+      "workingSetBytes": 33689600,
+      "peakWorkingSetBytes": 41455616
+    }
+  },
+  "cases": [
+    {
+      "id": "wrapper-insertion",
+      "expectation": "recoverable",
+      "recordedLocator": "role=button [Save changes] | alternatives: text=Save changes ; id=save-order ; css=#save-order",
+      "production": {
+        "status": "resolved",
+        "correct": true,
+        "ms": 70.3
+      },
+      "localOnly": {
+        "status": "resolved",
+        "correct": true,
+        "ms": 2971
+      },
+      "localAndBlueprint": {
+        "status": "resolved",
+        "correct": true,
+        "ms": 3020.1
+      },
+      "scrapling": {
+        "candidateCount": 1,
+        "topScore": 75.82,
+        "runnerUpScore": 71.57,
+        "correct": false,
+        "truthRank": 2,
+        "truthScore": 71.57,
+        "awkitScore": 0.725,
+        "awkitBestOther": 0.9667,
+        "relocateMs": 35.86,
+        "parseMs": 0.76
+      },
+      "truthAwkitScore": 0.9667,
+      "truthAwkitBestOther": 0.725
+    },
+    {
+      "id": "moved-within-region",
+      "expectation": "recoverable",
+      "recordedLocator": "role=button [Save changes] | alternatives: text=Save changes ; id=save-order ; css=#save-order",
+      "production": {
+        "status": "resolved",
+        "correct": true,
+        "ms": 35.1
+      },
+      "localOnly": {
+        "status": "resolved",
+        "correct": true,
+        "ms": 1642.7
+      },
+      "localAndBlueprint": {
+        "status": "resolved",
+        "correct": true,
+        "ms": 2424
+      },
+      "scrapling": {
+        "candidateCount": 1,
+        "topScore": 100,
+        "runnerUpScore": 81.37,
+        "correct": true,
+        "truthRank": 1,
+        "truthScore": 100,
+        "awkitScore": 1,
+        "awkitBestOther": 0.725,
+        "relocateMs": 32.05,
+        "parseMs": 0.66
+      },
+      "truthAwkitScore": 1,
+      "truthAwkitBestOther": 0.725
+    },
+    {
+      "id": "id-changed",
+      "expectation": "recoverable",
+      "recordedLocator": "role=button [Save changes] | alternatives: text=Save changes ; id=save-order ; css=#save-order",
+      "production": {
+        "status": "resolved",
+        "correct": true,
+        "ms": 35.2
+      },
+      "localOnly": {
+        "status": "resolved",
+        "correct": true,
+        "ms": 1350.1
+      },
+      "localAndBlueprint": {
+        "status": "resolved",
+        "correct": true,
+        "ms": 2277.2
+      },
+      "scrapling": {
+        "candidateCount": 1,
+        "topScore": 91.67,
+        "runnerUpScore": 81.37,
+        "correct": true,
+        "truthRank": 1,
+        "truthScore": 91.67,
+        "awkitScore": 0.975,
+        "awkitBestOther": 0.725,
+        "relocateMs": 28.46,
+        "parseMs": 0.75
+      },
+      "truthAwkitScore": 0.975,
+      "truthAwkitBestOther": 0.725
+    },
+    {
+      "id": "id-removed",
+      "expectation": "recoverable",
+      "recordedLocator": "role=button [Save changes] | alternatives: text=Save changes ; id=save-order ; css=#save-order",
+      "production": {
+        "status": "resolved",
+        "correct": true,
+        "ms": 62.9
+      },
+      "localOnly": {
+        "status": "resolved",
+        "correct": true,
+        "ms": 2428.2
+      },
+      "localAndBlueprint": {
+        "status": "resolved",
+        "correct": true,
+        "ms": 2265.9
+      },
+      "scrapling": {
+        "candidateCount": 1,
+        "topScore": 86.67,
+        "runnerUpScore": 81.37,
+        "correct": true,
+        "truthRank": 1,
+        "truthScore": 86.67,
+        "awkitScore": 0.95,
+        "awkitBestOther": 0.725,
+        "relocateMs": 25.95,
+        "parseMs": 0.68
+      },
+      "truthAwkitScore": 0.95,
+      "truthAwkitBestOther": 0.725
+    },
+    {
+      "id": "class-changed",
+      "expectation": "recoverable",
+      "recordedLocator": "role=button [Save changes] | alternatives: text=Save changes ; id=save-order ; css=#save-order",
+      "production": {
+        "status": "resolved",
+        "correct": true,
+        "ms": 34.8
+      },
+      "localOnly": {
+        "status": "resolved",
+        "correct": true,
+        "ms": 1384.6
+      },
+      "localAndBlueprint": {
+        "status": "resolved",
+        "correct": true,
+        "ms": 1588.3
+      },
+      "scrapling": {
+        "candidateCount": 1,
+        "topScore": 94.97,
+        "runnerUpScore": 81.37,
+        "correct": true,
+        "truthRank": 1,
+        "truthScore": 94.97,
+        "awkitScore": 1,
+        "awkitBestOther": 0.725,
+        "relocateMs": 26.05,
+        "parseMs": 0.71
+      },
+      "truthAwkitScore": 1,
+      "truthAwkitBestOther": 0.725
+    },
+    {
+      "id": "aria-retained",
+      "expectation": "recoverable",
+      "recordedLocator": "role=button [Save order] | alternatives: id=save-order ; css=#save-order ; css=#order-edit button:nth-of-type(3)",
+      "production": {
+        "status": "resolved",
+        "correct": true,
+        "ms": 67
+      },
+      "localOnly": {
+        "status": "unresolved",
+        "correct": null,
+        "ms": 3299.7
+      },
+      "localAndBlueprint": {
+        "status": "unresolved",
+        "correct": null,
+        "ms": 2974.7
+      },
+      "scrapling": {
+        "candidateCount": 1,
+        "topScore": 80.32,
+        "runnerUpScore": 75.1,
+        "correct": false,
+        "truthRank": 3,
+        "truthScore": 72.64,
+        "awkitScore": 0.7,
+        "awkitBestOther": 0.8033,
+        "relocateMs": 26.7,
+        "parseMs": 0.7
+      },
+      "truthAwkitScore": 0.8033,
+      "truthAwkitBestOther": 0.7
+    },
+    {
+      "id": "text-drift",
+      "expectation": "recoverable",
+      "recordedLocator": "role=button [Save changes] | alternatives: text=Save changes ; id=save-order ; css=#save-order",
+      "production": {
+        "status": "resolved",
+        "correct": true,
+        "ms": 79
+      },
+      "localOnly": {
+        "status": "unresolved",
+        "correct": null,
+        "ms": 2624.5
+      },
+      "localAndBlueprint": {
+        "status": "unresolved",
+        "correct": null,
+        "ms": 2179.4
+      },
+      "scrapling": {
+        "candidateCount": 1,
+        "topScore": 98.41,
+        "runnerUpScore": 81.37,
+        "correct": true,
+        "truthRank": 1,
+        "truthScore": 98.41,
+        "awkitScore": 0.8333,
+        "awkitBestOther": 0.725,
+        "relocateMs": 15,
+        "parseMs": 0.39
+      },
+      "truthAwkitScore": 0.8333,
+      "truthAwkitBestOther": 0.725
+    },
+    {
+      "id": "sibling-reorder",
+      "expectation": "recoverable",
+      "recordedLocator": "role=button [Save changes] | alternatives: text=Save changes ; id=save-order ; css=#save-order",
+      "production": {
+        "status": "resolved",
+        "correct": true,
+        "ms": 61.3
+      },
+      "localOnly": {
+        "status": "resolved",
+        "correct": true,
+        "ms": 2420.5
+      },
+      "localAndBlueprint": {
+        "status": "resolved",
+        "correct": true,
+        "ms": 1418.7
+      },
+      "scrapling": {
+        "candidateCount": 1,
+        "topScore": 97.78,
+        "runnerUpScore": 79.15,
+        "correct": true,
+        "truthRank": 1,
+        "truthScore": 97.78,
+        "awkitScore": 1,
+        "awkitBestOther": 0.725,
+        "relocateMs": 15.45,
+        "parseMs": 0.41
+      },
+      "truthAwkitScore": 1,
+      "truthAwkitBestOther": 0.725
+    },
+    {
+      "id": "duplicate-text-decoy",
+      "expectation": "recoverable",
+      "recordedLocator": "role=button [Save changes] | alternatives: text=Save changes ; id=save-order ; css=#save-order",
+      "production": {
+        "status": "resolved",
+        "correct": false,
+        "ms": 86.5
+      },
+      "localOnly": {
+        "status": "unresolved",
+        "correct": null,
+        "ms": 2992.1
+      },
+      "localAndBlueprint": {
+        "status": "unresolved",
+        "correct": null,
+        "ms": 3816.7
+      },
+      "scrapling": {
+        "candidateCount": 1,
+        "topScore": 86.67,
+        "runnerUpScore": 81.37,
+        "correct": true,
+        "truthRank": 1,
+        "truthScore": 86.67,
+        "awkitScore": 0.95,
+        "awkitBestOther": 0.9083,
+        "relocateMs": 29.13,
+        "parseMs": 0.71
+      },
+      "truthAwkitScore": 0.95,
+      "truthAwkitBestOther": 0.9083
+    },
+    {
+      "id": "same-tag-decoy-target-removed",
+      "expectation": "no-match",
+      "recordedLocator": "role=button [Save changes] | alternatives: text=Save changes ; id=save-order ; css=#save-order",
+      "production": {
+        "status": "unresolved",
+        "correct": null,
+        "ms": 3297.7
+      },
+      "localOnly": {
+        "status": "unresolved",
+        "correct": null,
+        "ms": 2365.2
+      },
+      "localAndBlueprint": {
+        "status": "unresolved",
+        "correct": null,
+        "ms": 2793.9
+      },
+      "scrapling": {
+        "candidateCount": 1,
+        "topScore": 77.67,
+        "runnerUpScore": 72.46,
+        "correct": false,
+        "truthRank": null,
+        "truthScore": null,
+        "awkitScore": 0.725,
+        "awkitBestOther": 0.475,
+        "relocateMs": 25.67,
+        "parseMs": 0.74
+      },
+      "truthAwkitScore": null,
+      "truthAwkitBestOther": null
+    },
+    {
+      "id": "other-region-decoy-target-removed",
+      "expectation": "no-match",
+      "recordedLocator": "role=button [Save changes] | alternatives: text=Save changes ; id=save-order ; css=#save-order",
+      "production": {
+        "status": "resolved",
+        "correct": false,
+        "ms": 63.4
+      },
+      "localOnly": {
+        "status": "resolved",
+        "correct": false,
+        "ms": 2451.2
+      },
+      "localAndBlueprint": {
+        "status": "resolved",
+        "correct": false,
+        "ms": 1650.4
+      },
+      "scrapling": {
+        "candidateCount": 1,
+        "topScore": 61.41,
+        "runnerUpScore": 60.87,
+        "correct": false,
+        "truthRank": null,
+        "truthScore": null,
+        "awkitScore": 0.9083,
+        "awkitBestOther": 0.4083,
+        "relocateMs": 13.57,
+        "parseMs": 0.37
+      },
+      "truthAwkitScore": null,
+      "truthAwkitBestOther": null
+    },
+    {
+      "id": "page-variant-same-url",
+      "expectation": "no-match",
+      "recordedLocator": "role=button [Save changes] | alternatives: text=Save changes ; id=save-order ; css=#save-order",
+      "production": {
+        "status": "unresolved",
+        "correct": null,
+        "ms": 639.2
+      },
+      "localOnly": {
+        "status": "unresolved",
+        "correct": null,
+        "ms": 531.7
+      },
+      "localAndBlueprint": {
+        "status": "unresolved",
+        "correct": null,
+        "ms": 533.1
+      },
+      "scrapling": {
+        "candidateCount": 1,
+        "topScore": 66.33,
+        "runnerUpScore": 59.97,
+        "correct": false,
+        "truthRank": null,
+        "truthScore": null,
+        "awkitScore": 0.4083,
+        "awkitBestOther": 0.4083,
+        "relocateMs": 5.79,
+        "parseMs": 0.25
+      },
+      "truthAwkitScore": null,
+      "truthAwkitBestOther": null
+    },
+    {
+      "id": "combined-drift",
+      "expectation": "recoverable",
+      "recordedLocator": "role=button [Save changes] | alternatives: text=Save changes ; id=save-order ; css=#save-order",
+      "production": {
+        "status": "unresolved",
+        "correct": null,
+        "ms": 3151.4
+      },
+      "localOnly": {
+        "status": "unresolved",
+        "correct": null,
+        "ms": 2411.6
+      },
+      "localAndBlueprint": {
+        "status": "unresolved",
+        "correct": null,
+        "ms": 3070.3
+      },
+      "scrapling": {
+        "candidateCount": 1,
+        "topScore": 75.82,
+        "runnerUpScore": 70.61,
+        "correct": false,
+        "truthRank": 3,
+        "truthScore": 63.15,
+        "awkitScore": 0.725,
+        "awkitBestOther": 0.6917,
+        "relocateMs": 30.26,
+        "parseMs": 0.84
+      },
+      "truthAwkitScore": 0.6917,
+      "truthAwkitBestOther": 0.725
+    },
+    {
+      "id": "large-dom-shift",
+      "expectation": "recoverable",
+      "recordedLocator": "role=button [Save changes] | alternatives: text=Save changes ; id=save-order ; css=#save-order",
+      "production": {
+        "status": "resolved",
+        "correct": true,
+        "ms": 98
+      },
+      "localOnly": {
+        "status": "unresolved",
+        "correct": null,
+        "ms": 4550.7
+      },
+      "localAndBlueprint": {
+        "status": "unresolved",
+        "correct": null,
+        "ms": 3914.3
+      },
+      "scrapling": {
+        "candidateCount": 1,
+        "topScore": 92.59,
+        "runnerUpScore": 81.37,
+        "correct": true,
+        "truthRank": 1,
+        "truthScore": 92.59,
+        "awkitScore": 0.975,
+        "awkitBestOther": 0.725,
+        "relocateMs": 228.59,
+        "parseMs": 3.8
+      },
+      "truthAwkitScore": 0.975,
+      "truthAwkitBestOther": 0.725
+    },
+    {
+      "id": "field-relabel",
+      "expectation": "recoverable",
+      "recordedLocator": "role=textbox [Notes] | alternatives: label=Notes ; placeholder=Add a note ; css=textarea[name=\"notes\"]",
+      "production": {
+        "status": "unresolved",
+        "correct": null,
+        "ms": 3339.4
+      },
+      "localOnly": {
+        "status": "unresolved",
+        "correct": null,
+        "ms": 2469.9
+      },
+      "localAndBlueprint": {
+        "status": "unresolved",
+        "correct": null,
+        "ms": 3319
+      },
+      "scrapling": {
+        "candidateCount": 1,
+        "topScore": 87.5,
+        "runnerUpScore": 61.61,
+        "correct": true,
+        "truthRank": 1,
+        "truthScore": 87.5,
+        "awkitScore": 0.61,
+        "awkitBestOther": 0.3133,
+        "relocateMs": 29.15,
+        "parseMs": 0.71
+      },
+      "truthAwkitScore": 0.61,
+      "truthAwkitBestOther": 0.3133
+    },
+    {
+      "id": "list-item-link",
+      "expectation": "recoverable",
+      "recordedLocator": "css=a[href=\"/orders/1045\"] | alternatives: css=#main > table:nth-child(2) > tbody:nth-child(2) > tr:nth-child(6) > td:nth-child(5) > a:nth-child(1) ; css=tr:nth-child(6) > td:nth-child(5) > a:nth-child(1) ; role=link [View]",
+      "production": {
+        "status": "resolved",
+        "correct": false,
+        "ms": 71.3
+      },
+      "localOnly": {
+        "status": "unresolved",
+        "correct": null,
+        "ms": 2629.5
+      },
+      "localAndBlueprint": {
+        "status": "unresolved",
+        "correct": null,
+        "ms": 2182.2
+      },
+      "scrapling": {
+        "candidateCount": 1,
+        "topScore": 91.13,
+        "runnerUpScore": 90.41,
+        "correct": true,
+        "truthRank": 1,
+        "truthScore": 91.13,
+        "awkitScore": 0.9,
+        "awkitBestOther": 0.9,
+        "relocateMs": 12.37,
+        "parseMs": 0.37
+      },
+      "truthAwkitScore": 0.9,
+      "truthAwkitBestOther": 0.9
+    }
+  ],
+  "pathMappingAgreesWithBrowser": [
+    {
+      "id": "wrapper-insertion",
+      "agrees": true
+    },
+    {
+      "id": "moved-within-region",
+      "agrees": true
+    },
+    {
+      "id": "id-changed",
+      "agrees": true
+    },
+    {
+      "id": "id-removed",
+      "agrees": true
+    },
+    {
+      "id": "class-changed",
+      "agrees": true
+    },
+    {
+      "id": "aria-retained",
+      "agrees": true
+    },
+    {
+      "id": "text-drift",
+      "agrees": true
+    },
+    {
+      "id": "sibling-reorder",
+      "agrees": true
+    },
+    {
+      "id": "duplicate-text-decoy",
+      "agrees": true
+    },
+    {
+      "id": "same-tag-decoy-target-removed",
+      "agrees": true
+    },
+    {
+      "id": "other-region-decoy-target-removed",
+      "agrees": true
+    },
+    {
+      "id": "page-variant-same-url",
+      "agrees": true
+    },
+    {
+      "id": "combined-drift",
+      "agrees": true
+    },
+    {
+      "id": "large-dom-shift",
+      "agrees": true
+    },
+    {
+      "id": "field-relabel",
+      "agrees": true
+    },
+    {
+      "id": "list-item-link",
+      "agrees": true
+    }
+  ],
+  "scraplingReferenceRecord": {
+    "fields": [
+      "attributes",
+      "parent_attribs",
+      "parent_name",
+      "parent_text",
+      "path",
+      "siblings",
+      "tag",
+      "text"
+    ],
+    "attributeKeysExample": [
+      "class",
+      "id",
+      "type"
+    ]
+  },
+  "warmRelocateMs": {
+    "all": {
+      "n": 320,
+      "p50": 27.64,
+      "p95": 236.95,
+      "max": 349.49
+    },
+    "perCase": {
+      "wrapper-insertion": {
+        "n": 20,
+        "p50": 29.07,
+        "p95": 34.94,
+        "max": 39.69
+      },
+      "moved-within-region": {
+        "n": 20,
+        "p50": 31.1,
+        "p95": 41.02,
+        "max": 43.7
+      },
+      "id-changed": {
+        "n": 20,
+        "p50": 28.17,
+        "p95": 38.11,
+        "max": 39.12
+      },
+      "id-removed": {
+        "n": 20,
+        "p50": 28.35,
+        "p95": 33.08,
+        "max": 38.47
+      },
+      "class-changed": {
+        "n": 20,
+        "p50": 28.44,
+        "p95": 45.61,
+        "max": 45.98
+      },
+      "aria-retained": {
+        "n": 20,
+        "p50": 29.03,
+        "p95": 35.31,
+        "max": 37.54
+      },
+      "text-drift": {
+        "n": 20,
+        "p50": 17.93,
+        "p95": 30.61,
+        "max": 32.52
+      },
+      "sibling-reorder": {
+        "n": 20,
+        "p50": 14.44,
+        "p95": 15.9,
+        "max": 21.81
+      },
+      "duplicate-text-decoy": {
+        "n": 20,
+        "p50": 29.89,
+        "p95": 32.97,
+        "max": 37.69
+      },
+      "same-tag-decoy-target-removed": {
+        "n": 20,
+        "p50": 27.64,
+        "p95": 36.12,
+        "max": 40.62
+      },
+      "other-region-decoy-target-removed": {
+        "n": 20,
+        "p50": 15.9,
+        "p95": 36.58,
+        "max": 37.71
+      },
+      "page-variant-same-url": {
+        "n": 20,
+        "p50": 6.03,
+        "p95": 14.04,
+        "max": 14.88
+      },
+      "combined-drift": {
+        "n": 20,
+        "p50": 29.83,
+        "p95": 42.8,
+        "max": 50.95
+      },
+      "large-dom-shift": {
+        "n": 20,
+        "p50": 260.55,
+        "p95": 347.26,
+        "max": 349.49
+      },
+      "field-relabel": {
+        "n": 20,
+        "p50": 26.02,
+        "p95": 32.73,
+        "max": 36.49
+      },
+      "list-item-link": {
+        "n": 20,
+        "p50": 12.5,
+        "p95": 14.86,
+        "max": 15.38
+      }
+    }
+  },
+  "awkitResolveMs": {
+    "production": {
+      "n": 16,
+      "p50": 70.3,
+      "p95": 3339.4,
+      "max": 3339.4
+    },
+    "localAndBlueprint": {
+      "n": 16,
+      "p50": 2277.2,
+      "p95": 3914.3,
+      "max": 3914.3
+    }
+  },
+  "payloadBytes": {
+    "wrapper-insertion": {
+      "baselineBytes": 4619,
+      "mutatedBytes": 4655,
+      "requestBytes": 9869,
+      "responseBytes": 521
+    },
+    "moved-within-region": {
+      "baselineBytes": 4619,
+      "mutatedBytes": 4619,
+      "requestBytes": 9831,
+      "responseBytes": 519
+    },
+    "id-changed": {
+      "baselineBytes": 4619,
+      "mutatedBytes": 4623,
+      "requestBytes": 9839,
+      "responseBytes": 519
+    },
+    "id-removed": {
+      "baselineBytes": 4619,
+      "mutatedBytes": 4603,
+      "requestBytes": 9825,
+      "responseBytes": 518
+    },
+    "class-changed": {
+      "baselineBytes": 4619,
+      "mutatedBytes": 4623,
+      "requestBytes": 9835,
+      "responseBytes": 518
+    },
+    "aria-retained": {
+      "baselineBytes": 4643,
+      "mutatedBytes": 4627,
+      "requestBytes": 9865,
+      "responseBytes": 533
+    },
+    "text-drift": {
+      "baselineBytes": 4619,
+      "mutatedBytes": 4623,
+      "requestBytes": 9835,
+      "responseBytes": 519
+    },
+    "sibling-reorder": {
+      "baselineBytes": 4619,
+      "mutatedBytes": 4702,
+      "requestBytes": 9920,
+      "responseBytes": 520
+    },
+    "duplicate-text-decoy": {
+      "baselineBytes": 4619,
+      "mutatedBytes": 4829,
+      "requestBytes": 10063,
+      "responseBytes": 518
+    },
+    "same-tag-decoy-target-removed": {
+      "baselineBytes": 4619,
+      "mutatedBytes": 4525,
+      "requestBytes": 9722,
+      "responseBytes": 472
+    },
+    "other-region-decoy-target-removed": {
+      "baselineBytes": 4619,
+      "mutatedBytes": 4267,
+      "requestBytes": 9440,
+      "responseBytes": 463
+    },
+    "page-variant-same-url": {
+      "baselineBytes": 4619,
+      "mutatedBytes": 1146,
+      "requestBytes": 6171,
+      "responseBytes": 458
+    },
+    "combined-drift": {
+      "baselineBytes": 4619,
+      "mutatedBytes": 4643,
+      "requestBytes": 9864,
+      "responseBytes": 521
+    },
+    "large-dom-shift": {
+      "baselineBytes": 24358,
+      "mutatedBytes": 30930,
+      "requestBytes": 57985,
+      "responseBytes": 519
+    },
+    "field-relabel": {
+      "baselineBytes": 4619,
+      "mutatedBytes": 4659,
+      "requestBytes": 9867,
+      "responseBytes": 513
+    },
+    "list-item-link": {
+      "baselineBytes": 4619,
+      "mutatedBytes": 4703,
+      "requestBytes": 9948,
+      "responseBytes": 505
+    }
+  },
+  "scale": [
+    {
+      "requestedElements": 250,
+      "elements": 207,
+      "htmlBytes": 5940,
+      "found": 1,
+      "n": 5,
+      "p50": 16.97,
+      "p95": 20.21,
+      "max": 20.21
+    },
+    {
+      "requestedElements": 1000,
+      "elements": 832,
+      "htmlBytes": 24135,
+      "found": 1,
+      "n": 5,
+      "p50": 76.6,
+      "p95": 84.65,
+      "max": 84.65
+    },
+    {
+      "requestedElements": 4000,
+      "elements": 3332,
+      "htmlBytes": 97635,
+      "found": 1,
+      "n": 5,
+      "p50": 615.46,
+      "p95": 647.77,
+      "max": 647.77
+    },
+    {
+      "requestedElements": 10000,
+      "elements": 8332,
+      "htmlBytes": 246630,
+      "found": 1,
+      "n": 5,
+      "p50": 1936.04,
+      "p95": 2651.3,
+      "max": 2651.3
+    }
+  ],
+  "normalization": {
+    "rawHtmlBytes": 1117,
+    "rawHtmlLeaks": [
+      "HIDDEN-CSS-CANARY",
+      "HIDDEN-ATTR-CANARY",
+      "TEMPLATE-CANARY",
+      "COMMENT-CANARY",
+      "SCRIPT-CANARY",
+      "PASSWORD-CANARY",
+      "4111 1111 1111 1111"
+    ],
+    "methods": [
+      {
+        "method": "scrapling-static-text",
+        "newRuntime": true,
+        "leaked": [
+          "HIDDEN-CSS-CANARY",
+          "HIDDEN-ATTR-CANARY"
+        ],
+        "missingFacts": [],
+        "outputChars": 196,
+        "ms": 0.56
+      },
+      {
+        "method": "browser-innerText",
+        "newRuntime": false,
+        "leaked": [],
+        "missingFacts": [],
+        "outputChars": 116,
+        "ms": 6.51
+      },
+      {
+        "method": "playwright-aria-snapshot",
+        "newRuntime": false,
+        "leaked": [
+          "PASSWORD-CANARY",
+          "4111 1111 1111 1111"
+        ],
+        "missingFacts": [],
+        "outputChars": 590,
+        "ms": 55.83
+      }
+    ],
+    "outputs": {
+      "scrapling": "Checkout — Acme\nHome\nCart\nCheckout\nPayment failed: card declined\nEmail\nPassword\nCard number\nPay now\nItem\nQty\nWidget\n2\nHIDDEN-CSS-CANARY internal discount code\nHIDDEN-ATTR-CANARY\nARIA-HIDDEN-CANARY",
+      "innerText": "HomeCart\nCheckout\nPayment failed: card declined\nEmailPasswordCard numberPay now\nItem\tQty\nWidget\t2\nARIA-HIDDEN-CANARY",
+      "aria": "- banner:\n  - navigation \"Primary\":\n    - link \"Home\":\n      - /url: /\n    - link \"Cart\":\n      - /url: /cart\n- main:\n  - heading \"Checkout\" [level=1]\n  - alert: \"Payment failed: card declined\"\n  - text: Email\n  - textbox \"Email\": buyer@example.com\n  - text: Password\n  - textbox \"Password\": PASSWORD-CANARY\n  - text: Card number\n  - textbox \"Card number\": 4111 1111 1111 1111\n  - button \"Pay now\"\n  - table:\n    - rowgroup:\n      - row \"Item Qty\":\n        - columnheader \"Item\"\n        - columnheader \"Qty\"\n    - rowgroup:\n      - row \"Widget 2\":\n        - cell \"Widget\"\n        - cell \"2\""
+    }
+  },
+  "tally": {
+    "cases": 16,
+    "recoverable": 13,
+    "noMatch": 3,
+    "awkitCorrect": 6,
+    "awkitWrong": 1,
+    "scraplingCorrect": 10,
+    "scraplingAmbiguous": 0,
+    "scraplingFalse": 6,
+    "incrementalRaw": [
+      "text-drift",
+      "duplicate-text-decoy",
+      "large-dom-shift",
+      "field-relabel",
+      "list-item-link"
+    ],
+    "incrementalGated": [
+      "large-dom-shift"
+    ],
+    "gatedFalse": [
+      "other-region-decoy-target-removed"
+    ]
+  },
+  "analysis": {
+    "recordedLocators": [
+      {
+        "id": "wrapper-insertion",
+        "recordedLocator": "role=button [Save changes] | alternatives: text=Save changes ; id=save-order ; css=#save-order"
+      },
+      {
+        "id": "moved-within-region",
+        "recordedLocator": "role=button [Save changes] | alternatives: text=Save changes ; id=save-order ; css=#save-order"
+      },
+      {
+        "id": "id-changed",
+        "recordedLocator": "role=button [Save changes] | alternatives: text=Save changes ; id=save-order ; css=#save-order"
+      },
+      {
+        "id": "id-removed",
+        "recordedLocator": "role=button [Save changes] | alternatives: text=Save changes ; id=save-order ; css=#save-order"
+      },
+      {
+        "id": "class-changed",
+        "recordedLocator": "role=button [Save changes] | alternatives: text=Save changes ; id=save-order ; css=#save-order"
+      },
+      {
+        "id": "aria-retained",
+        "recordedLocator": "role=button [Save order] | alternatives: id=save-order ; css=#save-order ; css=#order-edit button:nth-of-type(3)"
+      },
+      {
+        "id": "text-drift",
+        "recordedLocator": "role=button [Save changes] | alternatives: text=Save changes ; id=save-order ; css=#save-order"
+      },
+      {
+        "id": "sibling-reorder",
+        "recordedLocator": "role=button [Save changes] | alternatives: text=Save changes ; id=save-order ; css=#save-order"
+      },
+      {
+        "id": "duplicate-text-decoy",
+        "recordedLocator": "role=button [Save changes] | alternatives: text=Save changes ; id=save-order ; css=#save-order"
+      },
+      {
+        "id": "same-tag-decoy-target-removed",
+        "recordedLocator": "role=button [Save changes] | alternatives: text=Save changes ; id=save-order ; css=#save-order"
+      },
+      {
+        "id": "other-region-decoy-target-removed",
+        "recordedLocator": "role=button [Save changes] | alternatives: text=Save changes ; id=save-order ; css=#save-order"
+      },
+      {
+        "id": "page-variant-same-url",
+        "recordedLocator": "role=button [Save changes] | alternatives: text=Save changes ; id=save-order ; css=#save-order"
+      },
+      {
+        "id": "combined-drift",
+        "recordedLocator": "role=button [Save changes] | alternatives: text=Save changes ; id=save-order ; css=#save-order"
+      },
+      {
+        "id": "large-dom-shift",
+        "recordedLocator": "role=button [Save changes] | alternatives: text=Save changes ; id=save-order ; css=#save-order"
+      },
+      {
+        "id": "field-relabel",
+        "recordedLocator": "role=textbox [Notes] | alternatives: label=Notes ; placeholder=Add a note ; css=textarea[name=\"notes\"]"
+      },
+      {
+        "id": "list-item-link",
+        "recordedLocator": "css=a[href=\"/orders/1045\"] | alternatives: css=#main > table:nth-child(2) > tbody:nth-child(2) > tr:nth-child(6) > td:nth-child(5) > a:nth-child(1) ; css=tr:nth-child(6) > td:nth-child(5) > a:nth-child(1) ; role=link [View]"
+      }
+    ],
+    "uncappedAwkitScorerWouldRecover": [
+      {
+        "id": "wrapper-insertion",
+        "wouldRecover": true
+      },
+      {
+        "id": "moved-within-region",
+        "wouldRecover": true
+      },
+      {
+        "id": "id-changed",
+        "wouldRecover": true
+      },
+      {
+        "id": "id-removed",
+        "wouldRecover": true
+      },
+      {
+        "id": "class-changed",
+        "wouldRecover": true
+      },
+      {
+        "id": "aria-retained",
+        "wouldRecover": false
+      },
+      {
+        "id": "text-drift",
+        "wouldRecover": false
+      },
+      {
+        "id": "sibling-reorder",
+        "wouldRecover": true
+      },
+      {
+        "id": "duplicate-text-decoy",
+        "wouldRecover": false
+      },
+      {
+        "id": "combined-drift",
+        "wouldRecover": false
+      },
+      {
+        "id": "large-dom-shift",
+        "wouldRecover": true
+      },
+      {
+        "id": "field-relabel",
+        "wouldRecover": false
+      },
+      {
+        "id": "list-item-link",
+        "wouldRecover": false
+      }
+    ],
+    "incrementalGatedAlsoRecoverableByUncappedAwkit": [
+      "large-dom-shift"
+    ]
+  },
+  "gates": {
+    "locator": {
+      "decision": "NO-GO",
+      "reasons": [
+        "wrong candidates that would pass the unchanged gates: other-region-decoy-target-removed"
+      ]
+    },
+    "normalization": {
+      "decision": "NO-GO",
+      "reasons": [
+        "Scrapling output leaks HIDDEN-CSS-CANARY, HIDDEN-ATTR-CANARY",
+        "an in-browser method with no new runtime is at least as good on leaks, facts and size"
+      ]
+    }
+  }
+}

@@ -136,26 +136,31 @@ function startServer(): Promise<Server> {
 }
 
 // ── AWKIT side ─────────────────────────────────────────────────────────────────────────────────
-async function recordStep(browser: Browser, fixture: DomCase): Promise<{ step: FlowStep; blueprint: PageBlueprint }> {
+async function recordStep(browser: Browser, fixture: DomCase): Promise<{ step: FlowStep; blueprint: PageBlueprint | undefined }> {
   const context = await browser.newContext();
   const actions: RecordedAction[] = [];
+  const actionType = fixture.action ?? "click";
   try {
     await context.addInitScript({ content: getRecorderInitScriptContent() });
     await context.exposeBinding("__awtkit_recordAction", (_source, action) => actions.push(action as RecordedAction));
     await context.exposeBinding("__awtkit_recordSignal", () => undefined);
     const page = await context.newPage();
     await page.goto(`${BASE}/case/${fixture.id}?v=baseline`);
-    await page.locator(fixture.targetSelector).click();
-    for (let attempt = 0; attempt < 60 && !actions.some((a) => a.type === "click"); attempt += 1) {
+    if (actionType === "fill") {
+      await page.locator(fixture.targetSelector).fill("Leave at the door");
+      await page.keyboard.press("Tab");
+    } else {
+      await page.locator(fixture.targetSelector).click();
+    }
+    for (let attempt = 0; attempt < 60 && !actions.some((a) => a.type === actionType); attempt += 1) {
       await page.waitForTimeout(50);
     }
     const blueprints: PageBlueprint[] = [];
-    const flow = buildRecordedFlow(`L10.0 ${fixture.id}`, actions.filter((a) => a.type === "click").slice(0, 1), blueprints);
-    const step = flow.nodes.find((node) => node.type === "click") as FlowStep | undefined;
-    if (!step?.locator) throw new Error(`${fixture.id}: the recorder captured no click step`);
-    const blueprint = blueprints[0];
-    if (!blueprint) throw new Error(`${fixture.id}: the recorder captured no blueprint`);
-    return { step, blueprint };
+    const flow = buildRecordedFlow(`L10.0 ${fixture.id}`, actions.filter((a) => a.type === actionType).slice(0, 1), blueprints);
+    const step = flow.nodes.find((node) => node.type === actionType) as FlowStep | undefined;
+    if (!step?.locator) throw new Error(`${fixture.id}: the recorder captured no ${actionType} step`);
+    // Only click actions carry a blueprint capture; a fill step has no blueprint layer in production.
+    return { step, blueprint: blueprints[0] };
   } finally {
     await context.close();
   }
@@ -170,13 +175,10 @@ function forcedStep(step: FlowStep): FlowStep {
 
 function describeLocator(step: FlowStep): string {
   const locator = step.locator!;
-  const primary = `${locator.strategy}=${locator.value}${locator.name ? ` [${locator.name}]` : ""}`;
-  const extras = [
-    locator.alternatives?.length ? `+${locator.alternatives.length} alternatives` : "",
-    locator.guard ? "guarded-positional" : "",
-    locator.context?.container ? "container-scoped" : ""
-  ].filter(Boolean);
-  return extras.length ? `${primary} (${extras.join(", ")})` : primary;
+  const one = (c: { strategy: string; value: string; name?: string }) => `${c.strategy}=${c.value}${c.name ? ` [${c.name}]` : ""}`;
+  const alternatives = (locator.alternatives ?? []).map(one);
+  const extras = [locator.guard ? "guarded-positional" : "", locator.context?.container ? "container-scoped" : ""].filter(Boolean);
+  return `${one(locator)}${alternatives.length ? ` | alternatives: ${alternatives.join(" ; ")}` : ""}${extras.length ? ` (${extras.join(", ")})` : ""}`;
 }
 
 async function outcome(run: () => Promise<Locator>, truth: string | null): Promise<EngineOutcome> {
@@ -223,9 +225,9 @@ interface CaseRun {
 async function runCase(browser: Browser, host: Host, fixture: DomCase, recoveryRoot: string): Promise<CaseRun> {
   const { step, blueprint } = await recordStep(browser, fixture);
   const blueprintStore: LocatorBlueprintStore = {
-    get: async (pageKey) => (pageKey === blueprint.pageKey ? blueprint : undefined),
+    get: async (pageKey) => (blueprint && pageKey === blueprint.pageKey ? blueprint : undefined),
     put: async () => undefined,
-    list: async () => [blueprint]
+    list: async () => (blueprint ? [blueprint] : [])
   };
   const recoveryStore = new FileLocatorRecoveryStore(join(recoveryRoot, fixture.id));
   const scope = (suffix: string) => ({ scenarioId: `l10-${fixture.id}-${suffix}`, flowId: "l10-bench" });
@@ -458,6 +460,25 @@ async function main(): Promise<void> {
       scale: scaleResult.series.map((point) => ({ requestedElements: point.requestedElements, elements: point.elements, htmlBytes: point.htmlBytes, found: point.found, ...stats(point.samples) })),
       normalization: { rawHtmlBytes: normalization.rawHtmlBytes, rawHtmlLeaks: normalization.rawHtmlLeaks, methods: normalization.methods, outputs: normalization.outputs },
       tally,
+      // Informational, NOT part of the pre-registered rule: would AWKIT's own fingerprint scorer have
+      // recovered the truth element had its scan covered the whole visible page (no 200-element cap,
+      // no ±24 blueprint window, no document-fingerprint gate)? Separates algorithm from coverage.
+      analysis: {
+        recordedLocators: runs.map((run) => ({ id: run.result.id, recordedLocator: run.result.recordedLocator })),
+        uncappedAwkitScorerWouldRecover: results
+          .filter((r) => r.expectation === "recoverable")
+          .map((r) => ({
+            id: r.id,
+            wouldRecover:
+              r.truthAwkitScore !== null &&
+              r.truthAwkitScore >= 0.86 &&
+              (r.truthAwkitBestOther === null || r.truthAwkitScore - r.truthAwkitBestOther >= 0.08)
+          })),
+        incrementalGatedAlsoRecoverableByUncappedAwkit: tally.incrementalGated.filter((id) => {
+          const r = results.find((item) => item.id === id);
+          return !!r && r.truthAwkitScore !== null && r.truthAwkitScore >= 0.86 && (r.truthAwkitBestOther === null || r.truthAwkitScore - r.truthAwkitBestOther >= 0.08);
+        })
+      },
       gates: { locator: locatorGate, normalization: normalizationGate }
     };
     await writeFile(RESULTS, `${JSON.stringify(report, null, 2)}\n`);

@@ -1,6 +1,51 @@
 # DECISIONS
 
-### 2026-09-30 (latest) — Phase L extension: L10 deterministic DOM intelligence (Scrapling) registered, planning only (owner request) (`awkit-djnl.18`)
+### 2026-09-30 (latest) — L10.0 gate: parser-only Scrapling is NO-GO for both locator integration and DOM normalization (implementer, under the pre-registered rule) (`awkit-djnl.18`)
+
+- **Locator integration gate: NO-GO**
+- **DOM normalization gate: NO-GO**
+- **How it was decided.** The owner asked to start L10.0 and approved downloading the seven pinned
+  parser-only wheels into a gitignored dev venv.
+  - The decision rule (`scripts/dom-intelligence/gate.mts`) was committed in `8072804a` before the
+    first run.
+  - The benchmark drove the real Recorder capture and the production `LocatorFactory` across 16
+    frozen drift cases, against Scrapling 0.4.15's `relocate()` on the same `page.content()` HTML.
+  - Evidence: `docs/plans/ai-upgrade-v5/evidence/L10.0-dom-intelligence-gate-2026-09-30.md` and its
+    results JSON. `verify:dom-intelligence-gate` re-derives both decisions from that data.
+- **Why the locator gate is NO-GO.**
+  - Scrapling recovered 5 targets that AWKIT's recovery missed. Only one (`large-dom-shift`) passes
+    the unchanged 0.86 / 0.08 gates (DI5), and there AWKIT's own scorer also rates the target 0.975
+    with a 0.25 margin: the miss is the 200-element scan cap, not the algorithm.
+  - Scrapling returned a wrong unique element in 6 of 16 cases, including all 3 no-match cases. One of
+    those would pass the unchanged gates.
+  - Post hoc, a Scrapling threshold of about 85% separates its right and wrong picks on these 16 cases.
+    Using it would replace AWKIT's gates (contrary to DI5) and would need persisted raw DOM values.
+    It is recorded, not adopted.
+- **Why the normalization gate is NO-GO.** Scrapling's static text leaks CSS-hidden and `[hidden]`
+  content. The browser's `innerText` leaks nothing, keeps every required fact and needs no runtime.
+- **Consequences.**
+  - L10.1–L10.7 are NOT started.
+  - No Scrapling, Python runtime or host enters the product.
+  - The dev venv stays in `.cache/` and is never shipped.
+  - Whether L10 closes as NO-GO/descoped (and Phase L with it once `.15` resolves) or is reopened
+    under a changed DI5 is the owner's decision. The plan's closing rule already allows a NO-GO
+    closure.
+- **Recorded for any reopening:**
+  - **Runtime:** embedded CPython (pinned embeddable zip), run as a main-owned child process with the
+    base wheel's `fetchers/`, `spiders/` and `engines/` code stripped.
+  - **Licensing:** the orjson (MPL-2.0) and tld (MPL-1.1) terms need legal review.
+  - **Privacy:** HTML must be stripped of values, hidden content, scripts and comments in the page
+    before it leaves the browser. Any adaptive store needs the allowlist, redaction, bounds and
+    `%LOCALAPPDATA%` root in the evidence. Scrapling's default database (inside its package
+    directory) is never used.
+- **Found along the way, not caused by L10:**
+  - production resolves the wrong element through the viewport tiebreak (a same-label decoy) and
+    through unguarded positional alternatives (list re-sort);
+  - local recovery accepts a same-label element in another region after the target is removed;
+  - the recovery failure path takes seconds.
+  These are tracked separately (`KNOWN_ISSUES.md`, Beads). No product code changed.
+
+### 2026-09-30 — Phase L extension: L10 deterministic DOM intelligence (Scrapling) registered, planning only (owner request) (`awkit-djnl.18`)
 
 - **How it was decided.** The owner supplied an L10 plan and a registration prompt and asked for a
   Fable 5.1 read-only review through CodeCraft before any change. The review returned APPROVE WITH

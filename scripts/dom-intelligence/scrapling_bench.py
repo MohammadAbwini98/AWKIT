@@ -213,10 +213,11 @@ def op_inventory(_request):
             except OSError:
                 pass
         classifiers = [c for c in (dist.metadata.get_all("Classifier") or []) if c.startswith("License")]
+        raw_license = (dist.metadata.get("License-Expression") or dist.metadata.get("License") or "").strip()
         distributions.append({
             "name": dist.metadata["Name"],
             "version": dist.version,
-            "license": dist.metadata.get("License-Expression") or dist.metadata.get("License") or "",
+            "license": raw_license.splitlines()[0] if raw_license else "",
             "licenseClassifiers": classifiers,
             "requiresDist": dist.metadata.get_all("Requires-Dist") or [],
             "installedBytes": size,
@@ -247,7 +248,10 @@ def op_inventory(_request):
         "python": sys.version.split()[0],
         "distributions": distributions,
         "scraplingPackageBreakdown": breakdown,
-        "defaultAdaptiveDbPath": os.path.join(package_dir, "elements_storage.db"),
+        # Relative to site-packages: the default store sits INSIDE the installed package directory.
+        "defaultAdaptiveDbPath": os.path.relpath(
+            os.path.join(package_dir, "elements_storage.db"), os.path.dirname(package_dir)
+        ).replace("\\", "/"),
         "defaultAdaptiveDbExists": os.path.exists(os.path.join(package_dir, "elements_storage.db")),
         "loadedStdlibModules": loaded_count,
         "loadedStdlibBytes": loaded,

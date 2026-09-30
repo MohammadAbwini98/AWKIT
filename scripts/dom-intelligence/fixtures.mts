@@ -14,7 +14,9 @@ export interface DomCase {
   id: string;
   drift: string;
   expectation: "recoverable" | "no-match";
-  /** Baseline selector used only to click (record) the target and to seed Scrapling's reference. */
+  /** How the target is recorded. A textarea click records nothing, so fields are recorded as a fill. */
+  action?: "click" | "fill";
+  /** Baseline selector used only to record the target and to seed Scrapling's reference. */
   targetSelector: string;
   /** The correct element in the mutated page; null when the target no longer exists. */
   truthSelector: string | null;
@@ -255,6 +257,7 @@ export const DOM_CASES: DomCase[] = [
     id: "field-relabel",
     drift: "a textarea is relabelled and its id, name and placeholder change",
     expectation: "recoverable",
+    action: "fill",
     targetSelector: "#notes",
     truthSelector: "#order-notes",
     baseline,
@@ -320,8 +323,9 @@ export function sha256(text: string): string {
 export function fixtureSetHash(): string {
   return sha256(
     JSON.stringify({
-      cases: DOM_CASES.map(({ id, targetSelector, truthSelector, expectation, baseline: b, mutated }) => ({
+      cases: DOM_CASES.map(({ id, action, targetSelector, truthSelector, expectation, baseline: b, mutated }) => ({
         id,
+        action: action ?? "click",
         targetSelector,
         truthSelector,
         expectation,

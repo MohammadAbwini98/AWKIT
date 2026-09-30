@@ -150,6 +150,7 @@
     "verify:closed-shadow": "tsx scripts/verify-closed-shadow.mts",
     "verify:blueprint-recovery": "tsx scripts/verify-blueprint-recovery.mts",
     "verify:blueprint-recovery-browser": "tsx scripts/verify-blueprint-recovery-browser.mts",
+    "verify:dom-intelligence-gate": "tsx scripts/verify-dom-intelligence-gate.mts",
     "verify:recorder-e2e": "node scripts/verify-recorder-e2e.mjs",
     "verify:assertions": "tsx scripts/verify-assertions.mts",
     "verify:storage-assertions": "tsx scripts/verify-storage-assertions.mts",
