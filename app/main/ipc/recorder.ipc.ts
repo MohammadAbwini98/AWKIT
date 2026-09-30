@@ -7,6 +7,7 @@ import { getResourcesRoot, getRuntimeDataRoot, getRuntimePaths, isProductionOffl
 import { buildRecordedFlow } from "@src/recorder/buildRecordedFlow";
 import { isLocatorRecordingMode, LOCATOR_RECORDING_MODES, type RecordedAction } from "@src/recorder/RecorderTypes";
 import { FileLocatorBlueprintStore, type PageBlueprint } from "@src/runner/LocatorBlueprintStore";
+import { DOM_REFERENCE_FOLDER, FileDomReferenceStore, type DomReferenceRecord } from "@src/runner/domIntelligence/domReference";
 import { getSessionService } from "./session.ipc";
 import { getUiSettings, type LocatorRecordingMode } from "../uiSettings";
 import { resolveIgnoreHttpsErrors } from "@src/security/browser/CertificateTrust";
@@ -219,14 +220,24 @@ export function registerRecorderIpc(): void {
     // Recorded flows always open with default Start/End nodes and the actions between them,
     // replaying recorded waits/tab-switches. Logic lives in a pure, unit-tested helper.
     const blueprints: PageBlueprint[] = [];
+    const domReferences: DomReferenceRecord[] = [];
     // L3 U1: a pending AI candidate comes only from main's own draft, never from these actions.
-    const flowProfile = buildRecordedFlow(name, actions, blueprints, { pendingUpgrades: recorderService.draftPendingUpgrades() });
+    const flowProfile = buildRecordedFlow(name, actions, blueprints, {
+      pendingUpgrades: recorderService.draftPendingUpgrades(),
+      domReferencesOut: domReferences
+    });
     await store.create(flowProfile);
-    
+
     // Save any assembled blueprints for fallback recovery.
     if (blueprints.length > 0) {
       const blueprintStore = new FileLocatorBlueprintStore(join(getRuntimePaths().root, "locator-blueprints"));
       await Promise.allSettled(blueprints.map(b => blueprintStore.put(b)));
+    }
+    // L11: bound, redacted DOM-intelligence references beside the flow (never inside it). Best-effort:
+    // a reference that cannot be written only means no repair suggestion for that step.
+    if (domReferences.length > 0) {
+      const referenceStore = new FileDomReferenceStore(join(getRuntimePaths().root, DOM_REFERENCE_FOLDER));
+      await Promise.allSettled(domReferences.map((reference) => referenceStore.put(reference)));
     }
 
     // The session is now persisted as a flow — clear the unsaved-recording draft.

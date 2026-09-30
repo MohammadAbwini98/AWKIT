@@ -41,6 +41,7 @@ import type { DialogExpectation, FlowStep, LocatorCandidate, PendingLocatorUpgra
 import { buildRecordedStep } from "./buildRecordedFlow";
 import { buildFrameChain } from "./frameChainCapture";
 import { LocatorFactory } from "../runner/LocatorFactory";
+import { sanitizeDomReferenceCapture } from "../runner/domIntelligence/domReference";
 import { derivePopupAlias } from "../runner/runtime/PopupIdentityRegistry";
 import {
   buildBrowserContextOptions,
@@ -1903,6 +1904,17 @@ export class RecorderService {
     return this.getInspectionState();
   }
 
+  /**
+   * L11 diagnosis: the live Recorder/Element Spy page a DOM-intelligence diagnosis may read, or null.
+   * Null during a protected-login handoff, after protected-login detection refused inspection, and when
+   * no Recorder browser is open — a diagnosis never reads a protected surface.
+   */
+  public getLivePage(pageAlias = "main"): Page | null {
+    if (!this.inspectionAllowed() || this.inspectionRefused) return null;
+    const page = pageAlias === "main" ? this.page : this.popupPages.get(pageAlias);
+    return page && !page.isClosed() ? page : null;
+  }
+
   /** The current inspection, if it is younger than the TTL. Never persisted. */
   public getInspectionState(): ElementInspectionState {
     if (this.inspection && Date.now() - Date.parse(this.inspection.inspectedAt) > ELEMENT_INSPECTION_TTL_MS) this.inspection = null;
@@ -2218,6 +2230,14 @@ export class RecorderService {
     if (!this.isRecording) return;
     // L2 upgrade context leaves the action here, before anything can persist or compare it.
     const rawUpgradeContext = takeUpgradeContext(action);
+    // L11: the DOM-intelligence reference is bounded and redacted before the draft can persist it.
+    for (const capture of [action.locator?.blueprintCapture, action.targetLocator?.blueprintCapture]) {
+      if (capture && "domReference" in capture) {
+        const element = sanitizeDomReferenceCapture(capture.domReference);
+        if (element) capture.domReference = element as unknown as Record<string, unknown>;
+        else delete capture.domReference;
+      }
+    }
     this.applyActionLocatorRecordingMode(action);
     const now = Date.now();
     // Causal evidence for the next navigation on this page: if the URL changes after this, the

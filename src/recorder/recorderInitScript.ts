@@ -1,3 +1,5 @@
+import { DOM_REFERENCE_CAPTURE_SOURCE } from "../runner/domIntelligence/pageScripts";
+
 /**
  * Recorder capture script (runs in the recorded page's DOM context).
  *
@@ -13,7 +15,13 @@
  * the best one together with uniqueness metadata (`LocatorQuality`). This is what
  * prevents the recorder from saving generic selectors like
  * `div.flex.items-center.justify-center` that resolve to many elements.
+ *
+ * One exception to "no module-scope helpers": `__awkitDomReference`, the L11 DOM-intelligence reference
+ * capture, is a separate source string that `getRecorderInitScriptContent` defines in the same wrapper
+ * scope, so the reference is sanitized by exactly the helpers the recovery snapshot serializer uses.
  */
+declare const __awkitDomReference: ((element: Element) => Record<string, unknown> | null) | undefined;
+
 export function installRecorderCapture(): void {
   // Guard against double-install (addInitScript runs per navigation/frame).
   //
@@ -3141,6 +3149,15 @@ export function installRecorderCapture(): void {
       enabled,
       boundingRegion,
       fingerprint: computeFingerprint(el),
+      // L11: the allowlisted element-local reference a parser-only provider matches on. Null for a
+      // protected-login document, a sensitive input or a shadow-scoped element (the helper refuses them).
+      domReference: (() => {
+        try {
+          return typeof __awkitDomReference === "function" ? __awkitDomReference(el) : null;
+        } catch {
+          return null;
+        }
+      })(),
       // Origin + pathname only — never persist query/fragment (tokens/PII) in the draft. Matches the
       // recorder's URL-masking policy and what buildRecordedFlow derives for the stored blueprint.
       url: location.origin && location.origin !== "null" ? location.origin + location.pathname : location.href,
@@ -3272,6 +3289,35 @@ export function installRecorderCapture(): void {
     },
     true
   );
+  // L11 diagnosis: describe ONE element the main process names (an Element Spy / Designer diagnosis
+  // candidate) with the same generator a click uses. Read-only — nothing is recorded, clicked or kept —
+  // light DOM only (no shadow claim), and refused on a protected-login document like inspection itself.
+  try {
+    Object.defineProperty(window, Symbol.for("awkit.recorder.describe"), {
+      value: (el: unknown) => {
+        if (!(el instanceof Element) || document.querySelector(INSPECT_PROTECTED)) return null;
+        if (el.getRootNode() !== document) return null;
+        activeQueryRoots = collectOpenRoots(document);
+        const generated = generate(el, { allowPositional: false });
+        const locator = generated.locator;
+        return {
+          owner: { tag: tagOf(el), role: roleOf(el) || "", name: String(generated.accessibleName || "").slice(0, 120), type: attr(el, "type") },
+          locator: {
+            strategy: locator.strategy,
+            value: locator.value,
+            name: locator.name,
+            exact: locator.exact,
+            quality: locator.quality,
+            context: locator.context,
+            alternatives: locator.alternatives
+          }
+        };
+      },
+      configurable: true
+    });
+  } catch {
+    /* a non-configurable leftover from an earlier document in this window */
+  }
   // Selection affordance: a pointer-transparent outline follows the hovered element while inspecting.
   let inspectOutline: HTMLElement | null = null;
   const placeOutline = (el: Element | null, color: string): void => {
@@ -3904,5 +3950,5 @@ window.addEventListener("keydown", (event) => { if (event instanceof KeyboardEve
  * `__name`, the shim is simply unused.
  */
 export function getRecorderInitScriptContent(): string {
-  return `(() => { var __name = (t) => t; (${installRecorderCapture.toString()})(); })();`;
+  return `(() => { var __name = (t) => t; var __awkitDomReference = (${DOM_REFERENCE_CAPTURE_SOURCE}); (${installRecorderCapture.toString()})(); })();`;
 }

@@ -11,6 +11,7 @@ import { LocatorFactory } from "./LocatorFactory";
 import { closedShadowBridgeScript } from "./closedShadowBridge";
 import { FileLocatorRecoveryStore, type LocatorRecoveryStore } from "./LocatorRecoveryStore";
 import { FileLocatorBlueprintStore, type LocatorBlueprintStore } from "./LocatorBlueprintStore";
+import type { DomIntelligenceRecoveryOptions } from "./domIntelligence/DomIntelligenceProvider";
 import { ManualHandoffController } from "./ManualHandoffController";
 import type { RunnerProgressReporter } from "./RunnerProgress";
 import { MemoryRunnerLogger, type FlowExecutionResult, type ScenarioExecutionResult } from "./RunnerResult";
@@ -131,6 +132,8 @@ export interface PlaywrightRunnerOptions extends BrowserContextFactoryOptions {
   locatorRecoveryRoot?: string;
   /** Stable runtime-data folder for offline locator blueprints. */
   locatorBlueprintRoot?: string;
+  /** L11: DOM-intelligence provider + references for non-executing repair suggestions (optional). */
+  domIntelligence?: DomIntelligenceRecoveryOptions;
   /**
    * Notified with the scope key of each locator recovery record this run writes, so the caller can
    * index them once the run finishes (plan §14). The caller owns deduplication; keys repeat freely
@@ -794,6 +797,9 @@ export class PlaywrightRunner {
       recoveryStore: this.locatorRecoveryStore,
       blueprintStore: this.locatorBlueprintStore,
       scope: { scenarioId: context.scenarioId, flowId: context.flowId },
+      domIntelligence: this.options.domIntelligence,
+      // Operator kill switch back to the pre-L11 per-element recovery loops (same decision rules).
+      recoveryEngine: process.env.AWKIT_LOCATOR_RECOVERY_ENGINE === "legacy" ? "legacy" : "snapshot",
       onRemembered: this.options.onLocatorRemembered,
       onRecoveryEvent: (event) =>
         logger.log({

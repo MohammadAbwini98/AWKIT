@@ -7,6 +7,7 @@ import type { CaptureFragmentInput, FragmentOperationResult } from "./ipc/fragme
 import type { WorkflowProfile } from "@src/profiles/WorkflowProfile";
 import type { OfflineRuntimeStatus } from "@src/offline/OfflineRuntimeValidator";
 import type { SemanticSearchRequest } from "@src/semantic/contracts/SemanticDocument";
+import type { DomDiagnosisRequest, DomDiagnosisResponse, DomIntelligenceStatusView } from "@src/runner/domIntelligence/DomIntelligenceApi";
 import type {
   LocatorSuggestionRequest,
   SemanticAdminResponse,
@@ -418,6 +419,15 @@ const api = {
     getSettings: () => invoke("semantic:getSettings") as Promise<SemanticSettingsView>,
     updateSettings: (patch: SemanticSettingsPatch) =>
       invoke("semantic:updateSettings", patch) as Promise<SemanticAdminResponse>
+  },
+  /**
+   * L11 DOM intelligence. Status for Settings, and a read-only diagnosis of a saved step or a draft
+   * action on the Element Spy's live page. Requests name ids only; main loads the step itself, and a
+   * diagnosis never changes a locator (applying a suggestion is the user's explicit edit).
+   */
+  domIntelligence: {
+    getStatus: () => invoke("domIntelligence:getStatus") as Promise<DomIntelligenceStatusView>,
+    diagnoseStep: (request: DomDiagnosisRequest) => invoke("domIntelligence:diagnoseStep", request) as Promise<DomDiagnosisResponse>
   },
   /**
    * Optional local AI (Phase L, L1). Status, settings, the model pack, diagnostics, the audit log,

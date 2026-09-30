@@ -12,6 +12,8 @@ import { resolveStepSafety } from "../runner/runtime/StepSafetyPolicy";
 import { hashFingerprint, hashToken } from "../runner/locatorFingerprint";
 import type { PageBlueprint, ElementBlueprint } from "../runner/LocatorBlueprintStore";
 import { computeFrameKey, computePageKey } from "../runner/LocatorBlueprintStore";
+import { stepCandidatesDigest } from "../runner/LocatorRecoveryStore";
+import { buildDomReference, type DomReferenceRecord } from "../runner/domIntelligence/domReference";
 import type { RecordedAction, RecordedActionLocator } from "./RecorderTypes";
 
 /** A step whose side effect is dangerous enough to require a runtime identity guard on a positional locator. */
@@ -134,7 +136,14 @@ export function buildRecordedFlow(
   name: string,
   actions: RecordedAction[],
   blueprintsOut?: PageBlueprint[],
-  options: { pendingUpgrades?: ReadonlyMap<string, PendingLocatorUpgrade> } = {}
+  options: {
+    pendingUpgrades?: ReadonlyMap<string, PendingLocatorUpgrade>;
+    /**
+     * L11: receives one bound, redacted DOM-intelligence reference per non-sensitive step that got a
+     * blueprint and whose capture carried one. Stored beside the flow, never inside it.
+     */
+    domReferencesOut?: DomReferenceRecord[];
+  } = {}
 ): FlowProfile {
   // Guard against any Start/End sneaking in from the recording so we never duplicate them.
   const actionSteps = actions.filter((action) => action.type !== "start" && action.type !== "end");
@@ -225,6 +234,16 @@ export function buildRecordedFlow(
             boundingRegion: capture.boundingRegion
           };
           blueprint.elements.push(element);
+          // Bound to exactly the candidates the runner will digest, so any later locator edit makes it
+          // stale. The candidate list is final at this point (alternatives are set above).
+          if (options.domReferencesOut && capture.domReference) {
+            const reference = buildDomReference(capture.domReference, {
+              referenceId: blueprintId,
+              bindingDigest: stepCandidatesDigest(step.locator),
+              source: "recorder"
+            });
+            if (reference) options.domReferencesOut.push(reference);
+          }
         }
       }
 

@@ -167,6 +167,13 @@ export interface RecordedActionLocator {
     url: string;
     title: string;
     documentStructure: string;
+    /**
+     * L11 DOM-intelligence reference (allowlisted, bounded element-local description). Redacted as the
+     * action reaches main (`sanitizeDomReferenceCapture`) and finalized into a bound, AWKIT-owned sidecar
+     * record by `buildRecordedFlow`; never part of the saved flow JSON. Absent for protected-login
+     * documents, sensitive inputs and shadow-scoped targets.
+     */
+    domReference?: Record<string, unknown> | null;
   };
 }
 

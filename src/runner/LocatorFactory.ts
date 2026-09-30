@@ -23,6 +23,7 @@ import { encodeClosedShadowSelector, isInstrumentedClosedShadow, registerClosedS
 import {
   locatorCandidateSignature,
   locatorCandidatesDigest,
+  stepCandidatesDigest,
   type LocatorElementFingerprint,
   type LocatorRecoveryRecord,
   type LocatorRecoveryStore
@@ -46,8 +47,18 @@ import {
   type RecoveryRefusal,
   type ScoredCandidate
 } from "./recoverySnapshot";
-import type { DomIntelligenceRecoveryOptions, DomRepairSuggestion } from "./domIntelligence/DomIntelligenceProvider";
-import { suggestRepair } from "./domIntelligence/repairSuggestion";
+import type {
+  DomCandidateProof,
+  DomIntelligenceProvider,
+  DomIntelligenceRecoveryOptions,
+  DomRepairSuggestion
+} from "./domIntelligence/DomIntelligenceProvider";
+import { fingerprintAt, proveCandidate, suggestRepair } from "./domIntelligence/repairSuggestion";
+import { buildDomReference, type DomReferenceStore } from "./domIntelligence/domReference";
+import { captureDomSnapshot } from "./domIntelligence/domSnapshot";
+import { DOM_REFERENCE_CAPTURE_SOURCE } from "./domIntelligence/pageScripts";
+
+let referenceCapture: ((element: Element) => unknown) | undefined;
 
 /**
  * Anything Playwright can build sub-locators from: a `Page`, a `FrameLocator`, or a `Locator`.
@@ -105,6 +116,51 @@ export interface LocatorRecoveryTrace {
   totalMs: number;
   stages: LocatorRecoveryStage[];
   suggestion?: DomRepairSuggestion;
+}
+
+/** An element as the Recorder's in-page generator describes it (label and a suggested locator). */
+export interface DiagnosisElement {
+  owner: { tag: string; role: string; name: string; type?: string };
+  locator: { strategy: string; value: string; name?: string; exact?: boolean; quality?: unknown; context?: unknown; alternatives?: unknown };
+}
+
+export interface DiagnosisCandidate {
+  /** `frame.locator("body *").nth(index)`. */
+  index: number;
+  providerScore: number;
+  awkitScore?: number;
+  proof: DomCandidateProof;
+  element?: DiagnosisElement;
+}
+
+/** The read-only result of `LocatorFactory.diagnose` (Element Spy / Designer). No page text beyond labels. */
+export interface LocatorDiagnosis {
+  schemaVersion: 1;
+  stepId: string;
+  /** A sensitive step never recovers; the diagnosis still shows the proof for the user's own decision. */
+  sensitive: boolean;
+  identity: "recorded" | "none";
+  frame?: "main" | "child";
+  recorded: { status: "resolved" | "ambiguous" | "missing" | "error"; strategy?: string; matches?: number; detail?: string };
+  snapshot?: {
+    outcome: "proven" | "refused";
+    reason?: RecoveryRefusal;
+    candidates: number;
+    score?: number;
+    runnerUpScore?: number;
+    ms: number;
+    element?: DiagnosisElement;
+  };
+  provider: {
+    outcome: "ok" | "skipped" | "error";
+    reason?: "provider-unavailable" | "provider-timeout" | "provider-error" | "no-reference" | "protected-surface" | "snapshot-failed";
+    candidates: DiagnosisCandidate[];
+    elements?: number;
+    parseMs?: number;
+    matchMs?: number;
+    ms?: number;
+  };
+  timings: { totalMs: number };
 }
 
 /**
@@ -284,7 +340,8 @@ export class LocatorFactory {
     let pass = await this.tryCandidates(root, ordered);
     if (pass.winner) {
       await this.rememberWinner(scopeKey, digest, pass.winner, step);
-      
+      await this.maybeSeedReference(step, pass.winner.locator, sensitiveAction);
+
       if (isPositionalLocator(step.locator) && isValidLocatorFallbackApproval(step)) {
         this.emit({
           type: "user-approved-fallback",
@@ -340,6 +397,131 @@ export class LocatorFactory {
     if (!pass.ambiguousPresent && pass.primaryLocator) return pass.primaryLocator;
 
     throw new Error(LocatorFactory.formatFailure(step, pass.diagnostics));
+  }
+
+  /**
+   * L11 on-demand diagnosis for the Element Spy and the Designer (plan E4). READ-ONLY: it counts and
+   * fingerprints, never clicks, fills, focuses or rewrites anything, and it never writes winner memory.
+   *
+   * It reports (1) what the saved locator resolves to now, (2) AWKIT's own snapshot proof against the
+   * step's recorded identity, and (3) the provider's candidates, each re-proven by AWKIT with the same
+   * competitor set, plus an optional locator suggestion from the Recorder's in-page generator. Applying a
+   * suggestion is the user's explicit edit, elsewhere.
+   */
+  async diagnose(
+    step: FlowStep,
+    deps: { provider?: DomIntelligenceProvider; references?: DomReferenceStore; expected?: LocatorElementFingerprint; describe?: boolean } = {}
+  ): Promise<LocatorDiagnosis> {
+    const started = performance.now();
+    const spec = step.locator;
+    if (!spec) throw new Error("Locator is required for this step.");
+    const expected = deps.expected;
+    const diagnosis: LocatorDiagnosis = {
+      schemaVersion: 1,
+      stepId: step.id,
+      sensitive: LocatorFactory.isSensitive(step),
+      identity: expected ? "recorded" : "none",
+      recorded: { status: "missing" },
+      provider: { outcome: "skipped", candidates: [] },
+      timings: { totalMs: 0 }
+    };
+    let root: LocatorRoot;
+    try {
+      if (isInstrumentedClosedShadow(spec.context) || hasPositionalIdentityGuard(step)) {
+        const locator = await this.resolve(step);
+        const matches = await locator.count().catch(() => 0);
+        diagnosis.recorded = { status: matches === 1 ? "resolved" : matches === 0 ? "missing" : "ambiguous", strategy: spec.strategy, matches };
+        diagnosis.timings.totalMs = performance.now() - started;
+        return diagnosis;
+      }
+      root = await this.buildRoot(spec.context);
+    } catch (error) {
+      diagnosis.recorded = { status: "error", strategy: spec.strategy, detail: (error instanceof Error ? error.message : String(error)).split("\n")[0].slice(0, 200) };
+      diagnosis.timings.totalMs = performance.now() - started;
+      return diagnosis;
+    }
+    const ranked = [{ strategy: spec.strategy, value: spec.value, name: spec.name, exact: spec.exact }, ...(spec.alternatives ?? [])]
+      .filter((candidate, index) => index === 0 || !isPositionalCandidate(candidate))
+      .map((candidate) => ({ candidate, signature: LocatorFactory.candidateSignature(candidate) }));
+    const pass = await this.tryCandidates(root, ranked);
+    diagnosis.recorded = pass.winner
+      ? { status: "resolved", strategy: pass.winner.ranked.candidate.strategy, matches: 1 }
+      : { status: pass.ambiguousPresent ? "ambiguous" : "missing", strategy: spec.strategy, matches: Math.max(0, ...pass.diagnostics.map((d) => d.count)) };
+
+    const frame = await this.blueprintFrame(spec.context).catch(() => this.page.mainFrame());
+    diagnosis.frame = frame === this.page.mainFrame() ? "main" : "child";
+    const describe = async (list: Locator, index: number): Promise<DiagnosisElement | undefined> =>
+      deps.describe
+        ? ((await list
+            .nth(index)
+            .evaluate((element) => {
+              const describeElement = (window as unknown as Record<symbol, unknown>)[Symbol.for("awkit.recorder.describe")];
+              return typeof describeElement === "function" ? (describeElement as (el: Element) => unknown)(element) : null;
+            })
+            .catch(() => null)) as DiagnosisElement | null) ?? undefined
+        : undefined;
+
+    // AWKIT's own proof, exactly as recovery would run it (never for a sensitive step's action, but
+    // the diagnosis still shows what the proof says).
+    if (expected) {
+      const snapshotStarted = performance.now();
+      const visible = root.locator("*:visible");
+      try {
+        const snapshot = await captureLocalSnapshot(visible, expected);
+        const decision = snapshot.truncated ? undefined : rankLocalRecovery(step, expected, snapshot.candidates);
+        diagnosis.snapshot = {
+          outcome: decision?.winner ? "proven" : "refused",
+          ...(snapshot.truncated ? { reason: "snapshot-truncated" as const } : decision?.refusal ? { reason: decision.refusal } : {}),
+          candidates: decision?.considered ?? snapshot.candidates.length,
+          ...(decision?.best ? { score: Number(decision.best.score.toFixed(3)) } : {}),
+          ...(decision?.runnerUp ? { runnerUpScore: Number(decision.runnerUp.score.toFixed(3)) } : {}),
+          ms: performance.now() - snapshotStarted,
+          ...(decision?.winner ? { element: await describe(visible, decision.winner.index) } : {})
+        };
+      } catch {
+        diagnosis.snapshot = { outcome: "refused", reason: "snapshot-failed", candidates: 0, ms: performance.now() - snapshotStarted };
+      }
+    }
+
+    // The provider's candidates, each re-proven by AWKIT over the frame's competitor set.
+    const providerStarted = performance.now();
+    const referenceId = spec.blueprintId;
+    const reference = referenceId && deps.references ? await deps.references.get(referenceId, stepCandidatesDigest(spec)).catch(() => undefined) : undefined;
+    if (!deps.provider) diagnosis.provider = { outcome: "skipped", reason: "provider-unavailable", candidates: [] };
+    else if (!reference) diagnosis.provider = { outcome: "skipped", reason: "no-reference", candidates: [] };
+    else {
+      const snapshot = await captureDomSnapshot(frame, { mode: "recover", expected }).catch(() => undefined);
+      if (!snapshot) diagnosis.provider = { outcome: "error", reason: "snapshot-failed", candidates: [] };
+      else if (snapshot.refused) diagnosis.provider = { outcome: "skipped", reason: "protected-surface", candidates: [] };
+      else {
+        const result = await deps.provider.findRecoveryCandidates({ html: snapshot.html, reference, maxCandidates: 5 });
+        if (!result.ok) {
+          diagnosis.provider = { outcome: "error", reason: result.code === "TIMEOUT" ? "provider-timeout" : result.code === "UNAVAILABLE" || result.code === "DISABLED" ? "provider-unavailable" : "provider-error", candidates: [] };
+        } else {
+          const decision = expected && !snapshot.candidatesTruncated ? rankLocalRecovery(step, expected, snapshot.candidates) : undefined;
+          const allElements = frame.locator("body *");
+          const candidates: DiagnosisCandidate[] = [];
+          for (const candidate of result.candidates) {
+            const fingerprint = snapshot.candidates.find((entry) => entry.index === candidate.index)?.fingerprint ?? (await fingerprintAt(frame, candidate.index));
+            candidates.push({
+              index: candidate.index,
+              providerScore: candidate.score,
+              ...proveCandidate(step, expected, { index: candidate.index, fingerprint }, decision),
+              ...(await describe(allElements, candidate.index).then((element) => (element ? { element } : {})))
+            });
+          }
+          diagnosis.provider = { outcome: "ok", candidates, elements: result.elements, parseMs: result.parseMs, matchMs: result.matchMs };
+        }
+      }
+    }
+    diagnosis.provider.ms = performance.now() - providerStarted;
+    diagnosis.timings.totalMs = performance.now() - started;
+    return diagnosis;
+  }
+
+  private static isSensitive(step: FlowStep): boolean {
+    const level = resolveStepSafety(step).sideEffectLevel;
+    return level === "dangerousMutation" || level === "externalCommit";
   }
 
   /**
@@ -473,6 +655,34 @@ export class LocatorFactory {
       allMissing: diagnostics.length > 0 && diagnostics.every(({ count }) => count === 0),
       diagnostics
     };
+  }
+
+  /** Reference bindings already known present (or just written) in this process: `${referenceId}:${digest}`. */
+  private static readonly seededReferences = new Set<string>();
+
+  /**
+   * L11 reference refresh (plan E7), deliberately conservative: only with a DOM-intelligence store, only
+   * for a non-sensitive step with a blueprint id, only when the RECORDED locator itself matched exactly
+   * one element (never from a recovery), and only when no reference is bound to the step's current
+   * candidates. Memoized per process, so a step's later successes pay nothing.
+   */
+  private async maybeSeedReference(step: FlowStep, locator: Locator, sensitiveAction: boolean): Promise<void> {
+    const references = this.options.domIntelligence?.references;
+    const referenceId = step.locator?.blueprintId;
+    if (!references || !referenceId || sensitiveAction || !step.locator) return;
+    const bindingDigest = stepCandidatesDigest(step.locator);
+    const key = `${referenceId}:${bindingDigest}`;
+    if (LocatorFactory.seededReferences.has(key)) return;
+    LocatorFactory.seededReferences.add(key);
+    try {
+      if (await references.get(referenceId, bindingDigest)) return;
+      if ((await locator.count()) !== 1) return;
+      referenceCapture ??= new Function("element", `return (${DOM_REFERENCE_CAPTURE_SOURCE})(element);`) as (element: Element) => unknown;
+      const reference = buildDomReference(await locator.evaluate(referenceCapture), { referenceId, bindingDigest, source: "runtime-refresh" });
+      if (reference) await references.put(reference);
+    } catch {
+      // Best-effort: a missing reference only means no repair suggestion for this step.
+    }
   }
 
   private async rememberWinner(

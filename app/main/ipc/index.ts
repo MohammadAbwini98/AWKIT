@@ -23,6 +23,7 @@ import { registerBrandingIpc } from "./branding.ipc";
 import { registerValidationIpc } from "./validation.ipc";
 import { registerSemanticIpc } from "./semantic.ipc";
 import { registerAiIpc } from "./ai.ipc";
+import { registerDomIntelligenceIpc } from "./domIntelligence.ipc";
 import { registerDebugIpc } from "./debug.ipc";
 import { registerRoadmapIpc } from "./roadmap.ipc";
 import { ipcMain, type IpcMainInvokeEvent } from "electron";
@@ -75,6 +76,7 @@ export function registerIpcHandlers(): void {
   registerValidationIpc();
   registerSemanticIpc();
   registerAiIpc();
+  registerDomIntelligenceIpc();
   registerDebugIpc();
   registerRoadmapIpc();
 }

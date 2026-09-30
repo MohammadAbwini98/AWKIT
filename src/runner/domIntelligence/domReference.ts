@@ -21,6 +21,9 @@ import { DOM_ATTRIBUTE_ALLOWLIST } from "./pageScripts";
 
 export const DOM_REFERENCE_SCHEMA_VERSION = 1;
 
+/** The runtime-root folder (`%LOCALAPPDATA%/SpecterStudio/<runtime>/dom-references`). */
+export const DOM_REFERENCE_FOLDER = "dom-references";
+
 export const DOM_REFERENCE_LIMITS = Object.freeze({
   tag: 40,
   attributeValue: 120,
@@ -126,6 +129,15 @@ export function buildDomReference(
       children
     }
   };
+}
+
+/**
+ * The element part of a raw in-page capture, bounded and redacted, or undefined. Applied as a recorded
+ * action enters the main process, so even the unsaved-recording draft never holds unredacted reference
+ * text; `buildDomReference` applies the same rules again when the step is finalized.
+ */
+export function sanitizeDomReferenceCapture(raw: unknown): DomReferenceElement | undefined {
+  return buildDomReference(raw, { referenceId: "draft", bindingDigest: "0".repeat(64), source: "recorder" })?.element;
 }
 
 /**

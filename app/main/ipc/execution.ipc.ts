@@ -9,6 +9,7 @@ import { assertSenderPermission, assertSenderSuperUser } from "../security/sessi
 import { Permission } from "@src/security/authz/Permissions";
 import { getSecretStore } from "../secretStore";
 import { getOracleNodeRunner } from "../oracleService";
+import { domIntelligenceRecoveryOptions } from "../domIntelligence/domIntelligenceRuntime";
 import { indexCompletedRun } from "../semantic/semanticService";
 import { applyRunGateEnforcement, licenseDispatchGate, parkedResumeBlocker } from "../licensing/licenseEnforcementService";
 import { ExecutionApplicationService } from "../execution/ExecutionApplicationService";
@@ -49,6 +50,10 @@ export function registerExecutionIpc(): void {
 
   // Oracle query nodes run through the main-process OracleQueryService (owns the JDBC bridge).
   executionEngine.setOracleNodeRunner(getOracleNodeRunner());
+
+  // L11: non-executing DOM-intelligence repair suggestions after a refused locator recovery. The host
+  // is started lazily by the first such request, never here and never by a successful step.
+  executionEngine.setDomIntelligence(domIntelligenceRecoveryOptions());
 
   // Keep the semantic index fresh as runs finish, instead of only when a rebuild runs (plan §14).
   // Gated on `semantic.autoIndex` inside the observer, and non-throwing on both sides of the seam.

@@ -46,6 +46,8 @@ export interface ScraplingProviderOptions {
   /** Crashes inside `crashWindowMs` before the circuit opens for `crashWindowMs`. */
   maxCrashes?: number;
   crashWindowMs?: number;
+  /** An idle host is stopped after this long (default 10 minutes) and restarted on the next request. */
+  idleShutdownMs?: number;
 }
 
 interface HelloInfo {
@@ -132,6 +134,9 @@ export class ScraplingDomIntelligenceProvider implements DomIntelligenceProvider
   private circuitOpenUntil = 0;
   private lastFailure: DomIntelligenceFailure | undefined;
   private stopped = false;
+  private idleTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Children stopped on purpose (idle): their exit is not a crash. */
+  private readonly retired = new WeakSet<ChildProcessWithoutNullStreams>();
 
   constructor(private readonly options: ScraplingProviderOptions) {}
 
@@ -139,6 +144,7 @@ export class ScraplingDomIntelligenceProvider implements DomIntelligenceProvider
     const started = await this.ensureStarted();
     const base = { provider: "scrapling" as const, mode: "parser-only" as const, browserAccess: false as const, networkAccess: false as const };
     if ("ok" in started) return { ...base, available: false, reason: started.code, detail: started.message };
+    this.armIdleStop();
     return {
       ...base,
       available: true,
@@ -186,6 +192,7 @@ export class ScraplingDomIntelligenceProvider implements DomIntelligenceProvider
 
   async shutdown(): Promise<void> {
     this.stopped = true;
+    if (this.idleTimer) clearTimeout(this.idleTimer);
     const child = this.child;
     if (!child) return;
     const exited = new Promise<void>((resolve) => child.once("exit", () => resolve()));
@@ -289,11 +296,32 @@ export class ScraplingDomIntelligenceProvider implements DomIntelligenceProvider
   }
 
   private async request(op: string, payload: Record<string, unknown>, timeoutMs: number): Promise<{ ok: true; result: unknown } | DomIntelligenceFailure> {
+    if (this.idleTimer) clearTimeout(this.idleTimer);
     const started = await this.ensureStarted();
     if ("ok" in started) return started;
     const child = this.child;
     if (!child) return { ok: false, code: "CRASHED", message: "The DOM-intelligence host exited." };
-    return this.send(child, op, payload, timeoutMs);
+    const response = await this.send(child, op, payload, timeoutMs);
+    this.armIdleStop();
+    return response;
+  }
+
+  /** Stop a host nobody has used for `idleShutdownMs`; the next request starts a fresh one. */
+  private armIdleStop(): void {
+    if (this.idleTimer) clearTimeout(this.idleTimer);
+    this.idleTimer = setTimeout(() => {
+      const child = this.child;
+      if (!child || this.pending.size > 0) return;
+      this.retired.add(child);
+      this.child = undefined;
+      this.hello = undefined;
+      try {
+        child.stdin.end(`${JSON.stringify({ id: this.nextId++, op: "shutdown" })}\n`);
+      } catch {
+        child.kill();
+      }
+    }, this.options.idleShutdownMs ?? 10 * 60_000);
+    this.idleTimer.unref?.();
   }
 
   private send(child: ChildProcessWithoutNullStreams, op: string, payload: Record<string, unknown>, timeoutMs: number): Promise<{ ok: true; result: unknown } | DomIntelligenceFailure> {
@@ -395,7 +423,7 @@ export class ScraplingDomIntelligenceProvider implements DomIntelligenceProvider
       this.hello = undefined;
     }
     this.failAll(child, "CRASHED", "The DOM-intelligence host exited.");
-    if (this.stopped) return;
+    if (this.stopped || this.retired.has(child)) return;
     const now = Date.now();
     const window = this.options.crashWindowMs ?? 60_000;
     this.crashes = [...this.crashes.filter((at) => now - at < window), now];

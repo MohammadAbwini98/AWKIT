@@ -8,6 +8,7 @@ import { disposeOracleServices } from "./oracleService";
 import { disposeSecurityKernel } from "./security/securityKernel";
 import { disposeSemanticSubsystem, initializeSemanticSubsystem } from "./semantic/semanticService";
 import { disposeAiSubsystem } from "./ai/aiRuntime";
+import { shutdownDomIntelligence } from "./domIntelligence/domIntelligenceRuntime";
 import { initializeLicensingRuntime } from "./licensing/licenseRuntime";
 import { startLicenseEnforcementWatcher, stopLicenseEnforcementWatcher } from "./licensing/licenseEnforcementService";
 import { evaluateOfflineStartupGate } from "@src/offline/ProductionStartupCheck";
@@ -233,7 +234,12 @@ if (!gotSingleInstanceLock) {
     const stage1 = (): Promise<unknown> => {
       const timeout = new Promise<void>((resolve) => setTimeout(resolve, 3000));
       return Promise.race([
-        Promise.all([disposeSemanticSubsystem().catch(() => undefined), disposeAiSubsystem().catch(() => undefined)]),
+        Promise.all([
+          disposeSemanticSubsystem().catch(() => undefined),
+          disposeAiSubsystem().catch(() => undefined),
+          // L11: the parser-only DOM-intelligence host (it also exits by itself on stdin EOF).
+          shutdownDomIntelligence().catch(() => undefined)
+        ]),
         timeout
       ]);
     };

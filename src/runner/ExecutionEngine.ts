@@ -23,6 +23,7 @@ import { registerSecretValues } from "../reports/SecretMasker";
 import type { ScenarioProfile } from "../profiles/ScenarioProfile";
 import type { ResolvedDataSource } from "./InstanceExecutionContext";
 import type { OracleNodeRunner } from "@src/oracle/OracleNodeExecution";
+import type { DomIntelligenceRecoveryOptions } from "./domIntelligence/DomIntelligenceProvider";
 import { ReportService } from "../reports/ReportService";
 import type { InstanceReport } from "../reports/ExecutionReport";
 import type {
@@ -572,6 +573,17 @@ export class ExecutionEngine {
 
   public setOracleNodeRunner(runner: OracleNodeRunner): void {
     this.oracleNodeRunner = runner;
+  }
+
+  /**
+   * L11: the DOM-intelligence provider and reference store, for non-executing repair suggestions after a
+   * refused locator recovery and for reference refresh. Unset (tests, a build without the runtime) means
+   * recovery behaves exactly as without it.
+   */
+  private domIntelligence?: DomIntelligenceRecoveryOptions;
+
+  public setDomIntelligence(options: DomIntelligenceRecoveryOptions | undefined): void {
+    this.domIntelligence = options;
   }
 
   /**
@@ -1614,6 +1626,7 @@ export class ExecutionEngine {
       oracleNodeRunner: this.oracleNodeRunner,
       locatorRecoveryRoot: join(dirs.root, "locator-recovery"),
       locatorBlueprintRoot: join(dirs.root, "locator-blueprints"),
+      domIntelligence: this.domIntelligence,
       // Accumulate only — no projection, no I/O, no emitter on the locator resolution path. The set
       // is read once when this instance finishes.
       onLocatorRemembered: (scopeKey) => {
