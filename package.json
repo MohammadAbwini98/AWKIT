@@ -200,6 +200,8 @@
     "benchmark:observability-storage": "node scripts/benchmark/run.mjs scripts/benchmark-observability-storage.mts",
     "benchmark:engine-headed": "node scripts/benchmark/run.mjs scripts/benchmark-engine-headed-anchor.mts",
     "benchmark:capacity-reserve": "tsx scripts/benchmark-capacity-reserve.mts",
+    "benchmark:dom-intelligence-setup": "node scripts/dom-intelligence/setup-scrapling-bench.mjs",
+    "benchmark:dom-intelligence": "tsx scripts/benchmark-dom-intelligence.mts",
     "verify:watchdog": "tsx scripts/verify-watchdog.mts",
     "verify:artifacts": "tsx scripts/verify-artifacts.mts",
     "verify:runtime-status": "tsx scripts/verify-runtime-status.mts",
