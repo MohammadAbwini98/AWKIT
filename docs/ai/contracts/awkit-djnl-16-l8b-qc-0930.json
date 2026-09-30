@@ -35,10 +35,13 @@
     ],
     "expected_paths": [
       ".beads/issues.jsonl",
+      ".beads/interactions.jsonl",
       "app/renderer/styles/global.css",
       "app/main/ai/aiRuntime.ts",
       "src/ai/AiQualification.ts",
       "scripts/verify-ai-backend-pack-gui.mjs",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "docs/ai/DECISIONS.md",
       "docs/ai/CURRENT_STATE.md",
       "docs/ai/HANDOFF.md",
       "docs/ai/TASK_LOG.md",
@@ -203,7 +206,7 @@
       "artifact": null,
       "required": true,
       "result": "PASS",
-      "notes": "177/177, Overview 'Sources agree', 329 issues, 23 outstanding / 306 closed, 191 edges, ledger 65 PASS / 2 NOT RUN / 0 BLOCKED restated in both newest narratives. verify:verifier-classification not re-run: no script was added since its 295 PASS this session."
+      "notes": "177/177, Overview 'Sources agree', 329 issues, 23 outstanding / 306 closed, 191 edges, ledger 65 PASS / 2 NOT RUN / 0 BLOCKED restated in both newest narratives. verify:verifier-classification not re-run: no script was added since its 295 PASS this session. After closing awkit-djnl.16: 177/177, Sources agree, 22 outstanding / 307 closed with the pin moved to match."
     },
     {
       "id": "verify:ai-backend-pack-packaged",
@@ -226,7 +229,7 @@
     "status": "complete",
     "qa_status": "PASS",
     "qc_status": "APPROVED",
-    "note": "This contract's own work is complete. awkit-djnl.16 itself stays OPEN for one item: an independent (non-Claude) review of the L8b.2/L8b.3 verdict logic, which CodeCraft could not answer (two timeouts, one empty reply).",
+    "note": "Complete, and awkit-djnl.16 is CLOSED (2026-09-30). L8b.2 got its independent review on a retry. No CodeCraft model could answer the L8b.3 packet (gpt-5.6-luna and gemini-3.1-pro empty or timed out, deepseek empty), so the owner accepted Claude's review as L8b.3's QC (DECISIONS.md 2026-09-30). The tracker pin in verify:roadmap-dashboard moved 23/306 -> 22/307.",
     "qc_basis": "This contract's own diff (the .modal-body rule, the verifier assertion, the latencyClassId consolidation) was reviewed by GPT-5.6 Luna through CodeCraft: APPROVED."
   },
   "write_lease": {
@@ -259,6 +262,22 @@
         "acquired_at_commit": "11eb18411b322096616561b9a94df0fd0508030f",
         "released_at": "2026-09-30T09:26:02.563Z",
         "released_reason": "awkit-djnl.16 retry result noted and exported, the L8b.2 review is done and L8b.3 is still inconclusive",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-16-l8b-qc-0930:project-state:2026-09-30T09:51:40.569Z",
+        "task": "awkit-djnl-16-l8b-qc-0930",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/issues.jsonl"
+        ],
+        "acquired_at": "2026-09-30T09:51:40.569Z",
+        "acquired_at_commit": "7032c2de7f30a55bce98793cffa2a989c059abd2",
+        "released_at": "2026-09-30T09:52:17.160Z",
+        "released_reason": "awkit-djnl.16 closed on the owner decision and exported, the dashboard pin and state documents are updated next outside this lease",
         "amendments": [],
         "overrides": [],
         "violations": []

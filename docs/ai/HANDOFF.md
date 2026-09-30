@@ -1,23 +1,26 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-30, latest) — `.16` three of four items done; one review left
+## HANDOFF (2026-09-30, latest) — `.16` closed; only `.15` keeps Phase L open
 
-- **`awkit-djnl.16` stays open** for one thing: an independent (non-Claude) review of the L8b.3 probe
-  verdict logic.
-  - L8b.2 got its review on a same-day retry, and its contract is APPROVED.
-  - What to review: `probeVerdict` and `runCompatibilityStages` in `src/ai/AiModelCompatibility.ts`,
-    and the host `probe` in `native-hosts/ai/ai-host.cjs`.
-  - CodeCraft on that packet:
-    - `gpt-5.6-luna` answers empty at 5000 output tokens and times out at 8000 or more;
-    - `gemini-3.1-pro` behaves the same (empty at 4000, timeout at 8000);
-    - `deepseek-v4-flash-0731` answered empty.
-  - A reviewer outside CodeCraft is the likely way through.
-  - When a reviewer answers, set the L8b.3–L8b.5 contract's `qc_status` and close `.16`.
-- **Done:**
+- **`awkit-djnl.16` is closed.** The owner accepted Claude's review as L8b.3's QC (`DECISIONS.md`), and
+  all three L8b contracts are `qc_status: APPROVED`.
+  - The tracker reads 22 outstanding / 307 closed.
+  - The `verify:roadmap-dashboard` pin moved to 22/307.
+- **CodeCraft on a probe-sized packet:**
+  - `gpt-5.6-luna` and `gemini-3.1-pro` answer empty at 4000–5000 output tokens and time out at 8000
+    or more;
+  - `deepseek-v4-flash-0731` answered empty.
+  - Keep review packets to about 40 lines of pure logic, and expect to split them.
+- **Open under `awkit-djnl`:** only `.15`, for these items:
+  - NVIDIA qualification (needs a `0x10DE` machine);
+  - E2 hybrid correlation;
+  - the load-window decision;
+  - the owner-run confinement mutation.
+- **What `.16` delivered:**
   - the dialog line breaks (`.modal-body` `white-space: pre-line`);
   - the latency class unified on `latencyClassId`;
   - `verify:failure-capture-overhead` PASS (run 21);
-  - independent QC of L8b.1, L8b.4 and L8b.5.
+  - independent QC of L8b.1, L8b.2, L8b.4 and L8b.5.
 - **Next fresh package:** `verify:ai-backend-pack-packaged` shares the GUI script's new line-break
   check, so it fails on any package built before this change.
 - Ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.

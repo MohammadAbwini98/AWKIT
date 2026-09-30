@@ -3,8 +3,9 @@
 Shared rules and the Phase L extension decisions (E1–E12): `ROADMAP.md` › *Phase L extension
 (2026-09-27)*. Beads `awkit-djnl.12`. Depends on L8a (`awkit-djnl.11`). Blocks L9 (`awkit-djnl.13`).
 
-**Status (2026-09-29): CLOSED — L8b.1–L8b.5 implemented, QA PASS, independent QC pending (carried
-forward).** The records follow the plan, newest last. Both planned verifiers exist and pass:
+**Status (2026-09-29): CLOSED — L8b.1–L8b.5 implemented, QA PASS. QC completed 2026-09-30 under
+`awkit-djnl.16` (closed): GPT-5.6 Luna reviewed L8b.1, L8b.2, L8b.4 and L8b.5, and the owner accepted
+Claude's review for L8b.3.** The records follow the plan, newest last. Both planned verifiers exist and pass:
 `verify:ai-model-compatibility` (188/0) and `verify:ai-model-registration` (33/0 on the packaged build).
 
 ## Objective
@@ -274,8 +275,11 @@ Contract `awkit-djnl-12-l8b3-l8b5-0929`. Commits `79c99a0f` (host), `86aacc1e` (
 
 ## `awkit-djnl.16` follow-up record (2026-09-30)
 
-Contract `awkit-djnl-16-l8b-qc-0930`. The issue stays open for one item: an independent review of the
-L8b.3 probe verdict logic.
+Contract `awkit-djnl-16-l8b-qc-0930`. **`awkit-djnl.16` is CLOSED (2026-09-30).**
+- No CodeCraft model could answer the L8b.3 packet: GPT-5.6 Luna and Gemini 3.1 Pro each answered empty
+  on a small output budget and timed out on a larger one.
+- The owner accepted Claude's review as L8b.3's QC (`DECISIONS.md`, 2026-09-30).
+- All three L8b contracts are `qc_status: APPROVED`.
 
 **Retry, same day, on the owner's request (`gpt-5.6-luna`, split into two packets):**
 - **L8b.2 is done.** `staticVerdict`, `staticStanding` and `runStaticStage` are correct on malformed

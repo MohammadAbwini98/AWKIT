@@ -1,6 +1,11 @@
 # CURRENT_STATE
 
-## L8b follow-ups: dialog line breaks fixed, latency class unified, overhead gate PASS (`awkit-djnl.16`, 2026-09-30, latest)
+## L8b follow-ups closed: dialog line breaks fixed, latency class unified, overhead gate PASS (`awkit-djnl.16`, 2026-09-30, latest)
+
+- **`awkit-djnl.16` is closed.** The owner accepted Claude's review as QC for L8b.3, after no CodeCraft
+  model could answer (`DECISIONS.md`). All three L8b contracts are `qc_status: APPROVED`.
+- The tracker reads 22 outstanding / 307 closed. Phase L's epic stays open only for `.15`.
+- The details of the four items follow.
 
 - **What changed for a user:** confirmation dialogs keep their paragraph breaks. The removal, revert,
   clear-index and HTTPS dialogs no longer run their paragraphs together.
@@ -21,8 +26,7 @@
   - `verify:failure-capture-overhead` PASS (run 21, 18/0/0);
   - `build` and `typecheck:scripts` PASS.
 - **NOT RUN:** `verify:ai-backend-pack-packaged`, because the package predates the renderer fix.
-- **Follow-ups:** `.16` stays open only for the L8b.3 independent review. Phase L's epic stays
-  open for `.15` and `.16`. Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67
+- **Follow-ups:** Phase L's epic stays open for `.15` only. Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67
   cases.
 
 ## L8a independent QC done; NVIDIA still BLOCKED (`awkit-djnl.15`, 2026-09-30)

@@ -6,15 +6,15 @@
   "allowed_paths": [
     ".beads/issues.jsonl"
   ],
-  "acquired_at": "2026-09-30T09:25:33.455Z",
-  "acquired_at_commit": "11eb18411b322096616561b9a94df0fd0508030f",
+  "acquired_at": "2026-09-30T09:51:40.569Z",
+  "acquired_at_commit": "7032c2de7f30a55bce98793cffa2a989c059abd2",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-djnl-12-l8b2-static-checks-0928.json",
+    "docs/ai/DECISIONS.md",
     "docs/ai/contracts/awkit-djnl-12-l8b3-l8b5-0929.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-djnl-12-l8b2-static-checks-0928.json": "bcc875e9bbdfc6f9b786fd720450eb4b6899761c218ab994f24e198cfb9d9a80",
-    "docs/ai/contracts/awkit-djnl-12-l8b3-l8b5-0929.json": "6113e51c1d692b05e6a9317ae7d309cad21d45ffb2d5917c33962e3cb74bca45"
+    "docs/ai/DECISIONS.md": "c94984aa8a76b65c1f77dc821a4c6ef6354d38badc1417b6b4e761d871566d00",
+    "docs/ai/contracts/awkit-djnl-12-l8b3-l8b5-0929.json": "6068d403f0a9e565ae10fa2de0a80e41c471cbdaed253ee52110839d84b5a604"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -29,7 +29,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-30T09:26:02.563Z",
-  "released_reason": "awkit-djnl.16 retry result noted and exported, the L8b.2 review is done and L8b.3 is still inconclusive",
-  "archived_at": "2026-09-30T09:26:02.564Z"
+  "released_at": "2026-09-30T09:52:17.160Z",
+  "released_reason": "awkit-djnl.16 closed on the owner decision and exported, the dashboard pin and state documents are updated next outside this lease",
+  "archived_at": "2026-09-30T09:52:17.162Z"
 }

@@ -1,6 +1,20 @@
 # DECISIONS
 
-### 2026-09-29 (latest) — L8b closes: how compatibility, qualification and the unverified-model acknowledgement are decided (implementer, within E1, E6 and E7) (`awkit-djnl.12`)
+### 2026-09-30 (latest) — L8b.3's QC is Claude's review, not a second model family (owner) (`awkit-djnl.16`)
+
+- **Decision:** the owner accepted Claude's review of the L8b.3 probe verdict logic as its QC, and closed
+  `awkit-djnl.16`.
+  - The logic covered: `probeVerdict`, `runCompatibilityStages`, and the host `probe`.
+  - The L8b.3–L8b.5 contract is `qc_status: APPROVED` on that basis.
+- **Why:** no CodeCraft model could answer the packet.
+  - `gpt-5.6-luna` and `gemini-3.1-pro` both answer empty on a small output budget and time out on a
+    larger one.
+  - `deepseek-v4-flash-0731` answered empty.
+  - The logic is small, pure and already mutation-tested (`verify:ai-model-compatibility` 188/0).
+- **Scope:** only L8b.3. L8b.1, L8b.2, L8b.4 and L8b.5 were reviewed independently by GPT-5.6 Luna.
+  This does not change the rule that QC comes from a second model family where one can answer.
+
+### 2026-09-29 — L8b closes: how compatibility, qualification and the unverified-model acknowledgement are decided (implementer, within E1, E6 and E7) (`awkit-djnl.12`)
 
 - **Thinking is shown off by observing the model, not by reading its template.** The CPU host's probe
   generates 16 unconstrained, greedy tokens after the product's own thinking-off prompt and reports only

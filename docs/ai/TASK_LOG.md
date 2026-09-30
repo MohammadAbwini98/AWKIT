@@ -1,6 +1,19 @@
 # TASK_LOG
 
-## 2026-09-30 (latest) — `awkit-djnl.16` CodeCraft retry: L8b.2 reviewed, L8b.3 still INCONCLUSIVE (Claude with CodeCraft)
+## 2026-09-30 (latest) — `awkit-djnl.16` closed on the owner's QC decision for L8b.3 (Claude)
+
+- **Task:**
+  1. "retry the L8b.3 review with gemini-3.1-pro". It timed out at 8000 output tokens and answered
+     empty at 4000.
+  2. "accept your review and close .16".
+- **Done:**
+  - L8b.3–L8b.5 contract `qc_status: APPROVED` on the owner decision (`DECISIONS.md`);
+  - `bd close awkit-djnl.16`, exported;
+  - `verify:roadmap-dashboard`'s tracker pin moved 23/306 → 22/307;
+  - the L8b doc status and state documents updated.
+- **Tests:** no code changed; `verify:roadmap-dashboard` re-run on the final state.
+
+## 2026-09-30 — `awkit-djnl.16` CodeCraft retry: L8b.2 reviewed, L8b.3 still INCONCLUSIVE (Claude with CodeCraft)
 
 - **Task:** "retry the L8b.2/L8b.3 CodeCraft review with gpt-5.6-luna". The packet was split in two.
 - **L8b.2:** the reviewer answered. Its three `runStaticStage` findings were refuted against source:
