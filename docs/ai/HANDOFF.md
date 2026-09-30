@@ -11,12 +11,13 @@
     or more;
   - `deepseek-v4-flash-0731` answered empty.
   - Keep review packets to about 40 lines of pure logic, and expect to split them.
-- **Open under `awkit-djnl`:** only `.15`, for these items:
-  - NVIDIA qualification (needs a `0x10DE` machine);
-  - E2 hybrid correlation;
-  - the owner-run confinement mutation.
-- **The load window is decided:** the owner accepted it as a same-user risk (`DECISIONS.md`,
-  contract `awkit-djnl-15-load-window-0930`).
+- **Open under `awkit-djnl`:** only `.15`, and only for work this machine cannot do:
+  - NVIDIA qualification on a real `0x10DE` adapter;
+  - E2 hybrid correlation (the runtime exposes no LUID or PCI bus).
+- **Decided or done under `.15`:**
+  - the load window, accepted as a same-user risk (`DECISIONS.md`);
+  - the confinement mutation, run on the owner's approval: caught at 137/2, reverted to 139/0
+    (contract `awkit-djnl-15-confinement-mutation-0930`).
 - **What `.16` delivered:**
   - the dialog line breaks (`.modal-body` `white-space: pre-line`);
   - the latency class unified on `latencyClassId`;

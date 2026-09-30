@@ -1,0 +1,131 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-15-confinement-mutation-0930",
+    "title": "Run the L8a.2 path-confinement mutation on the owner's approval (awkit-djnl.15 item 5)",
+    "objective": "The owner approved the temporary edit the permission classifier had refused. Make confined() in src/ai/AiBackendPack.ts return the joined target without inside(), run verify:ai-backend-pack and expect the escaping-runtime-name case to fail, revert, and re-run to green. Record the result on the L8a.2 contract, the L8a plan and awkit-djnl.15, which stays open for NVIDIA qualification and E2 hybrid correlation. The product file ends byte-identical to its commit.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "cb37e17e",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/issues.jsonl",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-djnl-11-l8a2-backend-import-0927.json",
+      "docs/ai/contracts/awkit-djnl-15-confinement-mutation-0930.json",
+      "docs/plans/ai-upgrade-v5/L8a-hardware-adaptive-inference-runtime.md"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/issues.jsonl"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "native-hosts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "MUTATION",
+      "description": "The mutant is caught by the confinement checks, the product file is reverted, and the verifier is green again.",
+      "evidence_required": [
+        "mutation:path-confinement",
+        "verify:ai-backend-pack"
+      ]
+    },
+    {
+      "id": "STATE",
+      "description": "The L8a.2 contract, the L8a plan and awkit-djnl.15 record it, and the dashboard's sources agree.",
+      "evidence_required": [
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "mutation:path-confinement",
+      "type": "verifier",
+      "command": "confined() without inside() in src/ai/AiBackendPack.ts, then npm run verify:ai-backend-pack",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "Caught: 137 passed, 2 failed, exactly 'a runtime file name escaping the staging is refused' (STAGED_MISMATCH for bins/win-x64-vulkan/../../../../escaped.dll instead of REPARSE_POINT) and '...and nothing was written outside the backends root'."
+    },
+    {
+      "id": "verify:ai-backend-pack",
+      "type": "verifier",
+      "command": "npm run verify:ai-backend-pack",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "139/0 after the revert; git diff of src/ai/AiBackendPack.ts empty."
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177, Overview 'Sources agree', 329 issues, 22 outstanding / 307 closed (unchanged: .15 stays open), ledger 65 PASS / 2 NOT RUN / 0 BLOCKED restated in both newest narratives."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-15-confinement-mutation-0930:project-state:2026-09-30T11:05:19.270Z",
+        "task": "awkit-djnl-15-confinement-mutation-0930",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/issues.jsonl"
+        ],
+        "acquired_at": "2026-09-30T11:05:19.270Z",
+        "acquired_at_commit": "cb37e17ed204a46cea5df9eadf69629fbc829c28",
+        "released_at": "2026-09-30T11:05:44.370Z",
+        "released_reason": "confinement mutation result noted on awkit-djnl.15 and exported, state documents are updated next outside this lease",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

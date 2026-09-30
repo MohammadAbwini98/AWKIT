@@ -1,5 +1,18 @@
 # CURRENT_STATE
 
+## L8a.2 path-confinement mutation caught (`awkit-djnl.15` item 5, 2026-09-30, latest)
+
+- **Run on the owner's approval.** The permission classifier had refused the temporary edit.
+  - With `confined()` in `src/ai/AiBackendPack.ts` returning the joined target without `inside()`,
+    `verify:ai-backend-pack` was 137 passed, 2 failed. The two failures were exactly the
+    escaping-runtime-name case and its nothing-written-outside check.
+  - Reverted (`git diff` empty), then 139/0.
+  - The L8a.2 contract's mutation evidence and `qa_status` are PASS.
+- **Still open under `.15`:** NVIDIA qualification (BLOCKED, needs a `0x10DE` machine) and E2 hybrid
+  correlation (BLOCKED, runtime).
+- **Follow-ups:** Phase L's epic stays open for `.15` only. Validation ledger unchanged at 65 PASS /
+  2 NOT RUN / 0 BLOCKED across 67 cases.
+
 ## GPU pack's verify-to-load window accepted as a same-user risk (`awkit-djnl.15` item 4, 2026-09-30, latest)
 
 - **Decision (owner):** the window between `AiBackendPackStore.verifyForLoad` and the GPU host's DLL load

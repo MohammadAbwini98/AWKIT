@@ -173,8 +173,8 @@
       "required": true,
       "command": "src/ai/AiBackendPack.ts confined(): return the joined target without the inside() test, npm run verify:ai-backend-pack, revert (expected: the escaping runtime-name case writes outside the backends root and fails)",
       "artifact": null,
-      "result": "BLOCKED",
-      "observed": "Refused twice by the session's auto-mode permission classifier as weakening a security check: first as part of the initial batch, then again after the owner's 'Try again', which admitted the other three. Not retried or worked around. The unmutated check itself is covered by 'a runtime file name escaping the staging is refused ... nothing was written outside the backends root' (PASS). Needs the owner to run this one mutation or allow the edit."
+      "result": "PASS",
+      "observed": "Originally BLOCKED: the session's auto-mode permission classifier refused the temporary edit twice (2026-09-27) and once more on 2026-09-30, and it was never worked around. Run 2026-09-30 on the owner's explicit approval (awkit-djnl.15 item 5, contract awkit-djnl-15-confinement-mutation-0930). With confined() returning the joined target, verify:ai-backend-pack was 137 passed, 2 failed: exactly 'a runtime file name escaping the staging is refused' (the import returned STAGED_MISMATCH for bins/win-x64-vulkan/../../../../escaped.dll instead of REPARSE_POINT) and '...and nothing was written outside the backends root'. Caught. Reverted (git diff empty), re-run 139/0. The escaped file landed inside the verifier's own temp work folder, which the run removes."
     },
     {
       "id": "verify:ai-backend-pack-gui",
@@ -285,7 +285,8 @@
   },
   "completion": {
     "status": "implemented",
-    "qa_status": "BLOCKED",
+    "qa_status": "PASS",
+    "qa_update": "2026-09-30: PASS. The path-confinement mutation, the one BLOCKED required item, was run on the owner's approval and caught (137/2), then reverted (139/0). The non-required verify:ai-settings-gui FAIL was a stale-assertion defect since fixed (141/141 on 2026-09-30). NVIDIA qualification stays a known limitation (E11), tracked by awkit-djnl.15.",
     "qa_basis": "verify:ai-backend-pack 139/0, verify:ai-backend-pack-gui 59/59, verify:ai-backend-pack-packaged 61/61, verify:ai-permissions 117/0, verify:ai-fallback 38/0, verify:ipc-contract 10/10, verify:offline-supply-chain 25/0, build, typecheck:scripts, verify:verifier-classification 282, package:portable with in-pipeline strict validation, verify:ai-packaged-runtime 104/0.",
     "qa_known_limitations": "Mutation checks: hash validation 130/9, staged revalidation 135/4 and load-time guard 129/10 caught; path confinement BLOCKED (the auto-mode permission classifier refused its temporary edit twice; not worked around). BLOCKED: real NVIDIA qualification (no 0x10DE adapter, E11); vendor identity reported unknown (E2). Nothing loads the pack yet (L8a.3), and the gap between verifyForLoad and the actual load is L8a.3's. verify:ai-settings-gui 26/30 is a pre-existing stale-assertion FAIL. No NSIS rebuild.",
     "qc_status": "APPROVED",

@@ -477,9 +477,9 @@ re-hashes the installed pack (24 files plus 3 runtime DLLs, nothing extra).
   - staged revalidation, 135/4;
   - load-time guard, 129/10.
 
-  **Path confinement is BLOCKED.** The session's auto-mode permission classifier refused its
-  temporary edit twice. An owner-run mutation is needed: `confined()` without `inside()` should
-  fail the escaping-runtime-name case.
+  **Path confinement was BLOCKED here.** The session's auto-mode permission classifier refused its
+  temporary edit twice. *Resolved 2026-09-30:* it ran on the owner's approval and was caught (137/2),
+  then reverted (139/0). See the `awkit-djnl.15` record.
 - **Real NVIDIA qualification:** BLOCKED until a compatible NVIDIA machine (E11). The vendor stays
   *unknown* until proven (E2); nothing claims NVIDIA compatibility.
 - **Independent QC** pending. NSIS not rebuilt.
@@ -693,8 +693,9 @@ successful load is a loss for its mode and reserve.
 
 ## `awkit-djnl.15` follow-up record (2026-09-30)
 
-Contract `awkit-djnl-15-l8a-qc-0930`. The issue stays open for items 2, 3 and 5; item 4 was decided by
-the owner the same day (contract `awkit-djnl-15-load-window-0930`).
+Contract `awkit-djnl-15-l8a-qc-0930`. The issue stays open for items 2 and 3 only.
+- Item 4 was decided by the owner the same day (contract `awkit-djnl-15-load-window-0930`).
+- Item 5 was run on the owner's approval (contract `awkit-djnl-15-confinement-mutation-0930`).
 
 **1. Independent QC of L8a.1–L8a.5: done, no product defect.**
 - GPT-5.6 Luna, a second model family, reviewed the current code through CodeCraft in five packets:
@@ -742,13 +743,17 @@ same-user risk and not closed further (`DECISIONS.md`). The analysis that inform
 - The window is one fork, same-user only.
 - Closing it would take a native helper. Accepting it is the owner's call.
 
-**5. Path-confinement mutation: BLOCKED.** The auto-mode permission classifier refused the temporary
-edit again, and it was not worked around. To run it yourself:
-1. make `confined()` in `src/ai/AiBackendPack.ts` return the joined target without `inside()`;
-2. run `npm run verify:ai-backend-pack`;
-3. expect "a runtime file name escaping the staging is refused" and its "nothing was written
-   outside" check to FAIL;
-4. revert.
+**5. Path-confinement mutation: DONE (2026-09-30).** The auto-mode permission classifier refused the
+temporary edit again that morning. It ran later that day on the owner's explicit approval (contract
+`awkit-djnl-15-confinement-mutation-0930`):
+- With `confined()` in `src/ai/AiBackendPack.ts` returning the joined target without `inside()`,
+  `verify:ai-backend-pack` was **137 passed, 2 failed**. The two failures were exactly the expected
+  ones:
+  - "a runtime file name escaping the staging is refused": the import answered `STAGED_MISMATCH`
+    for `bins/win-x64-vulkan/../../../../escaped.dll` instead of `REPARSE_POINT`;
+  - "...and nothing was written outside the backends root".
+- The edit was reverted (`git diff` empty), and the re-run was 139/0.
+- The L8a.2 contract's mutation evidence and `qa_status` are PASS.
 
 **6. Routing gap: fixed.**
 - `scripts/ai-harness/**` is QA-owned in `tools/agents/routing-matrix.mjs`, in `ownsPaths` and the

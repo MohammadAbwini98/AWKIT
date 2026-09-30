@@ -1,6 +1,22 @@
 # TASK_LOG
 
-## 2026-09-30 (latest) — `awkit-djnl.15` item 4: the load window accepted as a same-user risk (Claude)
+## 2026-09-30 (latest) — `awkit-djnl.15` item 5: the L8a.2 path-confinement mutation, caught (Claude)
+
+- **Task:** "run the confinement mutation now, I approve the edit". Contract
+  `awkit-djnl-15-confinement-mutation-0930`.
+- **Done:**
+  1. `confined()` in `src/ai/AiBackendPack.ts` was made to return the joined target without `inside()`.
+  2. `verify:ai-backend-pack` then read 137 passed, 2 failed. The two failures were exactly the
+     escaping-runtime-name case (`STAGED_MISMATCH` instead of `REPARSE_POINT`) and its
+     nothing-written-outside check.
+  3. The edit was reverted (`git diff` empty), and the re-run read 139/0.
+- **Records:**
+  - the L8a.2 contract's mutation evidence and `qa_status` are PASS;
+  - the L8a plan's item 5 is DONE;
+  - a note on `awkit-djnl.15` (exported), which stays open for NVIDIA and E2 only.
+- **Tests:** `verify:ai-backend-pack` (mutant 137/2, reverted 139/0) and `verify:roadmap-dashboard`.
+
+## 2026-09-30 — `awkit-djnl.15` item 4: the load window accepted as a same-user risk (Claude)
 
 - **Task:** "accept the load window as a same-user risk". Contract `awkit-djnl-15-load-window-0930`.
 - **Done:**
