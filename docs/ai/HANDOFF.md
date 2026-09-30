@@ -7,8 +7,11 @@
   - L8b.2 got its review on a same-day retry, and its contract is APPROVED.
   - What to review: `probeVerdict` and `runCompatibilityStages` in `src/ai/AiModelCompatibility.ts`,
     and the host `probe` in `native-hosts/ai/ai-host.cjs`.
-  - CodeCraft `gpt-5.6-luna` on that packet answers empty at 5000 output tokens and times out at 8000
-    or more; `deepseek-v4-flash-0731` answered empty.
+  - CodeCraft on that packet:
+    - `gpt-5.6-luna` answers empty at 5000 output tokens and times out at 8000 or more;
+    - `gemini-3.1-pro` behaves the same (empty at 4000, timeout at 8000);
+    - `deepseek-v4-flash-0731` answered empty.
+  - A reviewer outside CodeCraft is the likely way through.
   - When a reviewer answers, set the L8b.3–L8b.5 contract's `qc_status` and close `.16`.
 - **Done:**
   - the dialog line breaks (`.modal-body` `white-space: pre-line`);
