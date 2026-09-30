@@ -4,6 +4,46 @@
 
 These are Claude Code-specific operating rules for AWKIT. `AGENTS.md` remains the shared source for product, security, offline, UI, testing, and Git constraints. This file controls **how Claude consumes context and executes work**.
 
+## CodeCraft Agent control
+
+Permanent defaults:
+
+```text
+CODECRAFT_MODE=on
+CODECRAFT_MODEL=auto
+```
+
+**Per-task override.** The user controls CodeCraft per task by stating either setting in the request, in any wording (`CODECRAFT_MODE=off`, "no CodeCraft", "use CodeCraft with gpt-5.6-luna"). An override applies to that task only; the next task returns to the defaults unless the user says it holds for the session. A user override always beats this policy's judgment.
+
+| `CODECRAFT_MODE` | Behavior |
+|---|---|
+| `on` (default) | Claude decides per task whether CodeCraft adds value. Using it is optional; skipping it needs no justification beyond the final-report line. |
+| `off` | Do not call any `codecraft_*` tool for this task. |
+| `required` | Use CodeCraft for the part of the task the user names (or the best-fitting part if unnamed). If it fails, apply the failure rule below and report it; never claim it was used. |
+
+| `CODECRAFT_MODEL` | Behavior |
+|---|---|
+| `auto` (default) | Before the first CodeCraft call in a task, run `codecraft_list_models` once and pick the available model best suited to that call. Do not hardcode model names here — availability changes. |
+| `<model-id>` | Use exactly that model. If it is not listed, say so and ask or proceed natively; never substitute another model silently. |
+
+**When CodeCraft is worth using (`on` mode):**
+
+- Independent review/QC by a second model family — Risk-2+ changes, security/auth/licensing, migrations, packaging, cross-layer contracts, or when `AGENTS.md` asks for independent review.
+- A second opinion on a genuinely uncertain design or debugging question.
+- Bounded delegation: a well-specified single-file task of one or two edits.
+
+**Not worth it:** trivial docs/config edits, lookups, reconnaissance (it never replaces `Read`/`Grep`), or anything faster to do than to write the packet.
+
+**Model choice under `auto`:** a different family from Claude for review/QC; the most reliable listed model for the call type for delegated edits; a fast model for short asks. Prefer models with a recent success on the same tool in this session.
+
+**Rules (all modes):**
+
+- Send only the relevant context — a compact packet, not whole files. Never send secrets, credentials, `.env` contents, license keys, signing material, or protected-login data.
+- Claude stays responsible: inspect every delegated diff (`git diff`) before accepting it, and run the same verification Claude would have run without CodeCraft. Delegated output is not self-approved by the model that produced it.
+- **Failure rule:** a timeout, schema-validation failure, or empty answer gets at most one retry with a smaller packet. After a timeout always check `git diff` for partial edits. Then do the work natively and record `CodeCraft: BLOCKED (<reason>)`.
+- CodeCraft is not a subagent and does not count against the subagent rule, but do not stack it with Graphify + Codebase Memory + subagents for the same discovery problem.
+- Final report: one line — `CodeCraft: <tool> / <model> — <outcome>` or `CodeCraft: not used (<reason>)`.
+
 ## The loop
 
 For every ordinary change, use one direct loop:
@@ -61,7 +101,7 @@ Prefer direct source inspection over an abstraction layer.
 - **Graphify:** use only for a genuinely broad dependency/impact question, or when the user explicitly invokes `/graphify`. Never run it before a simple file-level search.
 - **Codebase Memory MCP:** do not query it for normal implementation, file discovery, summaries, or routine impact checks. Use it only when native source search cannot cheaply answer a broad architecture question.
 - **Beads (`bd`):** use only when the task is tracked, must change tracker state, or the user asks for roadmap/task status. Do not run `bd prime` as routine session startup.
-- **GLM/external model delegation:** use only when the user explicitly asks.
+- **GLM/external model delegation (`glm-delegate`):** use only when the user explicitly asks. CodeCraft is governed by *CodeCraft Agent control* above, not by this rule.
 - **Subagents:** use none unless the user explicitly asks for one independent review. Never create a team or chain delegations.
 
 Do not stack Graphify + Codebase Memory + subagents + external delegation for the same discovery problem.
