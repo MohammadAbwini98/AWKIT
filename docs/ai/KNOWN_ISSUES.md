@@ -24,14 +24,19 @@
   when the mode is saved, so a user rarely sees it; a harness that changes the mode between jobs does.
   Order checks on the **last** `model-load`, as `scripts/ai-harness/gpuProgress.ts` does.
 
-## The shared `ConfirmDialog` renders `\n` line breaks as spaces (2026-09-29, OPEN — cosmetic)
+## The shared `ConfirmDialog` renders `\n` line breaks as spaces (2026-09-29, RESOLVED 2026-09-30, `awkit-djnl.16`)
 
-- `.modal-body` has no `white-space` rule, so every confirm message written with `\n\n` paragraph breaks
-  (model removal, revert, and others) renders as one paragraph. Found while writing L8b.5's preflight,
-  which now reads as plain sentences instead.
-- **Fix owed, not taken here:** `white-space: pre-line` on `.modal-body` changes every existing dialog,
-  and GUI verifiers that read those dialogs' `innerText` would see new line breaks. It needs its own
-  change with those verifiers re-run. Tracked with the L8b follow-ups in Beads.
+- `.modal-body` had no `white-space` rule, so every confirm message written with `\n\n` paragraph breaks
+  (model removal, revert, and others) rendered as one paragraph.
+- **Fixed:** `.modal-body` now has `white-space: pre-line`. JSX text never carries a newline, so only
+  messages that hold one change.
+  - `verify:ai-backend-pack-gui` asserts the removal dialog's exact `\n\n` breaks. Red was 59/60 before
+    the fix; green is 60/60 after it.
+  - The dialog-reading verifiers were re-run: `verify:https-certificates-gui` 31/31 and
+    `verify:ai-settings-gui` 141/141.
+- **Packaged:** `verify:ai-backend-pack-packaged` runs the same script against `dist/win-unpacked`. It
+  fails that check until a fresh package carries the renderer fix; it was NOT RUN here because the
+  package predates the fix.
 
 ## Lease bookkeeping must be committed BEFORE packaging, or the signed manifest records a dirty tree (2026-09-29, OPEN — know it)
 

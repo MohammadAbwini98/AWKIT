@@ -1,6 +1,31 @@
 # CURRENT_STATE
 
-## L8a independent QC done; NVIDIA still BLOCKED (`awkit-djnl.15`, 2026-09-30, latest)
+## L8b follow-ups: dialog line breaks fixed, latency class unified, overhead gate PASS (`awkit-djnl.16`, 2026-09-30, latest)
+
+- **What changed for a user:** confirmation dialogs keep their paragraph breaks. The removal, revert,
+  clear-index and HTTPS dialogs no longer run their paragraphs together.
+- **Latency class:** L9's ETA history records under the class L8b.4 defines. `aiRuntime.latencyKeyFor`
+  re-derived the same string, and it now calls `latencyClassId`. The keys are byte-identical, so
+  existing history files still match.
+- **QC:** GPT-5.6 Luna, through CodeCraft, reviewed L8b.1, L8b.4 and L8b.5 and found no product defect.
+  The L8b.1 contract is `qc_status: APPROVED`.
+  - The review of the L8b.2/L8b.3 verdict logic is INCONCLUSIVE: the reviewer timed out or answered
+    empty.
+- **Evidence:**
+  - `verify:ai-backend-pack-gui` 60/60 (59/60 before the fix);
+  - `verify:https-certificates-gui` 31/31;
+  - `verify:ai-settings-gui` 141/141;
+  - `verify:ai-progress-gui` 41/0;
+  - `verify:ai-model-compatibility` 188/0;
+  - `verify:ai-fallback` 51/0;
+  - `verify:failure-capture-overhead` PASS (run 21, 18/0/0);
+  - `build` and `typecheck:scripts` PASS.
+- **NOT RUN:** `verify:ai-backend-pack-packaged`, because the package predates the renderer fix.
+- **Follow-ups:** `.16` stays open only for the L8b.2/L8b.3 independent review. Phase L's epic stays
+  open for `.15` and `.16`. Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67
+  cases.
+
+## L8a independent QC done; NVIDIA still BLOCKED (`awkit-djnl.15`, 2026-09-30)
 
 - **QC:** a second model family (GPT-5.6 Luna through CodeCraft) reviewed L8a.1–L8a.5 on the current
   code. Every finding was checked against source.

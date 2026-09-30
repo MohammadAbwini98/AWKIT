@@ -1,6 +1,31 @@
 # TASK_LOG
 
-## 2026-09-30 (latest) — `awkit-djnl.15`: L8a independent QC done, NVIDIA still BLOCKED, ai-harness routed (Claude with CodeCraft)
+## 2026-09-30 (latest) — `awkit-djnl.16`: dialog line breaks, one latency-class formula, overhead gate PASS (Claude with CodeCraft)
+
+- **Task:** continue into `.16` once `.15` reached its blocked items. Contract
+  `awkit-djnl-16-l8b-qc-0930`.
+- **Fixes:**
+  - `.modal-body` `white-space: pre-line` for the `ConfirmDialog` paragraph breaks, with a new
+    assertion in `verify:ai-backend-pack-gui`, shown red and then green;
+  - `aiRuntime.latencyKeyFor` now calls `latencyClassId`, which was dead and had been re-derived
+    inline. The keys are byte-identical.
+- **QC:**
+  - `gpt-5.6-luna` reviewed L8b.1, L8b.4, L8b.5 and this diff, with no product defect.
+  - The L8b.2/L8b.3 verdict packet is INCONCLUSIVE: two timeouts, then an empty answer from
+    `deepseek-v4-flash-0731`.
+- **Tests:**
+  - `verify:ai-backend-pack-gui` 60/60 (59/60 before the fix);
+  - `verify:https-certificates-gui` 31/31;
+  - `verify:ai-settings-gui` 141/141;
+  - `verify:ai-progress-gui` 41/0;
+  - `verify:ai-model-compatibility` 188/0;
+  - `verify:ai-fallback` 51/0;
+  - `verify:failure-capture-overhead` 18/0/0 (run 21);
+  - `build` and `typecheck:scripts` PASS.
+  - `verify:ai-backend-pack-packaged` NOT RUN: the package predates the fix.
+- **Commits:** see `git log` for this entry's date.
+
+## 2026-09-30 — `awkit-djnl.15`: L8a independent QC done, NVIDIA still BLOCKED, ai-harness routed (Claude with CodeCraft)
 
 - **Task:** "use codecraft-agent to continue Phase L from awkit-djnl.15". Contract
   `awkit-djnl-15-l8a-qc-0930`.

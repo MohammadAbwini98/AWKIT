@@ -1,31 +1,32 @@
 {
-  "task": "awkit-djnl-15-l8a-qc-0930",
-  "contract_path": "docs/ai/contracts/awkit-djnl-15-l8a-qc-0930.json",
+  "task": "awkit-djnl-16-l8b-qc-0930",
+  "contract_path": "docs/ai/contracts/awkit-djnl-16-l8b-qc-0930.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
-    ".beads/**",
-    "docs/ai/routing/ROUTING_MATRIX.md"
+    ".beads/issues.jsonl"
   ],
-  "acquired_at": "2026-09-30T07:27:02.969Z",
-  "acquired_at_commit": "f1ac1fed5f18a9468956ba854af213d4dfef26f2",
+  "acquired_at": "2026-09-30T07:53:59.210Z",
+  "acquired_at_commit": "1ce2b83ef04609156ce22538471050cadf6f9e9c",
   "baseline_dirty": [
-    ".claude/agents/awkit-qa-engineer.md",
-    ".codex/skills/agent-routing/SKILL.md",
-    ".gemini/skills/agent-routing/SKILL.md",
     "app/main/ai/aiRuntime.ts",
-    "docs/ai/contracts/awkit-djnl-15-l8a-qc-0930.json",
-    "scripts/verify-agent-routing.mjs",
-    "tools/agents/routing-matrix.mjs"
+    "app/renderer/styles/global.css",
+    "docs/ai/KNOWN_ISSUES.md",
+    "docs/ai/contracts/awkit-djnl-16-l8b-qc-0930.json",
+    "docs/plans/ai-upgrade-v5/L8b-external-model-compatibility.md",
+    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
+    "scripts/verify-ai-backend-pack-gui.mjs",
+    "src/ai/AiQualification.ts"
   ],
   "baseline_dirty_fingerprints": {
-    ".claude/agents/awkit-qa-engineer.md": "fa456a05d162ea1933200f6169727efa5e5db237eaf846cee82e77c69dd9a14c",
-    ".codex/skills/agent-routing/SKILL.md": "e499b48e8fb7bf5948b480d5c9d0d3bf0f0796f24194024946af026016629a99",
-    ".gemini/skills/agent-routing/SKILL.md": "7b460afe527e59b9ce0a173d2dc44ce7b72220289ddd4319552ce093ae56bfc1",
-    "app/main/ai/aiRuntime.ts": "e9fb25fa5be8ee49ab1f746b296ddba2031ba040d2f2ba56ee3873906c389ae2",
-    "docs/ai/contracts/awkit-djnl-15-l8a-qc-0930.json": "bc36c3c2f6e1761c5247c8997090c2df4148e3be058dc639325dfc274755113e",
-    "scripts/verify-agent-routing.mjs": "30f23fab8131c00cfb6967ca62e4f0605206c26629f298242f67f7ce248a5c74",
-    "tools/agents/routing-matrix.mjs": "7309e426750568ad5f1303dd09589a3d338501db59ecd1449e3724d46acd3e1c"
+    "app/main/ai/aiRuntime.ts": "5d3611ca39279acc0664bea70eaf4e21d408e269b8f8d707eacbd130851dbabc",
+    "app/renderer/styles/global.css": "4f507c2c924777a2450c6ea32a0e8ed5958bc7ab6e8240e1a69f00c46e1fe714",
+    "docs/ai/KNOWN_ISSUES.md": "e734f4951dd6547b5126c6875a07d74f638087aed79b594d0c5257a6a75ea022",
+    "docs/ai/contracts/awkit-djnl-16-l8b-qc-0930.json": "8fe3c60c6adea1dda7d0817677ccde7f047b0e927d96e7aeb38ac85dbbbb22cc",
+    "docs/plans/ai-upgrade-v5/L8b-external-model-compatibility.md": "d59787a2428b097f79734e065eba53d30ebe2448f71a7da785154cd2bf880b95",
+    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json": "6ff19672cb634af6a6ff76deda9730922d7e9aabaff014ab6e3208da6fcb5e33",
+    "scripts/verify-ai-backend-pack-gui.mjs": "0d57e061f8d55e9c6c31ada15cf81a8fd1344ebc6b71a2b7e316fb350e999f2d",
+    "src/ai/AiQualification.ts": "7781c44d4a2c005f6f17a3121c975e8eaa10c7d6a6ca5fbf1c21a8ebead7ad16"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -40,7 +41,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-30T07:29:07.511Z",
-  "released_reason": "awkit-djnl.15 progress note appended and exported, routing matrix regenerated, contracts and state documents are updated next outside this lease",
-  "archived_at": "2026-09-30T07:29:07.512Z"
+  "released_at": "2026-09-30T07:54:26.393Z",
+  "released_reason": "awkit-djnl.16 progress note appended and exported, contracts and state documents are updated next outside this lease",
+  "archived_at": "2026-09-30T07:54:26.394Z"
 }

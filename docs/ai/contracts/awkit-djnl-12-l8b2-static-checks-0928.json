@@ -272,7 +272,8 @@
   "completion": {
     "status": "implemented",
     "qa_status": "PASS",
-    "qc_status": "pending"
+    "qc_status": "pending",
+    "qc_note": "2026-09-30 (awkit-djnl.16): the independent review of staticVerdict and runStaticStage is INCONCLUSIVE. CodeCraft gpt-5.6-luna timed out twice, and deepseek-v4-flash-0731 returned empty. Claude's own review found no defect, and verify:ai-model-compatibility is 188/0 on the final state. Stays pending until a second model family answers."
   },
   "write_lease": {
     "history": [

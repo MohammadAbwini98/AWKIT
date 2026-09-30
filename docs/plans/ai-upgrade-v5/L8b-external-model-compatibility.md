@@ -271,3 +271,50 @@ Contract `awkit-djnl-12-l8b3-l8b5-0929`. Commits `79c99a0f` (host), `86aacc1e` (
 - the latency class is defined but measured by L9's ETA history;
 - a shared `ConfirmDialog` renders `\n` line breaks as spaces (see KNOWN_ISSUES);
 - `verify:failure-capture-overhead` stays INCONCLUSIVE on this host; a measurement-quiet host decides it.
+
+## `awkit-djnl.16` follow-up record (2026-09-30)
+
+Contract `awkit-djnl-16-l8b-qc-0930`. The issue stays open for one item: an independent review of the
+L8b.2/L8b.3 verdict logic.
+
+**1. Independent QC: done for L8b.1, L8b.4 and L8b.5; INCONCLUSIVE for L8b.2/L8b.3.**
+- GPT-5.6 Luna, through CodeCraft, reviewed these on the current code:
+  - the copy import (L8b.1);
+  - qualification, the latency class and the action-record profile (L8b.4, L8b.5);
+  - the acknowledgement and model resolution (L8b.5).
+- No product defect:
+  - its "undefined size" was an artifact of the compressed packet;
+  - a listed checksum with a different size is unreachable, and would fall to the stricter
+    registered path;
+  - a source that grows mid-copy only fails the copy (LOW, kept).
+- The compatibility-verdict packet (`staticVerdict`, `probeVerdict`, `runCompatibilityStages`) timed
+  out twice on `gpt-5.6-luna` and came back empty on `deepseek-v4-flash-0731`. Its independent review
+  is **INCONCLUSIVE**.
+  - Claude's review found no defect: malformed host replies fail, a cancelled probe records nothing,
+    and a verdict never lands on a replacement.
+  - `verify:ai-model-compatibility` 188/0 re-ran on the final state, and its guards were
+    mutation-tested at L8b close.
+- Claude also reviewed the host probe and the four `AI_MANAGE` channels, all with re-auth. There is
+  one LOW observation: the think check knows only the `<think>` marker, but every product answer is
+  grammar-constrained.
+
+**2. Latency class: settled.** L9's ETA history records under it (`verify:ai-progress-gui` 41/0,
+where the history file's keys are latency classes).
+- QC found the formula written twice: `latencyClassId` was dead, and `aiRuntime.latencyKeyFor`
+  re-derived the same string.
+- `latencyKeyFor` now calls `latencyClassId`, so the class L8b.4 defines is the key L9 records. The
+  output is byte-identical, so existing history files keep their keys.
+
+**3. `ConfirmDialog` line breaks: fixed.** `.modal-body` has `white-space: pre-line`.
+- `verify:ai-backend-pack-gui` asserts the removal dialog's `\n\n` breaks: 59/60 before the fix,
+  60/60 after it.
+- `verify:https-certificates-gui` 31/31 and `verify:ai-settings-gui` 141/141 were re-run.
+- `verify:ai-backend-pack-packaged` is NOT RUN: `dist/win-unpacked` predates the fix, and the next
+  fresh package carries it.
+
+**4. `verify:failure-capture-overhead`: PASS.** Run 21 was 18 passed, 0 failed, 0 inconclusive, with a
+fast median of +9 ms and an evidence median of +12 ms against a 150 ms ceiling.
+
+**Other gates on the final state:**
+- `build` and `typecheck:scripts` PASS;
+- `verify:ai-fallback` 51/0.

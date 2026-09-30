@@ -217,7 +217,8 @@
   "completion": {
     "status": "implemented",
     "qa_status": "PASS",
-    "qc_status": "pending"
+    "qc_status": "APPROVED",
+    "qc_basis": "Independent QC 2026-09-30 (awkit-djnl.16, contract awkit-djnl-16-l8b-qc-0930): GPT-5.6 Luna through CodeCraft reviewed the copy import. It hashes exactly the bytes written, re-measures free space and registers an unlisted model with no checks or acknowledgement; verdicts and acknowledgements are gated on the active checksum. Checked against source by Claude. No product defect. A source file that grows mid-copy only fails the copy (LOW, kept)."
   },
   "write_lease": {
     "history": [

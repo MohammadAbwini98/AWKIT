@@ -1,6 +1,23 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-30, latest) — `.15` QC and routing done; its hardware items stay BLOCKED
+## HANDOFF (2026-09-30, latest) — `.16` three of four items done; one review left
+
+- **`awkit-djnl.16` stays open** for one thing: an independent (non-Claude) review of the L8b.2/L8b.3
+  verdict logic.
+  - What to review: `staticVerdict`, `probeVerdict` and `runCompatibilityStages` in
+    `src/ai/AiModelCompatibility.ts`, and the host `probe` in `native-hosts/ai/ai-host.cjs`.
+  - CodeCraft `gpt-5.6-luna` timed out twice on it, and `deepseek-v4-flash-0731` answered empty.
+  - When one answers, set the L8b.2 and L8b.3–L8b.5 contracts' `qc_status` and close `.16`.
+- **Done:**
+  - the dialog line breaks (`.modal-body` `white-space: pre-line`);
+  - the latency class unified on `latencyClassId`;
+  - `verify:failure-capture-overhead` PASS (run 21);
+  - independent QC of L8b.1, L8b.4 and L8b.5.
+- **Next fresh package:** `verify:ai-backend-pack-packaged` shares the GUI script's new line-break
+  check, so it fails on any package built before this change.
+- Ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## HANDOFF (2026-09-30) — `.15` QC and routing done; its hardware items stay BLOCKED
 
 - **`awkit-djnl.15` stays open**, but only for what this machine or this session cannot do:
   - NVIDIA qualification on a real `0x10DE` adapter: run `verify:ai-gpu-backend-gate`,

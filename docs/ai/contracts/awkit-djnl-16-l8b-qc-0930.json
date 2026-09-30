@@ -1,0 +1,252 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-16-l8b-qc-0930",
+    "title": "awkit-djnl.16: independent QC of L8b.1-L8b.5, the latency class, the ConfirmDialog line breaks and the overhead gate",
+    "objective": "Work the four items of awkit-djnl.16. (1) Independent QC of L8b.1-L8b.5 by a second model family (CodeCraft, GPT-5.6 Luna), every finding checked against source; a packet the reviewer cannot answer is INCONCLUSIVE, never PASS. (2) Settle the latency class: show that L9's ETA history records under it, and make the defined latencyClassId the one formula the history keys use. (3) Fix the shared ConfirmDialog rendering \\n paragraph breaks as spaces (white-space: pre-line on .modal-body), with a verifier assertion shown red before and green after, and the GUI verifiers that read dialog text re-run. (4) Re-run verify:failure-capture-overhead, the structural guard for the edited src/ai and app/main/ai. awkit-djnl.16 closes only if every item is met; otherwise it stays open with a progress note. The lease writes .beads/** only.",
+    "requested_by": "repository owner",
+    "risk_level": 2,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "1ce2b83e",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "renderer_visual_change": true,
+    "general_engineering_change": true,
+    "electron_main_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 2
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "uiux",
+      "frontend",
+      "software",
+      "runtime",
+      "qa",
+      "qc",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/issues.jsonl",
+      "app/renderer/styles/global.css",
+      "app/main/ai/aiRuntime.ts",
+      "src/ai/AiQualification.ts",
+      "scripts/verify-ai-backend-pack-gui.mjs",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-djnl-12-l8b1-registration-0928.json",
+      "docs/ai/contracts/awkit-djnl-12-l8b2-static-checks-0928.json",
+      "docs/ai/contracts/awkit-djnl-12-l8b3-l8b5-0929.json",
+      "docs/ai/contracts/awkit-djnl-16-l8b-qc-0930.json",
+      "docs/plans/ai-upgrade-v5/L8b-external-model-compatibility.md",
+      "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json"
+    ],
+    "consultants": [
+      "uiux"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/issues.jsonl"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "native-hosts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": [
+      "qa",
+      "qc"
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "QC",
+      "description": "Independent QC of L8b.1-L8b.5 recorded with every finding classified; what the reviewer could not answer is INCONCLUSIVE.",
+      "evidence_required": [
+        "codecraft-qc",
+        "verify:ai-model-compatibility",
+        "verify:ai-fallback"
+      ]
+    },
+    {
+      "id": "LATENCY",
+      "description": "The latency class L8b.4 defines is the one formula L9's ETA history keys by, with unchanged keys.",
+      "evidence_required": [
+        "verify:ai-progress-gui",
+        "build"
+      ]
+    },
+    {
+      "id": "DIALOG",
+      "description": "The shared dialog keeps a message's paragraph breaks, proven red then green, and the dialog-reading GUI verifiers pass.",
+      "evidence_required": [
+        "verify:ai-backend-pack-gui",
+        "verify:https-certificates-gui",
+        "verify:ai-settings-gui"
+      ]
+    },
+    {
+      "id": "OVERHEAD",
+      "description": "The structural guard of the edited src/ai and app/main/ai decides on this host.",
+      "evidence_required": [
+        "verify:failure-capture-overhead"
+      ]
+    },
+    {
+      "id": "STATE",
+      "description": "The tracker and state documents say what is done and what stays open, and the dashboard's sources agree.",
+      "evidence_required": [
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "codecraft-qc",
+      "type": "inspection",
+      "command": "CodeCraft codecraft_ask, gpt-5.6-luna: qualification and latency packet, import and acknowledgement packet, this diff",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "Qualification/latency/profile: NONE. Import/acknowledgement: three findings refuted or LOW (a packet-abbreviation artifact, an unreachable checksum-with-other-size case that falls to the stricter path, a growing source only failing the copy). This diff: APPROVED. The compatibility-verdict packet (L8b.2/L8b.3) is INCONCLUSIVE: gpt-5.6-luna timed out twice and deepseek-v4-flash-0731 returned empty; Claude's own review found no defect."
+    },
+    {
+      "id": "verify:ai-model-compatibility",
+      "type": "verifier",
+      "command": "npm run verify:ai-model-compatibility",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "188/0 on the final source state"
+    },
+    {
+      "id": "verify:ai-fallback",
+      "type": "verifier",
+      "command": "npm run verify:ai-fallback",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "51/0"
+    },
+    {
+      "id": "verify:ai-progress-gui",
+      "type": "gui",
+      "command": "npm run verify:ai-progress-gui",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "41/0; the history file's keys are latency classes of this configuration, and the ETA after a restart comes from the cold run measured before it"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "command": "npm run build",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "tsc --noEmit and all bundles; typecheck:scripts PASS"
+    },
+    {
+      "id": "verify:ai-backend-pack-gui",
+      "type": "gui",
+      "command": "npm run verify:ai-backend-pack-gui",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "60/60 after the CSS fix; the new paragraph-break check was 59/60 (only it failing) on the build without the fix"
+    },
+    {
+      "id": "verify:https-certificates-gui",
+      "type": "gui",
+      "command": "npm run verify:https-certificates-gui",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "31/31, including the dialog text it reads with innerText"
+    },
+    {
+      "id": "verify:ai-settings-gui",
+      "type": "gui",
+      "command": "npm run verify:ai-settings-gui",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "141/141, including the preflight dialog text"
+    },
+    {
+      "id": "verify:failure-capture-overhead",
+      "type": "verifier",
+      "command": "npm run verify:failure-capture-overhead",
+      "artifact": "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
+      "required": true,
+      "result": "PASS",
+      "notes": "run 21: 18 passed, 0 failed, 0 inconclusive; fast median +9 ms, evidence median +12 ms, Node CPU median 0 ms"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177, Overview 'Sources agree', 329 issues, 23 outstanding / 306 closed, 191 edges, ledger 65 PASS / 2 NOT RUN / 0 BLOCKED restated in both newest narratives. verify:verifier-classification not re-run: no script was added since its 295 PASS this session."
+    },
+    {
+      "id": "verify:ai-backend-pack-packaged",
+      "type": "packaged",
+      "command": "npm run verify:ai-backend-pack-packaged",
+      "artifact": null,
+      "required": false,
+      "result": "NOT RUN",
+      "notes": "dist/win-unpacked predates the renderer fix, so the shared script's new check would fail there by design; the next fresh package carries it"
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "APPROVED",
+    "note": "This contract's own work is complete. awkit-djnl.16 itself stays OPEN for one item: an independent (non-Claude) review of the L8b.2/L8b.3 verdict logic, which CodeCraft could not answer (two timeouts, one empty reply).",
+    "qc_basis": "This contract's own diff (the .modal-body rule, the verifier assertion, the latencyClassId consolidation) was reviewed by GPT-5.6 Luna through CodeCraft: APPROVED."
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-16-l8b-qc-0930:project-state:2026-09-30T07:53:59.210Z",
+        "task": "awkit-djnl-16-l8b-qc-0930",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/issues.jsonl"
+        ],
+        "acquired_at": "2026-09-30T07:53:59.210Z",
+        "acquired_at_commit": "1ce2b83ef04609156ce22538471050cadf6f9e9c",
+        "released_at": "2026-09-30T07:54:26.393Z",
+        "released_reason": "awkit-djnl.16 progress note appended and exported, contracts and state documents are updated next outside this lease",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}
