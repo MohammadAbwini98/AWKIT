@@ -93,7 +93,8 @@
       "command": "npm run package:portable",
       "artifact": "dist/win-unpacked",
       "required": true,
-      "result": "pending"
+      "result": "PASS",
+      "notes": "Built from clean fb4c092f (lease bookkeeping committed first). In-pipeline strict offline validation passed: 1465/1465 local-AI assets checksum-verified with 0 unlisted and 0 missing, the GPU backend manifest's signed copy matches the source, and none of its 20 pinned binaries ships. The regenerated signed manifest (ccb7541d) records sourceCommit fb4c092f and sourceTreeDirty false; only the timestamp and commit changed, so every asset hash is unchanged."
     },
     {
       "id": "verify:ai-backend-pack-packaged",
@@ -101,7 +102,8 @@
       "command": "npm run verify:ai-backend-pack-packaged",
       "artifact": null,
       "required": true,
-      "result": "pending"
+      "result": "PASS",
+      "notes": "62/62, including the payload-freshness guard and the confirmation-dialog paragraph-break check that was NOT RUN on the old package"
     },
     {
       "id": "verify:ai-packaged-runtime",
@@ -109,7 +111,8 @@
       "command": "npm run verify:ai-packaged-runtime",
       "artifact": null,
       "required": true,
-      "result": "pending"
+      "result": "PASS",
+      "notes": "104/0; the packaged tree is exactly the current source's staging, and 13 live inference steps passed on the staged copy"
     },
     {
       "id": "verify:ai-packaged-app",
@@ -117,7 +120,53 @@
       "command": "npm run verify:ai-packaged-app",
       "artifact": null,
       "required": true,
-      "result": "pending"
+      "result": "PASS",
+      "notes": "32/0; CPU & RAM only re-proved in the packaged EXE, the curated 0.8B Qualified on its CPU key, and the VC++ runtime loaded from resources/native-hosts/ai"
+    },
+    {
+      "id": "verify:ai-model-registration",
+      "type": "packaged",
+      "command": "npm run verify:ai-model-registration",
+      "artifact": null,
+      "required": false,
+      "result": "PASS",
+      "notes": "33/0 on the packaged build"
+    },
+    {
+      "id": "verify:ai-progress-packaged",
+      "type": "packaged",
+      "command": "npm run verify:ai-progress-packaged",
+      "artifact": null,
+      "required": false,
+      "result": "PASS",
+      "notes": "33/0; the ETA history is keyed by the latency class in the packaged app, and the post-restart ETA comes from the cold samples on disk"
+    },
+    {
+      "id": "verify:ai-gpu-packaged",
+      "type": "packaged",
+      "command": "npm run verify:ai-gpu-packaged",
+      "artifact": null,
+      "required": false,
+      "result": "PASS",
+      "notes": "24/0; the product answers NO_COMPATIBLE_ADAPTER on 0x1002 + 0x1414, and the MECHANICS ran on AMD Vulkan with 25/25 layers. NVIDIA BLOCKED (E11)."
+    },
+    {
+      "id": "verify:ai-gpu-lifecycle-packaged",
+      "type": "packaged",
+      "command": "npm run verify:ai-gpu-lifecycle-packaged",
+      "artifact": null,
+      "required": false,
+      "result": "PASS",
+      "notes": "31/0 (L8a.5 recorded 33/0: the harness starts filler hosts until one cannot load every layer, up to 6; here the 4th failed, so 2 fewer filler steps). Cancel during prompt processing 1072/1095 ms (by the kill), during generation 32/159 ms, all within the 3000 ms ceiling. AMD mechanics only; NVIDIA BLOCKED."
+    },
+    {
+      "id": "verify:ai-progress-gpu-packaged",
+      "type": "packaged",
+      "command": "npm run verify:ai-progress-gpu-packaged",
+      "artifact": null,
+      "required": false,
+      "result": "PASS",
+      "notes": "11/0; AMD mechanics only, NVIDIA BLOCKED"
     },
     {
       "id": "verify:roadmap-dashboard",
@@ -125,7 +174,8 @@
       "command": "npm run verify:roadmap-dashboard",
       "artifact": null,
       "required": true,
-      "result": "pending"
+      "result": "PASS",
+      "notes": "177/177, Overview 'Sources agree', 329 issues, 22 outstanding / 307 closed, ledger 65 PASS / 2 NOT RUN / 0 BLOCKED restated in both newest narratives."
     }
   ],
   "git": {
@@ -136,11 +186,31 @@
     "push_authorized": true
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "pending",
-    "qc_status": "pending"
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "APPROVED",
+    "qc_basis": "GPT-5.6 Luna through CodeCraft reviewed the manifest regeneration: sourceCommit fb4c092f, sourceTreeDirty false, only the timestamp and commit changed because no shipped asset's source changed, strict validation passed, and the packaged gates are green. APPROVED."
   },
   "write_lease": {
-    "history": []
+    "history": [
+      {
+        "id": "awkit-fresh-package-0930:release:2026-09-30T11:11:12.195Z",
+        "task": "awkit-fresh-package-0930",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "build",
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig"
+        ],
+        "acquired_at": "2026-09-30T11:11:12.195Z",
+        "acquired_at_commit": "d54ec3ee15f2f664e87bef893e7619938630aaad",
+        "released_at": "2026-09-30T11:18:04.833Z",
+        "released_reason": "fresh package of clean fb4c092f with strict offline validation passed, signed manifest committed in ccb7541d, the packaged gates run outside this lease",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
   }
 }

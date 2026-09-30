@@ -2,7 +2,7 @@
   "task": "awkit-fresh-package-0930",
   "contract_path": "docs/ai/contracts/awkit-fresh-package-0930.json",
   "holder": "release",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "build",
     "resources/dependency-manifest.json",
@@ -28,5 +28,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-09-30T11:18:04.833Z",
+  "released_reason": "fresh package of clean fb4c092f with strict offline validation passed, signed manifest committed in ccb7541d, the packaged gates run outside this lease",
+  "archived_at": "2026-09-30T11:18:04.834Z"
 }

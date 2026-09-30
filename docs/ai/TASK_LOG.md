@@ -1,6 +1,26 @@
 # TASK_LOG
 
-## 2026-09-30 (latest) — `awkit-djnl.15` item 5: the L8a.2 path-confinement mutation, caught (Claude)
+## 2026-09-30 (latest) — fresh portable package and the packaged gates (Claude)
+
+- **Task:** "build a fresh package and run the packaged gates". Contract `awkit-fresh-package-0930`.
+- **Done:**
+  1. release lease, with bookkeeping committed in `fb4c092f`;
+  2. `package:portable` from the clean tree, strict offline validation passed;
+  3. signed manifest committed in `ccb7541d` (`sourceTreeDirty` false, no asset hash moved);
+  4. lease released, packaged gates run.
+- **Tests:**
+  - `verify:ai-backend-pack-packaged` 62/62;
+  - `verify:ai-packaged-runtime` 104/0;
+  - `verify:ai-packaged-app` 32/0;
+  - `verify:ai-model-registration` 33/0;
+  - `verify:ai-progress-packaged` 33/0;
+  - `verify:ai-gpu-packaged` 24/0;
+  - `verify:ai-gpu-lifecycle-packaged` 31/0 (dynamic filler count);
+  - `verify:ai-progress-gpu-packaged` 11/0;
+  - `verify:roadmap-dashboard`.
+- **QC:** GPT-5.6 Luna APPROVED the manifest regeneration.
+
+## 2026-09-30 — `awkit-djnl.15` item 5: the L8a.2 path-confinement mutation, caught (Claude)
 
 - **Task:** "run the confinement mutation now, I approve the edit". Contract
   `awkit-djnl-15-confinement-mutation-0930`.

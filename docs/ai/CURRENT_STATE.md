@@ -1,5 +1,30 @@
 # CURRENT_STATE
 
+## Fresh portable package with the 2026-09-30 changes; packaged gates green (2026-09-30, latest)
+
+- **Package:** built from clean `fb4c092f` with `package:portable`, under contract
+  `awkit-fresh-package-0930`.
+  - It carries the dialog line-break fix and the `latencyClassId` consolidation.
+  - Strict offline validation passed in the pipeline: 1465/1465 local-AI assets, and no pinned GPU
+    binary shipped.
+  - Signed manifest `ccb7541d`: `sourceTreeDirty` false. Only the timestamp and commit moved, so no
+    shipped asset changed.
+- **Packaged gates:**
+  - `verify:ai-backend-pack-packaged` 62/62, the one NOT RUN on the old package;
+  - `verify:ai-packaged-runtime` 104/0;
+  - `verify:ai-packaged-app` 32/0;
+  - `verify:ai-model-registration` 33/0;
+  - `verify:ai-progress-packaged` 33/0: ETA keys are latency classes in the packaged app.
+- **GPU packaged gates (AMD mechanics only):**
+  - `verify:ai-gpu-packaged` 24/0;
+  - `verify:ai-gpu-lifecycle-packaged` 31/0. It has two fewer steps than L8a.5's 33 because the
+    harness adds filler hosts until one cannot load, and the 4th failed here;
+  - `verify:ai-progress-gpu-packaged` 11/0.
+  - NVIDIA stays BLOCKED (E11).
+- **QC:** GPT-5.6 Luna through CodeCraft APPROVED the manifest regeneration.
+- **Follow-ups:** Phase L's epic stays open for `.15` only. Validation ledger unchanged at 65 PASS /
+  2 NOT RUN / 0 BLOCKED across 67 cases.
+
 ## L8a.2 path-confinement mutation caught (`awkit-djnl.15` item 5, 2026-09-30, latest)
 
 - **Run on the owner's approval.** The permission classifier had refused the temporary edit.

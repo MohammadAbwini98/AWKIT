@@ -34,9 +34,9 @@
     the fix; green is 60/60 after it.
   - The dialog-reading verifiers were re-run: `verify:https-certificates-gui` 31/31 and
     `verify:ai-settings-gui` 141/141.
-- **Packaged:** `verify:ai-backend-pack-packaged` runs the same script against `dist/win-unpacked`. It
-  fails that check until a fresh package carries the renderer fix; it was NOT RUN here because the
-  package predates the fix.
+- **Packaged:** `verify:ai-backend-pack-packaged` runs the same script against `dist/win-unpacked`, so a
+  package that predates the fix fails that check. On the fresh package of clean `fb4c092f` (signed
+  manifest `ccb7541d`) it passes 62/62.
 
 ## Lease bookkeeping must be committed BEFORE packaging, or the signed manifest records a dirty tree (2026-09-29, OPEN — know it)
 

@@ -1,5 +1,23 @@
 # Agent Handoff
 
+## HANDOFF (2026-09-30, latest) — fresh package built; every packaged gate green
+
+- **`dist/` is fresh:** built from clean `fb4c092f`, with signed manifest `ccb7541d`
+  (`sourceTreeDirty` false). It carries every product change of 2026-09-30.
+- **Packaged gates:**
+  - `verify:ai-backend-pack-packaged` 62/62;
+  - `verify:ai-packaged-runtime` 104/0;
+  - `verify:ai-packaged-app` 32/0;
+  - `verify:ai-model-registration` 33/0;
+  - `verify:ai-progress-packaged` 33/0.
+- **GPU packaged gates (AMD mechanics, NVIDIA BLOCKED):** 24/0, 31/0 and 11/0.
+- **`validate:offline -- -Strict` at a later HEAD** fails only its HEAD-equality clause, by design. It
+  passed in the pipeline at `fb4c092f`.
+- **Any further `ai-host.cjs` or shipped-asset change** needs a release lease and a fresh package. Commit
+  the lease bookkeeping first.
+- **Open under `awkit-djnl`:** only `.15`, for NVIDIA qualification and E2 hybrid correlation.
+- Ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
 ## HANDOFF (2026-09-30, latest) — `.16` closed; only `.15` keeps Phase L open
 
 - **`awkit-djnl.16` is closed.** The owner accepted Claude's review as L8b.3's QC (`DECISIONS.md`), and
