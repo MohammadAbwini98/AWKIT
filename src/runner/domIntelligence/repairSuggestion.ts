@@ -8,6 +8,7 @@ import { RECOVERY_SCORE_THRESHOLD, isRecoveryCompatible, rankLocalRecovery, type
 import type { LocatorRecoveryStage } from "../LocatorFactory";
 import { DOM_INTELLIGENCE_LIMITS, type DomCandidateProof, type DomIntelligenceRecoveryOptions, type DomRepairSuggestion } from "./DomIntelligenceProvider";
 import { captureDomSnapshot, withDeadline } from "./domSnapshot";
+import { compareRoutes, routeKey } from "../routeIdentity";
 
 /**
  * AWKIT's verdict on one provider candidate, over the SAME competitor set the recovery proof uses
@@ -60,6 +61,8 @@ export async function suggestRepair(input: {
   if (!referenceId || !step.locator) return { stage: { outcome: "skipped", reason: "no-reference" } };
   const reference = await options.references.get(referenceId, stepCandidatesDigest(step.locator)).catch(() => undefined);
   if (!reference) return { stage: { outcome: "skipped", reason: "no-reference" } };
+  // A reference proven on another route never describes an element here (L11.F).
+  if (compareRoutes(reference.route, routeKey(frame.url())) === "mismatch") return { stage: { outcome: "skipped", reason: "route-mismatch" } };
 
   const budgetMs = Math.max(50, Math.min(options.budgetMs ?? 800, DOM_INTELLIGENCE_LIMITS.maxTimeoutMs));
   const deadline = performance.now() + budgetMs;

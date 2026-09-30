@@ -57,8 +57,9 @@ import { fingerprintAt, proveCandidate, suggestRepair } from "./domIntelligence/
 import { buildDomReference, type DomReferenceStore } from "./domIntelligence/domReference";
 import { captureDomSnapshot } from "./domIntelligence/domSnapshot";
 import { DOM_REFERENCE_CAPTURE_SOURCE } from "./domIntelligence/pageScripts";
+import { compareRoutes, routeKey } from "./routeIdentity";
 
-let referenceCapture: ((element: Element) => unknown) | undefined;
+let referenceCapture: ((element: Element) => { reference: unknown; url: string }) | undefined;
 
 /**
  * Anything Playwright can build sub-locators from: a `Page`, a `FrameLocator`, or a `Locator`.
@@ -99,7 +100,18 @@ export interface LocatorRecoveryStage {
   stage: "local" | "blueprint" | "provider";
   outcome: "proven" | "refused" | "skipped" | "error" | "suggested";
   ms: number;
-  reason?: RecoveryRefusal | "no-blueprint" | "no-reference" | "sensitive" | "provider-unavailable" | "provider-timeout" | "provider-error" | "protected-surface" | "no-candidate";
+  reason?:
+    | RecoveryRefusal
+    | "no-blueprint"
+    | "no-reference"
+    | "sensitive"
+    | "provider-unavailable"
+    | "provider-timeout"
+    | "provider-error"
+    | "protected-surface"
+    | "no-candidate"
+    | "route-mismatch"
+    | "not-actionable";
   /** Candidates the layer scored after pruning (or the provider returned). */
   candidates?: number;
   score?: number;
@@ -116,6 +128,21 @@ export interface LocatorRecoveryTrace {
   totalMs: number;
   stages: LocatorRecoveryStage[];
   suggestion?: DomRepairSuggestion;
+  /**
+   * L11.F: where recovery ran. The step's page alias (never a URL), the frame it targets and its depth,
+   * and whether the page is on the route the remembered winner was proven on. Every candidate any layer
+   * scored came from this page and frame only.
+   */
+  context: LocatorRecoveryContext;
+  /** Recorded candidates (primary plus usable alternatives) that all missed before recovery ran. */
+  candidatesTried: number;
+}
+
+export interface LocatorRecoveryContext {
+  page: string;
+  frame: "main" | "child";
+  frameDepth: number;
+  route: "match" | "mismatch" | "unbound";
 }
 
 /** An element as the Recorder's in-page generator describes it (label and a suggested locator). */
@@ -143,6 +170,8 @@ export interface LocatorDiagnosis {
   /** The Recorder page alias the diagnosis read (set by the IPC handler, never a URL). */
   page?: string;
   frame?: "main" | "child";
+  /** L11.F: the step's DOM reference against this page's route. A reference from another route is never used. */
+  route?: "match" | "mismatch" | "unbound";
   recorded: { status: "resolved" | "ambiguous" | "missing" | "error"; strategy?: string; matches?: number; detail?: string };
   snapshot?: {
     outcome: "proven" | "refused";
@@ -155,7 +184,7 @@ export interface LocatorDiagnosis {
   };
   provider: {
     outcome: "ok" | "skipped" | "error";
-    reason?: "provider-unavailable" | "provider-timeout" | "provider-error" | "no-reference" | "protected-surface" | "snapshot-failed";
+    reason?: "provider-unavailable" | "provider-timeout" | "provider-error" | "no-reference" | "protected-surface" | "snapshot-failed" | "route-mismatch";
     candidates: DiagnosisCandidate[];
     elements?: number;
     parseMs?: number;
@@ -179,7 +208,8 @@ export interface LocatorRecoveryEvent {
     | "memory-error"
     | "user-approved-fallback"
     | "guarded-positional"
-    | "recovery-trace";
+    | "recovery-trace"
+    | "reference-refreshed";
   stepId: string;
   message: string;
   score?: number;
@@ -371,7 +401,7 @@ export class LocatorFactory {
       // Sensitive actions may retry their exact recorded candidates after the bounded grace period,
       // but must never select a different element through broad or blueprint-guided recovery.
       if (pass.allMissing && !sensitiveAction) {
-        const recovered = await this.recover(root, step, applicableMemory.fingerprint);
+        const recovered = await this.recover(root, step, applicableMemory.fingerprint, { route: applicableMemory.route, candidatesTried: ordered.length });
         if (recovered) {
           await this.writeMemory(
             {
@@ -412,7 +442,14 @@ export class LocatorFactory {
    */
   async diagnose(
     step: FlowStep,
-    deps: { provider?: DomIntelligenceProvider; references?: DomReferenceStore; expected?: LocatorElementFingerprint; describe?: boolean } = {}
+    deps: {
+      provider?: DomIntelligenceProvider;
+      references?: DomReferenceStore;
+      expected?: LocatorElementFingerprint;
+      /** The `routeKey` the expected identity was proven on (winner memory), when known. */
+      expectedRoute?: string;
+      describe?: boolean;
+    } = {}
   ): Promise<LocatorDiagnosis> {
     const started = performance.now();
     const spec = step.locator;
@@ -489,7 +526,11 @@ export class LocatorFactory {
     const providerStarted = performance.now();
     const referenceId = spec.blueprintId;
     const reference = referenceId && deps.references ? await deps.references.get(referenceId, stepCandidatesDigest(spec)).catch(() => undefined) : undefined;
+    // Either binding on another route makes this page a different route for the step (L11.F).
+    const routes = [compareRoutes(deps.expectedRoute, routeKey(this.page.url())), compareRoutes(reference?.route, routeKey(frame.url()))];
+    diagnosis.route = routes.includes("mismatch") ? "mismatch" : routes.includes("match") ? "match" : "unbound";
     if (!deps.provider) diagnosis.provider = { outcome: "skipped", reason: "provider-unavailable", candidates: [] };
+    else if (diagnosis.route === "mismatch") diagnosis.provider = { outcome: "skipped", reason: "route-mismatch", candidates: [] };
     else if (!reference) diagnosis.provider = { outcome: "skipped", reason: "no-reference", candidates: [] };
     else {
       const snapshot = await captureDomSnapshot(frame, { mode: "recover", expected }).catch(() => undefined);
@@ -679,9 +720,17 @@ export class LocatorFactory {
     try {
       if (await references.get(referenceId, bindingDigest)) return;
       if ((await locator.count()) !== 1) return;
-      referenceCapture ??= new Function("element", `return (${DOM_REFERENCE_CAPTURE_SOURCE})(element);`) as (element: Element) => unknown;
-      const reference = buildDomReference(await locator.evaluate(referenceCapture), { referenceId, bindingDigest, source: "runtime-refresh" });
-      if (reference) await references.put(reference);
+      referenceCapture ??= new Function(
+        "element",
+        `return { reference: (${DOM_REFERENCE_CAPTURE_SOURCE})(element), url: String(element.ownerDocument.location.href) };`
+      ) as (element: Element) => { reference: unknown; url: string };
+      const captured = await locator.evaluate(referenceCapture);
+      // Bound to the route of the document the element lives in, like the Recorder's own capture.
+      const reference = buildDomReference(captured.reference, { referenceId, bindingDigest, source: "runtime-refresh", route: routeKey(captured.url) });
+      if (reference) {
+        await references.put(reference);
+        this.emit({ type: "reference-refreshed", stepId: step.id, message: `Refreshed the DOM-intelligence reference for "${step.name}" from its recorded locator.` });
+      }
     } catch {
       // Best-effort: a missing reference only means no repair suggestion for this step.
     }
@@ -709,6 +758,7 @@ export class LocatorFactory {
         candidatesDigest,
         winningCandidateSignature: winner.ranked.signature,
         fingerprint,
+        route: routeKey(this.page.url()),
         source: "recorded-candidate",
         updatedAt: new Date().toISOString()
       },
@@ -721,16 +771,38 @@ export class LocatorFactory {
    * layer, each proven by the shared gate; then, only if both refused, a NON-EXECUTING provider
    * suggestion. Emits one bounded `recovery-trace` event per attempt.
    */
-  private async recover(root: LocatorRoot, step: FlowStep, expected: LocatorElementFingerprint): Promise<RecoveredElement | undefined> {
+  private async recover(
+    root: LocatorRoot,
+    step: FlowStep,
+    expected: LocatorElementFingerprint,
+    memory: { route?: string; candidatesTried: number }
+  ): Promise<RecoveredElement | undefined> {
     const engine: LocatorRecoveryEngine = this.options.recoveryEngine ?? "snapshot";
     const started = performance.now();
     const stages: LocatorRecoveryStage[] = [];
+    const frameDepth = step.locator?.context?.frameChain?.length ?? (step.locator?.context?.frame?.selector ? 1 : 0);
+    const context: LocatorRecoveryContext = {
+      page: step.pageAlias || "main",
+      frame: frameDepth > 0 ? "child" : "main",
+      frameDepth,
+      route: compareRoutes(memory.route, routeKey(this.page.url()))
+    };
     let recovered: RecoveredElement | undefined;
     let suggestion: DomRepairSuggestion | undefined;
     try {
-      recovered =
-        engine === "legacy" ? await this.recoverLocallyLegacy(root, step, expected, stages) : await this.recoverLocallySnapshot(root, step, expected, stages);
-      recovered ??= await this.recoverFromBlueprint(step, engine, stages);
+      // The remembered identity was proven on another route: a similar control here is not that element,
+      // and no layer (local, blueprint or provider) may look for one (L11.F).
+      if (context.route === "unbound") context.route = await this.referenceRoute(step);
+      if (context.route === "mismatch") {
+        stages.push({ stage: "local", outcome: "refused", reason: "route-mismatch", ms: performance.now() - started });
+        return undefined;
+      }
+      recovered = await this.requireActionable(
+        step,
+        engine === "legacy" ? await this.recoverLocallyLegacy(root, step, expected, stages) : await this.recoverLocallySnapshot(root, step, expected, stages),
+        stages
+      );
+      recovered ??= await this.requireActionable(step, await this.recoverFromBlueprint(step, engine, stages), stages);
       if (!recovered && this.options.domIntelligence) {
         const stageStarted = performance.now();
         const outcome = await suggestRepair({
@@ -745,8 +817,51 @@ export class LocatorFactory {
       }
       return recovered;
     } finally {
-      this.emitTrace(step, { engine, result: recovered ? "recovered" : "unresolved", totalMs: performance.now() - started, stages, suggestion });
+      this.emitTrace(step, {
+        engine,
+        result: recovered ? "recovered" : "unresolved",
+        totalMs: performance.now() - started,
+        stages,
+        suggestion,
+        context,
+        candidatesTried: memory.candidatesTried
+      });
     }
+  }
+
+  /**
+   * The route binding when winner memory has none (a record written before routes were kept): the step's
+   * DOM reference, captured on its own document, against that document's current route. `unbound` when
+   * there is no routed reference either.
+   */
+  private async referenceRoute(step: FlowStep): Promise<LocatorRecoveryContext["route"]> {
+    const references = this.options.domIntelligence?.references;
+    const referenceId = step.locator?.blueprintId;
+    if (!references || !referenceId || !step.locator) return "unbound";
+    try {
+      const reference = await references.get(referenceId, stepCandidatesDigest(step.locator));
+      if (!reference?.route) return "unbound";
+      return compareRoutes(reference.route, routeKey((await this.blueprintFrame(step.locator.context)).url()));
+    } catch {
+      return "unbound";
+    }
+  }
+
+  /** Steps whose Playwright action needs an enabled element (click, fill, check and select auto-wait for it). */
+  private static readonly ENABLED_ACTIONS: ReadonlySet<string> = new Set(["click", "dblclick", "contextMenu", "clickAndHold", "fill", "select", "check", "uncheck", "radio"]);
+
+  /**
+   * L11.F: a recovered element must be able to take the step's action NOW. A disabled look-alike (a
+   * loading skeleton with the target's name) can score as the target, and an action on it would wait on
+   * a lazily re-resolved index while the page replaces it. Such a winner refuses its layer
+   * (`not-actionable`), so the step falls back to its recorded locator's own auto-wait.
+   */
+  private async requireActionable(step: FlowStep, recovered: RecoveredElement | undefined, stages: LocatorRecoveryStage[]): Promise<RecoveredElement | undefined> {
+    if (!recovered || !LocatorFactory.ENABLED_ACTIONS.has(step.type)) return recovered;
+    if (await recovered.locator.isEnabled().catch(() => false)) return recovered;
+    const stage = stages[stages.length - 1];
+    if (stage) Object.assign(stage, { outcome: "refused", reason: "not-actionable" });
+    return undefined;
   }
 
   /** L11 local layer: one `evaluateAll` over the root's visible elements, pruned exactly, then the gate. */

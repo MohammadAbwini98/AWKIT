@@ -49,7 +49,8 @@ const PROVIDER_REASON: Readonly<Record<string, string>> = {
   "provider-error": "DOM intelligence could not analyse this page.",
   "no-reference": "No DOM reference was recorded for this step. Record it again, or run it once successfully.",
   "protected-surface": "This page has a protected sign-in field, so it is not analysed.",
-  "snapshot-failed": "The page could not be read."
+  "snapshot-failed": "The page could not be read.",
+  "route-mismatch": "This page is on a different route than the one the step was recorded on, so its reference is not used."
 };
 
 function describeElement(element: DiagnosisElement | undefined): string {
@@ -111,7 +112,8 @@ export function LocatorDiagnosisSection({
   if (!can(Permission.PAGE_RECORDER)) return null;
 
   const recorded = diagnosis?.recorded;
-  const protectedSurface = diagnosis?.provider.reason === "protected-surface";
+  // A protected surface, or a page on another route than the step's reference (L11.F), offers nothing.
+  const protectedSurface = diagnosis?.provider.reason === "protected-surface" || diagnosis?.route === "mismatch";
   const snapshot = diagnosis?.snapshot;
   const proofSuggestion = snapshot?.element?.locator;
   const useButton = (suggestion: Suggestion, id: string) => (
@@ -177,6 +179,7 @@ export function LocatorDiagnosisSection({
               <dt>Checked on</dt>
               <dd data-testid={`${testId}-context`}>
                 Page “{diagnosis.page ?? "main"}” · {diagnosis.frame === "child" ? "inside a frame" : "top document"}
+                {diagnosis.route === "mismatch" ? " · a different route from the recording" : ""}
               </dd>
             </div>
           </dl>

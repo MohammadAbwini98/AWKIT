@@ -718,6 +718,32 @@ try {
   check("index lists the Runner Lab scenario", await page.getByTestId("scenario-runner-lab").isVisible());
   check("index lists the Iframe Lab scenario", await page.getByTestId("scenario-iframe-lab").isVisible());
   check("index lists the Drag & Drop Lab scenario", await page.getByTestId("scenario-drag").isVisible());
+  check("index lists the DOM Context Lab scenario", await page.getByTestId("scenario-dom-context").isVisible());
+
+  // L11.F DOM Context Lab: the lab and its SPA routes serve, each look-alike exists where its case needs it.
+  // The recovery behaviour itself is gated by verify:dom-intelligence-contexts.
+  console.log("DOM Context Lab (/dom-context-lab):");
+  await page.goto(`${BASE}/dom-context-lab`);
+  check("the lab serves its title", (await page.title()) === "DOM Context Lab");
+  check("the frame holds the recorded Save settings target", (await page.frameLocator('[data-testid="dcl-frame"]').getByTestId("dcl-frame-save").count()) === 1);
+  check("...and the top document holds its look-alike", (await page.locator(".dcl-frame-decoy button").count()) === 1);
+  await page.getByTestId("dcl-go-orders").click();
+  check("the orders route renders its recorded Export list", new URL(page.url()).pathname === "/dom-context-lab/route/orders" && (await page.getByTestId("dcl-route-export").count()) === 1);
+  await page.getByTestId("dcl-go-archive").click();
+  check("the archive route renders a look-alike without the test id", (await page.getByTestId("dcl-route-export").count()) === 0 && (await page.getByRole("button", { name: "Export list" }).count()) === 1);
+  await page.goto(`${BASE}/dom-context-lab/route/archive`);
+  check("a pushed route still serves the lab on reload", (await page.getByTestId("dcl-route-status").textContent()) === "archive");
+  const [popup] = await Promise.all([page.waitForEvent("popup"), page.getByTestId("dcl-open-popup").click()]);
+  await popup.waitForLoadState();
+  check("the popup shows the same Confirm transfer control as the parent", (await popup.getByTestId("dcl-popup-confirm").count()) === 1 && (await page.getByTestId("dcl-parent-confirm").count()) === 1);
+  await popup.close();
+  check("the virtual list mounts only a window of its 500 rows", (await page.locator(".dcl-vrow:not([hidden])").count()) < 20 && (await page.getByTestId("dcl-view-ORD-1003").count()) === 1);
+  await page.getByTestId("dcl-virtual-list").evaluate((list) => { list.scrollTop = 6000; list.dispatchEvent(new Event("scroll")); });
+  check("scrolling recycles the rows: ORD-1003 is no longer mounted", (await page.getByTestId("dcl-view-ORD-1003").count()) === 0);
+  await page.getByTestId("dcl-delayed-load").click();
+  check("delayed render first shows a disabled skeleton", (await page.locator(".dcl-skeleton").isDisabled()) && (await page.getByTestId("dcl-delayed-download").count()) === 0);
+  await page.getByTestId("dcl-delayed-download").waitFor({ timeout: 5000 });
+  check("...then the real target", (await page.getByTestId("dcl-delayed-status").textContent()) === "ready");
 
   await page.close();
 } catch (error) {

@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DOM Context Lab</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      .dcl-virtual-list { height: 240px; overflow-y: auto; border: 1px solid #ccd; position: relative; }
+      .dcl-virtual-spacer { position: relative; }
+      .dcl-vrow { position: absolute; left: 0; right: 0; height: 40px; display: flex; align-items: center; gap: 12px; padding: 0 8px; box-sizing: border-box; }
+    </style>
+  </head>
+  <body>
+    <main class="card wide">
+      <h1>DOM Context Lab</h1>
+      <p class="hint">
+        L11.F dynamic browser contexts. Each section repeats a control somewhere it must NOT be recovered from
+        (another frame, another page, another route) or renders it only on demand (virtualized, delayed), so
+        locator recovery has to prove the element in the step's own context or refuse.
+      </p>
+
+      <!-- A. Frame scoping: the frame holds the target; the top document holds an identical decoy. -->
+      <section data-testid="dcl-frame-section" aria-labelledby="dcl-frame-title">
+        <h2 id="dcl-frame-title">Frame scoping</h2>
+        <iframe data-testid="dcl-frame" title="Settings frame" src="/dom-context-lab/frame" width="420" height="120"></iframe>
+      </section>
+      <!-- The decoy's ancestry (form, section, main — no ids or test ids) equals the frame target's, so only
+           the frame binding tells them apart. Found by class, which no fingerprint reads. -->
+      <section class="dcl-panel dcl-frame-decoy">
+        <form onsubmit="return false">
+          <button type="button">Save settings</button>
+        </form>
+      </section>
+
+      <!-- B. SPA routes: both views carry a structurally identical control; only the orders one is recorded. -->
+      <section data-testid="dcl-route-section" aria-labelledby="dcl-route-title">
+        <h2 id="dcl-route-title">SPA routes</h2>
+        <div class="button-row">
+          <button data-testid="dcl-go-orders" type="button">Orders view</button>
+          <button data-testid="dcl-go-archive" type="button">Archive view</button>
+        </div>
+        <p data-testid="dcl-route-status" role="status">none</p>
+        <div data-testid="dcl-route-view"></div>
+      </section>
+
+      <!-- C. Popup: the parent and the popup carry the same control, with the same ancestry. -->
+      <section data-testid="dcl-popup-section" aria-labelledby="dcl-popup-title">
+        <h2 id="dcl-popup-title">Popup pages</h2>
+        <button data-testid="dcl-open-popup" type="button">Open transfer popup</button>
+        <p data-testid="dcl-parent-result" role="status">idle</p>
+      </section>
+      <section class="dcl-panel dcl-popup-parent">
+        <form onsubmit="return false">
+          <button type="button" data-testid="dcl-parent-confirm">Confirm transfer</button>
+        </form>
+      </section>
+
+      <!-- D. Virtualized list: only rows in view are mounted, and mounted row nodes are recycled. -->
+      <section data-testid="dcl-virtual-section" aria-labelledby="dcl-virtual-title">
+        <h2 id="dcl-virtual-title">Virtualized list</h2>
+        <div class="dcl-virtual-list" data-testid="dcl-virtual-list" role="grid" aria-label="Orders">
+          <div class="dcl-virtual-spacer" data-testid="dcl-virtual-spacer"></div>
+        </div>
+        <p data-testid="dcl-virtual-result" role="status">idle</p>
+      </section>
+
+      <!-- E. Delayed rendering: the report button appears 900 ms after Load, behind a disabled skeleton. -->
+      <section data-testid="dcl-delayed-section" aria-labelledby="dcl-delayed-title">
+        <h2 id="dcl-delayed-title">Delayed rendering</h2>
+        <button data-testid="dcl-delayed-load" type="button">Load report</button>
+        <div data-testid="dcl-delayed-slot"></div>
+        <p data-testid="dcl-delayed-status" role="status">idle</p>
+      </section>
+    </main>
+
+    <script>
+      (() => {
+        const $ = (id) => document.querySelector(`[data-testid="${id}"]`);
+
+        // ── B. SPA routes ─────────────────────────────────────────────────────────────────────────
+        const routeView = $("dcl-route-view");
+        const renderRoute = () => {
+          const match = /\/dom-context-lab\/route\/(orders|archive)$/.exec(location.pathname);
+          const name = match ? match[1] : "none";
+          $("dcl-route-status").textContent = name;
+          routeView.textContent = "";
+          if (name === "none") return;
+          const section = document.createElement("section");
+          section.className = "dcl-view";
+          const form = document.createElement("form");
+          form.setAttribute("onsubmit", "return false");
+          const button = document.createElement("button");
+          button.type = "button";
+          button.textContent = "Export list";
+          // Only the orders view's control carries the test id the step is recorded with.
+          if (name === "orders") button.dataset.testid = "dcl-route-export";
+          button.addEventListener("click", () => ($("dcl-route-status").textContent = `${name}: exported`));
+          form.append(button);
+          section.append(form);
+          routeView.append(section);
+        };
+        const go = (name) => {
+          history.pushState({}, "", `/dom-context-lab/route/${name}`);
+          renderRoute();
+        };
+        $("dcl-go-orders").addEventListener("click", () => go("orders"));
+        $("dcl-go-archive").addEventListener("click", () => go("archive"));
+        window.addEventListener("popstate", renderRoute);
+        renderRoute();
+
+        // ── C. Popup ──────────────────────────────────────────────────────────────────────────────
+        $("dcl-open-popup").addEventListener("click", () => window.open("/dom-context-lab/popup", "_blank", "popup,width=480,height=320"));
+        $("dcl-parent-confirm").addEventListener("click", () => ($("dcl-parent-result").textContent = "parent confirmed"));
+
+        // ── D. Virtualized list ───────────────────────────────────────────────────────────────────
+        const ROW = 40;
+        const TOTAL = 500;
+        const list = $("dcl-virtual-list");
+        const spacer = $("dcl-virtual-spacer");
+        spacer.style.height = `${TOTAL * ROW}px`;
+        const pool = [];
+        let withIds = true;
+        const orderId = (index) => `ORD-${1001 + index}`;
+        const renderRows = () => {
+          const first = Math.max(0, Math.floor(list.scrollTop / ROW) - 2);
+          const last = Math.min(TOTAL - 1, Math.ceil((list.scrollTop + list.clientHeight) / ROW) + 2);
+          const count = last - first + 1;
+          while (pool.length < count) {
+            const row = document.createElement("div");
+            row.className = "dcl-vrow";
+            row.setAttribute("role", "row");
+            const label = document.createElement("span");
+            const view = document.createElement("button");
+            view.type = "button";
+            view.textContent = "View";
+            view.addEventListener("click", () => ($("dcl-virtual-result").textContent = `viewed ${row.dataset.order}`));
+            row.append(label, view);
+            spacer.append(row);
+            pool.push(row);
+          }
+          // Recycle: the same row nodes are re-labelled as the window moves, like a real virtual list.
+          pool.forEach((row, slot) => {
+            const index = first + slot;
+            if (slot >= count || index >= TOTAL) {
+              row.hidden = true;
+              return;
+            }
+            row.hidden = false;
+            row.style.top = `${index * ROW}px`;
+            row.dataset.order = orderId(index);
+            row.firstChild.textContent = `Order ${orderId(index)}`;
+            const view = row.lastChild;
+            if (withIds) view.dataset.testid = `dcl-view-${orderId(index)}`;
+            else view.removeAttribute("data-testid");
+          });
+        };
+        list.addEventListener("scroll", renderRows);
+        renderRows();
+
+        // ── E. Delayed rendering ──────────────────────────────────────────────────────────────────
+        const slot = $("dcl-delayed-slot");
+        const resetDelayed = () => {
+          slot.textContent = "";
+          $("dcl-delayed-status").textContent = "idle";
+        };
+        $("dcl-delayed-load").addEventListener("click", () => {
+          resetDelayed();
+          const skeleton = document.createElement("button");
+          skeleton.type = "button";
+          skeleton.disabled = true;
+          skeleton.className = "dcl-skeleton";
+          skeleton.textContent = "Download report";
+          slot.append(skeleton);
+          $("dcl-delayed-status").textContent = "loading";
+          setTimeout(() => {
+            const ready = document.createElement("button");
+            ready.type = "button";
+            ready.dataset.testid = "dcl-delayed-download";
+            ready.textContent = "Download report";
+            ready.addEventListener("click", () => ($("dcl-delayed-status").textContent = "downloaded"));
+            skeleton.replaceWith(ready);
+            $("dcl-delayed-status").textContent = "ready";
+          }, 900);
+        });
+
+        window.__dcl = {
+          removeDecoy: () => document.querySelector(".dcl-frame-decoy").remove(),
+          removeParentTarget: () => $("dcl-parent-confirm").remove(),
+          dropRouteTestId: () => {
+            const button = routeView.querySelector("button");
+            if (button) button.removeAttribute("data-testid");
+          },
+          virtual: {
+            scrollTo: (top) => {
+              list.scrollTop = top;
+              renderRows();
+            },
+            setIds: (value) => {
+              withIds = value;
+              renderRows();
+            }
+          },
+          resetDelayed
+        };
+      })();
+    </script>
+  </body>
+</html>

@@ -14,6 +14,7 @@ import type { PageBlueprint, ElementBlueprint } from "../runner/LocatorBlueprint
 import { computeFrameKey, computePageKey } from "../runner/LocatorBlueprintStore";
 import { stepCandidatesDigest } from "../runner/LocatorRecoveryStore";
 import { buildDomReference, type DomReferenceRecord } from "../runner/domIntelligence/domReference";
+import { routeKey } from "../runner/routeIdentity";
 import type { RecordedAction, RecordedActionLocator } from "./RecorderTypes";
 
 /** A step whose side effect is dangerous enough to require a runtime identity guard on a positional locator. */
@@ -240,7 +241,8 @@ export function buildRecordedFlow(
             const reference = buildDomReference(capture.domReference, {
               referenceId: blueprintId,
               bindingDigest: stepCandidatesDigest(step.locator),
-              source: "recorder"
+              source: "recorder",
+              route: routeKey(capture.url)
             });
             if (reference) options.domReferencesOut.push(reference);
           }

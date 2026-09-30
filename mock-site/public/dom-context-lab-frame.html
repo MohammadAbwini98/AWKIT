@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>DOM Context Lab frame</title>
+  </head>
+  <body>
+    <!-- Same structure as the top document's decoy panel: only the frame binding tells them apart. -->
+    <main>
+      <section class="dcl-panel">
+        <form onsubmit="return false">
+          <button type="button" data-testid="dcl-frame-save">Save settings</button>
+        </form>
+      </section>
+      <p data-testid="dcl-frame-result" role="status">idle</p>
+    </main>
+    <script>
+      (() => {
+        const button = document.querySelector('[data-testid="dcl-frame-save"]');
+        button.addEventListener("click", () => (document.querySelector('[data-testid="dcl-frame-result"]').textContent = "frame saved"));
+        window.__dclFrame = {
+          dropTestId: () => button.removeAttribute("data-testid"),
+          removeTarget: () => button.remove()
+        };
+      })();
+    </script>
+  </body>
+</html>

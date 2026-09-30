@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>DOM Context Lab popup</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <!-- The parent page carries the same panel: a step bound to one page must never act on the other. -->
+    <main class="card wide">
+      <section class="dcl-panel">
+        <form onsubmit="return false">
+          <button type="button" data-testid="dcl-popup-confirm">Confirm transfer</button>
+        </form>
+      </section>
+      <p data-testid="dcl-popup-result" role="status">idle</p>
+    </main>
+    <script>
+      (() => {
+        const button = document.querySelector('[data-testid="dcl-popup-confirm"]');
+        button.addEventListener("click", () => (document.querySelector('[data-testid="dcl-popup-result"]').textContent = "popup confirmed"));
+        window.__dclPopup = { removeTarget: () => button.remove() };
+      })();
+    </script>
+  </body>
+</html>

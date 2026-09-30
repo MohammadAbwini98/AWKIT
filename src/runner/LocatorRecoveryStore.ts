@@ -14,6 +14,11 @@ export interface LocatorRecoveryRecord {
   candidatesDigest: string;
   winningCandidateSignature: string;
   fingerprint?: LocatorElementFingerprint;
+  /**
+   * L11.F: `routeKey` of the page the winner was proven on. Recovery from this record is refused on
+   * another route. Absent on records written before 2026-10-01 (then no route is compared).
+   */
+  route?: string;
   source: "recorded-candidate" | "local-recovery";
   updatedAt: string;
 }

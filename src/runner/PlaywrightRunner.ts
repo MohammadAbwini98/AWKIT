@@ -12,6 +12,7 @@ import { closedShadowBridgeScript } from "./closedShadowBridge";
 import { FileLocatorRecoveryStore, type LocatorRecoveryStore } from "./LocatorRecoveryStore";
 import { FileLocatorBlueprintStore, type LocatorBlueprintStore } from "./LocatorBlueprintStore";
 import type { DomIntelligenceRecoveryOptions } from "./domIntelligence/DomIntelligenceProvider";
+import { toRecoveryProvenance } from "./domIntelligence/recoveryProvenance";
 import { ManualHandoffController } from "./ManualHandoffController";
 import type { RunnerProgressReporter } from "./RunnerProgress";
 import { MemoryRunnerLogger, type FlowExecutionResult, type ScenarioExecutionResult } from "./RunnerResult";
@@ -805,7 +806,10 @@ export class PlaywrightRunner {
         logger.log({
           level: event.type === "local-recovery" || event.type === "memory-error" ? "warn" : "info",
           message: `[locator:${event.type}] ${event.message}`,
-          ...this.logMeta(context)
+          ...this.logMeta(context),
+          stepId: event.stepId,
+          // L11.H: the bounded, code-only recovery provenance the report keeps (never DOM or page text).
+          ...(event.trace ? { data: { locatorRecovery: toRecoveryProvenance(event.trace) } } : {})
         })
     });
   }

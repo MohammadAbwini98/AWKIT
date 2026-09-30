@@ -56,10 +56,16 @@ export interface DomReferenceRecord {
   bindingDigest: string;
   source: "recorder" | "runtime-refresh";
   capturedAt: string;
+  /**
+   * L11.F: `routeKey` of the document the element was captured in. A reference is never used on another
+   * route. Absent when the document had no route identity, and on records written before 2026-10-01.
+   */
+  route?: string;
   element: DomReferenceElement;
 }
 
 const TAG = /^[a-z][a-z0-9-]{0,39}$/;
+const ROUTE = /^[a-f0-9]{20}$/;
 const ALLOWED = new Set<string>(DOM_ATTRIBUTE_ALLOWLIST);
 const redactor = new SemanticRedactor({ maxContentLength: DOM_REFERENCE_LIMITS.attributeValue }, new SecretMasker());
 const masker = new SecretMasker();
@@ -94,7 +100,7 @@ function cleanTags(value: unknown, max: number): string[] | undefined {
  */
 export function buildDomReference(
   raw: unknown,
-  binding: { referenceId: string; bindingDigest: string; source: DomReferenceRecord["source"]; capturedAt?: string }
+  binding: { referenceId: string; bindingDigest: string; source: DomReferenceRecord["source"]; capturedAt?: string; route?: string }
 ): DomReferenceRecord | undefined {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
   const capture = raw as Record<string, unknown>;
@@ -105,6 +111,7 @@ export function buildDomReference(
   const children = cleanTags(capture.children ?? [], DOM_REFERENCE_LIMITS.children);
   if (!tag || !attributes || !path || path.length === 0 || path[path.length - 1] !== tag || !siblings || !children) return undefined;
   if (!binding.referenceId || !binding.bindingDigest) return undefined;
+  if (binding.route !== undefined && !ROUTE.test(binding.route)) return undefined;
   let parent: DomReferenceElement["parent"];
   if (capture.parent && typeof capture.parent === "object") {
     const rawParent = capture.parent as Record<string, unknown>;
@@ -119,6 +126,7 @@ export function buildDomReference(
     bindingDigest: binding.bindingDigest,
     source: binding.source,
     capturedAt: binding.capturedAt ?? new Date().toISOString(),
+    ...(binding.route ? { route: binding.route } : {}),
     element: {
       tag,
       attributes,
@@ -154,11 +162,13 @@ export function validateDomReference(value: unknown): DomReferenceRecord | undef
   if (typeof record.capturedAt !== "string" || Number.isNaN(Date.parse(record.capturedAt))) return undefined;
   const element = record.element;
   if (!element || typeof element !== "object") return undefined;
+  if (record.route !== undefined && (typeof record.route !== "string" || !ROUTE.test(record.route))) return undefined;
   const rebuilt = buildDomReference(element, {
     referenceId: record.referenceId,
     bindingDigest: record.bindingDigest,
     source: record.source,
-    capturedAt: record.capturedAt
+    capturedAt: record.capturedAt,
+    route: record.route
   });
   // A stored record must already be in its bounded, redacted form: re-building it must not change it.
   return rebuilt && JSON.stringify(rebuilt.element) === JSON.stringify(element) ? rebuilt : undefined;

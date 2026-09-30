@@ -216,6 +216,12 @@ const server = createServer(async (req, res) => {
   if (req.method === "GET" && path === "/recorder-lab/element-spy/next") return serveStatic(res, "element-spy-next.html");
   if (req.method === "GET" && path === "/scroll-lab") return serveStatic(res, "scroll-lab.html");
   if (req.method === "GET" && path === "/blueprint-recovery-lab") return serveStatic(res, "blueprint-recovery-lab.html");
+  // L11.F DOM Context Lab: its SPA routes serve the lab itself, so a reload stays on the same view.
+  if (req.method === "GET" && path === "/dom-context-lab/frame") return serveStatic(res, "dom-context-lab-frame.html");
+  if (req.method === "GET" && path === "/dom-context-lab/popup") return serveStatic(res, "dom-context-lab-popup.html");
+  if (req.method === "GET" && (path === "/dom-context-lab" || path === "/dom-context-lab/route/orders" || path === "/dom-context-lab/route/archive")) {
+    return serveStatic(res, "dom-context-lab.html");
+  }
   if (req.method === "GET" && path === "/shadow-frame-child") return serveStatic(res, "shadow-frame-child.html");
   if (req.method === "GET" && path === "/recorder-sensitive") return serveStatic(res, "recorder-sensitive.html");
   if (req.method === "GET" && path === "/designer-lab") return serveStatic(res, "designer-lab.html");

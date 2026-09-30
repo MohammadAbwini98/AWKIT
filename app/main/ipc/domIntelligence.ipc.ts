@@ -25,6 +25,7 @@ import {
   type DomIntelligenceStatusView
 } from "@src/runner/domIntelligence/DomIntelligenceApi";
 import { MemoryDomReferenceStore, buildDomReference, type DomReferenceStore } from "@src/runner/domIntelligence/domReference";
+import { routeKey } from "@src/runner/routeIdentity";
 import { Permission } from "@src/security/authz/Permissions";
 import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 
@@ -36,8 +37,11 @@ import { assertSenderPermission } from "../security/sessionContext";
 const failure = (code: DomDiagnosisFailureCode): DomDiagnosisResponse => ({ ok: false, code, message: DIAGNOSIS_FAILURE_MESSAGES[code] });
 const labelRedactor = new SemanticRedactor({ maxContentLength: 120 });
 
-/** The step's most recent runtime identity (winner memory for any scenario), else its recorded identity. */
-async function expectedIdentity(step: FlowStep, flowId: string | undefined): Promise<LocatorElementFingerprint | undefined> {
+/**
+ * The step's most recent runtime identity (winner memory for any scenario) and the route it was proven on,
+ * else its recorded identity.
+ */
+async function expectedIdentity(step: FlowStep, flowId: string | undefined): Promise<{ fingerprint?: LocatorElementFingerprint; route?: string }> {
   if (flowId && step.locator) {
     const digest = stepCandidatesDigest(step.locator);
     const suffix = `\u0000${flowId}\u0000${step.id}`;
@@ -45,9 +49,9 @@ async function expectedIdentity(step: FlowStep, flowId: string | undefined): Pro
     const latest = records
       .filter((record) => record.scopeKey.endsWith(suffix) && record.candidatesDigest === digest && record.fingerprint)
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
-    if (latest?.fingerprint) return latest.fingerprint;
+    if (latest?.fingerprint) return { fingerprint: latest.fingerprint, route: latest.route };
   }
-  return step.locator?.identity?.fingerprint;
+  return { fingerprint: step.locator?.identity?.fingerprint };
 }
 
 /** Labels are page text shown to the user: redacted like every other projected string. */
@@ -92,7 +96,12 @@ export function registerDomIntelligenceIpc(): void {
       const capture = action?.locator?.blueprintCapture?.domReference;
       if (step?.locator && capture) {
         step = { ...step, locator: { ...step.locator, blueprintId: `draft-${request.actionId}` } };
-        const reference = buildDomReference(capture, { referenceId: `draft-${request.actionId}`, bindingDigest: stepCandidatesDigest(step.locator!), source: "recorder" });
+        const reference = buildDomReference(capture, {
+          referenceId: `draft-${request.actionId}`,
+          bindingDigest: stepCandidatesDigest(step.locator!),
+          source: "recorder",
+          route: routeKey(action?.locator?.blueprintCapture?.url)
+        });
         const memory = new MemoryDomReferenceStore();
         if (reference) await memory.put(reference);
         references = memory;
@@ -104,10 +113,12 @@ export function registerDomIntelligenceIpc(): void {
     const page = recorderService.getLivePage(alias);
     if (!page) return failure("NO_LIVE_PAGE");
     try {
+      const identity = await expectedIdentity(step, flowId);
       const diagnosis = await new LocatorFactory(page).diagnose(step, {
         provider: getDomIntelligenceProvider(),
         references,
-        expected: await expectedIdentity(step, flowId),
+        expected: identity.fingerprint,
+        expectedRoute: identity.route,
         describe: true
       });
       return { ok: true, diagnosis: { ...redactDiagnosis(diagnosis), page: alias } };
