@@ -236,6 +236,7 @@ export const AGENTS = Object.freeze([
       "scripts/benchmark-*",
       "scripts/benchmark/**",
       "scripts/helpers/**",
+      "scripts/ai-harness/**",
       "scripts/measure-*",
       "scripts/random-test-lab.mts",
       "scripts/seed-*",
@@ -965,6 +966,7 @@ export const PATH_DOMAINS = Object.freeze([
   ...[
     "scripts/benchmark/**",
     "scripts/helpers/**",
+    "scripts/ai-harness/**",
     "scripts/measure-*",
     "scripts/random-test-lab.mts",
     "scripts/seed-*",

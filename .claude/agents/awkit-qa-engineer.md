@@ -32,6 +32,7 @@ Only inside a granted write lease, and only within:
 - `scripts/benchmark-*`
 - `scripts/benchmark/**`
 - `scripts/helpers/**`
+- `scripts/ai-harness/**`
 - `scripts/measure-*`
 - `scripts/random-test-lab.mts`
 - `scripts/seed-*`
