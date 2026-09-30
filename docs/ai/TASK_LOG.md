@@ -1,6 +1,16 @@
 # TASK_LOG
 
-## 2026-09-30 (latest) — `awkit-djnl.16` closed on the owner's QC decision for L8b.3 (Claude)
+## 2026-09-30 (latest) — `awkit-djnl.15` item 4: the load window accepted as a same-user risk (Claude)
+
+- **Task:** "accept the load window as a same-user risk". Contract `awkit-djnl-15-load-window-0930`.
+- **Done:**
+  - the `DECISIONS.md` entry with the reasoning and when to revisit;
+  - the L8a plan's item 4 and its risks list marked decided;
+  - a note on `awkit-djnl.15` (exported), which stays open for items 2, 3 and 5;
+  - CURRENT_STATE and HANDOFF.
+- **Tests:** no code changed; `verify:roadmap-dashboard` re-run on the final state.
+
+## 2026-09-30 — `awkit-djnl.16` closed on the owner's QC decision for L8b.3 (Claude)
 
 - **Task:**
   1. "retry the L8b.3 review with gemini-3.1-pro". It timed out at 8000 output tokens and answered

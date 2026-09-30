@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-15-load-window-0930",
+    "title": "Record the owner's decision: the verifyForLoad-to-DLL-load window is an accepted same-user risk",
+    "objective": "The owner accepted the window between AiBackendPackStore.verifyForLoad and the GPU host's DLL load as a same-user risk (awkit-djnl.15 item 4). Record it in DECISIONS, the L8a plan and the state documents, append a note to awkit-djnl.15, and keep .15 open for its remaining items (NVIDIA qualification, E2 hybrid correlation, the owner-run path-confinement mutation). No product code changes.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "7b5078c6",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/issues.jsonl",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-djnl-15-load-window-0930.json",
+      "docs/plans/ai-upgrade-v5/L8a-hardware-adaptive-inference-runtime.md"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/issues.jsonl"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "native-hosts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "RECORDED",
+      "description": "The decision is in DECISIONS and the L8a plan, awkit-djnl.15 carries the note and stays open for its other items, and the dashboard's sources agree.",
+      "evidence_required": [
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177, Overview 'Sources agree', 329 issues, 22 outstanding / 307 closed (unchanged: .15 stays open), ledger 65 PASS / 2 NOT RUN / 0 BLOCKED restated in both newest narratives."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-15-load-window-0930:project-state:2026-09-30T10:43:26.215Z",
+        "task": "awkit-djnl-15-load-window-0930",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/issues.jsonl"
+        ],
+        "acquired_at": "2026-09-30T10:43:26.215Z",
+        "acquired_at_commit": "7b5078c6ebda4b8b70bcca1dfd7cc4326f18381a",
+        "released_at": "2026-09-30T10:43:51.563Z",
+        "released_reason": "load-window decision noted on awkit-djnl.15 and exported, state documents are updated next outside this lease",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

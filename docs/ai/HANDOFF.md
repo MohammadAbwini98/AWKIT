@@ -14,8 +14,9 @@
 - **Open under `awkit-djnl`:** only `.15`, for these items:
   - NVIDIA qualification (needs a `0x10DE` machine);
   - E2 hybrid correlation;
-  - the load-window decision;
   - the owner-run confinement mutation.
+- **The load window is decided:** the owner accepted it as a same-user risk (`DECISIONS.md`,
+  contract `awkit-djnl-15-load-window-0930`).
 - **What `.16` delivered:**
   - the dialog line breaks (`.modal-body` `white-space: pre-line`);
   - the latency class unified on `latencyClassId`;

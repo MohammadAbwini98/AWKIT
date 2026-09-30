@@ -1,6 +1,25 @@
 # DECISIONS
 
-### 2026-09-30 (latest) — L8b.3's QC is Claude's review, not a second model family (owner) (`awkit-djnl.16`)
+### 2026-09-30 (latest) — The GPU pack's verify-to-load window is an accepted same-user risk (owner) (`awkit-djnl.15`)
+
+- **Decision:** the window is accepted and stays open.
+  - The window: between `AiBackendPackStore.verifyForLoad` (re-walk and re-hash of the installed pack)
+    and the GPU host process loading those DLLs.
+  - It is not closed further.
+- **Why:**
+  - **Only a same-user process can race it.** The pack lives under the user's own `%LOCALAPPDATA%`, and
+    that user can already change what the app runs in other ways. Windows gives no boundary between
+    processes of one user.
+  - **Node cannot close it.** On Windows, Node opens every file with share-write and share-delete, so
+    main cannot hold the verified files read-locked while the child loads them. An exclusive open would
+    block the child's own load.
+  - **The window is narrow.** It is one fork: `verifyForLoad` runs immediately before each GPU host
+    start, and the host loads only from the directory the verdict names.
+  - **After load, the files are protected.** Windows refuses writes to a DLL mapped as an image.
+- **Revisit if:** the pack moves somewhere another user can write, or a native helper that can hold
+  share-read-only handles becomes available.
+
+### 2026-09-30 — L8b.3's QC is Claude's review, not a second model family (owner) (`awkit-djnl.16`)
 
 - **Decision:** the owner accepted Claude's review of the L8b.3 probe verdict logic as its QC, and closed
   `awkit-djnl.16`.

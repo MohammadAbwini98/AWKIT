@@ -1,5 +1,16 @@
 # CURRENT_STATE
 
+## GPU pack's verify-to-load window accepted as a same-user risk (`awkit-djnl.15` item 4, 2026-09-30, latest)
+
+- **Decision (owner):** the window between `AiBackendPackStore.verifyForLoad` and the GPU host's DLL load
+  is accepted as a same-user risk and not closed further (`DECISIONS.md`). No product change.
+- **Still open under `.15`:**
+  - NVIDIA qualification (BLOCKED, needs a `0x10DE` machine);
+  - E2 hybrid correlation (BLOCKED, runtime);
+  - the path-confinement mutation (owner-run).
+- **Follow-ups:** Phase L's epic stays open for `.15` only. Validation ledger unchanged at 65 PASS /
+  2 NOT RUN / 0 BLOCKED across 67 cases.
+
 ## L8b follow-ups closed: dialog line breaks fixed, latency class unified, overhead gate PASS (`awkit-djnl.16`, 2026-09-30, latest)
 
 - **`awkit-djnl.16` is closed.** The owner accepted Claude's review as QC for L8b.3, after no CodeCraft

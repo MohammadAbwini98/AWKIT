@@ -693,7 +693,8 @@ successful load is a loss for its mode and reserve.
 
 ## `awkit-djnl.15` follow-up record (2026-09-30)
 
-Contract `awkit-djnl-15-l8a-qc-0930`. The issue stays open for items 2–5.
+Contract `awkit-djnl-15-l8a-qc-0930`. The issue stays open for items 2, 3 and 5; item 4 was decided by
+the owner the same day (contract `awkit-djnl-15-load-window-0930`).
 
 **1. Independent QC of L8a.1–L8a.5: done, no product defect.**
 - GPT-5.6 Luna, a second model family, reviewed the current code through CodeCraft in five packets:
@@ -733,7 +734,8 @@ Contract `awkit-djnl-15-l8a-qc-0930`. The issue stays open for items 2–5.
 **3. E2 hybrid correlation: BLOCKED.** The pinned runtime exposes no LUID or PCI bus. Mixed adapter
 sets stay `VENDOR_UNPROVEN`.
 
-**4. The `verifyForLoad`-to-DLL-load window: OPEN, owner decision.**
+**4. The `verifyForLoad`-to-DLL-load window: DECIDED (owner, 2026-09-30).** It is accepted as a
+same-user risk and not closed further (`DECISIONS.md`). The analysis that informed the decision:
 - Node on Windows always opens files with share-write and share-delete, so the main process cannot
   hold the verified files read-locked while the child loads them.
 - An exclusive open would block the child's own load.
@@ -773,3 +775,5 @@ edit again, and it was not worked around. To run it yourself:
 - ~~Backend pack size~~: 96.7 MB including the app-local VC++ runtime. The release produces it
   from the pinned npm prebuilt plus the installer's validated runtime.
 - A driver update can invalidate a working GPU mode; the unavailable-with-reason path covers it.
+- ~~The `verifyForLoad`-to-DLL-load window~~: **decided 2026-09-30.** The owner accepted it as a
+  same-user risk (`DECISIONS.md`); it is one fork wide, and Node cannot hold read-only locks on Windows.

@@ -1,20 +1,18 @@
 {
-  "task": "awkit-djnl-16-l8b-qc-0930",
-  "contract_path": "docs/ai/contracts/awkit-djnl-16-l8b-qc-0930.json",
+  "task": "awkit-djnl-15-load-window-0930",
+  "contract_path": "docs/ai/contracts/awkit-djnl-15-load-window-0930.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/issues.jsonl"
   ],
-  "acquired_at": "2026-09-30T09:51:40.569Z",
-  "acquired_at_commit": "7032c2de7f30a55bce98793cffa2a989c059abd2",
+  "acquired_at": "2026-09-30T10:43:26.215Z",
+  "acquired_at_commit": "7b5078c6ebda4b8b70bcca1dfd7cc4326f18381a",
   "baseline_dirty": [
-    "docs/ai/DECISIONS.md",
-    "docs/ai/contracts/awkit-djnl-12-l8b3-l8b5-0929.json"
+    "docs/ai/contracts/awkit-djnl-15-load-window-0930.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/DECISIONS.md": "c94984aa8a76b65c1f77dc821a4c6ef6354d38badc1417b6b4e761d871566d00",
-    "docs/ai/contracts/awkit-djnl-12-l8b3-l8b5-0929.json": "6068d403f0a9e565ae10fa2de0a80e41c471cbdaed253ee52110839d84b5a604"
+    "docs/ai/contracts/awkit-djnl-15-load-window-0930.json": "2e4a0fe040e8f608eebb08f7e91c47c51a4e095a686fbb41f1deff55029c6c63"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -29,7 +27,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-30T09:52:17.160Z",
-  "released_reason": "awkit-djnl.16 closed on the owner decision and exported, the dashboard pin and state documents are updated next outside this lease",
-  "archived_at": "2026-09-30T09:52:17.162Z"
+  "released_at": "2026-09-30T10:43:51.563Z",
+  "released_reason": "load-window decision noted on awkit-djnl.15 and exported, state documents are updated next outside this lease",
+  "archived_at": "2026-09-30T10:43:51.564Z"
 }
