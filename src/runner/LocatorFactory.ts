@@ -1,5 +1,5 @@
 import type { Page, Locator, Frame, ElementHandle } from "playwright";
-import { createPageFingerprint, fingerprintsEqual, hashFingerprint, hashToken, similarity } from "./locatorFingerprint";
+import { ancestrySimilarity, createPageFingerprint, fingerprintsEqual, hashFingerprint, hashToken, similarity } from "./locatorFingerprint";
 import {
   locatorContainerChain,
   locatorFrameChain,
@@ -12,7 +12,12 @@ import {
   type LocatorShadowHost,
   type SemanticPrecondition
 } from "@src/profiles/FlowProfile";
-import { hasPositionalIdentityGuard, isPositionalLocator, isValidLocatorFallbackApproval } from "@src/profiles/locatorApproval";
+import {
+  hasPositionalIdentityGuard,
+  isPositionalCandidate,
+  isPositionalLocator,
+  isValidLocatorFallbackApproval
+} from "@src/profiles/locatorApproval";
 import { resolveStepSafety } from "./runtime/StepSafetyPolicy";
 import { encodeClosedShadowSelector, isInstrumentedClosedShadow, registerClosedShadowEngine } from "./closedShadowBridge";
 import {
@@ -60,6 +65,12 @@ const MAX_CDP_CLOSED_ROOTS = 50;
 const RECOVERY_SCAN_CAP = 200;
 const RECOVERY_SCORE_THRESHOLD = 0.86;
 const RECOVERY_MARGIN = 0.08;
+/**
+ * Same label is not identity: tag, role, name and text weigh 0.80 of `similarity()`, so once the
+ * target is gone any same-label element clears 0.86. A recovered element must also keep at least half
+ * of its recorded ancestry path (2 of 3 levels, so one inserted wrapper still passes). A veto only.
+ */
+const RECOVERY_MIN_ANCESTRY = 0.5;
 /** Bounded document-order window used only after the broad local-recovery scan has failed. */
 const BLUEPRINT_NEIGHBORHOOD_RADIUS = 24;
 /** Structural position is a tiebreaker, never a replacement for fingerprint identity. */
@@ -199,7 +210,11 @@ export class LocatorFactory {
     const digest = locatorCandidatesDigest(ranked.map(({ signature }) => signature));
     const memory = scopeKey ? await this.readMemory(scopeKey, step.id) : undefined;
     const applicableMemory = memory?.candidatesDigest === digest ? memory : undefined;
-    const ordered = LocatorFactory.preferRemembered(ranked, applicableMemory?.winningCandidateSignature);
+    // A positional alternative (nth-child, xpath index) carries no identity proof: after a re-sort it
+    // resolves uniquely to another row. Only a guarded or approved primary may act on position.
+    const ordered = LocatorFactory.preferRemembered(ranked, applicableMemory?.winningCandidateSignature).filter(
+      (item) => item === ranked[0] || !isPositionalCandidate(item.candidate)
+    );
 
     if (ordered[0] !== ranked[0]) {
       this.emit({
@@ -445,7 +460,12 @@ export class LocatorFactory {
       .sort((a, b) => b.score - a.score);
     const best = ranked[0];
     const runnerUp = ranked[1];
-    if (best && best.score >= RECOVERY_SCORE_THRESHOLD && (!runnerUp || best.score - runnerUp.score >= RECOVERY_MARGIN)) {
+    if (
+      best &&
+      best.score >= RECOVERY_SCORE_THRESHOLD &&
+      (!runnerUp || best.score - runnerUp.score >= RECOVERY_MARGIN) &&
+      ancestrySimilarity(expected.ancestry, best.fingerprint.ancestry) >= RECOVERY_MIN_ANCESTRY
+    ) {
       return { locator: visible.nth(best.index), fingerprint: best.fingerprint, score: best.score };
     }
 
@@ -497,6 +517,7 @@ export class LocatorFactory {
       const runnerUp = ranked[1];
       if (!best || best.score < RECOVERY_SCORE_THRESHOLD) return undefined;
       if (runnerUp && best.score - runnerUp.score < RECOVERY_MARGIN) return undefined;
+      if (ancestrySimilarity(elementBlueprint.fingerprint.ancestry, best.fingerprint.ancestry) < RECOVERY_MIN_ANCESTRY) return undefined;
       return best;
     } catch {
       // Blueprint storage/page probing is additive and fail-safe: normal unresolved behavior wins.
@@ -942,9 +963,9 @@ export class LocatorFactory {
    * several exist; otherwise `null`. Always records a diagnostic entry. Playwright 1.49 has no
    * `filter({ visible })`, so visibility is probed per-index via `nth(i).isVisible()`.
    *
-   * Self-healing (safe by design): when several matches are visible, narrow by deterministic,
-   * intent-free actionability — a single *enabled* match wins, else a single *in-viewport* match
-   * wins. If two or more remain equally actionable we return `null` (never guess the wrong twin);
+   * Self-healing (safe by design): when several matches are visible, a single *enabled* match wins.
+   * Viewport position is not identity (a same-label decoy above the fold is not the recorded target
+   * below it), so it is never a tiebreak. If two or more remain equally actionable we return `null`;
    * the caller then fails with a clear diagnostic. This only converts would-be failures into
    * successes — it never changes which element an already-unambiguous step resolves to.
    */
@@ -990,9 +1011,8 @@ export class LocatorFactory {
   }
 
   /**
-   * Among the given (visible) indices, return the index of the single actionable element, or -1
-   * when zero or multiple remain. Prefers a single *enabled* match, then a single *in-viewport*
-   * match — both deterministic and intent-free, so we never pick the wrong one of two equal twins.
+   * Among the given (visible) indices, return the index of the single *enabled* element, or -1 when
+   * zero or multiple remain — we never pick one of two equally actionable twins.
    */
   private static async narrowToActionable(locator: Locator, indices: number[]): Promise<number> {
     const enabled: number[] = [];
@@ -1005,27 +1025,7 @@ export class LocatorFactory {
       }
       if (ok) enabled.push(i);
     }
-    if (enabled.length === 1) return enabled[0];
-
-    const pool = enabled.length > 1 ? enabled : indices;
-    const inView: number[] = [];
-    for (const i of pool) {
-      let visible = false;
-      try {
-        visible = await locator.nth(i).evaluate((el) => {
-          const r = (el as Element).getBoundingClientRect();
-          const vw = window.innerWidth || document.documentElement.clientWidth || 0;
-          const vh = window.innerHeight || document.documentElement.clientHeight || 0;
-          return r.bottom > 0 && r.right > 0 && r.top < vh && r.left < vw;
-        });
-      } catch {
-        visible = false;
-      }
-      if (visible) inView.push(i);
-    }
-    if (inView.length === 1) return inView[0];
-
-    return -1; // still ambiguous — do not guess
+    return enabled.length === 1 ? enabled[0] : -1;
   }
 
   /** Build an actionable, end-user-readable diagnostic when no candidate resolved uniquely. */

@@ -144,6 +144,7 @@
     "verify:recorder-competitive": "tsx scripts/verify-recorder-competitive.mts",
     "verify:recorder-ambiguity": "tsx scripts/verify-recorder-ambiguity.mts",
     "verify:locator-guard": "tsx scripts/verify-locator-guard.mts",
+    "verify:locator-wrong-element": "tsx scripts/verify-locator-wrong-element.mts",
     "verify:locator-quality-class": "tsx scripts/verify-locator-quality-class.mts",
     "verify:element-spy": "tsx scripts/verify-element-spy.mts",
     "verify:frame-chain": "tsx scripts/verify-frame-chain.mts",
