@@ -61,8 +61,8 @@ export function hardwareClassOf(machine: { logicalCpus: number; totalMemoryMb: n
   return `cpu${pow2(machine.logicalCpus)}-ram${pow2(machine.totalMemoryMb / 1024)}g-${vram}`;
 }
 
-/** The latency class (E6): the quality key on a hardware class. */
-export function latencyClassId(key: AiQualityKey, hardwareClass: string): string {
+/** The latency class (E6): the quality key on a hardware class. L9's ETA history records under it. */
+export function latencyClassId(key: Parameters<typeof qualityKeyId>[0], hardwareClass: string): string {
   return `${qualityKeyId(key)}@${hardwareClass}`;
 }
 

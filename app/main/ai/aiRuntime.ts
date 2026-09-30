@@ -29,7 +29,7 @@ import { describeAdapters, offloadClassOf, toExecutionView, type AiGpuReadiness 
 import { AiJobTracker, type AiJobKind, type AiJobProfile, type AiJobSample, type AiJobStatus } from "@src/ai/AiJobStatus";
 import { compatibilityStanding, runCompatibilityStages, staticStanding } from "@src/ai/AiModelCompatibility";
 import { AiModelPackStore, MODEL_IMPORT_HEADROOM_BYTES, type AiModelPackStatus } from "@src/ai/AiModelPack";
-import { AI_KV_CACHE_SETTINGS, describeQualification, hardwareClassOf, qualityKeyId, type AiRunConfiguration } from "@src/ai/AiQualification";
+import { AI_KV_CACHE_SETTINGS, describeQualification, hardwareClassOf, latencyClassId, type AiRunConfiguration } from "@src/ai/AiQualification";
 import { revertAiAction } from "@src/ai/AiRevert";
 import { AiService, type AiServiceDeps, type AiServiceStatus } from "@src/ai/AiService";
 import { AI_BUDGET_IDS, AI_BUDGET_LABELS, AI_TIME_BUDGETS, featuresWithChangedBudget, resolveAiTimeBudgets, type AiTimeBudgets } from "@src/ai/AiTimeBudgets";
@@ -157,7 +157,7 @@ async function latencyKey(sample: AiJobSample): Promise<string | null> {
 }
 
 function latencyKeyFor(kind: AiJobKind, modelSha256: string, configuration: AiRunConfiguration, hardwareClass: string, outputTokens: number): string {
-  return `${qualityKeyId({ modelSha256, runtimeBuild: AI_RUNTIME_PIN.build ?? "unpinned", ...configuration, kvCache: AI_KV_CACHE_SETTINGS, feature: kind, outputTokens })}@${hardwareClass}`;
+  return latencyClassId({ modelSha256, runtimeBuild: AI_RUNTIME_PIN.build ?? "unpinned", ...configuration, kvCache: AI_KV_CACHE_SETTINGS, feature: kind, outputTokens }, hardwareClass);
 }
 
 function logAi(level: "info" | "warn" | "error", message: string): void {
