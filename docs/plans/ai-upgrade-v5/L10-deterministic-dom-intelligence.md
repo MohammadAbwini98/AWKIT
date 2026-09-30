@@ -6,7 +6,12 @@ Depends (Beads `blocks`) on closed L3 (`awkit-djnl.4`), L5a (`awkit-djnl.7`) and
 (`awkit-djnl.10`); independent of L8a/L8b/L9 (all closed) and of the open follow-up
 `awkit-djnl.15`.
 
-**Status (2026-09-30, latest): L10.0 EXECUTED — locator integration NO-GO, DOM normalization
+**Status (2026-09-30, final): CLOSED AS NO-GO on the owner's decision.** `awkit-djnl.18` is closed.
+L10.1–L10.7 below are descoped and were never started, so read them as the design of record, not as
+work to pick up. Reopening needs a new owner decision on one of the two routes in the L10.0 report.
+The locator defects the fixtures exposed (`awkit-epbe`) were fixed separately in `6aedad35`.
+
+**Status (2026-09-30): L10.0 EXECUTED — locator integration NO-GO, DOM normalization
 NO-GO.** Parser-only Scrapling recovered 5 targets that AWKIT's recovery missed, but only one passes
 the unchanged 0.86 / 0.08 gates, and there AWKIT's own scorer also finds the target without its scan
 cap. It picked a wrong element in 6 of 16 cases. Its static text leaks hidden content that the

@@ -642,8 +642,11 @@ try {
   // closed, the epic already open. Measured after the export.
   // Then 24/307 of 331 later on 2026-09-30, the L10.0 gate (contract `awkit-djnl-18-l10-0-gate-0930`):
   // the locator defects bug `awkit-epbe` filed OPEN (one in); `awkit-djnl.18` stays open. Measured.
-    "24 outstanding / 307 closed",
-    beads.stats.outstanding === 24 && beads.stats.closed === 307,
+  // Then 22/309 of 331 later on 2026-09-30 (contract `awkit-l10-close-epbe-fix-0930`): L10
+  // `awkit-djnl.18` closed as NO-GO on the owner decision and `awkit-epbe` closed after its fix (two
+  // out, two closed, nothing filed). Measured after the export.
+    "22 outstanding / 309 closed",
+    beads.stats.outstanding === 22 && beads.stats.closed === 309,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

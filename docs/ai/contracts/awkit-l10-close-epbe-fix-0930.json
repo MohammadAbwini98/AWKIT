@@ -1,0 +1,127 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-l10-close-epbe-fix-0930",
+    "title": "Close L10 as NO-GO and close awkit-epbe after the LocatorFactory wrong-element fix",
+    "objective": "Tracker bookkeeping for two owner-requested closures. Close awkit-djnl.18 (L10 Deterministic DOM intelligence) as NO-GO on the owner's decision: L10.0 found both gates NO-GO and L10.1 to L10.7 are descoped, not started. Close awkit-epbe after the LocatorFactory fix committed in 6aedad35 (viewport tiebreak removed, positional alternatives skipped, ancestry veto on local and blueprint recovery) proven by verify:locator-wrong-element 14/0 on the same L10.0 fixtures. Refresh .beads/issues.jsonl with bd export -o. The docs are ordinary unleased direct-loop edits. The preserved L5a evidence file is a regression-run rewrite by verify:failure-capture-overhead, kept out of every commit.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 0
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "6aedad35",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
+        "git_status": " M",
+        "sha256": "8f4abe942559750cdbbd0859a428676defb2cf7ff9b539da78a03c2d8aa232a5"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "docs/ai/contracts/awkit-l10-close-epbe-fix-0930.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "L10-CLOSE-BEADS",
+      "description": "awkit-djnl.18 is CLOSED with a NO-GO reason naming the owner decision and the L10.0 evidence; awkit-epbe is CLOSED with the fix, the verifier result and the recorded residual. No other issue changes status.",
+      "evidence_required": [
+        "beads-structure"
+      ]
+    },
+    {
+      "id": "L10-CLOSE-EXPORT",
+      "description": ".beads/issues.jsonl is refreshed with bd export -o .beads/issues.jsonl, and verify:roadmap-dashboard passes with Sources agree after its pins move to measured values.",
+      "evidence_required": [
+        "beads-export",
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "beads-structure",
+      "type": "inspection",
+      "required": true,
+      "command": "bd show awkit-djnl.18 and bd show awkit-epbe",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "bd close printed 'Closed awkit-epbe' with the fix, verifier, latency and residual reason, and 'Closed awkit-djnl.18' with the owner NO-GO decision, the L10.0 evidence path and the reopening routes. No other issue changed status: bd stats moved only from 24 outstanding / 307 closed to 22 / 309."
+    },
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "Printed 'Exported 331 issues to .beads/issues.jsonl'. bd stats: Total 331, Open 20, In Progress 0, Blocked 13, Closed 309, Ready 7."
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "After the outstanding/closed pin moved to the measured 22/309 (331 issues and 196 edges unchanged) and the docs were updated, the first run printed 177/177 including 'no cycles in the real data', both narrative tallies agreeing at 65/2/0 and 'the Overview banner reads \"Sources agree\"'."
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qa_basis": "Tracker changes inspected with bd close output and bd stats; final state passed verify:roadmap-dashboard 177/177 with Sources agree and verify:dom-intelligence-gate 27/0 after the DECISIONS edit. The fix itself (6aedad35) is proven by verify:locator-wrong-element 14/0 with 4 of 4 mutations killed, npm run build, verify:recorder 292/0, verify:recorder-ambiguity 74/0, verify:locator-guard 35/0, verify:frame-chain 31/0, verify:blueprint-recovery 56/56, verify:blueprint-recovery-browser 24/0, verify:runner 138/0, verify:ai-fallback 51/0 and verify:verifier-classification (297).",
+    "qa_known_limitations": "verify:failure-capture-overhead is NOT RUN as a pass: it ended 15/0 with 3 inconclusive paired intervals under host CPU pressure, and it measures evidence capture, which the fix does not touch. Its run appended run 22 to the committed L5a-overhead-gate.json, preserved here and kept out of every commit because the guard blocks the git show redirect and git restore needs owner approval. CodeCraft review BLOCKED (gpt-5.6-sol timeout, then empty response on the smaller retry). One residual wrong-element path stays open by design (KNOWN_ISSUES): a recorded role+name locator matching a same-label element elsewhere once the target is gone. verify:mock-site NOT RUN: no mock-site change.",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-l10-close-epbe-fix-0930:project-state:2026-09-30T17:25:08.297Z",
+        "task": "awkit-l10-close-epbe-fix-0930",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-30T17:25:08.297Z",
+        "acquired_at_commit": "6aedad35b86f599eb20e6e4557ff94a1cc829878",
+        "released_at": "2026-09-30T17:25:57.314Z",
+        "released_reason": "awkit-epbe closed after the 6aedad35 fix and awkit-djnl.18 closed as NO-GO on the owner decision, export refreshed to 331 issues with 309 closed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

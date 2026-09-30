@@ -1,6 +1,27 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-30, latest) — L10.0 done: both gates NO-GO; the next step is the owner's
+## HANDOFF (2026-09-30, latest) — L10 closed NO-GO, `awkit-epbe` fixed; Phase L waits only on `.15`
+
+- **Owner decision taken:** L10 (`awkit-djnl.18`) is closed as NO-GO. Do not start L10.1–L10.7.
+  Reopening needs a new owner decision on one of the two routes in the L10.0 report.
+- **`awkit-epbe` closed** (`6aedad35`). The gate is `verify:locator-wrong-element`.
+  - It needs no Python venv.
+  - It reads the committed L10.0 results JSON as its baseline, so do not re-run
+    `benchmark:dom-intelligence` without restoring that file.
+- **Open under `awkit-djnl`:** only `.15`. Phase L reads 14 of 14 and stays `in-progress` until `.15`
+  resolves.
+- **Not committed, on purpose:** `docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json`. A
+  regression run of `verify:failure-capture-overhead` appended run 22. The lease guard blocks the
+  `git show HEAD:` redirect, and `git restore` needs the owner's approval, so the owner should restore
+  it.
+- **Session lessons:**
+  - `evaluateAll` does not call a string function. The per-element recovery scan stays, because a
+    one-round-trip batch needs code generation.
+  - `bd close`, `bd export` and a `--paths` glob need a routed lease and a quoted glob
+    (`'.beads/**'`).
+- Ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## HANDOFF (2026-09-30) — L10.0 done: both gates NO-GO; the next step is the owner's
 
 - **Decision needed from the owner.** Either:
   - close `awkit-djnl.18` as NO-GO/descoped, after which Phase L closes once `.15` resolves; or

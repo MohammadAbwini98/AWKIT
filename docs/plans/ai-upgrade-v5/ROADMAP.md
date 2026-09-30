@@ -1,6 +1,14 @@
 # SpecterStudio Phase L — Local AI & Intelligent Automation (V5)
 
-**2026-09-30 (latest): L10.0 executed — both L10 gates NO-GO; Phase L still 13 of 14 (93%).**
+**2026-09-30 (latest): L10 closed as NO-GO — Phase L 14 of 14 milestones closed, still IN PROGRESS
+until `awkit-djnl.15` resolves.**
+- **Decision.** The owner closed `awkit-djnl.18` as NO-GO on the L10.0 result. L10.1–L10.7 are
+  descoped and were never started. No Scrapling, Python runtime or host ships.
+- **Reopening** needs a new owner decision on one of the two routes in the L10.0 report.
+- **Follow-up.** The locator defects the fixtures exposed (`awkit-epbe`, outside Phase L) are fixed in
+  `6aedad35`. The gate is `verify:locator-wrong-element`.
+
+**2026-09-30: L10.0 executed — both L10 gates NO-GO; Phase L still 13 of 14 (93%).**
 - **Locator.** Parser-only Scrapling recovered 5 targets that AWKIT's recovery missed. Only one passes
   the unchanged 0.86 / 0.08 gates, and there AWKIT's own scorer also finds the target without its
   200-element scan cap. Scrapling picked a wrong element in 6 of 16 cases, including all 3 no-match
@@ -237,7 +245,7 @@ privacy policy and model-manifest owner, and wins wherever it refines the text b
 | L8a | Hardware-adaptive inference runtime (2026-09-27 extension, closed 2026-09-28) | L1, L7 | `L8a-hardware-adaptive-inference-runtime.md` | `awkit-djnl.11` |
 | L8b | External compatible-model registration & qualification (extension, closed 2026-09-29) | L8a | `L8b-external-model-compatibility.md` | `awkit-djnl.12` |
 | L9 | Adaptive time budgets, progress & ETA (extension, closed 2026-09-29) | L8a, L8b (acceptance) | `L9-adaptive-time-progress-eta.md` | `awkit-djnl.13` |
-| L10 | Deterministic DOM intelligence (Scrapling) (2026-09-30 extension; L10.0 NO-GO on both gates, owner decision pending) | L3, L5a, L7 | `L10-deterministic-dom-intelligence.md` | `awkit-djnl.18` |
+| L10 | Deterministic DOM intelligence (Scrapling) (2026-09-30 extension; closed NO-GO 2026-09-30 after L10.0, L10.1–L10.7 descoped) | L3, L5a, L7 | `L10-deterministic-dom-intelligence.md` | `awkit-djnl.18` |
 
 Beads is the source of truth for order and status (`bd ready` shows what can start); L0/L1 numbers are
 swapped because the first L1 was filed with an inverted `--deps` edge and the titles were exchanged.
@@ -398,9 +406,9 @@ registered only when they exist.
 
 ## Phase L extension (2026-09-30) — L10
 
-Status: **L10.0 EXECUTED 2026-09-30 — locator integration NO-GO, DOM normalization NO-GO**
-(`evidence/L10.0-dom-intelligence-gate-2026-09-30.md`). L10.1–L10.7 are not started; the next step
-is the owner's.
+Status: **CLOSED AS NO-GO 2026-09-30** (owner decision). L10.0 executed with locator integration
+NO-GO and DOM normalization NO-GO (`evidence/L10.0-dom-intelligence-gate-2026-09-30.md`).
+L10.1–L10.7 are descoped and were never started.
 
 Registration (2026-09-30): planned, zero implementation at registration. The owner widened Phase L
 after it read `complete` at 13/13 on 2026-09-29. Nothing earlier is reopened, renumbered or re-evaluated;

@@ -1,6 +1,25 @@
 # DECISIONS
 
-### 2026-09-30 (latest) — L10.0 gate: parser-only Scrapling is NO-GO for both locator integration and DOM normalization (implementer, under the pre-registered rule) (`awkit-djnl.18`)
+### 2026-09-30 (latest) — L10 closed as NO-GO, and `LocatorFactory` refuses rather than guesses in three drift shapes (owner, in session) (`awkit-djnl.18`, `awkit-epbe`)
+
+- **L10 closed as NO-GO.** The owner accepted the L10.0 result on both gates, so L10.1–L10.7 are
+  descoped. Reopening needs a new owner decision on one of the two routes in the L10.0 report.
+- **Phase L stays `in-progress`** at 14 of 14 milestones, until `awkit-djnl.15` resolves under its own
+  contract, as the L10 registration stated.
+- **The `awkit-epbe` fix follows the same rule as `awkit-65g`: refuse rather than act on another
+  element.**
+  - Viewport position is not identity, so it no longer breaks a tie. A single *enabled* match still
+    does.
+  - A positional alternative carries no identity proof, so it is never tried. Guarded-positional and
+    user-approved primaries keep their own paths.
+  - Recovery keeps its 0.86 threshold and 0.08 margin. It gains an ancestry veto on the best candidate
+    only (at least half of the recorded path), so it can refuse more but never accept more.
+- **Not decided here: the production residual.** When the target is gone, a recorded role+name
+  locator that matches a same-label element elsewhere uniquely still acts on it. Vetoing that by
+  ancestry would also refuse a legitimate semantic match after a redesign, so that trade is left to
+  the owner (`KNOWN_ISSUES.md`).
+
+### 2026-09-30 — L10.0 gate: parser-only Scrapling is NO-GO for both locator integration and DOM normalization (implementer, under the pre-registered rule) (`awkit-djnl.18`)
 
 - **Locator integration gate: NO-GO**
 - **DOM normalization gate: NO-GO**

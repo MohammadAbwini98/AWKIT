@@ -1,8 +1,20 @@
 # KNOWN_ISSUES
 
-## `LocatorFactory` can act on a wrong element in three drift shapes (2026-09-30, OPEN — `awkit-epbe`)
+## `LocatorFactory` can act on a wrong element in three drift shapes (2026-09-30, RESOLVED `6aedad35` — `awkit-epbe`)
 
-Found by the L10.0 fixtures (`scripts/dom-intelligence/fixtures.mts`); reproduce with
+- **Fixed, the step now refuses.** The viewport tiebreak is removed, positional alternatives are
+  skipped, and local and blueprint recovery veto a best candidate that keeps less than half of its
+  recorded ancestry path. The gate is `verify:locator-wrong-element` (14/0, 4 of 4 mutations killed).
+- **Residual, OPEN — know it.** When the target is removed, the recorded `role=button [Save changes]`
+  itself matches a same-label button elsewhere, uniquely (`other-region-decoy-target-removed`,
+  production). That is the ordinary candidate path, not recovery; the verifier asserts only that
+  recovery did not act. Winner memory could veto it by ancestry, but that would also refuse a
+  legitimate semantic match after a redesign. That trade is the owner's call.
+- **Latency accepted.** Forced-miss p50 1.5–2.5 s, p95 2.9–4.9 s. The cause is `nth(i)`, which re-runs
+  the `*:visible` query for every scored element. `evaluateAll` does not call a string function, so a
+  one-round-trip batch would need code generation, which is not adopted.
+
+History, as found. Found by the L10.0 fixtures (`scripts/dom-intelligence/fixtures.mts`); reproduce with
 `npm run benchmark:dom-intelligence`. Non-sensitive steps only, since sensitive steps refuse recovery.
 
 - **Viewport tiebreak** (`duplicate-text-decoy`). When the recorded `role=button [Save changes]` matches
@@ -18,6 +30,14 @@ Found by the L10.0 fixtures (`scripts/dom-intelligence/fixtures.mts`); reproduce
   scored element.
 - **Rule until fixed.** Do not cite "false-target promotion = 0" as proof that runtime resolution never
   acts on a wrong element. Promotion and resolution are different paths.
+
+## `verify:failure-capture-overhead` appends to the committed L5a evidence on every run (2026-09-30, OPEN — know it)
+
+- It writes a new run into `docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json`, and the
+  verifier registry lists it as a gate for any `src/runner` edit. The 2026-09-30 `awkit-epbe` run
+  appended run 22 (886 lines).
+- **Rule:** restore the committed file (`git show HEAD:<path>`) after a regression run unless a new L5a
+  measurement is the point. Never commit it with an unrelated change.
 
 ## `benchmark:dom-intelligence` rewrites the committed L10.0 evidence on every run (2026-09-30, OPEN — know it)
 

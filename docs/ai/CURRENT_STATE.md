@@ -1,6 +1,29 @@
 # CURRENT_STATE
 
-## L10.0 executed: parser-only Scrapling is NO-GO for locator integration and DOM normalization (`awkit-djnl.18`, 2026-09-30, latest)
+## L10 closed as NO-GO; `LocatorFactory` wrong-element shapes fixed (`awkit-djnl.18`, `awkit-epbe`, 2026-09-30, latest)
+
+- **L10 is closed as NO-GO** on the owner's decision. L10.0 found both gates NO-GO. L10.1–L10.7 are
+  descoped and were never started. No Scrapling, Python runtime, host or provider ships. Reopening
+  needs a new owner decision on one of the two routes in the L10.0 report.
+- **Phase L: 14 of 14 milestones closed, still `in-progress`.** It closes when `awkit-djnl.15`
+  (NVIDIA qualification and E2 correlation) resolves under its own contract.
+- **`awkit-epbe` fixed** (`6aedad35`). `LocatorFactory` now refuses instead of acting on another
+  element:
+  - no viewport tiebreak: only a single *enabled* match breaks a tie;
+  - positional alternatives (`nth-child`, `nth-of-type`, xpath index) are skipped; a guarded or
+    approved positional primary keeps its own path;
+  - local and blueprint recovery veto a best candidate that keeps less than half of its recorded
+    ancestry path (`RECOVERY_MIN_ANCESTRY` 0.5, a veto only).
+- **Proof:** `verify:locator-wrong-element` 14/0 replays the 16 frozen L10.0 fixtures in three
+  configurations. Mutation-tested 4 of 4 killed. All 21 previously correct outcomes stay correct.
+- **Residual (`KNOWN_ISSUES.md`):** when the target is removed, the recorded `role=button [Save changes]`
+  itself matches a same-label button elsewhere uniquely. That is the ordinary candidate path, not
+  recovery.
+- **Recovery latency accepted:** forced-miss p50 1.5–2.5 s, p95 2.9–4.9 s.
+- **Tracker:** 331 issues, 22/309, 196 edges; dashboard pins moved to those measured values.
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## L10.0 executed: parser-only Scrapling is NO-GO for locator integration and DOM normalization (`awkit-djnl.18`, 2026-09-30)
 
 - **Both gates NO-GO** under the rule pre-registered in `8072804a` (`scripts/dom-intelligence/gate.mts`).
   - The benchmark ran 16 frozen drift cases through the real Recorder capture and the production

@@ -1,18 +1,20 @@
 {
-  "task": "awkit-djnl-18-l10-0-gate-0930",
-  "contract_path": "docs/ai/contracts/awkit-djnl-18-l10-0-gate-0930.json",
+  "task": "awkit-l10-close-epbe-fix-0930",
+  "contract_path": "docs/ai/contracts/awkit-l10-close-epbe-fix-0930.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-09-30T15:56:21.230Z",
-  "acquired_at_commit": "aad6bc62fac1f237a10cae70ea276c710f3e6b45",
+  "acquired_at": "2026-09-30T17:25:08.297Z",
+  "acquired_at_commit": "6aedad35b86f599eb20e6e4557ff94a1cc829878",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-djnl-18-l10-0-gate-0930.json"
+    "docs/ai/contracts/awkit-l10-close-epbe-fix-0930.json",
+    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-djnl-18-l10-0-gate-0930.json": "b4f5845d13ea49cc82c3bf7ca2cd5c3817c145992cbec27f11c3a1c2dd3cabc1"
+    "docs/ai/contracts/awkit-l10-close-epbe-fix-0930.json": "79023e6bc3aa799379b827b35f628eb03cc3b948b5665bb3a61f984ad346d553",
+    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json": "8f4abe942559750cdbbd0859a428676defb2cf7ff9b539da78a03c2d8aa232a5"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -27,7 +29,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-30T15:57:30.755Z",
-  "released_reason": "L10.0 NO-GO outcome appended to awkit-djnl.18 (stays open), locator defects filed as awkit-epbe with a discovered-from edge on awkit-djnl.18, export refreshed to 331 issues",
-  "archived_at": "2026-09-30T15:57:30.757Z"
+  "released_at": "2026-09-30T17:25:57.314Z",
+  "released_reason": "awkit-epbe closed after the 6aedad35 fix and awkit-djnl.18 closed as NO-GO on the owner decision, export refreshed to 331 issues with 309 closed",
+  "archived_at": "2026-09-30T17:25:57.317Z"
 }

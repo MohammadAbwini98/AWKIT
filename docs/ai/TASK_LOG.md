@@ -1,6 +1,42 @@
 # TASK_LOG
 
-## 2026-09-30 (latest) — L10.0 DOM-intelligence gate executed: locator NO-GO, normalization NO-GO (Claude)
+## 2026-09-30 (latest) — L10 closed as NO-GO; `awkit-epbe` LocatorFactory wrong-element fix (Claude)
+
+- **Task:** the owner asked to close L10 as NO-GO and fix `awkit-epbe`.
+- **Result:**
+  - `LocatorFactory` refuses the three wrong-element shapes in `6aedad35`:
+    - no viewport tiebreak;
+    - positional alternatives are skipped;
+    - an ancestry veto applies to local and blueprint recovery.
+  - Recovery latency is recorded as accepted: a one-round-trip scan needs code generation, since
+    `evaluateAll` does not call a string function.
+  - `awkit-epbe` and `awkit-djnl.18` were closed under contract `awkit-l10-close-epbe-fix-0930`.
+  - Phase L reads 14 of 14 and stays in progress on `.15`.
+- **Files:**
+  - `src/runner/{LocatorFactory,locatorFingerprint}.ts`
+  - `scripts/verify-locator-wrong-element.mts`
+  - `scripts/lib/verifier-classification.ts`
+  - `package.json`
+  - `scripts/verify-roadmap-dashboard.mjs`
+  - `src/roadmap/ImplementationRoadmap.ts`
+  - `docs/plans/ai-upgrade-v5/{L10-deterministic-dom-intelligence,ROADMAP,CHANGELOG}.md`
+  - `docs/ai/{DECISIONS,KNOWN_ISSUES,CURRENT_STATE,HANDOFF,TASK_LOG}.md`
+  - `docs/ai/contracts/awkit-l10-close-epbe-fix-0930.json`
+  - `.beads/issues.jsonl`
+- **Verification:**
+  - `verify:locator-wrong-element` 14/0; mutations 4/4 killed.
+  - `npm run build` PASS.
+  - `verify:recorder` 292/0, `verify:recorder-ambiguity` 74/0, `verify:locator-guard` 35/0,
+    `verify:frame-chain` 31/0.
+  - `verify:blueprint-recovery` 56/56, `verify:blueprint-recovery-browser` 24/0.
+  - `verify:runner` 138/0, `verify:ai-fallback` 51/0, `verify:verifier-classification` PASS (297).
+  - `verify:failure-capture-overhead` INCONCLUSIVE, 15/0/3: paired intervals straddle 0 under host
+    CPU pressure. It measures evidence capture, which this change does not touch.
+  - CodeCraft review (gpt-5.6-sol) BLOCKED: a timeout, then an empty response on the smaller retry.
+  - `verify:mock-site` NOT RUN: no mock-site change.
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED.
+
+## 2026-09-30 — L10.0 DOM-intelligence gate executed: locator NO-GO, normalization NO-GO (Claude)
 
 - **Task:** the owner asked to start L10.0 from its executive prompt. It is investigation and evidence
   only; nothing is wired into production.

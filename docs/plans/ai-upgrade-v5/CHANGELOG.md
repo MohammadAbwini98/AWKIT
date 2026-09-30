@@ -57,3 +57,10 @@
 - **Normalization: NO-GO.** Scrapling's static text leaks hidden content that `innerText` excludes.
 - Evidence: `evidence/L10.0-dom-intelligence-gate-2026-09-30.md`.
 - Pre-existing locator defects the fixtures exposed are filed as `awkit-epbe`.
+
+## 2026-09-30 — L10 closed as NO-GO
+
+- The owner closed `awkit-djnl.18` as NO-GO on the L10.0 result. L10.1–L10.7 are descoped.
+- Phase L reads 14 of 14 milestones closed and stays in progress until `awkit-djnl.15` resolves.
+- `awkit-epbe` is fixed in `6aedad35`: the three wrong-element shapes now refuse. The gate is
+  `verify:locator-wrong-element`.
