@@ -1,6 +1,30 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-30, latest) — fresh package built; every packaged gate green
+## HANDOFF (2026-09-30, latest) — L10 registered, planned only; Phase L 13 of 14
+
+- **L10 Deterministic DOM intelligence (Scrapling)** is `awkit-djnl.18`, OPEN.
+  - Plan: `docs/plans/ai-upgrade-v5/L10-deterministic-dom-intelligence.md`.
+  - Decisions DI1–DI12: `DECISIONS.md`.
+  - Nothing is implemented.
+- **Next L10 step is L10.0, and it blocks everything else.**
+  - It is a measured value gate against `locatorFingerprint.similarity()`, which already carries
+    Scrapling's ordered-ancestry idea.
+  - It also makes the runtime decision: embedded CPython or a frozen host, as a main-owned child
+    process. That is the product's first Python runtime (Risk-3, lease-gated).
+  - A NO-GO is a valid outcome.
+- **Open under `awkit-djnl`:** `.15` (NVIDIA qualification, E2 hybrid correlation) and `.18`
+  (L10). Phase L closes only when both resolve, unless the owner descopes either.
+- **Tracker pins:** 330 issues, 23/307, 195 edges.
+- **CodeCraft this session:**
+  - Fable 5.1 REVIEW timed out on one large packet but answered when split into two.
+  - GLM-5.3 `run_task` (DELEGATE) timed out twice with zero edits applied, so GLM authored the text
+    through ASK instead.
+  - ASK answered empty at `max_tokens` 4000 and fully at 6000–7000.
+- **Stale, untouched:** `ARCHITECTURE.md` still titles the L8a/L8b/L9 subsection "NOT implemented",
+  although all three are closed.
+- Ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## HANDOFF (2026-09-30) — fresh package built; every packaged gate green
 
 - **`dist/` is fresh:** built from clean `fb4c092f`, with signed manifest `ccb7541d`
   (`sourceTreeDirty` false). It carries every product change of 2026-09-30.

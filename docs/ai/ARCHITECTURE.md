@@ -753,6 +753,83 @@ From there the saved-flow path (§5 replay, §6 promotion, §10 status) is uncha
 container name source, own test id and text; `sanitizeUpgradeContext` decides what may be offered, and
 the §7 loop refuses any scope the request did not offer.
 
+## Deterministic DOM intelligence boundary (Phase L10; planned, NOT implemented)
+
+**Planned only — nothing exists in code.** Registered 2026-09-30 as Beads `awkit-djnl.18`; plan
+`docs/plans/ai-upgrade-v5/L10-deterministic-dom-intelligence.md`; decisions DI1–DI12 in
+`DECISIONS.md`. The current code has no DOM-intelligence provider; this is the boundary future
+work must keep.
+
+Locator recovery:
+
+```text
+Playwright
+   │
+   ├── existing locator/local/blueprint recovery
+   │                    │
+   │                    ▼
+   │          optional DOM intelligence
+   │          candidate evidence only
+   │                    │
+   │                    ▼
+   │          existing AWKIT proof/identity
+   │                    │
+   └────────────────────┴──► Playwright executes
+```
+
+AI context:
+
+```text
+Eligible runtime DOM
+   │
+   ▼
+optional parser-only DOM intelligence
+   │
+   ▼
+bounded semantic DOM context
+   │
+   ▼
+existing redaction/evidence/prompt pipeline
+   │
+   ▼
+local AI asynchronously
+```
+
+Placement (planned; names final only after L10.1):
+
+```text
+src/dom-intelligence/        Pure contract (no Electron): capability-named provider, policy, no-op
+                             provider. Scrapling is one replaceable implementation.
+app/main/dom-intelligence/   Host manager + Scrapling adapter: a main-owned child process (a
+                             utilityProcess runs only Node), AI/Zvec restart policy, fake transport.
+Sits between (unchanged owners):
+  LocatorFactory.resolve() exhausted → provider → LocatorFactory gates + identity + L3 proof
+  eligible DOM → provider → SecretMasker / SemanticRedactor → AiPromptBuilder → AiService
+src/offline/DependencyManifest.ts  Would pin the parser runtime (Risk-3, lease-gated).
+```
+
+Invariants:
+
+- Capability-named provider; Scrapling is one replaceable implementation, not the abstraction.
+- Normal successful steps never call it; it runs only after `LocatorFactory.resolve()` is
+  exhausted (guarded-positional → closed shadow → primary + alternatives → remembered winner →
+  blueprint).
+- Candidate evidence only, through the unchanged `LocatorFactory` gates (0.86 threshold, 0.08
+  margin, page/context gates, `FRAME_IDENTITY_CHANGED`, `SENSITIVE_TARGET_IDENTITY_CHANGED`,
+  sensitive-action refusal), identity, approval and L3 proof; non-sensitive only, never
+  guarded-positional; no `alternatives`, winner memory or promotion unless L3 permits.
+- No model on the synchronous run path; `verify:failure-capture-overhead` and `verify:ai-fallback`
+  extend to the provider.
+- The host exposes finite versioned commands only: no network, fetch, URL, shell, arbitrary path
+  or browser command.
+- Scrapling's default adaptive database is not accepted; an AWKIT-owned minimized store lives
+  under `%LOCALAPPDATA%/SpecterStudio`, never `resources/` or `app.asar`.
+- Existing redactors only (`SecretMasker`, `SemanticRedactor`, `SEMANTIC_PROJECTION_ALLOWLIST`,
+  `SemanticPolicyValidator`).
+- Protected-login surfaces are excluded through the existing signals.
+- Fail-open with the original failure unchanged; no shadow-DOM claim.
+- Phase M source knowledge and Phase N visual recognition stay separate.
+
 ## Semantic index (separate process boundary)
 
 ```text

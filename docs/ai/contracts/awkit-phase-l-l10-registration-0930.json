@@ -1,0 +1,129 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-phase-l-l10-registration-0930",
+    "title": "Register Phase L milestone L10 Deterministic DOM Intelligence (Scrapling), planning only",
+    "objective": "Planning and registration only. File one open milestone child under the open Phase L epic awkit-djnl: L10 Deterministic DOM Intelligence (Scrapling), with its eight workstreams L10.0-L10.7 held in docs/plans/ai-upgrade-v5/L10-deterministic-dom-intelligence.md, following the one-bead-per-milestone convention of L8a/L8b/L9. Blocks edges: L10 after closed L3 (awkit-djnl.4), closed L5a (awkit-djnl.7) and closed L7 (awkit-djnl.10); no edge to L9 or to the open follow-up awkit-djnl.15. Record the reopen rule on the epic notes. Refresh .beads/issues.jsonl with bd export -o. No existing bead changes status; awkit-djnl.15 and the epic stay open. The plan documents, docs/ai narrative, src/roadmap/ImplementationRoadmap.ts and the verifier pins are ordinary unleased direct-loop edits made after this lease is released. No Scrapling, Python runtime, host, locator, normalization, UI or packaging behavior is implemented.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 0
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "694e0b8a",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "docs/ai/contracts/awkit-phase-l-l10-registration-0930.json",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/ARCHITECTURE.md",
+      "docs/plans/ai-upgrade-v5/ROADMAP.md",
+      "docs/plans/ai-upgrade-v5/CHANGELOG.md",
+      "docs/plans/ai-upgrade-v5/L10-deterministic-dom-intelligence.md"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "PHL-L10-BEADS",
+      "description": "The Phase L epic stays open with one new open milestone child L10 (awkit-djnl.18) whose blocks edges are exactly closed L3 awkit-djnl.4, closed L5a awkit-djnl.7 and closed L7 awkit-djnl.10. Every other child keeps its status: the thirteen milestones and .14, .16, .17 closed, .15 open.",
+      "evidence_required": [
+        "beads-structure"
+      ]
+    },
+    {
+      "id": "PHL-L10-EXPORT",
+      "description": ".beads/issues.jsonl is refreshed with bd export -o .beads/issues.jsonl, and verify:roadmap-dashboard passes with Sources agree after its pins move to measured values.",
+      "evidence_required": [
+        "beads-export",
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "beads-structure",
+      "type": "inspection",
+      "required": true,
+      "command": "bd show awkit-djnl.18 and bd list --parent awkit-djnl --all",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "bd create --parent awkit-djnl returned awkit-djnl.18 (P2 task, OPEN, labels ai/phase-l/roadmap inherited, spec docs/plans/ai-upgrade-v5/L10-deterministic-dom-intelligence.md). Each of the three bd dep add calls printed 'awkit-djnl.18 depends on Y (blocks)' for awkit-djnl.4 (L3), awkit-djnl.7 (L5a) and awkit-djnl.10 (L7); bd show awkit-djnl.18 lists exactly those three under DEPENDS ON. bd update awkit-djnl --append-notes recorded the reopen rule. Before the change the epic had 13 closed milestones, .14/.16/.17 closed and .15 open; no existing child changed status."
+    },
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "Printed 'Exported 330 issues to .beads/issues.jsonl'. bd stats: Total 330, Open 21, In Progress 0, dependency-Blocked 13, Closed 307, Ready 8."
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "A measuring run before the pins moved failed exactly the three tracker pins (got 330 issues, 23 outstanding / 307 closed, 195 edges), 174/177, with 'Sources agree' already true. After the pins moved to those measured values and the docs were updated, the final-state run printed 177/177 including '14 phases', 'no cycles in the real data', both narrative tallies agreeing at 65/2/0 and 'the Overview banner reads \"Sources agree\"'. npm run build PASS, npm run typecheck:scripts PASS, verify:verifier-classification PASS (295 classified), git diff --check clean (line-ending notice only)."
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qa_basis": "Tracker structure and export inspected with bd show, bd list and bd stats; final state passed npm run build, typecheck:scripts, verify:verifier-classification and verify:roadmap-dashboard 177/177 with Sources agree.",
+    "qa_known_limitations": "As in the 2026-09-27 registration, src/roadmap/ImplementationRoadmap.ts, scripts/verify-roadmap-dashboard.mjs and the docs/ai and docs/plans updates are ordinary unleased direct-loop edits made after the lease was released, so they sit outside this contract's project-state routing by design. The plan was reviewed read-only by Fable 5.1 through CodeCraft; GLM-5.3 run_task timed out twice with zero edits applied, so GLM authored the plan text through CodeCraft ASK and Claude reviewed, corrected and applied it. The Program Status dashboard GUI was not opened; the verifier served the new snapshot.",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-phase-l-l10-registration-0930:project-state:2026-09-30T12:34:41.672Z",
+        "task": "awkit-phase-l-l10-registration-0930",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-30T12:34:41.672Z",
+        "acquired_at_commit": "694e0b8a9e6150bf591433327538dab374e509a8",
+        "released_at": "2026-09-30T12:35:54.916Z",
+        "released_reason": "L10 awkit-djnl.18 filed OPEN under the Phase L epic with blocks edges on closed L3 .4, L5a .7 and L7 .10, epic notes appended, export refreshed to 330 issues",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

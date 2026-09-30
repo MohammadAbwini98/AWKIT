@@ -1,6 +1,29 @@
 # CURRENT_STATE
 
-## Fresh portable package with the 2026-09-30 changes; packaged gates green (2026-09-30, latest)
+## Phase L extended with L10 deterministic DOM intelligence, planned only (`awkit-djnl.18`, 2026-09-30, latest)
+
+- **Registered, not implemented.** L10 Deterministic DOM intelligence (Scrapling) is filed OPEN as
+  `awkit-djnl.18`, with blocks edges on closed L3 `.4`, L5a `.7` and L7 `.10`. Its workstreams
+  L10.0–L10.7 live in `docs/plans/ai-upgrade-v5/L10-deterministic-dom-intelligence.md`.
+  - No Scrapling, Python runtime, host, provider contract, locator, normalization, UI, packaging or
+    verifier exists.
+- **Phase L is `in-progress` again at 13 of 14 milestones closed (93%).** It read `complete` at 13/13
+  on 2026-09-29; no closed milestone was reopened.
+  - Phase L closes only when `awkit-djnl.15` is resolved under its own contract and L10 closes
+    through L10.0–L10.7, unless the owner descopes either.
+- **Boundary (DI1–DI12, `DECISIONS.md`):**
+  - Playwright stays the sole executor.
+  - Scrapling is parser-only, optional and candidate-only, after `LocatorFactory.resolve()` is
+    exhausted and through its unchanged gates.
+  - No model on the synchronous run path.
+  - Fetchers, crawlers, stealth, proxies and CAPTCHA/anti-bot are excluded, and so is Scrapling's
+    default adaptive store.
+- **Review:** Fable 5.1 through CodeCraft, read-only: APPROVE WITH REQUIRED CORRECTIONS, folded in.
+- **Tracker:** 330 issues, 23 outstanding / 307 closed, 195 edges; the `verify:roadmap-dashboard`
+  pins moved to those measured values.
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## Fresh portable package with the 2026-09-30 changes; packaged gates green (2026-09-30)
 
 - **Package:** built from clean `fb4c092f` with `package:portable`, under contract
   `awkit-fresh-package-0930`.

@@ -31,3 +31,19 @@
 - **Evidence on the development machine** with the packaged build; no external-machine benchmark.
 - **Phase M/N independence:** epic-level edges removed (run by the owner); M1/N1 keep their L7 edge.
 - Decisions E1–E12 in `ROADMAP.md` › *Phase L extension (2026-09-27)*.
+
+## 2026-09-30 — Phase L extension: L10 deterministic DOM intelligence (after the 13/13 closeout)
+
+- **Scope widened by the owner, nothing regressed:** L10 Deterministic DOM intelligence (Scrapling)
+  (`awkit-djnl.18`), planned and open, zero implementation. Phase L reads 13 of 14 milestones
+  closed (93%) and closes only once `awkit-djnl.15` is resolved and L10 closes.
+- **Parser-only, candidate-only:** optional Scrapling behind a capability-named provider; locator
+  candidates only after `LocatorFactory.resolve()` is exhausted, through its unchanged gates;
+  bounded DOM context for the asynchronous AI only. Playwright stays the sole executor.
+- **Excluded:** fetchers, crawlers, stealth, proxies, CAPTCHA/anti-bot, Patchright, a second
+  Playwright or Chromium, and Scrapling's default adaptive storage.
+- **L10.0 gates everything,** measured against the Scrapling-style scoring already in
+  `locatorFingerprint.similarity()`; a NO-GO is a valid outcome.
+- Reviewed read-only by Fable 5.1 (APPROVE WITH REQUIRED CORRECTIONS, folded in). Decisions
+  DI1–DI12 in `ROADMAP.md` › *Phase L extension (2026-09-30) — L10*; plan
+  `L10-deterministic-dom-intelligence.md`.

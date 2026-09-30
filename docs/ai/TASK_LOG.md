@@ -1,6 +1,38 @@
 # TASK_LOG
 
-## 2026-09-30 (latest) — fresh portable package and the packaged gates (Claude)
+## 2026-09-30 (latest) — Phase L L10 deterministic DOM intelligence registered, planning only (Claude with CodeCraft)
+
+- **Task:** register the owner's L10 plan (Scrapling as parser-only DOM intelligence) as a new
+  Phase L milestone, after a read-only Fable 5.1 review, with GLM-5.3 authoring the plan text.
+  Registration only.
+- **Result:**
+  - Fable 5.1 returned APPROVE WITH REQUIRED CORRECTIONS. The single packet timed out; it answered
+    when split into architecture and governance.
+  - The corrections are folded in, and Claude corrected two of Fable's own statements against the
+    code: the host cannot be a Node `utilityProcess`, and L9 is already closed.
+  - `awkit-djnl.18` was filed OPEN with blocks edges on closed L3, L5a and L7, under contract
+    `awkit-phase-l-l10-registration-0930`, and the epic notes were appended.
+  - Phase L reads 13 of 14 (93%), and `ImplementationRoadmap.ts` is `in-progress`.
+  - Decisions DI1–DI12 recorded.
+  - GLM-5.3 `run_task` timed out twice with zero edits applied (checked by `git diff`). GLM
+    authored the plan, ROADMAP, ARCHITECTURE and DECISIONS text through ASK, and Claude reviewed,
+    corrected and applied it.
+- **Files:**
+  - `.beads/issues.jsonl`
+  - `docs/ai/contracts/awkit-phase-l-l10-registration-0930.json`
+  - `docs/plans/ai-upgrade-v5/{ROADMAP,CHANGELOG,L10-deterministic-dom-intelligence}.md`
+  - `docs/ai/{DECISIONS,ARCHITECTURE,CURRENT_STATE,HANDOFF,TASK_LOG}.md`
+  - `src/roadmap/ImplementationRoadmap.ts`
+  - `scripts/verify-roadmap-dashboard.mjs`
+- **Verification:**
+  - `bd export`: 330 issues. A measuring `verify:roadmap-dashboard` run failed exactly the three
+    tracker pins (330, 23/307, 195 edges), 174/177, and the pins moved to those values.
+  - `npm run build` PASS, `npm run typecheck:scripts` PASS, `verify:verifier-classification` PASS
+    (295 classified; no verifier added).
+  - The final-state dashboard run and `git diff --check` are recorded in the contract.
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED.
+
+## 2026-09-30 — fresh portable package and the packaged gates (Claude)
 
 - **Task:** "build a fresh package and run the packaged gates". Contract `awkit-fresh-package-0930`.
 - **Done:**

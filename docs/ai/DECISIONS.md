@@ -1,6 +1,60 @@
 # DECISIONS
 
-### 2026-09-30 (latest) — The GPU pack's verify-to-load window is an accepted same-user risk (owner) (`awkit-djnl.15`)
+### 2026-09-30 (latest) — Phase L extension: L10 deterministic DOM intelligence (Scrapling) registered, planning only (owner request) (`awkit-djnl.18`)
+
+- **How it was decided.** The owner supplied an L10 plan and a registration prompt and asked for a
+  Fable 5.1 read-only review through CodeCraft before any change. The review returned APPROVE WITH
+  REQUIRED CORRECTIONS, and the corrections are folded into the plan: LocatorFactory gates
+  unchanged; non-sensitive only and never guarded-positional; fail-open with the original failure
+  preserved; an AWKIT-owned adaptive store with no third redactor; L10.0 blocking and measured
+  against `locatorFingerprint.similarity()`.
+- **Scope, not regression.** Phase L goes from `complete` (13 of 13, 2026-09-29) back to
+  `in-progress` at 13 of 14 (93%). No closed milestone is reopened. Phase L closes only when
+  `awkit-djnl.15` is resolved under its own contract and L10 closes through L10.0–L10.7, unless
+  the owner explicitly descopes either.
+- **Recorded decisions DI1–DI12** (full text: `docs/plans/ai-upgrade-v5/ROADMAP.md` › *Phase L
+  extension (2026-09-30) — L10* and the L10 plan):
+  - DI1 L10 is one Phase L milestone (`awkit-djnl.18`, blocks edges on closed L3 `.4`, L5a `.7`,
+    L7 `.10`) with workstreams L10.0–L10.7 in the plan file; Phase L reads 13 of 14 and is
+    `in-progress`, under the closing rule above;
+  - DI2 parser-only Scrapling is optional and replaceable behind a capability-named provider
+    contract; no Scrapling concept outside the adapter;
+  - DI3 Playwright is the sole browser, session, navigation and action authority; the host never
+    fetches, navigates or launches; HTML comes only from the frame the existing frame chain
+    resolved;
+  - DI4 existing recovery stays primary; DOM intelligence runs only after
+    `LocatorFactory.resolve()` is exhausted; normal successful steps never call it;
+  - DI5 candidate evidence only: unchanged LocatorFactory gates (0.86 threshold, 0.08 margin,
+    page/context, frame and sensitive identity refusals), identity, approval, sensitive-action
+    refusal and L3 proof/promotion; non-sensitive only; never guarded-positional; no
+    alternatives, winner memory or promotion unless L3 permits; ambiguity fails closed;
+  - DI6 no synchronous AI: no model call on the run path; normalization feeds only the
+    asynchronous `AiService`; `verify:failure-capture-overhead` and `verify:ai-fallback` extend
+    to the provider;
+  - DI7 hard exclusions: Scrapling fetchers (StealthyFetcher, DynamicFetcher), sessions,
+    spiders/crawlers, stealth and fingerprint spoofing, proxies, CAPTCHA/Turnstile, anti-bot, MCP
+    server, Agent Skill, remote browser/CDP, arbitrary fetch, Patchright, a second Playwright or
+    Chromium, and the fetchers/rag/ai/all extras; SpecterStudio stays "not a general scraper";
+  - DI8 Scrapling's default adaptive storage is rejected; an AWKIT-owned minimized, redacted,
+    bounded, versioned store under `%LOCALAPPDATA%/SpecterStudio`; no third redactor;
+  - DI9 protected-login, MFA, OTP, CAPTCHA, passkey and device-approval surfaces are excluded
+    from both uses, reusing the existing protected-login signals;
+  - DI10 fail-open: an absent, disabled, unavailable, timed-out or crashed provider leaves
+    pre-L10 behavior with the original failure unchanged; no non-AI feature depends on it;
+  - DI11 L10.0 is a blocking value and packaging gate with separate GO/NO-GO for locator
+    integration and for normalization, measured against the existing
+    `locatorFingerprint.similarity()` (which already carries the Scrapling-style ordered-ancestry
+    idea); it chooses embedded CPython or a frozen host, run as a main-owned child process (a
+    `utilityProcess` runs only Node); the product's first Python runtime is Risk-3 and
+    lease-gated; a NO-GO use closes only by an owner decision recording it descoped;
+  - DI12 Phases M and N stay separate in stores, provenance and authority; L10 adds no Beads
+    edge to either.
+- **Supersedes nothing.** No earlier decision changes; E1–E12 and the Phase L global decisions
+  apply unchanged, and the stability guarantees apply to L10.
+- Nothing is implemented. No Scrapling, Python runtime, host, locator, normalization, UI or
+  packaging behavior exists.
+
+### 2026-09-30 — The GPU pack's verify-to-load window is an accepted same-user risk (owner) (`awkit-djnl.15`)
 
 - **Decision:** the window is accepted and stays open.
   - The window: between `AiBackendPackStore.verifyForLoad` (re-walk and re-hash of the installed pack)

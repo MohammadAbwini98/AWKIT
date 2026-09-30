@@ -1,6 +1,14 @@
 # SpecterStudio Phase L — Local AI & Intelligent Automation (V5)
 
-**2026-09-29 (latest): L9 closed — Phase L reads 13 of 13 milestones closed (100%).** L9
+**2026-09-30 (latest): L10 registered — Phase L is IN PROGRESS again, 13 of 14 milestones closed
+(93%).** The owner widened the scope with L10 Deterministic DOM Intelligence (Scrapling)
+(`awkit-djnl.18`), planned and open with zero implementation. The percentage fell because the
+scope grew from 13/13 to 13/14, not because anything regressed: L0–L9 stay closed with their
+evidence. `awkit-djnl.15` stays open for NVIDIA qualification and E2 hybrid correlation. Phase L
+closes only under the closing rule in *Phase L extension (2026-09-30) — L10* below, which also
+records decisions DI1–DI12 (ratified in `docs/ai/DECISIONS.md`).
+
+**2026-09-29: L9 closed — Phase L reads 13 of 13 milestones closed (100%).** L9
 (`awkit-djnl.13`, L9.1–L9.5) closed with QA PASS: one job-status contract pushed to the owning window,
 bounded time budgets refused (never clamped) outside their committed bounds, one honest progress view
 (determinate only from bytes copied or the runtime's own load fraction), and measured cold and warm ETA
@@ -88,11 +96,11 @@ The implementing agent accepted them under the owner's closeout delegation; that
 
 The limited GO (2026-09-23) covers on-demand explanations, locator proposals and manual failure analysis
 only. Owner audit below; decisions ratified in `docs/ai/DECISIONS.md`.
-Roadmap Phase `L` (`in-progress` since the 2026-09-27 extension; `complete` for the original ten),
-Beads epic `awkit-djnl`.
+Roadmap Phase `L` (`in-progress` since the 2026-09-30 L10 registration; `complete` from 2026-09-29
+at 13/13, and `complete` for the original ten), Beads epic `awkit-djnl`.
 Supersedes the external V1–V4 drafts (`SpecterStudio_AI_Upgrade_*`).
 This file is the only copy of cross-cutting content (rules, architecture, autonomy policy, decisions).
-Milestone files `L0`–`L9` hold only milestone-specific tasks.
+Milestone files `L0`–`L10` hold only milestone-specific tasks.
 
 ## Objective
 
@@ -217,6 +225,7 @@ privacy policy and model-manifest owner, and wins wherever it refines the text b
 | L8a | Hardware-adaptive inference runtime (2026-09-27 extension, closed 2026-09-28) | L1, L7 | `L8a-hardware-adaptive-inference-runtime.md` | `awkit-djnl.11` |
 | L8b | External compatible-model registration & qualification (extension, closed 2026-09-29) | L8a | `L8b-external-model-compatibility.md` | `awkit-djnl.12` |
 | L9 | Adaptive time budgets, progress & ETA (extension, closed 2026-09-29) | L8a, L8b (acceptance) | `L9-adaptive-time-progress-eta.md` | `awkit-djnl.13` |
+| L10 | Deterministic DOM intelligence (Scrapling) (2026-09-30 extension, planned) | L3, L5a, L7 | `L10-deterministic-dom-intelligence.md` | `awkit-djnl.18` |
 
 Beads is the source of truth for order and status (`bd ready` shows what can start); L0/L1 numbers are
 swapped because the first L1 was filed with an inverted `--deps` edge and the titles were exchanged.
@@ -226,6 +235,8 @@ L0 ─┬─ L1 ─────────┬─ L3 ──┐
     ├─ L2 ─────────┘       ├─ L6 ─┐
     ├─ L4a ── L4b (needs L1)┘      ├─ L7 ── L8a (needs L1) ─┬─ L8b ── L9
     └─ L5a ── L5b (needs L1) ──────┘                        └─────────┘
+
+L3 + L5a + L7 ── L10 (2026-09-30 extension, planned)
 ```
 
 AI-dependent work (L3, L4b, L5b, AI parts of L6) may be **implemented** against the deterministic
@@ -372,6 +383,89 @@ AI settings/store/API (`src/ai/AiSettings.ts`, `AiService.ts`, `contracts/AiApi.
 `scripts/prepare-ai-native-host.mjs`, `scripts/validate-offline-bundle.ps1` and
 `scripts/lib/verifier-classification.ts`. Planned verifiers are named in each milestone file and
 registered only when they exist.
+
+## Phase L extension (2026-09-30) — L10
+
+Status: **PLANNED — registered only, zero implementation.** The owner widened Phase L after it
+read `complete` at 13/13 on 2026-09-29. Nothing earlier is reopened, renumbered or re-evaluated;
+the stability guarantees above apply unchanged to L10.
+
+| ID | Milestone | Depends (Beads `blocks`) | Beads |
+|---|---|---|---|
+| L10 | Deterministic DOM intelligence (Scrapling) (**planned**) | closed L3 (`awkit-djnl.4`), closed L5a (`awkit-djnl.7`), closed L7 (`awkit-djnl.10`) | `awkit-djnl.18` |
+
+Phase L now reads **13 of 14 milestones closed (93%)**.
+
+**Closing rule:** Phase L closes only when (1) `awkit-djnl.15` is resolved under its own contract
+and (2) L10 closes through L10.0–L10.7 (a use that L10.0 returns NO-GO on is closed only by an
+owner decision recording it descoped), unless the owner explicitly descopes either.
+
+### Scope
+
+- **Locator-recovery candidates:** after `LocatorFactory.resolve()` is exhausted
+  (guarded-positional, closed shadow, primary + `alternatives`, remembered winner, blueprint
+  recovery), parser-only Scrapling may propose deterministic candidates from DOM that Playwright
+  already loaded. Evidence only, through the unchanged `LocatorFactory` gates, identity, approval
+  and L3 proof.
+- **DOM normalization for AI context:** eligible DOM becomes bounded typed context before the
+  existing `SecretMasker`/`SemanticRedactor`/allowlist and `AiPromptBuilder` → asynchronous
+  `AiService`.
+- Full plan, hard exclusions and privacy contract: `L10-deterministic-dom-intelligence.md`.
+
+### Owner decisions (2026-09-30; ratified in `docs/ai/DECISIONS.md`)
+
+- **DI1** L10 is one Phase L milestone (`awkit-djnl.18`) with its workstreams in the plan file;
+  Phase L reads 13/14 and is `in-progress`; closing rule above.
+- **DI2** Parser-only Scrapling is optional and replaceable behind a capability-named provider
+  contract; no Scrapling concept outside the adapter.
+- **DI3** Playwright is the sole browser, session, navigation and action authority; the host never
+  fetches, navigates or launches; HTML comes only from the frame the existing frame chain resolved.
+- **DI4** Existing recovery stays primary; DOM intelligence runs only after
+  `LocatorFactory.resolve()` is exhausted; normal successful steps never call it.
+- **DI5** Candidate evidence only: unchanged `LocatorFactory` gates (0.86 threshold, 0.08 margin,
+  page/context, frame and sensitive identity refusals), identity, approval, sensitive-action
+  refusal and L3 proof/promotion; non-sensitive only; never guarded-positional; no `alternatives`,
+  winner memory or promotion unless L3 permits; ambiguity fails closed.
+- **DI6** No synchronous AI: no model call on the run path; normalization feeds only the
+  asynchronous `AiService`; `verify:failure-capture-overhead` and `verify:ai-fallback` extend to
+  the provider.
+- **DI7** Hard exclusions: Scrapling fetchers (`StealthyFetcher`, `DynamicFetcher`), sessions,
+  spiders/crawlers, stealth and fingerprint spoofing, proxies, CAPTCHA/Turnstile, anti-bot, MCP
+  server, Agent Skill, remote browser/CDP, arbitrary fetch, Patchright, a second Playwright or
+  Chromium, and the `fetchers`/`rag`/`ai`/`all` extras. SpecterStudio stays "not a general
+  scraper".
+- **DI8** Scrapling's default adaptive storage is rejected; an AWKIT-owned minimized, redacted,
+  bounded, versioned store under `%LOCALAPPDATA%/SpecterStudio`; no third redactor.
+- **DI9** Protected-login, MFA, OTP, CAPTCHA, passkey and device-approval surfaces are excluded
+  from both uses, reusing the existing protected-login signals.
+- **DI10** Fail-open: an absent, disabled, unavailable, timed-out or crashed provider leaves
+  pre-L10 behavior with the original failure unchanged; no non-AI feature depends on it.
+- **DI11** L10.0 is a blocking value and packaging gate with separate GO/NO-GO for locator
+  integration and for normalization, measured against `locatorFingerprint.similarity()`; it
+  chooses embedded CPython or a frozen host, run as a main-owned child process; the product's
+  first Python runtime is Risk-3 and lease-gated.
+- **DI12** Phases M and N stay separate in stores, provenance and authority; L10 adds no Beads
+  edge to either.
+
+### Workstreams (full plan: `L10-deterministic-dom-intelligence.md`)
+
+- L10.0 Architecture, dependency and incremental-value gate
+- L10.1 DOM intelligence provider contract and host protocol
+- L10.2 Parser-only host and offline packaging
+- L10.3 Privacy-safe adaptive reference lifecycle
+- L10.4 Deterministic locator recovery integration
+- L10.5 DOM normalization for AI evidence
+- L10.6 Availability, observability and reporting
+- L10.7 Acceptance, performance, security and offline closeout
+
+### Future touchpoints (not edited by this registration)
+
+`src/runner/{LocatorFactory,LocatorBlueprintStore,LocatorRecoveryStore,locatorFingerprint}.ts`,
+`src/runner/evidence/*`, `src/ai/AiPromptBuilder.ts`, `src/semantic/SemanticRedactor.ts`, a new
+capability module (proposed `src/dom-intelligence/`), a main-owned host manager (proposed
+`app/main/dom-intelligence/`), `src/offline/DependencyManifest.ts`,
+`scripts/validate-offline-bundle.ps1`, `mock-site/` and `scripts/lib/verifier-classification.ts`.
+Planned verifiers are named in the milestone file and registered only when they exist.
 
 ## Phase M — Optional Application Knowledge Base (AKB)
 

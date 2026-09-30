@@ -1,20 +1,18 @@
 {
-  "task": "awkit-fresh-package-0930",
-  "contract_path": "docs/ai/contracts/awkit-fresh-package-0930.json",
-  "holder": "release",
+  "task": "awkit-phase-l-l10-registration-0930",
+  "contract_path": "docs/ai/contracts/awkit-phase-l-l10-registration-0930.json",
+  "holder": "project-state",
   "status": "released",
   "allowed_paths": [
-    "build",
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig"
+    ".beads/**"
   ],
-  "acquired_at": "2026-09-30T11:11:12.195Z",
-  "acquired_at_commit": "d54ec3ee15f2f664e87bef893e7619938630aaad",
+  "acquired_at": "2026-09-30T12:34:41.672Z",
+  "acquired_at_commit": "694e0b8a9e6150bf591433327538dab374e509a8",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-fresh-package-0930.json"
+    "docs/ai/contracts/awkit-phase-l-l10-registration-0930.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-fresh-package-0930.json": "f6a1da1e7c9c33e2a819499dfdd2aa88d3c902c26cd11167c858384b1f124fa8"
+    "docs/ai/contracts/awkit-phase-l-l10-registration-0930.json": "26df09e8505e2ab6e3ed6e2dda7ed974ab2608af53a9294d14cc8b1388668eeb"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -24,12 +22,12 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1790714496401.672"
+    "build": "dir(1):native-hosts:1790766765327.275"
   },
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-30T11:18:04.833Z",
-  "released_reason": "fresh package of clean fb4c092f with strict offline validation passed, signed manifest committed in ccb7541d, the packaged gates run outside this lease",
-  "archived_at": "2026-09-30T11:18:04.834Z"
+  "released_at": "2026-09-30T12:35:54.916Z",
+  "released_reason": "L10 awkit-djnl.18 filed OPEN under the Phase L epic with blocks edges on closed L3 .4, L5a .7 and L7 .10, epic notes appended, export refreshed to 330 issues",
+  "archived_at": "2026-09-30T12:35:54.918Z"
 }
