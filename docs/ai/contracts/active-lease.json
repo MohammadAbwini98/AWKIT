@@ -1,20 +1,40 @@
 {
-  "task": "awkit-l11-registration-0930",
-  "contract_path": "docs/ai/contracts/awkit-l11-registration-0930.json",
-  "holder": "project-state",
+  "task": "awkit-djnl-19-l11-implementation-0930",
+  "contract_path": "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json",
+  "holder": "runtime",
   "status": "released",
   "allowed_paths": [
-    ".beads/**"
+    "native-hosts/dom-intelligence/**"
   ],
-  "acquired_at": "2026-09-30T19:58:52.482Z",
-  "acquired_at_commit": "483ca5c9050ef4f945f1337cbb762e70a3b23d68",
+  "acquired_at": "2026-09-30T20:46:58.018Z",
+  "acquired_at_commit": "421482573e90fb71ca2bcc8ffdecf71162719961",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-l11-registration-0930.json",
-    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json"
+    "docs/ai/contracts/active-lease.json",
+    "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json",
+    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
+    "native-hosts/dom-intelligence/",
+    "package.json",
+    "scripts/dom-intelligence/fake_host.mjs",
+    "scripts/dom-intelligence/sandbox_probe.py",
+    "scripts/dom-intelligence/setup-runtime-inputs.mjs",
+    "scripts/prepare-dom-intelligence-host.mjs",
+    "scripts/verify-dom-intelligence-host.mts",
+    "src/runner/LocatorFactory.ts",
+    "src/runner/recoverySnapshot.ts"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-l11-registration-0930.json": "01669fa84a9655b62f581975e6aec9637b9a56178403cd6cd762e43c32743e11",
-    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json": "8f4abe942559750cdbbd0859a428676defb2cf7ff9b539da78a03c2d8aa232a5"
+    "docs/ai/contracts/active-lease.json": "dd3fa4ebad308ee9248eddb73de8691616b32ee66e8bfd3d0657c7481f7478c5",
+    "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json": "3c3c017da90be4a08c2d3600209994baa702f18bbb8c47d0d6823a62542dff26",
+    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json": "8f4abe942559750cdbbd0859a428676defb2cf7ff9b539da78a03c2d8aa232a5",
+    "native-hosts/dom-intelligence/": "absent",
+    "package.json": "ee6e47df025476cccaceacfbecd4b38a50940c500c430476d4277e998b4b04f4",
+    "scripts/dom-intelligence/fake_host.mjs": "d09ace2f8d1fc7c8738e9dc9d14822e7b6d7ba4caf677f07749b92dd6835ec3e",
+    "scripts/dom-intelligence/sandbox_probe.py": "0caa12331a97d84f59cef8c816200051c046b065807bb75379dd6a14621e8560",
+    "scripts/dom-intelligence/setup-runtime-inputs.mjs": "577b417c682a346201bce94bd3f38c00cd10cbafb8a9a0674c46c8afa80a99b8",
+    "scripts/prepare-dom-intelligence-host.mjs": "746b6c52744e48b70cda7b5898bc76c5dd67b22dad90b444e79ed0b5e80d01f6",
+    "scripts/verify-dom-intelligence-host.mts": "7a8d299ea0be6ca19ea48d1a42c66c99fffd753aa6200faa9e42a2587a128b3a",
+    "src/runner/LocatorFactory.ts": "48b061ffa867e67d0266c9dd5a95da9dfe5027e4c769d41a3b7dfac69d7f4774",
+    "src/runner/recoverySnapshot.ts": "44034a55f48ac5c26464f9dfecd27af128d22dd33513c0951ec5d838c5c98498"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -29,7 +49,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-30T20:03:13.724Z",
-  "released_reason": "L11 awkit-djnl.19 filed OPEN under the Phase L epic with blocks edges on closed L3 .4, L5a .7, L7 .10 and L10 .18, epic notes appended, export refreshed to 332 issues",
-  "archived_at": "2026-09-30T20:03:13.726Z"
+  "released_at": "2026-09-30T20:48:22.921Z",
+  "released_reason": "host committed at e980b098 with verify:dom-intelligence-host 91/0 on the staged runtime, staging precompile and verifier follow unleased",
+  "archived_at": "2026-09-30T20:48:22.922Z"
 }

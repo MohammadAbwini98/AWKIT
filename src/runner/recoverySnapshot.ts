@@ -348,6 +348,23 @@ export async function captureLocalSnapshot(
   };
 }
 
+/**
+ * The proof-time re-check (stale-snapshot guard). A snapshot names its winner by index, and the page can
+ * change between the snapshot and the proof. Re-fingerprinting `nth(index)` alone is not enough: an
+ * identical twin inserted before the winner would shift the index onto itself and still match. So the
+ * same list is scanned again, and exactly ONE element may carry the winner's identity and ancestry, at the
+ * same index. Any other outcome refuses. (Playwright locators stay lazy: the returned `nth(index)` is
+ * re-resolved at action time, as every locator is, including the legacy engine's.)
+ */
+export async function recheckSnapshotWinner(list: Locator, winner: { index: number; fingerprint: LocatorElementFingerprint }): Promise<boolean> {
+  localScan ??= pageFunction<LocalScanArg, RawLocalScan>(LOCAL_SCAN);
+  const raw = await list.evaluateAll(localScan, { tag: winner.fingerprint.tag, role: "", cap: SNAPSHOT_PRUNED_CAP });
+  if (raw.truncated) return false;
+  const hash = createFingerprintHasher();
+  const matches = raw.kept.filter(({ f }) => sameElementFingerprint(hash(f), winner.fingerprint));
+  return matches.length === 1 && matches[0].i === winner.index;
+}
+
 export interface BlueprintSnapshot {
   count: number;
   documentFingerprint: string;

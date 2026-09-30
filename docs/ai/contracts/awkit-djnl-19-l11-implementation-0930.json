@@ -1,0 +1,200 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-19-l11-implementation-0930",
+    "title": "L11 Performance-oriented DOM intelligence: implementation (host, packaging, runner, Recorder, Spy/Designer, normalization, status)",
+    "objective": "Implement L11 (awkit-djnl.19) per docs/plans/ai-upgrade-v5/L11-performance-dom-intelligence.md on the owner's 2026-09-30 decision. Unleased direct-loop work covers src/runner (snapshot recovery, provider contract, references), src/recorder, app/main IPC and lifecycle, the renderer, verifiers, mock-site scenarios and docs. This contract routes the Risk-3 slices: the parser-only Scrapling host under native-hosts/dom-intelligence (runtime), the offline runtime pin in src/offline, the packaging scripts, third-party notices and the signed dependency manifest (release), and the tracker (project-state). Playwright stays the only browser and action authority; the host never receives a URL, never fetches, never launches a browser and never executes arbitrary code; AWKIT's unchanged identity proof is the only automatic authority; no model call on the run path; mutable data only under %LOCALAPPDATA%/SpecterStudio.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 3
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "6621e56f",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
+        "git_status": " M",
+        "sha256": "8f4abe942559750cdbbd0859a428676defb2cf7ff9b539da78a03c2d8aa232a5"
+      }
+    ]
+  },
+  "classification": {
+    "runner_change": true,
+    "execution_change": true,
+    "offline_boundary_change": true,
+    "packaging_change": true,
+    "new_dependency": true,
+    "performance_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 3
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "architect",
+      "runtime",
+      "qa",
+      "qc",
+      "performance",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      "native-hosts/dom-intelligence/**",
+      "src/offline/**",
+      "resources/THIRD_PARTY_NOTICES.md",
+      "resources/dependency-manifest.json",
+      "resources/dependency-manifest.sig",
+      "scripts/package-portable.ps1",
+      "scripts/package-per-user-installer.ps1",
+      "scripts/generate-dependency-manifest.ps1",
+      "build",
+      ".beads/**",
+      "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [
+      "architect",
+      "performance"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "runtime",
+      "allowed_paths": [
+        "native-hosts/dom-intelligence/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "L11-HOST",
+      "description": "A finite, versioned, parser-only host answers hello/health/save_reference/find_candidates/normalize_dom/shutdown, refuses unknown operations and oversized input, installs an audit hook refusing network, process, FFI, file-write and forbidden-module operations before any third-party import, and exits on stdin EOF.",
+      "evidence_required": [
+        "verify:dom-intelligence-host"
+      ]
+    },
+    {
+      "id": "L11-PACKAGE",
+      "description": "The staged runtime (embedded CPython pinned by SHA-256, trimmed parser-only site-packages) ships through extraResources, is recorded and checksummed in the signed dependency manifest, and strict offline validation checks it.",
+      "evidence_required": [
+        "package:portable",
+        "validate:offline"
+      ]
+    },
+    {
+      "id": "L11-TRACKER",
+      "description": "The tracker and dashboard sources reflect the implemented state, and verify:roadmap-dashboard reads Sources agree.",
+      "evidence_required": [
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:dom-intelligence-host",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:dom-intelligence-host",
+      "artifact": null,
+      "result": "pending",
+      "observed": ""
+    },
+    {
+      "id": "package:portable",
+      "type": "packaged",
+      "required": true,
+      "command": "npm run package:portable",
+      "artifact": "dist",
+      "result": "pending",
+      "observed": ""
+    },
+    {
+      "id": "validate:offline",
+      "type": "packaged",
+      "required": true,
+      "command": "npm run validate:offline -- -Strict",
+      "artifact": "resources/dependency-manifest.json",
+      "result": "pending",
+      "observed": ""
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "pending",
+      "observed": ""
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-19-l11-implementation-0930:runtime:2026-09-30T20:35:04.461Z",
+        "task": "awkit-djnl-19-l11-implementation-0930",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "native-hosts/dom-intelligence/**"
+        ],
+        "acquired_at": "2026-09-30T20:35:04.461Z",
+        "acquired_at_commit": "6621e56fcc6a5f34116e6fcb535f8c3b9431b2ad",
+        "released_at": "2026-09-30T20:38:12.838Z",
+        "released_reason": "host source written, released so the qa-owned host verifier can be written and run against the dev runtime before the host is committed under a fresh runtime lease",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-19-l11-implementation-0930:release:2026-09-30T20:40:11.810Z",
+        "task": "awkit-djnl-19-l11-implementation-0930",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "src/offline/**"
+        ],
+        "acquired_at": "2026-09-30T20:40:11.810Z",
+        "acquired_at_commit": "6621e56fcc6a5f34116e6fcb535f8c3b9431b2ad",
+        "released_at": "2026-09-30T20:40:54.689Z",
+        "released_reason": "runtime pin committed at 42148257, staging script and host verifier are unleased qa and build work next",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-19-l11-implementation-0930:runtime:2026-09-30T20:46:58.018Z",
+        "task": "awkit-djnl-19-l11-implementation-0930",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "native-hosts/dom-intelligence/**"
+        ],
+        "acquired_at": "2026-09-30T20:46:58.018Z",
+        "acquired_at_commit": "421482573e90fb71ca2bcc8ffdecf71162719961",
+        "released_at": "2026-09-30T20:48:22.921Z",
+        "released_reason": "host committed at e980b098 with verify:dom-intelligence-host 91/0 on the staged runtime, staging precompile and verifier follow unleased",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

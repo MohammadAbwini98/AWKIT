@@ -72,7 +72,13 @@ export async function suggestRepair(input: {
   if (snapshot.refused) return { stage: { outcome: "skipped", reason: "protected-surface" } };
 
   const remaining = Math.max(50, deadline - performance.now());
-  const result = await options.provider.findRecoveryCandidates({ html: snapshot.html, reference, maxCandidates: 5, timeoutMs: remaining });
+  // The stage's own deadline also covers a cold host start (spawn to hello), which the provider bounds
+  // separately and generously; the run never waits for it past this budget.
+  const result = await withDeadline(
+    options.provider.findRecoveryCandidates({ html: snapshot.html, reference, maxCandidates: 5, timeoutMs: remaining }),
+    remaining,
+    () => ({ ok: false as const, code: "TIMEOUT" as const, message: "The repair-suggestion budget ran out." })
+  );
   if (!result.ok) {
     const reason = result.code === "TIMEOUT" ? "provider-timeout" : result.code === "DISABLED" || result.code === "UNAVAILABLE" ? "provider-unavailable" : "provider-error";
     return { stage: { outcome: "error", reason } };

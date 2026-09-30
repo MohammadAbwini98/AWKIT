@@ -41,7 +41,7 @@ import {
   gateRecovery,
   isRecoveryCompatible,
   rankLocalRecovery,
-  sameElementFingerprint,
+  recheckSnapshotWinner,
   type RecoveryDecision,
   type RecoveryRefusal,
   type ScoredCandidate
@@ -591,8 +591,7 @@ export class LocatorFactory {
       return undefined;
     }
     const locator = list.nth(decision.winner.index);
-    const current = await LocatorFactory.fingerprintOne(locator);
-    if (!current || !sameElementFingerprint(current, decision.winner.fingerprint)) {
+    if (!(await recheckSnapshotWinner(list, decision.winner).catch(() => false))) {
       stages.push({ stage, outcome: "refused", reason: "stale-snapshot", ms: performance.now() - started, candidates: decision.considered, score: decision.winner.score });
       return undefined;
     }
