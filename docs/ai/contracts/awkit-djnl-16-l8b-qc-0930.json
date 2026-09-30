@@ -122,7 +122,7 @@
       "artifact": null,
       "required": true,
       "result": "PASS",
-      "notes": "Qualification/latency/profile: NONE. Import/acknowledgement: three findings refuted or LOW (a packet-abbreviation artifact, an unreachable checksum-with-other-size case that falls to the stricter path, a growing source only failing the copy). This diff: APPROVED. The compatibility-verdict packet (L8b.2/L8b.3) is INCONCLUSIVE: gpt-5.6-luna timed out twice and deepseek-v4-flash-0731 returned empty; Claude's own review found no defect."
+      "notes": "Qualification/latency/profile: NONE. Import/acknowledgement: three findings refuted or LOW (a packet-abbreviation artifact, an unreachable checksum-with-other-size case that falls to the stricter path, a growing source only failing the copy). This diff: APPROVED. The compatibility-verdict packet (L8b.2/L8b.3) is INCONCLUSIVE: gpt-5.6-luna timed out twice and deepseek-v4-flash-0731 returned empty; Claude's own review found no defect. Owner-requested retry the same day, split in two: L8b.2 (staticVerdict, runStaticStage) answered, and its three findings were refuted against source (registry parse, inspectModel null paths), so L8b.2 is APPROVED; the L8b.3 packet answered empty twice at 5000 tokens and timed out at 8000, still INCONCLUSIVE."
     },
     {
       "id": "verify:ai-model-compatibility",
@@ -243,6 +243,22 @@
         "acquired_at_commit": "1ce2b83ef04609156ce22538471050cadf6f9e9c",
         "released_at": "2026-09-30T07:54:26.393Z",
         "released_reason": "awkit-djnl.16 progress note appended and exported, contracts and state documents are updated next outside this lease",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-16-l8b-qc-0930:project-state:2026-09-30T09:25:33.455Z",
+        "task": "awkit-djnl-16-l8b-qc-0930",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/issues.jsonl"
+        ],
+        "acquired_at": "2026-09-30T09:25:33.455Z",
+        "acquired_at_commit": "11eb18411b322096616561b9a94df0fd0508030f",
+        "released_at": "2026-09-30T09:26:02.563Z",
+        "released_reason": "awkit-djnl.16 retry result noted and exported, the L8b.2 review is done and L8b.3 is still inconclusive",
         "amendments": [],
         "overrides": [],
         "violations": []

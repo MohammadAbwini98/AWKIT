@@ -1,6 +1,16 @@
 # TASK_LOG
 
-## 2026-09-30 (latest) — `awkit-djnl.16`: dialog line breaks, one latency-class formula, overhead gate PASS (Claude with CodeCraft)
+## 2026-09-30 (latest) — `awkit-djnl.16` CodeCraft retry: L8b.2 reviewed, L8b.3 still INCONCLUSIVE (Claude with CodeCraft)
+
+- **Task:** "retry the L8b.2/L8b.3 CodeCraft review with gpt-5.6-luna". The packet was split in two.
+- **L8b.2:** the reviewer answered. Its three `runStaticStage` findings were refuted against source:
+  `readRegistry` guarantees `sha256` and `external`, and `inspectModel` returns `null` on every
+  could-not-run path. The L8b.2 contract is now `qc_status: APPROVED`.
+- **L8b.3:** the trimmed probe packet came back empty twice at 5000 output tokens and timed out at 8000.
+  `.16` stays open for it alone.
+- **Tests:** no code changed, so no verifier was re-run beyond `verify:roadmap-dashboard`.
+
+## 2026-09-30 — `awkit-djnl.16`: dialog line breaks, one latency-class formula, overhead gate PASS (Claude with CodeCraft)
 
 - **Task:** continue into `.16` once `.15` reached its blocked items. Contract
   `awkit-djnl-16-l8b-qc-0930`.

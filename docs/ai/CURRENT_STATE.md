@@ -7,9 +7,9 @@
 - **Latency class:** L9's ETA history records under the class L8b.4 defines. `aiRuntime.latencyKeyFor`
   re-derived the same string, and it now calls `latencyClassId`. The keys are byte-identical, so
   existing history files still match.
-- **QC:** GPT-5.6 Luna, through CodeCraft, reviewed L8b.1, L8b.4 and L8b.5 and found no product defect.
-  The L8b.1 contract is `qc_status: APPROVED`.
-  - The review of the L8b.2/L8b.3 verdict logic is INCONCLUSIVE: the reviewer timed out or answered
+- **QC:** GPT-5.6 Luna, through CodeCraft, reviewed L8b.1, L8b.2 (on a same-day retry), L8b.4 and
+  L8b.5 and found no product defect. The L8b.1 and L8b.2 contracts are `qc_status: APPROVED`.
+  - The review of the L8b.3 probe verdict logic is INCONCLUSIVE: the reviewer timed out or answered
     empty.
 - **Evidence:**
   - `verify:ai-backend-pack-gui` 60/60 (59/60 before the fix);
@@ -21,7 +21,7 @@
   - `verify:failure-capture-overhead` PASS (run 21, 18/0/0);
   - `build` and `typecheck:scripts` PASS.
 - **NOT RUN:** `verify:ai-backend-pack-packaged`, because the package predates the renderer fix.
-- **Follow-ups:** `.16` stays open only for the L8b.2/L8b.3 independent review. Phase L's epic stays
+- **Follow-ups:** `.16` stays open only for the L8b.3 independent review. Phase L's epic stays
   open for `.15` and `.16`. Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67
   cases.
 

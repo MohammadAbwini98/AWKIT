@@ -275,9 +275,21 @@ Contract `awkit-djnl-12-l8b3-l8b5-0929`. Commits `79c99a0f` (host), `86aacc1e` (
 ## `awkit-djnl.16` follow-up record (2026-09-30)
 
 Contract `awkit-djnl-16-l8b-qc-0930`. The issue stays open for one item: an independent review of the
-L8b.2/L8b.3 verdict logic.
+L8b.3 probe verdict logic.
 
-**1. Independent QC: done for L8b.1, L8b.4 and L8b.5; INCONCLUSIVE for L8b.2/L8b.3.**
+**Retry, same day, on the owner's request (`gpt-5.6-luna`, split into two packets):**
+- **L8b.2 is done.** `staticVerdict`, `staticStanding` and `runStaticStage` are correct on malformed
+  replies. Luna's three `runStaticStage` findings were refuted against source:
+  - a malformed `external` or `sha256` is unreachable, because `readRegistry` returns unreadable
+    unless `sha256` is 64-char hex and `external` is valid;
+  - every could-not-run path of `inspectModel` returns `null`, so an `undefined` answer is a
+    malformed reply, and recording it as `GGUF_UNREADABLE` is the intended fail-closed behavior.
+  - The L8b.2 contract is `qc_status: APPROVED`.
+- **L8b.3 is still INCONCLUSIVE.** The trimmed `probeVerdict` + `runCompatibilityStages` packet came
+  back empty twice at 5000 output tokens and timed out at 8000.
+
+**1. Independent QC: done for L8b.1, L8b.2, L8b.4 and L8b.5; INCONCLUSIVE for L8b.3 (the first pass
+below predates the retry).**
 - GPT-5.6 Luna, through CodeCraft, reviewed these on the current code:
   - the copy import (L8b.1);
   - qualification, the latency class and the action-record profile (L8b.4, L8b.5);

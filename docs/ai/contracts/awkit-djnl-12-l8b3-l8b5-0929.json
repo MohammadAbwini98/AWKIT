@@ -329,7 +329,7 @@
     "status": "implemented",
     "qa_status": "PASS",
     "qc_status": "pending",
-    "qc_note": "2026-09-30 (awkit-djnl.16): GPT-5.6 Luna through CodeCraft reviewed L8b.4 (qualification, latency class, action-record profile) and L8b.5 (acknowledgement, model resolution), with no product defect. QC found the latency-class formula duplicated in aiRuntime, now consolidated on latencyClassId with byte-identical keys. The L8b.3 probe verdict and runCompatibilityStages packet is INCONCLUSIVE (the reviewer timed out or answered empty); Claude found no defect. Stays pending for L8b.3's independent review."
+    "qc_note": "2026-09-30 (awkit-djnl.16): GPT-5.6 Luna through CodeCraft reviewed L8b.4 (qualification, latency class, action-record profile) and L8b.5 (acknowledgement, model resolution), with no product defect. QC found the latency-class formula duplicated in aiRuntime, now consolidated on latencyClassId with byte-identical keys. The L8b.3 probe verdict and runCompatibilityStages packet is INCONCLUSIVE (the reviewer timed out or answered empty); Claude found no defect. Retried the same day on the owner's request, trimmed to probeVerdict and runCompatibilityStages: gpt-5.6-luna answered empty at 5000 output tokens (twice) and timed out at 8000. Stays pending for L8b.3's independent review."
   },
   "write_lease": {
     "history": [

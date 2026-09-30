@@ -272,8 +272,8 @@
   "completion": {
     "status": "implemented",
     "qa_status": "PASS",
-    "qc_status": "pending",
-    "qc_note": "2026-09-30 (awkit-djnl.16): the independent review of staticVerdict and runStaticStage is INCONCLUSIVE. CodeCraft gpt-5.6-luna timed out twice, and deepseek-v4-flash-0731 returned empty. Claude's own review found no defect, and verify:ai-model-compatibility is 188/0 on the final state. Stays pending until a second model family answers."
+    "qc_status": "APPROVED",
+    "qc_basis": "Independent QC 2026-09-30 (awkit-djnl.16 retry): GPT-5.6 Luna through CodeCraft reviewed staticVerdict, staticStanding and runStaticStage and found them correct on malformed replies. Its three runStaticStage findings were refuted against source. (1) and (2): a malformed external or sha256 is unreachable, because the registry parser (AiModelPack.ts readRegistry) returns unreadable unless sha256 is 64-char hex and external is valid, and store status is main-process code, not the untrusted host. (3): every could-not-run path of AiService.inspectModel returns null, so a host that answers undefined sent a malformed reply, and recording it as GGUF_UNREADABLE is the intended fail-closed behavior. No product defect. verify:ai-model-compatibility 188/0."
   },
   "write_lease": {
     "history": [

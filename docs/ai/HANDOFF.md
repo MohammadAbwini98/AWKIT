@@ -2,12 +2,14 @@
 
 ## HANDOFF (2026-09-30, latest) — `.16` three of four items done; one review left
 
-- **`awkit-djnl.16` stays open** for one thing: an independent (non-Claude) review of the L8b.2/L8b.3
+- **`awkit-djnl.16` stays open** for one thing: an independent (non-Claude) review of the L8b.3 probe
   verdict logic.
-  - What to review: `staticVerdict`, `probeVerdict` and `runCompatibilityStages` in
-    `src/ai/AiModelCompatibility.ts`, and the host `probe` in `native-hosts/ai/ai-host.cjs`.
-  - CodeCraft `gpt-5.6-luna` timed out twice on it, and `deepseek-v4-flash-0731` answered empty.
-  - When one answers, set the L8b.2 and L8b.3–L8b.5 contracts' `qc_status` and close `.16`.
+  - L8b.2 got its review on a same-day retry, and its contract is APPROVED.
+  - What to review: `probeVerdict` and `runCompatibilityStages` in `src/ai/AiModelCompatibility.ts`,
+    and the host `probe` in `native-hosts/ai/ai-host.cjs`.
+  - CodeCraft `gpt-5.6-luna` on that packet answers empty at 5000 output tokens and times out at 8000
+    or more; `deepseek-v4-flash-0731` answered empty.
+  - When a reviewer answers, set the L8b.3–L8b.5 contract's `qc_status` and close `.16`.
 - **Done:**
   - the dialog line breaks (`.modal-body` `white-space: pre-line`);
   - the latency class unified on `latencyClassId`;
