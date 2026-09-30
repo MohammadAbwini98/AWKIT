@@ -1,5 +1,5 @@
 import type { Page, Locator, Frame, ElementHandle } from "playwright";
-import { ancestrySimilarity, createPageFingerprint, fingerprintsEqual, hashFingerprint, hashToken, similarity } from "./locatorFingerprint";
+import { createPageFingerprint, fingerprintsEqual, hashFingerprint, hashToken, similarity } from "./locatorFingerprint";
 import {
   locatorContainerChain,
   locatorFrameChain,
@@ -21,6 +21,7 @@ import {
 import { resolveStepSafety } from "./runtime/StepSafetyPolicy";
 import { encodeClosedShadowSelector, isInstrumentedClosedShadow, registerClosedShadowEngine } from "./closedShadowBridge";
 import {
+  locatorCandidateSignature,
   locatorCandidatesDigest,
   type LocatorElementFingerprint,
   type LocatorRecoveryRecord,
@@ -28,6 +29,25 @@ import {
 } from "./LocatorRecoveryStore";
 import type { ElementBlueprint, LocatorBlueprintStore } from "./LocatorBlueprintStore";
 import { computeFrameKey, computePageKey, documentFingerprintMatches } from "./LocatorBlueprintStore";
+import {
+  BLUEPRINT_NEIGHBORHOOD_RADIUS,
+  BLUEPRINT_POSITION_BONUS,
+  RECOVERY_SCAN_CAP,
+  RECOVERY_SCORE_THRESHOLD,
+  blueprintPositionScore,
+  captureBlueprintSnapshot,
+  captureLocalSnapshot,
+  decideBlueprintRecovery,
+  gateRecovery,
+  isRecoveryCompatible,
+  rankLocalRecovery,
+  sameElementFingerprint,
+  type RecoveryDecision,
+  type RecoveryRefusal,
+  type ScoredCandidate
+} from "./recoverySnapshot";
+import type { DomIntelligenceRecoveryOptions, DomRepairSuggestion } from "./domIntelligence/DomIntelligenceProvider";
+import { suggestRepair } from "./domIntelligence/repairSuggestion";
 
 /**
  * Anything Playwright can build sub-locators from: a `Page`, a `FrameLocator`, or a `Locator`.
@@ -62,25 +82,50 @@ const FRAME_WAIT_MS = 5_000;
 const CLOSED_SHADOW_FALLBACK_GRACE_MS = 1_000;
 /** Cap on closed roots the CDP fallback registers per attempt (bounds pathological pages). */
 const MAX_CDP_CLOSED_ROOTS = 50;
-const RECOVERY_SCAN_CAP = 200;
-const RECOVERY_SCORE_THRESHOLD = 0.86;
-const RECOVERY_MARGIN = 0.08;
+
+/** One recovery layer's outcome, for the bounded provenance trace (never page text or DOM). */
+export interface LocatorRecoveryStage {
+  stage: "local" | "blueprint" | "provider";
+  outcome: "proven" | "refused" | "skipped" | "error" | "suggested";
+  ms: number;
+  reason?: RecoveryRefusal | "no-blueprint" | "no-reference" | "sensitive" | "provider-unavailable" | "provider-timeout" | "provider-error" | "protected-surface" | "no-candidate";
+  /** Candidates the layer scored after pruning (or the provider returned). */
+  candidates?: number;
+  score?: number;
+  runnerUpScore?: number;
+}
+
 /**
- * Same label is not identity: tag, role, name and text weigh 0.80 of `similarity()`, so once the
- * target is gone any same-label element clears 0.86. A recovered element must also keep at least half
- * of its recorded ancestry path (2 of 3 levels, so one inserted wrapper still passes). A veto only.
+ * One trace per recovery attempt (all recorded candidates missed after the grace retry). Structured,
+ * bounded, and free of page text: stage names, timings, counts, scores and refusal codes only.
  */
-const RECOVERY_MIN_ANCESTRY = 0.5;
-/** Bounded document-order window used only after the broad local-recovery scan has failed. */
-const BLUEPRINT_NEIGHBORHOOD_RADIUS = 24;
-/** Structural position is a tiebreaker, never a replacement for fingerprint identity. */
-const BLUEPRINT_POSITION_BONUS = 0.03;
+export interface LocatorRecoveryTrace {
+  engine: LocatorRecoveryEngine;
+  result: "recovered" | "unresolved";
+  totalMs: number;
+  stages: LocatorRecoveryStage[];
+  suggestion?: DomRepairSuggestion;
+}
+
+/**
+ * `snapshot` (default, L11): each recovery layer is one `evaluateAll`. `legacy`: the pre-L11
+ * per-element loops (one round trip per element, 200-element local cap), kept for the old-vs-new
+ * benchmark and as a kill switch. Both apply the same decision functions from `recoverySnapshot`.
+ */
+export type LocatorRecoveryEngine = "snapshot" | "legacy";
 
 export interface LocatorRecoveryEvent {
-  type: "preferred-candidate" | "local-recovery" | "memory-error" | "user-approved-fallback" | "guarded-positional";
+  type:
+    | "preferred-candidate"
+    | "local-recovery"
+    | "memory-error"
+    | "user-approved-fallback"
+    | "guarded-positional"
+    | "recovery-trace";
   stepId: string;
   message: string;
   score?: number;
+  trace?: LocatorRecoveryTrace;
 }
 
 export interface LocatorFactoryOptions {
@@ -88,6 +133,12 @@ export interface LocatorFactoryOptions {
   blueprintStore?: LocatorBlueprintStore;
   scope?: { scenarioId: string; flowId?: string };
   recoveryGraceMs?: number;
+  recoveryEngine?: LocatorRecoveryEngine;
+  /**
+   * Optional DOM-intelligence provider for NON-EXECUTING repair suggestions after both recovery layers
+   * refused. Absent, disabled, failing or slow providers change nothing (plan E4).
+   */
+  domIntelligence?: DomIntelligenceRecoveryOptions;
   onRecoveryEvent?: (event: LocatorRecoveryEvent) => void;
   /**
    * Called with the scope key of each recovery record successfully written, so the run that wrote it
@@ -117,6 +168,12 @@ interface CandidatePass {
 interface FingerprintAt {
   index: number;
   fingerprint: LocatorElementFingerprint;
+}
+
+interface RecoveredElement {
+  locator: Locator;
+  fingerprint: LocatorElementFingerprint;
+  score: number;
 }
 
 export class LocatorFactory {
@@ -255,7 +312,7 @@ export class LocatorFactory {
       // Sensitive actions may retry their exact recorded candidates after the bounded grace period,
       // but must never select a different element through broad or blueprint-guided recovery.
       if (pass.allMissing && !sensitiveAction) {
-        const recovered = await this.recoverLocally(root, step, applicableMemory.fingerprint);
+        const recovered = await this.recover(root, step, applicableMemory.fingerprint);
         if (recovered) {
           await this.writeMemory(
             {
@@ -447,29 +504,124 @@ export class LocatorFactory {
     );
   }
 
-  private async recoverLocally(
+  /**
+   * Recovery after every recorded candidate missed (and the grace retry): local layer, then blueprint
+   * layer, each proven by the shared gate; then, only if both refused, a NON-EXECUTING provider
+   * suggestion. Emits one bounded `recovery-trace` event per attempt.
+   */
+  private async recover(root: LocatorRoot, step: FlowStep, expected: LocatorElementFingerprint): Promise<RecoveredElement | undefined> {
+    const engine: LocatorRecoveryEngine = this.options.recoveryEngine ?? "snapshot";
+    const started = performance.now();
+    const stages: LocatorRecoveryStage[] = [];
+    let recovered: RecoveredElement | undefined;
+    let suggestion: DomRepairSuggestion | undefined;
+    try {
+      recovered =
+        engine === "legacy" ? await this.recoverLocallyLegacy(root, step, expected, stages) : await this.recoverLocallySnapshot(root, step, expected, stages);
+      recovered ??= await this.recoverFromBlueprint(step, engine, stages);
+      if (!recovered && this.options.domIntelligence) {
+        const stageStarted = performance.now();
+        const outcome = await suggestRepair({
+          page: this.page,
+          frame: await this.blueprintFrame(step.locator?.context).catch(() => this.page.mainFrame()),
+          step,
+          expected,
+          options: this.options.domIntelligence
+        }).catch(() => ({ stage: { outcome: "error" as const, reason: "provider-error" as const } }));
+        stages.push({ stage: "provider", ms: performance.now() - stageStarted, ...outcome.stage });
+        suggestion = "suggestion" in outcome ? outcome.suggestion : undefined;
+      }
+      return recovered;
+    } finally {
+      this.emitTrace(step, { engine, result: recovered ? "recovered" : "unresolved", totalMs: performance.now() - started, stages, suggestion });
+    }
+  }
+
+  /** L11 local layer: one `evaluateAll` over the root's visible elements, pruned exactly, then the gate. */
+  private async recoverLocallySnapshot(
     root: LocatorRoot,
     step: FlowStep,
-    expected: LocatorElementFingerprint
-  ): Promise<{ locator: Locator; fingerprint: LocatorElementFingerprint; score: number } | undefined> {
+    expected: LocatorElementFingerprint,
+    stages: LocatorRecoveryStage[]
+  ): Promise<RecoveredElement | undefined> {
+    const started = performance.now();
     const visible = root.locator("*:visible");
-    const fingerprints = await LocatorFactory.fingerprintMany(visible, RECOVERY_SCAN_CAP);
-    const ranked = fingerprints
-      .map(({ fingerprint, index }) => ({ fingerprint, index, score: similarity(expected, fingerprint) }))
-      .filter(({ fingerprint }) => LocatorFactory.isCompatible(step, fingerprint))
-      .sort((a, b) => b.score - a.score);
-    const best = ranked[0];
-    const runnerUp = ranked[1];
-    if (
-      best &&
-      best.score >= RECOVERY_SCORE_THRESHOLD &&
-      (!runnerUp || best.score - runnerUp.score >= RECOVERY_MARGIN) &&
-      ancestrySimilarity(expected.ancestry, best.fingerprint.ancestry) >= RECOVERY_MIN_ANCESTRY
-    ) {
-      return { locator: visible.nth(best.index), fingerprint: best.fingerprint, score: best.score };
+    let decision: RecoveryDecision;
+    try {
+      const snapshot = await captureLocalSnapshot(visible, expected);
+      if (snapshot.truncated) {
+        stages.push({ stage: "local", outcome: "refused", reason: "snapshot-truncated", ms: performance.now() - started, candidates: snapshot.candidates.length });
+        return undefined;
+      }
+      decision = rankLocalRecovery(step, expected, snapshot.candidates);
+    } catch {
+      stages.push({ stage: "local", outcome: "error", reason: "snapshot-failed", ms: performance.now() - started });
+      return undefined;
     }
+    return this.proveSnapshotWinner(visible, decision, "local", started, stages);
+  }
 
-    return this.recoverFromBlueprint(step);
+  /** Pre-L11 local layer, kept for the benchmark and as a kill switch: one round trip per element. */
+  private async recoverLocallyLegacy(
+    root: LocatorRoot,
+    step: FlowStep,
+    expected: LocatorElementFingerprint,
+    stages: LocatorRecoveryStage[]
+  ): Promise<RecoveredElement | undefined> {
+    const started = performance.now();
+    const visible = root.locator("*:visible");
+    const decision = rankLocalRecovery(step, expected, await LocatorFactory.fingerprintMany(visible, RECOVERY_SCAN_CAP));
+    LocatorFactory.recordStage(stages, "local", decision, started);
+    return decision.winner ? { locator: visible.nth(decision.winner.index), fingerprint: decision.winner.fingerprint, score: decision.winner.score } : undefined;
+  }
+
+  /**
+   * A snapshot names its winner by index; the page may have changed since. The element now at that
+   * index must still carry the snapshot's identity and ancestry, or the layer refuses (fail closed).
+   */
+  private async proveSnapshotWinner(
+    list: Locator,
+    decision: RecoveryDecision,
+    stage: "local" | "blueprint",
+    started: number,
+    stages: LocatorRecoveryStage[]
+  ): Promise<RecoveredElement | undefined> {
+    if (!decision.winner) {
+      LocatorFactory.recordStage(stages, stage, decision, started);
+      return undefined;
+    }
+    const locator = list.nth(decision.winner.index);
+    const current = await LocatorFactory.fingerprintOne(locator);
+    if (!current || !sameElementFingerprint(current, decision.winner.fingerprint)) {
+      stages.push({ stage, outcome: "refused", reason: "stale-snapshot", ms: performance.now() - started, candidates: decision.considered, score: decision.winner.score });
+      return undefined;
+    }
+    LocatorFactory.recordStage(stages, stage, decision, started);
+    return { locator, fingerprint: decision.winner.fingerprint, score: decision.winner.score };
+  }
+
+  private static recordStage(stages: LocatorRecoveryStage[], stage: "local" | "blueprint", decision: RecoveryDecision, started: number): void {
+    stages.push({
+      stage,
+      outcome: decision.winner ? "proven" : "refused",
+      ...(decision.refusal ? { reason: decision.refusal } : {}),
+      ms: performance.now() - started,
+      candidates: decision.considered,
+      ...(decision.best ? { score: Number(decision.best.score.toFixed(3)) } : {}),
+      ...(decision.runnerUp ? { runnerUpScore: Number(decision.runnerUp.score.toFixed(3)) } : {})
+    });
+  }
+
+  private emitTrace(step: FlowStep, trace: LocatorRecoveryTrace): void {
+    const summary = trace.stages
+      .map((stage) => `${stage.stage}=${stage.outcome}${stage.reason ? `(${stage.reason})` : ""} ${stage.ms.toFixed(0)}ms`)
+      .join(", ");
+    this.emit({
+      type: "recovery-trace",
+      stepId: step.id,
+      message: `Locator recovery for "${step.name}" ${trace.result} in ${trace.totalMs.toFixed(0)} ms [${trace.engine}]: ${summary}.`,
+      trace
+    });
   }
 
   /**
@@ -477,59 +629,72 @@ export class LocatorFactory {
    * only after the broad visible-element scan could not identify a unique match. Identity still comes
    * from the shared fingerprint scorer; sibling/tag/viewport position contribute at most 0.03 total.
    */
-  private async recoverFromBlueprint(
-    step: FlowStep
-  ): Promise<{ locator: Locator; fingerprint: LocatorElementFingerprint; score: number } | undefined> {
+  private async recoverFromBlueprint(step: FlowStep, engine: LocatorRecoveryEngine, stages: LocatorRecoveryStage[]): Promise<RecoveredElement | undefined> {
+    const started = performance.now();
+    const skipped = (reason: LocatorRecoveryStage["reason"]): undefined => {
+      stages.push({ stage: "blueprint", outcome: "skipped", reason, ms: performance.now() - started });
+      return undefined;
+    };
     const blueprintId = step.locator?.blueprintId;
-    if (!blueprintId || !this.options.blueprintStore) return undefined;
+    if (!blueprintId || !this.options.blueprintStore) return skipped("no-blueprint");
 
     try {
       const frame = await this.blueprintFrame(step.locator?.context);
       const frameKey = computeFrameKey(step.locator?.context?.frameChain);
       const pageKey = computePageKey(frame.url(), await frame.title().catch(() => ""), frameKey);
       const pageBlueprint = await this.options.blueprintStore.get(pageKey);
-      if (!pageBlueprint || pageBlueprint.frameKey !== (frameKey || undefined)) return undefined;
+      if (!pageBlueprint || pageBlueprint.frameKey !== (frameKey || undefined)) return skipped("blueprint-unavailable");
       const elementBlueprint = pageBlueprint.elements.find((element) => element.blueprintId === blueprintId);
-      if (!elementBlueprint) return undefined;
-
-      const currentDocumentFingerprint = await LocatorFactory.documentFingerprint(frame);
-      if (!documentFingerprintMatches(pageBlueprint.documentFingerprint, currentDocumentFingerprint)) return undefined;
-
+      if (!elementBlueprint) return skipped("blueprint-unavailable");
       const allElements = frame.locator("body *");
-      const count = await allElements.count().catch(() => 0);
-      const start = Math.max(0, elementBlueprint.documentOrder - BLUEPRINT_NEIGHBORHOOD_RADIUS);
-      const end = Math.min(count - 1, elementBlueprint.documentOrder + BLUEPRINT_NEIGHBORHOOD_RADIUS);
-      const ranked: Array<{ locator: Locator; fingerprint: LocatorElementFingerprint; score: number }> = [];
 
-      for (let index = start; index <= end; index += 1) {
-        const locator = allElements.nth(index);
-        if (!(await locator.isVisible().catch(() => false))) continue;
-        const fingerprint = await LocatorFactory.fingerprintOne(locator);
-        if (!fingerprint || !LocatorFactory.isCompatible(step, fingerprint)) continue;
-        const identityScore = similarity(elementBlueprint.fingerprint, fingerprint);
-        if (identityScore < RECOVERY_SCORE_THRESHOLD) continue;
-        const positionScore = await LocatorFactory.blueprintPositionScore(locator, index, elementBlueprint);
-        ranked.push({ locator, fingerprint, score: Math.min(1, identityScore + positionScore * BLUEPRINT_POSITION_BONUS) });
+      if (engine === "snapshot") {
+        const snapshot = await captureBlueprintSnapshot(allElements, elementBlueprint);
+        if (!documentFingerprintMatches(pageBlueprint.documentFingerprint, snapshot.documentFingerprint)) {
+          stages.push({ stage: "blueprint", outcome: "refused", reason: "page-variant", ms: performance.now() - started });
+          return undefined;
+        }
+        return this.proveSnapshotWinner(allElements, decideBlueprintRecovery(step, elementBlueprint, snapshot.window), "blueprint", started, stages);
       }
 
-      ranked.sort((left, right) => right.score - left.score);
-      const best = ranked[0];
-      const runnerUp = ranked[1];
-      if (!best || best.score < RECOVERY_SCORE_THRESHOLD) return undefined;
-      if (runnerUp && best.score - runnerUp.score < RECOVERY_MARGIN) return undefined;
-      if (ancestrySimilarity(elementBlueprint.fingerprint.ancestry, best.fingerprint.ancestry) < RECOVERY_MIN_ANCESTRY) return undefined;
-      return best;
+      const currentDocumentFingerprint = await LocatorFactory.documentFingerprint(frame);
+      if (!documentFingerprintMatches(pageBlueprint.documentFingerprint, currentDocumentFingerprint)) {
+        stages.push({ stage: "blueprint", outcome: "refused", reason: "page-variant", ms: performance.now() - started });
+        return undefined;
+      }
+      const decision = await LocatorFactory.legacyBlueprintDecision(step, allElements, elementBlueprint);
+      LocatorFactory.recordStage(stages, "blueprint", decision, started);
+      return decision.winner ? { locator: allElements.nth(decision.winner.index), fingerprint: decision.winner.fingerprint, score: decision.winner.score } : undefined;
     } catch {
       // Blueprint storage/page probing is additive and fail-safe: normal unresolved behavior wins.
+      stages.push({ stage: "blueprint", outcome: "error", reason: "snapshot-failed", ms: performance.now() - started });
       return undefined;
     }
   }
 
-  private static async blueprintPositionScore(
-    locator: Locator,
-    documentOrder: number,
-    blueprint: ElementBlueprint
-  ): Promise<number> {
+  /** Pre-L11 blueprint window: up to three round trips per element, the same gate as the snapshot. */
+  private static async legacyBlueprintDecision(step: FlowStep, allElements: Locator, blueprint: ElementBlueprint): Promise<RecoveryDecision> {
+    const count = await allElements.count().catch(() => 0);
+    const start = Math.max(0, blueprint.documentOrder - BLUEPRINT_NEIGHBORHOOD_RADIUS);
+    const end = Math.min(count - 1, blueprint.documentOrder + BLUEPRINT_NEIGHBORHOOD_RADIUS);
+    const ranked: ScoredCandidate[] = [];
+    let considered = 0;
+    for (let index = start; index <= end; index += 1) {
+      const locator = allElements.nth(index);
+      if (!(await locator.isVisible().catch(() => false))) continue;
+      const fingerprint = await LocatorFactory.fingerprintOne(locator);
+      if (!fingerprint || !isRecoveryCompatible(step, fingerprint)) continue;
+      considered += 1;
+      const identityScore = similarity(blueprint.fingerprint, fingerprint);
+      if (identityScore < RECOVERY_SCORE_THRESHOLD) continue;
+      const positionScore = await LocatorFactory.legacyBlueprintPositionScore(locator, index, blueprint);
+      ranked.push({ index, fingerprint, score: Math.min(1, identityScore + positionScore * BLUEPRINT_POSITION_BONUS) });
+    }
+    ranked.sort((left, right) => right.score - left.score);
+    return gateRecovery(ranked, blueprint.fingerprint.ancestry, considered);
+  }
+
+  private static async legacyBlueprintPositionScore(locator: Locator, documentOrder: number, blueprint: ElementBlueprint): Promise<number> {
     try {
       const evidence = await locator.evaluate((node) => {
         const element = node as Element;
@@ -548,21 +713,7 @@ export class LocatorFactory {
           }
         };
       });
-      const documentScore = 1 - Math.min(1, Math.abs(documentOrder - blueprint.documentOrder) / (BLUEPRINT_NEIGHBORHOOD_RADIUS + 1));
-      const siblingScore = evidence.siblingIndex === blueprint.siblingIndex ? 1 : 0;
-      const sameTagScore = evidence.sameTagIndex === blueprint.sameTagIndex ? 1 : 0;
-      const expectedRegion = blueprint.boundingRegion;
-      const regionScore = expectedRegion
-        ? 1 -
-          Math.min(
-            1,
-            Math.abs(evidence.boundingRegion.relativeX - expectedRegion.relativeX) +
-              Math.abs(evidence.boundingRegion.relativeY - expectedRegion.relativeY) +
-              Math.abs(evidence.boundingRegion.relativeWidth - expectedRegion.relativeWidth) +
-              Math.abs(evidence.boundingRegion.relativeHeight - expectedRegion.relativeHeight)
-          )
-        : 0;
-      return (documentScore + siblingScore + sameTagScore + regionScore) / (expectedRegion ? 4 : 3);
+      return blueprintPositionScore({ index: documentOrder, ...evidence }, blueprint);
     } catch {
       return 0;
     }
@@ -622,12 +773,7 @@ export class LocatorFactory {
   }
 
   private static candidateSignature(candidate: LocatorCandidate): string {
-    return JSON.stringify({
-      strategy: candidate.strategy,
-      value: candidate.value,
-      name: candidate.name ?? "",
-      exact: candidate.exact ?? false
-    });
+    return locatorCandidateSignature(candidate);
   }
 
   private static preferRemembered(ranked: RankedCandidate[], signature?: string): RankedCandidate[] {
@@ -657,22 +803,6 @@ export class LocatorFactory {
       if (fingerprint) result.push({ index, fingerprint });
     }
     return result;
-  }
-
-  private static isCompatible(step: FlowStep, fingerprint: LocatorElementFingerprint): boolean {
-    const { tag, role } = fingerprint;
-    switch (step.type) {
-      case "fill":
-        return role === "textbox" || tag === "textarea";
-      case "select":
-        return tag === "select" || role === "combobox";
-      case "check":
-      case "uncheck":
-      case "radio":
-        return role === "checkbox" || role === "radio";
-      default:
-        return true;
-    }
   }
 
   /** Build a scoped root from frame/shadow/container context, resolving each segment strictly. */

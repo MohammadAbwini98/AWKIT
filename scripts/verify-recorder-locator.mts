@@ -1592,9 +1592,12 @@ async function main() {
     check("blueprint recovery: broad-scan winner is clicked", (await page.evaluate(() => (window as any).__hit)) === "broad");
   }
 
-  // E7. The broad scan is capped at 200; a target shifted by an inserted sibling is recovered from
-  // the bounded blueprint neighborhood around its prior document order.
-  {
+  // E7. A target shifted by an inserted sibling is recovered from the bounded blueprint neighborhood
+  // around its prior document order when the broad scan cannot decide. Until L11 the broad scan was
+  // capped at 200 elements, so the 205 fillers alone forced this layer; the snapshot engine scores every
+  // pruned visible element, so the broad scan is now made ambiguous for an IDENTITY reason: a
+  // same-identity decoy placed after 26 more fillers, outside the ±24 blueprint window. Both engines run.
+  for (const engine of ["snapshot", "legacy"] as const) {
     const step: FlowStep = {
       id: "blueprint-neighborhood",
       type: "click",
@@ -1602,8 +1605,11 @@ async function main() {
       locator: { strategy: "id", value: "neighborhood-old", blueprintId: "bp-neighborhood" }
     };
     const fillers = Array.from({ length: 205 }, (_unused, index) => `<div>filler ${index}</div>`).join("");
+    const farDecoy =
+      Array.from({ length: 26 }, (_unused, index) => `<div>tail ${index}</div>`).join("") +
+      `<button id="neighborhood-decoy" onclick="window.__hit='decoy'">Neighborhood target</button>`;
     await page.setContent(`${fillers}<button id="neighborhood-old">Neighborhood target</button>`);
-    await new LocatorFactory(page, { recoveryStore, scope: recoveryScope, recoveryGraceMs: 0 }).resolve(step);
+    await new LocatorFactory(page, { recoveryStore, scope: recoveryScope, recoveryGraceMs: 0, recoveryEngine: engine }).resolve(step);
     const memory = await recoveryStore.get("scenario-recovery\u0000flow-recovery\u0000blueprint-neighborhood");
     const pageKey = computePageKey(page.url(), await page.title());
     const blueprint: PageBlueprint = {
@@ -1638,16 +1644,25 @@ async function main() {
       put: async () => undefined,
       list: async () => [blueprint]
     };
-    await page.setContent(`<aside>inserted banner</aside>${fillers}<button id="neighborhood-new" onclick="window.__hit='blueprint'">Neighborhood target</button>`);
+    await page.setContent(`<aside>inserted banner</aside>${fillers}<button id="neighborhood-new" onclick="window.__hit='blueprint'">Neighborhood target</button>${farDecoy}`);
+    const stages: string[] = [];
     const recovered = await new LocatorFactory(page, {
       recoveryStore,
       blueprintStore,
       scope: recoveryScope,
-      recoveryGraceMs: 0
+      recoveryGraceMs: 0,
+      recoveryEngine: engine,
+      onRecoveryEvent: (event) => {
+        if (event.trace) stages.push(event.trace.stages.map((stage) => `${stage.stage}:${stage.outcome}:${stage.reason ?? ""}`).join(","));
+      }
     }).resolve(step);
     await recovered.click();
-    check("blueprint recovery: storage is read only after the broad scan misses", blueprintReads === 1, String(blueprintReads));
-    check("blueprint recovery: inserted sibling shift still clicks the intended target", (await page.evaluate(() => (window as any).__hit)) === "blueprint");
+    check(`blueprint recovery (${engine}): storage is read only after the broad scan misses`, blueprintReads === 1, String(blueprintReads));
+    // The legacy scan never reaches either button (both sit past its 200-element cap); the snapshot sees
+    // both and must refuse them as a near-tie rather than choose.
+    const localRefusal = engine === "snapshot" ? "local:refused:ambiguous-margin" : "local:refused:";
+    check(`blueprint recovery (${engine}): the broad scan refused and the blueprint layer proved it`, stages.some((trace) => trace.includes(localRefusal) && trace.includes("blueprint:proven")), stages.join(" | "));
+    check(`blueprint recovery (${engine}): inserted sibling shift still clicks the intended target, never the far decoy`, (await page.evaluate(() => (window as any).__hit)) === "blueprint");
 
     await page.setContent(
       `<aside>inserted banner</aside>${fillers}` +
@@ -1657,9 +1672,10 @@ async function main() {
       recoveryStore,
       blueprintStore,
       scope: recoveryScope,
-      recoveryGraceMs: 0
+      recoveryGraceMs: 0,
+      recoveryEngine: engine
     }).resolve(step);
-    check("blueprint recovery: equal neighborhood twins fail the 0.08 runner-up margin", (await unresolved.count()) === 0);
+    check(`blueprint recovery (${engine}): equal neighborhood twins fail the 0.08 runner-up margin`, (await unresolved.count()) === 0);
   }
 
   console.log("Part D — Smart Wait recorder observation (Phase 2)");

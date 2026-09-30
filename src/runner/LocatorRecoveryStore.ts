@@ -206,3 +206,24 @@ export class FileLocatorRecoveryStore implements LocatorRecoveryStore {
 export function locatorCandidatesDigest(signatures: string[]): string {
   return createHash("sha256").update(JSON.stringify(signatures)).digest("hex");
 }
+
+/** A candidate's identity for winner memory and reference binding: strategy, value, name, exactness. */
+export function locatorCandidateSignature(candidate: { strategy: string; value: string; name?: string; exact?: boolean }): string {
+  return JSON.stringify({
+    strategy: candidate.strategy,
+    value: candidate.value,
+    name: candidate.name ?? "",
+    exact: candidate.exact ?? false
+  });
+}
+
+/**
+ * The digest of a step's recorded candidates (primary then alternatives), exactly as `LocatorFactory`
+ * binds winner memory. Any edit to the step's locator changes it, which is what invalidates memory and
+ * DOM references bound to the old locator.
+ */
+export function stepCandidatesDigest(locator: { strategy: string; value: string; name?: string; exact?: boolean; alternatives?: ReadonlyArray<{ strategy: string; value: string; name?: string; exact?: boolean }> }): string {
+  return locatorCandidatesDigest(
+    [{ strategy: locator.strategy, value: locator.value, name: locator.name, exact: locator.exact }, ...(locator.alternatives ?? [])].map(locatorCandidateSignature)
+  );
+}

@@ -327,8 +327,13 @@ async function main() {
     }
 
     // ── [10] Blueprint recovery uses the CHILD frame identity + document-variant gate ──
-    console.log("\n[10] Blueprint recovery in a framed document:");
-    {
+    // The target sits after 205 fillers. Until L11 that alone forced the blueprint layer, because legacy
+    // local recovery scored only the first 200 visible elements. The snapshot engine has no positional
+    // blind spot, so the blueprint layer is now forced for an IDENTITY reason: a same-identity decoy placed
+    // far after the target (outside the ±24 blueprint window) makes local recovery ambiguous. Both engines
+    // must pass, so neither the frame-key nor the variant-gate assertion is carried by the old cap.
+    for (const engine of ["snapshot", "legacy"] as const) {
+      console.log(`\n[10] Blueprint recovery in a framed document (${engine} engine):`);
       const blueprints: PageBlueprint[] = [];
       const action = await capture(browser, `${OUTER}/blueprint-host`, (page) =>
         page.frameLocator("#fbp").locator("#blueprint-old").click()
@@ -340,16 +345,16 @@ async function main() {
         locator: { ...recorded.locator!, strategy: "id", value: "blueprint-old", alternatives: undefined }
       };
       const blueprint = blueprints[0];
-      check("[10] framed capture persists one blueprint", blueprints.length === 1 && !!blueprint);
-      check("[10] framed blueprint carries a non-placeholder frameKey", !!blueprint?.frameKey && blueprint.frameKey !== "frame", blueprint?.frameKey);
+      check(`[10/${engine}] framed capture persists one blueprint`, blueprints.length === 1 && !!blueprint);
+      check(`[10/${engine}] framed blueprint carries a non-placeholder frameKey`, !!blueprint?.frameKey && blueprint.frameKey !== "frame", blueprint?.frameKey);
 
       const recoveryStore = new FileLocatorRecoveryStore(await mkdtemp(join(tmpdir(), "wfs-frame-blueprint-")));
-      const scope = { scenarioId: "frame-blueprint-scenario", flowId: "frame-blueprint-flow" };
+      const scope = { scenarioId: `frame-blueprint-scenario-${engine}`, flowId: "frame-blueprint-flow" };
       const ctx = await browser.newContext();
       const page = await ctx.newPage();
       await page.goto(`${OUTER}/blueprint-host`);
       await page.waitForTimeout(300);
-      await new LocatorFactory(page, { recoveryStore, scope, recoveryGraceMs: 0 }).resolve(step);
+      await new LocatorFactory(page, { recoveryStore, scope, recoveryGraceMs: 0, recoveryEngine: engine }).resolve(step);
 
       let requestedKey = "";
       const blueprintStore: LocatorBlueprintStore = {
@@ -368,32 +373,56 @@ async function main() {
         document.body.insertAdjacentHTML("afterbegin", "<aside>inserted banner</aside>");
         const target = document.getElementById("blueprint-old");
         if (target) target.id = "blueprint-new";
+        // 26 fillers put the decoy just outside the ±24 blueprint window, while the tag histogram stays at
+        // about 0.88 of the recorded one, above the 0.85 document-variant gate.
+        document.body.insertAdjacentHTML(
+          "beforeend",
+          Array.from({ length: 26 }, (_unused, index) => `<div>tail ${index}</div>`).join("") + '<button id="blueprint-decoy">Blueprint target</button>'
+        );
       });
       const events: string[] = [];
+      const traces: string[] = [];
       const recovered = await new LocatorFactory(page, {
         recoveryStore,
         blueprintStore,
         scope,
         recoveryGraceMs: 0,
-        onRecoveryEvent: (event) => events.push(event.type)
+        recoveryEngine: engine,
+        onRecoveryEvent: (event) => {
+          events.push(event.type);
+          if (event.trace) traces.push(event.trace.stages.map((stage) => `${stage.stage}:${stage.outcome}:${stage.reason ?? ""}`).join(","));
+        }
       }).resolve(step);
       await recovered.click();
       await page.waitForFunction(() => (window as unknown as { __lastClick?: string }).__lastClick === "blueprint").catch(() => undefined);
-      check("[10] runtime requests the captured CHILD-frame page key", requestedKey === blueprint.pageKey, requestedKey);
-      check("[10] minor structural drift recovers and clicks inside the frame", (await lastClick(page)) === "blueprint", await lastClick(page));
-      check("[10] successful frame blueprint recovery is observable", events.includes("local-recovery"), JSON.stringify(events));
+      check(`[10/${engine}] runtime requests the captured CHILD-frame page key`, requestedKey === blueprint.pageKey, requestedKey);
+      check(`[10/${engine}] minor structural drift recovers and clicks inside the frame, never the far decoy`, (await lastClick(page)) === "blueprint", await lastClick(page));
+      check(`[10/${engine}] successful frame blueprint recovery is observable`, events.includes("local-recovery"), JSON.stringify(events));
+      check(
+        `[10/${engine}] the blueprint layer, not the local layer, proved it`,
+        traces.some((trace) => trace.includes("blueprint:proven")) && !traces.some((trace) => trace.includes("local:proven")),
+        traces.join(" | ")
+      );
 
       await child.evaluate(() => {
         document.body.innerHTML = Array.from({ length: 205 }, (_unused, index) => `<a href="#${index}">other ${index}</a>`).join("") +
-          '<button id="blueprint-new">Blueprint target</button>';
+          '<button id="blueprint-new">Blueprint target</button>' +
+          Array.from({ length: 60 }, (_unused, index) => `<a href="#t${index}">tail ${index}</a>`).join("") +
+          '<button id="blueprint-decoy">Blueprint target</button>';
       });
+      const variantTraces: string[] = [];
       const refused = await new LocatorFactory(page, {
         recoveryStore,
         blueprintStore,
         scope,
-        recoveryGraceMs: 0
+        recoveryGraceMs: 0,
+        recoveryEngine: engine,
+        onRecoveryEvent: (event) => {
+          if (event.trace) variantTraces.push(event.trace.stages.map((stage) => `${stage.stage}:${stage.outcome}:${stage.reason ?? ""}`).join(","));
+        }
       }).resolve(step);
-      check("[10] materially different same-URL frame variant is refused", (await refused.count()) === 0);
+      check(`[10/${engine}] materially different same-URL frame variant is refused`, (await refused.count()) === 0);
+      check(`[10/${engine}] the refusal is the blueprint document-variant gate`, variantTraces.some((trace) => trace.includes("blueprint:refused:page-variant")), variantTraces.join(" | "));
       await ctx.close();
     }
   } finally {

@@ -91,17 +91,34 @@ export function createPageFingerprint(element: Element): LocatorElementFingerpri
  * guard) into a second store of customer-visible business data.
  */
 export function hashFingerprint(fingerprint: LocatorElementFingerprint): LocatorElementFingerprint {
-  const hash = (value: string): string => createHash("sha256").update(value).digest("hex").slice(0, 20);
+  return createFingerprintHasher()(fingerprint);
+}
+
+/**
+ * `hashFingerprint` with a per-hasher token cache, for scoring a whole DOM snapshot: ancestry strings and
+ * common words repeat across thousands of elements, and each would otherwise cost its own SHA-256.
+ * The output is byte-identical to `hashFingerprint` (it IS `hashFingerprint`, which uses a fresh one).
+ */
+export function createFingerprintHasher(): (fingerprint: LocatorElementFingerprint) => LocatorElementFingerprint {
+  const cache = new Map<string, string>();
+  const hash = (value: string): string => {
+    let digest = cache.get(value);
+    if (digest === undefined) {
+      digest = createHash("sha256").update(value).digest("hex").slice(0, 20);
+      cache.set(value, digest);
+    }
+    return digest;
+  };
   const hashTokens = (value: string): string =>
     [...new Set(value.split(/\s+/).filter(Boolean).map(hash))].sort().join(" ");
-  return {
+  return (fingerprint) => ({
     tag: fingerprint.tag,
     role: fingerprint.role,
     name: hashTokens(fingerprint.name),
     text: hashTokens(fingerprint.text),
     attributes: Object.fromEntries(Object.entries(fingerprint.attributes).map(([key, value]) => [key, hash(value)])),
     ancestry: fingerprint.ancestry.map(hash)
-  };
+  });
 }
 
 /** Hash a single non-secret token the same way a fingerprint token is hashed (for preconditions). */
