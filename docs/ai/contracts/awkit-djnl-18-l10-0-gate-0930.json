@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-18-l10-0-gate-0930",
+    "title": "L10.0 architecture, dependency and incremental-value gate: record the NO-GO results and file the locator defects it found",
+    "objective": "Tracker bookkeeping for the executed L10.0 gate. Append the L10.0 outcome to awkit-djnl.18 (locator integration NO-GO and DOM normalization NO-GO under the pre-registered rule, evidence docs/plans/ai-upgrade-v5/evidence/L10.0-dom-intelligence-gate-2026-09-30.md); awkit-djnl.18 stays OPEN because closing or descoping L10 is the owner's decision. File one OPEN bug, not under the Phase L epic, for the pre-existing LocatorFactory wrong-element behaviors the benchmark exposed (viewport tiebreak on a same-label decoy, unguarded positional alternatives after a list re-sort, local recovery accepting a same-label element in another region, multi-second recovery failure path), with a discovered-from edge on awkit-djnl.18. Refresh .beads/issues.jsonl with bd export -o. The benchmark, verifier, evidence and docs are ordinary unleased direct-loop edits. No product code changes.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 0
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "aad6bc62",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "docs/ai/contracts/awkit-djnl-18-l10-0-gate-0930.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "L10-0-BEADS",
+      "description": "awkit-djnl.18 stays OPEN with an appended L10.0 note stating both NO-GO gates and the evidence path; one new OPEN bug records the four locator findings with a discovered-from edge on awkit-djnl.18 and no parent-child link to the Phase L epic.",
+      "evidence_required": [
+        "beads-structure"
+      ]
+    },
+    {
+      "id": "L10-0-EXPORT",
+      "description": ".beads/issues.jsonl is refreshed with bd export -o .beads/issues.jsonl, and verify:roadmap-dashboard passes with Sources agree after its pins move to measured values.",
+      "evidence_required": [
+        "beads-export",
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "beads-structure",
+      "type": "inspection",
+      "required": true,
+      "command": "bd show awkit-djnl.18 and bd show of the new bug",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "bd update awkit-djnl.18 --append-notes recorded both NO-GO gates, the evidence path and that the issue stays OPEN for the owner decision. bd create returned awkit-epbe (P2 bug, OPEN, labels locator/runner, no parent). bd dep add printed 'awkit-epbe depends on awkit-djnl.18 (discovered-from)', and bd show awkit-epbe lists it under DISCOVERED FROM. No other issue changed status."
+    },
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "Printed 'Exported 331 issues to .beads/issues.jsonl'. bd stats: Total 331, Open 22, In Progress 0, dependency-Blocked 13, Closed 307, Ready 9."
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "A measuring run failed exactly the three tracker pins (got 331 issues, 24 outstanding / 307 closed, 196 edges), 174/177. After the pins moved to those values and the docs were updated, the final-state run printed 177/177 including 'no cycles in the real data', both narrative tallies agreeing at 65/2/0 and 'the Overview banner reads \"Sources agree\"'."
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qa_basis": "Tracker changes inspected with bd show and bd stats; final state passed verify:roadmap-dashboard 177/177 with Sources agree. The L10.0 gate itself is proven by verify:dom-intelligence-gate 27/0 (mutations 3 of 4 caught, the false-GO report mutation NOT RUN because the permission classifier denied it), npm run build, typecheck:scripts, verify:verifier-classification (296), verify:blueprint-recovery 56/56, verify:blueprint-recovery-browser 24/0 and verify:locator-guard 35/0.",
+    "qa_known_limitations": "The benchmark, verifier, evidence and docs are ordinary unleased direct-loop edits outside this contract's project-state routing, as in earlier registrations. The Scrapling side needs the dev venv (7 pinned wheels downloaded on the owner's approval into gitignored .cache/). Timings vary run to run on this machine and are reported as ranges. verify:mock-site NOT RUN: no mock-site page changed. awkit-djnl.18 stays open by design.",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-18-l10-0-gate-0930:project-state:2026-09-30T15:56:21.230Z",
+        "task": "awkit-djnl-18-l10-0-gate-0930",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-09-30T15:56:21.230Z",
+        "acquired_at_commit": "aad6bc62fac1f237a10cae70ea276c710f3e6b45",
+        "released_at": "2026-09-30T15:57:30.755Z",
+        "released_reason": "L10.0 NO-GO outcome appended to awkit-djnl.18 (stays open), locator defects filed as awkit-epbe with a discovered-from edge on awkit-djnl.18, export refreshed to 331 issues",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

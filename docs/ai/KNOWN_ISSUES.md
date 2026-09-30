@@ -1,5 +1,33 @@
 # KNOWN_ISSUES
 
+## `LocatorFactory` can act on a wrong element in three drift shapes (2026-09-30, OPEN — `awkit-epbe`)
+
+Found by the L10.0 fixtures (`scripts/dom-intelligence/fixtures.mts`); reproduce with
+`npm run benchmark:dom-intelligence`. Non-sensitive steps only, since sensitive steps refuse recovery.
+
+- **Viewport tiebreak** (`duplicate-text-decoy`). When the recorded `role=button [Save changes]` matches
+  two visible, enabled buttons, `narrowToActionable` keeps the one in the viewport. That can be a new
+  same-label decoy above the fold rather than the recorded target below it.
+- **Unguarded positional alternatives** (`list-item-link`). When a list row's primary locator misses,
+  a recorded `tr:nth-child(6) > td:nth-child(5) > a` alternative resolves uniquely to another row
+  after a re-sort.
+- **Same-label recovery** (`other-region-decoy-target-removed`). Tag, role, name and text weigh 0.80 of
+  `similarity()`, so once the target is gone, any same-label element elsewhere scores about 0.91 and
+  local recovery accepts it.
+- **Slow failure path.** A forced-miss `resolve()` took 1.8–12.4 s, one Playwright round trip per
+  scored element.
+- **Rule until fixed.** Do not cite "false-target promotion = 0" as proof that runtime resolution never
+  acts on a wrong element. Promotion and resolution are different paths.
+
+## `benchmark:dom-intelligence` rewrites the committed L10.0 evidence on every run (2026-09-30, OPEN — know it)
+
+- It writes `docs/plans/ai-upgrade-v5/evidence/L10.0-dom-intelligence-results.json`, which the L10.0
+  report cites. Timings vary a lot run to run on this machine: warm p95 105–237 ms, 8.3k-element p50
+  1.0–1.9 s.
+- `verify:dom-intelligence-gate` still passes after a re-run whenever the outcome matrix is unchanged.
+- **Rule:** restore the committed file (`git show HEAD:<path>`) after a regression re-run, unless a
+  new L10.0 measurement is the point.
+
 ## A job is cold only once it loads: a header-only check is not a measured probe (2026-09-29, RESOLVED in L9 — know the trap)
 
 - **Symptom:** after importing an incompatible model, Settings claimed a measured speed ("Compatibility

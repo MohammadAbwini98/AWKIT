@@ -1,6 +1,43 @@
 # TASK_LOG
 
-## 2026-09-30 (latest) — Phase L L10 deterministic DOM intelligence registered, planning only (Claude with CodeCraft)
+## 2026-09-30 (latest) — L10.0 DOM-intelligence gate executed: locator NO-GO, normalization NO-GO (Claude)
+
+- **Task:** the owner asked to start L10.0 from its executive prompt. It is investigation and evidence
+  only; nothing is wired into production.
+- **Result:**
+  - With the owner's approval, 7 pinned parser-only wheels were installed into a gitignored dev venv.
+  - The decision rule was pre-registered in `8072804a`.
+  - The benchmark ran 16 frozen cases through the real Recorder and `LocatorFactory` against Scrapling
+    0.4.15, plus a normalization comparison, latency/scale/memory measurements and a license inventory.
+  - Both gates are NO-GO.
+  - Pre-existing locator defects were filed as `awkit-epbe`.
+  - `awkit-djnl.18` stays open for the owner's close-or-reopen decision.
+- **Files:**
+  - `scripts/benchmark-dom-intelligence.mts`
+  - `scripts/verify-dom-intelligence-gate.mts`
+  - `scripts/dom-intelligence/{fixtures.mts,gate.mts,scrapling_bench.py,setup-scrapling-bench.mjs}`
+  - `package.json`
+  - `scripts/lib/verifier-classification.ts`
+  - `scripts/verify-roadmap-dashboard.mjs`
+  - `docs/plans/ai-upgrade-v5/evidence/L10.0-dom-intelligence-{gate-2026-09-30.md,results.json}`
+  - `docs/plans/ai-upgrade-v5/{L10-deterministic-dom-intelligence,ROADMAP,CHANGELOG}.md`
+  - `docs/ai/{DECISIONS,KNOWN_ISSUES,CURRENT_STATE,HANDOFF,TASK_LOG}.md`
+  - `src/roadmap/ImplementationRoadmap.ts`
+  - `docs/ai/contracts/awkit-djnl-18-l10-0-gate-0930.json`
+  - `.beads/issues.jsonl`
+- **Verification:**
+  - `benchmark:dom-intelligence`: 3 complete runs, identical outcome matrix.
+  - `verify:dom-intelligence-gate` 27/0, mutations 3/4 caught, 1 NOT RUN (the classifier denied the
+    false-GO report edit).
+  - `npm run build` PASS, `typecheck:scripts` PASS, `verify:verifier-classification` PASS (296).
+  - `verify:blueprint-recovery` 56/56, `verify:blueprint-recovery-browser` 24/0,
+    `verify:locator-guard` 35/0.
+  - `verify:mock-site` NOT RUN: no mock-site change.
+  - `verify:roadmap-dashboard`: the measuring run failed exactly the 3 tracker pins (331, 24/307, 196),
+    174/177. The final run is in the contract.
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED.
+
+## 2026-09-30 — Phase L L10 deterministic DOM intelligence registered, planning only (Claude with CodeCraft)
 
 - **Task:** register the owner's L10 plan (Scrapling as parser-only DOM intelligence) as a new
   Phase L milestone, after a read-only Fable 5.1 review, with GLM-5.3 authoring the plan text.

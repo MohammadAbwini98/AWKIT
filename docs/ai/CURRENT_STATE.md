@@ -1,6 +1,34 @@
 # CURRENT_STATE
 
-## Phase L extended with L10 deterministic DOM intelligence, planned only (`awkit-djnl.18`, 2026-09-30, latest)
+## L10.0 executed: parser-only Scrapling is NO-GO for locator integration and DOM normalization (`awkit-djnl.18`, 2026-09-30, latest)
+
+- **Both gates NO-GO** under the rule pre-registered in `8072804a` (`scripts/dom-intelligence/gate.mts`).
+  - The benchmark ran 16 frozen drift cases through the real Recorder capture and the production
+    `LocatorFactory`, against Scrapling 0.4.15's `relocate()` on the same HTML.
+  - **Locator:** 5 targets were recovered that AWKIT missed, but only `large-dom-shift` passes the
+    unchanged 0.86 / 0.08 gates, and there AWKIT scores the target 0.975 without its 200-element scan
+    cap. Scrapling picked a wrong element in 6 of 16 cases, including all 3 no-match cases.
+  - **Normalization:** Scrapling's static text leaks CSS-hidden and `[hidden]` content; `innerText`
+    leaks nothing.
+- **Evidence:**
+  - `docs/plans/ai-upgrade-v5/evidence/L10.0-dom-intelligence-gate-2026-09-30.md` plus its results
+    JSON;
+  - `DECISIONS.md`;
+  - `verify:dom-intelligence-gate` 27/0, mutation-tested on 3 of 4 checks (the false-GO report
+    mutation was denied by the permission classifier: NOT RUN).
+- **Nothing ships.**
+  - No product code changed.
+  - The pinned parser-only venv lives in `.cache/l10-scrapling/`, dev-only.
+  - L10.1–L10.7 are not started.
+  - `awkit-djnl.18` stays open: closing L10 as NO-GO or reopening it under a changed DI5 is the
+    owner's decision. Phase L still reads 13 of 14.
+- **Found along the way:** pre-existing `LocatorFactory` wrong-element behaviors (viewport tiebreak,
+  unguarded positional alternatives, same-label recovery) plus a slow recovery failure path. Filed as
+  `awkit-epbe` (P2, outside Phase L) and in `KNOWN_ISSUES.md`.
+- **Tracker:** 331 issues, 24/307, 196 edges; dashboard pins moved to those measured values.
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## Phase L extended with L10 deterministic DOM intelligence, planned only (`awkit-djnl.18`, 2026-09-30)
 
 - **Registered, not implemented.** L10 Deterministic DOM intelligence (Scrapling) is filed OPEN as
   `awkit-djnl.18`, with blocks edges on closed L3 `.4`, L5a `.7` and L7 `.10`. Its workstreams

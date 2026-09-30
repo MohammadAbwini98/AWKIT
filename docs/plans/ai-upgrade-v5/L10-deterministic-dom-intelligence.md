@@ -6,9 +6,16 @@ Depends (Beads `blocks`) on closed L3 (`awkit-djnl.4`), L5a (`awkit-djnl.7`) and
 (`awkit-djnl.10`); independent of L8a/L8b/L9 (all closed) and of the open follow-up
 `awkit-djnl.15`.
 
-**Status (2026-09-30): PLANNED — registered only, zero implementation.** No Scrapling
-dependency, Python runtime, host, provider contract, locator, normalization, UI, packaging
-or verifier exists yet, and nothing below is evidence.
+**Status (2026-09-30, latest): L10.0 EXECUTED — locator integration NO-GO, DOM normalization
+NO-GO.** Parser-only Scrapling recovered 5 targets that AWKIT's recovery missed, but only one passes
+the unchanged 0.86 / 0.08 gates, and there AWKIT's own scorer also finds the target without its scan
+cap. It picked a wrong element in 6 of 16 cases. Its static text leaks hidden content that the
+browser's `innerText` excludes. Evidence: `evidence/L10.0-dom-intelligence-gate-2026-09-30.md`.
+L10.1–L10.7 are not started. Closing L10 as NO-GO or reopening it under a changed DI5 is the
+owner's decision. No product code, Python runtime or host exists; the benchmark venv is dev-only in
+`.cache/`.
+
+Registration status (2026-09-30): PLANNED — registered only, zero implementation at registration.
 
 ## Objective
 
@@ -284,7 +291,14 @@ L10.0 blocks every other workstream.
 
 ### L10.0 — Architecture, dependency and incremental-value gate
 
-**Status:** planned.
+**Status:** **done 2026-09-30.** Locator integration gate: NO-GO. DOM normalization gate: NO-GO.
+- The rule was pre-registered in `8072804a` and the results committed in `aad6bc62`.
+- Benchmark: `npm run benchmark:dom-intelligence`. Consistency: `npm run verify:dom-intelligence-gate`
+  (27/0).
+- Report: `evidence/L10.0-dom-intelligence-gate-2026-09-30.md`. It covers the matrix, the
+  latency/memory/footprint measurements, the license inventory, the conditional runtime choice
+  (embedded CPython as a main-owned child process) and the privacy design.
+- Pre-existing AWKIT locator defects surfaced by the fixtures are tracked as `awkit-epbe`.
 
 **Goal.** Prove whether parser-only Scrapling adds deterministic value beyond the existing
 `src/runner/locatorFingerprint.ts` `similarity()` (the ordered-ancestry and partial-attribute

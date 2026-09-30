@@ -47,3 +47,13 @@
 - Reviewed read-only by Fable 5.1 (APPROVE WITH REQUIRED CORRECTIONS, folded in). Decisions
   DI1–DI12 in `ROADMAP.md` › *Phase L extension (2026-09-30) — L10*; plan
   `L10-deterministic-dom-intelligence.md`.
+
+## 2026-09-30 — L10.0 executed: both L10 gates NO-GO
+
+- The rule was pre-registered in `8072804a`. The benchmark ran 16 frozen drift cases through the real
+  recorder and `LocatorFactory` against parser-only Scrapling 0.4.15.
+- **Locator: NO-GO.** One gated gain, and AWKIT's own scorer finds that target without its scan cap.
+  Scrapling picked a wrong element in 6 of 16 cases.
+- **Normalization: NO-GO.** Scrapling's static text leaks hidden content that `innerText` excludes.
+- Evidence: `evidence/L10.0-dom-intelligence-gate-2026-09-30.md`.
+- Pre-existing locator defects the fixtures exposed are filed as `awkit-epbe`.

@@ -1,6 +1,26 @@
 # Agent Handoff
 
-## HANDOFF (2026-09-30, latest) — L10 registered, planned only; Phase L 13 of 14
+## HANDOFF (2026-09-30, latest) — L10.0 done: both gates NO-GO; the next step is the owner's
+
+- **Decision needed from the owner.** Either:
+  - close `awkit-djnl.18` as NO-GO/descoped, after which Phase L closes once `.15` resolves; or
+  - reopen L10 under a changed DI5, meaning Scrapling-style signals with their own threshold on a
+    larger held-out set, or ported natively into `locatorFingerprint.ts`.
+  Do not start L10.1 without that decision. The options are set out in the L10.0 report.
+- **Reproducing needs the dev venv.** Run `npm run benchmark:dom-intelligence-setup` once: it downloads
+  7 pinned wheels, 4,708,726 bytes, into gitignored `.cache/`. Then `npm run benchmark:dom-intelligence`,
+  which rewrites the committed results JSON; restore it unless re-measuring. The offline gate is
+  `verify:dom-intelligence-gate`.
+- **Separate work, not L10:** `awkit-epbe` (P2), for the three wrong-element shapes and the slow
+  recovery path. The same fixtures reproduce them.
+- **Session lessons:**
+  - The lease guard rejects `;` anywhere in a commit message, and a third identical denial is terminal.
+  - Contract `working_tree_expected` accepts only `clean` or `preserved_changes`, so commit first.
+  - WebFetch summaries misreported three PyPI wheel sizes and a hash. Verify exact bytes from PyPI's
+    own record before quoting them.
+- Ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## HANDOFF (2026-09-30) — L10 registered, planned only; Phase L 13 of 14
 
 - **L10 Deterministic DOM intelligence (Scrapling)** is `awkit-djnl.18`, OPEN.
   - Plan: `docs/plans/ai-upgrade-v5/L10-deterministic-dom-intelligence.md`.

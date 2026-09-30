@@ -1,6 +1,18 @@
 # SpecterStudio Phase L — Local AI & Intelligent Automation (V5)
 
-**2026-09-30 (latest): L10 registered — Phase L is IN PROGRESS again, 13 of 14 milestones closed
+**2026-09-30 (latest): L10.0 executed — both L10 gates NO-GO; Phase L still 13 of 14 (93%).**
+- **Locator.** Parser-only Scrapling recovered 5 targets that AWKIT's recovery missed. Only one passes
+  the unchanged 0.86 / 0.08 gates, and there AWKIT's own scorer also finds the target without its
+  200-element scan cap. Scrapling picked a wrong element in 6 of 16 cases, including all 3 no-match
+  cases.
+- **Normalization.** Scrapling's static text leaks hidden content that the browser's `innerText`
+  excludes.
+- **Next.** L10.1–L10.7 are not started. `awkit-djnl.18` stays open until the owner closes L10 as
+  NO-GO/descoped or reopens it under a changed DI5.
+- **Evidence and follow-up.** Evidence: `evidence/L10.0-dom-intelligence-gate-2026-09-30.md`. The
+  pre-existing locator defects the fixtures exposed are `awkit-epbe`, outside Phase L.
+
+**2026-09-30: L10 registered — Phase L is IN PROGRESS again, 13 of 14 milestones closed
 (93%).** The owner widened the scope with L10 Deterministic DOM Intelligence (Scrapling)
 (`awkit-djnl.18`), planned and open with zero implementation. The percentage fell because the
 scope grew from 13/13 to 13/14, not because anything regressed: L0–L9 stay closed with their
@@ -225,7 +237,7 @@ privacy policy and model-manifest owner, and wins wherever it refines the text b
 | L8a | Hardware-adaptive inference runtime (2026-09-27 extension, closed 2026-09-28) | L1, L7 | `L8a-hardware-adaptive-inference-runtime.md` | `awkit-djnl.11` |
 | L8b | External compatible-model registration & qualification (extension, closed 2026-09-29) | L8a | `L8b-external-model-compatibility.md` | `awkit-djnl.12` |
 | L9 | Adaptive time budgets, progress & ETA (extension, closed 2026-09-29) | L8a, L8b (acceptance) | `L9-adaptive-time-progress-eta.md` | `awkit-djnl.13` |
-| L10 | Deterministic DOM intelligence (Scrapling) (2026-09-30 extension, planned) | L3, L5a, L7 | `L10-deterministic-dom-intelligence.md` | `awkit-djnl.18` |
+| L10 | Deterministic DOM intelligence (Scrapling) (2026-09-30 extension; L10.0 NO-GO on both gates, owner decision pending) | L3, L5a, L7 | `L10-deterministic-dom-intelligence.md` | `awkit-djnl.18` |
 
 Beads is the source of truth for order and status (`bd ready` shows what can start); L0/L1 numbers are
 swapped because the first L1 was filed with an inverted `--deps` edge and the titles were exchanged.
@@ -386,8 +398,12 @@ registered only when they exist.
 
 ## Phase L extension (2026-09-30) — L10
 
-Status: **PLANNED — registered only, zero implementation.** The owner widened Phase L after it
-read `complete` at 13/13 on 2026-09-29. Nothing earlier is reopened, renumbered or re-evaluated;
+Status: **L10.0 EXECUTED 2026-09-30 — locator integration NO-GO, DOM normalization NO-GO**
+(`evidence/L10.0-dom-intelligence-gate-2026-09-30.md`). L10.1–L10.7 are not started; the next step
+is the owner's.
+
+Registration (2026-09-30): planned, zero implementation at registration. The owner widened Phase L
+after it read `complete` at 13/13 on 2026-09-29. Nothing earlier is reopened, renumbered or re-evaluated;
 the stability guarantees above apply unchanged to L10.
 
 | ID | Milestone | Depends (Beads `blocks`) | Beads |

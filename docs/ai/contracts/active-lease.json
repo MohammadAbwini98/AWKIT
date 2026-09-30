@@ -1,18 +1,18 @@
 {
-  "task": "awkit-phase-l-l10-registration-0930",
-  "contract_path": "docs/ai/contracts/awkit-phase-l-l10-registration-0930.json",
+  "task": "awkit-djnl-18-l10-0-gate-0930",
+  "contract_path": "docs/ai/contracts/awkit-djnl-18-l10-0-gate-0930.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-09-30T12:34:41.672Z",
-  "acquired_at_commit": "694e0b8a9e6150bf591433327538dab374e509a8",
+  "acquired_at": "2026-09-30T15:56:21.230Z",
+  "acquired_at_commit": "aad6bc62fac1f237a10cae70ea276c710f3e6b45",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-phase-l-l10-registration-0930.json"
+    "docs/ai/contracts/awkit-djnl-18-l10-0-gate-0930.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-phase-l-l10-registration-0930.json": "26df09e8505e2ab6e3ed6e2dda7ed974ab2608af53a9294d14cc8b1388668eeb"
+    "docs/ai/contracts/awkit-djnl-18-l10-0-gate-0930.json": "b4f5845d13ea49cc82c3bf7ca2cd5c3817c145992cbec27f11c3a1c2dd3cabc1"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -27,7 +27,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-09-30T12:35:54.916Z",
-  "released_reason": "L10 awkit-djnl.18 filed OPEN under the Phase L epic with blocks edges on closed L3 .4, L5a .7 and L7 .10, epic notes appended, export refreshed to 330 issues",
-  "archived_at": "2026-09-30T12:35:54.918Z"
+  "released_at": "2026-09-30T15:57:30.755Z",
+  "released_reason": "L10.0 NO-GO outcome appended to awkit-djnl.18 (stays open), locator defects filed as awkit-epbe with a discovered-from edge on awkit-djnl.18, export refreshed to 331 issues",
+  "archived_at": "2026-09-30T15:57:30.757Z"
 }
