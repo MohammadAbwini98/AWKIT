@@ -1,15 +1,19 @@
 {
-  "task": "awkit-djnl-19-l11-implementation-0930",
-  "contract_path": "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json",
+  "task": "awkit-djnl-15-runtime-identity-recheck-1001",
+  "contract_path": "docs/ai/contracts/awkit-djnl-15-runtime-identity-recheck-1001.json",
   "holder": "project-state",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
-    ".beads/**"
+    ".beads/issues.jsonl"
   ],
-  "acquired_at": "2026-10-01T17:15:00.664Z",
-  "acquired_at_commit": "a1a868c78ffb7fc3166a494ea78bfd7ba86aeacb",
-  "baseline_dirty": [],
-  "baseline_dirty_fingerprints": {},
+  "acquired_at": "2026-10-01T17:28:32.858Z",
+  "acquired_at_commit": "7f14d66affce4bff244b512592cc4cd8aebc6b9e",
+  "baseline_dirty": [
+    "docs/ai/contracts/awkit-djnl-15-runtime-identity-recheck-1001.json"
+  ],
+  "baseline_dirty_fingerprints": {
+    "docs/ai/contracts/awkit-djnl-15-runtime-identity-recheck-1001.json": "afdc640373f12a7b00f54336501a3c382b36ebb34dc8f79dafaebc33bc178e95"
+  },
   "baseline_watched_ignored": {
     ".env": "absent",
     ".claude/settings.local.json": "6281:1790846284510.6143",
@@ -22,8 +26,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-10-01T17:16:03.254Z",
-  "released_reason": "awkit-djnl.19 closed and exported at bc165f76, the dashboard pin and the Phase L note move unleased next",
-  "archived_at": "2026-10-01T17:16:03.258Z"
+  "violations": []
 }

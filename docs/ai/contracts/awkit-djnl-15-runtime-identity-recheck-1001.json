@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-15-runtime-identity-recheck-1001",
+    "title": "Re-check awkit-djnl.15's two blocked items and record the evidence (owner: leave open as is)",
+    "objective": "The owner asked to work on awkit-djnl.15 and chose to leave it open. Items 2 (NVIDIA qualification on a 0x10DE machine) and 3 (E2 hybrid correlation) stay BLOCKED. Item 3 was re-checked against the newest node-llama-cpp release: v3.22.1 (2026-09-28) still returns only deviceNames from getGpuDeviceInfo, and its addon types carry no LUID, PCI bus, UUID or device id, so upgrading the runtime would not unblock it. Record that on the bead. No product change.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "7f14d66a",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/issues.jsonl",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-djnl-15-runtime-identity-recheck-1001.json"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/issues.jsonl"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "native-hosts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "STATE",
+      "description": "awkit-djnl.15's notes record the re-check, the bead stays open, and the dashboard's sources agree.",
+      "evidence_required": [
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "pending",
+      "notes": ""
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "NOT_REQUIRED"
+  }
+}
