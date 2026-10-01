@@ -14,7 +14,7 @@
   },
   "wheels": [
     { "file": "scrapling-0.4.15-py3-none-any.whl", "sha256": "ae66bde9f63afb793ad6f93bd76b451e29f1631347465a553c4e7765c0ecc1f2", "license": "BSD-3-Clause" },
-    { "file": "lxml-6.1.3-cp312-cp312-win_amd64.whl", "sha256": "3e9a00d1c2c30936f7add097c41afc5da6556c580909104aafd382cac92a855c", "license": "BSD-3-Clause (bundles libxml2 and libxslt, MIT)" },
+    { "file": "lxml-6.1.3-cp312-cp312-win_amd64.whl", "sha256": "3e9a00d1c2c30936f7add097c41afc5da6556c580909104aafd382cac92a855c", "license": "BSD-3-Clause (the Windows wheel statically bundles libxml2, libxslt and libexslt, MIT; zlib, Zlib; libiconv, LGPL-2.1)" },
     { "file": "cssselect-1.5.0-py3-none-any.whl", "sha256": "1d1aded98e82bdde447ded990a191fd6916177c4f0c914fb62eccd58e2ffcdcc", "license": "BSD-3-Clause" },
     { "file": "orjson-3.12.0-cp312-cp312-win_amd64.whl", "sha256": "010811c1b69773450a01cef97727a67b223242f350b77d4ca000e59a9ef2155a", "license": "MPL-2.0 AND (Apache-2.0 OR MIT)" },
     { "file": "w3lib-2.5.0-py3-none-any.whl", "sha256": "136fd5edfe64b53b8579838e2a7e803495bbbe6b69ddfaeed3c29a794b44f6ba", "license": "BSD-3-Clause" },

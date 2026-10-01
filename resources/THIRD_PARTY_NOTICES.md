@@ -300,6 +300,50 @@ copyright belongs to the authors of `pnpm/reflink`. The MIT terms they declare:
 > OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 > CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+## DOM-intelligence runtime (CPython + parser-only Scrapling)
+
+- Purpose: optional, fully offline HTML parsing for locator repair suggestions and failure-context
+  normalization (Phase L, L11). It never fetches, launches a browser or executes page code; Playwright
+  stays the only browser and action authority.
+- Shipped as `resources/native-hosts/dom-intelligence`, staged by `scripts/prepare-dom-intelligence-host.mjs`
+  only from the inputs pinned by SHA-256 in `src/offline/dom-intelligence-runtime.json`. Every staged file
+  is listed with its SHA-256 in the signed dependency manifest (`domIntelligenceRuntime`).
+- Files are copied unmodified from the pinned archives. The staging removes files (network, TLS, FFI,
+  process and other unused runtime modules, Scrapling's fetchers, spiders, engines, AI, shell and CLI code,
+  C headers, Cython sources and type stubs), re-archives the standard library without the removed modules,
+  replaces the `._pth` path file and adds compiled bytecode. It edits no third-party source file.
+
+| Component | Version | License | License text in the staged tree |
+|---|---|---|---|
+| CPython (Windows embeddable) | 3.12.10 | PSF-2.0 | `python/LICENSE.txt` |
+| `scrapling` | 0.4.15 | BSD-3-Clause | `site-packages/scrapling-0.4.15.dist-info/licenses/LICENSE` |
+| `lxml` | 6.1.3 | BSD-3-Clause, with bundled libraries below | `site-packages/lxml-6.1.3.dist-info/licenses/LICENSE.txt`, `LICENSES.txt` |
+| `cssselect` | 1.5.0 | BSD-3-Clause | `site-packages/cssselect-1.5.0.dist-info/licenses/LICENSE` |
+| `orjson` | 3.12.0 | MPL-2.0 AND (Apache-2.0 OR MIT) | `site-packages/orjson-3.12.0.dist-info/licenses/LICENSE-MPL-2.0`, `LICENSE-APACHE`, `LICENSE-MIT` |
+| `w3lib` | 2.5.0 | BSD-3-Clause | `site-packages/w3lib-2.5.0.dist-info/licenses/LICENSE` |
+| `typing_extensions` | 4.16.0 | PSF-2.0 | `site-packages/typing_extensions-4.16.0.dist-info/licenses/LICENSE` |
+
+`tld`, a Scrapling dependency under MPL-1.1/GPL-2.0/LGPL-2.1, is deliberately not shipped.
+
+### Copyleft components (engineering review, 2026-10-01; not legal advice)
+
+- **orjson (MPL-2.0, file-level copyleft).** orjson's own files are MPL-2.0 (its SBOM declares no MPL
+  dependency). They ship unmodified, with the MPL-2.0 text and their notices. As MPL-2.0 section 3.2
+  requires for distribution in Executable Form, the Source Code Form of orjson 3.12.0 is available at
+  <https://github.com/ijl/orjson/tree/3.12.0> and as the source distribution on
+  <https://pypi.org/project/orjson/3.12.0/#files>. SpecterStudio's own code is a separate Larger Work and
+  is not affected.
+- **libiconv inside lxml (LGPL-2.1).** lxml's Windows wheel statically links zlib, libiconv, libxml2,
+  libxslt and libexslt into its extension modules (`lxml-6.1.3.dist-info/licenses/LICENSES.txt`; the
+  `libiconv` identifier is present in `etree.cp312-win_amd64.pyd`). libiconv is LGPL-2.1. Section 6 of the
+  LGPL-2.1 requires the distributor to let recipients relink the work with a modified library: the
+  complete libiconv source, and the means to rebuild lxml against it, must accompany the distribution or
+  be offered in writing. lxml's own source and build scripts are public
+  (<https://github.com/lxml/lxml/tree/lxml-6.1.3>, <https://pypi.org/project/lxml/6.1.3/#files>), and so
+  is libiconv's (<https://www.gnu.org/software/libiconv/>). **How that obligation is met for an external
+  release (shipping the sources beside it, or a written offer) is not decided; see "Release
+  responsibility".**
+
 ## Local AI model pack (Qwen3.5-4B GGUF)
 
 - Product: `Qwen3.5-4B-Q4_K_M.gguf`, from `lmstudio-community/Qwen3.5-4B-GGUF`
@@ -331,5 +375,8 @@ redistribute the weights requires a separate review of the upstream licence term
 Before distributing a release outside the organization, the release owner must review the terms
 embedded in the exact approved Chrome for Testing payload and confirm the intended distribution
 channel and use remain permitted. The same applies to the Microsoft Visual C++ runtime files, under the
-Visual Studio license of the installation that built the release. The build tooling proves version,
-origin, and integrity; it does not provide legal advice.
+Visual Studio license of the installation that built the release. For the DOM-intelligence runtime, the
+release owner must also decide how the LGPL-2.1 section 6 obligation for the libiconv code statically
+linked into lxml is met (the sources shipped beside the release, or a written offer) before distributing
+it outside the organization. The build tooling proves version, origin, and integrity; it does not provide
+legal advice.

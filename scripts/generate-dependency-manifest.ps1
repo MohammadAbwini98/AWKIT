@@ -131,6 +131,47 @@ if ($null -ne $aiHostManifest) {
   }
 }
 
+# === DOM-intelligence parser-only runtime (Phase L, L11) ===
+# The staged tree under build/native-hosts/dom-intelligence is produced by scripts/prepare-dom-intelligence-host.mjs
+# from the inputs pinned in src/offline/dom-intelligence-runtime.json and shipped via extraResources. Its own
+# per-file manifest is folded in verbatim, so release validation can checksum every file it ships.
+$domHostManifestPath = Join-Path $root "build\native-hosts\dom-intelligence\dom-intelligence-host-manifest.json"
+if (Test-Path $domHostManifestPath) {
+  $domHostManifest = Get-Content -Raw $domHostManifestPath | ConvertFrom-Json
+  $domIntelligenceRuntime = [ordered]@{
+    enabled = $true
+    # Optional: a missing or broken runtime disables DOM intelligence and changes nothing else.
+    requiredForAppStartup = $false
+    hostProtocolVersion = $domHostManifest.hostProtocolVersion
+    hostEntry = "native-hosts/dom-intelligence/$($domHostManifest.hostEntry)"
+    pythonEntry = "native-hosts/dom-intelligence/$($domHostManifest.pythonEntry)"
+    python = $domHostManifest.python
+    pythonArchiveSha256 = $domHostManifest.pythonArchiveSha256
+    scrapling = $domHostManifest.scrapling
+    lxml = $domHostManifest.lxml
+    wheels = @($domHostManifest.wheels)
+    excludedPackages = @($domHostManifest.excludedPackages)
+    platform = $domHostManifest.platform
+    arch = $domHostManifest.arch
+    stagedRoot = "native-hosts/dom-intelligence"
+    fileCount = $domHostManifest.fileCount
+    totalBytes = $domHostManifest.totalBytes
+    assets = @($domHostManifest.assets | ForEach-Object {
+      [ordered]@{
+        relativePath = "native-hosts/dom-intelligence/$($_.relativePath)"
+        size = $_.size
+        sha256 = $_.sha256
+      }
+    })
+  }
+} else {
+  $domIntelligenceRuntime = [ordered]@{
+    enabled = $false
+    requiredForAppStartup = $false
+    assets = @()
+  }
+}
+
 # === Local-AI GPU backend manifest (Phase L, L8a.1) ===
 # Nothing GPU ships in the installer (E3). The release-owned backend manifest pins, by path, size and
 # SHA-256, every file of each GPU backend pack a user may supply for the pinned runtime build. It is folded
@@ -332,6 +373,7 @@ $manifest = [ordered]@{
   semanticNative = $semanticNative
   aiRuntime = $aiRuntime
   aiGpuBackends = $aiGpuBackends
+  domIntelligenceRuntime = $domIntelligenceRuntime
 }
 
 New-Item -ItemType Directory -Force -Path $resourcesRoot | Out-Null

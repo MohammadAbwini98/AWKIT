@@ -62,6 +62,13 @@
       "filter": [
         "**/*"
       ]
+    },
+    {
+      "from": "build/native-hosts/dom-intelligence",
+      "to": "native-hosts/dom-intelligence",
+      "filter": [
+        "**/*"
+      ]
     }
   ],
   "win": {

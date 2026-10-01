@@ -16,8 +16,8 @@
       {
         "path": "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
         "git_status": " M",
-        "sha256": "c55484c8608f5aefa7aaca7e63adcb0907557bd1067c96c80f9ab51b039b69d8",
-        "note": "Re-fingerprinted 2026-10-01: verify:failure-capture-overhead (a structural-coverage gate for src/runner) appends each run to this evidence file, and its run 23 in the L11 F-I session moved the hash from 8f4abe94. Nothing was overwritten or discarded; the file stays uncommitted and unstaged as before."
+        "sha256": "c896676e99fe84140151d9da74f9df801d218b759286397e15f7e9e842492b62",
+        "note": "Re-fingerprinted 2026-10-01: verify:failure-capture-overhead (a structural-coverage gate for src/runner) appends each run to this evidence file. Its run 23 in the L11 F-I session moved the hash from 8f4abe94 to c55484c8, and its run 24 (the L11.G gate) moved it to c896676e. Nothing was overwritten or discarded; the file stays uncommitted and unstaged as before."
       }
     ]
   },
@@ -52,7 +52,9 @@
       "scripts/package-portable.ps1",
       "scripts/package-per-user-installer.ps1",
       "scripts/generate-dependency-manifest.ps1",
+      "electron-builder.json",
       "build",
+      "build/**",
       ".beads/**",
       "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json",
       "docs/ai/contracts/active-lease.json"
@@ -66,9 +68,16 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "runtime",
+      "agent_id": "release",
       "allowed_paths": [
-        "native-hosts/dom-intelligence/**"
+        "build/**",
+        "electron-builder.json",
+        "resources/THIRD_PARTY_NOTICES.md",
+        "resources/dependency-manifest.json",
+        "resources/dependency-manifest.sig",
+        "scripts/generate-dependency-manifest.ps1",
+        "scripts/package-per-user-installer.ps1",
+        "scripts/package-portable.ps1"
       ]
     }
   },

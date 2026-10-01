@@ -1,48 +1,30 @@
 {
   "task": "awkit-djnl-19-l11-implementation-0930",
   "contract_path": "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json",
-  "holder": "runtime",
-  "status": "released",
+  "holder": "release",
+  "status": "active",
   "allowed_paths": [
-    "native-hosts/dom-intelligence/**"
+    "build/**",
+    "electron-builder.json",
+    "resources/THIRD_PARTY_NOTICES.md",
+    "resources/dependency-manifest.json",
+    "resources/dependency-manifest.sig",
+    "scripts/generate-dependency-manifest.ps1",
+    "scripts/package-per-user-installer.ps1",
+    "scripts/package-portable.ps1",
+    "src/offline/dom-intelligence-runtime.json"
   ],
-  "acquired_at": "2026-10-01T00:22:11.543Z",
-  "acquired_at_commit": "4dd3912ed79918ea6ca8669889b5c7e2b03c9150",
+  "acquired_at": "2026-10-01T04:27:38.639Z",
+  "acquired_at_commit": "3af2cd68a38f6ddfe3a3da281458b6d6aa3b3b73",
   "baseline_dirty": [
-    "app/main/ai/aiAssist.ts",
     "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json",
     "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
-    "package.json",
-    "scripts/dom-intelligence/normalizationPages.mts",
-    "scripts/dom-intelligence/stagedHost.mts",
-    "scripts/verify-dom-normalization.mts",
-    "src/ai/failureAnalysis.ts",
-    "src/runner/FlowExecutor.ts",
-    "src/runner/LocatorFactory.ts",
-    "src/runner/RunnerProgress.ts",
-    "src/runner/StepExecutor.ts",
-    "src/runner/domIntelligence/normalizeDom.ts",
-    "src/runner/domIntelligence/pageContext.ts",
-    "src/runner/domIntelligence/pageScripts.ts",
-    "src/runner/evidence/FailureEvidenceCollector.ts"
+    "scripts/validate-offline-bundle.ps1"
   ],
   "baseline_dirty_fingerprints": {
-    "app/main/ai/aiAssist.ts": "c4f16deb7bc45df74961d73564824b1d76aafb087eb51d130dfef845cc89765f",
-    "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json": "5fa318fb1b7ed10bdd1c4a3b04db3b1d68fca6578bcf6d0f418bab48ba13322b",
-    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json": "c55484c8608f5aefa7aaca7e63adcb0907557bd1067c96c80f9ab51b039b69d8",
-    "package.json": "10172758d3c67aedb8400cb7dc1cece73f114081f77eb2b45891c6d1a054ed9f",
-    "scripts/dom-intelligence/normalizationPages.mts": "07b706ca565c4b9a6d306bcb9e56442d12623c7c94873d5a512f7d02b8ca5d97",
-    "scripts/dom-intelligence/stagedHost.mts": "a64f7527cdece42c7d2ec821fb95e10e2a4a15dee6389d09c0069f5118088329",
-    "scripts/verify-dom-normalization.mts": "7cccafd9a7d1834f2913cacd914ccef2ac8d2d66666ce5ae469aafb35c7d4b5a",
-    "src/ai/failureAnalysis.ts": "2810c04fe605bb70fb9314ed0dbe3e35bc4860fcb0dca216c0a8f60b1b007175",
-    "src/runner/FlowExecutor.ts": "1c7a95b1008ecd2692339983aa231bdcc028277d7eda006373751d25e2f02818",
-    "src/runner/LocatorFactory.ts": "0b648bcb4f266857935d89e17c44d838aafdc91bfcdba9b2165d2f6a7c994e75",
-    "src/runner/RunnerProgress.ts": "4818f058d33bb309a0863f49a5c7c192c8496f8504a8954e38d9e8a35a552693",
-    "src/runner/StepExecutor.ts": "3b1ab9b93ed85e9c149521c0951db940dd4da91345229f9e32623de00cd0d881",
-    "src/runner/domIntelligence/normalizeDom.ts": "bc26a1dc0a810a08935c0d0270dca8edc10676349acef17d3df364b474a7232b",
-    "src/runner/domIntelligence/pageContext.ts": "946537593afe4f2ba3f6f04807eac21be963251e3c7986a3c8e21daf17135523",
-    "src/runner/domIntelligence/pageScripts.ts": "b5dca79ed26768097ee1710e7cc21759035107a7493af7c2807887f7dad7d0ce",
-    "src/runner/evidence/FailureEvidenceCollector.ts": "1587a3c62d188beb79ef8ed1fcf68c7f750deb8c165dacc53789bace87fd96a0"
+    "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json": "0fdd0f2c828e40b266cbde49b60a2248f9e94b54f2dfef673a5fb180b7973636",
+    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json": "c896676e99fe84140151d9da74f9df801d218b759286397e15f7e9e842492b62",
+    "scripts/validate-offline-bundle.ps1": "bc2b7b0c1f447b878a03d0489b6359f3b6ddc97531f69e0a2222e897eb7db1b9"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -54,10 +36,20 @@
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
     "build": "dir(1):native-hosts:1790766765327.275"
   },
-  "amendments": [],
+  "amendments": [
+    {
+      "timestamp": "2026-10-01T04:33:03.279Z",
+      "added": [
+        "src/offline/dom-intelligence-runtime.json"
+      ],
+      "reason": "the pin's lxml license note omits the zlib and LGPL-2.1 libiconv code its Windows wheel bundles, found while reviewing the staged runtime's licenses",
+      "triggered_escalation": [
+        "qa",
+        "qc"
+      ],
+      "approved_by": "manager"
+    }
+  ],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-10-01T00:23:25.606Z",
-  "released_reason": "host rows fix committed at 0615af12 with verify:dom-intelligence-host 93/0, normalization verifier and product wiring continue unleased",
-  "archived_at": "2026-10-01T00:23:25.608Z"
+  "violations": []
 }
