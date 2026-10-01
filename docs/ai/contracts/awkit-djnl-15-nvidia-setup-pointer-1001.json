@@ -76,5 +76,25 @@
     "status": "complete",
     "qa_status": "PASS",
     "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-15-nvidia-setup-pointer-1001:project-state:2026-10-01T19:41:33.471Z",
+        "task": "awkit-djnl-15-nvidia-setup-pointer-1001",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/issues.jsonl"
+        ],
+        "acquired_at": "2026-10-01T19:41:33.471Z",
+        "acquired_at_commit": "8d05c77b531212cf3e20cce4e077188368094c7d",
+        "released_at": "2026-10-01T19:42:36.560Z",
+        "released_reason": "setup-doc pointer appended to awkit-djnl.15 and exported at 40f50da0, verify:roadmap-dashboard 177/177 and Sources agree",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
   }
 }

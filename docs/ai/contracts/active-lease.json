@@ -2,7 +2,7 @@
   "task": "awkit-djnl-15-nvidia-setup-pointer-1001",
   "contract_path": "docs/ai/contracts/awkit-djnl-15-nvidia-setup-pointer-1001.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     ".beads/issues.jsonl"
   ],
@@ -26,5 +26,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-10-01T19:42:36.560Z",
+  "released_reason": "setup-doc pointer appended to awkit-djnl.15 and exported at 40f50da0, verify:roadmap-dashboard 177/177 and Sources agree",
+  "archived_at": "2026-10-01T19:42:36.561Z"
 }
