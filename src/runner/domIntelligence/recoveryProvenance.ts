@@ -79,7 +79,8 @@ export function toRecoveryProvenance(trace: LocatorRecoveryTrace): LocatorRecove
       continue;
     }
     if (stage.stage !== "provider") {
-      events.push(pick({ event: "snapshot-recovery-invoked", source: "awkit", stage: stage.stage, candidates: stage.candidates }));
+      // A skipped layer (no blueprint for the page) never scored anything: it is refused, not invoked.
+      if (stage.outcome !== "skipped") events.push(pick({ event: "snapshot-recovery-invoked", source: "awkit", stage: stage.stage, candidates: stage.candidates }));
       events.push(
         pick({
           event: stage.outcome === "proven" ? "awkit-candidate-proven" : "snapshot-recovery-refused",

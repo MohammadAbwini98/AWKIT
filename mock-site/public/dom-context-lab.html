@@ -93,10 +93,13 @@
           const button = document.createElement("button");
           button.type = "button";
           button.textContent = "Export list";
-          // Only the orders view's control carries the test id the step is recorded with.
-          if (name === "orders") button.dataset.testid = "dcl-route-export";
+          // Only the orders view's control carries the test id the step is recorded with. `?drift=testid`
+          // drops it (a drifted locator, same element) and `?drift=gone` removes the control, so a flow run
+          // can reach each recovery outcome without any script of its own.
+          const drift = new URLSearchParams(location.search).get("drift");
+          if (name === "orders" && drift !== "testid") button.dataset.testid = "dcl-route-export";
           button.addEventListener("click", () => ($("dcl-route-status").textContent = `${name}: exported`));
-          form.append(button);
+          if (!(name === "orders" && drift === "gone")) form.append(button);
           section.append(form);
           routeView.append(section);
         };
