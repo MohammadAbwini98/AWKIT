@@ -1,6 +1,68 @@
 # CURRENT_STATE
 
-## L11 in progress: snapshot recovery, parser-only host, product wiring and Spy/Designer/Settings UI (`awkit-djnl.19`, 2026-10-01, latest)
+## L11 Stages F–I implemented; packaged artifact BLOCKED, libiconv licensing pending (`awkit-djnl.19`, 2026-10-01, latest)
+
+- **L11 stays open.** Every workstream is implemented and pushed. Two things block closure:
+  - The packaged artifact is **BLOCKED**. Strict offline validation refuses a manifest generated from a
+    dirty source tree. The preserved, uncommitted `docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json`
+    keeps the tree dirty, and it may not be committed, restored or moved without the owner's authorization.
+  - **Licensing needs an owner decision.** lxml's Windows wheel statically links LGPL-2.1 libiconv.
+- **What landed:**
+  - **F (`1247f122`).** Route binding and an actionability veto: a disabled skeleton scoring 0.95 had
+    been recovered. Also the `/dom-context-lab` frame, popup, SPA-route, virtual-list and delayed-render
+    fixtures.
+  - **H (`4dd3912e`).** A bounded, code-only `locatorRecovery` provenance record in `report.json`.
+  - **G (`29701c5a`).** Parser-only AI page context, **off by default**: the live comparison on the
+    0.8B model went 10/13 → 9/13, so it runs only with `AWKIT_AI_PAGE_CONTEXT=on`.
+  - **Host fix (`0615af12`).** Tables now count data rows only.
+  - **I benchmark (`3af2cd68`).**
+  - **Packaging (`84771a12`, `bea84fda`).** extraResources, staging in both package scripts, the signed
+    manifest's `domIntelligenceRuntime`, strict validation and the notices.
+- **Measured:**
+  - Wrong-element actions on the product path: 0 of 23 rows. Scrapling alone produced 10.
+  - Warm snapshot recovery p95 is 170 ms on the 8 accepted fixtures. It is **not** universal: 711 ms
+    at 8,265 elements.
+  - Normal-step overhead is not measurable once a reference is bound (25 ms off, 23 ms on).
+- **Mutations killed:** F 8/8, G 5/5, H 4/4, I 3/3 and the validator 2/2.
+- **Gates at this state:**
+  - The DOM-intelligence verifiers: `verify:dom-intelligence-acceptance` 10/0, `verify:dom-intelligence-contexts` 48/0,
+    `verify:recovery-provenance` 31/0, `verify:dom-normalization` 143/0, `verify:dom-intelligence-host` 93/0
+    and `verify:dom-intelligence-gui` 22/0. The GUI run used the real Electron app on the staged tree
+    that would ship, with Available and the pinned version.
+  - The packaging and boundary verifiers: `verify:ai-packaged-runtime` 104/0, `verify:offline-supply-chain` 25/0,
+    `verify:zvec-host-source-boundary` 22/0, `verify:roadmap-license-issuer` 155/155 and
+    `verify:portable-fresh-state` 10/10.
+  - `validate:offline` passes, with 165 of 165 DOM-intelligence files checksum-verified.
+  - Not passed: `package:portable` is BLOCKED (clean-tree rule) and the packaged artifact checks are NOT RUN.
+- **CodeCraft is BLOCKED:** no server is configured in this session. The Fable reviewer is BLOCKED by
+  usage credits.
+- **Independent review (Sonnet QC): no high-severity finding.**
+  - **Fixed, 7 of 7 mutations killed:**
+    - Frame steps bind winner memory to their own document.
+    - A bound step on a route-less page reads as a mismatch.
+    - The Recorder's protected-login detector now runs in the runner's suggestion stage and in
+      diagnosis. Before, on a CAPTCHA page with no password field, the HTML reached the provider and the
+      Designer offered "Use this locator".
+    - A stored page context is re-validated on read.
+    - Prompt strings are JSON-quoted.
+    - The provenance record's provider name is allowlisted.
+  - **Left open (KNOWN_ISSUES):**
+    - The lazy-index window between the recheck and the action. The fix edit was refused by the session's
+      permission classifier. The legacy engine, which has no recheck at all, gave 1 wrong element in the
+      re-run.
+    - The page context is captured before suppression (off by default).
+- **Re-run at the fixed state:**
+  - The changed DOM-intelligence suites: `verify:locator-diagnosis` 56/0, `verify:dom-intelligence-contexts` 51/0,
+    `verify:dom-normalization` 150/0, `verify:recovery-provenance` 32/0, `verify:dom-intelligence-acceptance` 10/0 and
+    `verify:dom-intelligence-gui` 22/0.
+  - The regression gates: build, wrong-element 14/0, frame-chain 41/0, blueprint-recovery-browser 24/0,
+    runner 138/0, locator-guard 35/0, ai-fallback 51/0 and ai-error-analysis 429/429.
+- **NOT RUN:** `verify:failure-capture-overhead`. It appends to the preserved L5a file.
+- **Not recorded:** the "suggestion accepted by user" event. Applying a suggestion is an unsaved editor
+  edit.
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## L11 in progress: snapshot recovery, parser-only host, product wiring and Spy/Designer/Settings UI (`awkit-djnl.19`, 2026-10-01)
 
 - **L11 is PARTIAL and stays open.** The owner's requirement is `CODECRAFT_MODE=required`, but no
   CodeCraft MCP server is configured in the 2026-10-01 session, so CodeCraft is **BLOCKED** and this

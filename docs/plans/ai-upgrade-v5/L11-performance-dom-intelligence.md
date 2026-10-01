@@ -140,6 +140,19 @@ guarded positional ─► closed-shadow bridge ─► primary + alternatives (re
 | L11.H | Status, provenance and privacy-safe reporting |
 | L11.I | Packaging, offline validation, closeout |
 
+## Status (2026-10-01)
+
+| Id | State | Evidence |
+|---|---|---|
+| L11.A–E | Done | `6621e56f` … `56d6b140`, the Designer/Spy/Settings stage (see `docs/ai/CURRENT_STATE.md`) |
+| L11.F | Done | `1247f122`: route binding, actionability veto, `/dom-context-lab`; `verify:dom-intelligence-contexts` 48/0, 8 of 8 mutations killed |
+| L11.G | Done, **off by default** | `29701c5a`: `verify:dom-normalization` 143/0, 5 of 5 mutations; the live comparison regressed one row, so it runs only with `AWKIT_AI_PAGE_CONTEXT=on` (`evidence/L11-normalization-2026-10-01.md`) |
+| L11.H | Done, one event not recorded | `4dd3912e`: `verify:recovery-provenance` 31/0, 4 of 4 mutations. "Suggestion accepted by user" is not an execution event and is not recorded |
+| L11.I benchmark | Done | `3af2cd68`: `verify:dom-intelligence-acceptance` 10/0, 0 wrong-element actions on the product path, warm p95 170 ms on the accepted fixtures, not universal at 8k elements; 3 of 3 mutations (`evidence/L11-acceptance-2026-10-01.md`) |
+| L11.I packaging | Wired, artifact **BLOCKED** | `84771a12`, `bea84fda`: extraResources, staging, signed-manifest section and strict validation (165/165 files, 2 of 2 mutations). `package:portable` stops at the strict clean-source-tree rule, held by the preserved uncommitted `evidence/L5a-overhead-gate.json`, so no artifact was built and packaged verification is NOT RUN |
+| Independent review | Done, partial (Sonnet QC; CodeCraft BLOCKED) | No high-severity finding. 6 of 8 fixed with 7 mutations killed. The lazy-index window (finding 1) is left for the owner after the permission classifier refused the fix. The page context is still captured before suppression (off by default). See `evidence/L11-acceptance-2026-10-01.md` |
+| Licensing | **Owner decision pending** | orjson MPL-2.0 obligations met in the notices. lxml's Windows wheel statically links LGPL-2.1 libiconv. How its relinking obligation is met for an external release is undecided |
+
 ## Acceptance
 
 The milestone closes only with evidence that: normal steps are unchanged; failed locators recover

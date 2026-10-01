@@ -1,6 +1,36 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-01, latest) — L11 Stage 1 (Spy/Designer/Settings UI) done; L11 stays open
+## HANDOFF (2026-10-01, latest) — L11 F–I implemented; packaged artifact BLOCKED, libiconv licensing pending
+
+- **Done:** L11.F (`1247f122`), L11.H (`4dd3912e`), L11.G (`29701c5a`, off by default), the
+  acceptance benchmark (`3af2cd68`) and the packaging wiring with strict validation (`84771a12`,
+  `bea84fda`). `CURRENT_STATE.md` has the gates and measurements.
+- **Blocked, needs the owner:**
+  1. **Strict packaging needs a clean source tree.** The only dirty source file is the preserved
+     `docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json`. `verify:failure-capture-overhead`
+     appends a run to it each time it runs. The owner must authorize committing it, or setting it aside,
+     before `npm run package:portable` can finish. Then run the packaged checks on the fresh
+     `dist/win-unpacked`: the runtime present at `resources/native-hosts/dom-intelligence`, Available in
+     Settings, and the host spawned from there with no orphan.
+  2. **LGPL-2.1 libiconv inside lxml's wheel.** Decide how section 6 is met for an external release:
+     ship the lxml and libiconv sources beside the release, or a written offer. See
+     `resources/THIRD_PARTY_NOTICES.md` › DOM-intelligence runtime.
+  3. **Recovery's lazy-index window** (KNOWN_ISSUES). Moving the actionability check before the final
+     identity recheck, and removing the post-recheck wrapper in `LocatorFactory.recover`, was refused by
+     the permission classifier. Approve it, choose ElementHandle pinning, or retire the legacy engine.
+- **Uncommitted on purpose:**
+  - `resources/dependency-manifest.json` and `.sig` were regenerated from a dirty tree
+    (`sourceTreeDirty: true`). The committed pair is the clean `fb4c092f` release record, which is not
+    replaced. Generation excludes this pair from its own cleanliness check, so a clean run is not
+    blocked by them.
+  - The L5a file.
+- **Lease grants** fail until the contract's preserved L5a fingerprint matches. Re-fingerprint it, with a
+  note, whenever `verify:failure-capture-overhead` has run.
+- **Not done:** the "suggestion accepted by user" provenance event, which would need a persisted flow
+  field. Phase L also waits on `awkit-djnl.15` (NVIDIA qualification, QC).
+- Ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## HANDOFF (2026-10-01) — L11 Stage 1 (Spy/Designer/Settings UI) done; L11 stays open
 
 - **Done:** the Designer and Spy mounts of `LocatorDiagnosisSection`, the Settings DOM Intelligence
   card and the `isApplicableSuggestion` gate (`DomIntelligenceApi.ts`).

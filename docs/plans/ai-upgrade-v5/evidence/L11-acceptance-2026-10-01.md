@@ -92,6 +92,31 @@ is a recording-time locator configuration issue and is carried forward as is.
 
 Total: 20 of 20 killed.
 
+## Independent review (2026-10-01) and the re-run after its fixes
+
+CodeCraft was BLOCKED (no server). The Fable reviewer was BLOCKED (usage credits). One read-only QC
+reviewer on Sonnet reviewed the source at HEAD. It confirmed no high-severity issue and reported eight
+medium and low findings. It did not reach the new verifiers' vacuity, the validator block or the packaging
+files, which were mutation-tested separately.
+
+| Finding | Outcome | Mutation |
+|---|---|---|
+| 1. Lazy `nth(index)`: `isEnabled` awaited between the recheck and the action | **Not fixed.** The reordering edit was refused by the permission classifier as a possible security weakening, so it was left for the owner (KNOWN_ISSUES) | — |
+| 2. Frame steps bound winner memory to the top page's route | Fixed: memory and diagnosis bind the step's own document | R2 killed (4 checks) |
+| 3. A bound step on a route-less page read as "unbound" | Fixed: mismatch | R3 killed |
+| 4. Suggestion and diagnosis paths skipped the Recorder's protected-login detector | Fixed in both. Without it, a CAPTCHA page's HTML reached the provider and **the Designer offered 2 "Use this locator" suggestions** | R4a killed (3), R4b killed (2) |
+| 5. Page context captured before suppression | Not fixed, off by default (KNOWN_ISSUES) | — |
+| 6. Stored page context not re-validated on read | Fixed: `readPageContext` | R6 killed (3) |
+| 7. Unescaped quotes could forge a prompt segment | Fixed: JSON quoting, regions included | R7 killed |
+| 8. Provider name not allowlisted in provenance | Fixed | R8 killed |
+
+Re-run of this benchmark at the fixed state: 10/0.
+
+- Wrong-element results: snapshot 0, product 0, proof 0. Scrapling alone gave 10 wrong.
+- Accepted warm p95 was 155.5 ms. At 8,265 elements a recovery took 632 ms.
+- **Legacy gave 1 wrong (delayed render).** That is finding 1 on the non-default engine, which has no
+  recheck: its slow scan overlapped the re-render. The first run gave 0.
+
 ## Limits
 
 - "Suggestion accepted by user" is not an execution event. Applying a suggestion is an unsaved

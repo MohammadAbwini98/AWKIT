@@ -1,6 +1,70 @@
 # TASK_LOG
 
-## 2026-10-01 (latest) — L11 re-proof of `56d6b140`, then Stage 1: Spy/Designer diagnosis UI and the Settings status card (Claude)
+## 2026-10-01 (latest) — L11 Stages F–I: dynamic contexts, provenance, AI page context, acceptance benchmark, packaging (Claude)
+
+- **Task:** continue `awkit-djnl.19`, Stages F–I, then packaging and closeout.
+- **Result:** every stage is implemented and pushed.
+  - **F, `1247f122`.** Route identity, plus an actionability veto that closed a real wrong-element path
+    where a disabled skeleton was recovered at 0.95. Also `/dom-context-lab`.
+  - **H, `4dd3912e`.** A bounded provenance record.
+  - **Host fix, `0615af12`.** Tables count data rows only.
+  - **G, `29701c5a`.** Off by default after the live comparison regressed one row.
+  - **I benchmark, `3af2cd68`.**
+  - **Packaging, `84771a12` and `bea84fda`.**
+  - The packaged artifact is BLOCKED by the strict clean-tree rule, held by the preserved L5a evidence
+    file.
+  - lxml's statically linked LGPL-2.1 libiconv was found and documented. It needs an owner decision.
+- **Files:**
+  - `src/runner/{routeIdentity,LocatorFactory,LocatorRecoveryStore,FlowExecutor,StepExecutor,RunnerProgress,PlaywrightRunner}.ts`
+  - `src/runner/domIntelligence/{recoveryProvenance,pageContext,normalizeDom,pageScripts,domReference,repairSuggestion}.ts`
+  - `src/runner/evidence/FailureEvidenceCollector.ts`
+  - `src/ai/failureAnalysis.ts`
+  - `app/main/ai/aiAssist.ts`
+  - `app/main/ipc/domIntelligence.ipc.ts`
+  - `app/renderer/components/workflow/LocatorDiagnosisSection.tsx`
+  - `src/recorder/buildRecordedFlow.ts`
+  - `native-hosts/dom-intelligence/dom_intelligence_host.py`
+  - The `mock-site/` DOM Context Lab
+  - `scripts/verify-{dom-intelligence-contexts,recovery-provenance,dom-normalization,locator-diagnosis}.mts`
+  - `scripts/benchmark-dom-intelligence-acceptance.mts`
+  - `scripts/dom-intelligence/*`
+  - `scripts/ai-harness/*`
+  - `scripts/validate-offline-bundle.ps1`
+  - `scripts/{package-portable,package-per-user-installer,generate-dependency-manifest}.ps1`
+  - `electron-builder.json`
+  - `resources/THIRD_PARTY_NOTICES.md`
+  - `src/offline/dom-intelligence-runtime.json`
+  - The evidence notes under `docs/plans/ai-upgrade-v5/evidence/L11-*`
+  - The L11 plan status
+  - `docs/ai/*`
+- **Verification:**
+  - New: dom-intelligence-contexts 48/0, recovery-provenance 31/0, dom-normalization 143/0 and
+    dom-intelligence-acceptance 10/0.
+  - The host and GUI: dom-intelligence-host 93/0 and dom-intelligence-gui 22/0 (Available on the
+    staged tree).
+  - Packaging and boundaries: ai-packaged-runtime 104/0, offline-supply-chain 25/0,
+    zvec-host-source-boundary 22/0, roadmap-license-issuer 155/155 and portable-fresh-state 10/10.
+  - `validate:offline` PASS, with 165/165 DOM-intelligence files verified.
+  - Mutations killed: F 8, G 5, H 4, I 3 and validator 2.
+  - The regression gates listed in each commit.
+- **Not passed:**
+  - `package:portable` and `validate:offline -Strict` are BLOCKED. The only strict failure is the
+    clean-source-tree rule.
+  - The packaged artifact checks are NOT RUN.
+  - CodeCraft is BLOCKED: no server.
+  - The Fable reviewer is BLOCKED: usage credits.
+  - `verify:failure-capture-overhead` is NOT RUN at the final state. It writes the preserved L5a file.
+- **Independent review:** Sonnet QC, partial, no high-severity finding.
+  - Fixed, with mutations R2, R3, R4a, R4b, R6, R7 and R8 all killed: frame-route binding, route-less
+    pages counting as a mismatch, the protected-login detector in the suggestion and diagnosis paths, the
+    stored-context read-back, prompt quoting, and the provider allowlist.
+  - Before the detector fix, the Designer offered "Use this locator" on a CAPTCHA page.
+  - Left open: the lazy-index window (the fix was refused by the permission classifier) and
+    capture-before-suppression.
+  - Re-runs: locator-diagnosis 56/0, contexts 51/0, normalization 150/0, provenance 32/0, acceptance
+    10/0, GUI 22/0, plus the regression gates in CURRENT_STATE.
+
+## 2026-10-01 — L11 re-proof of `56d6b140`, then Stage 1: Spy/Designer diagnosis UI and the Settings status card (Claude)
 
 - **Task:** continue `awkit-djnl.19` from `56d6b140`. First re-prove HEAD, then finish the Designer,
   Spy and Settings UI.

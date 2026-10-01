@@ -1,5 +1,47 @@
 # KNOWN_ISSUES
 
+## A wheel's license metadata can omit what its binaries link (2026-10-01, OPEN — owner decision)
+
+- **Seen.** The L11 runtime pin recorded lxml as "BSD-3-Clause (bundles libxml2 and libxslt, MIT)".
+  The wheel's own `LICENSES.txt` says its binaries also bundle zlib and **libiconv, LGPL-2.1**. The
+  `libiconv` identifier is present in `etree.cp312-win_amd64.pyd`.
+- The pin and `THIRD_PARTY_NOTICES.md` are corrected. How the LGPL-2.1 section 6 relinking obligation
+  is met for an external release (sources shipped beside it, or a written offer) is undecided.
+- **Rule:** review a native wheel from the license files it ships and the binaries themselves, not from
+  `License-Expression` or the PyPI classifier.
+
+## A recovered element is acted on through a lazy index (2026-10-01, OPEN — owner decision)
+
+- **Found by the independent review.** Recovery returns `list.nth(index)`, and the action resolves that
+  index again.
+  - For the snapshot engine, the identity recheck happens before the actionability check
+    (`isEnabled`) and the action, so an element inserted before the index in that gap would receive the
+    action.
+  - The legacy engine (`AWKIT_LOCATOR_RECOVERY_ENGINE=legacy`, not the default) has no recheck at all. In
+    the 2026-10-01 re-run of the acceptance benchmark it returned 1 wrong element on the delayed-render
+    class, when its slow scan (p50 2.7 s) overlapped the re-render. The earlier run had none. The snapshot,
+    product and proof engines had 0 wrong in both runs.
+- **The fix tried and stopped:** check actionability BEFORE the final recheck, so nothing is awaited between
+  the proof and the action. The session's permission classifier refused the edit that removed the
+  post-recheck wrapper as a possible security weakening, so it was not applied.
+- **Options:** that reordering (owner approval); pinning an `ElementHandle` from the recheck's own
+  evaluate (larger change); retiring the legacy engine.
+
+## The AI page context is captured before suppression is applied (2026-10-01, OPEN — know it)
+
+- **Found by the independent review.** With `AWKIT_AI_PAGE_CONTEXT=on`, the failed step's page is
+  serialized and parsed by the local host first. `FailureEvidenceCollector` drops the result afterwards
+  when the step is protected or raw UI text is suppressed.
+- Nothing is stored or prompted. The host is local and sandboxed, and the feature is off by default.
+- **Fix if it is ever turned on by default:** pass the step type and the suppression state into
+  `recordFailurePageContext` and skip the capture.
+
+## Snapshot recovery under 500 ms is a fixture result, not a ceiling (2026-10-01, OPEN — know it)
+
+- Warm p95 was 170 ms on the accepted L11 fixtures. At 8,265 elements one recovery took 711 ms, and
+  the Scrapling parse plus match took 1.1 s.
+- Do not cite "< 500 ms" without the page size (`evidence/L11-acceptance-2026-10-01.md`).
+
 ## Exact-text source guards go stale when a call gains an argument (2026-10-01)
 
 - **Seen:** `56d6b140` added `domReferencesOut` to the Recorder save's `buildRecordedFlow` call. That
@@ -47,6 +89,13 @@ History, as found. Found by the L10.0 fixtures (`scripts/dom-intelligence/fixtur
   appended run 22 (886 lines).
 - **Rule:** restore the committed file (`git show HEAD:<path>`) after a regression run unless a new L5a
   measurement is the point. Never commit it with an unrelated change.
+- **Two consequences, both seen on 2026-10-01** (runs 23 and 24; the owner's brief forbade touching
+  the file):
+  - Strict packaging fails. `generate-dependency-manifest.ps1` records `sourceTreeDirty: true` and
+    `validate:offline -Strict` refuses it, so `package:portable` builds no artifact.
+  - Every lease grant on a contract that preserves the file fails until its `preserved_paths` sha256 is
+    re-fingerprinted, because each run moves the hash.
+  - Before a release run, get the owner's decision on the file.
 
 ## `benchmark:dom-intelligence` rewrites the committed L10.0 evidence on every run (2026-09-30, OPEN — know it)
 

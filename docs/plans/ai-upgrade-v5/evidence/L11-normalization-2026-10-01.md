@@ -90,6 +90,14 @@ Scripts: `verify:ai-error-quality-live-part1` / `-part2` / `-provenance` (old ar
 (new arm). The longer prompts pushed `part1` past the launcher's time budget after five rows, so its
 last case ran as `part1b`.
 
+## Change after the comparison (independent review, 2026-10-01)
+
+- Rendered strings are now JSON-quoted, and region entries are quoted too, so an embedded quote cannot
+  forge a segment. Over the 13 labelled pages this adds 122 rendered characters (4,040 → 4,162). The live
+  comparison above used the earlier format and was not re-run.
+- A context read back from `report.json` is re-validated (`readPageContext`) before it reaches a prompt.
+- `verify:dom-normalization` is now 150/0.
+
 ## Limits of this evidence
 
 - The comparison is one run per row on a 0.8B model, so a one-row difference is within run-to-run

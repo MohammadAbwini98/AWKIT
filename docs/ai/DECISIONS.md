@@ -1,6 +1,36 @@
 # DECISIONS
 
-### 2026-10-01 (latest) — L11 Designer "Use this locator" is offered only for an AWKIT-proven element (implementer) (`awkit-djnl.19`)
+### 2026-10-01 (latest) — L11 recovery is route-bound and action-checked; the AI page context stays off; a dirty-tree manifest is not committed (implementer) (`awkit-djnl.19`)
+
+- **Route binding.** Winner memory and DOM references both record the route of the step's own document:
+  its frame's for a frame step, otherwise the page's. The route is a hash of the origin and path template.
+  Recovery refuses before any layer scores on another route. A bound step on a document with no route
+  (a blank or error page) counts as another route. A record from before 2026-10-01 without a route falls
+  back to its reference's route.
+  - **Why:** structurally identical SPA views passed the unchanged identity gate on the wrong route.
+  - **Revised the same day** after independent review. The first version bound winner memory to the top
+    page, so a frame navigating under an unchanged top page still read as "match", and a route-less
+    current page read as "unbound". Memory records written in that window for frame steps now read as
+    another route. That fails closed until the next successful resolve rewrites them.
+- **Protected surfaces in the suggestion and diagnosis paths.** Both now run the Recorder's
+  protected-login detector before any HTML leaves the page, as the AI page-context path already did.
+  - **Why:** only the serializer's password and one-time-code check guarded them. On a CAPTCHA page with
+    no password field, the HTML reached the provider and the Designer offered "Use this locator".
+- **Actionability veto.** A recovered element must pass Playwright's `isEnabled` for every action that
+  needs an enabled control. Otherwise the layer refuses and the step keeps its recorded locator's
+  auto-wait.
+  - **Why:** a disabled loading skeleton with the target's name scored 0.95 and was recovered.
+- **AI page context: off unless `AWKIT_AI_PAGE_CONTEXT=on`.**
+  - **Why:** on the labelled set, the real 0.8B model went from 10/13 to 9/13 with it, and no row
+    improved. A smaller or richer prompt is no reason to change what the analysis reads unless quality
+    holds.
+- **The provenance record carries no step id.** A uuid-shaped value is masked by redaction, so the
+  stepId stays on the log entry and the record stays code-only.
+- **A manifest regenerated from a dirty source tree is not committed over the clean release record.**
+  Strict validation would refuse it anyway, and generation excludes the pair from its own cleanliness
+  check.
+
+### 2026-10-01 — L11 Designer "Use this locator" is offered only for an AWKIT-proven element (implementer) (`awkit-djnl.19`)
 
 - **Offered only when all hold:**
   - AWKIT's own identity proof picked the element. That is either the snapshot proof, or a provider
