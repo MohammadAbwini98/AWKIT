@@ -58,11 +58,22 @@ import { buildDomReference, type DomReferenceStore } from "./domIntelligence/dom
 import { captureDomSnapshot } from "./domIntelligence/domSnapshot";
 import { DOM_REFERENCE_CAPTURE_SOURCE } from "./domIntelligence/pageScripts";
 import { compareRoutes, routeKey } from "./routeIdentity";
+import { PIN_PAGE_SOURCE, newElementPin, pinnedLocator, type ElementPin } from "./elementPin";
 import { detectRecorderProtectedLogin } from "@src/security/ProtectedLoginDetector";
 import { capturePageContext } from "./domIntelligence/normalizeDom";
 import { pageContextEnabled, type PageContextResult } from "./domIntelligence/pageContext";
 
 let referenceCapture: ((element: Element) => { reference: unknown; url: string }) | undefined;
+
+/** Guarded-positional read: the set size, the page fingerprint at `arg.index`, and that node pinned. */
+const GUARD_READ = `
+  var element = elements[arg.index];
+  if (!element) return { count: elements.length };
+  (${PIN_PAGE_SOURCE})(arg.token, arg.nonce, element);
+  return { count: elements.length, print: (${createPageFingerprint.toString()})(element) };
+`;
+type GuardRead = (elements: Element[], arg: { index: number } & ElementPin) => { count: number; print?: LocatorElementFingerprint };
+let guardRead: GuardRead | undefined;
 
 /**
  * Anything Playwright can build sub-locators from: a `Page`, a `FrameLocator`, or a `Locator`.
@@ -611,13 +622,17 @@ export class LocatorFactory {
         `${sensitiveAction ? "SENSITIVE_TARGET_IDENTITY_CHANGED" : "TARGET_IDENTITY_CHANGED"}: refusing the ${sensitiveAction ? "sensitive " : ""}action on "${step.name}" — ${detail}. ` +
           `Re-record the step to confirm the intended target.`
       );
-    const candidates = root.locator(guard.candidateSelector);
-    const count = await candidates.count().catch(() => 0);
+    // One evaluate counts the set, reads the identity at the recorded index and pins that node, so the
+    // action lands on the node proven here, never on whatever holds the index later (elementPin).
+    const pin = newElementPin();
+    guardRead ??= new Function("elements", "arg", GUARD_READ) as GuardRead;
+    const read = await root.locator(guard.candidateSelector).evaluateAll(guardRead, { index: guard.index, ...pin }).catch(() => undefined);
+    const count = read?.count ?? 0;
     if (count !== guard.siblingCount) throw fail(`the candidate set changed (recorded ${guard.siblingCount}, found ${count})`);
     if (guard.index < 0 || guard.index >= count) throw fail(`recorded position ${guard.index} is out of range (${count} candidates)`);
-    const target = candidates.nth(guard.index);
-    const fingerprint = await LocatorFactory.fingerprintOne(target);
+    const fingerprint = read?.print ? hashFingerprint(read.print) : undefined;
     if (!fingerprint) throw fail("the recorded target could not be re-identified");
+    const target = await pinnedLocator(root, pin);
     // "exact" (the recorder's capture confidence) requires the identity-bearing fields to be UNCHANGED —
     // strict equality, so a bare control (empty text/attributes) is not falsely rejected the way a fuzzy
     // score would be. "high" keeps a tolerant similarity threshold.
@@ -875,7 +890,7 @@ export class LocatorFactory {
   /**
    * L11.F: a recovered element must be able to take the step's action NOW. A disabled look-alike (a
    * loading skeleton with the target's name) can score as the target, and an action on it would wait on
-   * a lazily re-resolved index while the page replaces it. Such a winner refuses its layer
+   * that pinned node until the page replaced it, then fail. Such a winner refuses its layer
    * (`not-actionable`), so the step falls back to its recorded locator's own auto-wait.
    */
   private async requireActionable(step: FlowStep, recovered: RecoveredElement | undefined, stages: LocatorRecoveryStage[]): Promise<RecoveredElement | undefined> {
@@ -907,10 +922,13 @@ export class LocatorFactory {
       stages.push({ stage: "local", outcome: "error", reason: "snapshot-failed", ms: performance.now() - started });
       return undefined;
     }
-    return this.proveSnapshotWinner(visible, decision, "local", started, stages);
+    return this.proveSnapshotWinner(visible, root, decision, "local", started, stages);
   }
 
-  /** Pre-L11 local layer, kept for the benchmark and as a kill switch: one round trip per element. */
+  /**
+   * Pre-L11 local layer, kept for the benchmark and as a kill switch: one round trip per element. Its
+   * winner goes through the same proof and pin as the snapshot's (its slow scan is where the page moves).
+   */
   private async recoverLocallyLegacy(
     root: LocatorRoot,
     step: FlowStep,
@@ -920,16 +938,17 @@ export class LocatorFactory {
     const started = performance.now();
     const visible = root.locator("*:visible");
     const decision = rankLocalRecovery(step, expected, await LocatorFactory.fingerprintMany(visible, RECOVERY_SCAN_CAP));
-    LocatorFactory.recordStage(stages, "local", decision, started);
-    return decision.winner ? { locator: visible.nth(decision.winner.index), fingerprint: decision.winner.fingerprint, score: decision.winner.score } : undefined;
+    return this.proveSnapshotWinner(visible, root, decision, "local", started, stages);
   }
 
   /**
-   * A snapshot names its winner by index; the page may have changed since. The element now at that
-   * index must still carry the snapshot's identity and ancestry, or the layer refuses (fail closed).
+   * A layer names its winner by index; the page may have changed since. The element now at that index
+   * must still carry the winner's identity and ancestry, or the layer refuses (fail closed). The proven
+   * node is pinned by the same evaluate, and the step acts on that node only, never on the index.
    */
   private async proveSnapshotWinner(
     list: Locator,
+    scope: { locator(selector: string): Locator },
     decision: RecoveryDecision,
     stage: "local" | "blueprint",
     started: number,
@@ -939,8 +958,8 @@ export class LocatorFactory {
       LocatorFactory.recordStage(stages, stage, decision, started);
       return undefined;
     }
-    const locator = list.nth(decision.winner.index);
-    if (!(await recheckSnapshotWinner(list, decision.winner).catch(() => false))) {
+    const locator = await recheckSnapshotWinner(list, scope, decision.winner).catch(() => undefined);
+    if (!locator) {
       stages.push({ stage, outcome: "refused", reason: "stale-snapshot", ms: performance.now() - started, candidates: decision.considered, score: decision.winner.score });
       return undefined;
     }
@@ -1002,7 +1021,7 @@ export class LocatorFactory {
           stages.push({ stage: "blueprint", outcome: "refused", reason: "page-variant", ms: performance.now() - started });
           return undefined;
         }
-        return this.proveSnapshotWinner(allElements, decideBlueprintRecovery(step, elementBlueprint, snapshot.window), "blueprint", started, stages);
+        return this.proveSnapshotWinner(allElements, frame, decideBlueprintRecovery(step, elementBlueprint, snapshot.window), "blueprint", started, stages);
       }
 
       const currentDocumentFingerprint = await LocatorFactory.documentFingerprint(frame);
@@ -1011,8 +1030,7 @@ export class LocatorFactory {
         return undefined;
       }
       const decision = await LocatorFactory.legacyBlueprintDecision(step, allElements, elementBlueprint);
-      LocatorFactory.recordStage(stages, "blueprint", decision, started);
-      return decision.winner ? { locator: allElements.nth(decision.winner.index), fingerprint: decision.winner.fingerprint, score: decision.winner.score } : undefined;
+      return this.proveSnapshotWinner(allElements, frame, decision, "blueprint", started, stages);
     } catch {
       // Blueprint storage/page probing is additive and fail-safe: normal unresolved behavior wins.
       stages.push({ stage: "blueprint", outcome: "error", reason: "snapshot-failed", ms: performance.now() - started });

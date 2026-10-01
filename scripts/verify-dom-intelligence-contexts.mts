@@ -14,7 +14,8 @@
  *   D. virtualized: the recorded row is recycled out of the window, with and without per-row ids, then
  *                   brought back by the scroll step's own semantics (element scroll, wheel at centre);
  *   E. delayed:     the target is replaced by a disabled skeleton until it renders;
- *   S. stale:       the page changes between the snapshot and the proof.
+ *   S. stale:       the page changes between the snapshot and the proof;
+ *   R. race:        the page changes between the proof and the action (both engines).
  * Controls prove each case can pass: a same-context drift still recovers, the right element acts.
  *
  * A recording fake provider stands in for the parser-only host (its own gate is verify:dom-intelligence-host),
@@ -85,7 +86,7 @@ interface Harness {
   references: MemoryDomReferenceStore;
 }
 
-function harness(root: string, name: string): Harness {
+function harness(root: string, name: string, recoveryEngine?: "snapshot" | "legacy"): Harness {
   const events: LocatorRecoveryEvent[] = [];
   const provider = new RecordingProvider();
   const references = new MemoryDomReferenceStore();
@@ -102,6 +103,7 @@ function harness(root: string, name: string): Harness {
         recoveryStore: store,
         scope: { scenarioId: `dcl-${name}`, flowId: "dcl" },
         recoveryGraceMs: 0,
+        recoveryEngine,
         domIntelligence: { provider, references, budgetMs: 2_000 },
         onRecoveryEvent: (event) => events.push(event)
       })
@@ -375,7 +377,7 @@ async function main(): Promise<void> {
       const snapshot = await captureLocalSnapshot(visible, expected);
       const decision = rankLocalRecovery({ type: "click" }, expected, snapshot.candidates);
       check("control: the snapshot proves a winner", decision.winner !== undefined, decision.refusal);
-      check("control: re-checked at once, the same winner holds", decision.winner ? await recheckSnapshotWinner(visible, decision.winner) : false);
+      check("control: re-checked at once, the same winner holds", decision.winner ? await recheckSnapshotWinner(visible, a.page, decision.winner) : false);
       // An identical twin inserted before the winner shifts its index onto the twin.
       await a.page.evaluate(() => {
         const button = document.querySelector('[data-testid="dcl-route-view"] button')!;
@@ -383,7 +385,43 @@ async function main(): Promise<void> {
         const twinForm = form.cloneNode(true);
         form.parentElement!.insertBefore(twinForm, form);
       });
-      check("after the page changed: the proof refuses (stale snapshot), nothing is recovered", decision.winner ? !(await recheckSnapshotWinner(visible, decision.winner)) : false);
+      check("after the page changed: the proof refuses (stale snapshot), nothing is recovered", decision.winner ? !(await recheckSnapshotWinner(visible, a.page, decision.winner)) : false);
+      await a.close();
+    }
+
+    // ── R. Proof to action ──────────────────────────────────────────────────────────────────────
+    console.log("R. Proof to action: the step acts on the node that was proven, never on its index");
+    for (const engine of ["snapshot", "legacy"] as const) {
+      const raceStep = step({ strategy: "testId", value: "dcl-route-export" });
+      const h = harness(root, `race-${engine}`, engine);
+      const a = await fresh("/dom-context-lab/route/orders");
+      await h.factory(a.page).resolve(raceStep);
+      await a.page.evaluate(() => {
+        const w = window as unknown as { __proven: Element | null; __clicked: EventTarget | null; __dcl: { dropRouteTestId: () => void } };
+        w.__proven = document.querySelector('[data-testid="dcl-route-export"]');
+        document.addEventListener("click", (event) => (w.__clicked = event.target), true);
+        w.__dcl.dropRouteTestId();
+      });
+      const isProven = (el: Node) => el === (window as unknown as { __proven: Node }).__proven;
+      const locator = await h.factory(a.page).resolve(raceStep);
+      check(`[${engine}] control: the drifted control is recovered, as the proven node`, recovered(h, raceStep.id) && (await locator.evaluate(isProven).catch(() => false)));
+      const visible = a.page.locator("*:visible");
+      const index = await visible.evaluateAll((els: Element[]) => els.indexOf((window as unknown as { __proven: Element }).__proven));
+      // Between the proof and the action, an identical twin is inserted before the proven node.
+      await a.page.evaluate(() => {
+        const form = (window as unknown as { __proven: Element }).__proven.parentElement!;
+        form.parentElement!.insertBefore(form.cloneNode(true), form);
+      });
+      const shifted = await visible.nth(index).evaluate((el) => el !== (window as unknown as { __proven: Element }).__proven && el.textContent === "Export list").catch(() => false);
+      check(`[${engine}] precondition: the proof's index now names the identical twin`, shifted);
+      await locator.click({ timeout: 5_000 });
+      check(`[${engine}] the action lands on the proven node, not on the twin at its index`, await a.page.evaluate(() => (window as unknown as { __clicked: unknown; __proven: unknown }).__clicked === (window as unknown as { __proven: unknown }).__proven));
+      // The proven node is replaced by an identical clone: the step must not act on the clone.
+      await a.page.evaluate(() => {
+        const proven = (window as unknown as { __proven: Element }).__proven;
+        proven.replaceWith(proven.cloneNode(true));
+      });
+      check(`[${engine}] the proven node replaced by an identical clone: the locator resolves to nothing (fail closed)`, (await locator.count()) === 0);
       await a.close();
     }
   } finally {

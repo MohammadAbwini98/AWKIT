@@ -300,6 +300,24 @@ async function main() {
         await close();
       }
     }
+
+    // ── [10] Proof to action: the page changes after the guard's proof, before the action ───────────
+    console.log("\n[10] The guarded step acts on the node it proved, never on the recorded index:");
+    {
+      const { page, close } = await freshRun(browser);
+      try {
+        await page.evaluate(() => { (window as unknown as { __proven: Element }).__proven = document.querySelectorAll("#danger-zone button")[2]; });
+        const target = await new LocatorFactory(page).resolve({ ...step, timeoutMs: 4000 });
+        await page.evaluate(() => { const b = document.createElement("button"); b.textContent = "Delete"; document.getElementById("danger-zone")!.prepend(b); });
+        check("[10] precondition: the recorded index now names another Delete button", await page.locator("#danger-zone button").nth(2).evaluate((el) => el !== (window as unknown as { __proven: Element }).__proven));
+        await target.click({ timeout: 4000 });
+        check("[10] the click lands on the proven button (now index 3), not on the recorded index", (await page.locator("#gp-result").textContent()) === "clicked-3", (await page.locator("#gp-result").textContent()) ?? undefined);
+        await page.evaluate(() => { const proven = (window as unknown as { __proven: Element }).__proven; proven.replaceWith(proven.cloneNode(true)); });
+        check("[10] the proven button replaced by an identical clone: the locator resolves to nothing (fail closed)", (await target.count()) === 0);
+      } finally {
+        await close();
+      }
+    }
   } finally {
     await browser.close();
     await new Promise<void>((resolve) => server.close(() => resolve()));

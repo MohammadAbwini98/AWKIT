@@ -2,6 +2,7 @@ import type { Locator } from "playwright";
 import type { FlowStep, LocatorElementFingerprint } from "@src/profiles/FlowProfile";
 import type { ElementBlueprint } from "./LocatorBlueprintStore";
 import { ancestrySimilarity, createFingerprintHasher, createPageFingerprint, fingerprintsEqual, similarity } from "./locatorFingerprint";
+import { PIN_PAGE_SOURCE, newElementPin, pinnedLocator, type ElementPin } from "./elementPin";
 
 /**
  * L11 single-snapshot locator recovery (docs/plans/ai-upgrade-v5/L11-performance-dom-intelligence.md,
@@ -284,15 +285,28 @@ const BLUEPRINT_SCAN = `
   return { count: elements.length, documentFingerprint: sorted.sort().join("|"), window: window_ };
 `;
 
+/** LOCAL_SCAN, then the element at `arg.index` is pinned in the same task (see `recheckSnapshotWinner`). */
+const RECHECK_SCAN = `
+  var scan = function (elements, arg) { ${LOCAL_SCAN} };
+  var raw = scan(elements, arg);
+  if (elements[arg.index]) (${PIN_PAGE_SOURCE})(arg.token, arg.nonce, elements[arg.index]);
+  return raw;
+`;
+
 type PageFunction<A, R> = (elements: Element[], arg: A) => R;
 
 let localScan: PageFunction<LocalScanArg, RawLocalScan> | undefined;
+let recheckScan: PageFunction<RecheckArg, RawLocalScan> | undefined;
 let blueprintScan: PageFunction<BlueprintScanArg, RawBlueprintScan> | undefined;
 
 interface LocalScanArg {
   tag: string;
   role: string;
   cap: number;
+}
+
+interface RecheckArg extends LocalScanArg, ElementPin {
+  index: number;
 }
 
 interface RawLocalScan {
@@ -353,16 +367,24 @@ export async function captureLocalSnapshot(
  * change between the snapshot and the proof. Re-fingerprinting `nth(index)` alone is not enough: an
  * identical twin inserted before the winner would shift the index onto itself and still match. So the
  * same list is scanned again, and exactly ONE element may carry the winner's identity and ancestry, at the
- * same index. Any other outcome refuses. (Playwright locators stay lazy: the returned `nth(index)` is
- * re-resolved at action time, as every locator is, including the legacy engine's.)
+ * same index. Any other outcome refuses (undefined).
+ *
+ * The same evaluate pins the node at that index, and the proven result is a locator for that node only
+ * (`elementPin`), so the action cannot land on whatever holds the index later. `scope` is where `list`
+ * was built (its page, frame or container).
  */
-export async function recheckSnapshotWinner(list: Locator, winner: { index: number; fingerprint: LocatorElementFingerprint }): Promise<boolean> {
-  localScan ??= pageFunction<LocalScanArg, RawLocalScan>(LOCAL_SCAN);
-  const raw = await list.evaluateAll(localScan, { tag: winner.fingerprint.tag, role: "", cap: SNAPSHOT_PRUNED_CAP });
-  if (raw.truncated) return false;
+export async function recheckSnapshotWinner(
+  list: Locator,
+  scope: { locator(selector: string): Locator },
+  winner: { index: number; fingerprint: LocatorElementFingerprint }
+): Promise<Locator | undefined> {
+  recheckScan ??= pageFunction<RecheckArg, RawLocalScan>(RECHECK_SCAN);
+  const pin = newElementPin();
+  const raw = await list.evaluateAll(recheckScan, { tag: winner.fingerprint.tag, role: "", cap: SNAPSHOT_PRUNED_CAP, index: winner.index, ...pin });
+  if (raw.truncated) return undefined;
   const hash = createFingerprintHasher();
   const matches = raw.kept.filter(({ f }) => sameElementFingerprint(hash(f), winner.fingerprint));
-  return matches.length === 1 && matches[0].i === winner.index;
+  return matches.length === 1 && matches[0].i === winner.index ? pinnedLocator(scope, pin) : undefined;
 }
 
 export interface BlueprintSnapshot {
