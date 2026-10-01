@@ -32,7 +32,10 @@
   the rule's vacuity guard (an LGPL entry must exist) is in place.
 - Also committed, on the owner's instruction: their own `CLAUDE.md` edit (`61444608`, CodeCraft defaults
   off), so the build saw a clean tree.
-- **L11 has no owner item left open.** Authenticode signing remains a general release item.
+- **L11 is closed.** `awkit-djnl.19` was closed on the owner's word in `bc165f76`, and the tracker now
+  reads 22 outstanding / 310 closed.
+  - Phase L is 15 of 15 milestones, but stays in progress until `awkit-djnl.15` resolves.
+  - Authenticode signing remains a general release item.
 - Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
 ## L11 legacy engine kept as a protected kill switch; AI page context gated before capture (`awkit-djnl.19`, 2026-10-01)

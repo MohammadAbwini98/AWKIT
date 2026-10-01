@@ -2,7 +2,7 @@
   "task": "awkit-djnl-19-l11-implementation-0930",
   "contract_path": "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
@@ -22,5 +22,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-10-01T17:16:03.254Z",
+  "released_reason": "awkit-djnl.19 closed and exported at bc165f76, the dashboard pin and the Phase L note move unleased next",
+  "archived_at": "2026-10-01T17:16:03.258Z"
 }

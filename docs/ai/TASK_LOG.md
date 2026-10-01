@@ -28,6 +28,10 @@
   - package:portable PASS, with strict validation inside it (168/168).
   - dom-intelligence-packaged 21/0, dom-intelligence-host 94/0, typecheck:scripts clean.
 - **Not run:** a mutation of the strict rule (it needs a release lease to weaken the pin).
+- **Then, on the owner's word:** `awkit-djnl.19` closed (`bc165f76`, project-state lease, exported).
+  - `verify:roadmap-dashboard`'s exact pin moved to 22 outstanding / 310 closed.
+  - The Phase L note in `ImplementationRoadmap.ts` now reads 15 of 15. Phase L stays in progress on
+    `awkit-djnl.15`.
 
 ## 2026-10-01 — L11 legacy-engine decision and the AI page context gated before capture (Claude)
 

@@ -23,8 +23,8 @@
      (`elementPin.ts`, CURRENT_STATE latest). It also covers the guarded-positional sensitive path.
 - **Manifest:** the committed pair is now the clean `fdb10cc5` record, built at `894c9706` with the
   corresponding sources. It replaced `a18c2401`.
-- **No owner item is left open on L11.** The bead can be closed when the owner agrees. Authenticode
-  signing remains a general release item, as before.
+- **L11 is closed:** `awkit-djnl.19` was closed on the owner's word (`bc165f76`). Phase L waits only on
+  `awkit-djnl.15`. Authenticode signing remains a general release item, as before.
 - **Lease grants:** the L5a entry was removed from the L11 contract's `preserved_paths` when the file was
   committed. Any later `verify:failure-capture-overhead` run dirties the file again: restore it, or get
   the owner's call to commit it (KNOWN_ISSUES).

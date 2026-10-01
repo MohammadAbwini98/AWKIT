@@ -648,8 +648,10 @@ try {
   // out, two closed, nothing filed). Measured after the export.
   // Then 23/309 of 332 later on 2026-09-30, the L11 registration (contract `awkit-l11-registration-0930`):
   // L11 `awkit-djnl.19` filed OPEN (one in), nothing closed, the epic already open. Measured.
-    "23 outstanding / 309 closed",
-    beads.stats.outstanding === 23 && beads.stats.closed === 309,
+  // Then 22/310 of 332 on 2026-10-01 (contract `awkit-djnl-19-l11-implementation-0930`): L11
+  // `awkit-djnl.19` closed on the owner's word (one out, one closed, nothing filed). Measured after the export.
+    "22 outstanding / 310 closed",
+    beads.stats.outstanding === 22 && beads.stats.closed === 310,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
