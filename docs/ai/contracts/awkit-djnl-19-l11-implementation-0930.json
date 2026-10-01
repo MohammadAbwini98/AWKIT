@@ -311,6 +311,25 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-djnl-19-l11-implementation-0930:release:2026-10-01T16:54:10.928Z",
+        "task": "awkit-djnl-19-l11-implementation-0930",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "resources/THIRD_PARTY_NOTICES.md",
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig",
+          "src/offline/dom-intelligence-runtime.json"
+        ],
+        "acquired_at": "2026-10-01T16:54:10.928Z",
+        "acquired_at_commit": "dce3ff65559679dea510eb7a0a2c1a10e8b5a49e",
+        "released_at": "2026-10-01T16:59:04.464Z",
+        "released_reason": "source pins and notices committed at 46c6abcb, released to commit the owner's CLAUDE.md edit unleased before packaging",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }

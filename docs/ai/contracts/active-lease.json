@@ -9,15 +9,17 @@
     "resources/dependency-manifest.sig",
     "src/offline/dom-intelligence-runtime.json"
   ],
-  "acquired_at": "2026-10-01T16:54:10.928Z",
-  "acquired_at_commit": "dce3ff65559679dea510eb7a0a2c1a10e8b5a49e",
+  "acquired_at": "2026-10-01T16:59:26.121Z",
+  "acquired_at_commit": "614446084855eb3642fb976a254f377a18bef3e0",
   "baseline_dirty": [
-    "CLAUDE.md",
-    "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json"
+    "docs/ai/contracts/active-lease.json",
+    "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json",
+    "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "CLAUDE.md": "3544b9d50e365ba78d814e520195f3ea14dff08a92fb24e7176930a04e7f883f",
-    "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json": "9a8f94810df99e944762fbdf200c8b7d69404bf53a7aa07b3904e7f3e565801e"
+    "docs/ai/contracts/active-lease.json": "4efad52bf1590d05dd172e0d89c6640736962fab138bb6e21c9b605d9394bdcb",
+    "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json": "7818e458ce793daf3452f6d5157cffe7e38cbb3e52ebfcf6cafe16c9ce5c2b69",
+    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
