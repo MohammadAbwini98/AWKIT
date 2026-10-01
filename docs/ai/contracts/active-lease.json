@@ -1,23 +1,18 @@
 {
   "task": "awkit-djnl-19-l11-implementation-0930",
   "contract_path": "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json",
-  "holder": "release",
-  "status": "released",
+  "holder": "project-state",
+  "status": "active",
   "allowed_paths": [
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig"
+    ".beads/**"
   ],
-  "acquired_at": "2026-10-01T13:42:44.175Z",
-  "acquired_at_commit": "54685c4f5b03c038f6561e345d6dd0a2c7d9fc96",
+  "acquired_at": "2026-10-01T14:12:15.722Z",
+  "acquired_at_commit": "2e949b9ea6a8dfdd1385cfa033b271aa913f7126",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json",
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig"
+    "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json": "98ac4c190b08b46961e528c2c7e669a4e9a53021a36e88fd2aceeaffff017b0a",
-    "resources/dependency-manifest.json": "16c68e01db7e2f344e928a22abf087af56742bb26765a6085d591cf4996771b0",
-    "resources/dependency-manifest.sig": "6350b5130955653e544418aa30bed240fb2a0143a3c42371244572226f154f38"
+    "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json": "67ab89fbb3681c8756eceac843fccd9b8d6db327d3f5aef63f4b23727d04ba68"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -27,12 +22,9 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1790829045777.8237"
+    "build": "dir(1):native-hosts:1790862274268.9744"
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-10-01T13:49:26.531Z",
-  "released_reason": "portable package built at 1a996a82 and the clean signed manifest committed at a18c2401",
-  "archived_at": "2026-10-01T13:49:26.533Z"
+  "violations": []
 }

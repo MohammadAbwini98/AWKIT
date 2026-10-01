@@ -61,10 +61,9 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "release",
+      "agent_id": "project-state",
       "allowed_paths": [
-        "resources/dependency-manifest.json",
-        "resources/dependency-manifest.sig"
+        ".beads/**"
       ]
     }
   },
