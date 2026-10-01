@@ -156,6 +156,7 @@
     "verify:blueprint-recovery-browser": "tsx scripts/verify-blueprint-recovery-browser.mts",
     "verify:dom-intelligence-gate": "tsx scripts/verify-dom-intelligence-gate.mts",
     "verify:dom-intelligence-host": "tsx scripts/verify-dom-intelligence-host.mts",
+    "verify:dom-intelligence-packaged": "tsx scripts/verify-dom-intelligence-packaged.mts",
     "verify:recorder-e2e": "node scripts/verify-recorder-e2e.mjs",
     "verify:assertions": "tsx scripts/verify-assertions.mts",
     "verify:storage-assertions": "tsx scripts/verify-storage-assertions.mts",
