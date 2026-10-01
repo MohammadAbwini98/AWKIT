@@ -17665,6 +17665,3550 @@
           "eventLoopDelayP99Ms": 25.1
         }
       ]
+    },
+    {
+      "recordedAt": "2026-09-30T17:21:07.234Z",
+      "commit": "3291e0f84ac023acc7427e93a8c5391bf1813ea5",
+      "uncommittedMeasuredSources": true,
+      "methodology": "owner-approved 2026-09-21: C (21 rounds) + D (1 instance per workload) + E (three-way over the owner-approved distribution-free 95 % median interval); p95 binding (yes/no) at >= 21 samples per mode; ceilings unchanged; development host, not a VMware claim",
+      "gating": true,
+      "gateNotRun": false,
+      "counts": {
+        "passed": 15,
+        "failed": 0,
+        "inconclusive": 3,
+        "informational": 0
+      },
+      "verdicts": {
+        "fast: median duration overhead (paired rounds)": {
+          "verdict": "INCONCLUSIVE",
+          "binding": true,
+          "median": -40,
+          "interval": {
+            "low": -389,
+            "high": 191,
+            "coverage": 97.3
+          },
+          "ceiling": 150
+        },
+        "fast: p95 duration overhead": {
+          "verdict": "PASS",
+          "binding": true,
+          "on": 1869,
+          "off": 1725,
+          "ceiling": 300,
+          "samplesPerMode": [
+            21,
+            21
+          ]
+        },
+        "evidence: median duration overhead (paired rounds)": {
+          "verdict": "INCONCLUSIVE",
+          "binding": true,
+          "median": -28,
+          "interval": {
+            "low": -395,
+            "high": 382,
+            "coverage": 97.3
+          },
+          "ceiling": 167.6
+        },
+        "evidence: p95 duration overhead": {
+          "verdict": "PASS",
+          "binding": true,
+          "on": 2267,
+          "off": 2287,
+          "ceiling": 343.1,
+          "samplesPerMode": [
+            21,
+            21
+          ]
+        },
+        "Node CPU per instance overhead (paired rounds)": {
+          "verdict": "INCONCLUSIVE",
+          "binding": true,
+          "median": 77.5,
+          "interval": {
+            "low": -70,
+            "high": 156.5,
+            "coverage": 97.3
+          },
+          "ceiling": 153.5
+        }
+      },
+      "measured": {
+        "rounds": 21,
+        "instancesPerWorkloadPerBatch": 1,
+        "concurrentInstances": 2,
+        "gating": true,
+        "stackTraces": "plain (as packaged)",
+        "host": {
+          "platform": "win32",
+          "cpus": 12
+        },
+        "fast": {
+          "on": {
+            "n": 21,
+            "median": 1254,
+            "p95": 1869,
+            "mean": 1301.9
+          },
+          "off": {
+            "n": 21,
+            "median": 1349,
+            "p95": 1725,
+            "mean": 1342.1
+          }
+        },
+        "fastPairedMedianDeltaMs": {
+          "n": 21,
+          "median": -40,
+          "p95": 520,
+          "mean": -40.3,
+          "perRound": [
+            -412,
+            48,
+            -161,
+            -355,
+            -391,
+            478,
+            24,
+            721,
+            -40,
+            -389,
+            520,
+            191,
+            -628,
+            -4,
+            464,
+            -577,
+            -83,
+            82,
+            -415,
+            -259,
+            340
+          ]
+        },
+        "evidence": {
+          "on": {
+            "n": 21,
+            "median": 1598,
+            "p95": 2267,
+            "mean": 1665.7
+          },
+          "off": {
+            "n": 21,
+            "median": 1676,
+            "p95": 2287,
+            "mean": 1696.4
+          }
+        },
+        "evidencePairedMedianDeltaMs": {
+          "n": 21,
+          "median": -28,
+          "p95": 599,
+          "mean": -30.7,
+          "perRound": [
+            -469,
+            438,
+            -198,
+            -374,
+            -395,
+            509,
+            -455,
+            1016,
+            -134,
+            -589,
+            512,
+            18,
+            -689,
+            88,
+            599,
+            -1080,
+            341,
+            92,
+            -28,
+            -229,
+            382
+          ]
+        },
+        "nodeCpuMsPerInstance": {
+          "on": 652.6,
+          "off": 613.8,
+          "pairedDelta": {
+            "n": 21,
+            "median": 77.5,
+            "p95": 210.5,
+            "mean": 38.8,
+            "perRound": [
+              210.5,
+              117.5,
+              -70,
+              -7,
+              -258,
+              125.5,
+              -179.5,
+              164,
+              -23.5,
+              -203,
+              156.5,
+              164,
+              -109,
+              250,
+              187.5,
+              78.5,
+              77.5,
+              54,
+              7.5,
+              -85.5,
+              156.5
+            ]
+          }
+        },
+        "evidenceBytesPerEvidenceInstance": {
+          "n": 21,
+          "median": 3941,
+          "p95": 3941,
+          "mean": 3936.6
+        },
+        "nodeRssPeakMb": {
+          "on": 173,
+          "off": 170
+        },
+        "eventLoopDelayP99Ms": {
+          "on": {
+            "n": 21,
+            "median": 35.5,
+            "p95": 46.6,
+            "mean": 36.8
+          },
+          "off": {
+            "n": 21,
+            "median": 35.7,
+            "p95": 56.8,
+            "mean": 39.3
+          }
+        },
+        "automationChromiumRssAtPeakMb": {
+          "on": {
+            "n": 16,
+            "median": 217,
+            "p95": 226,
+            "mean": 196
+          },
+          "off": {
+            "n": 17,
+            "median": 215,
+            "p95": 259,
+            "mean": 162.7
+          }
+        },
+        "chromiumCpu": "not measured: attributing it needs WMI polling, which loaded the runs it measured (duration and Node CPU carry the cost instead)",
+        "collectorLifecycleMs": {
+          "startGeneration": {
+            "n": 44,
+            "median": 5.8,
+            "p95": 9.1,
+            "mean": 6.1
+          },
+          "stopGeneration": {
+            "n": 44,
+            "median": 0.9,
+            "p95": 1.2,
+            "mean": 0.9
+          }
+        }
+      },
+      "batches": [
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              951
+            ],
+            "evidence": [
+              1264
+            ]
+          },
+          "nodeCpuMs": 1609,
+          "wallMs": 1554,
+          "events": 7,
+          "eventLoopDelayP99Ms": 30.3
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              1363
+            ],
+            "evidence": [
+              1733
+            ]
+          },
+          "nodeCpuMs": 1188,
+          "wallMs": 2149,
+          "events": 0,
+          "eventLoopDelayP99Ms": 36.2
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              750
+            ],
+            "evidence": [
+              1011
+            ]
+          },
+          "nodeCpuMs": 921,
+          "wallMs": 3643,
+          "events": 0,
+          "eventLoopDelayP99Ms": 33
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              798
+            ],
+            "evidence": [
+              1449
+            ]
+          },
+          "nodeCpuMs": 1156,
+          "wallMs": 3065,
+          "events": 7,
+          "eventLoopDelayP99Ms": 31.9
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              741
+            ],
+            "evidence": [
+              1037
+            ]
+          },
+          "nodeCpuMs": 907,
+          "wallMs": 2653,
+          "events": 7,
+          "eventLoopDelayP99Ms": 29.3
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              902
+            ],
+            "evidence": [
+              1235
+            ]
+          },
+          "nodeCpuMs": 1047,
+          "wallMs": 1601,
+          "events": 0,
+          "eventLoopDelayP99Ms": 33.6
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              1456
+            ],
+            "evidence": [
+              1779
+            ]
+          },
+          "nodeCpuMs": 1171,
+          "wallMs": 2138,
+          "events": 0,
+          "eventLoopDelayP99Ms": 46
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              1101
+            ],
+            "evidence": [
+              1405
+            ]
+          },
+          "nodeCpuMs": 1157,
+          "wallMs": 2213,
+          "events": 7,
+          "eventLoopDelayP99Ms": 32.3
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              1127
+            ],
+            "evidence": [
+              1513
+            ]
+          },
+          "nodeCpuMs": 1156,
+          "wallMs": 2114,
+          "events": 7,
+          "eventLoopDelayP99Ms": 32.1
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              1518
+            ],
+            "evidence": [
+              1908
+            ]
+          },
+          "nodeCpuMs": 1672,
+          "wallMs": 2563,
+          "events": 0,
+          "eventLoopDelayP99Ms": 42.8
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              1161
+            ],
+            "evidence": [
+              1619
+            ]
+          },
+          "nodeCpuMs": 1203,
+          "wallMs": 2121,
+          "events": 0,
+          "eventLoopDelayP99Ms": 34.7
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              1639
+            ],
+            "evidence": [
+              2128
+            ]
+          },
+          "nodeCpuMs": 1454,
+          "wallMs": 2665,
+          "events": 7,
+          "eventLoopDelayP99Ms": 46.6
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              1073
+            ],
+            "evidence": [
+              1244
+            ]
+          },
+          "nodeCpuMs": 1078,
+          "wallMs": 3595,
+          "events": 7,
+          "eventLoopDelayP99Ms": 35.5
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              1049
+            ],
+            "evidence": [
+              1699
+            ]
+          },
+          "nodeCpuMs": 1437,
+          "wallMs": 3671,
+          "events": 0,
+          "eventLoopDelayP99Ms": 32.9
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              1151
+            ],
+            "evidence": [
+              1301
+            ]
+          },
+          "nodeCpuMs": 1078,
+          "wallMs": 3182,
+          "events": 0,
+          "eventLoopDelayP99Ms": 35.7
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              1872
+            ],
+            "evidence": [
+              2317
+            ]
+          },
+          "nodeCpuMs": 1406,
+          "wallMs": 3107,
+          "events": 7,
+          "eventLoopDelayP99Ms": 43.1
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              1371
+            ],
+            "evidence": [
+              1716
+            ]
+          },
+          "nodeCpuMs": 1438,
+          "wallMs": 3126,
+          "events": 7,
+          "eventLoopDelayP99Ms": 33
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              1411
+            ],
+            "evidence": [
+              1850
+            ]
+          },
+          "nodeCpuMs": 1485,
+          "wallMs": 2659,
+          "events": 0,
+          "eventLoopDelayP99Ms": 38.2
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              1669
+            ],
+            "evidence": [
+              2223
+            ]
+          },
+          "nodeCpuMs": 1734,
+          "wallMs": 2595,
+          "events": 0,
+          "eventLoopDelayP99Ms": 56.8
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              1280
+            ],
+            "evidence": [
+              1634
+            ]
+          },
+          "nodeCpuMs": 1328,
+          "wallMs": 3086,
+          "events": 7,
+          "eventLoopDelayP99Ms": 31.6
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              1869
+            ],
+            "evidence": [
+              2158
+            ]
+          },
+          "nodeCpuMs": 1344,
+          "wallMs": 2560,
+          "events": 7,
+          "eventLoopDelayP99Ms": 44.2
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              1349
+            ],
+            "evidence": [
+              1646
+            ]
+          },
+          "nodeCpuMs": 1031,
+          "wallMs": 2125,
+          "events": 0,
+          "eventLoopDelayP99Ms": 44.8
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              1657
+            ],
+            "evidence": [
+              2201
+            ]
+          },
+          "nodeCpuMs": 1328,
+          "wallMs": 2659,
+          "events": 0,
+          "eventLoopDelayP99Ms": 37.6
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              1848
+            ],
+            "evidence": [
+              2219
+            ]
+          },
+          "nodeCpuMs": 1656,
+          "wallMs": 3130,
+          "events": 7,
+          "eventLoopDelayP99Ms": 39.2
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              1254
+            ],
+            "evidence": [
+              1598
+            ]
+          },
+          "nodeCpuMs": 1188,
+          "wallMs": 2141,
+          "events": 7,
+          "eventLoopDelayP99Ms": 35.5
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              1882
+            ],
+            "evidence": [
+              2287
+            ]
+          },
+          "nodeCpuMs": 1406,
+          "wallMs": 2748,
+          "events": 0,
+          "eventLoopDelayP99Ms": 49
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              1485
+            ],
+            "evidence": [
+              1787
+            ]
+          },
+          "nodeCpuMs": 1094,
+          "wallMs": 2050,
+          "events": 0,
+          "eventLoopDelayP99Ms": 57.7
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              1481
+            ],
+            "evidence": [
+              1875
+            ]
+          },
+          "nodeCpuMs": 1594,
+          "wallMs": 2629,
+          "events": 7,
+          "eventLoopDelayP99Ms": 44.4
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              1756
+            ],
+            "evidence": [
+              2267
+            ]
+          },
+          "nodeCpuMs": 1500,
+          "wallMs": 2669,
+          "events": 7,
+          "eventLoopDelayP99Ms": 46.8
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              1292
+            ],
+            "evidence": [
+              1668
+            ]
+          },
+          "nodeCpuMs": 1125,
+          "wallMs": 2579,
+          "events": 0,
+          "eventLoopDelayP99Ms": 32.6
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              1725
+            ],
+            "evidence": [
+              2351
+            ]
+          },
+          "nodeCpuMs": 1281,
+          "wallMs": 3099,
+          "events": 0,
+          "eventLoopDelayP99Ms": 50.2
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              1148
+            ],
+            "evidence": [
+              1271
+            ]
+          },
+          "nodeCpuMs": 1438,
+          "wallMs": 3150,
+          "events": 7,
+          "eventLoopDelayP99Ms": 31.1
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              964
+            ],
+            "evidence": [
+              1516
+            ]
+          },
+          "nodeCpuMs": 1140,
+          "wallMs": 3590,
+          "events": 7,
+          "eventLoopDelayP99Ms": 28.7
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              1047
+            ],
+            "evidence": [
+              1175
+            ]
+          },
+          "nodeCpuMs": 985,
+          "wallMs": 3149,
+          "events": 0,
+          "eventLoopDelayP99Ms": 31.3
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              1296
+            ],
+            "evidence": [
+              1676
+            ]
+          },
+          "nodeCpuMs": 1126,
+          "wallMs": 2155,
+          "events": 0,
+          "eventLoopDelayP99Ms": 35.1
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              1378
+            ],
+            "evidence": [
+              1768
+            ]
+          },
+          "nodeCpuMs": 1234,
+          "wallMs": 2133,
+          "events": 7,
+          "eventLoopDelayP99Ms": 45.2
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              1203
+            ],
+            "evidence": [
+              1486
+            ]
+          },
+          "nodeCpuMs": 1375,
+          "wallMs": 2097,
+          "events": 7,
+          "eventLoopDelayP99Ms": 40.3
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              1618
+            ],
+            "evidence": [
+              1514
+            ]
+          },
+          "nodeCpuMs": 1360,
+          "wallMs": 2098,
+          "events": 0,
+          "eventLoopDelayP99Ms": 29.7
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              1245
+            ],
+            "evidence": [
+              1533
+            ]
+          },
+          "nodeCpuMs": 1140,
+          "wallMs": 3132,
+          "events": 0,
+          "eventLoopDelayP99Ms": 33.1
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              986
+            ],
+            "evidence": [
+              1304
+            ]
+          },
+          "nodeCpuMs": 969,
+          "wallMs": 1572,
+          "events": 7,
+          "eventLoopDelayP99Ms": 29.3
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              1499
+            ],
+            "evidence": [
+              1811
+            ]
+          },
+          "nodeCpuMs": 1282,
+          "wallMs": 2114,
+          "events": 7,
+          "eventLoopDelayP99Ms": 43.1
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              1159
+            ],
+            "evidence": [
+              1429
+            ]
+          },
+          "nodeCpuMs": 969,
+          "wallMs": 3162,
+          "events": 0,
+          "eventLoopDelayP99Ms": 34.6
+        }
+      ]
+    },
+    {
+      "recordedAt": "2026-09-30T23:51:52.960Z",
+      "commit": "76e11c43c5b5dc897f0bcbd87eb21cdb9376c26b",
+      "uncommittedMeasuredSources": true,
+      "methodology": "owner-approved 2026-09-21: C (21 rounds) + D (1 instance per workload) + E (three-way over the owner-approved distribution-free 95 % median interval); p95 binding (yes/no) at >= 21 samples per mode; ceilings unchanged; development host, not a VMware claim",
+      "gating": true,
+      "gateNotRun": false,
+      "counts": {
+        "passed": 15,
+        "failed": 0,
+        "inconclusive": 3,
+        "informational": 0
+      },
+      "verdicts": {
+        "fast: median duration overhead (paired rounds)": {
+          "verdict": "INCONCLUSIVE",
+          "binding": true,
+          "median": -100,
+          "interval": {
+            "low": -329,
+            "high": 324,
+            "coverage": 97.3
+          },
+          "ceiling": 150
+        },
+        "fast: p95 duration overhead": {
+          "verdict": "PASS",
+          "binding": true,
+          "on": 883,
+          "off": 908,
+          "ceiling": 300,
+          "samplesPerMode": [
+            21,
+            21
+          ]
+        },
+        "evidence: median duration overhead (paired rounds)": {
+          "verdict": "INCONCLUSIVE",
+          "binding": true,
+          "median": -92,
+          "interval": {
+            "low": -402,
+            "high": 407,
+            "coverage": 97.3
+          },
+          "ceiling": 150
+        },
+        "evidence: p95 duration overhead": {
+          "verdict": "PASS",
+          "binding": true,
+          "on": 1173,
+          "off": 1174,
+          "ceiling": 300,
+          "samplesPerMode": [
+            21,
+            21
+          ]
+        },
+        "Node CPU per instance overhead (paired rounds)": {
+          "verdict": "INCONCLUSIVE",
+          "binding": true,
+          "median": -23.5,
+          "interval": {
+            "low": -117.5,
+            "high": 116,
+            "coverage": 97.3
+          },
+          "ceiling": 91.3
+        }
+      },
+      "measured": {
+        "rounds": 21,
+        "instancesPerWorkloadPerBatch": 1,
+        "concurrentInstances": 2,
+        "gating": true,
+        "stackTraces": "plain (as packaged)",
+        "host": {
+          "platform": "win32",
+          "cpus": 12
+        },
+        "fast": {
+          "on": {
+            "n": 21,
+            "median": 766,
+            "p95": 883,
+            "mean": 687.3
+          },
+          "off": {
+            "n": 21,
+            "median": 793,
+            "p95": 908,
+            "mean": 689.8
+          }
+        },
+        "fastPairedMedianDeltaMs": {
+          "n": 21,
+          "median": -100,
+          "p95": 445,
+          "mean": -2.4,
+          "perRound": [
+            319,
+            -329,
+            377,
+            -100,
+            -296,
+            -136,
+            -355,
+            240,
+            415,
+            -392,
+            -100,
+            324,
+            -450,
+            472,
+            335,
+            -349,
+            196,
+            -476,
+            41,
+            445,
+            -232
+          ]
+        },
+        "evidence": {
+          "on": {
+            "n": 21,
+            "median": 1046,
+            "p95": 1173,
+            "mean": 934.5
+          },
+          "off": {
+            "n": 21,
+            "median": 1063,
+            "p95": 1174,
+            "mean": 933.5
+          }
+        },
+        "evidencePairedMedianDeltaMs": {
+          "n": 21,
+          "median": -92,
+          "p95": 510,
+          "mean": 1,
+          "perRound": [
+            363,
+            -412,
+            528,
+            -147,
+            -412,
+            -97,
+            -402,
+            407,
+            483,
+            -484,
+            -92,
+            338,
+            -444,
+            504,
+            408,
+            -388,
+            147,
+            -540,
+            25,
+            510,
+            -274
+          ]
+        },
+        "nodeCpuMsPerInstance": {
+          "on": 358.2,
+          "off": 365.1,
+          "pairedDelta": {
+            "n": 21,
+            "median": -23.5,
+            "p95": 171,
+            "mean": -6.9,
+            "perRound": [
+              163.5,
+              -133.5,
+              156,
+              -188,
+              -94,
+              -101.5,
+              -148.5,
+              164,
+              116,
+              -47,
+              -23.5,
+              16,
+              -117.5,
+              171,
+              71,
+              -148.5,
+              39.5,
+              -133.5,
+              0,
+              187,
+              -94
+            ]
+          }
+        },
+        "evidenceBytesPerEvidenceInstance": {
+          "n": 21,
+          "median": 3930,
+          "p95": 3941,
+          "mean": 3932.8
+        },
+        "nodeRssPeakMb": {
+          "on": 227,
+          "off": 224
+        },
+        "eventLoopDelayP99Ms": {
+          "on": {
+            "n": 21,
+            "median": 23.9,
+            "p95": 29.7,
+            "mean": 24.2
+          },
+          "off": {
+            "n": 21,
+            "median": 24,
+            "p95": 29,
+            "mean": 23.9
+          }
+        },
+        "automationChromiumRssAtPeakMb": {
+          "on": {
+            "n": 21,
+            "median": 209,
+            "p95": 221,
+            "mean": 198
+          },
+          "off": {
+            "n": 21,
+            "median": 211,
+            "p95": 219,
+            "mean": 190.7
+          }
+        },
+        "chromiumCpu": "not measured: attributing it needs WMI polling, which loaded the runs it measured (duration and Node CPU carry the cost instead)",
+        "collectorLifecycleMs": {
+          "startGeneration": {
+            "n": 44,
+            "median": 4.2,
+            "p95": 6.5,
+            "mean": 4.3
+          },
+          "stopGeneration": {
+            "n": 44,
+            "median": 0.5,
+            "p95": 0.7,
+            "mean": 0.5
+          }
+        }
+      },
+      "batches": [
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              799
+            ],
+            "evidence": [
+              1077
+            ]
+          },
+          "nodeCpuMs": 968,
+          "wallMs": 1576,
+          "events": 7,
+          "eventLoopDelayP99Ms": 24.9
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              480
+            ],
+            "evidence": [
+              714
+            ]
+          },
+          "nodeCpuMs": 641,
+          "wallMs": 1042,
+          "events": 0,
+          "eventLoopDelayP99Ms": 25.7
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              814
+            ],
+            "evidence": [
+              1084
+            ]
+          },
+          "nodeCpuMs": 969,
+          "wallMs": 1577,
+          "events": 0,
+          "eventLoopDelayP99Ms": 26.8
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              485
+            ],
+            "evidence": [
+              672
+            ]
+          },
+          "nodeCpuMs": 702,
+          "wallMs": 1071,
+          "events": 7,
+          "eventLoopDelayP99Ms": 30.4
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              864
+            ],
+            "evidence": [
+              1173
+            ]
+          },
+          "nodeCpuMs": 969,
+          "wallMs": 1574,
+          "events": 7,
+          "eventLoopDelayP99Ms": 28.5
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              487
+            ],
+            "evidence": [
+              645
+            ]
+          },
+          "nodeCpuMs": 657,
+          "wallMs": 1075,
+          "events": 0,
+          "eventLoopDelayP99Ms": 24.5
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              885
+            ],
+            "evidence": [
+              1174
+            ]
+          },
+          "nodeCpuMs": 1063,
+          "wallMs": 1586,
+          "events": 0,
+          "eventLoopDelayP99Ms": 29
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              785
+            ],
+            "evidence": [
+              1027
+            ]
+          },
+          "nodeCpuMs": 687,
+          "wallMs": 1583,
+          "events": 7,
+          "eventLoopDelayP99Ms": 25
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              474
+            ],
+            "evidence": [
+              653
+            ]
+          },
+          "nodeCpuMs": 578,
+          "wallMs": 1048,
+          "events": 7,
+          "eventLoopDelayP99Ms": 20.8
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              770
+            ],
+            "evidence": [
+              1065
+            ]
+          },
+          "nodeCpuMs": 766,
+          "wallMs": 1581,
+          "events": 0,
+          "eventLoopDelayP99Ms": 23.4
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              888
+            ],
+            "evidence": [
+              1143
+            ]
+          },
+          "nodeCpuMs": 922,
+          "wallMs": 1590,
+          "events": 0,
+          "eventLoopDelayP99Ms": 21.9
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              752
+            ],
+            "evidence": [
+              1046
+            ]
+          },
+          "nodeCpuMs": 719,
+          "wallMs": 1584,
+          "events": 7,
+          "eventLoopDelayP99Ms": 23.5
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              476
+            ],
+            "evidence": [
+              696
+            ]
+          },
+          "nodeCpuMs": 531,
+          "wallMs": 1049,
+          "events": 7,
+          "eventLoopDelayP99Ms": 21.5
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              831
+            ],
+            "evidence": [
+              1098
+            ]
+          },
+          "nodeCpuMs": 828,
+          "wallMs": 1588,
+          "events": 0,
+          "eventLoopDelayP99Ms": 22.9
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              441
+            ],
+            "evidence": [
+              617
+            ]
+          },
+          "nodeCpuMs": 406,
+          "wallMs": 1059,
+          "events": 0,
+          "eventLoopDelayP99Ms": 22.1
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              681
+            ],
+            "evidence": [
+              1024
+            ]
+          },
+          "nodeCpuMs": 734,
+          "wallMs": 1580,
+          "events": 7,
+          "eventLoopDelayP99Ms": 21.3
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              848
+            ],
+            "evidence": [
+              1106
+            ]
+          },
+          "nodeCpuMs": 686,
+          "wallMs": 1593,
+          "events": 7,
+          "eventLoopDelayP99Ms": 27
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              433
+            ],
+            "evidence": [
+              623
+            ]
+          },
+          "nodeCpuMs": 454,
+          "wallMs": 1035,
+          "events": 0,
+          "eventLoopDelayP99Ms": 18.6
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              844
+            ],
+            "evidence": [
+              1101
+            ]
+          },
+          "nodeCpuMs": 735,
+          "wallMs": 1580,
+          "events": 0,
+          "eventLoopDelayP99Ms": 26.2
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              452
+            ],
+            "evidence": [
+              617
+            ]
+          },
+          "nodeCpuMs": 641,
+          "wallMs": 1052,
+          "events": 7,
+          "eventLoopDelayP99Ms": 18
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              808
+            ],
+            "evidence": [
+              1064
+            ]
+          },
+          "nodeCpuMs": 766,
+          "wallMs": 1571,
+          "events": 7,
+          "eventLoopDelayP99Ms": 22.6
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              908
+            ],
+            "evidence": [
+              1156
+            ]
+          },
+          "nodeCpuMs": 813,
+          "wallMs": 1587,
+          "events": 0,
+          "eventLoopDelayP99Ms": 24.2
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              442
+            ],
+            "evidence": [
+              717
+            ]
+          },
+          "nodeCpuMs": 718,
+          "wallMs": 1041,
+          "events": 0,
+          "eventLoopDelayP99Ms": 21.7
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              766
+            ],
+            "evidence": [
+              1055
+            ]
+          },
+          "nodeCpuMs": 750,
+          "wallMs": 1586,
+          "events": 7,
+          "eventLoopDelayP99Ms": 22.6
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              435
+            ],
+            "evidence": [
+              632
+            ]
+          },
+          "nodeCpuMs": 422,
+          "wallMs": 1057,
+          "events": 7,
+          "eventLoopDelayP99Ms": 23.9
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              885
+            ],
+            "evidence": [
+              1076
+            ]
+          },
+          "nodeCpuMs": 657,
+          "wallMs": 1597,
+          "events": 0,
+          "eventLoopDelayP99Ms": 24
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              505
+            ],
+            "evidence": [
+              774
+            ]
+          },
+          "nodeCpuMs": 735,
+          "wallMs": 1030,
+          "events": 0,
+          "eventLoopDelayP99Ms": 22
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              977
+            ],
+            "evidence": [
+              1278
+            ]
+          },
+          "nodeCpuMs": 1077,
+          "wallMs": 1581,
+          "events": 7,
+          "eventLoopDelayP99Ms": 29.7
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              781
+            ],
+            "evidence": [
+              1081
+            ]
+          },
+          "nodeCpuMs": 719,
+          "wallMs": 1594,
+          "events": 7,
+          "eventLoopDelayP99Ms": 25.6
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              446
+            ],
+            "evidence": [
+              673
+            ]
+          },
+          "nodeCpuMs": 577,
+          "wallMs": 1052,
+          "events": 0,
+          "eventLoopDelayP99Ms": 21.2
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              819
+            ],
+            "evidence": [
+              1027
+            ]
+          },
+          "nodeCpuMs": 704,
+          "wallMs": 1583,
+          "events": 0,
+          "eventLoopDelayP99Ms": 23.6
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              470
+            ],
+            "evidence": [
+              639
+            ]
+          },
+          "nodeCpuMs": 407,
+          "wallMs": 1043,
+          "events": 7,
+          "eventLoopDelayP99Ms": 22.1
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              848
+            ],
+            "evidence": [
+              1092
+            ]
+          },
+          "nodeCpuMs": 813,
+          "wallMs": 1565,
+          "events": 7,
+          "eventLoopDelayP99Ms": 24.9
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              652
+            ],
+            "evidence": [
+              945
+            ]
+          },
+          "nodeCpuMs": 734,
+          "wallMs": 1607,
+          "events": 0,
+          "eventLoopDelayP99Ms": 21
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              913
+            ],
+            "evidence": [
+              1192
+            ]
+          },
+          "nodeCpuMs": 829,
+          "wallMs": 1572,
+          "events": 0,
+          "eventLoopDelayP99Ms": 30.6
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              437
+            ],
+            "evidence": [
+              652
+            ]
+          },
+          "nodeCpuMs": 562,
+          "wallMs": 1043,
+          "events": 7,
+          "eventLoopDelayP99Ms": 21.8
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              852
+            ],
+            "evidence": [
+              1088
+            ]
+          },
+          "nodeCpuMs": 828,
+          "wallMs": 1577,
+          "events": 7,
+          "eventLoopDelayP99Ms": 22.1
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              811
+            ],
+            "evidence": [
+              1063
+            ]
+          },
+          "nodeCpuMs": 828,
+          "wallMs": 1576,
+          "events": 0,
+          "eventLoopDelayP99Ms": 24.1
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              438
+            ],
+            "evidence": [
+              628
+            ]
+          },
+          "nodeCpuMs": 423,
+          "wallMs": 1047,
+          "events": 0,
+          "eventLoopDelayP99Ms": 24.1
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              883
+            ],
+            "evidence": [
+              1138
+            ]
+          },
+          "nodeCpuMs": 797,
+          "wallMs": 1573,
+          "events": 7,
+          "eventLoopDelayP99Ms": 26.5
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              561
+            ],
+            "evidence": [
+              814
+            ]
+          },
+          "nodeCpuMs": 687,
+          "wallMs": 1054,
+          "events": 7,
+          "eventLoopDelayP99Ms": 24.7
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              793
+            ],
+            "evidence": [
+              1088
+            ]
+          },
+          "nodeCpuMs": 875,
+          "wallMs": 1568,
+          "events": 0,
+          "eventLoopDelayP99Ms": 24.6
+        }
+      ]
+    },
+    {
+      "recordedAt": "2026-10-01T03:54:18.734Z",
+      "commit": "0615af12bec865e40520cd84182fd38e1af8bb40",
+      "uncommittedMeasuredSources": true,
+      "methodology": "owner-approved 2026-09-21: C (21 rounds) + D (1 instance per workload) + E (three-way over the owner-approved distribution-free 95 % median interval); p95 binding (yes/no) at >= 21 samples per mode; ceilings unchanged; development host, not a VMware claim",
+      "gating": true,
+      "gateNotRun": false,
+      "counts": {
+        "passed": 16,
+        "failed": 0,
+        "inconclusive": 2,
+        "informational": 0
+      },
+      "verdicts": {
+        "fast: median duration overhead (paired rounds)": {
+          "verdict": "INCONCLUSIVE",
+          "binding": true,
+          "median": 35,
+          "interval": {
+            "low": -82,
+            "high": 315,
+            "coverage": 97.3
+          },
+          "ceiling": 150
+        },
+        "fast: p95 duration overhead": {
+          "verdict": "PASS",
+          "binding": true,
+          "on": 962,
+          "off": 901,
+          "ceiling": 300,
+          "samplesPerMode": [
+            21,
+            21
+          ]
+        },
+        "evidence: median duration overhead (paired rounds)": {
+          "verdict": "INCONCLUSIVE",
+          "binding": true,
+          "median": 64,
+          "interval": {
+            "low": -53,
+            "high": 399,
+            "coverage": 97.3
+          },
+          "ceiling": 150
+        },
+        "evidence: p95 duration overhead": {
+          "verdict": "PASS",
+          "binding": true,
+          "on": 1307,
+          "off": 1176,
+          "ceiling": 300,
+          "samplesPerMode": [
+            21,
+            21
+          ]
+        },
+        "Node CPU per instance overhead (paired rounds)": {
+          "verdict": "PASS",
+          "binding": true,
+          "median": 23.5,
+          "interval": {
+            "low": -63,
+            "high": 55.5,
+            "coverage": 97.3
+          },
+          "ceiling": 102
+        }
+      },
+      "measured": {
+        "rounds": 21,
+        "instancesPerWorkloadPerBatch": 1,
+        "concurrentInstances": 2,
+        "gating": true,
+        "stackTraces": "plain (as packaged)",
+        "host": {
+          "platform": "win32",
+          "cpus": 12
+        },
+        "fast": {
+          "on": {
+            "n": 21,
+            "median": 842,
+            "p95": 962,
+            "mean": 783.8
+          },
+          "off": {
+            "n": 21,
+            "median": 825,
+            "p95": 901,
+            "mean": 735.4
+          }
+        },
+        "fastPairedMedianDeltaMs": {
+          "n": 21,
+          "median": 35,
+          "p95": 378,
+          "mean": 48.4,
+          "perRound": [
+            28,
+            367,
+            549,
+            -104,
+            -474,
+            -26,
+            378,
+            3,
+            123,
+            -413,
+            67,
+            8,
+            363,
+            -82,
+            315,
+            58,
+            375,
+            35,
+            -434,
+            -245,
+            125
+          ]
+        },
+        "evidence": {
+          "on": {
+            "n": 21,
+            "median": 1133,
+            "p95": 1307,
+            "mean": 1058.5
+          },
+          "off": {
+            "n": 21,
+            "median": 1092,
+            "p95": 1176,
+            "mean": 987.8
+          }
+        },
+        "evidencePairedMedianDeltaMs": {
+          "n": 21,
+          "median": 64,
+          "p95": 463,
+          "mean": 70.7,
+          "perRound": [
+            64,
+            463,
+            551,
+            -65,
+            -574,
+            28,
+            433,
+            56,
+            76,
+            -464,
+            126,
+            26,
+            399,
+            -48,
+            417,
+            72,
+            401,
+            -53,
+            -483,
+            -205,
+            265
+          ]
+        },
+        "nodeCpuMsPerInstance": {
+          "on": 402.2,
+          "off": 408.2,
+          "pairedDelta": {
+            "n": 21,
+            "median": 23.5,
+            "p95": 109,
+            "mean": -6,
+            "perRound": [
+              93.5,
+              109,
+              46.5,
+              -39.5,
+              -187,
+              -7.5,
+              69.5,
+              78,
+              -78,
+              -109,
+              39,
+              55.5,
+              23.5,
+              23.5,
+              117,
+              39,
+              -63,
+              31.5,
+              -289.5,
+              -70,
+              -7.5
+            ]
+          }
+        },
+        "evidenceBytesPerEvidenceInstance": {
+          "n": 21,
+          "median": 3934,
+          "p95": 3941,
+          "mean": 3932.6
+        },
+        "nodeRssPeakMb": {
+          "on": 176,
+          "off": 176
+        },
+        "eventLoopDelayP99Ms": {
+          "on": {
+            "n": 21,
+            "median": 24.5,
+            "p95": 29,
+            "mean": 24.8
+          },
+          "off": {
+            "n": 21,
+            "median": 23.8,
+            "p95": 28,
+            "mean": 24.5
+          }
+        },
+        "automationChromiumRssAtPeakMb": {
+          "on": {
+            "n": 21,
+            "median": 210,
+            "p95": 231,
+            "mean": 201
+          },
+          "off": {
+            "n": 21,
+            "median": 208,
+            "p95": 219,
+            "mean": 207.7
+          }
+        },
+        "chromiumCpu": "not measured: attributing it needs WMI polling, which loaded the runs it measured (duration and Node CPU carry the cost instead)",
+        "collectorLifecycleMs": {
+          "startGeneration": {
+            "n": 44,
+            "median": 4.5,
+            "p95": 6.4,
+            "mean": 4.4
+          },
+          "stopGeneration": {
+            "n": 44,
+            "median": 0.5,
+            "p95": 0.8,
+            "mean": 0.5
+          }
+        }
+      },
+      "batches": [
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              486
+            ],
+            "evidence": [
+              714
+            ]
+          },
+          "nodeCpuMs": 625,
+          "wallMs": 1045,
+          "events": 7,
+          "eventLoopDelayP99Ms": 24.2
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              458
+            ],
+            "evidence": [
+              650
+            ]
+          },
+          "nodeCpuMs": 438,
+          "wallMs": 1055,
+          "events": 0,
+          "eventLoopDelayP99Ms": 23.7
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              504
+            ],
+            "evidence": [
+              677
+            ]
+          },
+          "nodeCpuMs": 672,
+          "wallMs": 1037,
+          "events": 0,
+          "eventLoopDelayP99Ms": 23.8
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              871
+            ],
+            "evidence": [
+              1140
+            ]
+          },
+          "nodeCpuMs": 890,
+          "wallMs": 1590,
+          "events": 7,
+          "eventLoopDelayP99Ms": 24.4
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              1024
+            ],
+            "evidence": [
+              1307
+            ]
+          },
+          "nodeCpuMs": 922,
+          "wallMs": 1583,
+          "events": 7,
+          "eventLoopDelayP99Ms": 31.7
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              475
+            ],
+            "evidence": [
+              756
+            ]
+          },
+          "nodeCpuMs": 829,
+          "wallMs": 1028,
+          "events": 0,
+          "eventLoopDelayP99Ms": 23
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              901
+            ],
+            "evidence": [
+              1164
+            ]
+          },
+          "nodeCpuMs": 844,
+          "wallMs": 1595,
+          "events": 0,
+          "eventLoopDelayP99Ms": 28
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              797
+            ],
+            "evidence": [
+              1099
+            ]
+          },
+          "nodeCpuMs": 765,
+          "wallMs": 1583,
+          "events": 7,
+          "eventLoopDelayP99Ms": 26.3
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              466
+            ],
+            "evidence": [
+              656
+            ]
+          },
+          "nodeCpuMs": 548,
+          "wallMs": 1040,
+          "events": 7,
+          "eventLoopDelayP99Ms": 22.5
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              940
+            ],
+            "evidence": [
+              1230
+            ]
+          },
+          "nodeCpuMs": 922,
+          "wallMs": 1592,
+          "events": 0,
+          "eventLoopDelayP99Ms": 26.2
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              862
+            ],
+            "evidence": [
+              1118
+            ]
+          },
+          "nodeCpuMs": 875,
+          "wallMs": 1584,
+          "events": 0,
+          "eventLoopDelayP99Ms": 32.7
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              836
+            ],
+            "evidence": [
+              1146
+            ]
+          },
+          "nodeCpuMs": 860,
+          "wallMs": 1584,
+          "events": 7,
+          "eventLoopDelayP99Ms": 24.5
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              842
+            ],
+            "evidence": [
+              1150
+            ]
+          },
+          "nodeCpuMs": 936,
+          "wallMs": 1570,
+          "events": 7,
+          "eventLoopDelayP99Ms": 24.2
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              464
+            ],
+            "evidence": [
+              717
+            ]
+          },
+          "nodeCpuMs": 797,
+          "wallMs": 1049,
+          "events": 0,
+          "eventLoopDelayP99Ms": 23
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              811
+            ],
+            "evidence": [
+              1104
+            ]
+          },
+          "nodeCpuMs": 828,
+          "wallMs": 1574,
+          "events": 0,
+          "eventLoopDelayP99Ms": 22.8
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              814
+            ],
+            "evidence": [
+              1160
+            ]
+          },
+          "nodeCpuMs": 984,
+          "wallMs": 1601,
+          "events": 7,
+          "eventLoopDelayP99Ms": 24.9
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              962
+            ],
+            "evidence": [
+              1184
+            ]
+          },
+          "nodeCpuMs": 875,
+          "wallMs": 1605,
+          "events": 7,
+          "eventLoopDelayP99Ms": 23.9
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              839
+            ],
+            "evidence": [
+              1108
+            ]
+          },
+          "nodeCpuMs": 1031,
+          "wallMs": 1565,
+          "events": 0,
+          "eventLoopDelayP99Ms": 25.9
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              853
+            ],
+            "evidence": [
+              1092
+            ]
+          },
+          "nodeCpuMs": 750,
+          "wallMs": 1587,
+          "events": 0,
+          "eventLoopDelayP99Ms": 21.9
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              440
+            ],
+            "evidence": [
+              628
+            ]
+          },
+          "nodeCpuMs": 532,
+          "wallMs": 1042,
+          "events": 7,
+          "eventLoopDelayP99Ms": 22.3
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              894
+            ],
+            "evidence": [
+              1232
+            ]
+          },
+          "nodeCpuMs": 860,
+          "wallMs": 1594,
+          "events": 7,
+          "eventLoopDelayP99Ms": 25.8
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              827
+            ],
+            "evidence": [
+              1106
+            ]
+          },
+          "nodeCpuMs": 782,
+          "wallMs": 1592,
+          "events": 0,
+          "eventLoopDelayP99Ms": 24.8
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              861
+            ],
+            "evidence": [
+              1107
+            ]
+          },
+          "nodeCpuMs": 968,
+          "wallMs": 1598,
+          "events": 0,
+          "eventLoopDelayP99Ms": 27.6
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              869
+            ],
+            "evidence": [
+              1133
+            ]
+          },
+          "nodeCpuMs": 1079,
+          "wallMs": 1583,
+          "events": 7,
+          "eventLoopDelayP99Ms": 25
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              822
+            ],
+            "evidence": [
+              1116
+            ]
+          },
+          "nodeCpuMs": 703,
+          "wallMs": 1555,
+          "events": 7,
+          "eventLoopDelayP99Ms": 24.5
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              459
+            ],
+            "evidence": [
+              717
+            ]
+          },
+          "nodeCpuMs": 656,
+          "wallMs": 1052,
+          "events": 0,
+          "eventLoopDelayP99Ms": 20.6
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              901
+            ],
+            "evidence": [
+              1131
+            ]
+          },
+          "nodeCpuMs": 703,
+          "wallMs": 1567,
+          "events": 0,
+          "eventLoopDelayP99Ms": 26.4
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              819
+            ],
+            "evidence": [
+              1083
+            ]
+          },
+          "nodeCpuMs": 750,
+          "wallMs": 1574,
+          "events": 7,
+          "eventLoopDelayP99Ms": 22
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              875
+            ],
+            "evidence": [
+              1153
+            ]
+          },
+          "nodeCpuMs": 813,
+          "wallMs": 1583,
+          "events": 7,
+          "eventLoopDelayP99Ms": 25.1
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              560
+            ],
+            "evidence": [
+              736
+            ]
+          },
+          "nodeCpuMs": 579,
+          "wallMs": 1035,
+          "events": 0,
+          "eventLoopDelayP99Ms": 23.7
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              801
+            ],
+            "evidence": [
+              1046
+            ]
+          },
+          "nodeCpuMs": 829,
+          "wallMs": 1592,
+          "events": 0,
+          "eventLoopDelayP99Ms": 23.8
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              859
+            ],
+            "evidence": [
+              1118
+            ]
+          },
+          "nodeCpuMs": 907,
+          "wallMs": 1601,
+          "events": 7,
+          "eventLoopDelayP99Ms": 28.4
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              927
+            ],
+            "evidence": [
+              1217
+            ]
+          },
+          "nodeCpuMs": 859,
+          "wallMs": 1610,
+          "events": 7,
+          "eventLoopDelayP99Ms": 29
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              552
+            ],
+            "evidence": [
+              816
+            ]
+          },
+          "nodeCpuMs": 985,
+          "wallMs": 1026,
+          "events": 0,
+          "eventLoopDelayP99Ms": 20.1
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              850
+            ],
+            "evidence": [
+              1156
+            ]
+          },
+          "nodeCpuMs": 750,
+          "wallMs": 1589,
+          "events": 0,
+          "eventLoopDelayP99Ms": 24.9
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              885
+            ],
+            "evidence": [
+              1103
+            ]
+          },
+          "nodeCpuMs": 813,
+          "wallMs": 1561,
+          "events": 7,
+          "eventLoopDelayP99Ms": 24.4
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              443
+            ],
+            "evidence": [
+              693
+            ]
+          },
+          "nodeCpuMs": 609,
+          "wallMs": 1044,
+          "events": 7,
+          "eventLoopDelayP99Ms": 24.4
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              877
+            ],
+            "evidence": [
+              1176
+            ]
+          },
+          "nodeCpuMs": 1188,
+          "wallMs": 1594,
+          "events": 0,
+          "eventLoopDelayP99Ms": 24.5
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              823
+            ],
+            "evidence": [
+              1056
+            ]
+          },
+          "nodeCpuMs": 781,
+          "wallMs": 1588,
+          "events": 0,
+          "eventLoopDelayP99Ms": 23.2
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              578
+            ],
+            "evidence": [
+              851
+            ]
+          },
+          "nodeCpuMs": 641,
+          "wallMs": 1140,
+          "events": 7,
+          "eventLoopDelayP99Ms": 18.5
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              950
+            ],
+            "evidence": [
+              1346
+            ]
+          },
+          "nodeCpuMs": 922,
+          "wallMs": 1577,
+          "events": 7,
+          "eventLoopDelayP99Ms": 24.6
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              825
+            ],
+            "evidence": [
+              1081
+            ]
+          },
+          "nodeCpuMs": 937,
+          "wallMs": 1587,
+          "events": 0,
+          "eventLoopDelayP99Ms": 23.7
+        }
+      ]
+    },
+    {
+      "recordedAt": "2026-10-01T13:02:51.017Z",
+      "commit": "640d53bb123d3a8740f1922a1e4fbb56dd6a0423",
+      "uncommittedMeasuredSources": false,
+      "methodology": "owner-approved 2026-09-21: C (21 rounds) + D (1 instance per workload) + E (three-way over the owner-approved distribution-free 95 % median interval); p95 binding (yes/no) at >= 21 samples per mode; ceilings unchanged; development host, not a VMware claim",
+      "gating": true,
+      "gateNotRun": false,
+      "counts": {
+        "passed": 17,
+        "failed": 0,
+        "inconclusive": 1,
+        "informational": 0
+      },
+      "verdicts": {
+        "fast: median duration overhead (paired rounds)": {
+          "verdict": "PASS",
+          "binding": true,
+          "median": -6,
+          "interval": {
+            "low": -18,
+            "high": 27,
+            "coverage": 97.3
+          },
+          "ceiling": 150
+        },
+        "fast: p95 duration overhead": {
+          "verdict": "PASS",
+          "binding": true,
+          "on": 519,
+          "off": 721,
+          "ceiling": 300,
+          "samplesPerMode": [
+            21,
+            21
+          ]
+        },
+        "evidence: median duration overhead (paired rounds)": {
+          "verdict": "PASS",
+          "binding": true,
+          "median": -14,
+          "interval": {
+            "low": -58,
+            "high": 28,
+            "coverage": 97.3
+          },
+          "ceiling": 150
+        },
+        "evidence: p95 duration overhead": {
+          "verdict": "PASS",
+          "binding": true,
+          "on": 707,
+          "off": 945,
+          "ceiling": 300,
+          "samplesPerMode": [
+            21,
+            21
+          ]
+        },
+        "Node CPU per instance overhead (paired rounds)": {
+          "verdict": "INCONCLUSIVE",
+          "binding": true,
+          "median": 23.5,
+          "interval": {
+            "low": -8.5,
+            "high": 70,
+            "coverage": 97.3
+          },
+          "ceiling": 59
+        }
+      },
+      "measured": {
+        "rounds": 21,
+        "instancesPerWorkloadPerBatch": 1,
+        "concurrentInstances": 2,
+        "gating": true,
+        "stackTraces": "plain (as packaged)",
+        "host": {
+          "platform": "win32",
+          "cpus": 12
+        },
+        "fast": {
+          "on": {
+            "n": 21,
+            "median": 468,
+            "p95": 519,
+            "mean": 476.9
+          },
+          "off": {
+            "n": 21,
+            "median": 463,
+            "p95": 721,
+            "mean": 500.4
+          }
+        },
+        "fastPairedMedianDeltaMs": {
+          "n": 21,
+          "median": -6,
+          "p95": 63,
+          "mean": -23.5,
+          "perRound": [
+            37,
+            -10,
+            -18,
+            63,
+            -13,
+            38,
+            -167,
+            -6,
+            18,
+            -16,
+            21,
+            -101,
+            -36,
+            -8,
+            -202,
+            30,
+            27,
+            -309,
+            127,
+            7,
+            24
+          ]
+        },
+        "evidence": {
+          "on": {
+            "n": 21,
+            "median": 645,
+            "p95": 707,
+            "mean": 651.3
+          },
+          "off": {
+            "n": 21,
+            "median": 638,
+            "p95": 945,
+            "mean": 691
+          }
+        },
+        "evidencePairedMedianDeltaMs": {
+          "n": 21,
+          "median": -14,
+          "p95": 85,
+          "mean": -39.7,
+          "perRound": [
+            47,
+            -14,
+            -16,
+            85,
+            -26,
+            -31,
+            -261,
+            -121,
+            32,
+            -7,
+            -58,
+            -82,
+            -32,
+            28,
+            -278,
+            28,
+            -14,
+            -334,
+            170,
+            22,
+            29
+          ]
+        },
+        "nodeCpuMsPerInstance": {
+          "on": 258.9,
+          "off": 235.9,
+          "pairedDelta": {
+            "n": 21,
+            "median": 23.5,
+            "p95": 116.5,
+            "mean": 23,
+            "perRound": [
+              70,
+              -8,
+              -77.5,
+              -8,
+              -39,
+              15.5,
+              -9,
+              -31,
+              85.5,
+              23.5,
+              116.5,
+              -8.5,
+              39,
+              101,
+              -164,
+              8.5,
+              86.5,
+              62.5,
+              118,
+              54.5,
+              46.5
+            ]
+          }
+        },
+        "evidenceBytesPerEvidenceInstance": {
+          "n": 21,
+          "median": 3941,
+          "p95": 3941,
+          "mean": 3936.2
+        },
+        "nodeRssPeakMb": {
+          "on": 176,
+          "off": 177
+        },
+        "eventLoopDelayP99Ms": {
+          "on": {
+            "n": 21,
+            "median": 25.9,
+            "p95": 29.5,
+            "mean": 26.2
+          },
+          "off": {
+            "n": 21,
+            "median": 27.3,
+            "p95": 30.5,
+            "mean": 27.1
+          }
+        },
+        "automationChromiumRssAtPeakMb": {
+          "on": {
+            "n": 21,
+            "median": 207,
+            "p95": 216,
+            "mean": 208.7
+          },
+          "off": {
+            "n": 21,
+            "median": 208,
+            "p95": 344,
+            "mean": 222.4
+          }
+        },
+        "chromiumCpu": "not measured: attributing it needs WMI polling, which loaded the runs it measured (duration and Node CPU carry the cost instead)",
+        "collectorLifecycleMs": {
+          "startGeneration": {
+            "n": 44,
+            "median": 2.8,
+            "p95": 4.6,
+            "mean": 3
+          },
+          "stopGeneration": {
+            "n": 44,
+            "median": 0.3,
+            "p95": 0.6,
+            "mean": 0.3
+          }
+        }
+      },
+      "batches": [
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              476
+            ],
+            "evidence": [
+              669
+            ]
+          },
+          "nodeCpuMs": 672,
+          "wallMs": 1076,
+          "events": 7,
+          "eventLoopDelayP99Ms": 28.1
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              439
+            ],
+            "evidence": [
+              622
+            ]
+          },
+          "nodeCpuMs": 532,
+          "wallMs": 1046,
+          "events": 0,
+          "eventLoopDelayP99Ms": 29
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              489
+            ],
+            "evidence": [
+              670
+            ]
+          },
+          "nodeCpuMs": 547,
+          "wallMs": 1079,
+          "events": 0,
+          "eventLoopDelayP99Ms": 28.4
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              479
+            ],
+            "evidence": [
+              656
+            ]
+          },
+          "nodeCpuMs": 531,
+          "wallMs": 1060,
+          "events": 7,
+          "eventLoopDelayP99Ms": 25.9
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              445
+            ],
+            "evidence": [
+              615
+            ]
+          },
+          "nodeCpuMs": 610,
+          "wallMs": 1044,
+          "events": 7,
+          "eventLoopDelayP99Ms": 32.8
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              463
+            ],
+            "evidence": [
+              631
+            ]
+          },
+          "nodeCpuMs": 765,
+          "wallMs": 1026,
+          "events": 0,
+          "eventLoopDelayP99Ms": 24.9
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              444
+            ],
+            "evidence": [
+              622
+            ]
+          },
+          "nodeCpuMs": 422,
+          "wallMs": 1039,
+          "events": 0,
+          "eventLoopDelayP99Ms": 24.8
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              507
+            ],
+            "evidence": [
+              707
+            ]
+          },
+          "nodeCpuMs": 406,
+          "wallMs": 1044,
+          "events": 7,
+          "eventLoopDelayP99Ms": 24.8
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              455
+            ],
+            "evidence": [
+              615
+            ]
+          },
+          "nodeCpuMs": 437,
+          "wallMs": 1043,
+          "events": 7,
+          "eventLoopDelayP99Ms": 24.1
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              468
+            ],
+            "evidence": [
+              641
+            ]
+          },
+          "nodeCpuMs": 515,
+          "wallMs": 1077,
+          "events": 0,
+          "eventLoopDelayP99Ms": 27.3
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              422
+            ],
+            "evidence": [
+              632
+            ]
+          },
+          "nodeCpuMs": 360,
+          "wallMs": 1142,
+          "events": 0,
+          "eventLoopDelayP99Ms": 26.7
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              460
+            ],
+            "evidence": [
+              601
+            ]
+          },
+          "nodeCpuMs": 391,
+          "wallMs": 1078,
+          "events": 7,
+          "eventLoopDelayP99Ms": 26
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              462
+            ],
+            "evidence": [
+              623
+            ]
+          },
+          "nodeCpuMs": 499,
+          "wallMs": 1021,
+          "events": 7,
+          "eventLoopDelayP99Ms": 28.8
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              629
+            ],
+            "evidence": [
+              884
+            ]
+          },
+          "nodeCpuMs": 517,
+          "wallMs": 1055,
+          "events": 0,
+          "eventLoopDelayP99Ms": 24.2
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              517
+            ],
+            "evidence": [
+              787
+            ]
+          },
+          "nodeCpuMs": 578,
+          "wallMs": 1058,
+          "events": 0,
+          "eventLoopDelayP99Ms": 24.4
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              511
+            ],
+            "evidence": [
+              666
+            ]
+          },
+          "nodeCpuMs": 516,
+          "wallMs": 1068,
+          "events": 7,
+          "eventLoopDelayP99Ms": 24.7
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              446
+            ],
+            "evidence": [
+              641
+            ]
+          },
+          "nodeCpuMs": 577,
+          "wallMs": 1054,
+          "events": 7,
+          "eventLoopDelayP99Ms": 26.2
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              428
+            ],
+            "evidence": [
+              609
+            ]
+          },
+          "nodeCpuMs": 406,
+          "wallMs": 1045,
+          "events": 0,
+          "eventLoopDelayP99Ms": 30.5
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              459
+            ],
+            "evidence": [
+              638
+            ]
+          },
+          "nodeCpuMs": 375,
+          "wallMs": 1032,
+          "events": 0,
+          "eventLoopDelayP99Ms": 26.4
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              443
+            ],
+            "evidence": [
+              631
+            ]
+          },
+          "nodeCpuMs": 422,
+          "wallMs": 1049,
+          "events": 7,
+          "eventLoopDelayP99Ms": 26.2
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              462
+            ],
+            "evidence": [
+              649
+            ]
+          },
+          "nodeCpuMs": 530,
+          "wallMs": 1035,
+          "events": 7,
+          "eventLoopDelayP99Ms": 29.5
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              441
+            ],
+            "evidence": [
+              707
+            ]
+          },
+          "nodeCpuMs": 297,
+          "wallMs": 1030,
+          "events": 0,
+          "eventLoopDelayP99Ms": 24.4
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              551
+            ],
+            "evidence": [
+              727
+            ]
+          },
+          "nodeCpuMs": 563,
+          "wallMs": 1062,
+          "events": 0,
+          "eventLoopDelayP99Ms": 28
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              450
+            ],
+            "evidence": [
+              645
+            ]
+          },
+          "nodeCpuMs": 546,
+          "wallMs": 1046,
+          "events": 7,
+          "eventLoopDelayP99Ms": 24.6
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              482
+            ],
+            "evidence": [
+              638
+            ]
+          },
+          "nodeCpuMs": 547,
+          "wallMs": 1045,
+          "events": 7,
+          "eventLoopDelayP99Ms": 24.8
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              518
+            ],
+            "evidence": [
+              670
+            ]
+          },
+          "nodeCpuMs": 469,
+          "wallMs": 1145,
+          "events": 0,
+          "eventLoopDelayP99Ms": 25.1
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              456
+            ],
+            "evidence": [
+              613
+            ]
+          },
+          "nodeCpuMs": 391,
+          "wallMs": 1039,
+          "events": 0,
+          "eventLoopDelayP99Ms": 28.3
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              448
+            ],
+            "evidence": [
+              641
+            ]
+          },
+          "nodeCpuMs": 593,
+          "wallMs": 1038,
+          "events": 7,
+          "eventLoopDelayP99Ms": 27.2
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              519
+            ],
+            "evidence": [
+              667
+            ]
+          },
+          "nodeCpuMs": 500,
+          "wallMs": 1041,
+          "events": 7,
+          "eventLoopDelayP99Ms": 25.6
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              721
+            ],
+            "evidence": [
+              945
+            ]
+          },
+          "nodeCpuMs": 828,
+          "wallMs": 1588,
+          "events": 0,
+          "eventLoopDelayP99Ms": 25.3
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              457
+            ],
+            "evidence": [
+              619
+            ]
+          },
+          "nodeCpuMs": 484,
+          "wallMs": 1059,
+          "events": 0,
+          "eventLoopDelayP99Ms": 29.3
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              487
+            ],
+            "evidence": [
+              647
+            ]
+          },
+          "nodeCpuMs": 501,
+          "wallMs": 1046,
+          "events": 7,
+          "eventLoopDelayP99Ms": 25.1
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              473
+            ],
+            "evidence": [
+              625
+            ]
+          },
+          "nodeCpuMs": 547,
+          "wallMs": 1048,
+          "events": 7,
+          "eventLoopDelayP99Ms": 26.2
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              446
+            ],
+            "evidence": [
+              639
+            ]
+          },
+          "nodeCpuMs": 374,
+          "wallMs": 1024,
+          "events": 0,
+          "eventLoopDelayP99Ms": 28
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              756
+            ],
+            "evidence": [
+              964
+            ]
+          },
+          "nodeCpuMs": 391,
+          "wallMs": 1601,
+          "events": 0,
+          "eventLoopDelayP99Ms": 28.4
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              447
+            ],
+            "evidence": [
+              630
+            ]
+          },
+          "nodeCpuMs": 516,
+          "wallMs": 1090,
+          "events": 7,
+          "eventLoopDelayP99Ms": 29.4
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              607
+            ],
+            "evidence": [
+              805
+            ]
+          },
+          "nodeCpuMs": 626,
+          "wallMs": 1073,
+          "events": 7,
+          "eventLoopDelayP99Ms": 22.8
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              480
+            ],
+            "evidence": [
+              635
+            ]
+          },
+          "nodeCpuMs": 390,
+          "wallMs": 1029,
+          "events": 0,
+          "eventLoopDelayP99Ms": 25.7
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              461
+            ],
+            "evidence": [
+              625
+            ]
+          },
+          "nodeCpuMs": 313,
+          "wallMs": 1050,
+          "events": 0,
+          "eventLoopDelayP99Ms": 32.3
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              468
+            ],
+            "evidence": [
+              647
+            ]
+          },
+          "nodeCpuMs": 422,
+          "wallMs": 1053,
+          "events": 7,
+          "eventLoopDelayP99Ms": 25.3
+        },
+        {
+          "mode": "on",
+          "durationsMs": {
+            "fast": [
+              488
+            ],
+            "evidence": [
+              660
+            ]
+          },
+          "nodeCpuMs": 484,
+          "wallMs": 1040,
+          "events": 7,
+          "eventLoopDelayP99Ms": 23.1
+        },
+        {
+          "mode": "off",
+          "durationsMs": {
+            "fast": [
+              464
+            ],
+            "evidence": [
+              631
+            ]
+          },
+          "nodeCpuMs": 391,
+          "wallMs": 1024,
+          "events": 0,
+          "eventLoopDelayP99Ms": 27.4
+        }
+      ]
     }
   ]
 }
