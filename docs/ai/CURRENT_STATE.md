@@ -33,6 +33,18 @@
   - "Recorded as suppressed" still passed, because the collector re-checks on arrival. The report alone
     could not have shown the capture.
   - The mutation was reverted to the committed source.
+- **`verify:failure-capture-overhead`, run on the owner's request at `640d53bb`:** 17 PASS / 0 FAIL /
+  1 INCONCLUSIVE, using the owner-approved C + D + E gate (21 rounds).
+  - It is the first gate measurement since the capture path changed after `a2125084` (`80a135fe`,
+    `90bbb412`, L11).
+  - **Pass:** the fast and evidence median overheads (-6 ms and -14 ms, ceiling 150 ms), the fast and
+    evidence p95 overheads (both negative, ceiling 300 ms), evidence size 3,941 bytes (ceiling 4,096), no
+    AI module reachable from the run path, and no leftover Chromium.
+  - **Inconclusive:** Node CPU per instance, median 23.5 ms with a 95 % interval of [-8.5, 70] ms against
+    a 59 ms ceiling. It is the same criterion and verdict the owner accepted on 2026-09-21. It is not a
+    PASS.
+  - The run was appended as run 25 to the preserved `L5a-overhead-gate.json`. All earlier runs are kept,
+    and the file stays uncommitted.
 - Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
 ## L11 proof-to-action race closed: a proven element is pinned, never re-resolved by index (`awkit-djnl.19`, 2026-10-01)
