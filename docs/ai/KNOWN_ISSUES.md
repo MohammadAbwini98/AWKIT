@@ -10,10 +10,23 @@
 - **Rule:** review a native wheel from the license files it ships and the binaries themselves, not from
   `License-Expression` or the PyPI classifier.
 
-## A recovered element is acted on through a lazy index (2026-10-01, OPEN — owner decision)
+## A selector engine registered late never reaches a frame already queried (2026-10-01, OPEN — know it)
 
-- **Found by the independent review.** Recovery returns `list.nth(index)`, and the action resolves that
-  index again.
+- **Measured on Playwright 1.61.** A frame builds its injected script once, with the engines registered
+  at that moment. A later `selectors.register` reaches new frames and contexts only.
+- With the pin engine registered lazily, frame case A of `verify:dom-intelligence-contexts` failed:
+  the locator resolved to nothing. `elementPin.ts` now registers when the module loads.
+- **Unverified, same shape:** `registerClosedShadowEngine` is lazy (first closed-shadow step). A
+  closed-shadow step that follows another locator query in the same document may not resolve.
+  `verify:closed-shadow` does not cover that order.
+
+## A recovered element is acted on through a lazy index (2026-10-01, RESOLVED — pinned to the proven node)
+
+- **Fixed.** The proof's own evaluate pins the node, and the step acts through `awkitpin=<nonce>`
+  (`src/runner/elementPin.ts`). This covers recovery (both engines) and `resolveGuardedPositional`.
+  The gates are `verify:locator-guard` [10] and `verify:dom-intelligence-contexts` R. See CURRENT_STATE.
+- **History.** Found by the independent review. Recovery returned `list.nth(index)`, and the action
+  resolved that index again.
   - For the snapshot engine, the identity recheck happens before the actionability check
     (`isEnabled`) and the action, so an element inserted before the index in that gap would receive the
     action.

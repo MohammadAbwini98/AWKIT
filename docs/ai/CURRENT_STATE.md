@@ -1,6 +1,40 @@
 # CURRENT_STATE
 
-## L11 Stages F–I implemented; packaged artifact BLOCKED, libiconv licensing pending (`awkit-djnl.19`, 2026-10-01, latest)
+## L11 proof-to-action race closed: a proven element is pinned, never re-resolved by index (`awkit-djnl.19`, 2026-10-01, latest)
+
+- **Fixed.** Recovery and guarded-positional steps proved an element by index and then acted through
+  `nth(index)`, which re-resolves at action time. Now the proof's own `evaluateAll` pins the proven node.
+  The step acts through `awkitpin=<nonce>` (`src/runner/elementPin.ts`), which resolves to that node
+  while it is inside the scope, or to nothing.
+  - **Covered paths:** snapshot local and blueprint layers, the legacy engine's two layers (they now go
+    through the same proof), and `resolveGuardedPositional`, the sensitive path. That path ran three
+    round trips before the action.
+  - **No live-DOM writes.** The registry is a JS closure behind a per-process secret, like the
+    closed-shadow bridge.
+  - **Behavior change:** a proven node that is replaced before the action is not substituted. The
+    action waits, then fails.
+- **Measured with the old code:** a sibling inserted after the proof made a SENSITIVE guarded Delete
+  click the wrong button (`clicked-2`, mutation M2). The new checks: `verify:locator-guard` [10] and
+  `verify:dom-intelligence-contexts` R (both engines).
+- **Mutations:**
+  - M1 (recovery back to `nth`) and M2 (guard back to `nth`): killed.
+  - M4 (engine without the scope walk): killed.
+  - M3 (no `isConnected`): survived, since the scope walk already refuses a detached node. The redundant
+    check was removed.
+  - Late registration of the engine failed frame case A. Hence registration at module load.
+- **Gates at this state:**
+  - `npm run build` PASS.
+  - `verify:locator-guard` 38/0, `verify:dom-intelligence-contexts` 59/0 and
+    `verify:dom-intelligence-acceptance` 10/0 (legacy 7 correct / 0 wrong, snapshot 8/0, product 8/0).
+  - `verify:locator-wrong-element` 14/0, `verify:frame-chain` 41/0, `verify:closed-shadow` 23/0 and
+    `verify:blueprint-recovery-browser` 24/0.
+  - `verify:runner` 138/0 and `verify:locator-diagnosis` 56/0.
+- **CodeCraft BLOCKED:** no server in this session.
+- **Still open on L11:** the packaged artifact (BLOCKED by the clean-tree rule and the preserved L5a file)
+  and the LGPL-2.1 libiconv decision. Both are unchanged; see the section below.
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## L11 Stages F–I implemented; packaged artifact BLOCKED, libiconv licensing pending (`awkit-djnl.19`, 2026-10-01)
 
 - **L11 stays open.** Every workstream is implemented and pushed. Two things block closure:
   - The packaged artifact is **BLOCKED**. Strict offline validation refuses a manifest generated from a

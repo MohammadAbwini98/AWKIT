@@ -1,6 +1,24 @@
 # DECISIONS
 
-### 2026-10-01 (latest) — L11 recovery is route-bound and action-checked; the AI page context stays off; a dirty-tree manifest is not committed (implementer) (`awkit-djnl.19`)
+### 2026-10-01 (latest) — A proven element is pinned, not re-resolved by index (owner request, implementer design) (`awkit-djnl.19`)
+
+- **Decision.** The evaluate that reads the identity being proven also registers that exact node. The
+  step then acts through the custom selector engine `awkitpin=<nonce>`, which resolves to that node
+  inside its scope, or to nothing. This applies to recovery (both engines, both layers) and to the
+  guarded-positional path.
+- **Why this option:**
+  - **Reordering** `isEnabled` before the recheck still left the return and the action's own
+    re-resolution between proof and action.
+  - **Retiring the legacy engine** would not fix the guarded path.
+  - **An `ElementHandle`** would have changed every StepExecutor action. The locator form keeps
+    Playwright's auto-wait.
+- **Trade-off accepted.** If a proven node is replaced by an identical re-render before the action, the
+  step fails instead of acting on the replacement. This is the same refuse-rather-than-guess rule as
+  `awkit-65g` and `awkit-epbe`.
+- **Not done:** writing a marker attribute into the live DOM. Diagnosis guarantees that it never touches
+  the DOM, and that guarantee stays true.
+
+### 2026-10-01 — L11 recovery is route-bound and action-checked; the AI page context stays off; a dirty-tree manifest is not committed (implementer) (`awkit-djnl.19`)
 
 - **Route binding.** Winner memory and DOM references both record the route of the step's own document:
   its frame's for a frame step, otherwise the page's. The route is a hash of the origin and path template.

@@ -15,9 +15,8 @@
   2. **LGPL-2.1 libiconv inside lxml's wheel.** Decide how section 6 is met for an external release:
      ship the lxml and libiconv sources beside the release, or a written offer. See
      `resources/THIRD_PARTY_NOTICES.md` › DOM-intelligence runtime.
-  3. **Recovery's lazy-index window** (KNOWN_ISSUES). Moving the actionability check before the final
-     identity recheck, and removing the post-recheck wrapper in `LocatorFactory.recover`, was refused by
-     the permission classifier. Approve it, choose ElementHandle pinning, or retire the legacy engine.
+  3. ~~Recovery's lazy-index window~~: **resolved** after this handoff by pinning the proven node
+     (`elementPin.ts`, CURRENT_STATE latest). It also covers the guarded-positional sensitive path.
 - **Uncommitted on purpose:**
   - `resources/dependency-manifest.json` and `.sig` were regenerated from a dirty tree
     (`sourceTreeDirty: true`). The committed pair is the clean `fb4c092f` release record, which is not

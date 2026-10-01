@@ -1,6 +1,26 @@
 # TASK_LOG
 
-## 2026-10-01 (latest) — L11 Stages F–I: dynamic contexts, provenance, AI page context, acceptance benchmark, packaging (Claude)
+## 2026-10-01 (latest) — L11 proof-to-action race: the proven node is pinned (Claude)
+
+- **Task:** `awkit-djnl.19`, safety item 1: close the window between an identity proof and the action.
+- **Result:** fixed. One evaluate proves and pins the node. The step acts through the `awkitpin` engine
+  and never re-resolves the index. This covers recovery (snapshot and legacy, local and blueprint) and
+  guarded positional.
+- **Files:**
+  - `src/runner/elementPin.ts` (new)
+  - `src/runner/recoverySnapshot.ts`
+  - `src/runner/LocatorFactory.ts`
+  - `scripts/verify-{dom-intelligence-contexts,locator-guard}.mts`
+  - `docs/ai/*`
+- **Verification:**
+  - Build PASS.
+  - locator-guard 38/0, contexts 59/0 and acceptance 10/0.
+  - wrong-element 14/0, frame-chain 41/0, closed-shadow 23/0, blueprint-recovery-browser 24/0, runner
+    138/0 and locator-diagnosis 56/0.
+  - Mutations: M1, M2 and M4 killed. M3 survived, so its redundant check was removed. Late engine
+    registration failed case A.
+- **Not run:** `verify:failure-capture-overhead` (it writes the preserved L5a file) and the packaged
+  checks (BLOCKED, unchanged). CodeCraft BLOCKED: no server.
 
 - **Task:** continue `awkit-djnl.19`, Stages F–I, then packaging and closeout.
 - **Result:** every stage is implemented and pushed.
