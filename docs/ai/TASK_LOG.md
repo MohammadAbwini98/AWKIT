@@ -23,7 +23,8 @@
     zero wrong, with a check that legacy ran on every row. Result 11/0.
   - Mutation, on the owner's request: legacy acts on its best candidate even when the gate refuses it.
     Killed, with 8 legacy wrong rows named. Reverted to the committed source.
-- **Not run:** the new check's mutation. The session's permission classifier refused it.
+  - Gate mutation, on the owner's request: the gate was forced open. dom-normalization went 150/1; only
+    the new no-capture check failed (HTML sent 1 → 2). Reverted to the committed source.
 
 ## 2026-10-01 — L11 proof-to-action race: the proven node is pinned (Claude)
 

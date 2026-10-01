@@ -27,9 +27,12 @@
     product and proof stayed 0 wrong. The older "legacy wins kept" check also failed, but only incidentally:
     the mutant newly won 4 rows the snapshot engine refuses. The mutation was reverted to the committed
     source.
-- **Not run:** the mutation of the new check (gate forced open). It is **NOT RUN** because the session's
-  permission classifier refused it. Its discriminating power is argued: the same ordinary page sent HTML
-  in the "on" run, and the check requires that.
+- **Page-context gate mutation killed, on the owner's request.** With the gate forced open, so the page is
+  always captured as before the fix, `verify:dom-normalization` went 150/1.
+  - Only the new D check failed: one more HTML payload reached the provider (1 → 2).
+  - "Recorded as suppressed" still passed, because the collector re-checks on arrival. The report alone
+    could not have shown the capture.
+  - The mutation was reverted to the committed source.
 - Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
 ## L11 proof-to-action race closed: a proven element is pinned, never re-resolved by index (`awkit-djnl.19`, 2026-10-01)
