@@ -2,20 +2,18 @@
   "task": "awkit-djnl-19-l11-implementation-0930",
   "contract_path": "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json",
   "holder": "project-state",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-01T05:27:16.379Z",
-  "acquired_at_commit": "d4897725004dec071e8a34ff505b75b409a2231b",
+  "acquired_at": "2026-10-01T07:20:53.433Z",
+  "acquired_at_commit": "70e8ee0f4d5ba0868b0e0393d676f1251e77f1a9",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json",
     "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
     "resources/dependency-manifest.json",
     "resources/dependency-manifest.sig"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json": "ad17746d75733f004c89694ff3d9d2024a29599b06518eaf62e8d1a79431d25d",
     "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json": "c896676e99fe84140151d9da74f9df801d218b759286397e15f7e9e842492b62",
     "resources/dependency-manifest.json": "16c68e01db7e2f344e928a22abf087af56742bb26765a6085d591cf4996771b0",
     "resources/dependency-manifest.sig": "6350b5130955653e544418aa30bed240fb2a0143a3c42371244572226f154f38"
@@ -32,8 +30,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-10-01T05:28:21.427Z",
-  "released_reason": "tracker notes and export committed at f8378f42 with verify:roadmap-dashboard 177/177 and Sources agree, L11 stays open on owner items",
-  "archived_at": "2026-10-01T05:28:21.429Z"
+  "violations": []
 }
