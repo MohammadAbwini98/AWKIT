@@ -197,9 +197,40 @@ export function normalizePageContext(raw: RawDomNormalization, redactor?: Pick<S
   return context;
 }
 
+/**
+ * A context read back from a stored report (report.json can be edited, imported or older than this shape):
+ * exactly the stored shape, within every bound, every string rescanned for residual secrets, or nothing.
+ */
+export function readPageContext(value: unknown): PageContext | undefined {
+  const context = value as Partial<PageContext> | null;
+  if (!context || typeof context !== "object" || context.schemaVersion !== PAGE_CONTEXT_VERSION) return undefined;
+  // Stored headings and regions carry a short role prefix ("h2 ", "navigation ") before a bounded item.
+  const text = (entry: unknown) => typeof entry === "string" && entry.length <= PAGE_CONTEXT_LIMITS.maxItemChars + 16 && findResidualSecrets(entry).length === 0;
+  const optionalText = (entry: unknown) => entry === undefined || text(entry);
+  const flag = (entry: unknown) => entry === undefined || entry === true;
+  const list = (entries: unknown, max: number, valid: (entry: any) => boolean) => Array.isArray(entries) && entries.length <= max && entries.every(valid);
+  const ok =
+    optionalText(context.title) &&
+    list(context.headings, PAGE_CONTEXT_LIMITS.headings, text) &&
+    list(context.landmarks, PAGE_CONTEXT_LIMITS.landmarks, text) &&
+    list(context.alerts, PAGE_CONTEXT_LIMITS.alerts, text) &&
+    list(context.text, PAGE_CONTEXT_LIMITS.text, text) &&
+    list(context.interactive, PAGE_CONTEXT_LIMITS.interactive, (control) => Boolean(control) && ROLES_OR_CONTROL(control.role) && text(control.name) && flag(control.disabled)) &&
+    list(context.forms, PAGE_CONTEXT_LIMITS.forms, (form) =>
+      Boolean(form) && optionalText(form.label) && list(form.fields, PAGE_CONTEXT_LIMITS.formFields, (field) => Boolean(field) && ROLES_OR_CONTROL(field.role) && optionalText(field.label) && flag(field.required) && flag(field.invalid))
+    ) &&
+    list(context.tables, PAGE_CONTEXT_LIMITS.tables, (table) => Boolean(table) && optionalText(table.label) && list(table.columns, PAGE_CONTEXT_LIMITS.columns, text) && Number.isInteger(table.rows) && table.rows >= 0 && table.rows <= 100_000) &&
+    typeof context.truncated === "boolean" &&
+    Number.isInteger(context.residualSecrets);
+  return ok ? (context as PageContext) : undefined;
+}
+
+const ROLES_OR_CONTROL = (role: unknown): boolean => typeof role === "string" && (role === "control" || ROLES.has(role));
+
 /** One line per non-empty part, whole lines only, within `maxChars`: what the failure analysis shows. */
 export function pageContextLines(context: PageContext, maxChars: number = PAGE_CONTEXT_LIMITS.maxRenderedChars): string[] {
-  const quoted = (value: string) => `"${value}"`;
+  // JSON quoting: a quote inside page text cannot close the string and forge another segment.
+  const quoted = (value: string) => JSON.stringify(value);
   const candidates = [
     context.title ? `Title: ${quoted(context.title)}` : "",
     context.alerts.length ? `Alerts shown: ${context.alerts.map(quoted).join("; ")}` : "",
@@ -211,7 +242,7 @@ export function pageContextLines(context: PageContext, maxChars: number = PAGE_C
     ),
     context.interactive.length ? `Controls: ${context.interactive.map((control) => `${control.role} ${quoted(control.name)}${control.disabled ? " DISABLED" : ""}`).join("; ")}` : "",
     ...context.tables.map((table) => `Table${table.label ? ` ${quoted(table.label)}` : ""}: ${table.rows} row(s)${table.columns.length ? `, columns ${table.columns.map(quoted).join(", ")}` : ""}`),
-    context.landmarks.length ? `Regions: ${context.landmarks.join("; ")}` : "",
+    context.landmarks.length ? `Regions: ${context.landmarks.map(quoted).join("; ")}` : "",
     context.text.length ? `Text: ${context.text.map(quoted).join("; ")}` : ""
   ].filter(Boolean);
   const lines: string[] = [];

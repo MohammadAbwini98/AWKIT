@@ -58,6 +58,7 @@ import { buildDomReference, type DomReferenceStore } from "./domIntelligence/dom
 import { captureDomSnapshot } from "./domIntelligence/domSnapshot";
 import { DOM_REFERENCE_CAPTURE_SOURCE } from "./domIntelligence/pageScripts";
 import { compareRoutes, routeKey } from "./routeIdentity";
+import { detectRecorderProtectedLogin } from "@src/security/ProtectedLoginDetector";
 import { capturePageContext } from "./domIntelligence/normalizeDom";
 import { pageContextEnabled, type PageContextResult } from "./domIntelligence/pageContext";
 
@@ -529,9 +530,13 @@ export class LocatorFactory {
     const referenceId = spec.blueprintId;
     const reference = referenceId && deps.references ? await deps.references.get(referenceId, stepCandidatesDigest(spec)).catch(() => undefined) : undefined;
     // Either binding on another route makes this page a different route for the step (L11.F).
-    const routes = [compareRoutes(deps.expectedRoute, routeKey(this.page.url())), compareRoutes(reference?.route, routeKey(frame.url()))];
+    const routes = [compareRoutes(deps.expectedRoute, routeKey(frame.url())), compareRoutes(reference?.route, routeKey(frame.url()))];
     diagnosis.route = routes.includes("mismatch") ? "mismatch" : routes.includes("match") ? "match" : "unbound";
-    if (!deps.provider) diagnosis.provider = { outcome: "skipped", reason: "provider-unavailable", candidates: [] };
+    // A protected sign-in, MFA, CAPTCHA, passkey or device-approval surface: no HTML leaves the page, and the
+    // Designer offers nothing to apply (it keys on this reason), whatever the provider's state.
+    const detection = await detectRecorderProtectedLogin(this.page).catch(() => undefined);
+    if (detection?.detected && detection.recommendedAction === "pause") diagnosis.provider = { outcome: "skipped", reason: "protected-surface", candidates: [] };
+    else if (!deps.provider) diagnosis.provider = { outcome: "skipped", reason: "provider-unavailable", candidates: [] };
     else if (diagnosis.route === "mismatch") diagnosis.provider = { outcome: "skipped", reason: "route-mismatch", candidates: [] };
     else if (!reference) diagnosis.provider = { outcome: "skipped", reason: "no-reference", candidates: [] };
     else {
@@ -769,7 +774,7 @@ export class LocatorFactory {
         candidatesDigest,
         winningCandidateSignature: winner.ranked.signature,
         fingerprint,
-        route: routeKey(this.page.url()),
+        route: await this.stepRoute(step),
         source: "recorded-candidate",
         updatedAt: new Date().toISOString()
       },
@@ -796,7 +801,7 @@ export class LocatorFactory {
       page: step.pageAlias || "main",
       frame: frameDepth > 0 ? "child" : "main",
       frameDepth,
-      route: compareRoutes(memory.route, routeKey(this.page.url()))
+      route: compareRoutes(memory.route, await this.stepRoute(step))
     };
     let recovered: RecoveredElement | undefined;
     let suggestion: DomRepairSuggestion | undefined;
@@ -838,6 +843,12 @@ export class LocatorFactory {
         candidatesTried: memory.candidatesTried
       });
     }
+  }
+
+  /** The route of the document the step's element lives in: its frame's for a frame step, else the page's. */
+  private async stepRoute(step: FlowStep): Promise<string | undefined> {
+    const frame = await this.blueprintFrame(step.locator?.context).catch(() => this.page.mainFrame());
+    return routeKey(frame.url());
   }
 
   /**

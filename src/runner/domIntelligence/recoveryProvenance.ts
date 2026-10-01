@@ -95,7 +95,8 @@ export function toRecoveryProvenance(trace: LocatorRecoveryTrace): LocatorRecove
       );
       continue;
     }
-    const provider = trace.suggestion?.provider;
+    // A fixed code, whatever a provider's status reported.
+    const provider = trace.suggestion ? (trace.suggestion.provider === "scrapling" ? "scrapling" : "none") : undefined;
     if (stage.outcome === "suggested") {
       events.push(pick({ event: "provider-suggestion-generated", source: "dom-intelligence", stage: "provider", effect: "none", provider, ms: ms(stage.ms), candidates: stage.candidates ?? 0 }) as RecoveryProvenanceEvent);
       const best = trace.suggestion?.best;

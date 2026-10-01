@@ -34,7 +34,7 @@ import { NoopDomIntelligenceProvider, type DomIntelligenceProvider, type DomReco
 import { RECOVERY_MIN_ANCESTRY, RECOVERY_SCORE_THRESHOLD, captureLocalSnapshot, rankLocalRecovery, recheckSnapshotWinner } from "@src/runner/recoverySnapshot";
 import { ancestrySimilarity, createPageFingerprint, hashFingerprint, similarity } from "@src/runner/locatorFingerprint";
 import type { LocatorElementFingerprint } from "@src/profiles/FlowProfile";
-import { routeKey } from "@src/runner/routeIdentity";
+import { compareRoutes, routeKey } from "@src/runner/routeIdentity";
 import { toRecoveryProvenance } from "@src/runner/domIntelligence/recoveryProvenance";
 
 const PORT = 4437;
@@ -175,6 +175,9 @@ async function main(): Promise<void> {
       const seeded = await judge(control.factory(a.page).resolve(frameStep), isFrameButton);
       check("control: the recorded frame step resolves inside the frame", seeded.outcome === "correct", seeded.outcome);
       check("the seed refreshed a DOM reference bound to the frame document's route", (await control.references.get(frameStep.locator!.blueprintId!, stepCandidatesDigest(frameStep.locator!)))?.route === routeKey(`${BASE}/dom-context-lab/frame`));
+      // Winner memory binds the same document, so a frame that navigates under an unchanged top page is
+      // another route for the step (independent review, 2026-10-01).
+      check("the seed's winner memory is bound to the frame document's route, not the top page's", (await control.store.get(control.scopeKey(frameStep.id)))?.route === routeKey(`${BASE}/dom-context-lab/frame`), (await control.store.get(control.scopeKey(frameStep.id)))?.route);
       await (await frameOf(a.page)).evaluate(() => (window as unknown as { __dclFrame: { dropTestId: () => void } }).__dclFrame.dropTestId());
       const drift = await judge(control.factory(a.page).resolve(frameStep), isFrameButton);
       check("control: a drifted target inside the frame is still recovered there", drift.outcome === "correct" && recovered(control, frameStep.id), drift.outcome);
@@ -202,6 +205,11 @@ async function main(): Promise<void> {
 
     // ── B. SPA routes ────────────────────────────────────────────────────────────────────────────
     console.log("B. SPA routes: a remembered identity never recovers on another route");
+    {
+      const bound = routeKey(`${BASE}/dom-context-lab/route/orders`);
+      check("a bound step on a route-less document (blank or error page) is on another route", compareRoutes(bound, routeKey("about:blank")) === "mismatch" && compareRoutes(bound, routeKey("chrome-error://chromewebdata/")) === "mismatch");
+      check("only a binding that was never recorded is unbound", compareRoutes(undefined, bound) === "unbound" && compareRoutes(undefined, undefined) === "unbound" && compareRoutes(bound, bound) === "match");
+    }
     {
       const routeStep = step({ strategy: "testId", value: "dcl-route-export" });
       const isOrdersExport = (el: Element) => location.pathname.endsWith("/orders") && el.textContent === "Export list";

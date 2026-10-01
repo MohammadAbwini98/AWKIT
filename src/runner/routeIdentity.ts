@@ -14,8 +14,9 @@ import { urlPathTemplate } from "./evidence/ExecutionEvidence";
  * template of a hash route (`#/settings/7` → `#/settings/:id`). The query and a plain fragment are not
  * part of a route. Only the hash is ever stored, never the URL.
  *
- * Undefined for a document with no route identity (`about:blank`, `data:`, a `setContent` page): such a
- * binding cannot be compared, so it neither proves nor refuses anything.
+ * Undefined for a document with no route identity (`about:blank`, `data:`, a `setContent` page). A binding
+ * recorded without one cannot be compared, so it neither proves nor refuses anything; but a step bound to a
+ * route, now on a document with none (a blank or error page), is on another route.
  */
 
 let redactor: SemanticRedactor | undefined;
@@ -36,8 +37,8 @@ export function routeKey(rawUrl: string | undefined): string | undefined {
   return createHash("sha256").update(template).digest("hex").slice(0, 20);
 }
 
-/** `unbound` when either side has no route identity; never a refusal by itself. */
+/** `unbound` only when nothing was recorded; a recorded route against a route-less document is a mismatch. */
 export function compareRoutes(recorded: string | undefined, current: string | undefined): "match" | "mismatch" | "unbound" {
-  if (!recorded || !current) return "unbound";
+  if (!recorded) return "unbound";
   return recorded === current ? "match" : "mismatch";
 }

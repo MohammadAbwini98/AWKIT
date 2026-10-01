@@ -9,8 +9,9 @@
  *                   holds in the editor's plain fields and resolves to the true target only; of the
  *                   provider's candidates only the true target is proven.
  *   C. Refused      a same-label decoy (`duplicate-text-decoy`): nothing is proven, nothing is offered.
- *   D. Protected    a document with a password field: the provider is skipped as a protected surface and
- *                   no element or suggestion is described.
+ *   D. Protected    a document with a password field, and a CAPTCHA document with none (only the Recorder's
+ *                   protected-login detector can refuse it): the provider is skipped as a protected surface,
+ *                   no HTML reaches it and nothing is offered to apply.
  *   E. Read-only    diagnosing changes neither the page (DOM, events) nor the step.
  *   F. Source       the Spy mount has no apply path; the Designer's apply only edits the unsaved draft; the
  *                   component calls no IPC but the diagnosis.
@@ -30,11 +31,13 @@ import type { PageBlueprint } from "@src/runner/LocatorBlueprintStore";
 import { isApplicableSuggestion, sanitizeDiagnosisRequest } from "@src/runner/domIntelligence/DomIntelligenceApi";
 import type { DomIntelligenceProvider, DomRecoveryRequest } from "@src/runner/domIntelligence/DomIntelligenceProvider";
 import { MemoryDomReferenceStore, type DomReferenceRecord } from "@src/runner/domIntelligence/domReference";
+import { suggestRepair } from "@src/runner/domIntelligence/repairSuggestion";
 import { DOM_CASES } from "./dom-intelligence/fixtures.mts";
 
 const PORT = 4435;
 const BASE = `http://127.0.0.1:${PORT}`;
 const PASSWORD_FIELD = '<label for="pw">Password</label><input type="password" id="pw" name="password" autocomplete="current-password">';
+const CAPTCHA_ELEMENT = '<div role="img" aria-label="captcha challenge">Verify the image</div>';
 
 let passed = 0;
 let failed = 0;
@@ -65,7 +68,14 @@ function startServer(): Promise<Server> {
       return;
     }
     const variant = url.searchParams.get("v");
-    const html = variant === "baseline" ? found.baseline : variant === "protected" ? found.mutated.replace("</form>", `${PASSWORD_FIELD}</form>`) : found.mutated;
+    const html =
+      variant === "baseline"
+        ? found.baseline
+        : variant === "protected"
+          ? found.mutated.replace("</form>", `${PASSWORD_FIELD}</form>`)
+          : variant === "captcha"
+            ? found.mutated.replace("</form>", `${CAPTCHA_ELEMENT}</form>`)
+            : found.mutated;
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" }).end(html);
   });
   return new Promise((done) => server.listen(PORT, "127.0.0.1", () => done(server)));
@@ -116,7 +126,7 @@ function saveButtonProvider(requests: DomRecoveryRequest[]): DomIntelligenceProv
 }
 
 /** A page with the Recorder's init script, as the Element Spy's live page has it. */
-async function livePage(browser: Browser, caseId: string, variant: "mutated" | "protected"): Promise<Page> {
+async function livePage(browser: Browser, caseId: string, variant: "mutated" | "protected" | "captcha"): Promise<Page> {
   const context = await browser.newContext();
   await context.addInitScript({ content: getRecorderInitScriptContent() });
   await context.exposeBinding("__awtkit_recordAction", () => undefined);
@@ -262,6 +272,38 @@ async function protectedSurface(browser: Browser): Promise<void> {
     check("nothing is offered to apply", offered(diagnosis) === 0);
   } finally {
     await page.context().close();
+  }
+
+  console.log("D. Protected surface (CAPTCHA, no password field)");
+  const captcha = await livePage(browser, id, "captcha");
+  try {
+    // Precondition: the serializer's own check cannot refuse this page, so only the detector can.
+    check("the CAPTCHA page has no password or one-time-code field", (await captcha.locator('input[type="password"], [autocomplete="one-time-code"]').count()) === 0);
+    check("the CAPTCHA page carries the challenge", (await captcha.locator('[aria-label*="captcha"]').count()) === 1);
+    const requests: DomRecoveryRequest[] = [];
+    const diagnosis = await diagnose(captcha, recorded, requests);
+    check("the provider is skipped as a protected surface", diagnosis.provider.outcome === "skipped" && diagnosis.provider.reason === "protected-surface", JSON.stringify(diagnosis.provider));
+    check("no HTML reached the provider", requests.length === 0, `${requests.length}`);
+    check("nothing is offered to apply, the AWKIT proof included", offered(diagnosis) === 0, `${offered(diagnosis)}`);
+
+    // The runner's repair-suggestion stage (after both recovery layers refused) holds the same line.
+    const expected = recorded.step.locator?.identity?.fingerprint;
+    const suggest = async (page: Page, sent: DomRecoveryRequest[]) =>
+      expected ? suggestRepair({ page, frame: page.mainFrame(), step: recorded.step, expected, options: { provider: saveButtonProvider(sent), references: recorded.references } }) : undefined;
+    const controlPage = await livePage(browser, id, "mutated");
+    try {
+      const sent: DomRecoveryRequest[] = [];
+      const control = await suggest(controlPage, sent);
+      check("control: on the unprotected page the runner's suggestion stage consults the provider", control?.stage.outcome === "suggested" && sent.length === 1, JSON.stringify(control?.stage));
+    } finally {
+      await controlPage.context().close();
+    }
+    const sent: DomRecoveryRequest[] = [];
+    const outcome = await suggest(captcha, sent);
+    check("the runner's suggestion stage skips the CAPTCHA page as a protected surface", outcome?.stage.outcome === "skipped" && outcome.stage.reason === "protected-surface", JSON.stringify(outcome?.stage));
+    check("and sends it no HTML", sent.length === 0, `${sent.length}`);
+  } finally {
+    await captcha.context().close();
   }
 }
 

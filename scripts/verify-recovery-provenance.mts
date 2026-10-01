@@ -33,7 +33,7 @@ import { ExecutionEngine } from "@src/runner/ExecutionEngine";
 import { MemoryDomReferenceStore } from "@src/runner/domIntelligence/domReference";
 import type { DomIntelligenceProvider, DomRecoveryResult } from "@src/runner/domIntelligence/DomIntelligenceProvider";
 import { NoopDomIntelligenceProvider } from "@src/runner/domIntelligence/DomIntelligenceProvider";
-import { RECOVERY_PROVENANCE_MAX_EVENTS, type LocatorRecoveryProvenance } from "@src/runner/domIntelligence/recoveryProvenance";
+import { RECOVERY_PROVENANCE_MAX_EVENTS, toRecoveryProvenance, type LocatorRecoveryProvenance } from "@src/runner/domIntelligence/recoveryProvenance";
 import { buildDirs, cleanupRoot, installBenchGuards } from "./benchmark/engineHarness.mts";
 
 installBenchGuards();
@@ -248,6 +248,17 @@ try {
   check("actedOn appears only on the recovered record, and only as awkit-proof", all.filter((record) => record.actedOn !== undefined).length === 1 && all.every((record) => record.actedOn === undefined || (record.actedOn === "awkit-proof" && record.result === "recovered")));
   check("no provider event ever claims an effect", all.flatMap((record) => record.events).filter((event) => event.source === "dom-intelligence").every((event) => event.effect === "none"));
   check("no report line says a provider acted (clicked, filled, executed)", !all.some((record) => JSON.stringify(record).match(/clicked|filled|executed|acted-by-provider/)));
+  // The provider name comes from a provider's own status: only a fixed code may reach the record.
+  const forged = toRecoveryProvenance({
+    engine: "snapshot",
+    result: "unresolved",
+    totalMs: 1,
+    stages: [{ stage: "provider", outcome: "suggested", ms: 1, candidates: 1 }],
+    suggestion: { provider: "<img src=x> https://evil.example" as never, candidates: 1 },
+    context: { page: "main", frame: "main", frameDepth: 0, route: "unbound" },
+    candidatesTried: 1
+  });
+  check("a provider name outside the fixed codes is recorded as 'none'", forged.events.some((event) => event.event === "provider-suggestion-generated" && event.provider === "none") && !JSON.stringify(forged).includes("evil"), forged.events);
 } finally {
   mockSite?.kill();
   await cleanupRoot(root);

@@ -1,6 +1,7 @@
 import type { Frame, Page } from "playwright";
 
 import type { FlowStep, LocatorElementFingerprint } from "@src/profiles/FlowProfile";
+import { detectRecorderProtectedLogin } from "@src/security/ProtectedLoginDetector";
 
 import { stepCandidatesDigest } from "../LocatorRecoveryStore";
 import { createPageFingerprint, hashFingerprint, similarity } from "../locatorFingerprint";
@@ -66,9 +67,14 @@ export async function suggestRepair(input: {
 
   const budgetMs = Math.max(50, Math.min(options.budgetMs ?? 800, DOM_INTELLIGENCE_LIMITS.maxTimeoutMs));
   const deadline = performance.now() + budgetMs;
+  // A protected sign-in, MFA, CAPTCHA, passkey or device-approval surface never reaches the host: the
+  // Recorder's own detector first, then the serializer's password and one-time-code check below.
+  const detection = await withDeadline(detectRecorderProtectedLogin(input.page).catch(() => undefined), budgetMs, () => undefined);
+  if (!detection) return { stage: { outcome: "error", reason: "snapshot-failed" } };
+  if (detection.detected && detection.recommendedAction === "pause") return { stage: { outcome: "skipped", reason: "protected-surface" } };
   const snapshot = await withDeadline(
     captureDomSnapshot(frame, { mode: "recover", expected }).catch(() => undefined),
-    budgetMs,
+    Math.max(50, deadline - performance.now()),
     () => undefined
   );
   if (!snapshot) return { stage: { outcome: "error", reason: "snapshot-failed" } };

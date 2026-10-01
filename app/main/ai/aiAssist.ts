@@ -64,6 +64,7 @@ import { inspectionActionBlocker } from "@src/recorder/elementInspection";
 import type { ElementInspection, RecordedAction } from "@src/recorder/RecorderTypes";
 import type { ConcurrentRunReport, StoredFailureAnalysis } from "@src/reports/ExecutionReport";
 import type { LocatorProofResult } from "@src/runner/locatorProof";
+import { readPageContext } from "@src/runner/domIntelligence/pageContext";
 import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 import { decideAiAction, type AiPolicyConfig, type AiPolicyDecision } from "@src/security/authz/AiAutonomyPolicy";
 import { validateFlowDefinition, type FlowValidationReport } from "@src/validation/FlowValidator";
@@ -231,7 +232,8 @@ export function failureBatch(report: ConcurrentRunReport): FailureBatchEntry[] {
     if (!cause) return [];
     const events = instance.diagnostics?.evidence ?? [];
     const context = events.find((event) => event.id === cause.evidenceIds[0])?.context;
-    const pageContext = instance.diagnostics?.pageContext;
+    // Read back from report.json, which can be edited or older: the exact bounded shape, or nothing.
+    const pageContext = readPageContext(instance.diagnostics?.pageContext);
     return [{ instanceId: instance.instanceId, flowId: context?.flowId, nodeId: context?.nodeId, stepIndex: context?.stepIndex, baseline: cause, events, ...(pageContext ? { pageContext } : {}) }];
   });
 }
