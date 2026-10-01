@@ -19,7 +19,7 @@
  * delayed render and a stale reference; the recorded steps resolving unchanged for the normal-step
  * overhead; and a synthetic DOM-size series. The REAL staged host serves C and D.
  *
- * Judged (verify mode): zero wrong-element results for B and D (L10.0's documented residual is the
+ * Judged (verify mode): zero wrong-element results for A, B and D (L10.0's documented residual is the
  * recorded locator itself and is reported apart); no recovery A gets right that B loses; warm B recovery
  * p95 < 500 ms on the accepted representative fixtures (recoverable L10.0 pairs + the iframe drift);
  * every expected refusal refused; all 16 classes covered. Recorded: per-engine outcomes and latencies
@@ -515,6 +515,13 @@ async function main(): Promise<void> {
   check("snapshot recovery (B): zero wrong-element results", count("snapshot", "WRONG") === 0, rows.filter((r) => r.engines.snapshot?.outcome === "WRONG").map((r) => r.caseId));
   check("the product failure path (B + suggestion): zero wrong-element results", count("product", "WRONG") === 0, rows.filter((r) => r.engines.product?.outcome === "WRONG").map((r) => r.caseId));
   check("Scrapling + AWKIT proof (D): zero wrong-element results", count("proof", "WRONG") === 0, rows.filter((r) => r.engines.proof?.outcome === "WRONG").map((r) => r.caseId));
+  // A stays operator-selectable (AWKIT_LOCATOR_RECOVERY_ENGINE=legacy), so it is held to the same bar; it must
+  // have run on every row, or zero wrong would be vacuous.
+  check(
+    "legacy recovery (A): ran on every row with zero wrong-element results",
+    rows.length > 0 && rows.every((r) => r.engines.legacy) && count("legacy", "WRONG") === 0,
+    { rows: rows.length, ran: rows.filter((r) => r.engines.legacy).length, wrong: rows.filter((r) => r.engines.legacy?.outcome === "WRONG").map((r) => r.caseId) }
+  );
   check("no engine errored outside a refusal", ENGINES.every((engine) => count(engine, "error") === 0), rows.flatMap((r) => ENGINES.filter((e) => r.engines[e]?.outcome === "error").map((e) => `${r.caseId}/${e}: ${r.engines[e]?.detail}`)));
   const lost = rows.filter((r) => r.engines.legacy?.outcome === "correct" && r.engines.snapshot?.outcome !== "correct").map((r) => r.caseId);
   check("no recovery the legacy engine gets right is lost by the snapshot engine", lost.length === 0, lost);

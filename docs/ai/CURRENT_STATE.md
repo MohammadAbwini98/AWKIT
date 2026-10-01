@@ -19,6 +19,8 @@
     actions: legacy 0 (7 correct), snapshot 0 (8), product 0 (8), proof 0 (7). Delayed render is now
     unresolved for every engine. Scrapling alone still gives 10 wrong, but it is evidence only and never
     executes.
+  - The suite now **asserts** legacy zero wrong. It also checks that legacy ran on every row, so the zero
+    cannot be vacuous. It passed 11/0. Before this, the legacy count was only printed.
 - **Not run:** the mutation of the new check (gate forced open). It is **NOT RUN** because the session's
   permission classifier refused it. Its discriminating power is argued: the same ordinary page sent HTML
   in the "on" run, and the check requires that.

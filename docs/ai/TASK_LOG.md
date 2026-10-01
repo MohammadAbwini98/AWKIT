@@ -19,6 +19,8 @@
   - Build PASS, dom-normalization 151/0 (new no-capture check) and runner 138/0.
   - Acceptance 10/0, re-run at `de47c865` on the owner's request. Wrong-element actions are 0 for
     legacy, snapshot, product and proof.
+  - Then, on the owner's request, `scripts/benchmark-dom-intelligence-acceptance.mts` asserts legacy
+    zero wrong, with a check that legacy ran on every row. Result 11/0.
 - **Not run:** the new check's mutation. The session's permission classifier refused it.
 
 ## 2026-10-01 — L11 proof-to-action race: the proven node is pinned (Claude)
