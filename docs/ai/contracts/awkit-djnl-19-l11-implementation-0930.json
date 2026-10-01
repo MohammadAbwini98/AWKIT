@@ -68,16 +68,9 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "release",
+      "agent_id": "project-state",
       "allowed_paths": [
-        "build/**",
-        "electron-builder.json",
-        "resources/THIRD_PARTY_NOTICES.md",
-        "resources/dependency-manifest.json",
-        "resources/dependency-manifest.sig",
-        "scripts/generate-dependency-manifest.ps1",
-        "scripts/package-per-user-installer.ps1",
-        "scripts/package-portable.ps1"
+        ".beads/**"
       ]
     }
   },
