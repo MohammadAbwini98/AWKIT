@@ -30,6 +30,10 @@
   the owner's call to commit it (KNOWN_ISSUES).
 - **Not done:** the "suggestion accepted by user" provenance event, which would need a persisted flow
   field. Phase L also waits on `awkit-djnl.15` (NVIDIA qualification, QC).
+- **NVIDIA qualification setup:** `docs/NVIDIA_QUALIFICATION_SETUP.md` (`1c141123`) lists what the
+  `.15` item 2 machine needs and the steps to run there. The key requirement: it must show only NVIDIA
+  adapters, since a hybrid set reads `VENDOR_UNPROVEN`. It also needs the release signing key, moved by
+  USB. Not yet executed on an NVIDIA machine.
 - Ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
 ## HANDOFF (2026-10-01) — L11 Stage 1 (Spy/Designer/Settings UI) done; L11 stays open
