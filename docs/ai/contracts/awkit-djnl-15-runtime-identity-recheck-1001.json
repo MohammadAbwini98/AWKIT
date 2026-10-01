@@ -61,8 +61,8 @@
       "command": "npm run verify:roadmap-dashboard",
       "artifact": null,
       "required": true,
-      "result": "pending",
-      "notes": ""
+      "result": "PASS",
+      "notes": "177/177, Overview 'Sources agree', 332 issues, 22 outstanding / 310 closed (unchanged: .15 stays open), ledger 65 PASS / 2 NOT RUN / 0 BLOCKED."
     }
   ],
   "git": {
@@ -73,8 +73,28 @@
     "push_authorized": true
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "pending",
+    "status": "complete",
+    "qa_status": "PASS",
     "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-15-runtime-identity-recheck-1001:project-state:2026-10-01T17:28:32.858Z",
+        "task": "awkit-djnl-15-runtime-identity-recheck-1001",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/issues.jsonl"
+        ],
+        "acquired_at": "2026-10-01T17:28:32.858Z",
+        "acquired_at_commit": "7f14d66affce4bff244b512592cc4cd8aebc6b9e",
+        "released_at": "2026-10-01T17:29:24.412Z",
+        "released_reason": "re-check note appended to awkit-djnl.15 and exported at 66fa350e, verify:roadmap-dashboard 177/177 and Sources agree",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
   }
 }
