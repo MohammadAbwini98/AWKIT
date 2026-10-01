@@ -381,6 +381,8 @@
     "verify:request-provenance": "node scripts/benchmark/run.mjs scripts/verify-request-provenance.mts",
     "verify:recovery-provenance": "node scripts/benchmark/run.mjs scripts/verify-recovery-provenance.mts",
     "verify:dom-normalization": "node scripts/benchmark/run.mjs scripts/verify-dom-normalization.mts",
+    "verify:dom-intelligence-acceptance": "tsx scripts/benchmark-dom-intelligence-acceptance.mts",
+    "benchmark:dom-intelligence-acceptance": "tsx scripts/benchmark-dom-intelligence-acceptance.mts --write",
     "benchmark:dom-normalization": "node scripts/benchmark/run.mjs scripts/verify-dom-normalization.mts --write",
     "verify:failure-capture-overhead": "node scripts/benchmark/run.mjs scripts/verify-failure-capture-overhead.mts",
     "verify:failure-capture-gate-stats": "tsx scripts/verify-failure-capture-gate-stats.mts",

@@ -1,0 +1,1028 @@
+{
+  "generatedBy": "benchmark:dom-intelligence-acceptance",
+  "generatedAt": "2026-10-01T04:12:30.482Z",
+  "environment": {
+    "platform": "win32",
+    "node": "v18.16.0"
+  },
+  "summary": {
+    "fixtureSetHash": "063f91eb0686665a57bf5f10871f08895e8bbacc376a368432072d18c91fb6b1",
+    "host": {
+      "coldStartMs": 821,
+      "workingSetKbAfterStart": 20500,
+      "workingSetKbAfterRun": 12732
+    },
+    "outcomes": {
+      "legacy": {
+        "correct": 7,
+        "WRONG": 0,
+        "unresolved": 16,
+        "refused": 0,
+        "error": 0
+      },
+      "snapshot": {
+        "correct": 8,
+        "WRONG": 0,
+        "unresolved": 15,
+        "refused": 0,
+        "error": 0
+      },
+      "scrapling": {
+        "correct": 11,
+        "WRONG": 10,
+        "unresolved": 2,
+        "refused": 0,
+        "error": 0
+      },
+      "proof": {
+        "correct": 7,
+        "WRONG": 0,
+        "unresolved": 16,
+        "refused": 0,
+        "error": 0
+      },
+      "product": {
+        "correct": 8,
+        "WRONG": 0,
+        "unresolved": 15,
+        "refused": 0,
+        "error": 0
+      }
+    },
+    "latencyMs": {
+      "legacy": {
+        "p50": 1705.6,
+        "p95": 3417,
+        "n": 23
+      },
+      "snapshot": {
+        "p50": 31.1,
+        "p95": 64.4,
+        "n": 23
+      },
+      "scrapling": {
+        "p50": 24.9,
+        "p95": 53.5,
+        "n": 23
+      },
+      "proof": {
+        "p50": 25,
+        "p95": 71.1,
+        "n": 23
+      },
+      "product": {
+        "p50": 47.9,
+        "p95": 113,
+        "n": 23
+      }
+    },
+    "acceptedSnapshotRecovery": {
+      "n": 8,
+      "p50": 37.6,
+      "p95": 170
+    },
+    "stagesMs": {
+      "localStageMs": {
+        "p50": 18.2,
+        "p95": 139.4
+      },
+      "blueprintStageMs": {
+        "p50": 16.6,
+        "p95": 38.4
+      },
+      "providerStageMs": {
+        "p50": null,
+        "p95": null
+      },
+      "serializeMs": {
+        "p50": 11.7,
+        "p95": 22.1
+      },
+      "providerRoundTripMs": {
+        "p50": 15.3,
+        "p95": 32
+      },
+      "parseMs": {
+        "p50": 0.6,
+        "p95": 2.2
+      },
+      "matchMs": {
+        "p50": 13.8,
+        "p95": 29.8
+      },
+      "proofMs": {
+        "p50": 0.2,
+        "p95": 17.6
+      },
+      "htmlBytes": {
+        "p50": 7339,
+        "p95": 7643
+      }
+    },
+    "normalStep": {
+      "offMedianMs": 25,
+      "onMedianMs": 23,
+      "firstOnMedianMs": 45.9,
+      "samples": 96
+    },
+    "residual": "other-region-decoy-target-removed: the recorded role=button locator itself matches the notifications-panel button once the form is gone (production config, not recovery; KNOWN_ISSUES)",
+    "scaling": [
+      {
+        "fillerRows": 20,
+        "elements": 345,
+        "legacyMs": null,
+        "snapshotMs": 66.7,
+        "serializeMs": 27.7,
+        "hostParseMatchMs": 55.7,
+        "legacyCorrect": 0,
+        "snapshotCorrect": 3
+      },
+      {
+        "fillerRows": 90,
+        "elements": 975,
+        "legacyMs": null,
+        "snapshotMs": 60.2,
+        "serializeMs": 33.1,
+        "hostParseMatchMs": 86,
+        "legacyCorrect": 0,
+        "snapshotCorrect": 3
+      },
+      {
+        "fillerRows": 360,
+        "elements": 3405,
+        "legacyMs": null,
+        "snapshotMs": 156.9,
+        "serializeMs": 96.8,
+        "hostParseMatchMs": 319.8,
+        "legacyCorrect": 0,
+        "snapshotCorrect": 3
+      },
+      {
+        "fillerRows": 900,
+        "elements": 8265,
+        "legacyMs": null,
+        "snapshotMs": 710.5,
+        "serializeMs": 439.3,
+        "hostParseMatchMs": 1109.3,
+        "legacyCorrect": 0,
+        "snapshotCorrect": 3
+      }
+    ]
+  },
+  "rows": [
+    {
+      "class": "2 wrapper insertion",
+      "caseId": "wrapper-insertion",
+      "expect": "recover",
+      "engines": {
+        "legacy": {
+          "outcome": "correct",
+          "ms": 1622.9704999923706
+        },
+        "snapshot": {
+          "outcome": "correct",
+          "ms": 32.10240000486374
+        },
+        "product": {
+          "outcome": "correct",
+          "ms": 27.11159999668598
+        },
+        "scrapling": {
+          "outcome": "WRONG",
+          "ms": 29.262799993157387,
+          "detail": "75.82%"
+        },
+        "proof": {
+          "outcome": "unresolved",
+          "ms": 29.427499994635582,
+          "detail": "not AWKIT's winner"
+        }
+      },
+      "timings": {
+        "localStageMs": 20.8,
+        "serializeMs": 13.029400005936623,
+        "htmlBytes": 7394,
+        "providerRoundTripMs": 16.208599999547005,
+        "parseMs": 0.9,
+        "matchMs": 14.03,
+        "proofMs": 0.1647000014781952
+      }
+    },
+    {
+      "class": "3 element moved",
+      "caseId": "moved-within-region",
+      "expect": "recover",
+      "engines": {
+        "legacy": {
+          "outcome": "correct",
+          "ms": 1705.5701000094414
+        },
+        "snapshot": {
+          "outcome": "correct",
+          "ms": 31.073499992489815
+        },
+        "product": {
+          "outcome": "correct",
+          "ms": 28.205300003290176
+        },
+        "scrapling": {
+          "outcome": "correct",
+          "ms": 28.29230000078678,
+          "detail": "100%"
+        },
+        "proof": {
+          "outcome": "correct",
+          "ms": 38.897200003266335
+        }
+      },
+      "timings": {
+        "localStageMs": 19.9,
+        "serializeMs": 12.72800000011921,
+        "htmlBytes": 7339,
+        "providerRoundTripMs": 15.547200009226799,
+        "parseMs": 0.71,
+        "matchMs": 13.98,
+        "proofMs": 10.604900002479553
+      }
+    },
+    {
+      "class": "4 id change",
+      "caseId": "id-changed",
+      "expect": "recover",
+      "engines": {
+        "legacy": {
+          "outcome": "correct",
+          "ms": 1517.166400000453
+        },
+        "snapshot": {
+          "outcome": "correct",
+          "ms": 29.178300008177757
+        },
+        "product": {
+          "outcome": "correct",
+          "ms": 27.440099999308586
+        },
+        "scrapling": {
+          "outcome": "correct",
+          "ms": 26.11830000579357,
+          "detail": "91.67%"
+        },
+        "proof": {
+          "outcome": "correct",
+          "ms": 36.81749999523163
+        }
+      },
+      "timings": {
+        "localStageMs": 18.5,
+        "serializeMs": 11.3243999928236,
+        "htmlBytes": 7343,
+        "providerRoundTripMs": 14.778500005602837,
+        "parseMs": 0.64,
+        "matchMs": 13.48,
+        "proofMs": 10.699199989438057
+      }
+    },
+    {
+      "class": "4 id removal",
+      "caseId": "id-removed",
+      "expect": "recover",
+      "engines": {
+        "legacy": {
+          "outcome": "correct",
+          "ms": 2412.668799996376
+        },
+        "snapshot": {
+          "outcome": "correct",
+          "ms": 31.196600005030632
+        },
+        "product": {
+          "outcome": "correct",
+          "ms": 29.272600010037422
+        },
+        "scrapling": {
+          "outcome": "correct",
+          "ms": 27.05399999022484,
+          "detail": "86.67%"
+        },
+        "proof": {
+          "outcome": "correct",
+          "ms": 37.68369999527931
+        }
+      },
+      "timings": {
+        "localStageMs": 18.2,
+        "serializeMs": 11.736199989914894,
+        "htmlBytes": 7323,
+        "providerRoundTripMs": 15.301699995994568,
+        "parseMs": 0.59,
+        "matchMs": 13.82,
+        "proofMs": 10.629700005054474
+      }
+    },
+    {
+      "class": "5 class change",
+      "caseId": "class-changed",
+      "expect": "recover",
+      "engines": {
+        "legacy": {
+          "outcome": "correct",
+          "ms": 2333.219999998808
+        },
+        "snapshot": {
+          "outcome": "correct",
+          "ms": 51.40979999303818
+        },
+        "product": {
+          "outcome": "correct",
+          "ms": 47.86700001358986
+        },
+        "scrapling": {
+          "outcome": "correct",
+          "ms": 53.489000007510185,
+          "detail": "94.97%"
+        },
+        "proof": {
+          "outcome": "correct",
+          "ms": 71.108000010252
+        }
+      },
+      "timings": {
+        "localStageMs": 32.6,
+        "serializeMs": 22.06700000166893,
+        "htmlBytes": 7343,
+        "providerRoundTripMs": 31.386099994182587,
+        "parseMs": 2.24,
+        "matchMs": 26.41,
+        "proofMs": 17.619000002741814
+      }
+    },
+    {
+      "class": "L10.0 aria retained",
+      "caseId": "aria-retained",
+      "expect": "recover",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 3416.985500007868
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 64.43519999086857
+        },
+        "product": {
+          "outcome": "unresolved",
+          "ms": 101.41390000283718
+        },
+        "scrapling": {
+          "outcome": "WRONG",
+          "ms": 44.744100004434586,
+          "detail": "80.32%"
+        },
+        "proof": {
+          "outcome": "unresolved",
+          "ms": 44.95509999990463,
+          "detail": "below-threshold"
+        }
+      },
+      "timings": {
+        "localStageMs": 17.9,
+        "blueprintStageMs": 38.4,
+        "serializeMs": 16.371399998664856,
+        "htmlBytes": 7347,
+        "providerRoundTripMs": 28.350599989295006,
+        "parseMs": 1.08,
+        "matchMs": 26.1,
+        "proofMs": 0.210999995470047
+      }
+    },
+    {
+      "class": "6 text drift",
+      "caseId": "text-drift",
+      "expect": "recover",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 1792.2591999918222
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 29.27820000052452
+        },
+        "product": {
+          "outcome": "unresolved",
+          "ms": 52.239500001072884
+        },
+        "scrapling": {
+          "outcome": "correct",
+          "ms": 24.918099999427795,
+          "detail": "98.41%"
+        },
+        "proof": {
+          "outcome": "unresolved",
+          "ms": 25.033099994063377,
+          "detail": "below-threshold"
+        }
+      },
+      "timings": {
+        "localStageMs": 10.1,
+        "blueprintStageMs": 14.5,
+        "serializeMs": 9.418400004506111,
+        "htmlBytes": 7343,
+        "providerRoundTripMs": 15.485100001096725,
+        "parseMs": 0.7,
+        "matchMs": 14.08,
+        "proofMs": 0.11499999463558197
+      }
+    },
+    {
+      "class": "7 sibling reordering",
+      "caseId": "sibling-reorder",
+      "expect": "recover",
+      "engines": {
+        "legacy": {
+          "outcome": "correct",
+          "ms": 2531.005700007081
+        },
+        "snapshot": {
+          "outcome": "correct",
+          "ms": 55.413000002503395
+        },
+        "product": {
+          "outcome": "correct",
+          "ms": 47.53620000183582
+        },
+        "scrapling": {
+          "outcome": "correct",
+          "ms": 48.37390001118183,
+          "detail": "97.78%"
+        },
+        "proof": {
+          "outcome": "correct",
+          "ms": 65.13380001485348
+        }
+      },
+      "timings": {
+        "localStageMs": 35.2,
+        "serializeMs": 20.507700011134148,
+        "htmlBytes": 7441,
+        "providerRoundTripMs": 27.843800008296967,
+        "parseMs": 1.08,
+        "matchMs": 25.5,
+        "proofMs": 16.759900003671646
+      }
+    },
+    {
+      "class": "8 duplicate visible text",
+      "caseId": "duplicate-text-decoy",
+      "expect": "recover",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 2703.7141000032425
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 54.76519998908043
+        },
+        "product": {
+          "outcome": "unresolved",
+          "ms": 113.04860000312328
+        },
+        "scrapling": {
+          "outcome": "correct",
+          "ms": 49.731099992990494,
+          "detail": "86.67%"
+        },
+        "proof": {
+          "outcome": "unresolved",
+          "ms": 49.924799993634224,
+          "detail": "ambiguous-margin"
+        }
+      },
+      "timings": {
+        "localStageMs": 18,
+        "blueprintStageMs": 28.7,
+        "serializeMs": 17.696199998259544,
+        "htmlBytes": 7643,
+        "providerRoundTripMs": 32.010499998927116,
+        "parseMs": 1.08,
+        "matchMs": 29.81,
+        "proofMs": 0.19370000064373016
+      }
+    },
+    {
+      "class": "9 same-tag decoy",
+      "caseId": "same-tag-decoy-target-removed",
+      "expect": "refuse",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 2958.659500002861
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 28.330600008368492
+        },
+        "product": {
+          "outcome": "unresolved",
+          "ms": 53.33009999990463
+        },
+        "scrapling": {
+          "outcome": "WRONG",
+          "ms": 24.180600002408028,
+          "detail": "candidate 158 at 77.67%"
+        },
+        "proof": {
+          "outcome": "unresolved",
+          "ms": 24.525600001215935,
+          "detail": "below-threshold"
+        }
+      },
+      "timings": {
+        "localStageMs": 9.4,
+        "blueprintStageMs": 14.5,
+        "serializeMs": 9.341600000858307,
+        "htmlBytes": 7226,
+        "providerRoundTripMs": 14.824000000953674,
+        "parseMs": 0.63,
+        "matchMs": 13.44,
+        "proofMs": 0.3449999988079071
+      }
+    },
+    {
+      "class": "10 cross-region same-label decoy",
+      "caseId": "other-region-decoy-target-removed",
+      "expect": "refuse",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 1688.5482000112534
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 28.35920000076294
+        },
+        "product": {
+          "outcome": "unresolved",
+          "ms": 51.320999994874
+        },
+        "scrapling": {
+          "outcome": "WRONG",
+          "ms": 22.908600002527237,
+          "detail": "candidate 149 at 61.41%"
+        },
+        "proof": {
+          "outcome": "unresolved",
+          "ms": 23.052799999713898,
+          "detail": "ancestry-veto"
+        }
+      },
+      "timings": {
+        "localStageMs": 9.6,
+        "blueprintStageMs": 14.1,
+        "serializeMs": 8.674900010228157,
+        "htmlBytes": 6979,
+        "providerRoundTripMs": 14.220100000500679,
+        "parseMs": 0.56,
+        "matchMs": 13.12,
+        "proofMs": 0.14419999718666077
+      }
+    },
+    {
+      "class": "L10.0 page variant (no match)",
+      "caseId": "page-variant-same-url",
+      "expect": "refuse",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 535.7264000028372
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 37.21910001337528
+        },
+        "product": {
+          "outcome": "unresolved",
+          "ms": 50.258199989795685
+        },
+        "scrapling": {
+          "outcome": "WRONG",
+          "ms": 14.86429999768734,
+          "detail": "candidate 27 at 66.33%"
+        },
+        "proof": {
+          "outcome": "unresolved",
+          "ms": 14.982199996709824,
+          "detail": "below-threshold"
+        }
+      },
+      "timings": {
+        "localStageMs": 12.8,
+        "blueprintStageMs": 16.6,
+        "serializeMs": 8.208499997854233,
+        "htmlBytes": 1564,
+        "providerRoundTripMs": 6.634800001978874,
+        "parseMs": 0.35,
+        "matchMs": 5.27,
+        "proofMs": 0.11789999902248383
+      }
+    },
+    {
+      "class": "L10.0 combined drift",
+      "caseId": "combined-drift",
+      "expect": "recover",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 3272.0395999997854
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 52.59009999036789
+        },
+        "product": {
+          "outcome": "unresolved",
+          "ms": 94.2301000058651
+        },
+        "scrapling": {
+          "outcome": "WRONG",
+          "ms": 43.91490000486374,
+          "detail": "75.82%"
+        },
+        "proof": {
+          "outcome": "unresolved",
+          "ms": 44.14910000562668,
+          "detail": "below-threshold"
+        }
+      },
+      "timings": {
+        "localStageMs": 18,
+        "blueprintStageMs": 27,
+        "serializeMs": 16.180300012230873,
+        "htmlBytes": 7382,
+        "providerRoundTripMs": 27.71060000360012,
+        "parseMs": 1.05,
+        "matchMs": 25.71,
+        "proofMs": 0.23420000076293945
+      }
+    },
+    {
+      "class": "L10.0 large DOM shift",
+      "caseId": "large-dom-shift",
+      "expect": "recover",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 3226.347800001502
+        },
+        "snapshot": {
+          "outcome": "correct",
+          "ms": 170.04180000722408
+        },
+        "product": {
+          "outcome": "correct",
+          "ms": 147
+        },
+        "scrapling": {
+          "outcome": "correct",
+          "ms": 314.29700000584126,
+          "detail": "92.59%"
+        },
+        "proof": {
+          "outcome": "correct",
+          "ms": 341.7453999966383
+        }
+      },
+      "timings": {
+        "localStageMs": 139.4,
+        "serializeMs": 97.42689999938011,
+        "htmlBytes": 54331,
+        "providerRoundTripMs": 216.82209999859333,
+        "parseMs": 6.43,
+        "matchMs": 208.01,
+        "proofMs": 27.448399990797043
+      }
+    },
+    {
+      "class": "L10.0 field relabel",
+      "caseId": "field-relabel",
+      "expect": "recover",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 2962.4965999871492
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 27.429400011897087
+        },
+        "product": {
+          "outcome": "unresolved",
+          "ms": 45.30179999768734
+        },
+        "scrapling": {
+          "outcome": "correct",
+          "ms": 18.577500000596046,
+          "detail": "87.5%"
+        },
+        "proof": {
+          "outcome": "unresolved",
+          "ms": 18.62390001118183,
+          "detail": "below-threshold"
+        }
+      },
+      "timings": {
+        "localStageMs": 7.7,
+        "blueprintStageMs": 15.3,
+        "serializeMs": 7.835899993777275,
+        "htmlBytes": 7379,
+        "providerRoundTripMs": 10.71059998869896,
+        "parseMs": 0.51,
+        "matchMs": 9.66,
+        "proofMs": 0.04640001058578491
+      }
+    },
+    {
+      "class": "8 duplicate visible text (list rows)",
+      "caseId": "list-item-link",
+      "expect": "recover",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 3668.7787000089884
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 60.57440000772476
+        },
+        "product": {
+          "outcome": "unresolved",
+          "ms": 100.06340000033379
+        },
+        "scrapling": {
+          "outcome": "correct",
+          "ms": 41.42130000889301,
+          "detail": "94.3%"
+        },
+        "proof": {
+          "outcome": "unresolved",
+          "ms": 41.68790000677109,
+          "detail": "ambiguous-margin"
+        }
+      },
+      "timings": {
+        "localStageMs": 19.3,
+        "blueprintStageMs": 32.8,
+        "serializeMs": 16.52130000293255,
+        "htmlBytes": 7279,
+        "providerRoundTripMs": 24.872600004076958,
+        "parseMs": 1.07,
+        "matchMs": 22.76,
+        "proofMs": 0.26659999787807465
+      }
+    },
+    {
+      "class": "11 route mismatch",
+      "caseId": "11 route mismatch",
+      "expect": "refuse",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 5.02700001001358
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 4.7107000052928925
+        },
+        "product": {
+          "outcome": "unresolved",
+          "ms": 4.420000001788139
+        },
+        "scrapling": {
+          "outcome": "WRONG",
+          "ms": 15.650700002908707,
+          "detail": "candidate 18 at 94.44%"
+        },
+        "proof": {
+          "outcome": "unresolved",
+          "ms": 0,
+          "detail": "route-mismatch"
+        }
+      },
+      "timings": {}
+    },
+    {
+      "class": "12 iframe (drift)",
+      "caseId": "12 iframe (drift)",
+      "expect": "recover",
+      "engines": {
+        "legacy": {
+          "outcome": "correct",
+          "ms": 89.1761000007391
+        },
+        "snapshot": {
+          "outcome": "correct",
+          "ms": 37.57530000805855
+        },
+        "product": {
+          "outcome": "correct",
+          "ms": 36.86609999835491
+        },
+        "scrapling": {
+          "outcome": "correct",
+          "ms": 6.874599993228912,
+          "detail": "94.44%"
+        },
+        "proof": {
+          "outcome": "correct",
+          "ms": 16.06749999523163
+        }
+      },
+      "timings": {
+        "serializeMs": 6.0150000005960464,
+        "htmlBytes": 274,
+        "providerRoundTripMs": 0.8527999967336655,
+        "parseMs": 0.11,
+        "matchMs": 0.36,
+        "proofMs": 9.192900002002716
+      }
+    },
+    {
+      "class": "12 iframe (target gone)",
+      "caseId": "12 iframe (target gone)",
+      "expect": "refuse",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 62.075699999928474
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 29.395599991083145
+        },
+        "product": {
+          "outcome": "unresolved",
+          "ms": 51.923099994659424
+        },
+        "scrapling": {
+          "outcome": "unresolved",
+          "ms": 4.578999996185303
+        },
+        "proof": {
+          "outcome": "unresolved",
+          "ms": 4.591199994087219,
+          "detail": "no-candidate"
+        }
+      },
+      "timings": {
+        "serializeMs": 3.910300001502037,
+        "htmlBytes": 179,
+        "providerRoundTripMs": 0.6586999893188477,
+        "parseMs": 0.1,
+        "matchMs": 0.2,
+        "proofMs": 0.012199997901916504
+      }
+    },
+    {
+      "class": "13 popup (parent target gone)",
+      "caseId": "13 popup (parent target gone)",
+      "expect": "refuse",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 511.72450000047684
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 13.326299995183945
+        },
+        "product": {
+          "outcome": "unresolved",
+          "ms": 26.60520000755787
+        },
+        "scrapling": {
+          "outcome": "WRONG",
+          "ms": 11.720100000500679,
+          "detail": "candidate 8 at 80.08%"
+        },
+        "proof": {
+          "outcome": "unresolved",
+          "ms": 11.810699999332428,
+          "detail": "below-threshold"
+        }
+      },
+      "timings": {
+        "serializeMs": 7.125200003385544,
+        "htmlBytes": 4115,
+        "providerRoundTripMs": 4.587300002574921,
+        "parseMs": 0.32,
+        "matchMs": 3.84,
+        "proofMs": 0.09059999883174896
+      }
+    },
+    {
+      "class": "14 virtualized (row unmounted)",
+      "caseId": "14 virtualized (row unmounted)",
+      "expect": "refuse",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 931.0285000056028
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 24.680399999022484
+        },
+        "product": {
+          "outcome": "unresolved",
+          "ms": 49.373099997639656
+        },
+        "scrapling": {
+          "outcome": "WRONG",
+          "ms": 22.952800005674362,
+          "detail": "candidate 29 at 96.43%"
+        },
+        "proof": {
+          "outcome": "unresolved",
+          "ms": 23.124800011515617,
+          "detail": "ambiguous-margin"
+        }
+      },
+      "timings": {
+        "serializeMs": 13.412799999117851,
+        "htmlBytes": 4605,
+        "providerRoundTripMs": 9.525499999523163,
+        "parseMs": 0.62,
+        "matchMs": 8.13,
+        "proofMs": 0.1720000058412552
+      }
+    },
+    {
+      "class": "15 delayed render (skeleton)",
+      "caseId": "15 delayed render (skeleton)",
+      "expect": "refuse",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 571.4619999974966
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 27.009700000286102
+        },
+        "product": {
+          "outcome": "unresolved",
+          "ms": 39.02599999308586
+        },
+        "scrapling": {
+          "outcome": "WRONG",
+          "ms": 12.321799993515015,
+          "detail": "candidate 59 at 91.67%"
+        },
+        "proof": {
+          "outcome": "unresolved",
+          "ms": 16.38849999010563,
+          "detail": "not-actionable"
+        }
+      },
+      "timings": {
+        "serializeMs": 7.304299995303154,
+        "htmlBytes": 4337,
+        "providerRoundTripMs": 5.0075999945402145,
+        "parseMs": 0.36,
+        "matchMs": 4.08,
+        "proofMs": 4.066699996590614
+      }
+    },
+    {
+      "class": "16 stale reference",
+      "caseId": "16 stale reference",
+      "expect": "refuse",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 7.151399999856949
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 7.572900012135506
+        },
+        "product": {
+          "outcome": "unresolved",
+          "ms": 7.0177000015974045
+        },
+        "scrapling": {
+          "outcome": "unresolved",
+          "ms": 0.00599999725818634,
+          "detail": "no bound reference"
+        },
+        "proof": {
+          "outcome": "unresolved",
+          "ms": 0.00599999725818634,
+          "detail": "no bound reference"
+        }
+      },
+      "timings": {}
+    }
+  ]
+}
