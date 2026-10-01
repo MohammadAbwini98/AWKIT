@@ -640,6 +640,18 @@ if ($null -eq $dom -or $dom.enabled -ne $true) {
       if ($relative -imatch $pattern) { $failures.Add("DOM-intelligence runtime ships a forbidden file (network, process, FFI, fetcher, browser or excluded package): $path"); break }
     }
   }
+  # LGPL-2.1 section 6 for the libiconv inside lxml (owner decision 2026-10-01): the corresponding sources ship
+  # in the runtime tree. The pin must name an LGPL source, or deleting the pins would pass this check vacuously.
+  $domSources = @($domPin.correspondingSources.archives | Where-Object { $null -ne $_ })
+  if (@($domSources | Where-Object { [string]$_.license -match 'LGPL' }).Count -lt 1) {
+    $failures.Add("DOM-intelligence pin lists no LGPL corresponding source: the libiconv statically linked into lxml must ship its source (correspondingSources in src/offline/dom-intelligence-runtime.json).")
+  }
+  foreach ($source in $domSources) {
+    $sourceAsset = @($dom.assets | Where-Object { [string]$_.relativePath -ceq ($domPrefix + "sources/" + [string]$source.file) }) | Select-Object -First 1
+    if ($null -eq $sourceAsset -or ([string]$sourceAsset.sha256).ToLower() -ne ([string]$source.sha256).ToLower()) {
+      $failures.Add("DOM-intelligence runtime does not ship the pinned corresponding source sources/$($source.file) with its pinned SHA-256 (restage it).")
+    }
+  }
   $domHostAsset = @($dom.assets | Where-Object { [string]$_.relativePath -ceq ($domPrefix + "host/dom_intelligence_host.py") }) | Select-Object -First 1
   $domHostSource = Join-Path $root "native-hosts\dom-intelligence\dom_intelligence_host.py"
   if ($null -ne $domHostAsset -and (Get-AwkitFileSha256 -LiteralPath $domHostSource) -ne ([string]$domHostAsset.sha256).ToLower()) {

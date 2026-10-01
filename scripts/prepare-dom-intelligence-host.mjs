@@ -10,6 +10,8 @@
  *   site-packages/   the six pinned parser-only wheels, extracted; Scrapling's fetchers, spiders, engines,
  *                    integrations, AI, shell and CLI code stripped; no `tld`
  *   host/            native-hosts/dom-intelligence/dom_intelligence_host.py, byte-identical
+ *   sources/         the pinned corresponding source archives (lxml, the libiconv lxml's wheel links and the
+ *                    scripts that build it), for LGPL-2.1 section 6; never on sys.path
  *   dom-intelligence-host-manifest.json   every staged file with its size and SHA-256
  *
  * Inputs come ONLY from `.cache/dom-intelligence/` (npm run benchmark:dom-intelligence-runtime-setup) and
@@ -84,6 +86,15 @@ for (const wheel of PIN.wheels) {
   else if (sha256(file) !== wheel.sha256) fail(`${wheel.file} does not match the pinned SHA-256.`);
 }
 if (PIN.wheels.some((wheel) => /^tld-/i.test(wheel.file))) fail("The pin lists tld, which is excluded by design.");
+// LGPL-2.1 section 6 for the libiconv inside lxml (owner decision 2026-10-01): the corresponding sources ship
+// in the runtime tree, beside the binaries they built, so every copy of the package carries them.
+const SOURCES = PIN.correspondingSources?.archives ?? [];
+for (const source of SOURCES) {
+  const file = path.join(INPUT_ROOT, "sources", String(source.file));
+  if (!/^[A-Za-z0-9._-]+$/.test(source.file ?? "") || !/^[a-f0-9]{64}$/.test(source.sha256 ?? "")) fail(`correspondingSources entry ${JSON.stringify(source.file)} needs a plain file name and a pinned SHA-256.`);
+  else if (!fs.existsSync(file)) fail(`sources/${source.file} is missing: run npm run benchmark:dom-intelligence-runtime-setup.`);
+  else if (sha256(file) !== source.sha256) fail(`sources/${source.file} does not match the pinned SHA-256.`);
+}
 stop("(pinned inputs)");
 
 // ── Stage into a work directory first; the output is replaced only after every check passed ─────────
@@ -185,6 +196,9 @@ try {
   // Host.
   fs.mkdirSync(path.join(STAGE, "host"), { recursive: true });
   fs.copyFileSync(HOST_SOURCE, path.join(STAGE, "host", "dom_intelligence_host.py"));
+  // Corresponding sources: outside python312._pth's sys.path, never imported or executed.
+  if (SOURCES.length > 0) fs.mkdirSync(path.join(STAGE, "sources"), { recursive: true });
+  for (const source of SOURCES) fs.copyFileSync(path.join(INPUT_ROOT, "sources", source.file), path.join(STAGE, "sources", source.file));
   stop("(site-packages)");
 
   // Bytecode is compiled HERE, at staging time, with unchecked-hash headers: the runtime (-B) never writes

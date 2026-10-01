@@ -210,6 +210,12 @@ async function main(): Promise<void> {
     check("tld does not ship", !files.some((file) => /^site-packages\/tld([-_.\/]|$)/i.test(file)));
     check("no Playwright, Patchright, curl_cffi, browserforge or MCP package ships", !files.some((file) => /^site-packages\/(playwright|patchright|curl_cffi|browserforge|camoufox|mcp)[-_./]/i.test(file)));
     check("the host is byte-identical to native-hosts/dom-intelligence", sha256(join(staged, "host/dom_intelligence_host.py")) === sha256(join(ROOT, "native-hosts/dom-intelligence/dom_intelligence_host.py")));
+    const pinnedSources: Array<{ file: string; sha256: string; license: string }> = PIN.correspondingSources?.archives ?? [];
+    check(
+      "the pinned corresponding sources (LGPL-2.1 section 6) are staged under sources/ with their SHA-256, an LGPL one among them",
+      pinnedSources.some((source) => /LGPL/.test(source.license)) && pinnedSources.every((source) => files.includes(`sources/${source.file}`) && sha256(join(staged, "sources", source.file)) === source.sha256),
+      pinnedSources.map((source) => source.file)
+    );
     const pth = readFileSync(join(staged, "python/python312._pth"), "utf8").split(/\r?\n/).filter(Boolean);
     check("sys.path is pinned to the staged tree and `site` is never imported", JSON.stringify(pth) === JSON.stringify(["python312.zip", ".", "..\\site-packages", "..\\host"]), pth);
     // Bytecode is compiled at staging time with unchecked-hash headers (flags == 1: hash-based, source not

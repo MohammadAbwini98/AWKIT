@@ -5,7 +5,8 @@
  *   0. dist/win-unpacked/resources/native-hosts/dom-intelligence is exactly the signed manifest's
  *      `domIntelligenceRuntime` tree (the package's own copy, byte-identical to the committed one): every asset
  *      present with its size and SHA-256, nothing unlisted, and the runtime's descriptor (the one unlisted file,
- *      as in validate-offline-bundle.ps1) naming the entries main launches and exactly the signed assets;
+ *      as in validate-offline-bundle.ps1) naming the entries main launches and exactly the signed assets; and the
+ *      pinned corresponding sources (LGPL-2.1 section 6 for the libiconv inside lxml) under sources/;
  *   1. dist/win-unpacked/SpecterStudio.exe on a fresh, isolated %LOCALAPPDATA% signs in its first account, and
  *      its own IPC and the Settings card report the runtime shipped and Available: Scrapling at the pinned
  *      version, parser-only, no browser or network access, the snapshot recovery engine;
@@ -46,7 +47,10 @@ const RESOURCES = path.join(UNPACKED, "resources");
 const RUNTIME = path.join(RESOURCES, "native-hosts", "dom-intelligence");
 const PACKAGED_MANIFEST = path.join(RESOURCES, "resources", "dependency-manifest.json");
 const COMMITTED_MANIFEST = path.join(ROOT, "resources", "dependency-manifest.json");
-const PINNED = JSON.parse(fs.readFileSync(path.join(ROOT, "src", "offline", "dom-intelligence-runtime.json"), "utf8")) as { scrapling: string };
+const PINNED = JSON.parse(fs.readFileSync(path.join(ROOT, "src", "offline", "dom-intelligence-runtime.json"), "utf8")) as {
+  scrapling: string;
+  correspondingSources?: { archives?: Array<{ file: string; sha256: string; license: string }> };
+};
 // The password policy refuses a password containing the username, so the two share no word.
 const ACCOUNT = { displayName: "Packaged DOM Gate", username: "l11-dom-check", password: "Phase-L11!ParserOnly2026" };
 
@@ -179,6 +183,18 @@ check(
     describedRows.length === assets.length &&
     JSON.stringify(describedRows) === JSON.stringify(assets.map(row).sort()),
   { schema: descriptor.schema, scrapling: descriptor.scrapling, described: describedRows.length, signed: assets.length }
+);
+
+// LGPL-2.1 section 6 for the libiconv inside lxml: the corresponding sources ship in the packaged tree.
+const pinnedSources = PINNED.correspondingSources?.archives ?? [];
+const missingSources = pinnedSources.filter((source) => {
+  const file = path.join(RUNTIME, "sources", source.file);
+  return !fs.existsSync(file) || createHash("sha256").update(fs.readFileSync(file)).digest("hex") !== source.sha256;
+});
+check(
+  `the pinned corresponding sources ship with their SHA-256, an LGPL one among them (${pinnedSources.length - missingSources.length}/${pinnedSources.length})`,
+  pinnedSources.some((source) => /LGPL/.test(source.license)) && missingSources.length === 0,
+  missingSources.map((source) => source.file)
 );
 
 if (stale !== null || failed > 0) {
