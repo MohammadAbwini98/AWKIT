@@ -1,6 +1,29 @@
 # CURRENT_STATE
 
-## L11 proof-to-action race closed: a proven element is pinned, never re-resolved by index (`awkit-djnl.19`, 2026-10-01, latest)
+## L11 legacy engine kept as a protected kill switch; AI page context gated before capture (`awkit-djnl.19`, 2026-10-01, latest)
+
+- **Legacy recovery engine: kept.** It runs the same identity recheck, `awkitpin` pin and `isEnabled`
+  veto as the snapshot engine (since `5a312548`), so it stays behind `AWKIT_LOCATOR_RECOVERY_ENGINE=legacy`.
+  Its last measured acceptance run was legacy 7 correct / 0 wrong, at `5a312548`. Decision in DECISIONS.
+- **AI page context: the exclusions now run before the capture.**
+  - `FailureEvidenceCollector.pageContextAllowed` is asked first. It covers protected steps, handoffs and
+    documents, and raw-UI-text suppression.
+  - An excluded step's page is never serialized. With no evidence collector, nothing is captured.
+  - It is still **off by default** (10/13 → 9/13 measured). KNOWN_ISSUES marks the ordering item RESOLVED.
+- **Gates at this state:**
+  - `npm run build` PASS.
+  - `verify:dom-normalization` 151/0. The new D check is that no HTML crosses to the provider under
+    suppression.
+  - `verify:runner` 138/0.
+- **Not run:**
+  - The mutation of the new check (gate forced open): **NOT RUN**, refused by the session's permission
+    classifier. Its discriminating power is argued: the same ordinary page sent HTML in the "on" run, and
+    the check requires that.
+  - The re-run of `verify:dom-intelligence-acceptance` requested for this task: **BLOCKED**, refused by
+    the same classifier. No recovery code changed since its 10/0 run at `5a312548`.
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## L11 proof-to-action race closed: a proven element is pinned, never re-resolved by index (`awkit-djnl.19`, 2026-10-01)
 
 - **Fixed.** Recovery and guarded-positional steps proved an element by index and then acted through
   `nth(index)`, which re-resolves at action time. Now the proof's own `evaluateAll` pins the proven node.

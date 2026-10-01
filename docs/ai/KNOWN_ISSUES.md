@@ -40,14 +40,14 @@
 - **Options:** that reordering (owner approval); pinning an `ElementHandle` from the recheck's own
   evaluate (larger change); retiring the legacy engine.
 
-## The AI page context is captured before suppression is applied (2026-10-01, OPEN — know it)
+## The AI page context was captured before suppression was applied (2026-10-01, RESOLVED — gated before capture)
 
-- **Found by the independent review.** With `AWKIT_AI_PAGE_CONTEXT=on`, the failed step's page is
-  serialized and parsed by the local host first. `FailureEvidenceCollector` drops the result afterwards
-  when the step is protected or raw UI text is suppressed.
-- Nothing is stored or prompted. The host is local and sandboxed, and the feature is off by default.
-- **Fix if it is ever turned on by default:** pass the step type and the suppression state into
-  `recordFailurePageContext` and skip the capture.
+- **Fixed.** `recordFailurePageContext` now asks `FailureEvidenceCollector.pageContextAllowed` first. That
+  covers protected steps, handoffs and documents, and raw-UI-text suppression. An excluded step's page is
+  never serialized, and its refusal still reads `suppressed`. The collector re-checks on arrival.
+- **Gate:** `verify:dom-normalization` D, "no HTML crossed to the provider" under suppression.
+- **History.** Found by the independent review. The page was serialized and parsed by the local host,
+  then dropped. Nothing was stored or prompted, and the feature is off by default (still is).
 
 ## Snapshot recovery under 500 ms is a fixture result, not a ceiling (2026-10-01, OPEN — know it)
 

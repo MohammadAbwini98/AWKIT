@@ -1,6 +1,27 @@
 # TASK_LOG
 
-## 2026-10-01 (latest) — L11 proof-to-action race: the proven node is pinned (Claude)
+## 2026-10-01 (latest) — L11 legacy-engine decision and the AI page context gated before capture (Claude)
+
+- **Task:** `awkit-djnl.19`, safety items 2 and 3.
+  - Item 2: no production-selectable engine may act on a wrong element.
+  - Item 3: normalization stays opt-in, and the exclusions must run before the capture.
+- **Result:**
+  - **Item 2.** The legacy engine stays as a kill switch. It already ran the same proof, pin and veto
+    since `5a312548`, with legacy 0 wrong. The decision is recorded.
+  - **Item 3.** `pageContextAllowed` is asked before any capture. The feature stays off by default.
+- **Files:**
+  - `src/runner/{StepExecutor,ExecutionEngine,RunnerProgress,LocatorFactory}.ts`
+  - `src/runner/evidence/FailureEvidenceCollector.ts`
+  - `src/runner/domIntelligence/pageContext.ts`
+  - `scripts/verify-dom-normalization.mts`
+  - `docs/ai/*`
+- **Verification:** build PASS, dom-normalization 151/0 (new no-capture check), runner 138/0.
+- **Not run:**
+  - The new check's mutation: NOT RUN.
+  - The requested acceptance re-run: BLOCKED.
+  - The session's permission classifier refused both. No recovery code changed since the 10/0 run.
+
+## 2026-10-01 — L11 proof-to-action race: the proven node is pinned (Claude)
 
 - **Task:** `awkit-djnl.19`, safety item 1: close the window between an identity proof and the action.
 - **Result:** fixed. One evaluate proves and pins the node. The step acts through the `awkitpin` engine

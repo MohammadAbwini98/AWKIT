@@ -1,6 +1,29 @@
 # DECISIONS
 
-### 2026-10-01 (latest) — A proven element is pinned, not re-resolved by index (owner request, implementer design) (`awkit-djnl.19`)
+### 2026-10-01 (latest) — The legacy recovery engine stays selectable because it now runs the same proof and pin; the AI page context is gated before capture and stays off (owner request) (`awkit-djnl.19`)
+
+- **Legacy engine: protected, not retired.** The owner's preferred option applies. Both legacy layers
+  hand their winner to `proveSnapshotWinner`, the same identity recheck and `awkitpin` pin as the snapshot
+  engine, and then to the same `isEnabled` veto. No identity, ancestry, margin or route check was relaxed.
+  - So `AWKIT_LOCATOR_RECOVERY_ENGINE=legacy` stays as the kill switch and the benchmark baseline.
+  - Evidence at `5a312548`: `verify:dom-intelligence-acceptance` 10/0, legacy 7 correct / 0 wrong (it had
+    1 wrong on the delayed-render class before the pin). `verify:dom-intelligence-contexts` R covers both
+    engines.
+  - **Rule:** any engine that can knowingly act on a wrong element leaves the production selection. Removal
+    needs rollback-policy approval and a benchmark with no production dependency.
+- **AI page context: the exclusions run before the capture.** The order is now:
+  1. `FailureEvidenceCollector.pageContextAllowed`: protected step, handoff or document, and raw-UI-text
+     suppression.
+  2. The capture's own protected-surface detector, in the page.
+  3. Minimized DOM snapshot, then `normalize_dom`, then `SemanticRedactor` with cap and rescan.
+  4. The bounded report field, then the prompt.
+
+  An excluded step's page is never serialized, and its refusal still reads `suppressed`. Without an
+  evidence collector nothing is captured.
+- **Still off by default.** The measured gate is 10/13 baseline vs 9/13 normalized. The ordering fix does
+  not change that, so `AWKIT_AI_PAGE_CONTEXT=on` stays opt-in until a new measurement equals or beats 10/13.
+
+### 2026-10-01 — A proven element is pinned, not re-resolved by index (owner request, implementer design) (`awkit-djnl.19`)
 
 - **Decision.** The evaluate that reads the identity being proven also registers that exact node. The
   step then acts through the custom selector engine `awkitpin=<nonce>`, which resolves to that node
