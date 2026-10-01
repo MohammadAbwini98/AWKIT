@@ -10,9 +10,9 @@
      `L5a-overhead-gate.json` (runs 22–25) was committed alone in `1d19ae26`.
      - `npm run package:portable` then **passed** at `1a996a82`. The strict validation step passed, and
        the clean signed manifest is committed in `a18c2401`.
-     - **Next:** run the packaged checks on this `dist/win-unpacked` (NOT RUN): the runtime present at
-       `resources/native-hosts/dom-intelligence`, Available in Settings, and the host spawned from there
-       with no orphan.
+     - The packaged checks then **passed**: `verify:dom-intelligence-packaged` 20/0 on that
+       `dist/win-unpacked`. They cover the signed runtime tree, Available in IPC and Settings, the host
+       spawned from the package as main's child, and no orphan after quit.
   2. **LGPL-2.1 libiconv inside lxml's wheel.** Decide how section 6 is met for an external release:
      ship the lxml and libiconv sources beside the release, or a written offer. See
      `resources/THIRD_PARTY_NOTICES.md` › DOM-intelligence runtime.

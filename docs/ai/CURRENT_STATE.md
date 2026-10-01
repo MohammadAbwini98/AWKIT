@@ -56,8 +56,18 @@
   - The signed manifest records `sourceTreeDirty: false` at `1a996a82`. It is committed in `a18c2401`
     and replaces the `fb4c092f` record. The lease is released.
   - The EXE is Authenticode-unsigned, as before.
-  - **NOT RUN:** the packaged runtime checks on `dist/win-unpacked`: the runtime at
-    `resources/native-hosts/dom-intelligence`, Available in Settings, and the host spawned with no orphan.
+  - **Packaged checks PASS, on the owner's request:** the new `verify:dom-intelligence-packaged` went
+    20/0 on that `dist/win-unpacked`.
+    - The shipped runtime tree is exactly the signed list (165/165 by size and SHA-256), and nothing is
+      unlisted. The package's manifest is byte-identical to the committed one. The runtime's descriptor
+      file is the one file outside the list, as in strict validation, and it matches the list.
+    - The real packaged EXE, on a fresh profile, starts no host at launch or sign-in. IPC and the Settings
+      card read Available, Scrapling 0.4.15, parser-only, and no browser or network access.
+    - Exactly one `python.exe` runs from the packaged tree, as a child of the packaged main process.
+    - A graceful quit leaves no orphan, checked before the forced teardown.
+    - Mutation test: NOT RUN. The guard has no deletion verb, so a planted extra file in `dist` could not
+      be removed. The host-count check is paired with its "exactly one" before quit, so the orphan check's
+      process query is proven non-empty.
   - The libiconv LGPL-2.1 decision is still the owner's.
 - Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

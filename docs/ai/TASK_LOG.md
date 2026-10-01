@@ -36,7 +36,11 @@
       their signed entries with 0 unlisted and 0 missing; fresh-state 10/10.
     - The clean signed manifest is committed in `a18c2401`, and the lease is released.
     - The contract's `package:portable` and `validate:offline` evidence now read PASS.
-    - NOT RUN: the packaged runtime checks on `dist/win-unpacked`.
+  - Packaged checks on the owner's request: the new `scripts/verify-dom-intelligence-packaged.mts`
+    (registered in `package.json` and `verifier-classification.ts`) went **20/0 PASS** on
+    `dist/win-unpacked`. It checks the signed tree, the descriptor, Available in IPC and Settings, the
+    host as main's child, and no orphan. `typecheck:scripts` is clean. Its mutation test is NOT RUN (no
+    deletion verb under the guard).
 
 ## 2026-10-01 — L11 proof-to-action race: the proven node is pinned (Claude)
 
