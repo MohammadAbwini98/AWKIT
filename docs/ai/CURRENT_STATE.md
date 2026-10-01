@@ -21,6 +21,12 @@
     executes.
   - The suite now **asserts** legacy zero wrong. It also checks that legacy ran on every row, so the zero
     cannot be vacuous. It passed 11/0. Before this, the legacy count was only printed.
+  - **Mutation killed, on the owner's request.** The legacy local layer was made to act on its best
+    candidate even when the gate refused it. The new assertion failed and named 8 wrong rows: three decoy or
+    variant pairs, combined drift, large-DOM shift, iframe target gone, popup and virtualized. Snapshot,
+    product and proof stayed 0 wrong. The older "legacy wins kept" check also failed, but only incidentally:
+    the mutant newly won 4 rows the snapshot engine refuses. The mutation was reverted to the committed
+    source.
 - **Not run:** the mutation of the new check (gate forced open). It is **NOT RUN** because the session's
   permission classifier refused it. Its discriminating power is argued: the same ordinary page sent HTML
   in the "on" run, and the check requires that.

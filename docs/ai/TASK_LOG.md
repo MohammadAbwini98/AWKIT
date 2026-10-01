@@ -21,6 +21,8 @@
     legacy, snapshot, product and proof.
   - Then, on the owner's request, `scripts/benchmark-dom-intelligence-acceptance.mts` asserts legacy
     zero wrong, with a check that legacy ran on every row. Result 11/0.
+  - Mutation, on the owner's request: legacy acts on its best candidate even when the gate refuses it.
+    Killed, with 8 legacy wrong rows named. Reverted to the committed source.
 - **Not run:** the new check's mutation. The session's permission classifier refused it.
 
 ## 2026-10-01 — L11 proof-to-action race: the proven node is pinned (Claude)
