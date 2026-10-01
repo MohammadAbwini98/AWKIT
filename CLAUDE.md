@@ -9,8 +9,8 @@ These are Claude Code-specific operating rules for AWKIT. `AGENTS.md` remains th
 Permanent defaults:
 
 ```text
-CODECRAFT_MODE=on
-CODECRAFT_MODEL=auto
+CODECRAFT_MODE=off
+CODECRAFT_MODEL=off
 ```
 
 **Per-task override.** The user controls CodeCraft per task by stating either setting in the request, in any wording (`CODECRAFT_MODE=off`, "no CodeCraft", "use CodeCraft with gpt-5.6-luna"). An override applies to that task only; the next task returns to the defaults unless the user says it holds for the session. A user override always beats this policy's judgment.
