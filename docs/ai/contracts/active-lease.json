@@ -1,26 +1,27 @@
 {
   "task": "awkit-djnl-19-l11-implementation-0930",
   "contract_path": "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json",
-  "holder": "project-state",
-  "status": "released",
+  "holder": "release",
+  "status": "active",
   "allowed_paths": [
-    ".beads/**"
+    "resources/dependency-manifest.json",
+    "resources/dependency-manifest.sig"
   ],
-  "acquired_at": "2026-10-01T07:20:53.433Z",
-  "acquired_at_commit": "70e8ee0f4d5ba0868b0e0393d676f1251e77f1a9",
+  "acquired_at": "2026-10-01T13:42:44.175Z",
+  "acquired_at_commit": "54685c4f5b03c038f6561e345d6dd0a2c7d9fc96",
   "baseline_dirty": [
-    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
+    "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json",
     "resources/dependency-manifest.json",
     "resources/dependency-manifest.sig"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json": "c896676e99fe84140151d9da74f9df801d218b759286397e15f7e9e842492b62",
+    "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json": "98ac4c190b08b46961e528c2c7e669a4e9a53021a36e88fd2aceeaffff017b0a",
     "resources/dependency-manifest.json": "16c68e01db7e2f344e928a22abf087af56742bb26765a6085d591cf4996771b0",
     "resources/dependency-manifest.sig": "6350b5130955653e544418aa30bed240fb2a0143a3c42371244572226f154f38"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
-    ".claude/settings.local.json": "6238:1788551784499.886",
+    ".claude/settings.local.json": "6281:1790846284510.6143",
     "storage-state.json": "absent",
     "auth-state.json": "absent",
     "session-profiles.json": "absent",
@@ -30,8 +31,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-10-01T08:32:31.362Z",
-  "released_reason": "tracker notes and export committed at 6cb3f054 with verify:roadmap-dashboard 177/177 and Sources agree, L11 stays open on two owner items",
-  "archived_at": "2026-10-01T08:32:31.363Z"
+  "violations": []
 }
