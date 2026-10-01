@@ -1,6 +1,6 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-01, latest) — L11 F–I implemented; packaged artifact BLOCKED, libiconv licensing pending
+## HANDOFF (2026-10-01, latest) — L11 F–I implemented, packaged and verified; the libiconv sources ship in the package
 
 - **Done:** L11.F (`1247f122`), L11.H (`4dd3912e`), L11.G (`29701c5a`, off by default), the
   acceptance benchmark (`3af2cd68`) and the packaging wiring with strict validation (`84771a12`,
@@ -13,13 +13,18 @@
      - The packaged checks then **passed**: `verify:dom-intelligence-packaged` 20/0 on that
        `dist/win-unpacked`. They cover the signed runtime tree, Available in IPC and Settings, the host
        spawned from the package as main's child, and no orphan after quit.
-  2. **LGPL-2.1 libiconv inside lxml's wheel.** Decide how section 6 is met for an external release:
-     ship the lxml and libiconv sources beside the release, or a written offer. See
-     `resources/THIRD_PARTY_NOTICES.md` › DOM-intelligence runtime.
+  2. ~~LGPL-2.1 libiconv inside lxml's wheel~~: **decided and done.** The owner chose to ship the sources
+     inside the package (DECISIONS, latest). The lxml sdist, `winlibs/libiconv` at `880a1fa8` and the
+     libxml2-win-binaries build scripts are in `resources/native-hosts/dom-intelligence/sources/`.
+     - Strict validation enforces them.
+     - The package rebuilt at `894c9706` (manifest `fdb10cc5`), and `verify:dom-intelligence-packaged`
+       went 21/0.
   3. ~~Recovery's lazy-index window~~: **resolved** after this handoff by pinning the proven node
      (`elementPin.ts`, CURRENT_STATE latest). It also covers the guarded-positional sensitive path.
-- **Manifest:** the committed pair is now the clean `a18c2401` record, built at `1a996a82`. The dirty
-  regeneration that was held uncommitted was overwritten by the clean build.
+- **Manifest:** the committed pair is now the clean `fdb10cc5` record, built at `894c9706` with the
+  corresponding sources. It replaced `a18c2401`.
+- **No owner item is left open on L11.** The bead can be closed when the owner agrees. Authenticode
+  signing remains a general release item, as before.
 - **Lease grants:** the L5a entry was removed from the L11 contract's `preserved_paths` when the file was
   committed. Any later `verify:failure-capture-overhead` run dirties the file again: restore it, or get
   the owner's call to commit it (KNOWN_ISSUES).

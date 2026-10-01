@@ -1,14 +1,17 @@
 # KNOWN_ISSUES
 
-## A wheel's license metadata can omit what its binaries link (2026-10-01, OPEN — owner decision)
+## A wheel's license metadata can omit what its binaries link (2026-10-01, RESOLVED — sources ship in the package)
 
 - **Seen.** The L11 runtime pin recorded lxml as "BSD-3-Clause (bundles libxml2 and libxslt, MIT)".
   The wheel's own `LICENSES.txt` says its binaries also bundle zlib and **libiconv, LGPL-2.1**. The
   `libiconv` identifier is present in `etree.cp312-win_amd64.pyd`.
-- The pin and `THIRD_PARTY_NOTICES.md` are corrected. How the LGPL-2.1 section 6 relinking obligation
-  is met for an external release (sources shipped beside it, or a written offer) is undecided.
+- **Resolved.** On the owner's decision, the corresponding sources ship inside the package and strict
+  validation enforces it (DECISIONS, latest).
 - **Rule:** review a native wheel from the license files it ships and the binaries themselves, not from
   `License-Expression` or the PyPI classifier.
+- **Trap:** lxml's Windows wheel does not pin its static libraries. `buildlibxml.py` takes the *newest*
+  `lxml/libxml2-win-binaries` release at build time. So the corresponding source is found by the wheel's
+  upload date, not by lxml's tag. Re-trace it whenever the lxml pin changes.
 
 ## A selector engine registered late never reaches a frame already queried (2026-10-01, OPEN — know it)
 

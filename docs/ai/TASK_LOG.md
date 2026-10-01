@@ -1,6 +1,35 @@
 # TASK_LOG
 
-## 2026-10-01 (latest) — L11 legacy-engine decision and the AI page context gated before capture (Claude)
+## 2026-10-01 (latest) — L11 libiconv: the lxml and libiconv corresponding sources ship inside the package (Claude)
+
+- **Task:** the owner's decision for LGPL-2.1 section 6. Ship the sources inside the package, with the
+  three downloads approved.
+- **Result:** done. The lxml 6.1.3 sdist, `winlibs/libiconv` at `880a1fa8` and libxml2-win-binaries at
+  `4e8ae01f` ship in `resources/native-hosts/dom-intelligence/sources/`. Strict validation refuses a
+  release without them.
+- **Commits:**
+  - `dce3ff65`: the scripts.
+  - `46c6abcb`: the pin and the notices.
+  - `61444608`: the owner's `CLAUDE.md`, committed unchanged.
+  - `fdb10cc5`: the manifest built at `894c9706`.
+- **Files:**
+  - `scripts/dom-intelligence/setup-runtime-inputs.mjs`
+  - `scripts/prepare-dom-intelligence-host.mjs`
+  - `scripts/validate-offline-bundle.ps1`
+  - `scripts/verify-dom-intelligence-{host,packaged}.mts`
+  - `scripts/lib/verifier-classification.ts`
+  - `src/offline/dom-intelligence-runtime.json`
+  - `resources/THIRD_PARTY_NOTICES.md`
+  - `resources/dependency-manifest.{json,sig}`
+  - `docs/ai/*`
+  - the L11 plan
+- **Verification:**
+  - runtime-setup: all 10 inputs match the pin.
+  - package:portable PASS, with strict validation inside it (168/168).
+  - dom-intelligence-packaged 21/0, dom-intelligence-host 94/0, typecheck:scripts clean.
+- **Not run:** a mutation of the strict rule (it needs a release lease to weaken the pin).
+
+## 2026-10-01 — L11 legacy-engine decision and the AI page context gated before capture (Claude)
 
 - **Task:** `awkit-djnl.19`, safety items 2 and 3.
   - Item 2: no production-selectable engine may act on a wrong element.

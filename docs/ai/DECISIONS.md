@@ -1,6 +1,26 @@
 # DECISIONS
 
-### 2026-10-01 (latest) — The legacy recovery engine stays selectable because it now runs the same proof and pin; the AI page context is gated before capture and stays off (owner request) (`awkit-djnl.19`)
+### 2026-10-01 (latest) — LGPL-2.1 section 6 for lxml's libiconv: the corresponding sources ship inside the package (owner) (`awkit-djnl.19`)
+
+- **Owner decision.** Ship the sources rather than a written offer. Put them inside the package, not as a
+  file next to the EXE, so every copy of the binary carries them.
+- **What ships.** All three are in `resources/native-hosts/dom-intelligence/sources/`, pinned in
+  `src/offline/dom-intelligence-runtime.json` › `correspondingSources`:
+  - `lxml-6.1.3.tar.gz`, with PyPI's digest.
+  - `winlibs/libiconv` at `880a1fa8`.
+  - `lxml/libxml2-win-binaries` at `4e8ae01f` (tag 2026.05.17, `build.ps1` and `libiconv.patch`).
+- **How the versions were traced, not assumed.**
+  - The pinned wheel equals PyPI's and was uploaded on 2026-09-02.
+  - `buildlibxml.py` takes the newest libxml2-win-binaries release, which was 2026.05.17 (iconv-1.17.1).
+  - That release's `libiconv` submodule is the pinned commit.
+  - Each GitHub archive's git-archive commit was checked before its SHA-256 was recorded.
+- **Enforced.** Strict offline validation fails unless the pin names an LGPL source and every pinned source
+  ships with its SHA-256, so a release cannot drop them. The gates are `verify:dom-intelligence-host`
+  (staging) and `verify:dom-intelligence-packaged` (the built app).
+- **Not legal advice.** This is an engineering record of the owner's choice. `THIRD_PARTY_NOTICES.md`
+  states the relink route.
+
+### 2026-10-01 — The legacy recovery engine stays selectable because it now runs the same proof and pin; the AI page context is gated before capture and stays off (owner request) (`awkit-djnl.19`)
 
 - **Legacy engine: protected, not retired.** The owner's preferred option applies. Both legacy layers
   hand their winner to `proveSnapshotWinner`, the same identity recheck and `awkitpin` pin as the snapshot

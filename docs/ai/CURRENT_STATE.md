@@ -1,6 +1,41 @@
 # CURRENT_STATE
 
-## L11 legacy engine kept as a protected kill switch; AI page context gated before capture (`awkit-djnl.19`, 2026-10-01, latest)
+## L11 libiconv obligation met: the lxml and libiconv corresponding sources ship inside the package (`awkit-djnl.19`, 2026-10-01, latest)
+
+- **Owner decision:** meet LGPL-2.1 section 6 for the libiconv statically linked into lxml by shipping the
+  sources inside the package (DECISIONS, latest). Three archives, each pinned by SHA-256 in
+  `src/offline/dom-intelligence-runtime.json` › `correspondingSources`, now ship in
+  `resources/native-hosts/dom-intelligence/sources/`:
+  - the lxml 6.1.3 sdist (PyPI's digest);
+  - `winlibs/libiconv` at `880a1fa8`;
+  - `lxml/libxml2-win-binaries` at `4e8ae01f` (tag 2026.05.17, `build.ps1` and `libiconv.patch`).
+- **The versions were traced, not assumed:**
+  - The wheel equals PyPI's, uploaded on 2026-09-02.
+  - `buildlibxml.py` takes the newest libxml2-win-binaries release, which was 2026.05.17 with iconv-1.17.1.
+  - That release's submodule is the pinned commit.
+  - Each GitHub archive's git-archive commit matched the pin before its digest was recorded.
+- **How it flows:**
+  - `benchmark:dom-intelligence-runtime-setup` fetches only the pinned URLs.
+  - Staging copies the archives outside `sys.path`.
+  - The host manifest, signed manifest and inventory cover them unchanged.
+  - Strict validation **fails** unless the pin names an LGPL source and every pinned source ships with its
+    SHA-256.
+- `THIRD_PARTY_NOTICES.md` states how the obligation is met and the relink route.
+- **Gates at this state:**
+  - `package:portable` PASS at `894c9706`. The runtime is 168 files, and strict validation passed
+    168/168 with 0 unlisted and 0 missing. The clean signed manifest is committed in `fdb10cc5`.
+  - `verify:dom-intelligence-packaged` 21/0, with the new check that all 3 sources ship.
+  - `verify:dom-intelligence-host` 94/0, with the new staging check. The sandbox and protocol are
+    unchanged.
+  - `typecheck:scripts` clean, and both `.mjs` files pass `node --check`.
+- **Not run:** a mutation of the new strict-validation rule. Weakening the pin needs a release lease, and
+  the rule's vacuity guard (an LGPL entry must exist) is in place.
+- Also committed, on the owner's instruction: their own `CLAUDE.md` edit (`61444608`, CodeCraft defaults
+  off), so the build saw a clean tree.
+- **L11 has no owner item left open.** Authenticode signing remains a general release item.
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## L11 legacy engine kept as a protected kill switch; AI page context gated before capture (`awkit-djnl.19`, 2026-10-01)
 
 - **Legacy recovery engine: kept.** It runs the same identity recheck, `awkitpin` pin and `isEnabled`
   veto as the snapshot engine (since `5a312548`), so it stays behind `AWKIT_LOCATOR_RECOVERY_ENGINE=legacy`.
@@ -68,7 +103,8 @@
     - Mutation test: NOT RUN. The guard has no deletion verb, so a planted extra file in `dist` could not
       be removed. The host-count check is paired with its "exactly one" before quit, so the orphan check's
       process query is proven non-empty.
-  - The libiconv LGPL-2.1 decision is still the owner's.
+  - The libiconv LGPL-2.1 decision was still the owner's at this point. It was decided later the same day
+    (section above).
 - Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
 ## L11 proof-to-action race closed: a proven element is pinned, never re-resolved by index (`awkit-djnl.19`, 2026-10-01)

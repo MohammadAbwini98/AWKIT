@@ -330,6 +330,25 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-djnl-19-l11-implementation-0930:release:2026-10-01T16:59:26.121Z",
+        "task": "awkit-djnl-19-l11-implementation-0930",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "resources/THIRD_PARTY_NOTICES.md",
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig",
+          "src/offline/dom-intelligence-runtime.json"
+        ],
+        "acquired_at": "2026-10-01T16:59:26.121Z",
+        "acquired_at_commit": "614446084855eb3642fb976a254f377a18bef3e0",
+        "released_at": "2026-10-01T17:08:41.827Z",
+        "released_reason": "portable package with the corresponding sources built at 894c9706 and the clean signed manifest committed at fdb10cc5",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }
