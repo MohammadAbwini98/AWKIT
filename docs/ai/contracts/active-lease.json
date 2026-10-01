@@ -1,18 +1,23 @@
 {
   "task": "awkit-djnl-19-l11-implementation-0930",
   "contract_path": "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json",
-  "holder": "project-state",
-  "status": "released",
+  "holder": "release",
+  "status": "active",
   "allowed_paths": [
-    ".beads/**"
+    "resources/THIRD_PARTY_NOTICES.md",
+    "resources/dependency-manifest.json",
+    "resources/dependency-manifest.sig",
+    "src/offline/dom-intelligence-runtime.json"
   ],
-  "acquired_at": "2026-10-01T14:12:15.722Z",
-  "acquired_at_commit": "2e949b9ea6a8dfdd1385cfa033b271aa913f7126",
+  "acquired_at": "2026-10-01T16:54:10.928Z",
+  "acquired_at_commit": "dce3ff65559679dea510eb7a0a2c1a10e8b5a49e",
   "baseline_dirty": [
+    "CLAUDE.md",
     "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json": "67ab89fbb3681c8756eceac843fccd9b8d6db327d3f5aef63f4b23727d04ba68"
+    "CLAUDE.md": "3544b9d50e365ba78d814e520195f3ea14dff08a92fb24e7176930a04e7f883f",
+    "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json": "9a8f94810df99e944762fbdf200c8b7d69404bf53a7aa07b3904e7f3e565801e"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -26,8 +31,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-10-01T14:13:30.337Z",
-  "released_reason": "tracker notes and export committed at 5e41fa78 with verify:roadmap-dashboard 177/177 and Sources agree, L11 stays open on the libiconv decision",
-  "archived_at": "2026-10-01T14:13:30.338Z"
+  "violations": []
 }

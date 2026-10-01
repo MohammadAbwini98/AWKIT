@@ -338,11 +338,26 @@ copyright belongs to the authors of `pnpm/reflink`. The MIT terms they declare:
   `libiconv` identifier is present in `etree.cp312-win_amd64.pyd`). libiconv is LGPL-2.1. Section 6 of the
   LGPL-2.1 requires the distributor to let recipients relink the work with a modified library: the
   complete libiconv source, and the means to rebuild lxml against it, must accompany the distribution or
-  be offered in writing. lxml's own source and build scripts are public
-  (<https://github.com/lxml/lxml/tree/lxml-6.1.3>, <https://pypi.org/project/lxml/6.1.3/#files>), and so
-  is libiconv's (<https://www.gnu.org/software/libiconv/>). **How that obligation is met for an external
-  release (shipping the sources beside it, or a written offer) is not decided; see "Release
-  responsibility".**
+  be offered in writing.
+
+  **How it is met (owner decision, 2026-10-01): the sources ship inside the package.** They are in
+  `resources/native-hosts/dom-intelligence/sources/`, so every copy of the application carries them. Each
+  is pinned by SHA-256 in `src/offline/dom-intelligence-runtime.json` (`correspondingSources`), listed in
+  the signed dependency manifest, and required by strict offline validation. They are never on the
+  runtime's import path.
+
+  | Archive | What it is | License |
+  |---|---|---|
+  | `lxml-6.1.3.tar.gz` | lxml's own source and build scripts, PyPI's source distribution | BSD-3-Clause |
+  | `libiconv-winlibs-880a1fa8b5581e37e136a7b051947d3ea39097b6.tar.gz` | The complete libiconv source the wheel links, with winlibs' MSVC projects: `winlibs/libiconv` at the commit `lxml/libxml2-win-binaries` pins | LGPL-2.1-or-later (the library; its utilities are GPL-3.0-or-later) |
+  | `libxml2-win-binaries-4e8ae01f61145dc823ce2ae1d79f06241b7b46de.tar.gz` | `lxml/libxml2-win-binaries` tag 2026.05.17: `build.ps1` and `libiconv.patch`, which build the static iconv-1.17.1 the wheel links | No license file; its patch modifies the LGPL libiconv |
+
+  **To relink lxml against a modified libiconv:** build the static library from the libiconv source with
+  `libiconv.patch` and `build.ps1`. Then build lxml 6.1.3 from its source with `buildlibxml.py`, pointing
+  it at that library instead of the prebuilt release.
+  - **How we traced the versions:** the pinned wheel is byte-identical to PyPI's
+    `lxml-6.1.3-cp312-cp312-win_amd64.whl`, uploaded on 2026-09-02. At that date, the newest
+    libxml2-win-binaries release was 2026.05.17.
 
 ## Local AI model pack (Qwen3.5-4B GGUF)
 
@@ -376,7 +391,7 @@ Before distributing a release outside the organization, the release owner must r
 embedded in the exact approved Chrome for Testing payload and confirm the intended distribution
 channel and use remain permitted. The same applies to the Microsoft Visual C++ runtime files, under the
 Visual Studio license of the installation that built the release. For the DOM-intelligence runtime, the
-release owner must also decide how the LGPL-2.1 section 6 obligation for the libiconv code statically
-linked into lxml is met (the sources shipped beside the release, or a written offer) before distributing
-it outside the organization. The build tooling proves version, origin, and integrity; it does not provide
-legal advice.
+release owner decided on 2026-10-01 to meet the LGPL-2.1 section 6 obligation for the libiconv code
+statically linked into lxml by shipping the corresponding sources inside the package (see above). Strict
+offline validation refuses a release without them. The build tooling proves version, origin, and
+integrity; it does not provide legal advice.

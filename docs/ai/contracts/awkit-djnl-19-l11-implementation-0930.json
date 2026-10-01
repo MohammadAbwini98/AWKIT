@@ -61,9 +61,12 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "project-state",
+      "agent_id": "release",
       "allowed_paths": [
-        ".beads/**"
+        "resources/THIRD_PARTY_NOTICES.md",
+        "resources/dependency-manifest.json",
+        "resources/dependency-manifest.sig",
+        "src/offline/dom-intelligence-runtime.json"
       ]
     }
   },
