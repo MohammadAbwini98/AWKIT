@@ -2,7 +2,7 @@
   "task": "awkit-djnl-19-l11-implementation-0930",
   "contract_path": "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
@@ -26,5 +26,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-10-01T14:13:30.337Z",
+  "released_reason": "tracker notes and export committed at 5e41fa78 with verify:roadmap-dashboard 177/177 and Sources agree, L11 stays open on the libiconv decision",
+  "archived_at": "2026-10-01T14:13:30.338Z"
 }
