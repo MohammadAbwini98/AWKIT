@@ -1,18 +1,18 @@
 {
-  "task": "awkit-djnl-15-runtime-identity-recheck-1001",
-  "contract_path": "docs/ai/contracts/awkit-djnl-15-runtime-identity-recheck-1001.json",
+  "task": "awkit-djnl-15-nvidia-setup-pointer-1001",
+  "contract_path": "docs/ai/contracts/awkit-djnl-15-nvidia-setup-pointer-1001.json",
   "holder": "project-state",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
     ".beads/issues.jsonl"
   ],
-  "acquired_at": "2026-10-01T17:28:32.858Z",
-  "acquired_at_commit": "7f14d66affce4bff244b512592cc4cd8aebc6b9e",
+  "acquired_at": "2026-10-01T19:41:33.471Z",
+  "acquired_at_commit": "8d05c77b531212cf3e20cce4e077188368094c7d",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-djnl-15-runtime-identity-recheck-1001.json"
+    "docs/ai/contracts/awkit-djnl-15-nvidia-setup-pointer-1001.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-djnl-15-runtime-identity-recheck-1001.json": "afdc640373f12a7b00f54336501a3c382b36ebb34dc8f79dafaebc33bc178e95"
+    "docs/ai/contracts/awkit-djnl-15-nvidia-setup-pointer-1001.json": "9215dfcc4e8ea27c66f822d9d06d01095df1cc6c6fc511e7c1153c86337e05d6"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -26,8 +26,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-10-01T17:29:24.412Z",
-  "released_reason": "re-check note appended to awkit-djnl.15 and exported at 66fa350e, verify:roadmap-dashboard 177/177 and Sources agree",
-  "archived_at": "2026-10-01T17:29:24.413Z"
+  "violations": []
 }

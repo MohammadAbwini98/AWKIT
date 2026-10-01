@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-15-nvidia-setup-pointer-1001",
+    "title": "Point awkit-djnl.15 at the NVIDIA qualification setup doc",
+    "objective": "The owner asked for a pointer from awkit-djnl.15 to docs/NVIDIA_QUALIFICATION_SETUP.md (1c141123), the setup steps for item 2 (NVIDIA qualification on a 0x10DE machine). Append a note to the bead naming the doc and its two hard requirements, and export. The bead stays open. No product change.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "8d05c77b",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/issues.jsonl",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-djnl-15-nvidia-setup-pointer-1001.json"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/issues.jsonl"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "native-hosts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "STATE",
+      "description": "awkit-djnl.15's notes point to docs/NVIDIA_QUALIFICATION_SETUP.md, the bead stays open, and the dashboard's sources agree.",
+      "evidence_required": [
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177, Overview 'Sources agree', 332 issues, 22 outstanding / 310 closed (unchanged: .15 stays open), ledger 65 PASS / 2 NOT RUN / 0 BLOCKED."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  }
+}
