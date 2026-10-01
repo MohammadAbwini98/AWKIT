@@ -195,6 +195,22 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-djnl-19-l11-implementation-0930:runtime:2026-10-01T00:22:11.543Z",
+        "task": "awkit-djnl-19-l11-implementation-0930",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "native-hosts/dom-intelligence/**"
+        ],
+        "acquired_at": "2026-10-01T00:22:11.543Z",
+        "acquired_at_commit": "4dd3912ed79918ea6ca8669889b5c7e2b03c9150",
+        "released_at": "2026-10-01T00:23:25.606Z",
+        "released_reason": "host rows fix committed at 0615af12 with verify:dom-intelligence-host 93/0, normalization verifier and product wiring continue unleased",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }
