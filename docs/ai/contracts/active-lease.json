@@ -1,25 +1,18 @@
 {
   "task": "awkit-djnl-19-l11-implementation-0930",
   "contract_path": "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json",
-  "holder": "release",
-  "status": "released",
+  "holder": "project-state",
+  "status": "active",
   "allowed_paths": [
-    "resources/THIRD_PARTY_NOTICES.md",
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig",
-    "src/offline/dom-intelligence-runtime.json"
+    ".beads/**"
   ],
-  "acquired_at": "2026-10-01T16:59:26.121Z",
-  "acquired_at_commit": "614446084855eb3642fb976a254f377a18bef3e0",
+  "acquired_at": "2026-10-01T17:11:09.201Z",
+  "acquired_at_commit": "a2f32795d5ccdaad48bd0d6e18643228099daebf",
   "baseline_dirty": [
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json",
-    "tools/roadmap/assignments.json"
+    "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "4efad52bf1590d05dd172e0d89c6640736962fab138bb6e21c9b605d9394bdcb",
-    "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json": "7818e458ce793daf3452f6d5157cffe7e38cbb3e52ebfcf6cafe16c9ce5c2b69",
-    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
+    "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json": "895a6f51db5b6821e4d1d716ae324e6f199bd590d8c7e9fbfe6fd5c6c0eac894"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -29,12 +22,9 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1790862274268.9744"
+    "build": "dir(1):native-hosts:1790874090954.113"
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-10-01T17:08:41.827Z",
-  "released_reason": "portable package with the corresponding sources built at 894c9706 and the clean signed manifest committed at fdb10cc5",
-  "archived_at": "2026-10-01T17:08:41.828Z"
+  "violations": []
 }
