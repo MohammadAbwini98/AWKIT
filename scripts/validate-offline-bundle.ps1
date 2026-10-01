@@ -599,6 +599,94 @@ if ($null -eq $ai -or $ai.enabled -ne $true) {
   Write-Host "Local-AI runtime: $aiChecked/$($aiAssetPaths.Count) assets checksum-verified ($($ai.runtimeBuild), CPU only, no model pack)."
 }
 
+# === DOM-intelligence parser-only runtime (Phase L, L11) ===
+# The staged tree under build/native-hosts/dom-intelligence is produced by scripts/prepare-dom-intelligence-host.mjs
+# from the inputs pinned in src/offline/dom-intelligence-runtime.json (embedded CPython, trimmed parser-only
+# Scrapling). The signed copy must agree with the pin, ship no network, process, FFI, browser or fetcher code,
+# carry the host byte for byte, and list exactly the staged files with matching checksums.
+$domPinPath = Join-Path $root "src\offline\dom-intelligence-runtime.json"
+$dom = if (Test-Property $manifestJson "domIntelligenceRuntime") { $manifestJson.domIntelligenceRuntime } else { $null }
+if ($null -eq $dom -or $dom.enabled -ne $true) {
+  Add-Problem "DOM-intelligence runtime is not included in this build; Phase L L11 requires the release to carry it. Run 'npm run prepare:dom-intelligence-host' before generating the manifest. DOM intelligence stays optional and AWKIT runs normally without it." $Strict
+} elseif (-not (Test-Path -LiteralPath $domPinPath -PathType Leaf)) {
+  $failures.Add("DOM-intelligence runtime is included but src/offline/dom-intelligence-runtime.json is missing.")
+} else {
+  Write-Host "Validating the DOM-intelligence runtime..."
+  $domPin = Get-Content -Raw -LiteralPath $domPinPath | ConvertFrom-Json
+  $domPrefix = "native-hosts/dom-intelligence/"
+  if ($dom.requiredForAppStartup -ne $false) { $failures.Add("DOM-intelligence runtime must declare requiredForAppStartup=false (it is optional).") }
+  if ($dom.platform -ne "win32" -or $dom.arch -ne "x64") { $failures.Add("DOM-intelligence runtime must be win32/x64 (got $($dom.platform)/$($dom.arch)).") }
+  if ([string]$dom.python -cne [string]$domPin.python.version -or [string]$dom.pythonArchiveSha256 -cne [string]$domPin.python.sha256) {
+    $failures.Add("DOM-intelligence runtime CPython $($dom.python) is not the pinned $($domPin.python.version) archive.")
+  }
+  if ([string]$dom.scrapling -cne [string]$domPin.scrapling -or $dom.hostProtocolVersion -ne $domPin.hostProtocolVersion) {
+    $failures.Add("DOM-intelligence runtime Scrapling $($dom.scrapling) / protocol $($dom.hostProtocolVersion) is not the pinned $($domPin.scrapling) / $($domPin.hostProtocolVersion).")
+  }
+  $domWheels = (@($dom.wheels | ForEach-Object { "$($_.file)|$($_.sha256)" }) | Sort-Object) -join ","
+  $pinWheels = (@($domPin.wheels | ForEach-Object { "$($_.file)|$($_.sha256)" }) | Sort-Object) -join ","
+  if ($domWheels -cne $pinWheels) { $failures.Add("DOM-intelligence runtime wheels differ from the pin in src/offline/dom-intelligence-runtime.json.") }
+
+  $domAssetPaths = @($dom.assets | ForEach-Object { [string]$_.relativePath })
+  foreach ($required in @("python/python.exe", "python/python312.zip", "python/python312._pth", "host/dom_intelligence_host.py")) {
+    if ($domAssetPaths -notcontains ($domPrefix + $required)) { $failures.Add("DOM-intelligence runtime manifest does not list a mandatory asset: $domPrefix$required") }
+  }
+  $domForbidden = @($domPin.removedRuntimeFiles | ForEach-Object { '^python/' + [regex]::Escape([string]$_) + '$' }) +
+    @($domPin.strippedScraplingPaths | ForEach-Object { '^site-packages/' + [regex]::Escape([string]$_) + '(/|$)' }) +
+    @($domPin.excludedPackages | ForEach-Object { '^site-packages/' + [regex]::Escape([string]$_.name) + '([-_.]|/|$)' }) +
+    @('^site-packages/(playwright|patchright|curl_cffi|browserforge|camoufox|mcp)([-_.]|/|$)')
+  foreach ($path in $domAssetPaths) {
+    $relative = if ($path.StartsWith($domPrefix, [System.StringComparison]::Ordinal)) { $path.Substring($domPrefix.Length) } else { $path }
+    foreach ($pattern in $domForbidden) {
+      if ($relative -imatch $pattern) { $failures.Add("DOM-intelligence runtime ships a forbidden file (network, process, FFI, fetcher, browser or excluded package): $path"); break }
+    }
+  }
+  $domHostAsset = @($dom.assets | Where-Object { [string]$_.relativePath -ceq ($domPrefix + "host/dom_intelligence_host.py") }) | Select-Object -First 1
+  $domHostSource = Join-Path $root "native-hosts\dom-intelligence\dom_intelligence_host.py"
+  if ($null -ne $domHostAsset -and (Get-AwkitFileSha256 -LiteralPath $domHostSource) -ne ([string]$domHostAsset.sha256).ToLower()) {
+    $failures.Add("DOM-intelligence runtime host is not byte-identical to native-hosts/dom-intelligence/dom_intelligence_host.py (restage it).")
+  }
+
+  $domStagedRoot = Join-Path $root "build\native-hosts\dom-intelligence"
+  if (-not (Test-Path (Join-Path $domStagedRoot "dom-intelligence-host-manifest.json"))) {
+    $failures.Add("DOM-intelligence runtime is declared included but its staged manifest is missing: build/native-hosts/dom-intelligence/dom-intelligence-host-manifest.json (run 'npm run prepare:dom-intelligence-host').")
+  } else {
+    # Same set comparison as the local-AI tree: electron-builder ships the whole directory.
+    $domListed = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($path in $domAssetPaths) {
+      if (-not $path.StartsWith($domPrefix, [System.StringComparison]::Ordinal) -or $path -match '(^|/)\.\.?(/|$)' -or $path.Contains('\')) {
+        $failures.Add("DOM-intelligence runtime manifest lists a path outside native-hosts/dom-intelligence/: $path")
+      } elseif (-not $domListed.Add($path)) {
+        $failures.Add("DOM-intelligence runtime manifest lists a path more than once (compared case-insensitively): $path")
+      }
+    }
+    $domStagedFull = (Resolve-Path -LiteralPath $domStagedRoot).ProviderPath.TrimEnd('\') + '\'
+    foreach ($link in @(Get-ChildItem -LiteralPath $domStagedRoot -Recurse -Force | Where-Object { $_.Attributes -band [System.IO.FileAttributes]::ReparsePoint })) {
+      $failures.Add("DOM-intelligence staged tree contains a link, which is never staged: $($link.FullName.Substring($domStagedFull.Length).Replace('\', '/'))")
+    }
+    $domOnDisk = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($file in Get-ChildItem -LiteralPath $domStagedRoot -Recurse -File -Force) {
+      $relative = $file.FullName.Substring($domStagedFull.Length).Replace('\', '/')
+      if ($relative -ne "dom-intelligence-host-manifest.json") { [void]$domOnDisk.Add($domPrefix + $relative) }
+    }
+    $domUnlisted = @($domOnDisk | Where-Object { -not $domListed.Contains($_) } | Sort-Object)
+    $domUnstaged = @($domListed | Where-Object { -not $domOnDisk.Contains($_) } | Sort-Object)
+    if ($domUnlisted.Count -gt 0) { $failures.Add("DOM-intelligence staged tree holds $($domUnlisted.Count) file(s) the signed manifest does not list, which would ship unverified: $(($domUnlisted | Select-Object -First 5) -join ', ')") }
+    if ($domUnstaged.Count -gt 0) { $failures.Add("DOM-intelligence signed manifest lists $($domUnstaged.Count) file(s) the staged tree does not hold: $(($domUnstaged | Select-Object -First 5) -join ', ')") }
+    if ($domOnDisk.Count -eq 0) { $failures.Add("DOM-intelligence staged tree holds no files, so nothing was compared.") }
+    Write-Host "DOM-intelligence runtime inventory: $($domOnDisk.Count) staged files compared by path with $($domListed.Count) signed entries ($($domUnlisted.Count) unlisted, $($domUnstaged.Count) missing)."
+  }
+
+  $domChecked = 0
+  foreach ($asset in $dom.assets) {
+    $abs = Join-Path $root ("build\" + ($asset.relativePath -replace '/', '\'))
+    if (-not (Test-Path -LiteralPath $abs)) { $failures.Add("DOM-intelligence runtime asset is missing from the staged tree: $($asset.relativePath)"); continue }
+    if ((Get-Item -LiteralPath $abs).Length -ne $asset.size) { $failures.Add("DOM-intelligence runtime asset size mismatch for $($asset.relativePath)."); continue }
+    if ((Get-AwkitFileSha256 -LiteralPath $abs) -ne ([string]$asset.sha256).ToLower()) { $failures.Add("DOM-intelligence runtime asset checksum mismatch for $($asset.relativePath) (corrupted or tampered)."); continue }
+    $domChecked++
+  }
+  Write-Host "DOM-intelligence runtime: $domChecked/$($domAssetPaths.Count) assets checksum-verified (CPython $($dom.python), Scrapling $($dom.scrapling) parser-only)."
+}
+
 # === Local-AI GPU backend manifest (Phase L, L8a.1) ===
 # Nothing GPU ships in the installer (E3). src/offline/ai-backend-manifest.json pins, for the pinned runtime
 # build, every file of each GPU backend pack a user may supply. It must be well formed and agree with

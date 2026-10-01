@@ -2,7 +2,7 @@
   "task": "awkit-djnl-19-l11-implementation-0930",
   "contract_path": "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json",
   "holder": "release",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "build/**",
     "electron-builder.json",
@@ -51,5 +51,8 @@
     }
   ],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-10-01T04:37:25.383Z",
+  "released_reason": "packaging wiring, notices, pin note and contract committed at 84771a12, strict packaging stopped only at the clean-source-tree rule held by the preserved L5a file, the qa-owned validator block is mutation-tested and committed unleased next",
+  "archived_at": "2026-10-01T04:37:25.384Z"
 }

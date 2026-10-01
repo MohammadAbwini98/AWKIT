@@ -220,6 +220,43 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-djnl-19-l11-implementation-0930:release:2026-10-01T04:27:38.639Z",
+        "task": "awkit-djnl-19-l11-implementation-0930",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "build/**",
+          "electron-builder.json",
+          "resources/THIRD_PARTY_NOTICES.md",
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig",
+          "scripts/generate-dependency-manifest.ps1",
+          "scripts/package-per-user-installer.ps1",
+          "scripts/package-portable.ps1",
+          "src/offline/dom-intelligence-runtime.json"
+        ],
+        "acquired_at": "2026-10-01T04:27:38.639Z",
+        "acquired_at_commit": "3af2cd68a38f6ddfe3a3da281458b6d6aa3b3b73",
+        "released_at": "2026-10-01T04:37:25.383Z",
+        "released_reason": "packaging wiring, notices, pin note and contract committed at 84771a12, strict packaging stopped only at the clean-source-tree rule held by the preserved L5a file, the qa-owned validator block is mutation-tested and committed unleased next",
+        "amendments": [
+          {
+            "timestamp": "2026-10-01T04:33:03.279Z",
+            "added": [
+              "src/offline/dom-intelligence-runtime.json"
+            ],
+            "reason": "the pin's lxml license note omits the zlib and LGPL-2.1 libiconv code its Windows wheel bundles, found while reviewing the staged runtime's licenses",
+            "triggered_escalation": [
+              "qa",
+              "qc"
+            ],
+            "approved_by": "manager"
+          }
+        ],
+        "overrides": [],
+        "violations": []
       }
     ]
   }
