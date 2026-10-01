@@ -109,6 +109,8 @@ History, as found. Found by the L10.0 fixtures (`scripts/dom-intelligence/fixtur
   - Every lease grant on a contract that preserves the file fails until its `preserved_paths` sha256 is
     re-fingerprinted, because each run moves the hash.
   - Before a release run, get the owner's decision on the file.
+- **2026-10-01:** the owner authorized committing runs 22–25, and they were committed alone in
+  `1d19ae26`. The rule above still applies to every later run.
 
 ## `benchmark:dom-intelligence` rewrites the committed L10.0 evidence on every run (2026-09-30, OPEN — know it)
 

@@ -27,8 +27,9 @@
     the new no-capture check failed (HTML sent 1 → 2). Reverted to the committed source.
   - `verify:failure-capture-overhead` on the owner's request, at `640d53bb`: 17 PASS / 0 FAIL /
     1 INCONCLUSIVE. Node CPU's 95 % interval [-8.5, 70] ms straddles the 59 ms ceiling, the same verdict
-    the owner accepted on 2026-09-21. Appended as run 25 to the preserved L5a file, which stays
-    uncommitted.
+    the owner accepted on 2026-09-21. Appended as run 25 to the L5a file.
+  - On the owner's authorization, the L5a file (runs 22–25) was committed alone (`1d19ae26`), and its
+    stale entry was removed from the L11 contract's `preserved_paths`.
 
 ## 2026-10-01 — L11 proof-to-action race: the proven node is pinned (Claude)
 

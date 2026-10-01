@@ -43,8 +43,11 @@
   - **Inconclusive:** Node CPU per instance, median 23.5 ms with a 95 % interval of [-8.5, 70] ms against
     a 59 ms ceiling. It is the same criterion and verdict the owner accepted on 2026-09-21. It is not a
     PASS.
-  - The run was appended as run 25 to the preserved `L5a-overhead-gate.json`. All earlier runs are kept,
-    and the file stays uncommitted.
+  - The run was appended as run 25 to `L5a-overhead-gate.json`, and all earlier runs are kept.
+  - On the owner's authorization, the file (runs 22–25) was then committed alone in `1d19ae26`, and the
+    L11 contract no longer lists it in `preserved_paths`.
+  - So it no longer holds the tree dirty. `package:portable` is still **NOT RUN**: it needs a release
+    lease.
 - Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
 ## L11 proof-to-action race closed: a proven element is pinned, never re-resolved by index (`awkit-djnl.19`, 2026-10-01)

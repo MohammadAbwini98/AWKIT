@@ -12,14 +12,7 @@
     "branch": "main",
     "baseline_commit": "6621e56f",
     "working_tree_expected": "preserved_changes",
-    "preserved_paths": [
-      {
-        "path": "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
-        "git_status": " M",
-        "sha256": "c896676e99fe84140151d9da74f9df801d218b759286397e15f7e9e842492b62",
-        "note": "Re-fingerprinted 2026-10-01: verify:failure-capture-overhead (a structural-coverage gate for src/runner) appends each run to this evidence file. Its run 23 in the L11 F-I session moved the hash from 8f4abe94 to c55484c8, and its run 24 (the L11.G gate) moved it to c896676e. Nothing was overwritten or discarded; the file stays uncommitted and unstaged as before."
-      }
-    ]
+    "preserved_paths": []
   },
   "classification": {
     "runner_change": true,

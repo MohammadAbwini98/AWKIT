@@ -6,12 +6,12 @@
   acceptance benchmark (`3af2cd68`) and the packaging wiring with strict validation (`84771a12`,
   `bea84fda`). `CURRENT_STATE.md` has the gates and measurements.
 - **Blocked, needs the owner:**
-  1. **Strict packaging needs a clean source tree.** The only dirty source file is the preserved
-     `docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json`. `verify:failure-capture-overhead`
-     appends a run to it each time it runs. The owner must authorize committing it, or setting it aside,
-     before `npm run package:portable` can finish. Then run the packaged checks on the fresh
-     `dist/win-unpacked`: the runtime present at `resources/native-hosts/dom-intelligence`, Available in
-     Settings, and the host spawned from there with no orphan.
+  1. ~~Strict packaging needs a clean source tree~~: **unblocked on the owner's authorization.**
+     `L5a-overhead-gate.json` (runs 22–25) was committed alone in `1d19ae26`.
+     - `npm run package:portable` has NOT RUN since. It needs a release lease.
+     - Then run the packaged checks on the fresh `dist/win-unpacked`: the runtime present at
+       `resources/native-hosts/dom-intelligence`, Available in Settings, and the host spawned from there
+       with no orphan.
   2. **LGPL-2.1 libiconv inside lxml's wheel.** Decide how section 6 is met for an external release:
      ship the lxml and libiconv sources beside the release, or a written offer. See
      `resources/THIRD_PARTY_NOTICES.md` › DOM-intelligence runtime.
@@ -22,9 +22,9 @@
     (`sourceTreeDirty: true`). The committed pair is the clean `fb4c092f` release record, which is not
     replaced. Generation excludes this pair from its own cleanliness check, so a clean run is not
     blocked by them.
-  - The L5a file.
-- **Lease grants** fail until the contract's preserved L5a fingerprint matches. Re-fingerprint it, with a
-  note, whenever `verify:failure-capture-overhead` has run.
+- **Lease grants:** the L5a entry was removed from the L11 contract's `preserved_paths` when the file was
+  committed. Any later `verify:failure-capture-overhead` run dirties the file again: restore it, or get
+  the owner's call to commit it (KNOWN_ISSUES).
 - **Not done:** the "suggestion accepted by user" provenance event, which would need a persisted flow
   field. Phase L also waits on `awkit-djnl.15` (NVIDIA qualification, QC).
 - Ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
