@@ -2,7 +2,7 @@
   "task": "awkit-djnl-19-l11-implementation-0930",
   "contract_path": "docs/ai/contracts/awkit-djnl-19-l11-implementation-0930.json",
   "holder": "release",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "resources/dependency-manifest.json",
     "resources/dependency-manifest.sig"
@@ -31,5 +31,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-10-01T13:49:26.531Z",
+  "released_reason": "portable package built at 1a996a82 and the clean signed manifest committed at a18c2401",
+  "archived_at": "2026-10-01T13:49:26.533Z"
 }

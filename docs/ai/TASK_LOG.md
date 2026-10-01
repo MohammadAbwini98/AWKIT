@@ -30,6 +30,13 @@
     the owner accepted on 2026-09-21. Appended as run 25 to the L5a file.
   - On the owner's authorization, the L5a file (runs 22–25) was committed alone (`1d19ae26`), and its
     stale entry was removed from the L11 contract's `preserved_paths`.
+  - `npm run package:portable` on the owner's request: **PASS** at `1a996a82`.
+    - The release lease was granted, and its bookkeeping committed first.
+    - Strict validation passed inside the build. DOM intelligence 165/165 and local AI 1465/1465 matched
+      their signed entries with 0 unlisted and 0 missing; fresh-state 10/10.
+    - The clean signed manifest is committed in `a18c2401`, and the lease is released.
+    - The contract's `package:portable` and `validate:offline` evidence now read PASS.
+    - NOT RUN: the packaged runtime checks on `dist/win-unpacked`.
 
 ## 2026-10-01 — L11 proof-to-action race: the proven node is pinned (Claude)
 

@@ -46,8 +46,19 @@
   - The run was appended as run 25 to `L5a-overhead-gate.json`, and all earlier runs are kept.
   - On the owner's authorization, the file (runs 22–25) was then committed alone in `1d19ae26`, and the
     L11 contract no longer lists it in `preserved_paths`.
-  - So it no longer holds the tree dirty. `package:portable` is still **NOT RUN**: it needs a release
-    lease.
+  - So it no longer holds the tree dirty.
+- **`package:portable` PASS, on the owner's request, at `1a996a82`** (release lease granted, then its
+  bookkeeping committed first).
+  - Produced `dist/SpecterStudio 0.1.51.exe` and `dist/win-unpacked`.
+  - Strict offline validation passed inside the build: DOM intelligence 165/165 and local AI 1465/1465,
+    each with 0 unlisted and 0 missing; Zvec 17/17; Oracle bridge jar only; no GPU binary shipped.
+  - `portable-fresh-state` 10/10.
+  - The signed manifest records `sourceTreeDirty: false` at `1a996a82`. It is committed in `a18c2401`
+    and replaces the `fb4c092f` record. The lease is released.
+  - The EXE is Authenticode-unsigned, as before.
+  - **NOT RUN:** the packaged runtime checks on `dist/win-unpacked`: the runtime at
+    `resources/native-hosts/dom-intelligence`, Available in Settings, and the host spawned with no orphan.
+  - The libiconv LGPL-2.1 decision is still the owner's.
 - Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
 ## L11 proof-to-action race closed: a proven element is pinned, never re-resolved by index (`awkit-djnl.19`, 2026-10-01)

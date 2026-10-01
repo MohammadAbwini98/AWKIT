@@ -108,8 +108,8 @@
       "required": true,
       "command": "npm run package:portable",
       "artifact": "dist",
-      "result": "pending",
-      "observed": ""
+      "result": "PASS",
+      "observed": "2026-10-01 at 1a996a82: completed, producing dist/SpecterStudio 0.1.51.exe and dist/win-unpacked with resources/native-hosts/dom-intelligence staged (165 files, 21.0 MB). portable-fresh-state 10/10. Authenticode unsigned (no signing info). The packaged runtime checks on dist/win-unpacked are not run here."
     },
     {
       "id": "validate:offline",
@@ -117,8 +117,8 @@
       "required": true,
       "command": "npm run validate:offline -- -Strict",
       "artifact": "resources/dependency-manifest.json",
-      "result": "pending",
-      "observed": ""
+      "result": "PASS",
+      "observed": "2026-10-01, the strict step inside package:portable at 1a996a82: Strict mode passed. The manifest is signed with sourceTreeDirty false (committed a18c2401). DOM intelligence 165/165 checksum-verified with 0 unlisted and 0 missing, local AI 1465/1465, Zvec 17/17, and no GPU binary shipped."
     },
     {
       "id": "verify:roadmap-dashboard",
@@ -273,6 +273,23 @@
         "acquired_at_commit": "70e8ee0f4d5ba0868b0e0393d676f1251e77f1a9",
         "released_at": "2026-10-01T08:32:31.362Z",
         "released_reason": "tracker notes and export committed at 6cb3f054 with verify:roadmap-dashboard 177/177 and Sources agree, L11 stays open on two owner items",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-19-l11-implementation-0930:release:2026-10-01T13:42:44.175Z",
+        "task": "awkit-djnl-19-l11-implementation-0930",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig"
+        ],
+        "acquired_at": "2026-10-01T13:42:44.175Z",
+        "acquired_at_commit": "54685c4f5b03c038f6561e345d6dd0a2c7d9fc96",
+        "released_at": "2026-10-01T13:49:26.531Z",
+        "released_reason": "portable package built at 1a996a82 and the clean signed manifest committed at a18c2401",
         "amendments": [],
         "overrides": [],
         "violations": []

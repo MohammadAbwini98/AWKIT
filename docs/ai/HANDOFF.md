@@ -8,8 +8,9 @@
 - **Blocked, needs the owner:**
   1. ~~Strict packaging needs a clean source tree~~: **unblocked on the owner's authorization.**
      `L5a-overhead-gate.json` (runs 22–25) was committed alone in `1d19ae26`.
-     - `npm run package:portable` has NOT RUN since. It needs a release lease.
-     - Then run the packaged checks on the fresh `dist/win-unpacked`: the runtime present at
+     - `npm run package:portable` then **passed** at `1a996a82`. The strict validation step passed, and
+       the clean signed manifest is committed in `a18c2401`.
+     - **Next:** run the packaged checks on this `dist/win-unpacked` (NOT RUN): the runtime present at
        `resources/native-hosts/dom-intelligence`, Available in Settings, and the host spawned from there
        with no orphan.
   2. **LGPL-2.1 libiconv inside lxml's wheel.** Decide how section 6 is met for an external release:
@@ -17,11 +18,8 @@
      `resources/THIRD_PARTY_NOTICES.md` › DOM-intelligence runtime.
   3. ~~Recovery's lazy-index window~~: **resolved** after this handoff by pinning the proven node
      (`elementPin.ts`, CURRENT_STATE latest). It also covers the guarded-positional sensitive path.
-- **Uncommitted on purpose:**
-  - `resources/dependency-manifest.json` and `.sig` were regenerated from a dirty tree
-    (`sourceTreeDirty: true`). The committed pair is the clean `fb4c092f` release record, which is not
-    replaced. Generation excludes this pair from its own cleanliness check, so a clean run is not
-    blocked by them.
+- **Manifest:** the committed pair is now the clean `a18c2401` record, built at `1a996a82`. The dirty
+  regeneration that was held uncommitted was overwritten by the clean build.
 - **Lease grants:** the L5a entry was removed from the L11 contract's `preserved_paths` when the file was
   committed. Any later `verify:failure-capture-overhead` run dirties the file again: restore it, or get
   the owner's call to commit it (KNOWN_ISSUES).
