@@ -436,7 +436,8 @@ def op_normalize_dom(request):
         tables.append({
             "label": _clip(table.attrib.get("aria-label") or (_text_of(caption[0]) if caption else ""), 80),
             "columns": [_text_of(cell)[:40] for cell in table.css("th, [role=columnheader]")[:12]],
-            "rows": len(table.css("tr, [role=row]")),
+            # Data rows only: a header row is not a record, so an empty table reads as 0 rows.
+            "rows": len([row for row in table.css("tr, [role=row]") if row.css("td, [role=cell], [role=gridcell]")]),
         })
     text = []
     for node in page.css("p, li, dd, td, label, legend, span"):
