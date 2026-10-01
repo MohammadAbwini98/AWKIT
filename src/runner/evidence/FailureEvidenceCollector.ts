@@ -65,7 +65,7 @@ export interface InstanceDiagnostics {
    */
   pageContext?: PageContext;
   /** Why the failed step has no page context, when a capture was attempted (a code, never page data). */
-  pageContextRefusal?: PageContextRefusal | "suppressed";
+  pageContextRefusal?: PageContextRefusal;
 }
 
 export interface FailureEvidenceCollectorOptions {
@@ -210,7 +210,7 @@ export class FailureEvidenceCollector {
   private suppressed = false;
   private failure: RunnerFailure | undefined;
   /** L11.G: the latest step page context (or its refusal), by the step execution it was captured for. */
-  private pageContext: { stepIndex: number; context?: PageContext; refusal?: PageContextRefusal | "suppressed" } | undefined;
+  private pageContext: { stepIndex: number; context?: PageContext; refusal?: PageContextRefusal } | undefined;
   private degraded = 0;
   private stopped = false;
 
@@ -358,9 +358,9 @@ export class FailureEvidenceCollector {
       }
       if (observation.kind === "pageContext") {
         if (observation.stepId !== this.stepId) return;
-        // Page text, so it follows every exclusion the collector applies to page-derived evidence: a
-        // protected-login step or handoff, a protected document, and raw-UI-text suppression.
-        if (this.isProtected(observation.page) || this.suppressUiText) {
+        // Re-checked on arrival (pageContextAllowed already refused it before capture): the page may have
+        // become protected while the capture ran.
+        if (!this.pageContextAllowed(observation.stepId, observation.page)) {
           this.pageContext = { stepIndex: this.stepIndex, refusal: "suppressed" };
           return;
         }
@@ -376,6 +376,19 @@ export class FailureEvidenceCollector {
       facts.link = observation.link;
       facts.linkStepIndex = at;
     });
+  }
+
+  /**
+   * L11.G eligibility, asked by the runner BEFORE it reads anything from the page: a page context is page
+   * text, so it follows every exclusion applied to page-derived evidence — a protected-login step or
+   * handoff, a protected document, and raw-UI-text suppression. Never throws.
+   */
+  pageContextAllowed(stepId: string, page: Page): boolean {
+    try {
+      return !this.stopped && stepId === this.stepId && !this.suppressUiText && !this.isProtected(page);
+    } catch {
+      return false;
+    }
   }
 
   /**

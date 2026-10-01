@@ -303,17 +303,18 @@ export class StepExecutor {
 
   /**
    * L11.G: once a step has failed for good, capture the page's bounded, redacted context (normalizeDom.ts)
-   * and hand it to the evidence collector, which decides whether it may be kept. Only when a collector is
+   * and hand it to the evidence collector. The collector's exclusions (protected step or document, raw-UI-text
+   * suppression) are asked FIRST, so an excluded step's page is never serialized. Only when a collector is
    * listening; bounded by the capture's own budget; never throws into the run.
    */
   async recordFailurePageContext(step: FlowStep): Promise<void> {
-    const observe = this.progress?.observe;
+    const progress = this.progress;
     const capture = (this.locatorFactory as Partial<LocatorFactory>).capturePageContext;
-    if (!observe || !capture) return;
+    if (!progress?.observe || !progress.pageContextAllowed || !capture) return;
     try {
       const page = await this.resolveStepPage(step);
-      const result = await capture.call(this.locatorFactory, page);
-      if (result.ok || result.reason !== "disabled") observe.call(this.progress, { kind: "pageContext", stepId: step.id, page, result });
+      const result = await capture.call(this.locatorFactory, page, progress.pageContextAllowed(step.id, page));
+      if (result.ok || result.reason !== "disabled") progress.observe({ kind: "pageContext", stepId: step.id, page, result });
     } catch {
       // No context: the failure analysis reads the evidence it always read.
     }

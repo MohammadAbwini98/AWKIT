@@ -15,7 +15,7 @@
  *      and a failure without a context builds exactly the request it built before;
  *   D. the product path: real ExecutionEngine runs with AWKIT_AI_PAGE_CONTEXT=on put the context (or its
  *      refusal) into report.json, failureBatch carries it and the request shows it; off by default; suppressed
- *      with raw-UI-text suppression; refused on a protected page;
+ *      with raw-UI-text suppression, before any capture (no HTML crosses); refused on a protected page;
  *   E. measured, old versus new: raw DOM bytes, the browser's innerText (the L10.0 baseline), sanitized HTML,
  *      the normalized context and the rendered lines; facts kept by each; prompt size per labelled case.
  *
@@ -326,7 +326,8 @@ async function main(): Promise<void> {
       try {
         const engine = new ExecutionEngine();
         engine.configureConcurrency({ maxBrowsersPerHost: 2, maxActiveFlows: 2, useSharedBrowserPool: false, workloadWeights: false });
-        engine.setDomIntelligence({ provider, references: new MemoryDomReferenceStore(), budgetMs: 800 });
+        const engineProvider = new SpyProvider(provider);
+        engine.setDomIntelligence({ provider: engineProvider, references: new MemoryDomReferenceStore(), budgetMs: 800 });
         const failing = (id: string, url: string): FlowProfile => {
           const steps: FlowStep[] = [
             { id: "start", type: "start", name: "start" },
@@ -383,9 +384,12 @@ async function main(): Promise<void> {
         const guardedDiag = guarded?.instances[0]?.diagnostics;
         check("on, a protected sign-in page: no context, refused as a protected surface", guardedDiag?.pageContext === undefined && (guardedDiag?.pageContextRefusal === "protected-surface" || guardedDiag?.pageContextRefusal === "suppressed"), guardedDiag?.pageContextRefusal);
 
+        const sentBefore = engineProvider.sent.length;
         const suppressed = await run("suppressed", `${base}/page/lbl-native-validation`, true);
         const suppressedDiag = suppressed?.instances[0]?.diagnostics;
         check("on, with raw-UI-text suppression: no context, recorded as suppressed", suppressedDiag?.pageContext === undefined && suppressedDiag?.pageContextRefusal === "suppressed", suppressedDiag?.pageContextRefusal);
+        // The same ordinary page sent HTML in the "on" run, so zero here means the capture itself was skipped.
+        check("...and the page was never captured: no HTML crossed to the provider", sentBefore > 0 && engineProvider.sent.length === sentBefore, { sentBefore, after: engineProvider.sent.length });
         delete process.env.AWKIT_AI_PAGE_CONTEXT;
         engine.stopAll();
       } finally {

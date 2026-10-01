@@ -1889,6 +1889,8 @@ export class ExecutionEngine {
     return {
       // L5a request provenance: the step's target and the requests the runner holds for it.
       observe: (observation) => extras?.evidence?.observe(observation),
+      // No collector, nothing could keep a page context: never capture one.
+      pageContextAllowed: (stepId, page) => extras?.evidence?.pageContextAllowed(stepId, page) ?? false,
       report: (event: RunnerProgressEvent) => {
         const now = event.timestamp;
         // L5a step-window correlation. Synchronous and bounded; never throws into progress.

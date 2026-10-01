@@ -58,6 +58,8 @@ export interface RunnerProgressReporter {
   report(event: RunnerProgressEvent): void;
   /** Optional and synchronous; must never throw into the step. */
   observe?(observation: StepProvenanceObservation): void;
+  /** L11.G, asked BEFORE a page context is captured: whether one for this step and page could be kept. Synchronous; never throws. */
+  pageContextAllowed?(stepId: string, page: Page): boolean;
 }
 
 /** Per-step state accumulated in the live snapshot (bounded). */

@@ -582,10 +582,12 @@ export class LocatorFactory {
 
   /**
    * L11.G: the bounded, redacted context of `page` for the failure analysis, through the DOM-intelligence
-   * provider (normalizeDom.ts). Resolves with a refusal when it is switched off or there is no provider.
+   * provider (normalizeDom.ts). Resolves with a refusal when it is switched off, the step is not eligible
+   * (decided before anything is read from the page) or there is no provider.
    */
-  async capturePageContext(page: Page = this.page): Promise<PageContextResult> {
+  async capturePageContext(page: Page = this.page, eligible = true): Promise<PageContextResult> {
     if (!pageContextEnabled()) return { ok: false, reason: "disabled", metrics: { totalMs: 0 } };
+    if (!eligible) return { ok: false, reason: "suppressed", metrics: { totalMs: 0 } };
     return capturePageContext(page, this.options.domIntelligence?.provider);
   }
 

@@ -60,7 +60,8 @@ export interface PageContext {
   residualSecrets: number;
 }
 
-export type PageContextRefusal = "disabled" | "protected-surface" | "provider-unavailable" | "provider-timeout" | "provider-error" | "snapshot-failed";
+/** `suppressed`: the evidence collector's exclusions (protected step or document, raw-UI-text suppression) refused it before any capture. */
+export type PageContextRefusal = "disabled" | "suppressed" | "protected-surface" | "provider-unavailable" | "provider-timeout" | "provider-error" | "snapshot-failed";
 
 export interface PageContextMetrics {
   totalMs: number;
