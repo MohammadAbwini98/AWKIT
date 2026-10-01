@@ -7,7 +7,8 @@
   engine, and then to the same `isEnabled` veto. No identity, ancestry, margin or route check was relaxed.
   - So `AWKIT_LOCATOR_RECOVERY_ENGINE=legacy` stays as the kill switch and the benchmark baseline.
   - Evidence at `5a312548`: `verify:dom-intelligence-acceptance` 10/0, legacy 7 correct / 0 wrong (it had
-    1 wrong on the delayed-render class before the pin). `verify:dom-intelligence-contexts` R covers both
+    1 wrong on the delayed-render class before the pin). The re-run at `de47c865` matched: 10/0, legacy
+    7 correct / 0 wrong, delayed render unresolved. `verify:dom-intelligence-contexts` R covers both
     engines.
   - **Rule:** any engine that can knowingly act on a wrong element leaves the production selection. Removal
     needs rollback-policy approval and a benchmark with no production dependency.

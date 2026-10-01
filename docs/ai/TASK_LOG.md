@@ -15,11 +15,11 @@
   - `src/runner/domIntelligence/pageContext.ts`
   - `scripts/verify-dom-normalization.mts`
   - `docs/ai/*`
-- **Verification:** build PASS, dom-normalization 151/0 (new no-capture check), runner 138/0.
-- **Not run:**
-  - The new check's mutation: NOT RUN.
-  - The requested acceptance re-run: BLOCKED.
-  - The session's permission classifier refused both. No recovery code changed since the 10/0 run.
+- **Verification:**
+  - Build PASS, dom-normalization 151/0 (new no-capture check) and runner 138/0.
+  - Acceptance 10/0, re-run at `de47c865` on the owner's request. Wrong-element actions are 0 for
+    legacy, snapshot, product and proof.
+- **Not run:** the new check's mutation. The session's permission classifier refused it.
 
 ## 2026-10-01 — L11 proof-to-action race: the proven node is pinned (Claude)
 

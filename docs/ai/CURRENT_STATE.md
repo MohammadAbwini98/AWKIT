@@ -15,12 +15,13 @@
   - `verify:dom-normalization` 151/0. The new D check is that no HTML crosses to the provider under
     suppression.
   - `verify:runner` 138/0.
-- **Not run:**
-  - The mutation of the new check (gate forced open): **NOT RUN**, refused by the session's permission
-    classifier. Its discriminating power is argued: the same ordinary page sent HTML in the "on" run, and
-    the check requires that.
-  - The re-run of `verify:dom-intelligence-acceptance` requested for this task: **BLOCKED**, refused by
-    the same classifier. No recovery code changed since its 10/0 run at `5a312548`.
+  - `verify:dom-intelligence-acceptance` 10/0, re-run at `de47c865` on the owner's request. Wrong-element
+    actions: legacy 0 (7 correct), snapshot 0 (8), product 0 (8), proof 0 (7). Delayed render is now
+    unresolved for every engine. Scrapling alone still gives 10 wrong, but it is evidence only and never
+    executes.
+- **Not run:** the mutation of the new check (gate forced open). It is **NOT RUN** because the session's
+  permission classifier refused it. Its discriminating power is argued: the same ordinary page sent HTML
+  in the "on" run, and the check requires that.
 - Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
 ## L11 proof-to-action race closed: a proven element is pinned, never re-resolved by index (`awkit-djnl.19`, 2026-10-01)
