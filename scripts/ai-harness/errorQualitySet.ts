@@ -48,8 +48,19 @@ import { deriveFailureCause, type FailureCauseBaseline, type FailureCauseCode, t
 import { INSTANCE_DIAGNOSTICS_SCHEMA_VERSION, type InstanceDiagnostics } from "@src/runner/evidence/FailureEvidenceCollector";
 import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 
+import type { PageContext } from "@src/runner/domIntelligence/pageContext";
+
 import type { FixtureEvent } from "./failureAnalysisPacket";
+import pageContextCases from "./pageContextCases.json";
 import capturedCases from "./requestProvenanceCases.json";
+
+/**
+ * L11.G: the labelled rows' page contexts, captured through the real normalization path by
+ * benchmark:dom-normalization from scripts/dom-intelligence/normalizationPages.mts. Attached only in the
+ * comparison arm (`--page-context`), so every other use of this set is exactly what it was.
+ */
+const PAGE_CONTEXTS = pageContextCases.contexts as unknown as Readonly<Record<string, PageContext>>;
+export const pageContextArm = (): boolean => process.env.AWKIT_HARNESS_PAGE_CONTEXT === "1";
 
 /** Planted where the product promises to strip it. */
 export const CANARY = "QX7CANARY";
@@ -496,10 +507,13 @@ export function buildCase(c: ErrorCase): { report: ConcurrentRunReport & { id: s
     longest = Math.max(longest, failedAt);
     const status = row.status ?? "failed";
     const runnerEvent = evidence.find((event) => event.source === "runner.failure");
+    // L11.G's comparison arm only: the page the row failed on, as the real path normalized it.
+    const pageContext = status === "failed" && pageContextArm() ? (PAGE_CONTEXTS[`${c.id}:${index}`] ?? PAGE_CONTEXTS[`${c.id}:0`]) : undefined;
     const diagnostics: InstanceDiagnostics = {
       schemaVersion: INSTANCE_DIAGNOSTICS_SCHEMA_VERSION,
       evidence,
       summary: buffer.summary(),
+      ...(pageContext ? { pageContext } : {}),
       ...(status === "failed"
         ? {
             cause: deriveFailureCause(evidence, {

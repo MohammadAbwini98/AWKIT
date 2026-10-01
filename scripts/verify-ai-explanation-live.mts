@@ -123,6 +123,13 @@ if (setFlag >= 0 && (feature.d1Steps === undefined || process.argv[setFlag + 1] 
   process.exit(1);
 }
 const d1Set = setFlag >= 0;
+// errorQuality: `--page-context` is L11.G's comparison arm — each labelled row also carries the bounded,
+// redacted context of the page it failed on (scripts/ai-harness/pageContextCases.json). Same cases, same judge.
+const pageContextArm = process.argv.includes("--page-context");
+if (pageContextArm && feature.mode !== "errorQuality") {
+  console.error(`--page-context is only for --feature errorQuality`);
+  process.exit(1);
+}
 const heldOutFlag = process.argv.includes("--held-out");
 if (heldOutFlag && feature.mode !== "authoringQuality") {
   console.error(`--held-out is only for --feature authoringQuality`);
@@ -271,6 +278,7 @@ try {
       ...(mockSite ? { AWKIT_HARNESS_LAB_URL: mockSite.lab } : {}),
       ...(d1Set ? { AWKIT_HARNESS_SET: "d1" } : {}),
       ...(cases.length > 0 ? { AWKIT_HARNESS_CASES: cases.join(",") } : {}),
+      ...(pageContextArm ? { AWKIT_HARNESS_PAGE_CONTEXT: "1" } : {}),
       // The redacted answers a person reviews: local, outside the repository (authoringQualityReview.ts).
       ...(feature.mode === "authoringQuality" ? { AWKIT_HARNESS_REVIEW_DIR: reviewDir() } : {}),
       ...(heldOutFlag ? { AWKIT_HARNESS_HELD_OUT: heldOutDir } : {}),

@@ -231,7 +231,8 @@ export function failureBatch(report: ConcurrentRunReport): FailureBatchEntry[] {
     if (!cause) return [];
     const events = instance.diagnostics?.evidence ?? [];
     const context = events.find((event) => event.id === cause.evidenceIds[0])?.context;
-    return [{ instanceId: instance.instanceId, flowId: context?.flowId, nodeId: context?.nodeId, stepIndex: context?.stepIndex, baseline: cause, events }];
+    const pageContext = instance.diagnostics?.pageContext;
+    return [{ instanceId: instance.instanceId, flowId: context?.flowId, nodeId: context?.nodeId, stepIndex: context?.stepIndex, baseline: cause, events, ...(pageContext ? { pageContext } : {}) }];
   });
 }
 

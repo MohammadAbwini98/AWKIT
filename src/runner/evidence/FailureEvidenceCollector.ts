@@ -46,6 +46,7 @@ import {
 } from "./ExecutionEvidence";
 import { deriveFailureCause, type FailureCauseBaseline, type RunnerFailure, type RunnerFailureKind } from "./FailureCauseBaseline";
 import { buildUiEvidenceFlush, buildUiEvidenceScript, type UiEvidenceKind } from "./uiEvidenceScript";
+import type { PageContext, PageContextRefusal } from "../domIntelligence/pageContext";
 
 export const INSTANCE_DIAGNOSTICS_SCHEMA_VERSION = 1;
 
@@ -58,6 +59,13 @@ export interface InstanceDiagnostics {
   cause?: FailureCauseBaseline;
   /** Attach or listener failures, as counts. The run itself was never affected. */
   degraded?: number;
+  /**
+   * L11.G: the bounded, redacted context of the page the failed step was on (normalizeDom.ts). Present only
+   * for a failed instance whose last failure is that step's; absent on older reports.
+   */
+  pageContext?: PageContext;
+  /** Why the failed step has no page context, when a capture was attempted (a code, never page data). */
+  pageContextRefusal?: PageContextRefusal | "suppressed";
 }
 
 export interface FailureEvidenceCollectorOptions {
@@ -201,6 +209,8 @@ export class FailureEvidenceCollector {
   /** A protected-login step or a manual handoff is in progress. */
   private suppressed = false;
   private failure: RunnerFailure | undefined;
+  /** L11.G: the latest step page context (or its refusal), by the step execution it was captured for. */
+  private pageContext: { stepIndex: number; context?: PageContext; refusal?: PageContextRefusal | "suppressed" } | undefined;
   private degraded = 0;
   private stopped = false;
 
@@ -346,6 +356,19 @@ export class FailureEvidenceCollector {
         this.stepTarget = { ...(pageId ? { pageId } : {}), ...(observation.frame ? { frame: observation.frame } : {}) };
         return;
       }
+      if (observation.kind === "pageContext") {
+        if (observation.stepId !== this.stepId) return;
+        // Page text, so it follows every exclusion the collector applies to page-derived evidence: a
+        // protected-login step or handoff, a protected document, and raw-UI-text suppression.
+        if (this.isProtected(observation.page) || this.suppressUiText) {
+          this.pageContext = { stepIndex: this.stepIndex, refusal: "suppressed" };
+          return;
+        }
+        this.pageContext = observation.result.ok
+          ? { stepIndex: this.stepIndex, context: observation.result.context }
+          : { stepIndex: this.stepIndex, refusal: observation.result.reason };
+        return;
+      }
       const facts = this.requestFacts(observation.request);
       const at = this.stepIndexes.get(observation.stepId);
       // A link whose step execution is unknown is not recorded: it would be a link to nothing.
@@ -372,6 +395,13 @@ export class FailureEvidenceCollector {
       const failure: RunnerFailure = this.failure ?? { kind: "other", failedAtOffsetMs: this.buffer.offsetNow() };
       // A hard cancel closes the browser, so the step in flight fails with a closed-context error.
       diagnostics.cause = deriveFailureCause(events, status === "cancelled" ? { ...failure, kind: "cancelled" } : failure);
+      // Only the context of the step whose failure ended the instance: an earlier failed step's page is
+      // not what the analysis is asked about.
+      const failedAt = events.find((event) => event.id === failure.evidenceId)?.context.stepIndex;
+      if (this.pageContext && failedAt !== undefined && this.pageContext.stepIndex === failedAt && status !== "cancelled") {
+        if (this.pageContext.context) diagnostics.pageContext = this.pageContext.context;
+        else if (this.pageContext.refusal) diagnostics.pageContextRefusal = this.pageContext.refusal;
+      }
     }
     if (this.degraded > 0) diagnostics.degraded = this.degraded;
     return diagnostics;

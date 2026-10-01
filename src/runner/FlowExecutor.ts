@@ -564,6 +564,10 @@ export class FlowExecutor {
       if (decision.delayMs > 0) await new Promise((resolve) => setTimeout(resolve, decision.delayMs));
     }
 
+    // L11.G: the page the step failed on, as bounded context for the failure analysis (no-op unless
+    // enabled, a provider exists and a collector listens). After the last attempt, before anything navigates.
+    if (lastResult?.status === "failed") await this.stepExecutor.recordFailurePageContext?.(step).catch(() => undefined);
+
     // Attach the accumulated per-attempt evidence to the returned (last) attempt. The original
     // automation error on `lastResult` is untouched and remains the primary cause (B2.4/B2.5).
     if (evidence.length > 0 && lastResult) lastResult.evidence = evidence;

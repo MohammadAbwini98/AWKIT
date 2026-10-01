@@ -8,6 +8,8 @@ import type { Page, Request } from "playwright";
 
 import type { HandoffInfo } from "@src/security/ProtectedLoginHandoff";
 
+import type { PageContextResult } from "./domIntelligence/pageContext";
+
 export type LiveStepStatus =
   | "pending"
   | "running"
@@ -48,7 +50,9 @@ export interface RunnerProgressEvent {
  */
 export type StepProvenanceObservation =
   | { kind: "target"; stepId: string; page: Page; frame?: "main" | "child" }
-  | { kind: "request"; stepId: string; request: Request; link: "navigation" | "responseWait" };
+  | { kind: "request"; stepId: string; request: Request; link: "navigation" | "responseWait" }
+  /** L11.G: the bounded, redacted page context captured once a step failed for good (or why there is none). */
+  | { kind: "pageContext"; stepId: string; page: Page; result: PageContextResult };
 
 export interface RunnerProgressReporter {
   report(event: RunnerProgressEvent): void;

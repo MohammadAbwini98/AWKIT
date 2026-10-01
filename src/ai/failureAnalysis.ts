@@ -34,6 +34,7 @@ import { AI_TIME_BUDGETS } from "./AiTimeBudgets";
 import type { ConcurrentRunReport, FailureAnalysisBody, StoredFailureAnalysis } from "../reports/ExecutionReport";
 import { requestRelations, type ExecutionEvidenceEvent, type RequestRelation } from "../runner/evidence/ExecutionEvidence";
 import { DIRECT_FAILURE_CAUSES, type FailureCauseBaseline } from "../runner/evidence/FailureCauseBaseline";
+import { pageContextLines, type PageContext } from "../runner/domIntelligence/pageContext";
 import { decideAiAction, type AiPolicyConfig, type AiPolicyDecision } from "../security/authz/AiAutonomyPolicy";
 import { findResidualSecrets } from "../semantic/SemanticPolicyValidator";
 import type { SemanticRedactor } from "../semantic/SemanticRedactor";
@@ -60,6 +61,8 @@ export interface FailureAnalysisLimits {
   timeoutMs: number;
   maxOutputTokens: number;
   maxDataChars: number;
+  /** L11.G: characters of page context shown, whole lines only, when the failure carries one. */
+  maxPageContextChars: number;
 }
 
 export const FAILURE_ANALYSIS_LIMITS: Readonly<FailureAnalysisLimits> = Object.freeze({
@@ -100,7 +103,12 @@ export const FAILURE_ANALYSIS_LIMITS: Readonly<FailureAnalysisLimits> = Object.f
    * counts it on the model's own tokenizer.
    */
   maxOutputTokens: 256,
-  maxDataChars: 3_000
+  maxDataChars: 3_000,
+  /**
+   * The page context goes last, so when it would overflow `maxDataChars` it is the field dropped whole,
+   * never the evidence or its routes. 1,000 fits beside the largest evidence list.
+   */
+  maxPageContextChars: 1_000
 });
 
 /** One terminal failure, as the batch receives it. */
@@ -113,6 +121,11 @@ export interface FailureBatchEntry {
   baseline: FailureCauseBaseline;
   /** The instance's evidence. Only the baseline's cited events and near neighbours are ever sent. */
   events: readonly ExecutionEvidenceEvent[];
+  /**
+   * L11.G: the bounded, redacted context of the page the failed step was on, when the run captured one.
+   * Shown as context, never citable: the answer's ids stay the evidence events'.
+   */
+  pageContext?: PageContext;
 }
 
 export interface CoalescedFailureGroup {
@@ -368,6 +381,11 @@ const REQUEST_INSTRUCTIONS =
   "step's own request; one only requested while the step ran is not linked to it, and that timing alone " +
   "does not make it the step's.";
 
+// Added only where a failure carries the page it failed on (L11.G), so every other request keeps its prompt.
+const PAGE_INSTRUCTIONS =
+  " The page as it was when the step failed may also be described. It has no ids and cannot be cited; use " +
+  "it only to understand the events.";
+
 /**
  * Which events are offered when there are more than the budget holds, most important first.
  *
@@ -471,15 +489,21 @@ export function buildFailureAnalysisRequest(group: CoalescedFailureGroup, limits
     ...evidence.map((event) => shownLines.get(event.id) as string)
   ].join("\n");
 
+  // L11.G: the page the step failed on, already bounded and redacted by normalizeDom/pageContext. Context
+  // only: it carries no ids, so the grammar below is unchanged and nothing on it can be cited.
+  const page = entry.pageContext ? pageContextLines(entry.pageContext, limits.maxPageContextChars).join("\n") : "";
+
   return {
     prompt: {
-      instructions: provenanceShown ? INSTRUCTIONS + REQUEST_INSTRUCTIONS : INSTRUCTIONS,
+      instructions: (provenanceShown ? INSTRUCTIONS + REQUEST_INSTRUCTIONS : INSTRUCTIONS) + (page ? PAGE_INSTRUCTIONS : ""),
       maxDataChars: limits.maxDataChars,
       fields: [
         // Bounded by construction, so the field cap is the data budget: the 1,200-character default is
         // what cut the evidence list mid-line.
         { name: "Failure", text: failure, maxChars: limits.maxDataChars },
-        ...(routes.length ? [{ name: "EvidenceRoutes" as const, ids: routes }] : [])
+        ...(routes.length ? [{ name: "EvidenceRoutes" as const, ids: routes }] : []),
+        // Last, so it is the field dropped whole if the data budget runs out.
+        ...(page ? [{ name: "PageAtFailure", text: page, maxChars: limits.maxPageContextChars }] : [])
       ]
     },
     // Every key is `required` because the runtime's grammar writes every key anyway, in this order

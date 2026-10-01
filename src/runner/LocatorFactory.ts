@@ -58,6 +58,8 @@ import { buildDomReference, type DomReferenceStore } from "./domIntelligence/dom
 import { captureDomSnapshot } from "./domIntelligence/domSnapshot";
 import { DOM_REFERENCE_CAPTURE_SOURCE } from "./domIntelligence/pageScripts";
 import { compareRoutes, routeKey } from "./routeIdentity";
+import { capturePageContext } from "./domIntelligence/normalizeDom";
+import { pageContextEnabled, type PageContextResult } from "./domIntelligence/pageContext";
 
 let referenceCapture: ((element: Element) => { reference: unknown; url: string }) | undefined;
 
@@ -560,6 +562,15 @@ export class LocatorFactory {
     diagnosis.provider.ms = performance.now() - providerStarted;
     diagnosis.timings.totalMs = performance.now() - started;
     return diagnosis;
+  }
+
+  /**
+   * L11.G: the bounded, redacted context of `page` for the failure analysis, through the DOM-intelligence
+   * provider (normalizeDom.ts). Resolves with a refusal when it is switched off or there is no provider.
+   */
+  async capturePageContext(page: Page = this.page): Promise<PageContextResult> {
+    if (!pageContextEnabled()) return { ok: false, reason: "disabled", metrics: { totalMs: 0 } };
+    return capturePageContext(page, this.options.domIntelligence?.provider);
   }
 
   private static isSensitive(step: FlowStep): boolean {

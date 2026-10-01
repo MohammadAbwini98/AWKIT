@@ -40,6 +40,7 @@ import {
   errorControlFailures,
   judgeFailureAnswer,
   noCauseControlFailures,
+  pageContextArm,
   requestFor,
   type ErrorCase,
   type FailureJudgement
@@ -94,6 +95,9 @@ export async function runErrorQualityLive(api: FeatureLiveApi): Promise<void> {
   const only = (process.env.AWKIT_HARNESS_CASES ?? "").split(",").filter(Boolean);
   const cases = only.length > 0 ? ERROR_SET.filter((c) => only.includes(c.id)) : ERROR_SET;
   api.record("cases", cases.map((c) => c.id));
+  // L11.G comparison: which arm this run is, so its metrics are never read as the other's.
+  api.record("pageContextArm", pageContextArm());
+  if (pageContextArm() && cases.some((c) => c.captured)) throw new Error("the page-context arm covers the synthetic rows only (the captured rq-* cases have no page)");
 
   for (const labelled of cases) {
     await api.step(`${labelled.id}: ${labelled.covers.join(", ")}`, async () => {

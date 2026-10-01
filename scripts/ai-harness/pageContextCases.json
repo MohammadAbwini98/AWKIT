@@ -1,0 +1,661 @@
+{
+  "generatedBy": "benchmark:dom-normalization",
+  "pageSetHash": "961c8b3027ba45bf94e06f482b2257c77f5f1773a58150a1393c7d45d724b8e1",
+  "contexts": {
+    "toast-timeout:0": {
+      "schemaVersion": 1,
+      "title": "Checkout",
+      "headings": [
+        "h1 Checkout"
+      ],
+      "landmarks": [
+        "banner",
+        "navigation Main",
+        "main",
+        "form Payment",
+        "contentinfo"
+      ],
+      "alerts": [],
+      "interactive": [
+        {
+          "role": "link",
+          "name": "Home"
+        },
+        {
+          "role": "link",
+          "name": "Orders"
+        },
+        {
+          "role": "link",
+          "name": "Account"
+        },
+        {
+          "role": "textbox",
+          "name": "Card number"
+        },
+        {
+          "role": "button",
+          "name": "Place order"
+        }
+      ],
+      "forms": [
+        {
+          "label": "Payment",
+          "fields": [
+            {
+              "role": "textbox",
+              "label": "Card number"
+            }
+          ]
+        }
+      ],
+      "tables": [],
+      "text": [
+        "Card number",
+        "Delivery in 2 to 3 days.",
+        "Shop Example · Help centre"
+      ],
+      "truncated": false,
+      "residualSecrets": 0
+    },
+    "native-validation:0": {
+      "schemaVersion": 1,
+      "title": "Contact us",
+      "headings": [
+        "h1 Contact us"
+      ],
+      "landmarks": [
+        "banner",
+        "navigation Main",
+        "main",
+        "form Contact",
+        "contentinfo"
+      ],
+      "alerts": [],
+      "interactive": [
+        {
+          "role": "link",
+          "name": "Home"
+        },
+        {
+          "role": "link",
+          "name": "Orders"
+        },
+        {
+          "role": "link",
+          "name": "Account"
+        },
+        {
+          "role": "textbox",
+          "name": "Name"
+        },
+        {
+          "role": "textbox",
+          "name": "Email"
+        },
+        {
+          "role": "button",
+          "name": "Submit"
+        }
+      ],
+      "forms": [
+        {
+          "label": "Contact",
+          "fields": [
+            {
+              "role": "textbox",
+              "label": "Name"
+            },
+            {
+              "role": "textbox",
+              "label": "Email",
+              "required": true,
+              "invalid": true
+            }
+          ]
+        }
+      ],
+      "tables": [],
+      "text": [
+        "Name",
+        "Email",
+        "Shop Example · Help centre"
+      ],
+      "truncated": false,
+      "residualSecrets": 0
+    },
+    "conflict-and-validation:0": {
+      "schemaVersion": 1,
+      "title": "Edit order",
+      "headings": [
+        "h1 Edit order"
+      ],
+      "landmarks": [
+        "banner",
+        "navigation Main",
+        "main",
+        "form Order",
+        "contentinfo"
+      ],
+      "alerts": [
+        "This order was changed by someone else. Reload it before saving."
+      ],
+      "interactive": [
+        {
+          "role": "link",
+          "name": "Home"
+        },
+        {
+          "role": "link",
+          "name": "Orders"
+        },
+        {
+          "role": "link",
+          "name": "Account"
+        },
+        {
+          "role": "textbox",
+          "name": "Quantity"
+        },
+        {
+          "role": "button",
+          "name": "Save order"
+        }
+      ],
+      "forms": [
+        {
+          "label": "Order",
+          "fields": [
+            {
+              "role": "textbox",
+              "label": "Quantity"
+            }
+          ]
+        }
+      ],
+      "tables": [],
+      "text": [
+        "Quantity",
+        "Shop Example · Help centre"
+      ],
+      "truncated": false,
+      "residualSecrets": 0
+    },
+    "conflict-and-validation:1": {
+      "schemaVersion": 1,
+      "title": "Edit order",
+      "headings": [
+        "h1 Edit order"
+      ],
+      "landmarks": [
+        "banner",
+        "navigation Main",
+        "main",
+        "form Delivery",
+        "contentinfo"
+      ],
+      "alerts": [],
+      "interactive": [
+        {
+          "role": "link",
+          "name": "Home"
+        },
+        {
+          "role": "link",
+          "name": "Orders"
+        },
+        {
+          "role": "link",
+          "name": "Account"
+        },
+        {
+          "role": "textbox",
+          "name": "Postcode"
+        },
+        {
+          "role": "button",
+          "name": "Save order"
+        }
+      ],
+      "forms": [
+        {
+          "label": "Delivery",
+          "fields": [
+            {
+              "role": "textbox",
+              "label": "Postcode",
+              "invalid": true
+            }
+          ]
+        }
+      ],
+      "tables": [],
+      "text": [
+        "Postcode",
+        "Enter a valid postcode.",
+        "Shop Example · Help centre"
+      ],
+      "truncated": false,
+      "residualSecrets": 0
+    },
+    "server-error-rows:0": {
+      "schemaVersion": 1,
+      "title": "Server error",
+      "headings": [
+        "h1 Something went wrong on our side"
+      ],
+      "landmarks": [
+        "banner",
+        "navigation Main",
+        "main",
+        "contentinfo"
+      ],
+      "alerts": [],
+      "interactive": [
+        {
+          "role": "link",
+          "name": "Home"
+        },
+        {
+          "role": "link",
+          "name": "Orders"
+        },
+        {
+          "role": "link",
+          "name": "Account"
+        }
+      ],
+      "forms": [],
+      "tables": [],
+      "text": [
+        "Please try again later.",
+        "Shop Example · Help centre"
+      ],
+      "truncated": false,
+      "residualSecrets": 0
+    },
+    "transport-noise:0": {
+      "schemaVersion": 1,
+      "title": "Basket",
+      "headings": [
+        "h1 Basket"
+      ],
+      "landmarks": [
+        "banner",
+        "navigation Main",
+        "main",
+        "contentinfo"
+      ],
+      "alerts": [
+        "Tip: you can reorder items by dragging them."
+      ],
+      "interactive": [
+        {
+          "role": "link",
+          "name": "Home"
+        },
+        {
+          "role": "link",
+          "name": "Orders"
+        },
+        {
+          "role": "link",
+          "name": "Account"
+        },
+        {
+          "role": "button",
+          "name": "Submit order"
+        }
+      ],
+      "forms": [],
+      "tables": [],
+      "text": [
+        "2 items in your basket.",
+        "Shop Example · Help centre"
+      ],
+      "truncated": false,
+      "residualSecrets": 0
+    },
+    "pageerror-timeout:0": {
+      "schemaVersion": 1,
+      "title": "Your order",
+      "headings": [
+        "h1 Your order",
+        "h2 Order total"
+      ],
+      "landmarks": [
+        "banner",
+        "navigation Main",
+        "main",
+        "contentinfo"
+      ],
+      "alerts": [],
+      "interactive": [
+        {
+          "role": "link",
+          "name": "Home"
+        },
+        {
+          "role": "link",
+          "name": "Orders"
+        },
+        {
+          "role": "link",
+          "name": "Account"
+        },
+        {
+          "role": "button",
+          "name": "Pay now"
+        }
+      ],
+      "forms": [],
+      "tables": [],
+      "text": [
+        "Shop Example · Help centre"
+      ],
+      "truncated": false,
+      "residualSecrets": 0
+    },
+    "burst:0": {
+      "schemaVersion": 1,
+      "title": "Drafts",
+      "headings": [
+        "h1 Drafts"
+      ],
+      "landmarks": [
+        "banner",
+        "navigation Main",
+        "main",
+        "contentinfo"
+      ],
+      "alerts": [
+        "Saving is temporarily unavailable. Try again in a few minutes."
+      ],
+      "interactive": [
+        {
+          "role": "link",
+          "name": "Home"
+        },
+        {
+          "role": "link",
+          "name": "Orders"
+        },
+        {
+          "role": "link",
+          "name": "Account"
+        },
+        {
+          "role": "button",
+          "name": "Save draft"
+        }
+      ],
+      "forms": [],
+      "tables": [],
+      "text": [
+        "Shop Example · Help centre"
+      ],
+      "truncated": false,
+      "residualSecrets": 0
+    },
+    "unrelated-server-error-first:0": {
+      "schemaVersion": 1,
+      "title": "Address book",
+      "headings": [
+        "h1 Address book",
+        "h2 Recommended for you"
+      ],
+      "landmarks": [
+        "banner",
+        "navigation Main",
+        "main",
+        "region Recommended for you",
+        "form Address",
+        "contentinfo"
+      ],
+      "alerts": [
+        "Recommendations are unavailable right now."
+      ],
+      "interactive": [
+        {
+          "role": "link",
+          "name": "Home"
+        },
+        {
+          "role": "link",
+          "name": "Orders"
+        },
+        {
+          "role": "link",
+          "name": "Account"
+        },
+        {
+          "role": "textbox",
+          "name": "Street"
+        },
+        {
+          "role": "button",
+          "name": "Save address"
+        }
+      ],
+      "forms": [
+        {
+          "label": "Address",
+          "fields": [
+            {
+              "role": "textbox",
+              "label": "Street"
+            }
+          ]
+        }
+      ],
+      "tables": [],
+      "text": [
+        "Street",
+        "Shop Example · Help centre"
+      ],
+      "truncated": false,
+      "residualSecrets": 0
+    },
+    "cause-then-unrelated-console:0": {
+      "schemaVersion": 1,
+      "title": "Payment",
+      "headings": [
+        "h1 Payment"
+      ],
+      "landmarks": [
+        "banner",
+        "navigation Main",
+        "main",
+        "contentinfo"
+      ],
+      "alerts": [
+        "We could not take your payment. You have not been charged."
+      ],
+      "interactive": [
+        {
+          "role": "link",
+          "name": "Home"
+        },
+        {
+          "role": "link",
+          "name": "Orders"
+        },
+        {
+          "role": "link",
+          "name": "Account"
+        },
+        {
+          "role": "button",
+          "name": "Try again"
+        }
+      ],
+      "forms": [],
+      "tables": [],
+      "text": [
+        "Shop Example · Help centre"
+      ],
+      "truncated": false,
+      "residualSecrets": 0
+    },
+    "timeout-unrelated-console:0": {
+      "schemaVersion": 1,
+      "title": "Invoices",
+      "headings": [
+        "h1 Invoices"
+      ],
+      "landmarks": [
+        "banner",
+        "navigation Main",
+        "main",
+        "contentinfo"
+      ],
+      "alerts": [],
+      "interactive": [
+        {
+          "role": "link",
+          "name": "Home"
+        },
+        {
+          "role": "link",
+          "name": "Orders"
+        },
+        {
+          "role": "link",
+          "name": "Account"
+        }
+      ],
+      "forms": [],
+      "tables": [
+        {
+          "label": "Invoices",
+          "columns": [
+            "Invoice",
+            "Date"
+          ],
+          "rows": 0
+        }
+      ],
+      "text": [
+        "No invoices for this period.",
+        "Shop Example · Help centre"
+      ],
+      "truncated": false,
+      "residualSecrets": 0
+    },
+    "earlier-step-unrelated-error:0": {
+      "schemaVersion": 1,
+      "title": "Address book",
+      "headings": [
+        "h1 Address book",
+        "h2 Recommended for you"
+      ],
+      "landmarks": [
+        "banner",
+        "navigation Main",
+        "main",
+        "region Recommended for you",
+        "form Address",
+        "contentinfo"
+      ],
+      "alerts": [
+        "Recommendations are unavailable right now."
+      ],
+      "interactive": [
+        {
+          "role": "link",
+          "name": "Home"
+        },
+        {
+          "role": "link",
+          "name": "Orders"
+        },
+        {
+          "role": "link",
+          "name": "Account"
+        },
+        {
+          "role": "textbox",
+          "name": "Street"
+        },
+        {
+          "role": "button",
+          "name": "Save address"
+        }
+      ],
+      "forms": [
+        {
+          "label": "Address",
+          "fields": [
+            {
+              "role": "textbox",
+              "label": "Street"
+            }
+          ]
+        }
+      ],
+      "tables": [],
+      "text": [
+        "Street",
+        "Shop Example · Help centre"
+      ],
+      "truncated": false,
+      "residualSecrets": 0
+    },
+    "earlier-step-cause:0": {
+      "schemaVersion": 1,
+      "title": "Address book",
+      "headings": [
+        "h1 Address book"
+      ],
+      "landmarks": [
+        "banner",
+        "navigation Main",
+        "main",
+        "form Address",
+        "contentinfo"
+      ],
+      "alerts": [],
+      "interactive": [
+        {
+          "role": "link",
+          "name": "Home"
+        },
+        {
+          "role": "link",
+          "name": "Orders"
+        },
+        {
+          "role": "link",
+          "name": "Account"
+        },
+        {
+          "role": "textbox",
+          "name": "Street"
+        },
+        {
+          "role": "button",
+          "name": "Save address"
+        }
+      ],
+      "forms": [
+        {
+          "label": "Address",
+          "fields": [
+            {
+              "role": "textbox",
+              "label": "Street"
+            }
+          ]
+        }
+      ],
+      "tables": [],
+      "text": [
+        "Street",
+        "Changes are saved when you press Save address.",
+        "Shop Example · Help centre"
+      ],
+      "truncated": false,
+      "residualSecrets": 0
+    }
+  }
+}

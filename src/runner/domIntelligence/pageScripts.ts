@@ -229,6 +229,15 @@ export const DOM_SNAPSHOT_SERIALIZER_BODY = `
       if (computed && (computed.display === "none" || computed.visibility === "hidden" || computed.visibility === "collapse")) { hiddenDropped++; continue; }
     }
     var attrs = attributesOf(node);
+    if (arg.mode === "normalize") {
+      // AI context needs a control's STATE (never its value): disabled, required, invalid. Recovery mode
+      // keeps the identity allowlist only, so references and candidates still compare like with like.
+      if (node.disabled === true || node.getAttribute("aria-disabled") === "true") attrs.disabled = "disabled";
+      if (node.required === true || node.getAttribute("aria-required") === "true") attrs.required = "required";
+      var userInvalid = false;
+      try { userInvalid = node.matches(":user-invalid"); } catch (error) { userInvalid = false; }
+      if (node.getAttribute("aria-invalid") === "true" || userInvalid) attrs["aria-invalid"] = "true";
+    }
     var open = "<" + tag;
     for (var key in attrs) open += " " + key + '="' + escapeAttr(attrs[key]) + '"';
     if (index !== undefined) open += ' data-awkit-v="' + index + '"';
