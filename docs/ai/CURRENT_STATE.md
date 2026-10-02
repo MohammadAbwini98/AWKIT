@@ -1,6 +1,38 @@
 # CURRENT_STATE
 
-## L11 libiconv obligation met: the lxml and libiconv corresponding sources ship inside the package (`awkit-djnl.19`, 2026-10-01, latest)
+## L8a NVIDIA qualification harness fixed; every GPU gate passes on the GTX 980M over Remote Desktop (`awkit-djnl.15`, 2026-10-02, latest)
+
+- **The product already behaved on the GTX 980M** (8 GB, Vulkan). The first run (`ce66886d`) failed only
+  instruments. Gate F: CPU 2.3–2.4 tok/s with a 1,914–2,161 ms first token, and full offload 13.3–13.5
+  tok/s with 240–250 ms. GPU-Offload and GPU-Only both work.
+- **Three harness/environment defects, fixed in `0163e4b8`** (scripts only, no product change):
+  - **MECHANICS saw no fork.** The PRODUCT steps had already started the GPU host. Now an explicit
+    precondition releases it through the manager's own `release()`, and the guard assertion is unchanged
+    (`expectOneGuardedFork`).
+  - **Lifecycle EPERM.** The harness exited while a host was still in Windows. `dispose()` returns before
+    the OS process is gone, and an early `return` skipped the service shutdowns.
+    - Now every GPU mode waits by pid for every host it started.
+    - The launcher reports behaviour first, then deletes its scratch only once Windows' module list shows
+      nothing mapped from it.
+  - **Remote Desktop's adapter has no PCI vendor ID.** Section C now sets aside a known Microsoft
+    software or remote adapter, by software enumerator AND name. Any other adapter still needs PCI
+    identity.
+- **Gates at this state** (GTX 980M over Remote Desktop, imported `c70c876a` package):
+  - backend-gate 28/0, gpu-host 26/0, gpu-packaged 27/0;
+  - gpu-lifecycle 34/0, gpu-lifecycle-packaged 35/0, progress-gpu-packaged 13/0;
+  - ai-gpu-modes 184/0, ai-backend-pack 138/0 (the symlink sub-case NOT RUN);
+  - the new `verify:ai-gpu-harness` 41/0;
+  - `npm run build` and `typecheck:scripts` PASS.
+- **Still open under `awkit-djnl.15`:**
+  - Item 2 needs the same gates at the **physical console**. Over RDP, Chromium lists the one NVIDIA
+    adapter twice.
+  - Item 3, E2 hybrid correlation, stays **BLOCKED**. It needs a hybrid machine and a runtime API that
+    ties a Vulkan device to a LUID or PCI bus.
+  - Phase L stays in progress. Tracker unchanged at 22 outstanding / 310 closed; `bd` is not installed on
+    the NVIDIA machine.
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## L11 libiconv obligation met: the lxml and libiconv corresponding sources ship inside the package (`awkit-djnl.19`, 2026-10-01)
 
 - **Owner decision:** meet LGPL-2.1 section 6 for the libiconv statically linked into lxml by shipping the
   sources inside the package (DECISIONS, latest). Three archives, each pinned by SHA-256 in

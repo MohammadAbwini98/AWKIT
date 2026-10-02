@@ -1,5 +1,28 @@
 # KNOWN_ISSUES
 
+## A utility host's "exit" is its channel closing, not the process leaving Windows (2026-10-02, RESOLVED in the GPU harness — know it)
+
+- **Seen on the GTX 980M.** `AiUtilityHostManager.dispose()` returns after a bounded grace (2 s, then a
+  kill and 250 ms) whether or not Windows has finished the process.
+  - In every rerun, one host was still in Windows when `dispose()` returned; it was gone about 110 ms later.
+  - The GPU harness used to `app.exit` at that point, or with hosts never disposed after an early `return`.
+  - The launcher then hit EPERM deleting the pack DLLs the host still mapped, and four 100 MB scratch
+    folders leaked.
+- **Rule** for any harness or verifier that deletes files a utility host loaded: wait for the pid to be
+  gone (`HostTeardown`), then for Windows' module list to be clear (`removeWhenReleased`). Both are in
+  `scripts/ai-harness/gpuHostLifecycle.ts`. A bigger `rmSync` retry is not the fix.
+- The product is unaffected: quit must not wait on the runtime, and nothing deletes a pack in use.
+
+## Over Remote Desktop, Chromium lists one NVIDIA adapter twice (2026-10-02, OPEN — know it; part of E2)
+
+- **Seen on the GTX 980M.** Windows lists the GPU and the Microsoft Remote Display Adapter
+  (`SWD\REMOTEDISPLAYENUM\…`, no PCI ID). Chromium's GPU info reports `0x10de, 0x10de, 0x1414`.
+  - So readiness reads `nvidiaAdapters: 2` for one physical GPU.
+  - The verdict (eligible) is right, but the count is not. `unprovenDevices` would then explain a second
+    Vulkan device, such as a software ICD, that is not NVIDIA.
+- **Consequence:** NVIDIA qualification evidence is taken at the physical console. The runtime count was
+  not changed, since it needs the same device-to-adapter identity E2 lacks.
+
 ## A wheel's license metadata can omit what its binaries link (2026-10-01, RESOLVED — sources ship in the package)
 
 - **Seen.** The L11 runtime pin recorded lxml as "BSD-3-Clause (bundles libxml2 and libxslt, MIT)".

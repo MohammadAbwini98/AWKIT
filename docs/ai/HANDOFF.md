@@ -1,6 +1,72 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-02, latest) — `awkit-djnl.15` item 2 run on an NVIDIA GTX 980M: not qualified yet
+## HANDOFF (2026-10-02, latest) — the three `awkit-djnl.15` harness defects are fixed; every GPU gate passes over Remote Desktop, console rerun pending
+
+Record this against `awkit-djnl.15` on the development machine; `bd` is still not installed on the NVIDIA
+machine. Phase L stays open. No product change: runtime, host and E2 eligibility are untouched. The
+validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Fixed in `0163e4b8`** (harness and verifiers only, with `verify:ai-gpu-harness` 41/0 as the regression):
+  1. **MECHANICS guard** (`scripts/ai-harness/gpuLive.ts`). A new precondition step stops any host the
+     PRODUCT steps left, through the manager's own `release()`. `expectOneGuardedFork` keeps the
+     assertion: exactly one guard run for the one fork, and a host must start.
+     - Still FAIL: an unguarded launch, a double guard run, a call that starts nothing, and a host that
+       survives release. Nothing is skipped.
+  2. **Lifecycle EPERM, root cause traced.** `dispose()` returns after its 2 s + 250 ms grace whether or
+     not Windows has finished the process. The failed hello's early `return` also skipped both service
+     shutdowns, so the PRODUCT GPU host and the CPU host were still running at `app.exit`.
+     - The launcher then deleted a pack still mapped. The evidence is the four leftover
+       `%TEMP%\awkit-gpu-host-*` folders, one per failing gate, each with the pack intact from `ggml-base.dll`,
+       the first file the delete reaches.
+     - Now, in the gpu, gpuLifecycle and gpuProgress modes: `HostTeardown` tracks every host pid. Before the
+       harness exits, it disposes every manager and waits by pid until each is gone. A host still running
+       at 60 s is a failed step that names it.
+     - The launcher prints the behaviour summary first. Only then does it remove its scratch, once
+       Windows' module list shows nothing mapped from it (owners named). A folder left behind is a FAIL
+       check, not a crash.
+     - Trace in every rerun: exactly one host was still in Windows when `dispose()` returned (the
+       exhaustion probe in lifecycle, the CPU host in modes and progress). It was gone within about 110 ms,
+       and nothing mapped the scratch once the harness had exited.
+  3. **Backend gate, section C** (`scripts/ai-harness/windowsAdapters.ts`). An adapter is set aside only
+     by a software enumerator (`SWD\` or `ROOT\`) AND a known Microsoft name.
+     - Seen here: `SWD\REMOTEDISPLAYENUM\RDPIDD_INDIRECTDISPLAY&SESSIONID_0001`.
+     - Still FAIL: a hardware adapter without its PCI vendor ID, and any unknown adapter.
+- **Gates after the fix**, on the GTX 980M over Remote Desktop, at `0163e4b8` with the imported `c70c876a`
+  package:
+
+  | Gate | Result |
+  |---|---|
+  | `verify:ai-gpu-backend-gate` | PASS 28/0. The remote adapter is set aside; D–F pass. |
+  | `verify:ai-gpu-host` | PASS 26/0. Precondition released the PRODUCT host; one guarded fork observed. |
+  | `verify:ai-gpu-packaged` | PASS 27/0 |
+  | `verify:ai-gpu-lifecycle` | PASS 34/0. Cancels 1093/109 ms full, 1067/27 ms partial; scratch removed. |
+  | `verify:ai-gpu-lifecycle-packaged` | PASS 35/0, scratch removed |
+  | `verify:ai-progress-gpu-packaged` | PASS 13/0 |
+  | `verify:ai-gpu-modes` | PASS 184/0 |
+  | `verify:ai-backend-pack` | PASS 138/0; the symlink sub-case is NOT RUN (account privilege) |
+  | `verify:ai-gpu-harness` (new) | PASS 41/0 |
+
+  - Gate F again: CPU 2.4 tok/s with a 1,914 ms first token, partial (12/25) 5.3 tok/s, full (25/25)
+    13.3 tok/s with a 240 ms first token.
+- **Not qualification yet.** The session ran over Remote Desktop, and the owner requires the rerun at the
+  physical console. Over RDP, Chromium also lists the one GTX 980M twice (`0x10de, 0x10de, 0x1414`), so
+  product readiness reads `nvidiaAdapters: 2` (KNOWN_ISSUES, latest).
+- **E2 (item 3) stays BLOCKED.** It needs both:
+  - a hybrid machine, with NVIDIA plus Intel or AMD visible to Windows and to Vulkan;
+  - a runtime API that ties each Vulkan device the runtime binds to a physical adapter (LUID or PCI
+    bus/device). node-llama-cpp 3.21.1 exposes neither.
+  - Until then, hybrid sets fail closed as `VENDOR_UNPROVEN`. The GTX 980M has one GPU and cannot test it.
+- **Next, owner:**
+  1. At the GTX 980M's physical console, with no Remote Desktop session, run `git pull`. Keep the imported
+     manifest pair; no incoming commit touches it, and the package stays valid, since `ai-host.cjs` is
+     unchanged.
+  2. Then run `npm run verify:ai-gpu-harness` and setup-doc step 9, with logs.
+  3. Record the results in `bd` on the development machine. Item 2 closes only on the console evidence.
+  4. Restore the manifest pair afterwards: `git restore resources/dependency-manifest.json resources/dependency-manifest.sig`.
+  5. Delete the earlier run's leftovers by hand: four `%TEMP%\awkit-gpu-host-*` folders (about 100 MB each)
+     and four `%TEMP%\awkit-ai-live-*` folders (hard links to the model). The guard has no deletion verb.
+
+## HANDOFF (2026-10-02) — `awkit-djnl.15` item 2 run on an NVIDIA GTX 980M: not qualified yet
 
 Record this against `awkit-djnl.15` on the development machine. `bd` is not installed on the NVIDIA
 machine, and the setup doc keeps tracker writes on one machine. Phase L stays open.
@@ -51,7 +117,7 @@ machine, and the setup doc keeps tracker writes on one machine. Phase L stays op
 - **Item 3 (E2 hybrid) is still BLOCKED.** The runtime exposes no LUID or PCI bus, and this machine is
   not hybrid.
 - **Next, owner:**
-  1. Decide on the `gpuLive.ts` release fix.
+  1. ~~Decide on the `gpuLive.ts` release fix~~: done on the owner's instruction in `0163e4b8` (latest).
   2. Rerun the five item-2 gates at the physical console, without Remote Desktop.
   3. Record the results in `bd` here.
   4. On the NVIDIA machine, restore the imported manifest pair with

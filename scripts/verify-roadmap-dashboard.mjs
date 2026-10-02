@@ -1401,7 +1401,8 @@ try {
   check(
     "the portable commit-headroom assertion kills the old unchecked pipeline",
     !hasPortableCommitHeadroomGuard(
-      packageScriptSrc.replaceAll("\nAssert-PackagingCommitHeadroom\n", "\n# commit-headroom check removed\n")
+      // The script is checked out with CRLF (.gitattributes eol=crlf), where a bare "\n" pattern removes nothing.
+      packageScriptSrc.replace(/\r?\nAssert-PackagingCommitHeadroom\r?\n/g, "\n# commit-headroom check removed\n")
     )
   );
   const successfulHeadroomProbe = probePortableCommitHeadroomSuccess(packageScriptSrc);

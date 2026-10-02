@@ -1,8 +1,9 @@
 # NVIDIA machine setup for the Phase L GPU qualification
 
 Setup steps for the separate NVIDIA machine that runs item 2 of `awkit-djnl.15`, the NVIDIA qualification.
-They were written on 2026-10-01 from the repository's scripts and docs. **No step here has been executed
-on an NVIDIA machine yet.**
+They were written on 2026-10-01 from the repository's scripts and docs. They were first executed on a GTX
+980M on 2026-10-02, over Remote Desktop. Every check passes there since `0163e4b8`, but qualification
+still needs the run at the physical console (rule 3 below, `docs/ai/HANDOFF.md`).
 
 ## Settle these two things first
 
@@ -20,6 +21,12 @@ on an NVIDIA machine yet.**
    - Move it by USB, never through OneDrive or git. The signing script refuses a key that sits in a synced
      folder (`docs/security/RELEASE_KEY_CUSTODY.md`).
    - Don't run `generate-key` on the NVIDIA machine: that would create a different trust root.
+3. **Run the checks at the physical console, not over Remote Desktop.** A Remote Desktop session adds the
+   Microsoft Remote Display Adapter. `verify:ai-gpu-backend-gate` now sets it aside by name and software
+   enumerator, and says when a session is active.
+   - Over Remote Desktop, Chromium also lists the one NVIDIA GPU twice. Product readiness then counts two
+     NVIDIA adapters for one card (`docs/ai/KNOWN_ISSUES.md`), which is not qualification evidence.
+   - Sign in at the machine itself, and make sure no Remote Desktop session is open.
 
 ## No USB drive: build on the development machine instead
 
@@ -160,9 +167,17 @@ npm run package:portable
 
 **9. Run the five qualification checks and save the output.** Exit code 0 means PASS, 1 means FAIL, and 2
 means NOT RUN or INCONCLUSIVE.
+- Each GPU check prints its `behaviour:` summary before it cleans up its scratch folders.
+- A folder still mapped by a process is reported as a failed teardown check, naming the process.
 
 ```powershell
 New-Item -ItemType Directory -Force C:\nvidia-evidence
+```
+
+The harness's own rules first (no GPU needed, under a minute):
+
+```powershell
+cmd /c "npm run verify:ai-gpu-harness 2>&1" | Tee-Object C:\nvidia-evidence\gpu-harness.log
 ```
 
 ```powershell
@@ -187,6 +202,10 @@ cmd /c "npm run verify:ai-gpu-packaged 2>&1" | Tee-Object C:\nvidia-evidence\gpu
 
 ```powershell
 cmd /c "npm run verify:ai-gpu-lifecycle-packaged 2>&1" | Tee-Object C:\nvidia-evidence\gpu-lifecycle-packaged.log
+```
+
+```powershell
+cmd /c "npm run verify:ai-progress-gpu-packaged 2>&1" | Tee-Object C:\nvidia-evidence\progress-gpu-packaged.log
 ```
 
 **10. Clean up.** Packaging rewrote the two tracked manifest files with the NVIDIA machine's signature. The

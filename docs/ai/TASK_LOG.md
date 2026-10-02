@@ -1,6 +1,35 @@
 # TASK_LOG
 
-## 2026-10-01 (latest) — L11 libiconv: the lxml and libiconv corresponding sources ship inside the package (Claude)
+## 2026-10-02 (latest) — L8a: the three GTX 980M qualification harness defects fixed (Claude, on the NVIDIA machine)
+
+- **Task:** close the MECHANICS fork, lifecycle teardown and Remote Desktop adapter defects of the
+  `awkit-djnl.15` item 2 run, without changing the GPU runtime.
+- **Result:** done, in `0163e4b8`.
+  - Fresh-host precondition plus an unchanged guard assertion.
+  - Every GPU mode waits by pid for its hosts. The launcher reports behaviour before cleanup and deletes
+    only once Windows' module list is clear.
+  - Section C sets aside a Microsoft software or remote adapter by enumerator AND name.
+- **Files:**
+  - `scripts/ai-harness/{gpuHostLifecycle,windowsAdapters}.ts` (new)
+  - `scripts/ai-harness/{gpuLive,gpuLifecycle,gpuProgress}.ts`
+  - `scripts/verify-ai-gpu-{host,backend-gate,harness}.mts`
+  - `scripts/lib/verifier-classification.ts`, `package.json`, `scripts/verify-roadmap-dashboard.mjs`
+  - `docs/ai/*`, `docs/NVIDIA_QUALIFICATION_SETUP.md`
+- **Verification** (GTX 980M over Remote Desktop):
+  - backend-gate 28/0, gpu-host 26/0, gpu-packaged 27/0;
+  - gpu-lifecycle 34/0, gpu-lifecycle-packaged 35/0, progress-gpu-packaged 13/0;
+  - ai-gpu-modes 184/0, ai-backend-pack 138/0 (1 NOT RUN), ai-gpu-harness 41/0;
+  - verifier-classification PASS, build PASS, typecheck:scripts PASS;
+  - `verify:roadmap-dashboard` 177/177, Sources agree.
+- **Also fixed:** `verify:roadmap-dashboard`'s commit-headroom mutation control was a no-op on this CRLF
+  checkout. `package-portable.ps1` is `eol=crlf`, and the bare `"\n"` pattern removed nothing. It now
+  matches `\r?\n`.
+- **Not done here:**
+  - The physical-console rerun, which the owner requires for qualification.
+  - `bd` notes: not installed here, so BLOCKED.
+  - E2 hybrid: BLOCKED, needs hardware and a runtime API.
+
+## 2026-10-01 — L11 libiconv: the lxml and libiconv corresponding sources ship inside the package (Claude)
 
 - **Task:** the owner's decision for LGPL-2.1 section 6. Ship the sources inside the package, with the
   three downloads approved.
