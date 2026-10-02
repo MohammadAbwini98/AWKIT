@@ -20,10 +20,15 @@
  * freeing the GPU, not re-planning against the VRAM free by then, or not keeping the setting off the GPU
  * at GPU_LOSS_LIMIT (GPU-Offload on CPU, GPU-Only refusing, both with LOST_AFTER_LOAD, until the mode or
  * reserve changes); a cancel, a kill to honour one, or a CPU host crash counted as a GPU loss.
+ * E2 pending (section I, owner decision 2026-10-02): a hybrid adapter set whose physical identity cannot
+ * be proven reaching a GPU host, read as NVIDIA by adapter order, position or majority, or reported as a
+ * failure under GPU-Offload instead of a CPU & RAM answer with VENDOR_UNPROVEN in the execution status,
+ * view, log and job progress; GPU-Only on such a set doing anything but refusing truthfully.
  *
  * Real NVIDIA hardware is NOT exercised here (E11). Run: npm run verify:ai-gpu-modes
  */
 
+import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 import {
@@ -41,8 +46,9 @@ import {
   type AiGpuReason
 } from "@src/ai/AiExecutionProfile";
 import type { AiAdmissionView } from "@src/ai/AiAdmission";
+import { AiJobTracker, type AiJobStatus } from "@src/ai/AiJobStatus";
 import type { AiOutputSchema } from "@src/ai/AiOutputContract";
-import { AiService, type AiJobRequest, type AiServiceSettings } from "@src/ai/AiService";
+import { AiService, type AiJobRequest, type AiServiceDeps, type AiServiceSettings } from "@src/ai/AiService";
 import { DEFAULT_AI_SETTINGS, MAX_VRAM_RESERVE_MB, MIN_VRAM_RESERVE_MB, normalizeAiSettings, sanitizeAiSettingsPatch, type AiExecutionMode } from "@src/ai/AiSettings";
 import type { AiGpuPlan, AiHostRequestPayload, AiLoadRequest } from "@src/ai/contracts/AiHostProtocol";
 import { FakeAiHostTransport, type FakeAiHostOptions, type FakeInferStep } from "@src/ai/FakeAiHostTransport";
@@ -100,6 +106,8 @@ function world(options: {
   gpu?: FakeAiHostOptions | null;
   idleUnloadMs?: number;
   verifyModel?: () => Promise<boolean>;
+  log?: AiServiceDeps["log"];
+  jobs?: AiJobTracker;
 }): World {
   const respond = () => '{"ok":true}';
   const cpu = new FakeAiHostTransport({ modelRoot: MODEL_ROOT, respond, ...options.cpu });
@@ -118,6 +126,8 @@ function world(options: {
     ...(readiness === null ? {} : { gpu: typeof readiness === "function" ? readiness : async () => readiness ?? NVIDIA_ONE }),
     model: async () => ({ ok: true, modelId: "model-a", modelPath: join(MODEL_ROOT, "model-a.gguf"), contextTokens: 4096 }),
     ...(options.verifyModel ? { verifyModel: options.verifyModel } : {}),
+    ...(options.log ? { log: options.log } : {}),
+    ...(options.jobs ? { jobs: options.jobs } : {}),
     settings: async () => settings,
     admission: () => IDLE,
     threads: 4,
@@ -682,6 +692,162 @@ console.log("\nH. L8a.5: the GPU lost after a successful load\n");
     "two CPU host crashes are no GPU loss: GPU-Offload still plans each load and keeps its own reason",
     cpuSideOk.status === "ok" && cpuSideProfile.fallbackReason === "INSUFFICIENT_VRAM" && plans(cpuSide.gpu) === 3,
     { outcome: cpuSideOk, profile: cpuSideProfile, plans: plans(cpuSide.gpu) }
+  );
+}
+
+// ── I. E2 pending: a hybrid set whose physical identity cannot be proven ────────────────────────
+console.log("\nI. E2 pending (owner decision 2026-10-02): an unproven hybrid identity runs on CPU & RAM, never on an assumed GPU\n");
+{
+  const INTEL = 0x8086;
+  const AMD = 0x1002;
+  const SOFT = 0x1414;
+  const NV = NVIDIA_PCI_VENDOR_ID;
+  const owned = (requestId: string): AiJobRequest => ({ ...job(requestId), owner: { window: 1, requestId } });
+  const lastOf = (statuses: AiJobStatus[]) => statuses[statuses.length - 1];
+
+  // No heuristic: adapter order, position or an NVIDIA majority never says which adapter the runtime binds.
+  const hybrids = [[INTEL, NV], [NV, INTEL], [AMD, NV], [NV, AMD], [SOFT, INTEL, NV], [NV, SOFT, INTEL], [NV, NV, INTEL], [INTEL, NV, NV], [AMD, INTEL, NV]];
+  const readings = hybrids.map((ids) => classifyAdapters(ids));
+  check(
+    `every order and mix of ${hybrids.length} hybrid adapter lists reads VENDOR_UNPROVEN: Chromium's order, a position or an NVIDIA majority proves nothing`,
+    readings.every((reading) => !reading.ok && reading.reason === "VENDOR_UNPROVEN"),
+    readings
+  );
+  const heuristic = /name|index|order|sort|luid|bus/i;
+  check(
+    "the device proof takes counts only, never a name, an index or an order",
+    unprovenDevices.length === 2 && !heuristic.test(unprovenDevices.toString()) && !heuristic.test(classifyAdapters.toString())
+  );
+  const adapterSource = readFileSync(resolve("app/main/ai/gpuAdapters.ts"), "utf8");
+  const fieldsRead = [...new Set([...adapterSource.matchAll(/device\??\.(\w+)/g)].map((match) => match[1]))];
+  check(
+    "the main process reads each adapter's PCI vendor ID and nothing else: no name, no active flag, no position",
+    fieldsRead.join() === "vendorId" && !/gpuDevice\[|\.active\b|deviceString|description/.test(adapterSource),
+    fieldsRead
+  );
+
+  // 1. A CPU-only machine.
+  const cpuMachine = world({ mode: "gpu-offload", readiness: classifyAdapters([SOFT]), gpu: { gpuPlan: plan(24) } });
+  const cpuAnswer = await cpuMachine.run("e2-cpu-machine");
+  const cpuReason = (await cpuMachine.service.status()).execution.fallbackReason;
+  check(
+    "1. CPU-only machine (software adapter only) under GPU-Offload: the request answers on CPU & RAM with NO_COMPATIBLE_ADAPTER, the GPU host untouched",
+    cpuAnswer.status === "ok" && cpuAnswer.profile.backend === "cpu" && cpuAnswer.profile.offload === "cpu" && cpuReason === "NO_COMPATIBLE_ADAPTER" && types(cpuMachine.gpu).length === 0 && loads(cpuMachine.cpu).length === 1,
+    { cpuAnswer, cpuReason }
+  );
+
+  // 2. Hybrid, identity unproven, GPU-Offload: CPU & RAM with the reason everywhere it is reported.
+  const logs: string[] = [];
+  const published: AiJobStatus[] = [];
+  const hybridReadiness = classifyAdapters([INTEL, NV]);
+  const hybrid = world({
+    mode: "gpu-offload",
+    readiness: hybridReadiness,
+    gpu: { gpuPlan: plan(24) },
+    log: (level, message) => logs.push(`${level}:${message}`),
+    jobs: new AiJobTracker({ publish: (_owner, status) => published.push(status) })
+  });
+  const answer = await hybrid.service.submit(owned("e2-hybrid"));
+  check(
+    "2. hybrid Intel + NVIDIA under GPU-Offload: an answer, not a failure, whose effective profile is CPU & RAM",
+    answer.status === "ok" && answer.profile.backend === "cpu" && answer.profile.offload === "cpu",
+    answer
+  );
+  check(
+    "...no GPU is selected on an assumption: the GPU host is never started, planned or loaded, though its plan fits every layer",
+    types(hybrid.gpu).length === 0 && loads(hybrid.cpu).length === 1 && loads(hybrid.cpu)[0].gpuLayers === undefined,
+    types(hybrid.gpu)
+  );
+  const hybridStatus = await hybrid.service.status();
+  check(
+    "...the AI reads available with no error, the configured mode stays GPU-Offload, and the profile keeps the reason",
+    hybridStatus.state.kind === "available" && hybrid.settings.executionMode === "gpu-offload" && hybridStatus.execution.mode === "gpu-offload" && hybridStatus.execution.backend === "cpu" && hybridStatus.execution.fallbackReason === "VENDOR_UNPROVEN" && hybridStatus.execution.refusal === null,
+    { state: hybridStatus.state, execution: hybridStatus.execution }
+  );
+  const hybridView = toExecutionView(hybridStatus, "gpu-offload", hybridReadiness);
+  check(
+    "...diagnostics say why the GPU was not used: the current reason and its sentence, readiness VENDOR_UNPROVEN, no VRAM figures invented",
+    hybridView.applied &&
+      hybridView.fallbackReason === "VENDOR_UNPROVEN" &&
+      hybridView.message === AI_GPU_REASON_MESSAGES.VENDOR_UNPROVEN &&
+      !hybridView.gpuReadiness.ok &&
+      hybridView.gpuReadiness.reason === "VENDOR_UNPROVEN" &&
+      hybridView.gpuReadiness.message === AI_GPU_REASON_MESSAGES.VENDOR_UNPROVEN &&
+      hybridView.vram === null,
+    hybridView
+  );
+  check("...and the log records the fallback by its reason code", logs.includes("warn:ai gpu-offload falling back to CPU: VENDOR_UNPROVEN"), logs);
+  const stages = [...new Set(published.map((status) => status.stage))];
+  const final = lastOf(published);
+  check(
+    "...progress: the job reports the GPU check before the CPU load, and completes with the CPU profile and its reason",
+    stages.includes("backend-probe") && stages.indexOf("backend-probe") < stages.indexOf("model-load") && final?.state === "completed" && final.terminalReason === null && final.profile?.backend === "cpu" && final.profile.fallbackReason === "VENDOR_UNPROVEN",
+    { stages, final }
+  );
+  const again = await hybrid.run("e2-hybrid-2");
+  const againReason = (await hybrid.service.status()).execution.fallbackReason;
+  check(
+    "...the next job reuses the CPU load, still reports the reason, and never touches the GPU host",
+    again.status === "ok" && again.profile.backend === "cpu" && againReason === "VENDOR_UNPROVEN" && loads(hybrid.cpu).length === 1 && types(hybrid.gpu).length === 0,
+    { again, againReason }
+  );
+  const twoDevices = world({ mode: "gpu-offload", gpu: { gpuPlan: plan(24, { deviceCount: 2 }) } });
+  const twoAnswer = await twoDevices.run("e2-two-devices");
+  const twoReason = (await twoDevices.service.status()).execution.fallbackReason;
+  check(
+    "...one NVIDIA adapter but two Vulkan devices in the runtime: no device is matched by position, CPU & RAM with VENDOR_UNPROVEN, the GPU host stopped",
+    twoAnswer.status === "ok" && twoAnswer.profile.backend === "cpu" && twoReason === "VENDOR_UNPROVEN" && loads(twoDevices.gpu).length === 0 && (twoDevices.gpu?.releases ?? 0) >= 1,
+    { twoAnswer, twoReason }
+  );
+
+  // 3. A proven NVIDIA adapter keeps its GPU acceleration.
+  const provenReadiness = classifyAdapters([SOFT, NV]);
+  const proven = world({ mode: "gpu-offload", readiness: provenReadiness, gpu: { gpuPlan: plan(24) } });
+  const provenAnswer = await proven.run("e2-proven");
+  const provenReason = (await proven.service.status()).execution.fallbackReason;
+  check(
+    "3. one proven NVIDIA adapter (beside the software adapter) under GPU-Offload: every layer runs on the GPU, no fallback, the CPU host untouched",
+    provenAnswer.status === "ok" && provenAnswer.profile.backend === "vulkan" && provenAnswer.profile.offload === "full" && provenReason === null && types(proven.cpu).length === 0,
+    { provenAnswer, provenReason }
+  );
+  const provenOnly = world({ mode: "gpu-only", readiness: provenReadiness, gpu: { gpuPlan: plan(24) } });
+  const provenOnlyAnswer = await provenOnly.run("e2-proven-only");
+  check("...and under GPU-Only too", provenOnlyAnswer.status === "ok" && provenOnlyAnswer.profile.backend === "vulkan" && provenOnlyAnswer.profile.offload === "full", provenOnlyAnswer);
+
+  // 4. GPU-Only on an unproven hybrid: a truthful refusal, never a silent change of mode.
+  const onlyPublished: AiJobStatus[] = [];
+  const onlyHybrid = world({
+    mode: "gpu-only",
+    readiness: hybridReadiness,
+    gpu: { gpuPlan: plan(24) },
+    jobs: new AiJobTracker({ publish: (_owner, status) => onlyPublished.push(status) })
+  });
+  const refused = await onlyHybrid.service.submit(owned("e2-hybrid-only"));
+  const onlyStatus = await onlyHybrid.service.status();
+  check(
+    "4. hybrid under GPU-Only: refused as GPU_UNAVAILABLE, nothing run on either host, the mode left as GPU-Only",
+    refused.status === "rejected" && refused.code === "UNAVAILABLE" && refused.reason === "GPU_UNAVAILABLE" && loads(onlyHybrid.cpu).length === 0 && types(onlyHybrid.gpu).length === 0 && onlyHybrid.settings.executionMode === "gpu-only" && onlyStatus.execution.mode === "gpu-only",
+    refused
+  );
+  check(
+    "...the refusal names VENDOR_UNPROVEN with no invented shortfall, its sentence is shown, and the AI reads unavailable",
+    onlyStatus.execution.refusal?.reason === "VENDOR_UNPROVEN" &&
+      onlyStatus.execution.refusal.requiredBytes === null &&
+      onlyStatus.execution.refusal.availableBytes === null &&
+      onlyStatus.state.kind === "unavailable" &&
+      onlyStatus.state.reason === "GPU_UNAVAILABLE" &&
+      toExecutionView(onlyStatus, "gpu-only", hybridReadiness).message === AI_GPU_REASON_MESSAGES.VENDOR_UNPROVEN,
+    onlyStatus.execution
+  );
+  const onlyFinal = lastOf(onlyPublished);
+  check("...and the job ends failed with that reason, never completed", onlyFinal?.state === "failed" && onlyFinal.terminalReason === "GPU_UNAVAILABLE", onlyFinal);
+  onlyHybrid.settings.executionMode = "gpu-offload";
+  const chosen = await onlyHybrid.run("e2-hybrid-chosen");
+  const chosenReason = (await onlyHybrid.service.status()).execution.fallbackReason;
+  check(
+    "...only the administrator's own switch to GPU-Offload runs it, on CPU & RAM with VENDOR_UNPROVEN",
+    chosen.status === "ok" && chosen.profile.backend === "cpu" && chosenReason === "VENDOR_UNPROVEN" && types(onlyHybrid.gpu).length === 0,
+    { chosen, chosenReason }
   );
 }
 
