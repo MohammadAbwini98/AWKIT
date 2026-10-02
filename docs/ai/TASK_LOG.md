@@ -1,6 +1,23 @@
 # TASK_LOG
 
-## 2026-10-02 (latest) — L8a: the three GTX 980M qualification harness defects fixed (Claude, on the NVIDIA machine)
+## 2026-10-02 (latest) — L8a: NVIDIA qualification at the GTX 980M's physical console (Claude, on the NVIDIA machine)
+
+- **Task:** final physical-console run of `awkit-djnl.15` item 2, verification only.
+- **Result:** PASS. Every gate passed with no Remote Display Adapter present. Chromium lists one NVIDIA
+  adapter, and readiness reads `nvidiaAdapters: 1`. No code changed.
+- **Files:** `docs/ai/{HANDOFF,CURRENT_STATE,TASK_LOG,KNOWN_ISSUES}.md`, `docs/NVIDIA_QUALIFICATION_SETUP.md`.
+- **Verification** (at `4771e84e`, imported `c70c876a` package):
+  - gpu-harness 41/0, backend-gate 28/0, gpu-host 26/0, gpu-packaged 27/0;
+  - gpu-lifecycle 34/0, gpu-lifecycle-packaged 35/0, progress-gpu-packaged 13/0;
+  - ai-gpu-modes 184/0, ai-backend-pack 138/0 (1 NOT RUN);
+  - verifier-classification PASS, `verify:roadmap-dashboard` 177/177 (Sources agree), `git diff --check`
+    clean.
+- **Not done here:**
+  - `bd` notes: not installed here, so BLOCKED.
+  - Raw logs to `C:\nvidia-evidence`: the guard refuses pipes and writes outside the checkout, so NOT RUN.
+  - E2 hybrid: BLOCKED, needs hardware and a runtime adapter identity.
+
+## 2026-10-02 — L8a: the three GTX 980M qualification harness defects fixed (Claude, on the NVIDIA machine)
 
 - **Task:** close the MECHANICS fork, lifecycle teardown and Remote Desktop adapter defects of the
   `awkit-djnl.15` item 2 run, without changing the GPU runtime.

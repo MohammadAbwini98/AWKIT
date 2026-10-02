@@ -22,6 +22,8 @@
     Vulkan device, such as a software ICD, that is not NVIDIA.
 - **Consequence:** NVIDIA qualification evidence is taken at the physical console. The runtime count was
   not changed, since it needs the same device-to-adapter identity E2 lacks.
+- **Confirmed RDP-only.** At the physical console the same machine lists only `0x10de, 0x1414`, and
+  readiness reads `nvidiaAdapters: 1` (2026-10-02).
 
 ## A wheel's license metadata can omit what its binaries link (2026-10-01, RESOLVED — sources ship in the package)
 

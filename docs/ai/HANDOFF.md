@@ -1,6 +1,77 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-02, latest) — the three `awkit-djnl.15` harness defects are fixed; every GPU gate passes over Remote Desktop, console rerun pending
+## HANDOFF (2026-10-02, latest) — `awkit-djnl.15` item 2, NVIDIA qualification, PASSES at the GTX 980M's physical console; E2 stays BLOCKED
+
+Record this against `awkit-djnl.15` on the development machine; `bd` is not installed on the NVIDIA
+machine. No product, harness or verifier change. Phase L stays open on item 3 alone. The validation ledger
+is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Run:** at `4771e84e` (equal to `origin/main`), with the imported `c70c876a` package. The packaged gates
+  confirm the packaged host is byte-identical to the source host. The imported manifest pair is still in
+  the working tree, uncommitted. L8a.0 record `ranAt` 2026-10-02T18:47:36Z.
+- **Topology, physical console:**
+  - **Windows:** one display adapter, NVIDIA GeForce GTX 980M,
+    `PCI\VEN_10DE&DEV_13D7&SUBSYS_11291462&REV_A1`, bus `00000000:01:00.0`.
+    - Driver 32.0.15.8180 (10/29/2025), NVIDIA 581.80. 8,192 MiB (`nvidia-smi`); Vulkan reports
+      8,751,611,904 bytes in total.
+    - System Vulkan loader 1.4.309.0, Microsoft-signed. CPU i7-4980HQ.
+  - **No Remote Display Adapter:** section C enumerated `1 PCI` and set nothing aside. It did not print its
+    "a Remote Desktop session is active" notice.
+  - **Chromium:** `0x10de` (NVIDIA) and `0x1414` (software) only. The duplicate `0x10de` seen over RDP is
+    gone.
+  - **Vulkan:** the runtime found 1 device, `NVIDIA GeForce GTX 980M`.
+  - **Eligibility:** product readiness `{ok: true, nvidiaAdapters: 1}`. PRODUCT GPU-Offload and GPU-Only
+    are both eligible and run on Vulkan, 25 of 25 layers.
+- **Gates** (exit 0 = PASS):
+
+  | Gate | Result |
+  |---|---|
+  | `verify:ai-gpu-harness` | PASS 41/0 |
+  | `verify:ai-gpu-backend-gate` | PASS 28/0. NVIDIA section ran, pinning SUPPORTED. |
+  | `verify:ai-gpu-host` | PASS 26/0. One guarded fork; the altered pack is refused before any GPU host starts. |
+  | `verify:ai-gpu-packaged` | PASS 27/0 |
+  | `verify:ai-gpu-lifecycle` | PASS 34/0. Cancels: full 1084 ms (prompt) / 14 ms (generation), partial 1105 / 82 ms. |
+  | `verify:ai-gpu-lifecycle-packaged` | PASS 35/0. Cancels: full 1102 / 77 ms, partial 1094 / 86 ms. |
+  | `verify:ai-progress-gpu-packaged` | PASS 13/0 |
+  | `verify:ai-gpu-modes` | PASS 184/0 |
+  | `verify:ai-backend-pack` | PASS 138/0. The file-symlink sub-case is NOT RUN (account privilege), as before. |
+
+  - Every GPU gate removed its scratch folders, with nothing mapping them once the harness had exited.
+  - Kill → back with the model: about 9.2–9.5 s, nearly all of it the reload. VRAM exhaustion with 6 fillers
+    recovers.
+- **Performance** (gate F: Qwen3.5-0.8B-Q4_K_M, the same short JSON prompt):
+
+  | Placement | Speed | First token |
+  |---|---|---|
+  | CPU, 0 of 25 layers | 2.4 tok/s | 1,987 ms |
+  | Partial, 12 of 25 | 5.5 tok/s | 1,117 ms |
+  | Full, 25 of 25 (`max`) | 13.4 tok/s | 263 ms |
+  | `auto` (picks 25 of 25) | 13.5 tok/s | 260 ms |
+
+  - Long prompt (829 tokens in, 118 out), source lifecycle: full 1,901 ms prompt + 5,618 ms generation;
+    partial 2,187 + 15,238 ms.
+- **NVIDIA qualification (item 2): PASS.** Every gate in the setup doc's step 9 passed at the console.
+- **E2 (item 3): BLOCKED.** It needs hybrid NVIDIA plus Intel or AMD hardware, and a runtime adapter
+  identity (LUID or PCI bus) that proves which physical device each Vulkan device is. This machine has one
+  GPU, so it cannot test E2. `VENDOR_UNPROVEN` is unchanged.
+- **Phase L: open.** All 15 milestones are closed, and `awkit-djnl.15` keeps it open, now on item 3 only.
+  No owner decision accepts E2 as a documented fail-closed limitation (DECISIONS). The bead calls item 3
+  "carried forward, not waived". Closing the phase needs either the hybrid evidence or that decision.
+- **Raw logs: NOT saved to `C:\nvidia-evidence`.** The repository guard refuses pipes (`| Tee-Object`) and
+  writes outside the checkout. The full gate output is in this session's transcript only.
+- **Next, owner:**
+  1. Optional: save the L8a.0 record before the next backend-gate run overwrites it:
+     `Copy-Item "$env:TEMP\awkit-l8a0-record.json" C:\nvidia-evidence\`.
+  2. On the development machine, add this section to `awkit-djnl.15` in `bd`. Item 2 is done; the bead
+     stays open for item 3.
+  3. Decide E2: wait for hybrid hardware plus a runtime with adapter identity, or record a decision that
+     accepts the fail-closed `VENDOR_UNPROVEN` behaviour as a platform limitation, which would close Phase L.
+  4. On the NVIDIA machine, once no further GPU runs are planned, restore the manifest pair:
+     `git restore resources/dependency-manifest.json resources/dependency-manifest.sig`.
+  5. Still pending from earlier: delete the four `%TEMP%\awkit-gpu-host-*` and four `%TEMP%\awkit-ai-live-*`
+     folders left by the first run.
+
+## HANDOFF (2026-10-02) — the three `awkit-djnl.15` harness defects are fixed; every GPU gate passes over Remote Desktop, console rerun pending
 
 Record this against `awkit-djnl.15` on the development machine; `bd` is still not installed on the NVIDIA
 machine. Phase L stays open. No product change: runtime, host and E2 eligibility are untouched. The

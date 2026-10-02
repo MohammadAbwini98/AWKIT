@@ -2,8 +2,9 @@
 
 Setup steps for the separate NVIDIA machine that runs item 2 of `awkit-djnl.15`, the NVIDIA qualification.
 They were written on 2026-10-01 from the repository's scripts and docs. They were first executed on a GTX
-980M on 2026-10-02, over Remote Desktop. Every check passes there since `0163e4b8`, but qualification
-still needs the run at the physical console (rule 3 below, `docs/ai/HANDOFF.md`).
+980M on 2026-10-02, over Remote Desktop. Every check has passed there since `0163e4b8`. The same day, at
+the physical console (rule 3 below), every step-9 check passed at `4771e84e`, which qualifies item 2
+(`docs/ai/HANDOFF.md`).
 
 ## Settle these two things first
 

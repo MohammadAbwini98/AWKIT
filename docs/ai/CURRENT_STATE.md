@@ -1,6 +1,24 @@
 # CURRENT_STATE
 
-## L8a NVIDIA qualification harness fixed; every GPU gate passes on the GTX 980M over Remote Desktop (`awkit-djnl.15`, 2026-10-02, latest)
+## L8a NVIDIA qualification PASSES at the GTX 980M's physical console; E2 stays BLOCKED (`awkit-djnl.15`, 2026-10-02, latest)
+
+- **Item 2 of `awkit-djnl.15` is done.** At `4771e84e`, with the imported `c70c876a` package, every
+  qualification gate passed at the physical console:
+  - gpu-harness 41/0, backend-gate 28/0, gpu-host 26/0, gpu-packaged 27/0;
+  - gpu-lifecycle 34/0, gpu-lifecycle-packaged 35/0, progress-gpu-packaged 13/0;
+  - ai-gpu-modes 184/0, ai-backend-pack 138/0 (the symlink sub-case NOT RUN).
+- **Topology:** Windows lists only the GTX 980M (`VEN_10DE DEV_13D7`, 8,192 MiB, driver 581.80), with no
+  Remote Display Adapter. Chromium lists `0x10de` and `0x1414`, and readiness is
+  `{ok: true, nvidiaAdapters: 1}`. The double count seen over RDP does not occur at the console.
+- **Gate F:** CPU 2.4 tok/s (first token 1,987 ms), partial 12/25 5.5 tok/s (1,117 ms), full 25/25 13.4
+  tok/s (263 ms).
+- **No product, harness or verifier change.** This was a verification run only.
+- **Still open:** item 3, E2 hybrid correlation, is **BLOCKED** on hybrid hardware and a runtime adapter
+  identity. Phase L stays in progress on it alone. Tracker unchanged at 22 outstanding / 310 closed; `bd`
+  is not installed on the NVIDIA machine, so HANDOFF carries the evidence.
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## L8a NVIDIA qualification harness fixed; every GPU gate passes on the GTX 980M over Remote Desktop (`awkit-djnl.15`, 2026-10-02)
 
 - **The product already behaved on the GTX 980M** (8 GB, Vulkan). The first run (`ce66886d`) failed only
   instruments. Gate F: CPU 2.3–2.4 tok/s with a 1,914–2,161 ms first token, and full offload 13.3–13.5
