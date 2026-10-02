@@ -1,6 +1,38 @@
 # CURRENT_STATE
 
-## L8a NVIDIA qualification PASSES at the GTX 980M's physical console; E2 stays BLOCKED (`awkit-djnl.15`, 2026-10-02, latest)
+## E2 hybrid correlation stays a pending capability; CPU & RAM fallback re-proved; Phase L complete for its approved scope (`awkit-djnl.15`, 2026-10-02, latest)
+
+- **Owner decision** (`DECISIONS.md` 2026-10-02). E2 hybrid physical-adapter correlation is **PENDING /
+  BLOCKED**. It needs a trustworthy cross-runtime identity: a LUID, a PCI bus identity or an equivalent
+  supported API.
+  - It stays in L8a's plan with its acceptance unchanged. It is not waived and not PASS.
+- **By capability:**
+  - **NVIDIA GPU support: qualified.** GTX 980M at the physical console (next section).
+  - **CPU & RAM fallback: supported.** No runtime change was needed.
+  - **Hybrid GPU physical correlation: pending.** Hybrid sets read `VENDOR_UNPROVEN`.
+  - **E2:** retained in the implementation plan. It resumes when a supported runtime can establish
+    `Windows physical adapter <-> Vulkan device <-> node-llama-cpp execution device` without heuristic
+    matching.
+- **Modes, as built.** There is no "Auto" mode; E4 dropped it. The default is CPU & RAM only, and GPU-Offload
+  is the mode that falls back automatically.
+  - Unproven hybrid under GPU-Offload: runs on CPU & RAM, starts no GPU host, and the job completes with
+    `VENDOR_UNPROVEN` in status, diagnostics, the log and the job's progress.
+  - Unproven hybrid under GPU-Only: refuses (`GPU_UNAVAILABLE`, refusal `VENDOR_UNPROVEN`). The mode is never
+    changed.
+  - Proven NVIDIA: keeps its GPU acceleration.
+- **Regression coverage.** `verify:ai-gpu-modes` 202/0, up from 184, with a new section I of 18 checks:
+  - CPU-only, hybrid in nine adapter orders, the GPU-Offload fallback and its reporting;
+  - one NVIDIA adapter beside two Vulkan devices; proven NVIDIA on the GPU; GPU-Only's refusal;
+  - no name, index, order or `active` flag read.
+  - Failed GPU initialisation and load falling back stay covered by sections D and E.
+  - An "any NVIDIA present" mutation failed 17 checks and was reverted.
+- **Phase L: complete** (`ImplementationRoadmap.ts`). The 2026-09-30 closing rule is met: all 15 milestones
+  are closed, and every `.15` item is done, decided or carried forward.
+- **Tracker: not synchronized.** `bd` is not installed here, so HANDOFF lists the commands for the
+  development machine. Tracker unchanged at 22 outstanding / 310 closed.
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## L8a NVIDIA qualification PASSES at the GTX 980M's physical console; E2 stays BLOCKED (`awkit-djnl.15`, 2026-10-02)
 
 - **Item 2 of `awkit-djnl.15` is done.** At `4771e84e`, with the imported `c70c876a` package, every
   qualification gate passed at the physical console:

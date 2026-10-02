@@ -1,6 +1,35 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-02, latest) — `awkit-djnl.15` item 2, NVIDIA qualification, PASSES at the GTX 980M's physical console; E2 stays BLOCKED
+## HANDOFF (2026-10-02, latest) — E2 recorded as a pending capability; CPU & RAM fallback re-proved; Phase L complete for its approved scope
+
+The owner decided E2's state (`DECISIONS.md` 2026-10-02). No product code changed. The validation ledger is
+unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Status:**
+  - NVIDIA GPU support: qualified.
+  - CPU & RAM fallback: supported.
+  - Hybrid GPU physical correlation: pending.
+  - E2: **PENDING / BLOCKED**, retained in L8a's plan with its acceptance unchanged.
+  - Phase L: complete for its approved scope (`ImplementationRoadmap.ts`).
+- **Fallback, inspected and re-proved.** Nothing needed changing. There is no "Auto" mode (E4); GPU-Offload is
+  the mode that falls back automatically, and GPU-Only refuses.
+  - `verify:ai-gpu-modes` 202/0, with its new section I (18 checks) for the E2-pending paths.
+  - An "any NVIDIA present" eligibility mutation failed 17 checks and was reverted.
+- **Tracker: BLOCKED here** (`bd` is not installed). On the development machine, under a project-state lease:
+  1. Append this section's status to `awkit-djnl.15`. Items 1, 2, 5 and 6 are done, item 4 is an accepted
+     risk, and item 3 (E2) is carried forward as a pending capability.
+  2. Create the E2 item as a child of `awkit-djnl`, type task, priority 4, labels `ai`, `phase-l`, `roadmap`.
+     Title: "E2 hybrid physical-adapter correlation — pending a trustworthy cross-runtime adapter identity".
+     - Description: the 2026-10-02 decision. It covers what blocks E2, the forbidden heuristics and the
+       acceptance from L8a's plan.
+     - Its resume condition: a supported runtime that can establish
+       `Windows physical adapter <-> Vulkan device <-> node-llama-cpp execution device` without heuristic
+       matching, plus hybrid NVIDIA and Intel or AMD hardware to qualify it.
+  3. Close `awkit-djnl.15` as resolved under its own contract, naming the new E2 item.
+  4. `bd export -o .beads/issues.jsonl`, then `npm run verify:roadmap-dashboard`.
+- **Next, owner:** nothing is required for Phase L. Resume E2 only when the condition above holds.
+
+## HANDOFF (2026-10-02) — `awkit-djnl.15` item 2, NVIDIA qualification, PASSES at the GTX 980M's physical console; E2 stays BLOCKED
 
 Record this against `awkit-djnl.15` on the development machine; `bd` is not installed on the NVIDIA
 machine. No product, harness or verifier change. Phase L stays open on item 3 alone. The validation ledger

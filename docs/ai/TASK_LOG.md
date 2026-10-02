@@ -1,6 +1,26 @@
 # TASK_LOG
 
-## 2026-10-02 (latest) — L8a: NVIDIA qualification at the GTX 980M's physical console (Claude, on the NVIDIA machine)
+## 2026-10-02 (latest) — E2 recorded as a pending capability; CPU & RAM fallback re-proved; Phase L closed for its approved scope (Claude)
+
+- **Task:** record the owner's E2 decision, confirm the safe CPU & RAM fallback, and re-evaluate Phase L.
+- **Result:** the fallback already existed, so no runtime change was made.
+  - GPU-Offload falls back to CPU & RAM on `VENDOR_UNPROVEN`. GPU-Only refuses. Proven NVIDIA stays on the
+    GPU.
+  - E2 is PENDING / BLOCKED and retained in the plan. Phase L is `complete` for its approved scope.
+- **Files:**
+  - `scripts/verify-ai-gpu-modes.mts` (section I, plus the `log` and `jobs` world options);
+  - `src/roadmap/ImplementationRoadmap.ts`;
+  - `docs/ai/{DECISIONS,CURRENT_STATE,HANDOFF,TASK_LOG,KNOWN_ISSUES}.md`;
+  - `docs/plans/ai-upgrade-v5/{ROADMAP,L8a-hardware-adaptive-inference-runtime}.md`.
+- **Verification:**
+  - `verify:ai-gpu-modes` 202/0. An "any NVIDIA present" mutation failed 17 checks and was reverted.
+  - `verify:ai-gpu-harness` 41/0, `verify:ai-model-live-0-8b` 23/0.
+  - `npm run build` and `typecheck:scripts` PASS; `verify:verifier-classification` PASS.
+  - `verify:roadmap-dashboard` 177/177 (Sources agree); `git diff --check` clean.
+- **Not done here:** the `bd` update is BLOCKED (`bd` not installed). HANDOFF lists the steps for the
+  development machine.
+
+## 2026-10-02 — L8a: NVIDIA qualification at the GTX 980M's physical console (Claude, on the NVIDIA machine)
 
 - **Task:** final physical-console run of `awkit-djnl.15` item 2, verification only.
 - **Result:** PASS. Every gate passed with no Remote Display Adapter present. Chromium lists one NVIDIA

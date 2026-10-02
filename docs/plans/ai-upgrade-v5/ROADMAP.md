@@ -1,6 +1,18 @@
 # SpecterStudio Phase L — Local AI & Intelligent Automation (V5)
 
-**2026-09-30 (latest): L10 closed as NO-GO — Phase L 14 of 14 milestones closed, still IN PROGRESS
+**2026-10-02 (latest): Phase L COMPLETE for its approved scope. All 15 milestones are closed, and
+`awkit-djnl.15` is resolved; E2 hybrid correlation stays pending.**
+- **NVIDIA: qualified.** Every qualification gate passed on a GTX 980M at the physical console.
+- **CPU & RAM fallback: supported.** GPU-Offload falls back with a visible reason; GPU-Only refuses truthfully.
+- **E2 hybrid physical-adapter correlation: PENDING / BLOCKED** (owner decision, `docs/ai/DECISIONS.md`).
+  - It is retained in the plan, not waived and not PASS.
+  - It needs a trustworthy cross-runtime identity (LUID, PCI bus or an equivalent supported API).
+  - It resumes when a supported runtime can establish
+    `Windows physical adapter <-> Vulkan device <-> node-llama-cpp execution device` without heuristic
+    matching.
+- **Closing rule.** Met as recorded under *Phase L extension (2026-09-30) — L10*.
+
+**2026-09-30: L10 closed as NO-GO — Phase L 14 of 14 milestones closed, still IN PROGRESS
 until `awkit-djnl.15` resolves.**
 - **Decision.** The owner closed `awkit-djnl.18` as NO-GO on the L10.0 result. L10.1–L10.7 are
   descoped and were never started. No Scrapling, Python runtime or host ships.
@@ -423,6 +435,16 @@ Phase L now reads **13 of 14 milestones closed (93%)**.
 **Closing rule:** Phase L closes only when (1) `awkit-djnl.15` is resolved under its own contract
 and (2) L10 closes through L10.0–L10.7 (a use that L10.0 returns NO-GO on is closed only by an
 owner decision recording it descoped), unless the owner explicitly descopes either.
+
+**Met 2026-10-02.**
+- (2): L10 closed as NO-GO on 2026-09-30, and L11, registered after this rule under the same terms, closed
+  on 2026-10-01.
+- (1): `awkit-djnl.15`'s items are done, decided or carried forward:
+  - QC done; NVIDIA qualification PASS; verify-to-load window an accepted risk; confinement mutation done;
+    routing gap fixed.
+  - E2 hybrid correlation carried forward as a pending capability, PENDING / BLOCKED, by the owner's
+    2026-10-02 decision.
+- E2 is not descoped. It stays in L8a's plan with its acceptance unchanged.
 
 ### Scope
 

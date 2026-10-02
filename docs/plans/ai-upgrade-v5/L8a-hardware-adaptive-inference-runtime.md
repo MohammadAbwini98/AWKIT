@@ -4,6 +4,11 @@ Shared rules, architecture and the Phase L extension decisions (E1–E12): `ROAD
 *Phase L extension (2026-09-27)*. Beads `awkit-djnl.11`. Depends on closed L1 (`awkit-djnl.1`) and
 closed L7 (`awkit-djnl.10`). Blocks L8b (`awkit-djnl.12`) and L9 (`awkit-djnl.13`).
 
+**Update (2026-10-02): `awkit-djnl.15` resolved.** NVIDIA qualification PASSES on a GTX 980M at the
+physical console. E2 hybrid physical-adapter correlation stays in this plan as **PENDING / BLOCKED** (owner
+decision, `DECISIONS.md`). Hybrid sets keep reading `VENDOR_UNPROVEN`: GPU-Offload runs them on CPU & RAM,
+and GPU-Only refuses. See the resolution record below.
+
 **Status (2026-09-28): CLOSED — L8a.0 gate run; L8a.1 through L8a.5 implemented; E11 decided by the
 owner.** Registered by the owner's post-closeout scope expansion.
 - L8a's GPU evidence is the vendor-independent mechanics on this machine's AMD adapter plus the fake-host
@@ -761,6 +766,36 @@ temporary edit again that morning. It ran later that day on the owner's explicit
 - The derived definitions were regenerated, and `verify:agent-routing` is re-pinned to 1145 (+3).
 - `verify:agent-routing` 1146/1146.
 
+## `awkit-djnl.15` resolution record (2026-10-02)
+
+The owner decided E2's state; nothing in the product changed.
+
+**2. NVIDIA qualification: PASS.** On a GTX 980M (`VEN_10DE DEV_13D7`) at the physical console, with the
+`c70c876a` package. Every gate in `docs/NVIDIA_QUALIFICATION_SETUP.md` step 9 passed. The record is in
+`HANDOFF.md` and `CURRENT_STATE.md`.
+
+**3. E2 hybrid physical-adapter correlation: PENDING / BLOCKED.** It needs a trustworthy cross-runtime
+identity, such as a LUID, a PCI bus identity or an equivalent supported API.
+- It stays in this plan as a future capability. Its acceptance is unchanged: on a hybrid NVIDIA plus Intel or
+  AMD machine, each Vulkan device the runtime binds is proven to be a specific physical adapter, and only
+  the NVIDIA one is used.
+- Never by device order, GPU index, adapter name alone, vendor ID alone or Chromium's adapter order.
+- **Unblocks when** a supported runtime can establish
+  `Windows physical adapter <-> Vulkan device <-> node-llama-cpp execution device` without heuristic
+  matching, and hybrid hardware is available to qualify it.
+
+**Fallback while it is pending: already in place, re-proved.** `verify:ai-gpu-modes` 202/0. Its new
+section I (18 checks) covers:
+- a CPU-only machine answering on CPU & RAM;
+- hybrid sets in every order reading `VENDOR_UNPROVEN`;
+- GPU-Offload on a hybrid set running on CPU & RAM with no GPU host started;
+- the reason in status, the view, the log and the job's progress, with the job completed and not failed;
+- a proven NVIDIA adapter still loading every layer on the GPU;
+- GPU-Only on a hybrid set refusing truthfully without changing the mode.
+
+A mutation that let any NVIDIA adapter prove a mixed set ("any NVIDIA present") failed 17 checks, 12 of
+them in section I. It was reverted.
+
 ## Risks and open decisions
 
 - ~~**Owner decision — E11 cannot be met on this machine.**~~ **Decided 2026-09-28:** the owner
@@ -773,6 +808,9 @@ temporary edit again that morning. It ran later that day on the owner's explicit
   A name-free way to match a Vulkan device index to that PCI adapter is still needed. On a
   single-adapter host it is trivial; a hybrid laptop needs LUID or PCI-bus correlation that
   node-llama-cpp does not expose.
+  - **Decided 2026-10-02 (owner):** hybrid correlation stays a pending capability, **PENDING / BLOCKED**
+    until a supported runtime exposes that identity. Until then hybrid sets read `VENDOR_UNPROVEN`:
+    GPU-Offload runs on CPU & RAM and GPU-Only refuses (`DECISIONS.md`).
 - ~~Device pinning may not be supported by 3.21.1~~: supported by per-spawn
   `GGML_VK_VISIBLE_DEVICES` (L8a.0).
 - ~~Vulkan driver floor unknown~~: Vulkan API 1.2 per the binary. A concrete NVIDIA driver version

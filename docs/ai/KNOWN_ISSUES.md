@@ -1,5 +1,18 @@
 # KNOWN_ISSUES
 
+## Hybrid Intel or AMD plus NVIDIA machines run local AI on CPU & RAM, not on the GPU (2026-10-02, PENDING — E2, owner-decided limitation)
+
+- **Cause.** The runtime cannot say which physical adapter a Vulkan device is. node-llama-cpp 3.21.1 and
+  3.22.1 report only device names: no LUID, PCI bus, UUID or device id. So a mixed adapter set reads
+  `VENDOR_UNPROVEN`.
+- **Behaviour.** GPU-Offload runs on CPU & RAM, shows the reason and starts no GPU host. GPU-Only refuses with
+  the reason and never switches to the CPU on its own. Single-vendor NVIDIA machines are unaffected.
+- **Do not "fix" it with a heuristic.** Device order, GPU index, adapter name, vendor ID alone and Chromium's
+  adapter order are all forbidden (`DECISIONS.md` 2026-10-02). `verify:ai-gpu-modes` section I fails on an
+  "any NVIDIA present" rule.
+- **Unblocks when** a supported runtime exposes a trustworthy cross-runtime adapter identity, and hybrid
+  hardware is available to qualify it.
+
 ## A utility host's "exit" is its channel closing, not the process leaving Windows (2026-10-02, RESOLVED in the GPU harness — know it)
 
 - **Seen on the GTX 980M.** `AiUtilityHostManager.dispose()` returns after a bounded grace (2 s, then a

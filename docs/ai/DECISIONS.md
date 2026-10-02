@@ -1,6 +1,43 @@
 # DECISIONS
 
-### 2026-10-01 (latest) — LGPL-2.1 section 6 for lxml's libiconv: the corresponding sources ship inside the package (owner) (`awkit-djnl.19`)
+### 2026-10-02 (latest) — E2 hybrid physical-adapter correlation stays a pending capability; CPU & RAM fallback stands; Phase L's approved scope closes (owner) (`awkit-djnl.15`)
+
+- **Decision.** E2 hybrid correlation (`awkit-djnl.15` item 3) stays in the implementation plan as
+  **PENDING / BLOCKED**. Hybrid physical-adapter correlation needs a trustworthy cross-runtime identity,
+  such as a LUID, a PCI bus identity or an equivalent supported API.
+  - It is not removed, not waived and not PASS.
+  - Its acceptance criteria and regression requirements stand unchanged.
+  - No hybrid-hardware evidence exists, and none is claimed.
+- **Why it is blocked.** Nothing proves which physical adapter a Vulkan device is.
+  - Windows and Chromium know each adapter's PCI identity.
+  - node-llama-cpp 3.21.1 reports only device names. So does 3.22.1, re-checked on 2026-10-01: no LUID,
+    PCI bus, UUID or device id.
+- **Forbidden as a substitute.** None of these may tie a Vulkan device to a physical adapter: device order,
+  GPU index, adapter name alone, vendor ID alone, or Chromium's adapter order.
+  - On an all-NVIDIA set no device needs picking. Every device the runtime can bind is NVIDIA, and more
+    Vulkan devices than NVIDIA adapters is still refused as `VENDOR_UNPROVEN`.
+- **Runtime policy: already in place, no change.** There is no "Auto" mode; E4 dropped it on 2026-09-27. The
+  default is CPU & RAM only, and **GPU-Offload is the mode that falls back automatically**.
+  - **Proven NVIDIA:** GPU-Offload and GPU-Only keep their GPU acceleration.
+  - **Unproven hybrid, GPU-Offload:** runs on CPU & RAM and starts no GPU host. `VENDOR_UNPROVEN` appears in
+    status, diagnostics, the log and the job's progress. The job completes; it is not an AI failure.
+  - **Unproven hybrid, GPU-Only:** refuses with `VENDOR_UNPROVEN` (`GPU_UNAVAILABLE`). The mode is never
+    changed silently.
+  - **CPU-only machines:** unaffected. The proof is `verify:ai-gpu-modes` sections C, D, E and I.
+- **Phase L.** The 2026-09-30 closing rule needs `.15` resolved under its own contract. With this decision,
+  each of its six items is done, decided or carried forward:
+  - 1 QC done, 2 NVIDIA qualification PASS at the GTX 980M's console, 4 accepted risk, 5 done, 6 done;
+  - 3 E2 hybrid correlation carried forward as this pending capability.
+  - L11 closed on 2026-10-01. Phase L's approved scope is therefore complete, with E2 retained as pending
+    future work. The 2026-09-29 closeout carried `.14`–`.17` forward the same way.
+- **Resume E2 when** a supported runtime exposes enough identity to establish
+  `Windows physical adapter <-> Vulkan device <-> node-llama-cpp execution device` without heuristic
+  matching, and hybrid NVIDIA plus Intel or AMD hardware is available to qualify it.
+  - The work then: map each runtime device to its PCI adapter by that identity, pin the NVIDIA one through
+    `GGML_VK_VISIBLE_DEVICES`, and run the qualification gates on the hybrid machine.
+  - Until then `VENDOR_UNPROVEN` stands.
+
+### 2026-10-01 — LGPL-2.1 section 6 for lxml's libiconv: the corresponding sources ship inside the package (owner) (`awkit-djnl.19`)
 
 - **Owner decision.** Ship the sources rather than a written offer. Put them inside the package, not as a
   file next to the EXE, so every copy of the binary carries them.
