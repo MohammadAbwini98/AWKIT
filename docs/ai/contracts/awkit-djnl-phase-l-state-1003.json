@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-phase-l-state-1003",
+    "title": "Record Phase L's current state on the epic awkit-djnl after the E2 tracker split",
+    "objective": "The epic's latest note (2026-09-30) still reads 'stays in progress'. Append a dated note: Phase L is complete for its approved scope (ImplementationRoadmap, DECISIONS 2026-10-02), awkit-djnl.15 is closed, NVIDIA qualification PASS, CPU and RAM fallback re-verified (verify:ai-gpu-modes 208/0 at 046ad7ff), and the only open child is awkit-djnl.20 (E2, P4, PENDING / BLOCKED), so the epic stays open as its container. awkit-djnl.20 and the epic's status are not changed. No product change.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "046ad7ff",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/interactions.jsonl",
+      ".beads/issues.jsonl",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-djnl-phase-l-state-1003.json"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/issues.jsonl"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "native-hosts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "STATE",
+      "description": "awkit-djnl carries the dated Phase L state note and stays open, awkit-djnl.20 stays open and unchanged, the tracker totals are unchanged, and the dashboard's sources agree.",
+      "evidence_required": [
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177, Overview 'Sources agree', 333 issues, 22 outstanding / 311 closed, 202 edges (unchanged: a note only), ledger 65 PASS / 2 NOT RUN / 0 BLOCKED."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-phase-l-state-1003:project-state:2026-10-02T21:21:12.327Z",
+        "task": "awkit-djnl-phase-l-state-1003",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/issues.jsonl"
+        ],
+        "acquired_at": "2026-10-02T21:21:12.327Z",
+        "acquired_at_commit": "046ad7fff77e67d3e32887b493ad11ca4bc878a5",
+        "released_at": "2026-10-02T21:21:31.645Z",
+        "released_reason": "Phase L state note appended to awkit-djnl and exported, 333 issues, awkit-djnl.20 unchanged",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}
