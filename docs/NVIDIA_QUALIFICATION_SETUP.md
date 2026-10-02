@@ -47,9 +47,10 @@ then needs neither the key nor Visual Studio, so skip steps 5 and 8 below.
 - **Current NVIDIA driver.** It supplies `vulkan-1.dll` and `nvidia-smi.exe`. The CUDA Toolkit is not
   needed.
 - **Git for Windows.**
-- **Node.js 18.16.0 x64.** That is the version the 2026-10-01 evidence on the development machine
-  records. node-llama-cpp 3.21.1 declares Node ≥20, but npm only warns about that (`.npmrc` doesn't set
-  `engine-strict`). If `npm ci` fails in node-llama-cpp's install script, stop and report it.
+- **Node.js 22 LTS x64 for `npm ci`** (22.23.3 on 2026-10-02). Node 18.16.0 fails there: node-llama-cpp
+  3.21.1's install script loads `cli-spinners` 3.4.0, which needs Node 18.20 or newer, and node-llama-cpp
+  itself declares Node 20 or newer. A newer npm (11 or later) skips install scripts by default, so
+  Electron's binary is never fetched. Use the npm that ships with Node 22, which runs them.
 - **Visual Studio 2022 17.10 or newer, Community, Professional or Enterprise, with the C++ tools and
   redist.** Build Tools is rejected for licensing reasons. `scripts/prepare-ai-native-host.mjs` copies the
   VC++ runtime DLLs (14.40 or newer) from there.

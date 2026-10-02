@@ -8,7 +8,8 @@
   2. Verifies every file against SHA256SUMS.txt. One changed or missing file fails the import.
   3. Mirrors dist\win-unpacked and build\native-hosts into this checkout and copies in the signed
      manifest pair. Both trees are generated output; anything else in them is replaced.
-  4. Runs npm ci when Electron is missing, with the portable Node 18.16.0 first on PATH when present.
+  4. Runs npm ci when Electron is missing, with a portable Node 22 first on PATH when present. Node
+     18.16.0 cannot run node-llama-cpp's install script (docs/NVIDIA_QUALIFICATION_SETUP.md).
 
   Run from Windows PowerShell 5.1 (the blue one, not PowerShell 7) in C:\src\AWKIT:
 
@@ -21,14 +22,14 @@
   The .zip or the export folder written by export-package-for-nvidia.ps1.
 
 .PARAMETER NodeDir
-  Folder holding node.exe 18.16.0 for npm ci. Skipped with a warning if it does not exist.
+  Folder holding a Node 22 node.exe for npm ci. Skipped with a warning if it does not exist.
 
 .PARAMETER SkipNpmCi
   Do not run npm ci even when Electron is missing.
 #>
 param(
   [Parameter(Mandatory = $true)][string]$TransferPath,
-  [string]$NodeDir = "C:\src\tools\node-v18.16.0-win-x64",
+  [string]$NodeDir = "C:\src\tools\node-v22.23.3-win-x64",
   [switch]$SkipNpmCi
 )
 

@@ -1,6 +1,63 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-01, latest) — L11 F–I implemented, packaged and verified; the libiconv sources ship in the package
+## HANDOFF (2026-10-02, latest) — `awkit-djnl.15` item 2 run on an NVIDIA GTX 980M: not qualified yet
+
+Record this against `awkit-djnl.15` on the development machine. `bd` is not installed on the NVIDIA
+machine, and the setup doc keeps tracker writes on one machine. Phase L stays open.
+
+- **Machine:** NVIDIA GeForce GTX 980M, `VEN_10DE DEV_13D7`, PCI `01:00.0`, driver 581.80, 8,192 MiB,
+  system Vulkan loader 1.4.309, CPU i7-4980HQ. No Intel or AMD adapter is visible.
+  - Windows also lists the **Microsoft Remote Display Adapter**, which has no PCI vendor ID. The session
+    ran over Remote Desktop.
+  - Chromium sees `0x10de`, `0x10de` and `0x1414`, so product readiness is `{ok: true, nvidiaAdapters: 2}`.
+- **Package:** built and signed on the development machine at `c70c876a` by
+  `scripts/nvidia-qualification/export-package-for-nvidia.ps1`, so the key never moved.
+  - Imported with all 3,915 hashes matching.
+  - The checks ran at `b37dcf58`, which differs only under `scripts/nvidia-qualification/`.
+  - Verifiers ran on Node 24.18.1. `npm ci` ran on Node 22.23.3, because 18.16.0 cannot run
+    node-llama-cpp's install script (setup doc corrected).
+- **Gates:**
+
+  | Gate | Result | Detail |
+  |---|---|---|
+  | `verify:ai-gpu-backend-gate` | **FAIL** 27/1 | The one failure is C, "Windows enumerates the display adapters with PCI vendor IDs": the remote-desktop adapter has none. Rerun at the physical console. Sections D–F pass: Vulkan loads in the isolated layout, `GGML_VK_VISIBLE_DEVICES` pinning SUPPORTED, offload measured. |
+  | `verify:ai-gpu-host`, `verify:ai-gpu-packaged` | **FAIL** | PRODUCT GPU-Offload and GPU-Only are eligible and run on Vulkan; the packaged host is byte-identical. ✗ "MECHANICS the GPU host starts only after the pack guard" (guard ran 0 times) and "the harness ran every step". |
+  | `verify:ai-gpu-lifecycle`, `verify:ai-gpu-lifecycle-packaged` | **INCONCLUSIVE** | Every check ✓: both placements, cancels within the 3 s ceiling, kill → reload, exhaustion with 6 fillers and recovery. The verifier then crashed in its final cleanup before printing its summary, exit 1. |
+  | `verify:ai-gpu-modes` | PASS | 184/0 |
+  | `verify:ai-backend-pack` | PASS | 138/0; the symlink sub-case is NOT RUN (account privilege) |
+  | `verify:ai-progress-gpu-packaged` | PASS | 11/0 |
+  | `verify:ai-model-live-0-8b` | PASS | 23/0 |
+  | `benchmark:ai-model-0-8b` | NOT RUN | By design; it runs only on the qualifying host, the i7-8750H. |
+
+  - **Host gates' failure is a harness defect, not a product one.** On an eligible machine the PRODUCT
+    steps have already started the GPU host, so the MECHANICS hello reuses it and no fork happens.
+    - Proposed fix: `await gpu.release()` before that step in `scripts/ai-harness/gpuLive.ts`, as line
+      235 already does. The assertion stays unchanged.
+    - The auto-mode permission check refused re-running with it ("Security Test Removal"), so it is
+      reverted and needs the owner's decision.
+  - **Lifecycle crash:** `rmSync` hit `EPERM` on the `%TEMP%\awkit-gpu-host-*` scratch folder. That
+    folder holds the copied pack DLLs, so this is likely a lingering lock. The same `EPERM` hit the host
+    pair. Each run leaves about 100 MB behind.
+- **Performance** (gate F: the same short JSON prompt, packaged AI tree plus app-managed pack):
+
+  | Placement | Speed | First token |
+  |---|---|---|
+  | CPU, 0 of 25 layers | 2.3 tok/s | 2,161 ms |
+  | Partial, 12 of 25 | 3.7 tok/s | 3,263 ms |
+  | Full, 25 of 25 (GPU-Only; GPU-Offload picks this too, since everything fits) | 13.5 tok/s | 250 ms |
+
+  On the long prompt (829 prompt tokens, 118 out), full took 3,497 + 5,513 ms and partial took
+  2,559 + 16,016 ms.
+- **Item 3 (E2 hybrid) is still BLOCKED.** The runtime exposes no LUID or PCI bus, and this machine is
+  not hybrid.
+- **Next, owner:**
+  1. Decide on the `gpuLive.ts` release fix.
+  2. Rerun the five item-2 gates at the physical console, without Remote Desktop.
+  3. Record the results in `bd` here.
+  4. On the NVIDIA machine, restore the imported manifest pair with
+     `git restore resources/dependency-manifest.json resources/dependency-manifest.sig`.
+
+## HANDOFF (2026-10-01) — L11 F–I implemented, packaged and verified; the libiconv sources ship in the package
 
 - **Done:** L11.F (`1247f122`), L11.H (`4dd3912e`), L11.G (`29701c5a`, off by default), the
   acceptance benchmark (`3af2cd68`) and the packaging wiring with strict validation (`84771a12`,
