@@ -331,6 +331,7 @@
     "verify:ai-backend-pack-gui": "node scripts/verify-ai-backend-pack-gui.mjs",
     "verify:ai-backend-pack-packaged": "tsx scripts/verify-ai-backend-pack-gui.mjs --packaged",
     "verify:ai-gpu-modes": "tsx scripts/verify-ai-gpu-modes.mts",
+    "verify:ai-gpu-harness": "tsx scripts/verify-ai-gpu-harness.mts",
     "verify:ai-gpu-host": "tsx scripts/verify-ai-gpu-host.mts",
     "verify:ai-gpu-lifecycle": "tsx scripts/verify-ai-gpu-host.mts --lifecycle",
     "verify:ai-gpu-packaged": "tsx scripts/verify-ai-gpu-host.mts --packaged",

@@ -11,7 +11,9 @@
  *   B. The installer carries no GPU backend (a control proves the scan flags one), and the sizes: the CPU
  *      runtime that ships, the separate pack the user imports.
  *   C. The host, as Windows sees it: every display adapter by PCI vendor ID (E2), driver versions, the
- *      Vulkan loaders, nvidia-smi's VRAM, and what the backend binary itself says it needs.
+ *      Vulkan loaders, nvidia-smi's VRAM, and what the backend binary itself says it needs. A known
+ *      Microsoft software or remote-session adapter (no PCI function) is set aside by name and software
+ *      enumerator; any other adapter without a PCI vendor ID fails.
  *   D. The loader decides, in a real Electron utility process like the AI host. The packaged AI tree and
  *      the pack staged in a separate "app-managed" folder are copied to scratch; every name this host could
  *      supply from outside them (System32 other than Windows' own files, the Windows directory, PATH,
@@ -43,6 +45,7 @@ import { fileURLToPath } from "node:url";
 
 import { AI_MODEL_MANIFEST, AI_RUNTIME_PIN } from "../src/offline/AiModelManifest";
 import { measurePack } from "./ai-harness/launch.mts";
+import { adapterIdentityVerdict, classifyWindowsAdapter, pciVendorId } from "./ai-harness/windowsAdapters";
 import { readPeImage, type PeImage } from "./helpers/pe-image.mts";
 import { gateExitCode } from "./lib/failure-capture-gate.mts";
 
@@ -506,11 +509,23 @@ try {
     const adapters = powershellLines(
       "Get-CimInstance Win32_VideoController | ForEach-Object { '{0}|{1}|{2}|{3}' -f $_.PNPDeviceID, $_.DriverVersion, $_.DriverDate, $_.Name }"
     ).map((line) => {
-      const [pnp = "", driverVersion = "", driverDate = "", ...name] = line.split("|");
-      return { vendorId: /VEN_([0-9A-F]{4})/i.exec(pnp)?.[1]?.toUpperCase() ?? null, deviceId: /DEV_([0-9A-F]{4})/i.exec(pnp)?.[1]?.toUpperCase() ?? null, driverVersion, driverDate: driverDate.slice(0, 10), name: name.join("|") };
+      const [pnp = "", driverVersion = "", driverDate = "", ...rest] = line.split("|");
+      const name = rest.join("|");
+      return { pnpDeviceId: pnp, vendorId: pciVendorId(pnp), deviceId: /DEV_([0-9A-F]{4})/i.exec(pnp)?.[1]?.toUpperCase() ?? null, driverVersion, driverDate: driverDate.slice(0, 10), name, kind: classifyWindowsAdapter(pnp, name) };
     });
-    for (const a of adapters) console.log(`    adapter VEN_${a.vendorId ?? "????"} DEV_${a.deviceId ?? "????"} driver ${a.driverVersion} (${a.driverDate}) — ${a.name}`);
-    check(`Windows enumerates the display adapters with PCI vendor IDs (${adapters.length})`, adapters.length > 0 && adapters.every((a) => a.vendorId !== null));
+    for (const a of adapters) console.log(`    adapter VEN_${a.vendorId ?? "????"} DEV_${a.deviceId ?? "????"} driver ${a.driverVersion} (${a.driverDate}) — ${a.name} [${a.kind}: ${a.pnpDeviceId}]`);
+    // PCI identity is required of every adapter that could be a hardware acceleration candidate. A known
+    // Microsoft software or remote-session adapter has none and is set aside by name AND software
+    // enumerator; any other adapter without a PCI vendor ID still fails (scripts/ai-harness/windowsAdapters.ts).
+    const identity = adapterIdentityVerdict(adapters);
+    check(
+      `Windows enumerates every hardware display adapter with a PCI vendor ID (${identity.pci} PCI${identity.microsoftSoftware.length > 0 ? `; set aside as Microsoft software adapters: ${identity.microsoftSoftware.join(", ")}` : ""})`,
+      identity.ok,
+      identity.unknown.length > 0 ? `no PCI identity and not a known Microsoft software adapter: ${identity.unknown.join("; ")}` : identity.pci === 0 ? "no PCI display adapter" : undefined
+    );
+    if (adapters.some((a) => a.kind === "microsoft-software" && /remote/i.test(a.name))) {
+      console.log("    · a Remote Desktop session is active: NVIDIA qualification evidence is taken at the physical console (docs/NVIDIA_QUALIFICATION_SETUP.md)");
+    }
     const nvidia = adapters.filter((a) => a.vendorId === NVIDIA_VENDOR_ID);
     const loaders = [path.join(SYSTEM32, VULKAN_LOADER), path.join(ELECTRON_DIR, VULKAN_LOADER), path.join(UNPACKED, VULKAN_LOADER)].filter((f) => fs.existsSync(f));
     readSignatures(loaders);
@@ -530,7 +545,7 @@ try {
     console.log(`    ggml-vulkan.dll names the Vulkan API: ${apiStrings.length > 0 ? apiStrings.map((s) => JSON.stringify(s.trim())).join("; ") : "no \"Vulkan 1.x\" string"}`);
     console.log(`    ggml-vulkan.dll reads: ${vkEnv.join(", ") || "no GGML_VK_* variable"}`);
     record.host = {
-      adapters: adapters.map(({ vendorId, deviceId, driverVersion, driverDate }) => ({ vendorId, deviceId, driverVersion, driverDate })),
+      adapters: adapters.map(({ vendorId, deviceId, driverVersion, driverDate, kind }) => ({ vendorId, deviceId, driverVersion, driverDate, kind })),
       nvidiaAdapters: nvidia.length,
       vulkanLoaders: loaders.map((f) => ({ path: f, version: signatureOf(f)?.version, signer: signatureOf(f)?.subject.split(",")[0] || "unsigned" })),
       nvidiaSmi: smiRows,

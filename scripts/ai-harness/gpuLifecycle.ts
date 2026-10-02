@@ -30,6 +30,7 @@ import {
 import { AI_BACKEND_MANIFEST, AI_RUNTIME_PIN } from "@src/offline/AiModelManifest";
 
 import { built, cancelJob, prose, SYNTHETIC_FAILURE } from "./bench";
+import { HostTeardown, withHostTeardown } from "./gpuHostLifecycle";
 
 type Step = <T>(label: string, fn: () => Promise<T> | T) => Promise<T | undefined>;
 
@@ -57,7 +58,18 @@ async function until(condition: () => boolean, timeoutMs: number): Promise<boole
   return true;
 }
 
-export async function runGpuLifecycle({ step, record, log }: { step: Step; record: (key: string, value: unknown) => void; log: (line: string) => void }): Promise<void> {
+type Context = { step: Step; record: (key: string, value: unknown) => void; log: (line: string) => void };
+
+/**
+ * Every host this run starts (killed, restarted, fillers included) has left Windows before the harness
+ * exits: the launcher deletes the pack those hosts mapped as soon as Electron is gone.
+ */
+export async function runGpuLifecycle(context: Context): Promise<void> {
+  const hosts = new HostTeardown();
+  await withHostTeardown(context.step, hosts, () => lifecycleSteps(context, hosts));
+}
+
+async function lifecycleSteps({ step, record, log }: Context, hosts: HostTeardown): Promise<void> {
   const hostPath = required("AWKIT_HARNESS_HOST_PATH");
   const modelRoot = required("AWKIT_HARNESS_MODEL_ROOT");
   const modelPath = required("AWKIT_HARNESS_MODEL_PATH");
@@ -71,18 +83,20 @@ export async function runGpuLifecycle({ step, record, log }: { step: Step; recor
     trust: async () => ({ ok: false, code: "SIGNED_MANIFEST_UNVERIFIED", detail: "verify only" })
   });
   const makeGpu = () =>
-    new AiUtilityHostManager({
-      hostPath,
-      modelRoot,
-      backend: {
-        kind: "vulkan",
-        verify: async () => {
-          const verdict = await store.verifyForLoad();
-          return verdict.ok ? { ok: true, dir: verdict.dir } : { ok: false };
-        }
-      },
-      log: logger
-    });
+    hosts.track(
+      new AiUtilityHostManager({
+        hostPath,
+        modelRoot,
+        backend: {
+          kind: "vulkan",
+          verify: async () => {
+            const verdict = await store.verifyForLoad();
+            return verdict.ok ? { ok: true, dir: verdict.dir } : { ok: false };
+          }
+        },
+        log: logger
+      })
+    );
   let jobs = 0;
   const nextJob = () => `gpu-life-${++jobs}#1`;
   const load = (manager: AiUtilityHostManager, gpuLayers: number) =>

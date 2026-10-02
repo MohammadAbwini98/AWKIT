@@ -33,6 +33,8 @@ import {
 } from "@src/ai/contracts/AiHostProtocol";
 import { AI_BACKEND_MANIFEST, AI_RUNTIME_PIN } from "@src/offline/AiModelManifest";
 
+import { establishFreshHost, expectOneGuardedFork, HostTeardown, withHostTeardown } from "./gpuHostLifecycle";
+
 type Step = <T>(label: string, fn: () => Promise<T> | T) => Promise<T | undefined>;
 
 const IDLE: AiAdmissionView = { activeRuns: 0, queuedRuns: 0, pressureState: "stable", dispatchBlocked: false, activeWeight: 0, weightedBudget: 100, freeMemoryMb: 1_000_000 };
@@ -63,7 +65,15 @@ const inside = (base: string, file: string): boolean => {
   return rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel);
 };
 
-export async function runGpuLive({ step, record, log }: { step: Step; record: (key: string, value: unknown) => void; log: (line: string) => void }): Promise<void> {
+type Context = { step: Step; record: (key: string, value: unknown) => void; log: (line: string) => void };
+
+/** Every host this run starts is torn down before the harness exits, after an early return too. */
+export async function runGpuLive(context: Context): Promise<void> {
+  const hosts = new HostTeardown();
+  await withHostTeardown(context.step, hosts, () => gpuLiveSteps(context, hosts));
+}
+
+async function gpuLiveSteps({ step, record, log }: Context, hosts: HostTeardown): Promise<void> {
   const hostPath = required("AWKIT_HARNESS_HOST_PATH");
   const modelRoot = required("AWKIT_HARNESS_MODEL_ROOT");
   const modelPath = required("AWKIT_HARNESS_MODEL_PATH");
@@ -82,8 +92,8 @@ export async function runGpuLive({ step, record, log }: { step: Step; record: (k
     trust: async () => ({ ok: false, code: "SIGNED_MANIFEST_UNVERIFIED", detail: "verify only" })
   });
   let verifications = 0;
-  const cpu = new AiUtilityHostManager({ hostPath, modelRoot, log: logger });
-  const gpu = new AiUtilityHostManager({
+  const cpu = hosts.track(new AiUtilityHostManager({ hostPath, modelRoot, log: logger }));
+  const gpu = hosts.track(new AiUtilityHostManager({
     hostPath,
     modelRoot,
     backend: {
@@ -96,7 +106,7 @@ export async function runGpuLive({ step, record, log }: { step: Step; record: (k
       }
     },
     log: logger
-  });
+  }));
   const reasonOf = (error: unknown) => (error instanceof AiHostCallError ? error.reason : String((error as Error)?.message ?? error));
   const expectReason = (label: string, fn: () => Promise<unknown>, reason: string) =>
     step(label, async () => {
@@ -184,11 +194,13 @@ export async function runGpuLive({ step, record, log }: { step: Step; record: (k
   });
 
   // ── MECHANICS: the real Vulkan host (eligibility substituted) ───────────────────────────────
+  // On an eligible machine the PRODUCT steps left the GPU host running on this manager, and a hello
+  // would reuse it: no fork, so no guard run to observe. Stop it with the manager's intentional release
+  // first, as below before the service's GPU paths; the guard assertion itself is unchanged.
+  await step("(precondition) MECHANICS starts with no GPU host running, so its first call must fork", () => establishFreshHost(gpu));
   const hello = await step("MECHANICS the GPU host starts only after the pack guard, and reports Vulkan", async () => {
-    const before = verifications;
-    const value = await gpu.call<AiHostHello>(HELLO, 15_000);
+    const value = await expectOneGuardedFork(gpu, () => verifications, () => gpu.call<AiHostHello>(HELLO, 15_000));
     if (!value.compatible || value.backend !== "vulkan" || value.runtime.build !== build) throw new Error(JSON.stringify(value));
-    if (verifications !== before + 1) throw new Error(`guard ran ${verifications - before} times for one fork`);
     return value;
   });
   if (!hello) return;

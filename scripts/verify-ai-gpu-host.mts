@@ -35,10 +35,15 @@
  * fraction as determinate progress), warm without and with warm history, GPU-Only, then CPU & RAM, each
  * placement measured apart. MECHANICS on this adapter, not NVIDIA qualification (E11).
  *
+ * Teardown (scripts/ai-harness/gpuHostLifecycle.ts): every mode waits until each host it started has left
+ * Windows before the harness exits, and this launcher waits until no process maps a module from its
+ * scratch folders before deleting them. The behaviour summary prints first; a folder left behind is a
+ * failed check that names the processes still mapping it, never a crash that hides the result.
+ *
  * Run: npm run verify:ai-gpu-host
  */
 
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -46,6 +51,7 @@ import { AiBackendPackStore, backendTrustSources, resolveBackendTrust } from "@s
 import { AI_BACKEND_MANIFEST, AI_MODEL_MANIFEST, AI_RUNTIME_PIN } from "@src/offline/AiModelManifest";
 import { readSignedDependencyManifest } from "@src/offline/SupplyChainIntegrity";
 
+import { describeRelease, describeRemoval, removeWhenReleased, TEARDOWN_LABEL } from "./ai-harness/gpuHostLifecycle";
 import { HOST_PATH, ROOT, buildAiHarness, measurePack, printSteps, runAiHarness, runtimeInstalled, stageModelRoot, type HarnessReport } from "./ai-harness/launch.mts";
 
 const lifecycle = process.argv.includes("--lifecycle");
@@ -144,14 +150,23 @@ try {
     else if (mode === "gpuLifecycle") reportLifecycle(report, [staged.modelRoot, backendsRoot]);
     else if (mode === "gpuProgress") reportProgress(report, [staged.modelRoot, backendsRoot]);
     else reportModes(report, [staged.modelRoot, backendsRoot]);
+    const hostTeardown = report?.steps.find((s) => s.label === TEARDOWN_LABEL);
+    if (hostTeardown?.ok) console.log(`  · host teardown (pids still in Windows when dispose() returned, and how long they took to leave): ${JSON.stringify(hostTeardown.detail)}`);
   }
-} finally {
-  rmSync(harnessDir, { recursive: true, force: true });
-  rmSync(scratch, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
-  rmSync(staged.root, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+} catch (error) {
+  check("the run finished without an exception", false, String((error as Error)?.message ?? error));
 }
 
-console.log(`\n${passed} passed, ${failed} failed${inconclusive ? `, ${inconclusive} inconclusive` : ""}`);
+// The behaviour is reported before any cleanup, so a teardown problem can never hide or replace it.
+const summary = () => `${passed} passed, ${failed} failed${inconclusive ? `, ${inconclusive} inconclusive` : ""}`;
+console.log(`\nbehaviour: ${summary()}`);
+// The harness waited for its own hosts; this waits on Windows' module list for anything else still
+// mapping the pack, names it, and only then deletes. A folder left behind is a failed check, not a crash.
+const removal = await removeWhenReleased([harnessDir, scratch, staged.root]);
+console.log(`  · scratch folders: ${describeRelease(removal)}`);
+check("teardown: no process maps a module from the scratch folders, and they are removed", removal.ok, describeRemoval(removal));
+
+console.log(`\n${summary()}`);
 process.exit(failed === 0 && passed > 0 ? (inconclusive > 0 ? 2 : 0) : 1);
 
 function noPrivatePath(report: HarnessReport, privatePaths: string[]): void {

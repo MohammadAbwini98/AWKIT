@@ -27,6 +27,8 @@ import { AiService, type AiJobRequest, type AiServiceSettings } from "@src/ai/Ai
 import { resolveAiTimeBudgets } from "@src/ai/AiTimeBudgets";
 import { AI_BACKEND_MANIFEST, AI_RUNTIME_PIN } from "@src/offline/AiModelManifest";
 
+import { HostTeardown, withHostTeardown } from "./gpuHostLifecycle";
+
 type Step = <T>(label: string, fn: () => Promise<T> | T) => Promise<T | undefined>;
 
 const IDLE: AiAdmissionView = { activeRuns: 0, queuedRuns: 0, pressureState: "stable", dispatchBlocked: false, activeWeight: 0, weightedBudget: 100, freeMemoryMb: 1_000_000 };
@@ -58,7 +60,15 @@ function summarize(statuses: AiJobStatus[]) {
   };
 }
 
-export async function runGpuProgress({ step, record, log }: { step: Step; record: (key: string, value: unknown) => void; log: (line: string) => void }): Promise<void> {
+type Context = { step: Step; record: (key: string, value: unknown) => void; log: (line: string) => void };
+
+/** Every host this run starts has left Windows before the harness exits (see gpuHostLifecycle.ts). */
+export async function runGpuProgress(context: Context): Promise<void> {
+  const hosts = new HostTeardown();
+  await withHostTeardown(context.step, hosts, () => progressSteps(context, hosts));
+}
+
+async function progressSteps({ step, record, log }: Context, hosts: HostTeardown): Promise<void> {
   const hostPath = required("AWKIT_HARNESS_HOST_PATH");
   const modelRoot = required("AWKIT_HARNESS_MODEL_ROOT");
   const modelPath = required("AWKIT_HARNESS_MODEL_PATH");
@@ -84,19 +94,21 @@ export async function runGpuProgress({ step, record, log }: { step: Step; record
   // By PCI vendor ID only, so the launcher can say whether these mechanics ran on NVIDIA.
   record("adapters", describeAdapters(await displayAdapterVendorIds()));
 
-  const cpu = new AiUtilityHostManager({ hostPath, modelRoot, log: logger });
-  const gpu = new AiUtilityHostManager({
-    hostPath,
-    modelRoot,
-    backend: {
-      kind: "vulkan",
-      verify: async () => {
-        const verdict = await store.verifyForLoad();
-        return verdict.ok ? { ok: true, dir: verdict.dir } : { ok: false };
-      }
-    },
-    log: logger
-  });
+  const cpu = hosts.track(new AiUtilityHostManager({ hostPath, modelRoot, log: logger }));
+  const gpu = hosts.track(
+    new AiUtilityHostManager({
+      hostPath,
+      modelRoot,
+      backend: {
+        kind: "vulkan",
+        verify: async () => {
+          const verdict = await store.verifyForLoad();
+          return verdict.ok ? { ok: true, dir: verdict.dir } : { ok: false };
+        }
+      },
+      log: logger
+    })
+  );
 
   // The production tracker and history; the key is the placement's shape, as aiRuntime's latency class is.
   const historyFile = path.join(path.dirname(backendsRoot), "eta", "ai-eta-history.json");
