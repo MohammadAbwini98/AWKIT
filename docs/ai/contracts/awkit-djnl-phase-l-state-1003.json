@@ -75,6 +75,7 @@
   },
   "completion": {
     "status": "complete",
+    "closed_at_commit": "a9d180e9501cddc6eccd81020714f4ac58f5a96d",
     "qa_status": "PASS",
     "qc_status": "NOT_REQUIRED"
   },

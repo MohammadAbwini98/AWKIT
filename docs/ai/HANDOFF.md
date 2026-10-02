@@ -1,6 +1,33 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-02, latest) — E2 recorded as a pending capability; CPU & RAM fallback re-proved; Phase L complete for its approved scope
+## HANDOFF (2026-10-03, latest) — GPU fallback contract re-verified; Phase L state synchronized
+
+No product code changed. The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67
+cases.
+
+- **Paths, as built.** There is no "Auto" mode (E4); the default is CPU & RAM only.
+  - **CPU & RAM only (default):** never touches the GPU, even with an eligible NVIDIA GPU.
+  - **GPU-Offload:**
+    - Proven NVIDIA: loads the largest layer count that fits on the GPU.
+    - Unproven, unavailable or failing GPU (`VENDOR_UNPROVEN`, a host start or plan failure, a load failure
+      after the bounded retry): runs on CPU & RAM with the reason visible, and the job completes.
+  - **GPU-Only:**
+    - Proven NVIDIA: loads every layer.
+    - Otherwise: refuses with `GPU_UNAVAILABLE` and the reason, and nothing runs on the CPU.
+  - A model that fails verification, or a CPU load that fails after a fallback, stays a failed `LOAD_FAILED`
+    job.
+- **New coverage:** `verify:ai-gpu-modes` section J (6 checks), 208/0. Three mutations of `AiService` were
+  each caught only by section J.
+- **NVIDIA:** the accepted 2026-10-02 GTX 980M console qualification stands, and was not rerun.
+- **Tracker:**
+  - The epic `awkit-djnl` has a dated note that Phase L is complete for its approved scope, and it stays open
+    as the container of `awkit-djnl.20`.
+  - `awkit-djnl.20` (E2) is unchanged: P4, PENDING / BLOCKED.
+- **Next, owner:** nothing for Phase L.
+  - If the default should become "GPU when eligible", that is a new owner decision reversing E4. It was not
+    done here.
+
+## HANDOFF (2026-10-02) — E2 recorded as a pending capability; CPU & RAM fallback re-proved; Phase L complete for its approved scope
 
 The owner decided E2's state (`DECISIONS.md` 2026-10-02). No product code changed. The validation ledger is
 unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.

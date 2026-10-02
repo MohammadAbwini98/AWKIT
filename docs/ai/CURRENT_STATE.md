@@ -1,6 +1,26 @@
 # CURRENT_STATE
 
-## E2 hybrid correlation stays a pending capability; CPU & RAM fallback re-proved; Phase L complete for its approved scope (`awkit-djnl.15`, 2026-10-02, latest)
+## GPU fallback contract re-verified; Phase L state synchronized after the E2 tracker split (2026-10-03, latest)
+
+- **Runtime: no defect, no product change.** The modes are CPU & RAM only (the default), GPU-Offload and
+  GPU-Only. There is no "Auto" mode (E4, `DECISIONS.md` 2026-10-02).
+  - GPU-Offload is the mode that falls back: whenever the GPU cannot be proven or used, it runs on CPU & RAM.
+    The reason shows in status, diagnostics, the log and the job's progress, and the job completes.
+  - GPU-Only refuses (`GPU_UNAVAILABLE`, naming the reason) and never changes mode.
+  - A model that fails verification, or a CPU load that fails after a fallback, stays a failed `LOAD_FAILED`
+    job. It is never reported as a GPU fallback.
+- **Coverage.** `verify:ai-gpu-modes` 208/0, up from 202. New section J (6 checks): a GPU host that exits while
+  starting and a GPU plan that times out, both falling back, plus the two failures above.
+  - Three `AiService` mutations were each caught only by section J, then reverted.
+- **Phase L: complete for its approved scope**, unchanged.
+  - The `ImplementationRoadmap.ts` note now cites 208/0 and the synced tracker.
+  - The epic `awkit-djnl` has a dated 2026-10-03 note (contract `awkit-djnl-phase-l-state-1003`). It stays open
+    only as the container of `awkit-djnl.20`.
+- **E2:** `awkit-djnl.20` is unchanged: P4, PENDING / BLOCKED, open.
+- **Tracker:** 333 issues, 22 outstanding / 311 closed, 202 edges, unchanged.
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## E2 hybrid correlation stays a pending capability; CPU & RAM fallback re-proved; Phase L complete for its approved scope (`awkit-djnl.15`, 2026-10-02)
 
 - **Owner decision** (`DECISIONS.md` 2026-10-02). E2 hybrid physical-adapter correlation is **PENDING /
   BLOCKED**. It needs a trustworthy cross-runtime identity: a LUID, a PCI bus identity or an equivalent

@@ -1,6 +1,26 @@
 # TASK_LOG
 
-## 2026-10-02 (latest) — Tracker synced for the E2-pending resolution of `awkit-djnl.15` (Claude, development machine)
+## 2026-10-03 (latest) — GPU fallback contract re-verified; Phase L state synchronized (Claude)
+
+- **Task:** verify the CPU & RAM fallback and GPU-Only policy, close coverage gaps, and synchronize Phase L
+  after the E2 tracker split.
+- **Result:** the runtime already met the policy, so no product change was made.
+  - Section J closes two gaps: a GPU host start or plan failure falling back, and model or CPU load failures
+    never being reported as a fallback.
+  - The epic `awkit-djnl` has a dated state note. `awkit-djnl.20` is unchanged.
+- **Files:**
+  - `scripts/verify-ai-gpu-modes.mts`, `scripts/lib/verifier-classification.ts`;
+  - `src/roadmap/ImplementationRoadmap.ts` (Phase L note only);
+  - `.beads/{issues,interactions}.jsonl`, `docs/ai/contracts/{awkit-djnl-phase-l-state-1003,active-lease}.json`;
+  - `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md`.
+- **Verification:**
+  - `verify:ai-gpu-modes` 208/0, with 3 of 3 `AiService` mutations killed and reverted.
+  - `verify:ai-gpu-harness` 41/0, `verify:ai-model-live-0-8b` 23/0 (real CPU inference), `verify:ai-fallback`
+    51/0.
+  - `npm run build`, `typecheck:scripts` and `verify:verifier-classification` PASS.
+  - `verify:roadmap-dashboard` 177/177 (Sources agree); `git diff --check` clean.
+
+## 2026-10-02 — Tracker synced for the E2-pending resolution of `awkit-djnl.15` (Claude, development machine)
 
 - **Task:** run the `bd` steps from the latest HANDOFF section, under contract `awkit-djnl-15-e2-pending-1002`
   with a project-state lease on `.beads/issues.jsonl`.
