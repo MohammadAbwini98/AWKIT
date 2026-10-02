@@ -46,17 +46,36 @@ function Get-Sha256([string]$path) {
   finally { $stream.Dispose(); $sha.Dispose() }
 }
 
+# Windows PowerShell's file cmdlets fail on paths over 260 characters; robocopy does not. Empty the
+# tree with a mirror of an empty folder, then remove what is left, which is now shallow.
+function Remove-Tree([string]$path) {
+  if (-not (Test-Path -LiteralPath $path)) { return }
+  $empty = Join-Path ([System.IO.Path]::GetTempPath()) ("awkit-empty-" + [Guid]::NewGuid().ToString("N").Substring(0, 8))
+  New-Item -ItemType Directory -Path $empty | Out-Null
+  robocopy $empty $path /MIR /NFL /NDL /NJH /NJS /NP /R:1 /W:1 | Out-Null
+  Remove-Item -LiteralPath $path -Recurse -Force
+  Remove-Item -LiteralPath $empty -Force
+}
+
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 Set-Location -LiteralPath $root
 $source = (Resolve-Path -LiteralPath $TransferPath).Path
 $extract = $null
+
+# The first version extracted under %TEMP%, whose long prefix pushed the deepest package files past
+# 260 characters, and then could not delete them either. Remove those leftovers (about 1 GB each).
+Get-ChildItem -LiteralPath ([System.IO.Path]::GetTempPath()) -Directory -Filter "awkit-xfer-*" |
+  Where-Object { $_.Name -match '^awkit-xfer-[0-9a-f]{32}$' } |
+  ForEach-Object { Write-Host "removing leftover $($_.FullName)"; Remove-Tree $_.FullName }
 
 try {
   Step "Read the export"
   if ((Get-Item -LiteralPath $source).PSIsContainer) {
     $bundle = $source
   } else {
-    $extract = Join-Path ([System.IO.Path]::GetTempPath()) ("awkit-xfer-" + [Guid]::NewGuid().ToString("N"))
+    # Extract next to the checkout (C:\src\awkit-xfer-xxxxxxxx), a short prefix that keeps every
+    # package path under 260 characters, which %TEMP% does not.
+    $extract = Join-Path (Split-Path $root -Parent) ("awkit-xfer-" + [Guid]::NewGuid().ToString("N").Substring(0, 8))
     New-Item -ItemType Directory -Path $extract | Out-Null
     Write-Host "extracting $source ..."
     tar.exe -x -f $source -C $extract
@@ -73,17 +92,26 @@ try {
   Write-Host "built at commit $($record.commit), $($record.createdAt), $($record.files) files"
 
   Step "Git: match the package's commit"
-  $head = (git rev-parse HEAD).Trim()
-  if ($head -ne $record.commit) {
+  git merge-base --is-ancestor $record.commit HEAD
+  if ($LASTEXITCODE -ne 0) {
     git pull --ff-only origin main
     if ($LASTEXITCODE -ne 0) { Fail "git pull --ff-only origin main exited $LASTEXITCODE." }
-    $head = (git rev-parse HEAD).Trim()
+    git merge-base --is-ancestor $record.commit HEAD
+    if ($LASTEXITCODE -ne 0) { Fail "this checkout does not contain the package's commit $($record.commit)." }
   }
-  if ($head -ne $record.commit) { Fail "this checkout is at $head but the package was built at $($record.commit)." }
-  Write-Host "HEAD $head"
+  $head = (git rev-parse HEAD).Trim()
+  # Later commits are accepted only when they touch nothing but these transfer scripts, so the source
+  # the GPU checks run is the source the package was built from.
+  $outside = @(git diff --name-only $record.commit HEAD | Where-Object { -not $_.StartsWith("scripts/nvidia-qualification/") })
+  if ($outside.Count -gt 0) { Fail ("HEAD $head differs from the package's commit $($record.commit) outside scripts/nvidia-qualification/:`n" + ($outside -join "`n")) }
+  Write-Host "HEAD $head (package built at $($record.commit))"
 
   Step "Verify every file against SHA256SUMS.txt"
   $lines = @([System.IO.File]::ReadAllLines($sumsPath) | Where-Object { $_.Trim() })
+  $longest = ($lines | ForEach-Object { $_.Length - 66 } | Measure-Object -Maximum).Maximum
+  if ($payload.Length + 1 + $longest -gt 259) {
+    Fail "the export sits too deep ($payload); its longest file would exceed 260 characters. Extract or copy it to a shorter folder such as C:\x and pass that folder."
+  }
   $bad = 0
   foreach ($line in $lines) {
     $hash = $line.Substring(0, 64)
@@ -110,7 +138,7 @@ try {
   }
   if ((Get-Sha256 (Join-Path $root "resources\dependency-manifest.json")) -ne $record.dependencyManifestSha256) { Fail "the installed dependency-manifest.json does not match the export record." }
 } finally {
-  if ($null -ne $extract -and (Test-Path -LiteralPath $extract)) { Remove-Item -LiteralPath $extract -Recurse -Force }
+  if ($null -ne $extract) { Remove-Tree $extract }
 }
 
 Step "Dependencies"
