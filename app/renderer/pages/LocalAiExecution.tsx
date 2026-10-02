@@ -12,12 +12,15 @@ const api = () => window.playwrightFlowStudio.ai;
 
 type Mode = AiSettingsView["executionMode"];
 
-export const MODE_LABELS: Record<Mode, string> = { cpu: "CPU & RAM only", "gpu-offload": "GPU-Offload", "gpu-only": "GPU-Only" };
+export const MODE_LABELS: Record<Mode, string> = { auto: "Automatic", cpu: "CPU & RAM only", "gpu-offload": "GPU-Offload", "gpu-only": "GPU-Only" };
 
 const MODE_HELP: Record<Mode, string> = {
+  auto:
+    "The default. When the GPU backend pack is installed and every display adapter is NVIDIA, the model runs as " +
+    "GPU-Offload. Otherwise it runs on CPU & RAM only. This is checked each time the model loads.",
   cpu:
-    "The model runs on this machine's processor and memory, and the GPU runtime is never started. The default and " +
-    "the most compatible mode: it needs nothing beyond this installation.",
+    "The model runs on this machine's processor and memory, and the GPU runtime is never started. The most " +
+    "compatible mode: it needs nothing beyond this installation.",
   "gpu-offload":
     "SpecterStudio tries a compatible NVIDIA GPU and places as many model layers on it as safely fit in its memory; " +
     "the other layers stay on CPU & RAM. If the GPU cannot be used, the model runs on CPU & RAM and the reason is shown.",
@@ -77,7 +80,8 @@ export function gpuUseLabel(mode: Mode, e: AiExecutionView | null): string {
 /**
  * Settings → Local AI → Where the model runs (Phase L, L8a.4).
  *
- * The three E4 modes and the VRAM reserve, written through `ai:updateSettings` (`ai.manage`, re-auth).
+ * Automatic (the default) plus the three E4 modes, and the VRAM reserve, written through
+ * `ai:updateSettings` (`ai.manage`, re-auth).
  * The main process owns every rule: the renderer sends what was typed and shows the refusal, and a
  * change unloads an idle model so it takes effect at the next load. The GPU check line is the same
  * readiness answer the next GPU load uses.
@@ -187,11 +191,16 @@ export function LocalAiExecution({
       </p>
 
       {gpuMode && readiness ? (
-        <p className={readiness.ok ? "form-message" : "form-message warn"} id="ai-execution-gpu-check">
+        // Automatic without a proven GPU is the expected default on most machines, so it is information, not a warning.
+        <p className={readiness.ok || mode === "auto" ? "form-message" : "form-message warn"} id="ai-execution-gpu-check">
           {readiness.ok
             ? `GPU check: ${readiness.nvidiaAdapters} NVIDIA display adapter${readiness.nvidiaAdapters === 1 ? "" : "s"} detected by PCI vendor ID and the backend pack is installed (compatible but unqualified). How many layers fit is measured when the model loads.`
             : `GPU check: ${readiness.message} ${
-                mode === "gpu-only" ? "GPU-Only will refuse to load the model until this is resolved." : "GPU-Offload will run the model on CPU & RAM until this is resolved."
+                mode === "gpu-only"
+                  ? "GPU-Only will refuse to load the model until this is resolved."
+                  : mode === "auto"
+                    ? "Automatic runs the model on CPU & RAM only."
+                    : "GPU-Offload will run the model on CPU & RAM until this is resolved."
               }`}
         </p>
       ) : null}
@@ -232,7 +241,7 @@ export function LocalAiExecution({
         <p className="settings-card-hint" id="ai-vram-reserve-hint">
           GPU memory kept free for Windows, SpecterStudio&apos;s own windows, the display and other applications:{" "}
           {settings.minVramReserveMb}–{settings.maxVramReserveMb} MB, or empty for the system default (the runtime&apos;s own
-          padding, sized from the GPU&apos;s memory). {gpuMode ? "" : "Used only by GPU-Offload and GPU-Only."}
+          padding, sized from the GPU&apos;s memory). {gpuMode ? "" : "Used only by Automatic, GPU-Offload and GPU-Only."}
         </p>
         {reserveError ? (
           <p className="form-message error" id="ai-vram-reserve-error" role="alert">

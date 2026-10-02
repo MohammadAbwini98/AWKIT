@@ -96,8 +96,8 @@ export interface AiModelPreflightResponse extends AiAdminResponse {
  * and why a GPU mode fell back to CPU or refused. Numbers are bytes; nothing names a path or a device.
  */
 export interface AiExecutionView {
-  /** The CONFIGURED mode. */
-  mode: "cpu" | "gpu-offload" | "gpu-only";
+  /** The CONFIGURED mode; "auto" ran as GPU-Offload or CPU & RAM only, as `backend` and the layers say. */
+  mode: "auto" | "cpu" | "gpu-offload" | "gpu-only";
   backend: "cpu" | "vulkan";
   gpuLayers: number;
   totalLayers: number | null;
@@ -169,7 +169,7 @@ export interface AiSettingsView {
   idleUnloadMinutes: number;
   maxIdleUnloadMinutes: number;
   features: AiFeatureView[];
-  executionMode: "cpu" | "gpu-offload" | "gpu-only";
+  executionMode: "auto" | "cpu" | "gpu-offload" | "gpu-only";
   /** Null is the runtime's own system-derived padding. */
   vramReserveMb: number | null;
   minVramReserveMb: number;

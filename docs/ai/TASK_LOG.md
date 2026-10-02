@@ -1,6 +1,30 @@
 # TASK_LOG
 
-## 2026-10-03 (latest) — GPU fallback contract re-verified; Phase L state synchronized (Claude)
+## 2026-10-03 (latest) — Automatic: GPU-Offload is the default where NVIDIA is proven (Claude)
+
+- **Task:** the owner asked for GPU-Offload to be the default when NVIDIA is proven.
+- **Result:** a new default mode, `auto` (Automatic), resolved at each load:
+  - proven NVIDIA: runs as GPU-Offload;
+  - otherwise: runs as CPU & RAM only, exactly as before, with no fallback noise.
+  - A stored `cpu` is kept (owner's choice), and an unknown value fails closed to `cpu`.
+- **Files:**
+  - `src/ai/{AiSettings,AiService,AiQualification,AiExecutionProfile}.ts`, `src/ai/contracts/AiApi.ts`;
+  - `app/main/ai/aiRuntime.ts`, `app/renderer/pages/LocalAiExecution.tsx`;
+  - `scripts/verify-ai-gpu-modes.mts` (section A updated, section K new), `scripts/verify-ai-settings-gui.mjs`,
+    `scripts/lib/verifier-classification.ts`;
+  - `src/roadmap/ImplementationRoadmap.ts` (note);
+  - `docs/ai/{DECISIONS,ARCHITECTURE,KNOWN_ISSUES,CURRENT_STATE,HANDOFF,TASK_LOG}.md`.
+- **Verification:**
+  - `npm run build` and `typecheck:scripts` PASS.
+  - `verify:ai-gpu-modes` 231/0, with 5 of 5 mutations killed and reverted.
+  - `verify:ai-settings-gui` 157/157; `verify:ai-model-live-0-8b` 23/0.
+  - `ai-job-status` 148/148, `ai-adapter` 117/0, `ai-progress-gui` 41/0, `ai-fallback` 51/0,
+    `ai-autonomy-policy` 62/0, `ai-gpu-harness` 41/0, `verify:verifier-classification` PASS.
+  - `verify:ai-display-gate-mutations` FAIL, pre-existing: the DX-0 precondition broken by L11.
+  - `verify:failure-capture-overhead` NOT RUN: it rewrites the preserved L5a file.
+  - `verify:roadmap-dashboard` 177/177 (Sources agree).
+
+## 2026-10-03 — GPU fallback contract re-verified; Phase L state synchronized (Claude)
 
 - **Task:** verify the CPU & RAM fallback and GPU-Only policy, close coverage gaps, and synchronize Phase L
   after the E2 tracker split.

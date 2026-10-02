@@ -25,20 +25,20 @@ import {
   type BackendTrust
 } from "@src/ai/AiBackendPack";
 import { AiEtaHistoryStore } from "@src/ai/AiEtaHistory";
-import { describeAdapters, offloadClassOf, toExecutionView, type AiGpuReadiness } from "@src/ai/AiExecutionProfile";
+import { describeAdapters, toExecutionView, type AiGpuReadiness } from "@src/ai/AiExecutionProfile";
 import { AiJobTracker, type AiJobKind, type AiJobProfile, type AiJobSample, type AiJobStatus } from "@src/ai/AiJobStatus";
 import { compatibilityStanding, runCompatibilityStages, staticStanding } from "@src/ai/AiModelCompatibility";
 import { AiModelPackStore, MODEL_IMPORT_HEADROOM_BYTES, type AiModelPackStatus } from "@src/ai/AiModelPack";
-import { AI_KV_CACHE_SETTINGS, describeQualification, hardwareClassOf, latencyClassId, type AiRunConfiguration } from "@src/ai/AiQualification";
+import { AI_KV_CACHE_SETTINGS, describeQualification, hardwareClassOf, latencyClassId, runConfigurationOf, type AiRunConfiguration } from "@src/ai/AiQualification";
 import { revertAiAction } from "@src/ai/AiRevert";
-import { AiService, type AiServiceDeps, type AiServiceStatus } from "@src/ai/AiService";
+import { AiService, type AiServiceDeps } from "@src/ai/AiService";
 import { AI_BUDGET_IDS, AI_BUDGET_LABELS, AI_TIME_BUDGETS, featuresWithChangedBudget, resolveAiTimeBudgets, type AiTimeBudgets } from "@src/ai/AiTimeBudgets";
 import { AUTHORING_LIMITS } from "@src/ai/authoringExplanation";
 import { FAILURE_ANALYSIS_LIMITS } from "@src/ai/failureAnalysis";
 import { FakeAiHostTransport, type FakeInferStep } from "@src/ai/FakeAiHostTransport";
 import { FRAGMENT_ASSIST_LIMITS } from "@src/ai/fragmentAssist";
 import { LOCATOR_ATTEMPT_LIMITS } from "@src/ai/locatorUpgradeAttempts";
-import { AiSettingsStore, MAX_IDLE_UNLOAD_MINUTES, MAX_VRAM_RESERVE_MB, MIN_VRAM_RESERVE_MB, sanitizeAiSettingsPatch, type AiExecutionMode } from "@src/ai/AiSettings";
+import { AiSettingsStore, MAX_IDLE_UNLOAD_MINUTES, MAX_VRAM_RESERVE_MB, MIN_VRAM_RESERVE_MB, sanitizeAiSettingsPatch } from "@src/ai/AiSettings";
 import { AI_CONTEXT_TOKENS, AI_PROBE, type AiGpuPlan, type AiHostBackend, type AiHostProgressUpdate, type AiHostReason } from "@src/ai/contracts/AiHostProtocol";
 import type {
   AiAdminResponse,
@@ -383,17 +383,6 @@ const FEATURE_OUTPUT_BUDGETS: Readonly<Partial<Record<AiFeatureId, number>>> = O
   fragmentParameterMapping: FRAGMENT_ASSIST_LIMITS.maxOutputTokens
 });
 
-/**
- * The configuration a label is about: CPU & RAM only is decided by the mode; a GPU mode only by a load
- * made under the current mode and reserve (GPU-Offload may have fallen back to the CPU).
- */
-function runConfiguration(status: AiServiceStatus, mode: AiExecutionMode): AiRunConfiguration | null {
-  if (mode === "cpu") return { backend: "cpu", offload: "cpu", contextTokens: AI_CONTEXT_TOKENS };
-  if (!status.executionApplied || status.loadedModelId === null) return null;
-  const { backend, gpuLayers, totalLayers } = status.execution;
-  return { backend, offload: backend === "cpu" ? "cpu" : offloadClassOf(gpuLayers, totalLayers), contextTokens: AI_CONTEXT_TOKENS };
-}
-
 function packView(status: AiModelPackStatus, configuration: AiRunConfiguration | null, vramTotalBytes: number | null, budgets: AiTimeBudgets): AiModelPackView {
   const qualification = (compatibility: Parameters<typeof describeQualification>[0]["compatibility"], sha256: string) =>
     describeQualification({
@@ -441,7 +430,7 @@ const readPack = (): Promise<AiModelPackStatus> =>
 export async function aiStatusView(): Promise<AiStatusView> {
   const [status, pack, current, readiness] = await Promise.all([getAiService().status(), readPack(), settings().read(), currentGpuReadiness()]);
   const state = status.state;
-  const configuration = runConfiguration(status, current.executionMode);
+  const configuration = runConfigurationOf(status, current.executionMode, readiness);
   return {
     enabled: current.enabled,
     state: state.kind,
@@ -562,7 +551,7 @@ export async function aiDiagnosticsView(): Promise<AiDiagnosticsView> {
     },
     gpuHost: { state: gpuHost?.state ?? "stopped", circuitOpen: gpuHost?.circuitOpen ?? false, lastReason: gpuHost?.lastReason ?? null },
     modelPack: {
-      ...packView(pack, runConfiguration(status, current.executionMode), status.execution.vram?.totalBytes ?? null, resolveAiTimeBudgets(current.timeBudgetSeconds)),
+      ...packView(pack, runConfigurationOf(status, current.executionMode, readiness), status.execution.vram?.totalBytes ?? null, resolveAiTimeBudgets(current.timeBudgetSeconds)),
       sha256: installed?.sha256 ?? null,
       sizeBytes: installed?.sizeBytes ?? null,
       manifestEntries: AI_MODEL_MANIFEST.length

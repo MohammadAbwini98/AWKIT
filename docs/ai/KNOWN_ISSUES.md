@@ -1,12 +1,25 @@
 # KNOWN_ISSUES
 
+## The DX-0 freeze fails again: L11 changed a frozen source (found 2026-10-03, OPEN)
+
+- **Symptom.** `verify:ai-display-gate-mutations` fails its controls, 392/393 each, on the DX-0 precondition:
+  "app/main/ai/aiAssist.ts is ec717fd3, frozen 5ce4c93b". So `verify:ai-authoring` fails the same check.
+- **Cause.** L11 commits `29701c5a` and `299954fe` (2026-10-01) changed `aiAssist.ts` after the DX-0 freeze
+  fix of 2026-09-30 (`3c821b6a`), so the whole-file blob no longer matches.
+- **Not caused by** the 2026-10-03 Automatic-mode change, which does not touch `aiAssist.ts`.
+- **Fix direction.** As with the manifest fix below, freeze what DX-0 protects, not the whole file. Do not
+  update the frozen blob to whatever the file is now.
+
 ## Hybrid Intel or AMD plus NVIDIA machines run local AI on CPU & RAM, not on the GPU (2026-10-02, PENDING — E2, owner-decided limitation)
 
 - **Cause.** The runtime cannot say which physical adapter a Vulkan device is. node-llama-cpp 3.21.1 and
   3.22.1 report only device names: no LUID, PCI bus, UUID or device id. So a mixed adapter set reads
   `VENDOR_UNPROVEN`.
-- **Behaviour.** GPU-Offload runs on CPU & RAM, shows the reason and starts no GPU host. GPU-Only refuses with
-  the reason and never switches to the CPU on its own. Single-vendor NVIDIA machines are unaffected.
+- **Behaviour.**
+  - Automatic, the default since 2026-10-03, runs as CPU & RAM only and shows the reason in its GPU check.
+  - GPU-Offload runs on CPU & RAM, shows the reason and starts no GPU host.
+  - GPU-Only refuses with the reason and never switches to the CPU on its own.
+  - Single-vendor NVIDIA machines are unaffected.
 - **Do not "fix" it with a heuristic.** Device order, GPU index, adapter name, vendor ID alone and Chromium's
   adapter order are all forbidden (`DECISIONS.md` 2026-10-02). `verify:ai-gpu-modes` section I fails on an
   "any NVIDIA present" rule.

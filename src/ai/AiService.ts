@@ -43,7 +43,7 @@ import {
 import type { AiJobProfile, AiJobStage, AiJobTracker } from "./AiJobStatus";
 import { isBoundedSchema, parseAiOutput, type AiOutputSchema } from "./AiOutputContract";
 import { buildAiPrompt, type AiPromptSpec } from "./AiPromptBuilder";
-import type { AiExecutionMode } from "./AiSettings";
+import type { AiEffectiveMode, AiExecutionMode } from "./AiSettings";
 import { FEATURE_BUDGET, MAX_INFERENCE_BUDGET_MS, type AiTimeBudgets } from "./AiTimeBudgets";
 import {
   AI_CONTEXT_TOKENS,
@@ -178,7 +178,7 @@ export interface AiServiceSettings {
   /** Unload the model after this long idle; 0 keeps it loaded. */
   idleUnloadMs: number;
   minFreeMemoryMb: number;
-  /** Absent is CPU & RAM only. */
+  /** Absent is CPU & RAM only; "auto" is resolved at each load. */
   executionMode?: AiExecutionMode;
   /** VRAM kept free beside the model; absent or null is the runtime's own padding. */
   vramReserveBytes?: number | null;
@@ -441,6 +441,13 @@ export class AiService {
     return model.ok ? null : model.reason;
   }
 
+  /** Backend pack and adapters, before any GPU host starts. Unwired or throwing reads as unavailable. */
+  private gpuReadiness(): Promise<AiGpuReadiness> {
+    return this.deps.gpu
+      ? this.deps.gpu().catch((): AiGpuReadiness => ({ ok: false, reason: "BACKEND_UNAVAILABLE" }))
+      : Promise.resolve({ ok: false, reason: "BACKEND_UNAVAILABLE" });
+  }
+
   private executionKey(settings: AiServiceSettings): string {
     return `${settings.executionMode ?? "cpu"}|${settings.vramReserveBytes ?? "default"}`;
   }
@@ -519,12 +526,12 @@ export class AiService {
     if (progress && this.running) this.deps.jobs?.update(this.running.request.requestId, { progress });
   };
 
-  /** Where the running job's answer comes from, never a device name. */
+  /** Where the running job's answer comes from, never a device name. Automatic reports what its load ran as. */
   private jobProfile(mode: AiExecutionMode): AiJobProfile {
     const backend = this.profile.backend;
     return {
       modelId: this.loadedModelId,
-      mode,
+      mode: mode === "auto" ? this.profile.mode : mode,
       backend,
       device: backend === "cpu" ? "cpu" : "gpu",
       offload: backend === "cpu" ? "cpu" : offloadClassOf(this.profile.gpuLayers, this.profile.totalLayers),
@@ -766,14 +773,18 @@ export class AiService {
       if (this.running) this.deps.jobs?.update(this.running.request.requestId, { cold: false, profile: this.jobProfile(mode) });
       return "ready";
     }
+    // Automatic (the default): GPU-Offload where the readiness check proves NVIDIA, CPU & RAM only otherwise.
+    // Decided at each load, so a backend pack installed or removed (which drops the load) applies next time.
+    const autoReadiness = mode === "auto" ? await this.gpuReadiness() : null;
+    const effective: AiEffectiveMode = mode !== "auto" ? mode : autoReadiness?.ok ? "gpu-offload" : "cpu";
     // L9.1: this job loads the model. Its ETA is cold, estimated for where it is expected to run: CPU & RAM
     // by the mode, a GPU mode only where the last load under this very setting says so.
     if (this.running) {
       const expected: AiJobProfile | null =
-        mode === "cpu"
-          ? { modelId: model.modelId, mode, backend: "cpu", device: "cpu", offload: "cpu", fallbackReason: null }
-          : this.profileFor === key && this.refusedKey !== key
-            ? { ...this.jobProfile(mode), modelId: model.modelId }
+        effective === "cpu"
+          ? { modelId: model.modelId, mode: effective, backend: "cpu", device: "cpu", offload: "cpu", fallbackReason: null }
+          : this.profileFor === key && this.refusedKey !== key && this.profile.mode === effective
+            ? { ...this.jobProfile(effective), modelId: model.modelId }
             : null;
       this.deps.jobs?.update(this.running.request.requestId, { cold: true, profile: expected });
     }
@@ -789,8 +800,8 @@ export class AiService {
         return { status: "failed", code: "LOAD_FAILED", yields: 0 };
       }
       let fallbackReason: AiGpuReason | null = null;
-      if (mode !== "cpu") {
-        const gpu = await this.loadOnGpu(mode, settings.vramReserveBytes ?? null, model, key, loadMs);
+      if (effective !== "cpu") {
+        const gpu = await this.loadOnGpu(effective, settings.vramReserveBytes ?? null, model, key, loadMs, autoReadiness ?? undefined);
         if (gpu.kind === "ready") {
           this.profileKey = key;
           this.profileFor = key;
@@ -799,7 +810,7 @@ export class AiService {
         }
         if (gpu.kind === "refuse") {
           this.profile = {
-            mode,
+            mode: effective,
             backend: "vulkan",
             gpuLayers: 0,
             totalLayers: gpu.totalLayers,
@@ -816,7 +827,7 @@ export class AiService {
         fallbackReason = gpu.reason;
         this.deps.log?.("warn", `ai gpu-offload falling back to CPU: ${gpu.reason}`);
       }
-      return await this.loadOnCpu(mode, key, fallbackReason, model, loadMs);
+      return await this.loadOnCpu(effective, key, fallbackReason, model, loadMs);
     } finally {
       this.loading = false;
       this.stage = null;
@@ -824,7 +835,7 @@ export class AiService {
   }
 
   private async loadOnCpu(
-    mode: AiExecutionMode,
+    mode: AiEffectiveMode,
     key: string,
     fallbackReason: AiGpuReason | null,
     model: Extract<AiModelResolution, { ok: true }>,
@@ -862,11 +873,13 @@ export class AiService {
    * GPU-Offload a bounded smaller retry. Anything short of "ready" stops the GPU host so it holds no VRAM.
    */
   private async loadOnGpu(
-    mode: Exclude<AiExecutionMode, "cpu">,
+    mode: Exclude<AiEffectiveMode, "cpu">,
     reserveBytes: number | null,
     model: Extract<AiModelResolution, { ok: true }>,
     key: string,
-    loadMs: number
+    loadMs: number,
+    /** Automatic's readiness answer, already taken for this load. */
+    knownReadiness?: AiGpuReadiness
   ): Promise<
     | { kind: "ready" }
     | { kind: "fallback"; reason: AiGpuReason }
@@ -884,9 +897,7 @@ export class AiService {
     this.setStage("checking-gpu");
     // Lost after load too often under this setting: it stays off the GPU for the session (L8a.5).
     if (this.gpuLosses?.key === key && this.gpuLosses.count >= GPU_LOSS_LIMIT) return notOnGpu("LOST_AFTER_LOAD");
-    const readiness: AiGpuReadiness = this.deps.gpu
-      ? await this.deps.gpu().catch((): AiGpuReadiness => ({ ok: false, reason: "BACKEND_UNAVAILABLE" }))
-      : { ok: false, reason: "BACKEND_UNAVAILABLE" };
+    const readiness = knownReadiness ?? (await this.gpuReadiness());
     if (!readiness.ok) return notOnGpu(readiness.reason);
     const transport = this.deps.transport("vulkan");
     if (!transport || !transport.isAvailable()) return notOnGpu("BACKEND_UNAVAILABLE");

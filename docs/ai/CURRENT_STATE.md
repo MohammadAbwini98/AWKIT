@@ -1,6 +1,34 @@
 # CURRENT_STATE
 
-## GPU fallback contract re-verified; Phase L state synchronized after the E2 tracker split (2026-10-03, latest)
+## GPU-Offload is the default where NVIDIA is proven: new "Automatic" mode (2026-10-03, latest)
+
+- **Owner decision** (`DECISIONS.md` 2026-10-03). It replaces E4's CPU & RAM only default; the three explicit
+  modes are unchanged.
+- **Automatic (`auto`), the new default,** is decided at each model load from the GPU readiness check:
+  - proven NVIDIA (valid backend pack, only NVIDIA hardware adapters): runs as GPU-Offload, with
+    GPU-Offload's fallbacks;
+  - otherwise: CPU & RAM only, with no GPU host, no fallback reason, a CPU cold-load ETA and a CPU
+    qualification label, exactly as before;
+  - it never refuses.
+- **Settings.**
+  - A stored `cpu` is kept, so existing installs stay on CPU & RAM only until an admin picks Automatic.
+  - A file with no mode stored reads as Automatic.
+  - An unknown value fails closed to `cpu`.
+  - Settings › Local AI lists Automatic first. Its GPU check is information, not a warning.
+- **Code.**
+  - `src/ai/AiSettings.ts`: the mode and its default.
+  - `src/ai/AiService.ts`: resolves it, with one readiness check per load.
+  - `src/ai/AiQualification.ts`: `runConfigurationOf`, moved from `aiRuntime.ts`.
+  - `src/ai/AiExecutionProfile.ts`, `src/ai/contracts/AiApi.ts`, `app/renderer/pages/LocalAiExecution.tsx`.
+- **Verification.**
+  - `verify:ai-gpu-modes` 231/0 with section K; 5 of 5 mutations killed.
+  - `verify:ai-settings-gui` 157/157 on the real app; `verify:ai-model-live-0-8b` 23/0 on this CPU.
+- **Open, not caused by this change:** the DX-0 freeze fails again since L11 changed `aiAssist.ts`
+  (`KNOWN_ISSUES.md`).
+- Tracker unchanged: 333 issues, 22 outstanding / 311 closed. Validation ledger unchanged at 65 PASS / 2 NOT RUN /
+  0 BLOCKED across 67 cases.
+
+## GPU fallback contract re-verified; Phase L state synchronized after the E2 tracker split (2026-10-03)
 
 - **Runtime: no defect, no product change.** The modes are CPU & RAM only (the default), GPU-Offload and
   GPU-Only. There is no "Auto" mode (E4, `DECISIONS.md` 2026-10-02).

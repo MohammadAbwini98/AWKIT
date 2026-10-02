@@ -1,6 +1,39 @@
 # DECISIONS
 
-### 2026-10-02 (latest) — E2 hybrid physical-adapter correlation stays a pending capability; CPU & RAM fallback stands; Phase L's approved scope closes (owner) (`awkit-djnl.15`)
+### 2026-10-03 (latest) — GPU-Offload is the default where NVIDIA is proven: a new "Automatic" mode (owner)
+
+- **Decision.** The owner asked for GPU-Offload to be the default where NVIDIA is proven. This replaces E4's
+  "CPU & RAM only default" and its "no automatic planner", for the default only. The three explicit modes
+  are unchanged.
+- **The mode.** `auto` ("Automatic") is the new default, decided at each model load from the existing
+  readiness check.
+  - Proven NVIDIA (a valid GPU backend pack and only NVIDIA hardware adapters, E2): it runs as GPU-Offload,
+    including GPU-Offload's own fallbacks (`VENDOR_UNPROVEN` from the device count, `INSUFFICIENT_VRAM`,
+    `GPU_LOAD_FAILED`).
+  - Otherwise: it runs as CPU & RAM only, starting no GPU host and reporting no fallback reason. The readiness
+    reason still shows in the GPU check and diagnostics.
+  - It never refuses, so it never acts as GPU-Only.
+- **Why not simply make `gpu-offload` the default.** On a machine without a proven GPU, which is most
+  machines and every one without the user-supplied pack, that would have:
+  - shown a fallback reason on every default install;
+  - left the curated model's Settings label reading "configuration not decided" until the first load,
+    instead of its CPU qualification.
+  Automatic keeps those machines exactly as before.
+- **Existing installs (owner's choice).** Turning AI on writes the whole settings file, so every install
+  that has used AI has `cpu` stored, and a chosen CPU cannot be told from a defaulted one.
+  - A stored `cpu` is kept. Only new installs, and files with no mode stored, get Automatic.
+  - An unknown value still fails closed to `cpu`, never to the GPU-capable default.
+- **Unchanged.**
+  - E2: hybrid sets read `VENDOR_UNPROVEN` and run on CPU & RAM; `awkit-djnl.20` stays PENDING / BLOCKED.
+  - Qualification: the 0.8B is qualified only on its CPU key, so on a proven NVIDIA machine with the pack it
+    reads "Compatible but unqualified" once it runs on the GPU, as under GPU-Offload today. The label is
+    shown only; nothing gates features on it.
+  - No new permission: the mode is still written through `ai:updateSettings` (`ai.manage`, re-auth).
+- **Evidence.**
+  - `verify:ai-gpu-modes` 231/0, section K, with 5 of 5 `AiService`/qualification mutations killed.
+  - `verify:ai-settings-gui` 157/157 on the real Electron app, Automatic included.
+
+### 2026-10-02 — E2 hybrid physical-adapter correlation stays a pending capability; CPU & RAM fallback stands; Phase L's approved scope closes (owner) (`awkit-djnl.15`)
 
 - **Decision.** E2 hybrid correlation (`awkit-djnl.15` item 3) stays in the implementation plan as
   **PENDING / BLOCKED**. Hybrid physical-adapter correlation needs a trustworthy cross-runtime identity,

@@ -1,6 +1,33 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-03, latest) — GPU fallback contract re-verified; Phase L state synchronized
+## HANDOFF (2026-10-03, latest) — Automatic is the new default: GPU-Offload where NVIDIA is proven
+
+The owner made GPU-Offload the default where NVIDIA is proven (`DECISIONS.md` 2026-10-03). The validation
+ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **What it does.** A new mode, `auto` ("Automatic"), is the default. At each model load it runs as
+  GPU-Offload when the readiness check proves NVIDIA, and as CPU & RAM only otherwise. It never refuses.
+- **Existing installs (owner's choice).** A stored `cpu` is kept, and every install that has turned AI on
+  has one. Only new installs, and files with no mode stored, get Automatic.
+- **Watch:**
+  - On a proven NVIDIA machine with the pack, the curated 0.8B reads "Compatible but unqualified" once it runs
+    on the GPU. It is qualified only on its CPU key. The label is shown only, nothing is gated on it.
+  - Automatic picks up a pack install or removal at the next load, because both drop the load. An
+    adapter-only change waits for the next load.
+- **Gates:**
+  - PASS: `verify:ai-gpu-modes` 231/0 (section K; mutations 5/5), `verify:ai-settings-gui` 157/157,
+    `verify:ai-model-live-0-8b` 23/0.
+  - PASS: `ai-job-status` 148/148, `ai-adapter` 117/0, `ai-progress-gui` 41/0, `ai-fallback` 51/0,
+    `ai-autonomy-policy` 62/0, `ai-gpu-harness` 41/0.
+  - FAIL, pre-existing: `verify:ai-display-gate-mutations`. Its DX-0 precondition has been broken by L11's
+    `aiAssist.ts` changes since 2026-10-01 (`KNOWN_ISSUES.md`).
+  - NOT RUN: `verify:failure-capture-overhead`, because it rewrites the preserved L5a evidence file.
+  - NOT RUN: the NVIDIA hardware checks. No NVIDIA GPU here; the GTX 980M qualification predates Automatic.
+- **Next, owner:**
+  1. Optionally run the GTX 980M gates once under Automatic.
+  2. Decide the DX-0 freeze fix.
+
+## HANDOFF (2026-10-03) — GPU fallback contract re-verified; Phase L state synchronized
 
 No product code changed. The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67
 cases.

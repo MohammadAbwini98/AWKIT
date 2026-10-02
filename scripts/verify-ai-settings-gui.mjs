@@ -10,17 +10,20 @@
  *     cannot go stale again the way the pre-pin "not included / 0 packs" expectations did);
  *   • each tier selector offers only tiers up to that feature's ceiling;
  *   • turning AI on and lowering a tier persist to `ai/ai-settings.json`, checked on DISK;
- *   • L8a.4, production path (no test seam): the three execution modes as a labelled, described radio
- *     group driven by the KEYBOARD; the choice on disk; the GPU check from the real readiness answer;
- *     the VRAM reserve disabled in CPU mode, an out-of-range value REFUSED (not clamped) with an
- *     accessible error, a valid one saved, the default restored; both themes use the Hologram tokens;
+ *   • L8a.4, production path (no test seam): Automatic (the default since 2026-10-03) and the three E4
+ *     modes as a labelled, described radio group driven by the KEYBOARD; the choice on disk; the GPU
+ *     check from the real readiness answer (information under Automatic, a warning under GPU-Offload);
+ *     an out-of-range VRAM reserve REFUSED (not clamped) with an accessible error, a valid one saved,
+ *     the default restored; both themes use the Hologram tokens;
  *   • L8a.4 after a RESTART, with the deterministic test provider and its GPU fixture (a non-packaged
  *     seam that qualifies no hardware): the mode and reserve survived; GPU-Only refusal and
  *     GPU-Offload fallback are told apart for a missing pack, no NVIDIA adapter, a mixed or unreadable
  *     adapter set and low VRAM; fixture GPU-Offload and GPU-Only placements render with their layer
- *     counts and are labelled unqualified; a mode change unloads the idle model, and so does a change of
- *     the reserve alone (the next load then reads as current again); a slow load shows its real stage;
- *     a settings file from before L8a loads as CPU and keeps its other fields;
+ *     counts and are labelled unqualified; Automatic runs every layer on the GPU with one NVIDIA adapter
+ *     and on CPU & RAM only (no fallback) with a mixed set; a mode change unloads the idle model and the
+ *     reserve is then disabled in CPU mode, and a change of the reserve alone unloads it too (the next
+ *     load then reads as current again); a slow load shows its real stage; a settings file from before
+ *     L8a, which never chose a mode, loads as Automatic and keeps its other fields;
  *   • L8b.5, production path: choosing a model file shows its size, the free space and what the copy
  *     needs BEFORE anything is copied (checked on disk), Cancel copies nothing, confirming copies it
  *     under its checksum and runs the real host's compatibility check; a file the runtime cannot read
@@ -318,22 +321,41 @@ try {
   console_.setLabel("execution mode");
   const modes = panel.getByRole("group", { name: "Execution mode" });
   await sees(modes, "the execution modes are one labelled group");
+  const auto = radio(panel, "Automatic");
   const cpu = radio(panel, "CPU & RAM only");
   const offload = radio(panel, "GPU-Offload");
   const only = radio(panel, "GPU-Only");
-  check("exactly three modes, named for a non-specialist", (await modes.getByRole("radio").count()) === 3 && (await cpu.count()) === 1 && (await offload.count()) === 1 && (await only.count()) === 1);
-  check("CPU & RAM only is selected on a fresh profile", (await cpu.isChecked()) && !(await offload.isChecked()) && !(await only.isChecked()));
+  check(
+    "exactly four modes, named for a non-specialist",
+    (await modes.getByRole("radio").count()) === 4 && (await auto.count()) === 1 && (await cpu.count()) === 1 && (await offload.count()) === 1 && (await only.count()) === 1
+  );
+  check("Automatic is selected on a fresh profile (the default since 2026-10-03)", (await auto.isChecked()) && !(await cpu.isChecked()) && !(await offload.isChecked()) && !(await only.isChecked()));
+  check("...and turning AI on wrote it to disk as auto", readSettingsFile()?.executionMode === "auto", JSON.stringify(readSettingsFile()));
+  const autoHelp = await describedBy(auto);
   const cpuHelp = await describedBy(cpu);
   const offloadHelp = await describedBy(offload);
   const onlyHelp = await describedBy(only);
-  check("CPU mode says the GPU runtime is never started and it is the default", /GPU runtime is never started/.test(cpuHelp) && /default/.test(cpuHelp), cpuHelp);
+  check(
+    "Automatic says it is the default, runs as GPU-Offload when every adapter is NVIDIA and the pack is installed, and CPU & RAM only otherwise",
+    /^The default\./.test(autoHelp) && /every display adapter is NVIDIA/.test(autoHelp) && /runs as GPU-Offload/.test(autoHelp) && /CPU & RAM only/.test(autoHelp),
+    autoHelp
+  );
+  check("CPU mode says the GPU runtime is never started, and no longer claims to be the default", /GPU runtime is never started/.test(cpuHelp) && !/default/i.test(cpuHelp), cpuHelp);
   check("GPU-Offload says partial offload and a CPU fallback with a reason", /as many model layers on it as safely fit/.test(offloadHelp) && /runs on CPU & RAM and the reason is shown/.test(offloadHelp), offloadHelp);
   check("GPU-Only says every layer or unavailable, never a silent CPU switch", /Every model layer must fit/.test(onlyHelp) && /never switches to CPU & RAM on its own/.test(onlyHelp), onlyHelp);
   check("the group tells when a change applies", /next time the model loads/.test(await describedBy(modes)));
   const reserve = reserveInput(panel);
-  check("the VRAM reserve is disabled in CPU mode (it would have no effect)", (await reserve.count()) === 1 && (await reserve.isDisabled()));
+  check("the VRAM reserve is enabled under Automatic (it may use the GPU)", (await reserve.count()) === 1 && !(await reserve.isDisabled()));
   check("the reserve hint states its unit and the contract's bounds", /128–32768 MB/.test(await describedBy(reserve)) && /Windows/.test(await describedBy(reserve)), await describedBy(reserve));
-  check("Status names where the model runs before any load", /^Not loaded; CPU & RAM only is used the next time the model loads$/.test(await runsOn(panel)), await runsOn(panel));
+  check("Status names where the model runs before any load", /^Not loaded; Automatic is used the next time the model loads$/.test(await runsOn(panel)), await runsOn(panel));
+  const gpuCheck = panel.locator("#ai-execution-gpu-check");
+  await panelMatches(panel, (text) => /Automatic runs the model on CPU & RAM only/.test(text), 10000);
+  check(
+    "the GPU check is the production answer here: no backend pack, so Automatic runs on CPU & RAM only",
+    /No GPU backend pack is installed\. Automatic runs the model on CPU & RAM only\./.test(await gpuCheck.innerText()),
+    await gpuCheck.innerText()
+  );
+  check("...as information, not a warning: it is the expected default without a GPU", !/\bwarn\b/.test((await gpuCheck.getAttribute("class")) ?? ""), await gpuCheck.getAttribute("class"));
 
   console_.setLabel("keyboard");
   await cpu.focus();
@@ -343,13 +365,13 @@ try {
   const focus = await win.evaluate(() => ({ id: document.activeElement?.id ?? "", ring: getComputedStyle(document.activeElement ?? document.body).boxShadow }));
   check("keyboard focus stays on the chosen mode after the save", focus.id === "ai-mode-gpu-offload", focus.id);
   check("...with a visible focus ring", focus.ring !== "none" && focus.ring !== "", focus.ring);
-  const gpuCheck = panel.locator("#ai-execution-gpu-check");
-  await sees(gpuCheck, "a GPU check is shown once a GPU mode is chosen");
+  await panelMatches(panel, (text) => /GPU-Offload will run the model on CPU & RAM/.test(text), 10000);
   check(
     "the GPU check is the production answer here: no backend pack, so GPU-Offload runs on CPU & RAM",
     /No GPU backend pack is installed\. GPU-Offload will run the model on CPU & RAM/.test(await gpuCheck.innerText()),
     await gpuCheck.innerText()
   );
+  check("...and under an explicit GPU mode it is a warning", /\bwarn\b/.test((await gpuCheck.getAttribute("class")) ?? ""), await gpuCheck.getAttribute("class"));
   check("the reserve is enabled in a GPU mode", !(await reserve.isDisabled()));
   check("Status says the new mode applies at the next load", /GPU-Offload is used the next time the model loads/.test(await runsOn(panel)), await runsOn(panel));
 
@@ -507,6 +529,7 @@ try {
   await chooseMode(panel, "CPU & RAM only", "Execution mode set to CPU & RAM only. It takes effect the next time the model loads.");
   await runsOnMatches(panel, /^Not loaded; CPU & RAM only is used the next time the model loads$/, "a mode change unloads the idle model at once (no stale GPU load)");
   check("the old placement is no longer reported", !/GPU use\s*In use/.test(await panel.innerText()));
+  check("the VRAM reserve is disabled in CPU mode (it would have no effect)", await reserveInput(panel).isDisabled());
   await askAi();
   await runsOnMatches(panel, /^CPU & RAM$/, "the next job runs on CPU & RAM");
 
@@ -519,6 +542,29 @@ try {
   // No Refresh here: the panel re-reads by itself while a load is in progress.
   const finished = await panel.getByText("GPU-Only: all 24 layers on the GPU", { exact: true }).first().waitFor({ timeout: 6000 }).then(() => true, () => false);
   check("(fixture) GPU-Only places every layer, and the panel updated itself after the load", finished, await runsOn(panel));
+
+  // Automatic through the real main process: readiness from the fixture, the resolution in the AiService.
+  console_.setLabel("fixture Automatic");
+  fixture({ pack: "installed", adapters: [0x10de], plan: plan(24) });
+  await chooseMode(panel, "Automatic", "Execution mode set to Automatic. It takes effect the next time the model loads.");
+  check("...written to disk as auto", readSettingsFile()?.executionMode === "auto", JSON.stringify(readSettingsFile()));
+  await askAi();
+  await runsOnMatches(panel, /^Automatic: all 24 layers on the GPU$/, "(fixture) Automatic with one NVIDIA adapter and the pack runs as GPU-Offload: every layer on the GPU");
+  check("...the backend pack panel reports the GPU in use", /GPU use\s*In use: Automatic: all 24 layers on the GPU/.test(await panel.innerText()));
+  // The adapter set changes; the reserve reset drops the idle load, so the next job resolves Automatic again.
+  fixture({ pack: "installed", adapters: [0x10de, 0x1002], plan: plan(24) });
+  await panel.getByRole("button", { name: "Use System Default" }).click();
+  await sees(panel.getByText("GPU memory reserve set to the system default. It takes effect the next time the model loads."), "the reserve reset is confirmed (it drops the idle load)");
+  await askAi();
+  await runsOnMatches(panel, /^CPU & RAM$/, "(fixture) Automatic on a mixed adapter set runs on CPU & RAM only, not as a GPU-Offload fallback");
+  const autoMixed = await panel.innerText();
+  check(
+    "...the GPU check says why, as information",
+    /The GPU the runtime would use cannot be proven to be NVIDIA\. Automatic runs the model on CPU & RAM only\./.test(await panel.locator("#ai-execution-gpu-check").innerText()),
+    await panel.locator("#ai-execution-gpu-check").innerText()
+  );
+  check("...and diagnostics give the readiness reason", /GPU readiness now\s*Not ready: The GPU the runtime would use cannot be proven to be NVIDIA\./.test(autoMixed));
+  check("...and the GPU is not reported in use", !/GPU use\s*In use/.test(autoMixed));
 
   console_.setLabel("offload low VRAM fallback");
   fixture({ pack: "installed", adapters: [0x10de], plan: plan(0) });
@@ -543,16 +589,18 @@ try {
   );
 
   console_.setLabel("legacy settings file");
+  // Otherwise the panel could already show Automatic and the check below would pass on the old state.
+  check("(precondition) GPU-Offload is the saved and shown mode before the legacy file is written", readSettingsFile()?.executionMode === "gpu-offload" && (await radio(panel, "GPU-Offload").isChecked()));
   const legacy = { schemaVersion: 1, enabled: true, yieldDuringRuns: true, idleUnloadMinutes: 10, featureTiers: { locatorSemanticUpgrade: "T0" } };
   writeFileSync(settingsFile, `${JSON.stringify(legacy, null, 2)}\n`);
   await panel.getByRole("button", { name: "Refresh" }).click();
-  const legacyCpu = await radio(panel, "CPU & RAM only").waitFor({ state: "visible" }).then(async () => {
+  const legacyAuto = await radio(panel, "Automatic").waitFor({ state: "visible" }).then(async () => {
     const deadline = Date.now() + 5000;
-    while (Date.now() < deadline && !(await radio(panel, "CPU & RAM only").isChecked())) await win.waitForTimeout(100);
-    return radio(panel, "CPU & RAM only").isChecked();
+    while (Date.now() < deadline && !(await radio(panel, "Automatic").isChecked())) await win.waitForTimeout(100);
+    return radio(panel, "Automatic").isChecked();
   });
-  check("a settings file from before L8a reads as CPU & RAM only", legacyCpu);
-  check("...with the system-default reserve, disabled in CPU mode", (await reserveInput(panel).inputValue()) === "" && (await reserveInput(panel).isDisabled()));
+  check("a settings file from before L8a never chose a mode, so it reads as Automatic (the default)", legacyAuto);
+  check("...with the system-default reserve, enabled under Automatic", (await reserveInput(panel).inputValue()) === "" && !(await reserveInput(panel).isDisabled()));
   await chooseMode(panel, "GPU-Offload", "Execution mode set to GPU-Offload. It takes effect the next time the model loads.");
   const upgraded = readSettingsFile();
   check(

@@ -30,12 +30,16 @@ import { runExclusive } from "../storage/folderWriteCoordinator";
 import { AI_BUDGET_IDS, budgetBoundsSentence, isAiBudgetId, isBudgetSeconds, type AiBudgetId } from "./AiTimeBudgets";
 
 /**
- * Where the model runs (L8a, E4). "cpu" is CPU & RAM only, the default and the only mode that needs
- * nothing beyond the installer. "gpu-offload" offloads the largest safe layer count and falls back to
- * CPU with a visible reason; "gpu-only" offloads every layer or refuses, never silently falling back.
+ * Where the model runs (L8a, E4; "auto" by owner decision 2026-10-03). "auto", the default, runs as
+ * GPU-Offload when the GPU readiness check proves NVIDIA (a valid backend pack and only NVIDIA hardware
+ * adapters) and as CPU & RAM only otherwise, decided at each load. "cpu" is CPU & RAM only, the one mode
+ * that never touches the GPU. "gpu-offload" offloads the largest safe layer count and falls back to CPU
+ * with a visible reason; "gpu-only" offloads every layer or refuses, never silently falling back.
  */
-export type AiExecutionMode = "cpu" | "gpu-offload" | "gpu-only";
-export const AI_EXECUTION_MODES: readonly AiExecutionMode[] = Object.freeze(["cpu", "gpu-offload", "gpu-only"]);
+export type AiExecutionMode = "auto" | "cpu" | "gpu-offload" | "gpu-only";
+export const AI_EXECUTION_MODES: readonly AiExecutionMode[] = Object.freeze(["auto", "cpu", "gpu-offload", "gpu-only"]);
+/** What a load actually runs as: "auto" is always resolved to one of these first. */
+export type AiEffectiveMode = Exclude<AiExecutionMode, "auto">;
 
 export interface AiSettings {
   enabled: boolean;
@@ -64,7 +68,7 @@ export const DEFAULT_AI_SETTINGS: Readonly<AiSettings> = Object.freeze({
   yieldDuringRuns: true,
   idleUnloadMinutes: 10,
   featureTiers: {},
-  executionMode: "cpu",
+  executionMode: "auto",
   vramReserveMb: null,
   timeBudgetSeconds: {}
 });
@@ -114,7 +118,7 @@ export function sanitizeAiSettingsPatch(input: unknown): AiSettingsSanitizeResul
     }
   }
   if (raw.executionMode !== undefined) {
-    if (!AI_EXECUTION_MODES.includes(raw.executionMode as AiExecutionMode)) errors.push("executionMode must be cpu, gpu-offload or gpu-only.");
+    if (!AI_EXECUTION_MODES.includes(raw.executionMode as AiExecutionMode)) errors.push("executionMode must be auto, cpu, gpu-offload or gpu-only.");
     else patch.executionMode = raw.executionMode as AiExecutionMode;
   }
   if (raw.vramReserveMb !== undefined) {
@@ -164,8 +168,14 @@ export function normalizeAiSettings(raw: unknown): AiSettings {
         ? minutes
         : DEFAULT_AI_SETTINGS.idleUnloadMinutes,
     featureTiers: tiers,
-    // A file from before L8a, or a value this version does not know, is CPU & RAM only.
-    executionMode: AI_EXECUTION_MODES.includes(source.executionMode as AiExecutionMode) ? (source.executionMode as AiExecutionMode) : "cpu",
+    // No mode stored (a file from before L8a) was never chosen, so it gets the default. A stored mode is kept
+    // as written, "cpu" included, and a value this version does not know is CPU & RAM only (fail closed).
+    executionMode:
+      source.executionMode === undefined
+        ? DEFAULT_AI_SETTINGS.executionMode
+        : AI_EXECUTION_MODES.includes(source.executionMode as AiExecutionMode)
+          ? (source.executionMode as AiExecutionMode)
+          : "cpu",
     vramReserveMb: isReserveMb(source.vramReserveMb) ? source.vramReserveMb : null,
     timeBudgetSeconds
   };

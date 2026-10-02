@@ -19,8 +19,10 @@
 
 import { AI_QUALIFIED_CONFIGURATIONS, isValidAiQualifiedConfiguration, type AiQualifiedConfiguration } from "../offline/AiQualifiedList";
 import { AI_FEATURE_IDS, type AiFeatureId } from "../security/authz/AiAutonomyPolicy";
-import type { AiOffloadClass } from "./AiExecutionProfile";
+import { AI_CONTEXT_TOKENS } from "./contracts/AiHostProtocol";
+import { offloadClassOf, type AiExecutionProfile, type AiGpuReadiness, type AiOffloadClass } from "./AiExecutionProfile";
 import type { AiCompatibilityCheck } from "./AiModelCompatibility";
+import type { AiExecutionMode } from "./AiSettings";
 
 /** The KV-cache and attention settings the product loads with: the runtime's defaults, never configured. */
 export const AI_KV_CACHE_SETTINGS = "runtime-default" as const;
@@ -40,6 +42,23 @@ export interface AiRunConfiguration {
   backend: "cpu" | "vulkan";
   offload: AiOffloadClass;
   contextTokens: number;
+}
+
+/**
+ * The configuration a label is about: CPU & RAM only is decided by the mode; a GPU mode only by a load
+ * made under the current mode and reserve (GPU-Offload may have fallen back to the CPU). Automatic is
+ * decided by its load too, and before one by readiness: without a proven NVIDIA GPU it runs as CPU.
+ */
+export function runConfigurationOf(
+  status: { executionApplied: boolean; loadedModelId: string | null; execution: Pick<AiExecutionProfile, "backend" | "gpuLayers" | "totalLayers"> },
+  mode: AiExecutionMode,
+  readiness: AiGpuReadiness
+): AiRunConfiguration | null {
+  const cpu: AiRunConfiguration = { backend: "cpu", offload: "cpu", contextTokens: AI_CONTEXT_TOKENS };
+  if (mode === "cpu") return cpu;
+  if (!status.executionApplied || status.loadedModelId === null) return mode === "auto" && !readiness.ok ? cpu : null;
+  const { backend, gpuLayers, totalLayers } = status.execution;
+  return { backend, offload: backend === "cpu" ? "cpu" : offloadClassOf(gpuLayers, totalLayers), contextTokens: AI_CONTEXT_TOKENS };
 }
 
 /** Every field, in a fixed order: two keys are the same key only when every field is equal. */

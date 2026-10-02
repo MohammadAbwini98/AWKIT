@@ -16,7 +16,7 @@
 
 import type { AiExecutionView } from "./contracts/AiApi";
 import type { AiGpuPlan } from "./contracts/AiHostProtocol";
-import type { AiExecutionMode } from "./AiSettings";
+import type { AiEffectiveMode, AiExecutionMode } from "./AiSettings";
 
 export const NVIDIA_PCI_VENDOR_ID = 0x10de;
 /** Microsoft's software adapter (Basic Render Driver / WARP): present on many machines, never a GPU to use. */
@@ -86,7 +86,7 @@ export type AiGpuDecision =
   | { action: "refuse"; reason: AiGpuReason; requiredBytes: number; availableBytes: number };
 
 /** What a GPU mode does with the runtime's plan. */
-export function decideGpuLoad(mode: Exclude<AiExecutionMode, "cpu">, plan: AiGpuPlan): AiGpuDecision {
+export function decideGpuLoad(mode: Exclude<AiEffectiveMode, "cpu">, plan: AiGpuPlan): AiGpuDecision {
   const everyLayer = plan.totalLayers >= 1 && plan.fitLayers >= plan.totalLayers;
   if (mode === "gpu-only") {
     return everyLayer
@@ -118,7 +118,8 @@ export const GPU_LOSS_LIMIT = 2;
 
 /** What actually runs, as reported in status and diagnostics. */
 export interface AiExecutionProfile {
-  mode: AiExecutionMode;
+  /** The mode the load ran as; "auto" is resolved before any load. */
+  mode: AiEffectiveMode;
   backend: "cpu" | "vulkan";
   /** Layers on the GPU; 0 on the CPU backend. */
   gpuLayers: number;

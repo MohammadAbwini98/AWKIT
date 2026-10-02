@@ -5,7 +5,8 @@
  * TRANSPORTS are `FakeAiHostTransport`s (a CPU one and a Vulkan one), which reproduce the real host's
  * backend rules (a CPU host refuses a GPU plan and offloaded layers, a GPU host needs 1..1024 layers).
  *
- * What makes it fail: CPU & RAM only touching the GPU host; old settings or garbage not reading as CPU;
+ * What makes it fail: CPU & RAM only touching the GPU host; a file with no mode not reading as Automatic,
+ * or a stored "cpu" or garbage not reading as CPU;
  * an adapter proven NVIDIA by anything but PCI vendor 0x10DE, or a mixed/unknown set read as NVIDIA;
  * GPU-Offload not loading the largest fitting count, not retrying smaller a bounded number of times, or
  * not falling back to the CPU with its reason; GPU-Only ever falling back, retrying smaller, or refusing
@@ -27,6 +28,10 @@
  * Section J: a GPU host that exits while starting, or a plan that times out, not falling back under
  * GPU-Offload with its reason and a completed job, or not refusing under GPU-Only; a model that fails
  * verification, or a CPU load that fails after a fallback, reported as anything but a failed load.
+ * Section K (Automatic, the default since 2026-10-03): a proven NVIDIA set not running as GPU-Offload, or
+ * checking readiness twice; an unproven or GPU-less set touching the GPU host, reporting a fallback, losing
+ * its CPU ETA or its CPU label; a proven set refusing instead of falling back; a pack change not followed;
+ * an explicit CPU & RAM only touching the GPU.
  *
  * Real NVIDIA hardware is NOT exercised here (E11). Run: npm run verify:ai-gpu-modes
  */
@@ -51,6 +56,7 @@ import {
 import type { AiAdmissionView } from "@src/ai/AiAdmission";
 import { AiJobTracker, type AiJobStatus } from "@src/ai/AiJobStatus";
 import type { AiOutputSchema } from "@src/ai/AiOutputContract";
+import { runConfigurationOf } from "@src/ai/AiQualification";
 import { AiService, type AiJobRequest, type AiServiceDeps, type AiServiceSettings } from "@src/ai/AiService";
 import { DEFAULT_AI_SETTINGS, MAX_VRAM_RESERVE_MB, MIN_VRAM_RESERVE_MB, normalizeAiSettings, sanitizeAiSettingsPatch, type AiExecutionMode } from "@src/ai/AiSettings";
 import type { AiGpuPlan, AiHostRequestPayload, AiLoadRequest } from "@src/ai/contracts/AiHostProtocol";
@@ -146,18 +152,22 @@ const types = (transport: FakeAiHostTransport | null) => transport?.requestTypes
 // ── A. Settings ──────────────────────────────────────────────────────────────────────────────────
 console.log("A. Settings: mode and VRAM reserve\n");
 {
-  check("the default mode is CPU & RAM only", DEFAULT_AI_SETTINGS.executionMode === "cpu" && DEFAULT_AI_SETTINGS.vramReserveMb === null);
+  check("the default mode is Automatic (owner decision 2026-10-03)", DEFAULT_AI_SETTINGS.executionMode === "auto" && DEFAULT_AI_SETTINGS.vramReserveMb === null);
   const old = normalizeAiSettings({ schemaVersion: 1, enabled: true, yieldDuringRuns: true, idleUnloadMinutes: 10, featureTiers: {} });
-  check("a settings file from before L8a loads unchanged, as CPU with the default reserve", old.enabled === true && old.executionMode === "cpu" && old.vramReserveMb === null);
-  check("an unknown mode on disk reads as CPU (fail closed)", normalizeAiSettings({ executionMode: "gpu-turbo" }).executionMode === "cpu");
+  check("a settings file from before L8a never chose a mode, so it loads as Automatic with the default reserve", old.enabled === true && old.executionMode === "auto" && old.vramReserveMb === null);
+  check("a stored CPU & RAM only is kept: an existing install is never moved onto the GPU", normalizeAiSettings({ executionMode: "cpu" }).executionMode === "cpu");
+  check("an unknown mode on disk reads as CPU (fail closed), never as the GPU-capable default", normalizeAiSettings({ executionMode: "gpu-turbo" }).executionMode === "cpu" && normalizeAiSettings({ executionMode: null }).executionMode === "cpu");
   check("an out-of-range reserve on disk reads as the default", normalizeAiSettings({ vramReserveMb: 5 }).vramReserveMb === null);
-  check("both GPU modes round-trip", normalizeAiSettings({ executionMode: "gpu-offload" }).executionMode === "gpu-offload" && normalizeAiSettings({ executionMode: "gpu-only" }).executionMode === "gpu-only");
-  for (const mode of ["cpu", "gpu-offload", "gpu-only"]) {
+  check(
+    "Automatic and both GPU modes round-trip",
+    normalizeAiSettings({ executionMode: "auto" }).executionMode === "auto" && normalizeAiSettings({ executionMode: "gpu-offload" }).executionMode === "gpu-offload" && normalizeAiSettings({ executionMode: "gpu-only" }).executionMode === "gpu-only"
+  );
+  for (const mode of ["auto", "cpu", "gpu-offload", "gpu-only"]) {
     const result = sanitizeAiSettingsPatch({ executionMode: mode });
     check(`the patch accepts ${mode}`, result.ok && result.value.executionMode === mode);
   }
   for (const [label, patch] of [
-    ["an unknown mode", { executionMode: "auto" }],
+    ["an unknown mode", { executionMode: "turbo" }],
     ["a mode as a number", { executionMode: 1 }],
     ["a reserve below the bound", { vramReserveMb: MIN_VRAM_RESERVE_MB - 1 }],
     ["a reserve above the bound", { vramReserveMb: MAX_VRAM_RESERVE_MB + 1 }],
@@ -218,7 +228,7 @@ console.log("\nB. E2 and E4 policy\n");
 }
 
 // ── C. CPU & RAM only ────────────────────────────────────────────────────────────────────────────
-console.log("\nC. CPU & RAM only (default)\n");
+console.log("\nC. CPU & RAM only (also the service's own answer when no mode is set)\n");
 {
   const w = world({});
   const outcome = await w.run("cpu-1");
@@ -927,6 +937,111 @@ console.log("\nJ. GPU initialisation failure, and failures that are not a GPU fa
     brokenOutcome.status === "failed" && brokenOutcome.code === "LOAD_FAILED" && brokenFinal?.state === "failed" && brokenFinal.terminalReason === "LOAD_FAILED" && types(brokenCpu.gpu).length === 0,
     { brokenOutcome, brokenFinal }
   );
+}
+
+// ── K. Automatic, the default: GPU-Offload where NVIDIA is proven, CPU & RAM only otherwise ────────
+console.log("\nK. Automatic (owner decision 2026-10-03): GPU-Offload when NVIDIA is proven, otherwise CPU & RAM only\n");
+{
+  const INTEL = 0x8086;
+  const SOFT = 0x1414;
+  const NV = NVIDIA_PCI_VENDOR_ID;
+  const owned = (requestId: string): AiJobRequest => ({ ...job(requestId), owner: { window: 1, requestId } });
+  const counted = (readiness: AiGpuReadiness) => {
+    const box = { readiness, calls: 0 };
+    return { box, read: async () => ((box.calls += 1), box.readiness) };
+  };
+
+  // 1. Proven NVIDIA: runs exactly as GPU-Offload, every layer on the GPU, one readiness check for the load.
+  const proven = counted(classifyAdapters([SOFT, NV]));
+  const provenJobs: AiJobStatus[] = [];
+  const onGpu = world({ mode: "auto", readiness: proven.read, gpu: { gpuPlan: plan(24) }, jobs: new AiJobTracker({ publish: (_owner, status) => provenJobs.push(status) }) });
+  const gpuAnswer = await onGpu.service.submit(owned("k-proven"));
+  const gpuStatus = await onGpu.service.status();
+  check(
+    "1. proven NVIDIA: every layer on the GPU host, the CPU host untouched, no fallback",
+    gpuAnswer.status === "ok" && gpuAnswer.profile.backend === "vulkan" && gpuAnswer.profile.offload === "full" && types(onGpu.cpu).length === 0 && gpuStatus.execution.fallbackReason === null,
+    gpuAnswer
+  );
+  check("...the load ran as GPU-Offload and the job reports that, never 'auto'", gpuStatus.execution.mode === "gpu-offload" && provenJobs[provenJobs.length - 1]?.profile?.mode === "gpu-offload", gpuStatus.execution);
+  check("...readiness was checked once for the load, not again inside the GPU path", proven.box.calls === 1, proven.box.calls);
+  check(
+    "...the label's configuration is the GPU load's: Vulkan, every layer",
+    JSON.stringify(runConfigurationOf(gpuStatus, "auto", proven.box.readiness)) === JSON.stringify({ backend: "vulkan", offload: "full", contextTokens: 4096 })
+  );
+
+  // 2. Not proven: exactly CPU & RAM only. No GPU host, no fallback reason, the readiness reason in the view.
+  for (const [label, ids, reason] of [
+    ["a CPU-only machine (software adapter only)", [SOFT], "NO_COMPATIBLE_ADAPTER"],
+    ["a hybrid Intel + NVIDIA laptop", [INTEL, NV], "VENDOR_UNPROVEN"]
+  ] as const) {
+    const readiness = classifyAdapters([...ids]);
+    const jobs: AiJobStatus[] = [];
+    const logs: string[] = [];
+    const w = world({ mode: "auto", readiness, gpu: { gpuPlan: plan(24) }, log: (level, message) => logs.push(`${level}:${message}`), jobs: new AiJobTracker({ publish: (_owner, status) => jobs.push(status) }) });
+    const configBefore = runConfigurationOf(await w.service.status(), "auto", readiness);
+    const answer = await w.service.submit(owned(`k-${reason}`));
+    const status = await w.service.status();
+    const view = toExecutionView(status, "auto", readiness);
+    check(
+      `2. ${label}: answers on CPU & RAM, the GPU host never started, planned or loaded`,
+      answer.status === "ok" && answer.profile.backend === "cpu" && types(w.gpu).length === 0 && loads(w.cpu).length === 1 && loads(w.cpu)[0].gpuLayers === undefined,
+      { answer, gpu: types(w.gpu) }
+    );
+    check(
+      "...as CPU & RAM only, not as a fallback: no fallback reason, no falling-back log, the AI available",
+      status.execution.mode === "cpu" && status.execution.fallbackReason === null && status.execution.refusal === null && view.message === null && !logs.some((line) => /falling back/.test(line)) && status.state.kind === "available",
+      { execution: status.execution, logs }
+    );
+    check(`...the view still says why the GPU is not used: readiness ${reason}`, !view.gpuReadiness.ok && view.gpuReadiness.reason === reason && view.mode === "auto", view.gpuReadiness);
+    const cold = jobs.find((s) => s.cold === true && s.profile !== null);
+    check("...the cold load's ETA is estimated for CPU & RAM from the start, as under CPU & RAM only", cold?.profile?.mode === "cpu" && cold.profile.backend === "cpu", cold);
+    check(
+      "...and the label is about CPU & RAM before any load, as under CPU & RAM only (never 'not decided')",
+      JSON.stringify(configBefore) === JSON.stringify({ backend: "cpu", offload: "cpu", contextTokens: 4096 }),
+      configBefore
+    );
+  }
+
+  // 3. Proven, but the GPU then cannot take it: GPU-Offload's own fallback, with its reason, never a refusal.
+  for (const [label, gpu, reason] of [
+    ["the runtime binds more Vulkan devices than NVIDIA adapters", { gpuPlan: plan(24, { deviceCount: 2 }) }, "VENDOR_UNPROVEN"],
+    ["nothing fits in VRAM", { gpuPlan: plan(0) }, "INSUFFICIENT_VRAM"],
+    ["every GPU load fails", { gpuPlan: plan(20), gpuLoadFailAbove: 4 }, "GPU_LOAD_FAILED"]
+  ] as const) {
+    const w = world({ mode: "auto", gpu });
+    const answer = await w.run(`k-${reason}`);
+    const status = await w.service.status();
+    check(
+      `3. proven NVIDIA, ${label}: falls back like GPU-Offload, answers on CPU & RAM with ${reason}, never refuses`,
+      answer.status === "ok" && answer.profile.backend === "cpu" && status.execution.fallbackReason === reason && status.execution.refusal === null && status.state.kind === "available",
+      { answer, execution: status.execution }
+    );
+  }
+
+  // 4. Decided at each load: a backend pack installed or removed drops the load (releaseModel), and Automatic follows.
+  const changing = counted({ ok: false, reason: "BACKEND_PACK_MISSING" });
+  const packJobs: AiJobStatus[] = [];
+  const pack = world({ mode: "auto", readiness: changing.read, gpu: { gpuPlan: plan(24) }, jobs: new AiJobTracker({ publish: (_owner, status) => packJobs.push(status) }) });
+  await pack.run("k-before");
+  changing.box.readiness = NVIDIA_ONE;
+  await pack.service.releaseModel();
+  const after = await pack.service.submit(owned("k-after"));
+  check("4. no pack: CPU & RAM only, then the pack installed (the load dropped): the next job runs on the GPU", loads(pack.cpu).length === 1 && after.status === "ok" && after.profile.backend === "vulkan", after);
+  const afterCold = packJobs.filter((s) => s.jobId === "k-after" && s.cold === true);
+  check(
+    "...its cold ETA never reuses the earlier CPU load's profile under the GPU-Offload name (no GPU load measured yet)",
+    afterCold.length > 0 && afterCold.every((s) => s.profile === null || s.profile.backend === "vulkan"),
+    afterCold.map((s) => s.profile)
+  );
+  changing.box.readiness = { ok: false, reason: "BACKEND_PACK_MISSING" };
+  await pack.service.releaseModel();
+  const removed = await pack.run("k-removed");
+  check("...and the pack removed: the GPU host is stopped and the next job is back on CPU & RAM only", removed.status === "ok" && removed.profile.backend === "cpu" && (await pack.service.status()).execution.fallbackReason === null && (pack.gpu?.releases ?? 0) >= 1, removed);
+
+  // 5. Only the default changed: an explicit CPU & RAM only never touches the GPU, even when it is proven.
+  const explicit = world({ mode: "cpu", gpu: { gpuPlan: plan(24) } });
+  await explicit.run("k-explicit-cpu");
+  check("5. an explicit CPU & RAM only stays off a proven NVIDIA GPU", types(explicit.gpu).length === 0 && loads(explicit.cpu).length === 1);
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

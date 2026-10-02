@@ -679,7 +679,8 @@ decisions E1–E12). The current code is the CPU-only boundary above.
 
 ```text
 Settings → Local AI (renderer LocalAiSettings.tsx)
-  mode: CPU & RAM only (default) | GPU-Offload | GPU-Only
+  mode: Automatic (default since 2026-10-03: GPU-Offload when NVIDIA is proven, else CPU & RAM only)
+        | CPU & RAM only | GPU-Offload | GPU-Only
   GPU mode → required-components checklist (Browse; validated; copied)
         │  AI_MANAGE + re-auth (no new permission)
         ▼
