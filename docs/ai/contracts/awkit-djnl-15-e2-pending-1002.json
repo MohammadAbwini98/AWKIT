@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-15-e2-pending-1002",
+    "title": "Sync the tracker for the E2-pending resolution of awkit-djnl.15",
+    "objective": "Record the owner's 2026-10-02 E2 decision (DECISIONS, commits 9102ed05 and afe0ba7d) in bd, following the latest HANDOFF section: append the resolution note to awkit-djnl.15, file the pending E2 hybrid physical-adapter correlation item under awkit-djnl, close awkit-djnl.15 naming that item, and export. No product change.",
+    "requested_by": "repository owner",
+    "risk_level": 1,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "7f37398f",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/interactions.jsonl",
+      ".beads/issues.jsonl",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-djnl-15-e2-pending-1002.json"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/issues.jsonl"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "resources/**",
+        "native-hosts/**",
+        "tools/**"
+      ]
+    },
+    "reviewers": []
+  },
+  "acceptance": [
+    {
+      "id": "STATE",
+      "description": "awkit-djnl.15 carries the resolution note and is closed, the pending E2 item exists under awkit-djnl and is open, the export is committed, and the dashboard's sources agree.",
+      "evidence_required": [
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "PASS",
+      "notes": "177/177, Overview 'Sources agree', 333 issues, 22 outstanding / 311 closed, 202 edges (awkit-djnl.15 closed, awkit-djnl.20 filed open), ledger 65 PASS / 2 NOT RUN / 0 BLOCKED."
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-15-e2-pending-1002:project-state:2026-10-02T20:56:10.386Z",
+        "task": "awkit-djnl-15-e2-pending-1002",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/issues.jsonl"
+        ],
+        "acquired_at": "2026-10-02T20:56:10.386Z",
+        "acquired_at_commit": "7f37398fb4ac605dff8c035f4826aabe0e445055",
+        "released_at": "2026-10-02T20:56:57.856Z",
+        "released_reason": "E2-pending resolution recorded: awkit-djnl.15 note appended and closed, awkit-djnl.20 filed under awkit-djnl, exported 333 issues",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}
