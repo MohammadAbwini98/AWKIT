@@ -1,6 +1,33 @@
 # CURRENT_STATE
 
-## DX-0 freezes the adapter by its authoring path; the display-gate mutation run passes again (2026-10-03, latest)
+## Automatic qualifies on NVIDIA: the GTX 980M at its physical console (2026-10-03, latest)
+
+- **Result: PASS. No product defect, no product change.** At `0b485941` plus a harness-only change, on the
+  GTX 980M (`VEN_10DE DEV_13D7`, 8192 MiB, driver 581.80) at the physical console. Windows lists only that
+  adapter, and readiness reads `nvidiaAdapters` 1.
+- **New evidence path:** `scripts/ai-harness/gpuLive.ts` gains PRODUCT Automatic steps. It drives the
+  production `AiService` with the stored mode `auto` and the product's own readiness. Before this, no
+  real-GPU verifier ran `auto`.
+- **Proved on the real hosts** (`verify:ai-gpu-host` 34/0, `verify:ai-gpu-packaged` 35/0):
+  - The stored mode stays `auto`. The load and the job profile report `gpu-offload`, Vulkan, 25 of 25
+    layers, `offload` full, and no fallback reason or refusal.
+  - Exactly one guarded GPU host fork occurs, and every runtime binary in it comes from the app-managed
+    pack (Windows' module list).
+  - nvidia-smi VRAM is 1360 MiB before, 2414 MiB loaded and 1358 MiB after the release (source). Packaged
+    readings: 1273 / 2329 / 1273.
+  - Timings (source): about 4.8 s backend probe and GPU host start, then 7.3 s model load, first token
+    415 ms, generation 817 ms.
+  - The label reads Compatible but unqualified (`NOT_QUALIFIED_ON_THIS_CONFIGURATION`) on Vulkan full. The
+    CPU control reads Qualified. The qualified list is unchanged.
+- **Readiness SUBSTITUTED as `VENDOR_UNPROVEN` after a release:**
+  - The job runs as CPU & RAM only: no GPU host, no fallback reason, no refusal.
+  - The view still shows the reason and its sentence.
+- **Re-resolution:** after the next release, Automatic resolves on the product readiness and is back on the
+  GPU.
+- Tracker unchanged: 333 issues, 22 outstanding / 311 closed. Validation ledger unchanged at 65 PASS / 2 NOT RUN /
+  0 BLOCKED across 67 cases.
+
+## DX-0 freezes the adapter by its authoring path; the display-gate mutation run passes again (2026-10-03)
 
 - **Root cause: a stale verifier, not a product regression.** DX-0 froze all of `app/main/ai/aiAssist.ts` by
   its blob. L11 (`29701c5a`, `299954fe`) changed only `failureBatch` and added the import it uses. The

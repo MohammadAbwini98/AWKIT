@@ -1,6 +1,35 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-03, latest) — DX-0 freeze fixed: the adapter is frozen by its authoring path
+## HANDOFF (2026-10-03, latest) — Automatic qualifies on the GTX 980M at its physical console
+
+No product code changed. The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done.** This was item 1 of the previous handoff: the GTX 980M gates now run once under Automatic.
+  - Taken at the physical console. The first backend-gate run of the session was over Remote Desktop, so
+    its evidence was not used.
+  - Automatic resolves to GPU-Offload on the product readiness (`nvidiaAdapters` 1) and loads all 25 layers
+    on Vulkan.
+  - Job profile: `gpu-offload`, `gpu`, full. nvidia-smi VRAM goes up while loaded and back after the release.
+  - With readiness substituted as not proven, it runs as CPU & RAM only, with no refusal. It re-resolves to
+    the GPU at the next load (`CURRENT_STATE.md`).
+- **Harness only:**
+  - `gpuLive.ts`: PRODUCT Automatic steps, and the pack-binary check shared with MECHANICS.
+  - `verify-ai-gpu-host.mts`: prints the new records.
+  - `verify-ai-gpu-harness.mts`: finds the MECHANICS precondition by its label (the Automatic precondition
+    comes first now) and checks the Automatic wiring.
+- **Gates (all at the console):**
+  - PASS: `verify:ai-gpu-backend-gate` 28/0, `verify:ai-gpu-host` 34/0, `verify:ai-gpu-packaged` 35/0,
+    `verify:ai-progress-gpu-packaged` 13/0.
+  - PASS: `verify:ai-gpu-harness` 42/0, `verify:ai-gpu-modes` 231/0, `verify:ai-settings-gui` 157/157.
+  - NOT RUN: `verify:ai-gpu-lifecycle` and `-packaged`. The host manager and the lifecycle harness are
+    unchanged since their console pass at `4771e84e`.
+- **Labels.** The 0.8B reads Compatible but unqualified on Vulkan, and is still qualified on its CPU key
+  only. A Vulkan quality key needs its own quality evidence (L1.8 procedure) and an owner decision. It is
+  not added here.
+- **Next, owner:** nothing is required. Optionally decide whether to collect Vulkan quality evidence for the
+  0.8B.
+
+## HANDOFF (2026-10-03) — DX-0 freeze fixed: the adapter is frozen by its authoring path
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No product code changed.
 

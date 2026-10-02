@@ -6,7 +6,9 @@
  * dependency manifest and this build's staged VC++ runtime), stages the pinned Qwen3.5-0.8B, then runs
  * `scripts/ai-harness/gpuLive.ts` (AWKIT_HARNESS_MODE=gpu):
  *  - CPU & RAM only unchanged, and the CPU host refusing every GPU request;
- *  - PRODUCT: this machine's adapters by PCI vendor ID and what GPU-Offload and GPU-Only do with them;
+ *  - PRODUCT: this machine's adapters by PCI vendor ID and what GPU-Offload, GPU-Only and Automatic do
+ *    with them (Automatic's resolved mode, job profile, GPU host, nvidia-smi VRAM and label, then a
+ *    labelled not-ready leg and its re-resolution after a release);
  *  - MECHANICS (eligibility substituted, labelled): the pack guard before the GPU host forks, the runtime's
  *    plan, an offloaded load and inference, every llama.cpp binary in the GPU host loaded from the pack,
  *    the service's GPU-Offload, GPU-Only's real shortfall, the CPU fallback, and a pack altered after
@@ -186,6 +188,7 @@ function reportModes(report: HarnessReport, privatePaths: string[]): void {
   noPrivatePath(report, privatePaths);
   console.log(`\n  · adapters: ${JSON.stringify(report.adapters)}`);
   console.log(`  · product readiness: ${JSON.stringify(report.productReadiness)}`);
+  for (const key of ["automatic", "automaticVramMib", "automaticLabel", "automaticNotReady", "automaticReResolved", "automaticVramReleaseMib"]) console.log(`  · ${key}: ${JSON.stringify(report[key])}`);
   console.log(`  · plan: ${JSON.stringify(report.plan)}`);
   console.log(`  · load: ${JSON.stringify(report.load)}`);
   console.log(`  · pack guard runs: ${String(report.guardRuns)}`);

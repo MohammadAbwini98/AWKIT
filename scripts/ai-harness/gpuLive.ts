@@ -5,7 +5,9 @@
  * pinned Qwen3.5-0.8B.
  *
  * Two kinds of evidence, never mixed:
- *  - PRODUCT: the product's own E2 answer for this machine's adapters, and what each mode does with it.
+ *  - PRODUCT: the product's own E2 answer for this machine's adapters, and what each mode does with it,
+ *    Automatic included: its resolved mode, job profile, GPU host, VRAM (nvidia-smi) and label. Its
+ *    not-ready leg substitutes only the readiness answer, and is labelled so.
  *  - MECHANICS: the real Vulkan host driven with eligibility SUBSTITUTED (the manager, the pack guard,
  *    the loader hook, the runtime's plan, an offloaded load and inference, the service's GPU paths). On
  *    a non-NVIDIA adapter this proves the machinery only. It is not NVIDIA qualification (E11).
@@ -19,8 +21,10 @@ import { AiUtilityHostManager } from "@main/ai/AiUtilityHostManager";
 import { displayAdapterVendorIds, gpuReadiness } from "@main/ai/gpuAdapters";
 import type { AiAdmissionView } from "@src/ai/AiAdmission";
 import { AiBackendPackStore } from "@src/ai/AiBackendPack";
-import { classifyAdapters, describeAdapters, type AiGpuReadiness } from "@src/ai/AiExecutionProfile";
+import { classifyAdapters, describeAdapters, toExecutionView, type AiGpuReadiness } from "@src/ai/AiExecutionProfile";
+import { AiJobTracker, type AiJobStatus } from "@src/ai/AiJobStatus";
 import type { AiOutputSchema } from "@src/ai/AiOutputContract";
+import { describeQualification, runConfigurationOf } from "@src/ai/AiQualification";
 import { AiService, type AiJobRequest, type AiServiceSettings } from "@src/ai/AiService";
 import {
   AI_HOST_PROTOCOL_VERSION,
@@ -31,7 +35,8 @@ import {
   type AiInferResult,
   type AiLoadResult
 } from "@src/ai/contracts/AiHostProtocol";
-import { AI_BACKEND_MANIFEST, AI_RUNTIME_PIN } from "@src/offline/AiModelManifest";
+import { AI_BACKEND_MANIFEST, AI_MODEL_MANIFEST, AI_RUNTIME_PIN } from "@src/offline/AiModelManifest";
+import { AI_QUALIFIED_CONFIGURATIONS } from "@src/offline/AiQualifiedList";
 
 import { establishFreshHost, expectOneGuardedFork, HostTeardown, withHostTeardown } from "./gpuHostLifecycle";
 
@@ -64,6 +69,28 @@ const inside = (base: string, file: string): boolean => {
   const rel = path.relative(base.toLowerCase(), file.toLowerCase());
   return rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel);
 };
+
+/** Every llama.cpp / ggml binary in a host (the addon, the backends, the CPU variants) must come from the pack. */
+function binariesFromPack(pid: number, packDir: string): { fromPack: string[] } {
+  const runtimeBinaries = modulesOf(pid).filter((file) => /\\(ggml[^\\]*\.dll|llama[^\\]*\.dll|llama-addon\.node)$/i.test(file));
+  const outside = runtimeBinaries.filter((file) => !inside(packDir, file));
+  if (!runtimeBinaries.some((file) => /ggml-vulkan\.dll$/i.test(file) && inside(packDir, file))) throw new Error(`ggml-vulkan.dll not loaded from the pack: ${runtimeBinaries.join("; ")}`);
+  if (outside.length > 0) throw new Error(`loaded from outside the pack: ${outside.join("; ")}`);
+  return { fromPack: runtimeBinaries.map((file) => path.basename(file)) };
+}
+
+/** VRAM in use on every NVIDIA GPU (MiB, summed), from the driver's own nvidia-smi; null where there is none. */
+function nvidiaVramUsedMib(): number | null {
+  const smi = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "nvidia-smi.exe");
+  if (!fs.existsSync(smi)) return null;
+  const out = spawnSync(smi, ["--query-gpu=memory.used", "--format=csv,noheader,nounits"], { encoding: "utf8", windowsHide: true, timeout: 60_000 });
+  const rows = String(out.stdout ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map(Number);
+  return rows.length > 0 && rows.every(Number.isFinite) ? rows.reduce((sum, value) => sum + value, 0) : null;
+}
 
 type Context = { step: Step; record: (key: string, value: unknown) => void; log: (line: string) => void };
 
@@ -151,17 +178,18 @@ async function gpuLiveSteps({ step, record, log }: Context, hosts: HostTeardown)
   });
 
   const settings: AiServiceSettings = { enabled: true, yieldDuringRuns: false, idleUnloadMs: 0, minFreeMemoryMb: 0, executionMode: "gpu-offload", vramReserveBytes: null };
-  const makeService = (readinessFor: () => Promise<AiGpuReadiness>) =>
+  const makeService = (readinessFor: () => Promise<AiGpuReadiness>, current: AiServiceSettings = settings, jobs?: AiJobTracker) =>
     new AiService({
       transport: (backend) => (backend === "cpu" ? cpu : gpu),
       gpu: readinessFor,
       model: async () => ({ ok: true, modelId, modelPath, contextTokens: 4096 }),
       verifyModel: async () => true,
-      settings: async () => settings,
+      settings: async () => current,
       admission: () => IDLE,
       threads,
       expectedRuntimeBuild: build,
-      log: logger
+      log: logger,
+      ...(jobs ? { jobs } : {})
     });
   let jobs = 0;
   const job = (): AiJobRequest => ({
@@ -192,6 +220,122 @@ async function gpuLiveSteps({ step, record, log }: Context, hosts: HostTeardown)
     }
     return { outcome: outcome.status, execution };
   });
+
+  // ── PRODUCT: Automatic, the default (owner decision 2026-10-03) ─────────────────────────────
+  // Resolved at each load from the product's own readiness: GPU-Offload where NVIDIA is proven, CPU & RAM
+  // only otherwise, never a refusal. Only the not-ready leg substitutes the readiness answer, and says so.
+  await product.releaseModel();
+  const autoSettings: AiServiceSettings = { ...settings, executionMode: "auto", vramReserveBytes: null };
+  const autoJobs: AiJobStatus[] = [];
+  let notReady: AiGpuReadiness | null = null;
+  const automatic = makeService(async () => notReady ?? gpuReadiness(store), autoSettings, new AiJobTracker({ publish: (_owner, status) => autoJobs.push(status) }));
+  const runAutomatic = async (onGpu: boolean, shownReadiness: AiGpuReadiness) => {
+    const base = job();
+    const request: AiJobRequest = { ...base, owner: { window: 1, requestId: base.requestId } };
+    const guardRuns = verifications;
+    const started = Date.now();
+    const outcome = await automatic.submit(request);
+    const wallMs = Date.now() - started;
+    const status = await automatic.status();
+    const { execution } = status;
+    const view = toExecutionView(status, autoSettings.executionMode ?? "cpu", shownReadiness);
+    const statuses = autoJobs.filter((s) => s.jobId === request.owner?.requestId);
+    const last = statuses[statuses.length - 1];
+    const stages = statuses.reduce<Array<{ stage: string; atMs: number }>>((list, s) => (list[list.length - 1]?.stage === s.stage ? list : [...list, { stage: s.stage, atMs: s.elapsedMs }]), []);
+    const wanted = onGpu ? { mode: "gpu-offload", backend: "vulkan", device: "gpu" } : { mode: "cpu", backend: "cpu", device: "cpu" };
+    const problems = [
+      outcome.status !== "ok" && `outcome ${outcome.status}`,
+      autoSettings.executionMode !== "auto" && "the stored mode is no longer auto",
+      view.mode !== "auto" && "the view does not show the configured mode",
+      execution.mode !== wanted.mode && `resolved to ${execution.mode}`,
+      execution.backend !== wanted.backend && `ran on ${execution.backend}`,
+      onGpu && !(execution.gpuLayers >= 1) && "no layer on the GPU",
+      (execution.fallbackReason !== null || execution.refusal !== null || view.message !== null) && "a fallback or refusal was reported",
+      (last?.state !== "completed" || last.profile?.mode !== wanted.mode || last.profile.backend !== wanted.backend || last.profile.device !== wanted.device) && "the job profile is not the resolved mode",
+      (onGpu ? gpu.status().pid === null || verifications - guardRuns !== 1 : gpu.status().pid !== null || verifications !== guardRuns) && "the GPU host did not match the resolved mode"
+    ].filter(Boolean);
+    if (problems.length > 0) throw new Error(`${problems.join("; ")}: ${JSON.stringify({ outcome, execution, job: last })}`);
+    return {
+      configured: autoSettings.executionMode,
+      resolved: execution.mode,
+      backend: execution.backend,
+      layers: `${execution.gpuLayers} of ${execution.totalLayers ?? "?"}`,
+      jobProfile: last?.profile ?? null,
+      readiness: view.gpuReadiness,
+      vram: execution.vram,
+      timings: { wallMs, stages, ...(outcome.status === "ok" ? { firstTokenMs: outcome.usage.firstTokenMs, generationMs: outcome.usage.generationMs } : {}) }
+    };
+  };
+
+  await step("(precondition) Automatic starts with no GPU host running", () => establishFreshHost(gpu));
+  const vramBefore = readiness.ok ? nvidiaVramUsedMib() : null;
+  const auto = await step(`PRODUCT Automatic on this machine (${readiness.ok ? "proven NVIDIA: runs as GPU-Offload" : `${readiness.reason}: runs as CPU & RAM only`})`, () => runAutomatic(readiness.ok, readiness));
+  record("automatic", auto ?? null);
+  if (auto && readiness.ok) {
+    await step("PRODUCT Automatic's GPU host loads every runtime binary from the app-managed Vulkan pack", () => {
+      const pid = gpu.status().pid;
+      if (!pid) throw new Error("no GPU host");
+      return binariesFromPack(pid, packDir);
+    });
+    await step("PRODUCT Automatic's model occupies NVIDIA VRAM while loaded (nvidia-smi)", () => {
+      const loaded = nvidiaVramUsedMib();
+      if (vramBefore === null || loaded === null) throw new Error("nvidia-smi gave no reading on a machine readiness proves NVIDIA");
+      if (!(loaded > vramBefore)) throw new Error(`VRAM used ${vramBefore} MiB before the load and ${loaded} MiB with the model loaded`);
+      record("automaticVramMib", { before: vramBefore, loaded });
+      return { beforeMib: vramBefore, loadedMib: loaded, modelAndContextMib: loaded - vramBefore };
+    });
+  }
+  if (auto) {
+    await step("PRODUCT Automatic's qualification label is about the configuration it ran in", async () => {
+      const sha = AI_MODEL_MANIFEST.find((entry) => entry.id === modelId)?.sha256 ?? null;
+      const featureBudgets = Object.fromEntries(AI_QUALIFIED_CONFIGURATIONS.map((entry) => [entry.feature, entry.outputTokens]));
+      const label = (configuration: ReturnType<typeof runConfigurationOf>) =>
+        describeQualification({ compatibility: "compatible", modelSha256: sha, runtimeBuild: build, configuration, featureBudgets, hardwareClass: null });
+      const ran = label(runConfigurationOf(await automatic.status(), "auto", readiness));
+      const cpuControl = label({ backend: "cpu", offload: "cpu", contextTokens: 4096 });
+      const truthful = readiness.ok
+        ? ran.configuration?.backend === "vulkan" && ran.label === "compatible-unqualified" && ran.reason === "NOT_QUALIFIED_ON_THIS_CONFIGURATION"
+        : ran.configuration?.backend === "cpu" && ran.label === "qualified";
+      if (!truthful || cpuControl.label !== "qualified") throw new Error(JSON.stringify({ ran, cpuControl: cpuControl.label }));
+      const value = { label: ran.label, reason: ran.reason, configuration: ran.configuration, cpuControl: cpuControl.label };
+      record("automaticLabel", value);
+      return value;
+    });
+  }
+  await step("Automatic, readiness SUBSTITUTED as not proven after a release: runs as CPU & RAM only, no fallback, no refusal, the reason shown", async () => {
+    notReady = { ok: false, reason: "VENDOR_UNPROVEN" };
+    await automatic.releaseModel();
+    if (gpu.status().pid !== null) throw new Error("the release left the GPU host running");
+    const value = await runAutomatic(false, notReady);
+    if (value.readiness.ok || value.readiness.reason !== "VENDOR_UNPROVEN" || !value.readiness.message) throw new Error(JSON.stringify(value.readiness));
+    record("automaticNotReady", value);
+    return value;
+  });
+  await step(`PRODUCT Automatic re-resolves at the next load after a release (${readiness.ok ? "back on the GPU" : "still CPU & RAM only"})`, async () => {
+    notReady = null;
+    await automatic.releaseModel();
+    const value = await runAutomatic(readiness.ok, readiness);
+    record("automaticReResolved", value);
+    return value;
+  });
+  if (auto && readiness.ok) {
+    await step("...and releasing the model stops the GPU host and gives its NVIDIA VRAM back (nvidia-smi)", async () => {
+      const loaded = nvidiaVramUsedMib();
+      if (loaded === null || gpu.status().pid === null) throw new Error(JSON.stringify({ loaded, pid: gpu.status().pid }));
+      await automatic.releaseModel();
+      if (gpu.status().pid !== null) throw new Error("the release left the GPU host running");
+      // The driver frees the memory once Windows has ended the process; a bounded wait, not a sleep.
+      let released = nvidiaVramUsedMib();
+      for (let waited = 0; released !== null && released >= loaded && waited < 10_000; waited += 250) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        released = nvidiaVramUsedMib();
+      }
+      if (released === null || released >= loaded) throw new Error(`VRAM used ${loaded} MiB with the model loaded and ${String(released)} MiB after the release`);
+      record("automaticVramReleaseMib", { loaded, released });
+      return { loadedMib: loaded, releasedMib: released };
+    });
+  }
+  await automatic.releaseModel();
 
   // ── MECHANICS: the real Vulkan host (eligibility substituted) ───────────────────────────────
   // On an eligible machine the PRODUCT steps left the GPU host running on this manager, and a hello
@@ -228,13 +372,7 @@ async function gpuLiveSteps({ step, record, log }: Context, hosts: HostTeardown)
   await step("MECHANICS every GPU binary in the host comes from the app-managed pack", () => {
     const pid = gpu.status().pid;
     if (!pid) throw new Error("no GPU host");
-    const modules = modulesOf(pid);
-    // Every llama.cpp / ggml binary in this process: the addon, the backends, the CPU variants.
-    const runtimeBinaries = modules.filter((file) => /\\(ggml[^\\]*\.dll|llama[^\\]*\.dll|llama-addon\.node)$/i.test(file));
-    const outside = runtimeBinaries.filter((file) => !inside(packDir, file));
-    if (!runtimeBinaries.some((file) => /ggml-vulkan\.dll$/i.test(file) && inside(packDir, file))) throw new Error(`ggml-vulkan.dll not loaded from the pack: ${runtimeBinaries.join("; ")}`);
-    if (outside.length > 0) throw new Error(`loaded from outside the pack: ${outside.join("; ")}`);
-    return { fromPack: runtimeBinaries.map((file) => path.basename(file)) };
+    return binariesFromPack(pid, packDir);
   });
   await step("MECHANICS an offloaded inference answers inside the schema", async () => {
     const result = await gpu.call<AiInferResult>(
@@ -294,6 +432,7 @@ async function gpuLiveSteps({ step, record, log }: Context, hosts: HostTeardown)
   });
 
   await substituted.shutdown();
+  await automatic.shutdown();
   await product.shutdown();
   record("guardRuns", verifications);
 }

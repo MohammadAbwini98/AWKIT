@@ -397,9 +397,19 @@ console.log("\nE. Wiring");
 const source = (file: string) => fs.readFileSync(path.join(ROOT, file), "utf8");
 {
   const live = source("scripts/ai-harness/gpuLive.ts");
-  const precondition = live.indexOf("establishFreshHost(gpu)");
+  // By its label: the Automatic steps have their own fresh-host precondition earlier in the file.
+  const precondition = live.indexOf('"(precondition) MECHANICS starts with no GPU host running, so its first call must fork", () => establishFreshHost(gpu)');
   const helloStep = live.indexOf('"MECHANICS the GPU host starts only after the pack guard, and reports Vulkan"');
   check("gpuLive: the fresh-host precondition step precedes the MECHANICS hello", precondition > 0 && helloStep > precondition);
+  const automatic = live.indexOf("PRODUCT Automatic on this machine");
+  check(
+    "gpuLive: PRODUCT Automatic runs on the product's own readiness before MECHANICS, and only its labelled not-ready leg substitutes it",
+    /executionMode: "auto"/.test(live) &&
+      /makeService\(async \(\) => notReady \?\? gpuReadiness\(store\)/.test(live) &&
+      live.includes("readiness SUBSTITUTED as not proven") &&
+      automatic > 0 &&
+      automatic < precondition
+  );
   check("gpuLive: the MECHANICS hello asserts one guarded fork against the real guard counter", /expectOneGuardedFork\(gpu, \(\) => verifications, \(\) => gpu\.call<AiHostHello>\(HELLO/.test(live));
   for (const file of ["scripts/ai-harness/gpuLive.ts", "scripts/ai-harness/gpuLifecycle.ts", "scripts/ai-harness/gpuProgress.ts"]) {
     const text = source(file);

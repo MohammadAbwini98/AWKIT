@@ -1,6 +1,27 @@
 # TASK_LOG
 
-## 2026-10-03 (latest) — DX-0 freezes the adapter by its authoring path (Claude)
+## 2026-10-03 (latest) — Automatic qualified on NVIDIA hardware (Claude, GTX 980M machine)
+
+- **Task:** qualify the Automatic execution mode on real NVIDIA hardware.
+- **Result:** PASS at the physical console. Automatic resolves to GPU-Offload, with all 25 layers on Vulkan.
+  - VRAM is observed through nvidia-smi.
+  - The not-ready leg runs as CPU & RAM only, with no refusal.
+  - It re-resolves at the next load.
+  - No product defect was found.
+- **Files:**
+  - `scripts/ai-harness/gpuLive.ts`;
+  - `scripts/{verify-ai-gpu-host,verify-ai-gpu-harness}.mts`;
+  - `scripts/lib/verifier-classification.ts`;
+  - `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md`.
+- **Verification:**
+  - `npm run build` and `typecheck:scripts` PASS.
+  - `verify:ai-gpu-backend-gate` 28/0, `verify:ai-gpu-host` 34/0, `verify:ai-gpu-packaged` 35/0,
+    `verify:ai-progress-gpu-packaged` 13/0.
+  - `verify:ai-gpu-harness` 42/0, `verify:ai-gpu-modes` 231/0, `verify:ai-settings-gui` 157/157.
+  - `verify:verifier-classification` PASS.
+  - `verify:ai-gpu-lifecycle` and `-packaged` NOT RUN: their inputs are unchanged since `4771e84e`.
+
+## 2026-10-03 — DX-0 freezes the adapter by its authoring path (Claude)
 
 - **Task:** resolve the DX-0 regression that failed `verify:ai-display-gate-mutations` and `verify:ai-authoring`.
 - **Result:** a stale verifier, not a product regression. L11 changed only `failureBatch` in `aiAssist.ts`.
