@@ -21,6 +21,27 @@ on an NVIDIA machine yet.**
      folder (`docs/security/RELEASE_KEY_CUSTODY.md`).
    - Don't run `generate-key` on the NVIDIA machine: that would create a different trust root.
 
+## No USB drive: build on the development machine instead
+
+If the key can't travel by USB, leave it where it is. Build and sign the package on the development machine
+and move only its signed output, which holds no secrets and may travel by any route. The NVIDIA machine
+then needs neither the key nor Visual Studio, so skip steps 5 and 8 below.
+
+1. On the development machine, in Windows PowerShell 5.1, in its AWKIT checkout. The script pulls `main`,
+   runs `package:portable`, exports `dist\win-unpacked`, `build\native-hosts` and the signed manifest pair
+   with SHA-256 sums, restores the committed manifest pair and zips the export:
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File scripts\nvidia-qualification\export-package-for-nvidia.ps1
+   ```
+
+2. Copy the `.zip` to the NVIDIA machine. Then, in `C:\src\AWKIT`, run the import. It moves the checkout
+   to the package's commit, checks every hash, installs the files and runs `npm ci` if Electron is missing:
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File scripts\nvidia-qualification\import-package-on-nvidia.ps1 -TransferPath <path to the .zip>
+   ```
+
 ## Software to install on the NVIDIA machine
 
 - **Current NVIDIA driver.** It supplies `vulkan-1.dll` and `nvidia-smi.exe`. The CUDA Toolkit is not
