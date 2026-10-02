@@ -1,6 +1,21 @@
 # TASK_LOG
 
-## 2026-10-02 (latest) — E2 recorded as a pending capability; CPU & RAM fallback re-proved; Phase L closed for its approved scope (Claude)
+## 2026-10-02 (latest) — Tracker synced for the E2-pending resolution of `awkit-djnl.15` (Claude, development machine)
+
+- **Task:** run the `bd` steps from the latest HANDOFF section, under contract `awkit-djnl-15-e2-pending-1002`
+  with a project-state lease on `.beads/issues.jsonl`.
+- **Result:** `awkit-djnl.15` got the resolution note and was closed, its reason naming `awkit-djnl.20`.
+  `awkit-djnl.20`, the pending E2 hybrid physical-adapter correlation item, was filed open under `awkit-djnl`.
+  The export was measured at 333 issues, 22 outstanding / 311 closed and 202 edges, as expected. The lease is
+  released.
+- **Files:**
+  - `.beads/{issues,interactions}.jsonl`;
+  - `docs/ai/contracts/{awkit-djnl-15-e2-pending-1002,active-lease}.json`;
+  - `scripts/verify-roadmap-dashboard.mjs` (the three tracker pins);
+  - `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md`.
+- **Verification:** `verify:roadmap-dashboard` 177/177 with Sources agree. No product change, so no build.
+
+## 2026-10-02 — E2 recorded as a pending capability; CPU & RAM fallback re-proved; Phase L closed for its approved scope (Claude)
 
 - **Task:** record the owner's E2 decision, confirm the safe CPU & RAM fallback, and re-evaluate Phase L.
 - **Result:** the fallback already existed, so no runtime change was made.

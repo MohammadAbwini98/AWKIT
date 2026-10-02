@@ -28,8 +28,8 @@
   - An "any NVIDIA present" mutation failed 17 checks and was reverted.
 - **Phase L: complete** (`ImplementationRoadmap.ts`). The 2026-09-30 closing rule is met: all 15 milestones
   are closed, and every `.15` item is done, decided or carried forward.
-- **Tracker: not synchronized.** `bd` is not installed here, so HANDOFF lists the commands for the
-  development machine. Tracker unchanged at 22 outstanding / 310 closed.
+- **Tracker: synced** (contract `awkit-djnl-15-e2-pending-1002`). `awkit-djnl.15` is closed, and the pending E2
+  item is filed open as `awkit-djnl.20` under `awkit-djnl`. Tracker at 333 issues, 22 outstanding / 311 closed.
 - Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
 ## L8a NVIDIA qualification PASSES at the GTX 980M's physical console; E2 stays BLOCKED (`awkit-djnl.15`, 2026-10-02)

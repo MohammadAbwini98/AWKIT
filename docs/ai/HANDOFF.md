@@ -15,46 +15,14 @@ unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
   the mode that falls back automatically, and GPU-Only refuses.
   - `verify:ai-gpu-modes` 202/0, with its new section I (18 checks) for the E2-pending paths.
   - An "any NVIDIA present" eligibility mutation failed 17 checks and was reverted.
-- **Tracker: BLOCKED here** (`bd` is not installed on the NVIDIA machine). Run these on the development
-  machine after pulling `main` (it must include `afe0ba7d`). The command text has no `;`, `|`, `<`, `>` or
-  backticks, because the repository guard refuses any command that contains them.
-  1. Write the contract `docs/ai/contracts/awkit-djnl-15-e2-pending-1002.json`: risk 1,
-     `project_state_change`, writer `project-state` on `.beads/issues.jsonl`. Then take the lease:
-
-     ```powershell
-     npm run agent:lease-grant -- --task awkit-djnl-15-e2-pending-1002 --holder project-state --paths .beads/issues.jsonl
-     ```
-
-  2. Append the resolution note to `awkit-djnl.15`:
-
-     ```powershell
-     bd update awkit-djnl.15 --append-notes "2026-10-02 resolution (DECISIONS 2026-10-02, commits 9102ed05 and afe0ba7d). Item 2 DONE: NVIDIA qualification PASS on a GTX 980M at the physical console, every gate in docs/NVIDIA_QUALIFICATION_SETUP.md step 9. Item 3 carried forward by owner decision as a pending capability, PENDING / BLOCKED: hybrid physical-adapter correlation requires a trustworthy cross-runtime identity such as LUID, PCI bus identity or an equivalent supported API. Not waived, not PASS, acceptance unchanged, tracked as a new E2 item. CPU and RAM fallback re-proved with no runtime change, verify:ai-gpu-modes 202/0 section I. Items 1, 5 and 6 done, item 4 accepted risk. Phase L complete for its approved scope."
-     ```
-
-  3. File the pending E2 item under the Phase L epic, and note the id it prints:
-
-     ```powershell
-     bd create "E2 hybrid physical-adapter correlation - pending a trustworthy cross-runtime adapter identity" --type task -p 4 --parent awkit-djnl --labels ai,phase-l,roadmap -d "PENDING / BLOCKED by owner decision 2026-10-02 (DECISIONS). Carried forward from awkit-djnl.15 item 3, not waived and not PASS. node-llama-cpp 3.21.1 and 3.22.1 report only device names, no LUID, PCI bus, UUID or device id, so a hybrid Intel or AMD plus NVIDIA set reads VENDOR_UNPROVEN: GPU-Offload runs on CPU and RAM, GPU-Only refuses. Forbidden substitutes: device order, GPU index, adapter name alone, vendor ID alone, Chromium adapter order. Acceptance (L8a plan): on a hybrid machine each Vulkan device the runtime binds is proven to be a specific physical adapter and only the NVIDIA one is used, pinned through GGML_VK_VISIBLE_DEVICES, with the qualification gates run there. Resume when a supported runtime can establish Windows physical adapter to Vulkan device to node-llama-cpp execution device without heuristic matching, and hybrid hardware is available."
-     ```
-
-  4. Close `awkit-djnl.15`. Before running it, add the new id from step 3 to the end of the reason:
-
-     ```powershell
-     bd close awkit-djnl.15 --reason "Resolved under its own contract 2026-10-02: items 1, 2, 5 and 6 done, item 4 accepted risk, item 3 carried forward as the pending E2 item"
-     ```
-
-  5. Export, then release the lease:
-
-     ```powershell
-     bd export -o .beads/issues.jsonl
-     ```
-
-  6. Re-pin `scripts/verify-roadmap-dashboard.mjs` from the measured export, with dated comment lines like the
-     existing ones. It hard-codes the tracker totals: today 332 issues, 22 outstanding / 310 closed and 201
-     edges. Expected after these steps: 333 issues, 22 outstanding / 311 closed and 202 edges. If the
-     measured numbers differ, use them.
-  7. Run `npm run verify:roadmap-dashboard` and confirm "Sources agree". Update CURRENT_STATE, HANDOFF and
-     TASK_LOG to say the tracker is synced. Commit to `main` and push.
+- **Tracker: synced** on the development machine under contract `awkit-djnl-15-e2-pending-1002`
+  (project-state lease, released). The command list this section held at `7f37398f` was run as written.
+  - `awkit-djnl.15`: resolution note appended, then **closed**, its reason naming `awkit-djnl.20`.
+  - `awkit-djnl.20` filed **open** under `awkit-djnl` (task, P4): E2 hybrid physical-adapter correlation,
+    PENDING / BLOCKED, acceptance unchanged.
+  - Export measured as expected: 333 issues, 22 outstanding / 311 closed, 202 edges.
+    `scripts/verify-roadmap-dashboard.mjs` is re-pinned to those totals, and `verify:roadmap-dashboard` reads
+    177/177 with Sources agree.
 - **Next, owner:** nothing is required for Phase L. Resume E2 only when the condition above holds.
 
 ## HANDOFF (2026-10-02) — `awkit-djnl.15` item 2, NVIDIA qualification, PASSES at the GTX 980M's physical console; E2 stays BLOCKED
