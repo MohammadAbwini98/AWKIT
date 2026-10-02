@@ -24,6 +24,9 @@
  * be proven reaching a GPU host, read as NVIDIA by adapter order, position or majority, or reported as a
  * failure under GPU-Offload instead of a CPU & RAM answer with VENDOR_UNPROVEN in the execution status,
  * view, log and job progress; GPU-Only on such a set doing anything but refusing truthfully.
+ * Section J: a GPU host that exits while starting, or a plan that times out, not falling back under
+ * GPU-Offload with its reason and a completed job, or not refusing under GPU-Only; a model that fails
+ * verification, or a CPU load that fails after a fallback, reported as anything but a failed load.
  *
  * Real NVIDIA hardware is NOT exercised here (E11). Run: npm run verify:ai-gpu-modes
  */
@@ -848,6 +851,81 @@ console.log("\nI. E2 pending (owner decision 2026-10-02): an unproven hybrid ide
     "...only the administrator's own switch to GPU-Offload runs it, on CPU & RAM with VENDOR_UNPROVEN",
     chosen.status === "ok" && chosen.profile.backend === "cpu" && chosenReason === "VENDOR_UNPROVEN" && types(onlyHybrid.gpu).length === 0,
     { chosen, chosenReason }
+  );
+}
+
+// ── J. GPU initialisation failure falls back; a model or CPU failure is never dressed up as one ──────
+console.log("\nJ. GPU initialisation failure, and failures that are not a GPU fallback\n");
+{
+  const owned = (requestId: string): AiJobRequest => ({ ...job(requestId), owner: { window: 1, requestId } });
+  const tracked = () => {
+    const published: AiJobStatus[] = [];
+    return { published, jobs: new AiJobTracker({ publish: (_owner, status) => published.push(status) }) };
+  };
+  const lastOf = (statuses: AiJobStatus[]) => statuses[statuses.length - 1];
+
+  // The GPU host fails to start for a reason other than a refused pack (it exited during the handshake).
+  const start = tracked();
+  const exited = world({ mode: "gpu-offload", gpu: { helloFails: "AI_HOST_EXITED", gpuPlan: plan(24) }, jobs: start.jobs });
+  const exitedAnswer = await exited.service.submit(owned("j-start"));
+  const exitedStatus = await exited.service.status();
+  const exitedFinal = lastOf(start.published);
+  check(
+    "GPU-Offload, the GPU host exits while starting: an answer on CPU & RAM with BACKEND_UNAVAILABLE, the GPU host stopped",
+    exitedAnswer.status === "ok" && exitedAnswer.profile.backend === "cpu" && exitedStatus.execution.fallbackReason === "BACKEND_UNAVAILABLE" && exitedStatus.state.kind === "available" && loads(exited.gpu).length === 0 && (exited.gpu?.releases ?? 0) >= 1,
+    { exitedAnswer, execution: exitedStatus.execution }
+  );
+  check(
+    "...and its job completes, not fails, carrying the CPU profile and the reason",
+    exitedFinal?.state === "completed" && exitedFinal.terminalReason === null && exitedFinal.profile?.backend === "cpu" && exitedFinal.profile.fallbackReason === "BACKEND_UNAVAILABLE",
+    exitedFinal
+  );
+  const exitedOnly = world({ mode: "gpu-only", gpu: { helloFails: "AI_HOST_EXITED", gpuPlan: plan(24) } });
+  const exitedRefused = await exitedOnly.run("j-start-only");
+  check(
+    "GPU-Only, the same start failure: refused naming BACKEND_UNAVAILABLE, nothing run on the CPU",
+    exitedRefused.status === "rejected" && exitedRefused.reason === "GPU_UNAVAILABLE" && (await exitedOnly.service.status()).execution.refusal?.reason === "BACKEND_UNAVAILABLE" && loads(exitedOnly.cpu).length === 0,
+    exitedRefused
+  );
+
+  // The plan request fails with an unexpected host error.
+  const timedOut = world({ mode: "gpu-offload", gpu: { gpuPlan: { fail: "AI_HOST_TIMEOUT" } } });
+  const timedOutAnswer = await timedOut.run("j-plan");
+  check(
+    "GPU-Offload, the GPU plan times out: an answer on CPU & RAM with GPU_LOAD_FAILED, the GPU host stopped",
+    timedOutAnswer.status === "ok" && timedOutAnswer.profile.backend === "cpu" && (await timedOut.service.status()).execution.fallbackReason === "GPU_LOAD_FAILED" && (timedOut.gpu?.releases ?? 0) >= 1,
+    timedOutAnswer
+  );
+
+  // A model that fails verification is a model failure under every mode, not a GPU fallback.
+  let readinessChecks = 0;
+  const badModel = tracked();
+  const unverified = world({
+    mode: "gpu-offload",
+    readiness: async () => {
+      readinessChecks += 1;
+      return NVIDIA_ONE;
+    },
+    gpu: { gpuPlan: plan(24) },
+    verifyModel: async () => false,
+    jobs: badModel.jobs
+  });
+  const unverifiedOutcome = await unverified.service.submit(owned("j-model"));
+  check(
+    "GPU-Offload, the model fails verification: the job FAILS with LOAD_FAILED, no GPU check, nothing loaded, no fallback reason",
+    unverifiedOutcome.status === "failed" && unverifiedOutcome.code === "LOAD_FAILED" && readinessChecks === 0 && types(unverified.gpu).length === 0 && loads(unverified.cpu).length === 0 && (await unverified.service.status()).execution.fallbackReason === null && lastOf(badModel.published)?.state === "failed",
+    { unverifiedOutcome, readinessChecks }
+  );
+
+  // The fallback itself failing on the CPU is reported as the load failure it is.
+  const cpuFails = tracked();
+  const brokenCpu = world({ mode: "gpu-offload", readiness: classifyAdapters([0x8086, NVIDIA_PCI_VENDOR_ID]), cpu: { loadFails: true }, jobs: cpuFails.jobs });
+  const brokenOutcome = await brokenCpu.service.submit(owned("j-cpu-load"));
+  const brokenFinal = lastOf(cpuFails.published);
+  check(
+    "GPU-Offload, VENDOR_UNPROVEN and then the CPU load fails: the job FAILS with LOAD_FAILED, never an answer or a completed fallback",
+    brokenOutcome.status === "failed" && brokenOutcome.code === "LOAD_FAILED" && brokenFinal?.state === "failed" && brokenFinal.terminalReason === "LOAD_FAILED" && types(brokenCpu.gpu).length === 0,
+    { brokenOutcome, brokenFinal }
   );
 }
 
