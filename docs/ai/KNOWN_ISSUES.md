@@ -1,7 +1,17 @@
 # KNOWN_ISSUES
 
-## The DX-0 freeze fails again: L11 changed a frozen source (found 2026-10-03, OPEN)
+## The DX-0 freeze fails again: L11 changed a frozen source (found 2026-10-03, RESOLVED 2026-10-03)
 
+- **Resolved.** DX-0 now freezes `aiAssist.ts` by the SHA-256 of its authoring path (`authoringPathSha256`
+  in `scripts/ai-harness/authoringDx.ts`), not by the file's blob.
+  - The authoring path is `explainFlowValidation`, every top-level declaration it reaches by name, and the
+    import bindings those use, with their modules. Statements that declare nothing are always kept.
+  - `verify:ai-authoring` derives each revision's digest from the adapter blob that revision froze. Revision 4's
+    blob `5ce4c93b` derives to `dc08f6c4`, the same digest as today's tree.
+  - Captures record the digest. Older captures still match by the blob.
+- **Verdict:** a stale verifier, not a product regression. L11 changed only `failureBatch` and added the import
+  it uses, outside the authoring path.
+- **Lesson, again:** freeze what a gate protects, not the file that happens to hold it.
 - **Symptom.** `verify:ai-display-gate-mutations` fails its controls, 392/393 each, on the DX-0 precondition:
   "app/main/ai/aiAssist.ts is ec717fd3, frozen 5ce4c93b". So `verify:ai-authoring` fails the same check.
 - **Cause.** L11 commits `29701c5a` and `299954fe` (2026-10-01) changed `aiAssist.ts` after the DX-0 freeze

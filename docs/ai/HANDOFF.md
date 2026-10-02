@@ -1,6 +1,20 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-03, latest) — Automatic is the new default: GPU-Offload where NVIDIA is proven
+## HANDOFF (2026-10-03, latest) — DX-0 freeze fixed: the adapter is frozen by its authoring path
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No product code changed.
+
+- **Done.** DX-0 freezes `aiAssist.ts` by `authoringPathSha256`, not its blob (`KNOWN_ISSUES.md`, resolved). L11
+  had changed only the failure-analysis path, so the whole-file blob was a stale coupling.
+- **Gates:**
+  - PASS: `verify:ai-authoring` 402/402, `verify:ai-display-gate-mutations` 22/0, `verify:ai-dx-mutations` 50/0,
+    `verify:ai-authoring-dx` (DX MET).
+  - PASS: `verify:ai-gpu-modes` 231/0, `verify:ai-settings-gui` 157/157, `verify:ai-gpu-host` 26/0.
+- **NVIDIA qualification under Automatic: BLOCKED** on this AMD-only machine.
+- **Next, owner:** optionally run the GTX 980M gates once under Automatic. This was item 1 of the previous
+  handoff; item 2 (the DX-0 fix) is done.
+
+## HANDOFF (2026-10-03) — Automatic is the new default: GPU-Offload where NVIDIA is proven
 
 The owner made GPU-Offload the default where NVIDIA is proven (`DECISIONS.md` 2026-10-03). The validation
 ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.

@@ -1,6 +1,30 @@
 # CURRENT_STATE
 
-## GPU-Offload is the default where NVIDIA is proven: new "Automatic" mode (2026-10-03, latest)
+## DX-0 freezes the adapter by its authoring path; the display-gate mutation run passes again (2026-10-03, latest)
+
+- **Root cause: a stale verifier, not a product regression.** DX-0 froze all of `app/main/ai/aiAssist.ts` by
+  its blob. L11 (`29701c5a`, `299954fe`) changed only `failureBatch` and added the import it uses. The
+  authoring path DX-0 protects is unchanged.
+- **Fix:** `scripts/ai-harness/authoringDx.ts` freezes the adapter by `authoringPathSha256` instead.
+  - It hashes `explainFlowValidation`, every top-level declaration it reaches, and the import bindings those
+    use, with their modules.
+  - `verify:ai-authoring` derives each revision's value from the adapter blob it froze. It is never written to
+    fit the tree.
+  - Captures record the digest (`verify-ai-explanation-live.mts`). Older captures still match by the blob.
+- **Verification:**
+  - `verify:ai-authoring` 402/402, up from 392/393.
+  - `verify:ai-display-gate-mutations` 22/0, with 16 of 16 mutants killed.
+  - `verify:ai-dx-mutations` 50/0, with 44 of 44 killed. That includes 5 new adapter mutants, one of which
+    restores the whole-file coupling.
+  - `verify:ai-authoring-dx`: DX MET.
+  - An on-disk mutation of the adapter's display gate was caught (authoring path `358b56ed`, frozen
+    `dc08f6c4`) and reverted.
+- **NVIDIA hardware: BLOCKED here.** This machine has only AMD `0x1002`, and `verify:ai-gpu-host` reports
+  `NO_COMPATIBLE_ADAPTER`. Automatic therefore runs on CPU & RAM here, as designed.
+- Tracker unchanged: 333 issues, 22 outstanding / 311 closed. Validation ledger unchanged at 65 PASS / 2 NOT RUN /
+  0 BLOCKED across 67 cases.
+
+## GPU-Offload is the default where NVIDIA is proven: new "Automatic" mode (2026-10-03)
 
 - **Owner decision** (`DECISIONS.md` 2026-10-03). It replaces E4's CPU & RAM only default; the three explicit
   modes are unchanged.

@@ -32,6 +32,8 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
+import ts from "typescript";
+
 import { sentencesOf } from "@src/ai/authoringClaimScreen";
 import { buildAuthoringRequest } from "@src/ai/authoringExplanation";
 import { AI_ASSIST_MAX_NODES, sanitizeAuthoringAssistRequest } from "@src/ai/contracts/AiApi";
@@ -64,6 +66,11 @@ export interface DxRevision {
    * frozen blob by `verify:ai-authoring`, never written to fit a run.
    */
   modelEntriesSha256: string;
+  /**
+   * SHA-256 of the authoring path in `blobs[AUTHORING_ADAPTER_PATH]` (`authoringPathSha256`): what that file is frozen
+   * for. L11 changed only its failure-analysis path (2026-10-01). Derived from the frozen blob by `verify:ai-authoring`.
+   */
+  authoringPathSha256: string;
 }
 
 export const DX_REVISIONS: readonly DxRevision[] = Object.freeze([
@@ -81,7 +88,8 @@ export const DX_REVISIONS: readonly DxRevision[] = Object.freeze([
       "src/ai/authoringClaimScreen.ts": "3c3204fa350cb922e7b092705ede63f12ddf42a3",
       "src/ai/authoringExplanation.ts": "c4376cccfb79106bc5a88a577d4bf32364612c56",
       "app/main/ai/aiAssist.ts": "74180291114b7eecc9718b8d2761f4dc90665e2b"
-    })
+    }),
+    authoringPathSha256: "7ebd62de8c9558bbcd42adaa66653a3ee4795c447ecea36f8c5fba6bea8edca2"
   }),
   // Revision 2 (owner, in their own words, 2026-09-26): R5's request, and R4's one proven false positive fixed (a
   // number ending a sentence is held). The same pack, runtime, adapter and held-out set; DX-3 automated.
@@ -98,7 +106,8 @@ export const DX_REVISIONS: readonly DxRevision[] = Object.freeze([
       "src/ai/authoringClaimScreen.ts": "b8142e0b7928dc7143ffba030ba3f5e662a3363f",
       "src/ai/authoringExplanation.ts": "a8413cc040d013ecc284895c02f7ea51f0a6fb16",
       "app/main/ai/aiAssist.ts": "74180291114b7eecc9718b8d2761f4dc90665e2b"
-    })
+    }),
+    authoringPathSha256: "7ebd62de8c9558bbcd42adaa66653a3ee4795c447ecea36f8c5fba6bea8edca2"
   }),
   // Revision 3: the same qualified 0.8B and held-out set, with a concise evidence-copying request.
   // The prior failures remain separate evidence and cannot be counted in this revision.
@@ -115,7 +124,8 @@ export const DX_REVISIONS: readonly DxRevision[] = Object.freeze([
       "src/ai/authoringClaimScreen.ts": "b8142e0b7928dc7143ffba030ba3f5e662a3363f",
       "src/ai/authoringExplanation.ts": "38af77bb43a3d0ab352a6b1fc75f7fd37b565d02",
       "app/main/ai/aiAssist.ts": "74180291114b7eecc9718b8d2761f4dc90665e2b"
-    })
+    }),
+    authoringPathSha256: "7ebd62de8c9558bbcd42adaa66653a3ee4795c447ecea36f8c5fba6bea8edca2"
   }),
   // Revision 4: the measured revision-3 omission and truncation are addressed by a bounded
   // request-specific response enum. Revision 3's incomplete NOT MET evidence remains separate.
@@ -132,7 +142,8 @@ export const DX_REVISIONS: readonly DxRevision[] = Object.freeze([
       "src/ai/authoringClaimScreen.ts": "b8142e0b7928dc7143ffba030ba3f5e662a3363f",
       "src/ai/authoringExplanation.ts": "51b400f3d3593fcf4655117d8ad5842c8ef135d2",
       "app/main/ai/aiAssist.ts": "5ce4c93b09570bf6c91a5f59392c006137268677"
-    })
+    }),
+    authoringPathSha256: "dc08f6c4e7990d03acf06f01e28941a8acc6a5c4e71acae4537a98c521b0ad2c"
   })
 ]);
 
@@ -298,13 +309,68 @@ export const MODEL_MANIFEST_PATH = "src/offline/AiModelManifest.ts";
 /** SHA-256 of the pinned model entries, as the module exports them. */
 export const modelEntriesSha256 = (entries: readonly unknown[] = AI_MODEL_MANIFEST) => sha256(JSON.stringify(entries));
 
+/** The other frozen source compared by what it pins: the main-process adapter, by its authoring path. */
+export const AUTHORING_ADAPTER_PATH = "app/main/ai/aiAssist.ts";
+
+/**
+ * SHA-256 of the authoring path in the adapter's `source`: `explainFlowValidation`, every top-level declaration it
+ * reaches by name, transitively, and each import binding those use with its module, in file order. A statement that
+ * declares no name is always kept. The failure-analysis, fragment and Spy paths beside it are not hashed.
+ */
+export function authoringPathSha256(source: string): string {
+  const file = ts.createSourceFile(AUTHORING_ADAPTER_PATH, source.replace(/\r\n/g, "\n"), ts.ScriptTarget.Latest, true);
+  const parts: Array<{ node: ts.Node; text: string }> = [];
+  const byName = new Map<string, ts.Node>();
+  for (const statement of file.statements) {
+    const clause = ts.isImportDeclaration(statement) ? statement.importClause : undefined;
+    if (ts.isImportDeclaration(statement) && clause) {
+      const bindings = clause.namedBindings;
+      const locals = [...(clause.name ? [clause.name] : []), ...(!bindings ? [] : ts.isNamedImports(bindings) ? bindings.elements : [bindings])];
+      for (const node of locals) {
+        byName.set((ts.isIdentifier(node) ? node : node.name).text, node);
+        const binding = ts.isImportSpecifier(node) ? `{ ${node.getText()} }` : node.getText();
+        parts.push({ node, text: `import ${clause.isTypeOnly ? "type " : ""}${binding} from ${statement.moduleSpecifier.getText()}` });
+      }
+      continue;
+    }
+    if (ts.isVariableStatement(statement)) {
+      for (const d of statement.declarationList.declarations) if (ts.isIdentifier(d.name)) byName.set(d.name.text, statement);
+    } else if (
+      (ts.isFunctionDeclaration(statement) || ts.isClassDeclaration(statement) || ts.isInterfaceDeclaration(statement) || ts.isTypeAliasDeclaration(statement) || ts.isEnumDeclaration(statement)) &&
+      statement.name
+    ) {
+      byName.set(statement.name.text, statement);
+    }
+    parts.push({ node: statement, text: statement.getText() });
+  }
+  const named = new Set(byName.values());
+  const kept = new Set<ts.Node>();
+  const keep = (node: ts.Node | undefined): void => {
+    if (!node || kept.has(node)) return;
+    kept.add(node);
+    walk(node);
+  };
+  const walk = (node: ts.Node): void => {
+    if (ts.isIdentifier(node)) keep(byName.get(node.text));
+    ts.forEachChild(node, walk);
+  };
+  for (const part of parts) if (!named.has(part.node)) keep(part.node);
+  keep(byName.get("explainFlowValidation"));
+  return sha256(parts.filter((p) => kept.has(p.node)).map((p) => p.text).join("\n"));
+}
+
+/** The working tree's authoring path, read from the checkout at `cwd`. */
+export const treeAuthoringPathSha256 = (cwd = process.cwd()) => authoringPathSha256(fs.readFileSync(path.join(cwd, AUTHORING_ADAPTER_PATH), "utf8"));
+
 /**
  * The frozen sources `inputs` does not hold as revision `rev` froze them (empty when it holds them all). The model
- * manifest matches by its blob (captures taken before awkit-djnl.14 record only that) or by its model entries.
+ * manifest matches by its blob (captures taken before awkit-djnl.14 record only that) or by its model entries, and the
+ * adapter by its blob or by its authoring path.
  */
-export function sourcesOff(inputs: Pick<CaptureInputs, "blobs" | "modelEntriesSha256">, rev: DxRevision = DX0): string[] {
+export function sourcesOff(inputs: Pick<CaptureInputs, "blobs" | "modelEntriesSha256" | "authoringPathSha256">, rev: DxRevision = DX0): string[] {
   return Object.entries(rev.blobs)
     .filter(([p, id]) => inputs.blobs?.[p] !== id && !(p === MODEL_MANIFEST_PATH && inputs.modelEntriesSha256 === rev.modelEntriesSha256))
+    .filter(([p]) => !(p === AUTHORING_ADAPTER_PATH && inputs.authoringPathSha256 === rev.authoringPathSha256))
     .map(([p]) => p);
 }
 
@@ -327,12 +393,14 @@ const earlierRevisionOf = (capture: ReviewCapture, heldOutSha256: string | null,
 
 /** Why the working tree no longer holds DX-0's sources and request (empty when it does). Needs git. */
 export function currentDx0Problems(instructionsSha256: string, runtimeBuild: string | null): string[] {
-  const tree = { blobs: gitBlobs(Object.keys(DX0.blobs)), modelEntriesSha256: modelEntriesSha256() };
+  const tree = { blobs: gitBlobs(Object.keys(DX0.blobs)), modelEntriesSha256: modelEntriesSha256(), authoringPathSha256: treeAuthoringPathSha256() };
   return [
     ...sourcesOff(tree).map((p) =>
       p === MODEL_MANIFEST_PATH
         ? `${p}'s model entries are ${tree.modelEntriesSha256.slice(0, 8)}, frozen ${DX0.modelEntriesSha256.slice(0, 8)}`
-        : `${p} is ${tree.blobs[p].slice(0, 8)}, frozen ${DX0.blobs[p].slice(0, 8)}`
+        : p === AUTHORING_ADAPTER_PATH
+          ? `${p}'s authoring path is ${tree.authoringPathSha256.slice(0, 8)}, frozen ${DX0.authoringPathSha256.slice(0, 8)}`
+          : `${p} is ${tree.blobs[p].slice(0, 8)}, frozen ${DX0.blobs[p].slice(0, 8)}`
     ),
     ...(instructionsSha256 !== DX0.instructionsSha256 ? [`request instructions sha256 ${instructionsSha256.slice(0, 8)}, frozen ${DX0.instructionsSha256.slice(0, 8)}`] : []),
     ...(runtimeBuild !== DX0.runtimeBuild ? [`AI_RUNTIME_PIN.build ${runtimeBuild}, frozen ${DX0.runtimeBuild}`] : [])

@@ -51,7 +51,7 @@ import path from "node:path";
 
 import { deriveInferenceThreads } from "../src/ai/AiAdmission";
 import { AUTHORING_LIMITS } from "../src/ai/authoringExplanation";
-import { DX0, HELD_OUT_DIR, gitBlobs, heldOutCommitProblems, modelEntriesSha256, readHeldOut, sourcesOff } from "./ai-harness/authoringDx";
+import { DX0, HELD_OUT_DIR, gitBlobs, heldOutCommitProblems, modelEntriesSha256, readHeldOut, sourcesOff, treeAuthoringPathSha256 } from "./ai-harness/authoringDx";
 import { reviewDir, type CaptureInputs } from "./ai-harness/authoringQualityReview";
 import { HOST_PATH, ROOT, buildAiHarness, measurePack, printSteps, runAiHarness, runtimeInstalled, stageModelRoot, type HarnessReport } from "./ai-harness/launch.mts";
 // Type-only: esbuild bundles the harness without checking it, so this puts the modes under typecheck:scripts.
@@ -246,7 +246,14 @@ console.log(`  runtime ${runtime.build}, pack ${PACK.file} ${measured.sha256.sli
 // What this run is taken on, recorded in each capture for DX-0. A mismatch is not refused (a later, authorized
 // change may be measured), but its captures are no DX evidence.
 const inputs: CaptureInputs | undefined = heldOut?.ok
-  ? { modelSha256: measured.sha256, runtimeBuild: runtime.build ?? "", blobs: gitBlobs(Object.keys(DX0.blobs), ROOT), modelEntriesSha256: modelEntriesSha256(), heldOutSha256: heldOut.inventory.corpusSha256 }
+  ? {
+      modelSha256: measured.sha256,
+      runtimeBuild: runtime.build ?? "",
+      blobs: gitBlobs(Object.keys(DX0.blobs), ROOT),
+      modelEntriesSha256: modelEntriesSha256(),
+      authoringPathSha256: treeAuthoringPathSha256(ROOT),
+      heldOutSha256: heldOut.inventory.corpusSha256
+    }
   : undefined;
 if (inputs) {
   const off = [...sourcesOff(inputs), ...(inputs.runtimeBuild !== DX0.runtimeBuild ? ["runtime"] : [])];

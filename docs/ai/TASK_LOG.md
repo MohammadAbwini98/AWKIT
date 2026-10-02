@@ -1,6 +1,27 @@
 # TASK_LOG
 
-## 2026-10-03 (latest) — Automatic: GPU-Offload is the default where NVIDIA is proven (Claude)
+## 2026-10-03 (latest) — DX-0 freezes the adapter by its authoring path (Claude)
+
+- **Task:** resolve the DX-0 regression that failed `verify:ai-display-gate-mutations` and `verify:ai-authoring`.
+- **Result:** a stale verifier, not a product regression. L11 changed only `failureBatch` in `aiAssist.ts`.
+  - DX-0 now freezes the adapter by `authoringPathSha256`, derived per revision from its frozen blob.
+  - Revision 4 derives to `dc08f6c4`, which equals today's tree.
+- **Files:**
+  - `scripts/ai-harness/{authoringDx,authoringQualityReview}.ts`;
+  - `scripts/{verify-ai-authoring,verify-ai-display-gate-mutations,verify-ai-explanation-live}.mts`;
+  - `scripts/lib/verifier-classification.ts`;
+  - `docs/ai/{KNOWN_ISSUES,CURRENT_STATE,HANDOFF,TASK_LOG}.md`.
+- **Verification:**
+  - `npm run build` and `typecheck:scripts` PASS.
+  - `verify:ai-authoring` 402/402 (baseline 392/393).
+  - `verify:ai-display-gate-mutations` 22/0 (baseline FAIL on its controls).
+  - `verify:ai-dx-mutations` 50/0: 44 of 44 killed, 5 of them new.
+  - `verify:ai-authoring-dx`: DX MET.
+  - One on-disk adapter mutation was caught, then reverted.
+  - `verify:ai-gpu-modes` 231/0, `verify:ai-settings-gui` 157/157, `verify:ai-gpu-host` 26/0.
+  - NVIDIA qualification BLOCKED: there is no `0x10DE` adapter on this machine.
+
+## 2026-10-03 — Automatic: GPU-Offload is the default where NVIDIA is proven (Claude)
 
 - **Task:** the owner asked for GPU-Offload to be the default when NVIDIA is proven.
 - **Result:** a new default mode, `auto` (Automatic), resolved at each load:

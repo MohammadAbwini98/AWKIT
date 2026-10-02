@@ -100,10 +100,12 @@ import {
   type ReviewVerdict
 } from "./ai-harness/authoringQualityReview";
 import {
+  AUTHORING_ADAPTER_PATH,
   DX0,
   DX_REVISIONS,
   HELD_OUT_DIR,
   MODEL_MANIFEST_PATH,
+  authoringPathSha256,
   currentDx0Problems,
   dx3Reading,
   dxReadings,
@@ -1322,6 +1324,37 @@ try {
     Object.keys(derivedEntries).length > 0 && DX_REVISIONS.every((r) => r.modelEntriesSha256 === derivedEntries[r.blobs[MODEL_MANIFEST_PATH]]),
     JSON.stringify(derivedEntries)
   );
+  // The adapter is frozen by its authoring path, not its bytes: L11 changed only its failure-analysis path (2026-10-01).
+  const derivedPaths: Record<string, string> = {};
+  for (const blob of new Set(DX_REVISIONS.map((r) => r.blobs[AUTHORING_ADAPTER_PATH]))) {
+    derivedPaths[blob] = authoringPathSha256(execFileSync("git", ["show", blob], { encoding: "utf8" }));
+  }
+  check(
+    "each revision's frozen authoring path is the digest of the path in the adapter blob it froze",
+    Object.keys(derivedPaths).length > 0 && DX_REVISIONS.every((r) => r.authoringPathSha256 === derivedPaths[r.blobs[AUTHORING_ADAPTER_PATH]]),
+    JSON.stringify(derivedPaths)
+  );
+  const adapter = readFileSync(AUTHORING_ADAPTER_PATH, "utf8");
+  const adapterPath = authoringPathSha256(adapter);
+  /** The adapter with each `[find, replace]` applied, or null when a `find` does not occur exactly once. */
+  const adapterWith = (...edits: Array<[string, string]>) =>
+    edits.reduce<string | null>((text, [find, replace]) => (text !== null && text.split(find).length === 2 ? text.replace(find, () => replace) : null), adapter);
+  const movesPath = (variant: string | null) => variant !== null && authoringPathSha256(variant) !== adapterPath;
+  check(
+    "the authoring path holds the display gate: the adapter sending a withheld text moves it",
+    movesPath(adapterWith(["(withheld ? { issue, text: null, step, withheld } : { issue, text, step })", "({ issue, text, step, ...(withheld ? { withheld } : {}) })"]))
+  );
+  check("...and what explainFlowValidation reaches through other declarations: a status message moves it", movesPath(adapterWith(['CANCELLED: "Cancelled.",', 'CANCELLED: "Stopped.",'])));
+  check("...and where an import it uses comes from moves it", movesPath(adapterWith(['} from "@src/ai/authoringExplanation";', '} from "@src/ai/authoringExplanationV2";'])));
+  check("...and a top-level statement that declares nothing moves it", movesPath(adapterWith(["import type { AiJobOutcome", 'import "@src/ai/sideEffect";\nimport type { AiJobOutcome'])));
+  const failurePathEdit = adapterWith(
+    ["const pageContext = readPageContext(instance.diagnostics?.pageContext);", "const pageContext = undefined;"],
+    ["import { SemanticRedactor }", 'import { unusedHere } from "@src/ai/unusedHere";\nimport { SemanticRedactor }']
+  );
+  check(
+    "the failure-analysis path and an import nothing on the authoring path uses do not move it, as L11 changed them",
+    failurePathEdit !== null && failurePathEdit !== adapter && authoringPathSha256(failurePathEdit) === adapterPath
+  );
 
   // The held-out set's format: the nine labelled flows under new ids, the canary replaced.
   const heldFlow = (c: LabelledCase) => ({ ...JSON.parse(JSON.stringify(c.flow).replace(new RegExp(CANARY, "gi"), "Demo")), id: `held-${c.id}` });
@@ -1383,7 +1416,14 @@ try {
   // The evaluator. R2's run-1 answers leave 4 of 17 undisplayed, run 2's 6: the cap's two sides, not fitted. A text the
   // gate shows is replaced by the product's own step, which the judge reads correct and actionable (§11), so DX-3 can
   // say MET; `edit` scripts one text in its place, through the same parser and judge. The withheld texts stay R2's.
-  const inputs: CaptureInputs = { modelSha256: DX0.modelSha256, runtimeBuild: DX0.runtimeBuild, blobs: { ...DX0.blobs }, modelEntriesSha256: DX0.modelEntriesSha256, heldOutSha256: inv.corpusSha256 };
+  const inputs: CaptureInputs = {
+    modelSha256: DX0.modelSha256,
+    runtimeBuild: DX0.runtimeBuild,
+    blobs: { ...DX0.blobs },
+    modelEntriesSha256: DX0.modelEntriesSha256,
+    authoringPathSha256: DX0.authoringPathSha256,
+    heldOutSha256: inv.corpusSha256
+  };
   type Edit = (caseId: string, index: number) => string | undefined;
   const answerFor = (request: AuthoringRequest, run: 1 | 2, twin: string, caseId: string, edit?: Edit) => {
     const r2 = request.issues.map((ref, i) => ({ issueId: ref.id, text: R2_DISPLAYED_ANSWERS.find((a) => a.run === run && a.caseId === twin && a.index === i)!.text.replace(/…$/, "") }));
@@ -1555,7 +1595,9 @@ try {
     ["another model id", { ...pass[1], modelId: "Qwen3.5-2B-unpinned" }],
     ["another runtime", { ...pass[1], inputs: { ...inputs, runtimeBuild: "node-llama-cpp@3.22.0+llama.cpp@v0.5.0" } }],
     ["a changed display gate", { ...pass[1], inputs: { ...inputs, blobs: { ...inputs.blobs, "src/ai/authoringClaimScreen.ts": "0".repeat(40) } } }],
-    ["a frozen source not recorded", { ...pass[1], inputs: { ...inputs, blobs: Object.fromEntries(Object.entries(inputs.blobs).filter(([p]) => p !== "app/main/ai/aiAssist.ts")) } }],
+    ["a frozen source not recorded", { ...pass[1], inputs: { ...inputs, blobs: Object.fromEntries(Object.entries(inputs.blobs).filter(([p]) => p !== AUTHORING_ADAPTER_PATH)), authoringPathSha256: undefined } }],
+    ["a changed authoring path", { ...pass[1], inputs: { ...inputs, blobs: { ...inputs.blobs, [AUTHORING_ADAPTER_PATH]: "0".repeat(40) }, authoringPathSha256: "0".repeat(64) } }],
+    ["an adapter recorded by its blob only, which moved", { ...pass[1], inputs: { ...inputs, blobs: { ...inputs.blobs, [AUTHORING_ADAPTER_PATH]: "0".repeat(40) }, authoringPathSha256: undefined } }],
     ["changed model entries", { ...pass[1], inputs: { ...inputs, blobs: { ...inputs.blobs, [MODEL_MANIFEST_PATH]: "0".repeat(40) }, modelEntriesSha256: modelEntriesSha256(AI_MODEL_MANIFEST.map((e) => ({ ...e, contextTokens: 4_096 }))) } }],
     ["a manifest recorded by neither its blob nor its model entries", { ...pass[1], inputs: { ...inputs, blobs: { ...inputs.blobs, [MODEL_MANIFEST_PATH]: "0".repeat(40) }, modelEntriesSha256: undefined } }],
     ["another request", { ...pass[1], instructionsSha256: "0".repeat(64) }],
@@ -1568,9 +1610,12 @@ try {
   // awkit-djnl.14: the manifest file changes for reasons of its own (L8a.1's GPU backend manifest); its model entries decide.
   const moved = evaluateDx(swapped({ ...pass[1], inputs: { ...inputs, blobs: { ...inputs.blobs, [MODEL_MANIFEST_PATH]: "f".repeat(40) } } }), inv, []);
   check("DX-0: a capture whose manifest file moved but whose model entries did not is fresh evidence: MET", moved.voided.length === 0 && dxStatus(moved, "DX-0") === "MET", JSON.stringify(moved.voided));
-  const { modelEntriesSha256: _entries, ...beforeDjnl14 } = inputs;
+  const { modelEntriesSha256: _entries, authoringPathSha256: _path, ...beforeDjnl14 } = inputs;
   const legacy = evaluateDx(swapped({ ...pass[1], inputs: beforeDjnl14 }), inv, []);
   check("...and one taken before awkit-djnl.14, recording the frozen blob only, still is", legacy.voided.length === 0 && dxStatus(legacy, "DX-0") === "MET", JSON.stringify(legacy.voided));
+  // L11 changed the adapter's failure-analysis path; its authoring path decides.
+  const adapterMoved = evaluateDx(swapped({ ...pass[1], inputs: { ...inputs, blobs: { ...inputs.blobs, [AUTHORING_ADAPTER_PATH]: "f".repeat(40) } } }), inv, []);
+  check("DX-0: a capture whose adapter file moved but whose authoring path did not is fresh evidence: MET", adapterMoved.voided.length === 0 && dxStatus(adapterMoved, "DX-0") === "MET", JSON.stringify(adapterMoved.voided));
   check("DX-0: a working tree off DX-0 is NOT MET", dxStatus(evaluateDx(pass, inv, ["src/ai/authoringClaimScreen.ts differs"]), "DX-0") === "NOT MET");
   const { inputs: _inputs, ...before } = pass[1];
   const e0 = evaluateDx([pass[0], before, pass[2]], inv, []);

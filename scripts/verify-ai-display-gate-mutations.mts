@@ -113,6 +113,12 @@ const DX_MUTANTS: readonly Mutant[] = [
   { id: "dx-blobs-unchecked", file: DX_FILE, find: 'if (sourcesOff(inputs, rev).length > 0) problems.push("source blobs");', replace: "" },
   { id: "dx-manifest-by-blob-only", file: DX_FILE, find: " && !(p === MODEL_MANIFEST_PATH && inputs.modelEntriesSha256 === rev.modelEntriesSha256)", replace: "" },
   { id: "dx-manifest-entries-unchecked", file: DX_FILE, find: "inputs.modelEntriesSha256 === rev.modelEntriesSha256", replace: "true" },
+  // The adapter frozen by its authoring path (2026-10-03): the whole-file coupling L11 broke, and each rule of the path.
+  { id: "dx-adapter-by-blob-only", file: DX_FILE, find: ".filter(([p]) => !(p === AUTHORING_ADAPTER_PATH && inputs.authoringPathSha256 === rev.authoringPathSha256))", replace: ".filter(() => true)" },
+  { id: "dx-adapter-path-unchecked", file: DX_FILE, find: "inputs.authoringPathSha256 === rev.authoringPathSha256", replace: "true" },
+  { id: "dx-adapter-path-unwalked", file: DX_FILE, find: "kept.add(node);\n    walk(node);", replace: "kept.add(node);" },
+  { id: "dx-adapter-import-module-unhashed", file: DX_FILE, find: " from ${statement.moduleSpecifier.getText()}`", replace: "`" },
+  { id: "dx-adapter-unnamed-statement-dropped", file: DX_FILE, find: "for (const part of parts) if (!named.has(part.node)) keep(part.node);", replace: "" },
   { id: "dx-request-unchecked", file: DX_FILE, find: 'if (capture.instructionsSha256 !== rev.instructionsSha256) problems.push("request");', replace: "" },
   { id: "dx-held-out-unchecked", file: DX_FILE, find: 'if (heldOutSha256 === null || inputs.heldOutSha256 !== heldOutSha256) problems.push("held-out corpus");', replace: "" },
   { id: "dx-packet-lists-void", file: DX_FILE, find: ".filter((c) => c.inputs !== undefined && captureInputProblems(c, heldOutSha).length === 0)", replace: ".filter((c) => c.inputs !== undefined)" },
