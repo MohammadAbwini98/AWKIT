@@ -1,6 +1,29 @@
 # TASK_LOG
 
-## 2026-10-03 (latest) — Lease guard admits the fast-forward pull (Claude)
+## 2026-10-03 (latest) — Animated app background: emitted-light dot field behind the layout (Claude)
+
+- **Task:** implement the animated application background from the "SpecterStudio Canvas" design handoff
+  as a full-viewport base canvas behind the app layout.
+- **Result:** new `layout/AppBackground.tsx`, mounted first in `.app-window`: a fixed, pointer-transparent
+  `<canvas>` (z-index -1; `.app-window` now `isolation: isolate`). A cached 5×5 pattern tile paints the
+  24px grid (major dot every 5th); dots near the smoothed pointer and its decaying trail light up, grow,
+  bloom and push ~2px away, using the handoff's constants. Each frame repaints only the dirty rect around
+  the lit area; the requestAnimationFrame loop parks once the pointer is still. DPR is capped at 2 and a
+  `ResizeObserver` on the device-pixel box handles resizes and DPR-only changes. Reduced motion follows the
+  handoff (instant smoothing, no trail or push, ambient ×0.4). Colors are new theme tokens
+  `--awkit-field-dot`, `--awkit-field-dot-major` and `--awkit-field-glow` (light and dark).
+  `.main-surface` is now transparent so the field shows through the content area, and the chrome stays
+  opaque. Pan/zoom and the rest of the canvas workspace in the handoff are out of scope (static view).
+- **Files:** `app/renderer/layout/{AppBackground,AppShell}.tsx`, `app/renderer/styles/global.css`,
+  `scripts/verify-app-background.mjs`, `scripts/lib/verifier-classification.ts`, `package.json`,
+  `docs/ai/{TASK_LOG,CURRENT_STATE}.md`.
+- **Verification:** PASS `npm run build`. PASS `verify:design-tokens` 35/35. PASS new
+  `verify:app-background` 11/11 (real Electron: canvas sized to viewport × DPR, behind the layout, grid
+  paints, the dot under the pointer lights 34 → 169 alpha, rAF parks at 0 frames/s at rest, dark switch
+  repaints). Its first run caught a stale bitmap after a viewport/DPR change under the window `resize`
+  listener, which led to the `ResizeObserver`. Not mutation-tested.
+
+## 2026-10-03 — Lease guard admits the fast-forward pull (Claude)
 
 - **Task:** let the direct loop pull `origin/main`. The guard admitted `git fetch origin` but no merge form,
   and `.claude/settings.json` denied `git merge:*`.

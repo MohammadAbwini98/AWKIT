@@ -199,6 +199,11 @@ body {
   /* Dotted-grid dot: nudged darker than the near-white canvas so the grid actually reads
      (SRS-CANVAS-UX-001 §3.4 — dots were present but too faint to perceive). */
   --awkit-canvas-dot: #c4c9d2;
+  /* App background dot field (layout/AppBackground.tsx): base dot, every-5th major dot, and the
+     pointer-lit dot color. Read by the canvas at mount and on every theme switch. */
+  --awkit-field-dot: rgba(20, 22, 29, 0.17);
+  --awkit-field-dot-major: rgba(20, 22, 29, 0.32);
+  --awkit-field-glow: #000000;
   --awkit-node-surface: var(--awkit-surface);
   --awkit-node-border: var(--awkit-border);
   --awkit-node-selected-bg: var(--awkit-lavender-soft);
@@ -364,6 +369,9 @@ body {
   --awkit-bg-canvas: #0e1016;
   --awkit-canvas-bg: var(--awkit-bg-canvas);
   --awkit-canvas-dot: #2c3140;
+  --awkit-field-dot: rgba(255, 255, 255, 0.14);
+  --awkit-field-dot-major: rgba(255, 255, 255, 0.28);
+  --awkit-field-glow: #ffffff;
   --awkit-node-selected-bg: var(--awkit-lavender-soft);
   /* edge strokes — blue-derived values preserve the reference accent on dark canvases. */
   --awkit-edge: #1d4ed8;
@@ -450,6 +458,20 @@ button:not(:disabled):not([role="switch"]):active,
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
+  /* Own stacking context so the background canvas's z-index:-1 lands above the --awkit-bg root
+     paint and below every layout plane, whatever ancestors do. */
+  isolation: isolate;
+}
+
+/* Full-viewport base canvas (layout/AppBackground.tsx). Fixed and pointer-transparent; the chrome
+   stays opaque, .main-surface is transparent so the field shows through the content canvas. */
+.app-background {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  pointer-events: none;
 }
 
 .app-shell {
@@ -1084,10 +1106,11 @@ button:not(:disabled):not([role="switch"]):active,
   margin: 8px 0 0;
 }
 
-/* Main content surface: the app CANVAS, deliberately --awkit-bg so the surrounding chrome
-   (sidebar / top header / status bar, all on --awkit-surface) reads as a separate plane. */
+/* Main content surface: the app CANVAS. Transparent so the --awkit-bg root and the animated dot
+   field behind it (.app-background) show through; the surrounding chrome (sidebar / top header /
+   status bar, all on --awkit-surface) still reads as a separate plane. */
 .main-surface {
-  background: var(--awkit-bg);
+  background: transparent;
   font-size: var(--text-base);
   min-width: 0;
   overflow: auto;

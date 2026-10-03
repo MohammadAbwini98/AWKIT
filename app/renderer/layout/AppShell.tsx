@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { AppRoute, RouteId } from "../routes";
 import type { PageAction } from "../state/pageChrome";
+import { AppBackground } from "./AppBackground";
 import { AppFrame } from "./AppFrame";
 import { LeftNavigation } from "./LeftNavigation";
 import { StatusBar } from "./StatusBar";
@@ -42,6 +43,7 @@ export function AppShell({
   return (
     // Application window: the custom AWKIT frame spans the top; the existing shell fills the rest.
     <div className="app-window">
+      <AppBackground />
       <AppFrame areaLabel={activeRoute.label} />
       {/* Template shell: full-height sidebar on the left, header/content/status stacked in app-main. */}
       <div className={sidebarCollapsed ? "app-shell sidebar-collapsed" : "app-shell"}>

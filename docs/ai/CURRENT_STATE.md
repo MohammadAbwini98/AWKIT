@@ -2,6 +2,11 @@
 
 ## NVIDIA console checks deferred by the owner; N1 visual capture plan written (2026-10-03, latest)
 
+- **Also 2026-10-03: animated app background.** `layout/AppBackground.tsx` draws the design handoff's
+  pointer-reactive dot field on a full-viewport canvas behind the layout (`.main-surface` is now
+  transparent). rAF-driven, dirty-rect redraws, parks at rest, honours reduced motion. Guarded by
+  `verify:app-background` (11/11). Details in `TASK_LOG.md`.
+
 - **NVIDIA: the remaining console evidence is deferred, not passed** (owner, `DECISIONS.md` latest).
   - Still never run at the GTX 980M's physical console: `verify:ai-gpu-automatic-lifecycle`,
     `verify:ai-gpu-automatic-lifecycle-packaged` and `verify:ai-settings-gpu-gui`. Their states are
