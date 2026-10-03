@@ -1,6 +1,19 @@
 # TASK_LOG
 
-## 2026-10-03 (latest) — App background: handoff canvas colors, ambient 0.25, arrow cursor, designer and monitor canvases (Claude)
+## 2026-10-03 (latest) — Darker light-mode field dots (Claude)
+
+- **Task:** owner reported that the light-mode dots read fainter than in the handoff standalone.
+- **Finding:** the opacity was identical at the same zoom and pixel density. A side-by-side measurement over
+  a 240px patch at 100% gave mean ink 0.227 and peak 82/255 in both, with the same dot color, at 1× and 2×.
+  The standalone looks stronger because it opens at its 66% fit zoom (~16px spacing, about 2.3 times the
+  dots per area) and uses ambient 0.6.
+- **Result (owner chose option B):** light `--awkit-field-dot` 0.17 → 0.28 and `--awkit-field-dot-major`
+  0.32 → 0.45. Dark mode is unchanged.
+- **Files:** `app/renderer/styles/global.css`, `docs/ai/TASK_LOG.md`.
+- **Verification:** PASS `npm run build`, `verify:app-background` 21/21 (base dot 34 → 56 alpha at the probe
+  pixel), `verify:design-tokens` 35/35.
+
+## 2026-10-03 — App background: handoff canvas colors, ambient 0.25, arrow cursor, designer and monitor canvases (Claude)
 
 - **Task:** owner review of the app background: light mode did not match the handoff and was hard to see,
   ambient should be 0.25, the handoff cursor was missing, and the field must replace the canvas in the Flow
