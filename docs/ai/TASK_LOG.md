@@ -1,6 +1,30 @@
 # TASK_LOG
 
-## 2026-10-03 (latest) — NVIDIA GPU quality qualified; topology and compute evidence kept apart (Claude, GTX 980M machine)
+## 2026-10-03 (latest) — Repository reconciliation and NVIDIA evidence scoping (Claude, GTX 980M machine over RDP)
+
+- **Task:** reconcile DX-0 (`0b485941`) with the NVIDIA Automatic work, check every claimed GTX 980M result
+  against the repository, and resume GPU quality Run 2.
+- **Result:** reconciled, with one correction.
+  - History is linear: `0b485941` is the parent of `097abfa9`, and `main` = `origin/main` = `000ef436`. No
+    work is missing.
+  - DX-0 changed no `app/` or `src/` file.
+  - Run 2 was already done (`63cc74ca`, compute PASS under RDP).
+  - Corrected an overclaim: the Automatic lifecycles (18/0, 19/0) and `verify:ai-settings-gpu-gui` (57/57)
+    ran only over RDP, never at the console. The walkthrough reran today, 57/57 with exit 2 in `rdp-tcp#49`.
+- **Files:**
+  - `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,KNOWN_ISSUES}.md`;
+  - `docs/NVIDIA_QUALIFICATION_SETUP.md`, where step 9 gains the three Automatic checks;
+  - the L8a GPU quality evidence note.
+- **Verification:**
+  - PASS: build, `typecheck:scripts`, `verify:ai-authoring` 402/402, `verify:ai-gpu-harness` 70/0,
+    `verify:ai-gpu-modes` 234/0, `verify:verifier-classification`.
+  - INCONCLUSIVE: `verify:ai-settings-gpu-gui` 57/57 (exit 2, RDP), and `verify:ai-authoring-dx`. DX-0 is MET;
+    DX-2 to DX-5 are PENDING because this machine's review store is empty.
+  - NOT RUN: `verify:ai-gpu-quality*`, the Automatic lifecycles and the DX mutation runs. Their inputs are
+    unchanged since they last passed.
+  - BLOCKED: the physical-console run, since this session is Remote Desktop.
+
+## 2026-10-03 — NVIDIA GPU quality qualified; topology and compute evidence kept apart (Claude, GTX 980M machine)
 
 - **Task:** stop Remote Desktop from voiding GPU compute evidence on its own, without weakening the proof.
   Then complete GPU quality Run 2 and decide the 0.8B's GPU quality.

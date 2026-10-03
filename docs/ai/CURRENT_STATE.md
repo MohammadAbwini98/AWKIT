@@ -1,15 +1,59 @@
 # CURRENT_STATE
 
-## NVIDIA GPU quality qualified; display topology and compute evidence kept apart (2026-10-03, latest)
+## Repository reconciled; NVIDIA evidence scoped by machine and session (2026-10-03, latest)
+
+- **History is linear, and nothing is missing.**
+  - `0b485941` (the DX-0 fix, AMD development machine) is the direct parent of `097abfa9` (Automatic on the
+    GTX 980M). `cfb912a9`, `b3450b43`, `7374c1b1`, `63cc74ca` and `000ef436` follow.
+  - No other ref holds DX-0 or L8a work that `main` lacks, so every Automatic hardware run already included
+    DX-0.
+- **DX-0 changes no qualification input.**
+  - It changed authoring verifiers under `scripts/` and docs, and no `app/` or `src/` file. The live harness
+    only records one more digest in its captures.
+  - Since DX-0, the only product change is `cfb912a9`'s display-only `ranAs`.
+- **Machines.**
+  - *AMD development machine* (`0x1002` + `0x1414`): no NVIDIA adapter, so Automatic runs on CPU & RAM only, as
+    designed. "NVIDIA BLOCKED" there means only that NVIDIA cannot be qualified on it.
+  - *GTX 980M qualification machine* (`VEN_10DE&DEV_13D7`): the source of all NVIDIA hardware evidence.
+- **Console scope corrected.** The section below said the lifecycles and the real Settings walkthrough passed
+  at the physical console. Only part of that holds.
+  - *At the console:*
+    - backend gate 28/0, host 34/0 and packaged 35/0 with Automatic's PRODUCT steps, and progress 13/0
+      (`097abfa9`);
+    - the explicit lifecycles, 34/0 and 35/0 (`860a0289`, at `4771e84e`).
+  - *Over Remote Desktop only:*
+    - `verify:ai-gpu-automatic-lifecycle` 18/0 and `-packaged` 19/0 (`b3450b43`);
+    - `verify:ai-settings-gpu-gui` 57/57 with exit 2 (`b3450b43`, and today at `000ef436` in `rdp-tcp#49`).
+  - The walkthrough reads INCONCLUSIVE off the console by its own rule, and Settings showed "2 NVIDIA display
+    adapters", the RDP double count. The lifecycle runs recorded no runtime Vulkan device count, so they are
+    behaviour evidence, not RDP compute evidence.
+  - Today's walkthrough confirmed on the real GPU:
+    - "GPU-Offload (chosen by Automatic): all 25 layers on the GPU" in Runs on, diagnostics and the pack
+      panel;
+    - VRAM 1900 → 3093 MiB, and `ggml-vulkan.dll` mapped from the app-managed pack;
+    - VRAM given back under CPU & RAM only and when the pack is removed;
+    - with no pack, a run on CPU & RAM only, with no fallback reason and no refusal.
+- **Open:** one physical-console run of those three verifiers (`docs/NVIDIA_QUALIFICATION_SETUP.md` step 9).
+  No product or harness change is needed.
+- **Verification** (GTX 980M, over RDP):
+  - PASS: build, `typecheck:scripts`, `verify:ai-authoring` 402/402, `verify:ai-gpu-harness` 70/0,
+    `verify:ai-gpu-modes` 234/0, `verify:verifier-classification`.
+  - `verify:ai-authoring-dx`: DX-0's frozen inputs are MET. DX-2 to DX-5 read PENDING (exit 2) because this
+    machine's review store holds no captures.
+- Tracker unchanged: 333 issues, 22 outstanding / 311 closed. Validation ledger unchanged at 65 PASS / 2 NOT RUN /
+  0 BLOCKED across 67 cases.
+
+## NVIDIA GPU quality qualified; display topology and compute evidence kept apart (2026-10-03)
 
 - **Result.** NVIDIA runtime qualification is closed, and the 0.8B's GPU quality is compatible with its
   qualified CPU & RAM configuration. No product change.
   - Evidence: `docs/plans/ai-upgrade-v5/evidence/L8a-gpu-quality-2026-10-03.md`.
 - **Rule change (owner direction, `DECISIONS.md`).** A Remote Desktop session no longer voids GPU compute
   evidence on its own.
-  - *Topology* stays physical-console evidence, and it already passed at the console: adapter enumeration, no
-    Remote Display Adapter, the count Windows or Settings shows. That covers the backend gate, the host,
-    packaged, lifecycle and progress gates, and the real Settings walkthrough.
+  - *Topology* stays physical-console evidence: adapter enumeration, no Remote Display Adapter, the count
+    Windows or Settings shows. It passed at the console for the backend gate, the host, packaged, explicit
+    lifecycle and progress gates. The Automatic lifecycles and the real Settings walkthrough have not yet run
+    there (corrected in the section above).
   - *Compute* is proven directly by `scripts/ai-harness/gpuQualityEvidence.ts`:
     - NVIDIA-only PCI compute adapters, unchanged across the run;
     - every call GPU-Offload on Vulkan with all layers and a `vulkan/full` answer;
@@ -91,8 +135,9 @@
   - `verify:ai-authoring-dx`: DX MET.
   - An on-disk mutation of the adapter's display gate was caught (authoring path `358b56ed`, frozen
     `dc08f6c4`) and reverted.
-- **NVIDIA hardware: BLOCKED here.** This machine has only AMD `0x1002`, and `verify:ai-gpu-host` reports
-  `NO_COMPATIBLE_ADAPTER`. Automatic therefore runs on CPU & RAM here, as designed.
+- **NVIDIA hardware: BLOCKED here, on the AMD development machine.** This machine has only AMD `0x1002`, and
+  `verify:ai-gpu-host` reports `NO_COMPATIBLE_ADAPTER`. Automatic therefore runs on CPU & RAM here, as designed.
+  The GTX 980M ran Automatic next, at `097abfa9`, which builds on this commit.
 - Tracker unchanged: 333 issues, 22 outstanding / 311 closed. Validation ledger unchanged at 65 PASS / 2 NOT RUN /
   0 BLOCKED across 67 cases.
 

@@ -1,6 +1,21 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-03, latest) — NVIDIA GPU quality qualified; RDP no longer voids compute evidence
+## HANDOFF (2026-10-03, latest) — repository reconciled; three Automatic checks still need the console
+
+No product code changed. The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Git.** History is linear. `0b485941` (DX-0, AMD machine) is the parent of `097abfa9` (Automatic, GTX
+  980M), and `main` = `origin/main`. No work is missing. DX-0 changed no product or GPU path.
+- **Corrected:** the Automatic lifecycles and `verify:ai-settings-gpu-gui` never ran at the physical console.
+  They have run only over RDP, with 18/0, 19/0 and 57/57, and the walkthrough exits 2 off the console
+  (`CURRENT_STATE.md`).
+- **Next, operator, at the GTX 980M's physical console** (no Remote Desktop session):
+  `npm run build`, then `verify:ai-gpu-automatic-lifecycle`, `verify:ai-gpu-automatic-lifecycle-packaged` and
+  `verify:ai-settings-gpu-gui` (`docs/NVIDIA_QUALIFICATION_SETUP.md` step 9). `bd` is not installed there, so
+  record the results in this file.
+- **Next, owner:** unchanged. Decide whether to add a Vulkan key for the 0.8B.
+
+## HANDOFF (2026-10-03) — NVIDIA GPU quality qualified; RDP no longer voids compute evidence
 
 No product code changed. The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
@@ -12,8 +27,9 @@ No product code changed. The validation ledger is unchanged at 65 PASS / 2 NOT R
   - Run 1 passed at the console, and the CPU baseline passed 13/13. Comparison:
     `docs/plans/ai-upgrade-v5/evidence/L8a-gpu-quality-2026-10-03.md`.
 - **Still physical-console only:** claims about Windows' display topology, such as adapter enumeration, the
-  absence of the remote adapter, or the count Windows or Settings shows. Those gates already passed at the
-  console and were not rerun.
+  absence of the remote adapter, or the count Windows or Settings shows. The step-9 gates passed at the
+  console. The Automatic lifecycles and the real Settings walkthrough did not (corrected in the section
+  above).
 - **Next, owner:**
   - Decide whether to add a Vulkan key for the 0.8B to the qualified list. The quality evidence now exists;
     adding the key is a product change.
@@ -58,7 +74,8 @@ The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 
   - PASS: `verify:ai-authoring` 402/402, `verify:ai-display-gate-mutations` 22/0, `verify:ai-dx-mutations` 50/0,
     `verify:ai-authoring-dx` (DX MET).
   - PASS: `verify:ai-gpu-modes` 231/0, `verify:ai-settings-gui` 157/157, `verify:ai-gpu-host` 26/0.
-- **NVIDIA qualification under Automatic: BLOCKED** on this AMD-only machine.
+- **NVIDIA qualification under Automatic: BLOCKED** on this AMD-only machine. That scopes it to this machine:
+  the GTX 980M ran it next, at `097abfa9`.
 - **Next, owner:** optionally run the GTX 980M gates once under Automatic. This was item 1 of the previous
   handoff; item 2 (the DX-0 fix) is done.
 
@@ -84,7 +101,8 @@ ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
   - FAIL, pre-existing: `verify:ai-display-gate-mutations`. Its DX-0 precondition has been broken by L11's
     `aiAssist.ts` changes since 2026-10-01 (`KNOWN_ISSUES.md`).
   - NOT RUN: `verify:failure-capture-overhead`, because it rewrites the preserved L5a evidence file.
-  - NOT RUN: the NVIDIA hardware checks. No NVIDIA GPU here; the GTX 980M qualification predates Automatic.
+  - NOT RUN: the NVIDIA hardware checks. No NVIDIA GPU here; the GTX 980M qualification predated Automatic
+    when this was written. Superseded: Automatic ran on the GTX 980M at `097abfa9`.
 - **Next, owner:**
   1. Optionally run the GTX 980M gates once under Automatic.
   2. Decide the DX-0 freeze fix.

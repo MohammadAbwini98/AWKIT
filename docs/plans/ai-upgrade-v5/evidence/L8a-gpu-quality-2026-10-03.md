@@ -11,8 +11,11 @@ the same 13 gates on CPU & RAM on the same machine.
 
 - **Topology** is what Windows shows: the display adapters, whether a Remote Display Adapter is present, the
   count Windows or Settings shows. Remote Desktop changes it. It was qualified at the physical console by the
-  topology-sensitive gates: the backend gate, the host and packaged gates, the lifecycles and the real
-  Settings walkthrough (`CURRENT_STATE.md`).
+  step-9 gates (`docs/NVIDIA_QUALIFICATION_SETUP.md`): the backend gate, the host and packaged gates with
+  Automatic's PRODUCT steps (`097abfa9`), and the explicit lifecycles and progress gate (`860a0289`).
+  - *Corrected 2026-10-03:* this note first said the lifecycles and the real Settings walkthrough also passed
+    there. The Automatic lifecycles and `verify:ai-settings-gpu-gui` have run only over Remote Desktop so far
+    (`CURRENT_STATE.md`).
 - **Compute** is where the model calls ran. Remote Desktop adds a display adapter, never a compute device.
   So a quality run under Remote Desktop is compute evidence when the device is proven directly
   (`scripts/ai-harness/gpuQualityEvidence.ts`):
@@ -98,8 +101,9 @@ L3 evidence files:
 
 ## Decision
 
-- **NVIDIA runtime qualification is closed.** The topology-sensitive gates passed at the physical console,
-  and the compute-quality runs are proven on the GTX 980M.
+- **NVIDIA runtime qualification is closed for the step-9 gates,** which passed at the physical console, and
+  the compute-quality runs are proven on the GTX 980M. One physical-console run of the Automatic lifecycles
+  and the real Settings walkthrough is still open; their runs so far were over Remote Desktop.
 - **The 0.8B's GPU quality is compatible with its qualified CPU & RAM configuration.** It meets every
   repository acceptance gate in two valid runs.
 - **The qualified list stays CPU-only.** Adding a Vulkan key is a product change that needs the owner's

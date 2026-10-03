@@ -217,6 +217,22 @@ cmd /c "npm run verify:ai-gpu-lifecycle-packaged 2>&1" | Tee-Object C:\nvidia-ev
 cmd /c "npm run verify:ai-progress-gpu-packaged 2>&1" | Tee-Object C:\nvidia-evidence\progress-gpu-packaged.log
 ```
 
+Automatic's lifecycles and the real Settings walkthrough were added after the 2026-10-02 console pass. So far
+they have run only over Remote Desktop, so they also belong at the physical console. The walkthrough launches
+`out/`, so run `npm run build` before it:
+
+```powershell
+cmd /c "npm run verify:ai-gpu-automatic-lifecycle 2>&1" | Tee-Object C:\nvidia-evidence\gpu-automatic-lifecycle.log
+```
+
+```powershell
+cmd /c "npm run verify:ai-gpu-automatic-lifecycle-packaged 2>&1" | Tee-Object C:\nvidia-evidence\gpu-automatic-lifecycle-packaged.log
+```
+
+```powershell
+cmd /c "npm run verify:ai-settings-gpu-gui 2>&1" | Tee-Object C:\nvidia-evidence\settings-gpu-gui.log
+```
+
 **10. Clean up.** Packaging rewrote the two tracked manifest files with the NVIDIA machine's signature. The
 committed pair (`fdb10cc5`) is the release record, so don't commit these. Restore them once the checks are
 done:

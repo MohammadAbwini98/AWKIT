@@ -65,6 +65,10 @@
   qualification.
 - **Confirmed RDP-only.** At the physical console the same machine lists only `0x10de, 0x1414`, and
   readiness reads `nvidiaAdapters: 1` (2026-10-02).
+- **Not yet taken at the console (2026-10-03):** `verify:ai-settings-gpu-gui` and both Automatic lifecycles.
+  Over RDP the walkthrough passes 57/57 but exits 2 by its own rule, and Settings reads "2 NVIDIA display
+  adapters". The lifecycle runs recorded no runtime device count. Run them at the console
+  (`docs/NVIDIA_QUALIFICATION_SETUP.md` step 9).
 
 ## A wheel's license metadata can omit what its binaries link (2026-10-01, RESOLVED — sources ship in the package)
 
