@@ -418,6 +418,7 @@ interface ExecutionRecord {
   configured: string;
   readiness: Array<{ ok: boolean; reason?: string; nvidiaAdapters?: number }>;
   guardRuns: number;
+  gpuPlans?: Array<{ deviceCount: number; totalBytes: number }>;
   gpuHostPids: number[];
   vramMibAfterCalls: Array<{ afterCall: number; mib: number | null }>;
   calls: ExecutionCall[];
@@ -449,6 +450,8 @@ function reportExecution(report: HarnessReport, configured: "cpu" | "auto"): voi
     `    · readiness answers ${JSON.stringify(record?.readiness ?? [])}; pack guard runs ${record?.guardRuns ?? 0}; GPU host pids ${JSON.stringify(record?.gpuHostPids ?? [])}; ` +
       `nvidia-smi MiB after each call ${JSON.stringify((record?.vramMibAfterCalls ?? []).map((v) => v.mib))}`
   );
+  const plans = record?.gpuPlans ?? [];
+  console.log(`    · runtime GPU plans: Vulkan devices ${JSON.stringify(plans.map((p) => p.deviceCount))}, VRAM total MiB ${JSON.stringify(plans.map((p) => Math.round(p.totalBytes / 2 ** 20)))}`);
   if (configured === "cpu") {
     check(
       "CPU & RAM only: every load ran on the CPU backend and every answer came from the CPU",

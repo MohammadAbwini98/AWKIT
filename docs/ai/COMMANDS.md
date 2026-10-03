@@ -625,7 +625,8 @@ npm run verify:ai-gpu-quality-part2
                                   # Records session + adapters at start and end and keeps two answers apart: topology
                                   # (physical console, no Remote Desktop adapter) and compute (NVIDIA-only PCI compute
                                   # adapters unchanged, every call GPU-Offload/Vulkan/all layers, pack-guarded host,
-                                  # nvidia-smi idle readings around each gate vs the gate's own). A run under RDP can
+                                  # the runtime's own Vulkan device count within Windows' NVIDIA PCI adapters off the
+                                  # console, nvidia-smi idle readings around each gate vs the gate's own). A run under RDP can
                                   # PASS as "NVIDIA compute qualification under RDP", never as a console topology
                                   # qualification; an unprovable device is INCONCLUSIVE (exit 2), a call off the GPU
                                   # FAILS (exit 1). run.json beside the gate logs. verify:ai-gpu-quality runs both;

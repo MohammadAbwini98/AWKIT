@@ -20,8 +20,9 @@
  *    never is, since Remote Desktop changes the display topology.
  *  - compute (auto arm): Remote Desktop adds a display adapter, never a compute device, so it does not by itself void
  *    the run. The GPU is proven from Windows' PCI compute adapters (NVIDIA only, unchanged), every call's resolved
- *    mode, backend, layers and answer, the pack-guarded GPU host, and nvidia-smi, read here with no gate running
- *    before each gate and after the last, against every gate's own readings after each call.
+ *    mode, backend, layers and answer, the pack-guarded GPU host, the Vulkan devices the runtime's own GPU plan bound
+ *    (off the console readiness counts the NVIDIA GPU twice), and nvidia-smi, read here with no gate running before
+ *    each gate and after the last, against every gate's own readings after each call.
  * The CPU arm runs anywhere. Authoring review captures go to this qualification's own store (`ai-quality-review-l8a`),
  * never the one `verify:ai-authoring-review` judges.
  *
@@ -293,6 +294,7 @@ const compute =
 if (compute) {
   console.log(`  compute adapters (PCI): start ${compute.computeAdapters.start.join(", ") || "none"}; end ${compute.computeAdapters.end.join(", ") || "none"}; display topology only, never a compute device: ${compute.displayOnly.join(", ") || "none"}`);
   console.log(`  NVIDIA VRAM per gate, idle → loaded MiB (at least ${minModelVramMib} over idle required): ${compute.gates.map((g) => `${g.name} ${g.idleMib ?? "-"} → ${g.loadedMib ?? "-"}`).join("; ")}`);
+  console.log(`  Vulkan devices the runtime bound, per gate's GPU plans: ${compute.gates.map((g) => `${g.name} ${g.vulkanDevices === null ? "not recorded" : JSON.stringify(g.vulkanDevices)}`).join("; ")}`);
   console.log(`  compute: ${compute.label}`);
   for (const reason of compute.reasons) console.log(`      ${compute.verdict === "FAIL" ? "✗" : "?"} ${reason}`);
 }

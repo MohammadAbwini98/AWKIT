@@ -11,7 +11,7 @@
  *
  * Recorded per call (`execution` in the report): the stored mode, the readiness answers, the resolved mode,
  * backend and layers from the service, the answer's own profile, the job's stages from the production job
- * tracker, and its timings and token counts. nvidia-smi is read after a call without waiting for it, so no
+ * tracker, and its timings and token counts. Per GPU plan: the Vulkan devices the runtime binds and their VRAM. nvidia-smi is read after a call without waiting for it, so no
  * reading is ever inside a measured duration. Counts, codes and timings only, never model text.
  */
 
@@ -23,6 +23,7 @@ import { AiUtilityHostManager } from "@main/ai/AiUtilityHostManager";
 import { gpuReadiness } from "@main/ai/gpuAdapters";
 import { AiBackendPackStore } from "@src/ai/AiBackendPack";
 import type { AiGpuReadiness } from "@src/ai/AiExecutionProfile";
+import type { AiGpuPlan } from "@src/ai/contracts/AiHostProtocol";
 import { AiJobTracker, type AiJobStatus } from "@src/ai/AiJobStatus";
 import type { AiService } from "@src/ai/AiService";
 import { AI_BACKEND_MANIFEST, AI_RUNTIME_PIN } from "@src/offline/AiModelManifest";
@@ -81,7 +82,20 @@ export function makeLiveGpu(log: (level: "error" | "warn" | "info", message: str
     },
     log
   });
-  return { manager, readiness: (): Promise<AiGpuReadiness> => gpuReadiness(store), guardRuns: () => guardRuns };
+  // The runtime's own answer to each GPU plan: the Vulkan devices it binds and their VRAM. Readiness counts Chromium's
+  // adapter list, which names one NVIDIA GPU twice under Remote Desktop, so verify:ai-gpu-quality checks this count
+  // against Windows' NVIDIA PCI adapters instead. The service's request and the host's answer are unchanged.
+  const plans: Array<{ deviceCount: number; totalBytes: number }> = [];
+  const call = manager.call.bind(manager);
+  manager.call = (async (request, timeoutMs, onProgress) => {
+    const answer = await call(request, timeoutMs, onProgress);
+    if (request.type === "gpuPlan") {
+      const plan = answer as AiGpuPlan;
+      plans.push({ deviceCount: plan.deviceCount, totalBytes: plan.totalBytes });
+    }
+    return answer;
+  }) as typeof manager.call;
+  return { manager, readiness: (): Promise<AiGpuReadiness> => gpuReadiness(store), guardRuns: () => guardRuns, plans: () => [...plans] };
 }
 export type LiveGpu = ReturnType<typeof makeLiveGpu>;
 
@@ -166,6 +180,7 @@ export class ExecutionLog {
       configured: this.configured,
       readiness: this.readiness,
       guardRuns: this.gpus.reduce((n, gpu) => n + gpu.guardRuns(), 0),
+      gpuPlans: this.gpus.flatMap((gpu) => gpu.plans()),
       gpuHostPids: [...this.pids],
       vramMibAfterCalls: this.vram,
       calls: this.calls

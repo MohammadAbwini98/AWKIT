@@ -18,7 +18,11 @@
  *      3. every call ran as GPU-Offload on Vulkan with all of its layers, and every answer came from vulkan/full;
  *      4. every gate started its GPU host behind the pack guard;
  *      5. nvidia-smi read the NVIDIA GPU after every call, and while a gate's model was loaded the GPU held at least
- *         the model file's size more memory than at the gate's lowest (idle) reading.
+ *         the model file's size more memory than at the gate's lowest (idle) reading;
+ *      6. the runtime bound no more Vulkan devices than Windows' NVIDIA PCI adapters, by its own GPU plan. The
+ *         product's E2 check compares that count with readiness, which off the console counts the NVIDIA GPU twice,
+ *         so a second device (a software ICD, say) would pass it there. At the physical console readiness counts
+ *         what Windows lists and the product's check is exact, so a console run needs no recorded plan.
  *
  * Verdicts: PASS, labelled with the topology the run had; FAIL when Automatic resolved to the GPU and a call still ran
  * on another backend or offload; INCONCLUSIVE when the compute device cannot be proven, including an Automatic that
@@ -63,6 +67,7 @@ export function adapterRoles(topology: RunTopology): { compute: string[]; displa
 export const CALL_LINE =
   /^\s+· (\w+) (\w+)(?:\/(\w+))?: ([\w-]+) on (\w+) \(([^)]*)\), answer (\S+)(?:, cold load (\S+) ms|, warm), first token (\S+) ms, generation (\S+) ms, (\S+)\/(\d+) out \((\S+) in\), (\d+) ms end to end$/;
 const EXECUTION_LINE = /^\s+· readiness answers (\[.*\]); pack guard runs (\d+); GPU host pids (\[.*\]); nvidia-smi MiB after each call (\[.*\])$/;
+const PLAN_LINE = /^\s+· runtime GPU plans: Vulkan devices (\[.*\]), VRAM total MiB (\[.*\])$/;
 
 export interface GateCall {
   feature: string;
@@ -106,14 +111,18 @@ export interface GateExecution {
   guardRuns: number;
   hostPids: number[];
   vramMib: Array<number | null>;
+  /** Vulkan devices per GPU plan, from the runtime; null where the gate printed none (before 2026-10-03's change). */
+  vulkanDevices: number[] | null;
 }
 
 export function executionOf(text: string): GateExecution | null {
-  for (const line of text.split(/\r?\n/)) {
+  const lines = text.split(/\r?\n/);
+  const plan = lines.map((line) => PLAN_LINE.exec(line)).find((m) => m !== null);
+  for (const line of lines) {
     const m = EXECUTION_LINE.exec(line);
     if (!m) continue;
     try {
-      return { readiness: JSON.parse(m[1]), guardRuns: Number(m[2]), hostPids: JSON.parse(m[3]), vramMib: JSON.parse(m[4]) };
+      return { readiness: JSON.parse(m[1]), guardRuns: Number(m[2]), hostPids: JSON.parse(m[3]), vramMib: JSON.parse(m[4]), vulkanDevices: plan ? JSON.parse(plan[1]) : null };
     } catch {
       return null;
     }
@@ -151,7 +160,7 @@ export interface GpuQualityVerdict {
   reasons: string[];
   computeAdapters: { start: string[]; end: string[] };
   displayOnly: string[];
-  gates: Array<{ name: string; calls: number; idleMib: number | null; loadedMib: number | null }>;
+  gates: Array<{ name: string; calls: number; idleMib: number | null; loadedMib: number | null; vulkanDevices: number[] | null }>;
 }
 
 export function gpuQualityVerdict(input: { start: RunTopology; end: RunTopology; gates: readonly GateEvidence[]; minModelVramMib: number }): GpuQualityVerdict {
@@ -167,6 +176,8 @@ export function gpuQualityVerdict(input: { start: RunTopology; end: RunTopology;
     if (other.length > 0) unproven.push(`at the ${when}, a compute adapter that is not NVIDIA (${other.join(", ")}): nothing ties the runtime's device to the NVIDIA one`);
   }
   if (start.compute.join("|") !== end.compute.join("|")) unproven.push(`the compute adapters changed during the run (${start.compute.join(", ") || "none"} → ${end.compute.join(", ") || "none"})`);
+  const topology = physicalConsole(input.start) && physicalConsole(input.end) ? "physical-console" : "remote-session";
+  const nvidiaPci = Math.min(...[start, end].map((roles) => roles.compute.filter((id) => pciVendorId(id) === NVIDIA_VENDOR).length));
 
   const gates = input.gates.map((gate) => {
     const calls = callsOf(gate.text);
@@ -176,7 +187,7 @@ export function gpuQualityVerdict(input: { start: RunTopology; end: RunTopology;
     const idleMib = known.length > 0 ? Math.min(...known) : null;
     const loaded = readings.filter((v): v is number => typeof v === "number" && Number.isFinite(v));
     const loadedMib = loaded.length > 0 ? Math.max(...loaded) : null;
-    const summary = { name: gate.name, calls: calls.length, idleMib, loadedMib };
+    const summary = { name: gate.name, calls: calls.length, idleMib, loadedMib, vulkanDevices: execution?.vulkanDevices ?? null };
     if (!execution || calls.length === 0) {
       unproven.push(`${gate.name}: no execution record`);
       return summary;
@@ -189,6 +200,12 @@ export function gpuQualityVerdict(input: { start: RunTopology; end: RunTopology;
     if (offGpu.length > 0) wrong.push(`${gate.name}: ${offGpu.length} of ${calls.length} calls not on Vulkan with every layer offloaded (${[...new Set(offGpu.map((c) => `${c.resolved} on ${c.backend} (${c.layers}), answer ${c.answer}`))].join("; ")})`);
     if (!calls.some((c) => c.answer !== "none")) unproven.push(`${gate.name}: no call was answered`);
     if (execution.guardRuns < 1 || execution.hostPids.length < 1) unproven.push(`${gate.name}: no GPU host started behind the pack guard`);
+    const devices = execution.vulkanDevices;
+    if (devices === null) {
+      if (topology !== "physical-console") unproven.push(`${gate.name}: the runtime's Vulkan device count was not recorded, and off the physical console readiness counts the NVIDIA GPU twice, so nothing shows the runtime bound only the NVIDIA GPU`);
+    } else if (devices.length === 0 || devices.some((count) => !(count >= 1 && count <= nvidiaPci))) {
+      unproven.push(`${gate.name}: the runtime bound ${JSON.stringify(devices)} Vulkan devices for ${nvidiaPci} NVIDIA PCI adapter(s): a device beyond them is not proven NVIDIA`);
+    }
     if (readings.length < calls.length || loaded.length !== readings.length) {
       unproven.push(`${gate.name}: nvidia-smi did not read the NVIDIA GPU after every call (${JSON.stringify(readings)})`);
     } else if (idleMib === null || loadedMib === null || loadedMib - idleMib < input.minModelVramMib) {
@@ -198,7 +215,6 @@ export function gpuQualityVerdict(input: { start: RunTopology; end: RunTopology;
   });
   if (gates.length === 0) unproven.push("no gate ran");
 
-  const topology = physicalConsole(input.start) && physicalConsole(input.end) ? "physical-console" : "remote-session";
   const verdict: ComputeVerdict = wrong.length > 0 ? "FAIL" : unproven.length > 0 ? "INCONCLUSIVE" : "PASS";
   const label = verdict === "FAIL" ? COMPUTE_LABELS.wrong : verdict === "INCONCLUSIVE" ? COMPUTE_LABELS.unproven : topology === "physical-console" ? COMPUTE_LABELS.console : COMPUTE_LABELS.remote;
   return {

@@ -20,8 +20,9 @@
  *     and the live quality modes' Automatic arm (liveExecution.ts) run on the product's own readiness;
  *     verify:ai-gpu-quality judges where a run ran through gpuQualityEvidence.ts, with no blanket console rule.
  *  F. GPU quality evidence (scripts/ai-harness/gpuQualityEvidence.ts): Remote Desktop changes the display topology,
- *     never the compute device. The recorded Run 2 part 1 (RDP, then disconnected) is NVIDIA compute evidence and
- *     never a console topology qualification; an ambiguous device is INCONCLUSIVE; a call off the GPU after
+ *     never the compute device. The recorded Run 2 part 1 (RDP, then disconnected) printed no runtime device count, so
+ *     it is INCONCLUSIVE off the console; with that count it is NVIDIA compute evidence, never a console topology
+ *     qualification. An ambiguous device (a second Vulkan device included) is INCONCLUSIVE; a call off the GPU after
  *     Automatic resolved to it FAILS; the Remote Display Adapter is never a compute GPU; an Automatic that resolved to
  *     CPU & RAM only stays supported and is no GPU evidence.
  *
@@ -458,6 +459,12 @@ const source = (file: string) => fs.readFileSync(path.join(ROOT, file), "utf8");
     launcher.indexOf("behaviour: ") > 0 && launcher.indexOf("behaviour: ") < launcher.indexOf("await removeWhenReleased(") && !/\brmSync\(/.test(launcher)
   );
   check("verify-ai-gpu-backend-gate: section C classifies adapters through windowsAdapters", /adapterIdentityVerdict\(adapters\)/.test(source("scripts/verify-ai-gpu-backend-gate.mts")));
+  check(
+    "live quality arm: every GPU plan's Vulkan device count is recorded from the runtime's own answer and printed by the launcher",
+    /if \(request\.type === "gpuPlan"\) \{\s*const plan = answer as AiGpuPlan;\s*plans\.push\(\{ deviceCount: plan\.deviceCount/.test(liveExecution) &&
+      /gpuPlans: this\.gpus\.flatMap\(\(gpu\) => gpu\.plans\(\)\)/.test(liveExecution) &&
+      source("scripts/verify-ai-explanation-live.mts").includes("· runtime GPU plans: Vulkan devices ${JSON.stringify(plans.map((p) => p.deviceCount))}")
+  );
   const quality = source("scripts/verify-ai-gpu-quality.mts");
   check(
     "verify-ai-gpu-quality: where a run ran is judged by gpuQualityVerdict over idle nvidia-smi readings taken with no gate running, its exit follows that verdict, and no blanket console rule remains",
@@ -477,7 +484,9 @@ const callLine = (feature: string, where = ON_GPU) => `    · ${feature} ok: ${w
 const gateText = (calls: string[], readiness: string, pids: number[], vram: Array<number | null>) =>
   ["  execution, per model call:", ...calls, `    · readiness answers ${readiness}; pack guard runs 1; GPU host pids ${JSON.stringify(pids)}; nvidia-smi MiB after each call ${JSON.stringify(vram)}`].join("\n");
 const READY = '[{"ok":true,"nvidiaAdapters":1}]';
-const judge = (start: RunTopology, end: RunTopology, gates: GateEvidence[]) => gpuQualityVerdict({ start, end, gates, minModelVramMib: MODEL_MIB });
+const planLine = (devices: number[]) => `    · runtime GPU plans: Vulkan devices ${JSON.stringify(devices)}, VRAM total MiB ${JSON.stringify(devices.map(() => 8192))}`;
+const withPlans = (gates: GateEvidence[], devices = [1]) => gates.map((gate) => ({ ...gate, text: `${gate.text}\n${planLine(devices)}` }));
+const judge =(start: RunTopology, end: RunTopology, gates: GateEvidence[]) => gpuQualityVerdict({ start, end, gates, minModelVramMib: MODEL_MIB });
 const RDP_START: RunTopology = { sessionName: "rdp-tcp#47", state: "Active", adapters: [GTX, REMOTE] };
 const RDP_END: RunTopology = { sessionName: "", state: "Disc", adapters: [GTX] };
 const CONSOLE: RunTopology = { sessionName: "console", state: "Active", adapters: [GTX] };
@@ -512,13 +521,19 @@ const run2Part1: GateEvidence[] = [
 /** One gate on the GPU at the console's levels, with the runner's idle readings around it. */
 const gpuGate = (name: string, vram: Array<number | null> = [2036, 2036, 987], idle: Array<number | null> = [985, 986], calls = Array(3).fill(callLine("errorExplanation")), readiness = READY): GateEvidence => ({
   name,
-  text: gateText(calls, readiness, [9632], vram),
+  text: `${gateText(calls, readiness, [9632], vram)}\n${planLine([1])}`,
   idleVramMib: idle
 });
 {
-  const rdp = judge(RDP_START, RDP_END, run2Part1);
+  const recorded = judge(RDP_START, RDP_END, run2Part1);
   check(
-    `the recorded Run 2 part 1 over RDP (start ${RDP_START.sessionName} with the Remote Display Adapter, end disconnected): ${COMPUTE_LABELS.remote}`,
+    "the recorded Run 2 part 1 over RDP, which printed no runtime device count: INCONCLUSIVE, since off the console readiness counts the NVIDIA GPU twice and the product's E2 check would pass a second Vulkan device",
+    recorded.verdict === "INCONCLUSIVE" && recorded.reasons.length === 6 && recorded.reasons.every((r) => /Vulkan device count was not recorded/.test(r)),
+    recorded.reasons
+  );
+  const rdp = judge(RDP_START, RDP_END, withPlans(run2Part1));
+  check(
+    `the same record with the runtime's own count (1 Vulkan device, one NVIDIA PCI adapter), over RDP (start ${RDP_START.sessionName} with the Remote Display Adapter, end disconnected): ${COMPUTE_LABELS.remote}`,
     rdp.verdict === "PASS" && rdp.label === COMPUTE_LABELS.remote && rdp.topology === "remote-session" && rdp.reasons.length === 0,
     rdp
   );
@@ -534,8 +549,10 @@ const gpuGate = (name: string, vram: Array<number | null> = [2036, 2036, 987], i
   );
   check("...and it is never a physical-console topology qualification", rdp.label !== COMPUTE_LABELS.console && !physicalConsole(RDP_START) && !physicalConsole(RDP_END));
   check("readiness's adapter count is not the device proof: the gate where Chromium counted the one NVIDIA GPU twice (RDP) is judged on Windows' one PCI adapter", /"nvidiaAdapters":2/.test(run2Part1[0].text) && rdp.verdict === "PASS");
+  const second = judge(RDP_START, RDP_END, withPlans(run2Part1, [2]));
+  check("RDP with the runtime binding 2 Vulkan devices for Windows' one NVIDIA adapter (a software ICD, say), which readiness's doubled count lets through: INCONCLUSIVE", second.verdict === "INCONCLUSIVE" && second.reasons.every((r) => /a device beyond them is not proven NVIDIA/.test(r)), second.reasons);
   const atConsole = judge(CONSOLE, CONSOLE, run2Part1);
-  check(`control: the same evidence at the physical console reads ${COMPUTE_LABELS.console}`, atConsole.verdict === "PASS" && atConsole.label === COMPUTE_LABELS.console && atConsole.topology === "physical-console", atConsole);
+  check(`control: the recorded evidence at the physical console, where the product's own E2 check is exact, reads ${COMPUTE_LABELS.console} with no recorded count`, atConsole.verdict === "PASS" && atConsole.label === COMPUTE_LABELS.console && atConsole.topology === "physical-console", atConsole);
 }
 {
   const console0 = { sessionName: "console", state: "Active", adapters: [GTX, REMOTE] };
