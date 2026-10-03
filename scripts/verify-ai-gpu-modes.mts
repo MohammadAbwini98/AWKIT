@@ -963,6 +963,12 @@ console.log("\nK. Automatic (owner decision 2026-10-03): GPU-Offload when NVIDIA
     gpuAnswer
   );
   check("...the load ran as GPU-Offload and the job reports that, never 'auto'", gpuStatus.execution.mode === "gpu-offload" && provenJobs[provenJobs.length - 1]?.profile?.mode === "gpu-offload", gpuStatus.execution);
+  const gpuView = toExecutionView(gpuStatus, "auto", proven.box.readiness);
+  check(
+    "...and the view keeps the stored Automatic apart from what the load ran as: GPU-Offload, never 'auto'",
+    gpuView.mode === "auto" && gpuView.ranAs === "gpu-offload",
+    { mode: gpuView.mode, ranAs: gpuView.ranAs }
+  );
   check("...readiness was checked once for the load, not again inside the GPU path", proven.box.calls === 1, proven.box.calls);
   check(
     "...the label's configuration is the GPU load's: Vulkan, every layer",
@@ -993,6 +999,7 @@ console.log("\nK. Automatic (owner decision 2026-10-03): GPU-Offload when NVIDIA
       { execution: status.execution, logs }
     );
     check(`...the view still says why the GPU is not used: readiness ${reason}`, !view.gpuReadiness.ok && view.gpuReadiness.reason === reason && view.mode === "auto", view.gpuReadiness);
+    check("...and the view says the load ran as CPU & RAM only, the stored mode staying Automatic", view.ranAs === "cpu" && view.mode === "auto", { mode: view.mode, ranAs: view.ranAs });
     const cold = jobs.find((s) => s.cold === true && s.profile !== null);
     check("...the cold load's ETA is estimated for CPU & RAM from the start, as under CPU & RAM only", cold?.profile?.mode === "cpu" && cold.profile.backend === "cpu", cold);
     check(

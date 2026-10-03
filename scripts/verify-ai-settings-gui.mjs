@@ -549,8 +549,19 @@ try {
   await chooseMode(panel, "Automatic", "Execution mode set to Automatic. It takes effect the next time the model loads.");
   check("...written to disk as auto", readSettingsFile()?.executionMode === "auto", JSON.stringify(readSettingsFile()));
   await askAi();
-  await runsOnMatches(panel, /^Automatic: all 24 layers on the GPU$/, "(fixture) Automatic with one NVIDIA adapter and the pack runs as GPU-Offload: every layer on the GPU");
-  check("...the backend pack panel reports the GPU in use", /GPU use\s*In use: Automatic: all 24 layers on the GPU/.test(await panel.innerText()));
+  // Automatic is the stored choice, never the runtime mode: the placement names the mode the load ran as.
+  await runsOnMatches(
+    panel,
+    /^GPU-Offload \(chosen by Automatic\): all 24 layers on the GPU$/,
+    "(fixture) Automatic with one NVIDIA adapter and the pack runs as GPU-Offload, and Runs on names GPU-Offload as chosen by Automatic"
+  );
+  const autoOnGpu = await panel.innerText();
+  check("...the backend pack panel reports the GPU in use as GPU-Offload, chosen by Automatic", /GPU use\s*In use: GPU-Offload \(chosen by Automatic\): all 24 layers on the GPU/.test(autoOnGpu), autoOnGpu.match(/GPU use[^\n]*\n?[^\n]*/)?.[0]);
+  check(
+    "...diagnostics keep the stored mode as Automatic and say it is running as GPU-Offload, never as Automatic",
+    /Execution mode\s*Automatic\s*Running as\s*GPU-Offload \(chosen by Automatic\): all 24 layers on the GPU/.test(autoOnGpu),
+    autoOnGpu.match(/Running as[^\n]*\n?[^\n]*/)?.[0]
+  );
   // The adapter set changes; the reserve reset drops the idle load, so the next job resolves Automatic again.
   fixture({ pack: "installed", adapters: [0x10de, 0x1002], plan: plan(24) });
   await panel.getByRole("button", { name: "Use System Default" }).click();

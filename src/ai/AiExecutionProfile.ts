@@ -188,6 +188,7 @@ export function toExecutionView(
   return {
     ...profile,
     mode,
+    ranAs: profile.mode,
     fallbackReason: applied ? profile.fallbackReason : null,
     refusal: applied && profile.refusal ? { ...profile.refusal } : null,
     vram: profile.vram ? { ...profile.vram } : null,

@@ -940,6 +940,7 @@ async function main(): Promise<void> {
       modelPack: { status: "installed", reason: null, modelId: "test-fake", displayName: "Test", acknowledged: null, qualification: null },
       execution: {
         mode: "cpu",
+        ranAs: "cpu",
         backend: "cpu",
         gpuLayers: 0,
         totalLayers: null,

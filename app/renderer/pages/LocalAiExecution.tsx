@@ -52,11 +52,16 @@ function shortfall(refusal: NonNullable<AiExecutionView["refusal"]>): string {
     : "";
 }
 
+/** The mode a load ran as. Automatic is the stored choice, never a runtime mode, so it is named as what chose it. */
+function ranAsLabel(e: AiExecutionView): string {
+  return e.mode === "auto" ? `${MODE_LABELS[e.ranAs]} (chosen by Automatic)` : MODE_LABELS[e.ranAs];
+}
+
 function placement(e: AiExecutionView): string {
   if (e.backend === "vulkan") {
     return e.totalLayers !== null && e.gpuLayers >= e.totalLayers
-      ? `${MODE_LABELS[e.mode]}: all ${e.gpuLayers} layers on the GPU`
-      : `${MODE_LABELS[e.mode]}: ${e.gpuLayers} of ${e.totalLayers ?? "?"} layers on the GPU, the rest on CPU & RAM`;
+      ? `${ranAsLabel(e)}: all ${e.gpuLayers} layers on the GPU`
+      : `${ranAsLabel(e)}: ${e.gpuLayers} of ${e.totalLayers ?? "?"} layers on the GPU, the rest on CPU & RAM`;
   }
   return e.fallbackReason ? `CPU & RAM (GPU-Offload fell back: ${e.message})` : "CPU & RAM";
 }
