@@ -9,6 +9,7 @@ import {
   Gauge,
   HardDrive,
   KeyRound,
+  Plug,
   Plus,
   RotateCcw,
   RefreshCw,
@@ -548,17 +549,14 @@ export function SettingsPage() {
             </div>
           </div>
           <div className="settings-panel-grid">
-            {/* The reference keeps the primary appearance editor full-width, then packs the remaining
-                cards into independent columns. This avoids row-height holes when permission-gated or
-                data-dependent cards are much taller than their neighbors. */}
+            {/* The accent editor is full-width; Application pairs with Workspace Logo, and takes the
+                whole row when the logo card is not permitted. Paired cards stretch to one height. */}
             <div className="settings-panel-slot settings-panel-slot--wide">
               <AccentColorSettings />
             </div>
 
-            <div className="settings-panel-columns">
-              <div className="settings-panel-column">
                 {/* Application */}
-                <section className="work-panel settings-card">
+                <section className={can(Permission.SETTINGS_BRANDING_MANAGE) ? "work-panel settings-card" : "work-panel settings-card settings-card--wide"}>
                   <div className="settings-card-head">
                     <Gauge size={16} />
                     <h2>Application</h2>
@@ -594,16 +592,6 @@ export function SettingsPage() {
                 {/* Workspace Logo is Super-User-only. The main process independently enforces the
                     SETTINGS_BRANDING_MANAGE boundary for every mutation. */}
                 {can(Permission.SETTINGS_BRANDING_MANAGE) ? <BrandingSettings /> : null}
-                <OracleDriverSettings />
-              </div>
-
-              <div className="settings-panel-column">
-                <JavaRuntimeSettings />
-                <DomIntelligenceSettings />
-                {can(Permission.SEMANTIC_SEARCH) ? <SemanticIndexSettings /> : null}
-                {can(Permission.AI_USE) || can(Permission.AI_MANAGE) || can(Permission.AI_AUDIT_VIEW) ? <LocalAiSettings /> : null}
-              </div>
-            </div>
           </div>
         </section>
 
@@ -621,7 +609,7 @@ export function SettingsPage() {
               <ShieldCheck size={16} aria-hidden="true" />
               <div>
                 <h3 id="settings-security-title">Automation and security</h3>
-                <p>Recorder safeguards, browser policy, privileged diagnostics, and session controls.</p>
+                <p>Recorder safeguards, browser policy, privileged diagnostics, session controls, and encrypted credentials.</p>
               </div>
             </div>
             <div className="settings-panel-grid">
@@ -752,8 +740,8 @@ export function SettingsPage() {
           </section>
         ) : null}
 
-        {/* Recorder — Protected Login Detection */}
-        <section className="work-panel settings-card">
+        {/* Recorder — Protected Login Detection. Pairs with Recorder Security; full row without it. */}
+        <section className={can(Permission.SETTINGS_EDIT) ? "work-panel settings-card" : "work-panel settings-card settings-card--wide"}>
           <div className="settings-card-head">
             <ShieldCheck size={16} />
             <h2>Recorder</h2>
@@ -817,6 +805,80 @@ export function SettingsPage() {
             ) : null}
           </section>
         ) : null}
+
+        {/* Secrets — encrypted operator credentials referenced from steps by name (audit §15) */}
+        <section className="work-panel settings-card settings-card--wide">
+          <div className="settings-card-head">
+            <KeyRound size={16} />
+            <h2>Secrets</h2>
+          </div>
+          <p className="settings-card-hint">
+            Store portal passwords and API tokens encrypted on this machine (Windows DPAPI) and reference them
+            from steps by name via a <strong>Secret</strong> value source. Values never appear in workflow JSON,
+            logs, screenshots, or reports.
+          </p>
+          {secretsAvailable ? (
+            <>
+              <div className="settings-secret-form">
+                <label>
+                  Name
+                  <input
+                    type="text"
+                    value={secretName}
+                    placeholder="portal_password"
+                    spellCheck={false}
+                    autoComplete="off"
+                    onChange={(ev) => {
+                      setSecretName(ev.target.value);
+                      setSecretError(null);
+                    }}
+                  />
+                </label>
+                <label>
+                  Value
+                  <input
+                    type="password"
+                    value={secretValue}
+                    placeholder="Enter secret value"
+                    autoComplete="off"
+                    onChange={(ev) => {
+                      setSecretValue(ev.target.value);
+                      setSecretError(null);
+                    }}
+                    onKeyDown={(ev) => {
+                      if (ev.key === "Enter") void addSecret();
+                    }}
+                  />
+                </label>
+                <button className="toolbar-button primary" type="button" disabled={secretBusy} onClick={() => void addSecret()}>
+                  <Plus size={15} />
+                  {secrets.some((s) => s.name === secretName.trim()) ? "Update" : "Add"}
+                </button>
+              </div>
+              {secretError ? <p className="form-message error-text" role="alert">{secretError}</p> : null}
+            </>
+          ) : (
+            <div className="settings-banner error" role="alert">
+              Secure storage is not available on this system, so secrets cannot be saved.
+            </div>
+          )}
+          {secrets.length ? (
+            <div className="settings-secret-list">
+              {secrets.map((s) => (
+                <div className="settings-secret-row" key={s.name}>
+                  <KeyRound size={14} />
+                  <strong>{s.name}</strong>
+                  <span>updated {new Date(s.updatedAt).toLocaleDateString()}</span>
+                  <button className="icon-button danger" type="button" title={`Delete ${s.name}`} onClick={() => void deleteSecret(s.name)}>
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : secretsAvailable ? (
+            <p className="form-message">No secrets stored yet.</p>
+          ) : null}
+        </section>
             </div>
           </div>
 
@@ -871,8 +933,9 @@ export function SettingsPage() {
           <p className="form-message">Paths default to folders under the runtime data root. Use Browse to choose a folder, then Save.</p>
         </section>
 
-        {/* Designer Defaults */}
-        <section className="work-panel settings-card">
+        {/* Designer Defaults — full row: its fields fit on one line instead of leaving a hole beside
+            the taller Execution Defaults. */}
+        <section className="work-panel settings-card settings-card--wide">
           <div className="settings-card-head">
             <SlidersHorizontal size={16} />
             <h2>Designer Defaults</h2>
@@ -894,7 +957,7 @@ export function SettingsPage() {
         </section>
 
         {/* Execution Defaults */}
-        <section className="work-panel settings-card">
+        <section className="work-panel settings-card settings-card--wide">
           <div className="settings-card-head">
             <ShieldCheck size={16} />
             <h2>Execution Defaults</h2>
@@ -1071,88 +1134,30 @@ export function SettingsPage() {
 
           <div className="settings-subsection" aria-labelledby="settings-integrations-title">
             <div className="settings-subsection-intro">
-              <KeyRound size={16} aria-hidden="true" />
-            <div>
-                <h3 id="settings-integrations-title">Credentials</h3>
-                <p>Encrypted operator secrets stay local and never appear in workflow files or reports.</p>
-            </div>
-          </div>
-          <div className="settings-panel-grid">
-
-        {/* Secrets — encrypted operator credentials referenced from steps by name (audit §15) */}
-        <section className="work-panel settings-card settings-card--wide">
-          <div className="settings-card-head">
-            <KeyRound size={16} />
-            <h2>Secrets</h2>
-          </div>
-          <p className="settings-card-hint">
-            Store portal passwords and API tokens encrypted on this machine (Windows DPAPI) and reference them
-            from steps by name via a <strong>Secret</strong> value source. Values never appear in workflow JSON,
-            logs, screenshots, or reports.
-          </p>
-          {secretsAvailable ? (
-            <>
-              <div className="settings-secret-form">
-                <label>
-                  Name
-                  <input
-                    type="text"
-                    value={secretName}
-                    placeholder="portal_password"
-                    spellCheck={false}
-                    autoComplete="off"
-                    onChange={(ev) => {
-                      setSecretName(ev.target.value);
-                      setSecretError(null);
-                    }}
-                  />
-                </label>
-                <label>
-                  Value
-                  <input
-                    type="password"
-                    value={secretValue}
-                    placeholder="Enter secret value"
-                    autoComplete="off"
-                    onChange={(ev) => {
-                      setSecretValue(ev.target.value);
-                      setSecretError(null);
-                    }}
-                    onKeyDown={(ev) => {
-                      if (ev.key === "Enter") void addSecret();
-                    }}
-                  />
-                </label>
-                <button className="toolbar-button primary" type="button" disabled={secretBusy} onClick={() => void addSecret()}>
-                  <Plus size={15} />
-                  {secrets.some((s) => s.name === secretName.trim()) ? "Update" : "Add"}
-                </button>
+              <Plug size={16} aria-hidden="true" />
+              <div>
+                <h3 id="settings-integrations-title">Integrations and intelligence</h3>
+                <p>Database drivers, DOM intelligence, the semantic index, and the local AI model.</p>
               </div>
-              {secretError ? <p className="form-message error-text" role="alert">{secretError}</p> : null}
-            </>
-          ) : (
-            <div className="settings-banner error" role="alert">
-              Secure storage is not available on this system, so secrets cannot be saved.
             </div>
-          )}
-          {secrets.length ? (
-            <div className="settings-secret-list">
-              {secrets.map((s) => (
-                <div className="settings-secret-row" key={s.name}>
-                  <KeyRound size={14} />
-                  <strong>{s.name}</strong>
-                  <span>updated {new Date(s.updatedAt).toLocaleDateString()}</span>
-                  <button className="icon-button danger" type="button" title={`Delete ${s.name}`} onClick={() => void deleteSecret(s.name)}>
-                    <Trash2 size={14} />
-                  </button>
+            <div className="settings-panel-grid">
+              {/* Independent columns, so cards of very different heights leave no row holes: database
+                  drivers on the left, page intelligence on the right; Local AI (the tallest) spans below. */}
+              <div className="settings-panel-columns">
+                <div className="settings-panel-column">
+                  <JavaRuntimeSettings />
+                  <OracleDriverSettings />
                 </div>
-              ))}
-            </div>
-          ) : secretsAvailable ? (
-            <p className="form-message">No secrets stored yet.</p>
-          ) : null}
-        </section>
-
+                <div className="settings-panel-column">
+                  <DomIntelligenceSettings />
+                  {can(Permission.SEMANTIC_SEARCH) ? <SemanticIndexSettings /> : null}
+                </div>
+              </div>
+              {can(Permission.AI_USE) || can(Permission.AI_MANAGE) || can(Permission.AI_AUDIT_VIEW) ? (
+                <div className="settings-panel-slot settings-panel-slot--wide">
+                  <LocalAiSettings />
+                </div>
+              ) : null}
             </div>
           </div>
 

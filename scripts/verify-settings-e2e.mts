@@ -628,6 +628,43 @@ try {
   // User, or "Administrator does not see it" would pass on a card that no longer exists at all.
   check(`SET-001 Super User sees the SU-only ${WORKSPACE_LOGO_HEADING} card`, headings.includes(WORKSPACE_LOGO_HEADING), headings.join(" | "));
 
+  // Layout: no card sits beside a blank hole. Side-by-side cards share one row height and the
+  // independent columns end on one line (the old layout left ~3,500px empty beside Local AI).
+  // The cardinality floor keeps it from passing on a layout that no longer pairs anything.
+  await win.waitForTimeout(400);
+  const settingsLayout = await win.evaluate(() => {
+    const holes: string[] = [];
+    let pairedRows = 0;
+    for (const grid of Array.from(document.querySelectorAll(".settings-stack .settings-panel-grid"))) {
+      const rows = new Map<number, Element[]>();
+      for (const child of Array.from(grid.children)) {
+        const top = Math.round(child.getBoundingClientRect().top);
+        rows.set(top, [...(rows.get(top) ?? []), child]);
+      }
+      for (const row of rows.values()) {
+        if (row.length < 2) continue;
+        pairedRows++;
+        const bottoms = row.map((element) => Math.round(element.getBoundingClientRect().bottom));
+        if (Math.max(...bottoms) - Math.min(...bottoms) > 2) holes.push(`row bottoms ${bottoms.join("/")}`);
+      }
+    }
+    let columnSets = 0;
+    for (const columns of Array.from(document.querySelectorAll(".settings-stack .settings-panel-columns"))) {
+      columnSets++;
+      const bottom = Math.round(columns.getBoundingClientRect().bottom);
+      for (const column of Array.from(columns.children)) {
+        const gap = bottom - Math.round(column.lastElementChild?.getBoundingClientRect().bottom ?? 0);
+        if (gap > 2) holes.push(`column ends ${gap}px short`);
+      }
+    }
+    return { pairedRows, columnSets, holes };
+  });
+  check(
+    "SET-001 Settings cards leave no blank hole beside or below a neighbor at 1440px",
+    settingsLayout.pairedRows >= 3 && settingsLayout.columnSets >= 1 && settingsLayout.holes.length === 0,
+    JSON.stringify(settingsLayout)
+  );
+
   // Paths: seven defaults, correct file-vs-directory truth, individual reset and blank client guard.
   const pathCards = win.locator(".settings-path-field");
   check("SET-007 all seven path fields render", (await pathCards.count()) === 7);

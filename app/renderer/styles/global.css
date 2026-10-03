@@ -6033,15 +6033,18 @@ th {
   margin: var(--space-1) 0 0;
 }
 
+/* Paired cards stretch to one row height, so a shorter partner leaves no ragged hole below it. */
 .settings-panel-grid {
-  align-items: start;
+  align-items: stretch;
   display: grid;
   gap: var(--space-4);
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+/* Independent columns: both stretch to the taller one and each column's last card grows to fill it,
+   so the columns end on one line instead of leaving a hole under the shorter one. */
 .settings-panel-columns {
-  align-items: start;
+  align-items: stretch;
   display: grid;
   gap: var(--space-4);
   grid-column: 1 / -1;
@@ -6049,10 +6052,14 @@ th {
 }
 
 .settings-panel-column {
-  align-content: start;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: var(--space-4);
   min-width: 0;
+}
+
+.settings-panel-column > :last-child {
+  flex-grow: 1;
 }
 
 .settings-panel-column > .settings-card {
@@ -6093,6 +6100,7 @@ th {
 }
 
 .settings-card {
+  align-content: start;
   display: grid;
   gap: var(--space-3);
 }

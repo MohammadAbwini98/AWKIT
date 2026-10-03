@@ -1,6 +1,35 @@
 # TASK_LOG
 
-## 2026-10-03 (latest) — Darker light-mode field dots (Claude)
+## 2026-10-04 (latest) — Settings: card order regrouped, no blank holes (Claude)
+
+- **Task:** owner asked to organise the Settings card order and design with minimum empty space.
+- **Before:** measured at 1440px as a Super User, the page was 8,280px tall. "Appearance" held the
+  Java/Oracle/DOM/Semantic/Local AI cards in two independent columns, and Local AI (3,127px at half width)
+  left about 3,500px blank beside it. Row holes sat under Recorder (84px), Designer Defaults (108px) and
+  Advanced (70px).
+- **Result:** the page is 7,845px tall with no blank holes.
+  - **Appearance:** Accent, then Application paired with Workspace Logo.
+  - **Automation and security:** Super User Debug, Recorder paired with Recorder Security, and Secrets.
+    The separate Credentials subsection is folded in here.
+  - **Execution and paths:** Paths, plus Designer and Execution Defaults, now full rows.
+  - **Integrations and intelligence:** new. Java and Oracle stack in one column, DOM and Semantic in the
+    other, and Local AI runs full width below.
+  - **Artifacts and retention:** unchanged.
+  - **Layout rules:** `.settings-panel-grid` stretches paired cards to one height, and `.settings-card`
+    packs its content at the top. In `.settings-panel-columns`, each column's last card grows so both
+    columns end together. A card whose permission-gated partner is hidden takes the full row (Application
+    without Workspace Logo, Recorder without Recorder Security).
+  - No control, test id or behaviour changed.
+- **Files:** `app/renderer/pages/Settings.tsx`, `app/renderer/styles/global.css`,
+  `scripts/verify-settings-e2e.mts` (new layout check), `docs/ai/TASK_LOG.md`.
+- **Verification:** PASS `npm run build`, `typecheck:scripts`, `verify:reports-settings-a11y` 17/17,
+  `verify:oracle-drivers-gui` 46/46, `verify:branding-gui` 30/30 and `verify:semantic-ui-gui` 19/19.
+  `verify:settings-e2e`: 182 PASS / 0 FAIL / 1 NOT RUN. The NOT RUN is SET-015 Explorer launch, which needs
+  owner approval as before. The new check "Settings cards leave no blank hole" measured 3 paired rows,
+  1 column set and no holes, but is not mutation-tested. The Local AI card is still about 2,700px tall
+  at full width; its internal layout was not changed.
+
+## 2026-10-03 — Darker light-mode field dots (Claude)
 
 - **Task:** owner reported that the light-mode dots read fainter than in the handoff standalone.
 - **Finding:** the opacity was identical at the same zoom and pixel density. A side-by-side measurement over
