@@ -1,6 +1,19 @@
 # TASK_LOG
 
-## 2026-10-03 (latest) — NVIDIA console checks deferred; N1 visual capture plan (Claude, GTX 980M machine over RDP)
+## 2026-10-03 (latest) — Lease guard admits the fast-forward pull (Claude)
+
+- **Task:** let the direct loop pull `origin/main`. The guard admitted `git fetch origin` but no merge form,
+  and `.claude/settings.json` denied `git merge:*`.
+- **Result:** `isUnleasedGitCommand` and `isManagerGitCommand` admit exactly `git merge --ff-only origin/main`.
+  Every other merge form is still refused by the guard. The blanket `Bash(git merge:*)` deny is removed from
+  `DESTRUCTIVE_GIT_DENIES` and settings, because a deny beats the exact allow, which both now list.
+- **Files:** `tools/agents/{lease-guard,routing-matrix}.mjs`, `.claude/settings.json`,
+  `scripts/verify-agent-routing.mjs`, `docs/ai/TASK_LOG.md`.
+- **Verification:** PASS `verify:agent-routing` 1147/1147 (new check: the exact form plus five refused merge
+  forms, unleased and leased; allowlist 30, denylist 40, pin 1146). One mutant (dropping the `origin/main`
+  token check) was caught 1146/1147 and reverted. The live guard admitted the command ("Already up to date").
+
+## 2026-10-03 — NVIDIA console checks deferred; N1 visual capture plan (Claude, GTX 980M machine over RDP)
 
 - **Task:** record the owner's deferral of the remaining NVIDIA physical-console checks without
   falsifying any result, find the next roadmap task from the authoritative sources, and deliver it.

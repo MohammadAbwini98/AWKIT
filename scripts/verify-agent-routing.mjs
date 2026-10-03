@@ -174,7 +174,8 @@ const VERBOSE = process.argv.slice(2).some((arg) => arg === "--verbose" || arg =
 // +28 (2026-09-20): the contract retention cleanup section — the removal lifecycle, the durable
 // record surviving it, idempotency, ten refusal shapes and the manager-only authorization boundary.
 // +3 (2026-09-30, awkit-djnl.15): the QA `scripts/ai-harness/**` domain, the same three checks.
-const EXPECTED_UNCONDITIONAL_CHECKS = 1145;
+// +1 (2026-10-03): the exact `git merge --ff-only origin/main` fast-forward pull and its refusals.
+const EXPECTED_UNCONDITIONAL_CHECKS = 1146;
 /** Live PreToolUse hook probes; run only when the active lease grants this verifier's own path. */
 const EXPECTED_LIVE_LEASE_CHECKS = 3;
 /** Junction-escape confinement probe; runs only where the filesystem/privileges allow a junction. */
@@ -2082,6 +2083,22 @@ try {
         isUnleasedGitCommand("git commit -m direct", { stagedPaths: ["CLAUDE.md"] }) &&
         isUnleasedGitCommand("git push origin main")
     );
+    const ffPull = "git merge --ff-only origin/main";
+    const otherMerges = [
+      "git merge origin/main",
+      "git merge --no-ff origin/main",
+      "git merge --ff-only origin/feature",
+      "git merge --ff-only origin/main extra",
+      "git merge --ff-only origin/main && git push origin main"
+    ];
+    check(
+      "only the exact fast-forward pull is admitted, unleased and to the leased Manager",
+      isUnleasedGitCommand(ffPull) &&
+        isManagerGitCommand(ffPull, { task: "fixture" }) &&
+        otherMerges.every((command) => !isUnleasedGitCommand(command)) &&
+        otherMerges.every((command) => !isManagerGitCommand(command, { task: "fixture" })),
+      otherMerges.filter((command) => isUnleasedGitCommand(command)).join(" | ")
+    );
     check(
       "the direct handoff command has exact grammar and cannot become a no-lease bypass",
       isLeaseHandoffCommand(handoffCommand) &&
@@ -3853,16 +3870,16 @@ try {
   const projectPermissionAllows = claudeSettings.permissions?.allow ?? [];
   const projectPermissionDenies = claudeSettings.permissions?.deny ?? [];
   check(
-    "project settings have the byte/order-exact 29-entry direct-work allowlist",
-    expectedProjectPermissionAllows.length === 29 &&
-      projectPermissionAllows.length === 29 &&
+    "project settings have the byte/order-exact 30-entry direct-work allowlist",
+    expectedProjectPermissionAllows.length === 30 &&
+      projectPermissionAllows.length === 30 &&
       sameArray(projectPermissionAllows, expectedProjectPermissionAllows),
     JSON.stringify(projectPermissionAllows)
   );
   check(
-    "project settings have the byte/order-exact 41-entry permission denylist",
-    CLAUDE_PERMISSION_DENIES.length === 41 &&
-      projectPermissionDenies.length === 41 &&
+    "project settings have the byte/order-exact 40-entry permission denylist",
+    CLAUDE_PERMISSION_DENIES.length === 40 &&
+      projectPermissionDenies.length === 40 &&
       sameArray(projectPermissionDenies, CLAUDE_PERMISSION_DENIES),
     JSON.stringify(projectPermissionDenies)
   );

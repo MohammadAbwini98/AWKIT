@@ -304,6 +304,21 @@ function boundedStagePath(lease, candidate) {
   );
 }
 
+/**
+ * `git merge --ff-only origin/main`, exactly: it only moves `main` forward to commits already on
+ * origin and refuses to create a merge commit or overwrite local changes. Every other merge form
+ * stays refused.
+ */
+function isFastForwardPull(tokens) {
+  return (
+    tokens.length === 4 &&
+    tokens[0] === "git" &&
+    tokens[1] === "merge" &&
+    tokens[2] === "--ff-only" &&
+    tokens[3] === "origin/main"
+  );
+}
+
 /** Exact, scoped Git commands reserved for the root Manager. */
 export function isManagerGitCommand(
   command,
@@ -317,6 +332,7 @@ export function isManagerGitCommand(
   if (tokens.length === 3 && tokens[0] === "git" && tokens[1] === "fetch" && tokens[2] === "origin") {
     return true;
   }
+  if (isFastForwardPull(tokens)) return true;
   if (
     tokens.length === 4 &&
     tokens[0] === "git" &&
@@ -353,6 +369,7 @@ export function isUnleasedGitCommand(command, { stagedPaths = [] } = {}) {
   const tokens = shellTokens(command.trim());
   if (!tokens) return false;
   if (tokens.length === 3 && tokens[0] === "git" && tokens[1] === "fetch" && tokens[2] === "origin") return true;
+  if (isFastForwardPull(tokens)) return true;
   if (tokens.length === 4 && tokens[0] === "git" && tokens[1] === "push" && tokens[2] === "origin" && tokens[3] === "main") return true;
   if (tokens[0] === "git" && tokens[1] === "add" && tokens[2] === "--" && tokens.length > 3) {
     return tokens.slice(3).every(isUnleasedStagePath);

@@ -557,6 +557,7 @@ export const MANAGER_SHELL_TOOLS = Object.freeze([
   "Bash(git add --:*)",
   "Bash(git commit -m:*)",
   "Bash(git fetch origin)",
+  "Bash(git merge --ff-only origin/main)",
   "Bash(git push origin main)"
 ]);
 
@@ -564,6 +565,7 @@ export const MANAGER_SHELL_TOOLS = Object.freeze([
 export const CLAUDE_BASH_PERMISSION_RULES = Object.freeze([
   ...GIT_READ_TOOLS,
   "Bash(git fetch origin)",
+  "Bash(git merge --ff-only origin/main)",
   "Bash(git add --:*)",
   "Bash(git commit -m:*)",
   "Bash(git push origin main)",
@@ -644,7 +646,8 @@ export const DESTRUCTIVE_GIT_DENIES = Object.freeze([
   "Bash(git branch:*)",
   "Bash(git switch:*)",
   "Bash(git checkout:*)",
-  "Bash(git merge:*)",
+  // No `git merge:*` deny: a deny beats the exact ff-only allow, so the lease guard refuses every
+  // other merge form instead.
   "Bash(git rebase:*)",
   "Bash(git restore:*)",
   "Bash(git rm:*)",
