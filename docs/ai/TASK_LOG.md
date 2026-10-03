@@ -1,6 +1,32 @@
 # TASK_LOG
 
-## 2026-10-04 (latest) — Settings: card order regrouped, no blank holes (Claude)
+## 2026-10-04 (latest) — Scrapling performance and accuracy re-measured (Claude)
+
+- **Task:** owner asked for a Scrapling performance and accuracy test with a report. This was measurement only;
+  no code changed.
+- **Runs:**
+  - `verify:dom-intelligence-acceptance` was run 3 times on Scrapling 0.4.15 / CPython 3.12.10, the staged
+    host: 11/11 each, and the outcome matrix is identical in all 3 runs and to
+    `evidence/L11-acceptance-results.json` (2026-10-01).
+  - `verify:dom-normalization` 151/151 and `verify:dom-intelligence-host` 94/94.
+- **Accuracy (23 cases: 14 should-recover, 9 should-refuse):**
+  - Shipped engine and product path: 8 found, 0 wrong, 9/9 refusals held.
+  - Old engine: 7, 0 wrong. Scrapling + proof: 7, 0 wrong.
+  - Scrapling alone: 11 found but 10 wrong (3 should-recover, 7 should-refuse) and 2 empty. Its wrong picks
+    score up to 96.4% (dynamic-case scores taken from the 2026-10-01 rows), so no score floor separates right
+    from wrong.
+  - It is right on 4 cases the shipped engine misses: reworded text, duplicate text, relabelled field, list row.
+- **Performance:**
+  - Per lookup (p50 / p95): shipped 31.5–31.8 / 58.1–61.2 ms, Scrapling alone 24.2–26.0 / 32.2–42.2 ms, product
+    path 50.0–52.6 / 71.9–80.6 ms, old engine 1.70–1.77 / 2.21–2.31 s.
+  - Normal-step delta is 0 ms. Host first use takes 0.90–1.00 s and about 20 MB.
+  - Page-size scaling: the suggestion (snapshot + parse + match) costs 49 / 128 / 455 / 1,186 ms at
+    345 / 975 / 3,405 / 8,265 elements. The last exceeds the 800 ms suggestion budget, so the suggestion is
+    skipped (non-fatal).
+- **Report:** https://claude.ai/artifact/LrnttjGovxfLHroSHf9qKs (private). The source is in gitignored `tmp/`.
+- **Files:** `docs/ai/TASK_LOG.md`.
+
+## 2026-10-04 — Settings: card order regrouped, no blank holes (Claude)
 
 - **Task:** owner asked to organise the Settings card order and design with minimum empty space.
 - **Before:** measured at 1440px as a Super User, the page was 8,280px tall. "Appearance" held the
