@@ -462,6 +462,15 @@ npm run verify:ai-fallback        # degraded modes make zero host calls; nothing
                                   # depth reaches the model, and the renderer's bridge roster is exact (38)
 npm run verify:ai-model-pack      # GGUF/size/SHA-256 import, tamper detection, retirement, replacement (46)
 npm run verify:ai-settings-gui    # real Electron: Settings › Local AI, ceiling-bounded tiers, persistence on disk (30)
+npm run verify:ai-settings-gpu-gui
+                                  # L8a Automatic on REAL hardware (NVIDIA machine, physical console): the real app
+                                  # with no test provider or GPU fixture, the pinned Vulkan pack and 0.8B installed
+                                  # through Settings, real requests: stored mode auto, Runs on/Running as name
+                                  # GPU-Offload chosen by Automatic, Vulkan from the pack (module list), nvidia-smi
+                                  # VRAM, labels from the qualified list, CPU & RAM only still available, the pack
+                                  # removed (real not-ready: CPU & RAM only, no fallback, no refusal) and restored.
+                                  # Needs `npm run build`. Exit 2 NOT RUN without NVIDIA/prebuilt/model, and
+                                  # INCONCLUSIVE while a Remote Desktop session is active
 npm run verify:ai-host            # the real host source under a fake parentPort and an injected fake runtime (135)
 npm run verify:ai-host-electron   # production AiUtilityHostManager against the real host in a real utility process (20)
 npm run prepare:ai-host           # L7: stage ai-host.cjs + the pinned CPU runtime closure into build/native-hosts/ai
@@ -597,6 +606,32 @@ npm run verify:ai-error-quality-live-requests2
                                   # the legacy twin) and -requests2 (off target, earlier-step link,
                                   # uncertain) run the 6 cases captured by verify:request-provenance, 3 calls
                                   # each (~5 min, 7 checks). Their cases sum to the whole set
+npm run verify:ai-error-quality-live -- --cases <ids> --execution cpu
+npm run verify:ai-error-quality-live -- --cases <ids> --execution auto
+                                  # L8a's GPU quality arm, on every live gate but the validation explanation's
+                                  # latency steps (failure-analysis, locator-upgrade, locator-quality, authoring-
+                                  # and error-quality): the same sets, judges and deadlines, each model call's
+                                  # resolved mode, backend, offload, stages, timings and tokens printed. `cpu` is
+                                  # the qualified CPU & RAM path; `auto` stores Automatic over the pinned Vulkan
+                                  # pack (imported through the real trust chain) and is GPU evidence only when
+                                  # every answer came from the GPU, INCONCLUSIVE where readiness is not NVIDIA.
+                                  # Authoring captures then go to `authoring-vulkan`, never the L4b review store.
+                                  # On a CPU slower than the qualifying host, split --cases so each run fits 575 s
+npm run verify:ai-gpu-quality-part1
+npm run verify:ai-gpu-quality-part2
+                                  # the arm above as registered gates (no arguments, so they run under the lease
+                                  # guard): part1 = failure analysis, locator upgrade, L4b's whole authoring set
+                                  # and L3's locator set, part2 = L5's whole error set, each under 600 s on the GPU.
+                                  # Records session + adapters at start and end: INCONCLUSIVE (exit 2) unless at the
+                                  # physical console with no Remote Desktop adapter. verify:ai-gpu-quality runs both;
+                                  # verify:ai-gpu-quality-cpu-baseline runs the same 13 gates on CPU (~1.5 h here)
+npm run verify:ai-gpu-automatic-lifecycle
+npm run verify:ai-gpu-automatic-lifecycle-packaged
+                                  # Automatic's lifecycle on the real hosts (source / dist\win-unpacked AI tree):
+                                  # resolve and answer, cancel in prompt evaluation and generation (3 s ceiling), a
+                                  # GPU host killed mid-inference then a fresh resolution, release with nvidia-smi
+                                  # VRAM given back, reload, a labelled not-ready leg beside GPU-Only's refusal,
+                                  # restore. Apart from verify:ai-gpu-lifecycle's MECHANICS so each fits 600 s
 npm run verify:ai-failure-analysis-budget
                                   # the failure-analysis request counted on the 0.8B's own tokenizer, vocabulary
                                   # only, no inference (seconds): each prompt with the host's template, every

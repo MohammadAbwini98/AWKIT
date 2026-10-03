@@ -80,7 +80,7 @@ function binariesFromPack(pid: number, packDir: string): { fromPack: string[] } 
 }
 
 /** VRAM in use on every NVIDIA GPU (MiB, summed), from the driver's own nvidia-smi; null where there is none. */
-function nvidiaVramUsedMib(): number | null {
+export function nvidiaVramUsedMib(): number | null {
   const smi = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "nvidia-smi.exe");
   if (!fs.existsSync(smi)) return null;
   const out = spawnSync(smi, ["--query-gpu=memory.used", "--format=csv,noheader,nounits"], { encoding: "utf8", windowsHide: true, timeout: 60_000 });
@@ -90,6 +90,19 @@ function nvidiaVramUsedMib(): number | null {
     .filter(Boolean)
     .map(Number);
   return rows.length > 0 && rows.every(Number.isFinite) ? rows.reduce((sum, value) => sum + value, 0) : null;
+}
+
+/**
+ * nvidia-smi's reading once it is below `loadedMib`, or the last reading after 10 s. The driver frees a
+ * process's memory once Windows has ended it; a bounded wait on that reading, not a sleep.
+ */
+export async function vramBelow(loadedMib: number): Promise<number | null> {
+  let reading = nvidiaVramUsedMib();
+  for (let waited = 0; reading !== null && reading >= loadedMib && waited < 10_000; waited += 250) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    reading = nvidiaVramUsedMib();
+  }
+  return reading;
 }
 
 type Context = { step: Step; record: (key: string, value: unknown) => void; log: (line: string) => void };
@@ -324,12 +337,7 @@ async function gpuLiveSteps({ step, record, log }: Context, hosts: HostTeardown)
       if (loaded === null || gpu.status().pid === null) throw new Error(JSON.stringify({ loaded, pid: gpu.status().pid }));
       await automatic.releaseModel();
       if (gpu.status().pid !== null) throw new Error("the release left the GPU host running");
-      // The driver frees the memory once Windows has ended the process; a bounded wait, not a sleep.
-      let released = nvidiaVramUsedMib();
-      for (let waited = 0; released !== null && released >= loaded && waited < 10_000; waited += 250) {
-        await new Promise((resolve) => setTimeout(resolve, 250));
-        released = nvidiaVramUsedMib();
-      }
+      const released = await vramBelow(loaded);
       if (released === null || released >= loaded) throw new Error(`VRAM used ${loaded} MiB with the model loaded and ${String(released)} MiB after the release`);
       record("automaticVramReleaseMib", { loaded, released });
       return { loadedMib: loaded, releasedMib: released };

@@ -16,7 +16,8 @@
  *  D. Section C adapter identity (scripts/ai-harness/windowsAdapters.ts): Remote Desktop's adapter is set
  *     aside only by software enumerator AND Microsoft name; a hardware adapter still needs its PCI vendor
  *     ID and an unknown one still fails. Runtime E2 (Chromium's view) is unchanged.
- *  E. Wiring: the three GPU modes and the launcher use these helpers.
+ *  E. Wiring: the three GPU modes and the launcher use these helpers; PRODUCT Automatic's lifecycle in gpuLifecycle
+ *     and the live quality modes' Automatic arm (liveExecution.ts) run on the product's own readiness.
  *
  * Run: npm run verify:ai-gpu-harness
  */
@@ -411,6 +412,32 @@ const source = (file: string) => fs.readFileSync(path.join(ROOT, file), "utf8");
       automatic < precondition
   );
   check("gpuLive: the MECHANICS hello asserts one guarded fork against the real guard counter", /expectOneGuardedFork\(gpu, \(\) => verifications, \(\) => gpu\.call<AiHostHello>\(HELLO/.test(live));
+  const lifecycle = source("scripts/ai-harness/gpuLifecycle.ts");
+  const automaticRunner = lifecycle.slice(lifecycle.indexOf("export async function runGpuAutomaticLifecycle("), lifecycle.indexOf("interface AutomaticContext"));
+  const automaticBody = lifecycle.slice(lifecycle.indexOf("async function automaticLifecycle("));
+  check(
+    "gpuLifecycle: PRODUCT Automatic's lifecycle is its own mode inside withHostTeardown, wired by the launcher's --automatic-lifecycle, on the stored mode auto and the product's own readiness, and only its labelled not-ready leg substitutes it",
+    /withHostTeardown\(step, hosts, \(\) =>\s*automaticLifecycle\(/.test(automaticRunner) &&
+      /mode === "gpuAutoLifecycle"\) await runGpuAutomaticLifecycle\(/.test(source("scripts/ai-harness/harnessMain.ts")) &&
+      /automaticLifecycle \? "gpuAutoLifecycle"/.test(source("scripts/verify-ai-gpu-host.mts")) &&
+      !/await automaticLifecycle\(/.test(lifecycle) &&
+      /executionMode: "auto"/.test(automaticBody) &&
+      /return substituted \?\? gpuReadiness\(store\)/.test(automaticBody) &&
+      automaticBody.includes("readiness SUBSTITUTED as VENDOR_UNPROVEN")
+  );
+  check(
+    "gpuLifecycle: Automatic's lifecycle waits on the job's reported stage, a host exit or nvidia-smi, never a fixed sleep, and checks a fresh resolution after the restart, the release and the restore",
+    !/\bsleep\(/.test(automaticBody) && /until\(\(\) => reached\(job\.requestId, stage\)/.test(automaticBody) && (automaticBody.match(/freshResolutions !== 1/g) ?? []).length >= 4
+  );
+  const liveExecution = source("scripts/ai-harness/liveExecution.ts");
+  const harnessMain = source("scripts/ai-harness/harnessMain.ts");
+  check(
+    "live quality arm: Automatic is the stored mode over the product's readiness and a pack-guarded Vulkan host, and the unset arm keeps the qualified CPU path",
+    /gpuReadiness\(store\)/.test(liveExecution) &&
+      /verify: async \(\) => \{\s*guardRuns \+= 1;\s*const verdict = await store\.verifyForLoad\(\)/.test(liveExecution) &&
+      /\.\.\.\(gpu \? \{ executionMode: "auto" as const, vramReserveBytes: null \} : \{\}\)/.test(harnessMain) &&
+      /transport: gpu \? \(backend\) => \(backend === "vulkan" \? gpu\.manager : manager\) : \(\) => manager/.test(harnessMain)
+  );
   for (const file of ["scripts/ai-harness/gpuLive.ts", "scripts/ai-harness/gpuLifecycle.ts", "scripts/ai-harness/gpuProgress.ts"]) {
     const text = source(file);
     const created = (text.match(/new AiUtilityHostManager\(/g) ?? []).length;

@@ -30,6 +30,9 @@
  *   - gpu: L8a.3 execution modes on the real CPU and Vulkan hosts (scripts/ai-harness/gpuLive.ts).
  *   - gpuLifecycle: L8a.5 cancel latency, kill-restart-reload cost and VRAM exhaustion after load on the
  *     real Vulkan host (scripts/ai-harness/gpuLifecycle.ts).
+ *   - gpuAutoLifecycle: Automatic's lifecycle through the production AiService with the stored mode auto
+ *     and the product's readiness: cancel, a killed host and a fresh resolution, release, reload, a labelled
+ *     not-ready leg and its restore (scripts/ai-harness/gpuLifecycle.ts).
  *   - gpuProgress: L9's job status on the real Vulkan and CPU hosts: load progress, cold and warm, the ETA
  *     history per placement (scripts/ai-harness/gpuProgress.ts).
  *   - inspect: L8b.2's static header stage on the real host, over the curated packs and hand-built
@@ -67,10 +70,11 @@ import { runBench } from "./bench";
 import { runErrorQualityLive } from "./errorQualityLive";
 import { runFailureAnalysisBudget } from "./failureAnalysisBudget";
 import { runFailureAnalysisLive, runLocatorUpgradeLive } from "./featureLive";
-import { runGpuLifecycle } from "./gpuLifecycle";
+import { runGpuAutomaticLifecycle, runGpuLifecycle } from "./gpuLifecycle";
 import { runGpuLive } from "./gpuLive";
 import { runGpuProgress } from "./gpuProgress";
 import { runLocatorQualityLive } from "./locatorQualityLive";
+import { ExecutionLog, liveExecution, makeLiveGpu } from "./liveExecution";
 import { runLocatorUpgradeBudget } from "./locatorUpgradeBudget";
 import { runModelInspect } from "./modelInspect";
 import { runProfile } from "./profile";
@@ -453,11 +457,16 @@ export const IDLE_VIEW: AiAdmissionView = {
 
 export interface LiveContext {
   manager: AiUtilityHostManager;
+  /** The Vulkan host Automatic may resolve to, under `AWKIT_HARNESS_EXECUTION=auto` only (liveExecution.ts). */
+  gpuManager?: AiUtilityHostManager;
   service: AiService;
   admission: { view: AiAdmissionView };
   modelId: string;
   threads: number;
 }
+
+/** The run's execution record, shared by every live context the mode makes; null without the execution arm. */
+let executionLog: ExecutionLog | null | undefined;
 
 export function makeLiveContext(options: { yieldDuringRuns?: boolean; nonce?: () => string } = {}): LiveContext {
   const manager = makeManager();
@@ -466,19 +475,27 @@ export function makeLiveContext(options: { yieldDuringRuns?: boolean; nonce?: ()
   const modelPath = required("AWKIT_HARNESS_MODEL_PATH");
   const threads = Number(required("AWKIT_HARNESS_THREADS"));
   const expectedRuntimeBuild = process.env.AWKIT_HARNESS_EXPECT_BUILD || undefined;
+  const log = (level: string, message: string) => logLines.push(`${level}: ${message}`);
+  const execution = liveExecution();
+  if (executionLog === undefined) executionLog = execution ? new ExecutionLog(execution, record) : null;
+  const gpu = execution === "auto" ? makeLiveGpu(log) : undefined;
   const service = new AiService({
-    transport: () => manager,
+    transport: gpu ? (backend) => (backend === "vulkan" ? gpu.manager : manager) : () => manager,
+    ...(gpu && executionLog ? { gpu: executionLog.readinessOf(gpu) } : {}),
     model: async () => ({ ok: true, modelId, modelPath, contextTokens: 4096 }),
     // The launcher measured the file's SHA-256 before this run.
     verifyModel: async () => true,
-    settings: async () => ({ enabled: true, yieldDuringRuns: options.yieldDuringRuns ?? true, idleUnloadMs: 0, minFreeMemoryMb: 0 }),
+    // Automatic stored as a fresh install stores it; without the "auto" arm, the qualified CPU & RAM path as before.
+    settings: async () => ({ enabled: true, yieldDuringRuns: options.yieldDuringRuns ?? true, idleUnloadMs: 0, minFreeMemoryMb: 0, ...(gpu ? { executionMode: "auto" as const, vramReserveBytes: null } : {}) }),
     admission: () => admission.view,
     threads,
     expectedRuntimeBuild,
     ...(options.nonce ? { nonce: options.nonce } : {}),
-    log: (level, message) => logLines.push(`${level}: ${message}`)
+    ...(executionLog ? { jobs: executionLog.jobs } : {}),
+    log
   });
-  return { manager, service, admission, modelId, threads };
+  executionLog?.observe(service, gpu);
+  return { manager, ...(gpu ? { gpuManager: gpu.manager } : {}), service, admission, modelId, threads };
 }
 
 export const CANDIDATES = ["cand-save-button", "cand-submit-form", "cand-cancel-link"];
@@ -815,6 +832,7 @@ async function run(): Promise<void> {
     else if (mode === "profile") await runProfile({ step, record, flush });
     else if (mode === "gpu") await runGpuLive({ step, record, log: (line) => logLines.push(line) });
     else if (mode === "gpuLifecycle") await runGpuLifecycle({ step, record, log: (line) => logLines.push(line) });
+    else if (mode === "gpuAutoLifecycle") await runGpuAutomaticLifecycle({ step, record, log: (line) => logLines.push(line) });
     else if (mode === "gpuProgress") await runGpuProgress({ step, record, log: (line) => logLines.push(line) });
     else if (mode === "inspect") await runModelInspect({ step, record, log: (line) => logLines.push(line) });
     else await step(`unknown mode ${mode}`, () => Promise.reject(new Error("unknown mode")));

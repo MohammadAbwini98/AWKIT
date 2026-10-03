@@ -84,6 +84,26 @@ export interface QualityRunIdentity {
   /** The pack's file name and identity; never where it lives. */
   model: { id: string; file: string; sha256: string; sizeBytes: number };
   runtime: string | null;
+  /**
+   * Where the run's model calls ran, under the launcher's `--execution` arm: the stored mode, the mode it resolved
+   * to, and the answers' backend and offload class (`mixed` when they differ). Absent or null without the arm.
+   */
+  execution?: { configured: string; resolved: string | null; backend: string | null; offload: string | null } | null;
+}
+
+const EXECUTION_CONFIGURED = new Set(["cpu", "auto"]);
+const EXECUTION_RESOLVED = new Set(["cpu", "gpu-offload", "gpu-only", "mixed"]);
+const EXECUTION_BACKEND = new Set(["cpu", "vulkan", "mixed"]);
+
+/** A run's execution through the allowlist: the product's own mode, backend and offload vocabulary only. */
+export function executionEvidence(execution: QualityRunIdentity["execution"]) {
+  if (!execution) return null;
+  return {
+    configured: token(execution.configured, (s) => EXECUTION_CONFIGURED.has(s)),
+    resolved: token(execution.resolved, (s) => EXECUTION_RESOLVED.has(s)),
+    backend: token(execution.backend, (s) => EXECUTION_BACKEND.has(s)),
+    offload: token(execution.offload, (s) => s === "mixed" || /^(cpu|full|partial:[1-9]\d{0,3})$/.test(s))
+  };
 }
 
 /** When the run started, and a random part so two runs never share a name. */
@@ -211,6 +231,7 @@ export function buildLocatorQualityEvidence(input: {
     source: run.source,
     model: run.model,
     runtime: run.runtime,
+    execution: executionEvidence(identity.execution),
     result: exitCode === 0 ? "PASS" : exitCode === 2 ? "INCONCLUSIVE" : "FAIL",
     exitCode,
     completed,
@@ -474,7 +495,8 @@ export async function evidenceControls(check: (label: string, ok: boolean, detai
     const hostileIdentity = identity({
       runId: "20260924T100000Z-0b0b0b",
       model: { id: "Qwen3.5-0.8B-unpinned", file: "C:\\Users\\someone\\Downloads\\Qwen3.5-0.8B-Q4_K_M.gguf", sha256: "f5b14da98939b60bbe1019a964eba656407e1e0b64f1fe3003ff6d650e93bfec", sizeBytes: 1 },
-      runtime: "hunter2 C:\\Users\\someone"
+      runtime: "hunter2 C:\\Users\\someone",
+      execution: { configured: "auto", resolved: "gpu-offload hunter2", backend: "C:\\Users\\someone\\ggml-vulkan.dll", offload: "full" }
     });
     const g = build(hostileReport, { passed: 12, failed: 0 }, false, hostileIdentity);
     const found = (text: string) => SENSITIVE.filter((s) => text.includes(s) || text.includes(JSON.stringify(s).slice(1, -1)));
@@ -483,7 +505,7 @@ export async function evidenceControls(check: (label: string, ok: boolean, detai
     check("evidence G: (precondition) every sensitive string is in what the builder was given", given.length === SENSITIVE.length, `${given.length}/${SENSITIVE.length}`);
     check("evidence G: none of them reaches the evidence", leaked.length === 0, leaked.join(" | "));
     const keys = (value: object) => Object.keys(value).join();
-    const TOP = "schemaVersion,kind,runId,verifier,set,startedAt,finishedAt,durationMs,source,model,runtime,result,exitCode,completed,harness,inFlight,checks,caseCounts,notReached,totals,cases";
+    const TOP = "schemaVersion,kind,runId,verifier,set,startedAt,finishedAt,durationMs,source,model,runtime,execution,result,exitCode,completed,harness,inFlight,checks,caseCounts,notReached,totals,cases";
     const CASE = "id,condition,expected,status,failures,requests,responses,attemptsUsed,consumedRefusals,outcome,code,accepted,browserProven,matches,target,falseTargetProposed,falseTargetAccepted,withheldInRequest,class,elapsedMs,calls";
     const CALL = "contract,strategy,scope,refusal,refusalField,proof,matches";
     check(
@@ -499,6 +521,18 @@ export async function evidenceControls(check: (label: string, ok: boolean, detai
         same(g.cases[0].calls[0], { contract: "pass", strategy: UNRECOGNIZED, scope: UNRECOGNIZED, refusal: UNRECOGNIZED, refusalField: UNRECOGNIZED, proof: UNRECOGNIZED, matches: null }) &&
         same(g.cases[0].calls[1], a.cases[0].calls[0]) && g.inFlight === ids[3] && g.model.file === UNRECOGNIZED && g.runtime === UNRECOGNIZED && g.model.id === "Qwen3.5-0.8B-unpinned",
       JSON.stringify(g.cases[0])
+    );
+    check(
+      "evidence G: a run's execution keeps only the product's mode, backend and offload words; anything else is unrecognized, and a run without the arm records none",
+      same(g.execution, { configured: "auto", resolved: UNRECOGNIZED, backend: UNRECOGNIZED, offload: "full" }) &&
+        build(full).execution === null &&
+        same(build(full, undefined, false, identity({ execution: { configured: "auto", resolved: "gpu-offload", backend: "vulkan", offload: "full" } })).execution, {
+          configured: "auto",
+          resolved: "gpu-offload",
+          backend: "vulkan",
+          offload: "full"
+        }),
+      JSON.stringify(g.execution)
     );
 
     // H. Run identity, and one run's evidence never replaced by another's.

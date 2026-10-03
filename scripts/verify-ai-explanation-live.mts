@@ -34,6 +34,16 @@
  *     leaked, L5's metrics recorded (scripts/ai-harness/errorQualityLive.ts).
  * Each answer must arrive before its deadline, and each step records counts and timings, never model text.
  *
+ * `--execution cpu|auto` (L8a: the curated 0.8B's GPU quality against its qualified CPU & RAM configuration), for
+ * every feature but the validation explanation's latency steps (its quality is authoringQuality): the same labelled
+ * sets, judges and deadlines, with every model call's configuration, stages, timings and tokens recorded
+ * (scripts/ai-harness/liveExecution.ts). `cpu` is the qualified CPU & RAM path. `auto` stores Automatic, the default,
+ * over the pinned Vulkan pack imported here through the real trust chain, and the product's own readiness decides:
+ * the run is GPU evidence only when every load resolved to GPU-Offload on Vulkan and every answer came from the GPU,
+ * and a machine whose readiness does not prove NVIDIA is INCONCLUSIVE (exit 2), never a GPU pass. authoringQuality's
+ * review captures then go to a store of their own (`authoring-vulkan` beside the default), so GPU answers never enter
+ * what `verify:ai-authoring-review` judges.
+ *
  * NOT RUN (exit 0) without the runtime or the pack at ~/Downloads/Qwen3.5-0.8B-Q4_K_M.gguf. A pack that
  * is not the published object is refused. The pack is unpinned, so it is staged into a scratch model
  * root; `AI_MODEL_MANIFEST` is not touched.
@@ -53,7 +63,10 @@ import { deriveInferenceThreads } from "../src/ai/AiAdmission";
 import { AUTHORING_LIMITS } from "../src/ai/authoringExplanation";
 import { DX0, HELD_OUT_DIR, gitBlobs, heldOutCommitProblems, modelEntriesSha256, readHeldOut, sourcesOff, treeAuthoringPathSha256 } from "./ai-harness/authoringDx";
 import { reviewDir, type CaptureInputs } from "./ai-harness/authoringQualityReview";
+import { describeRelease, describeRemoval, removeWhenReleased } from "./ai-harness/gpuHostLifecycle";
 import { HOST_PATH, ROOT, buildAiHarness, measurePack, printSteps, runAiHarness, runtimeInstalled, stageModelRoot, type HarnessReport } from "./ai-harness/launch.mts";
+import type { QualityRunIdentity } from "./ai-harness/locatorQualityEvidence.mts";
+import { importPinnedVulkanPack } from "./ai-harness/vulkanPack.mts";
 // Type-only: esbuild bundles the harness without checking it, so this puts the modes under typecheck:scripts.
 import type {} from "./ai-harness/harnessMain";
 
@@ -161,6 +174,14 @@ if (part > 0 && partCases.length === 0) {
 }
 const cases = part > 0 ? partCases : listed;
 const heldOutCases = heldOut?.ok && heldOutFlag ? heldOut.inventory.cases.length : 0;
+// `--execution cpu|auto`: see the header. The validation explanation's own steps measure CPU-host timing (a
+// deadline that lands in prompt evaluation kills the CPU host), so they take no execution arm.
+const executionFlag = process.argv.indexOf("--execution");
+const execution = executionFlag >= 0 ? process.argv[executionFlag + 1] : undefined;
+if (executionFlag >= 0 && ((execution !== "cpu" && execution !== "auto") || feature.mode === "explain")) {
+  console.error(`--execution takes "cpu" or "auto", and not with --feature validationExplanation (its quality is --feature authoringQuality)`);
+  process.exit(1);
+}
 const expectedSteps = cases.length > 0 ? 3 + cases.length : heldOutFlag ? 3 + heldOutCases : d1Set ? feature.d1Steps! : feature.steps;
 
 let passed = 0;
@@ -262,14 +283,25 @@ if (inputs) {
 
 const staged = stageModelRoot(candidate, measured.sha256);
 const harnessDir = await buildAiHarness();
+// `--execution auto`: the pinned Vulkan pack, imported as a user's would be, for Automatic to resolve onto.
+const pack = execution === "auto" ? await importPinnedVulkanPack() : null;
+if (pack && !pack.ok) {
+  console.log(`NOT RUN: the pinned Vulkan pack could not be imported (${pack.reason}) — exit 2, never a pass`);
+  const removal = await removeWhenReleased([harnessDir, staged.root, ...(pack.scratch ? [pack.scratch] : [])]);
+  if (!removal.ok) console.log(`  NOTE: ${describeRemoval(removal)}`);
+  process.exit(2);
+}
+const gpuScratch = pack?.ok ? pack.scratch : null;
 // locatorQuality saves each run's per-case evidence (ai-harness/locatorQualityEvidence.mts); loaded before the run so a broken
 // module fails here, not after it.
 const quality = feature.mode === "locatorQuality" ? await import("./ai-harness/locatorQualityEvidence.mts") : undefined;
 const startedAt = new Date();
 let mockSite: Awaited<ReturnType<typeof startMockSite>> | undefined;
 let report: HarnessReport | null = null;
-// A step may say it judged nothing (the D1 set, when no candidate was proven): INCONCLUSIVE, never PASS.
+// A step may say it judged nothing (the D1 set, when no candidate was proven): INCONCLUSIVE, never PASS. So is an
+// Automatic run that did not resolve to the GPU: its answers are no GPU evidence.
 let inconclusive = false;
+let inconclusiveWhy = "the checks held, but no candidate was browser-proven, so the judge judged nothing";
 try {
   mockSite = feature.mockSite ? await startMockSite() : undefined;
   report = await runAiHarness(
@@ -286,8 +318,11 @@ try {
       ...(d1Set ? { AWKIT_HARNESS_SET: "d1" } : {}),
       ...(cases.length > 0 ? { AWKIT_HARNESS_CASES: cases.join(",") } : {}),
       ...(pageContextArm ? { AWKIT_HARNESS_PAGE_CONTEXT: "1" } : {}),
-      // The redacted answers a person reviews: local, outside the repository (authoringQualityReview.ts).
-      ...(feature.mode === "authoringQuality" ? { AWKIT_HARNESS_REVIEW_DIR: reviewDir() } : {}),
+      ...(execution ? { AWKIT_HARNESS_EXECUTION: execution } : {}),
+      ...(pack?.ok ? { AWKIT_HARNESS_BACKENDS_ROOT: pack.backendsRoot } : {}),
+      // The redacted answers a person reviews: local, outside the repository (authoringQualityReview.ts). GPU answers
+      // go to a store of their own, never into the one verify:ai-authoring-review judges for the CPU configuration.
+      ...(feature.mode === "authoringQuality" ? { AWKIT_HARNESS_REVIEW_DIR: execution === "auto" ? `${reviewDir()}-vulkan` : reviewDir() } : {}),
       ...(heldOutFlag ? { AWKIT_HARNESS_HELD_OUT: heldOutDir } : {}),
       ...(inputs ? { AWKIT_HARNESS_INPUTS: JSON.stringify(inputs) } : {})
     },
@@ -306,6 +341,7 @@ try {
     // Counts, codes and timings only: the harness never records model text.
     for (const s of report.steps) if (s.detail) console.log(`    ${s.label}: ${JSON.stringify(s.detail)}`);
     inconclusive = report.steps.some((s) => s.ok && (s.detail as { inconclusive?: unknown } | undefined)?.inconclusive === true);
+    if (execution === "cpu" || execution === "auto") reportExecution(report, execution);
   }
 } catch (error) {
   // Recorded, not thrown, so a locatorQuality run still saves what it measured below.
@@ -321,7 +357,15 @@ if (quality) {
   const settled = await quality.settleQualityRun({
     report,
     scratch: [harnessDir, staged.root],
-    identity: { runId: quality.newRunId(startedAt), set, startedAt, source: quality.sourceRevision(), model: { id: MODEL_ID, file: PACK.file, sha256: measured.sha256, sizeBytes: measured.sizeBytes }, runtime: runtime.build },
+    identity: {
+      runId: quality.newRunId(startedAt),
+      set,
+      startedAt,
+      source: quality.sourceRevision(),
+      model: { id: MODEL_ID, file: PACK.file, sha256: measured.sha256, sizeBytes: measured.sizeBytes },
+      runtime: runtime.build,
+      execution: executionIdentity(report)
+    },
     cases: quality.QUALITY_CASES[set],
     checks: { passed, failed },
     inconclusive
@@ -335,11 +379,118 @@ if (quality) {
   if (!evidence.completed) console.log(`  FAIL: not every labelled case finished (harness ${evidence.harness}, not reached: ${evidence.notReached.join(", ") || "none"})`);
   if (settled.cleanup.length > 0) console.log(`  NOTE: a scratch folder was not removed (${settled.cleanup.join(", ")})`);
   exitCode = settled.exitCode;
-} else {
+} else if (!gpuScratch) {
   fs.rmSync(harnessDir, { recursive: true, force: true });
   fs.rmSync(staged.root, { recursive: true, force: true });
 }
+if (gpuScratch) {
+  // A Vulkan host maps the pack's DLLs and the model: removed only once no process maps a module from them.
+  const removal = await removeWhenReleased([harnessDir, staged.root, gpuScratch]);
+  console.log(`  · scratch folders: ${describeRelease(removal)}`);
+  if (!removal.ok) console.log(`  NOTE: ${describeRemoval(removal)}`);
+}
 
 console.log(`\n${passed} passed, ${failed} failed`);
-if (exitCode === 2) console.log("INCONCLUSIVE: the checks held, but no candidate was browser-proven, so the judge judged nothing (exit 2).");
+if (exitCode === 2) console.log(`INCONCLUSIVE: ${inconclusiveWhy} (exit 2).`);
 process.exit(exitCode);
+
+interface ExecutionCall {
+  feature: string;
+  status: string;
+  code: string | null;
+  resolved: string;
+  executionBackend: string;
+  layers: string;
+  fallbackReason: string | null;
+  refusal: string | null;
+  answerProfile: { backend: string; offload: string } | null;
+  jobProfile: { mode: string; backend: string; offload: string } | null;
+  cold: boolean | null;
+  stages: Array<{ stage: string; atMs: number }>;
+  wallMs: number;
+  firstTokenMs: number | null;
+  generationMs: number | null;
+  promptTokens: number | null;
+  outputTokens: number | null;
+  maxOutputTokens: number;
+}
+interface ExecutionRecord {
+  configured: string;
+  readiness: Array<{ ok: boolean; reason?: string; nvidiaAdapters?: number }>;
+  guardRuns: number;
+  gpuHostPids: number[];
+  vramMibAfterCalls: Array<{ afterCall: number; mib: number | null }>;
+  calls: ExecutionCall[];
+}
+
+/** A cold call's load: from its first load stage to prompt evaluation, by the job's own reported stages. */
+function loadMsOf(call: ExecutionCall): number | null {
+  const at = (stage: string) => call.stages.find((s) => s.stage === stage)?.atMs;
+  const start = at("copy-hash") ?? at("backend-probe") ?? at("model-load");
+  const end = at("prompt-evaluation");
+  return call.cold && start !== undefined && end !== undefined ? end - start : null;
+}
+
+/** Where every model call ran, checked against the arm. GPU evidence only when every answer came from the GPU. */
+function reportExecution(report: HarnessReport, configured: "cpu" | "auto"): void {
+  const record = report.execution as ExecutionRecord | undefined;
+  const calls = record?.calls ?? [];
+  check(`every model call's execution was recorded under the stored ${configured === "auto" ? "Automatic" : "CPU & RAM only"} (${calls.length} calls)`, record?.configured === configured && calls.length > 0);
+  console.log("\n  execution, per model call:");
+  for (const c of calls) {
+    const load = loadMsOf(c);
+    console.log(
+      `    · ${c.feature} ${c.status}${c.code ? `/${c.code}` : ""}: ${c.resolved} on ${c.executionBackend} (${c.layers}), answer ${c.answerProfile ? `${c.answerProfile.backend}/${c.answerProfile.offload}` : "none"}` +
+        `${c.cold ? `, cold load ${load ?? "?"} ms` : ", warm"}, first token ${c.firstTokenMs ?? "-"} ms, generation ${c.generationMs ?? "-"} ms, ` +
+        `${c.outputTokens ?? "-"}/${c.maxOutputTokens} out (${c.promptTokens ?? "-"} in), ${c.wallMs} ms end to end`
+    );
+  }
+  console.log(
+    `    · readiness answers ${JSON.stringify(record?.readiness ?? [])}; pack guard runs ${record?.guardRuns ?? 0}; GPU host pids ${JSON.stringify(record?.gpuHostPids ?? [])}; ` +
+      `nvidia-smi MiB after each call ${JSON.stringify((record?.vramMibAfterCalls ?? []).map((v) => v.mib))}`
+  );
+  if (configured === "cpu") {
+    check(
+      "CPU & RAM only: every load ran on the CPU backend and every answer came from the CPU",
+      calls.every((c) => c.resolved === "cpu" && c.executionBackend === "cpu" && (c.answerProfile === null || (c.answerProfile.backend === "cpu" && c.answerProfile.offload === "cpu")))
+    );
+    return;
+  }
+  const readiness = record?.readiness ?? [];
+  if (readiness.length === 0 || !readiness.every((r) => r.ok)) {
+    inconclusive = true;
+    inconclusiveWhy = `Automatic did not resolve to the GPU here (readiness ${JSON.stringify(readiness)}), so these answers are no GPU quality evidence`;
+    console.log(`  ? ${inconclusiveWhy}`);
+    return;
+  }
+  const offloads = new Set(calls.flatMap((c) => (c.answerProfile ? [c.answerProfile.offload] : [])));
+  check(
+    "stored Automatic resolved every load to GPU-Offload on Vulkan with no fallback, and every answer came from the GPU",
+    calls.some((c) => c.answerProfile !== null) &&
+      calls.every(
+        (c) =>
+          c.resolved === "gpu-offload" &&
+          c.executionBackend === "vulkan" &&
+          c.fallbackReason === null &&
+          c.refusal === null &&
+          (c.answerProfile === null || c.answerProfile.backend === "vulkan") &&
+          (c.jobProfile === null || c.jobProfile.mode === "gpu-offload")
+      )
+  );
+  check(`every answer ran in one GPU configuration (offload ${[...offloads].join(", ") || "none"})`, offloads.size === 1 && !offloads.has("cpu"));
+  check("every GPU host started behind the pack guard", (record?.guardRuns ?? 0) >= 1 && (record?.gpuHostPids.length ?? 0) >= 1);
+}
+
+/** The locator evidence's record of where the run's model calls ran; null without an execution arm. */
+function executionIdentity(from: HarnessReport | null): QualityRunIdentity["execution"] {
+  const record = from?.execution as ExecutionRecord | undefined;
+  if (!execution || !record) return null;
+  const one = (values: string[]) => (values.length === 0 ? null : new Set(values).size === 1 ? values[0] : "mixed");
+  const answers = record.calls.flatMap((c) => (c.answerProfile ? [c.answerProfile] : []));
+  return {
+    configured: record.configured,
+    resolved: one(record.calls.map((c) => c.resolved)),
+    backend: one(answers.map((a) => a.backend)),
+    offload: one(answers.map((a) => a.offload))
+  };
+}

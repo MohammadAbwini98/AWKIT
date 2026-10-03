@@ -24,6 +24,15 @@
  * It also records how a loaded host behaves while other GPU hosts take the adapter's VRAM. A cancel
  * that lands after the inference finished is INCONCLUSIVE (exit 2), never a pass.
  *
+ * `--automatic-lifecycle` (L8a, npm run verify:ai-gpu-automatic-lifecycle) runs Automatic's own lifecycle instead
+ * (scripts/ai-harness/gpuLifecycle.ts, mode gpuAutoLifecycle), PRODUCT through the production service with the
+ * stored mode `auto` and the product's readiness: the first load resolves and answers (nvidia-smi VRAM up), a
+ * cancel during prompt evaluation and one during generation each settle within 3 s and leave the service usable,
+ * the GPU host killed mid-inference fails that job and the next load resolves afresh on a new guarded host, a
+ * release gives the VRAM back, a reload answers, readiness SUBSTITUTED as not proven (labelled) runs as CPU & RAM
+ * only beside GPU-Only's refusal under the same answer, and readiness restored is back on the GPU. Without proven
+ * NVIDIA only the CPU & RAM resolution is checked and the GPU lifecycle is NOT RUN (exit 2).
+ *
  * `--packaged` (L8a.5: npm run verify:ai-gpu-packaged, and with `--lifecycle`
  * verify:ai-gpu-lifecycle-packaged) runs one mode per run against dist/win-unpacked's AI
  * tree: the packaged host, the packaged pinned runtime and CPU prebuilt, and pack trust from the packaged
@@ -57,6 +66,7 @@ import { describeRelease, describeRemoval, removeWhenReleased, TEARDOWN_LABEL } 
 import { HOST_PATH, ROOT, buildAiHarness, measurePack, printSteps, runAiHarness, runtimeInstalled, stageModelRoot, type HarnessReport } from "./ai-harness/launch.mts";
 
 const lifecycle = process.argv.includes("--lifecycle");
+const automaticLifecycle = process.argv.includes("--automatic-lifecycle");
 const packaged = process.argv.includes("--packaged");
 const progress = process.argv.includes("--progress");
 /** L1.8: a cancel settles within 3 s, on every backend. */
@@ -66,7 +76,7 @@ const packagedResources = path.join(ROOT, "dist", "win-unpacked", "resources");
 const hostPath = packaged ? path.join(packagedResources, "native-hosts", "ai", "ai-host.cjs") : HOST_PATH;
 // One harness mode per run: the modes run ends by invalidating the imported pack on purpose (sticky
 // until re-import), and both modes together take most of 10 minutes.
-const modes = [lifecycle ? "gpuLifecycle" : progress ? "gpuProgress" : "gpu"];
+const modes = [automaticLifecycle ? "gpuAutoLifecycle" : lifecycle ? "gpuLifecycle" : progress ? "gpuProgress" : "gpu"];
 
 let passed = 0;
 let failed = 0;
@@ -89,7 +99,9 @@ const installedVulkan = path.join(ROOT, "node_modules", "@node-llama-cpp", "win-
 
 console.log(
   `${
-    lifecycle
+    automaticLifecycle
+      ? `verify:ai-gpu-automatic-lifecycle${packaged ? "-packaged" : ""} — Automatic's lifecycle through the production service`
+      : lifecycle
       ? `verify:ai-gpu-lifecycle${packaged ? "-packaged" : ""} — L8a.5 cancel, kill-restart-reload and VRAM exhaustion`
       : progress
         ? `verify:ai-progress-gpu${packaged ? "-packaged" : ""} — L9 job status per placement`
@@ -150,6 +162,7 @@ try {
     );
     if (!report) check(`the ${mode} harness wrote a report`, false, "no report: Electron never reached app.whenReady() or timed out");
     else if (mode === "gpuLifecycle") reportLifecycle(report, [staged.modelRoot, backendsRoot]);
+    else if (mode === "gpuAutoLifecycle") reportAutomaticLifecycle(report, [staged.modelRoot, backendsRoot]);
     else if (mode === "gpuProgress") reportProgress(report, [staged.modelRoot, backendsRoot]);
     else reportModes(report, [staged.modelRoot, backendsRoot]);
     const hostTeardown = report?.steps.find((s) => s.label === TEARDOWN_LABEL);
@@ -200,6 +213,21 @@ function reportProgress(report: HarnessReport, privatePaths: string[]): void {
   check("the harness finished every step", report.complete === true && report.steps.length >= 7, `${report.steps.length} steps, stopped in: ${String(report.inFlight)}`);
   noPrivatePath(report, privatePaths);
   for (const key of ["offloadCold", "offloadWarmFirst", "offloadWarmMeasured", "gpuOnly", "cpuCold"]) console.log(`  · ${key}: ${JSON.stringify(report[key])}`);
+  console.log(nvidiaLine(report));
+}
+
+function reportAutomaticLifecycle(report: HarnessReport, privatePaths: string[]): void {
+  printSteps(report, check);
+  check("the harness finished", report.complete === true, `stopped in: ${String(report.inFlight)}`);
+  noPrivatePath(report, privatePaths);
+  const life = (report.automaticLifecycle ?? null) as Record<string, unknown> | null;
+  check("the lifecycle recorded what it ran", life !== null);
+  console.log(`\n  · adapters: ${JSON.stringify(report.adapters)}`);
+  console.log(`  · PRODUCT Automatic lifecycle: ${JSON.stringify(life, null, 2)}`);
+  if (typeof life?.gpuLifecycle === "string" && life.gpuLifecycle.startsWith("NOT RUN")) {
+    inconclusive += 1;
+    console.log(`  ? ${life.gpuLifecycle}`);
+  }
   console.log(nvidiaLine(report));
 }
 

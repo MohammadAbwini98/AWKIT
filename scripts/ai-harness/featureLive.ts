@@ -45,15 +45,22 @@ const HELLO = { type: "hello", expected: { protocolVersion: AI_HOST_PROTOCOL_VER
 /** Synthesis failures: the model answered in time, and the output contract refused what it said. */
 const ANSWERED = new Set(["MALFORMED_OUTPUT", "SCHEMA_REJECTED"]);
 
-/** A live context whose job outcomes, and the deadline the manager gave each inference, are kept. */
+/**
+ * A live context whose job outcomes, and the deadline the manager gave each inference, are kept: on the CPU
+ * host, and on the Vulkan host when Automatic may resolve to it. The progress callback passes through, so the
+ * service still reports each job's stages.
+ */
 export function observed(api: FeatureLiveApi) {
   const ctx = api.makeLiveContext();
   const deadlines: number[] = [];
-  const call = ctx.manager.call.bind(ctx.manager);
-  ctx.manager.call = ((request: Parameters<typeof call>[0], timeoutMs: number) => {
-    if (request.type === "infer") deadlines.push(timeoutMs);
-    return call(request, timeoutMs);
-  }) as typeof ctx.manager.call;
+  for (const host of [ctx.manager, ctx.gpuManager]) {
+    if (!host) continue;
+    const call = host.call.bind(host);
+    host.call = ((request: Parameters<typeof call>[0], timeoutMs: number, ...rest: unknown[]) => {
+      if (request.type === "infer") deadlines.push(timeoutMs);
+      return (call as (...args: unknown[]) => ReturnType<typeof call>)(request, timeoutMs, ...rest);
+    }) as typeof host.call;
+  }
   const jobs: Array<{ request: AiJobRequest; outcome: AiJobOutcome }> = [];
   const submit = async (request: AiJobRequest): Promise<AiJobOutcome> => {
     const outcome = await ctx.service.submit(request);
