@@ -22,12 +22,20 @@ the physical console (rule 3 below), every step-9 check passed at `4771e84e`, wh
    - Move it by USB, never through OneDrive or git. The signing script refuses a key that sits in a synced
      folder (`docs/security/RELEASE_KEY_CUSTODY.md`).
    - Don't run `generate-key` on the NVIDIA machine: that would create a different trust root.
-3. **Run the checks at the physical console, not over Remote Desktop.** A Remote Desktop session adds the
-   Microsoft Remote Display Adapter. `verify:ai-gpu-backend-gate` now sets it aside by name and software
+3. **Run the step-9 checks at the physical console, not over Remote Desktop.** A Remote Desktop session adds
+   the Microsoft Remote Display Adapter. `verify:ai-gpu-backend-gate` now sets it aside by name and software
    enumerator, and says when a session is active.
    - Over Remote Desktop, Chromium also lists the one NVIDIA GPU twice. Product readiness then counts two
      NVIDIA adapters for one card (`docs/ai/KNOWN_ISSUES.md`), which is not qualification evidence.
    - Sign in at the machine itself, and make sure no Remote Desktop session is open.
+   - The exception is the GPU quality runs (`verify:ai-gpu-quality-part1` and `-part2`). Remote Desktop
+     changes the display topology, never the compute device. So a remote run counts as "NVIDIA compute
+     qualification under RDP" when the verifier proves the device directly:
+     - NVIDIA-only PCI adapters, unchanged;
+     - every call on Vulkan with all layers;
+     - the runtime's own Vulkan device count;
+     - an nvidia-smi rise.
+     Such a run is never a console topology qualification.
 
 ## No USB drive: build on the development machine instead
 

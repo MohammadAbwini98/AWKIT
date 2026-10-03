@@ -1,6 +1,25 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-03, latest) — Automatic qualifies on the GTX 980M at its physical console
+## HANDOFF (2026-10-03, latest) — NVIDIA GPU quality qualified; RDP no longer voids compute evidence
+
+No product code changed. The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done.**
+  - `verify:ai-gpu-quality` keeps topology and compute apart (`gpuQualityEvidence.ts`). Remote Desktop
+    changes the display topology, never the compute device. A remote run is GPU evidence only when the device
+    is proven directly, including the runtime's own Vulkan device count (`CURRENT_STATE.md`).
+  - GPU quality Run 2 passed under RDP at `63cc74ca`: 13/13 gates, compute PASS.
+  - Run 1 passed at the console, and the CPU baseline passed 13/13. Comparison:
+    `docs/plans/ai-upgrade-v5/evidence/L8a-gpu-quality-2026-10-03.md`.
+- **Still physical-console only:** claims about Windows' display topology, such as adapter enumeration, the
+  absence of the remote adapter, or the count Windows or Settings shows. Those gates already passed at the
+  console and were not rerun.
+- **Next, owner:**
+  - Decide whether to add a Vulkan key for the 0.8B to the qualified list. The quality evidence now exists;
+    adding the key is a product change.
+  - Otherwise nothing is required. E2 (`awkit-djnl.20`) stays PENDING / BLOCKED.
+
+## HANDOFF (2026-10-03) — Automatic qualifies on the GTX 980M at its physical console
 
 No product code changed. The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

@@ -1,6 +1,51 @@
 # CURRENT_STATE
 
-## Automatic qualifies on NVIDIA: the GTX 980M at its physical console (2026-10-03, latest)
+## NVIDIA GPU quality qualified; display topology and compute evidence kept apart (2026-10-03, latest)
+
+- **Result.** NVIDIA runtime qualification is closed, and the 0.8B's GPU quality is compatible with its
+  qualified CPU & RAM configuration. No product change.
+  - Evidence: `docs/plans/ai-upgrade-v5/evidence/L8a-gpu-quality-2026-10-03.md`.
+- **Rule change (owner direction, `DECISIONS.md`).** A Remote Desktop session no longer voids GPU compute
+  evidence on its own.
+  - *Topology* stays physical-console evidence, and it already passed at the console: adapter enumeration, no
+    Remote Display Adapter, the count Windows or Settings shows. That covers the backend gate, the host,
+    packaged, lifecycle and progress gates, and the real Settings walkthrough.
+  - *Compute* is proven directly by `scripts/ai-harness/gpuQualityEvidence.ts`:
+    - NVIDIA-only PCI compute adapters, unchanged across the run;
+    - every call GPU-Offload on Vulkan with all layers and a `vulkan/full` answer;
+    - a pack-guarded host;
+    - off the console, the runtime's own Vulkan device count within Windows' NVIDIA PCI adapters (readiness
+      counts the GPU twice under Remote Desktop);
+    - nvidia-smi showing at least the model file's size held over the runner's idle reading.
+  - A remote run that proves all of it reads "PASS — NVIDIA compute qualification under RDP", never the
+    console label.
+  - The Remote Display Adapter is never a compute device. An unprovable device is INCONCLUSIVE. A call off the
+    GPU FAILS. CPU & RAM only under Automatic stays supported.
+- **GPU quality Run 2** (`63cc74ca`, `rdp-tcp#49` throughout) passed 6/6 + 7/7 gates with compute PASS.
+  - 43/43 calls ran on Vulkan, 25/25 layers, and the runtime bound 1 Vulkan device in every gate.
+  - NVIDIA VRAM rose 1049–1319 MiB over idle.
+  - The earlier part 1 (`uAq4tb`) and part 2 (`4lDKGN`) are superseded: they recorded no runtime device count.
+- **Quality, CPU / Run 1 (console) / Run 2:** 13/13 gates in each.
+
+  | Measure | CPU | Run 1 | Run 2 |
+  |---|---|---|---|
+  | L4b accepted · explained · on subject · actionable | 9/9 · 17/17 · 17/17 · 17/17 | same | same |
+  | L5 AI accuracy (deterministic baseline 16/19) | 9/19 | 11/19 | 10/19 |
+  | L5 false attributions | 10 | 8 | 9 |
+  | L3 browser-proven, false targets | 3, 0 | 2, 0 | 2, 0 |
+  | Median first token | about 25 s | 0.8 / 1.1 s | 0.8 / 1.1 s |
+
+  The differences are stochastic, under each gate's own judge.
+- **Qualified list unchanged:** CPU key only. A Vulkan key needs the owner's decision, so the 0.8B reads
+  "Compatible but unqualified" on Vulkan.
+- **Verification.**
+  - `verify:ai-gpu-harness` 70/0 with the new section F; 5 classifier mutants killed and reverted.
+  - `verify:ai-gpu-modes` 234/0.
+  - `build`, `typecheck:scripts` and `verifier-classification`: PASS.
+- Tracker unchanged: 333 issues, 22 outstanding / 311 closed. Validation ledger unchanged at 65 PASS / 2 NOT RUN /
+  0 BLOCKED across 67 cases.
+
+## Automatic qualifies on NVIDIA: the GTX 980M at its physical console (2026-10-03)
 
 - **Result: PASS. No product defect, no product change.** At `0b485941` plus a harness-only change, on the
   GTX 980M (`VEN_10DE DEV_13D7`, 8192 MiB, driver 581.80) at the physical console. Windows lists only that

@@ -1,6 +1,34 @@
 # DECISIONS
 
-### 2026-10-03 (latest) — GPU-Offload is the default where NVIDIA is proven: a new "Automatic" mode (owner)
+### 2026-10-03 (latest) — Remote Desktop changes display topology, not the compute device (owner direction)
+
+- **Decision.** A Remote Desktop session no longer voids GPU compute evidence on its own. It still voids
+  display-topology claims.
+- **Topology claims stay physical-console only:** adapter enumeration, the absence of the Remote Display
+  Adapter, the count Windows or Settings shows, and Settings behaviour that depends on them.
+- **Compute claims hold under Remote Desktop only when the device is proven directly**
+  (`scripts/ai-harness/gpuQualityEvidence.ts`). This covers GPU quality, offload, resolved mode, VRAM and
+  timings. The proof is:
+  - NVIDIA-only PCI compute adapters, unchanged across the run;
+  - every call GPU-Offload on Vulkan with all layers and a `vulkan/full` answer;
+  - the pack guard;
+  - nvidia-smi showing at least the model's size held over idle;
+  - off the console, the runtime's own Vulkan device count within Windows' NVIDIA PCI adapters.
+- **Why the device count:** readiness counts the GPU twice under Remote Desktop, so the product's E2 check is
+  exact only at the console. An adapter count is never the proof.
+- **Labels kept apart.**
+  - "PASS — physical-console topology qualification"
+  - "PASS — NVIDIA compute qualification under RDP"
+  - "INCONCLUSIVE — compute device cannot be proven"
+  - "FAIL — runtime used the wrong backend/device"
+  The Remote Display Adapter is never a compute device.
+- **Unchanged.**
+  - Product E2 and Automatic: a hybrid machine stays `VENDOR_UNPROVEN`, and CPU & RAM fallback and GPU-Only
+    refusal are unchanged.
+  - The qualified list: the 0.8B is still qualified on its CPU key only. A Vulkan key is a separate owner
+    decision, now backed by `evidence/L8a-gpu-quality-2026-10-03.md`.
+
+### 2026-10-03 — GPU-Offload is the default where NVIDIA is proven: a new "Automatic" mode (owner)
 
 - **Decision.** The owner asked for GPU-Offload to be the default where NVIDIA is proven. This replaces E4's
   "CPU & RAM only default" and its "no automatic planner", for the default only. The three explicit modes

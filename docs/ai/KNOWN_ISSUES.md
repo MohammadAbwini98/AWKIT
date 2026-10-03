@@ -56,8 +56,13 @@
   - So readiness reads `nvidiaAdapters: 2` for one physical GPU.
   - The verdict (eligible) is right, but the count is not. `unprovenDevices` would then explain a second
     Vulkan device, such as a software ICD, that is not NVIDIA.
-- **Consequence:** NVIDIA qualification evidence is taken at the physical console. The runtime count was
-  not changed, since it needs the same device-to-adapter identity E2 lacks.
+- **Consequence:** display-topology evidence (adapter enumeration, the count Windows or Settings shows) is
+  taken at the physical console. The runtime count was not changed, since it needs the same
+  device-to-adapter identity E2 lacks.
+- **GPU quality under RDP (2026-10-03):** never trust readiness's count there. `verify:ai-gpu-quality` instead
+  checks the runtime's own GPU-plan Vulkan device count against Windows' NVIDIA PCI adapters
+  (`gpuQualityEvidence.ts`). With that count, a remote run is NVIDIA compute evidence, never a topology
+  qualification.
 - **Confirmed RDP-only.** At the physical console the same machine lists only `0x10de, 0x1414`, and
   readiness reads `nvidiaAdapters: 1` (2026-10-02).
 

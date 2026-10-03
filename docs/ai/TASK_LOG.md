@@ -1,6 +1,35 @@
 # TASK_LOG
 
-## 2026-10-03 (latest) — Automatic qualified on NVIDIA hardware (Claude, GTX 980M machine)
+## 2026-10-03 (latest) — NVIDIA GPU quality qualified; topology and compute evidence kept apart (Claude, GTX 980M machine)
+
+- **Task:** stop Remote Desktop from voiding GPU compute evidence on its own, without weakening the proof.
+  Then complete GPU quality Run 2 and decide the 0.8B's GPU quality.
+- **Result:** PASS.
+  - `gpuQualityEvidence.ts` judges topology (physical console) and compute separately. Compute rests on:
+    - PCI NVIDIA-only adapters, unchanged;
+    - every call on Vulkan with all layers;
+    - the pack guard;
+    - off the console, the runtime's own Vulkan device count;
+    - an nvidia-smi rise of at least the model's size.
+  - The recorded Run 2 part 1 lacked the runtime device count, so both parts were rerun under RDP at
+    `63cc74ca`. They passed 6/6 + 7/7 with compute PASS. The quality comparison is in
+    `docs/plans/ai-upgrade-v5/evidence/L8a-gpu-quality-2026-10-03.md`.
+  - The qualified list is unchanged; a Vulkan key is the owner's decision.
+- **Files:**
+  - `scripts/ai-harness/{gpuQualityEvidence,liveExecution}.ts`;
+  - `scripts/{verify-ai-gpu-quality,verify-ai-gpu-harness,verify-ai-explanation-live}.mts`;
+  - `scripts/lib/verifier-classification.ts`;
+  - `docs/ai/{COMMANDS,CURRENT_STATE,HANDOFF,TASK_LOG,KNOWN_ISSUES,DECISIONS}.md`;
+  - `docs/NVIDIA_QUALIFICATION_SETUP.md`;
+  - the L8a evidence note and three L3 evidence files.
+- **Verification:**
+  - `verify:ai-gpu-quality-part1` 6/6 and `-part2` 7/7, compute PASS under RDP, exit 0.
+  - `verify:ai-gpu-harness` 70/0; 5 mutants killed and reverted.
+  - `verify:ai-gpu-modes` 234/0.
+  - `build`, `typecheck:scripts` and `verifier-classification` PASS.
+  - The physical-console gates were not rerun: their inputs are unchanged.
+
+## 2026-10-03 — Automatic qualified on NVIDIA hardware (Claude, GTX 980M machine)
 
 - **Task:** qualify the Automatic execution mode on real NVIDIA hardware.
 - **Result:** PASS at the physical console. Automatic resolves to GPU-Offload, with all 25 layers on Vulkan.
