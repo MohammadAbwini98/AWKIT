@@ -2,10 +2,13 @@
 
 ## NVIDIA console checks deferred by the owner; N1 visual capture plan written (2026-10-03, latest)
 
-- **Also 2026-10-03: animated app background.** `layout/AppBackground.tsx` draws the design handoff's
-  pointer-reactive dot field on a full-viewport canvas behind the layout (`.main-surface` is now
-  transparent). rAF-driven, dirty-rect redraws, parks at rest, honours reduced motion. Guarded by
-  `verify:app-background` (11/11). Details in `TASK_LOG.md`.
+- **Also 2026-10-03: animated app background and canvas plane.** `DotField` (`layout/AppBackground.tsx`)
+  draws the design handoff's pointer-reactive dot field (ambient 0.25) as the app background. It is also the
+  canvas of the Flow Designer, Workflow Builder and Workflow Designer, where it follows pan and zoom, and of
+  the Live Run Monitor. The canvas plane is the handoff's white (light) and black (dark), and the handoff
+  arrow cursor applies app-wide. The field is rAF-driven with dirty-rect redraws, parks at rest and honours
+  reduced motion. Guarded by `verify:app-background` (21/21). `verify:workflow-builder` has one pre-existing
+  Workflows library failure (`KNOWN_ISSUES.md`). Details in `TASK_LOG.md`.
 
 - **NVIDIA: the remaining console evidence is deferred, not passed** (owner, `DECISIONS.md` latest).
   - Still never run at the GTX 980M's physical console: `verify:ai-gpu-automatic-lifecycle`,

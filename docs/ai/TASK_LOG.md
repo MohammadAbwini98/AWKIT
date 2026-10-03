@@ -1,6 +1,38 @@
 # TASK_LOG
 
-## 2026-10-03 (latest) — Animated app background: emitted-light dot field behind the layout (Claude)
+## 2026-10-03 (latest) — App background: handoff canvas colors, ambient 0.25, arrow cursor, designer and monitor canvases (Claude)
+
+- **Task:** owner review of the app background: light mode did not match the handoff and was hard to see,
+  ambient should be 0.25, the handoff cursor was missing, and the field must replace the canvas in the Flow
+  Designer, Workflow Builder and the Live Run Monitor.
+- **Result:**
+  - `layout/AppBackground.tsx` now exports a reusable `DotField` (the app background is one instance).
+    It takes an optional `view` (x, y, zoom) and follows it as the handoff specifies: spacing 24·k (×4 below
+    12, ÷2 above 160), major every 5th, fade `clamp((k − 0.16)·2.4, 0.25, 1)`. The pattern is offset to the
+    world origin and scaled so one tile spans exactly 5 steps. View changes repaint in a layout effect.
+    A field lights only while the pointer is over its own host and no nested field host.
+  - `components/canvas/Background.tsx` is now that field anchored to the FlowCanvas viewport, so the Flow
+    Designer, Workflow Builder and Workflow Designer canvases use it (call sites drop the old
+    `gap`/`size`/`color` props). The Live Run Monitor mounts a `DotField` as its canvas plane; its CSS dots
+    are removed.
+  - Ambient is 0.25. `--awkit-bg-canvas` is the handoff canvas, `#ffffff` light and `#000000` dark, painted by
+    every field. The light-only `#f4f5f7` override on the designer and scenario canvases is removed.
+  - New `--awkit-cursor` tokens hold the handoff arrow (hotspot 4,3; dark fill in light, white fill in dark).
+    It applies on `.app-window` and the canvas (previously `grab`, still `grabbing` while dragging). Nodes
+    inherit it. The 8 `cursor: default` rules use it, and text fields keep `cursor: auto` at zero specificity.
+- **Files:** `app/renderer/layout/AppBackground.tsx`, `app/renderer/components/canvas/{Background,FlowCanvas}.tsx`,
+  `app/renderer/components/instances/LiveExecutionReportModal.tsx`,
+  `app/renderer/pages/{FlowChartDesigner,ScenarioBuilder,WorkflowDesigner}.tsx`, `app/renderer/styles/global.css`,
+  `scripts/verify-app-background.mjs`, `docs/ai/{TASK_LOG,CURRENT_STATE,KNOWN_ISSUES}.md`.
+- **Verification:** PASS `npm run build`. PASS `verify:app-background` 21/21: the plane is white and then
+  black, the cursor applies to the app and the canvas, a select keeps `auto`, the Flow Designer field is
+  sized to its container and anchored to the viewport, and a half-step pan moves the grid. PASS
+  `verify:design-tokens` 35/35, `verify:canvas-perf` 13/13, `verify:instance-monitor` 55/55,
+  `verify:flow-designer` 140/140. `verify:workflow-builder` FAIL: broad 67/68 and Loop 17/17. The one failure is
+  the pre-existing Workflows library action column (`KNOWN_ISSUES.md`). The Live Run Monitor field is NOT RUN
+  live, because opening the modal needs a real run. Not mutation-tested.
+
+## 2026-10-03 — Animated app background: emitted-light dot field behind the layout (Claude)
 
 - **Task:** implement the animated application background from the "SpecterStudio Canvas" design handoff
   as a full-viewport base canvas behind the app layout.

@@ -1440,7 +1440,7 @@ const workflowProfile = useMemo(
           >
             {/* Reference-parity canvas chrome: dotted grid + bottom-center glass toolbar only
                 (no React Flow Controls / MiniMap, matching the Workflow reference). */}
-            <Background gap={22} size={2} color="var(--awkit-canvas-dot)" />
+            <Background />
             <CanvasZoomControl onPersist={persistBuilderZoom} />
           </FlowCanvas>
           <CanvasItemPicker

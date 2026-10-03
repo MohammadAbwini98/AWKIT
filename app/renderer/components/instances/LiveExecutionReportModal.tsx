@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useModalFocusContract } from "../shared/useModalFocusContract";
+import { DotField } from "../../layout/AppBackground";
 import { AlertTriangle, Camera, Check, CheckCircle2, ChevronLeft, Loader2, Minus, Pause, Play, RotateCcw, X, XCircle } from "lucide-react";
 import type { InstanceRuntimeState } from "@src/instances/InstanceRuntimeState";
 import type { ConcurrentRunReport } from "@src/reports/ExecutionReport";
@@ -250,6 +251,7 @@ export function LiveExecutionReportModal({ instance, workflow, canExecute, canSt
 
         <div className="run-monitor-body">
           <div className="run-monitor-canvas" role="region" aria-label="Workflow steps">
+            <DotField />
             <div className="run-monitor-flow-scroll">
               {model.steps.length === 0 ? (
                 <div className="run-monitor-empty">

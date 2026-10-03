@@ -1,18 +1,30 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { useTheme } from "../state/theme";
 import { usePrefersReducedMotion } from "../components/shared/usePrefersReducedMotion";
 
 /**
- * Full-viewport base canvas behind the whole app layout: the "emitted light" dot field from the
- * SpecterStudio Canvas design handoff. A cached 5×5 pattern tile paints the base grid once; the
- * dots near the smoothed pointer (and its decaying trail) light up, grow, bloom and push ~2px away.
- * Each frame repaints only the dirty rect around the lit area, and the requestAnimationFrame loop
- * parks as soon as the pointer is still, the trail has decayed and presence has settled.
+ * The "emitted light" dot field from the SpecterStudio Canvas design handoff: the app background
+ * and the canvas space of every designer and monitor. A cached 5×5 pattern tile paints the grid;
+ * the dots near the smoothed pointer (and its decaying trail) light up, grow, bloom and push ~2px
+ * away. Each frame repaints only the dirty rect around the lit area, and the requestAnimationFrame
+ * loop parks as soon as the pointer is still, the trail has decayed and presence has settled.
+ *
+ * Each field lights only while the pointer is over its own host (the canvas's parent element) and
+ * no nested field host, so a designer canvas and the app background never both burn frames.
  * Constants are the handoff's (tokens.json → dotField / motion); colors come from --awkit-field-*.
  */
-const STEP = 24; // grid spacing (CSS px); every 5th dot on both axes is a major dot
-const AMBIENT = 0.6;
+const BASE_STEP = 24; // grid spacing (CSS px) at zoom 1; every 5th dot on both axes is a major dot
+const AMBIENT = 0.25;
 const PAD = 8; // lit-dot overdraw: 2.4px push + bloom radius 2·(1.4 + 1.3)
+
+/** World → screen transform of the surface the field sits under: screen = world · k + (x, y). */
+export interface DotFieldView {
+  x: number;
+  y: number;
+  k: number;
+}
+
+const STATIC_VIEW: DotFieldView = { x: 0, y: 0, k: 1 };
 
 interface Box {
   x1: number;
@@ -21,15 +33,35 @@ interface Box {
   y2: number;
 }
 
-export function AppBackground() {
+const mod = (a: number, n: number) => ((a % n) + n) % n;
+
+/** Grid spacing and dot fade for a zoom level (handoff "Emitted light" §1 and §3). */
+function gridFor(k: number) {
+  let step = BASE_STEP * k;
+  while (step < 12) step *= 4;
+  while (step > 160) step /= 2;
+  return { step, fade: Math.max(0.25, Math.min(1, (k - 0.16) * 2.4)) };
+}
+
+export function DotField({ className, view = STATIC_VIEW }: { className?: string; view?: DotFieldView }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const viewRef = useRef(view);
+  const redrawRef = useRef<(() => void) | null>(null);
   const { resolvedTheme } = useTheme();
   const reduced = usePrefersReducedMotion();
 
+  // Follow the host surface's pan/zoom before paint, so the grid never tears from its world layer.
+  useLayoutEffect(() => {
+    viewRef.current = view;
+    redrawRef.current?.();
+  }, [view.x, view.y, view.k]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
+    const host = canvas?.parentElement;
     const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx) return;
+    if (!canvas || !host || !ctx) return;
+    host.setAttribute("data-dot-field-host", "");
     // resolvedTheme is set after <html data-theme> is applied, so these read the active theme.
     const css = getComputedStyle(document.documentElement);
     const dot = css.getPropertyValue("--awkit-field-dot").trim();
@@ -40,7 +72,9 @@ export function AppBackground() {
     let dpr = 1;
     let width = 0;
     let height = 0;
-    let pattern: CanvasPattern | null = null;
+    let grid = gridFor(1);
+    let origin = { x: 0, y: 0 };
+    let tile: { step: number; size: number; pattern: CanvasPattern } | null = null;
     const ptr = { x: 0, y: 0, tx: 0, ty: 0 };
     let inside = false;
     let presence = 0;
@@ -51,34 +85,14 @@ export function AppBackground() {
     let looping = false;
     let last = 0;
 
-    // Clear a CSS-px rect and refill it with the base grid, snapped to whole device pixels so
-    // the refill is pixel-identical to its surroundings.
-    const paintBase = (b: Box) => {
-      const x = Math.max(0, Math.floor(b.x1 * dpr));
-      const y = Math.max(0, Math.floor(b.y1 * dpr));
-      const w = Math.min(canvas.width, Math.ceil(b.x2 * dpr)) - x;
-      const h = Math.min(canvas.height, Math.ceil(b.y2 * dpr)) - y;
-      if (w <= 0 || h <= 0 || !pattern) return;
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.globalAlpha = 1;
-      ctx.clearRect(x, y, w, h);
-      ctx.fillStyle = pattern;
-      ctx.fillRect(x, y, w, h);
-    };
-
-    const size = () => {
-      dpr = Math.min(2, window.devicePixelRatio || 1);
-      width = canvas.clientWidth;
-      height = canvas.clientHeight;
-      canvas.width = Math.round(width * dpr);
-      canvas.height = Math.round(height * dpr);
-      const n = Math.max(1, Math.round(STEP * 5 * dpr));
+    const makeTile = (step: number) => {
+      const n = Math.max(1, Math.round(step * 5 * dpr));
       const s = n / 5;
-      const tile = document.createElement("canvas");
-      tile.width = n;
-      tile.height = n;
-      const t = tile.getContext("2d");
-      if (!t) return;
+      const tileCanvas = document.createElement("canvas");
+      tileCanvas.width = n;
+      tileCanvas.height = n;
+      const t = tileCanvas.getContext("2d");
+      if (!t) return null;
       const disc = (x: number, y: number, r: number, color: string) => {
         t.fillStyle = color;
         t.beginPath();
@@ -88,9 +102,40 @@ export function AppBackground() {
       for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) if (i || j) disc(i * s, j * s, 1, dot);
       // the major dot sits on the tile corner: draw all four quarters so it is whole across seams
       for (const [x, y] of [[0, 0], [n, 0], [0, n], [n, n]]) disc(x, y, 1.4, major);
-      pattern = ctx.createPattern(tile, "repeat");
-      paintBase({ x1: 0, y1: 0, x2: width, y2: height });
-      painted = null;
+      const pattern = ctx.createPattern(tileCanvas, "repeat");
+      return pattern ? { step, size: n, pattern } : null;
+    };
+
+    // Re-anchor the grid to the current view: the pattern is offset to the world origin and scaled
+    // so one tile spans exactly 5 grid steps (the tile's whole-pixel size would otherwise drift).
+    const applyView = () => {
+      const v = viewRef.current;
+      grid = gridFor(v.k);
+      origin = { x: v.x, y: v.y };
+      if (!tile || tile.step !== grid.step) tile = makeTile(grid.step);
+      if (!tile) return;
+      const period = grid.step * 5;
+      tile.pattern.setTransform(
+        new DOMMatrix()
+          .translateSelf(mod(origin.x, period) * dpr, mod(origin.y, period) * dpr)
+          .scaleSelf((period * dpr) / tile.size)
+      );
+    };
+
+    // Clear a CSS-px rect and refill it with the base grid, snapped to whole device pixels so
+    // the refill is pixel-identical to its surroundings.
+    const paintBase = (b: Box) => {
+      const x = Math.max(0, Math.floor(b.x1 * dpr));
+      const y = Math.max(0, Math.floor(b.y1 * dpr));
+      const w = Math.min(canvas.width, Math.ceil(b.x2 * dpr)) - x;
+      const h = Math.min(canvas.height, Math.ceil(b.y2 * dpr)) - y;
+      if (w <= 0 || h <= 0 || !tile) return;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(x, y, w, h);
+      ctx.globalAlpha = grid.fade;
+      ctx.fillStyle = tile.pattern;
+      ctx.fillRect(x, y, w, h);
+      ctx.globalAlpha = 1;
     };
 
     const draw = () => {
@@ -118,17 +163,18 @@ export function AppBackground() {
       paintBase(area);
       painted = area;
 
+      const { step, fade } = grid;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.fillStyle = glow;
       const inv = 1 / (2 * sig * sig);
-      const i0 = Math.ceil(Math.max(0, lit.x1) / STEP);
-      const i1 = Math.floor(Math.min(width, lit.x2) / STEP);
-      const j0 = Math.ceil(Math.max(0, lit.y1) / STEP);
-      const j1 = Math.floor(Math.min(height, lit.y2) / STEP);
+      const i0 = Math.ceil((Math.max(0, lit.x1) - origin.x) / step);
+      const i1 = Math.floor((Math.min(width, lit.x2) - origin.x) / step);
+      const j0 = Math.ceil((Math.max(0, lit.y1) - origin.y) / step);
+      const j1 = Math.floor((Math.min(height, lit.y2) - origin.y) / step);
       for (let i = i0; i <= i1; i++) {
         for (let j = j0; j <= j1; j++) {
-          const sx = i * STEP;
-          const sy = j * STEP;
+          const sx = origin.x + i * step;
+          const sy = origin.y + j * step;
           let heat = 0;
           for (const p of src) {
             const dx = sx - p.x;
@@ -143,20 +189,38 @@ export function AppBackground() {
           const push = reduced ? 0 : Math.min(2.4, 2.4 * heat);
           const cx = sx + (dx / d) * push;
           const cy = sy + (dy / d) * push;
-          const r = (i % 5 === 0 && j % 5 === 0 ? 1.4 : 1) + 1.3 * heat;
+          const r = (mod(i, 5) === 0 && mod(j, 5) === 0 ? 1.4 : 1) + 1.3 * heat;
           if (heat > 0.3) {
-            ctx.globalAlpha = 0.1 * heat;
+            ctx.globalAlpha = 0.1 * heat * fade;
             ctx.beginPath();
             ctx.arc(cx, cy, r * 2, 0, Math.PI * 2);
             ctx.fill();
           }
-          ctx.globalAlpha = Math.min(1, 0.12 + 0.78 * heat);
+          ctx.globalAlpha = Math.min(1, 0.12 + 0.78 * heat) * fade;
           ctx.beginPath();
           ctx.arc(cx, cy, r, 0, Math.PI * 2);
           ctx.fill();
         }
       }
       ctx.globalAlpha = 1;
+    };
+
+    // Full repaint after a size, DPR or view change.
+    const redraw = () => {
+      applyView();
+      paintBase({ x1: 0, y1: 0, x2: width, y2: height });
+      painted = null;
+      draw();
+    };
+
+    const size = () => {
+      dpr = Math.min(2, window.devicePixelRatio || 1);
+      width = canvas.clientWidth;
+      height = canvas.clientHeight;
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+      tile = null;
+      redraw();
     };
 
     const tick = () => {
@@ -192,24 +256,35 @@ export function AppBackground() {
       raf = requestAnimationFrame(loop);
     };
 
-    const onMove = (e: PointerEvent) => {
-      if (!inside) {
-        // jump on entry so the light does not streak in from where the pointer left
-        ptr.x = e.clientX;
-        ptr.y = e.clientY;
-      }
-      inside = true;
-      ptr.tx = e.clientX;
-      ptr.ty = e.clientY;
+    const onLeave = () => {
+      if (!inside) return;
+      inside = false;
       tick();
     };
-    const onLeave = () => {
-      inside = false;
+    const onMove = (e: PointerEvent) => {
+      // Light only this field's own surface, never a nested field host's.
+      const owner = e.target instanceof Element ? e.target.closest("[data-dot-field-host]") : null;
+      if (owner !== host) {
+        onLeave();
+        return;
+      }
+      const r = host.getBoundingClientRect();
+      const x = e.clientX - r.left;
+      const y = e.clientY - r.top;
+      if (!inside) {
+        // jump on entry so the light does not streak in from where the pointer left
+        ptr.x = x;
+        ptr.y = y;
+      }
+      inside = true;
+      ptr.tx = x;
+      ptr.ty = y;
       tick();
     };
     const onOut = (e: PointerEvent) => {
       if (!e.relatedTarget) onLeave(); // pointer left the window
     };
+
     // The device-pixel box also changes when only the DPR does (window moved to a monitor with a
     // different scale), which a window "resize" listener misses.
     const resizeObserver = new ResizeObserver(() => {
@@ -218,11 +293,14 @@ export function AppBackground() {
     });
 
     size(); // paint now; the observer's first callback waits for the next rendered frame
+    redrawRef.current = redraw;
     resizeObserver.observe(canvas, { box: "device-pixel-content-box" });
     window.addEventListener("pointermove", onMove, { passive: true });
     window.addEventListener("pointerout", onOut);
     window.addEventListener("blur", onLeave);
     return () => {
+      redrawRef.current = null;
+      host.removeAttribute("data-dot-field-host");
       resizeObserver.disconnect();
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerout", onOut);
@@ -231,5 +309,10 @@ export function AppBackground() {
     };
   }, [resolvedTheme, reduced]);
 
-  return <canvas ref={canvasRef} className="app-background" aria-hidden="true" />;
+  return <canvas ref={canvasRef} className={["awkit-dot-field", className].filter(Boolean).join(" ")} aria-hidden="true" />;
+}
+
+/** Full-viewport base canvas behind the whole app layout. */
+export function AppBackground() {
+  return <DotField className="app-background" />;
 }

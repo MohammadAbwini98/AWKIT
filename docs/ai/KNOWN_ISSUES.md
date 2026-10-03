@@ -1,5 +1,16 @@
 # KNOWN_ISSUES
 
+## `verify:workflow-builder` fails one Workflows library check: action column 100px, limit 64px (found 2026-10-03, OPEN)
+
+- **Symptom.** Broad suite 67/68 (Loop suite 17/17): "Workflows table fills its desktop content surface with a
+  compact action column" measures `actionColumnWidth` 100.32 against `<= 64` in
+  `scripts/verify-workflow-builder-gui.pre-capsule.mjs`.
+- **Cause.** The 2026-09-18 Workflows library redesign (`818ede3b`, `01ad630d`) added an inline Open action
+  beside the kebab. Its TASK_LOG entry records that no GUI verifier reached the page on that host, so this is
+  the first run since. Not caused by the 2026-10-03 app-background work, which changes no table layout.
+- **Fix direction.** Owner call: either the column is meant to hold Open + kebab (raise the limit to the
+  designed width) or Open belongs elsewhere. Do not loosen the check without that decision.
+
 ## The DX-0 freeze fails again: L11 changed a frozen source (found 2026-10-03, RESOLVED 2026-10-03)
 
 - **Resolved.** DX-0 now freezes `aiAssist.ts` by the SHA-256 of its authoring path (`authoringPathSha256`

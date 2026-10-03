@@ -193,8 +193,9 @@ body {
   --awkit-band-warning: var(--awkit-warning);
   --awkit-band-high: var(--awkit-danger);
 
-  /* canvas (React Flow surfaces) */
-  --awkit-bg-canvas: #f4f5f7;
+  /* canvas — the dot-field plane behind the layout, the designers and the run monitor
+     (SpecterStudio Canvas handoff: white in light, black in dark) */
+  --awkit-bg-canvas: #ffffff;
   --awkit-canvas-bg: var(--awkit-bg-canvas);
   /* Dotted-grid dot: nudged darker than the near-white canvas so the grid actually reads
      (SRS-CANVAS-UX-001 §3.4 — dots were present but too faint to perceive). */
@@ -204,6 +205,8 @@ body {
   --awkit-field-dot: rgba(20, 22, 29, 0.17);
   --awkit-field-dot-major: rgba(20, 22, 29, 0.32);
   --awkit-field-glow: #000000;
+  /* Handoff arrow cursor (24×24, hotspot 4,3): dark fill, white edge on light themes. */
+  --awkit-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M4.2 2.9c-.5-.2-1 .3-.8.8l6 16.4c.2.5.9.5 1.1 0l2.3-6.1c.1-.3.3-.5.6-.6l6.1-2.3c.5-.2.5-.9 0-1.1z' fill='%230b0c10' stroke='%23ffffff' stroke-width='1.4' stroke-linejoin='round'/%3E%3C/svg%3E") 4 3, default;
   --awkit-node-surface: var(--awkit-surface);
   --awkit-node-border: var(--awkit-border);
   --awkit-node-selected-bg: var(--awkit-lavender-soft);
@@ -366,12 +369,13 @@ body {
   --awkit-on-accent-rgb: 255, 255, 255;
 
   /* canvas */
-  --awkit-bg-canvas: #0e1016;
+  --awkit-bg-canvas: #000000;
   --awkit-canvas-bg: var(--awkit-bg-canvas);
   --awkit-canvas-dot: #2c3140;
   --awkit-field-dot: rgba(255, 255, 255, 0.14);
   --awkit-field-dot-major: rgba(255, 255, 255, 0.28);
   --awkit-field-glow: #ffffff;
+  --awkit-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M4.2 2.9c-.5-.2-1 .3-.8.8l6 16.4c.2.5.9.5 1.1 0l2.3-6.1c.1-.3.3-.5.6-.6l6.1-2.3c.5-.2.5-.9 0-1.1z' fill='%23ffffff' stroke='%230b0c10' stroke-width='1.4' stroke-linejoin='round'/%3E%3C/svg%3E") 4 3, default;
   --awkit-node-selected-bg: var(--awkit-lavender-soft);
   /* edge strokes — blue-derived values preserve the reference accent on dark canvases. */
   --awkit-edge: #1d4ed8;
@@ -461,17 +465,37 @@ button:not(:disabled):not([role="switch"]):active,
   /* Own stacking context so the background canvas's z-index:-1 lands above the --awkit-bg root
      paint and below every layout plane, whatever ancestors do. */
   isolation: isolate;
+  cursor: var(--awkit-cursor);
 }
 
-/* Full-viewport base canvas (layout/AppBackground.tsx). Fixed and pointer-transparent; the chrome
-   stays opaque, .main-surface is transparent so the field shows through the content canvas. */
-.app-background {
-  position: fixed;
+/* Text fields keep the platform I-beam instead of inheriting the arrow; zero specificity so any
+   explicit cursor rule still wins. */
+:where(input, textarea, select, [contenteditable="true"]) {
+  cursor: auto;
+}
+
+/* Emitted-light dot field (layout/AppBackground.tsx) — the canvas plane of the app background,
+   the designers (components/canvas/Background.tsx) and the Live Run Monitor. Pointer-transparent;
+   it paints its own --awkit-canvas-bg so it reads the same wherever it is mounted. */
+.awkit-dot-field {
+  position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  z-index: -1;
   pointer-events: none;
+  background: var(--awkit-canvas-bg);
+}
+
+/* Full-viewport base plane. The chrome stays opaque; .main-surface is transparent so the field
+   shows through the content area. */
+.app-background {
+  position: fixed;
+  z-index: -1;
+}
+
+/* Under the canvas transform layer (z-index 1), as the old CSS dot background was. */
+.awkit-flow-background {
+  z-index: 0;
 }
 
 .app-shell {
@@ -567,7 +591,7 @@ button:not(:disabled):not([role="switch"]):active,
   background: transparent;
   border: 0;
   color: var(--awkit-text-secondary);
-  cursor: default;
+  cursor: var(--awkit-cursor);
   display: inline-flex;
   height: 100%;
   justify-content: center;
@@ -1573,7 +1597,7 @@ button.validation-chip {
 }
 
 div.validation-issue-row {
-  cursor: default;
+  cursor: var(--awkit-cursor);
 }
 
 .validation-issue-badge {
@@ -4625,13 +4649,6 @@ th {
   height: 100%;
   margin-left: 0;
   min-height: 0;
-}
-
-[data-theme="light"] .flow-designer-body .react-flow-shell,
-[data-theme="light"] .scenario-canvas-panel {
-  /* Neutral Claude canvas values; matches the :root defaults at lines 175-179. */
-  --awkit-canvas-bg: #f4f5f7;
-  --awkit-canvas-dot: #c4c9d2;
 }
 
 /* Stack inner card title/subtitle so they don't run together. */
@@ -8844,11 +8861,9 @@ div.form-message.warn p {
   min-height: 0;
 }
 
-/* Canvas — dotted step surface with its own scroll region and floating toolbar. */
+/* Canvas — the app's dot field (first child) under its own scroll region and floating toolbar. */
 .run-monitor-canvas {
-  background-color: var(--awkit-bg-canvas);
-  background-image: radial-gradient(var(--awkit-canvas-dot) 1px, transparent 1px);
-  background-size: 22px 22px;
+  background-color: var(--awkit-canvas-bg);
   display: block;
   min-width: 0;
   overflow: hidden;
@@ -10069,7 +10084,7 @@ div.form-message.warn p {
 
 .recorder-spy-candidate.is-ineligible {
   color: var(--awkit-text-muted);
-  cursor: default;
+  cursor: var(--awkit-cursor);
 }
 
 .recorder-spy-count {
@@ -10557,7 +10572,7 @@ div.form-message.warn p {
 }
 
 .recorded-url-row[data-disabled] {
-  cursor: default;
+  cursor: var(--awkit-cursor);
 }
 
 .recorded-url-row-primary {
@@ -10587,7 +10602,7 @@ div.form-message.warn p {
 }
 
 .recorded-url-row-activator:disabled {
-  cursor: default;
+  cursor: var(--awkit-cursor);
 }
 
 /* ==========================================================================
@@ -13095,7 +13110,7 @@ div.form-message.warn p {
   height: 100%;
   overflow: hidden;
   background: var(--awkit-canvas-bg);
-  cursor: grab;
+  cursor: var(--awkit-cursor);
   touch-action: none;
   user-select: none;
 }
@@ -15625,7 +15640,7 @@ div.form-message.warn p {
   border-radius: var(--radius-sm);
   padding: 6px 14px;
   font-weight: var(--weight-semibold);
-  cursor: default;
+  cursor: var(--awkit-cursor);
   background: var(--awkit-accent);
   color: var(--awkit-accent-contrast);
 }
@@ -15725,7 +15740,7 @@ div.form-message.warn p {
 }
 
 .accent-preset:disabled {
-  cursor: default;
+  cursor: var(--awkit-cursor);
   opacity: 0.75;
 }
 
@@ -17600,7 +17615,7 @@ textarea.sys-control {
   background: transparent;
   border: 0;
   color: var(--awkit-text-muted);
-  cursor: default;
+  cursor: var(--awkit-cursor);
   display: inline-flex;
   font-size: var(--text-th);
   font-weight: var(--weight-semibold);

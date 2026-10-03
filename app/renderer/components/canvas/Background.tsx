@@ -1,32 +1,11 @@
 import { useViewport } from "./FlowCanvas";
-
-interface BackgroundProps {
-  gap?: number;
-  size?: number;
-  color?: string;
-}
+import { DotField } from "../../layout/AppBackground";
 
 /**
- * Dotted canvas background that pans and scales with the viewport, matching the
- * Workflow (flowforge) reference. Rendered as a CSS radial-gradient layer behind
- * the transform so it never intercepts pointer events.
+ * Canvas background: the app's emitted-light dot field, anchored to the canvas viewport so the
+ * grid pans and scales with the nodes. Sits under the transform layer and never takes pointer input.
  */
-export function Background({ gap = 22, size = 2, color = "var(--awkit-canvas-dot, #c4c9d2)" }: BackgroundProps) {
+export function Background() {
   const { x, y, zoom } = useViewport();
-  const scaledGap = gap * zoom;
-  const dot = Math.max(1, size * zoom);
-  return (
-    <div
-      className="awkit-flow-background"
-      style={{
-        position: "absolute",
-        inset: 0,
-        zIndex: 0,
-        pointerEvents: "none",
-        backgroundImage: `radial-gradient(${color} ${dot}px, transparent ${dot}px)`,
-        backgroundSize: `${scaledGap}px ${scaledGap}px`,
-        backgroundPosition: `${x}px ${y}px`
-      }}
-    />
-  );
+  return <DotField className="awkit-flow-background" view={{ x, y, k: zoom }} />;
 }

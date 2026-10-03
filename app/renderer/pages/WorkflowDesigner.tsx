@@ -116,7 +116,7 @@ function WorkflowDesignerContent() {
 
         <div className="react-flow-shell">
           <FlowCanvas edges={edges} edgeTypes={edgeTypes} nodes={nodes} nodeTypes={nodeTypes} nodesDraggable={false}>
-            <Background gap={22} size={2} color="var(--awkit-canvas-dot)" />
+            <Background />
             <CanvasZoomControl />
           </FlowCanvas>
         </div>

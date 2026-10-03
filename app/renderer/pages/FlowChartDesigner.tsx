@@ -1657,7 +1657,7 @@ function FlowChartDesignerContent() {
             >
               {/* Reference-parity canvas chrome: only the dotted grid + bottom-center glass toolbar.
                   No React Flow Controls / MiniMap (the Workflow reference has neither). */}
-              <Background gap={22} size={2} color="var(--awkit-canvas-dot)" />
+              <Background />
               <CanvasZoomControl onPersist={persistFlowZoom} />
             </FlowCanvas>
             <CanvasItemPicker
