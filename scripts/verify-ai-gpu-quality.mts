@@ -14,13 +14,21 @@
  * links; L4b delivery and proxies; L3's evidence totals); and every model call's execution as the launcher printed
  * it (resolved mode, backend, offload, cold load, first token, generation, tokens, end to end), summed over the run.
  *
- * Where it ran is part of the evidence: Windows' display adapters and this process's session, at the start and the
- * end. The auto arm is NVIDIA evidence only at the physical console with no Remote Desktop adapter; anywhere else it
- * is INCONCLUSIVE. The CPU arm runs anywhere. Authoring review captures go to this qualification's own store
- * (`ai-quality-review-l8a`), never the one `verify:ai-authoring-review` judges.
+ * Where it ran is part of the evidence, as two separate answers (scripts/ai-harness/gpuQualityEvidence.ts):
+ *  - topology: Windows' display adapters and this process's session at the start and the end. A run at the physical
+ *    console with no Remote Display Adapter is labelled a physical-console topology qualification; any other run
+ *    never is, since Remote Desktop changes the display topology.
+ *  - compute (auto arm): Remote Desktop adds a display adapter, never a compute device, so it does not by itself void
+ *    the run. The GPU is proven from Windows' PCI compute adapters (NVIDIA only, unchanged), every call's resolved
+ *    mode, backend, layers and answer, the pack-guarded GPU host, and nvidia-smi, read here with no gate running
+ *    before each gate and after the last, against every gate's own readings after each call.
+ * The CPU arm runs anywhere. Authoring review captures go to this qualification's own store (`ai-quality-review-l8a`),
+ * never the one `verify:ai-authoring-review` judges.
  *
- * Exit 0 when every gate passed, 1 when any failed, 2 when any was NOT RUN or INCONCLUSIVE (an Automatic run that did
- * not resolve to the GPU included), or the topology was not the console's. Full gate output is kept in a temp folder.
+ * Exit 0 when every gate passed and, on the auto arm, the GPU was proven; 1 when any gate failed or a call ran on the
+ * wrong backend or offload; 2 when any gate was NOT RUN or INCONCLUSIVE or the compute device cannot be proven (an
+ * Automatic run that did not resolve to the GPU included). Full gate output and `run.json` (topology, idle readings,
+ * the verdict) are kept in a temp folder.
  */
 
 import { spawn, spawnSync } from "node:child_process";
@@ -29,6 +37,10 @@ import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { AI_MODEL_MANIFEST } from "@src/offline/AiModelManifest";
+
+import { callsOf, gpuQualityVerdict, isRemoteDisplayAdapter, physicalConsole, type GateCall, type RunTopology } from "./ai-harness/gpuQualityEvidence";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const armFlag = process.argv.indexOf("--execution");
@@ -70,7 +82,7 @@ const GATES: readonly Gate[] = [
 
 // ── Where it runs ───────────────────────────────────────────────────────────────────────────────
 
-function topology() {
+function topology(): RunTopology & { session: string; adapterList: string[] } {
   const adapters = spawnSync(
     "powershell",
     ["-NoProfile", "-NonInteractive", "-Command", "Get-CimInstance Win32_VideoController | ForEach-Object { '{0}|{1}' -f $_.PNPDeviceID, $_.Name }"],
@@ -80,7 +92,7 @@ function topology() {
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean)
-    .map((line) => ({ pnp: line.split("|")[0] ?? "", name: line.split("|").slice(1).join("|") }));
+    .map((line) => ({ pnpDeviceId: line.split("|")[0] ?? "", name: line.split("|").slice(1).join("|") }));
   // `query session` marks this process's session with ">"; its name is "console" at the physical console.
   const sessions = spawnSync(path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "query.exe"), ["session"], { encoding: "utf8", windowsHide: true, timeout: 60_000 });
   const own = String(sessions.stdout ?? "")
@@ -89,14 +101,26 @@ function topology() {
   const fields = own?.slice(1).trim().split(/\s+/) ?? [];
   const sessionName = fields.length >= 4 ? fields[0] : "";
   const state = fields.find((field) => /^(Active|Disc|Conn|Listen)$/i.test(field)) ?? "unknown";
-  const remoteAdapter = list.some((a) => /^SWD\\REMOTEDISPLAYENUM\\/i.test(a.pnp));
   return {
-    adapters: list.map((a) => `${a.name} (${a.pnp.split("\\").slice(0, 2).join("\\")})`),
-    nvidia: list.some((a) => /^PCI\\VEN_10DE&/i.test(a.pnp)),
-    remoteAdapter,
+    sessionName,
+    state,
+    adapters: list,
     session: `${sessionName || "(unnamed)"} ${state}`,
-    console: /^console$/i.test(sessionName) && /^Active$/i.test(state) && !remoteAdapter
+    adapterList: list.map((a) => `${a.name} (${a.pnpDeviceId.split("\\").slice(0, 2).join("\\")})`)
   };
+}
+
+/** VRAM in use on every NVIDIA GPU (MiB, summed), with no gate running; null where nvidia-smi gives none. */
+function idleVramMib(): number | null {
+  const smi = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "nvidia-smi.exe");
+  if (!fs.existsSync(smi)) return null;
+  const run = spawnSync(smi, ["--query-gpu=memory.used", "--format=csv,noheader,nounits"], { encoding: "utf8", windowsHide: true, timeout: 60_000 });
+  const rows = String(run.stdout ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map(Number);
+  return run.status === 0 && rows.length > 0 && rows.every(Number.isFinite) ? rows.reduce((sum, value) => sum + value, 0) : null;
 }
 
 // ── One gate ────────────────────────────────────────────────────────────────────────────────────
@@ -134,44 +158,7 @@ function detailAfter(text: string, labelStart: string): Record<string, unknown> 
   }
 }
 
-const CALL_LINE =
-  /^\s+· (\w+) (\w+)(?:\/(\w+))?: ([\w-]+) on (\w+) \(([^)]*)\), answer (\S+)(?:, cold load (\S+) ms|, warm), first token (\S+) ms, generation (\S+) ms, (\S+)\/(\d+) out \((\S+) in\), (\d+) ms end to end$/;
-interface Call {
-  gate: string;
-  feature: string;
-  status: string;
-  resolved: string;
-  backend: string;
-  answer: string;
-  coldLoadMs: number | null;
-  firstTokenMs: number | null;
-  generationMs: number | null;
-  outputTokens: number | null;
-  maxOutputTokens: number;
-  wallMs: number;
-}
-const num = (value: string | undefined) => (value === undefined || value === "-" || value === "?" ? null : Number(value));
-
-function callsOf(gate: string, text: string): Call[] {
-  return text
-    .split(/\r?\n/)
-    .map((line) => CALL_LINE.exec(line))
-    .filter((m): m is RegExpExecArray => m !== null)
-    .map((m) => ({
-      gate,
-      feature: m[1],
-      status: m[3] ? `${m[2]}/${m[3]}` : m[2],
-      resolved: m[4],
-      backend: m[5],
-      answer: m[7],
-      coldLoadMs: num(m[8]),
-      firstTokenMs: num(m[9]),
-      generationMs: num(m[10]),
-      outputTokens: num(m[11]),
-      maxOutputTokens: Number(m[12]),
-      wallMs: Number(m[14])
-    }));
-}
+type Call = GateCall & { gate: string };
 
 const ratio = (value: unknown) => {
   const m = /^(\d+)\/(\d+)$/.exec(String(value ?? ""));
@@ -188,10 +175,12 @@ const median = (values: number[]) => {
 const selected = GATES.filter((gate) => part === 0 || (part === 2) === (gate.feature === "errorQuality"));
 console.log(`verify:ai-gpu-quality${arm === "cpu" ? "-cpu-baseline" : part ? `-part${part}` : ""} — the 0.8B's live acceptance gates under --execution ${arm}${part ? `, part ${part} (${selected.length} of ${GATES.length} gates)` : ""}\n`);
 const before = topology();
-console.log(`  · at the start: session ${before.session}; adapters ${before.adapters.join("; ")}`);
+console.log(`  · at the start: session ${before.session}; adapters ${before.adapterList.join("; ")}`);
 let failed = 0;
 let unsettled = 0;
-const results: Array<{ gate: Gate; exit: number; seconds: number; checks: string }> = [];
+const results: Array<{ gate: Gate; exit: number; seconds: number; checks: string; text: string }> = [];
+// nvidia-smi with no gate running: [k] is read just before gate k, the last one after the last gate.
+const idleReadings: Array<number | null> = [];
 const calls: Call[] = [];
 const error = { baselineRight: 0, aiRight: 0, rows: 0, improvement: 0, falseAttributions: 0, declined: 0, linksShown: 0, linksCited: 0 };
 const authoring = { cases: 0, accepted: 0, rejected: 0, inconclusive: 0, issuesSent: 0, explained: 0, onSubject: 0, misattributed: 0, actionable: 0, cutByGrammar: 0, displayWithheld: 0 };
@@ -199,15 +188,16 @@ const perRow: string[] = [];
 let locatorEvidence: string | null = null;
 
 for (const gate of selected) {
+  if (arm === "auto") idleReadings.push(idleVramMib());
   const run = await runGate(gate);
   const checks = run.text.match(/(\d+) passed, (\d+) failed/g)?.at(-1) ?? "no summary";
-  results.push({ gate, exit: run.exit, seconds: run.seconds, checks });
+  results.push({ gate, exit: run.exit, seconds: run.seconds, checks, text: run.text });
   const verdict = run.exit === 0 ? "PASS" : run.exit === 2 ? "INCONCLUSIVE / NOT RUN" : "FAIL";
   console.log(`\n  ${run.exit === 0 ? "✓" : run.exit === 2 ? "?" : "✗"} ${gate.name} (${gate.feature}${gate.cases ? `: ${gate.cases.join(", ")}` : ""}) — ${verdict}, ${checks}, ${run.seconds} s`);
   for (const line of run.text.split(/\r?\n/).filter((l) => /^\s+✗ /.test(l))) console.log(`      ${line.trim().slice(0, 400)}`);
   if (run.exit === 1) failed += 1;
   if (run.exit === 2) unsettled += 1;
-  calls.push(...callsOf(gate.name, run.text));
+  calls.push(...callsOf(run.text).map((call) => ({ ...call, gate: gate.name })));
   if (gate.feature === "errorQuality") {
     const q = detailAfter(run.text, "the labelled set: every row delivered");
     if (q) {
@@ -255,8 +245,9 @@ for (const gate of selected) {
   }
 }
 
+if (arm === "auto") idleReadings.push(idleVramMib());
 const after = topology();
-console.log(`\n  · at the end: session ${after.session}; adapters ${after.adapters.join("; ")}`);
+console.log(`\n  · at the end: session ${after.session}; adapters ${after.adapterList.join("; ")}`);
 
 // ── Summary ─────────────────────────────────────────────────────────────────────────────────────
 
@@ -280,8 +271,37 @@ console.log(
 );
 console.log(`    full gate output: ${logDir}`);
 
-const offConsole = arm === "auto" && !(before.console && after.console && before.nvidia);
-if (offConsole) console.log(`\n  ? INCONCLUSIVE: the auto arm is NVIDIA evidence only at the physical console with no Remote Desktop adapter (start: ${before.session}, remote adapter ${before.remoteAdapter}; end: ${after.session}, remote adapter ${after.remoteAdapter})`);
-const exit = failed > 0 ? 1 : unsettled > 0 || offConsole ? 2 : 0;
-console.log(`\n${results.filter((r) => r.exit === 0).length} gates passed, ${failed} failed, ${unsettled} inconclusive or not run — exit ${exit}`);
+// ── Where it ran: topology and compute, kept apart ──────────────────────────────────────────────
+
+const atConsole = physicalConsole(before) && physicalConsole(after);
+const remoteAt = (t: RunTopology) => (t.adapters.some(isRemoteDisplayAdapter) ? ", Remote Display Adapter present" : "");
+console.log(
+  `\n  topology: start ${before.session}${remoteAt(before)}; end ${after.session}${remoteAt(after)} — ` +
+    (atConsole ? "the physical console, no Remote Display Adapter" : "not the physical console: Remote Desktop changed the display topology, so this run is no console topology qualification")
+);
+// The curated 0.8B's file size: full offload holds at least its weights on the GPU (about 1050 MiB measured at load).
+const minModelVramMib = Math.floor((AI_MODEL_MANIFEST.find((entry) => entry.id === "qwen3.5-0.8b-q4-k-m")?.sizeBytes ?? 0) / 2 ** 20);
+const compute =
+  arm === "auto"
+    ? gpuQualityVerdict({
+        start: before,
+        end: after,
+        gates: results.map((r, k) => ({ name: r.gate.name, text: r.text, idleVramMib: [idleReadings[k] ?? null, idleReadings[k + 1] ?? null] })),
+        minModelVramMib
+      })
+    : null;
+if (compute) {
+  console.log(`  compute adapters (PCI): start ${compute.computeAdapters.start.join(", ") || "none"}; end ${compute.computeAdapters.end.join(", ") || "none"}; display topology only, never a compute device: ${compute.displayOnly.join(", ") || "none"}`);
+  console.log(`  NVIDIA VRAM per gate, idle → loaded MiB (at least ${minModelVramMib} over idle required): ${compute.gates.map((g) => `${g.name} ${g.idleMib ?? "-"} → ${g.loadedMib ?? "-"}`).join("; ")}`);
+  console.log(`  compute: ${compute.label}`);
+  for (const reason of compute.reasons) console.log(`      ${compute.verdict === "FAIL" ? "✗" : "?"} ${reason}`);
+}
+fs.writeFileSync(
+  path.join(logDir, "run.json"),
+  JSON.stringify({ arm, part, start: before, end: after, idleVramMib: idleReadings, gates: results.map((r) => ({ name: r.gate.name, exit: r.exit, checks: r.checks })), compute }, null, 2),
+  "utf8"
+);
+
+const exit = failed > 0 || compute?.verdict === "FAIL" ? 1 : unsettled > 0 || compute?.verdict === "INCONCLUSIVE" ? 2 : 0;
+console.log(`\n${results.filter((r) => r.exit === 0).length} gates passed, ${failed} failed, ${unsettled} inconclusive or not run${compute ? `; compute ${compute.verdict}` : ""} — exit ${exit}`);
 process.exit(exit);

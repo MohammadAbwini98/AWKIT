@@ -17,7 +17,13 @@
  *     aside only by software enumerator AND Microsoft name; a hardware adapter still needs its PCI vendor
  *     ID and an unknown one still fails. Runtime E2 (Chromium's view) is unchanged.
  *  E. Wiring: the three GPU modes and the launcher use these helpers; PRODUCT Automatic's lifecycle in gpuLifecycle
- *     and the live quality modes' Automatic arm (liveExecution.ts) run on the product's own readiness.
+ *     and the live quality modes' Automatic arm (liveExecution.ts) run on the product's own readiness;
+ *     verify:ai-gpu-quality judges where a run ran through gpuQualityEvidence.ts, with no blanket console rule.
+ *  F. GPU quality evidence (scripts/ai-harness/gpuQualityEvidence.ts): Remote Desktop changes the display topology,
+ *     never the compute device. The recorded Run 2 part 1 (RDP, then disconnected) is NVIDIA compute evidence and
+ *     never a console topology qualification; an ambiguous device is INCONCLUSIVE; a call off the GPU after
+ *     Automatic resolved to it FAILS; the Remote Display Adapter is never a compute GPU; an Automatic that resolved to
+ *     CPU & RAM only stays supported and is no GPU evidence.
  *
  * Run: npm run verify:ai-gpu-harness
  */
@@ -28,6 +34,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { classifyAdapters } from "@src/ai/AiExecutionProfile";
+import { AI_MODEL_MANIFEST } from "@src/offline/AiModelManifest";
 
 import {
   describeRelease,
@@ -41,6 +48,7 @@ import {
   withHostTeardown,
   type ModuleOwner
 } from "./ai-harness/gpuHostLifecycle";
+import { adapterRoles, COMPUTE_LABELS, gpuQualityVerdict, physicalConsole, type GateEvidence, type RunTopology } from "./ai-harness/gpuQualityEvidence";
 import { adapterIdentityVerdict, classifyWindowsAdapter } from "./ai-harness/windowsAdapters";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -450,6 +458,134 @@ const source = (file: string) => fs.readFileSync(path.join(ROOT, file), "utf8");
     launcher.indexOf("behaviour: ") > 0 && launcher.indexOf("behaviour: ") < launcher.indexOf("await removeWhenReleased(") && !/\brmSync\(/.test(launcher)
   );
   check("verify-ai-gpu-backend-gate: section C classifies adapters through windowsAdapters", /adapterIdentityVerdict\(adapters\)/.test(source("scripts/verify-ai-gpu-backend-gate.mts")));
+  const quality = source("scripts/verify-ai-gpu-quality.mts");
+  check(
+    "verify-ai-gpu-quality: where a run ran is judged by gpuQualityVerdict over idle nvidia-smi readings taken with no gate running, its exit follows that verdict, and no blanket console rule remains",
+    /gpuQualityVerdict\(\{/.test(quality) &&
+      /if \(arm === "auto"\) idleReadings\.push\(idleVramMib\(\)\);\s*const run = await runGate\(gate\)/.test(quality) &&
+      /compute\?\.verdict === "FAIL" \? 1 : unsettled > 0 \|\| compute\?\.verdict === "INCONCLUSIVE" \? 2 : 0/.test(quality) &&
+      !/offConsole|before\.console|remote adapter \$\{/.test(quality)
+  );
+}
+
+// ── F ────────────────────────────────────────────────────────────────────────────────────────────
+console.log("\nF. GPU quality evidence: display topology and compute device are separate questions");
+const MODEL_MIB = Math.floor((AI_MODEL_MANIFEST.find((entry) => entry.id === "qwen3.5-0.8b-q4-k-m")?.sizeBytes ?? 0) / 2 ** 20);
+const GTX = { pnpDeviceId: "PCI\\VEN_10DE&DEV_13D7&SUBSYS_11291462&REV_A1", name: "NVIDIA GeForce GTX 980M" };
+const ON_GPU = "gpu-offload on vulkan (25 of 25), answer vulkan/full";
+const callLine = (feature: string, where = ON_GPU) => `    · ${feature} ok: ${where}, warm, first token 800 ms, generation 3000 ms, 37/256 out (350 in), 3800 ms end to end`;
+const gateText = (calls: string[], readiness: string, pids: number[], vram: Array<number | null>) =>
+  ["  execution, per model call:", ...calls, `    · readiness answers ${readiness}; pack guard runs 1; GPU host pids ${JSON.stringify(pids)}; nvidia-smi MiB after each call ${JSON.stringify(vram)}`].join("\n");
+const READY = '[{"ok":true,"nvidiaAdapters":1}]';
+const judge = (start: RunTopology, end: RunTopology, gates: GateEvidence[]) => gpuQualityVerdict({ start, end, gates, minModelVramMib: MODEL_MIB });
+const RDP_START: RunTopology = { sessionName: "rdp-tcp#47", state: "Active", adapters: [GTX, REMOTE] };
+const RDP_END: RunTopology = { sessionName: "", state: "Disc", adapters: [GTX] };
+const CONSOLE: RunTopology = { sessionName: "console", state: "Active", adapters: [GTX] };
+// GPU quality Run 2 part 1 (2026-10-03T14:17Z, b3450b43, temp folder awkit-gpu-quality-auto-uAq4tb), as printed: its
+// start and end topology; the failure-analysis calls verbatim; every gate's readiness, host and nvidia-smi line
+// verbatim (no runner idle reading existed then); the other gates' calls by count, each printed as ON_GPU.
+const run2Part1: GateEvidence[] = [
+  {
+    name: "failure-analysis",
+    text: gateText(
+      [
+        "    · failureAnalysis ok: gpu-offload on vulkan (25 of 25), answer vulkan/full, cold load 14374 ms, first token 1155 ms, generation 7588 ms, 146/256 out (413 in), 23143 ms end to end",
+        "    · failureAnalysis ok: gpu-offload on vulkan (25 of 25), answer vulkan/full, warm, first token 766 ms, generation 3623 ms, 24/256 out (340 in), 4397 ms end to end",
+        "    · failureAnalysis ok: gpu-offload on vulkan (25 of 25), answer vulkan/full, warm, first token 1974 ms, generation 8242 ms, 163/256 out (790 in), 10228 ms end to end"
+      ],
+      '[{"ok":true,"nvidiaAdapters":2}]',
+      [21140],
+      [2302, 2304, 1255]
+    ),
+    idleVramMib: []
+  },
+  { name: "locator-upgrade", text: gateText(Array(2).fill(callLine("locatorSemanticUpgrade")), READY, [9812], [2305, 1255]), idleVramMib: [] },
+  { name: "authoring-A1", text: gateText(Array(3).fill(callLine("validationExplanation")), READY, [11660], [2304, 2304, 1254]), idleVramMib: [] },
+  { name: "authoring-A2", text: gateText(Array(3).fill(callLine("validationExplanation")), READY, [13608], [2295, 2295, 1251]), idleVramMib: [] },
+  { name: "authoring-A3", text: gateText(Array(3).fill(callLine("validationExplanation")), READY, [13116], [2304, 2304, 1255]), idleVramMib: [] },
+  {
+    name: "locator-quality",
+    text: gateText([...Array(8).fill(callLine("locatorSemanticUpgrade")), ...Array(2).fill(callLine("locatorRepair"))], READY, [12536], [2300, 2295, 2295, 2295, 2295, 2295, 2292, 2292, 2300, 1251]),
+    idleVramMib: []
+  }
+];
+/** One gate on the GPU at the console's levels, with the runner's idle readings around it. */
+const gpuGate = (name: string, vram: Array<number | null> = [2036, 2036, 987], idle: Array<number | null> = [985, 986], calls = Array(3).fill(callLine("errorExplanation")), readiness = READY): GateEvidence => ({
+  name,
+  text: gateText(calls, readiness, [9632], vram),
+  idleVramMib: idle
+});
+{
+  const rdp = judge(RDP_START, RDP_END, run2Part1);
+  check(
+    `the recorded Run 2 part 1 over RDP (start ${RDP_START.sessionName} with the Remote Display Adapter, end disconnected): ${COMPUTE_LABELS.remote}`,
+    rdp.verdict === "PASS" && rdp.label === COMPUTE_LABELS.remote && rdp.topology === "remote-session" && rdp.reasons.length === 0,
+    rdp
+  );
+  check(
+    "...on the one NVIDIA compute adapter, unchanged, with the remote adapter as display topology, and every gate's model held over the model's size in NVIDIA VRAM",
+    rdp.computeAdapters.start.join() === "PCI\\VEN_10DE&DEV_13D7&SUBSYS_11291462&REV_A1" &&
+      rdp.computeAdapters.end.join() === rdp.computeAdapters.start.join() &&
+      rdp.displayOnly.join() === "Microsoft Remote Display Adapter" &&
+      rdp.gates.length === 6 &&
+      rdp.gates.reduce((n, g) => n + g.calls, 0) === 24 &&
+      rdp.gates.every((g) => g.idleMib !== null && g.loadedMib !== null && g.loadedMib - g.idleMib >= MODEL_MIB),
+    { MODEL_MIB, gates: rdp.gates }
+  );
+  check("...and it is never a physical-console topology qualification", rdp.label !== COMPUTE_LABELS.console && !physicalConsole(RDP_START) && !physicalConsole(RDP_END));
+  check("readiness's adapter count is not the device proof: the gate where Chromium counted the one NVIDIA GPU twice (RDP) is judged on Windows' one PCI adapter", /"nvidiaAdapters":2/.test(run2Part1[0].text) && rdp.verdict === "PASS");
+  const atConsole = judge(CONSOLE, CONSOLE, run2Part1);
+  check(`control: the same evidence at the physical console reads ${COMPUTE_LABELS.console}`, atConsole.verdict === "PASS" && atConsole.label === COMPUTE_LABELS.console && atConsole.topology === "physical-console", atConsole);
+}
+{
+  const console0 = { sessionName: "console", state: "Active", adapters: [GTX, REMOTE] };
+  const run = judge(console0, CONSOLE, [gpuGate("error-G1")]);
+  check("a console session with the Remote Display Adapter present is not the physical console's topology, at the start or the end", !physicalConsole(console0) && run.topology === "remote-session" && run.label !== COMPUTE_LABELS.console, run);
+  check("physical console: console Active and no Remote Display Adapter; a disconnected console is not it", physicalConsole(CONSOLE) && !physicalConsole({ ...CONSOLE, state: "Disc" }));
+}
+{
+  const roles = adapterRoles({ sessionName: "rdp-tcp#47", state: "Active", adapters: [GTX, REMOTE] });
+  check("the Remote Display Adapter is never a compute GPU: display topology only", roles.compute.length === 1 && roles.displayOnly.join() === "Microsoft Remote Display Adapter" && roles.unknown.length === 0, roles);
+  const remoteOnly = judge({ sessionName: "rdp-tcp#47", state: "Active", adapters: [REMOTE] }, { sessionName: "rdp-tcp#47", state: "Active", adapters: [REMOTE] }, [gpuGate("error-G1")]);
+  check(`a Remote Display Adapter alone is no compute device: ${COMPUTE_LABELS.unproven}`, remoteOnly.verdict === "INCONCLUSIVE" && remoteOnly.reasons.some((r) => /no compute adapter/.test(r)), remoteOnly);
+  const spoofed = { pnpDeviceId: "SWD\\REMOTEDISPLAYENUM\\RDPIDD_INDIRECTDISPLAY&SESSIONID_0002", name: "NVIDIA GeForce GTX 980M" };
+  const named = judge({ ...RDP_START, adapters: [GTX, spoofed] }, RDP_END, [gpuGate("error-G1")]);
+  check("a remote adapter carrying an NVIDIA name is still no compute GPU (no PCI identity): INCONCLUSIVE", named.verdict === "INCONCLUSIVE" && named.reasons.some((r) => /neither PCI-identified/.test(r)), named);
+}
+{
+  const intel = { pnpDeviceId: "PCI\\VEN_8086&DEV_591B&SUBSYS_00000000&REV_04", name: "Intel(R) HD Graphics 630" };
+  const hybrid = judge({ ...RDP_START, adapters: [GTX, intel, REMOTE] }, { ...RDP_END, adapters: [GTX, intel] }, [gpuGate("error-G1")]);
+  check("RDP with an ambiguous device, a hybrid machine (NVIDIA + Intel): INCONCLUSIVE, though every call reports Vulkan", hybrid.verdict === "INCONCLUSIVE" && hybrid.reasons.some((r) => /not NVIDIA/.test(r)), hybrid);
+  const other = { pnpDeviceId: "PCI\\VEN_10DE&DEV_1C8D&SUBSYS_00000000&REV_A1", name: "NVIDIA GeForce GTX 1050" };
+  const changed = judge(RDP_START, { ...RDP_END, adapters: [other] }, [gpuGate("error-G1")]);
+  check("RDP with the compute adapter changing between the start and the end: INCONCLUSIVE", changed.verdict === "INCONCLUSIVE" && changed.reasons.some((r) => /changed during the run/.test(r)), changed);
+  const unread = judge(RDP_START, RDP_END, [gpuGate("error-G1", [2036, null, 987])]);
+  check("RDP with nvidia-smi missing a call: INCONCLUSIVE", unread.verdict === "INCONCLUSIVE" && unread.reasons.some((r) => /did not read/.test(r)), unread);
+  const flat = judge(RDP_START, RDP_END, [gpuGate("error-G1", [1252, 1253, 1251], [1250, 1251])]);
+  check("RDP with NVIDIA VRAM never rising by the model's size: INCONCLUSIVE, whatever the calls report", flat.verdict === "INCONCLUSIVE" && flat.reasons.some((r) => /less than the model's/.test(r)), flat);
+  const rdpShift = judge(RDP_START, RDP_END, [gpuGate("error-G1", [1255, 1256, 1254], [985, 1254])]);
+  check("...including a rise of Remote Desktop's own display memory (985 → 1255 MiB), which is under the model's size", rdpShift.verdict === "INCONCLUSIVE", rdpShift);
+  const usb = judge({ ...RDP_START, adapters: [GTX, REMOTE, { pnpDeviceId: "USB\\VID_17E9&PID_4301&MI_00\\7&1B2F3C4D&0&0000", name: "DisplayLink USB Device" }] }, RDP_END, [gpuGate("error-G1")]);
+  check("an adapter of unknown identity beside the NVIDIA one: INCONCLUSIVE, though readiness answered ok with one NVIDIA adapter", usb.verdict === "INCONCLUSIVE", usb);
+}
+{
+  const fallback = judge(RDP_START, RDP_END, [gpuGate("error-G1", undefined, undefined, [callLine("errorExplanation"), callLine("errorExplanation", "gpu-offload on cpu (0 of 25), answer cpu/cpu"), callLine("errorExplanation")])]);
+  check(`RDP with a CPU fallback after Automatic resolved to the GPU: not GPU-qualified, ${COMPUTE_LABELS.wrong}`, fallback.verdict === "FAIL" && fallback.label === COMPUTE_LABELS.wrong, fallback);
+  const partial = judge(CONSOLE, CONSOLE, [gpuGate("error-G1", undefined, undefined, Array(3).fill(callLine("errorExplanation", "gpu-offload on vulkan (12 of 25), answer vulkan/partial")))]);
+  check("partial offload where every layer was expected FAILS, at the console too", partial.verdict === "FAIL", partial);
+  const cpuOnly = judge(
+    CONSOLE,
+    CONSOLE,
+    [gpuGate("error-G1", [null, null, null], [null, null], Array(3).fill(callLine("errorExplanation", "cpu on cpu (0 of 25), answer cpu/cpu")), '[{"ok":false,"reason":"VENDOR_UNPROVEN"}]')]
+  );
+  check("Automatic resolving to CPU & RAM only (readiness not proven) stays supported: INCONCLUSIVE as GPU evidence, never FAIL", cpuOnly.verdict === "INCONCLUSIVE" && cpuOnly.reasons.some((r) => /did not resolve to the GPU/.test(r)), cpuOnly);
+}
+{
+  const g1Shape = [2036, 2032]; // Run 1's error-G1: both readings before the release landed
+  const without = judge(CONSOLE, CONSOLE, [gpuGate("error-G1", g1Shape, [], Array(2).fill(callLine("errorExplanation")))]);
+  const withIdle = judge(CONSOLE, CONSOLE, [gpuGate("error-G1", g1Shape, [985, 994], Array(2).fill(callLine("errorExplanation")))]);
+  check("a gate whose own readings never caught the release is unproven alone, and proven by the runner's idle readings around it", without.verdict === "INCONCLUSIVE" && withIdle.verdict === "PASS", { without: without.reasons, withIdle: withIdle.gates });
+  check("no gate at all is no evidence", judge(CONSOLE, CONSOLE, []).verdict === "INCONCLUSIVE");
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

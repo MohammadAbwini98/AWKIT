@@ -622,8 +622,13 @@ npm run verify:ai-gpu-quality-part2
                                   # the arm above as registered gates (no arguments, so they run under the lease
                                   # guard): part1 = failure analysis, locator upgrade, L4b's whole authoring set
                                   # and L3's locator set, part2 = L5's whole error set, each under 600 s on the GPU.
-                                  # Records session + adapters at start and end: INCONCLUSIVE (exit 2) unless at the
-                                  # physical console with no Remote Desktop adapter. verify:ai-gpu-quality runs both;
+                                  # Records session + adapters at start and end and keeps two answers apart: topology
+                                  # (physical console, no Remote Desktop adapter) and compute (NVIDIA-only PCI compute
+                                  # adapters unchanged, every call GPU-Offload/Vulkan/all layers, pack-guarded host,
+                                  # nvidia-smi idle readings around each gate vs the gate's own). A run under RDP can
+                                  # PASS as "NVIDIA compute qualification under RDP", never as a console topology
+                                  # qualification; an unprovable device is INCONCLUSIVE (exit 2), a call off the GPU
+                                  # FAILS (exit 1). run.json beside the gate logs. verify:ai-gpu-quality runs both;
                                   # verify:ai-gpu-quality-cpu-baseline runs the same 13 gates on CPU (~1.5 h here)
 npm run verify:ai-gpu-automatic-lifecycle
 npm run verify:ai-gpu-automatic-lifecycle-packaged
