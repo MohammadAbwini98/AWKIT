@@ -1,6 +1,28 @@
 # DECISIONS
 
-### 2026-10-03 (latest) — Remote Desktop changes display topology, not the compute device (owner direction)
+### 2026-10-03 (latest) — The remaining NVIDIA physical-console checks are deferred and do not block development (owner)
+
+- **Decision.** Three checks still lack a run at the GTX 980M's physical console. The owner defers them
+  as non-blocking qualification evidence:
+  - `verify:ai-gpu-automatic-lifecycle`;
+  - `verify:ai-gpu-automatic-lifecycle-packaged`;
+  - `verify:ai-settings-gpu-gui`.
+- **It defers evidence, it does not record a result.** None of the three is PASS. Each keeps its own
+  terminal state: the two lifecycles NOT RUN at the console (18/0 and 19/0 over Remote Desktop only), and
+  the walkthrough INCONCLUSIVE there (57/57 with exit 2 over Remote Desktop). Verifier logic and output
+  are unchanged. The repository has no `DEFERRED` gate state, so the deferral lives here and in the state
+  documents.
+- **Why it can wait.** Automatic's runtime behaviour is proven on the real GPU: it resolves to
+  GPU-Offload on Vulkan with 25/25 layers, through the backend, host, packaged and progress gates at the
+  console, and GPU quality Runs 1 and 2 passed 13/13 with compute proven. No GPU product defect is known
+  and no further GPU architecture work is required.
+- **What stays open.** The console run may be done later, before a release milestone, if that milestone's
+  own release criteria require physical-console topology evidence for Automatic
+  (`docs/NVIDIA_QUALIFICATION_SETUP.md` step 9). It is no longer an implementation blocker.
+- **Unchanged.** Automatic and CPU & RAM fallback, generic NVIDIA detection by vendor and capability,
+  E2 (`awkit-djnl.20`), the qualified list, and the topology-versus-compute rule below.
+
+### 2026-10-03 — Remote Desktop changes display topology, not the compute device (owner direction)
 
 - **Decision.** A Remote Desktop session no longer voids GPU compute evidence on its own. It still voids
   display-topology claims.

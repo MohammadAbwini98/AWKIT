@@ -1,6 +1,26 @@
 # TASK_LOG
 
-## 2026-10-03 (latest) — Repository reconciliation and NVIDIA evidence scoping (Claude, GTX 980M machine over RDP)
+## 2026-10-03 (latest) — NVIDIA console checks deferred; N1 visual capture plan (Claude, GTX 980M machine over RDP)
+
+- **Task:** record the owner's deferral of the remaining NVIDIA physical-console checks without
+  falsifying any result, find the next roadmap task from the authoritative sources, and deliver it.
+- **Result:**
+  - The deferral is recorded. The three Automatic checks are still not PASS: the lifecycles are NOT RUN at
+    the console and the walkthrough is INCONCLUSIVE there. No verifier changed.
+  - The next task is N1 (`awkit-vra.1`), the dashboard's rank-1 ready item. Phase N is planning-only by its
+    registration, so the deliverable is the N1 plan. No Phase N code is authorized yet.
+- **Files:**
+  - `docs/plans/ai-upgrade-v5/N1-visual-capture-infrastructure.md` (new) and its pointer in `ROADMAP.md`;
+  - `src/roadmap/ImplementationRoadmap.ts` (L and N notes, statuses unchanged);
+  - `docs/ai/{DECISIONS,CURRENT_STATE,HANDOFF,TASK_LOG,KNOWN_ISSUES}.md`;
+  - `docs/NVIDIA_QUALIFICATION_SETUP.md` (step 9).
+- **Verification:**
+  - PASS: `npm run build`, and `verify:verifier-classification` (318 scripts classified).
+  - PASS: `verify:roadmap-dashboard` 177/177 with "Sources agree", and `git diff --check` clean.
+- **BLOCKED:** the `bd` update, because `bd` is not installed here (commands in `HANDOFF.md`).
+- **Not run:** runtime and mock-site verifiers. No product, runner, recorder or mock-site file changed.
+
+## 2026-10-03 — Repository reconciliation and NVIDIA evidence scoping (Claude, GTX 980M machine over RDP)
 
 - **Task:** reconcile DX-0 (`0b485941`) with the NVIDIA Automatic work, check every claimed GTX 980M result
   against the repository, and resume GPU quality Run 2.

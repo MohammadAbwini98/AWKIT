@@ -218,8 +218,10 @@ cmd /c "npm run verify:ai-progress-gpu-packaged 2>&1" | Tee-Object C:\nvidia-evi
 ```
 
 Automatic's lifecycles and the real Settings walkthrough were added after the 2026-10-02 console pass. So far
-they have run only over Remote Desktop, so they also belong at the physical console. The walkthrough launches
-`out/`, so run `npm run build` before it:
+they have run only over Remote Desktop, so they also belong at the physical console. On 2026-10-03 the owner
+deferred these three as non-blocking evidence (`docs/ai/DECISIONS.md`): they are not PASS, and they are run
+here before a release milestone only if its release criteria need them. The walkthrough launches `out/`, so
+run `npm run build` before it:
 
 ```powershell
 cmd /c "npm run verify:ai-gpu-automatic-lifecycle 2>&1" | Tee-Object C:\nvidia-evidence\gpu-automatic-lifecycle.log

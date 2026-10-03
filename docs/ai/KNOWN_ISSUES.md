@@ -69,6 +69,9 @@
   Over RDP the walkthrough passes 57/57 but exits 2 by its own rule, and Settings reads "2 NVIDIA display
   adapters". The lifecycle runs recorded no runtime device count. Run them at the console
   (`docs/NVIDIA_QUALIFICATION_SETUP.md` step 9).
+- **DEFERRED by the owner (2026-10-03), non-blocking.** Those three checks are deferred qualification
+  evidence, not PASS (`DECISIONS.md`, latest). They do not block development. Run them before a release
+  milestone if its release criteria require console topology evidence for Automatic.
 
 ## A wheel's license metadata can omit what its binaries link (2026-10-01, RESOLVED — sources ship in the package)
 

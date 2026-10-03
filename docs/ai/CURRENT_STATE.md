@@ -1,6 +1,40 @@
 # CURRENT_STATE
 
-## Repository reconciled; NVIDIA evidence scoped by machine and session (2026-10-03, latest)
+## NVIDIA console checks deferred by the owner; N1 visual capture plan written (2026-10-03, latest)
+
+- **NVIDIA: the remaining console evidence is deferred, not passed** (owner, `DECISIONS.md` latest).
+  - Still never run at the GTX 980M's physical console: `verify:ai-gpu-automatic-lifecycle`,
+    `verify:ai-gpu-automatic-lifecycle-packaged` and `verify:ai-settings-gpu-gui`. Their states are
+    unchanged: the lifecycles are NOT RUN at the console (18/0 and 19/0 over RDP only), and the walkthrough
+    is INCONCLUSIVE there (57/57 with exit 2 over RDP).
+  - They are owner-deferred qualification evidence and no longer block implementation. No GPU product
+    defect is known and no further GPU architecture work is required. Run them before a release
+    milestone if its release criteria require it (`docs/NVIDIA_QUALIFICATION_SETUP.md` step 9).
+  - No verifier, product or GPU code changed.
+- **Next roadmap task, from the dashboard's own order:** N1 Visual capture infrastructure
+  (`awkit-vra.1`) is rank 1 of the ready items, with M1 (`awkit-akb.1`) rank 2. Both are ready because
+  their only blocker, L7, is closed.
+  - Phase L is complete for its approved scope. Its other open items are owner-gated: E2
+    (`awkit-djnl.20`) and the deferred L6 intelligence (`awkit-egkw`).
+  - Phase N and Phase M are registered planning-only, and their registration authorizes no runtime,
+    schema, UI, dependency, model or service change (`ROADMAP.md`). N1's acceptance criterion is its plan.
+- **N1 plan written:** `docs/plans/ai-upgrade-v5/N1-visual-capture-infrastructure.md`.
+  - It covers automatic, manual and event capture; element, region, viewport and full-page scopes; a
+    `VisualCaptureRecord` with metadata only; layered policy (global, flow, step, run) with hard refusals;
+    pixel masking at capture time; confinement; retention; and the protected-authentication boundary,
+    with refusal codes.
+  - It records the as-built baseline. Notably, failure screenshots and trace screencasts do not apply the
+    Phase L protected-surface exclusion (owner decision VC-D6).
+  - Implementation waits for the owner decisions VC-D1 to VC-D10 and an explicit authorization. Recorder
+    and Runner behaviour are unchanged.
+  - Found in passing: the Take Screenshot node joins its flow-supplied name and ids into the file path
+    without `safePathComponent` or `isPathInside` (`StepExecutor.takeScreenshot`). It is offered as a
+    separate fix and is not changed here.
+- **Tracker:** `bd` is not installed on this machine, so no tracker update was made here (BLOCKED; the
+  commands are in `HANDOFF.md`). Tracker unchanged: 333 issues, 22 outstanding / 311 closed. Validation
+  ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## Repository reconciled; NVIDIA evidence scoped by machine and session (2026-10-03)
 
 - **History is linear, and nothing is missing.**
   - `0b485941` (the DX-0 fix, AMD development machine) is the direct parent of `097abfa9` (Automatic on the

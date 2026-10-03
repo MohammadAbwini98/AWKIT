@@ -645,6 +645,8 @@ Phase N item depends on Phase M, so the two phases remain independently implemen
   and execution.
 - Include element, region, viewport and full-page capture with configurable policies and privacy
   safeguards.
+- *2026-10-03:* the plan is `N1-visual-capture-infrastructure.md`. Zero implementation; implementation
+  waits for the owner decisions VC-D1 to VC-D10 listed there and an explicit authorization.
 
 #### N2 — Visual Reference Management
 

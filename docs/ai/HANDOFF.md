@@ -1,6 +1,28 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-03, latest) — repository reconciled; three Automatic checks still need the console
+## HANDOFF (2026-10-03, latest) — NVIDIA console checks deferred; N1 plan written; Phase N implementation awaits the owner
+
+No product code changed. The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **NVIDIA, deferred by the owner and not blocking.** These three have not run at the physical console
+  and are not PASS: `verify:ai-gpu-automatic-lifecycle`, `verify:ai-gpu-automatic-lifecycle-packaged` and
+  `verify:ai-settings-gpu-gui` (`DECISIONS.md`, latest). Run them before a release milestone only if its
+  release criteria need them. No GPU work is pending.
+- **Done.** Wrote the N1 plan, `docs/plans/ai-upgrade-v5/N1-visual-capture-infrastructure.md`. N1
+  (`awkit-vra.1`) is the dashboard's rank-1 ready item.
+- **Tracker, BLOCKED here (`bd` not installed).** On the development machine, run:
+  - `bd update awkit-vra.1 --notes "2026-10-03: plan written (docs/plans/ai-upgrade-v5/N1-visual-capture-infrastructure.md). Zero implementation. Waiting on owner decisions VC-D1 to VC-D10 and an implementation authorization."`
+  - Then `bd export -o .beads/issues.jsonl`.
+  - Close `awkit-vra.1` only once the owner accepts the plan. The plan meets the item's planning criterion,
+    but closing it would also let N2 read as ready.
+- **Next, owner:**
+  1. Review the N1 plan and decide VC-D1 to VC-D10.
+  2. Authorize N1 implementation, or not. Neither the Phase N registration nor this plan authorizes code.
+  3. Optionally start the separate Take Screenshot path-confinement fix offered in this session.
+- **Next, agent:** with the owner's authorization, N1.1, the pure policy core with
+  `verify:visual-capture-policy`. Without it, M1 (`awkit-akb.1`, rank 2) is the next planning item.
+
+## HANDOFF (2026-10-03) — repository reconciled; three Automatic checks still need the console
 
 No product code changed. The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
