@@ -256,6 +256,7 @@
     "package:installer": "powershell -ExecutionPolicy Bypass -File scripts/package-per-user-installer.ps1",
     "package:nsis": "powershell -ExecutionPolicy Bypass -File scripts/package-per-user-installer.ps1",
     "package:offline": "npm run package:portable && npm run package:installer",
+    "package:kit": "node scripts/package-kit.mjs",
     "validate:offline": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate-offline-bundle.ps1",
     "ai:memory": "node scripts/ai-memory/check-memory.mjs",
     "ai:memory:check": "node scripts/ai-memory/check-memory.mjs",

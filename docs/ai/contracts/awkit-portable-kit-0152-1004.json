@@ -1,0 +1,122 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-portable-kit-0152-1004",
+    "title": "Internal install kit for SpecterStudio 0.1.52: portable EXE plus the external components and an install guide",
+    "objective": "Owner asked for every external file the app needs consolidated in one dist directory with installation steps and download URLs, for internal machines. Add scripts/package-kit.mjs and the npm script package:kit, which assemble dist/SpecterStudio <version> Kit: the portable EXE, the Java runtime (Oracle JDK 17.0.8), the imported Oracle JDBC driver (ojdbc17 23.26.2.0.0, checksum-matched to its store manifest), the qualified local AI model (Qwen3.5-0.8B Q4_K_M GGUF), INSTALL.md and SHA256SUMS.txt. The license issuer private key and any per-machine license or user data are never included: the script refuses issuer-key sources and scans the finished kit for key material. No product code changes.",
+    "requested_by": "repository owner",
+    "risk_level": 3,
+    "mode": "change"
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "8fee99ee",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "packaging_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "qa",
+      "qc",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      "package.json",
+      "scripts/package-kit.mjs",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/active-lease.json",
+      "docs/ai/contracts/awkit-portable-kit-0152-1004.json",
+      "tools/roadmap/assignments.json"
+    ],
+    "consultants": [],
+    "writer": {
+      "agent_id": "release",
+      "allowed_paths": [
+        "package.json",
+        "scripts/package-kit.mjs"
+      ],
+      "forbidden_paths": [
+        "app/**",
+        "src/**",
+        "native-hosts/**",
+        "tools/agents/**"
+      ]
+    },
+    "reviewers": [
+      "qa",
+      "qc"
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "KIT",
+      "description": "npm run package:kit assembles dist/SpecterStudio 0.1.52 Kit with the EXE, Java runtime, Oracle JDBC driver and AI model, each validated (java.exe present, driver SHA-256 equal to its store manifest, GGUF magic), plus INSTALL.md with steps and download URLs and SHA256SUMS.txt.",
+      "evidence_required": [
+        "package:kit"
+      ]
+    },
+    {
+      "id": "NO-KEY",
+      "description": "No issuer key, license file or user data is in the kit: the script's own scan passes and the kit listing shows only the expected components.",
+      "evidence_required": [
+        "kit-inspection"
+      ]
+    },
+    {
+      "id": "STATE",
+      "description": "The task log records the kit, and the dashboard's sources agree.",
+      "evidence_required": [
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "package:kit",
+      "type": "packaged",
+      "command": "npm run package:kit",
+      "artifact": "dist/SpecterStudio 0.1.52 Kit",
+      "required": true,
+      "result": "pending",
+      "notes": ""
+    },
+    {
+      "id": "kit-inspection",
+      "type": "inspection",
+      "command": null,
+      "artifact": "dist/SpecterStudio 0.1.52 Kit",
+      "required": true,
+      "result": "pending",
+      "notes": ""
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "required": true,
+      "result": "pending",
+      "notes": ""
+    }
+  ],
+  "git": {
+    "commit_policy": "coherent",
+    "direct_main": true,
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  }
+}

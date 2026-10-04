@@ -1,22 +1,19 @@
 {
-  "task": "awkit-portable-0152-1004",
-  "contract_path": "docs/ai/contracts/awkit-portable-0152-1004.json",
+  "task": "awkit-portable-kit-0152-1004",
+  "contract_path": "docs/ai/contracts/awkit-portable-kit-0152-1004.json",
   "holder": "release",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
-    "build",
-    "package-lock.json",
     "package.json",
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig"
+    "scripts/package-kit.mjs"
   ],
-  "acquired_at": "2026-10-04T05:57:10.468Z",
-  "acquired_at_commit": "5bb4fc19a26fa7ea1056463c9453f32d2cac7f0e",
+  "acquired_at": "2026-10-04T07:21:56.860Z",
+  "acquired_at_commit": "8fee99eec2e2ad757c8ceee0a39f6143251b551a",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-portable-0152-1004.json"
+    "docs/ai/contracts/awkit-portable-kit-0152-1004.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-portable-0152-1004.json": "987ff17d57293598ac26fa7499e83c166d24ba757dfa63a2c573eafdb4a1a222"
+    "docs/ai/contracts/awkit-portable-kit-0152-1004.json": "8d03880f29ce004420379c613359f59b6c46195998b1c19e7bb1a540821c8a1e"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -26,12 +23,9 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(1):native-hosts:1790956612415.1672"
+    "build": "dir(1):native-hosts:1791093594496.971"
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-10-04T06:05:25.401Z",
-  "released_reason": "portable 0.1.52 built from clean fb288f28 with strict offline validation passed, signed manifest committed in cbf389f6, packaged runtime 25 of 25",
-  "archived_at": "2026-10-04T06:05:25.402Z"
+  "violations": []
 }
