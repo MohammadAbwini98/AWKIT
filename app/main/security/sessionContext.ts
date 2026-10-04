@@ -78,11 +78,12 @@ export async function assertSenderPermission(
   // once a window is actually bound (the real enforcement path).
   const { getSecurityKernel } = await import("./securityKernel");
   const kernel = await getSecurityKernel();
+  let actor: AuthorizedActor | null = null;
   try {
     // `resolveActor` + an explicit membership test, rather than `requirePermission`, so a denial can
     // name the actor WITHOUT a second `sessions.validate()` — that call touches the session, so
     // re-running it would let a rejected request slide the idle expiry it was just refused under.
-    const actor = await kernel.authz.resolveActor(sessionRef);
+    actor = await kernel.authz.resolveActor(sessionRef);
     if (!actor.permissions.has(permission)) {
       await recordDenial(options.audit, permission, AuthReason.NOT_AUTHORIZED, actor, sessionRef);
       throw new SecurityError(AuthReason.NOT_AUTHORIZED);
@@ -93,6 +94,10 @@ export async function assertSenderPermission(
     if (error instanceof SecurityError && error.reason === AuthReason.SESSION_EXPIRED) {
       unbindByWebContentsId(event.sender.id);
       await recordDenial(options.audit, permission, AuthReason.SESSION_EXPIRED, null, sessionRef);
+    }
+    // A stale re-authentication is a denial too, and the commonest one on a sensitive channel (L12.21).
+    if (error instanceof SecurityError && error.reason === AuthReason.REAUTH_REQUIRED) {
+      await recordDenial(options.audit, permission, AuthReason.REAUTH_REQUIRED, actor, sessionRef);
     }
     throw error;
   }
@@ -107,10 +112,26 @@ export async function assertSenderSuperUser(
   permission: Permission,
   options: { sensitive?: boolean; audit?: DenialAudit } = {}
 ): Promise<AuthorizedActor> {
-  const actor = await assertSenderPermission(event, permission, options);
-  if (isSuperUser(actor.user)) return actor;
-  await recordDenial(options.audit, permission, AuthReason.NOT_AUTHORIZED, actor, actor.sessionRef);
-  throw new SecurityError(AuthReason.NOT_AUTHORIZED);
+  // The role is checked BEFORE re-authentication (L12.21): a user whose role can never hold this capability is
+  // refused as NOT_AUTHORIZED (and audited), never asked to re-enter a password for it.
+  const actor = await assertSenderPermission(event, permission, { audit: options.audit });
+  if (!isSuperUser(actor.user)) {
+    await recordDenial(options.audit, permission, AuthReason.NOT_AUTHORIZED, actor, actor.sessionRef);
+    throw new SecurityError(AuthReason.NOT_AUTHORIZED);
+  }
+  if (options.sensitive) {
+    const { getSecurityKernel } = await import("./securityKernel");
+    const kernel = await getSecurityKernel();
+    try {
+      kernel.authz.requireFreshReauth(actor.sessionRef);
+    } catch (error) {
+      if (error instanceof SecurityError && error.reason === AuthReason.REAUTH_REQUIRED) {
+        await recordDenial(options.audit, permission, AuthReason.REAUTH_REQUIRED, actor, actor.sessionRef);
+      }
+      throw error;
+    }
+  }
+  return actor;
 }
 
 /**

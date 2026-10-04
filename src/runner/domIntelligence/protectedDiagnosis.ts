@@ -1,4 +1,4 @@
-import type { ProtectedLoginReason } from "@src/security/ProtectedLoginDetector";
+import { PROTECTED_TEXT_PATTERNS, type ProtectedLoginReason } from "@src/security/ProtectedLoginDetector";
 
 /**
  * L12.17 (owner decision 2026-10-04): the protected surfaces a Super User may diagnose with the parser-only
@@ -25,3 +25,12 @@ export function protectedDiagnosisAllowed(reason: ProtectedLoginReason | undefin
  */
 export const CAPTCHA_MARKER_SELECTOR =
   'iframe[src*="recaptcha"],iframe[src*="hcaptcha"],iframe[src*="challenges.cloudflare.com"],iframe[src*="arkoselabs"],.g-recaptcha,.h-captcha,.cf-turnstile,[data-sitekey],[data-hcaptcha-widget-id]';
+
+/**
+ * L12.21: the detector's wording for every refused reason (captcha, security check, blocked automation,
+ * signature, approval). A detection reports only its first match, and a password field outranks a "verify it's
+ * you" heading, so the serializer checks the captured document for ALL of these at the moment it is read.
+ */
+export const REFUSED_TEXT_PATTERNS: readonly string[] = Object.freeze(
+  PROTECTED_TEXT_PATTERNS.filter((entry) => !protectedDiagnosisAllowed(entry.reason)).map((entry) => entry.pattern)
+);

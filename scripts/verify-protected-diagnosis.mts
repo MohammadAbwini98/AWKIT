@@ -25,7 +25,8 @@ import { stepCandidatesDigest } from "@src/runner/LocatorRecoveryStore";
 import { NoopDomIntelligenceProvider, type DomIntelligenceProvider, type DomRecoveryRequest, type DomRecoveryResult } from "@src/runner/domIntelligence/DomIntelligenceProvider";
 import { MemoryDomReferenceStore, domReferenceId } from "@src/runner/domIntelligence/domReference";
 import { sanitizeDiagnosisRequest } from "@src/runner/domIntelligence/DomIntelligenceApi";
-import { CAPTCHA_MARKER_SELECTOR, PROTECTED_DIAGNOSIS_REASONS, protectedDiagnosisAllowed } from "@src/runner/domIntelligence/protectedDiagnosis";
+import { CAPTCHA_MARKER_SELECTOR, PROTECTED_DIAGNOSIS_REASONS, REFUSED_TEXT_PATTERNS, protectedDiagnosisAllowed } from "@src/runner/domIntelligence/protectedDiagnosis";
+import { captureDomSnapshot } from "@src/runner/domIntelligence/domSnapshot";
 import { BUILTIN_ROLES, Permission, SENSITIVE_PERMISSIONS } from "@src/security/authz/Permissions";
 import { detectRecorderProtectedLogin } from "@src/security/ProtectedLoginDetector";
 
@@ -84,7 +85,7 @@ async function main(): Promise<void> {
 
   console.log("C. The diagnosis on real pages");
   let html = SIGN_IN();
-  const server: Server = createServer((_request, response) => response.writeHead(200, { "content-type": "text/html" }).end(html));
+  const server: Server = createServer((_request, response) => response.writeHead(200, { "content-type": "text/html; charset=utf-8" }).end(html));
   const base = await new Promise<string>((done) => server.listen(0, "127.0.0.1", () => done(`http://127.0.0.1:${(server.address() as { port: number }).port}`)));
   let browser: Browser | undefined;
   try {
@@ -146,6 +147,65 @@ async function main(): Promise<void> {
     await page.goto(`${base}/login`);
     const plain = await diagnose(true);
     check("control: a page with nothing protected is read and names no override", plain.provider.requests.length === 1 && plain.diagnosis.protectedOverride === undefined, plain.diagnosis);
+
+    console.log("E. L12.21 review findings: wording, child frames, and the read itself");
+    // Finding 1: a password field outranks the page's own wording in the detector, so these pages are reported as
+    // login-form. The serializer must still refuse them for the refused reason they state.
+    for (const [label, heading] of [
+      ["security check", "<h1>Verify it’s you</h1>"],
+      ["blocked automation", "<h1>This browser or app may not be secure</h1>"],
+      ["digital signature", "<h1>Digital signature required</h1>"]
+    ] as const) {
+      html = SIGN_IN(heading);
+      await page.goto(`${base}/login`);
+      const view = await detectRecorderProtectedLogin(page);
+      check(`precondition: the detector reports a ${label} sign-in page as login-form`, view.reason === "login-form", view.reason);
+      const worded = await diagnose(true);
+      check(
+        `a sign-in page stating a ${label} stays refused with the opt-in`,
+        worded.diagnosis.provider.reason === "protected-surface" && worded.provider.requests.length === 0 && !worded.diagnosis.protectedOverride,
+        worded.diagnosis.provider
+      );
+    }
+
+    // Finding 2: the detector and the marker check read the top document, so a step in a child frame never gets
+    // the override. The control (the same frame without a password field) proves the path reaches the read.
+    const frameStep: FlowStep = { ...step, id: "frame-step", locator: { strategy: "css", value: "#sign-in-old", context: { frame: { selector: "#auth" } } } } as FlowStep;
+    await references.put({
+      schemaVersion: 1,
+      referenceId: domReferenceId(frameStep, "flow-p")!,
+      bindingDigest: stepCandidatesDigest(frameStep.locator!),
+      source: "recorder",
+      capturedAt: new Date().toISOString(),
+      element: { tag: "button", attributes: { id: "sign-in", type: "submit" }, text: "Sign in", path: ["html", "body", "main", "section", "form", "div", "button"], siblings: [], children: [] }
+    });
+    const inFrame = async (child: string) => {
+      html = `<!doctype html><html><head><title>Portal</title></head><body><iframe id="auth" srcdoc="${child.replace(/"/g, "&quot;")}"></iframe></body></html>`;
+      await page.goto(`${base}/portal`);
+      await page.frameLocator("#auth").locator("#sign-in").waitFor();
+      const provider = new RecordingProvider();
+      return { diagnosis: await new LocatorFactory(page).diagnose(frameStep, { provider, references, flowId: "flow-p", allowProtected: true }), provider };
+    };
+    const childPlain = await inFrame(PLAIN);
+    check("control: a step in a child frame with nothing protected is read", childPlain.provider.requests.length === 1 && childPlain.diagnosis.frame === "child", childPlain.diagnosis.provider);
+    const childLogin = await inFrame(SIGN_IN());
+    check("a sign-in form in a child frame is not read with the opt-in", childLogin.diagnosis.provider.reason === "protected-surface" && childLogin.provider.requests.length === 0 && !childLogin.diagnosis.protectedOverride, childLogin.diagnosis.provider);
+    const childCaptcha = await inFrame(SIGN_IN('<div class="g-recaptcha" data-sitekey="k"></div>'));
+    check("...nor one carrying a CAPTCHA under a clean top page", childCaptcha.provider.requests.length === 0 && !childCaptcha.diagnosis.protectedOverride, childCaptcha.diagnosis.provider);
+
+    // Finding 3: the challenge check runs inside the same evaluate that serializes the document, so a widget that
+    // renders after the pre-check is still refused. Exercised directly on the serializer.
+    const read = async (extra: string) => {
+      html = SIGN_IN(extra);
+      await page.goto(`${base}/login`);
+      return captureDomSnapshot(page.mainFrame(), { mode: "recover", allowProtectedDocument: true });
+    };
+    check("control: the serializer reads an allowed sign-in page under the override", !(await read("")).refused);
+    check("the serializer refuses a widget present at read time", (await read('<div class="cf-turnstile"></div>')).refused === "protected-login");
+    check("the serializer refuses a refused reason's wording present at read time", (await read("<p>Security check</p>")).refused === "protected-login");
+    check("...including curly-apostrophe wording", (await read("<p>Couldn’t sign you in</p>")).refused === "protected-login");
+    check("...and wording split by a non-breaking space or a line break", (await read("<p>Security&nbsp;check</p>")).refused === "protected-login" && (await read("<p>Digital<br>signature</p>")).refused === "protected-login");
+    check("the refused wording covers every refused reason the detector knows", REFUSED_TEXT_PATTERNS.includes("verify it's you") && REFUSED_TEXT_PATTERNS.includes("captcha") && REFUSED_TEXT_PATTERNS.includes("digital signature") && !REFUSED_TEXT_PATTERNS.includes("verification code"));
   } finally {
     await browser?.close().catch(() => undefined);
     server.close();
@@ -173,8 +233,17 @@ async function main(): Promise<void> {
   check(
     "the diagnosis override needs the independent widget-marker check to find nothing",
     /const challenge = deps\.allowProtected === true && \(await this\.page\.locator\(CAPTCHA_MARKER_SELECTOR\)\.count\(\)\.catch\(\(\) => 1\)\) > 0;/.test(factory) &&
-      /const override =\s*\(protectedPage \|\| protectedDocument\) && deps\.allowProtected === true && !challenge &&/.test(factory)
+      /const override =\s*\(protectedPage \|\| protectedDocument\) &&\s*deps\.allowProtected === true &&\s*frame === this\.page\.mainFrame\(\) &&\s*!challenge &&/.test(factory)
   );
+  check("the override is reported only after the serializer read the page", /else \{\s*if \(overrideReason\) diagnosis\.protectedOverride = overrideReason;\s*const result = await deps\.provider\.findRecoveryCandidates/.test(factory));
+  const session = readFileSync("app/main/security/sessionContext.ts", "utf8");
+  const superUser = session.slice(session.indexOf("export async function assertSenderSuperUser"), session.indexOf("export interface DenialAudit"));
+  check(
+    "L12.21 the Super User role is checked before re-authentication",
+    /assertSenderPermission\(event, permission, \{ audit: options\.audit \}\)/.test(superUser) && superUser.indexOf("isSuperUser(actor.user)") < superUser.indexOf("requireFreshReauth")
+  );
+  check("L12.21 a stale re-authentication is audited as a denial", /REAUTH_REQUIRED\) \{\s*await recordDenial\(options\.audit, permission, AuthReason\.REAUTH_REQUIRED, actor, actor\.sessionRef\)/.test(superUser));
+  check("L12.21 ...on every audited sensitive channel too", /AuthReason\.REAUTH_REQUIRED\) \{\s*await recordDenial\(options\.audit, permission, AuthReason\.REAUTH_REQUIRED, actor, sessionRef\)/.test(session));
   const runner = readFileSync("src/runner/domIntelligence/repairSuggestion.ts", "utf8");
   check("a run's suggestion stage never reads a protected page (no override there)", !runner.includes("allowProtected") && runner.includes('reason: "protected-surface"'));
 

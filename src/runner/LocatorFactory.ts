@@ -573,10 +573,17 @@ export class LocatorFactory {
     // L12.17: a Super User's opted-in diagnosis may read an allowed sign-in or MFA page; a page the detector
     // paused on must name an allowed reason, so a CAPTCHA, security check or blocked-automation page never is
     // (protectedDiagnosisAllowed). The IPC enforces the role and re-authentication.
+    // L12.21: the detector and this marker check read the top document, so the override applies only to a step in
+    // it. ponytail: a sign-in form inside an iframe gets no override; checking every ancestor frame is the upgrade.
     const challenge = deps.allowProtected === true && (await this.page.locator(CAPTCHA_MARKER_SELECTOR).count().catch(() => 1)) > 0;
     const override =
-      (protectedPage || protectedDocument) && deps.allowProtected === true && !challenge && (!protectedPage || protectedDiagnosisAllowed(detection?.reason));
-    if (override) diagnosis.protectedOverride = protectedPage ? detection!.reason : "login-form";
+      (protectedPage || protectedDocument) &&
+      deps.allowProtected === true &&
+      frame === this.page.mainFrame() &&
+      !challenge &&
+      (!protectedPage || protectedDiagnosisAllowed(detection?.reason));
+    // Reported (and so audited and shown) only once the serializer actually read the page, below.
+    const overrideReason = override ? (protectedPage ? detection!.reason : "login-form") : undefined;
     if (protectedPage && !override) diagnosis.provider = { outcome: "skipped", reason: "protected-surface", candidates: [] };
     else if (!deps.provider) diagnosis.provider = { outcome: "skipped", reason: "provider-unavailable", candidates: [] };
     else if (diagnosis.route === "mismatch") diagnosis.provider = { outcome: "skipped", reason: "route-mismatch", candidates: [] };
@@ -587,6 +594,7 @@ export class LocatorFactory {
       if (!snapshot) diagnosis.provider = { outcome: "error", reason: "snapshot-failed", candidates: [] };
       else if (snapshot.refused) diagnosis.provider = { outcome: "skipped", reason: "protected-surface", candidates: [] };
       else {
+        if (overrideReason) diagnosis.protectedOverride = overrideReason;
         const result = await deps.provider.findRecoveryCandidates({
           html: snapshot.html,
           reference,

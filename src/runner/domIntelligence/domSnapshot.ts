@@ -6,6 +6,7 @@ import { createFingerprintHasher } from "../locatorFingerprint";
 import { SNAPSHOT_PRUNED_CAP } from "../recoverySnapshot";
 import { DOM_INTELLIGENCE_LIMITS } from "./DomIntelligenceProvider";
 import { DOM_SNAPSHOT_SERIALIZER_BODY } from "./pageScripts";
+import { CAPTCHA_MARKER_SELECTOR, REFUSED_TEXT_PATTERNS } from "./protectedDiagnosis";
 
 /**
  * One bounded DOM snapshot of a resolved frame (plan E6): sanitized HTML for a provider, with every
@@ -61,6 +62,9 @@ interface SerializerArg {
   cap: number;
   maxBytes: number;
   allowProtected: boolean;
+  /** L12.21: checked in the serialized document only when `allowProtected` is set. */
+  challenge: string;
+  refusedText: readonly string[];
 }
 
 type Serializer = (elements: Element[], arg: SerializerArg) => RawSnapshot;
@@ -75,7 +79,9 @@ export async function captureDomSnapshot(frame: Frame, options: DomSnapshotOptio
     role: options.expected?.role ?? "",
     cap: SNAPSHOT_PRUNED_CAP,
     maxBytes: Math.min(options.maxBytes ?? DOM_INTELLIGENCE_LIMITS.maxHtmlBytes, DOM_INTELLIGENCE_LIMITS.maxHtmlBytes),
-    allowProtected: options.allowProtectedDocument === true
+    allowProtected: options.allowProtectedDocument === true,
+    challenge: CAPTCHA_MARKER_SELECTOR,
+    refusedText: REFUSED_TEXT_PATTERNS
   });
   if (raw.refused) return { refused: raw.refused, ms: performance.now() - started };
   const hash = createFingerprintHasher();

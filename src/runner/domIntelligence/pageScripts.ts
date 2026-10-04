@@ -160,6 +160,15 @@ export const DOM_SNAPSHOT_SERIALIZER_BODY = `
   // L12.17: only a Super User's opted-in diagnosis of an allowed sign-in or MFA page reads such a document;
   // its password, one-time-code and hidden inputs are still dropped below, and no value is ever written.
   if (!arg.allowProtected && doc.querySelector(PROTECTED)) return { refused: "protected-login" };
+  // L12.21: under that override, a challenge widget or any refused reason's wording in THIS document, checked in
+  // the same evaluate that serializes it, refuses the read (no gap for a widget that renders after a pre-check).
+  if (arg.allowProtected) {
+    if (doc.querySelector(arg.challenge)) return { refused: "protected-login" };
+    var said = String(doc.title + "\\n" + (doc.body ? doc.body.innerText : "")).replace(/[\\u2018\\u2019]/g, "'").replace(/\\s+/g, " ").toLowerCase();
+    for (var rt = 0; rt < arg.refusedText.length; rt++) {
+      if (said.indexOf(arg.refusedText[rt]) >= 0) return { refused: "protected-login" };
+    }
+  }
   var visibleOf = function (root) {
     var style = root.ownerDocument.defaultView ? root.ownerDocument.defaultView.getComputedStyle(root) : null;
     if (!style) return true;
