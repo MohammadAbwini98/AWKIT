@@ -292,27 +292,58 @@ def op_save_reference(request):
     return {"fields": sorted(_reference_to_dict(request.get("reference")).keys())}
 
 
+MAX_CANDIDATE_INDICES = 5000
+MAX_SIMILAR = 200
+
+# L12.3: the last parsed snapshot. Several failed lookups on one unchanged page send identical HTML, and the
+# diagnosis then asks again for the same page; reusing the parsed tree skips the parse. One entry, compared
+# by full string equality, so a different page can never be served from it. Lives only in this process.
+_CACHE = {"html": None, "page": None, "stamped": None, "index_of": None}
+
+
+def _parsed(html):
+    """(page, stamped [(index, node)], index_of {node: index}, parse_ms, reused) for a sanitized snapshot."""
+    if _CACHE["html"] is not None and _CACHE["html"] == html:
+        return _CACHE["page"], _CACHE["stamped"], _CACHE["index_of"], 0.0, True
+    started = time.perf_counter()
+    page = Selector(html)
+    stamped = []
+    for node in page._root.iter():
+        if not isinstance(node.tag, str):
+            continue
+        # The stamp is AWKIT's index, not part of the element: it must not take part in any comparison.
+        value = node.attrib.pop("data-awkit-v", None)
+        if value is not None and value.isdigit():
+            stamped.append((int(value), node))
+    index_of = {node: index for index, node in stamped}
+    parse_ms = (time.perf_counter() - started) * 1000
+    _CACHE.update(html=html, page=page, stamped=stamped, index_of=index_of)
+    return page, stamped, index_of, parse_ms, False
+
+
+def _indices(value, limit):
+    if not isinstance(value, list) or len(value) > limit or not all(isinstance(item, int) and not isinstance(item, bool) and item >= 0 for item in value):
+        raise ProtocolError("BOUNDS_INVALID")
+    return set(value)
+
+
 def op_find_candidates(request):
-    _require_keys(request, {"html", "reference", "maxCandidates", "minScore"})
+    _require_keys(request, {"html", "reference", "maxCandidates", "minScore", "candidateIndices"})
     original = _reference_to_dict(request.get("reference"))
     html = _html(request)
     limit = request.get("maxCandidates", 5)
     floor = request.get("minScore", 40)
     if not isinstance(limit, int) or not 1 <= limit <= MAX_CANDIDATES or not isinstance(floor, (int, float)) or not 0 <= floor <= 100:
         raise ProtocolError("BOUNDS_INVALID")
+    # L12.2: AWKIT can only ever accept one of its own competitors (same tag or role), so scoring the rest of
+    # a large page is wasted work. Absent, every stamped element is scored as before.
+    allowed = _indices(request["candidateIndices"], MAX_CANDIDATE_INDICES) if "candidateIndices" in request else None
+    page, stamped, _index_of, parse_ms, reused = _parsed(html)
     started = time.perf_counter()
-    page = Selector(html)
-    parse_ms = (time.perf_counter() - started) * 1000
-    started = time.perf_counter()
-    stamped = []
-    for node in page._root.iter():
-        if not isinstance(node.tag, str):
-            continue
-        value = node.attrib.pop("data-awkit-v", None)
-        if value is not None and value.isdigit():
-            stamped.append((int(value), node))
     scored = []
     for index, node in stamped:
+        if allowed is not None and index not in allowed:
+            continue
         score = _SCORER(page, original, node)
         if score >= floor:
             scored.append((score, index))
@@ -323,6 +354,40 @@ def op_find_candidates(request):
         "elements": len(stamped),
         "parseMs": round(parse_ms, 2),
         "matchMs": round(match_ms, 2),
+        "parseReused": reused,
+    }
+
+
+def op_find_similar(request):
+    """L12.8/.12/.13: elements alike to one stamped element (same depth, tag, parent and grandparent tags,
+    attributes alike), as stamped indices. Scrapling's own find_similar; nothing is fetched or executed."""
+    _require_keys(request, {"html", "index", "maxResults"})
+    html = _html(request)
+    target = request.get("index")
+    limit = request.get("maxResults", 50)
+    if not isinstance(target, int) or isinstance(target, bool) or target < 0 or not isinstance(limit, int) or not 1 <= limit <= MAX_SIMILAR:
+        raise ProtocolError("BOUNDS_INVALID")
+    _page, stamped, index_of, parse_ms, reused = _parsed(html)
+    started = time.perf_counter()
+    node = next((candidate for index, candidate in stamped if index == target), None)
+    if node is None:
+        raise ProtocolError("INDEX_UNKNOWN")
+    similar = []
+    total = 0
+    for match in Selector(root=node).find_similar():
+        index = index_of.get(match._root)
+        if index is None:
+            continue  # not visible in the browser (never stamped): never offered
+        total += 1
+        if len(similar) < limit:
+            similar.append(index)
+    return {
+        "index": target,
+        "similar": sorted(similar),
+        "count": total,
+        "parseMs": round(parse_ms, 2),
+        "matchMs": round((time.perf_counter() - started) * 1000, 2),
+        "parseReused": reused,
     }
 
 
@@ -468,6 +533,7 @@ OPERATIONS = {
     "health": op_health,
     "save_reference": op_save_reference,
     "find_candidates": op_find_candidates,
+    "find_similar": op_find_similar,
     "normalize_dom": op_normalize_dom,
 }
 
