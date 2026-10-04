@@ -37,7 +37,8 @@ import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 import { getRuntimePaths } from "../appPaths";
 import { domIntelligenceRuntimeRoot, domIntelligenceStatus, getDomIntelligenceProvider, getDomReferenceStore } from "../domIntelligence/domIntelligenceRuntime";
 import { createFlowProfileStore } from "../profileStores";
-import { assertSenderPermission } from "../security/sessionContext";
+import { assertSenderPermission, assertSenderSuperUser } from "../security/sessionContext";
+import type { AuthorizedActor } from "@src/security/authz/AuthorizationService";
 
 const failure = (code: DomDiagnosisFailureCode): { ok: false; code: DomDiagnosisFailureCode; message: string } => ({ ok: false, code, message: DIAGNOSIS_FAILURE_MESSAGES[code] });
 const labelRedactor = new SemanticRedactor({ maxContentLength: 120 });
@@ -57,6 +58,31 @@ async function expectedIdentity(step: FlowStep, flowId: string | undefined): Pro
     if (latest?.fingerprint) return { fingerprint: latest.fingerprint, route: latest.route };
   }
   return { fingerprint: step.locator?.identity?.fingerprint };
+}
+
+/**
+ * L12.17: every diagnosis that actually read a protected page is recorded on the security audit trail: who,
+ * when, and the detector's reason code. Never the page, a selector or a URL. Best effort, like denials.
+ */
+async function auditProtectedDiagnosis(actor: AuthorizedActor, reason: string): Promise<void> {
+  try {
+    const { getSecurityKernel } = await import("../security/securityKernel");
+    const kernel = await getSecurityKernel();
+    await kernel.store.appendAudit({
+      at: new Date().toISOString(),
+      eventType: "PROTECTED_DIAGNOSIS_USED",
+      result: "success",
+      reasonCode: reason,
+      actorUserId: actor.user.id,
+      actorName: actor.user.username,
+      sessionId: actor.sessionRef,
+      targetType: "ipc-channel",
+      targetId: "domIntelligence:diagnoseStep",
+      detail: { surface: reason }
+    });
+  } catch {
+    // An unwritable audit trail must not turn a finished read-only diagnosis into an error.
+  }
 }
 
 /** Labels are page text shown to the user: redacted like every other projected string. */
@@ -84,6 +110,14 @@ export function registerDomIntelligenceIpc(): void {
     await assertSenderPermission(event, Permission.PAGE_RECORDER);
     const request = sanitizeDiagnosisRequest(raw);
     if (!request) return failure("INVALID_REQUEST");
+    // L12.17: reading a sign-in or MFA page needs the Super User role (a direct grant is not enough), the
+    // permission and a fresh re-authentication. A denial is audited; a use is audited below.
+    const actor = request.includeProtected
+      ? await assertSenderSuperUser(event, Permission.DOM_INTELLIGENCE_PROTECTED_DIAGNOSIS, {
+          sensitive: true,
+          audit: { eventType: "PROTECTED_DIAGNOSIS_DENIED", channel: "domIntelligence:diagnoseStep" }
+        })
+      : undefined;
 
     let step: FlowStep | undefined;
     let flowId: string | undefined;
@@ -115,7 +149,7 @@ export function registerDomIntelligenceIpc(): void {
     if (!step) return failure("STEP_NOT_FOUND");
     if (!step.locator) return failure("NO_LOCATOR");
     const alias = step.pageAlias ?? "main";
-    const page = recorderService.getLivePage(alias);
+    const page = recorderService.getLivePage(alias, { allowProtected: actor !== undefined });
     if (!page) return failure("NO_LIVE_PAGE");
     try {
       const identity = await expectedIdentity(step, flowId);
@@ -125,8 +159,10 @@ export function registerDomIntelligenceIpc(): void {
         expected: identity.fingerprint,
         expectedRoute: identity.route,
         flowId,
+        allowProtected: actor !== undefined,
         describe: true
       });
+      if (actor && diagnosis.protectedOverride) await auditProtectedDiagnosis(actor, diagnosis.protectedOverride);
       return { ok: true, diagnosis: { ...redactDiagnosis(diagnosis), page: alias } };
     } catch {
       return failure("FAILED");

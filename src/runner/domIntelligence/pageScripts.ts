@@ -157,7 +157,9 @@ export const DOM_SNAPSHOT_SERIALIZER_BODY = `
   ${HELPERS}
   var fingerprint = (${createPageFingerprint.toString()});
   var doc = document;
-  if (doc.querySelector(PROTECTED)) return { refused: "protected-login" };
+  // L12.17: only a Super User's opted-in diagnosis of an allowed sign-in or MFA page reads such a document;
+  // its password, one-time-code and hidden inputs are still dropped below, and no value is ever written.
+  if (!arg.allowProtected && doc.querySelector(PROTECTED)) return { refused: "protected-login" };
   var visibleOf = function (root) {
     var style = root.ownerDocument.defaultView ? root.ownerDocument.defaultView.getComputedStyle(root) : null;
     if (!style) return true;

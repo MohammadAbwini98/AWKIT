@@ -1909,8 +1909,10 @@ export class RecorderService {
    * Null during a protected-login handoff, after protected-login detection refused inspection, and when
    * no Recorder browser is open — a diagnosis never reads a protected surface.
    */
-  public getLivePage(pageAlias = "main"): Page | null {
-    if (!this.inspectionAllowed() || this.inspectionRefused) return null;
+  public getLivePage(pageAlias = "main", options: { allowProtected?: boolean } = {}): Page | null {
+    // L12.17: a Super User's opted-in protected diagnosis may read a page the Spy refused to inspect, but never
+    // during a protected-login handoff (inspectionAllowed), when the person is signing in themselves.
+    if (!this.inspectionAllowed() || (this.inspectionRefused && options.allowProtected !== true)) return null;
     const page = pageAlias === "main" ? this.page : this.popupPages.get(pageAlias);
     return page && !page.isClosed() ? page : null;
   }

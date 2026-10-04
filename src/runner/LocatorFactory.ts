@@ -56,9 +56,10 @@ import {
   type DomRepairSuggestion
 } from "./domIntelligence/DomIntelligenceProvider";
 import { countLookAlikes, fingerprintAt, proveCandidate, referenceStructurePresent, suggestRepair } from "./domIntelligence/repairSuggestion";
+import { CAPTCHA_MARKER_SELECTOR, protectedDiagnosisAllowed } from "./domIntelligence/protectedDiagnosis";
 import { buildDomReference, domReferenceId, type DomReferenceStore } from "./domIntelligence/domReference";
 import { captureDomSnapshot } from "./domIntelligence/domSnapshot";
-import { DOM_REFERENCE_CAPTURE_SOURCE } from "./domIntelligence/pageScripts";
+import { DOM_REFERENCE_CAPTURE_SOURCE, PROTECTED_LOGIN_SELECTOR } from "./domIntelligence/pageScripts";
 import { compareRoutes, routeKey } from "./routeIdentity";
 import { PIN_PAGE_SOURCE, newElementPin, pinnedLocator, type ElementPin } from "./elementPin";
 import { detectRecorderProtectedLogin } from "@src/security/ProtectedLoginDetector";
@@ -216,6 +217,8 @@ export interface LocatorDiagnosis {
   };
   /** L12.8: look-alikes of the element the saved locator finds now (absent when it finds none). */
   similar?: { outcome: "ok" | "unavailable"; count?: number; ms: number };
+  /** L12.17: set when a Super User's opted-in diagnosis read a protected page; the detector's reason code. */
+  protectedOverride?: string;
   timings: { totalMs: number };
 }
 
@@ -475,6 +478,11 @@ export class LocatorFactory {
       expectedRoute?: string;
       /** The saved flow the step belongs to, for a reference stored under its flow-scoped step id. */
       flowId?: string;
+      /**
+       * L12.17: the caller is an authorized, re-authenticated Super User who opted in for this request. Only an
+       * allowed sign-in or MFA surface is then read; every other protected surface stays refused.
+       */
+      allowProtected?: boolean;
       describe?: boolean;
     } = {}
   ): Promise<LocatorDiagnosis> {
@@ -559,13 +567,23 @@ export class LocatorFactory {
     // A protected sign-in, MFA, CAPTCHA, passkey or device-approval surface: no HTML leaves the page, and the
     // Designer offers nothing to apply (it keys on this reason), whatever the provider's state.
     const detection = await detectRecorderProtectedLogin(this.page).catch(() => undefined);
-    if (detection?.detected && detection.recommendedAction === "pause") diagnosis.provider = { outcome: "skipped", reason: "protected-surface", candidates: [] };
+    const protectedPage = Boolean(detection?.detected && detection.recommendedAction === "pause");
+    // A password or one-time-code field makes the snapshot refuse the document even when the detector only warns.
+    const protectedDocument = (await frame.locator(PROTECTED_LOGIN_SELECTOR).count().catch(() => 0)) > 0;
+    // L12.17: a Super User's opted-in diagnosis may read an allowed sign-in or MFA page; a page the detector
+    // paused on must name an allowed reason, so a CAPTCHA, security check or blocked-automation page never is
+    // (protectedDiagnosisAllowed). The IPC enforces the role and re-authentication.
+    const challenge = deps.allowProtected === true && (await this.page.locator(CAPTCHA_MARKER_SELECTOR).count().catch(() => 1)) > 0;
+    const override =
+      (protectedPage || protectedDocument) && deps.allowProtected === true && !challenge && (!protectedPage || protectedDiagnosisAllowed(detection?.reason));
+    if (override) diagnosis.protectedOverride = protectedPage ? detection!.reason : "login-form";
+    if (protectedPage && !override) diagnosis.provider = { outcome: "skipped", reason: "protected-surface", candidates: [] };
     else if (!deps.provider) diagnosis.provider = { outcome: "skipped", reason: "provider-unavailable", candidates: [] };
     else if (diagnosis.route === "mismatch") diagnosis.provider = { outcome: "skipped", reason: "route-mismatch", candidates: [] };
     else if (!reference) diagnosis.provider = { outcome: "skipped", reason: "no-reference", candidates: [] };
     else if (!(await referenceStructurePresent(frame, reference.element.path))) diagnosis.provider = { outcome: "skipped", reason: "page-variant", candidates: [] };
     else {
-      const snapshot = await captureDomSnapshot(frame, { mode: "recover", expected }).catch(() => undefined);
+      const snapshot = await captureDomSnapshot(frame, { mode: "recover", expected, allowProtectedDocument: override }).catch(() => undefined);
       if (!snapshot) diagnosis.provider = { outcome: "error", reason: "snapshot-failed", candidates: [] };
       else if (snapshot.refused) diagnosis.provider = { outcome: "skipped", reason: "protected-surface", candidates: [] };
       else {
@@ -600,7 +618,6 @@ export class LocatorFactory {
 
     // L12.8: how many elements on this page look like the one the saved locator finds now. A step whose element
     // has look-alikes depends on whatever makes it unique; position alone does not survive a re-sort.
-    const protectedPage = detection?.detected && detection.recommendedAction === "pause";
     if (pass.winner && deps.provider?.findSimilar && !protectedPage && diagnosis.route !== "mismatch") {
       diagnosis.similar = await LocatorFactory.countSimilar(frame, pass.winner.locator, deps.provider);
     }

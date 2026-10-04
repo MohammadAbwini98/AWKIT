@@ -80,6 +80,8 @@ export function LocatorDiagnosisSection({
   const [busy, setBusy] = useState(false);
   const [diagnosis, setDiagnosis] = useState<LocatorDiagnosis | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // L12.17: off by default and per request. Main still requires the Super User role and a re-authentication.
+  const [includeProtected, setIncludeProtected] = useState(false);
   const { can } = usePermissions();
   const token = useRef(0);
   const key = request ? JSON.stringify(request) : "";
@@ -98,7 +100,7 @@ export function LocatorDiagnosisSection({
     setError(null);
     let response: DomDiagnosisResponse;
     try {
-      response = await window.playwrightFlowStudio.domIntelligence.diagnoseStep(request);
+      response = await window.playwrightFlowStudio.domIntelligence.diagnoseStep(includeProtected ? { ...request, includeProtected: true } : request);
     } catch {
       response = { ok: false, code: "FAILED", message: "The diagnosis could not be completed on the current page." };
     }
@@ -130,6 +132,12 @@ export function LocatorDiagnosisSection({
           <ScanSearch size={15} aria-hidden="true" />
           {busy ? "Checking the live page…" : "Find current element"}
         </button>
+        {can(Permission.DOM_INTELLIGENCE_PROTECTED_DIAGNOSIS) ? (
+          <label className="checkbox-row" data-testid={`${testId}-include-protected`}>
+            <input type="checkbox" checked={includeProtected} onChange={(event) => setIncludeProtected(event.target.checked)} />
+            Include a sign-in or MFA page (Super User, re-authentication, audited)
+          </label>
+        ) : null}
       </div>
       {note ? <p className="form-message">{note}</p> : null}
 
@@ -138,6 +146,12 @@ export function LocatorDiagnosisSection({
           <span className="form-message error">
             <AlertTriangle size={13} style={{ verticalAlign: "-2px" }} aria-hidden="true" /> {error}
           </span>
+        ) : null}
+        {diagnosis?.protectedOverride ? (
+          <p className="form-message" data-testid={`${testId}-protected-override`}>
+            This is a protected sign-in page ({diagnosis.protectedOverride}). It was read for your Super User diagnosis and the
+            use was audited. Password, one-time-code and hidden fields, and every typed value, were never read.
+          </p>
         ) : null}
         {diagnosis ? (
           <dl className="locator-evidence-list">

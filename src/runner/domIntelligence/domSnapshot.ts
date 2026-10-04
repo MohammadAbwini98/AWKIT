@@ -38,6 +38,8 @@ export interface DomSnapshotOptions {
   /** The recorded identity's tag and role; omit to skip the fingerprint pass (normalization). */
   expected?: Pick<LocatorElementFingerprint, "tag" | "role">;
   maxBytes?: number;
+  /** L12.17: a Super User's opted-in diagnosis of an allowed protected page. Sensitive inputs are still dropped. */
+  allowProtectedDocument?: boolean;
 }
 
 interface RawSnapshot {
@@ -58,6 +60,7 @@ interface SerializerArg {
   role: string;
   cap: number;
   maxBytes: number;
+  allowProtected: boolean;
 }
 
 type Serializer = (elements: Element[], arg: SerializerArg) => RawSnapshot;
@@ -71,7 +74,8 @@ export async function captureDomSnapshot(frame: Frame, options: DomSnapshotOptio
     tag: options.expected?.tag,
     role: options.expected?.role ?? "",
     cap: SNAPSHOT_PRUNED_CAP,
-    maxBytes: Math.min(options.maxBytes ?? DOM_INTELLIGENCE_LIMITS.maxHtmlBytes, DOM_INTELLIGENCE_LIMITS.maxHtmlBytes)
+    maxBytes: Math.min(options.maxBytes ?? DOM_INTELLIGENCE_LIMITS.maxHtmlBytes, DOM_INTELLIGENCE_LIMITS.maxHtmlBytes),
+    allowProtected: options.allowProtectedDocument === true
   });
   if (raw.refused) return { refused: raw.refused, ms: performance.now() - started };
   const hash = createFingerprintHasher();

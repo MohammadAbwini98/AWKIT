@@ -23,7 +23,11 @@ export interface DomIntelligenceStatusView extends DomIntelligenceStatus {
   runtimeShipped: boolean;
 }
 
-export type DomDiagnosisRequest = { source: "flow"; flowId: string; stepId: string } | { source: "draft"; actionId: string };
+/**
+ * `includeProtected` (L12.17): a Super User's per-request opt-in to diagnose an allowed sign-in or MFA page.
+ * Main requires the Super User role, the protectedDiagnosis permission and a fresh re-authentication.
+ */
+export type DomDiagnosisRequest = ({ source: "flow"; flowId: string; stepId: string } | { source: "draft"; actionId: string }) & { includeProtected?: true };
 
 export type DomDiagnosisFailureCode = "INVALID_REQUEST" | "NO_LIVE_PAGE" | "STEP_NOT_FOUND" | "NO_LOCATOR" | "FAILED";
 
@@ -37,11 +41,13 @@ const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/;
 export function sanitizeDiagnosisRequest(value: unknown): DomDiagnosisRequest | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const raw = value as Record<string, unknown>;
+  // Only the literal `true` opts in; anything else is the default (protected pages are not read).
+  const opt = raw.includeProtected === true ? { includeProtected: true as const } : {};
   if (raw.source === "flow" && typeof raw.flowId === "string" && ID.test(raw.flowId) && typeof raw.stepId === "string" && ID.test(raw.stepId)) {
-    return { source: "flow", flowId: raw.flowId, stepId: raw.stepId };
+    return { source: "flow", flowId: raw.flowId, stepId: raw.stepId, ...opt };
   }
   if (raw.source === "draft" && typeof raw.actionId === "string" && ID.test(raw.actionId)) {
-    return { source: "draft", actionId: raw.actionId };
+    return { source: "draft", actionId: raw.actionId, ...opt };
   }
   return undefined;
 }
