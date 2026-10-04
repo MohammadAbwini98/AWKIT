@@ -144,7 +144,9 @@ try {
   // 333 on 2026-10-02: the E2-pending resolution filed `awkit-djnl.20` (contract `awkit-djnl-15-e2-pending-1002`).
   // 352 on 2026-10-04: the L12 registration filed `awkit-djnl.21` and its 18 workstreams `.21.1`…`.21.18`
   // (contract `awkit-l12-registration-1004`).
-  check("352 issues parse", beads.stats.total === 352, `got ${beads.stats.total}`);
+  // 355 later on 2026-10-04: the L12 close filed follow-ups `.21.19` (loop generation), `.21.20` (Turnstile
+  // detector gap) and `.21.21` (pending security review) (contract `awkit-djnl-21-l12-implementation-1004`).
+  check("355 issues parse", beads.stats.total === 355, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -659,8 +661,10 @@ try {
   // 18 workstreams filed OPEN (19 in), nothing closed. Measured after the export.
   // Then 35/317 of 352 later on 2026-10-04 (contract `awkit-djnl-21-l12-implementation-1004`): L12.1 to L12.6
   // (`awkit-djnl.21.1`…`.21.6`) closed with their commits and verifiers (six out, six closed).
-    "35 outstanding / 317 closed",
-    beads.stats.outstanding === 35 && beads.stats.closed === 317,
+  // Then 26/329 of 355 later on 2026-10-04: `.21.7`…`.21.18` closed (twelve out, twelve closed) and the
+  // follow-ups `.21.19`…`.21.21` filed OPEN (three in). Measured after the export.
+    "26 outstanding / 329 closed",
+    beads.stats.outstanding === 26 && beads.stats.closed === 329,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -758,9 +762,10 @@ try {
   // Then 239 on 2026-10-04: the L12 registration added 19 parent-child links (`.21` under `awkit-djnl`, its
   // 18 workstreams under `.21`), one blocks edge on closed L11 `.19`, and 17 blocks edges making the
   // benchmark `.21.18` wait on `.21.1`…`.21.17`. Measured.
+  // Then 242 later on 2026-10-04: the three L12 follow-ups `.21.19`…`.21.21` (three parent-child links).
   check(
-    "239 edges are present to classify",
-    beads.stats.edges === 239,
+    "242 edges are present to classify",
+    beads.stats.edges === 242,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(

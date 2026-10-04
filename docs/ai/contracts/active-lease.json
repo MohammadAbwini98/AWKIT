@@ -6,15 +6,15 @@
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-04T17:02:30.704Z",
-  "acquired_at_commit": "3c10772f72fae9f744149fa70a0391ba4dc1b4a7",
+  "acquired_at": "2026-10-04T18:04:01.559Z",
+  "acquired_at_commit": "33c924b25009f653a686318ffba795caf3702a10",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-djnl-21-l12-implementation-1004.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "c06c8740f7558372cc9824e1fa54be4a35c0a3feaa90399c7cc7d08c616e7e6c",
-    "docs/ai/contracts/awkit-djnl-21-l12-implementation-1004.json": "15cf91fac4bbf4eef4b9356cefb90cda8d3dc3469655e7c0ac749c541b542d92"
+    "docs/ai/contracts/active-lease.json": "62e5f156e37958ccd3458c8eb42c162d5874c767d16dbff3ae899b08ff84da99",
+    "docs/ai/contracts/awkit-djnl-21-l12-implementation-1004.json": "a4a12be136a716855e8aefb7888aadf329d6b1a5012ce02a659b050078624498"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -29,7 +29,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-04T17:03:25.556Z",
-  "released_reason": "L12.1 to L12.6 closed with their commits and verifiers, export refreshed",
-  "archived_at": "2026-10-04T17:03:25.558Z"
+  "released_at": "2026-10-04T18:05:37.904Z",
+  "released_reason": "L12.7 to L12.18 closed with evidence, follow-ups L12.19 loop generation, L12.20 Turnstile detector and L12.21 security review filed open, export refreshed",
+  "archived_at": "2026-10-04T18:05:37.905Z"
 }

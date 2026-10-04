@@ -1,6 +1,27 @@
 # DECISIONS
 
-### 2026-10-03 (latest) — The remaining NVIDIA physical-console checks are deferred and do not block development (owner)
+### 2026-10-04 (latest) — L12: Scrapling may decide only together with AWKIT, and Super Users may diagnose sign-in pages (owner, implementer design) (`awkit-djnl.21`)
+
+- **Owner:** implement every Scrapling improvement point, track it on the dashboard, allow Scrapling on
+  protected-login, MFA and CAPTCHA pages for the Super User role only, and benchmark before and after.
+- **Agreement rule (implementer, measured):** a provider pick acts only when AWKIT refused on score or margin
+  alone and the provider's top is AWKIT's best (score 85, lead 5, identity 0.6, ancestry veto, AWKIT's own
+  margin), then the existing pin and actionability checks. Scrapling alone still never acts: its wrong picks
+  reach 96.4%. Provenance records it as `awkit-provider-agreement`.
+- **Protected pages (owner, narrowed by the implementer):** Super User role plus the new
+  `domIntelligence.protectedDiagnosis` permission (re-auth, not granted to Administrator), per-request opt-in,
+  audited, diagnosis only (never runs, the drift check or the page context). Allowed: sign-in, MFA, passkey, SSO
+  and known identity-provider pages. CAPTCHA, security-check and blocked-automation pages stay refused for every
+  role, by the reason allow-list and an independent widget-marker check: reading a challenge would be a step
+  toward getting past a control meant to stop automation, which AWKIT never does. The owner chose
+  "diagnosis plus locator help" for login and MFA pages with CAPTCHA excluded.
+- **AI page context:** follows the local-AI master switch when no `AWKIT_AI_PAGE_CONTEXT` override is set
+  (owner request), reversing the 2026-10-01 off-by-default.
+- **Not built, by evidence:** Scrapling's selector generator as a Recorder alternative (it only writes
+  positional selectors) and a Scrapling loading signal (the actionability veto and auto-wait already handle
+  skeletons).
+
+### 2026-10-03 — The remaining NVIDIA physical-console checks are deferred and do not block development (owner)
 
 - **Decision.** Three checks still lack a run at the GTX 980M's physical console. The owner defers them
   as non-blocking qualification evidence:

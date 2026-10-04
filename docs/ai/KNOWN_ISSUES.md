@@ -1,5 +1,23 @@
 # KNOWN_ISSUES
 
+## The protected-login detector does not see a Cloudflare Turnstile widget (found 2026-10-04, OPEN — `awkit-djnl.21.20`)
+
+- `detectRecorderProtectedLogin` recognises reCAPTCHA and hCaptcha iframes, `.g-recaptcha`, `.h-captcha`,
+  `[aria-label*=captcha]` and captcha text, but not a `div.cf-turnstile` with `data-sitekey` (no iframe yet, no
+  captcha text), a bare `[data-sitekey]` widget or an Arkose iframe. The Recorder may therefore not pause and
+  hand off on such a sign-in page.
+- The L12.17 Super-User diagnosis is not exposed: it refuses any page matching `CAPTCHA_MARKER_SELECTOR`
+  (`src/runner/domIntelligence/protectedDiagnosis.ts`), and `verify:protected-diagnosis` proves that second
+  check is what refuses the Turnstile page. When the detector is fixed, that verifier's Turnstile precondition
+  flips and its fixture must move to a marker the detector still cannot see.
+
+## L12 agreement thresholds come from 3 lab fixtures (2026-10-04, know it)
+
+- `decideProviderAgreement` (provider score 85, lead 5, identity 0.6) was set from the L11 acceptance set's
+  measured rankings. It recovers 3 more targets there with 0 wrong, and `verify:provider-agreement` replays
+  every measured case. Real sites may need the floors revisited. Raise them before lowering anything, and never
+  let the provider act without AWKIT's best agreeing.
+
 ## `verify:workflow-builder` fails one Workflows library check: action column 100px, limit 64px (found 2026-10-03, OPEN)
 
 - **Symptom.** Broad suite 67/68 (Loop suite 17/17): "Workflows table fills its desktop content surface with a

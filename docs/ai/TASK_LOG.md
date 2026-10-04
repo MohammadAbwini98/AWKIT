@@ -1,6 +1,34 @@
 # TASK_LOG
 
-## 2026-10-04 (latest) — Internal install kit for 0.1.52 (`package:kit`) (Claude)
+## 2026-10-04 (latest) — L12 Scrapling expansion (Claude)
+
+- **Task:** owner asked why Scrapling did not improve recorder, spy and locator results, then asked for every
+  improvement point to be implemented, tracked on the roadmap dashboard, with Super-User protected-page use and
+  a before/after benchmark. Registered as `awkit-djnl.21` with 18 workstreams.
+- **Result:** 16 workstreams with code, L12.7 and L12.10 closed by evidence (no code would help). Commits
+  `55f619be` (registration), `be5983fb` agreement rule, `2701b06c` prewarm/diagnosis budget/old-flow references,
+  `c04bd3d9` and `3c10772f` host candidate filter, parse cache and find_similar, `0ea34233` Spy look-alikes and
+  drift check, `6d951ae6` page context default, `10531b2a` report change codes, `acaf6a5c` page identity,
+  `ad81cf97` AI look-alikes, `d3e08d2a` unmounted list rows, `157d0c59` and `7ea071fb` protected diagnosis,
+  `5f8550a4` similar rows, `33c924b2` after benchmark. Report: https://claude.ai/artifact/ECXMwvgTt8JH3hWbvtVcyp
+  (private).
+- **Before/after:** product path 8/14 to 11/14 found, 0 wrong, 9/9 refused; Scrapling plus proof 7 to 10;
+  8,265-element suggestion 1,186 ms to 358-394 ms; normal steps 0 ms extra.
+- **Verification:** PASS `verify:dom-intelligence-acceptance` 11/0 (3 after runs), `verify:provider-agreement`
+  45/0, `verify:dom-intelligence-l12` 71/0, `verify:protected-diagnosis` 41/0, `verify:dom-intelligence-host`
+  105/0, `verify:dom-intelligence-contexts` 60/0, `verify:recovery-provenance` 34/0, `verify:locator-diagnosis`
+  56/0, `verify:locator-wrong-element` 14/0, `verify:runner` 138/0, `verify:dom-normalization` 151/0,
+  `verify:ai-fallback` 51/0, `verify:ai-permissions` 135/0, `verify:ai-locator-attempts` 191/0 (second run; the
+  first stopped on a mock-site page.goto timeout), `verify:ipc-contract` 10/10, `verify:r0-characterization`
+  181/0, `verify:verifier-classification`, `verify:roadmap-dashboard` 177/177, `npm run build`. Mutations killed
+  for the agreement floors, the agreement ancestry check, old-flow reference ids and the CAPTCHA marker check.
+  `verify:failure-capture-overhead` 15/0 with 3 INCONCLUSIVE timing gates (run 26, as accepted 2026-09-21).
+- **NOT RUN:** independent security review of L12.17 (`.21.21`), GUI walkthrough of the new panels, packaged
+  build with the changed host.
+- **Follow-ups filed:** `.21.19` loop generation, `.21.20` Turnstile detector gap, `.21.21` security review.
+- **Contracts:** `awkit-l12-registration-1004`, `awkit-djnl-21-l12-implementation-1004`.
+
+## 2026-10-04 — Internal install kit for 0.1.52 (`package:kit`) (Claude)
 
 - **Task:** owner asked for all external files (Java, ojdbc, the key issuer, the AI model, etc.) in one `dist`
   directory, with installation steps and download URLs, for internal machines.

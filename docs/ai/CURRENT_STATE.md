@@ -1,6 +1,31 @@
 # CURRENT_STATE
 
-## NVIDIA console checks deferred by the owner; N1 visual capture plan written (2026-10-03, latest)
+## L12 Scrapling expansion implemented (2026-10-04, latest)
+
+- **Why:** the owner asked why Scrapling did not improve the Recorder, Element Spy or locator finding. It could
+  not: a Scrapling pick was only marked proven when it was already AWKIT's own winner, so it never changed a
+  result. L12 (`awkit-djnl.21`) put Scrapling evidence into 16 places, with AWKIT's identity proof keeping the
+  final say.
+- **Accuracy (3 runs, identical):** product path 8/14 to 11/14 found, 0 wrong for every engine, 9/9 expected
+  refusals held. Recovered now: reworded text, duplicate text, relabelled field. The agreement rule
+  (`decideProviderAgreement`) needs Scrapling's top pick to be AWKIT's best, a provider score of at least 85,
+  a lead of at least 5, identity at least 0.6, the ancestry veto and AWKIT's own margin, then the existing pin
+  and actionability checks. The thresholds come from the 2026-10-04 lab measurements only.
+- **Speed:** host starts in the background on runs, recordings and Element Spy. Only AWKIT's competitors are
+  scored, so the 8,265-element suggestion fell from 1,186 ms (skipped) to 358-394 ms. A one-entry parse cache
+  keeps the host at 27 to 36 MB after a run instead of about 9 MB until its idle stop.
+- **New surfaces:** Element Spy look-alike count and Find similar rows (CSV copy); the Designer's Check all
+  steps on the live page; run reports name the closest element's changed fields; page-variant and
+  list-row-not-mounted refusals; AI locator requests carry the look-alike count; the AI page context follows
+  the local-AI switch; Steps recorded before blueprints get a reference on their first passing run.
+- **Security:** Super-User-only, re-authenticated, per-request, audited diagnosis of sign-in and MFA pages.
+  CAPTCHA, security-check and blocked-automation pages stay refused for every role.
+- **Open:** `.21.19` Designer loop generation from similar rows, `.21.20` the protected-login detector misses
+  a Cloudflare Turnstile widget (P1), `.21.21` independent security review of the protected diagnosis (P1,
+  NOT RUN). Not run either: a GUI walkthrough of the new panels in the running app.
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## NVIDIA console checks deferred by the owner; N1 visual capture plan written (2026-10-03)
 
 - **Also 2026-10-03: animated app background and canvas plane.** `DotField` (`layout/AppBackground.tsx`)
   draws the design handoff's pointer-reactive dot field (ambient 0.25) as the app background. It is also the
