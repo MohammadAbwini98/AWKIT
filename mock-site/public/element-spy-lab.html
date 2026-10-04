@@ -15,7 +15,7 @@
         performed click is always visible.
       </p>
       <p><a href="/" data-testid="back-to-index">Back to Feature Test Lab</a></p>
-      <p>Clicks performed: <output data-testid="spy-clicks">0</output> · last: <output data-testid="spy-last">none</output></p>
+      <p>Clicks performed: <output data-testid="spy-clicks">0</output> · last: <output data-testid="spy-last">none</output> · all: <output data-testid="spy-log"></output></p>
 
       <section data-testid="spy-unique" aria-labelledby="spy-unique-title">
         <h2 id="spy-unique-title">Account settings</h2>
@@ -83,6 +83,8 @@
         var clicks = document.querySelector('[data-testid="spy-clicks"]');
         clicks.textContent = String(Number(clicks.textContent) + 1);
         document.querySelector('[data-testid="spy-last"]').textContent = name;
+        var log = document.querySelector('[data-testid="spy-log"]');
+        log.textContent = log.textContent ? log.textContent + "," + name : name;
       }
       document.addEventListener("click", function (event) {
         var target = event.target && event.target.closest ? event.target.closest("[data-spy]") : null;

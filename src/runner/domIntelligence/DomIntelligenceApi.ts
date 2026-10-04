@@ -13,6 +13,7 @@
  * properties are dropped, so a renderer cannot smuggle anything the handler would then trust.
  */
 
+import type { RecordedAction } from "../../recorder/RecorderTypes";
 import type { DiagnosisElement, LocatorDiagnosis } from "../LocatorFactory";
 import type { DomIntelligenceStatus } from "./DomIntelligenceProvider";
 
@@ -106,8 +107,12 @@ export function classifyDrift(diagnosis: Pick<LocatorDiagnosis, "recorded" | "sn
  * element and every element alike to it on the live page, as redacted text rows. No request body.
  */
 export type DomSimilarRowsResponse =
-  | { ok: true; rows: string[]; total: number }
+  /** `loop` (L12.19): main proved one selector for exactly these rows, so `addSimilarRowsLoop` can add a loop. */
+  | { ok: true; rows: string[]; total: number; loop: boolean }
   | { ok: false; code: "NO_INSPECTION" | "UNAVAILABLE" | "PROTECTED" | "FAILED"; message: string };
+
+/** L12.19 `domIntelligence:addSimilarRowsLoop`: no request body; the selector never leaves main. */
+export type DomSimilarRowsLoopResponse = { ok: true; actions: RecordedAction[] } | { ok: false; message: string };
 
 /** The rows as one CSV column. Every cell quoted, quotes doubled, and a leading formula character neutralized. */
 export function similarRowsCsv(rows: readonly string[]): string {

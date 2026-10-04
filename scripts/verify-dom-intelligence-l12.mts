@@ -11,6 +11,7 @@
  *
  * Run: npm run verify:dom-intelligence-l12
  */
+import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
@@ -33,7 +34,12 @@ import {
 } from "@src/runner/domIntelligence/DomIntelligenceProvider";
 import { MemoryDomReferenceStore, domReferenceId } from "@src/runner/domIntelligence/domReference";
 import { classifyDrift, similarRowsCsv } from "@src/runner/domIntelligence/DomIntelligenceApi";
-import { extractSimilarRows } from "@src/runner/domIntelligence/similarRows";
+import { commonRowSelector, extractSimilarRows } from "@src/runner/domIntelligence/similarRows";
+import { buildRecordedFlow } from "@src/recorder/buildRecordedFlow";
+import { similarRowsLoopAction } from "@src/recorder/RecorderService";
+import type { InstanceExecutionContext } from "@src/runner/InstanceExecutionContext";
+import { StepExecutor } from "@src/runner/StepExecutor";
+import { ValueResolver } from "@src/runner/ValueResolver";
 import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 import { stageHost } from "./dom-intelligence/stagedHost.mts";
 import { pageContextEnabled } from "@src/runner/domIntelligence/pageContext";
@@ -50,6 +56,16 @@ function check(label: string, condition: unknown, detail?: unknown): void {
     failed += 1;
     console.error(`  ✗ ${label}${detail === undefined ? "" : ` — ${typeof detail === "string" ? detail : JSON.stringify(detail)}`}`);
   }
+}
+
+const MOCK_PORT = 4437;
+const MOCK = `http://127.0.0.1:${MOCK_PORT}`;
+async function waitForMock(): Promise<void> {
+  for (let i = 0; i < 60; i += 1) {
+    if (await fetch(`${MOCK}/`).then((res) => res.ok).catch(() => false)) return;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error("Mock site did not start");
 }
 
 /** Records every request and proposes nothing. */
@@ -294,6 +310,40 @@ async function main(): Promise<void> {
         await page.goto(`${base}/orders`);
         const guarded = await extractSimilarRows(page.mainFrame(), page.locator("li.order").first(), host, (text) => text);
         check("a page with a password field is never read for rows", !guarded.ok && guarded.reason === "protected-surface", guarded);
+
+        console.log("K. L12.19 a for-each loop from one row's similar rows, on the mock-site Element Spy lab");
+        const mock = spawn(process.execPath, ["mock-site/server.mjs"], { env: { ...process.env, MOCK_SITE_PORT: String(MOCK_PORT) }, stdio: "ignore" });
+        try {
+          await waitForMock();
+          const lab = await browser.newPage();
+          await lab.goto(`${MOCK}/recorder-lab/element-spy`);
+          const rows = await extractSimilarRows(lab.mainFrame(), lab.locator('[data-spy="call-backup"]'), host, (text) => text);
+          check("one Call button's similar rows are the four Call buttons", rows.ok && rows.total === 4 && rows.rows.every((row) => row === "Call"), rows);
+          const loop = rows.ok ? rows.loop : undefined;
+          check("...and one selector is proven for exactly those rows", typeof loop === "string" && (await lab.locator(loop).count()) === 4, loop);
+          check("...anchored on the list, never on a row's own identity", typeof loop === "string" && !/slot-|contact-|dan@|Night shift/.test(loop), loop);
+          const step = buildRecordedFlow("Contacts", [similarRowsLoopAction(loop ?? "", 4, "main")]).nodes.find((node) => node.type === "loop");
+          check("the saved flow keeps an element loop that clicks, on that selector", step?.config?.loopType === "elements" && step.config.loopActionType === "click" && step.locator?.value === loop, step);
+          const runDir = await mkdtemp(join(tmpdir(), "awkit-l12-loop-"));
+          const ctx: InstanceExecutionContext = {
+            executionId: "exec-l12", instanceId: "inst-l12", scenarioId: "scen-l12", flowId: "flow-l12", instanceOrderNumber: 1, totalInstances: 1,
+            runtimeInputs: {}, instanceInputs: {}, flowOutputs: {},
+            paths: { downloads: join(runDir, "d"), screenshots: join(runDir, "s"), logs: join(runDir, "l"), reports: join(runDir, "r"), sessions: join(runDir, "x") }
+          };
+          const ran = step ? await new StepExecutor(lab, new LocatorFactory(lab), new ValueResolver(ctx), ctx).execute(step) : undefined;
+          check("running it passes with one iteration per row", ran?.status === "passed" && ran.outputs.iterations === 4, ran);
+          check("...clicking every Call button once, in page order", (await lab.getByTestId("spy-log").textContent()) === "call-primary,call-backup,call-night,call-dan", await lab.getByTestId("spy-log").textContent());
+          await rm(runDir, { recursive: true, force: true });
+          // No loop when the rows differ in structure, or when no named container isolates exactly them.
+          const buttons = async () => lab.locator("body *").evaluateAll((elements) => elements.map((element, i) => (element.localName === "button" ? i : -1)).filter((i) => i >= 0));
+          await lab.setContent('<ul aria-label="Mixed"><li><button>Go</button></li><li><span><button>Go</button></span></li></ul>');
+          check("rows with different tag paths get no loop", (await commonRowSelector(lab.mainFrame(), await buttons())) === null);
+          await lab.setContent("<div><ul><li><button>A</button></li><li><button>B</button></li></ul><ul><li><button>C</button></li></ul></div>");
+          check("rows no named container isolates get no loop", (await commonRowSelector(lab.mainFrame(), (await buttons()).slice(0, 2))) === null);
+          await lab.close();
+        } finally {
+          mock.kill();
+        }
       } finally {
         await host.shutdown().catch(() => undefined);
         staged.cleanup();
@@ -329,8 +379,15 @@ async function main(): Promise<void> {
   const preload = readFileSync("app/main/preload.ts", "utf8");
   check("the preload exposes checkDrift with a flow id only", /checkDrift: \(request: DomDriftRequest\) => invoke\("domIntelligence:checkDrift", request\)/.test(preload));
   const rowsHandler = ipc.slice(ipc.indexOf('ipcMain.handle("domIntelligence:similarRows"'), ipc.indexOf('ipcMain.handle("domIntelligence:checkDrift"'));
-  check("L12.13 similar rows require page.recorder and the Element Spy permission first", /assertSenderPermission\(event, Permission\.PAGE_RECORDER\);\s*await assertSenderPermission\(event, Permission\.RECORDER_ELEMENT_SPY\);\s*const live = recorderService\.getInspectionTarget\(\)/.test(rowsHandler));
-  check("L12.13 ...take no request body and redact every row in main", /handle\("domIntelligence:similarRows", async \(event\)/.test(rowsHandler) && rowsHandler.includes("labelRedactor.redactText(text)"));
+  check("L12.13 similar rows require page.recorder and the Element Spy permission first", /assertSenderPermission\(event, Permission\.PAGE_RECORDER\);\s*await assertSenderPermission\(event, Permission\.RECORDER_ELEMENT_SPY\);\s*similarRowsLoop = null;\s*const live = recorderService\.getInspectionTarget\(\)/.test(rowsHandler));
+  const loopHandler = ipc.slice(ipc.indexOf('ipcMain.handle("domIntelligence:addSimilarRowsLoop"'), ipc.indexOf('ipcMain.handle("domIntelligence:checkDrift"'));
+  check(
+    "L12.19 the loop channel takes no request body and needs page.recorder and the Element Spy permission first",
+    /handle\("domIntelligence:addSimilarRowsLoop", async \(event\)[^\n]*\n\s*await assertSenderPermission\(event, Permission\.PAGE_RECORDER\);\s*await assertSenderPermission\(event, Permission\.RECORDER_ELEMENT_SPY\);/.test(loopHandler)
+  );
+  check("L12.19 ...uses only main's own proven selector, for the same inspection", loopHandler.includes("inspection.inspectedAt !== loop.inspectedAt") && /addSimilarRowsLoop\(loop\.selector, loop\.rows, loop\.pageAlias\)/.test(loopHandler));
+  check("L12.19 ...and every similarRows call clears the previous selector first", /similarRowsLoop = null;\s*const live = recorderService\.getInspectionTarget\(\)/.test(rowsHandler));
+  check("L12.13 ...take no request body and redact every row in main",/handle\("domIntelligence:similarRows", async \(event\)/.test(rowsHandler) && rowsHandler.includes("labelRedactor.redactText(text)"));
   check("L12.15 main injects the local-AI switch as the run's page-context default", /setDomIntelligence\(\{ \.\.\.domIntelligenceRecoveryOptions\(\), pageContextDefault: localAiEnabled \}\)/.test(execution));
   const aiRuntime = readFileSync("app/main/ai/aiRuntime.ts", "utf8");
   check("L12.15 the switch reader never throws (an unreadable file reads as off)", /export async function localAiEnabled\(\): Promise<boolean> \{[\s\S]{0,160}\.then\(\(current\) => current\.enabled\)\s*\.catch\(\(\) => false\);/.test(aiRuntime));

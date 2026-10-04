@@ -1139,7 +1139,16 @@ export function Recorder() {
               <LocatorDiagnosisSection request={spyActionId ? { source: "draft", actionId: spyActionId } : null} testId="element-spy-diagnosis" />
             ) : null}
             {/* L12.13: every element like the inspected one, as rows (read-only, redacted, copyable as CSV). */}
-            {spy?.inspection ? <SimilarRowsSection inspectedAt={spy.inspection.inspectedAt} testId="element-spy-similar-rows" /> : null}
+            {spy?.inspection ? (
+              <SimilarRowsSection
+                inspectedAt={spy.inspection.inspectedAt}
+                testId="element-spy-similar-rows"
+                onLoopAdded={(updated, message) => {
+                  if (updated) setActions(updated);
+                  setSpyMessage(message);
+                }}
+              />
+            ) : null}
             {spyMessage ? (
               <p className="recorder-spy-message" role="status" data-testid="element-spy-message">
                 {spyMessage}

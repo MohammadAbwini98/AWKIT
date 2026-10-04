@@ -13,7 +13,8 @@ import { captureDomSnapshot } from "./domSnapshot";
 export const SIMILAR_ROWS_LIMITS = Object.freeze({ rows: 50, chars: 120 });
 
 export type SimilarRowsResult =
-  | { ok: true; rows: string[]; total: number }
+  /** `loop` (L12.19): a CSS selector matching exactly these rows on the main page, when one could be proven. */
+  | { ok: true; rows: string[]; total: number; loop?: string }
   | { ok: false; reason: "provider-unavailable" | "not-on-page" | "protected-surface" | "provider-error" };
 
 export async function extractSimilarRows(
@@ -51,8 +52,54 @@ export async function extractSimilarRows(
         }),
       { wanted, chars: SIMILAR_ROWS_LIMITS.chars }
     );
-    return { ok: true, rows: texts.map((text) => redact(text).slice(0, SIMILAR_ROWS_LIMITS.chars)), total: similar.count + 1 };
+    const rows = texts.map((text) => redact(text).slice(0, SIMILAR_ROWS_LIMITS.chars));
+    // ponytail: only every row on the main page gets a loop; a list longer than the row cap, or inside a frame,
+    // gets none (the loop step has no frame context and the selector could not be checked against all rows).
+    const loop = wanted.length > 1 && wanted.length === similar.count + 1 && frame === frame.page().mainFrame() ? await commonRowSelector(frame, wanted) : null;
+    return { ok: true, rows, total: similar.count + 1, ...(loop ? { loop } : {}) };
   } catch {
     return { ok: false, reason: "provider-error" };
   }
+}
+
+/**
+ * L12.19 (awkit-djnl.21.19): one CSS selector that matches EXACTLY the given rows, for an element loop over them.
+ * The rows must share their tag path below their nearest common ancestor. The selector is anchored on that
+ * ancestor or a nearer-the-root one that is uniquely named by `data-testid`, a non-numeric `id` or `aria-label`,
+ * followed by the child tag path. It is returned only when `querySelectorAll` yields the very same elements, so a
+ * guess never reaches a loop. Never classes (utility and hashed classes are what the Recorder refuses to emit).
+ */
+export async function commonRowSelector(frame: Frame, wanted: number[]): Promise<string | null> {
+  // NOTE: no named inner functions in this evaluate body (esbuild's `__name` helper is undefined in the page).
+  return frame.locator("body *").evaluateAll((elements, indices) => {
+    const rows = indices.map((i) => elements[i]);
+    if (rows.length < 2 || rows.some((row) => !row)) return null;
+    let common: Element | null = rows[0].parentElement;
+    while (common && !rows.every((row) => common!.contains(row) && row !== common)) common = common.parentElement;
+    if (!common) return null;
+    const chains = rows.map((row) => {
+      const tags: string[] = [];
+      for (let node: Element | null = row; node && node !== common; node = node.parentElement) tags.unshift(node.localName);
+      return tags.join(" > ");
+    });
+    if (chains.some((chain) => chain !== chains[0])) return null;
+    const doc = rows[0].ownerDocument;
+    let below = chains[0];
+    for (let anchor: Element | null = common; anchor && anchor !== doc.documentElement; anchor = anchor.parentElement) {
+      for (const name of ["data-testid", "id", "aria-label"]) {
+        const value = anchor.getAttribute(name);
+        if (!value || (name === "id" && /\d/.test(value))) continue;
+        const selector = `${anchor.localName}[${name}="${value.replace(/["\\]/g, "\\$&")}"] > ${below}`;
+        let matches: Element[];
+        try {
+          matches = Array.from(doc.querySelectorAll(selector));
+        } catch {
+          continue;
+        }
+        if (matches.length === rows.length && rows.every((row) => matches.includes(row))) return selector;
+      }
+      below = `${anchor.localName} > ${below}`;
+    }
+    return null;
+  }, wanted);
 }

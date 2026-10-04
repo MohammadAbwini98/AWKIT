@@ -200,7 +200,8 @@ export interface RecordedAction {
   /**
    * Optional node config carried from the recorder into the saved flow step. Used by
    * synthetic secure-session nodes (`reuseSession` → reuseSessionMode/reuseSessionId) and popup
-   * bookkeeping (`closePopup` → popupAlias). Serialized verbatim by `buildRecordedFlow`.
+   * bookkeeping (`closePopup` → popupAlias). NOT copied wholesale: `buildRecordedFlow` maps it per action type,
+   * so a new type that carries config needs its own branch there.
    */
   config?: {
     popupAlias?: string;

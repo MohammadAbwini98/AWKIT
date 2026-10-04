@@ -119,6 +119,18 @@ export interface StartRecordingOptions {
   ignoreHttpsErrors?: boolean;
 }
 
+/** L12.19: the draft action for a for-each loop that clicks every similar row `selector` matches. */
+export function similarRowsLoopAction(selector: string, rows: number, pageAlias: string): RecordedAction {
+  return {
+    id: randomUUID(),
+    type: "loop",
+    name: `Click each of ${rows} similar rows`,
+    locator: { strategy: "css", value: selector },
+    config: { loopType: "elements", loopActionType: "click", maxIterations: Math.max(rows, 100), loopStopOnFailure: true },
+    ...(pageAlias !== "main" ? { pageAlias } : {})
+  };
+}
+
 export class RecorderService {
   private browser: Browser | null = null;
   private context: BrowserContext | null = null;
@@ -1953,6 +1965,23 @@ export class RecorderService {
     action.locator = locatorFromInspection(action, inspection, candidateIndex);
     // The previous target's upgrade context no longer describes this step.
     this.upgradeContexts.delete(action.id);
+    if (this.draftTimer) {
+      clearTimeout(this.draftTimer);
+      this.draftTimer = null;
+    }
+    await this.persistDraft();
+    return { ok: true, actions: this.actions };
+  }
+
+  /**
+   * L12.19: append a for-each loop that clicks every similar row. `selector` is main's own (from the similar
+   * rows it proved for this inspection), never the renderer's. Refused during a protected-login handoff.
+   */
+  public async addSimilarRowsLoop(selector: string, rows: number, pageAlias: string): Promise<{ ok: true; actions: RecordedAction[] } | { ok: false; reason: string }> {
+    if (this.handoff?.active) return { ok: false, reason: "Recording is paused for a protected sign-in." };
+    await this.ensureDraftLoaded();
+    await this.actionQueue.catch(() => undefined);
+    this.actions.push(similarRowsLoopAction(selector, rows, pageAlias));
     if (this.draftTimer) {
       clearTimeout(this.draftTimer);
       this.draftTimer = null;

@@ -28,6 +28,7 @@ import {
   type DomDriftResponse,
   type DomDriftStep,
   type DomIntelligenceStatusView,
+  type DomSimilarRowsLoopResponse,
   type DomSimilarRowsResponse
 } from "@src/runner/domIntelligence/DomIntelligenceApi";
 import { extractSimilarRows } from "@src/runner/domIntelligence/similarRows";
@@ -44,6 +45,8 @@ import type { AuthorizedActor } from "@src/security/authz/AuthorizationService";
 
 const failure = (code: DomDiagnosisFailureCode): { ok: false; code: DomDiagnosisFailureCode; message: string } => ({ ok: false, code, message: DIAGNOSIS_FAILURE_MESSAGES[code] });
 const labelRedactor = new SemanticRedactor({ maxContentLength: 120 });
+/** L12.19: the loop selector main proved for the last similar-rows answer, bound to that inspection. */
+let similarRowsLoop: { inspectedAt: string; selector: string; rows: number; pageAlias: string } | null = null;
 
 /**
  * The step's most recent runtime identity (winner memory for any scenario) and the route it was proven on,
@@ -175,6 +178,7 @@ export function registerDomIntelligenceIpc(): void {
   ipcMain.handle("domIntelligence:similarRows", async (event): Promise<DomSimilarRowsResponse> => {
     await assertSenderPermission(event, Permission.PAGE_RECORDER);
     await assertSenderPermission(event, Permission.RECORDER_ELEMENT_SPY);
+    similarRowsLoop = null;
     const live = recorderService.getInspectionTarget();
     if (!live) return { ok: false, code: "NO_INSPECTION", message: "Inspect an element in the Element Spy first." };
     try {
@@ -184,7 +188,10 @@ export function registerDomIntelligenceIpc(): void {
       const frame = await located.elementHandle().then((handle) => handle?.ownerFrame());
       if (!frame) return { ok: false, code: "FAILED", message: "The inspected element is no longer on the page." };
       const result = await extractSimilarRows(frame, located, getDomIntelligenceProvider(), (text) => labelRedactor.redactText(text));
-      if (result.ok) return result;
+      if (result.ok) {
+        if (result.loop) similarRowsLoop = { inspectedAt: inspection.inspectedAt, selector: result.loop, rows: result.total, pageAlias: inspection.pageAlias };
+        return { ok: true, rows: result.rows, total: result.total, loop: result.loop !== undefined };
+      }
       return result.reason === "protected-surface"
         ? { ok: false, code: "PROTECTED", message: "This page has a protected sign-in field, so it is not read." }
         : result.reason === "provider-unavailable"
@@ -193,6 +200,19 @@ export function registerDomIntelligenceIpc(): void {
     } catch {
       return { ok: false, code: "FAILED", message: "Similar elements could not be found on this page." };
     }
+  });
+
+  // L12.19: add a for-each loop over the rows the last similarRows call proved, for the same inspection only.
+  ipcMain.handle("domIntelligence:addSimilarRowsLoop", async (event): Promise<DomSimilarRowsLoopResponse> => {
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
+    await assertSenderPermission(event, Permission.RECORDER_ELEMENT_SPY);
+    const loop = similarRowsLoop;
+    const inspection = recorderService.getInspectionTarget()?.inspection;
+    if (!loop || !inspection || inspection.inspectedAt !== loop.inspectedAt) {
+      return { ok: false, message: "Find similar rows for the inspected element first." };
+    }
+    const added = await recorderService.addSimilarRowsLoop(loop.selector, loop.rows, loop.pageAlias);
+    return added.ok ? added : { ok: false, message: added.reason };
   });
 
   // L12.9: the pre-run drift check. Every element step of a saved flow is diagnosed read-only on the Spy's

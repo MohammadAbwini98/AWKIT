@@ -384,6 +384,17 @@ export function buildRecordedFlow(
       if (typeof holdMs === "number" && Number.isFinite(holdMs)) step.config = { ...step.config, holdMs: Math.max(0, Math.round(holdMs)) };
     }
 
+    // L12.19: Element Spy's "loop over these rows" — an element loop whose locator matches every row.
+    if (action.type === "loop") {
+      const cfg = action.config as { loopActionType?: string; maxIterations?: number } | undefined;
+      step.config = {
+        loopType: "elements",
+        loopActionType: cfg?.loopActionType === "fill" ? "fill" : "click",
+        maxIterations: Math.max(1, Math.min(1000, Math.round(cfg?.maxIterations ?? 100))),
+        loopStopOnFailure: true
+      };
+    }
+
     // ── Secure login / session reuse (protected-login manual handoff) ────────────
     // Auto Secure Login reads its target URL from `step.value`.
     if (action.type === "autoSecureLogin") {

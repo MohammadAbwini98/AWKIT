@@ -13,6 +13,7 @@ import type {
   DomDriftRequest,
   DomDriftResponse,
   DomIntelligenceStatusView,
+  DomSimilarRowsLoopResponse,
   DomSimilarRowsResponse
 } from "@src/runner/domIntelligence/DomIntelligenceApi";
 import type {
@@ -436,7 +437,8 @@ const api = {
     getStatus: () => invoke("domIntelligence:getStatus") as Promise<DomIntelligenceStatusView>,
     diagnoseStep: (request: DomDiagnosisRequest) => invoke("domIntelligence:diagnoseStep", request) as Promise<DomDiagnosisResponse>,
     checkDrift: (request: DomDriftRequest) => invoke("domIntelligence:checkDrift", request) as Promise<DomDriftResponse>,
-    similarRows: () => invoke("domIntelligence:similarRows") as Promise<DomSimilarRowsResponse>
+    similarRows: () => invoke("domIntelligence:similarRows") as Promise<DomSimilarRowsResponse>,
+    addSimilarRowsLoop: () => invoke("domIntelligence:addSimilarRowsLoop") as Promise<DomSimilarRowsLoopResponse>
   },
   /**
    * Optional local AI (Phase L, L1). Status, settings, the model pack, diagnostics, the audit log,
