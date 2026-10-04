@@ -396,6 +396,7 @@
     "verify:recovery-provenance": "node scripts/benchmark/run.mjs scripts/verify-recovery-provenance.mts",
     "verify:dom-normalization": "node scripts/benchmark/run.mjs scripts/verify-dom-normalization.mts",
     "verify:dom-intelligence-acceptance": "tsx scripts/benchmark-dom-intelligence-acceptance.mts",
+    "benchmark:dom-intelligence-l12": "tsx scripts/benchmark-dom-intelligence-acceptance.mts --write --out docs/plans/ai-upgrade-v5/evidence/L12-acceptance-results.json",
     "benchmark:dom-intelligence-acceptance": "tsx scripts/benchmark-dom-intelligence-acceptance.mts --write",
     "benchmark:dom-normalization": "node scripts/benchmark/run.mjs scripts/verify-dom-normalization.mts --write",
     "verify:failure-capture-overhead": "node scripts/benchmark/run.mjs scripts/verify-failure-capture-overhead.mts",

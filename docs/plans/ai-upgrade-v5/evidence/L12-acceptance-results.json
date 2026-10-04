@@ -1,0 +1,1696 @@
+{
+  "generatedBy": "benchmark:dom-intelligence-acceptance",
+  "generatedAt": "2026-10-04T17:55:23.473Z",
+  "environment": {
+    "platform": "win32",
+    "node": "v18.16.0"
+  },
+  "summary": {
+    "fixtureSetHash": "063f91eb0686665a57bf5f10871f08895e8bbacc376a368432072d18c91fb6b1",
+    "host": {
+      "coldStartMs": 1352,
+      "workingSetKbAfterStart": 20720,
+      "workingSetKbAfterRun": 28312
+    },
+    "outcomes": {
+      "legacy": {
+        "correct": 7,
+        "WRONG": 0,
+        "unresolved": 16,
+        "refused": 0,
+        "error": 0
+      },
+      "snapshot": {
+        "correct": 8,
+        "WRONG": 0,
+        "unresolved": 15,
+        "refused": 0,
+        "error": 0
+      },
+      "scrapling": {
+        "correct": 11,
+        "WRONG": 10,
+        "unresolved": 2,
+        "refused": 0,
+        "error": 0
+      },
+      "proof": {
+        "correct": 10,
+        "WRONG": 0,
+        "unresolved": 13,
+        "refused": 0,
+        "error": 0
+      },
+      "product": {
+        "correct": 11,
+        "WRONG": 0,
+        "unresolved": 12,
+        "refused": 0,
+        "error": 0
+      }
+    },
+    "latencyMs": {
+      "legacy": {
+        "p50": 1638,
+        "p95": 2197.5,
+        "n": 23
+      },
+      "snapshot": {
+        "p50": 28.9,
+        "p95": 55.8,
+        "n": 23
+      },
+      "scrapling": {
+        "p50": 24.5,
+        "p95": 31.5,
+        "n": 23
+      },
+      "proof": {
+        "p50": 28.3,
+        "p95": 45,
+        "n": 23
+      },
+      "product": {
+        "p50": 37,
+        "p95": 71.7,
+        "n": 23
+      }
+    },
+    "acceptedSnapshotRecovery": {
+      "n": 8,
+      "p50": 28.9,
+      "p95": 73.9
+    },
+    "stagesMs": {
+      "localStageMs": {
+        "p50": 10.7,
+        "p95": 62
+      },
+      "blueprintStageMs": {
+        "p50": 16.3,
+        "p95": 19.8
+      },
+      "providerStageMs": {
+        "p50": null,
+        "p95": null
+      },
+      "serializeMs": {
+        "p50": 9.4,
+        "p95": 13.6
+      },
+      "providerRoundTripMs": {
+        "p50": 14.7,
+        "p95": 19.1
+      },
+      "parseMs": {
+        "p50": 0.1,
+        "p95": 1.2
+      },
+      "matchMs": {
+        "p50": 13.7,
+        "p95": 17.5
+      },
+      "proofMs": {
+        "p50": 6.5,
+        "p95": 14.6
+      },
+      "htmlBytes": {
+        "p50": 7339,
+        "p95": 7643
+      }
+    },
+    "normalStep": {
+      "offMedianMs": 16.6,
+      "onMedianMs": 16.4,
+      "firstOnMedianMs": 30.7,
+      "samples": 96
+    },
+    "residual": "other-region-decoy-target-removed: the recorded role=button locator itself matches the notifications-panel button once the form is gone (production config, not recovery; KNOWN_ISSUES)",
+    "scaling": [
+      {
+        "fillerRows": 20,
+        "elements": 345,
+        "legacyMs": null,
+        "snapshotMs": 40.9,
+        "serializeMs": 15.8,
+        "hostParseMatchMs": 30.1,
+        "hostParseMatchCompetitorsMs": 6.5,
+        "legacyCorrect": 0,
+        "snapshotCorrect": 3
+      },
+      {
+        "fillerRows": 90,
+        "elements": 975,
+        "legacyMs": null,
+        "snapshotMs": 62.4,
+        "serializeMs": 37.6,
+        "hostParseMatchMs": 90.1,
+        "hostParseMatchCompetitorsMs": 16,
+        "legacyCorrect": 0,
+        "snapshotCorrect": 3
+      },
+      {
+        "fillerRows": 360,
+        "elements": 3405,
+        "legacyMs": null,
+        "snapshotMs": 143.5,
+        "serializeMs": 104,
+        "hostParseMatchMs": 367.3,
+        "hostParseMatchCompetitorsMs": 58.4,
+        "legacyCorrect": 0,
+        "snapshotCorrect": 3
+      },
+      {
+        "fillerRows": 900,
+        "elements": 8265,
+        "legacyMs": null,
+        "snapshotMs": 322.5,
+        "serializeMs": 246.2,
+        "hostParseMatchMs": 1047.5,
+        "hostParseMatchCompetitorsMs": 148.2,
+        "legacyCorrect": 0,
+        "snapshotCorrect": 3
+      }
+    ]
+  },
+  "rows": [
+    {
+      "class": "2 wrapper insertion",
+      "caseId": "wrapper-insertion",
+      "expect": "recover",
+      "engines": {
+        "legacy": {
+          "outcome": "correct",
+          "ms": 1648.4020999968052
+        },
+        "snapshot": {
+          "outcome": "correct",
+          "ms": 30.27489998936653
+        },
+        "product": {
+          "outcome": "correct",
+          "ms": 28.03159999847412
+        },
+        "scrapling": {
+          "outcome": "WRONG",
+          "ms": 29.8745000064373,
+          "detail": "75.82%"
+        },
+        "proof": {
+          "outcome": "unresolved",
+          "ms": 32.95870000123978,
+          "detail": "not AWKIT's winner"
+        }
+      },
+      "timings": {
+        "localStageMs": 19.2,
+        "serializeMs": 13.570500016212463,
+        "htmlBytes": 7394,
+        "providerRoundTripMs": 16.27309998869896,
+        "parseMs": 1.21,
+        "matchMs": 13.8,
+        "proofMs": 3.084199994802475
+      },
+      "diagnostic": {
+        "best": {
+          "index": 160,
+          "score": 0.967,
+          "ancestry": 0.667
+        },
+        "runnerUp": {
+          "index": 158,
+          "score": 0.725
+        },
+        "scrapling": [
+          {
+            "index": 158,
+            "score": 75.82,
+            "awkitScore": 0.725,
+            "ancestry": 1,
+            "awkitRank": 2
+          },
+          {
+            "index": 160,
+            "score": 71.57,
+            "awkitScore": 0.967,
+            "ancestry": 0.667,
+            "awkitRank": 1
+          },
+          {
+            "index": 157,
+            "score": 70.61,
+            "awkitScore": 0.475,
+            "ancestry": 1,
+            "awkitRank": 3
+          }
+        ]
+      }
+    },
+    {
+      "class": "3 element moved",
+      "caseId": "moved-within-region",
+      "expect": "recover",
+      "engines": {
+        "legacy": {
+          "outcome": "correct",
+          "ms": 1638.0254000127316
+        },
+        "snapshot": {
+          "outcome": "correct",
+          "ms": 28.85680001974106
+        },
+        "product": {
+          "outcome": "correct",
+          "ms": 27.772799998521805
+        },
+        "scrapling": {
+          "outcome": "correct",
+          "ms": 31.459700018167496,
+          "detail": "100%"
+        },
+        "proof": {
+          "outcome": "correct",
+          "ms": 45.01630002260208
+        }
+      },
+      "timings": {
+        "localStageMs": 17.5,
+        "serializeMs": 12.36939999461174,
+        "htmlBytes": 7339,
+        "providerRoundTripMs": 19.07540002465248,
+        "parseMs": 0.8,
+        "matchMs": 17.52,
+        "proofMs": 13.556600004434586
+      },
+      "diagnostic": {
+        "best": {
+          "index": 151,
+          "score": 1,
+          "ancestry": 1
+        },
+        "runnerUp": {
+          "index": 150,
+          "score": 0.725
+        },
+        "scrapling": [
+          {
+            "index": 151,
+            "score": 100,
+            "awkitScore": 1,
+            "ancestry": 1,
+            "awkitRank": 1
+          },
+          {
+            "index": 150,
+            "score": 81.37,
+            "awkitScore": 0.725,
+            "ancestry": 1,
+            "awkitRank": 2
+          },
+          {
+            "index": 149,
+            "score": 76.16,
+            "awkitScore": 0.475,
+            "ancestry": 1,
+            "awkitRank": 3
+          }
+        ]
+      }
+    },
+    {
+      "class": "4 id change",
+      "caseId": "id-changed",
+      "expect": "recover",
+      "engines": {
+        "legacy": {
+          "outcome": "correct",
+          "ms": 1663.5940000116825
+        },
+        "snapshot": {
+          "outcome": "correct",
+          "ms": 28.35089999437332
+        },
+        "product": {
+          "outcome": "correct",
+          "ms": 32.79129999876022
+        },
+        "scrapling": {
+          "outcome": "correct",
+          "ms": 26.87950000166893,
+          "detail": "91.67%"
+        },
+        "proof": {
+          "outcome": "correct",
+          "ms": 40.90580001473427
+        }
+      },
+      "timings": {
+        "localStageMs": 17.7,
+        "serializeMs": 11.648000001907349,
+        "htmlBytes": 7343,
+        "providerRoundTripMs": 15.216500014066696,
+        "parseMs": 0.73,
+        "matchMs": 13.59,
+        "proofMs": 14.026300013065338
+      },
+      "diagnostic": {
+        "best": {
+          "index": 159,
+          "score": 0.975,
+          "ancestry": 1
+        },
+        "runnerUp": {
+          "index": 158,
+          "score": 0.725
+        },
+        "scrapling": [
+          {
+            "index": 159,
+            "score": 91.67,
+            "awkitScore": 0.975,
+            "ancestry": 1,
+            "awkitRank": 1
+          },
+          {
+            "index": 158,
+            "score": 81.37,
+            "awkitScore": 0.725,
+            "ancestry": 1,
+            "awkitRank": 2
+          },
+          {
+            "index": 157,
+            "score": 76.16,
+            "awkitScore": 0.475,
+            "ancestry": 1,
+            "awkitRank": 3
+          }
+        ]
+      }
+    },
+    {
+      "class": "4 id removal",
+      "caseId": "id-removed",
+      "expect": "recover",
+      "engines": {
+        "legacy": {
+          "outcome": "correct",
+          "ms": 1585.2442000210285
+        },
+        "snapshot": {
+          "outcome": "correct",
+          "ms": 26.791399985551834
+        },
+        "product": {
+          "outcome": "correct",
+          "ms": 26.069900006055832
+        },
+        "scrapling": {
+          "outcome": "correct",
+          "ms": 26.967199981212616,
+          "detail": "86.67%"
+        },
+        "proof": {
+          "outcome": "correct",
+          "ms": 40.27079996466637
+        }
+      },
+      "timings": {
+        "localStageMs": 16,
+        "serializeMs": 12.114099979400635,
+        "htmlBytes": 7323,
+        "providerRoundTripMs": 14.83950001001358,
+        "parseMs": 0.75,
+        "matchMs": 13.35,
+        "proofMs": 13.30359998345375
+      },
+      "diagnostic": {
+        "best": {
+          "index": 159,
+          "score": 0.95,
+          "ancestry": 1
+        },
+        "runnerUp": {
+          "index": 158,
+          "score": 0.725
+        },
+        "scrapling": [
+          {
+            "index": 159,
+            "score": 86.67,
+            "awkitScore": 0.95,
+            "ancestry": 1,
+            "awkitRank": 1
+          },
+          {
+            "index": 158,
+            "score": 81.37,
+            "awkitScore": 0.725,
+            "ancestry": 1,
+            "awkitRank": 2
+          },
+          {
+            "index": 157,
+            "score": 76.16,
+            "awkitScore": 0.475,
+            "ancestry": 1,
+            "awkitRank": 3
+          }
+        ]
+      }
+    },
+    {
+      "class": "5 class change",
+      "caseId": "class-changed",
+      "expect": "recover",
+      "engines": {
+        "legacy": {
+          "outcome": "correct",
+          "ms": 1541.645700007677
+        },
+        "snapshot": {
+          "outcome": "correct",
+          "ms": 26.23149999976158
+        },
+        "product": {
+          "outcome": "correct",
+          "ms": 26.162900000810623
+        },
+        "scrapling": {
+          "outcome": "correct",
+          "ms": 26.37559998035431,
+          "detail": "94.97%"
+        },
+        "proof": {
+          "outcome": "correct",
+          "ms": 39.819499999284744
+        }
+      },
+      "timings": {
+        "localStageMs": 16,
+        "serializeMs": 11.058999985456467,
+        "htmlBytes": 7343,
+        "providerRoundTripMs": 15.296499997377396,
+        "parseMs": 0.79,
+        "matchMs": 13.85,
+        "proofMs": 13.443900018930435
+      },
+      "diagnostic": {
+        "best": {
+          "index": 159,
+          "score": 1,
+          "ancestry": 1
+        },
+        "runnerUp": {
+          "index": 158,
+          "score": 0.725
+        },
+        "scrapling": [
+          {
+            "index": 159,
+            "score": 94.97,
+            "awkitScore": 1,
+            "ancestry": 1,
+            "awkitRank": 1
+          },
+          {
+            "index": 158,
+            "score": 81.37,
+            "awkitScore": 0.725,
+            "ancestry": 1,
+            "awkitRank": 2
+          },
+          {
+            "index": 157,
+            "score": 76.16,
+            "awkitScore": 0.475,
+            "ancestry": 1,
+            "awkitRank": 3
+          }
+        ]
+      }
+    },
+    {
+      "class": "L10.0 aria retained",
+      "caseId": "aria-retained",
+      "expect": "recover",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 1820.3367000222206
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 32.2916000187397
+        },
+        "product": {
+          "outcome": "unresolved",
+          "ms": 65.95829999446869
+        },
+        "scrapling": {
+          "outcome": "WRONG",
+          "ms": 25.78380000591278,
+          "detail": "80.32%"
+        },
+        "proof": {
+          "outcome": "unresolved",
+          "ms": 28.281199991703033,
+          "detail": "below-threshold"
+        }
+      },
+      "timings": {
+        "localStageMs": 10.7,
+        "blueprintStageMs": 16.9,
+        "serializeMs": 9.4375,
+        "htmlBytes": 7347,
+        "providerRoundTripMs": 16.333500027656555,
+        "parseMs": 0,
+        "matchMs": 15.75,
+        "proofMs": 2.4973999857902527
+      },
+      "diagnostic": {
+        "refusal": "below-threshold",
+        "best": {
+          "index": 159,
+          "score": 0.803,
+          "ancestry": 1
+        },
+        "runnerUp": {
+          "index": 158,
+          "score": 0.7
+        },
+        "scrapling": [
+          {
+            "index": 158,
+            "score": 80.32,
+            "awkitScore": 0.7,
+            "ancestry": 1,
+            "awkitRank": 2
+          },
+          {
+            "index": 157,
+            "score": 75.1,
+            "awkitScore": 0.45,
+            "ancestry": 1,
+            "awkitRank": 4
+          },
+          {
+            "index": 159,
+            "score": 72.64,
+            "awkitScore": 0.803,
+            "ancestry": 1,
+            "awkitRank": 1
+          }
+        ]
+      }
+    },
+    {
+      "class": "6 text drift",
+      "caseId": "text-drift",
+      "expect": "recover",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 1971.4162999987602
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 31.379200011491776
+        },
+        "product": {
+          "outcome": "correct",
+          "ms": 72.27420002222061
+        },
+        "scrapling": {
+          "outcome": "correct",
+          "ms": 27.08509999513626,
+          "detail": "98.41%"
+        },
+        "proof": {
+          "outcome": "correct",
+          "ms": 39.96619999408722
+        }
+      },
+      "timings": {
+        "localStageMs": 10.5,
+        "blueprintStageMs": 16.3,
+        "serializeMs": 12.522699981927872,
+        "htmlBytes": 7343,
+        "providerRoundTripMs": 14.545700013637543,
+        "parseMs": 0,
+        "matchMs": 13.92,
+        "proofMs": 12.881099998950958
+      },
+      "diagnostic": {
+        "refusal": "below-threshold",
+        "best": {
+          "index": 159,
+          "score": 0.833,
+          "ancestry": 1
+        },
+        "runnerUp": {
+          "index": 158,
+          "score": 0.725
+        },
+        "scrapling": [
+          {
+            "index": 159,
+            "score": 98.41,
+            "awkitScore": 0.833,
+            "ancestry": 1,
+            "awkitRank": 1
+          },
+          {
+            "index": 158,
+            "score": 81.37,
+            "awkitScore": 0.725,
+            "ancestry": 1,
+            "awkitRank": 2
+          },
+          {
+            "index": 157,
+            "score": 76.16,
+            "awkitScore": 0.475,
+            "ancestry": 1,
+            "awkitRank": 3
+          }
+        ]
+      }
+    },
+    {
+      "class": "7 sibling reordering",
+      "caseId": "sibling-reorder",
+      "expect": "recover",
+      "engines": {
+        "legacy": {
+          "outcome": "correct",
+          "ms": 1556.379500001669
+        },
+        "snapshot": {
+          "outcome": "correct",
+          "ms": 26.900499999523163
+        },
+        "product": {
+          "outcome": "correct",
+          "ms": 26.922099977731705
+        },
+        "scrapling": {
+          "outcome": "correct",
+          "ms": 29.686199992895126,
+          "detail": "97.78%"
+        },
+        "proof": {
+          "outcome": "correct",
+          "ms": 42.11699998378754
+        }
+      },
+      "timings": {
+        "localStageMs": 16.7,
+        "serializeMs": 11.784500002861023,
+        "htmlBytes": 7441,
+        "providerRoundTripMs": 17.887199997901917,
+        "parseMs": 0.79,
+        "matchMs": 16.24,
+        "proofMs": 12.43079999089241
+      },
+      "diagnostic": {
+        "best": {
+          "index": 157,
+          "score": 1,
+          "ancestry": 1
+        },
+        "runnerUp": {
+          "index": 159,
+          "score": 0.725
+        },
+        "scrapling": [
+          {
+            "index": 157,
+            "score": 97.78,
+            "awkitScore": 1,
+            "ancestry": 1,
+            "awkitRank": 1
+          },
+          {
+            "index": 159,
+            "score": 79.15,
+            "awkitScore": 0.725,
+            "ancestry": 1,
+            "awkitRank": 2
+          },
+          {
+            "index": 158,
+            "score": 76.49,
+            "awkitScore": 0.475,
+            "ancestry": 1,
+            "awkitRank": 3
+          }
+        ]
+      }
+    },
+    {
+      "class": "8 duplicate visible text",
+      "caseId": "duplicate-text-decoy",
+      "expect": "recover",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 1961.71590000391
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 31.95990002155304
+        },
+        "product": {
+          "outcome": "correct",
+          "ms": 71.71109998226166
+        },
+        "scrapling": {
+          "outcome": "correct",
+          "ms": 24.544900000095367,
+          "detail": "86.67%"
+        },
+        "proof": {
+          "outcome": "correct",
+          "ms": 37.171999990940094
+        }
+      },
+      "timings": {
+        "localStageMs": 10.1,
+        "blueprintStageMs": 17.3,
+        "serializeMs": 9.340000003576279,
+        "htmlBytes": 7643,
+        "providerRoundTripMs": 15.190200001001358,
+        "parseMs": 0,
+        "matchMs": 14.61,
+        "proofMs": 12.627099990844727
+      },
+      "diagnostic": {
+        "refusal": "ambiguous-margin",
+        "best": {
+          "index": 164,
+          "score": 0.95,
+          "ancestry": 1
+        },
+        "runnerUp": {
+          "index": 149,
+          "score": 0.908
+        },
+        "scrapling": [
+          {
+            "index": 164,
+            "score": 86.67,
+            "awkitScore": 0.95,
+            "ancestry": 1,
+            "awkitRank": 1
+          },
+          {
+            "index": 163,
+            "score": 81.37,
+            "awkitScore": 0.725,
+            "ancestry": 1,
+            "awkitRank": 3
+          },
+          {
+            "index": 162,
+            "score": 76.16,
+            "awkitScore": 0.475,
+            "ancestry": 1,
+            "awkitRank": 4
+          }
+        ]
+      }
+    },
+    {
+      "class": "9 same-tag decoy",
+      "caseId": "same-tag-decoy-target-removed",
+      "expect": "refuse",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 1834.9555999934673
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 29.801400005817413
+        },
+        "product": {
+          "outcome": "unresolved",
+          "ms": 51.847699999809265
+        },
+        "scrapling": {
+          "outcome": "WRONG",
+          "ms": 23.294699996709824,
+          "detail": "candidate 158 at 77.67%"
+        },
+        "proof": {
+          "outcome": "unresolved",
+          "ms": 26.63749998807907,
+          "detail": "below-threshold"
+        }
+      },
+      "timings": {
+        "localStageMs": 10.3,
+        "blueprintStageMs": 14.9,
+        "serializeMs": 8.871100008487701,
+        "htmlBytes": 7226,
+        "providerRoundTripMs": 14.408500015735626,
+        "parseMs": 0,
+        "matchMs": 13.76,
+        "proofMs": 3.3427999913692474
+      },
+      "diagnostic": {
+        "refusal": "below-threshold",
+        "best": {
+          "index": 158,
+          "score": 0.725,
+          "ancestry": 1
+        },
+        "runnerUp": {
+          "index": 157,
+          "score": 0.475
+        },
+        "scrapling": [
+          {
+            "index": 158,
+            "score": 77.67,
+            "awkitScore": 0.725,
+            "ancestry": 1,
+            "awkitRank": 1
+          },
+          {
+            "index": 157,
+            "score": 72.46,
+            "awkitScore": 0.475,
+            "ancestry": 1,
+            "awkitRank": 2
+          },
+          {
+            "index": 27,
+            "score": 60.87,
+            "awkitScore": 0.408,
+            "ancestry": 0.333,
+            "awkitRank": 4
+          }
+        ]
+      }
+    },
+    {
+      "class": "10 cross-region same-label decoy",
+      "caseId": "other-region-decoy-target-removed",
+      "expect": "refuse",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 1890.0656000077724
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 31.46509999036789
+        },
+        "product": {
+          "outcome": "unresolved",
+          "ms": 28.725000023841858
+        },
+        "scrapling": {
+          "outcome": "WRONG",
+          "ms": 25.519500017166138,
+          "detail": "candidate 149 at 61.41%"
+        },
+        "proof": {
+          "outcome": "unresolved",
+          "ms": 29.102000027894974,
+          "detail": "page-variant"
+        }
+      },
+      "timings": {
+        "localStageMs": 10.1,
+        "blueprintStageMs": 16.1,
+        "serializeMs": 10.754299998283386,
+        "htmlBytes": 6979,
+        "providerRoundTripMs": 14.74889999628067,
+        "parseMs": 0.7,
+        "matchMs": 13.38,
+        "proofMs": 3.582500010728836
+      },
+      "diagnostic": {
+        "refusal": "page-variant",
+        "best": {
+          "index": 149,
+          "score": 0.908,
+          "ancestry": 0.333
+        },
+        "runnerUp": {
+          "index": 26,
+          "score": 0.408
+        },
+        "scrapling": [
+          {
+            "index": 149,
+            "score": 61.41,
+            "awkitScore": 0.908,
+            "ancestry": 0.333,
+            "awkitRank": 1
+          },
+          {
+            "index": 27,
+            "score": 60.87,
+            "awkitScore": 0.408,
+            "ancestry": 0.333,
+            "awkitRank": 3
+          },
+          {
+            "index": 26,
+            "score": 51.4,
+            "awkitScore": 0.408,
+            "ancestry": 0.333,
+            "awkitRank": 2
+          }
+        ]
+      }
+    },
+    {
+      "class": "L10.0 page variant (no match)",
+      "caseId": "page-variant-same-url",
+      "expect": "refuse",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 321.83700001239777
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 20.22060000896454
+        },
+        "product": {
+          "outcome": "unresolved",
+          "ms": 22.70049998164177
+        },
+        "scrapling": {
+          "outcome": "WRONG",
+          "ms": 10.428800016641617,
+          "detail": "candidate 27 at 66.33%"
+        },
+        "proof": {
+          "outcome": "unresolved",
+          "ms": 13.644500017166138,
+          "detail": "page-variant"
+        }
+      },
+      "timings": {
+        "localStageMs": 7.2,
+        "blueprintStageMs": 8.3,
+        "serializeMs": 6.1807000041008,
+        "htmlBytes": 1564,
+        "providerRoundTripMs": 4.2291000187397,
+        "parseMs": 0.26,
+        "matchMs": 3.2,
+        "proofMs": 3.215700000524521
+      },
+      "diagnostic": {
+        "refusal": "page-variant",
+        "best": {
+          "index": 27,
+          "score": 0.408,
+          "ancestry": 0.333
+        },
+        "runnerUp": {
+          "index": 28,
+          "score": 0.408
+        },
+        "scrapling": [
+          {
+            "index": 27,
+            "score": 66.33,
+            "awkitScore": 0.408,
+            "ancestry": 0.333,
+            "awkitRank": 1
+          },
+          {
+            "index": 28,
+            "score": 59.97,
+            "awkitScore": 0.408,
+            "ancestry": 0.333,
+            "awkitRank": 2
+          }
+        ]
+      }
+    },
+    {
+      "class": "L10.0 combined drift",
+      "caseId": "combined-drift",
+      "expect": "recover",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 1854.8156000077724
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 30.621499985456467
+        },
+        "product": {
+          "outcome": "unresolved",
+          "ms": 53.46059998869896
+        },
+        "scrapling": {
+          "outcome": "WRONG",
+          "ms": 25.424899995326996,
+          "detail": "75.82%"
+        },
+        "proof": {
+          "outcome": "unresolved",
+          "ms": 27.976000010967255,
+          "detail": "below-threshold"
+        }
+      },
+      "timings": {
+        "localStageMs": 10.3,
+        "blueprintStageMs": 15.3,
+        "serializeMs": 9.22189998626709,
+        "htmlBytes": 7382,
+        "providerRoundTripMs": 16.181100010871887,
+        "parseMs": 0,
+        "matchMs": 15.58,
+        "proofMs": 2.551100015640259
+      },
+      "diagnostic": {
+        "refusal": "below-threshold",
+        "best": {
+          "index": 158,
+          "score": 0.725,
+          "ancestry": 1
+        },
+        "runnerUp": {
+          "index": 160,
+          "score": 0.692
+        },
+        "scrapling": [
+          {
+            "index": 158,
+            "score": 75.82,
+            "awkitScore": 0.725,
+            "ancestry": 1,
+            "awkitRank": 1
+          },
+          {
+            "index": 157,
+            "score": 70.61,
+            "awkitScore": 0.475,
+            "ancestry": 1,
+            "awkitRank": 3
+          },
+          {
+            "index": 160,
+            "score": 63.15,
+            "awkitScore": 0.692,
+            "ancestry": 0.667,
+            "awkitRank": 2
+          }
+        ]
+      }
+    },
+    {
+      "class": "L10.0 large DOM shift",
+      "caseId": "large-dom-shift",
+      "expect": "recover",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 2925.2471999824047
+        },
+        "snapshot": {
+          "outcome": "correct",
+          "ms": 73.9060999751091
+        },
+        "product": {
+          "outcome": "correct",
+          "ms": 69.16940000653267
+        },
+        "scrapling": {
+          "outcome": "correct",
+          "ms": 159.83599999547005,
+          "detail": "92.59%"
+        },
+        "proof": {
+          "outcome": "correct",
+          "ms": 180.01679998636246
+        }
+      },
+      "timings": {
+        "localStageMs": 62,
+        "serializeMs": 43.95939999818802,
+        "htmlBytes": 54331,
+        "providerRoundTripMs": 115.85440000891685,
+        "parseMs": 5.66,
+        "matchMs": 109.15,
+        "proofMs": 20.18079999089241
+      },
+      "diagnostic": {
+        "best": {
+          "index": 1241,
+          "score": 0.975,
+          "ancestry": 1
+        },
+        "runnerUp": {
+          "index": 1240,
+          "score": 0.725
+        },
+        "scrapling": [
+          {
+            "index": 1241,
+            "score": 92.59,
+            "awkitScore": 0.975,
+            "ancestry": 1,
+            "awkitRank": 1
+          },
+          {
+            "index": 1240,
+            "score": 81.37,
+            "awkitScore": 0.725,
+            "ancestry": 1,
+            "awkitRank": 2
+          },
+          {
+            "index": 1239,
+            "score": 76.16,
+            "awkitScore": 0.475,
+            "ancestry": 1,
+            "awkitRank": 3
+          }
+        ]
+      }
+    },
+    {
+      "class": "L10.0 field relabel",
+      "caseId": "field-relabel",
+      "expect": "recover",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 1881.9004999995232
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 28.74210000038147
+        },
+        "product": {
+          "outcome": "correct",
+          "ms": 63.889399975538254
+        },
+        "scrapling": {
+          "outcome": "correct",
+          "ms": 18.604999989271164,
+          "detail": "87.5%"
+        },
+        "proof": {
+          "outcome": "correct",
+          "ms": 33.238999992609024
+        }
+      },
+      "timings": {
+        "localStageMs": 7.8,
+        "blueprintStageMs": 16.3,
+        "serializeMs": 8.295099973678589,
+        "htmlBytes": 7379,
+        "providerRoundTripMs": 10.298500001430511,
+        "parseMs": 0,
+        "matchMs": 9.7,
+        "proofMs": 14.63400000333786
+      },
+      "diagnostic": {
+        "refusal": "below-threshold",
+        "best": {
+          "index": 155,
+          "score": 0.61,
+          "ancestry": 1
+        },
+        "runnerUp": {
+          "index": 149,
+          "score": 0.313
+        },
+        "scrapling": [
+          {
+            "index": 155,
+            "score": 87.5,
+            "awkitScore": 0.61,
+            "ancestry": 1,
+            "awkitRank": 1
+          },
+          {
+            "index": 149,
+            "score": 61.61,
+            "awkitScore": 0.313,
+            "ancestry": 1,
+            "awkitRank": 2
+          },
+          {
+            "index": 151,
+            "score": 61.61
+          }
+        ]
+      }
+    },
+    {
+      "class": "8 duplicate visible text (list rows)",
+      "caseId": "list-item-link",
+      "expect": "recover",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 2197.5460999906063
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 35.30920001864433
+        },
+        "product": {
+          "outcome": "unresolved",
+          "ms": 59.207500010728836
+        },
+        "scrapling": {
+          "outcome": "correct",
+          "ms": 23.86769998073578,
+          "detail": "94.3%"
+        },
+        "proof": {
+          "outcome": "unresolved",
+          "ms": 26.84859997034073,
+          "detail": "ambiguous-margin"
+        }
+      },
+      "timings": {
+        "localStageMs": 10.7,
+        "blueprintStageMs": 19.8,
+        "serializeMs": 9.696799993515015,
+        "htmlBytes": 7279,
+        "providerRoundTripMs": 14.15369999408722,
+        "parseMs": 0,
+        "matchMs": 13.65,
+        "proofMs": 2.98089998960495
+      },
+      "diagnostic": {
+        "refusal": "ambiguous-margin",
+        "best": {
+          "index": 44,
+          "score": 0.9,
+          "ancestry": 1
+        },
+        "runnerUp": {
+          "index": 53,
+          "score": 0.9
+        },
+        "scrapling": [
+          {
+            "index": 53,
+            "score": 94.3,
+            "awkitScore": 0.9,
+            "ancestry": 1,
+            "awkitRank": 2
+          },
+          {
+            "index": 44,
+            "score": 93.13,
+            "awkitScore": 0.9,
+            "ancestry": 1,
+            "awkitRank": 1
+          },
+          {
+            "index": 62,
+            "score": 93.13,
+            "awkitScore": 0.9,
+            "ancestry": 1,
+            "awkitRank": 3
+          }
+        ]
+      }
+    },
+    {
+      "class": "11 route mismatch",
+      "caseId": "11 route mismatch",
+      "expect": "refuse",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 4.688999980688095
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 5.012799978256226
+        },
+        "product": {
+          "outcome": "unresolved",
+          "ms": 5.322000026702881
+        },
+        "scrapling": {
+          "outcome": "WRONG",
+          "ms": 16.079000025987625,
+          "detail": "candidate 18 at 94.44%"
+        },
+        "proof": {
+          "outcome": "unresolved",
+          "ms": 0,
+          "detail": "route-mismatch"
+        }
+      },
+      "timings": {}
+    },
+    {
+      "class": "12 iframe (drift)",
+      "caseId": "12 iframe (drift)",
+      "expect": "recover",
+      "engines": {
+        "legacy": {
+          "outcome": "correct",
+          "ms": 114.95660001039505
+        },
+        "snapshot": {
+          "outcome": "correct",
+          "ms": 55.818900018930435
+        },
+        "product": {
+          "outcome": "correct",
+          "ms": 54.71500000357628
+        },
+        "scrapling": {
+          "outcome": "correct",
+          "ms": 6.574000000953674,
+          "detail": "94.44%"
+        },
+        "proof": {
+          "outcome": "correct",
+          "ms": 18.776199996471405
+        }
+      },
+      "timings": {
+        "serializeMs": 5.625,
+        "htmlBytes": 274,
+        "providerRoundTripMs": 0.9416999816894531,
+        "parseMs": 0.13,
+        "matchMs": 0.39,
+        "proofMs": 12.20219999551773
+      },
+      "diagnostic": {
+        "best": {
+          "index": 3,
+          "score": 0.95,
+          "ancestry": 1
+        },
+        "scrapling": [
+          {
+            "index": 3,
+            "score": 94.44,
+            "awkitScore": 0.95,
+            "ancestry": 1,
+            "awkitRank": 1
+          }
+        ]
+      }
+    },
+    {
+      "class": "12 iframe (target gone)",
+      "caseId": "12 iframe (target gone)",
+      "expect": "refuse",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 76.52810001373291
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 44.855599999427795
+        },
+        "product": {
+          "outcome": "unresolved",
+          "ms": 64.03659999370575
+        },
+        "scrapling": {
+          "outcome": "unresolved",
+          "ms": 5.876300007104874
+        },
+        "proof": {
+          "outcome": "unresolved",
+          "ms": 8.852100014686584,
+          "detail": "page-variant"
+        }
+      },
+      "timings": {
+        "serializeMs": 5.190699994564056,
+        "htmlBytes": 179,
+        "providerRoundTripMs": 0.6764000058174133,
+        "parseMs": 0.12,
+        "matchMs": 0.18,
+        "proofMs": 2.975800007581711
+      },
+      "diagnostic": {
+        "refusal": "page-variant",
+        "scrapling": []
+      }
+    },
+    {
+      "class": "13 popup (parent target gone)",
+      "caseId": "13 popup (parent target gone)",
+      "expect": "refuse",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 524.496800005436
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 13.546299993991852
+        },
+        "product": {
+          "outcome": "unresolved",
+          "ms": 35.2073999941349
+        },
+        "scrapling": {
+          "outcome": "WRONG",
+          "ms": 11.50220000743866,
+          "detail": "candidate 8 at 80.08%"
+        },
+        "proof": {
+          "outcome": "unresolved",
+          "ms": 14.88280001282692,
+          "detail": "below-threshold"
+        }
+      },
+      "timings": {
+        "serializeMs": 6.874200016260147,
+        "htmlBytes": 4115,
+        "providerRoundTripMs": 4.618699997663498,
+        "parseMs": 0,
+        "matchMs": 4.19,
+        "proofMs": 3.38060000538826
+      },
+      "diagnostic": {
+        "refusal": "below-threshold",
+        "best": {
+          "index": 18,
+          "score": 0.575,
+          "ancestry": 0.333
+        },
+        "runnerUp": {
+          "index": 8,
+          "score": 0.45
+        },
+        "scrapling": [
+          {
+            "index": 8,
+            "score": 80.08,
+            "awkitScore": 0.45,
+            "ancestry": 1,
+            "awkitRank": 2
+          },
+          {
+            "index": 18,
+            "score": 56.87,
+            "awkitScore": 0.575,
+            "ancestry": 0.333,
+            "awkitRank": 1
+          },
+          {
+            "index": 56,
+            "score": 51.05,
+            "awkitScore": 0.408,
+            "ancestry": 0.333,
+            "awkitRank": 5
+          }
+        ]
+      }
+    },
+    {
+      "class": "14 virtualized (row unmounted)",
+      "caseId": "14 virtualized (row unmounted)",
+      "expect": "refuse",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 594.1416999995708
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 14.19530001282692
+        },
+        "product": {
+          "outcome": "unresolved",
+          "ms": 37.040800005197525
+        },
+        "scrapling": {
+          "outcome": "WRONG",
+          "ms": 14.130400002002716,
+          "detail": "candidate 29 at 96.43%"
+        },
+        "proof": {
+          "outcome": "unresolved",
+          "ms": 17.915899991989136,
+          "detail": "ambiguous-margin"
+        }
+      },
+      "timings": {
+        "serializeMs": 7.8862999975681305,
+        "htmlBytes": 4605,
+        "providerRoundTripMs": 6.233599990606308,
+        "parseMs": 0,
+        "matchMs": 5.47,
+        "proofMs": 3.7854999899864197
+      },
+      "diagnostic": {
+        "refusal": "ambiguous-margin",
+        "best": {
+          "index": 29,
+          "score": 0.975,
+          "ancestry": 1
+        },
+        "runnerUp": {
+          "index": 32,
+          "score": 0.975
+        },
+        "scrapling": [
+          {
+            "index": 29,
+            "score": 96.43,
+            "awkitScore": 0.975,
+            "ancestry": 1,
+            "awkitRank": 1
+          },
+          {
+            "index": 32,
+            "score": 96.43,
+            "awkitScore": 0.975,
+            "ancestry": 1,
+            "awkitRank": 2
+          },
+          {
+            "index": 35,
+            "score": 96.43,
+            "awkitScore": 0.975,
+            "ancestry": 1,
+            "awkitRank": 3
+          }
+        ]
+      }
+    },
+    {
+      "class": "15 delayed render (skeleton)",
+      "caseId": "15 delayed render (skeleton)",
+      "expect": "refuse",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 564.5798999965191
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 23.8885999917984
+        },
+        "product": {
+          "outcome": "unresolved",
+          "ms": 47.00609999895096
+        },
+        "scrapling": {
+          "outcome": "WRONG",
+          "ms": 13.614300012588501,
+          "detail": "candidate 59 at 91.67%"
+        },
+        "proof": {
+          "outcome": "unresolved",
+          "ms": 20.138800024986267,
+          "detail": "not-actionable"
+        }
+      },
+      "timings": {
+        "serializeMs": 8.22240000963211,
+        "htmlBytes": 4337,
+        "providerRoundTripMs": 5.380799978971481,
+        "parseMs": 0,
+        "matchMs": 4.86,
+        "proofMs": 6.524500012397766
+      },
+      "diagnostic": {
+        "best": {
+          "index": 59,
+          "score": 0.95,
+          "ancestry": 1
+        },
+        "runnerUp": {
+          "index": 57,
+          "score": 0.692
+        },
+        "scrapling": [
+          {
+            "index": 59,
+            "score": 91.67,
+            "awkitScore": 0.95,
+            "ancestry": 1,
+            "awkitRank": 1
+          },
+          {
+            "index": 57,
+            "score": 66.03,
+            "awkitScore": 0.692,
+            "ancestry": 0.667,
+            "awkitRank": 2
+          },
+          {
+            "index": 12,
+            "score": 63.78,
+            "awkitScore": 0.408,
+            "ancestry": 0.333,
+            "awkitRank": 3
+          }
+        ]
+      }
+    },
+    {
+      "class": "16 stale reference",
+      "caseId": "16 stale reference",
+      "expect": "refuse",
+      "engines": {
+        "legacy": {
+          "outcome": "unresolved",
+          "ms": 9.550500005483627
+        },
+        "snapshot": {
+          "outcome": "unresolved",
+          "ms": 8.557000011205673
+        },
+        "product": {
+          "outcome": "unresolved",
+          "ms": 7.836699992418289
+        },
+        "scrapling": {
+          "outcome": "unresolved",
+          "ms": 0.005600005388259888,
+          "detail": "no bound reference"
+        },
+        "proof": {
+          "outcome": "unresolved",
+          "ms": 0.005600005388259888,
+          "detail": "no bound reference"
+        }
+      },
+      "timings": {}
+    }
+  ]
+}

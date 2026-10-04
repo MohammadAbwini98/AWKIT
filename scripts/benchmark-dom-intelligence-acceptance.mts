@@ -56,7 +56,9 @@ import { DOM_CASES, fixtureSetHash, type DomCase } from "./dom-intelligence/fixt
 import { stageHost } from "./dom-intelligence/stagedHost.mts";
 
 const WRITE = process.argv.includes("--write");
-const RESULTS = "docs/plans/ai-upgrade-v5/evidence/L11-acceptance-results.json";
+// `--out <path>` (L12.18): the after results go beside the frozen L11 baseline instead of over it.
+const OUT_AT = process.argv.indexOf("--out");
+const RESULTS = OUT_AT > 0 && process.argv[OUT_AT + 1] ? process.argv[OUT_AT + 1] : "docs/plans/ai-upgrade-v5/evidence/L11-acceptance-results.json";
 const ANCHOR = '[data-l11-anchor="target"]';
 const ENGINES = ["legacy", "snapshot", "scrapling", "proof", "product"] as const;
 type Engine = (typeof ENGINES)[number];
