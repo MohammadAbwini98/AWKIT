@@ -33,6 +33,7 @@ import {
 } from "@src/runner/domIntelligence/DomIntelligenceProvider";
 import { MemoryDomReferenceStore, domReferenceId } from "@src/runner/domIntelligence/domReference";
 import { classifyDrift } from "@src/runner/domIntelligence/DomIntelligenceApi";
+import { pageContextEnabled } from "@src/runner/domIntelligence/pageContext";
 import { createPageFingerprint, hashFingerprint } from "@src/runner/locatorFingerprint";
 
 let passed = 0;
@@ -190,6 +191,27 @@ async function main(): Promise<void> {
     check("classify: a protected surface is not-here", classifyDrift({ ...missed, provider: { outcome: "skipped", reason: "protected-surface", candidates: [] } }) === "not-here");
     check("classify: an agreed provider candidate makes a miss recoverable", classifyDrift({ ...missed, provider: { outcome: "ok", candidates: [{ index: 1, providerScore: 98, proof: "agreed" }] } }) === "recoverable");
     check("classify: a rejected provider candidate does not", classifyDrift({ ...missed, provider: { outcome: "ok", candidates: [{ index: 1, providerScore: 98, proof: "below-threshold" }] } }) === "drifted");
+
+    console.log("G. L12.15 AI page context follows the local-AI switch");
+    check("no override, AI off: no page context", pageContextEnabled({}, false) === false);
+    check("no override, AI on: page context", pageContextEnabled({}, true) === true);
+    check("override on wins over AI off", pageContextEnabled({ AWKIT_AI_PAGE_CONTEXT: "on" }, false) === true);
+    check("override off wins over AI on", pageContextEnabled({ AWKIT_AI_PAGE_CONTEXT: "off" }, true) === false);
+    const savedOverride = process.env.AWKIT_AI_PAGE_CONTEXT;
+    delete process.env.AWKIT_AI_PAGE_CONTEXT;
+    try {
+      const contextFactory = (on: boolean | "throws") =>
+        new LocatorFactory(page, { domIntelligence: { provider, references, pageContextDefault: async () => (on === "throws" ? Promise.reject(new Error("settings unreadable")) : on) } });
+      const off = await contextFactory(false).capturePageContext();
+      const on = await contextFactory(true).capturePageContext();
+      const broken = await contextFactory("throws").capturePageContext();
+      check("the factory skips the capture when the injected default is off", !off.ok && off.reason === "disabled", off);
+      check("the factory attempts the capture when the injected default is on", !(!on.ok && on.reason === "disabled"), on);
+      check("an unreadable default fails closed (off)", !broken.ok && broken.reason === "disabled", broken);
+    } finally {
+      if (savedOverride === undefined) delete process.env.AWKIT_AI_PAGE_CONTEXT;
+      else process.env.AWKIT_AI_PAGE_CONTEXT = savedOverride;
+    }
   } finally {
     await browser?.close().catch(() => undefined);
     server.close();
@@ -219,6 +241,9 @@ async function main(): Promise<void> {
   check("step names are redacted before they cross the bridge", drift.includes("labelRedactor.redactText(step.name"));
   const preload = readFileSync("app/main/preload.ts", "utf8");
   check("the preload exposes checkDrift with a flow id only", /checkDrift: \(request: DomDriftRequest\) => invoke\("domIntelligence:checkDrift", request\)/.test(preload));
+  check("L12.15 main injects the local-AI switch as the run's page-context default", /setDomIntelligence\(\{ \.\.\.domIntelligenceRecoveryOptions\(\), pageContextDefault: localAiEnabled \}\)/.test(execution));
+  const aiRuntime = readFileSync("app/main/ai/aiRuntime.ts", "utf8");
+  check("L12.15 the switch reader never throws (an unreadable file reads as off)", /export async function localAiEnabled\(\): Promise<boolean> \{[\s\S]{0,160}\.then\(\(current\) => current\.enabled\)\s*\.catch\(\(\) => false\);/.test(aiRuntime));
 
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);

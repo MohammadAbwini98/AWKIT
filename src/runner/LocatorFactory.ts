@@ -622,7 +622,8 @@ export class LocatorFactory {
    * (decided before anything is read from the page) or there is no provider.
    */
   async capturePageContext(page: Page = this.page, eligible = true): Promise<PageContextResult> {
-    if (!pageContextEnabled()) return { ok: false, reason: "disabled", metrics: { totalMs: 0 } };
+    const fallback = (await this.options.domIntelligence?.pageContextDefault?.().catch(() => false)) ?? false;
+    if (!pageContextEnabled(process.env, fallback)) return { ok: false, reason: "disabled", metrics: { totalMs: 0 } };
     if (!eligible) return { ok: false, reason: "suppressed", metrics: { totalMs: 0 } };
     return capturePageContext(page, this.options.domIntelligence?.provider);
   }

@@ -10,6 +10,7 @@ import { Permission } from "@src/security/authz/Permissions";
 import { getSecretStore } from "../secretStore";
 import { getOracleNodeRunner } from "../oracleService";
 import { domIntelligenceRecoveryOptions, prewarmDomIntelligence } from "../domIntelligence/domIntelligenceRuntime";
+import { localAiEnabled } from "../ai/aiRuntime";
 import { indexCompletedRun } from "../semantic/semanticService";
 import { applyRunGateEnforcement, licenseDispatchGate, parkedResumeBlocker } from "../licensing/licenseEnforcementService";
 import { ExecutionApplicationService } from "../execution/ExecutionApplicationService";
@@ -53,7 +54,8 @@ export function registerExecutionIpc(): void {
 
   // L11: DOM-intelligence repair suggestions after a refused locator recovery (L12: and the agreement
   // rule). The host is never started here: a real run prewarms it below, or the first request starts it.
-  executionEngine.setDomIntelligence(domIntelligenceRecoveryOptions());
+  // L12.15: with no AWKIT_AI_PAGE_CONTEXT override, a failed run captures the AI page context when local AI is on.
+  executionEngine.setDomIntelligence({ ...domIntelligenceRecoveryOptions(), pageContextDefault: localAiEnabled });
 
   // Keep the semantic index fresh as runs finish, instead of only when a rebuild runs (plan §14).
   // Gated on `semantic.autoIndex` inside the observer, and non-throwing on both sides of the seam.

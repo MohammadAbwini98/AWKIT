@@ -361,6 +361,14 @@ export async function aiPolicyConfig(): Promise<AiPolicyConfig> {
   return { enabled: current.enabled, featureTiers: current.featureTiers, demotedFeatures: Object.keys(snapshot.demotions) };
 }
 
+/** L12.15: the local-AI master switch, as the run's default for capturing the AI page context. Never throws. */
+export async function localAiEnabled(): Promise<boolean> {
+  return settings()
+    .read()
+    .then((current) => current.enabled)
+    .catch(() => false);
+}
+
 /** A registered model's compatibility under the runtime in use (L8b.2, L8b.3). */
 const registeredStanding = (status: Extract<AiModelPackStatus, { status: "registered" }>) => compatibilityStanding(status, AI_RUNTIME_PIN.build);
 

@@ -183,6 +183,11 @@ export interface DomIntelligenceRecoveryOptions {
   references: DomReferenceStore;
   /** Wall-clock budget for the whole suggestion stage. Default 800 ms. */
   budgetMs?: number;
+  /**
+   * L12.15: whether a failed run captures the AI page context when no `AWKIT_AI_PAGE_CONTEXT` override is set.
+   * Main passes the local-AI master switch. Absent or failing: off.
+   */
+  pageContextDefault?: () => Promise<boolean>;
 }
 
 /** A non-executing repair suggestion, recorded in run provenance. No page text, no selector. */

@@ -16,12 +16,16 @@ import type { RawDomNormalization } from "./DomIntelligenceProvider";
 export const PAGE_CONTEXT_VERSION = 1;
 
 /**
- * Whether runs capture a page context on a terminal step failure. Off unless `AWKIT_AI_PAGE_CONTEXT=on`:
- * the L11.G comparison decides the default (docs/plans/ai-upgrade-v5/evidence), and a smaller or richer
- * prompt is not reason enough to change what the failure analysis reads.
+ * Whether runs capture a page context on a terminal step failure. `AWKIT_AI_PAGE_CONTEXT=on|off` is an
+ * operator override. Without it the caller's default decides: since L12.15 (owner decision 2026-10-04) main
+ * passes the local-AI master switch, so the context is captured when a model can read it. L11.G measured the
+ * summary keeping 23/23 labelled facts against 19/23 for plain text, and one live row regressed (10/13 to
+ * 9/13), which is why the override stays.
  */
-export function pageContextEnabled(env: Record<string, string | undefined> = process.env): boolean {
-  return env.AWKIT_AI_PAGE_CONTEXT === "on";
+export function pageContextEnabled(env: Record<string, string | undefined> = process.env, fallback = false): boolean {
+  if (env.AWKIT_AI_PAGE_CONTEXT === "on") return true;
+  if (env.AWKIT_AI_PAGE_CONTEXT === "off") return false;
+  return fallback;
 }
 
 export const PAGE_CONTEXT_LIMITS = Object.freeze({
