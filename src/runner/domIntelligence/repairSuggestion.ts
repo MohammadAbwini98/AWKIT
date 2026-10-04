@@ -14,7 +14,13 @@ import {
   type RecoveryDecision
 } from "../recoverySnapshot";
 import type { LocatorRecoveryStage } from "../LocatorFactory";
-import { DOM_INTELLIGENCE_LIMITS, type DomCandidateProof, type DomIntelligenceRecoveryOptions, type DomRepairSuggestion } from "./DomIntelligenceProvider";
+import {
+  DOM_INTELLIGENCE_LIMITS,
+  type DomCandidateProof,
+  type DomIntelligenceProvider,
+  type DomIntelligenceRecoveryOptions,
+  type DomRepairSuggestion
+} from "./DomIntelligenceProvider";
 import { captureDomSnapshot, withDeadline } from "./domSnapshot";
 import { compareRoutes, routeKey } from "../routeIdentity";
 
@@ -53,6 +59,26 @@ export async function fingerprintAt(frame: Frame, index: number): Promise<Locato
 }
 
 type SuggestionStage = Pick<LocatorRecoveryStage, "outcome" | "reason" | "candidates" | "score">;
+
+/**
+ * L12.8/L12.14: how many elements in `frame` look like `target` (the provider's `find_similar`): same depth,
+ * tag, parent and grandparent tags, attributes alike. Undefined when it cannot be counted (no provider
+ * support, a protected document, the element not under body). Never throws.
+ */
+export async function countLookAlikes(frame: Frame, target: Locator, provider: DomIntelligenceProvider): Promise<number | undefined> {
+  if (!provider.findSimilar) return undefined;
+  try {
+    // `frame.locator("body *").nth(i)` is document order under body, which is what the snapshot stamps.
+    const index = await target.evaluate((element) => Array.prototype.indexOf.call(element.ownerDocument.body ? element.ownerDocument.body.querySelectorAll("*") : [], element) as number);
+    if (index < 0) return undefined;
+    const snapshot = await captureDomSnapshot(frame, { mode: "recover" });
+    if (snapshot.refused) return undefined;
+    const result = await provider.findSimilar({ html: snapshot.html, index, maxResults: 50, timeoutMs: DOM_INTELLIGENCE_LIMITS.diagnosisTimeoutMs });
+    return result.ok ? result.count : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * L12.11 structural page identity: whether the frame still holds the last three levels of the reference's tag

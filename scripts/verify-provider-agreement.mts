@@ -13,6 +13,7 @@ import type { LocatorElementFingerprint } from "@src/profiles/FlowProfile";
 import type { LocatorRecoveryTrace } from "@src/runner/LocatorFactory";
 import { toRecoveryProvenance } from "@src/runner/domIntelligence/recoveryProvenance";
 import { fingerprintChanges, hashFingerprint } from "@src/runner/locatorFingerprint";
+import { locatorAttemptJob } from "@src/ai/locatorUpgradeAttempts";
 import {
   AGREEMENT_MIN_IDENTITY,
   AGREEMENT_MIN_PROVIDER_LEAD,
@@ -135,6 +136,15 @@ check("reworded text, a changed id, a removed test id and a moved element are ea
 check("no change code carries a value (only names)", changes.every((code) => !/order|save|v2/.test(code)), changes);
 const retagged = fingerprintChanges(recorded, { ...recorded, tag: "a", role: "link" });
 check("a different kind of element names tag and role", retagged.includes("tag") && retagged.includes("role"), retagged);
+
+console.log("E. L12.14 the AI locator request carries the look-alike count, nothing else");
+const spyStep = { id: "element-spy", type: "click", name: "Save", locator: { strategy: "role", value: "button", name: "Save" } } as unknown as Parameters<typeof locatorAttemptJob>[0]["step"];
+const promptOf = (lookAlikes?: number) => JSON.stringify(locatorAttemptJob({ requestId: "r", step: spyStep, boundValues: [], ...(lookAlikes === undefined ? {} : { lookAlikes }) }, [], "r").prompt);
+check("a positive count adds the look-alike line with the number", /look-alikes: 3 other elements/.test(promptOf(3)));
+check("no count, no line", !promptOf().includes("look-alikes"));
+check("a zero count adds no line", !promptOf(0).includes("look-alikes"));
+check("a non-integer count is never written", !promptOf(2.5).includes("look-alikes"));
+check("a huge count is capped", /look-alikes: 999 /.test(promptOf(1_000_000)));
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

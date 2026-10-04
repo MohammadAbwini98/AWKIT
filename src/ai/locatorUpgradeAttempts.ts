@@ -206,6 +206,11 @@ export interface LocatorUpgradeAttemptInput {
   boundValues: readonly string[];
   /** L2 capture-time context. Memory-only and TTL-bounded; an expired one ends the job. */
   upgradeContext?: UpgradeContext;
+  /**
+   * L12.14: how many other elements on the live page look like the target (the DOM-intelligence provider's
+   * `find_similar`). A count only, never their text. Tells the model a bare name may match several.
+   */
+  lookAlikes?: number;
   policy?: LocatorPlanPolicy;
   priority?: AiJobPriority;
   /** The user asked from Element Spy (L3 §1), so the weak-locator gate does not apply. */
@@ -379,6 +384,10 @@ function contextLines(input: LocatorUpgradeAttemptInput, records: readonly Locat
     ...(context?.containers ?? []).map(
       (container, index) => `container: ${[container.kind, container.role].filter(Boolean).join(" ")}${(offered[index] ?? []).map((scope) => ` scope ${JSON.stringify(scope)}`).join("")}`
     ),
+    // L12.14: the provider's look-alike count, so a scope is preferred over a name several elements share.
+    input.lookAlikes !== undefined && Number.isInteger(input.lookAlikes) && input.lookAlikes > 0
+      ? `look-alikes: ${Math.min(input.lookAlikes, 999)} other elements on this page look like the target; prefer a container scope over a name they may share`
+      : "",
     context && !bound.has("heading") && context.heading ? `heading: ${context.heading}` : "",
     ...(context?.siblingActions ?? []).map((action, index) => (bound.has(`siblingActions.${index}`) ? "" : `sibling action: ${action}`)),
     // Field PATHS, so the model is told which slots are data-bound without being shown the data.

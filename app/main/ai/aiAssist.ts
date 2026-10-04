@@ -347,6 +347,8 @@ export interface InspectionTarget {
   boundValues: readonly string[];
   /** L3 §4 capture-time proof on the inspection's live page (`proveLocatorPlan`). */
   prove: (step: FlowStep, plan: unknown) => Promise<LocatorProofResult>;
+  /** L12.14: look-alikes of the inspected element on its live page (DOM-intelligence `find_similar`). */
+  lookAlikes?: () => Promise<number | undefined>;
 }
 
 export interface InspectionLocatorDeps extends Pick<AiAssistDeps, "policy"> {
@@ -410,12 +412,15 @@ export async function proposeInspectionLocator(senderId: number, input: unknown,
   inspectionJobs.set(jobId, controller);
   let proposal: PendingLocatorUpgrade | undefined;
   try {
+    // L12.14: a count only, from the parser-only provider; absent when it cannot be counted.
+    const lookAlikes = await target.lookAlikes?.().catch(() => undefined);
     const result = await runLocatorUpgradeAttempts(
       {
         requestId: jobId,
         step,
         boundValues: target.boundValues,
         ...(inspection.upgradeContext ? { upgradeContext: inspection.upgradeContext } : {}),
+        ...(lookAlikes !== undefined ? { lookAlikes } : {}),
         userRequested: true,
         priority: "interactive",
         signal: controller.signal

@@ -55,7 +55,7 @@ import {
   type DomIntelligenceRecoveryOptions,
   type DomRepairSuggestion
 } from "./domIntelligence/DomIntelligenceProvider";
-import { fingerprintAt, proveCandidate, referenceStructurePresent, suggestRepair } from "./domIntelligence/repairSuggestion";
+import { countLookAlikes, fingerprintAt, proveCandidate, referenceStructurePresent, suggestRepair } from "./domIntelligence/repairSuggestion";
 import { buildDomReference, domReferenceId, type DomReferenceStore } from "./domIntelligence/domReference";
 import { captureDomSnapshot } from "./domIntelligence/domSnapshot";
 import { DOM_REFERENCE_CAPTURE_SOURCE } from "./domIntelligence/pageScripts";
@@ -609,17 +609,8 @@ export class LocatorFactory {
   /** L12.8: look-alikes of one resolved element in `frame`, from the provider's `find_similar`. Never throws. */
   private static async countSimilar(frame: Frame, target: Locator, provider: DomIntelligenceProvider): Promise<LocatorDiagnosis["similar"]> {
     const started = performance.now();
-    try {
-      // `frame.locator("body *").nth(i)` is document order under body, which is what the snapshot stamps.
-      const index = await target.evaluate((element) => Array.prototype.indexOf.call(element.ownerDocument.body ? element.ownerDocument.body.querySelectorAll("*") : [], element) as number);
-      if (index < 0) return { outcome: "unavailable", ms: performance.now() - started };
-      const snapshot = await captureDomSnapshot(frame, { mode: "recover" });
-      if (snapshot.refused) return { outcome: "unavailable", ms: performance.now() - started };
-      const result = await provider.findSimilar!({ html: snapshot.html, index, maxResults: 50, timeoutMs: DOM_INTELLIGENCE_LIMITS.diagnosisTimeoutMs });
-      return result.ok ? { outcome: "ok", count: result.count, ms: performance.now() - started } : { outcome: "unavailable", ms: performance.now() - started };
-    } catch {
-      return { outcome: "unavailable", ms: performance.now() - started };
-    }
+    const count = await countLookAlikes(frame, target, provider);
+    return count === undefined ? { outcome: "unavailable", ms: performance.now() - started } : { outcome: "ok", count, ms: performance.now() - started };
   }
 
   /**

@@ -42,6 +42,10 @@ import {
 } from "@src/ai/contracts/AiApi";
 import { recorderService } from "@src/recorder/RecorderService";
 import { proveLocatorPlan } from "@src/runner/locatorProof";
+import type { FlowStep } from "@src/profiles/FlowProfile";
+import { LocatorFactory } from "@src/runner/LocatorFactory";
+import { countLookAlikes } from "@src/runner/domIntelligence/repairSuggestion";
+import { getDomIntelligenceProvider } from "../domIntelligence/domIntelligenceRuntime";
 import { Permission } from "@src/security/authz/Permissions";
 
 import { createFlowFragmentStore, createFlowProfileStore, createReportStore } from "../profileStores";
@@ -128,7 +132,15 @@ function inspectionTarget(): InspectionTarget | null {
   return {
     inspection,
     boundValues,
-    prove: (step, plan) => proveLocatorPlan(page, step, plan, { boundValues, ...(inspection.upgradeContext ? { upgradeContext: inspection.upgradeContext } : {}) })
+    prove: (step, plan) => proveLocatorPlan(page, step, plan, { boundValues, ...(inspection.upgradeContext ? { upgradeContext: inspection.upgradeContext } : {}) }),
+    // L12.14: the inspected element's look-alikes on the Spy's live page, a count for the AI request.
+    lookAlikes: async () => {
+      const factory = new LocatorFactory(page);
+      const located = await factory.resolve({ id: "element-spy", type: "click", name: inspection.owner.name, locator: inspection.locator } as FlowStep);
+      if ((await located.count()) !== 1) return undefined;
+      const frame = await located.elementHandle().then((handle) => handle?.ownerFrame());
+      return frame ? countLookAlikes(frame, located, getDomIntelligenceProvider()) : undefined;
+    }
   };
 }
 
