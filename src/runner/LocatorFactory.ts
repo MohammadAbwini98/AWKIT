@@ -55,7 +55,7 @@ import {
   type DomIntelligenceRecoveryOptions,
   type DomRepairSuggestion
 } from "./domIntelligence/DomIntelligenceProvider";
-import { fingerprintAt, proveCandidate, suggestRepair } from "./domIntelligence/repairSuggestion";
+import { fingerprintAt, proveCandidate, referenceStructurePresent, suggestRepair } from "./domIntelligence/repairSuggestion";
 import { buildDomReference, domReferenceId, type DomReferenceStore } from "./domIntelligence/domReference";
 import { captureDomSnapshot } from "./domIntelligence/domSnapshot";
 import { DOM_REFERENCE_CAPTURE_SOURCE } from "./domIntelligence/pageScripts";
@@ -205,7 +205,7 @@ export interface LocatorDiagnosis {
   };
   provider: {
     outcome: "ok" | "skipped" | "error";
-    reason?: "provider-unavailable" | "provider-timeout" | "provider-error" | "no-reference" | "protected-surface" | "snapshot-failed" | "route-mismatch";
+    reason?: "provider-unavailable" | "provider-timeout" | "provider-error" | "no-reference" | "protected-surface" | "snapshot-failed" | "route-mismatch" | "page-variant";
     candidates: DiagnosisCandidate[];
     elements?: number;
     parseMs?: number;
@@ -561,6 +561,7 @@ export class LocatorFactory {
     else if (!deps.provider) diagnosis.provider = { outcome: "skipped", reason: "provider-unavailable", candidates: [] };
     else if (diagnosis.route === "mismatch") diagnosis.provider = { outcome: "skipped", reason: "route-mismatch", candidates: [] };
     else if (!reference) diagnosis.provider = { outcome: "skipped", reason: "no-reference", candidates: [] };
+    else if (!(await referenceStructurePresent(frame, reference.element.path))) diagnosis.provider = { outcome: "skipped", reason: "page-variant", candidates: [] };
     else {
       const snapshot = await captureDomSnapshot(frame, { mode: "recover", expected }).catch(() => undefined);
       if (!snapshot) diagnosis.provider = { outcome: "error", reason: "snapshot-failed", candidates: [] };

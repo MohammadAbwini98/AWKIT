@@ -51,7 +51,8 @@ const PROVIDER_REASON: Readonly<Record<string, string>> = {
   "no-reference": "No DOM reference was recorded for this step. Record it again, or run it once successfully.",
   "protected-surface": "This page has a protected sign-in field, so it is not analysed.",
   "snapshot-failed": "The page could not be read.",
-  "route-mismatch": "This page is on a different route than the one the step was recorded on, so its reference is not used."
+  "route-mismatch": "This page is on a different route than the one the step was recorded on, so its reference is not used.",
+  "page-variant": "This page no longer has the structure the element was recorded in, so it is treated as a different page."
 };
 
 function describeElement(element: DiagnosisElement | undefined): string {

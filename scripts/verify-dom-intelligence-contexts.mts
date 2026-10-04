@@ -37,6 +37,7 @@ import { ancestrySimilarity, createPageFingerprint, hashFingerprint, similarity 
 import type { LocatorElementFingerprint } from "@src/profiles/FlowProfile";
 import { compareRoutes, routeKey } from "@src/runner/routeIdentity";
 import { toRecoveryProvenance } from "@src/runner/domIntelligence/recoveryProvenance";
+import { referenceStructurePresent } from "@src/runner/domIntelligence/repairSuggestion";
 
 const PORT = 4437;
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -142,6 +143,7 @@ function convincing(label: string, expected: LocatorElementFingerprint, decoy: L
   check(`precondition: ${label} would pass AWKIT's gate if its binding were ignored`, score >= RECOVERY_SCORE_THRESHOLD && ancestry >= RECOVERY_MIN_ANCESTRY, `score ${score.toFixed(3)}, ancestry ${ancestry.toFixed(2)}`);
 }
 const lastTrace = (h: Harness) => h.traces().at(-1);
+const stageReason = (h: Harness) => lastTrace(h)?.stages.find((stage) => stage.stage === "provider")?.reason;
 
 async function frameOf(page: Page): Promise<Frame> {
   const handle = await page.locator('[data-testid="dcl-frame"]').elementHandle();
@@ -199,9 +201,18 @@ async function main(): Promise<void> {
       check("the top document still holds an identical 'Save settings' control", decoyPresent === 1);
       const gone = await judge(h.factory(b.page).resolve(goneStep), () => false);
       check("target gone from the frame: unresolved, the top-document decoy is never used", gone.outcome === "unresolved" && !recovered(h, goneStep.id), gone.outcome);
-      const html = h.provider.requests.at(-1)?.html ?? "";
-      check("the suggestion stage ran on a snapshot", h.provider.requests.length === 1, String(h.provider.requests.length));
-      check("that snapshot is the frame's document only (its own marker, not the top document's)", html.includes("dcl-frame-result") && !html.includes("dcl-frame-decoy") && !html.includes("DOM Context Lab"));
+      // L12.11: with the target gone, the frame no longer holds the structure the reference was recorded in, so
+      // the suggestion stage stops before any HTML leaves the page. That decision must be the FRAME's: the top
+      // document holds the same structure, so a check made there would have let the stage run.
+      const frameReference = await h.references.get(goneStep.locator!.blueprintId!, stepCandidatesDigest(goneStep.locator!));
+      check("the suggestion stage stopped as a different page, before any HTML left the frame", stageReason(h) === "page-variant" && h.provider.requests.length === 0, `${stageReason(h)}, ${h.provider.requests.length} request(s)`);
+      check(
+        "...decided on the frame's own document (the top document still holds that structure)",
+        Boolean(frameReference) &&
+          (await referenceStructurePresent(b.page.mainFrame(), frameReference!.element.path)) &&
+          !(await referenceStructurePresent((await (await b.page.locator('[data-testid="dcl-frame"]').elementHandle())!.contentFrame())!, frameReference!.element.path)),
+        frameReference?.element.path.join(">")
+      );
       await b.close();
     }
 
@@ -301,7 +312,15 @@ async function main(): Promise<void> {
       const onPopup = await judge(p.factory(child).resolve(popupStep), () => false);
       check("popup step with its target gone: unresolved, the parent's control never satisfies it", onPopup.outcome === "unresolved" && !recovered(p, popupStep.id), onPopup.outcome);
       check("the popup trace carries the popup's page alias", lastTrace(p)?.context.page === "popup-1");
-      check("the suggestion stage saw the popup's document only", (p.provider.requests.at(-1)?.html ?? "").includes("dcl-popup-result") && !(p.provider.requests.at(-1)?.html ?? "").includes("dcl-popup-section"));
+      // L12.11: as for the frame, the popup without its target is a different page for the step, decided on the
+      // popup itself: the parent still holds that structure.
+      const popupReference = await p.references.get(popupStep.locator!.blueprintId!, stepCandidatesDigest(popupStep.locator!));
+      check("the popup's suggestion stage stopped as a different page, with no HTML sent", stageReason(p) === "page-variant" && p.provider.requests.length === 0, `${stageReason(p)}, ${p.provider.requests.length} request(s)`);
+      check(
+        "...decided on the popup's own document (the parent still holds that structure)",
+        Boolean(popupReference) && (await referenceStructurePresent(b.page.mainFrame(), popupReference!.element.path)) && !(await referenceStructurePresent(child.mainFrame(), popupReference!.element.path)),
+        popupReference?.element.path.join(">")
+      );
       await b.close();
     }
 

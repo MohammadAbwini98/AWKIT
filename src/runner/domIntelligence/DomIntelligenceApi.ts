@@ -87,6 +87,8 @@ export function sanitizeDriftRequest(value: unknown): DomDriftRequest | undefine
 export function classifyDrift(diagnosis: Pick<LocatorDiagnosis, "recorded" | "snapshot" | "provider" | "route">): DomDriftStatus {
   if (diagnosis.route === "mismatch" || diagnosis.provider.reason === "protected-surface") return "not-here";
   if (diagnosis.recorded.status === "resolved") return "ok";
+  // L12.11: the structure the element lived in is gone, so this is another page, not a drifted one.
+  if (diagnosis.provider.reason === "page-variant") return "not-here";
   if (diagnosis.recorded.status === "ambiguous") return "ambiguous";
   if (diagnosis.recorded.status === "error") return "not-here";
   const agreed = diagnosis.provider.candidates.some((candidate) => candidate.proof === "agreed" || candidate.proof === "proven");

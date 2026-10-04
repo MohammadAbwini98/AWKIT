@@ -49,6 +49,7 @@ import { ancestrySimilarity, createPageFingerprint, hashFingerprint, similarity 
 import { decideProviderAgreement, rankLocalRecovery } from "@src/runner/recoverySnapshot";
 import { MemoryDomReferenceStore, type DomReferenceRecord } from "@src/runner/domIntelligence/domReference";
 import { captureDomSnapshot } from "@src/runner/domIntelligence/domSnapshot";
+import { referenceStructurePresent } from "@src/runner/domIntelligence/repairSuggestion";
 import type { ScraplingDomIntelligenceProvider } from "@src/runner/domIntelligence/ScraplingDomIntelligenceProvider";
 import { compareRoutes, routeKey } from "@src/runner/routeIdentity";
 import { DOM_CASES, fixtureSetHash, type DomCase } from "./dom-intelligence/fixtures.mts";
@@ -174,8 +175,12 @@ async function providerEngines(
   const proofStarted = performance.now();
   const decision = snapshot.candidatesTruncated ? undefined : rankLocalRecovery(step, expected, snapshot.candidates);
   const agreed = decideProviderAgreement(decision, expected.ancestry, result.candidates);
+  // L12.11: the product skips the provider when the reference's structure is gone (a different page).
+  const samePage = await referenceStructurePresent(frame, reference.element.path);
   let proof: Result;
-  if (!top || ((!decision?.winner || decision.winner.index !== top.index) && agreed?.index !== top.index)) {
+  if (!samePage) {
+    proof = { outcome: "unresolved", ms: 0, detail: "page-variant" };
+  } else if (!top || ((!decision?.winner || decision.winner.index !== top.index) && agreed?.index !== top.index)) {
     proof = { outcome: "unresolved", ms: 0, detail: decision?.refusal ?? (top ? "not AWKIT's winner" : "no candidate") };
   } else {
     const element = allElements.nth(top.index);
@@ -191,7 +196,7 @@ async function providerEngines(
   const ranked = decision ? snapshot.candidates.map((c) => ({ index: c.index, score: similarity(expected, c.fingerprint) })).sort((a, b) => b.score - a.score) : [];
   const round = (value: number) => Math.round(value * 1000) / 1000;
   const diagnostic: ProofDiagnostic = {
-    refusal: decision?.refusal,
+    refusal: samePage ? decision?.refusal : "page-variant",
     best: decision?.best && { index: decision.best.index, score: round(decision.best.score), ancestry: round(ancestrySimilarity(expected.ancestry, decision.best.fingerprint.ancestry)) },
     runnerUp: decision?.runnerUp && { index: decision.runnerUp.index, score: round(decision.runnerUp.score) },
     scrapling: result.candidates.slice(0, 3).map((candidate) => {

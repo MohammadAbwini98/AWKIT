@@ -34,6 +34,7 @@ import {
 import { MemoryDomReferenceStore, domReferenceId } from "@src/runner/domIntelligence/domReference";
 import { classifyDrift } from "@src/runner/domIntelligence/DomIntelligenceApi";
 import { pageContextEnabled } from "@src/runner/domIntelligence/pageContext";
+import { referenceStructurePresent } from "@src/runner/domIntelligence/repairSuggestion";
 import { createPageFingerprint, hashFingerprint } from "@src/runner/locatorFingerprint";
 
 let passed = 0;
@@ -191,6 +192,21 @@ async function main(): Promise<void> {
     check("classify: a protected surface is not-here", classifyDrift({ ...missed, provider: { outcome: "skipped", reason: "protected-surface", candidates: [] } }) === "not-here");
     check("classify: an agreed provider candidate makes a miss recoverable", classifyDrift({ ...missed, provider: { outcome: "ok", candidates: [{ index: 1, providerScore: 98, proof: "agreed" }] } }) === "recoverable");
     check("classify: a rejected provider candidate does not", classifyDrift({ ...missed, provider: { outcome: "ok", candidates: [{ index: 1, providerScore: 98, proof: "below-threshold" }] } }) === "drifted");
+
+    console.log("H. L12.11 structural page identity");
+    const recordedPath = ["html", "body", "main", "section", "form", "div", "button"];
+    check("the recorded structure is present on the recorded page", (await referenceStructurePresent(page.mainFrame(), recordedPath)) === true);
+    html = '<!doctype html><html><head><title>L12 lab</title></head><body><main><div class="empty-state"><h1>Order not found</h1><button type="button">Back to orders</button></div></main></body></html>';
+    await page.goto(`${base}/orders`);
+    check("an 'order not found' page at the same URL lacks it (a different page)", (await referenceStructurePresent(page.mainFrame(), recordedPath)) === false);
+    check("a path shorter than three levels is never used to refuse", (await referenceStructurePresent(page.mainFrame(), ["body", "button"])) === true);
+    check("a malformed tag is never turned into a selector (treated as present)", (await referenceStructurePresent(page.mainFrame(), ["div", "form", "button,x"])) === true);
+    const variantStep: FlowStep = { id: "variant-step", name: "Save", type: "click", locator: { strategy: "css", value: "#save-order-v2" } } as FlowStep;
+    await references.put({ ...seeded!, referenceId: domReferenceId(variantStep, "flow-a")!, bindingDigest: stepCandidatesDigest(variantStep.locator!), element: { ...seeded!.element, path: recordedPath } });
+    provider.requests.length = 0;
+    const variant = await new LocatorFactory(page).diagnose(variantStep, { provider, references, flowId: "flow-a" });
+    check("the diagnosis skips the provider on a different page, as page-variant", variant.provider.reason === "page-variant" && provider.requests.length === 0, variant.provider);
+    check("...and the drift check reports the step as not on this page", classifyDrift(variant) === "not-here", classifyDrift(variant));
 
     console.log("G. L12.15 AI page context follows the local-AI switch");
     check("no override, AI off: no page context", pageContextEnabled({}, false) === false);

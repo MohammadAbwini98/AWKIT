@@ -55,6 +55,18 @@ export async function fingerprintAt(frame: Frame, index: number): Promise<Locato
 type SuggestionStage = Pick<LocatorRecoveryStage, "outcome" | "reason" | "candidates" | "score">;
 
 /**
+ * L12.11 structural page identity: whether the frame still holds the last three levels of the reference's tag
+ * path (`form > div > button`). A page where that structure is gone (an "order not found" page at the same
+ * URL) is a different page, and a provider match on it is a look-alike, never the element. Unknown (a frame
+ * that cannot be read, a path shorter than three) counts as present, so this only ever removes a suggestion.
+ */
+export async function referenceStructurePresent(frame: Frame, path: readonly string[]): Promise<boolean> {
+  const tail = path.slice(-3);
+  if (tail.length < 3 || !tail.every((tag) => /^[a-z][a-z0-9-]*$/.test(tag))) return true;
+  return (await frame.locator(`body ${tail.join(" > ")}`).count().catch(() => 1)) > 0;
+}
+
+/**
  * The runner's provider stage (plan E4): only after both recovery layers refused, only for a step with
  * a stored, still-bound reference, inside a wall-clock budget. The result is a bounded suggestion for the
  * run's provenance. Since L12 it can also carry `agreed`: AWKIT's best candidate that the provider ranks
@@ -77,6 +89,8 @@ export async function suggestRepair(input: {
   if (!reference) return { stage: { outcome: "skipped", reason: "no-reference" } };
   // A reference proven on another route never describes an element here (L11.F).
   if (compareRoutes(reference.route, routeKey(frame.url())) === "mismatch") return { stage: { outcome: "skipped", reason: "route-mismatch" } };
+  // L12.11: the same route, but the structure the element lived in is gone: a different page.
+  if (!(await referenceStructurePresent(frame, reference.element.path))) return { stage: { outcome: "skipped", reason: "page-variant" } };
 
   const budgetMs = Math.max(50, Math.min(options.budgetMs ?? 800, DOM_INTELLIGENCE_LIMITS.maxTimeoutMs));
   const deadline = performance.now() + budgetMs;

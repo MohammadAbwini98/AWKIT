@@ -126,6 +126,7 @@ export function toRecoveryProvenance(trace: LocatorRecoveryTrace): LocatorRecove
       }
       continue;
     }
+    // A skip (no reference, protected surface, L12.11 page variant) is provider-skipped with its reason code.
     const event: RecoveryProvenanceEventName =
       stage.reason === "provider-timeout" ? "provider-timeout" : stage.reason === "provider-unavailable" ? "provider-unavailable" : stage.outcome === "skipped" ? "provider-skipped" : "provider-error";
     events.push(pick({ event, source: "dom-intelligence", stage: "provider", effect: "none", provider, ms: ms(stage.ms), reason: stage.reason }) as RecoveryProvenanceEvent);
