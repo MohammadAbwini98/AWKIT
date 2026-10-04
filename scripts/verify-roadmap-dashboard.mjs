@@ -146,7 +146,8 @@ try {
   // (contract `awkit-l12-registration-1004`).
   // 355 later on 2026-10-04: the L12 close filed follow-ups `.21.19` (loop generation), `.21.20` (Turnstile
   // detector gap) and `.21.21` (pending security review) (contract `awkit-djnl-21-l12-implementation-1004`).
-  check("355 issues parse", beads.stats.total === 355, `got ${beads.stats.total}`);
+  // 356 later on 2026-10-04: the L12.21 review filed its residuals as `.21.22`.
+  check("356 issues parse", beads.stats.total === 356, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -665,8 +666,10 @@ try {
   // follow-ups `.21.19`…`.21.21` filed OPEN (three in). Measured after the export.
   // Then 24/331 of 355 later on 2026-10-04: `.21.19` (similar-rows loop) and `.21.20` (Turnstile detector)
   // closed (two out, two closed). Measured after the export.
-    "24 outstanding / 331 closed",
-    beads.stats.outstanding === 24 && beads.stats.closed === 331,
+  // Then 24/332 of 356 later on 2026-10-04: `.21.21` (security review) closed and its residuals filed OPEN as
+  // `.21.22` (one out, one in, one closed). Measured after the export.
+    "24 outstanding / 332 closed",
+    beads.stats.outstanding === 24 && beads.stats.closed === 332,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -765,9 +768,10 @@ try {
   // 18 workstreams under `.21`), one blocks edge on closed L11 `.19`, and 17 blocks edges making the
   // benchmark `.21.18` wait on `.21.1`…`.21.17`. Measured.
   // Then 242 later on 2026-10-04: the three L12 follow-ups `.21.19`…`.21.21` (three parent-child links).
+  // Then 243 later on 2026-10-04: the L12.21 residuals `.21.22` (one parent-child link).
   check(
-    "242 edges are present to classify",
-    beads.stats.edges === 242,
+    "243 edges are present to classify",
+    beads.stats.edges === 243,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(

@@ -50,9 +50,9 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "project-state",
+      "agent_id": "security",
       "allowed_paths": [
-        ".beads/**"
+        "src/security/**"
       ]
     }
   },
@@ -86,10 +86,10 @@
       "id": "security-verifier",
       "type": "verifier",
       "required": true,
-      "command": "the L12.17 permission and protected-surface verifier",
+      "command": "npm run verify:protected-diagnosis",
       "artifact": null,
-      "result": "pending",
-      "observed": ""
+      "result": "PASS",
+      "observed": "64/0 on 2026-10-04 after the L12.21 fixes (role both directions, reason allow-list, refused wording, child frame, read-time widget and wording checks, gate order and audits)"
     }
   ],
   "git": {
@@ -102,7 +102,7 @@
   "completion": {
     "status": "pending",
     "qa_status": "pending",
-    "qc_status": "pending"
+    "qc_status": "APPROVED"
   },
   "write_lease": {
     "history": [
@@ -230,6 +230,54 @@
         "acquired_at_commit": "b36e52e87bc82a0f4b1657d8a3883556e038ea07",
         "released_at": "2026-10-04T20:33:25.220Z",
         "released_reason": "L12.19 and L12.20 closed with their evidence, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-21-l12-implementation-1004:security:2026-10-04T20:48:36.586Z",
+        "task": "awkit-djnl-21-l12-implementation-1004",
+        "holder": "security",
+        "status": "released",
+        "allowed_paths": [
+          "src/security/**"
+        ],
+        "acquired_at": "2026-10-04T20:48:36.586Z",
+        "acquired_at_commit": "14eebd81742700e3539872c1d8f7f4df6afac978",
+        "released_at": "2026-10-04T20:48:58.764Z",
+        "released_reason": "L12.21 fix 1: detector text patterns exported read-only for the protected diagnosis, behaviour unchanged",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-21-l12-implementation-1004:project-state:2026-10-04T20:55:21.881Z",
+        "task": "awkit-djnl-21-l12-implementation-1004",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-04T20:55:21.881Z",
+        "acquired_at_commit": "14eebd81742700e3539872c1d8f7f4df6afac978",
+        "released_at": "2026-10-04T20:55:51.527Z",
+        "released_reason": "L12.21 closed with the independent review and fixes, L12.22 residuals filed, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-21-l12-implementation-1004:security:2026-10-04T20:57:02.671Z",
+        "task": "awkit-djnl-21-l12-implementation-1004",
+        "holder": "security",
+        "status": "released",
+        "allowed_paths": [
+          "src/security/**"
+        ],
+        "acquired_at": "2026-10-04T20:57:02.671Z",
+        "acquired_at_commit": "14eebd81742700e3539872c1d8f7f4df6afac978",
+        "released_at": "2026-10-04T20:57:17.241Z",
+        "released_reason": "L12.21 detector export committed as 052dfd94, runner and session fixes commit next unleased",
         "amendments": [],
         "overrides": [],
         "violations": []

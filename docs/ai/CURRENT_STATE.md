@@ -1,6 +1,23 @@
 # CURRENT_STATE
 
-## L12 follow-ups: similar-rows loop and Turnstile detection done (2026-10-04, latest)
+## L12.21 independent security review done; four findings fixed (2026-10-04, latest)
+
+- **Review (`awkit-djnl.21.21`, closed):** an independent read-only reviewer judged the Super-User protected
+  diagnosis APPROVE WITH FINDINGS. The role, permission and re-auth gate held. Four holes were fixed and the same
+  reviewer confirmed them closed on re-review: a sign-in page stating a security check, blocked browser,
+  signature or approval was read as `login-form`; a child-frame step was read under top-document checks; a widget
+  rendered between the check and the read was read; and the role was checked after re-auth, with stale re-auth
+  never audited.
+- **Now:** the snapshot serializer itself refuses, in the same evaluate that reads the document, any challenge
+  widget or any refused reason's wording (`REFUSED_TEXT_PATTERNS`, derived from the detector). The override is
+  top-document only, and is reported and audited only once a page was actually read. `assertSenderSuperUser`
+  checks the role before re-auth and audits `REAUTH_REQUIRED`.
+- **Open:** `.21.22` residuals (P3): the use audit is skipped if the provider throws after the read, shadow-root
+  wording is unseen (same as the detector), and child-frame sign-in forms get no override. Mutation testing of the
+  new checks and `verify:protected-login-recorder` were NOT RUN (blocked by the session's permission classifier).
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## L12 follow-ups: similar-rows loop and Turnstile detection done (2026-10-04)
 
 - **L12.19 (`awkit-djnl.21.19`, closed):** Element Spy's Find similar rows now offers **Add loop over these
   rows**. Main proves one CSS selector that matches exactly those rows (a container named by `data-testid`, a

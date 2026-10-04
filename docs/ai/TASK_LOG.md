@@ -1,6 +1,21 @@
 # TASK_LOG
 
-## 2026-10-04 (latest) — L12.19 similar-rows loop; L12.20 tracker close-out (Claude)
+## 2026-10-04 (latest) — L12.21 independent security review of the protected diagnosis, fixes 1–4 (Claude)
+
+- **Task:** owner asked for the independent security review of L12.17 (`157d0c59`, `7ea071fb`), then to fix
+  findings 1–4. One read-only `awkit-security-engineer` subagent reviewed and later re-reviewed the fixes:
+  APPROVE WITH FINDINGS, 1–4 confirmed closed, no regression.
+- **Files:** `src/security/ProtectedLoginDetector.ts` (patterns exported read-only, behaviour unchanged, security
+  lease), `src/runner/domIntelligence/{protectedDiagnosis,pageScripts,domSnapshot}.ts`, `src/runner/LocatorFactory.ts`,
+  `app/main/security/sessionContext.ts`, `scripts/verify-protected-diagnosis.mts` (section E plus D checks).
+- **Verification:** PASS `verify:protected-diagnosis` 64/0 (was 45), `npm run build`, `verify:dom-normalization`
+  151/0, `verify:locator-diagnosis` 56/0, `verify:super-user-controls` 61/0, `verify:ipc-contract` 10/10.
+  NOT RUN: mutation tests of the new checks and `verify:protected-login-recorder` (both refused by the session's
+  auto-mode permission classifier).
+- **Tracker:** `.21.21` closed, contract `qc_status` APPROVED from the independent re-review; residuals filed as
+  `.21.22` (P3).
+
+## 2026-10-04 — L12.19 similar-rows loop; L12.20 tracker close-out (Claude)
 
 - **Task:** review and finish uncommitted L12.19 work left by another session; reconcile L12.20, whose fix was
   committed (`4dc4f212`, `b36e52e8`) but whose tracker item and KNOWN_ISSUES entry were still open.
