@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign in</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card" data-testid="protected-turnstile-page">
+      <h1>Sign in</h1>
+      <!-- Identifier-first sign-in guarded by a Cloudflare Turnstile-like widget (L12.20). Deliberately no password
+           field and no challenge wording, so only the widget markers (.cf-turnstile, data-sitekey and a
+           challenges.cloudflare.com iframe) can make AWKIT pause. Offline placeholder; nothing is solved. -->
+      <form onsubmit="return false">
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" data-testid="email" />
+        <div class="cf-turnstile" data-sitekey="mock-site-key" data-testid="turnstile-widget">
+          <iframe title="Widget" src="about:blank#challenges.cloudflare.com-placeholder" data-testid="turnstile-iframe"
+                  style="width: 300px; height: 65px; border: 1px solid #cbd5e1;"></iframe>
+        </div>
+        <button type="submit" data-testid="continue">Continue</button>
+      </form>
+      <p><a href="/">Back to Feature Test Lab</a></p>
+    </main>
+  </body>
+</html>

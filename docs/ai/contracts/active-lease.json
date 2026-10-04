@@ -1,20 +1,32 @@
 {
   "task": "awkit-djnl-21-l12-implementation-1004",
   "contract_path": "docs/ai/contracts/awkit-djnl-21-l12-implementation-1004.json",
-  "holder": "project-state",
+  "holder": "security",
   "status": "released",
   "allowed_paths": [
-    ".beads/**"
+    "src/security/**"
   ],
-  "acquired_at": "2026-10-04T18:04:01.559Z",
-  "acquired_at_commit": "33c924b25009f653a686318ffba795caf3702a10",
+  "acquired_at": "2026-10-04T19:10:50.612Z",
+  "acquired_at_commit": "7c799a7c7fc10a2a078c085c2667155e6c348bbf",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-djnl-21-l12-implementation-1004.json"
+    "docs/ai/contracts/awkit-djnl-21-l12-implementation-1004.json",
+    "mock-site/README.md",
+    "mock-site/public/index.html",
+    "mock-site/public/secure-login/protected-turnstile-login.html",
+    "scripts/verify-protected-diagnosis.mts",
+    "scripts/verify-protected-login-recorder.mts",
+    "src/security/ProtectedLoginDetector.ts"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "62e5f156e37958ccd3458c8eb42c162d5874c767d16dbff3ae899b08ff84da99",
-    "docs/ai/contracts/awkit-djnl-21-l12-implementation-1004.json": "a4a12be136a716855e8aefb7888aadf329d6b1a5012ce02a659b050078624498"
+    "docs/ai/contracts/active-lease.json": "6d29217d03eb4bbce7adb3d84b56ed4fe1b51ec9bcd7ec97ac18ec27a32624dd",
+    "docs/ai/contracts/awkit-djnl-21-l12-implementation-1004.json": "7e967eaed0e6c9b0dd4ff1f6a3b7f21b862473e59a9f94a97a0783e5ab6bab13",
+    "mock-site/README.md": "c8834d0e2bdfa138c755e84198979a63310267fe50c6acacf816d370c7d30999",
+    "mock-site/public/index.html": "0124f36fad4c62d64a7b639acd971064ec107cbb9d33ac79af36f4e9f124745d",
+    "mock-site/public/secure-login/protected-turnstile-login.html": "8f1412cc5883256b9f1b794adf24bba2a32fd479544570ed7899cb28a49c5df4",
+    "scripts/verify-protected-diagnosis.mts": "715d5eaa7ac1e95a9a87ff5651c81d9c46dcd480a7d047bfecff7d7c6cfc0bf0",
+    "scripts/verify-protected-login-recorder.mts": "69cd57ec5c384f2a92d22b23818e4eaf87dfc1f60b07d2155c4d7054a75e94f2",
+    "src/security/ProtectedLoginDetector.ts": "b1c9916309a2ccd2215ed8c147fb57f15d551ffd49e9eed934cceb77ab82bf16"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -29,7 +41,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-04T18:05:37.904Z",
-  "released_reason": "L12.7 to L12.18 closed with evidence, follow-ups L12.19 loop generation, L12.20 Turnstile detector and L12.21 security review filed open, export refreshed",
-  "archived_at": "2026-10-04T18:05:37.905Z"
+  "released_at": "2026-10-04T19:11:15.356Z",
+  "released_reason": "L12.20 detector fix committed as 4dc4f212, mock-site page and verifiers commit next unleased",
+  "archived_at": "2026-10-04T19:11:15.357Z"
 }

@@ -32,7 +32,7 @@ const PORT = 4407;
 const BASE = `http://127.0.0.1:${PORT}`;
 let passed = 0;
 // AWKIT-QA-005: bump when intentionally adding/removing checks.
-let EXPECTED_CHECKS = 74;
+let EXPECTED_CHECKS = 81;
 let failed = 0;
 function check(label: string, condition: unknown, detail = ""): void {
   if (condition) {
@@ -314,6 +314,19 @@ try {
   await recorder.cancelRecording();
   recorder = undefined;
 
+  // L12.20: a sign-in page whose only protection is a Turnstile widget (no password field, no challenge text).
+  console.log("Recorder pause boundary — Turnstile-only sign-in:");
+  recorder = new RecorderService();
+  await recorder.startRecording(`${BASE}/mock/sso-text-app`, { executablePath: chromium.executablePath(), captureSmartWaits: false });
+  const turnstileRecorderPage = (recorder as unknown as { page: Page | null }).page;
+  if (!turnstileRecorderPage) throw new Error("Recorder did not expose its live page to the verification seam.");
+  await turnstileRecorderPage.goto(`${BASE}/mock/protected-turnstile-login`);
+  await waitUntil(() => recorder?.getHandoff()?.phase === "detected", "Turnstile handoff detection");
+  check("a Turnstile-only sign-in pauses the Recorder", recorder.getStatus().isRecording === false);
+  check("...and the handoff names it a CAPTCHA", recorder.getHandoff()?.reason === "captcha", recorder.getHandoff()?.reason);
+  await recorder.cancelRecording();
+  recorder = undefined;
+
   console.log("Capture Session & Resume — recorder resume lifecycle:");
   {
     resumeDraftDir = await mkdtemp(join(tmpdir(), "awkit-rec022-resumedraft-"));
@@ -539,6 +552,33 @@ try {
   const captchaDetect = await detectRecorderProtectedLogin(captchaPopup);
   check("recorder detects CAPTCHA popup (captcha)", captchaDetect.detected && captchaDetect.reason === "captcha", `${captchaDetect.detected}/${captchaDetect.reason}`);
   await captchaPopup.close();
+
+  console.log("Mock Turnstile-only sign-in (L12.20):");
+  await page.goto(`${BASE}/mock/protected-turnstile-login`);
+  const turnstileText = (await page.locator("body").innerText()).toLowerCase();
+  // Without this precondition the next check could pass on a password field or challenge wording, not the widget.
+  check(
+    "precondition: no password or one-time-code field and no challenge wording on the page",
+    (await page.locator('input[type="password"], input[autocomplete="one-time-code"]').count()) === 0 &&
+      !/captcha|verify you are human|just a moment|security check/.test(turnstileText)
+  );
+  const turnstileDetect = await detectRecorderProtectedLogin(page);
+  check(
+    "recorder detects the Turnstile widget as a CAPTCHA and pauses",
+    turnstileDetect.detected && turnstileDetect.reason === "captcha" && turnstileDetect.recommendedAction === "pause",
+    `${turnstileDetect.detected}/${turnstileDetect.reason}/${turnstileDetect.recommendedAction}`
+  );
+  const widgetPage = (widget: string) =>
+    `<!doctype html><html><head><title>Sign in</title></head><body><form><label for="e">Email</label><input id="e" type="email">${widget}<button>Continue</button></form></body></html>`;
+  await page.setContent(widgetPage('<iframe title="Widget" src="about:blank#client-api.arkoselabs.com"></iframe>'));
+  const arkoseDetect = await detectRecorderProtectedLogin(page);
+  check("an Arkose iframe is a CAPTCHA", arkoseDetect.reason === "captcha" && arkoseDetect.recommendedAction === "pause", arkoseDetect.reason);
+  await page.setContent(widgetPage('<div data-sitekey="k"></div>'));
+  const sitekeyDetect = await detectRecorderProtectedLogin(page);
+  check("a bare data-sitekey widget is a CAPTCHA", sitekeyDetect.reason === "captcha" && sitekeyDetect.recommendedAction === "pause", sitekeyDetect.reason);
+  await page.setContent(widgetPage(""));
+  const plainDetect = await detectRecorderProtectedLogin(page);
+  check("control: the same email form without a widget is not detected", !plainDetect.detected, `${plainDetect.detected}/${plainDetect.reason}`);
 
   console.log("Mock protected popup OTP:");
   await page.goto(`${BASE}/mock/protected-popup-otp`);

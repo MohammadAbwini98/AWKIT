@@ -25,7 +25,7 @@ import { stepCandidatesDigest } from "@src/runner/LocatorRecoveryStore";
 import { NoopDomIntelligenceProvider, type DomIntelligenceProvider, type DomRecoveryRequest, type DomRecoveryResult } from "@src/runner/domIntelligence/DomIntelligenceProvider";
 import { MemoryDomReferenceStore, domReferenceId } from "@src/runner/domIntelligence/domReference";
 import { sanitizeDiagnosisRequest } from "@src/runner/domIntelligence/DomIntelligenceApi";
-import { PROTECTED_DIAGNOSIS_REASONS, protectedDiagnosisAllowed } from "@src/runner/domIntelligence/protectedDiagnosis";
+import { CAPTCHA_MARKER_SELECTOR, PROTECTED_DIAGNOSIS_REASONS, protectedDiagnosisAllowed } from "@src/runner/domIntelligence/protectedDiagnosis";
 import { BUILTIN_ROLES, Permission, SENSITIVE_PERMISSIONS } from "@src/security/authz/Permissions";
 import { detectRecorderProtectedLogin } from "@src/security/ProtectedLoginDetector";
 
@@ -118,14 +118,24 @@ async function main(): Promise<void> {
     check("...but no password field at all", !/type="password"|autocomplete="current-password"|name="password"/.test(sent), sent.slice(0, 400));
     check("...and no typed value, from any field", !sent.includes("hunter2-secret") && !sent.includes("person@example.com") && !/\svalue="/.test(sent));
 
-    // A Turnstile widget: the protected-login detector does not name it, so only the second, independent marker
-    // check can refuse it. The precondition makes that explicit (otherwise this check could pass on the detector).
+    // A Turnstile widget on a sign-in page. Since L12.20 the detector names it a CAPTCHA, so the reason allow-list
+    // refuses it; the independent CAPTCHA_MARKER_SELECTOR check also matches it (asserted below and in D). The two
+    // checks now cover the same markers, so the second can no longer be isolated end to end on a real page.
     html = SIGN_IN('<div class="cf-turnstile" data-sitekey="test-key"></div>');
     await page.goto(`${base}/login`);
     const detectorView = await detectRecorderProtectedLogin(page);
-    check("precondition: the detector alone does not call the Turnstile page a CAPTCHA", detectorView.reason !== "captcha", detectorView.reason);
+    check("the detector names the Turnstile sign-in page a CAPTCHA (L12.20)", detectorView.reason === "captcha" && detectorView.recommendedAction === "pause", detectorView.reason);
     const captcha = await diagnose(true);
-    check("a sign-in page carrying a CAPTCHA widget the detector misses stays refused with the opt-in", captcha.diagnosis.provider.reason === "protected-surface" && captcha.provider.requests.length === 0 && !captcha.diagnosis.protectedOverride, captcha.diagnosis.provider);
+    check("a sign-in page carrying a Turnstile widget stays refused with the opt-in", captcha.diagnosis.provider.reason === "protected-surface" && captcha.provider.requests.length === 0 && !captcha.diagnosis.protectedOverride, captcha.diagnosis.provider);
+    for (const [label, widget] of [
+      ["Turnstile", '<div class="cf-turnstile" data-sitekey="test-key"></div>'],
+      ["Arkose", '<iframe src="about:blank#client-api.arkoselabs.com"></iframe>'],
+      ["bare data-sitekey", '<div data-sitekey="k"></div>']
+    ] as const) {
+      html = SIGN_IN(widget);
+      await page.goto(`${base}/login`);
+      check(`the independent marker check matches a ${label} widget`, (await page.locator(CAPTCHA_MARKER_SELECTOR).count()) > 0);
+    }
 
     html = SIGN_IN('<div role="img" aria-label="captcha challenge">Verify the image</div>');
     await page.goto(`${base}/login`);
@@ -158,6 +168,12 @@ async function main(): Promise<void> {
   check(
     "getLivePage never relaxes during a protected-login handoff",
     /if \(!this\.inspectionAllowed\(\) \|\| \(this\.inspectionRefused && options\.allowProtected !== true\)\) return null;/.test(recorder) && /inspectionAllowed\(\): boolean \{\s*return [^;]*!this\.handoff\?\.active/.test(recorder)
+  );
+  const factory = readFileSync("src/runner/LocatorFactory.ts", "utf8");
+  check(
+    "the diagnosis override needs the independent widget-marker check to find nothing",
+    /const challenge = deps\.allowProtected === true && \(await this\.page\.locator\(CAPTCHA_MARKER_SELECTOR\)\.count\(\)\.catch\(\(\) => 1\)\) > 0;/.test(factory) &&
+      /const override =\s*\(protectedPage \|\| protectedDocument\) && deps\.allowProtected === true && !challenge &&/.test(factory)
   );
   const runner = readFileSync("src/runner/domIntelligence/repairSuggestion.ts", "utf8");
   check("a run's suggestion stage never reads a protected page (no override there)", !runner.includes("allowProtected") && runner.includes('reason: "protected-surface"'));

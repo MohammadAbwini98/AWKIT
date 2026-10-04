@@ -50,9 +50,9 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "project-state",
+      "agent_id": "security",
       "allowed_paths": [
-        ".beads/**"
+        "src/security/**"
       ]
     }
   },
@@ -166,6 +166,54 @@
         "acquired_at_commit": "33c924b25009f653a686318ffba795caf3702a10",
         "released_at": "2026-10-04T18:05:37.904Z",
         "released_reason": "L12.7 to L12.18 closed with evidence, follow-ups L12.19 loop generation, L12.20 Turnstile detector and L12.21 security review filed open, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-21-l12-implementation-1004:security:2026-10-04T19:06:17.776Z",
+        "task": "awkit-djnl-21-l12-implementation-1004",
+        "holder": "security",
+        "status": "released",
+        "allowed_paths": [
+          "src/security/**"
+        ],
+        "acquired_at": "2026-10-04T19:06:17.776Z",
+        "acquired_at_commit": "7c799a7c7fc10a2a078c085c2667155e6c348bbf",
+        "released_at": "2026-10-04T19:07:06.368Z",
+        "released_reason": "L12.20 detector selectors extended with cf-turnstile, data-sitekey, data-hcaptcha-widget-id and the challenges.cloudflare.com and arkoselabs iframes, mock-site page and verifiers continue unleased",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-21-l12-implementation-1004:security:2026-10-04T19:08:51.023Z",
+        "task": "awkit-djnl-21-l12-implementation-1004",
+        "holder": "security",
+        "status": "released",
+        "allowed_paths": [
+          "src/security/**"
+        ],
+        "acquired_at": "2026-10-04T19:08:51.023Z",
+        "acquired_at_commit": "7c799a7c7fc10a2a078c085c2667155e6c348bbf",
+        "released_at": "2026-10-04T19:09:22.084Z",
+        "released_reason": "L12.20 mutation test done, reverting the detector selectors failed verify:protected-login-recorder, fix restored",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-21-l12-implementation-1004:security:2026-10-04T19:10:50.612Z",
+        "task": "awkit-djnl-21-l12-implementation-1004",
+        "holder": "security",
+        "status": "released",
+        "allowed_paths": [
+          "src/security/**"
+        ],
+        "acquired_at": "2026-10-04T19:10:50.612Z",
+        "acquired_at_commit": "7c799a7c7fc10a2a078c085c2667155e6c348bbf",
+        "released_at": "2026-10-04T19:11:15.356Z",
+        "released_reason": "L12.20 detector fix committed as 4dc4f212, mock-site page and verifiers commit next unleased",
         "amendments": [],
         "overrides": [],
         "violations": []
