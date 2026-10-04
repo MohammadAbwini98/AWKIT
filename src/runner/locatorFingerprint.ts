@@ -143,6 +143,24 @@ export function fingerprintsEqual(a: LocatorElementFingerprint, b: LocatorElemen
 }
 
 /**
+ * L12.16: which identity fields differ between the recorded element and a candidate, as fixed codes only
+ * (`tag`, `role`, `name`, `text`, `attribute:<allowlisted key>`, `position`). Both sides are hashed
+ * fingerprints, so this compares by equality and never needs, or returns, page text or attribute values.
+ */
+export function fingerprintChanges(expected: LocatorElementFingerprint, actual: LocatorElementFingerprint): string[] {
+  const changes: string[] = [];
+  if (expected.tag !== actual.tag) changes.push("tag");
+  if (expected.role !== actual.role) changes.push("role");
+  if (expected.name !== actual.name) changes.push("name");
+  if (expected.text !== actual.text) changes.push("text");
+  for (const key of [...new Set([...Object.keys(expected.attributes), ...Object.keys(actual.attributes)])].sort()) {
+    if (expected.attributes[key] !== actual.attributes[key]) changes.push(`attribute:${key}`);
+  }
+  if (ancestrySimilarity(expected.ancestry, actual.ancestry) < 1) changes.push("position");
+  return changes;
+}
+
+/**
  * Ordered similarity of two ancestry paths in [0, 1]. A bounded longest-common-subsequence score is
  * the hashed-token equivalent of path sequence matching: it preserves parent order while tolerating an
  * inserted/removed wrapper. Ancestry is capped at three entries by createPageFingerprint, so this

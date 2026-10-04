@@ -12,6 +12,7 @@
 import type { LocatorElementFingerprint } from "@src/profiles/FlowProfile";
 import type { LocatorRecoveryTrace } from "@src/runner/LocatorFactory";
 import { toRecoveryProvenance } from "@src/runner/domIntelligence/recoveryProvenance";
+import { fingerprintChanges, hashFingerprint } from "@src/runner/locatorFingerprint";
 import {
   AGREEMENT_MIN_IDENTITY,
   AGREEMENT_MIN_PROVIDER_LEAD,
@@ -123,6 +124,17 @@ const rejected = toRecoveryProvenance(trace("suggested", "unresolved"));
 check("a plain suggestion is still rejected with AWKIT's proof code", rejected.events.some((e) => e.event === "provider-suggestion-rejected" && e.reason === "below-threshold"));
 const awkit = toRecoveryProvenance({ ...trace("suggested", "recovered"), stages: [{ stage: "local", outcome: "proven", ms: 10, candidates: 3, score: 0.95 }], suggestion: undefined });
 check("AWKIT's own recovery is still awkit-proof", awkit.actedOn === "awkit-proof");
+
+console.log("D. L12.16 what changed, as field names only");
+const recorded = hashFingerprint({ tag: "button", role: "button", name: "save changes", text: "save changes", attributes: { id: "order-save", "data-testid": "save" }, ancestry: ["div", "form", "section"] });
+const same = fingerprintChanges(recorded, recorded);
+check("an identical element differs in nothing", same.length === 0, same);
+const drifted = hashFingerprint({ tag: "button", role: "button", name: "save", text: "save", attributes: { id: "order-save-v2" }, ancestry: ["span", "div", "form"] });
+const changes = fingerprintChanges(recorded, drifted);
+check("reworded text, a changed id, a removed test id and a moved element are each named", JSON.stringify(changes) === JSON.stringify(["name", "text", "attribute:data-testid", "attribute:id", "position"]), changes);
+check("no change code carries a value (only names)", changes.every((code) => !/order|save|v2/.test(code)), changes);
+const retagged = fingerprintChanges(recorded, { ...recorded, tag: "a", role: "link" });
+check("a different kind of element names tag and role", retagged.includes("tag") && retagged.includes("role"), retagged);
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

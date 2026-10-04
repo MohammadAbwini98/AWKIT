@@ -1,5 +1,5 @@
 import type { Page, Locator, Frame, ElementHandle } from "playwright";
-import { createPageFingerprint, fingerprintsEqual, hashFingerprint, hashToken, similarity } from "./locatorFingerprint";
+import { createPageFingerprint, fingerprintChanges, fingerprintsEqual, hashFingerprint, hashToken, similarity } from "./locatorFingerprint";
 import {
   locatorContainerChain,
   locatorFrameChain,
@@ -132,6 +132,11 @@ export interface LocatorRecoveryStage {
   candidates?: number;
   score?: number;
   runnerUpScore?: number;
+  /**
+   * L12.16: on a refused local layer, what differs between the recorded element and the closest candidate
+   * (`fingerprintChanges` codes: field names only, never values).
+   */
+  changed?: string[];
 }
 
 /**
@@ -964,7 +969,7 @@ export class LocatorFactory {
       stages.push({ stage: "local", outcome: "error", reason: "snapshot-failed", ms: performance.now() - started });
       return undefined;
     }
-    return this.proveSnapshotWinner(visible, root, decision, "local", started, stages);
+    return this.proveSnapshotWinner(visible, root, decision, "local", started, stages, expected);
   }
 
   /**
@@ -980,7 +985,7 @@ export class LocatorFactory {
     const started = performance.now();
     const visible = root.locator("*:visible");
     const decision = rankLocalRecovery(step, expected, await LocatorFactory.fingerprintMany(visible, RECOVERY_SCAN_CAP));
-    return this.proveSnapshotWinner(visible, root, decision, "local", started, stages);
+    return this.proveSnapshotWinner(visible, root, decision, "local", started, stages, expected);
   }
 
   /**
@@ -994,10 +999,13 @@ export class LocatorFactory {
     decision: RecoveryDecision,
     stage: "local" | "blueprint",
     started: number,
-    stages: LocatorRecoveryStage[]
+    stages: LocatorRecoveryStage[],
+    expected?: LocatorElementFingerprint
   ): Promise<RecoveredElement | undefined> {
     if (!decision.winner) {
       LocatorFactory.recordStage(stages, stage, decision, started);
+      // L12.16: what changed between the recorded element and the closest one, for the report (codes only).
+      if (expected && decision.best) stages[stages.length - 1].changed = fingerprintChanges(expected, decision.best.fingerprint);
       return undefined;
     }
     const locator = await recheckSnapshotWinner(list, scope, decision.winner).catch(() => undefined);
@@ -1023,7 +1031,12 @@ export class LocatorFactory {
 
   private emitTrace(step: FlowStep, trace: LocatorRecoveryTrace): void {
     const summary = trace.stages
-      .map((stage) => `${stage.stage}=${stage.outcome}${stage.reason ? `(${stage.reason})` : ""} ${stage.ms.toFixed(0)}ms`)
+      .map(
+        (stage) =>
+          `${stage.stage}=${stage.outcome}${stage.reason ? `(${stage.reason})` : ""} ${stage.ms.toFixed(0)}ms` +
+          // L12.16: the closest element the layer refused, and what differs from the recorded one (codes only).
+          (stage.changed && stage.score !== undefined ? ` [closest ${stage.score.toFixed(2)}, differs in ${stage.changed.length ? stage.changed.join(" ") : "nothing recorded"}]` : "")
+      )
       .join(", ");
     this.emit({
       type: "recovery-trace",

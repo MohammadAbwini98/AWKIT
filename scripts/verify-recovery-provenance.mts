@@ -145,7 +145,9 @@ async function run(engine: ExecutionEngine, dirs: Awaited<ReturnType<typeof buil
 }
 
 const FIELDS = new Set(["schemaVersion", "engine", "result", "actedOn", "page", "frame", "frameDepth", "route", "totalMs", "events"]);
-const EVENT_FIELDS = new Set(["event", "source", "stage", "ms", "candidates", "score", "runnerUpScore", "reason", "effect", "provider", "providerScore", "awkitScore", "fallback"]);
+const EVENT_FIELDS = new Set(["event", "source", "stage", "ms", "candidates", "score", "runnerUpScore", "reason", "effect", "provider", "providerScore", "awkitScore", "fallback", "changed"]);
+/** L12.16: `changed` holds field names only: a fixed field, or an attribute key the fingerprint allowlists. */
+const CHANGE_CODE = /^(tag|role|name|text|position|attribute:(id|name|type|placeholder|data-testid|aria-label|data-key|data-id|data-row-key|data-item-key))$/;
 /** Every string in a record is a fixed code: lower-case words, digits, hyphens and one colon. */
 const CODE = /^[a-z][a-z0-9-]*(:[a-z0-9-]+)?$/;
 
@@ -160,6 +162,10 @@ function privacyProblems(record: LocatorRecoveryProvenance): string[] {
   for (const event of record.events) {
     for (const [key, value] of Object.entries(event)) {
       if (!EVENT_FIELDS.has(key)) problems.push(`event field ${key}`);
+      if (key === "changed") {
+        if (!Array.isArray(value) || value.length > 12 || !value.every((code) => typeof code === "string" && CHANGE_CODE.test(code))) problems.push(`changed ${JSON.stringify(value)}`);
+        continue;
+      }
       if (typeof value === "string" && !CODE.test(value)) problems.push(`value ${value}`);
       if (typeof value !== "string" && typeof value !== "number") problems.push(`${key} is ${typeof value}`);
     }
@@ -222,6 +228,14 @@ try {
   check("the run still ended (a hung provider never holds the step)", timeout.outcome.instance?.status === "failed" && timeout.outcome.wallMs < 20_000, timeout.outcome.wallMs);
   check("events: local invoked and refused, blueprint refused (skipped), provider timeout, fallback", names(timeout.record) === "primary-failed,snapshot-recovery-invoked,snapshot-recovery-refused,snapshot-recovery-refused,provider-timeout,fallback-used", names(timeout.record));
   check("the refusals carry their codes", timeout.record?.events[2].reason?.startsWith("refused:") === true && timeout.record?.events[3].reason?.startsWith("skipped:") === true, timeout.record?.events.map((event) => event.reason));
+  const localRefusal = timeout.record?.events[2];
+  check(
+    "L12.16 the refused local layer says what differs in its closest element (field names only)",
+    localRefusal?.score !== undefined && Array.isArray(localRefusal.changed) && localRefusal.changed.length > 0 && localRefusal.changed.every((code) => CHANGE_CODE.test(code)),
+    localRefusal
+  );
+  const traceLine = timeout.outcome.logs.find((log) => log.stepId && /\[locator:recovery-trace\]/.test(log.message))?.message ?? "";
+  check("L12.16 the report's recovery line names the closest score and the changed fields", /\[closest \d\.\d\d, differs in [a-z: -]+\]/.test(traceLine), traceLine);
   check("the provider was consulted once", timeout.consulted === 1, timeout.consulted);
   check("the timeout event is provider evidence with no effect, within the budget", timedOut?.source === "dom-intelligence" && timedOut.effect === "none" && (timedOut.ms ?? Infinity) < BUDGET_MS + 400, timedOut);
 

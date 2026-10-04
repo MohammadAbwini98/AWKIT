@@ -48,7 +48,12 @@ export interface RecoveryProvenanceEvent {
   awkitScore?: number;
   /** What the step did next when recovery was unresolved. */
   fallback?: "recorded-locator";
+  /** L12.16: on a refused layer, the identity fields that differ in the closest element (`fingerprintChanges` codes). */
+  changed?: string[];
 }
+
+/** The only shapes a `changed` code may take: a fixed field, or an attribute the fingerprint allowlists. */
+const CHANGE_CODE = /^(tag|role|name|text|position|attribute:(id|name|type|placeholder|data-testid|aria-label|data-key|data-id|data-row-key|data-item-key))$/;
 
 /** The step is the log entry's own `stepId` (a uuid-shaped id inside `data` would be masked as a secret). */
 export interface LocatorRecoveryProvenance {
@@ -92,7 +97,8 @@ export function toRecoveryProvenance(trace: LocatorRecoveryTrace): LocatorRecove
           candidates: stage.candidates,
           score: score(stage.score),
           runnerUpScore: score(stage.runnerUpScore),
-          reason: stage.outcome === "proven" ? undefined : `${stage.outcome}:${stage.reason ?? "none"}`
+          reason: stage.outcome === "proven" ? undefined : `${stage.outcome}:${stage.reason ?? "none"}`,
+          changed: stage.outcome !== "proven" && stage.changed ? stage.changed.filter((code) => CHANGE_CODE.test(code)).slice(0, 12) : undefined
         }) as RecoveryProvenanceEvent
       );
       continue;
