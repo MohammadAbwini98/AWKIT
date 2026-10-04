@@ -85,8 +85,8 @@
       "command": "npm run package:kit",
       "artifact": "dist/SpecterStudio 0.1.52 Kit",
       "required": true,
-      "result": "pending",
-      "notes": ""
+      "result": "PASS",
+      "notes": "422 files, 1,048 MiB: SpecterStudio 0.1.52.exe (9ec52ad4, equal to release-provenance.json, built from fb288f28 clean), java/jdk-17 (Oracle Corporation 17.0.8, 416 files, 290 MiB), oracle-jdbc/ojdbc17.jar (23.26.2.0.0, 96010f27, equal to its driver-store manifest), ai-model/Qwen3.5-0.8B-Q4_K_M.gguf (f5b14da9, equal to the qualified QWEN_0_8B in src/offline/AiQualifiedList.ts), INSTALL.md and SHA256SUMS.txt."
     },
     {
       "id": "kit-inspection",
@@ -94,8 +94,8 @@
       "command": null,
       "artifact": "dist/SpecterStudio 0.1.52 Kit",
       "required": true,
-      "result": "pending",
-      "notes": ""
+      "result": "PASS",
+      "notes": "The script's own key-material scan passed. A separate glob for issuer, pkcs8, ed25519, license.json, .lic and .pem files in the kit found none. INSTALL.md and SHA256SUMS.txt were read: steps match the current Settings, Licensing and Local AI labels, and the sums match the hashes above. The issuer key, licenses and user data are not included by design. Not done: java -version from the kit copy was not run (the guard allows no arbitrary command); the source JDK is the one verify:oracle-drivers-gui validated (Java 17.0.8)."
     },
     {
       "id": "verify:roadmap-dashboard",
@@ -103,8 +103,8 @@
       "command": "npm run verify:roadmap-dashboard",
       "artifact": null,
       "required": true,
-      "result": "pending",
-      "notes": ""
+      "result": "PASS",
+      "notes": "177/177, Overview 'Sources agree'."
     }
   ],
   "git": {
@@ -115,8 +115,29 @@
     "push_authorized": true
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "pending",
+    "status": "implemented",
+    "qa_status": "PASS",
     "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-portable-kit-0152-1004:release:2026-10-04T07:21:56.860Z",
+        "task": "awkit-portable-kit-0152-1004",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "package.json",
+          "scripts/package-kit.mjs"
+        ],
+        "acquired_at": "2026-10-04T07:21:56.860Z",
+        "acquired_at_commit": "8fee99eec2e2ad757c8ceee0a39f6143251b551a",
+        "released_at": "2026-10-04T07:27:52.729Z",
+        "released_reason": "install kit for 0.1.52 assembled in dist with EXE, Oracle JDK 17.0.8, ojdbc17 23.26.2.0.0 and the qualified Qwen 0.8B model, script committed in e993e0b7",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
   }
 }

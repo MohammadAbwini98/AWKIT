@@ -2,7 +2,7 @@
   "task": "awkit-portable-kit-0152-1004",
   "contract_path": "docs/ai/contracts/awkit-portable-kit-0152-1004.json",
   "holder": "release",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "package.json",
     "scripts/package-kit.mjs"
@@ -27,5 +27,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-10-04T07:27:52.729Z",
+  "released_reason": "install kit for 0.1.52 assembled in dist with EXE, Oracle JDK 17.0.8, ojdbc17 23.26.2.0.0 and the qualified Qwen 0.8B model, script committed in e993e0b7",
+  "archived_at": "2026-10-04T07:27:52.730Z"
 }

@@ -1,6 +1,29 @@
 # TASK_LOG
 
-## 2026-10-04 (latest) — Portable SpecterStudio 0.1.52 (Claude)
+## 2026-10-04 (latest) — Internal install kit for 0.1.52 (`package:kit`) (Claude)
+
+- **Task:** owner asked for all external files (Java, ojdbc, the key issuer, the AI model, etc.) in one `dist`
+  directory, with installation steps and download URLs, for internal machines.
+- **Result:**
+  - New `scripts/package-kit.mjs` and `npm run package:kit` build `dist/SpecterStudio 0.1.52 Kit` (422 files,
+    1,048 MiB).
+  - **EXE:** the portable `SpecterStudio 0.1.52.exe`. Its hash equals `release-provenance.json`, built from
+    `fb288f28`.
+  - **Java:** `java/jdk-17` (Oracle JDK 17.0.8).
+  - **Oracle driver:** `oracle-jdbc/ojdbc17.jar` (23.26.2.0.0). Its hash equals the driver-store manifest.
+  - **AI model:** `ai-model/Qwen3.5-0.8B-Q4_K_M.gguf`. Its hash equals the qualified 0.8B entry.
+  - **Guide:** `INSTALL.md` covers activation, Java, driver and model steps with the current Settings labels, plus
+    download URLs. `SHA256SUMS.txt` lists the checksums.
+  - **Issuer key:** excluded by design. The script refuses issuer-key sources and deletes the kit if key-like files
+    appear. A file named `issuer-keys.txt` exists in `%LOCALAPPDATA%\SpecterStudio`; it was not opened, and the
+    owner was told it may hold key material outside custody.
+- **Files:** `scripts/package-kit.mjs`, `package.json`, contract `awkit-portable-kit-0152-1004`, `docs/ai/TASK_LOG.md`.
+- **Verification:**
+  - PASS `package:kit` (two runs; the second corrected the guide's commit line) and the kit inspection.
+  - PASS `verify:roadmap-dashboard`.
+  - NOT RUN: `java -version` from the kit copy, and an install walkthrough of the kit on a clean machine.
+
+## 2026-10-04 — Portable SpecterStudio 0.1.52 (Claude)
 
 - **Task:** owner asked for a new portable file. The work followed the patch-release convention of
   `scripts/release-portable.ps1` under release lease `awkit-portable-0152-1004`, since
