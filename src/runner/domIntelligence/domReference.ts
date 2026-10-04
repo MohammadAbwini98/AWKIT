@@ -48,9 +48,21 @@ export interface DomReferenceElement {
   children: string[];
 }
 
+/**
+ * The id a step's reference is stored under: its `locator.blueprintId` when the Recorder gave it one, else
+ * (L12.5, steps recorded before blueprints) the step's own id scoped to its flow. The binding digest still
+ * makes any locator edit stale, and the route binding still applies.
+ */
+export function domReferenceId(step: { id?: string; locator?: { blueprintId?: string } }, flowId?: string): string | undefined {
+  if (step.locator?.blueprintId) return step.locator.blueprintId;
+  if (!step.id) return undefined;
+  const id = `step:${flowId ?? "flow"}:${step.id}`;
+  return id.length <= 100 ? id : undefined;
+}
+
 export interface DomReferenceRecord {
   schemaVersion: typeof DOM_REFERENCE_SCHEMA_VERSION;
-  /** The step's `locator.blueprintId`. */
+  /** `domReferenceId(step)`: the step's `locator.blueprintId`, or its flow-scoped step id. */
   referenceId: string;
   /** `locatorCandidatesDigest` of the step's candidates when captured; a mismatch means stale. */
   bindingDigest: string;

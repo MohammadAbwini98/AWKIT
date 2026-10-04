@@ -9,7 +9,7 @@ import { assertSenderPermission, assertSenderSuperUser } from "../security/sessi
 import { Permission } from "@src/security/authz/Permissions";
 import { getSecretStore } from "../secretStore";
 import { getOracleNodeRunner } from "../oracleService";
-import { domIntelligenceRecoveryOptions } from "../domIntelligence/domIntelligenceRuntime";
+import { domIntelligenceRecoveryOptions, prewarmDomIntelligence } from "../domIntelligence/domIntelligenceRuntime";
 import { indexCompletedRun } from "../semantic/semanticService";
 import { applyRunGateEnforcement, licenseDispatchGate, parkedResumeBlocker } from "../licensing/licenseEnforcementService";
 import { ExecutionApplicationService } from "../execution/ExecutionApplicationService";
@@ -51,8 +51,8 @@ export function registerExecutionIpc(): void {
   // Oracle query nodes run through the main-process OracleQueryService (owns the JDBC bridge).
   executionEngine.setOracleNodeRunner(getOracleNodeRunner());
 
-  // L11: non-executing DOM-intelligence repair suggestions after a refused locator recovery. The host
-  // is started lazily by the first such request, never here and never by a successful step.
+  // L11: DOM-intelligence repair suggestions after a refused locator recovery (L12: and the agreement
+  // rule). The host is never started here: a real run prewarms it below, or the first request starts it.
   executionEngine.setDomIntelligence(domIntelligenceRecoveryOptions());
 
   // Keep the semantic index fresh as runs finish, instead of only when a rebuild runs (plan §14).
@@ -88,6 +88,8 @@ export function registerExecutionIpc(): void {
       } else {
         await assertSenderPermission(event, Permission.WORKFLOW_EXECUTE);
       }
+      // L12.1: an authorized real run starts the DOM-intelligence host in the background (never awaited).
+      prewarmDomIntelligence();
     }
     return applicationService.runWorkflow(request, browserLaunchSnapshot);
   });

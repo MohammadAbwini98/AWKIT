@@ -28,6 +28,11 @@ export const DOM_INTELLIGENCE_LIMITS = Object.freeze({
   /** Default and maximum per-request budgets. */
   defaultTimeoutMs: 1_500,
   maxTimeoutMs: 10_000,
+  /**
+   * L12.4: diagnosis-only callers (Element Spy, Designer, drift check) are off the execution path, so a
+   * large page gets an answer instead of a timeout. A run's suggestion stage keeps its own 800 ms.
+   */
+  diagnosisTimeoutMs: 5_000,
   /** Host start (spawn to hello) budget. */
   startTimeoutMs: 15_000
 });

@@ -119,6 +119,7 @@ export function registerDomIntelligenceIpc(): void {
         references,
         expected: identity.fingerprint,
         expectedRoute: identity.route,
+        flowId,
         describe: true
       });
       return { ok: true, diagnosis: { ...redactDiagnosis(diagnosis), page: alias } };

@@ -9,6 +9,7 @@ import { isLocatorRecordingMode, LOCATOR_RECORDING_MODES, type RecordedAction } 
 import { FileLocatorBlueprintStore, type PageBlueprint } from "@src/runner/LocatorBlueprintStore";
 import { DOM_REFERENCE_FOLDER, FileDomReferenceStore, type DomReferenceRecord } from "@src/runner/domIntelligence/domReference";
 import { getSessionService } from "./session.ipc";
+import { prewarmDomIntelligence } from "../domIntelligence/domIntelligenceRuntime";
 import { getUiSettings, type LocatorRecordingMode } from "../uiSettings";
 import { resolveIgnoreHttpsErrors } from "@src/security/browser/CertificateTrust";
 import { assertSenderPermission } from "../security/sessionContext";
@@ -62,6 +63,7 @@ export function registerRecorderIpc(): void {
 
   ipcMain.handle("recorder:start", async (event, url: string, options?: { captureWaitTime?: boolean; captureSmartWaits?: boolean }) => {
     const { settings, executablePath, userDataDir } = await resolveRecorderBrowser(event, "recorder:start");
+    prewarmDomIntelligence();
     // The protected-login ignore flag is read from persisted Settings (single source of truth) so it
     // is always current regardless of when the Recorder page loaded it. Certificate trust is likewise
     // read from Settings at launch time (never from the renderer), so a Recorder session always reflects
@@ -94,6 +96,8 @@ export function registerRecorderIpc(): void {
     const { settings, executablePath, userDataDir } = await resolveRecorderBrowser(event, "recorder:startInspection");
     await assertSenderPermission(event, Permission.RECORDER_ELEMENT_SPY);
     if (typeof url !== "string") throw new Error("Element Spy: a target URL is required.");
+    // L12.1: the Spy's diagnosis is the host's most frequent caller; start it while the browser opens.
+    prewarmDomIntelligence();
     return recorderService.startInspection(url, {
       executablePath,
       userDataDir,

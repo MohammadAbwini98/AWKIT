@@ -48,14 +48,15 @@ import {
   type RecoveryRefusal,
   type ScoredCandidate
 } from "./recoverySnapshot";
-import type {
-  DomCandidateProof,
-  DomIntelligenceProvider,
-  DomIntelligenceRecoveryOptions,
-  DomRepairSuggestion
+import {
+  DOM_INTELLIGENCE_LIMITS,
+  type DomCandidateProof,
+  type DomIntelligenceProvider,
+  type DomIntelligenceRecoveryOptions,
+  type DomRepairSuggestion
 } from "./domIntelligence/DomIntelligenceProvider";
 import { fingerprintAt, proveCandidate, suggestRepair } from "./domIntelligence/repairSuggestion";
-import { buildDomReference, type DomReferenceStore } from "./domIntelligence/domReference";
+import { buildDomReference, domReferenceId, type DomReferenceStore } from "./domIntelligence/domReference";
 import { captureDomSnapshot } from "./domIntelligence/domSnapshot";
 import { DOM_REFERENCE_CAPTURE_SOURCE } from "./domIntelligence/pageScripts";
 import { compareRoutes, routeKey } from "./routeIdentity";
@@ -463,6 +464,8 @@ export class LocatorFactory {
       expected?: LocatorElementFingerprint;
       /** The `routeKey` the expected identity was proven on (winner memory), when known. */
       expectedRoute?: string;
+      /** The saved flow the step belongs to, for a reference stored under its flow-scoped step id. */
+      flowId?: string;
       describe?: boolean;
     } = {}
   ): Promise<LocatorDiagnosis> {
@@ -539,7 +542,7 @@ export class LocatorFactory {
 
     // The provider's candidates, each re-proven by AWKIT over the frame's competitor set.
     const providerStarted = performance.now();
-    const referenceId = spec.blueprintId;
+    const referenceId = domReferenceId(step, deps.flowId ?? this.options.scope?.flowId);
     const reference = referenceId && deps.references ? await deps.references.get(referenceId, stepCandidatesDigest(spec)).catch(() => undefined) : undefined;
     // Either binding on another route makes this page a different route for the step (L11.F).
     const routes = [compareRoutes(deps.expectedRoute, routeKey(frame.url())), compareRoutes(reference?.route, routeKey(frame.url()))];
@@ -556,7 +559,7 @@ export class LocatorFactory {
       if (!snapshot) diagnosis.provider = { outcome: "error", reason: "snapshot-failed", candidates: [] };
       else if (snapshot.refused) diagnosis.provider = { outcome: "skipped", reason: "protected-surface", candidates: [] };
       else {
-        const result = await deps.provider.findRecoveryCandidates({ html: snapshot.html, reference, maxCandidates: 5 });
+        const result = await deps.provider.findRecoveryCandidates({ html: snapshot.html, reference, maxCandidates: 5, timeoutMs: DOM_INTELLIGENCE_LIMITS.diagnosisTimeoutMs });
         if (!result.ok) {
           diagnosis.provider = { outcome: "error", reason: result.code === "TIMEOUT" ? "provider-timeout" : result.code === "UNAVAILABLE" || result.code === "DISABLED" ? "provider-unavailable" : "provider-error", candidates: [] };
         } else {
@@ -746,7 +749,7 @@ export class LocatorFactory {
    */
   private async maybeSeedReference(step: FlowStep, locator: Locator, sensitiveAction: boolean): Promise<void> {
     const references = this.options.domIntelligence?.references;
-    const referenceId = step.locator?.blueprintId;
+    const referenceId = domReferenceId(step, this.options.scope?.flowId);
     if (!references || !referenceId || sensitiveAction || !step.locator) return;
     const bindingDigest = stepCandidatesDigest(step.locator);
     const key = `${referenceId}:${bindingDigest}`;
@@ -845,6 +848,7 @@ export class LocatorFactory {
           frame: await this.blueprintFrame(step.locator?.context).catch(() => this.page.mainFrame()),
           step,
           expected,
+          referenceId: domReferenceId(step, this.options.scope?.flowId),
           options: this.options.domIntelligence
         }).catch(() => ({ stage: { outcome: "error" as const, reason: "provider-error" as const } }));
         stages.push({ stage: "provider", ms: performance.now() - stageStarted, ...outcome.stage });
@@ -879,7 +883,7 @@ export class LocatorFactory {
    */
   private async referenceRoute(step: FlowStep): Promise<LocatorRecoveryContext["route"]> {
     const references = this.options.domIntelligence?.references;
-    const referenceId = step.locator?.blueprintId;
+    const referenceId = domReferenceId(step, this.options.scope?.flowId);
     if (!references || !referenceId || !step.locator) return "unbound";
     try {
       const reference = await references.get(referenceId, stepCandidatesDigest(step.locator));

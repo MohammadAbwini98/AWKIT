@@ -66,10 +66,12 @@ export async function suggestRepair(input: {
   frame: Frame;
   step: FlowStep;
   expected: LocatorElementFingerprint;
+  /** `domReferenceId(step, flowId)`; defaults to the step's blueprint id. */
+  referenceId?: string;
   options: DomIntelligenceRecoveryOptions;
 }): Promise<{ stage: SuggestionStage; suggestion?: DomRepairSuggestion; agreed?: { locator: Locator; fingerprint: LocatorElementFingerprint; score: number } }> {
   const { frame, step, expected, options } = input;
-  const referenceId = step.locator?.blueprintId;
+  const referenceId = input.referenceId ?? step.locator?.blueprintId;
   if (!referenceId || !step.locator) return { stage: { outcome: "skipped", reason: "no-reference" } };
   const reference = await options.references.get(referenceId, stepCandidatesDigest(step.locator)).catch(() => undefined);
   if (!reference) return { stage: { outcome: "skipped", reason: "no-reference" } };

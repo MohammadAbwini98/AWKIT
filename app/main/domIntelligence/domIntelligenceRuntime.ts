@@ -1,10 +1,11 @@
 /**
  * Main-process owner of the L11 DOM-intelligence provider (awkit-djnl.19, plan E4/E5).
  *
- * One provider per app process. The host is never started here: `ScraplingDomIntelligenceProvider` starts
- * it lazily on the first request (a runner repair suggestion after a refused recovery, an Element Spy or
- * Designer diagnosis, or an AI normalization), so application start and every normal step pay nothing.
- * It is stopped on quit (and exits by itself on stdin EOF if main dies first).
+ * One provider per app process. Application start never starts the host. Since L12 a real run or a
+ * recorder session prewarms it in the background (`prewarmDomIntelligence`), otherwise the first request
+ * starts it (a runner repair suggestion after a refused recovery, an Element Spy or Designer diagnosis, or an
+ * AI normalization). Normal steps never wait on it. It is stopped on quit (and exits by itself on stdin EOF
+ * if main dies first).
  *
  * The runtime is the staged tree (`scripts/prepare-dom-intelligence-host.mjs`): packaged at
  * `resources/native-hosts/dom-intelligence`, in development at `build/native-hosts/dom-intelligence`.
@@ -89,6 +90,18 @@ export function domIntelligenceRecoveryOptions(): DomIntelligenceRecoveryOptions
 
 export async function domIntelligenceStatus(): Promise<DomIntelligenceStatus> {
   return getDomIntelligenceProvider().getStatus();
+}
+
+/**
+ * L12.1 (awkit-djnl.21.1): start the host in the background when a run or a recorder session starts, so
+ * the first failed lookup does not pay the cold start (about 1 s). Never awaited and never fatal: an absent,
+ * disabled or broken runtime answers its status without spawning anything, and an unused host still stops
+ * itself after the provider's idle timeout.
+ */
+export function prewarmDomIntelligence(): void {
+  void getDomIntelligenceProvider()
+    .getStatus()
+    .catch(() => undefined);
 }
 
 export async function shutdownDomIntelligence(): Promise<void> {
