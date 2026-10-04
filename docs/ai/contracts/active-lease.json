@@ -1,18 +1,22 @@
 {
-  "task": "awkit-djnl-phase-l-state-1003",
-  "contract_path": "docs/ai/contracts/awkit-djnl-phase-l-state-1003.json",
-  "holder": "project-state",
-  "status": "released",
+  "task": "awkit-portable-0152-1004",
+  "contract_path": "docs/ai/contracts/awkit-portable-0152-1004.json",
+  "holder": "release",
+  "status": "active",
   "allowed_paths": [
-    ".beads/issues.jsonl"
+    "build",
+    "package-lock.json",
+    "package.json",
+    "resources/dependency-manifest.json",
+    "resources/dependency-manifest.sig"
   ],
-  "acquired_at": "2026-10-02T21:21:12.327Z",
-  "acquired_at_commit": "046ad7fff77e67d3e32887b493ad11ca4bc878a5",
+  "acquired_at": "2026-10-04T05:57:10.468Z",
+  "acquired_at_commit": "5bb4fc19a26fa7ea1056463c9453f32d2cac7f0e",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-djnl-phase-l-state-1003.json"
+    "docs/ai/contracts/awkit-portable-0152-1004.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-djnl-phase-l-state-1003.json": "160410a1f87d6bfc97c440374064a2914ec4a7581453ecba6060090c15a85a30"
+    "docs/ai/contracts/awkit-portable-0152-1004.json": "987ff17d57293598ac26fa7499e83c166d24ba757dfa63a2c573eafdb4a1a222"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -26,8 +30,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-10-02T21:21:31.645Z",
-  "released_reason": "Phase L state note appended to awkit-djnl and exported, 333 issues, awkit-djnl.20 unchanged",
-  "archived_at": "2026-10-02T21:21:31.646Z"
+  "violations": []
 }
