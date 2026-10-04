@@ -1,6 +1,27 @@
 # TASK_LOG
 
-## 2026-10-04 (latest) — Scrapling performance and accuracy re-measured (Claude)
+## 2026-10-04 (latest) — Portable SpecterStudio 0.1.52 (Claude)
+
+- **Task:** owner asked for a new portable file. The work followed the patch-release convention of
+  `scripts/release-portable.ps1` under release lease `awkit-portable-0152-1004`, since
+  `package:portable` is release-holder only.
+- **Result:** `dist/SpecterStudio 0.1.52.exe`.
+  - The version bump went in with the lease bookkeeping (`fb288f28`). `package:portable` then ran from that
+    clean tree, and the re-signed manifest pair was committed in `cbf389f6`.
+  - The manifest records version 0.1.52, sourceCommit `fb288f28` and sourceTreeDirty false (ed25519
+    `aa5b9dd8`).
+  - `dist/SpecterStudio 0.1.51.exe` is untouched.
+  - The package carries the 2026-10-03/04 app-background, canvas, cursor and Settings changes.
+- **Verification:**
+  - PASS portable fresh-state 10/10.
+  - PASS strict offline validation: Zvec 17/17, local AI 1,465/1,465, DOM intelligence 168/168, and none of
+    the 20 pinned GPU binaries shipped.
+  - PASS `verify:packaged-runtime` 25/25 and `verify:roadmap-dashboard` 177/177 with Sources agree.
+  - NOT RUN: `verify:packaged-walkthrough`, the clean-machine VM and the other packaged gates.
+  - Authenticode signing was skipped (no certificate), as before.
+  - QC review is pending: the contract is `implemented`, not `complete`.
+
+## 2026-10-04 — Scrapling performance and accuracy re-measured (Claude)
 
 - **Task:** owner asked for a Scrapling performance and accuracy test with a report. This was measurement only;
   no code changed.

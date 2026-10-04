@@ -106,8 +106,8 @@
       "command": null,
       "artifact": "package.json",
       "required": true,
-      "result": "pending",
-      "notes": ""
+      "result": "PASS",
+      "notes": "package.json version and package-lock.json version and packages[''].version all read 0.1.52, committed in fb288f28 with the lease bookkeeping before packaging."
     },
     {
       "id": "package:portable",
@@ -115,8 +115,8 @@
       "command": "npm run package:portable",
       "artifact": "dist/SpecterStudio 0.1.52.exe",
       "required": true,
-      "result": "pending",
-      "notes": ""
+      "result": "PASS",
+      "notes": "Built from clean fb288f28. Portable fresh-state 10/10. Strict offline validation passed: Zvec 17/17, local AI 1465/1465 with 0 unlisted and 0 missing, DOM intelligence 168/168 (CPython 3.12.10, Scrapling 0.4.15 parser-only), and none of the 20 pinned GPU binaries ships. The re-signed manifest (ed25519 aa5b9dd8) records version 0.1.52, sourceCommit fb288f28 and sourceTreeDirty false, committed in cbf389f6. Authenticode signing skipped (no certificate configured), as in earlier releases. dist/SpecterStudio 0.1.51.exe untouched."
     },
     {
       "id": "verify:packaged-runtime",
@@ -124,8 +124,8 @@
       "command": "npm run verify:packaged-runtime",
       "artifact": null,
       "required": true,
-      "result": "pending",
-      "notes": ""
+      "result": "PASS",
+      "notes": "25/25 on dist/win-unpacked: bundle contents, packaged manifest, launch in packaged mode with sql.js from app.asar, runtime root under %LOCALAPPDATA%/SpecterStudio, real SQLite with 5 migrations, writable artifacts root, clean process exit."
     },
     {
       "id": "verify:roadmap-dashboard",
@@ -133,8 +133,8 @@
       "command": "npm run verify:roadmap-dashboard",
       "artifact": null,
       "required": true,
-      "result": "pending",
-      "notes": ""
+      "result": "PASS",
+      "notes": "177/177, Overview 'Sources agree', 333 issues, 22 outstanding / 311 closed, ledger 65 PASS / 2 NOT RUN / 0 BLOCKED."
     }
   ],
   "git": {
@@ -145,8 +145,32 @@
     "push_authorized": true
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "pending",
+    "status": "implemented",
+    "qa_status": "PASS",
     "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-portable-0152-1004:release:2026-10-04T05:57:10.468Z",
+        "task": "awkit-portable-0152-1004",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "build",
+          "package-lock.json",
+          "package.json",
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig"
+        ],
+        "acquired_at": "2026-10-04T05:57:10.468Z",
+        "acquired_at_commit": "5bb4fc19a26fa7ea1056463c9453f32d2cac7f0e",
+        "released_at": "2026-10-04T06:05:25.401Z",
+        "released_reason": "portable 0.1.52 built from clean fb288f28 with strict offline validation passed, signed manifest committed in cbf389f6, packaged runtime 25 of 25",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
   }
 }
