@@ -67,8 +67,11 @@ const PROVIDER_HOSTS: { suffix: string; provider: ProtectedLoginProvider }[] = [
   { suffix: "duosecurity.com", provider: "duo" }
 ];
 
-/** Text signals (lowercased, apostrophes normalized) → reason. Order = priority. */
-const TEXT_PATTERNS: { pattern: string; reason: ProtectedLoginReason }[] = [
+/**
+ * Text signals (lowercased, apostrophes normalized) → reason. Order = priority. Exported read-only so the L12.17
+ * diagnosis can refuse a page on ANY refused reason's wording, not only the first match a detection reports.
+ */
+export const PROTECTED_TEXT_PATTERNS: ReadonlyArray<Readonly<{ pattern: string; reason: ProtectedLoginReason }>> = Object.freeze([
   { pattern: "this browser or app may not be secure", reason: "blocked-automation-browser" },
   { pattern: "couldn't sign you in", reason: "blocked-automation-browser" },
   { pattern: "try using a different browser", reason: "blocked-automation-browser" },
@@ -96,7 +99,8 @@ const TEXT_PATTERNS: { pattern: string; reason: ProtectedLoginReason }[] = [
   { pattern: "external approval", reason: "external-approval" },
   { pattern: "identity provider", reason: "sso" },
   { pattern: "single sign-on", reason: "sso" }
-];
+]);
+const TEXT_PATTERNS = PROTECTED_TEXT_PATTERNS;
 
 function normalize(text: string): string {
   return text.replace(/[‘’]/g, "'").toLowerCase();
