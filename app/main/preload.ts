@@ -7,7 +7,7 @@ import type { CaptureFragmentInput, FragmentOperationResult } from "./ipc/fragme
 import type { WorkflowProfile } from "@src/profiles/WorkflowProfile";
 import type { OfflineRuntimeStatus } from "@src/offline/OfflineRuntimeValidator";
 import type { SemanticSearchRequest } from "@src/semantic/contracts/SemanticDocument";
-import type { DomDiagnosisRequest, DomDiagnosisResponse, DomIntelligenceStatusView } from "@src/runner/domIntelligence/DomIntelligenceApi";
+import type { DomDiagnosisRequest, DomDiagnosisResponse, DomDriftRequest, DomDriftResponse, DomIntelligenceStatusView } from "@src/runner/domIntelligence/DomIntelligenceApi";
 import type {
   LocatorSuggestionRequest,
   SemanticAdminResponse,
@@ -427,7 +427,8 @@ const api = {
    */
   domIntelligence: {
     getStatus: () => invoke("domIntelligence:getStatus") as Promise<DomIntelligenceStatusView>,
-    diagnoseStep: (request: DomDiagnosisRequest) => invoke("domIntelligence:diagnoseStep", request) as Promise<DomDiagnosisResponse>
+    diagnoseStep: (request: DomDiagnosisRequest) => invoke("domIntelligence:diagnoseStep", request) as Promise<DomDiagnosisResponse>,
+    checkDrift: (request: DomDriftRequest) => invoke("domIntelligence:checkDrift", request) as Promise<DomDriftResponse>
   },
   /**
    * Optional local AI (Phase L, L1). Status, settings, the model pack, diagnostics, the audit log,

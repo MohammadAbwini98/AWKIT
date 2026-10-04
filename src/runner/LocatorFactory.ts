@@ -207,6 +207,8 @@ export interface LocatorDiagnosis {
     matchMs?: number;
     ms?: number;
   };
+  /** L12.8: look-alikes of the element the saved locator finds now (absent when it finds none). */
+  similar?: { outcome: "ok" | "unavailable"; count?: number; ms: number };
   timings: { totalMs: number };
 }
 
@@ -587,8 +589,31 @@ export class LocatorFactory {
       }
     }
     diagnosis.provider.ms = performance.now() - providerStarted;
+
+    // L12.8: how many elements on this page look like the one the saved locator finds now. A step whose element
+    // has look-alikes depends on whatever makes it unique; position alone does not survive a re-sort.
+    const protectedPage = detection?.detected && detection.recommendedAction === "pause";
+    if (pass.winner && deps.provider?.findSimilar && !protectedPage && diagnosis.route !== "mismatch") {
+      diagnosis.similar = await LocatorFactory.countSimilar(frame, pass.winner.locator, deps.provider);
+    }
     diagnosis.timings.totalMs = performance.now() - started;
     return diagnosis;
+  }
+
+  /** L12.8: look-alikes of one resolved element in `frame`, from the provider's `find_similar`. Never throws. */
+  private static async countSimilar(frame: Frame, target: Locator, provider: DomIntelligenceProvider): Promise<LocatorDiagnosis["similar"]> {
+    const started = performance.now();
+    try {
+      // `frame.locator("body *").nth(i)` is document order under body, which is what the snapshot stamps.
+      const index = await target.evaluate((element) => Array.prototype.indexOf.call(element.ownerDocument.body ? element.ownerDocument.body.querySelectorAll("*") : [], element) as number);
+      if (index < 0) return { outcome: "unavailable", ms: performance.now() - started };
+      const snapshot = await captureDomSnapshot(frame, { mode: "recover" });
+      if (snapshot.refused) return { outcome: "unavailable", ms: performance.now() - started };
+      const result = await provider.findSimilar!({ html: snapshot.html, index, maxResults: 50, timeoutMs: DOM_INTELLIGENCE_LIMITS.diagnosisTimeoutMs });
+      return result.ok ? { outcome: "ok", count: result.count, ms: performance.now() - started } : { outcome: "unavailable", ms: performance.now() - started };
+    } catch {
+      return { outcome: "unavailable", ms: performance.now() - started };
+    }
   }
 
   /**

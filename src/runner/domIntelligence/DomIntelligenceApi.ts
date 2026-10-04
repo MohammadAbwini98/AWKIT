@@ -1,10 +1,12 @@
 /**
  * The renderer ↔ main contract for L11 DOM intelligence (awkit-djnl.19). Pure: no Electron, no I/O.
  *
- * Two channels, both authorized in main:
+ * Three channels, all authorized in main:
  *   - `domIntelligence:getStatus`    (page.settings) — what Settings shows;
  *   - `domIntelligence:diagnoseStep` (page.recorder, plus page.flows for a saved flow) — the Element Spy /
- *     Designer read-only diagnosis on the Spy's live page.
+ *     Designer read-only diagnosis on the Spy's live page;
+ *   - `domIntelligence:checkDrift`   (page.recorder + page.flows) — L12.9, the same diagnosis for every
+ *     element step of a saved flow, summarized to one status per step.
  *
  * Nothing crossing this bridge names a URL, a path, a selector to run, HTML or a provider option: a
  * diagnosis request names a saved step or a draft action, and main loads the step itself. Unknown
@@ -42,6 +44,53 @@ export function sanitizeDiagnosisRequest(value: unknown): DomDiagnosisRequest | 
     return { source: "draft", actionId: raw.actionId };
   }
   return undefined;
+}
+
+/**
+ * L12.9 pre-run drift check (`domIntelligence:checkDrift`, page.recorder + page.flows): every element step of
+ * a saved flow is diagnosed read-only against the Element Spy's live page, and each gets one status.
+ */
+export type DomDriftRequest = { flowId: string };
+
+export type DomDriftStatus =
+  /** The saved locator finds exactly one element. */
+  | "ok"
+  /** The saved locator misses, but AWKIT's proof (alone or by agreement) would recover the element. */
+  | "recoverable"
+  /** The saved locator matches several elements. */
+  | "ambiguous"
+  /** The saved locator misses and nothing would recover it: the step will fail here. */
+  | "drifted"
+  /** The step belongs to another page, route or a protected surface: not checked on this page. */
+  | "not-here";
+
+export interface DomDriftStep {
+  stepId: string;
+  name: string;
+  status: DomDriftStatus;
+}
+
+export type DomDriftResponse =
+  | { ok: true; steps: DomDriftStep[]; checked: number; skipped: number; ms: number }
+  | { ok: false; code: DomDiagnosisFailureCode; message: string };
+
+/** At most this many steps are checked per request. */
+export const DRIFT_MAX_STEPS = 200;
+
+export function sanitizeDriftRequest(value: unknown): DomDriftRequest | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const raw = value as Record<string, unknown>;
+  return typeof raw.flowId === "string" && ID.test(raw.flowId) ? { flowId: raw.flowId } : undefined;
+}
+
+/** One diagnosis to one status. Pure, so the IPC and its verifier share the rule. */
+export function classifyDrift(diagnosis: Pick<LocatorDiagnosis, "recorded" | "snapshot" | "provider" | "route">): DomDriftStatus {
+  if (diagnosis.route === "mismatch" || diagnosis.provider.reason === "protected-surface") return "not-here";
+  if (diagnosis.recorded.status === "resolved") return "ok";
+  if (diagnosis.recorded.status === "ambiguous") return "ambiguous";
+  if (diagnosis.recorded.status === "error") return "not-here";
+  const agreed = diagnosis.provider.candidates.some((candidate) => candidate.proof === "agreed" || candidate.proof === "proven");
+  return diagnosis.snapshot?.outcome === "proven" || agreed ? "recoverable" : "drifted";
 }
 
 /** Strategies the Designer's locator editor holds as plain fields (the generator never suggests xpath here). */

@@ -16,6 +16,7 @@ import {
 } from "@src/profiles/interactionPrerequisiteDecision";
 import { LocatorUpgradeSection } from "./LocatorUpgradeSection";
 import { LocatorDiagnosisSection } from "./LocatorDiagnosisSection";
+import { DriftCheckSection } from "./DriftCheckSection";
 import { confirmDirectActionPatch, interactionReviewForNode, type DesignerValidationFinding } from "./flowValidationPresentation";
 import { useNavigation } from "../../state/navigation";
 
@@ -689,6 +690,7 @@ export function FlowNodePropertiesPanel({
                     }
                   />
                 ) : null}
+                {selectedNode && flowId ? <DriftCheckSection flowId={flowId} testId="designer-drift-check" /> : null}
                 {data.locatorQuality ? (
                   <details>
                     <summary>Recorded locator evidence</summary>

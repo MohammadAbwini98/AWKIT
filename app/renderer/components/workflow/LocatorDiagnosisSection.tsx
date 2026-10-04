@@ -176,6 +176,18 @@ export function LocatorDiagnosisSection({
                     : `${diagnosis.provider.candidates.length} found by parser-only DOM intelligence (evidence only), each checked by AWKIT:`}
               </dd>
             </div>
+            {diagnosis.similar ? (
+              <div className="locator-evidence-row" data-evidence="similar" data-similar-count={diagnosis.similar.count ?? "unknown"}>
+                <dt>Look-alikes</dt>
+                <dd data-testid={`${testId}-similar`}>
+                  {diagnosis.similar.outcome !== "ok"
+                    ? "Could not be counted on this page."
+                    : diagnosis.similar.count === 0
+                      ? "None: it is the only element of its kind in this part of the page."
+                      : `${diagnosis.similar.count} other element${diagnosis.similar.count === 1 ? "" : "s"} on this page look${diagnosis.similar.count === 1 ? "s" : ""} like it (same place in the page structure). Keep a locator that names this one; position alone can pick another after the list changes.`}
+                </dd>
+              </div>
+            ) : null}
             <div className="locator-evidence-row" data-evidence="context" data-frame={diagnosis.frame ?? "unknown"}>
               <dt>Checked on</dt>
               <dd data-testid={`${testId}-context`}>

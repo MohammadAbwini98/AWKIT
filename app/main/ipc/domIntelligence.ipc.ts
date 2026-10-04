@@ -19,9 +19,14 @@ import { LocatorFactory, type LocatorDiagnosis } from "@src/runner/LocatorFactor
 import { FileLocatorRecoveryStore, stepCandidatesDigest } from "@src/runner/LocatorRecoveryStore";
 import {
   DIAGNOSIS_FAILURE_MESSAGES,
+  DRIFT_MAX_STEPS,
+  classifyDrift,
   sanitizeDiagnosisRequest,
+  sanitizeDriftRequest,
   type DomDiagnosisFailureCode,
   type DomDiagnosisResponse,
+  type DomDriftResponse,
+  type DomDriftStep,
   type DomIntelligenceStatusView
 } from "@src/runner/domIntelligence/DomIntelligenceApi";
 import { MemoryDomReferenceStore, buildDomReference, type DomReferenceStore } from "@src/runner/domIntelligence/domReference";
@@ -34,7 +39,7 @@ import { domIntelligenceRuntimeRoot, domIntelligenceStatus, getDomIntelligencePr
 import { createFlowProfileStore } from "../profileStores";
 import { assertSenderPermission } from "../security/sessionContext";
 
-const failure = (code: DomDiagnosisFailureCode): DomDiagnosisResponse => ({ ok: false, code, message: DIAGNOSIS_FAILURE_MESSAGES[code] });
+const failure = (code: DomDiagnosisFailureCode): { ok: false; code: DomDiagnosisFailureCode; message: string } => ({ ok: false, code, message: DIAGNOSIS_FAILURE_MESSAGES[code] });
 const labelRedactor = new SemanticRedactor({ maxContentLength: 120 });
 
 /**
@@ -126,5 +131,43 @@ export function registerDomIntelligenceIpc(): void {
     } catch {
       return failure("FAILED");
     }
+  });
+
+  // L12.9: the pre-run drift check. Every element step of a saved flow is diagnosed read-only on the Spy's
+  // live page (the same LocatorFactory.diagnose, never an action), and reported as one status per step.
+  ipcMain.handle("domIntelligence:checkDrift", async (event, raw: unknown): Promise<DomDriftResponse> => {
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
+    await assertSenderPermission(event, Permission.PAGE_FLOWS);
+    const request = sanitizeDriftRequest(raw);
+    if (!request) return failure("INVALID_REQUEST");
+    const flow = await createFlowProfileStore().get(request.flowId).catch(() => null);
+    if (!flow) return failure("STEP_NOT_FOUND");
+    const started = performance.now();
+    const steps: DomDriftStep[] = [];
+    let skipped = 0;
+    for (const step of flow.nodes.filter((node) => node.locator).slice(0, DRIFT_MAX_STEPS)) {
+      const page = recorderService.getLivePage(step.pageAlias ?? "main");
+      const name = labelRedactor.redactText(step.name ?? step.id).slice(0, 120);
+      if (!page) {
+        skipped += 1;
+        steps.push({ stepId: step.id, name, status: "not-here" });
+        continue;
+      }
+      try {
+        const identity = await expectedIdentity(step, request.flowId);
+        const diagnosis = await new LocatorFactory(page).diagnose(step, {
+          provider: getDomIntelligenceProvider(),
+          references: getDomReferenceStore(),
+          expected: identity.fingerprint,
+          expectedRoute: identity.route,
+          flowId: request.flowId
+        });
+        steps.push({ stepId: step.id, name, status: classifyDrift(diagnosis) });
+      } catch {
+        steps.push({ stepId: step.id, name, status: "not-here" });
+      }
+    }
+    if (steps.length > 0 && skipped === steps.length) return failure("NO_LIVE_PAGE");
+    return { ok: true, steps, checked: steps.length - skipped, skipped, ms: performance.now() - started };
   });
 }

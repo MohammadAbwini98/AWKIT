@@ -22,8 +22,17 @@ import { chromium, type Browser } from "playwright";
 import type { FlowStep } from "@src/profiles/FlowProfile";
 import { LocatorFactory, type LocatorRecoveryEvent } from "@src/runner/LocatorFactory";
 import { FileLocatorRecoveryStore, stepCandidatesDigest } from "@src/runner/LocatorRecoveryStore";
-import { DOM_INTELLIGENCE_LIMITS, NoopDomIntelligenceProvider, type DomIntelligenceProvider, type DomRecoveryRequest, type DomRecoveryResult } from "@src/runner/domIntelligence/DomIntelligenceProvider";
+import {
+  DOM_INTELLIGENCE_LIMITS,
+  NoopDomIntelligenceProvider,
+  type DomIntelligenceProvider,
+  type DomRecoveryRequest,
+  type DomRecoveryResult,
+  type DomSimilarRequest,
+  type DomSimilarResult
+} from "@src/runner/domIntelligence/DomIntelligenceProvider";
 import { MemoryDomReferenceStore, domReferenceId } from "@src/runner/domIntelligence/domReference";
+import { classifyDrift } from "@src/runner/domIntelligence/DomIntelligenceApi";
 import { createPageFingerprint, hashFingerprint } from "@src/runner/locatorFingerprint";
 
 let passed = 0;
@@ -41,7 +50,12 @@ function check(label: string, condition: unknown, detail?: unknown): void {
 /** Records every request and proposes nothing. */
 class RecordingProvider implements DomIntelligenceProvider {
   readonly requests: DomRecoveryRequest[] = [];
+  readonly similarRequests: DomSimilarRequest[] = [];
   private readonly off = new NoopDomIntelligenceProvider("DISABLED", "recording fake");
+  async findSimilar(request: DomSimilarRequest): Promise<DomSimilarResult> {
+    this.similarRequests.push(request);
+    return { ok: true, index: request.index, similar: [request.index + 1], count: 1, parseMs: 0, matchMs: 0 };
+  }
   async getStatus() {
     return { available: true, provider: "scrapling" as const, mode: "parser-only" as const, browserAccess: false as const, networkAccess: false as const };
   }
@@ -138,6 +152,44 @@ async function main(): Promise<void> {
       .resolve(unrecoverable)
       .catch(() => undefined);
     check("a run's suggestion stage stays inside its own 800 ms budget", (provider.requests[0]?.timeoutMs ?? Infinity) <= 800, provider.requests[0]?.timeoutMs);
+
+    console.log("D. L12.8 Element Spy look-alikes");
+    const saved: FlowStep = { id: "spy-step", name: "Save changes", type: "click", locator: { strategy: "css", value: "#save-order-v2" } } as FlowStep;
+    provider.similarRequests.length = 0;
+    const withLookAlikes = await new LocatorFactory(page).diagnose(saved, { provider, references });
+    const expectedIndex = await page.locator("#save-order-v2").evaluate((el) => Array.prototype.indexOf.call(document.body.querySelectorAll("*"), el) as number);
+    check("the diagnosis asks find_similar for the element the saved locator finds", provider.similarRequests.length === 1 && provider.similarRequests[0].index === expectedIndex, { asked: provider.similarRequests.map((r) => r.index), expectedIndex });
+    check("...with the diagnosis budget", provider.similarRequests[0]?.timeoutMs === DOM_INTELLIGENCE_LIMITS.diagnosisTimeoutMs);
+    check("...on a snapshot that stamps that index", provider.similarRequests[0]?.html.includes(`data-awkit-v="${expectedIndex}"`) === true);
+    check("...and reports the count", withLookAlikes.similar?.outcome === "ok" && withLookAlikes.similar.count === 1, withLookAlikes.similar);
+    provider.similarRequests.length = 0;
+    const missing = await new LocatorFactory(page).diagnose({ ...saved, id: "spy-missing", locator: { strategy: "css", value: "#nowhere" } } as FlowStep, { provider, references });
+    check("nothing is counted when the saved locator finds nothing", provider.similarRequests.length === 0 && missing.similar === undefined, missing.similar);
+    const noSimilar = new RecordingProvider();
+    (noSimilar as { findSimilar?: unknown }).findSimilar = undefined;
+    const without = await new LocatorFactory(page).diagnose(saved, { provider: noSimilar, references });
+    check("a provider without find_similar leaves the field out", without.similar === undefined, without.similar);
+
+    console.log("E. L12.9 pre-run drift check");
+    html = PAGE("save-order-v2").replace('<button type="button" class="btn">Cancel</button>', '<button type="button" class="btn">Cancel</button><a href="/x" class="row">Open</a><a href="/y" class="row">Open</a>');
+    await page.goto(`${base}/orders`);
+    const identityOf = async (selector: string) => hashFingerprint(await page.locator(selector).evaluate(createPageFingerprint));
+    const savedIdentity = await identityOf("#save-order-v2");
+    const driftOf = async (step: FlowStep, expected?: Awaited<ReturnType<typeof identityOf>>) =>
+      classifyDrift(await new LocatorFactory(page).diagnose(step, { provider, references, expected }));
+    const ok = await driftOf({ id: "d-ok", name: "Save", type: "click", locator: { strategy: "css", value: "#save-order-v2" } } as FlowStep, savedIdentity);
+    const recoverable = await driftOf({ id: "d-rec", name: "Save", type: "click", locator: { strategy: "css", value: "#save-order-gone" } } as FlowStep, savedIdentity);
+    const drifted = await driftOf({ id: "d-gone", name: "Gone", type: "click", locator: { strategy: "css", value: "#nothing" } } as FlowStep, { ...savedIdentity, tag: "select", role: "combobox", name: "zz", text: "zz" });
+    const ambiguous = await driftOf({ id: "d-amb", name: "Open", type: "click", locator: { strategy: "css", value: "a.row" } } as FlowStep);
+    check("a step whose saved locator finds its element is ok", ok === "ok", ok);
+    check("a missed step AWKIT's proof would recover is recoverable", recoverable === "recoverable", recoverable);
+    check("a missed step nothing recovers is drifted", drifted === "drifted", drifted);
+    check("a step matching several elements is ambiguous", ambiguous === "ambiguous", ambiguous);
+    const missed = { recorded: { status: "missing" as const }, provider: { outcome: "ok" as const, candidates: [] } };
+    check("classify: a route mismatch is not-here", classifyDrift({ ...missed, route: "mismatch" }) === "not-here");
+    check("classify: a protected surface is not-here", classifyDrift({ ...missed, provider: { outcome: "skipped", reason: "protected-surface", candidates: [] } }) === "not-here");
+    check("classify: an agreed provider candidate makes a miss recoverable", classifyDrift({ ...missed, provider: { outcome: "ok", candidates: [{ index: 1, providerScore: 98, proof: "agreed" }] } }) === "recoverable");
+    check("classify: a rejected provider candidate does not", classifyDrift({ ...missed, provider: { outcome: "ok", candidates: [{ index: 1, providerScore: 98, proof: "below-threshold" }] } }) === "drifted");
   } finally {
     await browser?.close().catch(() => undefined);
     server.close();
@@ -156,6 +208,17 @@ async function main(): Promise<void> {
   check("an Element Spy session prewarms after its permission check", /RECORDER_ELEMENT_SPY\);[\s\S]*prewarmDomIntelligence\(\);[\s\S]*startInspection/.test(handler("recorder:startInspection")));
   const runtime = readFileSync("app/main/domIntelligence/domIntelligenceRuntime.ts", "utf8");
   check("prewarm is fire-and-forget and swallows failures", /export function prewarmDomIntelligence\(\): void \{\s*void getDomIntelligenceProvider\(\)\s*\.getStatus\(\)\s*\.catch\(\(\) => undefined\);/.test(runtime));
+
+  console.log("F. L12.9 drift-check channel");
+  const ipc = readFileSync("app/main/ipc/domIntelligence.ipc.ts", "utf8");
+  const drift = ipc.slice(ipc.indexOf('ipcMain.handle("domIntelligence:checkDrift"'));
+  check("the drift channel exists", drift.length > 0 && drift.includes("classifyDrift(diagnosis)"));
+  check("it requires page.recorder and page.flows before reading anything", /assertSenderPermission\(event, Permission\.PAGE_RECORDER\);\s*await assertSenderPermission\(event, Permission\.PAGE_FLOWS\);\s*const request = sanitizeDriftRequest\(raw\)/.test(drift));
+  check("it only diagnoses (no resolve, click or fill)", !/\.(resolve|click|fill|press)\(/.test(drift.slice(0, drift.indexOf("});") + 3)));
+  check("it is bounded to DRIFT_MAX_STEPS", drift.includes(".slice(0, DRIFT_MAX_STEPS)"));
+  check("step names are redacted before they cross the bridge", drift.includes("labelRedactor.redactText(step.name"));
+  const preload = readFileSync("app/main/preload.ts", "utf8");
+  check("the preload exposes checkDrift with a flow id only", /checkDrift: \(request: DomDriftRequest\) => invoke\("domIntelligence:checkDrift", request\)/.test(preload));
 
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);
