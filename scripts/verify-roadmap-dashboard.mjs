@@ -657,8 +657,10 @@ try {
   // and the pending E2 item `awkit-djnl.20` filed OPEN (one out, one in, one closed). Measured after the export.
   // Then 41/311 of 352 on 2026-10-04 (contract `awkit-l12-registration-1004`): L12 `awkit-djnl.21` and its
   // 18 workstreams filed OPEN (19 in), nothing closed. Measured after the export.
-    "41 outstanding / 311 closed",
-    beads.stats.outstanding === 41 && beads.stats.closed === 311,
+  // Then 35/317 of 352 later on 2026-10-04 (contract `awkit-djnl-21-l12-implementation-1004`): L12.1 to L12.6
+  // (`awkit-djnl.21.1`…`.21.6`) closed with their commits and verifiers (six out, six closed).
+    "35 outstanding / 317 closed",
+    beads.stats.outstanding === 35 && beads.stats.closed === 317,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

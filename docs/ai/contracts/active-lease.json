@@ -1,18 +1,20 @@
 {
-  "task": "awkit-l12-registration-1004",
-  "contract_path": "docs/ai/contracts/awkit-l12-registration-1004.json",
+  "task": "awkit-djnl-21-l12-implementation-1004",
+  "contract_path": "docs/ai/contracts/awkit-djnl-21-l12-implementation-1004.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-04T16:23:22.908Z",
-  "acquired_at_commit": "f188e7b6bf7d206ff7e522b6214e7356214e9109",
+  "acquired_at": "2026-10-04T17:02:30.704Z",
+  "acquired_at_commit": "3c10772f72fae9f744149fa70a0391ba4dc1b4a7",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-l12-registration-1004.json"
+    "docs/ai/contracts/active-lease.json",
+    "docs/ai/contracts/awkit-djnl-21-l12-implementation-1004.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-l12-registration-1004.json": "f833ec16154fe31009ceca6e4e3d41fbc318c1190c69b48f92dbb81187079dfa"
+    "docs/ai/contracts/active-lease.json": "c06c8740f7558372cc9824e1fa54be4a35c0a3feaa90399c7cc7d08c616e7e6c",
+    "docs/ai/contracts/awkit-djnl-21-l12-implementation-1004.json": "15cf91fac4bbf4eef4b9356cefb90cda8d3dc3469655e7c0ac749c541b542d92"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -27,7 +29,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-04T16:25:49.722Z",
-  "released_reason": "L12 awkit-djnl.21 filed OPEN under Phase L with 18 workstream children, blocks on closed L11 .19, benchmark .21.18 after .21.1-.21.17, export refreshed to 352 issues",
-  "archived_at": "2026-10-04T16:25:49.723Z"
+  "released_at": "2026-10-04T17:03:25.556Z",
+  "released_reason": "L12.1 to L12.6 closed with their commits and verifiers, export refreshed",
+  "archived_at": "2026-10-04T17:03:25.558Z"
 }

@@ -1,0 +1,143 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-djnl-21-l12-implementation-1004",
+    "title": "L12 Scrapling expansion: implementation of the protected-path workstreams (host operations, Super-User protected-surface diagnosis)",
+    "objective": "Owner request 2026-10-04. Covers the L12 edits that touch protected paths: the parser-only host (native-hosts/dom-intelligence) gains a candidate-set filter and a one-entry parse cache on find_candidates (L12.2, L12.3) and a find_similar operation (L12.8, L12.12, L12.13), every new operation a closed key set, size-bounded, and inside the existing audit-hook sandbox; and the Super-User-only protected-surface diagnosis permission (L12.17) in src/security, excluded from ADMINISTRATOR_PERMISSIONS and re-auth gated, with CAPTCHA, security-check and blocked-automation pages refused for every role. Unprotected product work (runner, main IPC, renderer, verifiers) is ordinary direct-loop work outside the lease. Tracker updates for awkit-djnl.21 children use the project-state lease.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 3
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "2701b06c",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "execution_change": true,
+    "authorization_change": true,
+    "offline_boundary_change": true,
+    "protected_login_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 3
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "architect",
+      "runtime",
+      "qa",
+      "qc",
+      "security",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      "native-hosts/dom-intelligence/**",
+      "src/security/**",
+      ".beads/**",
+      "docs/ai/contracts/awkit-djnl-21-l12-implementation-1004.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [
+      "architect",
+      "release"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "L12-HOST",
+      "description": "find_candidates accepts an optional bounded candidateIndices list and scores only those stamped elements, reuses the last parsed page for an identical snapshot, and find_similar answers bounded indices for one stamped element. Unknown keys and out-of-bound values are still refused, the audit-hook sandbox is unchanged, and verify:dom-intelligence-host passes.",
+      "evidence_required": [
+        "verify:dom-intelligence-host"
+      ]
+    },
+    {
+      "id": "L12-SECURITY",
+      "description": "The protected-surface diagnosis permission is granted to Super User only, excluded from Administrator, re-auth gated, off by default, audited, and never admits CAPTCHA, security-check or blocked-automation pages. Role access is checked in both directions.",
+      "evidence_required": [
+        "security-verifier"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:dom-intelligence-host",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:dom-intelligence-host",
+      "artifact": null,
+      "result": "pending",
+      "observed": ""
+    },
+    {
+      "id": "security-verifier",
+      "type": "verifier",
+      "required": true,
+      "command": "the L12.17 permission and protected-surface verifier",
+      "artifact": null,
+      "result": "pending",
+      "observed": ""
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-djnl-21-l12-implementation-1004:runtime:2026-10-04T16:54:18.750Z",
+        "task": "awkit-djnl-21-l12-implementation-1004",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "native-hosts/dom-intelligence/**"
+        ],
+        "acquired_at": "2026-10-04T16:54:18.750Z",
+        "acquired_at_commit": "2701b06c977561679176fa196f23d02bd13886ff",
+        "released_at": "2026-10-04T16:56:22.861Z",
+        "released_reason": "host committed with candidate filter, parse cache and find_similar, verify:dom-intelligence-host 94/0, client and verifier work continues unleased",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-21-l12-implementation-1004:project-state:2026-10-04T17:02:30.704Z",
+        "task": "awkit-djnl-21-l12-implementation-1004",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-04T17:02:30.704Z",
+        "acquired_at_commit": "3c10772f72fae9f744149fa70a0391ba4dc1b4a7",
+        "released_at": "2026-10-04T17:03:25.556Z",
+        "released_reason": "L12.1 to L12.6 closed with their commits and verifiers, export refreshed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}
