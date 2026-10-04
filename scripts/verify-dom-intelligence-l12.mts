@@ -61,9 +61,13 @@ class RecordingProvider implements DomIntelligenceProvider {
   async getStatus() {
     return { available: true, provider: "scrapling" as const, mode: "parser-only" as const, browserAccess: false as const, networkAccess: false as const };
   }
+  /** Scores to answer with, as (index into the request's candidateIndices, score); none by default. */
+  answer: Array<[number, number]> = [];
   async findRecoveryCandidates(request: DomRecoveryRequest): Promise<DomRecoveryResult> {
     this.requests.push(request);
-    return { ok: true, candidates: [], elements: 0, parseMs: 0, matchMs: 0 };
+    const indices = request.candidateIndices ?? [];
+    const candidates = this.answer.filter(([at]) => at < indices.length).map(([at, score]) => ({ index: indices[at], score }));
+    return { ok: true, candidates, elements: 0, parseMs: 0, matchMs: 0 };
   }
   saveReference = () => this.off.saveReference();
   normalizeForAi = () => this.off.normalizeForAi();
@@ -207,6 +211,31 @@ async function main(): Promise<void> {
     const variant = await new LocatorFactory(page).diagnose(variantStep, { provider, references, flowId: "flow-a" });
     check("the diagnosis skips the provider on a different page, as page-variant", variant.provider.reason === "page-variant" && provider.requests.length === 0, variant.provider);
     check("...and the drift check reports the step as not on this page", classifyDrift(variant) === "not-here", classifyDrift(variant));
+
+    console.log("I. L12.12 identical list rows: the recorded row is not mounted");
+    const rows = (ids: number[]) =>
+      `<!doctype html><html><head><title>L12 lab</title></head><body><main><section class="orders"><ul class="rows">${ids
+        .map((id) => `<li class="row"><span class="ref">Order</span><button type="button" class="view" data-row="${id}">View</button></li>`)
+        .join("")}</ul></section></main></body></html>`;
+    html = rows([1, 2, 3, 4]);
+    await page.goto(`${base}/orders`);
+    const rowStep: FlowStep = { id: "row-step", name: "View", type: "click", locator: { strategy: "css", value: 'button[data-row="4"]' } } as FlowStep;
+    const listEvents: LocatorRecoveryEvent[] = [];
+    const listFactory = () =>
+      new LocatorFactory(page, { recoveryStore: store, scope: { scenarioId: "l12-list", flowId: "flow-a" }, recoveryGraceMs: 0, domIntelligence: { provider, references, budgetMs: 2_000 }, onRecoveryEvent: (event) => listEvents.push(event) });
+    await listFactory().resolve(rowStep);
+    html = rows([1, 2, 3]);
+    await page.goto(`${base}/orders`);
+    const providerStage = () => listEvents.findLast((event) => event.trace)?.trace?.stages.find((stage) => stage.stage === "provider");
+    provider.answer = [[0, 96.43], [1, 96.43], [2, 96.43]];
+    await listFactory().resolve(rowStep).catch(() => undefined);
+    check("tied identical rows with the recorded one gone are reported as list-row-not-mounted", providerStage()?.reason === "list-row-not-mounted" && providerStage()?.outcome === "refused", providerStage());
+    check("...and nothing was recovered", !listEvents.some((event) => event.type === "local-recovery"));
+    provider.answer = [[0, 94.3], [1, 93.13], [2, 93.13]];
+    listEvents.length = 0;
+    await listFactory().resolve(rowStep).catch(() => undefined);
+    check("control: a provider top that does not tie is not called an unmounted row", providerStage()?.reason !== "list-row-not-mounted", providerStage());
+    provider.answer = [];
 
     console.log("G. L12.15 AI page context follows the local-AI switch");
     check("no override, AI off: no page context", pageContextEnabled({}, false) === false);

@@ -164,6 +164,12 @@ export async function suggestRepair(input: {
   const verdict = proveCandidate(step, expected, { index: top.index, fingerprint }, decision, agreement);
   suggestion.best = { providerScore: top.score, ...verdict };
   const stage: SuggestionStage = { outcome: "suggested", candidates: result.candidates.length, score: top.score };
+  // L12.12: AWKIT saw a tie and the provider scores several elements exactly alike: identical list rows, and
+  // the recorded one is not among them (a virtualized or filtered list). Said plainly, so the report can tell
+  // the user to bring the row into view first, instead of only "ambiguous".
+  if (!agreement && decision?.refusal === "ambiguous-margin" && result.candidates.filter((candidate) => candidate.score === top.score).length >= 2) {
+    return { stage: { ...stage, outcome: "refused", reason: "list-row-not-mounted" }, suggestion };
+  }
   if (!agreement) return { stage, suggestion };
   // The page may have changed since the snapshot: exactly one element must still carry the agreed
   // identity at that index, and the step acts on that pinned node only (as for every recovery layer).

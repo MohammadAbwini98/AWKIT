@@ -127,7 +127,9 @@ export interface LocatorRecoveryStage {
     | "protected-surface"
     | "no-candidate"
     | "route-mismatch"
-    | "not-actionable";
+    | "not-actionable"
+    /** L12.12: identical list rows, and the recorded one is not mounted (virtualized or filtered). */
+    | "list-row-not-mounted";
   /** Candidates the layer scored after pruning (or the provider returned). */
   candidates?: number;
   score?: number;
