@@ -27,8 +27,10 @@ import {
   type DomDiagnosisResponse,
   type DomDriftResponse,
   type DomDriftStep,
-  type DomIntelligenceStatusView
+  type DomIntelligenceStatusView,
+  type DomSimilarRowsResponse
 } from "@src/runner/domIntelligence/DomIntelligenceApi";
+import { extractSimilarRows } from "@src/runner/domIntelligence/similarRows";
 import { MemoryDomReferenceStore, buildDomReference, type DomReferenceStore } from "@src/runner/domIntelligence/domReference";
 import { routeKey } from "@src/runner/routeIdentity";
 import { Permission } from "@src/security/authz/Permissions";
@@ -166,6 +168,30 @@ export function registerDomIntelligenceIpc(): void {
       return { ok: true, diagnosis: { ...redactDiagnosis(diagnosis), page: alias } };
     } catch {
       return failure("FAILED");
+    }
+  });
+
+  // L12.13: "every row like this one" for the Element Spy's inspected element, as redacted text.
+  ipcMain.handle("domIntelligence:similarRows", async (event): Promise<DomSimilarRowsResponse> => {
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
+    await assertSenderPermission(event, Permission.RECORDER_ELEMENT_SPY);
+    const live = recorderService.getInspectionTarget();
+    if (!live) return { ok: false, code: "NO_INSPECTION", message: "Inspect an element in the Element Spy first." };
+    try {
+      const { inspection, page } = live;
+      const located = await new LocatorFactory(page).resolve({ id: "element-spy", type: "click", name: inspection.owner.name, locator: inspection.locator } as FlowStep);
+      if ((await located.count()) !== 1) return { ok: false, code: "FAILED", message: "The inspected element is no longer unique on the page." };
+      const frame = await located.elementHandle().then((handle) => handle?.ownerFrame());
+      if (!frame) return { ok: false, code: "FAILED", message: "The inspected element is no longer on the page." };
+      const result = await extractSimilarRows(frame, located, getDomIntelligenceProvider(), (text) => labelRedactor.redactText(text));
+      if (result.ok) return result;
+      return result.reason === "protected-surface"
+        ? { ok: false, code: "PROTECTED", message: "This page has a protected sign-in field, so it is not read." }
+        : result.reason === "provider-unavailable"
+          ? { ok: false, code: "UNAVAILABLE", message: "DOM intelligence is not available in this build or is turned off." }
+          : { ok: false, code: "FAILED", message: "Similar elements could not be found on this page." };
+    } catch {
+      return { ok: false, code: "FAILED", message: "Similar elements could not be found on this page." };
     }
   });
 

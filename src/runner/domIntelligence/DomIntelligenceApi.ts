@@ -101,6 +101,19 @@ export function classifyDrift(diagnosis: Pick<LocatorDiagnosis, "recorded" | "sn
   return diagnosis.snapshot?.outcome === "proven" || agreed ? "recoverable" : "drifted";
 }
 
+/**
+ * L12.13 `domIntelligence:similarRows` (page.recorder + recorder.elementSpy): the Element Spy's inspected
+ * element and every element alike to it on the live page, as redacted text rows. No request body.
+ */
+export type DomSimilarRowsResponse =
+  | { ok: true; rows: string[]; total: number }
+  | { ok: false; code: "NO_INSPECTION" | "UNAVAILABLE" | "PROTECTED" | "FAILED"; message: string };
+
+/** The rows as one CSV column. Every cell quoted, quotes doubled, and a leading formula character neutralized. */
+export function similarRowsCsv(rows: readonly string[]): string {
+  return ["Row", ...rows].map((cell) => `"${(/^[=+\-@]/.test(cell) ? `'${cell}` : cell).replace(/"/g, '""')}"`).join("\r\n");
+}
+
 /** Strategies the Designer's locator editor holds as plain fields (the generator never suggests xpath here). */
 const EDITOR_STRATEGIES = new Set(["role", "label", "placeholder", "text", "testId", "id", "css", "tagName"]);
 

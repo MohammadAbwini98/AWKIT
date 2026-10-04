@@ -32,7 +32,10 @@ import {
   type DomSimilarResult
 } from "@src/runner/domIntelligence/DomIntelligenceProvider";
 import { MemoryDomReferenceStore, domReferenceId } from "@src/runner/domIntelligence/domReference";
-import { classifyDrift } from "@src/runner/domIntelligence/DomIntelligenceApi";
+import { classifyDrift, similarRowsCsv } from "@src/runner/domIntelligence/DomIntelligenceApi";
+import { extractSimilarRows } from "@src/runner/domIntelligence/similarRows";
+import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
+import { stageHost } from "./dom-intelligence/stagedHost.mts";
 import { pageContextEnabled } from "@src/runner/domIntelligence/pageContext";
 import { referenceStructurePresent } from "@src/runner/domIntelligence/repairSuggestion";
 import { createPageFingerprint, hashFingerprint } from "@src/runner/locatorFingerprint";
@@ -73,6 +76,9 @@ class RecordingProvider implements DomIntelligenceProvider {
   normalizeForAi = () => this.off.normalizeForAi();
   shutdown = () => this.off.shutdown();
 }
+
+const SIGN_IN_ROWS =
+  '<!doctype html><html><head><title>L12 lab</title></head><body><main><ul><li class="order">Order #1</li><li class="order">Order #2</li></ul><form><input type="password" name="pw"></form></main></body></html>';
 
 const PAGE = (id: string) =>
   `<!doctype html><html><head><title>L12 lab</title></head><body><main><section class="orders"><form class="order-form"><div class="actions"><button type="button" id="${id}" class="btn">Save changes</button><button type="button" class="btn">Cancel</button></div></form></section></main></body></html>`;
@@ -257,6 +263,42 @@ async function main(): Promise<void> {
       if (savedOverride === undefined) delete process.env.AWKIT_AI_PAGE_CONTEXT;
       else process.env.AWKIT_AI_PAGE_CONTEXT = savedOverride;
     }
+    console.log("J. L12.13 similar rows, through the real parser-only host");
+    const staged = stageHost("awkit-l12-rows-");
+    if (!staged) {
+      console.log("  NOT RUN: the pinned runtime inputs are absent (npm run benchmark:dom-intelligence-runtime-setup).");
+    } else {
+      const host = staged.provider();
+      try {
+        html =
+          '<!doctype html><html><head><title>L12 lab</title></head><body><main><h1>Orders</h1><ul class="orders">' +
+          ["Order #1001 Alice", "Order #1002 Bob", "Order #1003 token=sk_live_1234567890abcdefXYZ", "Order #1004 Dana", "Order #1005 =SUM(A1)"]
+            .map((text, i) => `<li class="order"><span class="ref">${text}</span><a class="view" href="/o/${1001 + i}">View</a><span style="display:none">hidden-${i}</span></li>`)
+            .join("") +
+          '</ul><aside><ul class="links"><li class="nav">Help</li></ul></aside></main></body></html>';
+        await page.goto(`${base}/orders`);
+        const picked = page.locator("li.order").nth(1);
+        const result = await extractSimilarRows(page.mainFrame(), picked, host, (text) => new SemanticRedactor({ maxContentLength: 120 }).redactText(text));
+        check("picking one row returns every row like it, in page order", result.ok && result.rows.length === 5 && result.rows[0].startsWith("Order #1001") && result.rows[4].startsWith("Order #1005"), result);
+        check("...and nothing from another list", result.ok && !result.rows.some((row) => row.includes("Help")), result);
+        check("...and no hidden text", result.ok && !result.rows.some((row) => row.includes("hidden-")), result);
+        check("...with secrets redacted before they leave main", result.ok && !result.rows.some((row) => row.includes("sk_live_1234567890")), result.ok ? result.rows[2] : result);
+        check("...and the total counts the picked row too", result.ok && result.total === 5, result);
+        const csv = similarRowsCsv(result.ok ? result.rows : []);
+        check("CSV: one quoted column with a header", csv.split("\r\n")[0] === '"Row"' && csv.split("\r\n").length === 6, csv);
+        check("cells keep a space between adjacent inline elements", result.ok && result.rows[0] === "Order #1001 Alice View", result.ok ? result.rows[0] : result);
+        check("CSV: a cell that starts with a formula character is neutralized", similarRowsCsv(["=SUM(A1)", "+1", "-2", "@x"]).split("\r\n").slice(1).every((cell) => cell.startsWith(`"'`)));
+        check("CSV: an ordinary cell is left as it is", similarRowsCsv(["Order #1005 =SUM(A1)"]).endsWith('"Order #1005 =SUM(A1)"'));
+        check("CSV: quotes are doubled", similarRowsCsv(['say "hi"']).endsWith('"say ""hi"""'));
+        html = SIGN_IN_ROWS;
+        await page.goto(`${base}/orders`);
+        const guarded = await extractSimilarRows(page.mainFrame(), page.locator("li.order").first(), host, (text) => text);
+        check("a page with a password field is never read for rows", !guarded.ok && guarded.reason === "protected-surface", guarded);
+      } finally {
+        await host.shutdown().catch(() => undefined);
+        staged.cleanup();
+      }
+    }
   } finally {
     await browser?.close().catch(() => undefined);
     server.close();
@@ -286,6 +328,9 @@ async function main(): Promise<void> {
   check("step names are redacted before they cross the bridge", drift.includes("labelRedactor.redactText(step.name"));
   const preload = readFileSync("app/main/preload.ts", "utf8");
   check("the preload exposes checkDrift with a flow id only", /checkDrift: \(request: DomDriftRequest\) => invoke\("domIntelligence:checkDrift", request\)/.test(preload));
+  const rowsHandler = ipc.slice(ipc.indexOf('ipcMain.handle("domIntelligence:similarRows"'), ipc.indexOf('ipcMain.handle("domIntelligence:checkDrift"'));
+  check("L12.13 similar rows require page.recorder and the Element Spy permission first", /assertSenderPermission\(event, Permission\.PAGE_RECORDER\);\s*await assertSenderPermission\(event, Permission\.RECORDER_ELEMENT_SPY\);\s*const live = recorderService\.getInspectionTarget\(\)/.test(rowsHandler));
+  check("L12.13 ...take no request body and redact every row in main", /handle\("domIntelligence:similarRows", async \(event\)/.test(rowsHandler) && rowsHandler.includes("labelRedactor.redactText(text)"));
   check("L12.15 main injects the local-AI switch as the run's page-context default", /setDomIntelligence\(\{ \.\.\.domIntelligenceRecoveryOptions\(\), pageContextDefault: localAiEnabled \}\)/.test(execution));
   const aiRuntime = readFileSync("app/main/ai/aiRuntime.ts", "utf8");
   check("L12.15 the switch reader never throws (an unreadable file reads as off)", /export async function localAiEnabled\(\): Promise<boolean> \{[\s\S]{0,160}\.then\(\(current\) => current\.enabled\)\s*\.catch\(\(\) => false\);/.test(aiRuntime));

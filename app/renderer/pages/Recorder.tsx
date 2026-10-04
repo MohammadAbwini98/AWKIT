@@ -80,6 +80,7 @@ import { locatorContainerChain, type StepLocator } from "@src/profiles/FlowProfi
 import { classifyLocatorQuality, LOCATOR_QUALITY_CLASS_LABEL, type LocatorQualityClass } from "@src/recorder/LocatorQualityClass";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { LocatorDiagnosisSection } from "../components/workflow/LocatorDiagnosisSection";
+import { SimilarRowsSection } from "../components/workflow/SimilarRowsSection";
 import { RECORDED_URL_SENSITIVE_QUERY_KEYS } from "@src/recorder/recordedUrlPolicy";
 
 export function Recorder() {
@@ -1137,6 +1138,8 @@ export function Recorder() {
             {spy?.inspection ? (
               <LocatorDiagnosisSection request={spyActionId ? { source: "draft", actionId: spyActionId } : null} testId="element-spy-diagnosis" />
             ) : null}
+            {/* L12.13: every element like the inspected one, as rows (read-only, redacted, copyable as CSV). */}
+            {spy?.inspection ? <SimilarRowsSection inspectedAt={spy.inspection.inspectedAt} testId="element-spy-similar-rows" /> : null}
             {spyMessage ? (
               <p className="recorder-spy-message" role="status" data-testid="element-spy-message">
                 {spyMessage}
