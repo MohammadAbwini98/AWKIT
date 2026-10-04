@@ -25,6 +25,7 @@ type Suggestion = DiagnosisElement["locator"];
 
 const PROOF_LABEL: Readonly<Record<DomCandidateProof, { label: string; tone: "ok" | "warn" | "danger" | "info" | "muted" }>> = {
   proven: { label: "Proven", tone: "ok" },
+  agreed: { label: "Proven by agreement", tone: "ok" },
   "below-threshold": { label: "Too different", tone: "warn" },
   "ambiguous-margin": { label: "Ambiguous", tone: "danger" },
   "ancestry-veto": { label: "Different place", tone: "warn" },

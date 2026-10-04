@@ -8,9 +8,10 @@ import type { LocatorRecoveryStage, LocatorRecoveryTrace } from "../LocatorFacto
  * agreement it was taken on. It never carries DOM, page text, a selector, a URL, a reference, a prompt or
  * a credential: every string in it is one of the fixed codes below.
  *
- * `actedOn` says who chose the element a recovered step acted on, and it can only ever be `awkit-proof`.
- * A DOM-intelligence provider appears only as `provider-*` evidence with `effect: "none"`: it parses a
- * sanitized snapshot, and nothing it returns is executed.
+ * `actedOn` says who chose the element a recovered step acted on: `awkit-proof` (AWKIT's own gate) or,
+ * since L12, `awkit-provider-agreement` (AWKIT's best candidate, refused only on score or margin, that the
+ * provider independently ranked first; re-proven, pinned and actionability-checked by AWKIT). A provider
+ * never acts on its own: its suggestion is `effect: "none"` unless AWKIT's agreement rule accepted it.
  */
 
 export const RECOVERY_PROVENANCE_VERSION = 1;
@@ -23,6 +24,7 @@ export type RecoveryProvenanceEventName =
   | "snapshot-recovery-refused"
   | "provider-suggestion-generated"
   | "provider-suggestion-rejected"
+  | "provider-agreement-proven"
   | "provider-timeout"
   | "provider-unavailable"
   | "provider-skipped"
@@ -53,8 +55,8 @@ export interface LocatorRecoveryProvenance {
   schemaVersion: typeof RECOVERY_PROVENANCE_VERSION;
   engine: LocatorRecoveryTrace["engine"];
   result: LocatorRecoveryTrace["result"];
-  /** Present only when recovered: the element came from AWKIT's proof, never from a provider. */
-  actedOn?: "awkit-proof";
+  /** Present only when recovered: AWKIT's own proof, or AWKIT's best candidate confirmed by provider agreement. */
+  actedOn?: "awkit-proof" | "awkit-provider-agreement";
   page: string;
   frame: "main" | "child";
   frameDepth: number;
@@ -97,18 +99,20 @@ export function toRecoveryProvenance(trace: LocatorRecoveryTrace): LocatorRecove
     }
     // A fixed code, whatever a provider's status reported.
     const provider = trace.suggestion ? (trace.suggestion.provider === "scrapling" ? "scrapling" : "none") : undefined;
-    if (stage.outcome === "suggested") {
-      events.push(pick({ event: "provider-suggestion-generated", source: "dom-intelligence", stage: "provider", effect: "none", provider, ms: ms(stage.ms), candidates: stage.candidates ?? 0 }) as RecoveryProvenanceEvent);
+    if (stage.outcome === "suggested" || stage.outcome === "proven" || (stage.outcome === "refused" && trace.suggestion)) {
+      const accepted = stage.outcome === "proven" && trace.result === "recovered";
+      events.push(pick({ event: "provider-suggestion-generated", source: "dom-intelligence", stage: "provider", effect: accepted ? undefined : "none", provider, ms: ms(stage.ms), candidates: stage.candidates ?? 0 }) as RecoveryProvenanceEvent);
       const best = trace.suggestion?.best;
-      // In a run the provider stage only follows two refusals, so its best candidate is never AWKIT's
-      // proven winner: it is recorded as rejected, with AWKIT's reason.
+      // The provider stage only follows two refusals, so its best candidate is never AWKIT's proven winner.
+      // It acts only through the L12 agreement rule; otherwise it is recorded as rejected, with AWKIT's reason
+      // (a stale or not-actionable agreed element is rejected with that reason).
       if (best) {
         events.push(
           pick({
-            event: "provider-suggestion-rejected",
+            event: accepted ? "provider-agreement-proven" : "provider-suggestion-rejected",
             source: "awkit",
             stage: "provider",
-            reason: best.proof,
+            reason: accepted ? undefined : stage.outcome === "suggested" ? best.proof : `${stage.outcome}:${stage.reason ?? best.proof}`,
             providerScore: score(best.providerScore),
             awkitScore: score(best.awkitScore)
           }) as RecoveryProvenanceEvent
@@ -125,7 +129,9 @@ export function toRecoveryProvenance(trace: LocatorRecoveryTrace): LocatorRecove
     schemaVersion: RECOVERY_PROVENANCE_VERSION,
     engine: trace.engine,
     result: trace.result,
-    ...(trace.result === "recovered" ? { actedOn: "awkit-proof" as const } : {}),
+    ...(trace.result === "recovered"
+      ? { actedOn: trace.stages.some((stage) => stage.stage === "provider" && stage.outcome === "proven") ? ("awkit-provider-agreement" as const) : ("awkit-proof" as const) }
+      : {}),
     page: PAGE_ALIAS.test(trace.context.page) ? trace.context.page : "[alias]",
     frame: trace.context.frame,
     frameDepth: Math.min(8, Math.max(0, trace.context.frameDepth)),

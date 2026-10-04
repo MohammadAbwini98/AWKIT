@@ -45,8 +45,8 @@ import type { RecordedAction } from "@src/recorder/RecorderTypes";
 import { LocatorFactory, type LocatorRecoveryEngine, type LocatorRecoveryEvent } from "@src/runner/LocatorFactory";
 import type { LocatorBlueprintStore, PageBlueprint } from "@src/runner/LocatorBlueprintStore";
 import { FileLocatorRecoveryStore, stepCandidatesDigest } from "@src/runner/LocatorRecoveryStore";
-import { createPageFingerprint, hashFingerprint } from "@src/runner/locatorFingerprint";
-import { rankLocalRecovery } from "@src/runner/recoverySnapshot";
+import { ancestrySimilarity, createPageFingerprint, hashFingerprint, similarity } from "@src/runner/locatorFingerprint";
+import { decideProviderAgreement, rankLocalRecovery } from "@src/runner/recoverySnapshot";
 import { MemoryDomReferenceStore, type DomReferenceRecord } from "@src/runner/domIntelligence/domReference";
 import { captureDomSnapshot } from "@src/runner/domIntelligence/domSnapshot";
 import type { ScraplingDomIntelligenceProvider } from "@src/runner/domIntelligence/ScraplingDomIntelligenceProvider";
@@ -71,6 +71,14 @@ interface Row {
   expect: "recover" | "refuse";
   engines: Partial<Record<Engine, Result>>;
   timings: Record<string, number>;
+  /** Why the proof and the provider agree or disagree: AWKIT's ranking and Scrapling's top picks. */
+  diagnostic?: ProofDiagnostic;
+}
+interface ProofDiagnostic {
+  refusal?: string;
+  best?: { index: number; score: number; ancestry: number };
+  runnerUp?: { index: number; score: number };
+  scrapling: Array<{ index: number; score: number; awkitScore?: number; ancestry?: number; awkitRank?: number }>;
 }
 
 let passed = 0;
@@ -129,7 +137,7 @@ async function providerEngines(
   expected: LocatorElementFingerprint,
   reference: DomReferenceRecord | undefined,
   truth: ((element: Element) => boolean) | null
-): Promise<{ scrapling: Result; proof: Result; timings: Record<string, number> }> {
+): Promise<{ scrapling: Result; proof: Result; timings: Record<string, number>; diagnostic?: ProofDiagnostic }> {
   const timings: Record<string, number> = {};
   const started = performance.now();
   if (!reference) {
@@ -161,11 +169,13 @@ async function providerEngines(
     : !truth
       ? { outcome: "WRONG", ms: scraplingMs, detail: `candidate ${top.index} at ${top.score}%` }
       : { outcome: (await allElements.nth(top.index).evaluate(truth).catch(() => false)) ? "correct" : "WRONG", ms: scraplingMs, detail: `${top.score}%` };
-  // D: the candidate acts only when AWKIT's proof over the same competitor set picks it, and it can act.
+  // D: the candidate acts only when AWKIT's proof over the same competitor set picks it, or (L12) AWKIT's
+  // agreement rule accepts it, and it can act.
   const proofStarted = performance.now();
   const decision = snapshot.candidatesTruncated ? undefined : rankLocalRecovery(step, expected, snapshot.candidates);
+  const agreed = decideProviderAgreement(decision, expected.ancestry, result.candidates);
   let proof: Result;
-  if (!top || !decision?.winner || decision.winner.index !== top.index) {
+  if (!top || ((!decision?.winner || decision.winner.index !== top.index) && agreed?.index !== top.index)) {
     proof = { outcome: "unresolved", ms: 0, detail: decision?.refusal ?? (top ? "not AWKIT's winner" : "no candidate") };
   } else {
     const element = allElements.nth(top.index);
@@ -178,7 +188,24 @@ async function providerEngines(
   }
   timings.proofMs = performance.now() - proofStarted;
   proof.ms = scraplingMs + timings.proofMs;
-  return { scrapling, proof, timings };
+  const ranked = decision ? snapshot.candidates.map((c) => ({ index: c.index, score: similarity(expected, c.fingerprint) })).sort((a, b) => b.score - a.score) : [];
+  const round = (value: number) => Math.round(value * 1000) / 1000;
+  const diagnostic: ProofDiagnostic = {
+    refusal: decision?.refusal,
+    best: decision?.best && { index: decision.best.index, score: round(decision.best.score), ancestry: round(ancestrySimilarity(expected.ancestry, decision.best.fingerprint.ancestry)) },
+    runnerUp: decision?.runnerUp && { index: decision.runnerUp.index, score: round(decision.runnerUp.score) },
+    scrapling: result.candidates.slice(0, 3).map((candidate) => {
+      const known = snapshot.candidates.find((c) => c.index === candidate.index);
+      const rank = ranked.findIndex((r) => r.index === candidate.index);
+      return {
+        index: candidate.index,
+        score: candidate.score,
+        ...(known ? { awkitScore: round(similarity(expected, known.fingerprint)), ancestry: round(ancestrySimilarity(expected.ancestry, known.fingerprint.ancestry)) } : {}),
+        ...(rank >= 0 ? { awkitRank: rank + 1 } : {})
+      };
+    })
+  };
+  return { scrapling, proof, timings, diagnostic };
 }
 
 async function main(): Promise<void> {
@@ -305,9 +332,11 @@ async function main(): Promise<void> {
       const engines = await providerEngines(page.mainFrame(), provider, forced, expected, bound, truth);
       row.engines.scrapling = engines.scrapling;
       row.engines.proof = engines.proof;
+      row.diagnostic = engines.diagnostic;
       Object.assign(row.timings, engines.timings);
       rows.push(row);
       console.log(`    ${fixture.id.padEnd(34)} ${ENGINES.map((e) => `${e}=${row.engines[e]?.outcome}`).join("  ")}${reference ? "" : "  (no recorded reference)"}  [${row.engines.scrapling?.detail ?? ""}]`);
+      if (row.diagnostic) console.log(`      diag ${JSON.stringify(row.diagnostic)}`);
       await context.close();
     }
 
@@ -381,9 +410,11 @@ async function main(): Promise<void> {
           })();
       row.engines.scrapling = engines.scrapling;
       row.engines.proof = engines.proof;
+      if ("diagnostic" in engines) row.diagnostic = engines.diagnostic;
       Object.assign(row.timings, engines.timings);
       rows.push(row);
       console.log(`    ${cls.padEnd(34)} ${ENGINES.map((e) => `${e}=${row.engines[e]?.outcome}`).join("  ")}`);
+      if (row.diagnostic) console.log(`      diag ${JSON.stringify(row.diagnostic)}`);
       await context.close();
     };
     const lbl = (id: number): FlowStep => ({ id: `dyn-step-${id}`, name: `Dynamic ${id}`, type: "click", locator: { strategy: "testId", value: "", blueprintId: `dyn-ref-${id}` } }) as FlowStep;

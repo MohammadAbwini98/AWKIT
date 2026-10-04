@@ -167,11 +167,14 @@ export interface DomRepairSuggestion {
 }
 
 /**
- * AWKIT's verdict on one provider candidate. Only `proven` could ever execute, and in the runner a
- * provider candidate is proven only when it is AWKIT's own recovery winner — which already executed.
+ * AWKIT's verdict on one provider candidate. `proven` is AWKIT's own recovery winner (which already
+ * executed). `agreed` (L12) is AWKIT's best candidate, refused only on score or margin, that the provider
+ * independently ranks first with a clear lead (`decideProviderAgreement`); it executes after the same pin
+ * and actionability checks. Nothing else can execute.
  */
 export type DomCandidateProof =
   | "proven"
+  | "agreed"
   | "below-threshold"
   | "ambiguous-margin"
   | "ancestry-veto"

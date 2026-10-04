@@ -1,11 +1,18 @@
-import type { Frame, Page } from "playwright";
+import type { Frame, Locator, Page } from "playwright";
 
 import type { FlowStep, LocatorElementFingerprint } from "@src/profiles/FlowProfile";
 import { detectRecorderProtectedLogin } from "@src/security/ProtectedLoginDetector";
 
 import { stepCandidatesDigest } from "../LocatorRecoveryStore";
 import { createPageFingerprint, hashFingerprint, similarity } from "../locatorFingerprint";
-import { RECOVERY_SCORE_THRESHOLD, isRecoveryCompatible, rankLocalRecovery, type RecoveryDecision } from "../recoverySnapshot";
+import {
+  RECOVERY_SCORE_THRESHOLD,
+  decideProviderAgreement,
+  isRecoveryCompatible,
+  rankLocalRecovery,
+  recheckSnapshotWinner,
+  type RecoveryDecision
+} from "../recoverySnapshot";
 import type { LocatorRecoveryStage } from "../LocatorFactory";
 import { DOM_INTELLIGENCE_LIMITS, type DomCandidateProof, type DomIntelligenceRecoveryOptions, type DomRepairSuggestion } from "./DomIntelligenceProvider";
 import { captureDomSnapshot, withDeadline } from "./domSnapshot";
@@ -20,7 +27,8 @@ export function proveCandidate(
   step: Pick<FlowStep, "type">,
   expected: LocatorElementFingerprint | undefined,
   candidate: { index: number; fingerprint?: LocatorElementFingerprint },
-  decision: RecoveryDecision | undefined
+  decision: RecoveryDecision | undefined,
+  agreement?: { index: number }
 ): { proof: DomCandidateProof; awkitScore?: number } {
   if (!expected || !decision) return { proof: "no-recorded-identity" };
   const fingerprint = candidate.fingerprint;
@@ -28,6 +36,7 @@ export function proveCandidate(
   const awkitScore = Number(similarity(expected, fingerprint).toFixed(3));
   if (!isRecoveryCompatible(step, fingerprint)) return { proof: "incompatible", awkitScore };
   if (decision.winner?.index === candidate.index) return { proof: "proven", awkitScore };
+  if (agreement?.index === candidate.index) return { proof: "agreed", awkitScore };
   if (awkitScore < RECOVERY_SCORE_THRESHOLD) return { proof: "below-threshold", awkitScore };
   // It clears the threshold but is not the gated winner: either another element is within the margin,
   // or it is the best but fails the ancestry veto.
@@ -47,8 +56,10 @@ type SuggestionStage = Pick<LocatorRecoveryStage, "outcome" | "reason" | "candid
 
 /**
  * The runner's provider stage (plan E4): only after both recovery layers refused, only for a step with
- * a stored, still-bound reference, inside a wall-clock budget. The result is a bounded, NON-EXECUTING
- * suggestion for the run's provenance. Nothing here can make a step act on an element.
+ * a stored, still-bound reference, inside a wall-clock budget. The result is a bounded suggestion for the
+ * run's provenance. Since L12 it can also carry `agreed`: AWKIT's best candidate that the provider ranks
+ * first (`decideProviderAgreement`), re-proven and pinned by the same stale-snapshot check every recovery
+ * layer uses. The caller still applies the actionability veto before acting on it.
  */
 export async function suggestRepair(input: {
   page: Page;
@@ -56,7 +67,7 @@ export async function suggestRepair(input: {
   step: FlowStep;
   expected: LocatorElementFingerprint;
   options: DomIntelligenceRecoveryOptions;
-}): Promise<{ stage: SuggestionStage; suggestion?: DomRepairSuggestion }> {
+}): Promise<{ stage: SuggestionStage; suggestion?: DomRepairSuggestion; agreed?: { locator: Locator; fingerprint: LocatorElementFingerprint; score: number } }> {
   const { frame, step, expected, options } = input;
   const referenceId = step.locator?.blueprintId;
   if (!referenceId || !step.locator) return { stage: { outcome: "skipped", reason: "no-reference" } };
@@ -98,9 +109,16 @@ export async function suggestRepair(input: {
   if (!top) return { stage: { outcome: "suggested", reason: "no-candidate", candidates: 0 }, suggestion };
 
   const decision = snapshot.candidatesTruncated ? undefined : rankLocalRecovery(step, expected, snapshot.candidates);
+  const agreement = decideProviderAgreement(decision, expected.ancestry, result.candidates);
   const known = snapshot.candidates.find((entry) => entry.index === top.index)?.fingerprint;
   const fingerprint = known ?? (performance.now() < deadline ? await fingerprintAt(frame, top.index) : undefined);
-  const verdict = proveCandidate(step, expected, { index: top.index, fingerprint }, decision);
+  const verdict = proveCandidate(step, expected, { index: top.index, fingerprint }, decision, agreement);
   suggestion.best = { providerScore: top.score, ...verdict };
-  return { stage: { outcome: "suggested", candidates: result.candidates.length, score: top.score }, suggestion };
+  const stage: SuggestionStage = { outcome: "suggested", candidates: result.candidates.length, score: top.score };
+  if (!agreement) return { stage, suggestion };
+  // The page may have changed since the snapshot: exactly one element must still carry the agreed
+  // identity at that index, and the step acts on that pinned node only (as for every recovery layer).
+  const locator = await recheckSnapshotWinner(frame.locator("body *"), frame, agreement).catch(() => undefined);
+  if (!locator) return { stage: { ...stage, outcome: "refused", reason: "stale-snapshot" }, suggestion };
+  return { stage: { ...stage, outcome: "proven" }, suggestion, agreed: { locator, fingerprint: agreement.fingerprint, score: agreement.score } };
 }

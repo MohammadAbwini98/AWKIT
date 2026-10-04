@@ -39,6 +39,7 @@ import {
   captureBlueprintSnapshot,
   captureLocalSnapshot,
   decideBlueprintRecovery,
+  decideProviderAgreement,
   gateRecovery,
   isRecoveryCompatible,
   rankLocalRecovery,
@@ -560,6 +561,7 @@ export class LocatorFactory {
           diagnosis.provider = { outcome: "error", reason: result.code === "TIMEOUT" ? "provider-timeout" : result.code === "UNAVAILABLE" || result.code === "DISABLED" ? "provider-unavailable" : "provider-error", candidates: [] };
         } else {
           const decision = expected && !snapshot.candidatesTruncated ? rankLocalRecovery(step, expected, snapshot.candidates) : undefined;
+          const agreement = expected ? decideProviderAgreement(decision, expected.ancestry, result.candidates) : undefined;
           const allElements = frame.locator("body *");
           const candidates: DiagnosisCandidate[] = [];
           for (const candidate of result.candidates) {
@@ -567,7 +569,7 @@ export class LocatorFactory {
             candidates.push({
               index: candidate.index,
               providerScore: candidate.score,
-              ...proveCandidate(step, expected, { index: candidate.index, fingerprint }, decision),
+              ...proveCandidate(step, expected, { index: candidate.index, fingerprint }, decision, agreement),
               ...(await describe(allElements, candidate.index).then((element) => (element ? { element } : {})))
             });
           }
@@ -847,6 +849,8 @@ export class LocatorFactory {
         }).catch(() => ({ stage: { outcome: "error" as const, reason: "provider-error" as const } }));
         stages.push({ stage: "provider", ms: performance.now() - stageStarted, ...outcome.stage });
         suggestion = "suggestion" in outcome ? outcome.suggestion : undefined;
+        // L12: AWKIT's best candidate the provider independently ranked first, already re-proven and pinned.
+        if ("agreed" in outcome && outcome.agreed) recovered = await this.requireActionable(step, outcome.agreed, stages);
       }
       return recovered;
     } finally {

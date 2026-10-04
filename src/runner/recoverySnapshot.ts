@@ -114,6 +114,43 @@ export function gateRecovery(ranked: readonly ScoredCandidate[], expectedAncestr
   return { ...base, winner: best };
 }
 
+/**
+ * L12 agreement rule (awkit-djnl.21.6): the provider's top pick may act when AWKIT refused only on
+ * score or margin AND both scorers name the same element with a clear lead.
+ *
+ * Measured on the L11 acceptance set (2026-10-04): AWKIT's best and the provider's top were the same
+ * element in reworded text (0.833 / 98.4, lead 17), duplicate text (0.95 margin 0.04 / 86.7, lead 5.3) and
+ * a relabelled field (0.61 / 87.5, lead 26), all correct. The same-tag decoy (0.725 / 77.7) and combined
+ * drift (0.725 / 75.8) also agreed but were wrong, and the provider's floor refuses both. Wrong picks the
+ * provider scored higher (virtualized row 96.4 with lead 0, skeleton 91.7, navigated page 94.4) are refused
+ * by the lead, the actionability veto and the route binding, which all still run.
+ *
+ * Everything else in the gate holds: compatibility, the ancestry veto, AWKIT's own margin when it refused on
+ * score, and an identity floor that means the structure matched and only the label or text drifted.
+ */
+export const AGREEMENT_MIN_PROVIDER_SCORE = 85;
+export const AGREEMENT_MIN_PROVIDER_LEAD = 5;
+export const AGREEMENT_MIN_IDENTITY = 0.6;
+
+export function decideProviderAgreement(
+  decision: RecoveryDecision | undefined,
+  expectedAncestry: string[],
+  provider: ReadonlyArray<{ index: number; score: number }>
+): ScoredCandidate | undefined {
+  if (!decision || decision.winner) return undefined;
+  if (decision.refusal !== "below-threshold" && decision.refusal !== "ambiguous-margin") return undefined;
+  const { best, runnerUp } = decision;
+  const [top, second] = provider;
+  if (!best || !top || top.index !== best.index) return undefined;
+  if (best.score < AGREEMENT_MIN_IDENTITY || top.score < AGREEMENT_MIN_PROVIDER_SCORE) return undefined;
+  // The gate refused before it reached the ancestry veto, so the veto runs here.
+  if (ancestrySimilarity(expectedAncestry, best.fingerprint.ancestry) < RECOVERY_MIN_ANCESTRY) return undefined;
+  if (second && top.score - second.score < AGREEMENT_MIN_PROVIDER_LEAD) return undefined;
+  // Refused on score: AWKIT's own margin must still hold, so the agreement never breaks a near-tie.
+  if (decision.refusal === "below-threshold" && runnerUp && best.score - runnerUp.score < RECOVERY_MARGIN) return undefined;
+  return best;
+}
+
 export interface BlueprintEvidence {
   index: number;
   fingerprint: LocatorElementFingerprint;
