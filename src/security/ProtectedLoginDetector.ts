@@ -254,7 +254,7 @@ export interface ProtectedDomSignals {
   passwordField?: boolean;
   /** `input[autocomplete="one-time-code"]` present (OTP/MFA). */
   oneTimeCodeField?: boolean;
-  /** reCAPTCHA / hCaptcha / Turnstile iframe present. */
+  /** reCAPTCHA / hCaptcha / Turnstile (challenges.cloudflare.com) / Arkose iframe present. */
   captchaIframe?: boolean;
   /** An element labelled as a captcha (`[aria-label*=captcha]`). */
   captchaElement?: boolean;
@@ -366,10 +366,12 @@ export async function detectRecorderProtectedLogin(page: Page): Promise<Recorder
           passwordField: !!document.querySelector('input[type="password"]'),
           oneTimeCodeField: !!document.querySelector('input[autocomplete="one-time-code"]'),
           captchaIframe: !!document.querySelector(
-            'iframe[src*="recaptcha"], iframe[src*="hcaptcha"], iframe[src*="turnstile"]'
+            'iframe[src*="recaptcha"], iframe[src*="hcaptcha"], iframe[src*="turnstile"], iframe[src*="challenges.cloudflare.com"], iframe[src*="arkoselabs"]'
           ),
+          // A Turnstile widget is a `div.cf-turnstile[data-sitekey]` with no captcha text and, before it renders, no
+          // iframe; reCAPTCHA, hCaptcha and Turnstile all carry `data-sitekey` (L12.20).
           captchaElement: !!document.querySelector(
-            '[aria-label*="captcha" i], .g-recaptcha, .h-captcha, [data-testid*="captcha" i]'
+            '[aria-label*="captcha" i], .g-recaptcha, .h-captcha, .cf-turnstile, [data-sitekey], [data-hcaptcha-widget-id], [data-testid*="captcha" i]'
           ),
           verificationElement: !!document.querySelector('[aria-label*="verification" i]'),
           webauthn:
