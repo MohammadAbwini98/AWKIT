@@ -74,7 +74,14 @@ export const Permission = {
   /** Read the AI audit log and runtime/model diagnostics; reverting from it also needs workflow.edit. */
   AI_AUDIT_VIEW: "ai.audit.view",
   /** Recorder Element Spy (L2): inspect an element's locator evidence without recording a step. */
-  RECORDER_ELEMENT_SPY: "recorder.elementSpy"
+  RECORDER_ELEMENT_SPY: "recorder.elementSpy",
+  /**
+   * L12.17 (owner decision 2026-10-04): diagnose a step on a sign-in or MFA page with the parser-only DOM
+   * intelligence, for locator help. Super User only (the IPC also requires the role, so a direct grant is not
+   * enough), re-authenticated, opted into per request, and audited. CAPTCHA, security-check and
+   * blocked-automation pages stay refused for every role.
+   */
+  DOM_INTELLIGENCE_PROTECTED_DIAGNOSIS: "domIntelligence.protectedDiagnosis"
 } as const;
 
 export type Permission = (typeof Permission)[keyof typeof Permission];
@@ -110,7 +117,9 @@ export const SENSITIVE_PERMISSIONS: ReadonlySet<Permission> = new Set<Permission
   Permission.SEMANTIC_MANAGE_EMBEDDINGS,
   // AI governance changes what automation may do to saved flows, so it re-authenticates like
   // index management (Phase L, 2026-09-19). Using AI and reading its audit log do not.
-  Permission.AI_MANAGE
+  Permission.AI_MANAGE,
+  // L12.17: reading a sign-in or MFA page's structure is an exception to the protected-login rule.
+  Permission.DOM_INTELLIGENCE_PROTECTED_DIAGNOSIS
 ]);
 
 export type RoleId = "SuperUser" | "Issuer" | "Administrator" | "Operator" | "Viewer";
@@ -182,6 +191,8 @@ const ADMINISTRATOR_PERMISSIONS: readonly Permission[] = ALL_PERMISSIONS.filter(
     p !== Permission.DEBUG_MODE_MANAGE &&
     p !== Permission.DEBUG_LOG_VIEW &&
     p !== Permission.SESSION_POLICY_MANAGE &&
+    // L12.17: Super User only, by owner decision. Left out here it would be a silent grant (denylist).
+    p !== Permission.DOM_INTELLIGENCE_PROTECTED_DIAGNOSIS &&
     !p.startsWith("license.")
 );
 
