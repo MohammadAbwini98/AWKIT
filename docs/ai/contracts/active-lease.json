@@ -1,19 +1,18 @@
 {
-  "task": "awkit-portable-kit-0152-1004",
-  "contract_path": "docs/ai/contracts/awkit-portable-kit-0152-1004.json",
-  "holder": "release",
+  "task": "awkit-l12-registration-1004",
+  "contract_path": "docs/ai/contracts/awkit-l12-registration-1004.json",
+  "holder": "project-state",
   "status": "released",
   "allowed_paths": [
-    "package.json",
-    "scripts/package-kit.mjs"
+    ".beads/**"
   ],
-  "acquired_at": "2026-10-04T07:21:56.860Z",
-  "acquired_at_commit": "8fee99eec2e2ad757c8ceee0a39f6143251b551a",
+  "acquired_at": "2026-10-04T16:23:22.908Z",
+  "acquired_at_commit": "f188e7b6bf7d206ff7e522b6214e7356214e9109",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-portable-kit-0152-1004.json"
+    "docs/ai/contracts/awkit-l12-registration-1004.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-portable-kit-0152-1004.json": "8d03880f29ce004420379c613359f59b6c46195998b1c19e7bb1a540821c8a1e"
+    "docs/ai/contracts/awkit-l12-registration-1004.json": "f833ec16154fe31009ceca6e4e3d41fbc318c1190c69b48f92dbb81187079dfa"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -28,7 +27,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-04T07:27:52.729Z",
-  "released_reason": "install kit for 0.1.52 assembled in dist with EXE, Oracle JDK 17.0.8, ojdbc17 23.26.2.0.0 and the qualified Qwen 0.8B model, script committed in e993e0b7",
-  "archived_at": "2026-10-04T07:27:52.730Z"
+  "released_at": "2026-10-04T16:25:49.722Z",
+  "released_reason": "L12 awkit-djnl.21 filed OPEN under Phase L with 18 workstream children, blocks on closed L11 .19, benchmark .21.18 after .21.1-.21.17, export refreshed to 352 issues",
+  "archived_at": "2026-10-04T16:25:49.723Z"
 }

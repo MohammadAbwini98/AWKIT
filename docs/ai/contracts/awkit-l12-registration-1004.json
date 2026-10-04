@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-l12-registration-1004",
+    "title": "Register Phase L milestone L12 Scrapling expansion (16 workstreams) for progress tracking",
+    "objective": "Registration only, on the owner's request of 2026-10-04 to implement every Scrapling improvement point and track progress on the roadmap dashboard. File one open milestone child under the open Phase L epic awkit-djnl: L12 Scrapling expansion, with one child per workstream (speed: early host start, snapshot cap, parsed-page reuse, diagnosis budget, references for old flows; accuracy: agreement rule in recovery, Recorder signature and stable alternatives; diagnosis: Element Spy, pre-run drift check, expected-vs-now in reports; scenarios: loading-page waits, structural page identity, list targeting; capability: list extraction and loops, AI candidates, page context default; protected login and MFA diagnosis for Super Users with CAPTCHA excluded; before/after benchmark). Blocks edges: L12 after closed L11 (awkit-djnl.19); the benchmark workstream after every other workstream. Refresh .beads/issues.jsonl with bd export -o. No existing bead changes status. No implementation happens under this contract.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 0
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "f188e7b6",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "docs/ai/contracts/awkit-l12-registration-1004.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "L12-REG-BEADS",
+      "description": "The Phase L epic stays open with one new open milestone child L12 that blocks on closed awkit-djnl.19 (L11), and one open child per L12 workstream. Every other bead keeps its status.",
+      "evidence_required": [
+        "beads-structure"
+      ]
+    },
+    {
+      "id": "L12-REG-EXPORT",
+      "description": ".beads/issues.jsonl is refreshed with bd export -o .beads/issues.jsonl, and verify:roadmap-dashboard passes with Sources agree after its pins move to measured values.",
+      "evidence_required": [
+        "beads-export",
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "beads-structure",
+      "type": "inspection",
+      "required": true,
+      "command": "bd show of the new milestone and its children",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "bd create --parent awkit-djnl returned awkit-djnl.21 (P2, OPEN). 18 bd create --parent awkit-djnl.21 calls returned awkit-djnl.21.1 to .21.18, all OPEN. bd dep add printed (blocks) for .21 on closed .19 and for .21.18 on each of .21.1 to .21.17. One create was first refused by the shell guard for a semicolon and a tilde in its text and rerun without them. No existing bead changed status."
+    },
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "Printed 'Exported 352 issues to .beads/issues.jsonl'."
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "A measuring run failed exactly the three tracker pins (got 352 issues, 41 outstanding / 311 closed, 239 edges), 174/177. After the pins moved to those values, Phase L went to in-progress with the L12 deliverable in ImplementationRoadmap.ts and a claim was added to tools/roadmap/assignments.json, the run printed 177/177 with 'the Overview banner reads \"Sources agree\"'."
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qa_basis": "Tracker structure and export inspected through bd create, bd dep add and bd export output. The final state passed verify:roadmap-dashboard 177/177 with Sources agree.",
+    "qa_known_limitations": "ImplementationRoadmap.ts, the dashboard verifier pins and assignments.json are ordinary unleased direct-loop edits made after the lease was released, as in earlier registrations. No implementation happened under this contract.",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-l12-registration-1004:project-state:2026-10-04T16:23:22.908Z",
+        "task": "awkit-l12-registration-1004",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-04T16:23:22.908Z",
+        "acquired_at_commit": "f188e7b6bf7d206ff7e522b6214e7356214e9109",
+        "released_at": "2026-10-04T16:25:49.722Z",
+        "released_reason": "L12 awkit-djnl.21 filed OPEN under Phase L with 18 workstream children, blocks on closed L11 .19, benchmark .21.18 after .21.1-.21.17, export refreshed to 352 issues",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}
