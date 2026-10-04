@@ -97,7 +97,14 @@ export async function suggestRepair(input: {
   // The stage's own deadline also covers a cold host start (spawn to hello), which the provider bounds
   // separately and generously; the run never waits for it past this budget.
   const result = await withDeadline(
-    options.provider.findRecoveryCandidates({ html: snapshot.html, reference, maxCandidates: 5, timeoutMs: remaining }),
+    options.provider.findRecoveryCandidates({
+      html: snapshot.html,
+      reference,
+      maxCandidates: 5,
+      timeoutMs: remaining,
+      // L12.2: only AWKIT's own competitors can be accepted, so only they are scored (a truncated set: all).
+      ...(snapshot.candidatesTruncated ? {} : { candidateIndices: snapshot.candidates.map((candidate) => candidate.index) })
+    }),
     remaining,
     () => ({ ok: false as const, code: "TIMEOUT" as const, message: "The repair-suggestion budget ran out." })
   );

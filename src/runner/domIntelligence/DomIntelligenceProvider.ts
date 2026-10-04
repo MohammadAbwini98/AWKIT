@@ -25,6 +25,10 @@ export const DOM_INTELLIGENCE_LIMITS = Object.freeze({
   maxResponseBytes: 512 * 1024,
   /** Candidates a find request may ask for. */
   maxCandidates: 20,
+  /** L12.2: indices a find request may restrict scoring to (the snapshot's own pruned cap). */
+  maxCandidateIndices: 5_000,
+  /** L12: similar elements a find_similar request may ask for. */
+  maxSimilar: 200,
   /** Default and maximum per-request budgets. */
   defaultTimeoutMs: 1_500,
   maxTimeoutMs: 10_000,
@@ -79,7 +83,22 @@ export interface DomRecoveryRequest {
   /** Provider score floor in percent (0–100). */
   minScore?: number;
   timeoutMs?: number;
+  /**
+   * L12.2: score only these stamped indices (AWKIT's own same-tag-or-role competitors, at most 5000). AWKIT can
+   * only ever accept one of them, so scoring the rest of a large page is wasted work. Absent: every element.
+   */
+  candidateIndices?: number[];
 }
+
+/** L12.8/.12/.13: elements alike to one stamped element (Scrapling's `find_similar`). */
+export interface DomSimilarRequest {
+  html: string;
+  index: number;
+  maxResults?: number;
+  timeoutMs?: number;
+}
+
+export type DomSimilarResult = { ok: true; index: number; similar: number[]; count: number; parseMs: number; matchMs: number } | DomIntelligenceFailure;
 
 export interface DomRecoveryCandidate {
   /** The `data-awkit-v` index: `frame.locator("body *").nth(index)`. */
@@ -89,7 +108,8 @@ export interface DomRecoveryCandidate {
 }
 
 export type DomRecoveryResult =
-  | { ok: true; candidates: DomRecoveryCandidate[]; elements: number; parseMs: number; matchMs: number }
+  /** `parseReused` (L12.3): the host served this snapshot from its one-entry parse cache. */
+  | { ok: true; candidates: DomRecoveryCandidate[]; elements: number; parseMs: number; matchMs: number; parseReused?: boolean }
   | DomIntelligenceFailure;
 
 export interface DomReferenceResult {
@@ -122,6 +142,8 @@ export interface DomIntelligenceProvider {
   getStatus(): Promise<DomIntelligenceStatus>;
   saveReference(reference: DomReferenceRecord): Promise<DomReferenceResult | DomIntelligenceFailure>;
   findRecoveryCandidates(request: DomRecoveryRequest): Promise<DomRecoveryResult>;
+  /** L12: optional, so a provider without it degrades to "no similar elements" (callers check). */
+  findSimilar?(request: DomSimilarRequest): Promise<DomSimilarResult>;
   normalizeForAi(request: DomNormalizationRequest): Promise<DomNormalizationResult>;
   shutdown(): Promise<void>;
 }

@@ -559,7 +559,13 @@ export class LocatorFactory {
       if (!snapshot) diagnosis.provider = { outcome: "error", reason: "snapshot-failed", candidates: [] };
       else if (snapshot.refused) diagnosis.provider = { outcome: "skipped", reason: "protected-surface", candidates: [] };
       else {
-        const result = await deps.provider.findRecoveryCandidates({ html: snapshot.html, reference, maxCandidates: 5, timeoutMs: DOM_INTELLIGENCE_LIMITS.diagnosisTimeoutMs });
+        const result = await deps.provider.findRecoveryCandidates({
+          html: snapshot.html,
+          reference,
+          maxCandidates: 5,
+          timeoutMs: DOM_INTELLIGENCE_LIMITS.diagnosisTimeoutMs,
+          ...(expected && !snapshot.candidatesTruncated ? { candidateIndices: snapshot.candidates.map((candidate) => candidate.index) } : {})
+        });
         if (!result.ok) {
           diagnosis.provider = { outcome: "error", reason: result.code === "TIMEOUT" ? "provider-timeout" : result.code === "UNAVAILABLE" || result.code === "DISABLED" ? "provider-unavailable" : "provider-error", candidates: [] };
         } else {

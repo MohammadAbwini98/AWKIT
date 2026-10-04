@@ -352,6 +352,36 @@ async function main(): Promise<void> {
     check("the client refuses oversized HTML before sending it", !tooBig.ok && tooBig.code === "OVERSIZED", tooBig);
     const badReference = await provider.findRecoveryCandidates({ html: FIXTURE_HTML, reference: { ...reference(), element: { ...reference().element, text: "x".repeat(400) } } });
     check("the client refuses a reference not in its bounded, redacted form", !badReference.ok && badReference.code === "REJECTED", badReference);
+
+    // L12.2: candidateIndices restricts scoring to AWKIT's competitors. Index 7 (the same-label button elsewhere)
+    // is scored on its own even though index 5 outscores it on the whole page.
+    const onlySeven = await provider.findRecoveryCandidates({ html: FIXTURE_HTML, reference: reference(), maxCandidates: 5, candidateIndices: [7] });
+    check("L12.2 candidateIndices: only the listed elements are scored", onlySeven.ok && onlySeven.candidates.length === 1 && onlySeven.candidates[0].index === 7, onlySeven);
+    const none = await provider.findRecoveryCandidates({ html: FIXTURE_HTML, reference: reference(), maxCandidates: 5, candidateIndices: [] });
+    check("L12.2 an empty list scores nothing", none.ok && none.candidates.length === 0, none);
+    const pair = await provider.findRecoveryCandidates({ html: FIXTURE_HTML, reference: reference(), maxCandidates: 5, candidateIndices: [4, 5, 7] });
+    check(
+      "L12.2 a restricted score equals the same element's unrestricted score (only the set changes)",
+      pair.ok && found?.ok && pair.candidates.every((c) => found!.ok && found!.candidates.find((f) => f.index === c.index)?.score === c.score) && pair.candidates[0]?.index === 5,
+      pair
+    );
+    const overBound = await provider.findRecoveryCandidates({ html: FIXTURE_HTML, reference: reference(), maxCandidates: 5, candidateIndices: Array.from({ length: 5_001 }, (_, i) => i) });
+    check("L12.2 a list over the bound is dropped by the client (every element scored), never truncated", overBound.ok && found?.ok && overBound.candidates.length === found.candidates.length, overBound);
+    // L12.3: the one-entry parse cache.
+    const other = await provider.findRecoveryCandidates({ html: renumbered, reference: reference(), maxCandidates: 5 });
+    const first = await provider.findRecoveryCandidates({ html: FIXTURE_HTML, reference: reference(), maxCandidates: 5 });
+    const second = await provider.findRecoveryCandidates({ html: FIXTURE_HTML, reference: reference(), maxCandidates: 5 });
+    check("L12.3 a new snapshot is parsed", other.ok && other.parseReused === false && first.ok && first.parseReused === false, { other, first });
+    check("L12.3 the same snapshot again reuses the parse", second.ok && second.parseReused === true, second);
+    check("L12.3 a reused parse gives identical candidates", first.ok && second.ok && JSON.stringify(first.candidates) === JSON.stringify(second.candidates));
+    // find_similar: Cancel (4) and Save (5) share depth, tag and parents; the section's button (7) does not.
+    const similar = provider.findSimilar ? await provider.findSimilar({ html: FIXTURE_HTML, index: 4 }) : undefined;
+    check("find_similar answers with stamped indices", similar?.ok === true && similar.index === 4, similar);
+    check("find_similar finds the sibling button and not the one in another region", similar?.ok === true && similar.similar.includes(5) && !similar.similar.includes(7) && !similar.similar.includes(4), similar);
+    const unknown = provider.findSimilar ? await provider.findSimilar({ html: FIXTURE_HTML, index: 99 }) : undefined;
+    check("find_similar refuses an index that is not stamped", unknown?.ok === false && unknown.code === "REJECTED", unknown);
+    const bounded = provider.findSimilar ? await provider.findSimilar({ html: FIXTURE_HTML, index: 4, maxResults: 1_000 }) : undefined;
+    check("find_similar clamps maxResults to its bound", bounded?.ok === true, bounded);
     const hostPid = provider.pid;
     await provider.shutdown();
     check("shutdown stops the host process", await waitGone(hostPid, 5_000), hostPid);

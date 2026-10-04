@@ -501,7 +501,7 @@ async function main(): Promise<void> {
       const target = page.locator("#save-order");
       const expected = hashFingerprint(await target.evaluate(createPageFingerprint));
       const make = (engine: LocatorRecoveryEngine) => new LocatorFactory(page, { recoveryStore: store, scope: { scenarioId: `scale-${engine}`, flowId: "l11" }, recoveryGraceMs: 0, recoveryEngine: engine });
-      const runs: Record<string, number[]> = { legacy: [], snapshot: [], serialize: [], find: [] };
+      const runs: Record<string, number[]> = { legacy: [], snapshot: [], serialize: [], find: [], findCompetitors: [] };
       for (let rep = 0; rep < 3; rep += 1) {
         await target.evaluate((el) => el.setAttribute("data-l11-anchor", "target"));
         await make("legacy").resolve(step);
@@ -516,13 +516,18 @@ async function main(): Promise<void> {
         runs.serialize.push(performance.now() - started);
         if (!snapshot.refused) {
           const ref = { schemaVersion: 1, referenceId: "scale", bindingDigest: "0".repeat(64), source: "recorder", capturedAt: new Date().toISOString(), element: { tag: "button", attributes: { id: "save-order", type: "button", class: "btn btn-primary save-order" }, text: "Save changes", path: ["html", "body", "div", "main", "section", "form", "div", "button"], parent: { tag: "div", attributes: { class: "form-actions" }, text: "" }, siblings: ["button", "button"], children: [] } } as DomReferenceRecord;
-          const found = await provider.findRecoveryCandidates({ html: snapshot.html, reference: ref, maxCandidates: 5 });
+          // The whole page, as L11 sent it. A distinct copy of the HTML defeats the host's parse cache, so this is
+          // a cold parse plus a full match every time.
+          const found = await provider.findRecoveryCandidates({ html: `${snapshot.html} `, reference: ref, maxCandidates: 5 });
           if (found.ok) runs.find.push(found.parseMs + found.matchMs);
+          // L12.2: only AWKIT's competitors scored, as the product now asks (cold parse again).
+          const competitors = await provider.findRecoveryCandidates({ html: `${snapshot.html}  `, reference: ref, maxCandidates: 5, candidateIndices: snapshot.candidates.map((c) => c.index) });
+          if (competitors.ok) runs.findCompetitors.push(competitors.parseMs + competitors.matchMs);
         }
       }
-      scaling.push({ fillerRows, elements, legacyMs: median(runs.legacy), snapshotMs: median(runs.snapshot), serializeMs: median(runs.serialize), hostParseMatchMs: median(runs.find), legacyCorrect: runs.legacy.length, snapshotCorrect: runs.snapshot.length });
+      scaling.push({ fillerRows, elements, legacyMs: median(runs.legacy), snapshotMs: median(runs.snapshot), serializeMs: median(runs.serialize), hostParseMatchMs: median(runs.find), hostParseMatchCompetitorsMs: median(runs.findCompetitors), legacyCorrect: runs.legacy.length, snapshotCorrect: runs.snapshot.length });
       console.log(
-        `    ${String(elements).padStart(6)} elements  legacy ${runs.legacy.length}/3 recovered${runs.legacy.length ? ` ${median(runs.legacy)} ms` : ""}  snapshot ${runs.snapshot.length}/3 recovered ${median(runs.snapshot)} ms  serialize ${median(runs.serialize)} ms  host parse+match ${median(runs.find)} ms`
+        `    ${String(elements).padStart(6)} elements  legacy ${runs.legacy.length}/3 recovered${runs.legacy.length ? ` ${median(runs.legacy)} ms` : ""}  snapshot ${runs.snapshot.length}/3 recovered ${median(runs.snapshot)} ms  serialize ${median(runs.serialize)} ms  host parse+match ${median(runs.find)} ms (competitors only ${median(runs.findCompetitors)} ms)`
       );
       await context.close();
     }

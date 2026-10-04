@@ -13,6 +13,8 @@ import {
   type DomRecoveryRequest,
   type DomRecoveryResult,
   type DomReferenceResult,
+  type DomSimilarRequest,
+  type DomSimilarResult,
   type RawDomNormalization
 } from "./DomIntelligenceProvider";
 import { validateDomReference, type DomReferenceRecord } from "./domReference";
@@ -93,10 +95,11 @@ export const SCRAPLING_RESULT_VALIDATORS = {
     if (!forbidden) return undefined;
     return v as HelloInfo;
   },
-  find(value: unknown, maxCandidates: number): { candidates: DomRecoveryCandidate[]; elements: number; parseMs: number; matchMs: number } | undefined {
-    const v = value as { candidates?: unknown; elements?: unknown; parseMs?: unknown; matchMs?: unknown } | null;
+  find(value: unknown, maxCandidates: number): { candidates: DomRecoveryCandidate[]; elements: number; parseMs: number; matchMs: number; parseReused?: boolean } | undefined {
+    const v = value as { candidates?: unknown; elements?: unknown; parseMs?: unknown; matchMs?: unknown; parseReused?: unknown } | null;
     if (!v || typeof v !== "object" || !Array.isArray(v.candidates) || v.candidates.length > maxCandidates) return undefined;
     if (!isNumber(v.elements) || !isNumber(v.parseMs) || !isNumber(v.matchMs)) return undefined;
+    if (v.parseReused !== undefined && typeof v.parseReused !== "boolean") return undefined;
     const candidates: DomRecoveryCandidate[] = [];
     for (const raw of v.candidates) {
       const c = raw as { index?: unknown; score?: unknown } | null;
@@ -104,7 +107,14 @@ export const SCRAPLING_RESULT_VALIDATORS = {
       if (Object.keys(c).some((key) => key !== "index" && key !== "score")) return undefined;
       candidates.push({ index: c.index as number, score: c.score });
     }
-    return { candidates, elements: v.elements, parseMs: v.parseMs, matchMs: v.matchMs };
+    return { candidates, elements: v.elements, parseMs: v.parseMs, matchMs: v.matchMs, ...(v.parseReused === undefined ? {} : { parseReused: v.parseReused as boolean }) };
+  },
+  similar(value: unknown, maxResults: number): { index: number; similar: number[]; count: number; parseMs: number; matchMs: number } | undefined {
+    const v = value as { index?: unknown; similar?: unknown; count?: unknown; parseMs?: unknown; matchMs?: unknown } | null;
+    if (!v || typeof v !== "object" || !Number.isInteger(v.index) || !Number.isInteger(v.count) || !isNumber(v.parseMs) || !isNumber(v.matchMs)) return undefined;
+    if (!Array.isArray(v.similar) || v.similar.length > maxResults || !v.similar.every((index) => Number.isInteger(index) && index >= 0)) return undefined;
+    if ((v.count as number) < v.similar.length) return undefined;
+    return { index: v.index as number, similar: v.similar as number[], count: v.count as number, parseMs: v.parseMs, matchMs: v.matchMs };
   },
   reference(value: unknown): DomReferenceResult | undefined {
     const v = value as { fields?: unknown } | null;
@@ -170,14 +180,30 @@ export class ScraplingDomIntelligenceProvider implements DomIntelligenceProvider
     }
     const maxCandidates = Math.max(1, Math.min(request.maxCandidates ?? 5, DOM_INTELLIGENCE_LIMITS.maxCandidates));
     const minScore = Math.max(0, Math.min(request.minScore ?? 40, 100));
+    const indices = request.candidateIndices;
+    // A list over the host's bound is dropped rather than truncated: scoring part of the set would change the ranking.
+    const candidateIndices =
+      indices && indices.length <= DOM_INTELLIGENCE_LIMITS.maxCandidateIndices && indices.every((index) => Number.isInteger(index) && index >= 0) ? indices : undefined;
     const response = await this.request(
       "find_candidates",
-      { html: request.html, reference, maxCandidates, minScore },
+      { html: request.html, reference, maxCandidates, minScore, ...(candidateIndices ? { candidateIndices } : {}) },
       this.timeout(request.timeoutMs)
     );
     if (!response.ok) return response;
     const result = SCRAPLING_RESULT_VALIDATORS.find(response.result, maxCandidates);
     return result ? { ok: true, ...result } : this.malformed("find_candidates");
+  }
+
+  async findSimilar(request: DomSimilarRequest): Promise<DomSimilarResult> {
+    if (typeof request.html !== "string" || Buffer.byteLength(request.html) > DOM_INTELLIGENCE_LIMITS.maxHtmlBytes) {
+      return { ok: false, code: "OVERSIZED", message: "The DOM snapshot exceeds the request bound." };
+    }
+    if (!Number.isInteger(request.index) || request.index < 0) return { ok: false, code: "REJECTED", message: "The element index is not a stamped index." };
+    const maxResults = Math.max(1, Math.min(request.maxResults ?? 50, DOM_INTELLIGENCE_LIMITS.maxSimilar));
+    const response = await this.request("find_similar", { html: request.html, index: request.index, maxResults }, this.timeout(request.timeoutMs));
+    if (!response.ok) return response;
+    const result = SCRAPLING_RESULT_VALIDATORS.similar(response.result, maxResults);
+    return result ? { ok: true, ...result } : this.malformed("find_similar");
   }
 
   async normalizeForAi(request: DomNormalizationRequest): Promise<DomNormalizationResult> {
