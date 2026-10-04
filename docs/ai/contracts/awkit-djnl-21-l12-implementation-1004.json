@@ -50,9 +50,9 @@
       "qc"
     ],
     "writer": {
-      "agent_id": "security",
+      "agent_id": "project-state",
       "allowed_paths": [
-        "src/security/**"
+        ".beads/**"
       ]
     }
   },
@@ -214,6 +214,22 @@
         "acquired_at_commit": "7c799a7c7fc10a2a078c085c2667155e6c348bbf",
         "released_at": "2026-10-04T19:11:15.356Z",
         "released_reason": "L12.20 detector fix committed as 4dc4f212, mock-site page and verifiers commit next unleased",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-djnl-21-l12-implementation-1004:project-state:2026-10-04T20:32:58.776Z",
+        "task": "awkit-djnl-21-l12-implementation-1004",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-04T20:32:58.776Z",
+        "acquired_at_commit": "b36e52e87bc82a0f4b1657d8a3883556e038ea07",
+        "released_at": "2026-10-04T20:33:25.220Z",
+        "released_reason": "L12.19 and L12.20 closed with their evidence, export refreshed",
         "amendments": [],
         "overrides": [],
         "violations": []

@@ -1,6 +1,6 @@
 # KNOWN_ISSUES
 
-## The protected-login detector does not see a Cloudflare Turnstile widget (found 2026-10-04, OPEN — `awkit-djnl.21.20`)
+## The protected-login detector does not see a Cloudflare Turnstile widget (found 2026-10-04, RESOLVED 2026-10-04 in `4dc4f212`/`b36e52e8` — `awkit-djnl.21.20`)
 
 - `detectRecorderProtectedLogin` recognises reCAPTCHA and hCaptcha iframes, `.g-recaptcha`, `.h-captcha`,
   `[aria-label*=captcha]` and captcha text, but not a `div.cf-turnstile` with `data-sitekey` (no iframe yet, no

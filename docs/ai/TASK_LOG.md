@@ -1,6 +1,21 @@
 # TASK_LOG
 
-## 2026-10-04 (latest) — L12 Scrapling expansion (Claude)
+## 2026-10-04 (latest) — L12.19 similar-rows loop; L12.20 tracker close-out (Claude)
+
+- **Task:** review and finish uncommitted L12.19 work left by another session; reconcile L12.20, whose fix was
+  committed (`4dc4f212`, `b36e52e8`) but whose tracker item and KNOWN_ISSUES entry were still open.
+- **Files:** `src/runner/domIntelligence/similarRows.ts` (`commonRowSelector`), `DomIntelligenceApi.ts`,
+  `app/main/ipc/domIntelligence.ipc.ts` (`domIntelligence:addSimilarRowsLoop`), `app/main/preload.ts`,
+  `src/recorder/RecorderService.ts` (`similarRowsLoopAction`, `addSimilarRowsLoop`), `buildRecordedFlow.ts`
+  (loop config), `RecorderTypes.ts` (comment), `SimilarRowsSection.tsx`, `Recorder.tsx`,
+  `mock-site/public/element-spy-lab.html` (`spy-log`), `mock-site/README.md`, `verify-dom-intelligence-l12.mts`
+  (section K).
+- **Verification:** PASS `npm run build`, `verify:dom-intelligence-l12` 82/0 (was 71), `verify:ipc-contract`
+  10/10, `verify:mock-site` 254/254. NOT RUN: GUI walkthrough of the Spy loop button.
+- **Tracker:** `.21.19` and `.21.20` closed under a project-state lease on
+  `awkit-djnl-21-l12-implementation-1004`; `.21.21` (security review) stays open.
+
+## 2026-10-04 — L12 Scrapling expansion (Claude)
 
 - **Task:** owner asked why Scrapling did not improve recorder, spy and locator results, then asked for every
   improvement point to be implemented, tracked on the roadmap dashboard, with Super-User protected-page use and

@@ -663,8 +663,10 @@ try {
   // (`awkit-djnl.21.1`…`.21.6`) closed with their commits and verifiers (six out, six closed).
   // Then 26/329 of 355 later on 2026-10-04: `.21.7`…`.21.18` closed (twelve out, twelve closed) and the
   // follow-ups `.21.19`…`.21.21` filed OPEN (three in). Measured after the export.
-    "26 outstanding / 329 closed",
-    beads.stats.outstanding === 26 && beads.stats.closed === 329,
+  // Then 24/331 of 355 later on 2026-10-04: `.21.19` (similar-rows loop) and `.21.20` (Turnstile detector)
+  // closed (two out, two closed). Measured after the export.
+    "24 outstanding / 331 closed",
+    beads.stats.outstanding === 24 && beads.stats.closed === 331,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

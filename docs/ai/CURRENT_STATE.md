@@ -1,6 +1,20 @@
 # CURRENT_STATE
 
-## L12 Scrapling expansion implemented (2026-10-04, latest)
+## L12 follow-ups: similar-rows loop and Turnstile detection done (2026-10-04, latest)
+
+- **L12.19 (`awkit-djnl.21.19`, closed):** Element Spy's Find similar rows now offers **Add loop over these
+  rows**. Main proves one CSS selector that matches exactly those rows (a container named by `data-testid`, a
+  non-numeric `id` or `aria-label`, plus the shared tag path, checked by `querySelectorAll` identity) and appends
+  an element loop that clicks each row to the Recorder draft. The selector never leaves main and is bound to
+  the inspection it came from. No loop for rows in a frame, rows beyond the 50-row cap, or rows no named
+  container isolates. Proven on `/recorder-lab/element-spy` (new `spy-log`): 4 iterations, clicked in page order.
+- **L12.20 (`awkit-djnl.21.20`, closed):** the protected-login detector sees Turnstile, Arkose and
+  `data-sitekey` widgets (`4dc4f212`, `b36e52e8`).
+- **Open:** `.21.21` independent security review of the protected diagnosis (P1, NOT RUN). Not run: a GUI
+  walkthrough of the new Element Spy panels in the running app.
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## L12 Scrapling expansion implemented (2026-10-04)
 
 - **Why:** the owner asked why Scrapling did not improve the Recorder, Element Spy or locator finding. It could
   not: a Scrapling pick was only marked proven when it was already AWKIT's own winner, so it never changed a

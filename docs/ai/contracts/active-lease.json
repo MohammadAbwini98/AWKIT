@@ -1,32 +1,42 @@
 {
   "task": "awkit-djnl-21-l12-implementation-1004",
   "contract_path": "docs/ai/contracts/awkit-djnl-21-l12-implementation-1004.json",
-  "holder": "security",
+  "holder": "project-state",
   "status": "released",
   "allowed_paths": [
-    "src/security/**"
+    ".beads/**"
   ],
-  "acquired_at": "2026-10-04T19:10:50.612Z",
-  "acquired_at_commit": "7c799a7c7fc10a2a078c085c2667155e6c348bbf",
+  "acquired_at": "2026-10-04T20:32:58.776Z",
+  "acquired_at_commit": "b36e52e87bc82a0f4b1657d8a3883556e038ea07",
   "baseline_dirty": [
-    "docs/ai/contracts/active-lease.json",
+    "app/main/ipc/domIntelligence.ipc.ts",
+    "app/main/preload.ts",
+    "app/renderer/components/workflow/SimilarRowsSection.tsx",
+    "app/renderer/pages/Recorder.tsx",
     "docs/ai/contracts/awkit-djnl-21-l12-implementation-1004.json",
     "mock-site/README.md",
-    "mock-site/public/index.html",
-    "mock-site/public/secure-login/protected-turnstile-login.html",
-    "scripts/verify-protected-diagnosis.mts",
-    "scripts/verify-protected-login-recorder.mts",
-    "src/security/ProtectedLoginDetector.ts"
+    "mock-site/public/element-spy-lab.html",
+    "scripts/verify-dom-intelligence-l12.mts",
+    "src/recorder/RecorderService.ts",
+    "src/recorder/RecorderTypes.ts",
+    "src/recorder/buildRecordedFlow.ts",
+    "src/runner/domIntelligence/DomIntelligenceApi.ts",
+    "src/runner/domIntelligence/similarRows.ts"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "6d29217d03eb4bbce7adb3d84b56ed4fe1b51ec9bcd7ec97ac18ec27a32624dd",
-    "docs/ai/contracts/awkit-djnl-21-l12-implementation-1004.json": "7e967eaed0e6c9b0dd4ff1f6a3b7f21b862473e59a9f94a97a0783e5ab6bab13",
-    "mock-site/README.md": "c8834d0e2bdfa138c755e84198979a63310267fe50c6acacf816d370c7d30999",
-    "mock-site/public/index.html": "0124f36fad4c62d64a7b639acd971064ec107cbb9d33ac79af36f4e9f124745d",
-    "mock-site/public/secure-login/protected-turnstile-login.html": "8f1412cc5883256b9f1b794adf24bba2a32fd479544570ed7899cb28a49c5df4",
-    "scripts/verify-protected-diagnosis.mts": "715d5eaa7ac1e95a9a87ff5651c81d9c46dcd480a7d047bfecff7d7c6cfc0bf0",
-    "scripts/verify-protected-login-recorder.mts": "69cd57ec5c384f2a92d22b23818e4eaf87dfc1f60b07d2155c4d7054a75e94f2",
-    "src/security/ProtectedLoginDetector.ts": "b1c9916309a2ccd2215ed8c147fb57f15d551ffd49e9eed934cceb77ab82bf16"
+    "app/main/ipc/domIntelligence.ipc.ts": "a64efe057e2710a72b8741efbe358df68f679bae354bdcd394196f87910c8498",
+    "app/main/preload.ts": "da8313547d535a844434299ed812c5d8953dbf65ece5391958aca6bf047f93d8",
+    "app/renderer/components/workflow/SimilarRowsSection.tsx": "91953007896e53bafcb263e114143722d7f19eb6d375806c88f45a1307e43c11",
+    "app/renderer/pages/Recorder.tsx": "16e41007fc4d52c3e2ed22ce6199d38178ff09d6b1998a813aeaaf0b9fd5f78f",
+    "docs/ai/contracts/awkit-djnl-21-l12-implementation-1004.json": "1daa66a00416b035e6ddb1f57b2b1bf46623ea8d83fc6733243c9f1cd7293066",
+    "mock-site/README.md": "96a246c5c0d2b49dd6ae0c1121c00c4e3eed91a6de55c182286f96ac78f9c340",
+    "mock-site/public/element-spy-lab.html": "5512dcef8f06e6ff0bca7a8c1b42e2da03120cda417b8c30da6e38e77bd55516",
+    "scripts/verify-dom-intelligence-l12.mts": "b2908055fa106896b2d95fb5a180aea8522018325314d099c25c3ceeaac3ce76",
+    "src/recorder/RecorderService.ts": "3f61f270eeee54bb408ec4e06e276cb4333d418ca7457be26dae659da02b8359",
+    "src/recorder/RecorderTypes.ts": "20d369e6dfe4a84b550306511bf1e1ee08507a0b4b8d7c462fe51671aa4e0e18",
+    "src/recorder/buildRecordedFlow.ts": "1d4b687442e877422359fa97c6d716dcd73e0406f24e06dec96c06b8db49eb25",
+    "src/runner/domIntelligence/DomIntelligenceApi.ts": "ad1286e678eaaa149fbd264069f90fa3f0026dbc663cbdce972f309e364969af",
+    "src/runner/domIntelligence/similarRows.ts": "f6ac28aa2792541fb7b3210990ca281e630abddb73f217e1f40f9c961d093c13"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -41,7 +51,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-04T19:11:15.356Z",
-  "released_reason": "L12.20 detector fix committed as 4dc4f212, mock-site page and verifiers commit next unleased",
-  "archived_at": "2026-10-04T19:11:15.357Z"
+  "released_at": "2026-10-04T20:33:25.220Z",
+  "released_reason": "L12.19 and L12.20 closed with their evidence, export refreshed",
+  "archived_at": "2026-10-04T20:33:25.222Z"
 }
