@@ -13,6 +13,10 @@
   (serialize p50 9.2 ms vs 9.4).
 - **Not measured:** Element Spy similar rows and loop-selector latency, the protected-diagnosis read-time check,
   and the detector's added selectors on Recorder navigation (none is on the run path the benchmark covers).
+- **Follow-up:** the owner chose coverage over latency. Filed `awkit-djnl.21.23` (L12.23 DOM Intelligence
+  deterministic coverage expansion, P2, OPEN) under contract `awkit-l12-23-registration-1005`, with the four
+  layers and the stricter acceptance gate in its description. Export 357 issues, `verify:roadmap-dashboard` pins
+  moved to 357 / 25 outstanding / 332 closed / 244 edges. Committed as `8f48797f` (re-check) plus the filing commit.
 
 ## 2026-10-04 — L12.21 independent security review of the protected diagnosis, fixes 1–4 (Claude)
 

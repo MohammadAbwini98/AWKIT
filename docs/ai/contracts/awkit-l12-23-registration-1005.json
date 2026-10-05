@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-l12-23-registration-1005",
+    "title": "Register L12.23 DOM Intelligence deterministic coverage expansion for progress tracking",
+    "objective": "Registration only, on the owner's request of 2026-10-05 after the L12 performance re-check (8f48797f) to stop optimizing latency and file a validation expansion task. File one open child under the open L12 milestone awkit-djnl.21: L12.23 DOM Intelligence deterministic coverage expansion (15-25 Test Lab fixtures, mutation-based locator tests where every mutation recovers the right element or refuses, coverage of the paths the benchmark does not measure, sanitized captured-page fixtures, 50-100 recovery cases with 0 wrong elements, 3 identical runs, existing latency budgets kept). The number L12.22 is already used by the protected diagnosis residuals. Refresh .beads/issues.jsonl with bd export -o. No existing bead changes status. No implementation happens under this contract.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 0
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "8f48797f",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "docs/ai/contracts/awkit-l12-23-registration-1005.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "L12-23-REG-BEADS",
+      "description": "The L12 milestone awkit-djnl.21 stays open with one new open child L12.23 carrying the coverage-expansion description and acceptance criteria. Every other bead keeps its status.",
+      "evidence_required": [
+        "beads-structure"
+      ]
+    },
+    {
+      "id": "L12-23-REG-EXPORT",
+      "description": ".beads/issues.jsonl is refreshed with bd export -o .beads/issues.jsonl, and verify:roadmap-dashboard passes with Sources agree after its pins move to measured values.",
+      "evidence_required": [
+        "beads-export",
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "beads-structure",
+      "type": "inspection",
+      "required": true,
+      "command": "bd create --parent awkit-djnl.21",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "bd create --parent awkit-djnl.21 -p 2 -t task returned 'Created issue: awkit-djnl.21.23', Priority P2, Status open, with the four-layer description and the acceptance gate. No existing bead changed status."
+    },
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "Printed 'Exported 357 issues to .beads/issues.jsonl'."
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "A measuring run failed exactly the three tracker pins (got 357 issues, 25 outstanding / 332 closed, 244 edges), 174/177. After the pins moved to those values the run printed 177/177 with 'the Overview banner reads \"Sources agree\"'."
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qa_basis": "Tracker filing and export inspected through bd create and bd export output. The final state passed verify:roadmap-dashboard 177/177 with Sources agree.",
+    "qa_known_limitations": "The dashboard verifier pins, CURRENT_STATE and TASK_LOG are ordinary unleased direct-loop edits made after the lease was released. A first attempt to edit the pins while the lease was held was refused three times by the guard (scope expansion), then made after release as in earlier registrations. No implementation happened under this contract.",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-l12-23-registration-1005:project-state:2026-10-05T10:22:49.625Z",
+        "task": "awkit-l12-23-registration-1005",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-05T10:22:49.625Z",
+        "acquired_at_commit": "8f48797f4aa5aefa80a9e741c04d7a61b043b45b",
+        "released_at": "2026-10-05T10:24:01.743Z",
+        "released_reason": "L12.23 awkit-djnl.21.23 filed OPEN under L12, export refreshed to 357 issues",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

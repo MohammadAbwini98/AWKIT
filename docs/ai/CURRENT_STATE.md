@@ -1,6 +1,18 @@
 # CURRENT_STATE
 
-## L12.21 independent security review done; four findings fixed (2026-10-04, latest)
+## L12 performance re-checked; coverage expansion L12.23 filed (2026-10-05, latest)
+
+- **Re-check (`8f48797f`):** `benchmark:dom-intelligence-l12` three times on `b3561505`: 11/11 checks every run,
+  outcomes unchanged (11/14 found, 0 wrong, 9/9 refused), suggestion at 8,265 elements 366–376 ms. Report:
+  `docs/plans/ai-upgrade-v5/evidence/L12-performance-2026-10-05.html`.
+- **Next (`awkit-djnl.21.23`, OPEN, P2):** latency work stops. L12.23 expands deterministic coverage instead: 15–25
+  Test Lab fixtures, DOM-mutation locator tests (recover the right element or refuse, never a wrong one), checks
+  for the four paths the benchmark does not measure, and sanitized offline captured-page fixtures. Target 50–100
+  cases, 0 wrong, 3 identical runs, current budgets kept. Nothing implemented yet.
+- **Still open:** `.21.22` protected-diagnosis residuals (P3).
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## L12.21 independent security review done; four findings fixed (2026-10-04)
 
 - **Review (`awkit-djnl.21.21`, closed):** an independent read-only reviewer judged the Super-User protected
   diagnosis APPROVE WITH FINDINGS. The role, permission and re-auth gate held. Four holes were fixed and the same

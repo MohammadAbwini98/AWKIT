@@ -1,44 +1,18 @@
 {
-  "task": "awkit-djnl-21-l12-implementation-1004",
-  "contract_path": "docs/ai/contracts/awkit-djnl-21-l12-implementation-1004.json",
-  "holder": "security",
+  "task": "awkit-l12-23-registration-1005",
+  "contract_path": "docs/ai/contracts/awkit-l12-23-registration-1005.json",
+  "holder": "project-state",
   "status": "released",
   "allowed_paths": [
-    "src/security/**"
+    ".beads/**"
   ],
-  "acquired_at": "2026-10-04T20:57:02.671Z",
-  "acquired_at_commit": "14eebd81742700e3539872c1d8f7f4df6afac978",
+  "acquired_at": "2026-10-05T10:22:49.625Z",
+  "acquired_at_commit": "8f48797f4aa5aefa80a9e741c04d7a61b043b45b",
   "baseline_dirty": [
-    ".beads/interactions.jsonl",
-    ".beads/issues.jsonl",
-    "app/main/security/sessionContext.ts",
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-djnl-21-l12-implementation-1004.json",
-    "scripts/verify-protected-diagnosis.mts",
-    "scripts/verify-roadmap-dashboard.mjs",
-    "src/runner/LocatorFactory.ts",
-    "src/runner/domIntelligence/domSnapshot.ts",
-    "src/runner/domIntelligence/pageScripts.ts",
-    "src/runner/domIntelligence/protectedDiagnosis.ts",
-    "src/security/ProtectedLoginDetector.ts"
+    "docs/ai/contracts/awkit-l12-23-registration-1005.json"
   ],
   "baseline_dirty_fingerprints": {
-    ".beads/interactions.jsonl": "32a5f599f8841c0c9cfc2a650297acc9bfa672a5a56f6f382d937cdf4f0c4189",
-    ".beads/issues.jsonl": "8703193bf3e0f0de471b511b456c9cf0d4bf7e24ba5ef3beba6ac4f31f5cde2b",
-    "app/main/security/sessionContext.ts": "2ddab63870efc0960207070ccb5e01dd5ae39a727cb3adc38233fe2f7cd32e57",
-    "docs/ai/CURRENT_STATE.md": "8059675c09becfb6eb584bda5393a2b0a257e6cf33f0094a7869b32e253e7f0f",
-    "docs/ai/TASK_LOG.md": "39ccc337ee6aec15a65bcacc70fafe6f9073ea1a48c7fdfd338917c3993db6ae",
-    "docs/ai/contracts/active-lease.json": "191f234db211165a50f2bc0b3ea40275adffe57af7b0d9ec8ea9cafc1549b1a7",
-    "docs/ai/contracts/awkit-djnl-21-l12-implementation-1004.json": "c7b5afc9306d50d49ad2746328cf0d4a1c9a8f0feadde1bcab2c84390b83db49",
-    "scripts/verify-protected-diagnosis.mts": "cd2348a0eba0182c9e48cee620de97efaa4791a29baf3a5301854799dbc709f4",
-    "scripts/verify-roadmap-dashboard.mjs": "5628ab239ee3aab326793dfde1c90d9b467b33282864afa9fb77821222b6b73e",
-    "src/runner/LocatorFactory.ts": "cf3361ba5caf8055693efe0847974aba06c35292ce2dd64f59970bdf62336177",
-    "src/runner/domIntelligence/domSnapshot.ts": "86d8a55d7206792884ce35410deb55a1ab3e0c14f27c41862064696abe4f2543",
-    "src/runner/domIntelligence/pageScripts.ts": "d040d256cd5df16774e147deca7829a1fe8bac0ff4062ff007d75f86af1a3069",
-    "src/runner/domIntelligence/protectedDiagnosis.ts": "9b06b6f1d5a3e6d254da752482086b74632683ee7604c365a60fa772eac3d242",
-    "src/security/ProtectedLoginDetector.ts": "be7e28d136c7357bbec393b45bd8678e79b3c00e38ec01a9fcd3716fddb2175d"
+    "docs/ai/contracts/awkit-l12-23-registration-1005.json": "d96494eb43e7bdfd6cb990e20bf83a9d1b9a18ab35e8e90973ea3e9b4a9f22e3"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -53,7 +27,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-04T20:57:17.241Z",
-  "released_reason": "L12.21 detector export committed as 052dfd94, runner and session fixes commit next unleased",
-  "archived_at": "2026-10-04T20:57:17.242Z"
+  "released_at": "2026-10-05T10:24:01.743Z",
+  "released_reason": "L12.23 awkit-djnl.21.23 filed OPEN under L12, export refreshed to 357 issues",
+  "archived_at": "2026-10-05T10:24:01.744Z"
 }
