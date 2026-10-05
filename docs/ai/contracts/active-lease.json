@@ -1,18 +1,18 @@
 {
-  "task": "awkit-l12-23-registration-1005",
-  "contract_path": "docs/ai/contracts/awkit-l12-23-registration-1005.json",
+  "task": "awkit-l12-23-implementation-1005",
+  "contract_path": "docs/ai/contracts/awkit-l12-23-implementation-1005.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-05T10:22:49.625Z",
-  "acquired_at_commit": "8f48797f4aa5aefa80a9e741c04d7a61b043b45b",
+  "acquired_at": "2026-10-05T11:40:58.841Z",
+  "acquired_at_commit": "099bc1becbb47719a64dc1a7a8ebc7b5652e883f",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-l12-23-registration-1005.json"
+    "docs/ai/contracts/awkit-l12-23-implementation-1005.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-l12-23-registration-1005.json": "d96494eb43e7bdfd6cb990e20bf83a9d1b9a18ab35e8e90973ea3e9b4a9f22e3"
+    "docs/ai/contracts/awkit-l12-23-implementation-1005.json": "a5b2f0374c90ca2e6aa275062ce497e09051a8448bb0a9ed7d73df462d292d98"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -27,7 +27,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-05T10:24:01.743Z",
-  "released_reason": "L12.23 awkit-djnl.21.23 filed OPEN under L12, export refreshed to 357 issues",
-  "archived_at": "2026-10-05T10:24:01.744Z"
+  "released_at": "2026-10-05T11:41:35.360Z",
+  "released_reason": "L12.23 awkit-djnl.21.23 closed with its evidence, L12.24 awkit-djnl.21.24 filed OPEN, export refreshed to 358 issues",
+  "archived_at": "2026-10-05T11:41:35.362Z"
 }

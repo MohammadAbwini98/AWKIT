@@ -1,6 +1,24 @@
 # TASK_LOG
 
-## 2026-10-05 (latest) — L12 performance re-check after the L12.19–L12.21 changes (Claude)
+## 2026-10-05 (latest) — L12.23 DOM Intelligence deterministic coverage expansion (Claude)
+
+- **Task:** owner asked to implement `awkit-djnl.21.23`, Layer 2 first (red-first oracle), then Layers 1, 3, 4.
+- **Built:** `mock-site/dom-coverage-corpus.mjs` (21 pages plus 8 protected-login pages, `/dom-coverage-lab`),
+  `scripts/verify-dom-intelligence-coverage.mts` (95 cases, 24 fixtures, 3 runs, pure gate with 10 mutation
+  controls, a live red control). The acceptance benchmark now fails below 11 of 14 product recoveries.
+- **Red first:** the first run reported 3 WRONG cases on both engines (Archive link, billing Edit, hidden tab
+  Save). Fixed in `LocatorFactory`/`recoverySnapshot` with the pre-existing-twin veto (`7a5aa503`). Mutation test:
+  veto off gives 9 WRONG per engine and the gate fails. 20 present-target refusals were pinned as measured
+  (8 sensitive by design, 12 safe misses), never relaxed into passes.
+- **Checks (PASS):** coverage 74/0, acceptance 12/0, locator-wrong-element 14/0, blueprint-recovery-browser 24/0,
+  dom-intelligence-contexts 60/0, frame-chain 41/0, dom-intelligence-l12 82/0, provider-agreement 45/0,
+  locator-upgrade-proof 85/0, semantic-store 261/0, element-spy 206/0, ai-locator-repair 85/85, mock-site
+  261/261, runner 138/0, verifier-classification reconciled, typecheck:scripts clean, build OK.
+- **NOT RUN:** `verify:recorder-locator` (no such npm script). The enterprise pages are synthetic stand-ins, not
+  captures of live sites.
+- **Tracker:** `.21.23` closed, findings filed as `.21.24` (P2). Commits `7a5aa503`, `099bc1be`, plus this one.
+
+## 2026-10-05 — L12 performance re-check after the L12.19–L12.21 changes (Claude)
 
 - **Task:** owner asked for a performance report after the 2026-10-04 Scrapling changes. Re-ran
   `npm run benchmark:dom-intelligence-l12` three times on `main` @ `b3561505` (includes L12.19 loop, L12.20

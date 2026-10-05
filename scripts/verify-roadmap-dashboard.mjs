@@ -148,7 +148,8 @@ try {
   // detector gap) and `.21.21` (pending security review) (contract `awkit-djnl-21-l12-implementation-1004`).
   // 356 later on 2026-10-04: the L12.21 review filed its residuals as `.21.22`.
   // 357 on 2026-10-05: the coverage expansion filed as `.21.23` (contract `awkit-l12-23-registration-1005`).
-  check("357 issues parse", beads.stats.total === 357, `got ${beads.stats.total}`);
+  // 358 later on 2026-10-05: the L12.23 coverage findings filed as `.21.24` (contract `awkit-l12-23-implementation-1005`).
+  check("358 issues parse", beads.stats.total === 358, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -670,8 +671,10 @@ try {
   // Then 24/332 of 356 later on 2026-10-04: `.21.21` (security review) closed and its residuals filed OPEN as
   // `.21.22` (one out, one in, one closed). Measured after the export.
   // Then 25/332 of 357 on 2026-10-05: the coverage expansion `.21.23` filed OPEN (one in). Measured after the export.
-    "25 outstanding / 332 closed",
-    beads.stats.outstanding === 25 && beads.stats.closed === 332,
+  // Then 25/333 of 358 later on 2026-10-05: `.21.23` closed and its findings filed OPEN as `.21.24` (one out, one
+  // in, one closed). Measured after the export.
+    "25 outstanding / 333 closed",
+    beads.stats.outstanding === 25 && beads.stats.closed === 333,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -772,9 +775,10 @@ try {
   // Then 242 later on 2026-10-04: the three L12 follow-ups `.21.19`…`.21.21` (three parent-child links).
   // Then 243 later on 2026-10-04: the L12.21 residuals `.21.22` (one parent-child link).
   // Then 244 on 2026-10-05: the coverage expansion `.21.23` (one parent-child link).
+  // Then 245 later on 2026-10-05: the L12.23 findings `.21.24` (one parent-child link).
   check(
-    "244 edges are present to classify",
-    beads.stats.edges === 244,
+    "245 edges are present to classify",
+    beads.stats.edges === 245,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(

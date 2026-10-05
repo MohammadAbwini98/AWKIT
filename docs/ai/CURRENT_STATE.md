@@ -1,6 +1,22 @@
 # CURRENT_STATE
 
-## L12 performance re-checked; coverage expansion L12.23 filed (2026-10-05, latest)
+## L12.23 DOM-intelligence coverage done; three wrong-element recoveries fixed (2026-10-05, latest)
+
+- **Coverage (`awkit-djnl.21.23`, closed):** `verify:dom-intelligence-coverage` runs 95 mutation cases on 24
+  fixtures: the frozen L10.0 page (Layer 2), 16 Test Lab pages (Layer 1) and 5 sanitized enterprise stand-ins
+  (Layer 4), served at `/dom-coverage-lab`. Each target is recorded by the real Recorder, its locator forced to
+  miss, then judged against a verifier-only oracle in 3 runs. Result 74/0: 0 wrong elements, all 26 removed
+  targets empty, identical runs, 48 recovered, 47 refused (21 of them on a present target, each stating why).
+- **Found and fixed:** three wrong-element recoveries by AWKIT's own layers (a look-alike that stood beside the
+  removed target). Winner memory now keeps the target's distinguishable twins and no layer acts on one
+  (`pre-existing-twin`). Acceptance benchmark kept: 12/0, product 11/14.
+- **Layer 3:** similar rows and loop selectors pinned on 6 pages, protected-login detection right on 8 pages with
+  no false positive on 22 (4.2 ms p50, 8.7 ms p95 per navigation), read-time challenge check refuses every widget.
+- **Open (`awkit-djnl.21.24`, P2):** similar rows mix a row's Approve and Reject and the loop would click both,
+  plus twin and container residuals. `.21.22` (protected-diagnosis residuals) untouched.
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## L12 performance re-checked; coverage expansion L12.23 filed (2026-10-05)
 
 - **Re-check (`8f48797f`):** `benchmark:dom-intelligence-l12` three times on `b3561505`: 11/11 checks every run,
   outcomes unchanged (11/14 found, 0 wrong, 9/9 refused), suggestion at 8,265 elements 366–376 ms. Report:

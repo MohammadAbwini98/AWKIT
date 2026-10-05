@@ -10,8 +10,8 @@
   },
   "repository": {
     "branch": "main",
-    "baseline_commit": "95cdb4d0",
-    "working_tree_expected": "dirty",
+    "baseline_commit": "099bc1be",
+    "working_tree_expected": "clean",
     "preserved_paths": []
   },
   "classification": {
@@ -97,8 +97,8 @@
       "required": true,
       "command": "bd export -o .beads/issues.jsonl",
       "artifact": ".beads/issues.jsonl",
-      "result": "NOT RUN",
-      "observed": null
+      "result": "PASS",
+      "observed": "bd create returned awkit-djnl.21.24 (P2, open), bd close closed awkit-djnl.21.23, then 'Exported 358 issues to .beads/issues.jsonl'. awkit-djnl.21.22 untouched."
     },
     {
       "id": "verify:roadmap-dashboard",
@@ -106,8 +106,8 @@
       "required": true,
       "command": "npm run verify:roadmap-dashboard",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": null
+      "result": "PASS",
+      "observed": "After the pins moved to 358 issues, 25 outstanding / 333 closed, 245 edges: 177/177 with 'the Overview banner reads \"Sources agree\"'."
     }
   ],
   "git": {
@@ -118,8 +118,30 @@
     "push_authorized": true
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "pending",
+    "status": "complete",
+    "qa_status": "PASS",
+    "qa_basis": "Every acceptance criterion has a PASS verifier on the final tree: verify:dom-intelligence-coverage 74/0, verify:dom-intelligence-acceptance 12/0, the recovery and runner regression set, build, and verify:roadmap-dashboard 177/177.",
+    "qa_known_limitations": "The enterprise pages are sanitized synthetic stand-ins, not captures of live sites. verify:recorder-locator has no npm script (NOT RUN). Open findings are tracked as awkit-djnl.21.24. The code was committed before the tracker lease, as earlier tasks did, so the lease covered only .beads/**.",
     "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-l12-23-implementation-1005:project-state:2026-10-05T11:40:58.841Z",
+        "task": "awkit-l12-23-implementation-1005",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-05T11:40:58.841Z",
+        "acquired_at_commit": "099bc1becbb47719a64dc1a7a8ebc7b5652e883f",
+        "released_at": "2026-10-05T11:41:35.360Z",
+        "released_reason": "L12.23 awkit-djnl.21.23 closed with its evidence, L12.24 awkit-djnl.21.24 filed OPEN, export refreshed to 358 issues",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
   }
 }
