@@ -673,8 +673,10 @@ try {
   // Then 25/332 of 357 on 2026-10-05: the coverage expansion `.21.23` filed OPEN (one in). Measured after the export.
   // Then 25/333 of 358 later on 2026-10-05: `.21.23` closed and its findings filed OPEN as `.21.24` (one out, one
   // in, one closed). Measured after the export.
-    "25 outstanding / 333 closed",
-    beads.stats.outstanding === 25 && beads.stats.closed === 333,
+  // Then 24/334 of 358 later on 2026-10-05: `.21.24` (similar-rows mixed loops, twin cap, blueprint container)
+  // closed (one out, one closed). Measured after the export.
+    "24 outstanding / 334 closed",
+    beads.stats.outstanding === 24 && beads.stats.closed === 334,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

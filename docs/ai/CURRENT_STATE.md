@@ -1,10 +1,26 @@
 # CURRENT_STATE
 
-## L12.23 DOM-intelligence coverage done; three wrong-element recoveries fixed (2026-10-05, latest)
+## L12.24 done: similar-rows loops repeat only the picked action; two more wrong recoveries fixed (2026-10-05, latest)
+
+- **Mixed loops (`awkit-djnl.21.24`, closed, `222b40ab`):** Element Spy similar rows kept a row's Approve AND
+  Reject, and the loop clicked both. Now only look-alikes with the picked control's semantic identity are kept
+  (name, role, type, state, `name`, `data-action`, row data templated out, never classes or position), a loop
+  needs that identity named and once per row, and its selector carries the shared semantic attributes and
+  `:text-is()`. New `verify:similar-rows-safety` 20/0 on 10 pages (`SIMILAR_ROW_LAB`), red first (9 of 10 mixed),
+  mutation tested; the loop still clicks only Approve after the page reorders its actions.
+- **Recovery:** the 8-twin cap kept the first 8 in page order, so a closer 9th won (`crowded-twins`); it keeps
+  the 8 closest now. The blueprint layer won with a copy just outside the container (`approval-modal/escape`); a
+  proven container now scopes it. Coverage 74/0 on 97 cases / 25 fixtures, 0 wrong, 28 removed targets empty,
+  identical runs; acceptance 12/0, 11/14 kept.
+- **Layer 4** of the corpus is synthetic enterprise-style markup, not sanitized captures of real applications.
+- **Open:** `.21.22` protected-diagnosis residuals (P3), untouched. Known, not fixed: a twin that also drifted.
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## L12.23 DOM-intelligence coverage done; three wrong-element recoveries fixed (2026-10-05)
 
 - **Coverage (`awkit-djnl.21.23`, closed):** `verify:dom-intelligence-coverage` runs 95 mutation cases on 24
-  fixtures: the frozen L10.0 page (Layer 2), 16 Test Lab pages (Layer 1) and 5 sanitized enterprise stand-ins
-  (Layer 4), served at `/dom-coverage-lab`. Each target is recorded by the real Recorder, its locator forced to
+  fixtures: the frozen L10.0 page (Layer 2), 16 Test Lab pages (Layer 1) and 5 synthetic enterprise-style pages
+  (Layer 4, hand-written, not sanitized captures), served at `/dom-coverage-lab`. Each target is recorded by the real Recorder, its locator forced to
   miss, then judged against a verifier-only oracle in 3 runs. Result 74/0: 0 wrong elements, all 26 removed
   targets empty, identical runs, 48 recovered, 47 refused (21 of them on a present target, each stating why).
 - **Found and fixed:** three wrong-element recoveries by AWKIT's own layers (a look-alike that stood beside the
@@ -23,7 +39,8 @@
   `docs/plans/ai-upgrade-v5/evidence/L12-performance-2026-10-05.html`.
 - **Next (`awkit-djnl.21.23`, OPEN, P2):** latency work stops. L12.23 expands deterministic coverage instead: 15–25
   Test Lab fixtures, DOM-mutation locator tests (recover the right element or refuse, never a wrong one), checks
-  for the four paths the benchmark does not measure, and sanitized offline captured-page fixtures. Target 50–100
+  for the four paths the benchmark does not measure, and offline enterprise-style fixtures (built as synthetic
+  pages, not sanitized captures). Target 50–100
   cases, 0 wrong, 3 identical runs, current budgets kept. Nothing implemented yet.
 - **Still open:** `.21.22` protected-diagnosis residuals (P3).
 - Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.

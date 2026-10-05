@@ -1,18 +1,18 @@
 {
-  "task": "awkit-l12-23-implementation-1005",
-  "contract_path": "docs/ai/contracts/awkit-l12-23-implementation-1005.json",
+  "task": "awkit-l12-24-implementation-1005",
+  "contract_path": "docs/ai/contracts/awkit-l12-24-implementation-1005.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-05T11:40:58.841Z",
-  "acquired_at_commit": "099bc1becbb47719a64dc1a7a8ebc7b5652e883f",
+  "acquired_at": "2026-10-05T13:47:55.882Z",
+  "acquired_at_commit": "222b40abce0833d8b96f5783d7d6bdaac7820b13",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-l12-23-implementation-1005.json"
+    "docs/ai/contracts/awkit-l12-24-implementation-1005.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-l12-23-implementation-1005.json": "a5b2f0374c90ca2e6aa275062ce497e09051a8448bb0a9ed7d73df462d292d98"
+    "docs/ai/contracts/awkit-l12-24-implementation-1005.json": "1b6e4cd58041e054517148b5d5e2f57cdb0b271f9ed374f702460ce86d18fb99"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -24,10 +24,22 @@
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
     "build": "dir(1):native-hosts:1791093594496.971"
   },
-  "amendments": [],
+  "amendments": [
+    {
+      "timestamp": "2026-10-05T13:49:00.751Z",
+      "added": [
+        "scripts/verify-roadmap-dashboard.mjs"
+      ],
+      "reason": "closing awkit-djnl.21.24 moves the tracker non-vacuity pin to 24 outstanding / 334 closed",
+      "triggered_escalation": [
+        "qa"
+      ],
+      "approved_by": "manager"
+    }
+  ],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-05T11:41:35.360Z",
-  "released_reason": "L12.23 awkit-djnl.21.23 closed with its evidence, L12.24 awkit-djnl.21.24 filed OPEN, export refreshed to 358 issues",
-  "archived_at": "2026-10-05T11:41:35.362Z"
+  "released_at": "2026-10-05T13:49:00.752Z",
+  "released_reason": "amendment added paths outside project-state's ownership (scripts/verify-roadmap-dashboard.mjs) — routing re-run requires a different specialist",
+  "archived_at": "2026-10-05T13:49:00.754Z"
 }

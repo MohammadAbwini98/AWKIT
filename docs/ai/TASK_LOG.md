@@ -1,6 +1,26 @@
 # TASK_LOG
 
-## 2026-10-05 (latest) — L12.23 DOM Intelligence deterministic coverage expansion (Claude)
+## 2026-10-05 (latest) — L12.24 similar-rows mixed loops, twin cap, blueprint container (Claude)
+
+- **Task:** owner asked to implement `awkit-djnl.21.24`, the mixed-loop wrong-target defect first (red-first,
+  mutation-tested), then the twin-cap and blueprint-container residuals only on evidence.
+- **Built (`222b40ab`):** `similarRows.ts` semantic identity filter, one-action-per-row rule and semantic loop
+  selector proven by Playwright. `SIMILAR_ROW_LAB` (10 pages) with verifier-only `data-oracle-intent`, new
+  `verify:similar-rows-safety`. Corpus: `crowded-twins` fixture, generic `escape` mutation on `approval-modal`.
+  `preExistingTwins` keeps the 8 closest. `LocatorFactory` scopes the blueprint window to a proven container and
+  vetoes an agreed winner outside it (`outside-container`).
+- **Red first:** HEAD gave 9 of 10 mixed loops and StepExecutor clicked Reject per row. Both new corpus cases were
+  WRONG on both engines in 3 runs. Mutations: filter off, one-per-row off, container scope off each turn red.
+- **Checks (PASS):** similar-rows-safety 20/0, coverage 74/0 (97 cases, 25 fixtures, p95 214.5 ms), acceptance
+  12/0 (11/14), dom-intelligence-l12 82/0, element-spy 206/0, locator-wrong-element 14/0, blueprint-recovery
+  56/0, blueprint-recovery-browser 24/0, dom-intelligence-contexts 60/0, frame-chain 41/0, provider-agreement
+  45/0, locator-upgrade-proof 85/0, runner 138/0, mock-site 262/262, verifier-classification reconciled (324),
+  typecheck:scripts clean, build OK.
+- **Docs:** Layer 4 described as synthetic in CURRENT_STATE, KNOWN_ISSUES, mock-site README and the corpus.
+- **Tracker:** `.21.24` closed under contract `awkit-l12-24-implementation-1005`; 358 issues, 24 outstanding /
+  334 closed. `.21.22` untouched.
+
+## 2026-10-05 — L12.23 DOM Intelligence deterministic coverage expansion (Claude)
 
 - **Task:** owner asked to implement `awkit-djnl.21.23`, Layer 2 first (red-first oracle), then Layers 1, 3, 4.
 - **Built:** `mock-site/dom-coverage-corpus.mjs` (21 pages plus 8 protected-login pages, `/dom-coverage-lab`),
