@@ -159,8 +159,8 @@
       "required": true,
       "command": "git push origin main",
       "artifact": null,
-      "result": "pending",
-      "observed": ""
+      "result": "PASS",
+      "observed": "git fetch origin showed main ahead 3 with nothing new on origin, then 514ed224..cb0663fd main -> main (dfb9a036 fix, 6945cdca overhead evidence, cb0663fd state)."
     }
   ],
   "git": {
