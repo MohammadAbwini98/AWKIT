@@ -38,13 +38,15 @@ import { stageHost } from "./dom-intelligence/stagedHost.mts";
 
 const RUNS = 3;
 /** Pinned so a dropped page, or a dropped ambiguous page, fails the gate instead of shrinking it. */
-const PINNED = { pages: 10, refuse: 2 };
+const PINNED = { pages: 15, refuse: 5 };
 
 export interface LoopObservation {
   id: string;
   ok: boolean;
   total: number;
   loop: string | null;
+  /** L12.25: how far above each looped element its row is, recorded with the loop for the run-time row check. */
+  rowDepth?: number;
   /** The oracle intent of the picked control, and of every element the loop selector matches. */
   picked: string;
   intents: string[];
@@ -124,20 +126,22 @@ async function observe(browser: Browser, url: string, provider: ScraplingDomInte
     const ms = performance.now() - started;
     const loop = result.ok ? (result.loop ?? null) : null;
     const judged = loop ? await judgeLoop(page, loop) : { intents: [], pickedInLoop: false };
-    return { id, ok: result.ok, total: result.ok ? result.total : 0, loop, picked, ...judged, ms };
+    const rowDepth = result.ok ? (result as { loopRowDepth?: number }).loopRowDepth : undefined;
+    return { id, ok: result.ok, total: result.ok ? result.total : 0, loop, ...(rowDepth !== undefined ? { rowDepth } : {}), picked, ...judged, ms };
   } finally {
     await page.close();
   }
 }
 
 /** Run a saved similar-rows loop through the real StepExecutor and return the oracle intents it clicked. */
-async function runLoop(page: Page, selector: string, rows: number, root: string): Promise<{ status: string; clicked: string[] }> {
+async function runLoop(page: Page, proven: Pick<LoopObservation, "loop" | "rowDepth" | "intents">, root: string, timeoutMs?: number): Promise<{ status: string; clicked: string[] }> {
   await page.evaluate(() => {
     const w = window as unknown as CoverageWindow & { __clicked?: string[] };
     if (!w.__clicked) document.addEventListener("click", (event) => w.__clicked!.push(w.__awkitCoverage.intentOf((event.target as Element).closest("button"))), true);
     w.__clicked = [];
   });
-  const step = buildRecordedFlow("Similar rows", [similarRowsLoopAction(selector, rows, "main")]).nodes.find((node) => node.type === "loop");
+  const step = buildRecordedFlow("Similar rows", [similarRowsLoopAction(proven.loop ?? "", proven.intents.length, "main", proven.rowDepth)]).nodes.find((node) => node.type === "loop");
+  if (step && timeoutMs) step.timeoutMs = timeoutMs;
   const ctx: InstanceExecutionContext = {
     executionId: "exec-l12-24", instanceId: "inst-l12-24", scenarioId: "scen-l12-24", flowId: "flow-l12-24", instanceOrderNumber: 1, totalInstances: 1,
     runtimeInputs: {}, instanceInputs: {}, flowOutputs: {},
@@ -249,13 +253,91 @@ async function main(): Promise<void> {
       const page = await browser.newPage();
       await page.goto(urlOf(id));
       await page.evaluate(runtime("arm(null)"));
-      const before = await runLoop(page, proven.loop, proven.intents.length, root);
+      const before = await runLoop(page, proven, root);
       check(`${id}: the loop passes and clicks ${proven.intents.length} times, every click ${proven.picked}`, before.status === "passed" && before.clicked.length === proven.intents.length && before.clicked.every((intent) => intent === proven.picked), before);
       // The page now reverses every row's actions: a positional selector would click the other action.
       await page.evaluate(() => document.querySelectorAll("#lab-body td:last-child").forEach((cell) => Array.from(cell.children).reverse().forEach((child) => cell.appendChild(child))));
-      const after = await runLoop(page, proven.loop, proven.intents.length, root);
+      const after = await runLoop(page, proven, root);
       check(`${id}: after the actions swap places the same loop still clicks only ${proven.picked}`, after.status === "passed" && after.clicked.length === proven.intents.length && after.clicked.every((intent) => intent === proven.picked), after);
       await page.close();
+    }
+
+    // ── F. L12.25: the page changes between generation and execution ────────────────────────────────
+    console.log("F. L12.25: loops executed after the page changed since they were made");
+    /** `change` runs in the page after the oracle is armed; `expect` judges the run. Intents are the oracle's. */
+    const scenarios: Array<{ id: string; title: string; change: string; timeoutMs?: number; expect: (run: { status: string; clicked: string[] }, rows: number) => boolean }> = [
+      {
+        id: "rows-state-only",
+        title: "QC repro: Reject enabled after generation never joins an Approve loop",
+        change: `document.querySelectorAll("#lab-body button[disabled]").forEach(function (b) { b.disabled = false; })`,
+        expect: (run) => run.clicked.every((intent) => intent === "approve")
+      },
+      {
+        id: "rows-unavailable-siblings",
+        title: "Reject enabled, Delete shown and the order reversed: still only Approve, every row",
+        change:
+          `document.querySelectorAll("#lab-body button").forEach(function (b) { b.disabled = false; b.hidden = false; });` +
+          `document.querySelectorAll("#lab-body td:last-child").forEach(function (c) { Array.prototype.slice.call(c.children).reverse().forEach(function (k) { c.appendChild(k); }); })`,
+        expect: (run, rows) => run.status === "passed" && run.clicked.length === rows && run.clicked.every((intent) => intent === "approve")
+      },
+      {
+        id: "rows-disabled-hidden",
+        title: "The disabled Approve and every Reject enabled, Delete shown: the Approves only",
+        change: `document.querySelectorAll("#lab-body tr:not([hidden]) button").forEach(function (b) { b.disabled = false; b.hidden = false; })`,
+        expect: (run) => run.status === "passed" && run.clicked.length === 6 && run.clicked.every((intent) => intent === "approve" || intent === "approve-unavailable")
+      },
+      {
+        id: "rows-approve-reject",
+        title: "A Delete added to every row after generation is never clicked",
+        change: `document.querySelectorAll("#lab-body td:last-child").forEach(function (c) { var d = document.createElement("button"); d.type = "button"; d.textContent = "Delete"; window.__awkitCoverage.intents.set(d, "delete-new"); c.prepend(d); })`,
+        expect: (run, rows) => run.status === "passed" && run.clicked.length === rows && run.clicked.every((intent) => intent === "approve")
+      },
+      {
+        id: "rows-approve-reject",
+        title: "A second Approve appearing in one row after generation: the loop refuses, it is never clicked",
+        change: `(function () { var c = document.querySelector("#lab-body tr td:last-child"); var d = document.createElement("button"); d.type = "button"; d.textContent = "Approve"; window.__awkitCoverage.intents.set(d, "approve-new"); c.appendChild(d); })()`,
+        expect: (run) => run.status !== "passed" && !run.clicked.includes("approve-new")
+      },
+      {
+        id: "rows-approve-reject",
+        title: "One row's Approve removed before the run: the others, Approve only",
+        change: `document.querySelectorAll("#lab-body tr")[1].querySelector("button").remove()`,
+        expect: (run, rows) => run.status === "passed" && run.clicked.length === rows - 1 && run.clicked.every((intent) => intent === "approve")
+      },
+      {
+        id: "rows-approve-reject",
+        title: "One row's Approve disabled before the run: the loop stops there, nothing else clicked",
+        change: `document.querySelectorAll("#lab-body tr")[1].querySelector("button").disabled = true`,
+        timeoutMs: 1_500,
+        expect: (run) => run.status !== "passed" && run.clicked.every((intent) => intent === "approve")
+      }
+    ];
+    for (const scenario of scenarios) {
+      const proven = runs[0].find((o) => o.id === scenario.id);
+      const page = await browser.newPage();
+      await page.goto(urlOf(scenario.id));
+      await page.evaluate(runtime("arm(null)"));
+      await page.evaluate(scenario.change);
+      // No loop offered is the outcome on an ambiguous page, judged by the gate; there is then nothing to execute.
+      const run = proven?.loop ? await runLoop(page, proven, root, scenario.timeoutMs) : { status: "no-loop", clicked: [] };
+      check(`${scenario.id}: ${scenario.title}`, (proven?.loop ? scenario.expect(run, proven.intents.length) : SIMILAR_ROW_LAB.find((c) => c.id === scenario.id)?.expect === "refuse"), run);
+      await page.close();
+    }
+
+    // F3 (P2, observed not gated): a loop whose selector needs a state filter re-resolves its matches every iteration,
+    // so an Approve that disables itself when clicked shifts the rest. Safety is gated; the skip is only reported.
+    {
+      const proven = runs[0].find((o) => o.id === "rows-disabled-hidden");
+      if (proven?.loop) {
+        const page = await browser.newPage();
+        await page.goto(urlOf(proven.id));
+        await page.evaluate(runtime("arm(null)"));
+        await page.evaluate(`document.querySelectorAll("#lab-body button").forEach(function (b) { b.addEventListener("click", function () { b.disabled = true; }); })`);
+        const run = await runLoop(page, proven, root, 1_500);
+        check("F3: an Approve that disables itself on click never makes the loop click another action", run.clicked.every((intent) => intent === "approve"), run);
+        console.log(`    F3 observed: ${run.status}, ${run.clicked.length} of ${proven.intents.length} rows clicked (state-filtered selector: ${proven.loop})`);
+        await page.close();
+      }
     }
   } finally {
     await browser?.close().catch(() => undefined);

@@ -119,14 +119,23 @@ export interface StartRecordingOptions {
   ignoreHttpsErrors?: boolean;
 }
 
-/** L12.19: the draft action for a for-each loop that clicks every similar row `selector` matches. */
-export function similarRowsLoopAction(selector: string, rows: number, pageAlias: string): RecordedAction {
+/**
+ * L12.19: the draft action for a for-each loop that clicks every similar row `selector` matches. L12.25: `rowDepth`
+ * (from `commonRowSelector`) makes the run refuse a selector that matches twice inside one row.
+ */
+export function similarRowsLoopAction(selector: string, rows: number, pageAlias: string, rowDepth?: number): RecordedAction {
   return {
     id: randomUUID(),
     type: "loop",
     name: `Click each of ${rows} similar rows`,
     locator: { strategy: "css", value: selector },
-    config: { loopType: "elements", loopActionType: "click", maxIterations: Math.max(rows, 100), loopStopOnFailure: true },
+    config: {
+      loopType: "elements",
+      loopActionType: "click",
+      maxIterations: Math.max(rows, 100),
+      loopStopOnFailure: true,
+      ...(rowDepth !== undefined ? { loopRowDepth: rowDepth } : {})
+    },
     ...(pageAlias !== "main" ? { pageAlias } : {})
   };
 }
@@ -1977,11 +1986,11 @@ export class RecorderService {
    * L12.19: append a for-each loop that clicks every similar row. `selector` is main's own (from the similar
    * rows it proved for this inspection), never the renderer's. Refused during a protected-login handoff.
    */
-  public async addSimilarRowsLoop(selector: string, rows: number, pageAlias: string): Promise<{ ok: true; actions: RecordedAction[] } | { ok: false; reason: string }> {
+  public async addSimilarRowsLoop(selector: string, rows: number, pageAlias: string, rowDepth?: number): Promise<{ ok: true; actions: RecordedAction[] } | { ok: false; reason: string }> {
     if (this.handoff?.active) return { ok: false, reason: "Recording is paused for a protected sign-in." };
     await this.ensureDraftLoaded();
     await this.actionQueue.catch(() => undefined);
-    this.actions.push(similarRowsLoopAction(selector, rows, pageAlias));
+    this.actions.push(similarRowsLoopAction(selector, rows, pageAlias, rowDepth));
     if (this.draftTimer) {
       clearTimeout(this.draftTimer);
       this.draftTimer = null;

@@ -928,6 +928,12 @@ export interface NodeConfig {
   loopActionType?: "click" | "fill" | "scroll" | "delete" | "customFlow";
   loopStopOnFailure?: boolean;
   maxIterations?: number;
+  /**
+   * L12.25: an Element Spy similar-rows loop. Each looped element's row is this many levels above it; before every
+   * iteration the run refuses when two matched elements share a row (the selector has broadened since it was made).
+   * Absent on hand-made element loops and on similar-rows loops made before L12.25.
+   */
+  loopRowDepth?: number;
   targetFlowId?: string;
   stopParentOnChildFailure?: boolean;
   // ── Route Change (switch active page/tab/URL) ──────────────────────────────

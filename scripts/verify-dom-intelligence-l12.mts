@@ -337,9 +337,10 @@ async function main(): Promise<void> {
           // No loop when the rows differ in structure, or when no named container isolates exactly them.
           const buttons = async () => lab.locator("body *").evaluateAll((elements) => elements.map((element, i) => (element.localName === "button" ? i : -1)).filter((i) => i >= 0));
           await lab.setContent('<ul aria-label="Mixed"><li><button>Go</button></li><li><span><button>Go</button></span></li></ul>');
-          check("rows with different tag paths get no loop", (await commonRowSelector(lab.mainFrame(), await buttons())) === null);
+          // Every button counts as the same action here, so only the structure can refuse.
+          check("rows with different tag paths get no loop", (await commonRowSelector(lab.mainFrame(), await buttons(), await buttons())) === null);
           await lab.setContent("<div><ul><li><button>A</button></li><li><button>B</button></li></ul><ul><li><button>C</button></li></ul></div>");
-          check("rows no named container isolates get no loop", (await commonRowSelector(lab.mainFrame(), (await buttons()).slice(0, 2))) === null);
+          check("rows no named container isolates get no loop", (await commonRowSelector(lab.mainFrame(), (await buttons()).slice(0, 2), await buttons())) === null);
           await lab.close();
         } finally {
           mock.kill();
@@ -385,7 +386,7 @@ async function main(): Promise<void> {
     "L12.19 the loop channel takes no request body and needs page.recorder and the Element Spy permission first",
     /handle\("domIntelligence:addSimilarRowsLoop", async \(event\)[^\n]*\n\s*await assertSenderPermission\(event, Permission\.PAGE_RECORDER\);\s*await assertSenderPermission\(event, Permission\.RECORDER_ELEMENT_SPY\);/.test(loopHandler)
   );
-  check("L12.19 ...uses only main's own proven selector, for the same inspection", loopHandler.includes("inspection.inspectedAt !== loop.inspectedAt") && /addSimilarRowsLoop\(loop\.selector, loop\.rows, loop\.pageAlias\)/.test(loopHandler));
+  check("L12.19 ...uses only main's own proven selector, for the same inspection", loopHandler.includes("inspection.inspectedAt !== loop.inspectedAt") && /addSimilarRowsLoop\(loop\.selector, loop\.rows, loop\.pageAlias, loop\.rowDepth\)/.test(loopHandler));
   check("L12.19 ...and every similarRows call clears the previous selector first", /similarRowsLoop = null;\s*const live = recorderService\.getInspectionTarget\(\)/.test(rowsHandler));
   check("L12.13 ...take no request body and redact every row in main",/handle\("domIntelligence:similarRows", async \(event\)/.test(rowsHandler) && rowsHandler.includes("labelRedactor.redactText(text)"));
   check("L12.15 main injects the local-AI switch as the run's page-context default", /setDomIntelligence\(\{ \.\.\.domIntelligenceRecoveryOptions\(\), pageContextDefault: localAiEnabled \}\)/.test(execution));

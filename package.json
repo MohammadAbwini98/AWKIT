@@ -152,6 +152,7 @@
     "verify:dom-intelligence-coverage": "tsx scripts/verify-dom-intelligence-coverage.mts",
     "benchmark:dom-intelligence-coverage": "tsx scripts/verify-dom-intelligence-coverage.mts --write",
     "verify:similar-rows-safety": "tsx scripts/verify-similar-rows-safety.mts",
+    "verify:twin-pool-safety": "tsx scripts/verify-twin-pool-safety.mts",
     "verify:protected-diagnosis": "tsx scripts/verify-protected-diagnosis.mts",
     "verify:dom-intelligence-gui": "tsx scripts/verify-dom-intelligence-gui.mts",
     "verify:dom-intelligence-contexts": "tsx scripts/verify-dom-intelligence-contexts.mts",

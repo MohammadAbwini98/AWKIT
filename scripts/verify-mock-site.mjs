@@ -754,11 +754,21 @@ try {
   const coverageLinks = await page.locator('[data-testid^="coverage-fixture-"] a').evaluateAll((links) => links.map((link) => link.getAttribute("href")));
   const challengeLinks = await page.locator('[data-testid^="coverage-challenge-"] a').evaluateAll((links) => links.map((link) => link.getAttribute("href")));
   const similarLinks = await page.locator('[data-testid^="coverage-similar-"] a').evaluateAll((links) => links.map((link) => link.getAttribute("href")));
+  const twinLinks = await page.locator('[data-testid^="coverage-twins-"] a').evaluateAll((links) => links.map((link) => link.getAttribute("href")));
   check(
-    "the index lists 22 recovery fixtures, 8 protected-login pages and 10 similar-rows pages",
-    coverageLinks.length === 22 && challengeLinks.length === 8 && similarLinks.length === 10,
-    { fixtures: coverageLinks.length, challenges: challengeLinks.length, similar: similarLinks.length }
+    "the index lists 22 recovery fixtures, 8 protected-login pages, 15 similar-rows pages and 6 twin-pool pages",
+    coverageLinks.length === 22 && challengeLinks.length === 8 && similarLinks.length === 15 && twinLinks.length === 6,
+    { fixtures: coverageLinks.length, challenges: challengeLinks.length, similar: similarLinks.length, twins: twinLinks.length }
   );
+  // L12.25: each twin-pool page holds the target, the visible notes look-alike and its stated hidden look-alikes.
+  const twinMisses = [];
+  for (const href of twinLinks) {
+    await page.goto(`${BASE}${href}`);
+    const hidden = Number(/(\d+)$/.exec(href)?.[1] ?? -1);
+    const shape = { target: await page.locator("#save-profile").count(), notes: await page.locator("#save-notes:visible").count(), hidden: await page.locator('section[hidden] button[name="save"]').count() };
+    if (shape.target !== 1 || shape.notes !== 1 || shape.hidden !== hidden) twinMisses.push(`${href}: ${JSON.stringify(shape)}`);
+  }
+  check("every twin-pool page holds its target, the visible look-alike and its hidden look-alikes", twinLinks.length > 0 && twinMisses.length === 0, twinMisses);
   // L12.24: one picked control per similar-rows page, and every action carries its verifier-only intent.
   const similarMisses = [];
   for (const href of similarLinks) {

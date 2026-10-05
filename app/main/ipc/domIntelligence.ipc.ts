@@ -46,7 +46,7 @@ import type { AuthorizedActor } from "@src/security/authz/AuthorizationService";
 const failure = (code: DomDiagnosisFailureCode): { ok: false; code: DomDiagnosisFailureCode; message: string } => ({ ok: false, code, message: DIAGNOSIS_FAILURE_MESSAGES[code] });
 const labelRedactor = new SemanticRedactor({ maxContentLength: 120 });
 /** L12.19: the loop selector main proved for the last similar-rows answer, bound to that inspection. */
-let similarRowsLoop: { inspectedAt: string; selector: string; rows: number; pageAlias: string } | null = null;
+let similarRowsLoop: { inspectedAt: string; selector: string; rowDepth?: number; rows: number; pageAlias: string } | null = null;
 
 /**
  * The step's most recent runtime identity (winner memory for any scenario) and the route it was proven on,
@@ -191,7 +191,7 @@ export function registerDomIntelligenceIpc(): void {
       if (!frame) return { ok: false, code: "FAILED", message: "The inspected element is no longer on the page." };
       const result = await extractSimilarRows(frame, located, getDomIntelligenceProvider(), (text) => labelRedactor.redactText(text));
       if (result.ok) {
-        if (result.loop) similarRowsLoop = { inspectedAt: inspection.inspectedAt, selector: result.loop, rows: result.total, pageAlias: inspection.pageAlias };
+        if (result.loop) similarRowsLoop = { inspectedAt: inspection.inspectedAt, selector: result.loop, rowDepth: result.loopRowDepth, rows: result.total, pageAlias: inspection.pageAlias };
         return { ok: true, rows: result.rows, total: result.total, loop: result.loop !== undefined };
       }
       return result.reason === "protected-surface"
@@ -213,7 +213,7 @@ export function registerDomIntelligenceIpc(): void {
     if (!loop || !inspection || inspection.inspectedAt !== loop.inspectedAt) {
       return { ok: false, message: "Find similar rows for the inspected element first." };
     }
-    const added = await recorderService.addSimilarRowsLoop(loop.selector, loop.rows, loop.pageAlias);
+    const added = await recorderService.addSimilarRowsLoop(loop.selector, loop.rows, loop.pageAlias, loop.rowDepth);
     return added.ok ? added : { ok: false, message: added.reason };
   });
 

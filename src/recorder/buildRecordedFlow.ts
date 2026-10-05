@@ -386,12 +386,14 @@ export function buildRecordedFlow(
 
     // L12.19: Element Spy's "loop over these rows" — an element loop whose locator matches every row.
     if (action.type === "loop") {
-      const cfg = action.config as { loopActionType?: string; maxIterations?: number } | undefined;
+      const cfg = action.config as { loopActionType?: string; maxIterations?: number; loopRowDepth?: number } | undefined;
       step.config = {
         loopType: "elements",
         loopActionType: cfg?.loopActionType === "fill" ? "fill" : "click",
         maxIterations: Math.max(1, Math.min(1000, Math.round(cfg?.maxIterations ?? 100))),
-        loopStopOnFailure: true
+        loopStopOnFailure: true,
+        // L12.25: the similar-rows loop's run-time row check.
+        ...(Number.isInteger(cfg?.loopRowDepth) && cfg!.loopRowDepth! >= 0 && cfg!.loopRowDepth! <= 64 ? { loopRowDepth: cfg!.loopRowDepth } : {})
       };
     }
 

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { ElementHandle, Locator } from "playwright";
 import type { FlowStep, LocatorElementFingerprint } from "@src/profiles/FlowProfile";
 import type { ElementBlueprint } from "./LocatorBlueprintStore";
@@ -57,7 +58,9 @@ export type RecoveryRefusal =
   | "stale-snapshot"
   | "blueprint-unavailable"
   | "page-variant"
-  | "pre-existing-twin";
+  | "pre-existing-twin"
+  /** L12.25: the memory does not hold the complete set of look-alikes, so no winner can be told apart from one. */
+  | "twins-unproven";
 
 export interface RecoveryDecision {
   winner?: ScoredCandidate;
@@ -163,31 +166,50 @@ export function decideProviderAgreement(
  * what told the target apart, so vetoing it would refuse every row's own recovery. Hidden elements count, since
  * a hidden twin can be shown later.
  *
- * L12.24: the 8 CLOSEST twins are kept, not the first 8 in page order. Keeping page order let a near-identical
- * look-alike that came 9th win once the target was gone (crowded-twins: 0.983 against eight at 0.867). Kept
- * by score, an unkept twin scores at or below all 8 kept ones, so while they stand it cannot lead them by the
- * 0.08 margin (the blueprint's position bonus is at most 0.03), and a best candidate that is a kept twin
- * refuses its layer. It could win only if the kept twins above it drifted or vanished too: the drifted-twin
- * limit already recorded, not a new one. Storage stays bounded at 8 hashed fingerprints.
+ * L12.25 (awkit-djnl.21.25): EVERY such look-alike is remembered, as a compact identity digest. L12.24 kept the 8
+ * closest fingerprints of the whole document, hidden ones included, while the local layer acts on the VISIBLE
+ * elements of the step's container: with 8 or more closer hidden look-alikes, a visible one that had always stood
+ * beside the target was not kept and recovery acted on it (independent QC: 8 and 12 hidden). No cap that is chosen
+ * from a wider pool than an acting layer's can be safe, and each layer's pool changes as tabs open and close, so the
+ * set is complete instead: every compatible look-alike in the step's frame (hidden or not, inside the container or
+ * not) scoring at least AGREEMENT_MIN_IDENTITY, the lowest score any layer may act on. The veto only compares
+ * identity, so a digest is all it needs. Over MAX_TWIN_DIGESTS, or when the page cannot be scanned, the set is
+ * unknown and recovery from that memory refuses (`twins-unproven`); so does memory written before L12.25.
  */
-export const MAX_RECORDED_TWINS = 8;
+export const TWIN_SCORE_FLOOR = AGREEMENT_MIN_IDENTITY;
+/** A storage bound, not a safety one: past it nothing is remembered and recovery refuses. 16 hex chars each. */
+export const MAX_TWIN_DIGESTS = 1024;
 
-export function preExistingTwins(
-  target: LocatorElementFingerprint,
-  candidates: ReadonlyArray<{ fingerprint: LocatorElementFingerprint }>
-): LocatorElementFingerprint[] {
-  const twins = new Map<string, { fingerprint: LocatorElementFingerprint; score: number }>();
-  for (const { fingerprint } of candidates) {
-    const score = similarity(target, fingerprint);
-    if (sameElementFingerprint(fingerprint, target) || score < RECOVERY_SCORE_THRESHOLD) continue;
-    twins.set(JSON.stringify(fingerprint), { fingerprint, score });
-  }
-  // Stable sort: equal scores keep page order.
-  return [...twins.values()].sort((a, b) => b.score - a.score).slice(0, MAX_RECORDED_TWINS).map((twin) => twin.fingerprint);
+/** The identity `sameElementFingerprint` compares, as 64 bits. A collision can only refuse a recovery. */
+export function twinDigest(fingerprint: LocatorElementFingerprint): string {
+  const attributes = Object.keys(fingerprint.attributes)
+    .sort()
+    .map((key) => [key, fingerprint.attributes[key]]);
+  return createHash("sha256")
+    .update(JSON.stringify([fingerprint.tag, fingerprint.role, fingerprint.name, fingerprint.text, attributes, fingerprint.ancestry]))
+    .digest("hex")
+    .slice(0, 16);
 }
 
-export function isPreExistingTwin(twins: readonly LocatorElementFingerprint[] | undefined, winner: LocatorElementFingerprint): boolean {
-  return Boolean(twins?.some((twin) => sameElementFingerprint(twin, winner)));
+/** Digests of every distinguishable look-alike of `target`, or undefined when there are too many to keep. */
+export function preExistingTwinDigests(
+  step: Pick<FlowStep, "type">,
+  target: LocatorElementFingerprint,
+  candidates: ReadonlyArray<{ fingerprint: LocatorElementFingerprint }>
+): string[] | undefined {
+  const digests = new Set<string>();
+  for (const { fingerprint } of candidates) {
+    if (!isRecoveryCompatible(step, fingerprint) || sameElementFingerprint(fingerprint, target) || similarity(target, fingerprint) < TWIN_SCORE_FLOOR) continue;
+    digests.add(twinDigest(fingerprint));
+    if (digests.size > MAX_TWIN_DIGESTS) return undefined;
+  }
+  return [...digests].sort();
+}
+
+/** Why a recovery winner may not act on this memory, or undefined when it may. */
+export function twinVeto(twinDigests: readonly string[] | undefined, winner: LocatorElementFingerprint): "pre-existing-twin" | "twins-unproven" | undefined {
+  if (!twinDigests) return "twins-unproven";
+  return twinDigests.includes(twinDigest(winner)) ? "pre-existing-twin" : undefined;
 }
 
 export interface BlueprintEvidence {

@@ -17,8 +17,11 @@ import { captureDomSnapshot } from "./domSnapshot";
 export const SIMILAR_ROWS_LIMITS = Object.freeze({ rows: 50, chars: 120 });
 
 export type SimilarRowsResult =
-  /** `loop` (L12.19): a selector matching exactly these rows on the main page, when one could be proven. */
-  | { ok: true; rows: string[]; total: number; loop?: string }
+  /**
+   * `loop` (L12.19): a selector matching exactly these rows on the main page, when one could be proven.
+   * `loopRowDepth` (L12.25): how many levels above each matched element its row is, for the run-time row check.
+   */
+  | { ok: true; rows: string[]; total: number; loop?: string; loopRowDepth?: number }
   | { ok: false; reason: "provider-unavailable" | "not-on-page" | "protected-surface" | "provider-error" };
 
 export async function extractSimilarRows(
@@ -63,8 +66,8 @@ export async function extractSimilarRows(
     // ponytail: only every row on the main page gets a loop; a list longer than the row cap, or inside a frame,
     // gets none (the loop step has no frame context and the selector could not be checked against all rows).
     // Over the cap the identity of the unreturned rows is unknown, so the total stays the provider's count.
-    const loop = complete && identity.proven && wanted.length > 1 && frame === frame.page().mainFrame() ? await commonRowSelector(frame, wanted) : null;
-    return { ok: true, rows, total: complete ? wanted.length : similar.count + 1, ...(loop ? { loop } : {}) };
+    const loop = complete && identity.proven && wanted.length > 1 && frame === frame.page().mainFrame() ? await commonRowSelector(frame, wanted, identity.same) : null;
+    return { ok: true, rows, total: complete ? wanted.length : similar.count + 1, ...(loop ? { loop: loop.selector, loopRowDepth: loop.rowDepth } : {}) };
   } catch {
     return { ok: false, reason: "provider-error" };
   }
@@ -81,18 +84,33 @@ export async function extractSimilarRows(
  * `proven` is false, and no loop is offered, when the picked control has no name left once row data is removed
  * (an unlabelled icon), when a row holds the identity twice (two indistinguishable Approve buttons: which one
  * was meant is unknowable), or when a picked non-control contains controls (the click lands on one of them).
+ *
+ * L12.25 (awkit-djnl.21.25): disabled and visible state is NOT identity, it changes between making the loop and
+ * running it. Independent QC: Approve named after its row's invoice and a disabled Reject differed only in state,
+ * the loop selector excluded Reject by `:not([disabled])`, and once Reject was enabled the real StepExecutor
+ * clicked both. So every element under the rows' container with the picked tag is compared on its state-free
+ * identity: a row holding that identity twice (one enabled, one disabled) refuses the loop, and `same` (every
+ * element carrying it, available or not) is the only set a loop selector may match before its state filters.
  * NOTE: no named inner functions in this evaluate body (esbuild's `__name` helper is undefined in the page).
  */
-const semanticIdentity = (elements: Element[], arg: { wanted: number[]; picked: number }): { keep: number[]; proven: boolean } => {
+const semanticIdentity = (elements: Element[], arg: { wanted: number[]; picked: number }): { keep: number[]; same: number[]; proven: boolean } => {
   const CONTROL = "button,a[href],input:not([type=hidden]),select,textarea,summary,[role=button],[role=link],[role=menuitem],[role=menuitemcheckbox],[role=menuitemradio],[role=tab],[role=checkbox],[role=radio],[role=switch],[role=option],[role=treeitem]";
   const nodes = arg.wanted.map((i) => elements[i]);
-  if (nodes.some((node) => !node)) return { keep: [arg.picked], proven: false };
+  if (nodes.some((node) => !node)) return { keep: [arg.picked], same: [], proven: false };
   let common: Element | null = nodes.length > 1 ? nodes[0].parentElement : null;
   while (common && !nodes.every((node) => common!.contains(node) && node !== common)) common = common.parentElement;
-  const facts = nodes.map((el) => {
+  const picked = elements[arg.picked];
+  // The look-alikes first (in `wanted` order), then everything else under the container a loop selector could match.
+  const pool = [...nodes, ...(common && picked ? Array.from(common.querySelectorAll(picked.localName)).filter((el) => !nodes.includes(el)) : [])];
+  // ponytail: over 5,000 candidates the check is not run and no loop is offered.
+  if (pool.length > 5_000) return { keep: [arg.picked], same: [], proven: false };
+  const facts = pool.map((el) => {
     let row: Element = el;
     while (common && row.parentElement && row.parentElement !== common) row = row.parentElement;
-    if (!el.matches(CONTROL)) return { key: `${el.localName}|${el.getAttribute("role") ?? ""}`, row, control: false, named: true, nested: el.querySelector(CONTROL) !== null };
+    if (!el.matches(CONTROL)) {
+      const key = `${el.localName}|${el.getAttribute("role") ?? ""}`;
+      return { key, semantic: key, row, control: false, named: true, nested: el.querySelector(CONTROL) !== null };
+    }
     // The row's own data: visible text outside this element and outside every other control in the row.
     const pieces: string[] = [];
     if (row !== el) {
@@ -129,8 +147,10 @@ const semanticIdentity = (elements: Element[], arg: { wanted: number[]; picked: 
     const disabled = (el as HTMLButtonElement).disabled === true || el.getAttribute("aria-disabled") === "true";
     const style = el.ownerDocument.defaultView?.getComputedStyle(el);
     const visible = el.getClientRects().length > 0 && style?.visibility !== "hidden";
+    const semantic = [el.localName, el.getAttribute("role") ?? "", (el.getAttribute("type") ?? "").toLowerCase(), ...templates].join("\u0002");
     return {
-      key: [el.localName, el.getAttribute("role") ?? "", (el.getAttribute("type") ?? "").toLowerCase(), disabled, visible, ...templates].join("\u0002"),
+      key: [semantic, disabled, visible].join("\u0002"),
+      semantic,
       row,
       control: true,
       named: /[\p{L}\p{N}]/u.test(templates[0].replace(/[\u0001#]/g, "")),
@@ -138,11 +158,14 @@ const semanticIdentity = (elements: Element[], arg: { wanted: number[]; picked: 
     };
   });
   const me = facts[arg.wanted.indexOf(arg.picked)];
-  if (!me) return { keep: [arg.picked], proven: false };
-  const kept = facts.filter((fact) => fact.key === me.key);
+  if (!me) return { keep: [arg.picked], same: [], proven: false };
+  const alike = facts.filter((fact) => fact.semantic === me.semantic);
+  const position = new Map<Element, number>();
+  elements.forEach((el, i) => position.set(el, i));
   return {
     keep: arg.wanted.filter((_, k) => facts[k].key === me.key),
-    proven: (me.control ? me.named : !me.nested) && new Set(kept.map((fact) => fact.row)).size === kept.length
+    same: pool.filter((_, k) => facts[k].semantic === me.semantic).map((el) => position.get(el) ?? -1),
+    proven: (me.control ? me.named : !me.nested) && new Set(alike.map((fact) => fact.row)).size === alike.length
   };
 };
 
@@ -156,10 +179,17 @@ const semanticIdentity = (elements: Element[], arg: { wanted: number[]; picked: 
  * `data-action`, `name`, `title` or `role`, and its exact text as Playwright's `:text-is()`), so a reordered or
  * newly added sibling action never matches at run time; then, only if needed, `:not([disabled])` and
  * `:visible`. The selector is returned only when Playwright itself resolves it to the very same elements.
+ *
+ * L12.25: before its state filters, the selector may match only elements in `same` (the picked control's
+ * state-free identity, see `semanticIdentity`). A state filter may set aside an unavailable copy of the same
+ * action, never a different action: that one is told apart by state alone, which the page can change before the
+ * loop runs. `rowDepth` is how far above a matched element its row is (the row is a child of the rows' container).
  */
-export async function commonRowSelector(frame: Frame, wanted: number[]): Promise<string | null> {
+export async function commonRowSelector(frame: Frame, wanted: number[], same: number[]): Promise<{ selector: string; rowDepth: number } | null> {
   // NOTE: no named inner functions in this evaluate body (esbuild's `__name` helper is undefined in the page).
-  const found = await frame.locator("body *").evaluateAll((elements, indices) => {
+  const found = await frame.locator("body *").evaluateAll((elements, arg) => {
+    const indices = arg.wanted;
+    const allowed = new Set<Element>(arg.same.map((i) => elements[i]));
     const rows = indices.map((i) => elements[i]);
     if (rows.length < 2 || rows.some((row) => !row)) return null;
     let common: Element | null = rows[0].parentElement;
@@ -182,10 +212,10 @@ export async function commonRowSelector(frame: Frame, wanted: number[]): Promise
     const heads = [{ css: attributes, text: sharedText }];
     if (sharedText) heads.push({ css: attributes, text: "" });
     if (attributes) heads.push({ css: "", text: "" });
-    const variants: Array<{ css: string; text: string; visible: boolean }> = [];
+    const variants: Array<{ head: string; css: string; text: string; visible: boolean }> = [];
     for (const head of heads) {
       for (const state of ["", ':not([disabled]):not([aria-disabled="true"])']) {
-        variants.push({ css: head.css + state, text: head.text, visible: false }, { css: head.css + state, text: head.text, visible: true });
+        variants.push({ head: head.css, css: head.css + state, text: head.text, visible: false }, { head: head.css, css: head.css + state, text: head.text, visible: true });
       }
     }
     const doc = rows[0].ownerDocument;
@@ -195,10 +225,16 @@ export async function commonRowSelector(frame: Frame, wanted: number[]): Promise
       for (const name of ["data-testid", "id", "aria-label"]) {
         const value = anchor.getAttribute(name);
         if (!value || (name === "id" && /\d/.test(value))) continue;
+        const prefix = `${anchor.localName}[${name}="${value.replace(/["\\]/g, "\\$&")}"] > ${below}`;
         for (const variant of variants) {
-          const base = `${anchor.localName}[${name}="${value.replace(/["\\]/g, "\\$&")}"] > ${below}${variant.css}`;
+          const base = `${prefix}${variant.css}`;
           let matches: Element[];
           try {
+            // The variant's semantic part alone, without its state filters, must name nothing but the picked action.
+            const semantic = Array.from(doc.querySelectorAll(`${prefix}${variant.head}`)).filter(
+              (element) => !variant.text || (element.textContent ?? "").replace(/\s+/g, " ").trim() === variant.text
+            );
+            if (semantic.some((element) => !allowed.has(element))) continue;
             matches = Array.from(doc.querySelectorAll(base));
           } catch {
             continue;
@@ -207,22 +243,32 @@ export async function commonRowSelector(frame: Frame, wanted: number[]): Promise
           if (variant.visible) matches = matches.filter((element) => element.getClientRects().length > 0 && getComputedStyle(element).visibility !== "hidden");
           if (matches.length === rows.length && rows.every((row) => matches.includes(row))) {
             const text = variant.text ? `:text-is("${variant.text.replace(/["\\]/g, "\\$&")}")` : "";
-            return { selector: `${base}${text}${variant.visible ? ":visible" : ""}`, rows: rows.map((row) => all.indexOf(row)) };
+            return {
+              selector: `${base}${text}${variant.visible ? ":visible" : ""}`,
+              semantic: `${prefix}${variant.head}${text}`,
+              allowed: Array.from(allowed, (element) => all.indexOf(element)),
+              rows: rows.map((row) => all.indexOf(row)),
+              rowDepth: chains[0].split(" > ").length - 1
+            };
           }
         }
       }
       below = `${anchor.localName} > ${below}`;
     }
     return null;
-  }, wanted);
+  }, { wanted, same });
   if (!found || found.rows.includes(-1)) return null;
-  // The loop runs on Playwright's selector engine, so Playwright, not the page, has the final word.
-  const resolved = await frame
-    .locator(found.selector)
-    .evaluateAll((elements) => {
-      const all = Array.from(document.body.querySelectorAll("*"));
-      return elements.map((element) => all.indexOf(element));
-    })
-    .catch(() => null);
-  return resolved && resolved.length === found.rows.length && found.rows.every((row) => resolved.includes(row)) ? found.selector : null;
+  // The loop runs on Playwright's selector engine, so Playwright, not the page, has the final word: on the selector,
+  // and on its semantic part naming nothing but the picked action.
+  const resolve = (selector: string) =>
+    frame
+      .locator(selector)
+      .evaluateAll((elements) => {
+        const all = Array.from(document.body.querySelectorAll("*"));
+        return elements.map((element) => all.indexOf(element));
+      })
+      .catch(() => null);
+  const [resolved, semantic] = await Promise.all([resolve(found.selector), resolve(found.semantic)]);
+  if (!semantic || semantic.some((index) => index < 0 || !found.allowed.includes(index))) return null;
+  return resolved && resolved.length === found.rows.length && found.rows.every((row) => resolved.includes(row)) ? { selector: found.selector, rowDepth: found.rowDepth } : null;
 }

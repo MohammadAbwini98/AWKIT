@@ -26,6 +26,14 @@ export interface SimilarRowPage {
   html: () => string;
 }
 export const SIMILAR_ROW_LAB: SimilarRowPage[];
+/** L12.25: `hidden` look-alikes in hidden tabs, inside the editor container or outside it; `control` expects recovery. */
+export interface TwinPoolPage {
+  id: string;
+  hidden: number;
+  where: "inside" | "outside";
+  control?: boolean;
+}
+export const TWIN_POOL_LAB: TwinPoolPage[];
 export const ORACLE_SELECTOR: string;
 export const COVERAGE_FIXTURES: CoverageFixture[];
 export const CHALLENGE_PAGES: ChallengePage[];

@@ -428,7 +428,56 @@ export const SIMILAR_ROW_LAB = [
   { id: "rows-twin-approve", title: "Two indistinguishable Approve buttons per row", expect: "refuse",
     html: () => rowLab("Twin approvals", (n) => `${approve(n)} ${act("approve-line", "Approve")}`) },
   { id: "rows-unlabelled-icons", title: "Icon-only actions with no accessible name", expect: "refuse",
-    html: () => rowLab("Unlabelled icons", (n) => `${icon("approve", "", n === PICK)}${icon("reject", "", false)}`) }
+    html: () => rowLab("Unlabelled icons", (n) => `${icon("approve", "", n === PICK)}${icon("reject", "", false)}`) },
+  // L12.25 (independent QC's repro, tmp/qc-l12/similar-rows-state-repro.mts): Approve's name carries the row's
+  // invoice, so no attribute or text is shared, and only `disabled` told it from Reject. Reject enabled later made the
+  // loop click both. Nothing stable tells them apart: no loop.
+  { id: "rows-state-only", title: "Approve told from Reject only by Reject being disabled", expect: "refuse",
+    html: () => rowLab("State-only actions", (n) => `${act("approve", `Approve INV-${n}`, mark(n === PICK))} ${act("reject", "Reject", " disabled")}`) },
+  { id: "rows-visibility-only", title: "Approve told from Reject only by Reject being hidden", expect: "refuse",
+    html: () => rowLab("Visibility-only actions", (n) => `${act("approve", `Approve INV-${n}`, mark(n === PICK))} ${act("reject", "Reject", ' style="display:none"')}`) },
+  // Two identical Approve buttons per row, the second disabled: only the state tells them apart.
+  { id: "rows-state-twin", title: "Two identical Approve buttons per row, one disabled", expect: "refuse",
+    html: () => rowLab("State-only twins", (n) => `${approve(n)} ${act("approve-vendor", "Approve", " disabled")}`) },
+  // Reject disabled and Delete hidden at generation; both become actionable before the loop runs (verifier section E).
+  { id: "rows-unavailable-siblings", title: "Reject disabled and Delete hidden when the loop is made", expect: 6,
+    html: () => rowLab("Unavailable siblings", (n) => `${approve(n)} ${act("reject", "Reject", " disabled")} ${act("delete", "Delete", " hidden")}`) },
+  { id: "rows-same-style-names", title: "Same styling and visible text, different accessible names", expect: 6,
+    html: () => rowLab("Named actions", (n) => `${act("approve", "Go", ` class="btn act" aria-label="Approve"${mark(n === PICK)}`)} ${act("reject", "Go", ' class="btn act" aria-label="Reject"')}`) }
+];
+
+// ── L12.25: twin-pool lab (verify:twin-pool-safety) ──────────────────────────────────────────────────
+
+/**
+ * Independent QC's repro (tmp/qc-l12/twin-cap-repro.mts) as pages. The target is the profile's Save (`#save-profile`,
+ * name `save`). The notes' Save (`#save-notes`, name `save-notes`) is a visible look-alike that was always there, inside
+ * the same `main#editor` container. `hidden` closer look-alikes (name `save`, about 0.95 against the notes' 0.93) sit in
+ * hidden tabs, inside the container (`where: "inside"`, the QC shape) or in an archive outside it. A memory of the 8
+ * closest look-alikes was then all hidden ones, so with 8 or more the notes' Save was not remembered and recovery acted
+ * on it once the target was gone. `control`: the notes' button reads "Save notes" (not a near look-alike), so a target
+ * whose id drifted must still recover with 12 hidden look-alikes present.
+ */
+function twinPool(hidden, where, control) {
+  const section = (id, name, label, isHidden) =>
+    `<section id="${id}"${isHidden ? " hidden" : ""}><h2>${id}</h2><div class="actions"><button type="button" id="save-${id}" name="${name}">${label}</button></div></section>`;
+  // A plain panel wrapper in both places, so a hidden look-alike outside the container shares as much ancestry with the
+  // target as one inside it does, and is just as close.
+  const tabs = `<div class="panel">${range(1, hidden).map((n) => section(`tab${n}`, "save", "Save", true)).join("")}</div>`;
+  return shell(
+    "Profile editor",
+    `<main id="editor" aria-label="Editor"><div class="panel">${section("profile", "save", "Save", false)}${section("notes", "save-notes", control ? "Save notes" : "Save", false)}</div>` +
+      `${where === "inside" ? tabs : ""}</main>${where === "outside" ? `<aside id="archive" aria-label="Archive">${tabs}</aside>` : ""}`
+  );
+}
+
+/** `expect` after the target is removed: never an element. `control` pages expect the drifted target itself. */
+export const TWIN_POOL_LAB = [
+  { id: "twins-hidden-0", hidden: 0, where: "inside" },
+  { id: "twins-hidden-7", hidden: 7, where: "inside" },
+  { id: "twins-hidden-8", hidden: 8, where: "inside" },
+  { id: "twins-hidden-12", hidden: 12, where: "inside" },
+  { id: "twins-hidden-outside-12", hidden: 12, where: "outside" },
+  { id: "twins-control-12", hidden: 12, where: "inside", control: true }
 ];
 
 // ── Manifest ──────────────────────────────────────────────────────────────────────────────────────────
@@ -531,6 +580,8 @@ export const COVERAGE_FIXTURES = [
 /** The mock-site page for a corpus key, or a challenge page by id, or undefined. */
 export function coveragePage(key) {
   if (PAGES[key]) return PAGES[key]();
+  const pool = TWIN_POOL_LAB.find((page) => page.id === key);
+  if (pool) return twinPool(pool.hidden, pool.where, pool.control);
   return CHALLENGE_PAGES.find((page) => page.id === key)?.html ?? SIMILAR_ROW_LAB.find((page) => page.id === key)?.html();
 }
 
@@ -540,9 +591,11 @@ export function coverageIndexPage() {
     .join("");
   const challenges = CHALLENGE_PAGES.map((p) => `<li data-testid="coverage-challenge-${p.id}"><a href="/dom-coverage-lab/${p.id}">${p.id}</a></li>`).join("");
   const rows = SIMILAR_ROW_LAB.map((p) => `<li data-testid="coverage-similar-${p.id}"><a href="/dom-coverage-lab/${p.id}">${p.title}</a> <small>(loop: ${p.expect})</small></li>`).join("");
+  const pools = TWIN_POOL_LAB.map((p) => `<li data-testid="coverage-twins-${p.id}"><a href="/dom-coverage-lab/${p.id}">${p.id}</a> <small>(${p.hidden} hidden, ${p.where})</small></li>`).join("");
   return shell(
     "DOM Coverage Lab",
-    `<main><h1>DOM Coverage Lab</h1><h2>Recovery fixtures</h2><ul>${items}</ul><h2>Protected-login pages</h2><ul>${challenges}</ul><h2>Similar-rows semantic lab</h2><ul>${rows}</ul></main>`
+    `<main><h1>DOM Coverage Lab</h1><h2>Recovery fixtures</h2><ul>${items}</ul><h2>Protected-login pages</h2><ul>${challenges}</ul><h2>Similar-rows semantic lab</h2><ul>${rows}</ul>` +
+      `<h2>Twin-pool lab</h2><ul>${pools}</ul></main>`
   );
 }
 

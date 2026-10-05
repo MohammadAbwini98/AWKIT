@@ -20,11 +20,16 @@ export interface LocatorRecoveryRecord {
    */
   route?: string;
   /**
-   * L12.23: hashed fingerprints of the distinguishable look-alikes in the winner's document when it was
-   * first proven (`preExistingTwins`). Recovery never acts on one of them unchanged. Absent on older records
-   * and when the page was too large to scan (then nothing is vetoed).
+   * L12.23/L12.24: at most 8 hashed fingerprints of look-alikes. No longer written or read (L12.25 found the cap
+   * unsafe); a record that has only this field refuses recovery until its step next passes.
    */
   twins?: LocatorElementFingerprint[];
+  /**
+   * L12.25: identity digests of EVERY distinguishable look-alike in the winner's frame when it was first proven
+   * (`preExistingTwinDigests`). Recovery never acts on one of them unchanged. Absent when the page could not be
+   * scanned or held too many, and on older records: recovery from such a record refuses (`twins-unproven`).
+   */
+  twinDigests?: string[];
   source: "recorded-candidate" | "local-recovery";
   updatedAt: string;
 }

@@ -2867,6 +2867,22 @@ export class StepExecutor {
   ): Promise<void> {
     const timeout = step.timeoutMs ?? 10_000;
     const base = step.locator ? this.locatorFactory.create(step.locator) : null;
+    // L12.25: a similar-rows loop acts once per row. If its selector now matches twice inside one row (an element
+    // added or changed since the loop was made), which one is the recorded action is unknown: refuse before acting.
+    const rowDepth = step.config?.loopRowDepth;
+    if (base && loopType === "elements" && Number.isInteger(rowDepth) && rowDepth! >= 0) {
+      const shared = await base.evaluateAll((elements, depth) => {
+        const rows = elements.map((element) => {
+          let row: Element | null = element;
+          for (let level = 0; level < depth && row; level += 1) row = row.parentElement;
+          return row;
+        });
+        return rows.length - new Set(rows).size;
+      }, rowDepth!);
+      if (shared > 0) {
+        throw new Error(`SIMILAR_ROWS_LOOP_BROADENED: the loop selector now matches more than one element in a row; refusing to act. Re-create the loop from the Element Spy.`);
+      }
+    }
     // For element loops, target the nth element; for "delete" always target the first
     // remaining match because the list shrinks as items are removed.
     const target: Locator | null =
