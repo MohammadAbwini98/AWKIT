@@ -1,4 +1,4 @@
-import type { Page } from "playwright";
+import type { Frame, Page } from "playwright";
 
 /**
  * Protected-login detection. Identifies known protected/auth providers and blocked-automation
@@ -275,6 +275,8 @@ export interface RecorderProtectedDetection extends ProtectedLoginDetection {
 
 /** The challenge providers' frame URLs, as the `captchaIframe` selector names them. */
 const CHALLENGE_FRAME_URL = /recaptcha|hcaptcha|turnstile|challenges\.cloudflare\.com|arkoselabs/i;
+/** Upper bound on one frame's DOM scan, so a frame without a script context cannot stall detection. */
+const FRAME_SCAN_TIMEOUT_MS = 1500;
 
 /** Map DOM signals → the most specific protected reason (or null when none are strong enough). */
 function reasonFromDomSignals(dom: ProtectedDomSignals): { reason: ProtectedLoginReason; signals: string[] } | null {
@@ -362,57 +364,88 @@ export async function detectRecorderProtectedLogin(page: Page): Promise<Recorder
 
   let bodyText = "";
   let dom: ProtectedDomSignals = {};
+  let frames: Frame[] = [];
   try {
-    // NOTE: keep this evaluate body free of named function expressions (e.g. `const has = ...`) —
-    // esbuild/tsx inject a `__name(...)` helper reference for those, which is undefined in the page
-    // and would make the whole evaluate throw. Inline every querySelector directly instead.
-    const result = await page.evaluate(() => {
-      // L12.22: querySelector and innerText stop at a shadow host, so every OPEN shadow root, at any depth, is scanned
-      // like the document. A closed root is unreadable here; a challenge iframe inside one is caught by the frame tree below.
-      const roots: Array<Document | ShadowRoot> = [document];
-      for (let r = 0; r < roots.length; r++) {
-        const all = roots[r].querySelectorAll("*");
-        for (let i = 0; i < all.length; i++) {
-          const shadow = all[i].shadowRoot;
-          if (shadow) roots.push(shadow);
-        }
-      }
-      let shadowText = "";
-      for (let r = 1; r < roots.length && shadowText.length < 4000; r++) {
-        for (const child of Array.from(roots[r].children)) {
-          if (!/^(?:STYLE|SCRIPT|TEMPLATE)$/.test(child.tagName)) shadowText += `\n${(child as HTMLElement).innerText || ""}`;
-        }
-      }
-      const selectors = {
-        passwordField: 'input[type="password"]',
-        oneTimeCodeField: 'input[autocomplete="one-time-code"]',
-        captchaIframe:
-          'iframe[src*="recaptcha"], iframe[src*="hcaptcha"], iframe[src*="turnstile"], iframe[src*="challenges.cloudflare.com"], iframe[src*="arkoselabs"]',
-        // A Turnstile widget is a `div.cf-turnstile[data-sitekey]` with no captcha text and, before it renders, no
-        // iframe; reCAPTCHA, hCaptcha and Turnstile all carry `data-sitekey` (L12.20).
-        captchaElement:
-          '[aria-label*="captcha" i], .g-recaptcha, .h-captcha, .cf-turnstile, [data-sitekey], [data-hcaptcha-widget-id], [data-testid*="captcha" i]',
-        verificationElement: '[aria-label*="verification" i]',
-        webauthn: 'input[autocomplete*="webauthn"], [aria-label*="passkey" i], [aria-label*="security key" i], [data-webauthn]'
-      };
-      const dom: Record<string, boolean> = {};
-      for (const key of Object.keys(selectors)) dom[key] = roots.some((root) => !!root.querySelector(selectors[key as keyof typeof selectors]));
-      return { bodyText: (document.body?.innerText || "").slice(0, 4000) + shadowText.slice(0, 4000), dom: dom as ProtectedDomSignals };
-    });
-    bodyText = result.bodyText;
-    dom = result.dom;
+    frames = page.frames();
   } catch {
-    // Page not ready / navigated away — fall back to URL + title signals only.
+    // A closing page has no frame tree; URL + title signals stand.
   }
-  // L12.22: a challenge iframe anywhere in the frame tree (inside a closed shadow root or a child frame, where no
-  // selector reaches) is a CAPTCHA too. Only frame URLs are read.
-  if (!dom.captchaIframe) {
-    try {
-      dom = { ...dom, captchaIframe: page.frames().some((frame) => frame !== page.mainFrame() && CHALLENGE_FRAME_URL.test(frame.url())) };
-    } catch {
-      // A closing page has no frame tree; the signals above stand.
-    }
-  }
+  // L12.22: a sign-in embedded in a child iframe pauses too. The top document's scan reaches every same-origin frame
+  // (about:blank, srcdoc) through contentDocument; a child frame with its own http(s) document is scanned in that
+  // frame, bounded, since a frame still loading would otherwise hold detection. Only the top document contributes
+  // text (a child frame's wording is too noisy to act on); every scanned frame contributes DOM signals.
+  const mainFrame = frames.find((frame) => frame === page.mainFrame());
+  const scanned = frames.filter((frame) => frame === mainFrame || /^https?:/i.test(frame.url()));
+  const scans = await Promise.all(
+    scanned.map((frame) =>
+      frame === mainFrame
+        ? frame.evaluate(scanProtectedDocument).catch(() => undefined)
+        : Promise.race([
+            frame.evaluate(scanProtectedDocument).catch(() => undefined),
+            new Promise<undefined>((resolve) => setTimeout(resolve, FRAME_SCAN_TIMEOUT_MS).unref())
+          ])
+    )
+  );
+  scanned.forEach((frame, index) => {
+    const scan = scans[index];
+    if (!scan) return; // Not ready / navigated away — the other frames' signals stand.
+    if (frame === mainFrame) bodyText = scan.text;
+    for (const key of Object.keys(scan.dom) as Array<keyof ProtectedDomSignals>) dom[key] = dom[key] || scan.dom[key];
+  });
+  // L12.22: a challenge iframe anywhere in the frame tree (inside a closed shadow root, where no selector reaches)
+  // is a CAPTCHA too. Only frame URLs are read.
+  if (frames.some((frame) => frame !== page.mainFrame() && CHALLENGE_FRAME_URL.test(frame.url()))) dom.captchaIframe = true;
 
   return detectFromRecorderSignals(url, title, bodyText, dom);
 }
+
+/**
+ * One document's protected-surface signals, evaluated in each frame. NOTE: keep this body free of named function
+ * expressions (e.g. `const has = ...`) — esbuild/tsx inject a `__name(...)` helper reference for those, which is
+ * undefined in the page and would make the whole evaluate throw.
+ */
+const scanProtectedDocument = (): { text: string; dom: ProtectedDomSignals } => {
+  // L12.22: querySelector and innerText stop at a shadow host and at a frame, so every OPEN shadow root and every
+  // same-origin frame document (about:blank, srcdoc), at any depth, is scanned like the document. A closed root is
+  // unreadable here; a challenge iframe inside one is caught by the frame tree.
+  const roots: Array<Document | ShadowRoot> = [document];
+  for (let r = 0; r < roots.length; r++) {
+    const all = roots[r].querySelectorAll("*");
+    for (let i = 0; i < all.length; i++) {
+      const shadow = all[i].shadowRoot;
+      if (shadow) roots.push(shadow);
+      if (all[i].tagName === "IFRAME" || all[i].tagName === "FRAME") {
+        let inner: Document | null = null;
+        try {
+          inner = (all[i] as HTMLIFrameElement).contentDocument;
+        } catch {
+          inner = null; // Cross-origin: scanned in its own frame instead.
+        }
+        if (inner) roots.push(inner);
+      }
+    }
+  }
+  // Only shadow roots (node type 11) add text; a frame's wording stays out, as for a cross-origin frame.
+  let shadowText = "";
+  for (let r = 1; r < roots.length && shadowText.length < 4000; r++) {
+    if (roots[r].nodeType !== 11) continue;
+    for (const child of Array.from(roots[r].children)) {
+      if (!/^(?:STYLE|SCRIPT|TEMPLATE)$/.test(child.tagName)) shadowText += `\n${(child as HTMLElement).innerText || ""}`;
+    }
+  }
+  const selectors = {
+    passwordField: 'input[type="password"]',
+    oneTimeCodeField: 'input[autocomplete="one-time-code"]',
+    captchaIframe:
+      'iframe[src*="recaptcha"], iframe[src*="hcaptcha"], iframe[src*="turnstile"], iframe[src*="challenges.cloudflare.com"], iframe[src*="arkoselabs"]',
+    // A Turnstile widget is a `div.cf-turnstile[data-sitekey]` with no captcha text and, before it renders, no
+    // iframe; reCAPTCHA, hCaptcha and Turnstile all carry `data-sitekey` (L12.20).
+    captchaElement:
+      '[aria-label*="captcha" i], .g-recaptcha, .h-captcha, .cf-turnstile, [data-sitekey], [data-hcaptcha-widget-id], [data-testid*="captcha" i]',
+    verificationElement: '[aria-label*="verification" i]',
+    webauthn: 'input[autocomplete*="webauthn"], [aria-label*="passkey" i], [aria-label*="security key" i], [data-webauthn]'
+  };
+  const dom: Record<string, boolean> = {};
+  for (const key of Object.keys(selectors)) dom[key] = roots.some((root) => !!root.querySelector(selectors[key as keyof typeof selectors]));
+  return { text: (document.body?.innerText || "").slice(0, 4000) + shadowText.slice(0, 4000), dom: dom as ProtectedDomSignals };
+};
