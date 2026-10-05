@@ -1,0 +1,263 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-l12-22-implementation-1005",
+    "title": "L12.22 protected-diagnosis residuals: audit on a throwing provider, shadow-root blind spot, child-frame ceiling",
+    "objective": "Owner request of 2026-10-05: implement awkit-djnl.21.22. Reproduce each residual on current main, classify it, add red-first deterministic coverage for real defects and fix them minimally: (1) a protected read whose provider throws must still write PROTECTED_DIAGNOSIS_USED; (2) refused wording, a challenge widget or a password field rendered only inside a shadow root must not be missed by the detector or the snapshot serializer, so the Recorder still pauses and the diagnosis still refuses; (3) the child-frame override ceiling is classified. CAPTCHA, MFA, OTP, passkey, device approval and bot-detection are never automated; protected login stays on the manual handoff and session-reuse path. L12.23 and L12.24 are not reopened.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 3
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "95194487",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "execution_change": true,
+    "runner_change": true,
+    "electron_main_change": true,
+    "ipc_change": true,
+    "authorization_change": true,
+    "mock_site_required": true,
+    "protected_login_change": true,
+    "project_state_change": true,
+    "cross_layer_count": 3
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "architect",
+      "runtime",
+      "integration",
+      "recorder",
+      "qa",
+      "qc",
+      "security",
+      "project-state"
+    ],
+    "expected_paths": [
+      "src/security/ProtectedLoginDetector.ts",
+      "src/runner/LocatorFactory.ts",
+      "src/runner/domIntelligence/pageScripts.ts",
+      "app/main/ipc/domIntelligence.ipc.ts",
+      "scripts/verify-protected-diagnosis.mts",
+      "scripts/verify-protected-login-recorder.mts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "mock-site/README.md",
+      "mock-site/public/index.html",
+      "mock-site/public/secure-login/protected-shadow-login.html",
+      "mock-site/public/secure-login/protected-frame-login.html",
+      "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      ".beads/**",
+      "docs/ai/contracts/awkit-l12-22-implementation-1005.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [
+      "architect",
+      "integration",
+      "recorder"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "L12-22-AUDIT",
+      "description": "A protected read whose provider call throws still reports the read for the PROTECTED_DIAGNOSIS_USED audit, proven on a real page in verify:protected-diagnosis, and the IPC writes the audit through that report rather than after diagnose returns.",
+      "evidence_required": [
+        "verify:protected-diagnosis"
+      ]
+    },
+    {
+      "id": "L12-22-SHADOW",
+      "description": "A password field, a challenge widget or refused wording inside an open shadow root (at any depth), and a challenge iframe inside a closed shadow root, make the detector pause and the serializer refuse, with controls showing ordinary shadow content is not refused; a shadow-root sign-in on the mock site pauses the live Recorder.",
+      "evidence_required": [
+        "verify:protected-login-recorder",
+        "verify:protected-diagnosis"
+      ]
+    },
+    {
+      "id": "L12-22-NO-REGRESSION",
+      "description": "Element Spy, diagnosis, recovery, runner, session, mock-site, build, script typecheck and verifier classification stay green.",
+      "evidence_required": [
+        "regression"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:protected-diagnosis",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:protected-diagnosis",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "Red first on 95194487: 67/5 (the read is never reported, not even when the provider throws; open-shadow wording and an open-shadow widget are read; the nested case failed on a fixture defect, an inner </script>, fixed in the harness). Final 75/0. Mutation with the serializer shadow walk off: 71/4."
+    },
+    {
+      "id": "verify:protected-login-recorder",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:protected-login-recorder",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "Red first on 95194487: the live Recorder never paused on /mock/protected-shadow-login, then (after 3b61baf8) never on /mock/protected-frame-login. Final 96/96. Mutations: frame-URL check off 88/89, http frame scan off 95/96 (with a precondition proving the frame cross-origin and loaded)."
+    },
+    {
+      "id": "regression",
+      "type": "verifier",
+      "required": true,
+      "command": "verify:dom-intelligence-coverage, verify:dom-intelligence-acceptance, verify:element-spy, verify:recorder, verify:runner, verify:mock-site, verify:dom-intelligence-l12, verify:dom-intelligence-contexts, verify:session-context, verify:security, verify:ipc-contract, verify:ai-fallback, verify:verifier-classification, verify:failure-capture-overhead, npm run typecheck:scripts, npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "On the final detector: coverage 74/0 (0 wrong, detection p95 under 100 ms, no false positive on 23 pages), acceptance 12/0 (11/14), element-spy 206/0, recorder 297/0, runner 138/0, mock-site 262/262, l12 82/0, contexts 60/0, typecheck clean, build OK. Before the per-frame detector change (inputs unaffected): session-context 11/11, security 61/0, ipc-contract 10/10, ai-fallback 51/0, classification reconciled (324). failure-capture-overhead 15/0/3 INCONCLUSIVE (run 27, the owner-accepted state)."
+    },
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "bd close closed awkit-djnl.21.22, then 'Exported 358 issues to .beads/issues.jsonl'."
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "First run 176/177: only the tracker pin failed (outstanding 23, closed 335), banner already 'Sources agree'. Pin moved, then 177/177 with 'Sources agree'."
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qa_basis": "Every acceptance criterion has a PASS verifier on the final tree, each new check red first or mutation tested: verify:protected-diagnosis 75/0, verify:protected-login-recorder 96/96, and the regression set.",
+    "qa_known_limitations": "Wording inside a closed shadow root is unreadable. Detection runs on load and DOMContentLoaded only, so a sign-in rendered or framed later without a navigation is not re-checked (from the code, not reproduced). A framed sign-in never gets the Super-User diagnosis override (fail closed by design).",
+    "qc_status": "pending",
+    "qc_note": "No independent second-model review was run in this session (no subagent requested, CodeCraft off by default)."
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-l12-22-implementation-1005:security:2026-10-05T14:56:51.920Z",
+        "task": "awkit-l12-22-implementation-1005",
+        "holder": "security",
+        "status": "released",
+        "allowed_paths": [
+          "src/security/ProtectedLoginDetector.ts"
+        ],
+        "acquired_at": "2026-10-05T14:56:51.920Z",
+        "acquired_at_commit": "9519448728aafe217bfbed9c0524d9fd87dc521f",
+        "released_at": "2026-10-05T14:59:29.567Z",
+        "released_reason": "L12.22 detector shadow-root and frame-tree fix committed as 3b61baf8, serializer, IPC audit, mock page and verifiers continue unleased",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-l12-22-implementation-1005:security:2026-10-05T15:17:00.437Z",
+        "task": "awkit-l12-22-implementation-1005",
+        "holder": "security",
+        "status": "released",
+        "allowed_paths": [
+          "src/security/ProtectedLoginDetector.ts"
+        ],
+        "acquired_at": "2026-10-05T15:17:00.437Z",
+        "acquired_at_commit": "3b61baf865e9c43b46bd9af8c99bdc87bd9a8e31",
+        "released_at": "2026-10-05T15:21:53.854Z",
+        "released_reason": "L12.22 per-frame detector committed as 6e5b901a, cross-origin frame test and mock pages continue unleased",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-l12-22-implementation-1005:security:2026-10-05T15:22:15.689Z",
+        "task": "awkit-l12-22-implementation-1005",
+        "holder": "security",
+        "status": "released",
+        "allowed_paths": [
+          "src/security/ProtectedLoginDetector.ts"
+        ],
+        "acquired_at": "2026-10-05T15:22:15.689Z",
+        "acquired_at_commit": "6e5b901a672d33f98124b62184907bb7ae1a8027",
+        "released_at": "2026-10-05T15:24:26.655Z",
+        "released_reason": "L12.22 mutation of the http frame scan restored, detector identical to 6e5b901a, cross-origin test fixture fix continues unleased",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-l12-22-implementation-1005:security:2026-10-05T15:27:56.099Z",
+        "task": "awkit-l12-22-implementation-1005",
+        "holder": "security",
+        "status": "released",
+        "allowed_paths": [
+          "src/security/ProtectedLoginDetector.ts"
+        ],
+        "acquired_at": "2026-10-05T15:27:56.099Z",
+        "acquired_at_commit": "6e5b901a672d33f98124b62184907bb7ae1a8027",
+        "released_at": "2026-10-05T15:28:54.852Z",
+        "released_reason": "L12.22 cross-origin frame mutation run done, 95 of 96 with the http frame scan off, detector restored identical to 6e5b901a",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-l12-22-implementation-1005:security:2026-10-05T15:30:53.698Z",
+        "task": "awkit-l12-22-implementation-1005",
+        "holder": "security",
+        "status": "released",
+        "allowed_paths": [
+          "src/security/ProtectedLoginDetector.ts"
+        ],
+        "acquired_at": "2026-10-05T15:30:53.698Z",
+        "acquired_at_commit": "6e5b901a672d33f98124b62184907bb7ae1a8027",
+        "released_at": "2026-10-05T15:32:20.652Z",
+        "released_reason": "L12.22 detector type fix committed as 41620b3d, final regression set continues unleased",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-l12-22-implementation-1005:project-state:2026-10-05T15:43:51.865Z",
+        "task": "awkit-l12-22-implementation-1005",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-05T15:43:51.865Z",
+        "acquired_at_commit": "b898feebcc09f08208a1dfc6dabdcac485c2640a",
+        "released_at": "2026-10-05T15:44:24.648Z",
+        "released_reason": "L12.22 closed with its evidence, export refreshed, roadmap pin and contract evidence continue unleased",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

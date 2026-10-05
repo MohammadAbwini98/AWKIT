@@ -1,18 +1,26 @@
 {
-  "task": "awkit-l12-24-implementation-1005",
-  "contract_path": "docs/ai/contracts/awkit-l12-24-implementation-1005.json",
+  "task": "awkit-l12-22-implementation-1005",
+  "contract_path": "docs/ai/contracts/awkit-l12-22-implementation-1005.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-05T13:47:55.882Z",
-  "acquired_at_commit": "222b40abce0833d8b96f5783d7d6bdaac7820b13",
+  "acquired_at": "2026-10-05T15:43:51.865Z",
+  "acquired_at_commit": "b898feebcc09f08208a1dfc6dabdcac485c2640a",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-l12-24-implementation-1005.json"
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/KNOWN_ISSUES.md",
+    "docs/ai/TASK_LOG.md",
+    "docs/ai/contracts/active-lease.json",
+    "docs/ai/contracts/awkit-l12-22-implementation-1005.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-l12-24-implementation-1005.json": "1b6e4cd58041e054517148b5d5e2f57cdb0b271f9ed374f702460ce86d18fb99"
+    "docs/ai/CURRENT_STATE.md": "ecee3ae8ea171eef13695c94b6e56d4bbb868a735db45d224cf8fde3668b7b19",
+    "docs/ai/KNOWN_ISSUES.md": "3cdd5eb844697bfb6e5abc35fe308760d5add0a588e76b5505b1f197190806c6",
+    "docs/ai/TASK_LOG.md": "d65388d721ab7c8896fd1e69fca8744b8e93e5991094fe69c511f6c87df0bc57",
+    "docs/ai/contracts/active-lease.json": "cf1f288ff0141d0f15bc0434c326c1c04644b759b56a8bb186915d9171cc3383",
+    "docs/ai/contracts/awkit-l12-22-implementation-1005.json": "701cfd58a259521fd5c39cd238a59fd60c32cdd95e09f34b347eb94ea3ddf479"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -24,22 +32,10 @@
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
     "build": "dir(1):native-hosts:1791093594496.971"
   },
-  "amendments": [
-    {
-      "timestamp": "2026-10-05T13:49:00.751Z",
-      "added": [
-        "scripts/verify-roadmap-dashboard.mjs"
-      ],
-      "reason": "closing awkit-djnl.21.24 moves the tracker non-vacuity pin to 24 outstanding / 334 closed",
-      "triggered_escalation": [
-        "qa"
-      ],
-      "approved_by": "manager"
-    }
-  ],
+  "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-05T13:49:00.752Z",
-  "released_reason": "amendment added paths outside project-state's ownership (scripts/verify-roadmap-dashboard.mjs) — routing re-run requires a different specialist",
-  "archived_at": "2026-10-05T13:49:00.754Z"
+  "released_at": "2026-10-05T15:44:24.648Z",
+  "released_reason": "L12.22 closed with its evidence, export refreshed, roadmap pin and contract evidence continue unleased",
+  "archived_at": "2026-10-05T15:44:24.650Z"
 }

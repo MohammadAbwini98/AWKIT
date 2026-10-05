@@ -1,6 +1,27 @@
 # TASK_LOG
 
-## 2026-10-05 (latest) — L12.24 similar-rows mixed loops, twin cap, blueprint container (Claude)
+## 2026-10-05 (latest) — L12.22 protected-diagnosis residuals (Claude)
+
+- **Task:** owner asked to finish `awkit-djnl.21.22`: reproduce and classify each residual, fix real defects
+  red-first, keep the protected-login boundary fail-safe. L12.23/L12.24 not reopened.
+- **Classification:** item 1 (audit only after diagnose returns) product defect, fixed. Item 2 (shadow-root
+  blind spot) product defect in both the detector and the serializer, fixed. Item 3 (no override for a framed
+  sign-in) expected fail-closed behaviour, kept; while classifying it the detector was found not to pause on a
+  sign-in inside a child frame at all, fixed.
+- **Built:** `3b61baf8`, `6e5b901a`, `41620b3d` (`ProtectedLoginDetector`: open shadow roots, frame-tree challenge
+  iframes, every frame's DOM signals, build fix), `c6db7eea` (`onProtectedRead`, shadow-aware serializer, two
+  mock pages, verifier checks). Contract `awkit-l12-22-implementation-1005`, security lease per detector edit.
+- **Red first:** protected-diagnosis 67/5 on `95194487`; live Recorder never paused on the shadow or frame page.
+  Mutations: frame-URL check off 88/89, serializer shadow walk off 71/4, http frame scan off 95/96. Two harness
+  defects found and fixed along the way: a fixture whose inner `</script>` closed its own script, and a
+  "cross-origin" frame that was same-origin (an about:blank top cannot frame a loopback address).
+- **Checks (PASS):** protected-diagnosis 75/0, protected-login-recorder 96/96, coverage 74/0, acceptance 12/0
+  (11/14), element-spy 206/0, dom-intelligence-l12 82/0, contexts 60/0, recorder 297/0, runner 138/0, mock-site
+  262/262, session-context 11/11, security 61/0, ipc-contract 10/10, ai-fallback 51/0, verifier-classification
+  reconciled (324), typecheck:scripts clean, build OK. failure-capture-overhead 15/0/3 INCONCLUSIVE (run 27).
+- **Tracker:** `.21.22` closed.
+
+## 2026-10-05 — L12.24 similar-rows mixed loops, twin cap, blueprint container (Claude)
 
 - **Task:** owner asked to implement `awkit-djnl.21.24`, the mixed-loop wrong-target defect first (red-first,
   mutation-tested), then the twin-cap and blueprint-container residuals only on evidence.

@@ -675,8 +675,10 @@ try {
   // in, one closed). Measured after the export.
   // Then 24/334 of 358 later on 2026-10-05: `.21.24` (similar-rows mixed loops, twin cap, blueprint container)
   // closed (one out, one closed). Measured after the export.
-    "24 outstanding / 334 closed",
-    beads.stats.outstanding === 24 && beads.stats.closed === 334,
+  // Then 23/335 of 358 later on 2026-10-05: `.21.22` (protected-diagnosis residuals: audit on read, shadow roots,
+  // child frames) closed (one out, one closed). Measured after the export.
+    "23 outstanding / 335 closed",
+    beads.stats.outstanding === 23 && beads.stats.closed === 335,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

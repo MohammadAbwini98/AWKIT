@@ -1,5 +1,21 @@
 # KNOWN_ISSUES
 
+## The protected-login detector missed sign-ins inside shadow roots and child frames (found 2026-10-05 by L12.22, RESOLVED 2026-10-05)
+
+- **Symptom.** `detectRecorderProtectedLogin` and the snapshot serializer read only the top document's light DOM.
+  A password field, a CAPTCHA widget or challenge wording rendered only inside an open shadow root, or a sign-in
+  form inside a child iframe, left the Recorder recording (`unknown/continue`), and a Super-User diagnosis read a
+  page whose refused wording sat in a shadow root.
+- **Fix.** The detector scans every open shadow root, every same-origin frame (through the parent) and every
+  http(s) child frame (in its own frame, bounded at 1.5 s), and treats a challenge-provider frame URL anywhere in
+  the frame tree as a CAPTCHA. The serializer checks open shadow roots for the protected field, the widget and the
+  refused wording. Evaluating an about:blank widget frame directly never settles, which is why same-origin frames
+  are read through the parent. Mutation tested in `verify:protected-login-recorder` and `verify:protected-diagnosis`.
+- **Still known, not fixed:** wording inside a CLOSED shadow root is unreadable (a challenge iframe inside one is
+  caught); detection runs on `load` and `domcontentloaded`, so a sign-in rendered or framed later without a
+  navigation is not re-checked (from the code, not reproduced); a framed sign-in never gets the Super-User
+  diagnosis override (fail closed by design).
+
 ## Recovery acted on a look-alike that stood beside a removed target (found 2026-10-05 by L12.23, RESOLVED 2026-10-05)
 
 - **Symptom.** On the DOM Coverage Lab, with the target removed, AWKIT's own layers returned a different element

@@ -1,6 +1,26 @@
 # CURRENT_STATE
 
-## L12.24 done: similar-rows loops repeat only the picked action; two more wrong recoveries fixed (2026-10-05, latest)
+## L12.22 done: protected surfaces in shadow roots and child frames now pause the Recorder; protected reads audited on read (2026-10-05, latest)
+
+- **Audit (`awkit-djnl.21.22` item 1, closed):** `LocatorFactory.diagnose` reports a protected read through
+  `onProtectedRead` before the provider runs, and `domIntelligence:diagnoseStep` writes `PROTECTED_DIAGNOSIS_USED`
+  there, so a provider that throws after the read still leaves the audit (red first: 0 reads reported).
+- **Shadow roots (item 2, confirmed real):** the protected-login detector and the snapshot serializer stopped at
+  shadow hosts, so a shadow-root sign-in did not pause the Recorder and refused wording or a widget inside a
+  shadow root was read under the Super-User override. Both now check every open shadow root at any depth; a
+  challenge iframe inside a CLOSED root is caught from the frame tree. `/mock/protected-shadow-login`.
+- **Child frames (found while classifying item 3):** the detector read only the top document, so a sign-in in a
+  child iframe did not pause the Recorder. It now scans same-origin frames through the parent and each http(s)
+  child frame in its own frame (bounded at 1.5 s). `/mock/protected-frame-login`. The diagnosis override for a
+  framed sign-in stays refused (item 3, fail closed by design).
+- **Checks:** protected-diagnosis 75/0, protected-login-recorder 96/96, coverage 74/0 (0 wrong, detection p95
+  under 100 ms, no false positive on 23 pages), acceptance 12/0 (11/14), element-spy 206/0, recorder 297/0,
+  runner 138/0, mock-site 262/262, build OK. failure-capture-overhead 15/0/3 INCONCLUSIVE (unchanged, accepted).
+- **Known, not fixed:** wording inside a closed shadow root; detection runs on load and DOMContentLoaded, so a
+  sign-in rendered or framed later without a navigation is not re-checked (read from the code, not reproduced).
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## L12.24 done: similar-rows loops repeat only the picked action; two more wrong recoveries fixed (2026-10-05)
 
 - **Mixed loops (`awkit-djnl.21.24`, closed, `222b40ab`):** Element Spy similar rows kept a row's Approve AND
   Reject, and the loop clicked both. Now only look-alikes with the picked control's semantic identity are kept
