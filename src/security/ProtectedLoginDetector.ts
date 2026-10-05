@@ -273,6 +273,9 @@ export interface RecorderProtectedDetection extends ProtectedLoginDetection {
   signals: string[];
 }
 
+/** The challenge providers' frame URLs, as the `captchaIframe` selector names them. */
+const CHALLENGE_FRAME_URL = /recaptcha|hcaptcha|turnstile|challenges\.cloudflare\.com|arkoselabs/i;
+
 /** Map DOM signals → the most specific protected reason (or null when none are strong enough). */
 function reasonFromDomSignals(dom: ProtectedDomSignals): { reason: ProtectedLoginReason; signals: string[] } | null {
   const signals: string[] = [];
@@ -364,30 +367,51 @@ export async function detectRecorderProtectedLogin(page: Page): Promise<Recorder
     // esbuild/tsx inject a `__name(...)` helper reference for those, which is undefined in the page
     // and would make the whole evaluate throw. Inline every querySelector directly instead.
     const result = await page.evaluate(() => {
-      return {
-        bodyText: (document.body?.innerText || "").slice(0, 4000),
-        dom: {
-          passwordField: !!document.querySelector('input[type="password"]'),
-          oneTimeCodeField: !!document.querySelector('input[autocomplete="one-time-code"]'),
-          captchaIframe: !!document.querySelector(
-            'iframe[src*="recaptcha"], iframe[src*="hcaptcha"], iframe[src*="turnstile"], iframe[src*="challenges.cloudflare.com"], iframe[src*="arkoselabs"]'
-          ),
-          // A Turnstile widget is a `div.cf-turnstile[data-sitekey]` with no captcha text and, before it renders, no
-          // iframe; reCAPTCHA, hCaptcha and Turnstile all carry `data-sitekey` (L12.20).
-          captchaElement: !!document.querySelector(
-            '[aria-label*="captcha" i], .g-recaptcha, .h-captcha, .cf-turnstile, [data-sitekey], [data-hcaptcha-widget-id], [data-testid*="captcha" i]'
-          ),
-          verificationElement: !!document.querySelector('[aria-label*="verification" i]'),
-          webauthn:
-            !!document.querySelector('input[autocomplete*="webauthn"]') ||
-            !!document.querySelector('[aria-label*="passkey" i], [aria-label*="security key" i], [data-webauthn]')
+      // L12.22: querySelector and innerText stop at a shadow host, so every OPEN shadow root, at any depth, is scanned
+      // like the document. A closed root is unreadable here; a challenge iframe inside one is caught by the frame tree below.
+      const roots: Array<Document | ShadowRoot> = [document];
+      for (let r = 0; r < roots.length; r++) {
+        const all = roots[r].querySelectorAll("*");
+        for (let i = 0; i < all.length; i++) {
+          const shadow = all[i].shadowRoot;
+          if (shadow) roots.push(shadow);
         }
+      }
+      let shadowText = "";
+      for (let r = 1; r < roots.length && shadowText.length < 4000; r++) {
+        for (const child of Array.from(roots[r].children)) {
+          if (!/^(?:STYLE|SCRIPT|TEMPLATE)$/.test(child.tagName)) shadowText += `\n${(child as HTMLElement).innerText || ""}`;
+        }
+      }
+      const selectors = {
+        passwordField: 'input[type="password"]',
+        oneTimeCodeField: 'input[autocomplete="one-time-code"]',
+        captchaIframe:
+          'iframe[src*="recaptcha"], iframe[src*="hcaptcha"], iframe[src*="turnstile"], iframe[src*="challenges.cloudflare.com"], iframe[src*="arkoselabs"]',
+        // A Turnstile widget is a `div.cf-turnstile[data-sitekey]` with no captcha text and, before it renders, no
+        // iframe; reCAPTCHA, hCaptcha and Turnstile all carry `data-sitekey` (L12.20).
+        captchaElement:
+          '[aria-label*="captcha" i], .g-recaptcha, .h-captcha, .cf-turnstile, [data-sitekey], [data-hcaptcha-widget-id], [data-testid*="captcha" i]',
+        verificationElement: '[aria-label*="verification" i]',
+        webauthn: 'input[autocomplete*="webauthn"], [aria-label*="passkey" i], [aria-label*="security key" i], [data-webauthn]'
       };
+      const dom: Record<string, boolean> = {};
+      for (const key of Object.keys(selectors)) dom[key] = roots.some((root) => !!root.querySelector(selectors[key as keyof typeof selectors]));
+      return { bodyText: (document.body?.innerText || "").slice(0, 4000) + shadowText.slice(0, 4000), dom: dom as ProtectedDomSignals };
     });
     bodyText = result.bodyText;
     dom = result.dom;
   } catch {
     // Page not ready / navigated away — fall back to URL + title signals only.
+  }
+  // L12.22: a challenge iframe anywhere in the frame tree (inside a closed shadow root or a child frame, where no
+  // selector reaches) is a CAPTCHA too. Only frame URLs are read.
+  if (!dom.captchaIframe) {
+    try {
+      dom = { ...dom, captchaIframe: page.frames().some((frame) => frame !== page.mainFrame() && CHALLENGE_FRAME_URL.test(frame.url())) };
+    } catch {
+      // A closing page has no frame tree; the signals above stand.
+    }
   }
 
   return detectFromRecorderSignals(url, title, bodyText, dom);
