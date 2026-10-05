@@ -57,7 +57,7 @@ const RESULTS = "docs/plans/ai-upgrade-v5/evidence/L12.23-coverage-results.json"
 const RUNS = 3;
 const ANCHOR = '[data-l11-anchor="target"]';
 /** Pinned so a dropped fixture or protected case fails the gate instead of shrinking it. */
-const PINNED = { fixtures: 24, cases: 95, refuse: 47 };
+const PINNED = { fixtures: 25, cases: 97, refuse: 49 };
 const BUDGET = { snapshotRecoveredP95Ms: 500, productP95Ms: 800, detectorP95Ms: 100 };
 
 type Outcome = "correct" | "WRONG" | "unresolved" | "refused" | "error";
@@ -284,15 +284,16 @@ async function runCase(
 }
 
 /** Similar-rows pins: picked target → rows found, and whether one loop selector is proven for them. */
-// Measured 2026-10-05. table-actions: the 15 Approve AND 15 Reject buttons are "similar", and the proven loop
-// selector covers both (KNOWN_ISSUES); transaction-ledger: 400 rows exceed the 50-row cap, so no loop.
+// L12.24: the provider calls a row's 15 Approve AND 15 Reject "similar" (and erp-grid's Simulate, Park and Post);
+// only the picked action is kept, so table-actions loops over the 15 Approve and erp-grid has nothing to loop.
+// transaction-ledger: 400 rows exceed the 50-row cap, so no loop. verify:similar-rows-safety covers the rest.
 const SIMILAR_PINS: Record<string, { total: number; loop: boolean }> = {
-  "table-actions": { total: 30, loop: true },
+  "table-actions": { total: 15, loop: true },
   "card-grid": { total: 12, loop: true },
   "reordered-rows": { total: 10, loop: true },
   "notification-list": { total: 6, loop: true },
   "transaction-ledger": { total: 400, loop: false },
-  "erp-grid": { total: 3, loop: true }
+  "erp-grid": { total: 1, loop: false }
 };
 
 async function main(): Promise<void> {
@@ -451,6 +452,8 @@ async function main(): Promise<void> {
         const matched = page.locator(first.loop);
         const includesTarget = await matched.evaluateAll((elements) => (elements as Element[]).includes((window as unknown as CoverageWindow).__awkitCoverage.target as Element));
         check(`${id}: the loop selector matches exactly the ${first.total} rows, the picked one among them`, (await matched.count()) === first.total && includesTarget, first.loop);
+        // The page's own classes are the verifier's oracle here; production never reads classes.
+        if (id === "table-actions") check("table-actions: the loop covers no Reject, only the picked Approve action", (await matched.evaluateAll((elements) => elements.every((element) => element.classList.contains("approve")))) === true, first.loop);
       }
       check(`${id}: within the diagnosis budget (${DOM_INTELLIGENCE_LIMITS.diagnosisTimeoutMs} ms)`, ms < DOM_INTELLIGENCE_LIMITS.diagnosisTimeoutMs, Math.round(ms));
       await page.close();

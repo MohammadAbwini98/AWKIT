@@ -753,7 +753,21 @@ try {
   check("the lab index serves its title", (await page.title()) === "DOM Coverage Lab");
   const coverageLinks = await page.locator('[data-testid^="coverage-fixture-"] a').evaluateAll((links) => links.map((link) => link.getAttribute("href")));
   const challengeLinks = await page.locator('[data-testid^="coverage-challenge-"] a').evaluateAll((links) => links.map((link) => link.getAttribute("href")));
-  check("the index lists 21 recovery fixtures and 8 protected-login pages", coverageLinks.length === 21 && challengeLinks.length === 8, { fixtures: coverageLinks.length, challenges: challengeLinks.length });
+  const similarLinks = await page.locator('[data-testid^="coverage-similar-"] a').evaluateAll((links) => links.map((link) => link.getAttribute("href")));
+  check(
+    "the index lists 22 recovery fixtures, 8 protected-login pages and 10 similar-rows pages",
+    coverageLinks.length === 22 && challengeLinks.length === 8 && similarLinks.length === 10,
+    { fixtures: coverageLinks.length, challenges: challengeLinks.length, similar: similarLinks.length }
+  );
+  // L12.24: one picked control per similar-rows page, and every action carries its verifier-only intent.
+  const similarMisses = [];
+  for (const href of similarLinks) {
+    await page.goto(`${BASE}${href}`);
+    const oracles = await page.locator('[data-testid="oracle-target"]').count();
+    const unlabelled = await page.locator("#lab-body button:not([data-oracle-intent])").count();
+    if (oracles !== 1 || unlabelled !== 0) similarMisses.push(`${href}: ${oracles} targets, ${unlabelled} buttons without an intent`);
+  }
+  check("every similar-rows page holds one picked control and an intent on every action", similarLinks.length > 0 && similarMisses.length === 0, similarMisses);
   const oracleMisses = [];
   for (const href of coverageLinks) {
     await page.goto(`${BASE}${href}`);

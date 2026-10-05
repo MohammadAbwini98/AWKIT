@@ -9,19 +9,29 @@
 - **Fix.** Winner memory records the distinguishable look-alikes (`twins`, max 8) the first time an identity is
   remembered, and every acting layer refuses a winner identical to one of them (`pre-existing-twin`). Mutation
   tested: with the veto off, `verify:dom-intelligence-coverage` reports 9 WRONG per engine.
-- **Still open (`awkit-djnl.21.24`).** A twin that ALSO drifted is not recognised; more than 8 twins are not all
-  kept; old memory records carry no twins until a step next passes; the blueprint layer still ignores the step's
-  container, so a look-alike that appears after the first success, outside the container, is only stopped by the
-  score gate.
+- **L12.24 (`awkit-djnl.21.24`, RESOLVED 2026-10-05).** Two residuals were real wrong-element recoveries, measured
+  red first on both engines in all 3 runs: (1) the 8-twin cap kept the FIRST 8 look-alikes in page order, so a
+  near-identical 9th (`crowded-twins`, 0.983 against eight at 0.867) won once the target was gone; the cap now
+  keeps the 8 closest. (2) The blueprint layer scanned the whole frame, so a copy just outside the step's
+  container won (`approval-modal/escape`); a proven container now scopes the blueprint window and vetoes an
+  agreed winner outside it (`outside-container`). Each fix alone closes its own case (mutation run).
+- **Still known, not fixed (by design or measured safe):** a twin that ALSO drifted is not recognised, and the
+  same holds for an unkept twin once every kept one above it drifted or vanished; old memory records carry no
+  twins until a step next passes; a container that is missing or ambiguous now falls back to the whole frame,
+  as before.
 
-## Element Spy similar rows mix a row's different actions, and the loop clicks them all (found 2026-10-05, OPEN, `awkit-djnl.21.24`)
+## Element Spy similar rows mixed a row's different actions, and the loop clicked them all (found 2026-10-05, RESOLVED 2026-10-05, `awkit-djnl.21.24`)
 
-- On `/dom-coverage-lab/table-actions`, picking one row's Approve returns 30 similar rows: the 15 Approve AND the
-  15 Reject buttons (same tag path, same classes but one). The proven loop selector
-  (`table[aria-label=…] > tbody > tr > td > button`) matches all 30, so "Add loop over these rows" would click
-  Approve then Reject in every row. The rows list shows the texts first, but nothing stops it. Fix direction:
-  require the similar elements to share the picked element's accessible name (or let the loop selector keep its
-  own position among siblings) before a loop is offered.
+- On `/dom-coverage-lab/table-actions`, picking one row's Approve returned 30 similar rows: the 15 Approve AND the
+  15 Reject buttons, and the proven loop selector (`… > tbody > tr > td > button`) matched all 30, so "Add loop
+  over these rows" clicked Approve then Reject in every row (reproduced through the real StepExecutor).
+- **Fix.** `similarRows.ts` keeps only the provider's look-alikes with the picked control's semantic identity
+  (tag, role, type, disabled and visible state, accessible name, `name` and `data-action`, with row data
+  replaced), and offers a loop only when that identity is named and occurs once per row. The loop selector
+  carries the shared `aria-label`/`data-action`/`name`/`title`/`role` and `:text-is()`, so it still clicks only
+  Approve after the page reorders its actions. `verify:similar-rows-safety` 20/0, mutation tested.
+- **Know it:** the rows LIST still shows both buttons when a row holds two indistinguishable controls (no loop is
+  offered there); over the 50-row cap the total stays the provider's count, unfiltered.
 
 ## Icon-only controls can never be recovered locally (found 2026-10-05, know it)
 
@@ -48,7 +58,8 @@
   let the provider act without AWKIT's best agreeing.
 - **2026-10-05 (L12.23):** now exercised on 95 cases over 24 fixtures (`verify:dom-intelligence-coverage`): 0
   wrong elements from the agreement rule; the WebForms fields stay under the 85 floor (81-85) and refuse. Still
-  synthetic pages, not live sites.
+  synthetic pages, not live sites: Layer 4's "enterprise" pages are hand-written to enterprise markup patterns,
+  not sanitized captures of real applications.
 
 ## `verify:workflow-builder` fails one Workflows library check: action column 100px, limit 64px (found 2026-10-03, OPEN)
 

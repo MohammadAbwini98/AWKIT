@@ -1,6 +1,20 @@
 # DECISIONS
 
-### 2026-10-05 (latest) — L12.23: recovery never acts on a look-alike that was already there (implementer, measured) (`awkit-djnl.21.23`)
+### 2026-10-05 (latest) — L12.24: a similar-rows loop repeats one action, or is not offered (owner, implementer design) (`awkit-djnl.21.24`)
+
+- **Owner:** a mixed loop is a wrong-target safety defect; refuse when a safe selector cannot be proven, never
+  broaden to raise the row count, keep verifier-only oracle data out of production.
+- **Rule:** the provider's structural look-alikes are filtered to the picked control's semantic identity, with
+  row data (the row's other visible text, digits) templated out so "More actions for <task>" stays one action.
+  Classes and sibling position never count: position was rejected because a reordered row would make it click
+  the other action. No loop when the picked control has no name, when a row holds the identity twice, or when a
+  picked row or card contains controls. The selector carries the shared semantic attributes and `:text-is()`,
+  and Playwright itself must resolve it to exactly the kept rows.
+- **Recovery residuals (measured, not assumed):** the twin cap stays at 8 but keeps the closest 8, and a proven
+  container scopes the blueprint window. Both were chosen after a red corpus case each; unbounded twin storage
+  and a per-run look-alike scan were not needed.
+
+### 2026-10-05 — L12.23: recovery never acts on a look-alike that was already there (implementer, measured) (`awkit-djnl.21.23`)
 
 - **Owner:** stop tuning latency; prove the pipeline across far more DOM variation; any wrong element fails.
 - **Rule:** when a step's winner is first remembered, the distinguishable look-alikes in its document are

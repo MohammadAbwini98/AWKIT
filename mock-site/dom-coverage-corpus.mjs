@@ -16,8 +16,12 @@
  * `SAFE_MISS`: AWKIT cannot prove it, measured 2026-10-05; `HIDDEN`: the target is hidden, a twin shown).
  *
  * Layers: `existing` = L12.23 Layer 2 (mutations on the existing fixtures), `lab` = Layer 1, `enterprise` =
- * Layer 4 (sanitized stand-ins written to the markup patterns of common enterprise stacks, not captured from
- * a live site). CHALLENGE_PAGES feed Layer 3 (protected-login detection and the read-time challenge check).
+ * Layer 4 (SYNTHETIC enterprise-style pages written by hand to the markup patterns of common enterprise stacks:
+ * WebForms, Angular Material, UI5. They are not sanitized captures of any real application). CHALLENGE_PAGES
+ * feed Layer 3 (protected-login detection and the read-time challenge check).
+ *
+ * SIMILAR_ROW_LAB (L12.24) feeds verify:similar-rows-safety: one picked control per page, and every control
+ * carries a verifier-only `data-oracle-intent` (what it really does), read and stripped with the oracle target.
  */
 
 export const ORACLE_SELECTOR = '[data-testid="oracle-target"]';
@@ -247,7 +251,21 @@ function pagination() {
   );
 }
 
-// ── Layer 4: enterprise stand-ins (sanitized, no real account data) ───────────────────────────────────
+// L12.24: eight distinguishable "Save" look-alikes earlier in the page (score ~0.87) and one near-identical twin
+// after the target (~0.98). Remembering only the first 8 twins in page order left the closest one unvetoed.
+function crowdedTwins() {
+  const draft = (n) => `<li><span>Draft ${n}</span><button type="button" id="draft-${n}-save" name="save-draft-${n}">Save</button></li>`;
+  return shell(
+    "Profile editor",
+    header("Directory") +
+      `<aside><h2>Recent drafts</h2><ul id="drafts">${range(1, 8).map(draft).join("")}</ul></aside>` +
+      `<main><h1>Profile</h1><section id="profile"><label>Display name <input name="displayName"></label>` +
+      `<div class="actions"><button type="button" id="save-profile" name="save"${ORACLE}>Save</button></div>` +
+      `<div class="actions"><button type="button" id="save-profile-copy" name="save">Save</button></div></section></main>`
+  );
+}
+
+// ── Layer 4: enterprise-style stand-ins (synthetic markup written to common enterprise patterns) ───────
 
 function bankTransfer() {
   const panel = (p) =>
@@ -352,6 +370,67 @@ export const CHALLENGE_PAGES = [
   { id: "otp", detect: "mfa", read: true, html: shell("Enter code", '<main><h1>Enter the code we sent</h1><form><label for="otp">Code</label><input id="otp" autocomplete="one-time-code" inputmode="numeric"><button type="submit">Continue</button></form></main>') }
 ];
 
+// ── L12.24: similar-rows semantic lab (verify:similar-rows-safety) ───────────────────────────────────
+
+const PICK = 3003;
+const act = (intent, label, attrs = "") => `<button type="button"${attrs} data-oracle-intent="${intent}">${label}</button>`;
+/** The picked row's Approve carries the oracle target; `attrs` go on every row's Approve. */
+const approve = (n, attrs = "") => act("approve", "Approve", attrs + mark(n === PICK));
+const icon = (intent, label, target) =>
+  `<button type="button"${label ? ` aria-label="${label}"` : ""}${mark(target)} data-oracle-intent="${intent}"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">` +
+  `<path d="${intent === "approve" ? "M2 8l4 4 8-8" : "M3 3l10 10M13 3L3 13"}"/></svg></button>`;
+
+function rowLab(title, actions, extraRows = "") {
+  const row = (n) => `<tr><td>INV-${n}</td><td>${VENDORS[n % 6]} Ltd</td><td>$${((n * 37) % 900) + 100}.00</td><td>${actions(n)}</td></tr>`;
+  return shell(
+    title,
+    header("Payables") +
+      `<main><h1>${title}</h1><table aria-label="Pending invoices"><thead><tr><th>Invoice</th><th>Vendor</th><th>Amount</th><th>Actions</th></tr></thead>` +
+      `<tbody id="lab-body">${range(3001, 6).map(row).join("")}${extraRows}</tbody></table></main>`
+  );
+}
+
+/**
+ * One picked control per page. `expect`: how many rows the loop must cover, every one of them the picked
+ * control's own action, or "refuse" (no loop may be offered). An intent other than the picked one inside a loop
+ * is a mixed loop: the defect L12.24 exists to stop.
+ */
+export const SIMILAR_ROW_LAB = [
+  { id: "rows-approve-reject", title: "Approve beside Reject in every row", expect: 6,
+    html: () => rowLab("Approve or reject", (n) => `${approve(n)} ${act("reject", "Reject")}`) },
+  { id: "rows-approve-delete", title: "Approve beside Delete in every row", expect: 6,
+    html: () => rowLab("Approve or delete", (n) => `${approve(n)} ${act("delete", "Delete", ' class="danger"')}`) },
+  { id: "rows-same-text", title: "Two Approve buttons per row, told apart only by data-action", expect: 6,
+    html: () => rowLab("Approve invoice or vendor", (n) => `${approve(n, ' data-action="approve-invoice"')} ${act("approve-vendor", "Approve", ' data-action="approve-vendor"')}`) },
+  { id: "rows-icon-only", title: "Icon-only Approve and Reject named by aria-label", expect: 6,
+    html: () => rowLab("Icon actions", (n) => `${icon("approve", "Approve", n === PICK)}${icon("reject", "Reject", false)}`) },
+  // INV-3005's Approve is disabled and a hidden template row follows: neither is clickable, so neither is looped.
+  { id: "rows-disabled-hidden", title: "Disabled and hidden sibling actions", expect: 5,
+    html: () =>
+      rowLab(
+        "Disabled and hidden actions",
+        (n) => `${n === 3005 ? act("approve-unavailable", "Approve", " disabled") : approve(n)} ${act("reject-unavailable", "Reject", " disabled")} ${act("delete", "Delete", " hidden")}`,
+        `<tr hidden><td>INV-0000</td><td></td><td></td><td>${act("approve-unavailable", "Approve")} ${act("reject-unavailable", "Reject")}</td></tr>`
+      ) },
+  { id: "rows-reordered", title: "Approve and Reject swap places from row to row", expect: 6,
+    html: () => rowLab("Reordered actions", (n) => (n % 2 ? `${act("reject", "Reject")} ${approve(n)}` : `${approve(n)} ${act("reject", "Reject")}`)) },
+  { id: "rows-nested", title: "Row menu and line approvals nested in every row", expect: 6,
+    html: () =>
+      rowLab(
+        "Nested controls",
+        (n) =>
+          `${approve(n)}<div class="row-menu">${act("delete", "Delete")}${act("archive", "Archive")}</div>` +
+          `<details><summary>Lines</summary><ul><li>${act("approve-line", "Approve line")}</li><li>${act("reject-line", "Reject line")}</li></ul></details>`
+      ) },
+  { id: "rows-subset", title: "Rows holding only some of the actions", expect: 4,
+    html: () => rowLab("Partial actions", (n) => [n % 3 !== 2 ? approve(n) : "", n % 2 === 1 || n % 3 === 2 ? act("reject", "Reject") : ""].filter(Boolean).join(" ")) },
+  // Deliberately ambiguous: which of two indistinguishable Approve buttons was meant cannot be known.
+  { id: "rows-twin-approve", title: "Two indistinguishable Approve buttons per row", expect: "refuse",
+    html: () => rowLab("Twin approvals", (n) => `${approve(n)} ${act("approve-line", "Approve")}`) },
+  { id: "rows-unlabelled-icons", title: "Icon-only actions with no accessible name", expect: "refuse",
+    html: () => rowLab("Unlabelled icons", (n) => `${icon("approve", "", n === PICK)}${icon("reject", "", false)}`) }
+];
+
 // ── Manifest ──────────────────────────────────────────────────────────────────────────────────────────
 
 const SENSITIVE = "sensitive step: never recovers to another element";
@@ -375,6 +454,7 @@ const PAGES = {
   "large-dom": largeDom,
   "tab-panels": tabPanels,
   pagination,
+  "crowded-twins": crowdedTwins,
   "bank-transfer": bankTransfer,
   "transaction-ledger": transactionLedger,
   "approval-modal": approvalModal,
@@ -430,14 +510,18 @@ export const COVERAGE_FIXTURES = [
     cases: [["class-drift", "recover"], ["wrapper", "recover"], ["page:switchTab", "refuse", HIDDEN], ["remove", "refuse"]] },
   { id: "pagination", layer: "lab", page: "pagination", action: "click", title: "Pagination Next link",
     cases: [["attr-drift", "recover"], ["sibling-insert", "recover"], ["decoy", "recover"], ["remove", "refuse"]] },
-  // Layer 4: enterprise stand-ins.
+  // L12.24: the closest twin is the 9th distinguishable look-alike in page order.
+  { id: "crowded-twins", layer: "lab", page: "crowded-twins", action: "click", title: "Nine Save look-alikes, the nearest one last",
+    cases: [["remove", "refuse"]] },
+  // Layer 4: enterprise-style stand-ins (synthetic).
   // Local 0.75-0.80 and the provider 81-85, under its 85 agreement floor: never acted on.
   { id: "bank-transfer", layer: "enterprise", page: "bank-transfer", action: "fill", title: "WebForms transfer form amount field",
     cases: [["page:postback", "refuse", SAFE_MISS], ["attr-drift", "refuse", SAFE_MISS], ["wrapper", "refuse", SAFE_MISS], ["remove", "refuse"]] },
   { id: "transaction-ledger", layer: "enterprise", page: "transaction-ledger", action: "click", title: "400-row ledger, Dispute on one transaction",
     cases: [["page:sortByAmount", "recover"], ["page:prepend", "recover"], ["class-drift", "recover"], ["page:filterOut", "refuse"]] },
+  // `escape` (L12.24): the target is gone and its copy now sits just outside the recorded container.
   { id: "approval-modal", layer: "enterprise", page: "approval-modal", action: "click", title: "Approval confirmation modal",
-    cases: [["page:reopen", "recover"], ["decoy", "recover"], ["page:close", "refuse"]] },
+    cases: [["page:reopen", "recover"], ["decoy", "recover"], ["page:close", "refuse"], ["escape", "refuse"]] },
   { id: "angular-dashboard", layer: "enterprise", page: "angular-dashboard", action: "click", title: "Angular Material action with compiled attributes",
     cases: [["page:recompile", "recover"], ["class-drift", "recover"], ["wrapper", "recover"], ["remove-decoy", "refuse"]] },
   { id: "erp-grid", layer: "enterprise", page: "erp-grid", action: "click", title: "UI5-style toolbar with generated ids",
@@ -447,7 +531,7 @@ export const COVERAGE_FIXTURES = [
 /** The mock-site page for a corpus key, or a challenge page by id, or undefined. */
 export function coveragePage(key) {
   if (PAGES[key]) return PAGES[key]();
-  return CHALLENGE_PAGES.find((page) => page.id === key)?.html;
+  return CHALLENGE_PAGES.find((page) => page.id === key)?.html ?? SIMILAR_ROW_LAB.find((page) => page.id === key)?.html();
 }
 
 export function coverageIndexPage() {
@@ -455,7 +539,11 @@ export function coverageIndexPage() {
     .map((f) => `<li data-testid="coverage-fixture-${f.id}"><a href="${f.path ?? `/dom-coverage-lab/${f.page}`}">${f.title}</a> <small>(${f.layer}, ${f.cases.length} cases)</small></li>`)
     .join("");
   const challenges = CHALLENGE_PAGES.map((p) => `<li data-testid="coverage-challenge-${p.id}"><a href="/dom-coverage-lab/${p.id}">${p.id}</a></li>`).join("");
-  return shell("DOM Coverage Lab", `<main><h1>DOM Coverage Lab</h1><h2>Recovery fixtures</h2><ul>${items}</ul><h2>Protected-login pages</h2><ul>${challenges}</ul></main>`);
+  const rows = SIMILAR_ROW_LAB.map((p) => `<li data-testid="coverage-similar-${p.id}"><a href="/dom-coverage-lab/${p.id}">${p.title}</a> <small>(loop: ${p.expect})</small></li>`).join("");
+  return shell(
+    "DOM Coverage Lab",
+    `<main><h1>DOM Coverage Lab</h1><h2>Recovery fixtures</h2><ul>${items}</ul><h2>Protected-login pages</h2><ul>${challenges}</ul><h2>Similar-rows semantic lab</h2><ul>${rows}</ul></main>`
+  );
 }
 
 /**
@@ -480,16 +568,22 @@ export const COVERAGE_RUNTIME = String.raw`(function () {
       });
       return found;
     },
+    intents: new Map(),
+    intentOf: function (el) { return this.intents.get(el) || ''; },
     arm: function (selector) {
       var hits = [];
+      var intents = this.intents;
       if (selector) this.docs().forEach(function (d) { Array.prototype.slice.call(d.querySelectorAll(selector)).forEach(function (el) { hits.push(el); }); });
+      this.docs().forEach(function (d) {
+        Array.prototype.slice.call(d.querySelectorAll('[data-oracle-intent]')).forEach(function (el) { intents.set(el, el.getAttribute('data-oracle-intent')); el.removeAttribute('data-oracle-intent'); });
+      });
       var oracles = this.strip();
       if (!selector) hits = oracles;
       this.target = hits.length === 1 ? hits[0] : null;
       return hits.length;
     },
     leaks: function () {
-      return this.docs().reduce(function (n, d) { return n + d.querySelectorAll('[data-testid^="oracle"]').length; }, 0);
+      return this.docs().reduce(function (n, d) { return n + d.querySelectorAll('[data-testid^="oracle"],[data-oracle-intent]').length; }, 0);
     },
     clearAnchor: function () {
       this.docs().forEach(function (d) { Array.prototype.slice.call(d.querySelectorAll('[data-l11-anchor]')).forEach(function (el) { el.removeAttribute('data-l11-anchor'); }); });
@@ -611,6 +705,14 @@ export const COVERAGE_RUNTIME = String.raw`(function () {
           t.remove();
           this.target = null;
           this.panel(doc, copy);
+          break;
+        }
+        case 'escape': {
+          var outside = t.cloneNode(true);
+          outside.removeAttribute('id');
+          t.remove();
+          this.target = null;
+          p.parentElement.insertBefore(outside, p.nextSibling);
           break;
         }
         default:

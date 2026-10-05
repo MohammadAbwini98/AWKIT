@@ -132,6 +132,8 @@ export interface LocatorRecoveryStage {
     | "no-candidate"
     | "route-mismatch"
     | "not-actionable"
+    /** L12.24: the winner lies outside the step's proven container. */
+    | "outside-container"
     /** L12.12: identical list rows, and the recorded one is not mounted (virtualized or filtered). */
     | "list-row-not-mounted";
   /** Candidates the layer scored after pruning (or the provider returned). */
@@ -899,6 +901,7 @@ export class LocatorFactory {
     };
     let recovered: RecoveredElement | undefined;
     let suggestion: DomRepairSuggestion | undefined;
+    let container: ElementHandle | undefined;
     try {
       // The remembered identity was proven on another route: a similar control here is not that element,
       // and no layer (local, blueprint or provider) may look for one (L11.F).
@@ -919,7 +922,10 @@ export class LocatorFactory {
         distinct(engine === "legacy" ? await this.recoverLocallyLegacy(root, step, expected, stages) : await this.recoverLocallySnapshot(root, step, expected, stages)),
         stages
       );
-      recovered ??= await this.requireActionable(step, distinct(await this.recoverFromBlueprint(step, engine, stages)), stages);
+      // L12.24: the local layer already searches inside the step's container; the later layers read the whole
+      // frame, so a proven container scopes the blueprint window and vetoes an agreed winner outside it.
+      container = recovered ? undefined : await this.provenContainer(step, root);
+      recovered ??= await this.requireActionable(step, distinct(await this.recoverFromBlueprint(step, engine, stages, container)), stages);
       if (!recovered && this.options.domIntelligence) {
         const stageStarted = performance.now();
         const outcome = await suggestRepair({
@@ -933,10 +939,11 @@ export class LocatorFactory {
         stages.push({ stage: "provider", ms: performance.now() - stageStarted, ...outcome.stage });
         suggestion = "suggestion" in outcome ? outcome.suggestion : undefined;
         // L12: AWKIT's best candidate the provider independently ranked first, already re-proven and pinned.
-        if ("agreed" in outcome && outcome.agreed) recovered = await this.requireActionable(step, distinct(outcome.agreed), stages);
+        if ("agreed" in outcome && outcome.agreed) recovered = await this.requireActionable(step, distinct(await this.insideContainer(outcome.agreed, container, stages)), stages);
       }
       return recovered;
     } finally {
+      await container?.dispose().catch(() => undefined);
       this.emitTrace(step, {
         engine,
         result: recovered ? "recovered" : "unresolved",
@@ -947,6 +954,26 @@ export class LocatorFactory {
         candidatesTried: memory.candidatesTried
       });
     }
+  }
+
+  /**
+   * L12.24: the element the step's recorded container chain resolves to now, when it resolves to exactly one.
+   * Undefined without a container in the step's context, or when it is missing or ambiguous: the later layers
+   * then search the whole frame, as before.
+   */
+  private async provenContainer(step: FlowStep, root: LocatorRoot): Promise<ElementHandle | undefined> {
+    if (!locatorContainerChain(step.locator?.context).length) return undefined;
+    const scope = root as unknown as Locator;
+    if ((await scope.count().catch(() => 0)) !== 1) return undefined;
+    return (await scope.elementHandle({ timeout: 1_000 }).catch(() => null)) ?? undefined;
+  }
+
+  /** L12.24: refuse a whole-frame layer's winner that lies outside the step's proven container. */
+  private async insideContainer(found: RecoveredElement, container: ElementHandle | undefined, stages: LocatorRecoveryStage[]): Promise<RecoveredElement | undefined> {
+    if (!container || (await found.locator.evaluate((element, scope) => (scope as Node).contains(element), container).catch(() => false))) return found;
+    const stage = stages[stages.length - 1];
+    if (stage) Object.assign(stage, { outcome: "refused", reason: "outside-container" });
+    return undefined;
   }
 
   /**
@@ -1107,8 +1134,9 @@ export class LocatorFactory {
    * Second recovery layer: inspect a small document-order neighborhood around the captured element
    * only after the broad visible-element scan could not identify a unique match. Identity still comes
    * from the shared fingerprint scorer; sibling/tag/viewport position contribute at most 0.03 total.
+   * With a proven `container` (L12.24) only the window's elements inside it are candidates.
    */
-  private async recoverFromBlueprint(step: FlowStep, engine: LocatorRecoveryEngine, stages: LocatorRecoveryStage[]): Promise<RecoveredElement | undefined> {
+  private async recoverFromBlueprint(step: FlowStep, engine: LocatorRecoveryEngine, stages: LocatorRecoveryStage[], container?: ElementHandle): Promise<RecoveredElement | undefined> {
     const started = performance.now();
     const skipped = (reason: LocatorRecoveryStage["reason"]): undefined => {
       stages.push({ stage: "blueprint", outcome: "skipped", reason, ms: performance.now() - started });
@@ -1128,7 +1156,7 @@ export class LocatorFactory {
       const allElements = frame.locator("body *");
 
       if (engine === "snapshot") {
-        const snapshot = await captureBlueprintSnapshot(allElements, elementBlueprint);
+        const snapshot = await captureBlueprintSnapshot(allElements, elementBlueprint, container);
         if (!documentFingerprintMatches(pageBlueprint.documentFingerprint, snapshot.documentFingerprint)) {
           stages.push({ stage: "blueprint", outcome: "refused", reason: "page-variant", ms: performance.now() - started });
           return undefined;
@@ -1141,7 +1169,7 @@ export class LocatorFactory {
         stages.push({ stage: "blueprint", outcome: "refused", reason: "page-variant", ms: performance.now() - started });
         return undefined;
       }
-      const decision = await LocatorFactory.legacyBlueprintDecision(step, allElements, elementBlueprint);
+      const decision = await LocatorFactory.legacyBlueprintDecision(step, allElements, elementBlueprint, container);
       return this.proveSnapshotWinner(allElements, frame, decision, "blueprint", started, stages);
     } catch {
       // Blueprint storage/page probing is additive and fail-safe: normal unresolved behavior wins.
@@ -1151,7 +1179,7 @@ export class LocatorFactory {
   }
 
   /** Pre-L11 blueprint window: up to three round trips per element, the same gate as the snapshot. */
-  private static async legacyBlueprintDecision(step: FlowStep, allElements: Locator, blueprint: ElementBlueprint): Promise<RecoveryDecision> {
+  private static async legacyBlueprintDecision(step: FlowStep, allElements: Locator, blueprint: ElementBlueprint, container?: ElementHandle): Promise<RecoveryDecision> {
     const count = await allElements.count().catch(() => 0);
     const start = Math.max(0, blueprint.documentOrder - BLUEPRINT_NEIGHBORHOOD_RADIUS);
     const end = Math.min(count - 1, blueprint.documentOrder + BLUEPRINT_NEIGHBORHOOD_RADIUS);
@@ -1159,6 +1187,7 @@ export class LocatorFactory {
     let considered = 0;
     for (let index = start; index <= end; index += 1) {
       const locator = allElements.nth(index);
+      if (container && !(await locator.evaluate((element, scope) => (scope as Node).contains(element), container).catch(() => false))) continue;
       if (!(await locator.isVisible().catch(() => false))) continue;
       const fingerprint = await LocatorFactory.fingerprintOne(locator);
       if (!fingerprint || !isRecoveryCompatible(step, fingerprint)) continue;

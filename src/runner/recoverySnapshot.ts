@@ -1,4 +1,4 @@
-import type { Locator } from "playwright";
+import type { ElementHandle, Locator } from "playwright";
 import type { FlowStep, LocatorElementFingerprint } from "@src/profiles/FlowProfile";
 import type { ElementBlueprint } from "./LocatorBlueprintStore";
 import { ancestrySimilarity, createFingerprintHasher, createPageFingerprint, fingerprintsEqual, similarity } from "./locatorFingerprint";
@@ -162,6 +162,13 @@ export function decideProviderAgreement(
  * Only twins DISTINGUISHABLE from the target are kept: an identical fingerprint (identical list rows) was never
  * what told the target apart, so vetoing it would refuse every row's own recovery. Hidden elements count, since
  * a hidden twin can be shown later.
+ *
+ * L12.24: the 8 CLOSEST twins are kept, not the first 8 in page order. Keeping page order let a near-identical
+ * look-alike that came 9th win once the target was gone (crowded-twins: 0.983 against eight at 0.867). Kept
+ * by score, an unkept twin scores at or below all 8 kept ones, so while they stand it cannot lead them by the
+ * 0.08 margin (the blueprint's position bonus is at most 0.03), and a best candidate that is a kept twin
+ * refuses its layer. It could win only if the kept twins above it drifted or vanished too: the drifted-twin
+ * limit already recorded, not a new one. Storage stays bounded at 8 hashed fingerprints.
  */
 export const MAX_RECORDED_TWINS = 8;
 
@@ -169,13 +176,14 @@ export function preExistingTwins(
   target: LocatorElementFingerprint,
   candidates: ReadonlyArray<{ fingerprint: LocatorElementFingerprint }>
 ): LocatorElementFingerprint[] {
-  const twins = new Map<string, LocatorElementFingerprint>();
+  const twins = new Map<string, { fingerprint: LocatorElementFingerprint; score: number }>();
   for (const { fingerprint } of candidates) {
-    if (sameElementFingerprint(fingerprint, target) || similarity(target, fingerprint) < RECOVERY_SCORE_THRESHOLD) continue;
-    twins.set(JSON.stringify(fingerprint), fingerprint);
+    const score = similarity(target, fingerprint);
+    if (sameElementFingerprint(fingerprint, target) || score < RECOVERY_SCORE_THRESHOLD) continue;
+    twins.set(JSON.stringify(fingerprint), { fingerprint, score });
   }
-  // ponytail: the first 8 distinct twins only; a page with more distinguishable look-alikes keeps the rest unvetoed.
-  return [...twins.values()].slice(0, MAX_RECORDED_TWINS);
+  // Stable sort: equal scores keep page order.
+  return [...twins.values()].sort((a, b) => b.score - a.score).slice(0, MAX_RECORDED_TWINS).map((twin) => twin.fingerprint);
 }
 
 export function isPreExistingTwin(twins: readonly LocatorElementFingerprint[] | undefined, winner: LocatorElementFingerprint): boolean {
@@ -333,6 +341,7 @@ const BLUEPRINT_SCAN = `
   var window_ = [];
   for (var i = start; i <= end; i++) {
     var el = elements[i];
+    if (arg.container && !arg.container.contains(el)) continue;
     if (!isVisible(el)) continue;
     var siblings = el.parentElement ? Array.prototype.slice.call(el.parentElement.children) : [];
     var sameTag = siblings.filter(function (sibling) { return sibling.tagName === el.tagName; });
@@ -386,6 +395,8 @@ interface RawLocalScan {
 interface BlueprintScanArg {
   start: number;
   end: number;
+  /** L12.24: the step's proven container; only window elements inside it are candidates. */
+  container?: Node;
 }
 
 interface RawBlueprintScan {
@@ -462,13 +473,17 @@ export interface BlueprintSnapshot {
   ms: number;
 }
 
-/** One round trip: the blueprint's visible document-order window plus the page's tag/role histogram. */
-export async function captureBlueprintSnapshot(allElements: Locator, blueprint: Pick<ElementBlueprint, "documentOrder">): Promise<BlueprintSnapshot> {
+/**
+ * One round trip: the blueprint's visible document-order window plus the page's tag/role histogram. With a
+ * `container`, window elements outside it are not candidates (the histogram stays the whole document's).
+ */
+export async function captureBlueprintSnapshot(allElements: Locator, blueprint: Pick<ElementBlueprint, "documentOrder">, container?: ElementHandle): Promise<BlueprintSnapshot> {
   const started = performance.now();
   blueprintScan ??= pageFunction<BlueprintScanArg, RawBlueprintScan>(BLUEPRINT_SCAN);
   const raw = await allElements.evaluateAll(blueprintScan, {
     start: blueprint.documentOrder - BLUEPRINT_NEIGHBORHOOD_RADIUS,
-    end: blueprint.documentOrder + BLUEPRINT_NEIGHBORHOOD_RADIUS
+    end: blueprint.documentOrder + BLUEPRINT_NEIGHBORHOOD_RADIUS,
+    ...(container ? { container } : {})
   });
   const hash = createFingerprintHasher();
   return {
