@@ -143,7 +143,7 @@ async function main(): Promise<void> {
     await factory()
       .resolve(legacy)
       .catch(() => undefined);
-    const trace = events.findLast((event) => event.trace)?.trace;
+    const trace = [...events].reverse().find((event) => event.trace)?.trace;
     check("after drift the recovery ran for the old step", Boolean(trace), events.map((event) => event.type));
     // The id drift is AWKIT's own recovery (0.95); the provider is consulted only after both layers refuse.
     // So force the provider stage with a recorded identity that no layer accepts.
@@ -248,7 +248,7 @@ async function main(): Promise<void> {
     await listFactory().resolve(rowStep);
     html = rows([1, 2, 3]);
     await page.goto(`${base}/orders`);
-    const providerStage = () => listEvents.findLast((event) => event.trace)?.trace?.stages.find((stage) => stage.stage === "provider");
+    const providerStage = () => [...listEvents].reverse().find((event) => event.trace)?.trace?.stages.find((stage) => stage.stage === "provider");
     provider.answer = [[0, 96.43], [1, 96.43], [2, 96.43]];
     await listFactory().resolve(rowStep).catch(() => undefined);
     check("tied identical rows with the recorded one gone are reported as list-row-not-mounted", providerStage()?.reason === "list-row-not-mounted" && providerStage()?.outcome === "refused", providerStage());

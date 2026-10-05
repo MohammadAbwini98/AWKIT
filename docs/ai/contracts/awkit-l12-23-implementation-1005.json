@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-l12-23-implementation-1005",
+    "title": "L12.23 DOM Intelligence deterministic coverage expansion: implement, verify, close",
+    "objective": "Owner request of 2026-10-05: implement awkit-djnl.21.23. Layer 2 mutation coverage on the existing L10.0 fixtures with a verifier-only oracle (recover the target or refuse, never a wrong element), then Layer 1 (Test Lab fixtures), Layer 3 (Element Spy similar rows and loops, protected-login detection and its navigation cost, the Super-User read-time challenge check) and Layer 4 (sanitized enterprise stand-ins). Gate: 50-100 cases, 0 wrong, removed targets empty, 11/14 kept, 3 identical runs, budgets as guardrails, mock-site docs and verify:mock-site, verifier registered, mutation controls. The coverage found three wrong-element recoveries, fixed with the pre-existing-twin veto in LocatorFactory. Close .21.23 with its evidence and file the remaining findings as .21.24. L12.22 is not touched.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "95cdb4d0",
+    "working_tree_expected": "dirty",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "docs/ai/contracts/awkit-l12-23-implementation-1005.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "L12-23-GATE",
+      "description": "verify:dom-intelligence-coverage passes on the final tree: 95 cases on 24 fixtures, 0 wrong elements, every removed target empty, each case's explicit expectation met, 3 identical runs, gate mutation controls red for each defect, Layer 3 checks, latency guardrails.",
+      "evidence_required": [
+        "verify:dom-intelligence-coverage"
+      ]
+    },
+    {
+      "id": "L12-23-NO-REGRESSION",
+      "description": "The existing acceptance benchmark keeps 0 wrong and at least 11 of 14 product recoveries, and the recovery and runner verifiers stay green after the LocatorFactory change.",
+      "evidence_required": [
+        "verify:dom-intelligence-acceptance",
+        "recovery-regression"
+      ]
+    },
+    {
+      "id": "L12-23-TRACKER",
+      "description": "awkit-djnl.21.23 closed, the follow-ups filed OPEN as awkit-djnl.21.24, export refreshed, verify:roadmap-dashboard passes with Sources agree.",
+      "evidence_required": [
+        "beads-export",
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:dom-intelligence-coverage",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run benchmark:dom-intelligence-coverage",
+      "artifact": "docs/plans/ai-upgrade-v5/evidence/L12.23-coverage-results.json",
+      "result": "PASS",
+      "observed": "74 passed, 0 failed. 95 cases, 24 fixtures, product 48 correct and 47 empty, snapshot 41 and 54, 0 WRONG in 3 runs, identical decisions. Before the fix the first run reported 3 WRONG cases (both engines); with the veto disabled as a mutation test, 9 WRONG per engine and the gate failed."
+    },
+    {
+      "id": "verify:dom-intelligence-acceptance",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:dom-intelligence-acceptance",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "12 passed, 0 failed. Product 11 of 14 recoverable rows correct, 0 WRONG for legacy, snapshot, proof and product; normal-step median off 15.9 ms, on 16.0 ms; first resolve 36.6 ms (29.9 before)."
+    },
+    {
+      "id": "recovery-regression",
+      "type": "verifier",
+      "required": true,
+      "command": "verify:locator-wrong-element, verify:blueprint-recovery-browser, verify:dom-intelligence-contexts, verify:frame-chain, verify:dom-intelligence-l12, verify:provider-agreement, verify:locator-upgrade-proof, verify:semantic-store, verify:element-spy, verify:ai-locator-repair, verify:mock-site, verify:runner, verify:verifier-classification, npm run typecheck:scripts, npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "14/0, 24/0, 60/0, 41/0, 82/0, 45/0, 85/0, 261/0, 206/0, 85/85, 261/261, 138/0, reconciled (323 classified), typecheck clean, build OK."
+    },
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "NOT RUN",
+      "observed": null
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": null
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "NOT_REQUIRED"
+  }
+}

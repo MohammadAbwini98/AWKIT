@@ -1,6 +1,18 @@
 # DECISIONS
 
-### 2026-10-04 (latest) — L12: Scrapling may decide only together with AWKIT, and Super Users may diagnose sign-in pages (owner, implementer design) (`awkit-djnl.21`)
+### 2026-10-05 (latest) — L12.23: recovery never acts on a look-alike that was already there (implementer, measured) (`awkit-djnl.21.23`)
+
+- **Owner:** stop tuning latency; prove the pipeline across far more DOM variation; any wrong element fails.
+- **Rule:** when a step's winner is first remembered, the distinguishable look-alikes in its document are
+  remembered with it (`twins`, hashed, max 8). Local, blueprint and agreement winners identical to one of them are
+  refused (`pre-existing-twin`). Indistinguishable twins (identical list rows) are not kept, since vetoing them
+  would refuse every row. Chosen over raising the 0.86 threshold, which loses correct recoveries, and over a
+  per-run scan, which would cost every step: the scan runs once per remembered identity (+6.7 ms on a first
+  resolve, nothing after).
+- **Expectations are pinned, not aspirational:** a corpus case that safely refuses a target still present states
+  why (sensitive step, safe miss, hidden), and the gate fails a refusal without one.
+
+### 2026-10-04 — L12: Scrapling may decide only together with AWKIT, and Super Users may diagnose sign-in pages (owner, implementer design) (`awkit-djnl.21`)
 
 - **Owner:** implement every Scrapling improvement point, track it on the dashboard, allow Scrapling on
   protected-login, MFA and CAPTCHA pages for the Super User role only, and benchmark before and after.

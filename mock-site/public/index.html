@@ -93,6 +93,19 @@
           </dl>
         </article>
 
+        <article data-testid="scenario-dom-coverage">
+          <h2><a href="/dom-coverage-lab">DOM Coverage Lab</a></h2>
+          <p>21 deterministic pages (tables, cards, forms, dialogs, nested containers, frames, an SPA, an 8,000-element ledger and five enterprise stand-ins), each with one oracle target, plus protected-login pages.</p>
+          <dl class="scenario-meta">
+            <dt>Expected</dt>
+            <dd>After any mutation, recovery returns the exact target or no element, never a look-alike; protected pages are detected and refused at read time.</dd>
+            <dt>Related feature</dt>
+            <dd>LocatorFactory recovery, the Scrapling suggestion stage, Element Spy similar rows and protected-login detection (L12.23).</dd>
+            <dt>Stable URL</dt>
+            <dd><code>/dom-coverage-lab</code></dd>
+          </dl>
+        </article>
+
         <article data-testid="scenario-designer">
           <h2><a href="/designer-lab">Designer and Instance Lab</a></h2>
           <p>Canvas-like area, mock nodes, workflow cards, named flows, and Smart Wait scenario data examples.</p>

@@ -1,5 +1,34 @@
 # KNOWN_ISSUES
 
+## Recovery acted on a look-alike that stood beside a removed target (found 2026-10-05 by L12.23, RESOLVED 2026-10-05)
+
+- **Symptom.** On the DOM Coverage Lab, with the target removed, AWKIT's own layers returned a different element
+  that had always been on the page: the Archive "Download statement" link (local, 0.867, its `href` is not
+  fingerprinted and 2 of 3 ancestry levels match), the billing address "Edit" (blueprint, 0.994: the blueprint
+  layer scans the frame, not the step's container) and a hidden tab's "Save" once shown (blueprint, 0.995).
+- **Fix.** Winner memory records the distinguishable look-alikes (`twins`, max 8) the first time an identity is
+  remembered, and every acting layer refuses a winner identical to one of them (`pre-existing-twin`). Mutation
+  tested: with the veto off, `verify:dom-intelligence-coverage` reports 9 WRONG per engine.
+- **Still open (`awkit-djnl.21.24`).** A twin that ALSO drifted is not recognised; more than 8 twins are not all
+  kept; old memory records carry no twins until a step next passes; the blueprint layer still ignores the step's
+  container, so a look-alike that appears after the first success, outside the container, is only stopped by the
+  score gate.
+
+## Element Spy similar rows mix a row's different actions, and the loop clicks them all (found 2026-10-05, OPEN, `awkit-djnl.21.24`)
+
+- On `/dom-coverage-lab/table-actions`, picking one row's Approve returns 30 similar rows: the 15 Approve AND the
+  15 Reject buttons (same tag path, same classes but one). The proven loop selector
+  (`table[aria-label=…] > tbody > tr > td > button`) matches all 30, so "Add loop over these rows" would click
+  Approve then Reject in every row. The rows list shows the texts first, but nothing stops it. Fix direction:
+  require the similar elements to share the picked element's accessible name (or let the loop selector keep its
+  own position among siblings) before a loop is offered.
+
+## Icon-only controls can never be recovered locally (found 2026-10-05, know it)
+
+- A control with no text scores at most 0.82 in `similarity()` (text weighs 0.18), below the 0.86 threshold, so
+  `icon-toolbar` cases always refuse locally; Scrapling's lead is too small for the agreement rule. Safe (refuse),
+  pinned as `SAFE_MISS` in the corpus. Do not lower the threshold for it.
+
 ## The protected-login detector does not see a Cloudflare Turnstile widget (found 2026-10-04, RESOLVED 2026-10-04 in `4dc4f212`/`b36e52e8` — `awkit-djnl.21.20`)
 
 - `detectRecorderProtectedLogin` recognises reCAPTCHA and hCaptcha iframes, `.g-recaptcha`, `.h-captcha`,
@@ -17,6 +46,9 @@
   measured rankings. It recovers 3 more targets there with 0 wrong, and `verify:provider-agreement` replays
   every measured case. Real sites may need the floors revisited. Raise them before lowering anything, and never
   let the provider act without AWKIT's best agreeing.
+- **2026-10-05 (L12.23):** now exercised on 95 cases over 24 fixtures (`verify:dom-intelligence-coverage`): 0
+  wrong elements from the agreement rule; the WebForms fields stay under the 85 floor (81-85) and refuse. Still
+  synthetic pages, not live sites.
 
 ## `verify:workflow-builder` fails one Workflows library check: action column 100px, limit 64px (found 2026-10-03, OPEN)
 

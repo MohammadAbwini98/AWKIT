@@ -149,6 +149,8 @@
     "verify:locator-diagnosis": "tsx scripts/verify-locator-diagnosis.mts",
     "verify:provider-agreement": "tsx scripts/verify-provider-agreement.mts",
     "verify:dom-intelligence-l12": "tsx scripts/verify-dom-intelligence-l12.mts",
+    "verify:dom-intelligence-coverage": "tsx scripts/verify-dom-intelligence-coverage.mts",
+    "benchmark:dom-intelligence-coverage": "tsx scripts/verify-dom-intelligence-coverage.mts --write",
     "verify:protected-diagnosis": "tsx scripts/verify-protected-diagnosis.mts",
     "verify:dom-intelligence-gui": "tsx scripts/verify-dom-intelligence-gui.mts",
     "verify:dom-intelligence-contexts": "tsx scripts/verify-dom-intelligence-contexts.mts",

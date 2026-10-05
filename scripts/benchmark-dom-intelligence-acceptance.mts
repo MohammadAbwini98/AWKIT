@@ -570,6 +570,9 @@ async function main(): Promise<void> {
   check("no recovery the legacy engine gets right is lost by the snapshot engine", lost.length === 0, lost);
   const refusals = rows.filter((r) => r.expect === "refuse");
   check("every expected refusal is refused or unresolved by B, the product path and D", refusals.every((r) => ["refused", "unresolved"].includes(r.engines.snapshot!.outcome) && ["refused", "unresolved"].includes(r.engines.product!.outcome) && ["refused", "unresolved"].includes(r.engines.proof!.outcome)), refusals.map((r) => `${r.caseId}:${r.engines.snapshot?.outcome}/${r.engines.product?.outcome}/${r.engines.proof?.outcome}`));
+  // L12.23: the product path's recoveries are a floor. 11 of the 14 recoverable rows since L12 (2026-10-04).
+  const productRecovered = rows.filter((r) => r.expect === "recover" && r.engines.product?.outcome === "correct").length;
+  check(`the product path recovers at least 11 of the ${rows.filter((r) => r.expect === "recover").length} recoverable rows (no regression)`, productRecovered >= 11, productRecovered);
   const accepted = rows.filter((r) => r.expect === "recover" && r.engines.snapshot?.outcome === "correct");
   const snapshotMs = accepted.map((r) => r.engines.snapshot!.ms);
   check(`warm snapshot recovery p95 < 500 ms on the ${accepted.length} accepted representative fixtures`, accepted.length >= 8 && pct(snapshotMs, 95) < 500, { n: accepted.length, p50: pct(snapshotMs, 50), p95: pct(snapshotMs, 95) });

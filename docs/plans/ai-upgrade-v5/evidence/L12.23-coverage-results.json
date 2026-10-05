@@ -1,0 +1,2951 @@
+{
+  "generatedBy": "verify:dom-intelligence-coverage --write",
+  "generatedAt": "2026-10-05T11:28:44.114Z",
+  "environment": {
+    "platform": "win32",
+    "node": "v18.16.0"
+  },
+  "summary": {
+    "fixtures": 24,
+    "cases": 95,
+    "byLayer": {
+      "existing": 20,
+      "lab": 56,
+      "enterprise": 19
+    },
+    "expected": {
+      "recover": 48,
+      "refuse": 47,
+      "refuseWhy": {
+        "safe miss: no layer proves the target": 12,
+        "sensitive step: never recovers to another element": 8,
+        "target hidden, a look-alike shown": 1
+      }
+    },
+    "product": {
+      "correct": 48,
+      "empty": 47,
+      "WRONG": 0
+    },
+    "snapshot": {
+      "correct": 41,
+      "empty": 54,
+      "WRONG": 0
+    },
+    "targetRemoved": 26,
+    "identicalRuns": true,
+    "latencyMs": {
+      "snapshotRecovered": {
+        "p50": 26.9,
+        "p95": 227.8
+      },
+      "product": {
+        "p50": 37,
+        "p95": 209.9
+      }
+    }
+  },
+  "layer3": {
+    "similarRows": {
+      "table-actions": {
+        "total": 30,
+        "loop": true,
+        "ms": 61
+      },
+      "card-grid": {
+        "total": 12,
+        "loop": true,
+        "ms": 55
+      },
+      "reordered-rows": {
+        "total": 10,
+        "loop": true,
+        "ms": 54
+      },
+      "notification-list": {
+        "total": 6,
+        "loop": true,
+        "ms": 53
+      },
+      "transaction-ledger": {
+        "total": 400,
+        "loop": false,
+        "ms": 125
+      },
+      "erp-grid": {
+        "total": 3,
+        "loop": true,
+        "ms": 57
+      }
+    },
+    "detector": {
+      "samples": 110,
+      "p50": 4.2,
+      "p95": 8.7
+    },
+    "readTimeCheck": [
+      {
+        "page": "/dom-coverage-lab/l10-orders",
+        "plainMs": 6.7,
+        "checkedMs": 5.8
+      },
+      {
+        "page": "/dom-coverage-lab/table-actions",
+        "plainMs": 6.2,
+        "checkedMs": 6.2
+      },
+      {
+        "page": "/dom-coverage-lab/card-grid",
+        "plainMs": 6,
+        "checkedMs": 4.8
+      },
+      {
+        "page": "/dom-coverage-lab/form-labels",
+        "plainMs": 5.5,
+        "checkedMs": 5
+      },
+      {
+        "page": "/dom-coverage-lab/dialog-confirm",
+        "plainMs": 4.7,
+        "checkedMs": 4.3
+      },
+      {
+        "page": "/dom-coverage-lab/nested-containers",
+        "plainMs": 4.8,
+        "checkedMs": 4.3
+      },
+      {
+        "page": "/dom-coverage-lab/duplicate-labels",
+        "plainMs": 5.2,
+        "checkedMs": 4
+      },
+      {
+        "page": "/dom-coverage-lab/reordered-rows",
+        "plainMs": 5.4,
+        "checkedMs": 5.4
+      },
+      {
+        "page": "/dom-coverage-lab/dynamic-ids",
+        "plainMs": 5.2,
+        "checkedMs": 4.2
+      },
+      {
+        "page": "/dom-coverage-lab/utility-classes",
+        "plainMs": 4.5,
+        "checkedMs": 3.8
+      },
+      {
+        "page": "/dom-coverage-lab/icon-toolbar",
+        "plainMs": 4.9,
+        "checkedMs": 5
+      },
+      {
+        "page": "/dom-coverage-lab/notification-list",
+        "plainMs": 5.1,
+        "checkedMs": 3.9
+      },
+      {
+        "page": "/dom-coverage-lab/iframe-form",
+        "plainMs": 5.2,
+        "checkedMs": 3.8
+      },
+      {
+        "page": "/dom-coverage-lab/spa-views/reports",
+        "plainMs": 4,
+        "checkedMs": 3.8
+      },
+      {
+        "page": "/dom-coverage-lab/large-dom",
+        "plainMs": 70.2,
+        "checkedMs": 64.3
+      },
+      {
+        "page": "/dom-coverage-lab/tab-panels",
+        "plainMs": 4.7,
+        "checkedMs": 3.9
+      },
+      {
+        "page": "/dom-coverage-lab/pagination",
+        "plainMs": 5.1,
+        "checkedMs": 4
+      },
+      {
+        "page": "/dom-coverage-lab/bank-transfer",
+        "plainMs": 6.2,
+        "checkedMs": 3.9
+      },
+      {
+        "page": "/dom-coverage-lab/transaction-ledger",
+        "plainMs": 30.9,
+        "checkedMs": 27.1
+      },
+      {
+        "page": "/dom-coverage-lab/approval-modal",
+        "plainMs": 4.9,
+        "checkedMs": 4.2
+      },
+      {
+        "page": "/dom-coverage-lab/angular-dashboard",
+        "plainMs": 5.1,
+        "checkedMs": 3.8
+      },
+      {
+        "page": "/dom-coverage-lab/erp-grid",
+        "plainMs": 5.1,
+        "checkedMs": 4.3
+      }
+    ]
+  },
+  "recordings": {
+    "l10-save-order": {
+      "strategy": "role",
+      "value": "button",
+      "context": [],
+      "guarded": false
+    },
+    "l10-notes": {
+      "strategy": "role",
+      "value": "textbox",
+      "context": [],
+      "guarded": false
+    },
+    "l10-view-link": {
+      "strategy": "css",
+      "value": "a[href=\"/orders/1045\"]",
+      "context": [],
+      "guarded": false
+    },
+    "table-actions": {
+      "strategy": "role",
+      "value": "button",
+      "context": [
+        "container"
+      ],
+      "guarded": false
+    },
+    "card-grid": {
+      "strategy": "role",
+      "value": "button",
+      "context": [
+        "container"
+      ],
+      "guarded": false
+    },
+    "form-labels": {
+      "strategy": "role",
+      "value": "textbox",
+      "context": [],
+      "guarded": false
+    },
+    "dialog-confirm": {
+      "strategy": "id",
+      "value": "dlg-41-confirm",
+      "context": [
+        "container"
+      ],
+      "guarded": false
+    },
+    "nested-containers": {
+      "strategy": "css",
+      "value": "a[href=\"/statements/2026-09.pdf\"]",
+      "context": [],
+      "guarded": false
+    },
+    "duplicate-labels": {
+      "strategy": "role",
+      "value": "button",
+      "context": [
+        "container"
+      ],
+      "guarded": false
+    },
+    "reordered-rows": {
+      "strategy": "role",
+      "value": "button",
+      "context": [],
+      "guarded": false
+    },
+    "dynamic-ids": {
+      "strategy": "role",
+      "value": "button",
+      "context": [],
+      "guarded": false
+    },
+    "utility-classes": {
+      "strategy": "role",
+      "value": "button",
+      "context": [],
+      "guarded": false
+    },
+    "icon-toolbar": {
+      "strategy": "role",
+      "value": "button",
+      "context": [],
+      "guarded": false
+    },
+    "notification-list": {
+      "strategy": "role",
+      "value": "button",
+      "context": [
+        "container"
+      ],
+      "guarded": false
+    },
+    "iframe-form": {
+      "strategy": "role",
+      "value": "button",
+      "context": [
+        "frame"
+      ],
+      "guarded": false
+    },
+    "spa-views": {
+      "strategy": "role",
+      "value": "button",
+      "context": [],
+      "guarded": false
+    },
+    "large-dom": {
+      "strategy": "role",
+      "value": "button",
+      "context": [],
+      "guarded": false
+    },
+    "tab-panels": {
+      "strategy": "role",
+      "value": "button",
+      "context": [
+        "container"
+      ],
+      "guarded": false
+    },
+    "pagination": {
+      "strategy": "role",
+      "value": "link",
+      "context": [],
+      "guarded": false
+    },
+    "bank-transfer": {
+      "strategy": "role",
+      "value": "textbox",
+      "context": [],
+      "guarded": false
+    },
+    "transaction-ledger": {
+      "strategy": "role",
+      "value": "button",
+      "context": [
+        "container"
+      ],
+      "guarded": false
+    },
+    "approval-modal": {
+      "strategy": "role",
+      "value": "button",
+      "context": [
+        "container"
+      ],
+      "guarded": false
+    },
+    "angular-dashboard": {
+      "strategy": "css",
+      "value": "#app-root button:nth-of-type(2)",
+      "context": [],
+      "guarded": true
+    },
+    "erp-grid": {
+      "strategy": "role",
+      "value": "button",
+      "context": [],
+      "guarded": false
+    }
+  },
+  "cases": [
+    {
+      "id": "l10-save-order/wrapper",
+      "fixture": "l10-save-order",
+      "layer": "existing",
+      "op": "wrapper",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 29.8,
+          "trace": "correct,correct | local:proven 0.967/0.725"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 25.6,
+          "trace": "correct,correct | local:proven 0.967/0.725"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 25.4,
+          "trace": "correct,correct | local:proven 0.967/0.725"
+        }
+      ]
+    },
+    {
+      "id": "l10-save-order/move",
+      "fixture": "l10-save-order",
+      "layer": "existing",
+      "op": "move",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 28.4,
+          "trace": "correct,correct | local:proven 0.967/0.725"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 25.7,
+          "trace": "correct,correct | local:proven 0.967/0.725"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 24.4,
+          "trace": "correct,correct | local:proven 0.967/0.725"
+        }
+      ]
+    },
+    {
+      "id": "l10-save-order/id-drift",
+      "fixture": "l10-save-order",
+      "layer": "existing",
+      "op": "id-drift",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 28.7,
+          "trace": "correct,correct | local:proven 0.975/0.725"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 26.1,
+          "trace": "correct,correct | local:proven 0.975/0.725"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 25.3,
+          "trace": "correct,correct | local:proven 0.975/0.725"
+        }
+      ]
+    },
+    {
+      "id": "l10-save-order/id-remove",
+      "fixture": "l10-save-order",
+      "layer": "existing",
+      "op": "id-remove",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 30.5,
+          "trace": "correct,correct | local:proven 0.950/0.725"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 26.1,
+          "trace": "correct,correct | local:proven 0.950/0.725"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 28,
+          "trace": "correct,correct | local:proven 0.950/0.725"
+        }
+      ]
+    },
+    {
+      "id": "l10-save-order/class-drift",
+      "fixture": "l10-save-order",
+      "layer": "existing",
+      "op": "class-drift",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 27.8,
+          "trace": "correct,correct | local:proven 1.000/0.725"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 27.1,
+          "trace": "correct,correct | local:proven 1.000/0.725"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 25,
+          "trace": "correct,correct | local:proven 1.000/0.725"
+        }
+      ]
+    },
+    {
+      "id": "l10-save-order/text-drift",
+      "fixture": "l10-save-order",
+      "layer": "existing",
+      "op": "text-drift",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "correct",
+          "productMs": 76.1,
+          "trace": "correct,correct | local:refused(below-threshold) 0.833/0.725 blueprint:refused(below-threshold) provider:proven 98.410"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "correct",
+          "productMs": 66.3,
+          "trace": "correct,correct | local:refused(below-threshold) 0.833/0.725 blueprint:refused(below-threshold) provider:proven 98.410"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "correct",
+          "productMs": 66.3,
+          "trace": "correct,correct | local:refused(below-threshold) 0.833/0.725 blueprint:refused(below-threshold) provider:proven 98.410"
+        }
+      ]
+    },
+    {
+      "id": "l10-save-order/sibling-insert",
+      "fixture": "l10-save-order",
+      "layer": "existing",
+      "op": "sibling-insert",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 26.9,
+          "trace": "correct,correct | local:proven 1.000/0.725"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 25.8,
+          "trace": "correct,correct | local:proven 1.000/0.725"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 26.1,
+          "trace": "correct,correct | local:proven 1.000/0.725"
+        }
+      ]
+    },
+    {
+      "id": "l10-save-order/sibling-reorder",
+      "fixture": "l10-save-order",
+      "layer": "existing",
+      "op": "sibling-reorder",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 30,
+          "trace": "correct,correct | local:proven 1.000/0.725"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 29,
+          "trace": "correct,correct | local:proven 1.000/0.725"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 25.8,
+          "trace": "correct,correct | local:proven 1.000/0.725"
+        }
+      ]
+    },
+    {
+      "id": "l10-save-order/decoy",
+      "fixture": "l10-save-order",
+      "layer": "existing",
+      "op": "decoy",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 32.1,
+          "trace": "correct,correct | local:proven 1.000/0.883"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 26,
+          "trace": "correct,correct | local:proven 1.000/0.883"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 25.6,
+          "trace": "correct,correct | local:proven 1.000/0.883"
+        }
+      ]
+    },
+    {
+      "id": "l10-save-order/remove",
+      "fixture": "l10-save-order",
+      "layer": "existing",
+      "op": "remove",
+      "expect": "refuse",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 53.9,
+          "trace": "correct,correct | local:refused(below-threshold) 0.725/0.475 blueprint:refused(below-threshold) provider:suggested 77.670"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 51.8,
+          "trace": "correct,correct | local:refused(below-threshold) 0.725/0.475 blueprint:refused(below-threshold) provider:suggested 77.670"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 51,
+          "trace": "correct,correct | local:refused(below-threshold) 0.725/0.475 blueprint:refused(below-threshold) provider:suggested 77.670"
+        }
+      ]
+    },
+    {
+      "id": "l10-save-order/remove-decoy",
+      "fixture": "l10-save-order",
+      "layer": "existing",
+      "op": "remove-decoy",
+      "expect": "refuse",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 60.6,
+          "trace": "correct,correct | local:refused(ancestry-veto) 0.883/0.725 blueprint:refused(below-threshold) provider:suggested 77.670"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 52.8,
+          "trace": "correct,correct | local:refused(ancestry-veto) 0.883/0.725 blueprint:refused(below-threshold) provider:suggested 77.670"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 54.7,
+          "trace": "correct,correct | local:refused(ancestry-veto) 0.883/0.725 blueprint:refused(below-threshold) provider:suggested 77.670"
+        }
+      ]
+    },
+    {
+      "id": "l10-notes/id-drift",
+      "fixture": "l10-notes",
+      "layer": "existing",
+      "op": "id-drift",
+      "expect": "refuse",
+      "why": "safe miss: no layer proves the target",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 51.1,
+          "trace": "correct,correct | local:refused(below-threshold) 0.483/0.313 blueprint:refused(below-threshold) provider:suggested 94.320"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 45.9,
+          "trace": "correct,correct | local:refused(below-threshold) 0.483/0.313 blueprint:refused(below-threshold) provider:suggested 94.320"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 45.7,
+          "trace": "correct,correct | local:refused(below-threshold) 0.483/0.313 blueprint:refused(below-threshold) provider:suggested 94.320"
+        }
+      ]
+    },
+    {
+      "id": "l10-notes/attr-drift",
+      "fixture": "l10-notes",
+      "layer": "existing",
+      "op": "attr-drift",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "correct",
+          "productMs": 83.9,
+          "trace": "correct,correct | local:refused(below-threshold) 0.787/0.313 blueprint:refused(below-threshold) provider:proven 95.240"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "correct",
+          "productMs": 58.1,
+          "trace": "correct,correct | local:refused(below-threshold) 0.787/0.313 blueprint:refused(below-threshold) provider:proven 95.240"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "correct",
+          "productMs": 57.1,
+          "trace": "correct,correct | local:refused(below-threshold) 0.787/0.313 blueprint:refused(below-threshold) provider:proven 95.240"
+        }
+      ]
+    },
+    {
+      "id": "l10-notes/text-drift",
+      "fixture": "l10-notes",
+      "layer": "existing",
+      "op": "text-drift",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "correct",
+          "productMs": 63.3,
+          "trace": "correct,correct | local:refused(below-threshold) 0.803/0.313 blueprint:refused(below-threshold) provider:proven 97.620"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "correct",
+          "productMs": 59.7,
+          "trace": "correct,correct | local:refused(below-threshold) 0.803/0.313 blueprint:refused(below-threshold) provider:proven 97.620"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "correct",
+          "productMs": 57.9,
+          "trace": "correct,correct | local:refused(below-threshold) 0.803/0.313 blueprint:refused(below-threshold) provider:proven 97.620"
+        }
+      ]
+    },
+    {
+      "id": "l10-notes/wrapper",
+      "fixture": "l10-notes",
+      "layer": "existing",
+      "op": "wrapper",
+      "expect": "refuse",
+      "why": "safe miss: no layer proves the target",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 31,
+          "trace": "correct,correct | local:refused(below-threshold) 0.787/0.313 blueprint:refused(below-threshold) provider:skipped(page-variant)"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 28,
+          "trace": "correct,correct | local:refused(below-threshold) 0.787/0.313 blueprint:refused(below-threshold) provider:skipped(page-variant)"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 28.5,
+          "trace": "correct,correct | local:refused(below-threshold) 0.787/0.313 blueprint:refused(below-threshold) provider:skipped(page-variant)"
+        }
+      ]
+    },
+    {
+      "id": "l10-notes/remove",
+      "fixture": "l10-notes",
+      "layer": "existing",
+      "op": "remove",
+      "expect": "refuse",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 27.7,
+          "trace": "correct,correct | local:refused(below-threshold) 0.313/0.272 blueprint:refused(below-threshold) provider:skipped(page-variant)"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 26.6,
+          "trace": "correct,correct | local:refused(below-threshold) 0.313/0.272 blueprint:refused(below-threshold) provider:skipped(page-variant)"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 27.3,
+          "trace": "correct,correct | local:refused(below-threshold) 0.313/0.272 blueprint:refused(below-threshold) provider:skipped(page-variant)"
+        }
+      ]
+    },
+    {
+      "id": "l10-view-link/attr-drift",
+      "fixture": "l10-view-link",
+      "layer": "existing",
+      "op": "attr-drift",
+      "expect": "refuse",
+      "why": "safe miss: no layer proves the target",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 58.6,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.900/0.900 blueprint:refused(ambiguous-margin) 0.930/0.927 provider:refused(list-row-not-mounted) 96.300"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 54.9,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.900/0.900 blueprint:refused(ambiguous-margin) 0.930/0.927 provider:refused(list-row-not-mounted) 96.300"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 56.5,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.900/0.900 blueprint:refused(ambiguous-margin) 0.930/0.927 provider:refused(list-row-not-mounted) 96.300"
+        }
+      ]
+    },
+    {
+      "id": "l10-view-link/class-drift",
+      "fixture": "l10-view-link",
+      "layer": "existing",
+      "op": "class-drift",
+      "expect": "refuse",
+      "why": "safe miss: no layer proves the target",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 57.3,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.900/0.900 blueprint:refused(ambiguous-margin) 0.930/0.927 provider:refused(list-row-not-mounted) 96.300"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 57.1,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.900/0.900 blueprint:refused(ambiguous-margin) 0.930/0.927 provider:refused(list-row-not-mounted) 96.300"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 59,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.900/0.900 blueprint:refused(ambiguous-margin) 0.930/0.927 provider:refused(list-row-not-mounted) 96.300"
+        }
+      ]
+    },
+    {
+      "id": "l10-view-link/sibling-reorder",
+      "fixture": "l10-view-link",
+      "layer": "existing",
+      "op": "sibling-reorder",
+      "expect": "refuse",
+      "why": "safe miss: no layer proves the target",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 56,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.900/0.900 blueprint:refused(ambiguous-margin) 0.927/0.927 provider:suggested 100.000"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 55.3,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.900/0.900 blueprint:refused(ambiguous-margin) 0.927/0.927 provider:suggested 100.000"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 59.4,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.900/0.900 blueprint:refused(ambiguous-margin) 0.927/0.927 provider:suggested 100.000"
+        }
+      ]
+    },
+    {
+      "id": "l10-view-link/remove",
+      "fixture": "l10-view-link",
+      "layer": "existing",
+      "op": "remove",
+      "expect": "refuse",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 55.2,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.900/0.900 blueprint:refused(ambiguous-margin) 0.927/0.927 provider:refused(list-row-not-mounted) 96.300"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 54.9,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.900/0.900 blueprint:refused(ambiguous-margin) 0.927/0.927 provider:refused(list-row-not-mounted) 96.300"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 59.6,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.900/0.900 blueprint:refused(ambiguous-margin) 0.927/0.927 provider:refused(list-row-not-mounted) 96.300"
+        }
+      ]
+    },
+    {
+      "id": "table-actions/page:sort",
+      "fixture": "table-actions",
+      "layer": "lab",
+      "op": "page:sort",
+      "expect": "refuse",
+      "why": "sensitive step: never recovers to another element",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 11.3,
+          "trace": "correct,correct | "
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 11.1,
+          "trace": "correct,correct | "
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 11,
+          "trace": "correct,correct | "
+        }
+      ]
+    },
+    {
+      "id": "table-actions/class-drift",
+      "fixture": "table-actions",
+      "layer": "lab",
+      "op": "class-drift",
+      "expect": "refuse",
+      "why": "sensitive step: never recovers to another element",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 11.1,
+          "trace": "correct,correct | "
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 10.5,
+          "trace": "correct,correct | "
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 11.3,
+          "trace": "correct,correct | "
+        }
+      ]
+    },
+    {
+      "id": "table-actions/page:removeRow",
+      "fixture": "table-actions",
+      "layer": "lab",
+      "op": "page:removeRow",
+      "expect": "refuse",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 10.8,
+          "trace": "correct,correct | "
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 10.5,
+          "trace": "correct,correct | "
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 11,
+          "trace": "correct,correct | "
+        }
+      ]
+    },
+    {
+      "id": "table-actions/remove",
+      "fixture": "table-actions",
+      "layer": "lab",
+      "op": "remove",
+      "expect": "refuse",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 15.8,
+          "trace": "correct,correct | "
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 10.8,
+          "trace": "correct,correct | "
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 10.7,
+          "trace": "correct,correct | "
+        }
+      ]
+    },
+    {
+      "id": "card-grid/page:shuffle",
+      "fixture": "card-grid",
+      "layer": "lab",
+      "op": "page:shuffle",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 23.4,
+          "trace": "correct,correct | local:proven 1.000"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 23.7,
+          "trace": "correct,correct | local:proven 1.000"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 23.1,
+          "trace": "correct,correct | local:proven 1.000"
+        }
+      ]
+    },
+    {
+      "id": "card-grid/wrapper",
+      "fixture": "card-grid",
+      "layer": "lab",
+      "op": "wrapper",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 24,
+          "trace": "correct,correct | local:proven 0.967"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 23.2,
+          "trace": "correct,correct | local:proven 0.967"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 23.7,
+          "trace": "correct,correct | local:proven 0.967"
+        }
+      ]
+    },
+    {
+      "id": "card-grid/class-drift",
+      "fixture": "card-grid",
+      "layer": "lab",
+      "op": "class-drift",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 24.4,
+          "trace": "correct,correct | local:proven 1.000"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 23.5,
+          "trace": "correct,correct | local:proven 1.000"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 23.4,
+          "trace": "correct,correct | local:proven 1.000"
+        }
+      ]
+    },
+    {
+      "id": "card-grid/page:removeCard",
+      "fixture": "card-grid",
+      "layer": "lab",
+      "op": "page:removeCard",
+      "expect": "refuse",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 50.7,
+          "trace": "correct,correct | local:refused(no-candidate) blueprint:refused(ambiguous-margin) 1.000/1.000 provider:refused(list-row-not-mounted) 100.000"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 48.6,
+          "trace": "correct,correct | local:refused(no-candidate) blueprint:refused(ambiguous-margin) 1.000/1.000 provider:refused(list-row-not-mounted) 100.000"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 51.6,
+          "trace": "correct,correct | local:refused(no-candidate) blueprint:refused(ambiguous-margin) 1.000/1.000 provider:refused(list-row-not-mounted) 100.000"
+        }
+      ]
+    },
+    {
+      "id": "form-labels/id-drift",
+      "fixture": "form-labels",
+      "layer": "lab",
+      "op": "id-drift",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "correct",
+          "productMs": 54.2,
+          "trace": "correct,correct | local:refused(below-threshold) 0.701/0.463 blueprint:refused(below-threshold) provider:proven 96.170"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "correct",
+          "productMs": 52.9,
+          "trace": "correct,correct | local:refused(below-threshold) 0.701/0.463 blueprint:refused(below-threshold) provider:proven 96.170"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "correct",
+          "productMs": 54.3,
+          "trace": "correct,correct | local:refused(below-threshold) 0.701/0.463 blueprint:refused(below-threshold) provider:proven 96.170"
+        }
+      ]
+    },
+    {
+      "id": "form-labels/attr-drift",
+      "fixture": "form-labels",
+      "layer": "lab",
+      "op": "attr-drift",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "correct",
+          "productMs": 54.2,
+          "trace": "correct,correct | local:refused(below-threshold) 0.795/0.463 blueprint:refused(below-threshold) provider:proven 96.430"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "correct",
+          "productMs": 57.4,
+          "trace": "correct,correct | local:refused(below-threshold) 0.795/0.463 blueprint:refused(below-threshold) provider:proven 96.430"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "correct",
+          "productMs": 55.9,
+          "trace": "correct,correct | local:refused(below-threshold) 0.795/0.463 blueprint:refused(below-threshold) provider:proven 96.430"
+        }
+      ]
+    },
+    {
+      "id": "form-labels/sibling-insert",
+      "fixture": "form-labels",
+      "layer": "lab",
+      "op": "sibling-insert",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "correct",
+          "productMs": 55.9,
+          "trace": "correct,correct | local:refused(below-threshold) 0.820/0.463 blueprint:refused(below-threshold) provider:proven 95.240"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "correct",
+          "productMs": 60.1,
+          "trace": "correct,correct | local:refused(below-threshold) 0.820/0.463 blueprint:refused(below-threshold) provider:proven 95.240"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "correct",
+          "productMs": 55.4,
+          "trace": "correct,correct | local:refused(below-threshold) 0.820/0.463 blueprint:refused(below-threshold) provider:proven 95.240"
+        }
+      ]
+    },
+    {
+      "id": "form-labels/remove",
+      "fixture": "form-labels",
+      "layer": "lab",
+      "op": "remove",
+      "expect": "refuse",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 41.9,
+          "trace": "correct,correct | local:refused(below-threshold) 0.463/0.463 blueprint:refused(below-threshold) provider:suggested 86.370"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 41.6,
+          "trace": "correct,correct | local:refused(below-threshold) 0.463/0.463 blueprint:refused(below-threshold) provider:suggested 86.370"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 41.5,
+          "trace": "correct,correct | local:refused(below-threshold) 0.463/0.463 blueprint:refused(below-threshold) provider:suggested 86.370"
+        }
+      ]
+    },
+    {
+      "id": "dialog-confirm/page:reopen",
+      "fixture": "dialog-confirm",
+      "layer": "lab",
+      "op": "page:reopen",
+      "expect": "refuse",
+      "why": "sensitive step: never recovers to another element",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 7.3,
+          "trace": "correct,correct | "
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 8,
+          "trace": "correct,correct | "
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 7,
+          "trace": "correct,correct | "
+        }
+      ]
+    },
+    {
+      "id": "dialog-confirm/wrapper",
+      "fixture": "dialog-confirm",
+      "layer": "lab",
+      "op": "wrapper",
+      "expect": "refuse",
+      "why": "sensitive step: never recovers to another element",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 7,
+          "trace": "correct,correct | "
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 7.9,
+          "trace": "correct,correct | "
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 7.2,
+          "trace": "correct,correct | "
+        }
+      ]
+    },
+    {
+      "id": "dialog-confirm/decoy",
+      "fixture": "dialog-confirm",
+      "layer": "lab",
+      "op": "decoy",
+      "expect": "refuse",
+      "why": "sensitive step: never recovers to another element",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 7,
+          "trace": "correct,correct | "
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 6.8,
+          "trace": "correct,correct | "
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 7.3,
+          "trace": "correct,correct | "
+        }
+      ]
+    },
+    {
+      "id": "dialog-confirm/page:close",
+      "fixture": "dialog-confirm",
+      "layer": "lab",
+      "op": "page:close",
+      "expect": "refuse",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 6.9,
+          "trace": "correct,correct | "
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 7.5,
+          "trace": "correct,correct | "
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 7,
+          "trace": "correct,correct | "
+        }
+      ]
+    },
+    {
+      "id": "nested-containers/wrapper",
+      "fixture": "nested-containers",
+      "layer": "lab",
+      "op": "wrapper",
+      "expect": "refuse",
+      "why": "safe miss: no layer proves the target",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 43.7,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.867/0.867 blueprint:refused(ambiguous-margin) 0.896/0.892 provider:suggested 93.250"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 42.7,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.867/0.867 blueprint:refused(ambiguous-margin) 0.896/0.892 provider:suggested 93.250"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 47.9,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.867/0.867 blueprint:refused(ambiguous-margin) 0.896/0.892 provider:suggested 93.250"
+        }
+      ]
+    },
+    {
+      "id": "nested-containers/move",
+      "fixture": "nested-containers",
+      "layer": "lab",
+      "op": "move",
+      "expect": "refuse",
+      "why": "safe miss: no layer proves the target",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 42.5,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.867/0.867 blueprint:refused(ambiguous-margin) 0.896/0.892 provider:suggested 88.890"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 44.7,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.867/0.867 blueprint:refused(ambiguous-margin) 0.896/0.892 provider:suggested 88.890"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 42.9,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.867/0.867 blueprint:refused(ambiguous-margin) 0.896/0.892 provider:suggested 88.890"
+        }
+      ]
+    },
+    {
+      "id": "nested-containers/attr-drift",
+      "fixture": "nested-containers",
+      "layer": "lab",
+      "op": "attr-drift",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "correct",
+          "productMs": 53.9,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.900/0.867 blueprint:refused(ambiguous-margin) 0.930/0.892 provider:proven 95.880"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "correct",
+          "productMs": 54.7,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.900/0.867 blueprint:refused(ambiguous-margin) 0.930/0.892 provider:proven 95.880"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "correct",
+          "productMs": 54.8,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.900/0.867 blueprint:refused(ambiguous-margin) 0.930/0.892 provider:proven 95.880"
+        }
+      ]
+    },
+    {
+      "id": "nested-containers/remove",
+      "fixture": "nested-containers",
+      "layer": "lab",
+      "op": "remove",
+      "expect": "refuse",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 54.7,
+          "trace": "correct,correct | local:refused(pre-existing-twin) 0.867/0.650 blueprint:refused(pre-existing-twin) 0.892 provider:suggested 88.890"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 52.4,
+          "trace": "correct,correct | local:refused(pre-existing-twin) 0.867/0.650 blueprint:refused(pre-existing-twin) 0.892 provider:suggested 88.890"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 52.3,
+          "trace": "correct,correct | local:refused(pre-existing-twin) 0.867/0.650 blueprint:refused(pre-existing-twin) 0.892 provider:suggested 88.890"
+        }
+      ]
+    },
+    {
+      "id": "duplicate-labels/page:swap",
+      "fixture": "duplicate-labels",
+      "layer": "lab",
+      "op": "page:swap",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 23.3,
+          "trace": "correct,correct | local:proven 1.000"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 25.4,
+          "trace": "correct,correct | local:proven 1.000"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 22.6,
+          "trace": "correct,correct | local:proven 1.000"
+        }
+      ]
+    },
+    {
+      "id": "duplicate-labels/class-drift",
+      "fixture": "duplicate-labels",
+      "layer": "lab",
+      "op": "class-drift",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 22.5,
+          "trace": "correct,correct | local:proven 1.000"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 22.5,
+          "trace": "correct,correct | local:proven 1.000"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 23.3,
+          "trace": "correct,correct | local:proven 1.000"
+        }
+      ]
+    },
+    {
+      "id": "duplicate-labels/remove",
+      "fixture": "duplicate-labels",
+      "layer": "lab",
+      "op": "remove",
+      "expect": "refuse",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 46.9,
+          "trace": "correct,correct | local:refused(no-candidate) blueprint:refused(pre-existing-twin) 0.994 provider:suggested 93.750"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 46.1,
+          "trace": "correct,correct | local:refused(no-candidate) blueprint:refused(pre-existing-twin) 0.994 provider:suggested 93.750"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 45.3,
+          "trace": "correct,correct | local:refused(no-candidate) blueprint:refused(pre-existing-twin) 0.994 provider:suggested 93.750"
+        }
+      ]
+    },
+    {
+      "id": "reordered-rows/page:sort",
+      "fixture": "reordered-rows",
+      "layer": "lab",
+      "op": "page:sort",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 24,
+          "trace": "correct,correct | local:proven 1.000/0.847"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 23.3,
+          "trace": "correct,correct | local:proven 1.000/0.847"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 22.6,
+          "trace": "correct,correct | local:proven 1.000/0.847"
+        }
+      ]
+    },
+    {
+      "id": "reordered-rows/attr-drift",
+      "fixture": "reordered-rows",
+      "layer": "lab",
+      "op": "attr-drift",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 45.9,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.922/0.847 blueprint:proven 0.952"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 38.7,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.922/0.847 blueprint:proven 0.952"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 38.6,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.922/0.847 blueprint:proven 0.952"
+        }
+      ]
+    },
+    {
+      "id": "reordered-rows/remove",
+      "fixture": "reordered-rows",
+      "layer": "lab",
+      "op": "remove",
+      "expect": "refuse",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 50.8,
+          "trace": "correct,correct | local:refused(below-threshold) 0.847/0.847 blueprint:refused(below-threshold) provider:suggested 97.920"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 47.2,
+          "trace": "correct,correct | local:refused(below-threshold) 0.847/0.847 blueprint:refused(below-threshold) provider:suggested 97.920"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 47.3,
+          "trace": "correct,correct | local:refused(below-threshold) 0.847/0.847 blueprint:refused(below-threshold) provider:suggested 97.920"
+        }
+      ]
+    },
+    {
+      "id": "dynamic-ids/page:rerender",
+      "fixture": "dynamic-ids",
+      "layer": "lab",
+      "op": "page:rerender",
+      "expect": "refuse",
+      "why": "sensitive step: never recovers to another element",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 4.4,
+          "trace": "correct,correct | "
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 4.7,
+          "trace": "correct,correct | "
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 4.5,
+          "trace": "correct,correct | "
+        }
+      ]
+    },
+    {
+      "id": "dynamic-ids/id-drift",
+      "fixture": "dynamic-ids",
+      "layer": "lab",
+      "op": "id-drift",
+      "expect": "refuse",
+      "why": "sensitive step: never recovers to another element",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 5.8,
+          "trace": "correct,correct | "
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 4.7,
+          "trace": "correct,correct | "
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 4.3,
+          "trace": "correct,correct | "
+        }
+      ]
+    },
+    {
+      "id": "dynamic-ids/class-drift",
+      "fixture": "dynamic-ids",
+      "layer": "lab",
+      "op": "class-drift",
+      "expect": "refuse",
+      "why": "sensitive step: never recovers to another element",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 4.4,
+          "trace": "correct,correct | "
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 4.1,
+          "trace": "correct,correct | "
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 4.7,
+          "trace": "correct,correct | "
+        }
+      ]
+    },
+    {
+      "id": "dynamic-ids/remove-decoy",
+      "fixture": "dynamic-ids",
+      "layer": "lab",
+      "op": "remove-decoy",
+      "expect": "refuse",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 5.2,
+          "trace": "correct,correct | "
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 4.3,
+          "trace": "correct,correct | "
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 4.5,
+          "trace": "correct,correct | "
+        }
+      ]
+    },
+    {
+      "id": "utility-classes/class-drift",
+      "fixture": "utility-classes",
+      "layer": "lab",
+      "op": "class-drift",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 19.8,
+          "trace": "correct,correct | local:proven 1.000/0.500"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 20.2,
+          "trace": "correct,correct | local:proven 1.000/0.500"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 20.8,
+          "trace": "correct,correct | local:proven 1.000/0.500"
+        }
+      ]
+    },
+    {
+      "id": "utility-classes/wrapper",
+      "fixture": "utility-classes",
+      "layer": "lab",
+      "op": "wrapper",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 20,
+          "trace": "correct,correct | local:proven 0.967/0.500"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 20.9,
+          "trace": "correct,correct | local:proven 0.967/0.500"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 20.1,
+          "trace": "correct,correct | local:proven 0.967/0.500"
+        }
+      ]
+    },
+    {
+      "id": "utility-classes/remove",
+      "fixture": "utility-classes",
+      "layer": "lab",
+      "op": "remove",
+      "expect": "refuse",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 38.9,
+          "trace": "correct,correct | local:refused(below-threshold) 0.500/0.500 blueprint:refused(below-threshold) provider:suggested 78.930"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 37.8,
+          "trace": "correct,correct | local:refused(below-threshold) 0.500/0.500 blueprint:refused(below-threshold) provider:suggested 78.930"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 40.6,
+          "trace": "correct,correct | local:refused(below-threshold) 0.500/0.500 blueprint:refused(below-threshold) provider:suggested 78.930"
+        }
+      ]
+    },
+    {
+      "id": "icon-toolbar/sibling-insert",
+      "fixture": "icon-toolbar",
+      "layer": "lab",
+      "op": "sibling-insert",
+      "expect": "refuse",
+      "why": "safe miss: no layer proves the target",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 42.7,
+          "trace": "correct,correct | local:refused(below-threshold) 0.820/0.475 blueprint:refused(below-threshold) provider:suggested 97.960"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 41.8,
+          "trace": "correct,correct | local:refused(below-threshold) 0.820/0.475 blueprint:refused(below-threshold) provider:suggested 97.960"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 43.3,
+          "trace": "correct,correct | local:refused(below-threshold) 0.820/0.475 blueprint:refused(below-threshold) provider:suggested 97.960"
+        }
+      ]
+    },
+    {
+      "id": "icon-toolbar/sibling-reorder",
+      "fixture": "icon-toolbar",
+      "layer": "lab",
+      "op": "sibling-reorder",
+      "expect": "refuse",
+      "why": "safe miss: no layer proves the target",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 42,
+          "trace": "correct,correct | local:refused(below-threshold) 0.820/0.475 blueprint:refused(below-threshold) provider:suggested 100.000"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 41.6,
+          "trace": "correct,correct | local:refused(below-threshold) 0.820/0.475 blueprint:refused(below-threshold) provider:suggested 100.000"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 43.4,
+          "trace": "correct,correct | local:refused(below-threshold) 0.820/0.475 blueprint:refused(below-threshold) provider:suggested 100.000"
+        }
+      ]
+    },
+    {
+      "id": "icon-toolbar/remove-decoy",
+      "fixture": "icon-toolbar",
+      "layer": "lab",
+      "op": "remove-decoy",
+      "expect": "refuse",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 42.8,
+          "trace": "correct,correct | local:refused(below-threshold) 0.753/0.475 blueprint:refused(below-threshold) provider:suggested 93.570"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 42,
+          "trace": "correct,correct | local:refused(below-threshold) 0.753/0.475 blueprint:refused(below-threshold) provider:suggested 93.570"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 48.6,
+          "trace": "correct,correct | local:refused(below-threshold) 0.753/0.475 blueprint:refused(below-threshold) provider:suggested 93.570"
+        }
+      ]
+    },
+    {
+      "id": "notification-list/page:removeFirst",
+      "fixture": "notification-list",
+      "layer": "lab",
+      "op": "page:removeFirst",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 23,
+          "trace": "correct,correct | local:proven 1.000"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 22.5,
+          "trace": "correct,correct | local:proven 1.000"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 25.1,
+          "trace": "correct,correct | local:proven 1.000"
+        }
+      ]
+    },
+    {
+      "id": "notification-list/decoy",
+      "fixture": "notification-list",
+      "layer": "lab",
+      "op": "decoy",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 22.9,
+          "trace": "correct,correct | local:proven 1.000"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 23,
+          "trace": "correct,correct | local:proven 1.000"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 23.4,
+          "trace": "correct,correct | local:proven 1.000"
+        }
+      ]
+    },
+    {
+      "id": "notification-list/remove",
+      "fixture": "notification-list",
+      "layer": "lab",
+      "op": "remove",
+      "expect": "refuse",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 44.8,
+          "trace": "correct,correct | local:refused(no-candidate) blueprint:refused(ambiguous-margin) 1.000/1.000 provider:refused(list-row-not-mounted) 100.000"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 46.6,
+          "trace": "correct,correct | local:refused(no-candidate) blueprint:refused(ambiguous-margin) 1.000/1.000 provider:refused(list-row-not-mounted) 100.000"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 43.5,
+          "trace": "correct,correct | local:refused(no-candidate) blueprint:refused(ambiguous-margin) 1.000/1.000 provider:refused(list-row-not-mounted) 100.000"
+        }
+      ]
+    },
+    {
+      "id": "iframe-form/wrapper",
+      "fixture": "iframe-form",
+      "layer": "lab",
+      "op": "wrapper",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 42.4,
+          "trace": "correct,correct | local:proven 0.967"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 42,
+          "trace": "correct,correct | local:proven 0.967"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 42,
+          "trace": "correct,correct | local:proven 0.967"
+        }
+      ]
+    },
+    {
+      "id": "iframe-form/id-drift",
+      "fixture": "iframe-form",
+      "layer": "lab",
+      "op": "id-drift",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 42.5,
+          "trace": "correct,correct | local:proven 0.975"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 41.7,
+          "trace": "correct,correct | local:proven 0.975"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 41.9,
+          "trace": "correct,correct | local:proven 0.975"
+        }
+      ]
+    },
+    {
+      "id": "iframe-form/remove",
+      "fixture": "iframe-form",
+      "layer": "lab",
+      "op": "remove",
+      "expect": "refuse",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 70.7,
+          "trace": "correct,correct | local:refused(no-candidate) blueprint:refused(page-variant) provider:skipped(page-variant)"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 70.8,
+          "trace": "correct,correct | local:refused(no-candidate) blueprint:refused(page-variant) provider:skipped(page-variant)"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 71,
+          "trace": "correct,correct | local:refused(no-candidate) blueprint:refused(page-variant) provider:skipped(page-variant)"
+        }
+      ]
+    },
+    {
+      "id": "spa-views/page:revisit",
+      "fixture": "spa-views",
+      "layer": "lab",
+      "op": "page:revisit",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 19.8,
+          "trace": "correct,correct | local:proven 1.000/0.467"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 20.6,
+          "trace": "correct,correct | local:proven 1.000/0.467"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 21.1,
+          "trace": "correct,correct | local:proven 1.000/0.467"
+        }
+      ]
+    },
+    {
+      "id": "spa-views/class-drift",
+      "fixture": "spa-views",
+      "layer": "lab",
+      "op": "class-drift",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 20.3,
+          "trace": "correct,correct | local:proven 1.000/0.467"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 23.3,
+          "trace": "correct,correct | local:proven 1.000/0.467"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 20.3,
+          "trace": "correct,correct | local:proven 1.000/0.467"
+        }
+      ]
+    },
+    {
+      "id": "spa-views/page:leave",
+      "fixture": "spa-views",
+      "layer": "lab",
+      "op": "page:leave",
+      "expect": "refuse",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 4.3,
+          "trace": "correct,correct | local:refused(route-mismatch)"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 4.3,
+          "trace": "correct,correct | local:refused(route-mismatch)"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 4.8,
+          "trace": "correct,correct | local:refused(route-mismatch)"
+        }
+      ]
+    },
+    {
+      "id": "large-dom/id-drift",
+      "fixture": "large-dom",
+      "layer": "lab",
+      "op": "id-drift",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 90.2,
+          "trace": "correct,correct | local:proven 0.975/0.725"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 91.3,
+          "trace": "correct,correct | local:proven 0.975/0.725"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 87.6,
+          "trace": "correct,correct | local:proven 0.975/0.725"
+        }
+      ]
+    },
+    {
+      "id": "large-dom/page:prependRows",
+      "fixture": "large-dom",
+      "layer": "lab",
+      "op": "page:prependRows",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 94.4,
+          "trace": "correct,correct | local:proven 1.000/0.725"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 95,
+          "trace": "correct,correct | local:proven 1.000/0.725"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 92,
+          "trace": "correct,correct | local:proven 1.000/0.725"
+        }
+      ]
+    },
+    {
+      "id": "large-dom/remove",
+      "fixture": "large-dom",
+      "layer": "lab",
+      "op": "remove",
+      "expect": "refuse",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 260.1,
+          "trace": "correct,correct | local:refused(below-threshold) 0.725/0.367 blueprint:refused(below-threshold) provider:suggested 72.610"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 247.8,
+          "trace": "correct,correct | local:refused(below-threshold) 0.725/0.367 blueprint:refused(below-threshold) provider:suggested 72.610"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 243.7,
+          "trace": "correct,correct | local:refused(below-threshold) 0.725/0.367 blueprint:refused(below-threshold) provider:suggested 72.610"
+        }
+      ]
+    },
+    {
+      "id": "tab-panels/class-drift",
+      "fixture": "tab-panels",
+      "layer": "lab",
+      "op": "class-drift",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 25.4,
+          "trace": "correct,correct | local:proven 1.000"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 21.4,
+          "trace": "correct,correct | local:proven 1.000"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 27.4,
+          "trace": "correct,correct | local:proven 1.000"
+        }
+      ]
+    },
+    {
+      "id": "tab-panels/wrapper",
+      "fixture": "tab-panels",
+      "layer": "lab",
+      "op": "wrapper",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 24.4,
+          "trace": "correct,correct | local:proven 0.967"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 22.5,
+          "trace": "correct,correct | local:proven 0.967"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 21.8,
+          "trace": "correct,correct | local:proven 0.967"
+        }
+      ]
+    },
+    {
+      "id": "tab-panels/page:switchTab",
+      "fixture": "tab-panels",
+      "layer": "lab",
+      "op": "page:switchTab",
+      "expect": "refuse",
+      "why": "target hidden, a look-alike shown",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 55.2,
+          "trace": "correct,correct | local:refused(no-candidate) blueprint:refused(pre-existing-twin) 0.995 provider:suggested 95.830"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 50.4,
+          "trace": "correct,correct | local:refused(no-candidate) blueprint:refused(pre-existing-twin) 0.995 provider:suggested 95.830"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 50.2,
+          "trace": "correct,correct | local:refused(no-candidate) blueprint:refused(pre-existing-twin) 0.995 provider:suggested 95.830"
+        }
+      ]
+    },
+    {
+      "id": "tab-panels/remove",
+      "fixture": "tab-panels",
+      "layer": "lab",
+      "op": "remove",
+      "expect": "refuse",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 42.8,
+          "trace": "correct,correct | local:refused(no-candidate) blueprint:refused(below-threshold) provider:suggested(no-candidate)"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 40.8,
+          "trace": "correct,correct | local:refused(no-candidate) blueprint:refused(below-threshold) provider:suggested(no-candidate)"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 41,
+          "trace": "correct,correct | local:refused(no-candidate) blueprint:refused(below-threshold) provider:suggested(no-candidate)"
+        }
+      ]
+    },
+    {
+      "id": "pagination/attr-drift",
+      "fixture": "pagination",
+      "layer": "lab",
+      "op": "attr-drift",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 23.4,
+          "trace": "correct,correct | local:proven 0.900/0.400"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 23.1,
+          "trace": "correct,correct | local:proven 0.900/0.400"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 23,
+          "trace": "correct,correct | local:proven 0.900/0.400"
+        }
+      ]
+    },
+    {
+      "id": "pagination/sibling-insert",
+      "fixture": "pagination",
+      "layer": "lab",
+      "op": "sibling-insert",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 25.5,
+          "trace": "correct,correct | local:proven 0.900/0.400"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 25.1,
+          "trace": "correct,correct | local:proven 0.900/0.400"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 22.9,
+          "trace": "correct,correct | local:proven 0.900/0.400"
+        }
+      ]
+    },
+    {
+      "id": "pagination/decoy",
+      "fixture": "pagination",
+      "layer": "lab",
+      "op": "decoy",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 40.7,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.900/0.833 blueprint:proven 0.928"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 37,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.900/0.833 blueprint:proven 0.928"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 36.2,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.900/0.833 blueprint:proven 0.928"
+        }
+      ]
+    },
+    {
+      "id": "pagination/remove",
+      "fixture": "pagination",
+      "layer": "lab",
+      "op": "remove",
+      "expect": "refuse",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 51.3,
+          "trace": "correct,correct | local:refused(below-threshold) 0.400/0.400 blueprint:refused(below-threshold) provider:suggested 71.850"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 45.2,
+          "trace": "correct,correct | local:refused(below-threshold) 0.400/0.400 blueprint:refused(below-threshold) provider:suggested 71.850"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 44,
+          "trace": "correct,correct | local:refused(below-threshold) 0.400/0.400 blueprint:refused(below-threshold) provider:suggested 71.850"
+        }
+      ]
+    },
+    {
+      "id": "bank-transfer/page:postback",
+      "fixture": "bank-transfer",
+      "layer": "enterprise",
+      "op": "page:postback",
+      "expect": "refuse",
+      "why": "safe miss: no layer proves the target",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 45,
+          "trace": "correct,correct | local:refused(below-threshold) 0.753/0.433 blueprint:refused(below-threshold) provider:suggested 85.090"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 40.9,
+          "trace": "correct,correct | local:refused(below-threshold) 0.753/0.433 blueprint:refused(below-threshold) provider:suggested 85.090"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 40.6,
+          "trace": "correct,correct | local:refused(below-threshold) 0.753/0.433 blueprint:refused(below-threshold) provider:suggested 85.090"
+        }
+      ]
+    },
+    {
+      "id": "bank-transfer/attr-drift",
+      "fixture": "bank-transfer",
+      "layer": "enterprise",
+      "op": "attr-drift",
+      "expect": "refuse",
+      "why": "safe miss: no layer proves the target",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 44.2,
+          "trace": "correct,correct | local:refused(below-threshold) 0.803/0.467 blueprint:refused(below-threshold) provider:suggested 85.090"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 39.7,
+          "trace": "correct,correct | local:refused(below-threshold) 0.803/0.467 blueprint:refused(below-threshold) provider:suggested 85.090"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 40,
+          "trace": "correct,correct | local:refused(below-threshold) 0.803/0.467 blueprint:refused(below-threshold) provider:suggested 85.090"
+        }
+      ]
+    },
+    {
+      "id": "bank-transfer/wrapper",
+      "fixture": "bank-transfer",
+      "layer": "enterprise",
+      "op": "wrapper",
+      "expect": "refuse",
+      "why": "safe miss: no layer proves the target",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 45.7,
+          "trace": "correct,correct | local:refused(below-threshold) 0.787/0.467 blueprint:refused(below-threshold) provider:suggested 81.310"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 40.4,
+          "trace": "correct,correct | local:refused(below-threshold) 0.787/0.467 blueprint:refused(below-threshold) provider:suggested 81.310"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 40.8,
+          "trace": "correct,correct | local:refused(below-threshold) 0.787/0.467 blueprint:refused(below-threshold) provider:suggested 81.310"
+        }
+      ]
+    },
+    {
+      "id": "bank-transfer/remove",
+      "fixture": "bank-transfer",
+      "layer": "enterprise",
+      "op": "remove",
+      "expect": "refuse",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 40.2,
+          "trace": "correct,correct | local:refused(below-threshold) 0.467 blueprint:refused(below-threshold) provider:suggested 81.310"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 54.4,
+          "trace": "correct,correct | local:refused(below-threshold) 0.467 blueprint:refused(below-threshold) provider:suggested 81.310"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 43.1,
+          "trace": "correct,correct | local:refused(below-threshold) 0.467 blueprint:refused(below-threshold) provider:suggested 81.310"
+        }
+      ]
+    },
+    {
+      "id": "transaction-ledger/page:sortByAmount",
+      "fixture": "transaction-ledger",
+      "layer": "enterprise",
+      "op": "page:sortByAmount",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 244.4,
+          "trace": "correct,correct | local:proven 1.000"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 270.9,
+          "trace": "correct,correct | local:proven 1.000"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 255.2,
+          "trace": "correct,correct | local:proven 1.000"
+        }
+      ]
+    },
+    {
+      "id": "transaction-ledger/page:prepend",
+      "fixture": "transaction-ledger",
+      "layer": "enterprise",
+      "op": "page:prepend",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 224.3,
+          "trace": "correct,correct | local:proven 1.000"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 214.7,
+          "trace": "correct,correct | local:proven 1.000"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 209.9,
+          "trace": "correct,correct | local:proven 1.000"
+        }
+      ]
+    },
+    {
+      "id": "transaction-ledger/class-drift",
+      "fixture": "transaction-ledger",
+      "layer": "enterprise",
+      "op": "class-drift",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 217.8,
+          "trace": "correct,correct | local:proven 1.000"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 263.5,
+          "trace": "correct,correct | local:proven 1.000"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 219.6,
+          "trace": "correct,correct | local:proven 1.000"
+        }
+      ]
+    },
+    {
+      "id": "transaction-ledger/page:filterOut",
+      "fixture": "transaction-ledger",
+      "layer": "enterprise",
+      "op": "page:filterOut",
+      "expect": "refuse",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 315.1,
+          "trace": "correct,correct | local:refused(no-candidate) blueprint:refused(ambiguous-margin) 0.989/0.987 provider:refused(list-row-not-mounted) 100.000"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 324.5,
+          "trace": "correct,correct | local:refused(no-candidate) blueprint:refused(ambiguous-margin) 0.989/0.987 provider:refused(list-row-not-mounted) 100.000"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 320.7,
+          "trace": "correct,correct | local:refused(no-candidate) blueprint:refused(ambiguous-margin) 0.989/0.987 provider:refused(list-row-not-mounted) 100.000"
+        }
+      ]
+    },
+    {
+      "id": "approval-modal/page:reopen",
+      "fixture": "approval-modal",
+      "layer": "enterprise",
+      "op": "page:reopen",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 38.8,
+          "trace": "correct,correct | local:refused(no-candidate) blueprint:proven 0.997"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 41.3,
+          "trace": "correct,correct | local:refused(no-candidate) blueprint:proven 0.997"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 37.9,
+          "trace": "correct,correct | local:refused(no-candidate) blueprint:proven 0.997"
+        }
+      ]
+    },
+    {
+      "id": "approval-modal/decoy",
+      "fixture": "approval-modal",
+      "layer": "enterprise",
+      "op": "decoy",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 22,
+          "trace": "correct,correct | local:proven 1.000/0.500"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 22.1,
+          "trace": "correct,correct | local:proven 1.000/0.500"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 21.8,
+          "trace": "correct,correct | local:proven 1.000/0.500"
+        }
+      ]
+    },
+    {
+      "id": "approval-modal/page:close",
+      "fixture": "approval-modal",
+      "layer": "enterprise",
+      "op": "page:close",
+      "expect": "refuse",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 29.8,
+          "trace": "correct,correct | local:refused(no-candidate) blueprint:refused(below-threshold) provider:skipped(page-variant)"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 26.1,
+          "trace": "correct,correct | local:refused(no-candidate) blueprint:refused(below-threshold) provider:skipped(page-variant)"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 26.9,
+          "trace": "correct,correct | local:refused(no-candidate) blueprint:refused(below-threshold) provider:skipped(page-variant)"
+        }
+      ]
+    },
+    {
+      "id": "angular-dashboard/page:recompile",
+      "fixture": "angular-dashboard",
+      "layer": "enterprise",
+      "op": "page:recompile",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 19.8,
+          "trace": "correct,correct | local:proven 0.900/0.800"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 19.9,
+          "trace": "correct,correct | local:proven 0.900/0.800"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 19.7,
+          "trace": "correct,correct | local:proven 0.900/0.800"
+        }
+      ]
+    },
+    {
+      "id": "angular-dashboard/class-drift",
+      "fixture": "angular-dashboard",
+      "layer": "enterprise",
+      "op": "class-drift",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 20.7,
+          "trace": "correct,correct | local:proven 0.900/0.800"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 20,
+          "trace": "correct,correct | local:proven 0.900/0.800"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 20.3,
+          "trace": "correct,correct | local:proven 0.900/0.800"
+        }
+      ]
+    },
+    {
+      "id": "angular-dashboard/wrapper",
+      "fixture": "angular-dashboard",
+      "layer": "enterprise",
+      "op": "wrapper",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 32,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.867/0.800 blueprint:proven 0.881"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 32.1,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.867/0.800 blueprint:proven 0.881"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 31.9,
+          "trace": "correct,correct | local:refused(ambiguous-margin) 0.867/0.800 blueprint:proven 0.881"
+        }
+      ]
+    },
+    {
+      "id": "angular-dashboard/remove-decoy",
+      "fixture": "angular-dashboard",
+      "layer": "enterprise",
+      "op": "remove-decoy",
+      "expect": "refuse",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 42.4,
+          "trace": "correct,correct | local:refused(below-threshold) 0.800/0.800 blueprint:refused(below-threshold) provider:suggested 85.710"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 41.9,
+          "trace": "correct,correct | local:refused(below-threshold) 0.800/0.800 blueprint:refused(below-threshold) provider:suggested 85.710"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 42.5,
+          "trace": "correct,correct | local:refused(below-threshold) 0.800/0.800 blueprint:refused(below-threshold) provider:suggested 85.710"
+        }
+      ]
+    },
+    {
+      "id": "erp-grid/page:regenerate",
+      "fixture": "erp-grid",
+      "layer": "enterprise",
+      "op": "page:regenerate",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 23.1,
+          "trace": "correct,correct | local:proven 0.942/0.442"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 22.9,
+          "trace": "correct,correct | local:proven 0.942/0.442"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 20.9,
+          "trace": "correct,correct | local:proven 0.942/0.442"
+        }
+      ]
+    },
+    {
+      "id": "erp-grid/sibling-insert",
+      "fixture": "erp-grid",
+      "layer": "enterprise",
+      "op": "sibling-insert",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 22.8,
+          "trace": "correct,correct | local:proven 1.000/0.475"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 20.8,
+          "trace": "correct,correct | local:proven 1.000/0.475"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 20.3,
+          "trace": "correct,correct | local:proven 1.000/0.475"
+        }
+      ]
+    },
+    {
+      "id": "erp-grid/sibling-reorder",
+      "fixture": "erp-grid",
+      "layer": "enterprise",
+      "op": "sibling-reorder",
+      "expect": "recover",
+      "runs": [
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 21.4,
+          "trace": "correct,correct | local:proven 1.000/0.475"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 20.3,
+          "trace": "correct,correct | local:proven 1.000/0.475"
+        },
+        {
+          "snapshot": "correct",
+          "product": "correct",
+          "productMs": 20.3,
+          "trace": "correct,correct | local:proven 1.000/0.475"
+        }
+      ]
+    },
+    {
+      "id": "erp-grid/remove",
+      "fixture": "erp-grid",
+      "layer": "enterprise",
+      "op": "remove",
+      "expect": "refuse",
+      "runs": [
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 51.9,
+          "trace": "correct,correct | local:refused(below-threshold) 0.475/0.475 blueprint:refused(below-threshold) provider:suggested 92.500"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 45.6,
+          "trace": "correct,correct | local:refused(below-threshold) 0.475/0.475 blueprint:refused(below-threshold) provider:suggested 92.500"
+        },
+        {
+          "snapshot": "unresolved",
+          "product": "unresolved",
+          "productMs": 45.7,
+          "trace": "correct,correct | local:refused(below-threshold) 0.475/0.475 blueprint:refused(below-threshold) provider:suggested 92.500"
+        }
+      ]
+    }
+  ]
+}

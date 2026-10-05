@@ -719,6 +719,7 @@ try {
   check("index lists the Iframe Lab scenario", await page.getByTestId("scenario-iframe-lab").isVisible());
   check("index lists the Drag & Drop Lab scenario", await page.getByTestId("scenario-drag").isVisible());
   check("index lists the DOM Context Lab scenario", await page.getByTestId("scenario-dom-context").isVisible());
+  check("index lists the DOM Coverage Lab scenario", await page.getByTestId("scenario-dom-coverage").isVisible());
 
   // L11.F DOM Context Lab: the lab and its SPA routes serve, each look-alike exists where its case needs it.
   // The recovery behaviour itself is gated by verify:dom-intelligence-contexts.
@@ -744,6 +745,31 @@ try {
   check("delayed render first shows a disabled skeleton", (await page.locator(".dcl-skeleton").isDisabled()) && (await page.getByTestId("dcl-delayed-download").count()) === 0);
   await page.getByTestId("dcl-delayed-download").waitFor({ timeout: 5000 });
   check("...then the real target", (await page.getByTestId("dcl-delayed-status").textContent()) === "ready");
+
+  // L12.23 DOM Coverage Lab: every page serves with exactly one oracle target (frames included). Recovery
+  // itself is gated by verify:dom-intelligence-coverage.
+  console.log("DOM Coverage Lab (/dom-coverage-lab):");
+  await page.goto(`${BASE}/dom-coverage-lab`);
+  check("the lab index serves its title", (await page.title()) === "DOM Coverage Lab");
+  const coverageLinks = await page.locator('[data-testid^="coverage-fixture-"] a').evaluateAll((links) => links.map((link) => link.getAttribute("href")));
+  const challengeLinks = await page.locator('[data-testid^="coverage-challenge-"] a').evaluateAll((links) => links.map((link) => link.getAttribute("href")));
+  check("the index lists 21 recovery fixtures and 8 protected-login pages", coverageLinks.length === 21 && challengeLinks.length === 8, { fixtures: coverageLinks.length, challenges: challengeLinks.length });
+  const oracleMisses = [];
+  for (const href of coverageLinks) {
+    await page.goto(`${BASE}${href}`);
+    let oracles = 0;
+    for (const frame of page.frames()) oracles += await frame.locator('[data-testid="oracle-target"]').count();
+    if (oracles !== 1) oracleMisses.push(`${href}: ${oracles}`);
+  }
+  check("every recovery fixture holds exactly one oracle target", oracleMisses.length === 0, oracleMisses);
+  check("the 8,000-element ledger really is that large", await page.goto(`${BASE}/dom-coverage-lab/large-dom`).then(() => page.locator("body *").count()).then((n) => n > 8000));
+  const challengeMisses = [];
+  for (const href of challengeLinks) {
+    await page.goto(`${BASE}${href}`);
+    if ((await page.locator('input[type="password"], input[autocomplete="one-time-code"]').count()) !== 1) challengeMisses.push(href);
+  }
+  check("every protected-login page carries its password or one-time-code field", challengeMisses.length === 0, challengeMisses);
+  check("an unknown coverage page is 404", (await page.goto(`${BASE}/dom-coverage-lab/not-a-page`))?.status() === 404);
 
   await page.close();
 } catch (error) {
