@@ -1,6 +1,20 @@
 # TASK_LOG
 
-## 2026-10-04 (latest) — L12.21 independent security review of the protected diagnosis, fixes 1–4 (Claude)
+## 2026-10-05 (latest) — L12 performance re-check after the L12.19–L12.21 changes (Claude)
+
+- **Task:** owner asked for a performance report after the 2026-10-04 Scrapling changes. Re-ran
+  `npm run benchmark:dom-intelligence-l12` three times on `main` @ `b3561505` (includes L12.19 loop, L12.20
+  detector, L12.21 serializer and gate fixes). `L12-acceptance-results.json` now holds run 3; the 2026-10-04
+  version stays in git at `33c924b2`.
+- **Result:** 11/11 acceptance checks in every run, outcomes identical to 2026-10-04 (product 11/14 found, 0 wrong,
+  9/9 refused). Product path p50 35.4–44.4 ms, p95 70.7–71.4 ms (yesterday after 35.5–59.1 / 70.9–101.4, baseline
+  50.0–52.6 / 71.9–80.6). Suggestion at 8,265 elements 366–376 ms (yesterday 358–394, before 1,186). Normal step
+  16.0–16.2 ms on vs 16.1 off. Host 20.6–36.7 MB after a run. No regression from the L12.21 serializer change
+  (serialize p50 9.2 ms vs 9.4).
+- **Not measured:** Element Spy similar rows and loop-selector latency, the protected-diagnosis read-time check,
+  and the detector's added selectors on Recorder navigation (none is on the run path the benchmark covers).
+
+## 2026-10-04 — L12.21 independent security review of the protected diagnosis, fixes 1–4 (Claude)
 
 - **Task:** owner asked for the independent security review of L12.17 (`157d0c59`, `7ea071fb`), then to fix
   findings 1–4. One read-only `awkit-security-engineer` subagent reviewed and later re-reviewed the fixes:
