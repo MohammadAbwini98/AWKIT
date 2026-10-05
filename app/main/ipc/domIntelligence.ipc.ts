@@ -67,7 +67,8 @@ async function expectedIdentity(step: FlowStep, flowId: string | undefined): Pro
 
 /**
  * L12.17: every diagnosis that actually read a protected page is recorded on the security audit trail: who,
- * when, and the detector's reason code. Never the page, a selector or a URL. Best effort, like denials.
+ * when, and the detector's reason code. Never the page, a selector or a URL. Best effort, like denials. Written
+ * from `onProtectedRead`, before the provider runs (L12.22).
  */
 async function auditProtectedDiagnosis(actor: AuthorizedActor, reason: string): Promise<void> {
   try {
@@ -165,9 +166,10 @@ export function registerDomIntelligenceIpc(): void {
         expectedRoute: identity.route,
         flowId,
         allowProtected: actor !== undefined,
+        // L12.22: audited when the page is read, not after diagnose returns, so a provider that throws later still leaves the record.
+        onProtectedRead: actor ? (reason) => auditProtectedDiagnosis(actor, reason) : undefined,
         describe: true
       });
-      if (actor && diagnosis.protectedOverride) await auditProtectedDiagnosis(actor, diagnosis.protectedOverride);
       return { ok: true, diagnosis: { ...redactDiagnosis(diagnosis), page: alias } };
     } catch {
       return failure("FAILED");

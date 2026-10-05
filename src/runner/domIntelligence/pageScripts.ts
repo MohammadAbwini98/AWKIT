@@ -157,14 +157,31 @@ export const DOM_SNAPSHOT_SERIALIZER_BODY = `
   ${HELPERS}
   var fingerprint = (${createPageFingerprint.toString()});
   var doc = document;
+  // L12.22: querySelector and innerText stop at a shadow host, so every open shadow root, at any depth, is checked too.
+  var roots = [doc];
+  for (var sr = 0; sr < roots.length; sr++) {
+    var hosts = roots[sr].querySelectorAll("*");
+    for (var h = 0; h < hosts.length; h++) if (hosts[h].shadowRoot) roots.push(hosts[h].shadowRoot);
+  }
+  var inAnyRoot = function (selector) {
+    for (var q = 0; q < roots.length; q++) if (roots[q].querySelector(selector)) return true;
+    return false;
+  };
   // L12.17: only a Super User's opted-in diagnosis of an allowed sign-in or MFA page reads such a document;
   // its password, one-time-code and hidden inputs are still dropped below, and no value is ever written.
-  if (!arg.allowProtected && doc.querySelector(PROTECTED)) return { refused: "protected-login" };
+  if (!arg.allowProtected && inAnyRoot(PROTECTED)) return { refused: "protected-login" };
   // L12.21: under that override, a challenge widget or any refused reason's wording in THIS document, checked in
   // the same evaluate that serializes it, refuses the read (no gap for a widget that renders after a pre-check).
   if (arg.allowProtected) {
-    if (doc.querySelector(arg.challenge)) return { refused: "protected-login" };
-    var said = String(doc.title + "\\n" + (doc.body ? doc.body.innerText : "")).replace(/[\\u2018\\u2019]/g, "'").replace(/\\s+/g, " ").toLowerCase();
+    if (inAnyRoot(arg.challenge)) return { refused: "protected-login" };
+    var shadowSaid = "";
+    for (var st = 1; st < roots.length; st++) {
+      for (var sc = 0; sc < roots[st].children.length; sc++) {
+        var part = roots[st].children[sc];
+        if (!/^(?:STYLE|SCRIPT|TEMPLATE)$/.test(part.tagName)) shadowSaid += " " + (part.innerText || "");
+      }
+    }
+    var said = String(doc.title + "\\n" + (doc.body ? doc.body.innerText : "") + shadowSaid).replace(/[\\u2018\\u2019]/g, "'").replace(/\\s+/g, " ").toLowerCase();
     for (var rt = 0; rt < arg.refusedText.length; rt++) {
       if (said.indexOf(arg.refusedText[rt]) >= 0) return { refused: "protected-login" };
     }

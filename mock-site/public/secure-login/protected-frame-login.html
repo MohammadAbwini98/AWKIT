@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Portal</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card" data-testid="protected-frame-page">
+      <h1>Portal</h1>
+      <!-- An embedded sign-in (L12.22): the password field lives only inside a child iframe, so the top document has
+           no password field and no sign-in or challenge wording. Only a check of every frame can make AWKIT pause. -->
+      <iframe
+        title="Account"
+        data-testid="frame-sign-in"
+        style="width: 320px; height: 180px; border: 1px solid #cbd5e1"
+        srcdoc='<form onsubmit="return false"><label for="email">Email</label><input id="email" type="email" data-testid="frame-email"><label for="password">Password</label><input id="password" type="password" data-testid="frame-password"><button type="submit" data-testid="frame-submit">Continue</button></form>'
+      ></iframe>
+      <p><a href="/">Back to Feature Test Lab</a></p>
+    </main>
+  </body>
+</html>

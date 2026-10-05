@@ -10,7 +10,9 @@
  *      typed value, the result names the surface; a CAPTCHA page (a widget marker, or the detector's own
  *      challenge) stays refused with the opt-in; a page with nothing protected is read as before.
  *   D. The main-process gate (source): the role, the permission, re-authentication and denial audit before the
- *      page is fetched, a use audited after, and getLivePage relaxing only for that actor, never in a handoff.
+ *      page is fetched, a use audited when the page is read, and getLivePage relaxing only for that actor, never in a handoff.
+ *   E. L12.21 and L12.22 review findings: refused wording, child frames, open shadow roots, the read-time check, and
+ *      a read whose provider throws still reported for the audit.
  *
  * Run: npm run verify:protected-diagnosis
  */
@@ -103,8 +105,9 @@ async function main(): Promise<void> {
     });
     const diagnose = async (allowProtected: boolean) => {
       const provider = new RecordingProvider();
-      const diagnosis = await new LocatorFactory(page).diagnose(step, { provider, references, flowId: "flow-p", allowProtected });
-      return { diagnosis, provider };
+      const reads: string[] = [];
+      const diagnosis = await new LocatorFactory(page).diagnose(step, { provider, references, flowId: "flow-p", allowProtected, onProtectedRead: (reason) => void reads.push(reason) });
+      return { diagnosis, provider, reads };
     };
 
     await page.goto(`${base}/login`);
@@ -118,6 +121,23 @@ async function main(): Promise<void> {
     check("...the HTML carries the button it is about", sent.includes('id="sign-in"'));
     check("...but no password field at all", !/type="password"|autocomplete="current-password"|name="password"/.test(sent), sent.slice(0, 400));
     check("...and no typed value, from any field", !sent.includes("hunter2-secret") && !sent.includes("person@example.com") && !/\svalue="/.test(sent));
+    check("...and the read is reported for the audit exactly once, before the result", withIt.reads.length === 1 && withIt.reads[0] === withIt.diagnosis.protectedOverride, withIt.reads);
+    check("without the opt-in nothing is reported for the audit", without.reads.length === 0, without.reads);
+
+    // L12.22 item 1: the audit must not depend on the provider returning. A provider that throws after the page
+    // was read still leaves exactly one reported read.
+    const crashing = new (class extends RecordingProvider {
+      override async findRecoveryCandidates(request: DomRecoveryRequest): Promise<DomRecoveryResult> {
+        this.requests.push(request);
+        throw new Error("provider crashed after the read");
+      }
+    })();
+    const crashReads: string[] = [];
+    const crashed = await new LocatorFactory(page)
+      .diagnose(step, { provider: crashing, references, flowId: "flow-p", allowProtected: true, onProtectedRead: (reason) => void crashReads.push(reason) })
+      .then(() => false, () => true);
+    check("precondition: the crashing provider was handed the protected page and the diagnosis threw", crashed && crashing.requests.length === 1, { crashed, requests: crashing.requests.length });
+    check("L12.22 a protected read whose provider throws is still reported for the audit", crashReads.length === 1 && protectedDiagnosisAllowed(crashReads[0] as never), crashReads);
 
     // A Turnstile widget on a sign-in page. Since L12.20 the detector names it a CAPTCHA, so the reason allow-list
     // refuses it; the independent CAPTCHA_MARKER_SELECTOR check also matches it (asserted below and in D). The two
@@ -146,7 +166,7 @@ async function main(): Promise<void> {
     html = PLAIN;
     await page.goto(`${base}/login`);
     const plain = await diagnose(true);
-    check("control: a page with nothing protected is read and names no override", plain.provider.requests.length === 1 && plain.diagnosis.protectedOverride === undefined, plain.diagnosis);
+    check("control: a page with nothing protected is read and names no override", plain.provider.requests.length === 1 && plain.diagnosis.protectedOverride === undefined && plain.reads.length === 0, plain.diagnosis);
 
     console.log("E. L12.21 review findings: wording, child frames, and the read itself");
     // Finding 1: a password field outranks the page's own wording in the detector, so these pages are reported as
@@ -205,6 +225,22 @@ async function main(): Promise<void> {
     check("the serializer refuses a refused reason's wording present at read time", (await read("<p>Security check</p>")).refused === "protected-login");
     check("...including curly-apostrophe wording", (await read("<p>Couldn’t sign you in</p>")).refused === "protected-login");
     check("...and wording split by a non-breaking space or a line break", (await read("<p>Security&nbsp;check</p>")).refused === "protected-login" && (await read("<p>Digital<br>signature</p>")).refused === "protected-login");
+    // L12.22 item 2: wording or a widget rendered only inside an open shadow root (innerText and querySelector stop
+    // at the host) must refuse the read too, at any depth. The control proves a shadow root alone does not refuse.
+    const shadow = (inner: string, mode = "open") =>
+      `<x-notice></x-notice><script>document.querySelector("x-notice").attachShadow({ mode: "${mode}" }).innerHTML = ${JSON.stringify(inner)};</script>`;
+    check("control: a sign-in page with harmless text in a shadow root is still read", !(await read(shadow("<p>Welcome back</p>"))).refused);
+    check("L12.22 refused wording only inside an open shadow root refuses the read", (await read(shadow("<p>Security check</p>"))).refused === "protected-login");
+    check("L12.22 ...also two shadow roots deep", (await read(shadow("<x-inner></x-inner>") + '<script>document.querySelector("x-notice").shadowRoot.querySelector("x-inner").attachShadow({ mode: "open" }).innerHTML = "<p>Digital signature required</p>";</script>')).refused === "protected-login");
+    check("L12.22 a challenge widget only inside an open shadow root refuses the read", (await read(shadow('<div class="cf-turnstile" data-sitekey="k"></div>'))).refused === "protected-login");
+    // A password field only inside a shadow root makes the page protected for every role: without the opt-in it is
+    // skipped before anything is sent, and the serializer itself refuses it too.
+    html = PLAIN.replace("</form>", `${shadow('<input type="password" name="password">')}</form>`);
+    await page.goto(`${base}/login`);
+    check("precondition: the password field is only in the shadow root", (await page.evaluate(() => document.querySelector('input[type="password"]') === null)) && (await page.locator('input[type="password"]').count()) === 1);
+    const shadowLogin = await diagnose(false);
+    check("L12.22 a shadow-root password page is skipped as protected without the opt-in, no HTML sent", shadowLogin.diagnosis.provider.reason === "protected-surface" && shadowLogin.provider.requests.length === 0, shadowLogin.diagnosis.provider);
+    check("L12.22 ...and the serializer refuses it without the override", (await captureDomSnapshot(page.mainFrame(), { mode: "recover" })).refused === "protected-login");
     check("the refused wording covers every refused reason the detector knows", REFUSED_TEXT_PATTERNS.includes("verify it's you") && REFUSED_TEXT_PATTERNS.includes("captcha") && REFUSED_TEXT_PATTERNS.includes("digital signature") && !REFUSED_TEXT_PATTERNS.includes("verification code"));
   } finally {
     await browser?.close().catch(() => undefined);
@@ -221,7 +257,11 @@ async function main(): Promise<void> {
   check("...decided before the step or the page is read", handler.indexOf("assertSenderSuperUser") < handler.indexOf("getLivePage") && handler.indexOf("assertSenderSuperUser") < handler.indexOf("createFlowProfileStore"));
   check("the live page relaxes only for that authorized actor", /getLivePage\(alias, \{ allowProtected: actor !== undefined \}\)/.test(handler));
   check("the diagnosis is told to read protected pages only for that actor", /allowProtected: actor !== undefined/.test(handler.slice(handler.indexOf(".diagnose("))));
-  check("a use that read a protected page is audited", /if \(actor && diagnosis\.protectedOverride\) await auditProtectedDiagnosis\(actor, diagnosis\.protectedOverride\)/.test(handler));
+  check(
+    "L12.22 a use that read a protected page is audited from the read itself, not after diagnose returns",
+    /onProtectedRead: actor \? \(reason\) => auditProtectedDiagnosis\(actor, reason\) : undefined/.test(handler.slice(handler.indexOf(".diagnose("))) &&
+      (handler.match(/auditProtectedDiagnosis\(/g) ?? []).length === 1
+  );
   check("the use audit records the actor and the surface code, never the page", /eventType: "PROTECTED_DIAGNOSIS_USED"[\s\S]{0,400}detail: \{ surface: reason \}/.test(ipc) && !/detail: \{[^}]*(url|html|selector)/i.test(ipc));
   check("the drift check never opts in (protected pages stay not-here there)", !ipc.slice(ipc.indexOf('ipcMain.handle("domIntelligence:checkDrift"')).includes("allowProtected"));
   const recorder = readFileSync("src/recorder/RecorderService.ts", "utf8");
@@ -235,7 +275,10 @@ async function main(): Promise<void> {
     /const challenge = deps\.allowProtected === true && \(await this\.page\.locator\(CAPTCHA_MARKER_SELECTOR\)\.count\(\)\.catch\(\(\) => 1\)\) > 0;/.test(factory) &&
       /const override =\s*\(protectedPage \|\| protectedDocument\) &&\s*deps\.allowProtected === true &&\s*frame === this\.page\.mainFrame\(\) &&\s*!challenge &&/.test(factory)
   );
-  check("the override is reported only after the serializer read the page", /else \{\s*if \(overrideReason\) diagnosis\.protectedOverride = overrideReason;\s*const result = await deps\.provider\.findRecoveryCandidates/.test(factory));
+  check(
+    "the override is reported only after the serializer read the page, and before the provider runs",
+    /else \{\s*if \(overrideReason\) \{\s*diagnosis\.protectedOverride = overrideReason;\s*await deps\.onProtectedRead\?\.\(overrideReason\);\s*\}\s*const result = await deps\.provider\.findRecoveryCandidates/.test(factory)
+  );
   const session = readFileSync("app/main/security/sessionContext.ts", "utf8");
   const superUser = session.slice(session.indexOf("export async function assertSenderSuperUser"), session.indexOf("export interface DenialAudit"));
   check(

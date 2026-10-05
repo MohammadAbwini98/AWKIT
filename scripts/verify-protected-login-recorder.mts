@@ -32,7 +32,7 @@ const PORT = 4407;
 const BASE = `http://127.0.0.1:${PORT}`;
 let passed = 0;
 // AWKIT-QA-005: bump when intentionally adding/removing checks.
-let EXPECTED_CHECKS = 81;
+let EXPECTED_CHECKS = 96;
 let failed = 0;
 function check(label: string, condition: unknown, detail = ""): void {
   if (condition) {
@@ -327,6 +327,32 @@ try {
   await recorder.cancelRecording();
   recorder = undefined;
 
+  // L12.22: a sign-in web component whose password field lives only inside an open shadow root.
+  console.log("Recorder pause boundary — shadow-root sign-in:");
+  recorder = new RecorderService();
+  await recorder.startRecording(`${BASE}/mock/sso-text-app`, { executablePath: chromium.executablePath(), captureSmartWaits: false });
+  const shadowRecorderPage = (recorder as unknown as { page: Page | null }).page;
+  if (!shadowRecorderPage) throw new Error("Recorder did not expose its live page to the verification seam.");
+  await shadowRecorderPage.goto(`${BASE}/mock/protected-shadow-login`);
+  await waitUntil(() => recorder?.getHandoff()?.phase === "detected", "shadow-root sign-in handoff detection");
+  check("a shadow-root sign-in pauses the Recorder", recorder.getStatus().isRecording === false);
+  check("...and the handoff names it a sign-in form", recorder.getHandoff()?.reason === "login-form", recorder.getHandoff()?.reason);
+  await recorder.cancelRecording();
+  recorder = undefined;
+
+  // L12.22: a sign-in form embedded in a child iframe; the top document holds no password field.
+  console.log("Recorder pause boundary — sign-in inside a child frame:");
+  recorder = new RecorderService();
+  await recorder.startRecording(`${BASE}/mock/sso-text-app`, { executablePath: chromium.executablePath(), captureSmartWaits: false });
+  const frameRecorderPage = (recorder as unknown as { page: Page | null }).page;
+  if (!frameRecorderPage) throw new Error("Recorder did not expose its live page to the verification seam.");
+  await frameRecorderPage.goto(`${BASE}/mock/protected-frame-login`);
+  await waitUntil(() => recorder?.getHandoff()?.phase === "detected", "child-frame sign-in handoff detection");
+  check("a sign-in inside a child frame pauses the Recorder", recorder.getStatus().isRecording === false);
+  check("...and the handoff names it a sign-in form", recorder.getHandoff()?.reason === "login-form", recorder.getHandoff()?.reason);
+  await recorder.cancelRecording();
+  recorder = undefined;
+
   console.log("Capture Session & Resume — recorder resume lifecycle:");
   {
     resumeDraftDir = await mkdtemp(join(tmpdir(), "awkit-rec022-resumedraft-"));
@@ -579,6 +605,66 @@ try {
   await page.setContent(widgetPage(""));
   const plainDetect = await detectRecorderProtectedLogin(page);
   check("control: the same email form without a widget is not detected", !plainDetect.detected, `${plainDetect.detected}/${plainDetect.reason}`);
+
+  console.log("Mock shadow-root sign-in (L12.22):");
+  await page.goto(`${BASE}/mock/protected-shadow-login`);
+  // Without this precondition the next check could pass on a light-DOM field or wording, not the shadow root.
+  check(
+    "precondition: the password field exists only inside an open shadow root",
+    (await page.locator('[data-testid="shadow-password"]').count()) === 1 &&
+      (await page.evaluate(() => document.querySelector('input[type="password"]') === null && !/password|sign in|captcha|verif/i.test(document.body.innerText)))
+  );
+  const shadowDetect = await detectRecorderProtectedLogin(page);
+  check(
+    "recorder detects a password field inside an open shadow root and pauses",
+    shadowDetect.detected && shadowDetect.reason === "login-form" && shadowDetect.recommendedAction === "pause",
+    `${shadowDetect.detected}/${shadowDetect.reason}/${shadowDetect.recommendedAction}`
+  );
+  const shadowHost = (inner: string, mode = "open") =>
+    `<!doctype html><html><head><title>Orders</title></head><body><main><x-host></x-host></main><script>document.querySelector("x-host").attachShadow({ mode: "${mode}" }).innerHTML = ${JSON.stringify(inner)};</script></body></html>`;
+  await page.setContent(shadowHost('<div class="cf-turnstile" data-sitekey="k"></div>'));
+  const shadowWidget = await detectRecorderProtectedLogin(page);
+  check("a Turnstile widget inside an open shadow root is a CAPTCHA", shadowWidget.reason === "captcha" && shadowWidget.recommendedAction === "pause", shadowWidget.reason);
+  await page.setContent(shadowHost('<x-inner></x-inner>').replace("</script>", 'document.querySelector("x-host").shadowRoot.querySelector("x-inner").attachShadow({ mode: "open" }).innerHTML = "<p>Please complete the security check</p>";</script>'));
+  const nestedWording = await detectRecorderProtectedLogin(page);
+  check("challenge wording two shadow roots deep is detected and pauses", nestedWording.detected && nestedWording.recommendedAction === "pause", `${nestedWording.reason}/${nestedWording.recommendedAction}`);
+  await page.setContent(shadowHost('<iframe title="Widget" src="about:blank#www.google.com/recaptcha/api2/anchor"></iframe>', "closed"));
+  const closedFrame = await detectRecorderProtectedLogin(page);
+  check("a CAPTCHA iframe inside a CLOSED shadow root is still a CAPTCHA (frame tree, not the DOM)", closedFrame.reason === "captcha" && closedFrame.recommendedAction === "pause", closedFrame.reason);
+  await page.setContent(shadowHost("<p>Your orders are up to date.</p>"));
+  const shadowPlain = await detectRecorderProtectedLogin(page);
+  check("control: a shadow root with ordinary content is not detected", !shadowPlain.detected, `${shadowPlain.detected}/${shadowPlain.reason}`);
+
+  console.log("Mock child-frame sign-in (L12.22):");
+  await page.goto(`${BASE}/mock/protected-frame-login`);
+  await page.frameLocator('[data-testid="frame-sign-in"]').locator('[data-testid="frame-password"]').waitFor();
+  check(
+    "precondition: the password field exists only inside the child frame",
+    (await page.evaluate(() => document.querySelector('input[type="password"]') === null && !/password|sign in|captcha|verif/i.test(document.body.innerText)))
+  );
+  const frameDetect = await detectRecorderProtectedLogin(page);
+  check(
+    "recorder detects a password field inside a child frame and pauses",
+    frameDetect.detected && frameDetect.reason === "login-form" && frameDetect.recommendedAction === "pause",
+    `${frameDetect.detected}/${frameDetect.reason}/${frameDetect.recommendedAction}`
+  );
+  // The top document is on 127.0.0.1 and the framed sign-in on localhost (same server), so the frame is cross-origin:
+  // no contentDocument, only its own frame. (An about:blank top cannot frame a loopback address at all.)
+  await page.goto(`${BASE}/mock/sso-text-app`);
+  await page.setContent(`<!doctype html><html><head><title>Orders</title></head><body><iframe src="${BASE.replace("127.0.0.1", "localhost")}/mock/protected-login"></iframe></body></html>`);
+  await page.frames()[1]?.waitForLoadState();
+  const crossFrame = await detectRecorderProtectedLogin(page);
+  check(
+    "precondition: the framed sign-in loaded, cross-origin, with its password field",
+    (await page.evaluate(() => (document.querySelector("iframe") as HTMLIFrameElement).contentDocument === null)) &&
+      (await page.frames()[1]?.locator('input[type="password"]').count()) === 1,
+    page.frames().map((frame) => frame.url()).join(", ")
+  );
+  check("a sign-in in a CROSS-ORIGIN child frame is detected and pauses", crossFrame.detected && crossFrame.recommendedAction === "pause", `${crossFrame.detected}/${crossFrame.reason}/${crossFrame.recommendedAction}`);
+  await page.setContent('<!doctype html><html><head><title>Orders</title></head><body><iframe srcdoc="<p>Your orders are up to date.</p><button>Refresh</button>"></iframe></body></html>');
+  await page.frames()[1]?.waitForLoadState();
+  const framePlain = await detectRecorderProtectedLogin(page);
+  check("control: a child frame with ordinary content is not detected", page.frames().length === 2 && !framePlain.detected, `${page.frames().length} frames, ${framePlain.detected}/${framePlain.reason}`);
 
   console.log("Mock protected popup OTP:");
   await page.goto(`${BASE}/mock/protected-popup-otp`);

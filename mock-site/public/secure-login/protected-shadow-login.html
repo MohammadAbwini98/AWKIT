@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Welcome</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card" data-testid="protected-shadow-page">
+      <h1>Welcome</h1>
+      <!-- A sign-in web component (L12.22): the password field lives only inside an OPEN shadow root, so
+           document.querySelector and body innerText never see it. Only a shadow-piercing check can make AWKIT pause.
+           Deliberately no light-DOM password field and no sign-in or challenge wording outside the component. -->
+      <awkit-sign-in data-testid="shadow-sign-in"></awkit-sign-in>
+      <p><a href="/">Back to Feature Test Lab</a></p>
+    </main>
+    <script>
+      customElements.define(
+        "awkit-sign-in",
+        class extends HTMLElement {
+          connectedCallback() {
+            this.attachShadow({ mode: "open" }).innerHTML =
+              '<form onsubmit="return false">' +
+              '<label for="email">Email</label><input id="email" type="email" data-testid="shadow-email" />' +
+              '<label for="password">Password</label><input id="password" type="password" data-testid="shadow-password" />' +
+              '<button type="submit" data-testid="shadow-submit">Continue</button></form>';
+          }
+        }
+      );
+    </script>
+  </body>
+</html>

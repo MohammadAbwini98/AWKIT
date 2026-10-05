@@ -492,6 +492,11 @@ export class LocatorFactory {
        * allowed sign-in or MFA surface is then read; every other protected surface stays refused.
        */
       allowProtected?: boolean;
+      /**
+       * L12.22: told the moment the serializer has read a protected page under that override, before the provider
+       * runs, so the read is audited even if anything after it throws.
+       */
+      onProtectedRead?: (reason: string) => void | Promise<void>;
       describe?: boolean;
     } = {}
   ): Promise<LocatorDiagnosis> {
@@ -603,7 +608,10 @@ export class LocatorFactory {
       if (!snapshot) diagnosis.provider = { outcome: "error", reason: "snapshot-failed", candidates: [] };
       else if (snapshot.refused) diagnosis.provider = { outcome: "skipped", reason: "protected-surface", candidates: [] };
       else {
-        if (overrideReason) diagnosis.protectedOverride = overrideReason;
+        if (overrideReason) {
+          diagnosis.protectedOverride = overrideReason;
+          await deps.onProtectedRead?.(overrideReason);
+        }
         const result = await deps.provider.findRecoveryCandidates({
           html: snapshot.html,
           reference,
