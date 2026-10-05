@@ -1,5 +1,32 @@
 # KNOWN_ISSUES
 
+## Twin veto and similar-row loops still acted on a wrong element (found 2026-10-06 by independent QC, RESOLVED 2026-10-06 by L12.25, `awkit-djnl.21.25`)
+
+- **F1 (P1).** The L12.24 twin memory kept the 8 closest look-alikes of the whole document, hidden ones included,
+  but local recovery acts on VISIBLE elements in the step's container. With 8 or more closer hidden look-alikes, a
+  visible look-alike that had always stood beside the target was not remembered, and recovery acted on it once the
+  target was removed (QC: 0 and 7 hidden refused, 8 and 12 recovered to `#save-notes`). **This disproves the
+  L12.23/L12.24 entry below**: an unkept twin did NOT need the kept ones above it to drift or vanish, it only
+  needed them to sit outside the acting layer's candidate pool. **Fix:** winner memory keeps a 64-bit identity
+  digest of every compatible look-alike in the step's frame scoring at least 0.6 (`twinDigests`); past 1024, on an
+  unscannable page and on memory written before L12.25, recovery refuses (`twins-unproven`) until the step passes
+  again. `verify:twin-pool-safety` 12/0, red first, mutation tested.
+- **F2 (P1).** A similar-row loop selector could tell Approve from Reject only by `:not([disabled])` (or `:visible`);
+  once Reject was enabled the real StepExecutor clicked both. **Fix:** identity is compared without state, a row
+  holding it twice refuses the loop, the selector's semantic part may match only that identity, and the run refuses
+  a selector that matches twice in one row (`loopRowDepth`, `SIMILAR_ROWS_LOOP_BROADENED`).
+  `verify:similar-rows-safety` 28/0 on 15 pages, red first, three mutations.
+- **Still known, not fixed:**
+  - **F3 (P2, bounded):** a loop that needs a state filter (`rows-disabled-hidden`) re-resolves its matches every
+    iteration, so an Approve that disables itself when clicked shifts the rest: measured 3 of 5 rows clicked, then
+    the step fails. Never another action. A loop without a state filter does not shift.
+  - A look-alike that itself drifted (changed identity) after the step passed is not recognised as pre-existing.
+  - The blueprint layer scores against the recorded blueprint fingerprint; a look-alike near that one but under 0.6
+    against the last remembered fingerprint is not in the set (needs the target itself to have drifted far).
+  - Similar-rows loops saved before L12.25 carry no `loopRowDepth`, so they get no run-time row check; re-create them.
+  - A loop is refused (not offered) when the picked action's name carries row data and no shared attribute or text
+    names it, even if a human could tell the actions apart (recall traded for safety).
+
 ## The protected-login detector missed sign-ins inside shadow roots and child frames (found 2026-10-05 by L12.22, RESOLVED 2026-10-05)
 
 - **Symptom.** `detectRecorderProtectedLogin` and the snapshot serializer read only the top document's light DOM.
@@ -35,6 +62,9 @@
   same holds for an unkept twin once every kept one above it drifted or vanished; old memory records carry no
   twins until a step next passes; a container that is missing or ambiguous now falls back to the whole frame,
   as before.
+- **Correction (added 2026-10-06 by L12.25, the text above is left as written):** independent QC disproved the
+  unkept-twin statement: hidden look-alikes outside the acting pool were enough, no drift was needed. See the
+  L12.25 entry at the top. The 8-twin memory is replaced by a complete digest set.
 
 ## Element Spy similar rows mixed a row's different actions, and the loop clicked them all (found 2026-10-05, RESOLVED 2026-10-05, `awkit-djnl.21.24`)
 

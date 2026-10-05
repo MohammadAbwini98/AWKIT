@@ -1,6 +1,33 @@
 # TASK_LOG
 
-## 2026-10-05 (latest) — L12.22 protected-diagnosis residuals (Claude)
+## 2026-10-06 (latest) — L12.25 wrong-target residuals: twin pool and state-only loops (Claude)
+
+- **Task:** owner asked to create and implement L12.25 (P1, under L12) for the two wrong-action defects independent
+  Phase L QC reproduced (`tmp/qc-l12/`), red first, mutation tested; F3 investigated. L12.22-L12.24 not reopened.
+- **Root causes:** F1, the 8 remembered twins were the 8 closest in the whole document including hidden ones, while
+  local recovery acts on visible elements in the container, so hidden look-alikes crowded a visible one out of the
+  veto. F2, the loop selector's only discriminator between Approve and Reject was `:not([disabled])`, which the page
+  can change before the loop runs.
+- **Built (`dfb9a036`):** `recoverySnapshot.ts` (`preExistingTwinDigests`, `twinDigest`, `twinVeto`, floor 0.6,
+  storage bound 1024 failing closed), `LocatorFactory` (`twinDigests` memory, `twins-unproven`), `similarRows.ts`
+  (state-free identity over every same-tag element in the rows' container, semantic-part check in the page and by
+  Playwright, `rowDepth`), `StepExecutor` (`loopRowDepth` run-time refusal), `loopRowDepth` through
+  `RecorderService`, `buildRecordedFlow`, the IPC and `NodeConfig`. Corpus: `TWIN_POOL_LAB` (6 pages), 5 new
+  `SIMILAR_ROW_LAB` pages. New `verify:twin-pool-safety`. Contract `awkit-l12-25-implementation-1006`.
+- **Red first:** twin-pool 6 of 12 failing, 12 of 24 observations WRONG (`#save-notes`, 8/12/12-outside hidden,
+  both engines, both scopes), exactly QC's 0/7 refuse, 8/12 wrong. Similar-rows 24/4: the QC repro clicked
+  approve,reject in every row through the real StepExecutor, and a second Approve added after generation was clicked.
+- **Mutations:** 8-closest selection restored 9/3 (12 WRONG); state-only selector 26/2; run-time row check off
+  27/1; per-row rule on state-including identity 26/2. All reverted.
+- **Checks (PASS):** twin-pool 12/0, similar-rows 28/0, coverage 74/0, acceptance 12/0 (11/14), l12 82/0,
+  locator-wrong-element 14/0, blueprint-recovery 56/56, contexts 60/0, frame-chain 41/0 (first run), provider-agreement
+  45/0, element-spy 206/0, recorder 297/0, runner 138/0, mock-site 263/263, protected-diagnosis 75/0, ipc-contract
+  10/10, flow-fragments 103/0, ai-fallback 51/0, classification reconciled (325), typecheck:scripts clean, build OK,
+  `git diff --check` clean. failure-capture-overhead 16/0/2 INCONCLUSIVE (run 28, `6945cdca`).
+- **F3:** not eliminated where a state filter is needed (3 of 5 rows, then failure); kept P2, never another action.
+- **Tracker:** `.21.25` filed and closed; `.21.26` (second independent read-only QC) filed OPEN, P1.
+
+## 2026-10-05 — L12.22 protected-diagnosis residuals (Claude)
 
 - **Task:** owner asked to finish `awkit-djnl.21.22`: reproduce and classify each residual, fix real defects
   red-first, keep the protected-login boundary fail-safe. L12.23/L12.24 not reopened.

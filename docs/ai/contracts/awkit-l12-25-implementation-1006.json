@@ -1,0 +1,218 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-l12-25-implementation-1006",
+    "title": "L12.25 wrong-target residuals in look-alike recovery and similar-row loops",
+    "objective": "Owner request of 2026-10-06: create and implement L12.25 (P1, under L12) for the two wrong-action defects independent Phase L QC reproduced through production code. F1: the 8-twin memory is chosen from the whole document including hidden look-alikes, so with 8 or more hidden look-alikes a visible pre-existing look-alike inside the acting pool is unkept and recovery acts on it. F2: a similar-row loop selector that tells the picked action apart from its siblings only by enabled state broadens at run time, and the real StepExecutor clicked Approve and Reject. Both get red-first permanent regression cases, mutation proof, and fixes that do not rely on a larger arbitrary cap or on transient state. F3 (state filters skipping rows mid-loop) is investigated. L12.22 to L12.24 are not reopened and their evidence is not rewritten.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "514ed224",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "execution_change": true,
+    "runner_change": true,
+    "electron_main_change": true,
+    "ipc_change": true,
+    "filesystem_write_change": true,
+    "packaging_change": true,
+    "recorder_change": true,
+    "persisted_shape_change": true,
+    "mock_site_required": true,
+    "project_state_change": true,
+    "cross_layer_count": 3
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "architect",
+      "runtime",
+      "integration",
+      "recorder",
+      "qa",
+      "qc",
+      "persistence",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      "src/runner/recoverySnapshot.ts",
+      "src/runner/LocatorFactory.ts",
+      "src/runner/LocatorRecoveryStore.ts",
+      "src/runner/domIntelligence/similarRows.ts",
+      "src/runner/StepExecutor.ts",
+      "src/profiles/FlowProfile.ts",
+      "src/recorder/RecorderService.ts",
+      "src/recorder/buildRecordedFlow.ts",
+      "app/main/ipc/domIntelligence.ipc.ts",
+      "mock-site/dom-coverage-corpus.mjs",
+      "mock-site/dom-coverage-corpus.d.mts",
+      "mock-site/README.md",
+      "scripts/verify-twin-pool-safety.mts",
+      "scripts/verify-similar-rows-safety.mts",
+      "scripts/verify-dom-intelligence-l12.mts",
+      "scripts/verify-mock-site.mjs",
+      "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
+      "scripts/lib/verifier-classification.ts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "package.json",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      ".beads/**",
+      "docs/ai/contracts/awkit-l12-25-implementation-1006.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [
+      "architect",
+      "integration"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "L12-25-F1",
+      "description": "With 0, 7, 8 and 12 hidden look-alikes, with the visible wrong candidate inside the step's proven container and with hidden look-alikes outside it, removing the target never recovers to another element, and a legitimate drift still recovers to the exact target; red first on the pre-fix code for 8 or more, mutation tested by restoring the 8-closest selection. Older memory without the new field loads and fails closed.",
+      "evidence_required": [
+        "verify:twin-pool-safety"
+      ]
+    },
+    {
+      "id": "L12-25-F2",
+      "description": "No similar-row loop is offered when the picked action is told apart from a sibling action only by enabled, visible or other transient state; a Reject or Delete that becomes actionable, reordered actions and a sibling added after generation never broaden an Approve loop executed by the real StepExecutor; ambiguous loops are refused. Red first, mutation tested by restoring the state-only selector.",
+      "evidence_required": [
+        "verify:similar-rows-safety"
+      ]
+    },
+    {
+      "id": "L12-25-NO-REGRESSION",
+      "description": "0 wrong elements, every removed-target case empty, acceptance at least 11/14, 3 identical coverage runs, latency budgets kept, and the recovery, recorder, runner, Element Spy, mock-site, build, script typecheck and verifier classification gates green.",
+      "evidence_required": [
+        "regression"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:twin-pool-safety",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:twin-pool-safety",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "Red first on 514ed224: 6/6 (12 of 24 observations WRONG to #save-notes at 8, 12 and 12-outside hidden look-alikes, both engines, container and document scope; 0 and 7 refused), matching independent QC. Final 12/0. Mutation with the 8-closest selection restored: 9/3, 12 WRONG."
+    },
+    {
+      "id": "verify:similar-rows-safety",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:similar-rows-safety",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "Red first on 514ed224: 24/4 (state-only, visibility-only and state-twin loops offered; the QC repro clicked approve,reject in every row through the real StepExecutor; a second Approve added after generation was clicked). Final 28/0 on 15 pages. Mutations: state-only selector 26/2, run-time row check off 27/1, per-row rule on state-including identity 26/2."
+    },
+    {
+      "id": "regression",
+      "type": "verifier",
+      "required": true,
+      "command": "verify:dom-intelligence-coverage, verify:dom-intelligence-acceptance, verify:dom-intelligence-l12, verify:locator-wrong-element, verify:blueprint-recovery, verify:dom-intelligence-contexts, verify:frame-chain, verify:provider-agreement, verify:element-spy, verify:recorder, verify:runner, verify:mock-site, verify:protected-diagnosis, verify:ipc-contract, verify:flow-fragments, verify:ai-fallback, verify:verifier-classification, verify:failure-capture-overhead, npm run typecheck:scripts, npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "Coverage 74/0 (0 WRONG, 28 removed empty, 3 identical runs, 48 recovered, snapshot p95 246 ms, product p95 222 ms), acceptance 12/0 (11/14), l12 82/0, locator-wrong-element 14/0, blueprint-recovery 56/56, contexts 60/0, frame-chain 41/0 on its first run, provider-agreement 45/0, element-spy 206/0, recorder 297/0, runner 138/0, mock-site 263/263, protected-diagnosis 75/0, ipc-contract 10/10, flow-fragments 103/0, ai-fallback 51/0, classification reconciled (325), typecheck:scripts clean, build OK, git diff --check clean. failure-capture-overhead 16/0/2 INCONCLUSIVE (run 28, the owner-accepted state)."
+    },
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "awkit-djnl.21.25 created and closed, awkit-djnl.21.26 created OPEN, then 'Exported 360 issues to .beads/issues.jsonl'."
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "First run 176/177: only the edge pin failed (247 against 245), banner already 'Sources agree'. Pin moved, then 177/177 with 'Sources agree' (360 issues, 24 outstanding / 336 closed)."
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "pending",
+      "observed": ""
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qa_basis": "Both QC repros are permanent deterministic cases that were red on the pre-fix code and are green now, and each fix is mutation tested: verify:twin-pool-safety 12/0, verify:similar-rows-safety 28/0, plus the regression set.",
+    "qa_known_limitations": "F3 (P2): a loop that needs a state filter can skip rows when a click disables its own button, never another action. A look-alike that itself drifted is not recognised. Similar-rows loops saved before L12.25 have no run-time row check. Memory written before L12.25 refuses recovery until the step passes again.",
+    "qc_status": "pending",
+    "qc_note": "No independent review in this session. The owner requires a second independent read-only QC targeted at L12.25 and the two original P1 repros (awkit-djnl.21.26) before Phase L hardening may be declared closed."
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-l12-25-implementation-1006:project-state:2026-10-05T23:16:08.807Z",
+        "task": "awkit-l12-25-implementation-1006",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-05T23:16:08.807Z",
+        "acquired_at_commit": "514ed224aa9ebcae3e9f5b43567a01e16e7ee2a6",
+        "released_at": "2026-10-05T23:17:22.312Z",
+        "released_reason": "L12.25 tracker item created and exported, implementation continues unleased",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-l12-25-implementation-1006:project-state:2026-10-05T23:51:55.927Z",
+        "task": "awkit-l12-25-implementation-1006",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-05T23:51:55.927Z",
+        "acquired_at_commit": "6945cdca03688f1a85e277d6d1adae1f7a523638",
+        "released_at": "2026-10-05T23:52:52.237Z",
+        "released_reason": "L12.25 closed and L12.26 independent QC filed, export refreshed, roadmap pin and docs continue unleased",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

@@ -1,6 +1,31 @@
 # CURRENT_STATE
 
-## L12.22 done: protected surfaces in shadow roots and child frames now pause the Recorder; protected reads audited on read (2026-10-05, latest)
+## L12.25 done: twin veto covers every look-alike; similar-row loops never rely on transient state (2026-10-06, latest)
+
+- **Source:** independent Phase L QC reproduced two wrong actions through production code (repros in
+  `tmp/qc-l12/`). L12.22 to L12.24 are not reopened; their recorded statements stay as written.
+- **F1 (`awkit-djnl.21.25`, P1, closed, `dfb9a036`):** with 8 or more hidden look-alikes, recovery acted on a
+  visible pre-existing look-alike (`#save-notes`), because the 8 remembered twins were chosen from the whole
+  document. Winner memory now keeps an identity digest of every compatible look-alike in the step's frame (score at
+  least 0.6, `twinDigests`); past 1024, on an unscannable page and for memory written before L12.25, recovery
+  refuses (`twins-unproven`) until the step passes again. No larger cap. New `verify:twin-pool-safety` 12/0
+  (`TWIN_POOL_LAB`, 6 pages, both engines, container and document scope), red first, mutation tested.
+- **F2 (P1, closed):** a loop selector told Approve from Reject only by `:not([disabled])`, and the real
+  StepExecutor clicked both once Reject was enabled. Identity is now compared without state, a row holding it
+  twice refuses the loop, the selector's semantic part may match only that identity, and the run refuses a
+  selector that matches twice in one row (`loopRowDepth`). `verify:similar-rows-safety` 28/0 on 15 pages, red
+  first, three mutations; seven loops run through the real StepExecutor after the page changed.
+- **F3 (P2, kept):** a loop that needs a state filter can skip rows when a click disables its own button (3 of 5
+  measured, then the step fails); never another action. See KNOWN_ISSUES.
+- **Checks:** coverage 74/0 (0 wrong, 28 removed empty, 3 identical runs, 48 recovered), acceptance 12/0 (11/14),
+  l12 82/0, locator-wrong-element 14/0, contexts 60/0, frame-chain 41/0 (first run, no flake), provider-agreement
+  45/0, element-spy 206/0, recorder 297/0, runner 138/0, mock-site 263/263, build OK. failure-capture-overhead
+  16/0/2 INCONCLUSIVE (accepted state).
+- **Next:** `awkit-djnl.21.26` (P1, OPEN): a second independent read-only QC of L12.25 and the two original repros.
+  Phase L hardening is not declared closed until it reports.
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## L12.22 done: protected surfaces in shadow roots and child frames now pause the Recorder; protected reads audited on read (2026-10-05)
 
 - **Audit (`awkit-djnl.21.22` item 1, closed):** `LocatorFactory.diagnose` reports a protected read through
   `onProtectedRead` before the provider runs, and `domIntelligence:diagnoseStep` writes `PROTECTED_DIAGNOSIS_USED`

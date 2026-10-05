@@ -1,26 +1,26 @@
 {
-  "task": "awkit-l12-22-implementation-1005",
-  "contract_path": "docs/ai/contracts/awkit-l12-22-implementation-1005.json",
+  "task": "awkit-l12-25-implementation-1006",
+  "contract_path": "docs/ai/contracts/awkit-l12-25-implementation-1006.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-05T15:43:51.865Z",
-  "acquired_at_commit": "b898feebcc09f08208a1dfc6dabdcac485c2640a",
+  "acquired_at": "2026-10-05T23:51:55.927Z",
+  "acquired_at_commit": "6945cdca03688f1a85e277d6d1adae1f7a523638",
   "baseline_dirty": [
-    "docs/ai/CURRENT_STATE.md",
+    ".beads/interactions.jsonl",
+    ".beads/issues.jsonl",
     "docs/ai/KNOWN_ISSUES.md",
-    "docs/ai/TASK_LOG.md",
     "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-l12-22-implementation-1005.json"
+    "docs/ai/contracts/awkit-l12-25-implementation-1006.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/CURRENT_STATE.md": "ecee3ae8ea171eef13695c94b6e56d4bbb868a735db45d224cf8fde3668b7b19",
-    "docs/ai/KNOWN_ISSUES.md": "3cdd5eb844697bfb6e5abc35fe308760d5add0a588e76b5505b1f197190806c6",
-    "docs/ai/TASK_LOG.md": "d65388d721ab7c8896fd1e69fca8744b8e93e5991094fe69c511f6c87df0bc57",
-    "docs/ai/contracts/active-lease.json": "cf1f288ff0141d0f15bc0434c326c1c04644b759b56a8bb186915d9171cc3383",
-    "docs/ai/contracts/awkit-l12-22-implementation-1005.json": "701cfd58a259521fd5c39cd238a59fd60c32cdd95e09f34b347eb94ea3ddf479"
+    ".beads/interactions.jsonl": "6fd42a1c8509c4147fce23eeefbe42fd8a0862d7a8965fddc46427cf6b6ebe48",
+    ".beads/issues.jsonl": "5a888a8c0907251b98925e288ff8d6a3803e9bf66d4049d7179bfaa6b0ca451b",
+    "docs/ai/KNOWN_ISSUES.md": "732a76ea0f594cd3e6371b0b8f422ad4c7a8d5da66327e1d05b889e65e8178e6",
+    "docs/ai/contracts/active-lease.json": "c313fd262878f406222736f7e826bed2e2e1db4c3f3d478755b302cb8a6e0c8b",
+    "docs/ai/contracts/awkit-l12-25-implementation-1006.json": "d89ee98fc25cd99c1b129982616bda52cc45c8b687a2c206aec5776a74b9b905"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -35,7 +35,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-05T15:44:24.648Z",
-  "released_reason": "L12.22 closed with its evidence, export refreshed, roadmap pin and contract evidence continue unleased",
-  "archived_at": "2026-10-05T15:44:24.650Z"
+  "released_at": "2026-10-05T23:52:52.237Z",
+  "released_reason": "L12.25 closed and L12.26 independent QC filed, export refreshed, roadmap pin and docs continue unleased",
+  "archived_at": "2026-10-05T23:52:52.238Z"
 }
