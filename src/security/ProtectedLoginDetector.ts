@@ -382,7 +382,7 @@ export async function detectRecorderProtectedLogin(page: Page): Promise<Recorder
         ? frame.evaluate(scanProtectedDocument).catch(() => undefined)
         : Promise.race([
             frame.evaluate(scanProtectedDocument).catch(() => undefined),
-            new Promise<undefined>((resolve) => setTimeout(resolve, FRAME_SCAN_TIMEOUT_MS).unref())
+            new Promise<undefined>((resolve) => setTimeout(resolve, FRAME_SCAN_TIMEOUT_MS))
           ])
     )
   );
