@@ -56,7 +56,8 @@ export type RecoveryRefusal =
   | "snapshot-failed"
   | "stale-snapshot"
   | "blueprint-unavailable"
-  | "page-variant";
+  | "page-variant"
+  | "pre-existing-twin";
 
 export interface RecoveryDecision {
   winner?: ScoredCandidate;
@@ -149,6 +150,36 @@ export function decideProviderAgreement(
   // Refused on score: AWKIT's own margin must still hold, so the agreement never breaks a near-tie.
   if (decision.refusal === "below-threshold" && runnerUp && best.score - runnerUp.score < RECOVERY_MARGIN) return undefined;
   return best;
+}
+
+/**
+ * L12.23 (awkit-djnl.21.23): look-alikes that stood beside the target when its step first succeeded. A
+ * recovery winner identical to one of them (identity AND ancestry) is that same untouched element, not the
+ * target: the target is gone and its twin was always there. Measured on the DOM Coverage Lab, each layer
+ * otherwise acted on one: an Archive "Download statement" link (local, 0.867), the billing address "Edit"
+ * (blueprint, 0.994) and a hidden tab's "Save" shown after a tab switch (blueprint, 0.995).
+ *
+ * Only twins DISTINGUISHABLE from the target are kept: an identical fingerprint (identical list rows) was never
+ * what told the target apart, so vetoing it would refuse every row's own recovery. Hidden elements count, since
+ * a hidden twin can be shown later.
+ */
+export const MAX_RECORDED_TWINS = 8;
+
+export function preExistingTwins(
+  target: LocatorElementFingerprint,
+  candidates: ReadonlyArray<{ fingerprint: LocatorElementFingerprint }>
+): LocatorElementFingerprint[] {
+  const twins = new Map<string, LocatorElementFingerprint>();
+  for (const { fingerprint } of candidates) {
+    if (sameElementFingerprint(fingerprint, target) || similarity(target, fingerprint) < RECOVERY_SCORE_THRESHOLD) continue;
+    twins.set(JSON.stringify(fingerprint), fingerprint);
+  }
+  // ponytail: the first 8 distinct twins only; a page with more distinguishable look-alikes keeps the rest unvetoed.
+  return [...twins.values()].slice(0, MAX_RECORDED_TWINS);
+}
+
+export function isPreExistingTwin(twins: readonly LocatorElementFingerprint[] | undefined, winner: LocatorElementFingerprint): boolean {
+  return Boolean(twins?.some((twin) => sameElementFingerprint(twin, winner)));
 }
 
 export interface BlueprintEvidence {

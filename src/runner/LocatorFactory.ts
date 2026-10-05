@@ -41,9 +41,12 @@ import {
   decideBlueprintRecovery,
   decideProviderAgreement,
   gateRecovery,
+  isPreExistingTwin,
   isRecoveryCompatible,
+  preExistingTwins,
   rankLocalRecovery,
   recheckSnapshotWinner,
+  sameElementFingerprint,
   type RecoveryDecision,
   type RecoveryRefusal,
   type ScoredCandidate
@@ -399,7 +402,7 @@ export class LocatorFactory {
 
     let pass = await this.tryCandidates(root, ordered);
     if (pass.winner) {
-      await this.rememberWinner(scopeKey, digest, pass.winner, step);
+      await this.rememberWinner(scopeKey, digest, pass.winner, step, applicableMemory);
       await this.maybeSeedReference(step, pass.winner.locator, sensitiveAction);
 
       if (isPositionalLocator(step.locator) && isValidLocatorFallbackApproval(step)) {
@@ -421,7 +424,7 @@ export class LocatorFactory {
         await this.page.waitForTimeout(graceMs);
         pass = await this.tryCandidates(root, ordered);
         if (pass.winner) {
-          await this.rememberWinner(scopeKey, digest, pass.winner, step);
+          await this.rememberWinner(scopeKey, digest, pass.winner, step, applicableMemory);
           return pass.winner.locator;
         }
       }
@@ -429,7 +432,11 @@ export class LocatorFactory {
       // Sensitive actions may retry their exact recorded candidates after the bounded grace period,
       // but must never select a different element through broad or blueprint-guided recovery.
       if (pass.allMissing && !sensitiveAction) {
-        const recovered = await this.recover(root, step, applicableMemory.fingerprint, { route: applicableMemory.route, candidatesTried: ordered.length });
+        const recovered = await this.recover(root, step, applicableMemory.fingerprint, {
+          route: applicableMemory.route,
+          twins: applicableMemory.twins,
+          candidatesTried: ordered.length
+        });
         if (recovered) {
           await this.writeMemory(
             {
@@ -834,7 +841,8 @@ export class LocatorFactory {
     scopeKey: string | undefined,
     candidatesDigest: string,
     winner: { locator: Locator; ranked: RankedCandidate },
-    step: FlowStep
+    step: FlowStep,
+    previous?: LocatorRecoveryRecord
   ): Promise<void> {
     if (!scopeKey || !this.options.recoveryStore) return;
     const fingerprint = await LocatorFactory.fingerprintOne(winner.locator);
@@ -845,6 +853,13 @@ export class LocatorFactory {
         message: `Could not fingerprint the resolved element for "${step.name}"; winner memory was saved without local recovery data.`
       });
     }
+    // L12.23: the look-alikes are scanned once, when this identity is first remembered; an unchanged winner
+    // keeps the twins already recorded, so a normal step pays no extra page walk.
+    const twins = !fingerprint
+      ? undefined
+      : previous?.twins && previous.fingerprint && sameElementFingerprint(previous.fingerprint, fingerprint)
+        ? previous.twins
+        : await this.captureTwins(step, fingerprint);
     await this.writeMemory(
       {
         version: 1,
@@ -852,6 +867,7 @@ export class LocatorFactory {
         candidatesDigest,
         winningCandidateSignature: winner.ranked.signature,
         fingerprint,
+        ...(twins ? { twins } : {}),
         route: await this.stepRoute(step),
         source: "recorded-candidate",
         updatedAt: new Date().toISOString()
@@ -869,7 +885,7 @@ export class LocatorFactory {
     root: LocatorRoot,
     step: FlowStep,
     expected: LocatorElementFingerprint,
-    memory: { route?: string; candidatesTried: number }
+    memory: { route?: string; twins?: LocatorElementFingerprint[]; candidatesTried: number }
   ): Promise<RecoveredElement | undefined> {
     const engine: LocatorRecoveryEngine = this.options.recoveryEngine ?? "snapshot";
     const started = performance.now();
@@ -891,12 +907,19 @@ export class LocatorFactory {
         stages.push({ stage: "local", outcome: "refused", reason: "route-mismatch", ms: performance.now() - started });
         return undefined;
       }
+      // L12.23: no layer may act on a look-alike that stood beside the target when it was remembered.
+      const distinct = (found: RecoveredElement | undefined): RecoveredElement | undefined => {
+        if (!found || !isPreExistingTwin(memory.twins, found.fingerprint)) return found;
+        const stage = stages[stages.length - 1];
+        if (stage) Object.assign(stage, { outcome: "refused", reason: "pre-existing-twin" });
+        return undefined;
+      };
       recovered = await this.requireActionable(
         step,
-        engine === "legacy" ? await this.recoverLocallyLegacy(root, step, expected, stages) : await this.recoverLocallySnapshot(root, step, expected, stages),
+        distinct(engine === "legacy" ? await this.recoverLocallyLegacy(root, step, expected, stages) : await this.recoverLocallySnapshot(root, step, expected, stages)),
         stages
       );
-      recovered ??= await this.requireActionable(step, await this.recoverFromBlueprint(step, engine, stages), stages);
+      recovered ??= await this.requireActionable(step, distinct(await this.recoverFromBlueprint(step, engine, stages)), stages);
       if (!recovered && this.options.domIntelligence) {
         const stageStarted = performance.now();
         const outcome = await suggestRepair({
@@ -910,7 +933,7 @@ export class LocatorFactory {
         stages.push({ stage: "provider", ms: performance.now() - stageStarted, ...outcome.stage });
         suggestion = "suggestion" in outcome ? outcome.suggestion : undefined;
         // L12: AWKIT's best candidate the provider independently ranked first, already re-proven and pinned.
-        if ("agreed" in outcome && outcome.agreed) recovered = await this.requireActionable(step, outcome.agreed, stages);
+        if ("agreed" in outcome && outcome.agreed) recovered = await this.requireActionable(step, distinct(outcome.agreed), stages);
       }
       return recovered;
     } finally {
@@ -923,6 +946,21 @@ export class LocatorFactory {
         context,
         candidatesTried: memory.candidatesTried
       });
+    }
+  }
+
+  /**
+   * L12.23: the distinguishable look-alikes of a just-proven winner in its whole document (not only its
+   * container: a twin outside it is what a document-wide layer would pick). Undefined when the page is too
+   * large to scan or cannot be read, so nothing is vetoed rather than a partial list trusted.
+   */
+  private async captureTwins(step: FlowStep, fingerprint: LocatorElementFingerprint): Promise<LocatorElementFingerprint[] | undefined> {
+    try {
+      const frame = await this.blueprintFrame(step.locator?.context);
+      const snapshot = await captureLocalSnapshot(frame.locator("body *"), fingerprint);
+      return snapshot.truncated ? undefined : preExistingTwins(fingerprint, snapshot.candidates);
+    } catch {
+      return undefined;
     }
   }
 

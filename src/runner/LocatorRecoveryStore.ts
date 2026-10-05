@@ -19,6 +19,12 @@ export interface LocatorRecoveryRecord {
    * another route. Absent on records written before 2026-10-01 (then no route is compared).
    */
   route?: string;
+  /**
+   * L12.23: hashed fingerprints of the distinguishable look-alikes in the winner's document when it was
+   * first proven (`preExistingTwins`). Recovery never acts on one of them unchanged. Absent on older records
+   * and when the page was too large to scan (then nothing is vetoed).
+   */
+  twins?: LocatorElementFingerprint[];
   source: "recorded-candidate" | "local-recovery";
   updatedAt: string;
 }
