@@ -1,18 +1,24 @@
 {
-  "task": "awkit-l12-26-qc-1006",
-  "contract_path": "docs/ai/contracts/awkit-l12-26-qc-1006.json",
+  "task": "awkit-l12-30-implementation-1006",
+  "contract_path": "docs/ai/contracts/awkit-l12-30-implementation-1006.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-06T00:08:46.540Z",
-  "acquired_at_commit": "1b9ef4dd2f883a55b09065dbef73bc66568726d6",
+  "acquired_at": "2026-10-06T15:33:19.872Z",
+  "acquired_at_commit": "10867efd7106b1d9a0aedb2aa1ccddf358a72099",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-l12-26-qc-1006.json"
+    "docs/ai/DECISIONS.md",
+    "docs/ai/KNOWN_ISSUES.md",
+    "docs/ai/contracts/active-lease.json",
+    "docs/ai/contracts/awkit-l12-27-implementation-1006.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-l12-26-qc-1006.json": "0e3839a47e3d455e0eca920953406f1b0813fd40c06af65f267f71dff4796986"
+    "docs/ai/DECISIONS.md": "1dbbe3cbb5dbd1719e891bcc7dd58d65cc7003f4fb0c725863620e83f0b98c01",
+    "docs/ai/KNOWN_ISSUES.md": "71e636b46088959a30a2f42a93cca44b238f0e51667d1eff065d6d20b3ef8aa3",
+    "docs/ai/contracts/active-lease.json": "97c9fea2cd3de60cf661cd8e67876f1d30d7c6a239bcf3a3abb1701f1e4f7805",
+    "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -27,7 +33,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-06T00:09:18.439Z",
-  "released_reason": "L12.26 closed with a FAIL verdict and L12.27 filed, export refreshed, docs and roadmap pin continue unleased",
-  "archived_at": "2026-10-06T00:09:18.441Z"
+  "released_at": "2026-10-06T15:33:52.272Z",
+  "released_reason": "L12.30 closed as awkit-djnl.21.30 and the final independent Windows QC filed as awkit-djnl.21.31, JSONL exported",
+  "archived_at": "2026-10-06T15:33:52.273Z"
 }

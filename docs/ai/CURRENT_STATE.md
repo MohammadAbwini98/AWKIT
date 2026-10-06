@@ -1,6 +1,26 @@
 # CURRENT_STATE
 
-## L12.27 done: late look-alikes remembered, look-alikes at a recovery remembered, loops must name their action (2026-10-06, latest)
+## L12.30 done: look-alike history integrity, shared winner memory merged under a lane, generic labels never name a loop action (2026-10-06, latest)
+
+- **Tracker reconciled first.** The Linux session behind `33e6adf` had no `bd` and hand-edited `.beads/issues.jsonl`.
+  On Windows the Beads DB still held `.21.27` OPEN and no `.21.28`/`.21.29`. They were replayed through `bd` (not
+  imported), the L12.29 re-QC recorded as closed FAIL with N1-N5, and the remediation filed as `awkit-djnl.21.30`
+  (`78975eb5`).
+- **Fix (`.21.30`, closed, `1a6cb6f5`):**
+  - One history-integrity rule: a look-alike set is trusted only while every proven success since the record began
+    was fully observed and merged. Overflow (N1), a cut-short or failed walk (N2) and every pre-L12.27 record are
+    unproven, and unproven is sticky until the step is re-recorded. Recovery from it refuses (`twins-unproven`).
+  - Winner memory stays shared per scenario, flow and step (N3). Writes merge into the record as it is, on a per-file
+    lane shared by every store in the process, and recovery re-reads it before deciding.
+  - A generic `aria-label`, `data-action` or textless `title` never names a similar-rows loop action (N4/N5).
+- **Permanent red-first cases:** `verify:twin-pool-safety` 48/0 (sections E history and F barrier-ordered races,
+  B and B2 legacy records), `verify:similar-rows-safety` 63/0 on 26 pages with exact StepExecutor clicks. Each fix
+  mutation tested.
+- **Windows matrix green**, overhead within noise of the `33e6adf` write path, L5a gate run 30 18/0.
+- **Phase L hardening is NOT closed.** The final independent read-only Windows QC is filed as `.21.31` (P1, OPEN).
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## L12.27 done: late look-alikes remembered, look-alikes at a recovery remembered, loops must name their action (2026-10-06)
 
 - **Fix (`awkit-djnl.21.27`, closed, `72925a0`):**
   - Every passing resolve and every recovery walks the step frame's look-alikes again and merges them with the set

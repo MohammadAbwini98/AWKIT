@@ -12,7 +12,13 @@
     "branch": "main",
     "baseline_commit": "33e6adfd",
     "working_tree_expected": "clean",
-    "preserved_paths": []
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
   },
   "classification": {
     "execution_change": true,
@@ -50,6 +56,7 @@
       "scripts/verify-twin-pool-safety.mts",
       "scripts/verify-similar-rows-safety.mts",
       "scripts/verify-mock-site.mjs",
+      "scripts/verify-semantic-store.mts",
       "scripts/verify-roadmap-dashboard.mjs",
       "scripts/lib/verifier-classification.ts",
       "package.json",
@@ -117,8 +124,8 @@
       "required": true,
       "command": "npm run verify:twin-pool-safety",
       "artifact": null,
-      "result": "pending",
-      "observed": ""
+      "result": "PASS",
+      "observed": "Red first on 33e6adfd: 31/18 (hist-overflow and hist-truncated 4 of 4 recovered to #save-notes on both engines and scopes, all 6 barrier-ordered races recovered to it, legacy records upgraded to trusted). Final 48/0. Mutations: overflow keeps the current walk 45/3, recovery veto from the stale read only 45/3, unproven not sticky (B, B2, hist-truncated red), write merges with the stale read (4 stale-write orderings red), no lane (EPERM on concurrent renames)."
     },
     {
       "id": "verify:similar-rows-safety",
@@ -126,8 +133,8 @@
       "required": true,
       "command": "npm run verify:similar-rows-safety",
       "artifact": null,
-      "result": "pending",
-      "observed": ""
+      "result": "PASS",
+      "observed": "Red first on 33e6adfd: 55/8 (4 generic-label pages offered loops, the real StepExecutor clicked unapprove x6 once and reject x6 four times). Final 63/0 on 26 pages, positive controls loop. Mutations: sibling-name check off 57/6, corroboration off 59/4."
     },
     {
       "id": "regression",
@@ -135,8 +142,8 @@
       "required": true,
       "command": "Windows regression matrix",
       "artifact": null,
-      "result": "pending",
-      "observed": ""
+      "result": "PASS",
+      "observed": "On Windows: coverage 74/0 (0 WRONG, 28 removed empty, identical runs, product 48), acceptance 12/0 (11/14), l12 82/0, locator-wrong-element 14/0, blueprint-recovery 56/56, blueprint-recovery-browser 24/0, provider-agreement 45/0, contexts 60/0, frame-chain 41/0, element-spy 206/0, recorder 297/0, runner 138/0, mock-site 265/265, ai-fallback 51/0, semantic-store 261/0, locator-upgrade-proof 85/0, failure-capture-overhead 18/0 (run 30), verifier-classification reconciled (325), typecheck:scripts clean, build OK, git diff --check clean. Overhead probe within noise of the emulated 33e6adfd write path."
     },
     {
       "id": "beads-export",
@@ -144,8 +151,8 @@
       "required": true,
       "command": "bd export -o .beads/issues.jsonl",
       "artifact": ".beads/issues.jsonl",
-      "result": "pending",
-      "observed": ""
+      "result": "PASS",
+      "observed": "Beads DB replay: .21.27 closed, .21.28 and .21.29 created and closed FAIL, .21.30 created (364 exported, 78975eb5). At the end .21.30 closed and .21.31 (final independent Windows QC) created: Exported 365 issues."
     },
     {
       "id": "verify:roadmap-dashboard",
@@ -153,8 +160,8 @@
       "required": true,
       "command": "npm run verify:roadmap-dashboard",
       "artifact": null,
-      "result": "pending",
-      "observed": ""
+      "result": "PASS",
+      "observed": "177/177 with Sources agree on Windows, PowerShell packaging probes included (365 issues, 24 outstanding / 341 closed, 252 edges)."
     },
     {
       "id": "git-push",
@@ -175,9 +182,12 @@
     "push_evidence_id": "git-push"
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "pending",
-    "qc_status": "pending"
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qa_basis": "N1-N5 reproduced red first on 33e6adfd and are permanent deterministic cases (verify:twin-pool-safety sections E and F, B and B2, verify:similar-rows-safety generic-label pages with exact StepExecutor clicks), each fix mutation tested, Windows regression matrix green.",
+    "qa_known_limitations": "In-process write lane only (another process writing the same folder is not serialized). A step whose history was ever incomplete, and every pre-L12.27 record, refuses recovery until re-recorded. A recovery reads the record before it acts, so a write that lands after that read is not seen by it. A lone action whose label agrees with its text still follows that label if the page relabels the text only.",
+    "qc_status": "pending",
+    "qc_note": "Final independent read-only Windows QC filed as awkit-djnl.21.31 (P1, OPEN). Phase L hardening is not closed by this task."
   },
   "write_lease": {
     "history": [
@@ -193,6 +203,22 @@
         "acquired_at_commit": "33e6adfdc4cd8b68e651beb0014c680a39fa7126",
         "released_at": "2026-10-06T14:50:03.693Z",
         "released_reason": "L12.27 closed, L12.28 and L12.29 replayed into the Beads DB, L12.30 created as awkit-djnl.21.30, JSONL exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-l12-30-implementation-1006:project-state:2026-10-06T15:33:19.872Z",
+        "task": "awkit-l12-30-implementation-1006",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-06T15:33:19.872Z",
+        "acquired_at_commit": "10867efd7106b1d9a0aedb2aa1ccddf358a72099",
+        "released_at": "2026-10-06T15:33:52.272Z",
+        "released_reason": "L12.30 closed as awkit-djnl.21.30 and the final independent Windows QC filed as awkit-djnl.21.31, JSONL exported",
         "amendments": [],
         "overrides": [],
         "violations": []

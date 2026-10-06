@@ -1,5 +1,37 @@
 # KNOWN_ISSUES
 
+## L12.29 re-QC: five wrong-target and wrong-action paths N1-N5 (FIXED 2026-10-06 by L12.30, `awkit-djnl.21.30`, `1a6cb6f5`; final independent Windows QC `awkit-djnl.21.31` OPEN)
+
+- **N1 history overflow (P1).** Past 1,024 look-alike digests the merge kept the current walk alone, so a look-alike
+  seen at an earlier success was forgotten and recovery acted on it when it came back. Now the history is unproven.
+  Red first `hist-overflow` 4 of 4 WRONG (both engines, container and document scope), now refused `twins-unproven`.
+  Control at exactly 1,024 stays complete and vetoes.
+- **N2 truncated or failed walk (P1).** A walk cut at the 5,000-element cap wrote no set, and the next complete walk
+  started a fresh trusted one without the earlier look-alike. Unproven is now sticky. Red first `hist-truncated` 4 of
+  4 WRONG, now refused. Control at exactly 5,000 kept elements stays complete.
+- **N3 concurrent instances (P1).** The winner record is shared by every instance and run of a step, writes were
+  read at resolve start and written later, and each run had its own store, so a stale writer erased another
+  instance's look-alike. Writes now merge into the record as it is, on a per-file lane shared by every store in the
+  process, and recovery re-reads before it decides. Red first: all 6 barrier-ordered races (stale write with an
+  unchanged and a changed page, stale read, both engines) recovered to `#save-notes`, now refused.
+- **N4/N5 generic labels (P1).** A shared generic `aria-label` ("Row action"), `data-action` or textless `title` was
+  accepted as the loop's action name. Red first through the real StepExecutor: unapprove x6, reject x6 four times.
+  Now refused. Positive controls (distinct labels, a `data-action` that agrees with the text) still loop.
+- **Behaviour change, deliberate:** a winner record written before L12.27, or one that ever overflowed, was cut short
+  or failed, now stays unproven until its step is re-recorded. Earlier sessions let the next pass upgrade it (L12.25,
+  L12.28); that path is exactly N2's (`verify:twin-pool-safety` B and B2 now assert the refusal).
+- **Still known, not fixed:**
+  - Another process writing the same `locator-recovery` folder is not serialized (in-process lane only). The engine
+    is the single writer today.
+  - A step whose page always exceeds the 5,000-element walk or 1,024 look-alikes never gets recovery (as before for
+    always-large pages, now also after a single large pass).
+  - Recovery reads the record before it acts. A write that lands after that read (another instance proving a new
+    look-alike in the same instant) is not seen by that recovery.
+  - A lone action labelled by a value that agrees with its own text (e.g. `data-action="approve"` on "Approve INV-1")
+    still loops; if the page later relabels the text but keeps that value, the loop follows the value.
+  - The L12.27 notes below (late look-alike while already failing, walk cost, 64-bit key, refused row-named loops,
+    shadow index) are unchanged.
+
 ## L12.26's three wrong-target paths (FIXED 2026-10-06 by L12.27, `awkit-djnl.21.27`, `72925a0` + `456dcc0`; QC `awkit-djnl.21.28` FAIL then fixed; re-QC `awkit-djnl.21.29` OPEN)
 
 - **The independent QC of `72925a0` (`.21.28`) found two more wrong-action paths, both confirmed by its probes:**
@@ -12,6 +44,8 @@
     reuse (P3).
 - **Still known (QC P3):** parallel instances of one scenario share a winner record, so one instance's late
   look-alike can be overwritten by another's write (last writer wins). Same race before L12.27.
+  *(2026-10-06 correction: the L12.29 re-QC reproduced this as a wrong recovery, so it was P1 (N3), not P3. Fixed in
+  L12.30, see above.)*
 
 - **Late look-alikes (P1).** Every passing resolve now walks the look-alikes again and merges them with the set
   already kept (earlier ones stay, so one that leaves and comes back is still vetoed). The page keys the walk, so an

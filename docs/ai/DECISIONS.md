@@ -1,6 +1,33 @@
 # DECISIONS
 
-### 2026-10-06 (latest) — L12.27: look-alike memory follows every proof, and a loop must name its action (implementer, measured) (`awkit-djnl.21.27`)
+### 2026-10-06 (latest) — L12.30: one history-integrity rule, a shared record merged under a lane, and an action name must tell actions apart (owner invariants, implementer design, measured) (`awkit-djnl.21.30`)
+
+- **History integrity (re-QC N1-N3, owner: overflow, truncation, failure and concurrency must never turn incomplete
+  history into trusted history; no larger cap).** A record's look-alike set is TRUSTED only while every proven success
+  since the record began was fully observed and merged, which is exactly when it carries `twinDigests` and
+  `twinScanKey` (`twinHistoryTrusted`). Everything else is UNPROVEN and recovery refuses (`twins-unproven`): an
+  overflow past `MAX_TWIN_DIGESTS` (the merge no longer falls back to the current walk), a walk cut at
+  `SNAPSHOT_PRUNED_CAP`, a failed walk, a sensitive or unfingerprinted pass, and every record written before L12.27.
+- **Unproven is sticky.** A later complete walk sees today's page, never what stood beside the target at the
+  successes that were not observed, so it cannot make the record trusted again. Only a new record (the step's
+  candidates changed, e.g. re-recorded) starts a new history. **This supersedes the L12.25 and L12.28 choice to let
+  the next passing resolve upgrade an older record**: existing installs keep their recovery refused on those steps
+  until they are re-recorded. Safety over recovery, as owned.
+- **Ownership of winner memory (N3).** It is deliberately SHARED: the key is scenario, flow and step, so what one
+  run or instance proves serves the next. It is not made instance-local. Every write is a read-merge-write of the
+  record as it is now (`FileLocatorRecoveryStore.update`), serialized on a module-level per-file lane shared by every
+  store instance in the process (each `PlaywrightRunner` builds its own store, so a per-instance lane serialized
+  nothing; replay-proof tallies had the same flaw and share the lane now). Recovery also vetoes with the record
+  re-read just before it decides. Another PROCESS writing the same folder is not serialized (the engine is the single
+  writer); a file lock is the upgrade if that changes.
+- **Action identity (N4/N5).** A shared `aria-label`, `data-action` or textless `title` names a loop's action only
+  if no other control under the rows' container carries the same value (any tag, state or path), and, when there is
+  no other action to tell it from, only if it agrees with what the control itself shows (a word of its text or icon
+  name). Otherwise it only narrows the selector. Being populated and shared across rows is not identity.
+- **Cost:** no new walk. The only per-pass addition is one record read inside the lane, within run-to-run noise on
+  Windows (36 to 8,071 elements, final against the emulated `33e6adf` write path: +0.7, -0.3, -1.4, +1.1 ms).
+
+### 2026-10-06 — L12.27: look-alike memory follows every proof, and a loop must name its action (implementer, measured) (`awkit-djnl.21.27`)
 
 - **Supersedes the L12.23/L12.24 choice of a one-time look-alike scan** (below, text left as written). Independent QC
   proved it unsafe: a look-alike that appeared before a later passing resolve was never remembered. Every passing

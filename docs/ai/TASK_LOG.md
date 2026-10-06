@@ -1,6 +1,28 @@
 # TASK_LOG
 
-## 2026-10-06 (latest) — L12.27 wrong-target residuals after the L12.26 QC, with its own independent QC (Claude)
+## 2026-10-06 (latest) — L12.30 history integrity and generic loop labels, the L12.29 re-QC N1-N5 (Claude)
+
+- **Task:** `awkit-djnl.21.30` (P1), on the Windows development machine. Contract `awkit-l12-30-implementation-1006`.
+- **Git:** local `main` was `5b080a3` and strictly behind `origin/main` `33e6adf`. Fast-forwarded (`--ff-only`). The
+  untracked `docs/ai/contracts/awkit-l12-27-implementation-1006.json` (an earlier, superseded start of L12.27 on this
+  host) was preserved, not committed.
+- **Tracker:** `bd` replay of `.21.27` (closed), `.21.28` (closed FAIL), `.21.29` (closed FAIL, N1-N5), `.21.30`
+  created, then exported (`78975eb5`). `.21.30` closed and `.21.31` filed at the end.
+- **Commits:** `78975eb5` (tracker), `1a6cb6f5` (fix), `10867efd` (overhead evidence, run 30), then this state commit.
+- **Red first on `33e6adf`:** twin-pool 31/18, similar-rows 55/8 (StepExecutor unapprove x6, reject x6 four times).
+- **Mutations:** overflow fallback 45/3, stale-read veto 45/3, unproven not sticky, stale-write merge, no lane (EPERM),
+  sibling check off 57/6, corroboration off 59/4. All restored.
+- **Checks (Windows):**
+  - twin-pool 48/0, similar-rows 63/0, coverage 74/0 (0 WRONG), acceptance 12/0 (11/14), l12 82/0, wrong-element 14/0.
+  - blueprint 56/56, blueprint-browser 24/0, provider-agreement 45/0, contexts 60/0, frame-chain 41/0.
+  - element-spy 206/0, recorder 297/0, runner 138/0, mock-site 265/265, ai-fallback 51/0, semantic-store 261/0.
+  - locator-upgrade-proof 85/0, failure-capture-overhead 18/0 (run 30), verifier-classification reconciled (325).
+  - typecheck:scripts clean, build OK, `git diff --check` clean, roadmap-dashboard with its PowerShell probe on Windows.
+- **Overhead:** a temporary probe (`tmp/`, gitignored, npm entry removed) timed a passing resolve with and without
+  winner memory on 36, 129, 3,225 (400-row ledger) and 8,071 elements: final code +16.7/+17.1/+25.4/+33.9 ms against
+  an emulated `33e6adf` write path +16.0/+17.4/+26.8/+32.8 ms. No new walk, within noise.
+
+## 2026-10-06 — L12.27 wrong-target residuals after the L12.26 QC, with its own independent QC (Claude)
 
 - **Task:** `awkit-djnl.21.27`, the two P1s from the L12.26 QC (late look-alikes, nameless loop selectors). The P2
   (look-alikes at a recovery) was reproduced as a wrong action and fixed. The verifier vacuity was fixed.

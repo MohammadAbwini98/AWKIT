@@ -155,7 +155,8 @@ try {
   // 363 later on 2026-10-06: L12.27's independent QC `.21.28` and its re-QC `.21.29` filed.
   // That 363 was a hand-edited export from a host without bd; the Beads DB itself held 361 until the
   // records were replayed through bd on Windows, then 364 with the N1-N5 remediation `.21.30`.
-  check("364 issues parse", beads.stats.total === 364, `got ${beads.stats.total}`);
+  // 365 later on 2026-10-06: `.21.30` done, the final independent Windows QC filed as `.21.31`.
+  check("365 issues parse", beads.stats.total === 365, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -691,8 +692,9 @@ try {
   // filed OPEN (one out, one in, two closed). Measured after the export.
   // Then 24/340 of 364 later on 2026-10-06: the re-QC `.21.29` closed FAIL (N1-N5) and `.21.30` filed OPEN
   // (one out, one in, one closed). Measured after `bd export -o .beads/issues.jsonl`.
-    "24 outstanding / 340 closed",
-    beads.stats.outstanding === 24 && beads.stats.closed === 340,
+  // Then 24/341 of 365 later on 2026-10-06: `.21.30` closed (N1-N5 fixed) and the final QC `.21.31` filed OPEN.
+    "24 outstanding / 341 closed",
+    beads.stats.outstanding === 24 && beads.stats.closed === 341,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -798,9 +800,10 @@ try {
   // Then 248 later on 2026-10-06: the L12.26 findings `.21.27` (one parent-child link).
   // Then 250 later on 2026-10-06: `.21.28` and `.21.29` (two parent-child links).
   // Then 251 later on 2026-10-06: `.21.30` (one parent-child link).
+  // Then 252 later on 2026-10-06: `.21.31` (one parent-child link).
   check(
-    "251 edges are present to classify",
-    beads.stats.edges === 251,
+    "252 edges are present to classify",
+    beads.stats.edges === 252,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(
