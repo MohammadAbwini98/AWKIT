@@ -1,6 +1,26 @@
 # TASK_LOG
 
-## 2026-10-06 (latest) — L12.26 independent read-only QC of L12.25 (Claude)
+## 2026-10-06 (latest) — L12.27 wrong-target residuals after the L12.26 QC, with its own independent QC (Claude)
+
+- **Task:** `awkit-djnl.21.27`, the two P1s from the L12.26 QC (late look-alikes, nameless loop selectors). The P2
+  (look-alikes at a recovery) was reproduced as a wrong action and fixed. The verifier vacuity was fixed.
+- **Environment:** Linux cloud container.
+  - `npm ci`, the browser links and a Python 3.12 venv (pinned Scrapling and lxml versions) for the parser-only
+    host ran through temporary `verify:tmp-*` entries, removed before each commit.
+  - The `stagedHost.mts` Linux hook was session-only and was not committed.
+  - Element Spy ran under `xvfb-run`.
+- **Commits:** `72925a0` (fix), `9ec29e2` (overhead evidence, run 29), `5ef93a7` (docs), `456dcc0` (QC findings).
+- **QC:** an `awkit-qc-reviewer` subagent, read-only. It wrote two probes, run verbatim: both UNSAFE before
+  `456dcc0`, SAFE after. Verdict FAIL → `.21.28` closed, re-QC filed as `.21.29`.
+- **Checks:**
+  - twin-pool 25/0, similar-rows 53/0, coverage 74/0, acceptance 12/0 (11/14), l12 82/0, wrong-element 14/0.
+  - blueprint 56/56, blueprint-browser 24/0, provider-agreement 45/0, contexts 60/0, frame-chain 41/0.
+  - recorder 297/0, runner 138/0, mock-site 264/264, element-spy 206/0, ai-fallback 51/0.
+  - failure-capture-overhead 17/0 (on `72925a0`; NOT RUN on `456dcc0`), typecheck:scripts and build OK.
+  - roadmap-dashboard: its PowerShell packaging probe is BLOCKED (no PowerShell).
+- **Tracker:** `bd` is not installed here, so `.beads/issues.jsonl` was edited directly (Beads imports it).
+
+## 2026-10-06 — L12.26 independent read-only QC of L12.25 (Claude)
 
 - **Task:** owner asked to run `awkit-djnl.21.26`. Read-only: findings filed, not fixed.
 - **Method:** the `awkit-qc-reviewer` subagent (read-only tools) reviewed the L12.25 diff adversarially. It hit its

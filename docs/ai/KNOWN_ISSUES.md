@@ -1,6 +1,17 @@
 # KNOWN_ISSUES
 
-## L12.26's three wrong-target paths (FIXED 2026-10-06 by L12.27, `awkit-djnl.21.27`, `72925a0`; independent QC `awkit-djnl.21.28` pending)
+## L12.26's three wrong-target paths (FIXED 2026-10-06 by L12.27, `awkit-djnl.21.27`, `72925a0` + `456dcc0`; QC `awkit-djnl.21.28` FAIL then fixed; re-QC `awkit-djnl.21.29` OPEN)
+
+- **The independent QC of `72925a0` (`.21.28`) found two more wrong-action paths, both confirmed by its probes:**
+  - **P1:** a loop keyed on a form `name` every action shares (`button[name="decision"]`, actions told apart by
+    `value`). It clicked Unapprove in all 6 rows. A form `name` no longer names an action.
+  - **P2:** a winner record written before L12.27 (its first-success set, no walk key) was still trusted, so on an
+    existing install recovery acted on the late look-alike. Such a set now refuses (`twins-unproven`) until the next
+    pass writes a key.
+  - Both are fixed in `456dcc0` with permanent cases (`rows-name-decision`, twin-pool B2). The step type now keys the
+    reuse (P3).
+- **Still known (QC P3):** parallel instances of one scenario share a winner record, so one instance's late
+  look-alike can be overwritten by another's write (last writer wins). Same race before L12.27.
 
 - **Late look-alikes (P1).** Every passing resolve now walks the look-alikes again and merges them with the set
   already kept (earlier ones stay, so one that leaves and comes back is still vetoed). The page keys the walk, so an
@@ -9,8 +20,8 @@
   attribute-less Save appeared beside the target while its id drifted, recovery proved the drifted target (0.983
   against 0.900), and once that was removed the next recovery acted on the Save. The recovery write now walks the
   recovered element's look-alikes. Red first 4 of 4 WRONG (`late-after-recovery`), now 0.
-- **Nameless loop selectors (P1).** A loop selector must name the action (shared `aria-label`, `data-action`,
-  `name` or `title`, or the shared text). A tag path or a role alone is never offered. The two QC probes are lab pages
+- **Nameless loop selectors (P1).** A loop selector must name the action (shared `aria-label`, `data-action`, a
+  `title` that is a textless control's accessible name, or the shared text). A tag path or a role alone is never offered. The two QC probes are lab pages
   and refuse. The real StepExecutor clicked unapprove x6 and reject x6 before the fix, nothing after.
 - **Verifier vacuity.** Fixed: exact ordered clicks (action and row), status and error per scenario, refusal proves no
   loop, no execution, no click, and a crashed provider fails. Section G mutation-tests the judge.

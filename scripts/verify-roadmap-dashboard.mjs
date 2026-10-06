@@ -152,7 +152,8 @@ try {
   // 360 on 2026-10-06: independent QC's two P1 repros filed and closed as `.21.25`, and the second independent QC
   // they require filed as `.21.26` (contract `awkit-l12-25-implementation-1006`).
   // 361 later on 2026-10-06: the L12.26 QC findings filed as `.21.27` (contract `awkit-l12-26-qc-1006`).
-  check("361 issues parse", beads.stats.total === 361, `got ${beads.stats.total}`);
+  // 363 later on 2026-10-06: L12.27's independent QC `.21.28` and its re-QC `.21.29` filed.
+  check("363 issues parse", beads.stats.total === 363, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -684,8 +685,10 @@ try {
   // second independent QC `.21.26` filed OPEN (two in, one closed). Measured after the export.
   // Then 24/337 of 361 later on 2026-10-06: the QC `.21.26` closed with a FAIL verdict and its findings filed OPEN
   // as `.21.27` (one out, one in, one closed). Measured after the export.
-    "24 outstanding / 337 closed",
-    beads.stats.outstanding === 24 && beads.stats.closed === 337,
+  // Then 24/339 of 363 later on 2026-10-06: `.21.27` closed, its QC `.21.28` filed and closed FAIL, the re-QC `.21.29`
+  // filed OPEN (one out, one in, two closed). Measured after the export.
+    "24 outstanding / 339 closed",
+    beads.stats.outstanding === 24 && beads.stats.closed === 339,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -789,9 +792,10 @@ try {
   // Then 245 later on 2026-10-05: the L12.23 findings `.21.24` (one parent-child link).
   // Then 247 on 2026-10-06: `.21.25` (QC's P1 repros) and `.21.26` (second independent QC), two parent-child links.
   // Then 248 later on 2026-10-06: the L12.26 findings `.21.27` (one parent-child link).
+  // Then 250 later on 2026-10-06: `.21.28` and `.21.29` (two parent-child links).
   check(
-    "248 edges are present to classify",
-    beads.stats.edges === 248,
+    "250 edges are present to classify",
+    beads.stats.edges === 250,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(

@@ -1,6 +1,25 @@
 # CURRENT_STATE
 
-## L12.26 independent QC of L12.25: FAIL, three wrong-target paths filed as L12.27 (2026-10-06, latest)
+## L12.27 done: late look-alikes remembered, look-alikes at a recovery remembered, loops must name their action (2026-10-06, latest)
+
+- **Fix (`awkit-djnl.21.27`, closed, `72925a0`):**
+  - Every passing resolve and every recovery walks the step frame's look-alikes again and merges them with the set
+    already kept (`twinDigests`).
+  - The page keys the walk (`twinScanKey`), so an unchanged page returns nothing else.
+  - A similar-rows loop selector must name the action. A tag path or a role alone is never offered.
+- **Independent QC (`.21.28`, closed FAIL):** found two more wrong-action paths, both fixed in `456dcc0`:
+  - a loop keyed on a shared form `name`;
+  - recovery trusting look-alike sets written before L12.27.
+- **Permanent red-first cases:**
+  - `verify:twin-pool-safety` 25/0: section D, 7 late look-alike pages, and B2.
+  - `verify:similar-rows-safety` 53/0 on 21 pages, real StepExecutor with exact clicks and action per row.
+  - Each was mutation tested.
+- **Regression:** coverage 74/0 (0 WRONG, 28 removed targets empty, 3 identical runs), acceptance 12/0 (11/14).
+  Provider-backed gates ran on a Linux dev host with an unpinned Python 3.12 venv, not the pinned Windows host.
+- **Phase L hardening is NOT closed.** The QC was not clean, so a re-QC of `456dcc0` is filed as `.21.29` (P1, OPEN).
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## L12.26 independent QC of L12.25: FAIL, three wrong-target paths filed as L12.27 (2026-10-06)
 
 - **How:** an independent read-only reviewer (`awkit-qc-reviewer` subagent, no shell) read the code and evidence.
   The orchestrator re-ran the two original QC repros unmodified and the reviewer's probes

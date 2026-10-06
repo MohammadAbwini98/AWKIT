@@ -7,10 +7,12 @@
   resolve and every recovery now walks the look-alikes and merges them with the set already kept. A sensitive step
   never recovers, so it keeps none and pays nothing.
 - **Cost bound:** the page keys the walk (length plus two 32-bit hashes of the kept raw fingerprints, from the same
-  walk) and returns nothing else when the key, the winner and a kept set are unchanged. The full re-hash added
+  walk) and returns nothing else when the key, the step type, the winner and a kept set are unchanged. A set with
+  no key (written before L12.27) is not trusted by recovery. The full re-hash added
   +58 ms per passing resolve on the 400-row ledger. With the key it adds +15 ms.
-- **Loops:** the selector's semantic part must name the action by a shared `aria-label`, `data-action`, `name` or
-  `title`, or the shared text. A tag path, a role, position or state is never enough, even when it matches only the
+- **Loops:** the selector's semantic part must name the action by a shared `aria-label`, `data-action`, a `title`
+  that is a textless control's accessible name, or the shared text. A form `name` never does (QC `.21.28`: actions
+  of one form share it). A tag path, a role, position or state is never enough, even when it matches only the
   picked action at generation. No stripping of text until something matches: no shared name means no loop.
 
 ### 2026-10-05 — L12.24: a similar-rows loop repeats one action, or is not offered (owner, implementer design) (`awkit-djnl.21.24`)
