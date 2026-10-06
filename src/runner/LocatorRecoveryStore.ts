@@ -28,8 +28,15 @@ export interface LocatorRecoveryRecord {
    * L12.25: identity digests of EVERY distinguishable look-alike in the winner's frame when it was first proven
    * (`preExistingTwinDigests`). Recovery never acts on one of them unchanged. Absent when the page could not be
    * scanned or held too many, and on older records: recovery from such a record refuses (`twins-unproven`).
+   * L12.27: re-scanned on every passing resolve and every recovery, merged with the set already kept
+   * (`mergeTwinDigests`), so a look-alike that appeared after the first success is remembered too. Same shape.
    */
   twinDigests?: string[];
+  /**
+   * L12.27: a 64-bit key of the look-alike walk `twinDigests` was last derived from (`scanLookAlikes`). Equal key and
+   * winner: the set is reused and nothing else leaves the page. Absent on older records: the set is derived again.
+   */
+  twinScanKey?: string;
   source: "recorded-candidate" | "local-recovery";
   updatedAt: string;
 }

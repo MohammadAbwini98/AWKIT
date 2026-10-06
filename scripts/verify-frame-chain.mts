@@ -161,6 +161,21 @@ const clickStep = (flow: FlowProfile): FlowStep => {
   return step;
 };
 const lastClick = (page: Page) => page.evaluate(() => (window as unknown as { __lastClick?: string }).__lastClick ?? "");
+/**
+ * L12.27: the frames report a click to the top document by postMessage, which is delivered in a later task (across
+ * processes for a cross-origin frame), so it can land after the click itself resolved. Reading it at once raced the
+ * delivery: [9] read "no", then its own failure detail read "yes". Wait up to 3 s for the expected value, then return
+ * what is there, so a click that never happened still fails.
+ */
+async function posted(page: Page, read: () => Promise<string>, expected: string): Promise<string> {
+  const deadline = Date.now() + 3_000;
+  let value = await read();
+  while (value !== expected && Date.now() < deadline) {
+    await page.waitForTimeout(50);
+    value = await read();
+  }
+  return value;
+}
 
 async function main() {
   recorderScript = getRecorderInitScriptContent();
@@ -181,7 +196,8 @@ async function main() {
       try {
         const r = await exec.execute({ ...singleStep, timeoutMs: 6000 });
         check("[1] replay resolves into the frame and clicks", r.status === "passed", r.error);
-        check("[1] the click landed inside the frame (result posted)", (await lastClick(page)) === "single", await lastClick(page));
+        const single = await posted(page, () => lastClick(page), "single");
+        check("[1] the click landed inside the frame (result posted)", single === "single", single);
       } finally {
         await close();
       }
@@ -197,7 +213,8 @@ async function main() {
       try {
         const r = await exec.execute({ ...nestedStep, timeoutMs: 6000 });
         check("[2] replay descends both frames and clicks the deep button", r.status === "passed", r.error);
-        check("[2] the deep click landed (result posted to top)", (await lastClick(page)) === "deep", await lastClick(page));
+        const deep = await posted(page, () => lastClick(page), "deep");
+        check("[2] the deep click landed (result posted to top)", deep === "deep", deep);
       } finally {
         await close();
       }
@@ -318,7 +335,8 @@ async function main() {
       try {
         const r = await exec.execute({ ...mockStep, timeoutMs: 6000 });
         check("[9] replay descends both mock-site frames and clicks the leaf", r.status === "passed", r.error);
-        check("[9] the deep click is mirrored to the top document (nested-mirror=yes)", (await page.locator('[data-testid="nested-mirror"]').textContent()) === "yes", (await page.locator('[data-testid="nested-mirror"]').textContent()) ?? undefined);
+        const mirror = await posted(page, async () => (await page.locator('[data-testid="nested-mirror"]').textContent()) ?? "", "yes");
+        check("[9] the deep click is mirrored to the top document (nested-mirror=yes)", mirror === "yes", mirror);
       } finally {
         await close();
       }

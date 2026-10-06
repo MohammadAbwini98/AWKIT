@@ -184,6 +184,10 @@ const semanticIdentity = (elements: Element[], arg: { wanted: number[]; picked: 
  * state-free identity, see `semanticIdentity`). A state filter may set aside an unavailable copy of the same
  * action, never a different action: that one is told apart by state alone, which the page can change before the
  * loop runs. `rowDepth` is how far above a matched element its row is (the row is a child of the rows' container).
+ *
+ * L12.27 (awkit-djnl.21.27): the semantic part must NAME the action (a shared `aria-label`, `data-action`, `name` or
+ * `title`, or the shared text). A tag path, a role, position or state alone is never enough, even when it matches
+ * only the picked action today: the page can rename, unwrap or add an action before the loop runs.
  */
 export async function commonRowSelector(frame: Frame, wanted: number[], same: number[]): Promise<{ selector: string; rowDepth: number } | null> {
   // NOTE: no named inner functions in this evaluate body (esbuild's `__name` helper is undefined in the page).
@@ -203,15 +207,23 @@ export async function commonRowSelector(frame: Frame, wanted: number[], same: nu
     if (chains.some((chain) => chain !== chains[0])) return null;
     // Attribute values and text are quoted as CSS strings: `"` and `\` escaped.
     let attributes = "";
+    let named = false;
     for (const name of ["aria-label", "data-action", "name", "title", "role"]) {
       const value = rows[0].getAttribute(name);
-      if (value && rows.every((row) => row.getAttribute(name) === value)) attributes += `[${name}="${value.replace(/["\\]/g, "\\$&")}"]`;
+      if (value && rows.every((row) => row.getAttribute(name) === value)) {
+        attributes += `[${name}="${value.replace(/["\\]/g, "\\$&")}"]`;
+        // A role says what kind of control it is, never which action.
+        if (name !== "role") named = true;
+      }
     }
     const texts = rows.map((row) => (row.textContent ?? "").replace(/\s+/g, " ").trim());
     const sharedText = texts[0] && texts[0].length <= 80 && texts.every((text) => text === texts[0]) ? texts[0] : "";
-    const heads = [{ css: attributes, text: sharedText }];
-    if (sharedText) heads.push({ css: attributes, text: "" });
-    if (attributes) heads.push({ css: "", text: "" });
+    // L12.27: every head names the action, by a shared attribute or the shared text. A tag path (with a role at most)
+    // was offered whenever no other action sat on that exact path when the loop was made, and clicked Unapprove, or a
+    // Reject unwrapped later, in every row (independent QC). Nothing else is guessed: no shared name, no loop.
+    const heads: Array<{ css: string; text: string }> = [];
+    if (named || sharedText) heads.push({ css: attributes, text: sharedText });
+    if (named && sharedText) heads.push({ css: attributes, text: "" });
     const variants: Array<{ head: string; css: string; text: string; visible: boolean }> = [];
     for (const head of heads) {
       for (const state of ["", ':not([disabled]):not([aria-disabled="true"])']) {

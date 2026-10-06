@@ -42,10 +42,12 @@ import {
   decideProviderAgreement,
   gateRecovery,
   isRecoveryCompatible,
+  mergeTwinDigests,
   preExistingTwinDigests,
   rankLocalRecovery,
   recheckSnapshotWinner,
   sameElementFingerprint,
+  scanLookAlikes,
   twinVeto,
   type RecoveryDecision,
   type RecoveryRefusal,
@@ -440,9 +442,15 @@ export class LocatorFactory {
           candidatesTried: ordered.length
         });
         if (recovered) {
+          // L12.27: the recovered element is the identity from now on, so its look-alikes are scanned too. The old set
+          // alone missed one that stood beside it at this recovery, and the next recovery acted on it.
+          const twins = await this.rememberTwins(step, recovered.fingerprint, applicableMemory);
           await this.writeMemory(
             {
               ...applicableMemory,
+              // Both replaced: an unscannable page drops the old set, so the next recovery refuses (twins-unproven).
+              twinDigests: twins.twinDigests,
+              twinScanKey: twins.twinScanKey,
               fingerprint: recovered.fingerprint,
               source: "local-recovery",
               updatedAt: new Date().toISOString()
@@ -863,14 +871,10 @@ export class LocatorFactory {
         message: `Could not fingerprint the resolved element for "${step.name}"; winner memory was saved without local recovery data.`
       });
     }
-    // L12.23: the look-alikes are scanned once, when this identity is first remembered; an unchanged winner
-    // keeps the set already recorded, so a normal step pays no extra page walk. L12.25: a record without the
-    // complete digest set (older, or unscannable then) is scanned again.
-    const twinDigests = !fingerprint
-      ? undefined
-      : previous?.twinDigests && previous.fingerprint && sameElementFingerprint(previous.fingerprint, fingerprint)
-        ? previous.twinDigests
-        : await this.captureTwins(step, fingerprint);
+    // L12.27 (awkit-djnl.21.27): every passing resolve re-scans the look-alikes. L12.23 scanned once, at the first
+    // success, so one that appeared later was never remembered and recovery acted on it once the target was gone
+    // (independent QC). A sensitive step never recovers, so it keeps no set and pays no scan.
+    const twins = !fingerprint || LocatorFactory.isSensitive(step) ? {} : await this.rememberTwins(step, fingerprint, previous);
     await this.writeMemory(
       {
         version: 1,
@@ -878,7 +882,7 @@ export class LocatorFactory {
         candidatesDigest,
         winningCandidateSignature: winner.ranked.signature,
         fingerprint,
-        ...(twinDigests ? { twinDigests } : {}),
+        ...twins,
         route: await this.stepRoute(step),
         source: "recorded-candidate",
         updatedAt: new Date().toISOString()
@@ -992,14 +996,27 @@ export class LocatorFactory {
    * only its container: a twin outside it is what a document-wide layer would pick). L12.25: all of them, as
    * digests. Undefined when the page is too large to scan or cannot be read; recovery then refuses rather than
    * trusting a partial list.
+   *
+   * L12.27: what the memory keeps after this proven winner: the current set merged with `previous`'s (see
+   * mergeTwinDigests). When the walk's key, the winner and a kept set are all unchanged the set is reused without
+   * hashing every look-alike again (it would come out the same).
    */
-  private async captureTwins(step: FlowStep, fingerprint: LocatorElementFingerprint): Promise<string[] | undefined> {
+  private async rememberTwins(
+    step: FlowStep,
+    fingerprint: LocatorElementFingerprint,
+    previous: Pick<LocatorRecoveryRecord, "fingerprint" | "twinDigests" | "twinScanKey"> | undefined
+  ): Promise<Pick<LocatorRecoveryRecord, "twinDigests" | "twinScanKey">> {
     try {
       const frame = await this.blueprintFrame(step.locator?.context);
-      const snapshot = await captureLocalSnapshot(frame.locator("body *"), fingerprint);
-      return snapshot.truncated ? undefined : preExistingTwinDigests(step, fingerprint, snapshot.candidates);
+      // Only a kept set derived for this same winner may be reused.
+      const reusable = previous?.twinDigests && previous.twinScanKey && previous.fingerprint && sameElementFingerprint(previous.fingerprint, fingerprint) ? previous.twinScanKey : undefined;
+      const scan = await scanLookAlikes(frame.locator("body *"), fingerprint, reusable);
+      if (scan.same) return { twinDigests: previous!.twinDigests, twinScanKey: scan.key };
+      if (scan.truncated) return {};
+      const twinDigests = mergeTwinDigests(previous?.twinDigests, preExistingTwinDigests(step, fingerprint, scan.candidates), fingerprint);
+      return twinDigests ? { twinDigests, twinScanKey: scan.key } : {};
     } catch {
-      return undefined;
+      return {};
     }
   }
 

@@ -34,6 +34,18 @@ export interface TwinPoolPage {
   control?: boolean;
 }
 export const TWIN_POOL_LAB: TwinPoolPage[];
+/** L12.27: look-alikes introduced between passing resolves (`passes`), then `final`; see the corpus for the ops. */
+export interface TwinLatePage {
+  id: string;
+  title: string;
+  passes: string[][];
+  /** Ops applied before a resolve that must recover the original node (after the passes). */
+  recovery?: string[];
+  final: string[];
+  remembered: number;
+  expect: "refuse" | "recover";
+}
+export const TWIN_LATE_LAB: TwinLatePage[];
 export const ORACLE_SELECTOR: string;
 export const COVERAGE_FIXTURES: CoverageFixture[];
 export const CHALLENGE_PAGES: ChallengePage[];

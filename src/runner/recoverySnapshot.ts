@@ -206,6 +206,19 @@ export function preExistingTwinDigests(
   return [...digests].sort();
 }
 
+/**
+ * L12.27 (awkit-djnl.21.27): the set a passing resolve remembers. The current scan, plus what earlier successes saw
+ * (a look-alike present then, absent now, can come back once the target is gone), minus the winner itself. Undefined,
+ * so recovery refuses, when the current scan is unknown. Over MAX_TWIN_DIGESTS the current scan alone is kept: it
+ * is complete for the latest proven success, which is the guarantee; the older digests are extra.
+ */
+export function mergeTwinDigests(previous: readonly string[] | undefined, current: readonly string[] | undefined, winner: LocatorElementFingerprint): string[] | undefined {
+  if (!current) return undefined;
+  const self = twinDigest(winner);
+  const merged = new Set([...current, ...(previous ?? [])].filter((digest) => digest !== self));
+  return merged.size > MAX_TWIN_DIGESTS ? [...current].sort() : [...merged].sort();
+}
+
 /** Why a recovery winner may not act on this memory, or undefined when it may. */
 export function twinVeto(twinDigests: readonly string[] | undefined, winner: LocatorElementFingerprint): "pre-existing-twin" | "twins-unproven" | undefined {
   if (!twinDigests) return "twins-unproven";
@@ -343,6 +356,27 @@ const LOCAL_SCAN = `
   return { visible: elements.length, kept: kept, truncated: truncated };
 `;
 
+/**
+ * L12.27: the same walk, keyed in the page by two independent 32-bit hashes and the length of exactly what the
+ * look-alike set is derived from (the kept raw fingerprints in page order, and whether the walk was cut short). When
+ * that key equals `arg.known` nothing else leaves the page. An accidental collision is about 1 in 2^64; a page that
+ * crafted one gains nothing it could not do by relabelling its own controls.
+ */
+const LOOK_ALIKE_SCAN = `
+  var scan = (function (elements, arg) { ${LOCAL_SCAN} })(elements, arg);
+  var text = JSON.stringify([scan.truncated, scan.kept.map(function (k) { return k.f; })]);
+  var h1 = 0x811c9dc5 | 0, h2 = 0x2545f491 | 0;
+  for (var c = 0; c < text.length; c++) {
+    var ch = text.charCodeAt(c);
+    h1 = Math.imul(h1 ^ ch, 16777619);
+    h2 = Math.imul(h2 ^ ch, 0x5bd1e995);
+    h2 ^= h2 >>> 15;
+  }
+  var key = text.length.toString(16) + "-" + (h1 >>> 0).toString(16) + "-" + (h2 >>> 0).toString(16);
+  if (arg.known === key) return { key: key, same: true };
+  return { key: key, same: false, truncated: scan.truncated, kept: scan.kept };
+`;
+
 const BLUEPRINT_SCAN = `
   var fingerprint = (${createPageFingerprint.toString()});
   var isVisible = (${IS_VISIBLE});
@@ -395,6 +429,7 @@ const RECHECK_SCAN = `
 type PageFunction<A, R> = (elements: Element[], arg: A) => R;
 
 let localScan: PageFunction<LocalScanArg, RawLocalScan> | undefined;
+let lookAlikeScan: PageFunction<LocalScanArg & { known: string }, { key: string; same: boolean; truncated?: boolean; kept?: RawLocalScan["kept"] }> | undefined;
 let recheckScan: PageFunction<RecheckArg, RawLocalScan> | undefined;
 let blueprintScan: PageFunction<BlueprintScanArg, RawBlueprintScan> | undefined;
 
@@ -461,6 +496,25 @@ export async function captureLocalSnapshot(
     truncated: raw.truncated,
     ms: performance.now() - started
   };
+}
+
+/**
+ * L12.27 (awkit-djnl.21.27): the local snapshot's page walk for the look-alike memory, which every passing resolve now
+ * runs. `key` is taken in the page from the same walk as the candidates (LOOK_ALIKE_SCAN), so it can never describe
+ * another moment of the page. With `known` equal to it the result is `same` and nothing else crosses from the page
+ * (shipping and hashing 400 fingerprints was most of the cost on a 400-row table): the caller keeps its set, which
+ * would come out the same.
+ */
+export async function scanLookAlikes(
+  list: Locator,
+  expected: Pick<LocatorElementFingerprint, "tag" | "role">,
+  known?: string
+): Promise<{ key: string; same: true } | { key: string; same: false; truncated: boolean; candidates: Array<{ index: number; fingerprint: LocatorElementFingerprint }> }> {
+  lookAlikeScan ??= pageFunction<LocalScanArg & { known: string }, { key: string; same: boolean; truncated?: boolean; kept?: RawLocalScan["kept"] }>(LOOK_ALIKE_SCAN);
+  const raw = await list.evaluateAll(lookAlikeScan, { tag: expected.tag, role: expected.role ?? "", cap: SNAPSHOT_PRUNED_CAP, known: known ?? "" });
+  if (raw.same) return { key: raw.key, same: true };
+  const hash = createFingerprintHasher();
+  return { key: raw.key, same: false, truncated: raw.truncated === true, candidates: (raw.kept ?? []).map(({ i, f }) => ({ index: i, fingerprint: hash(f) })) };
 }
 
 /**

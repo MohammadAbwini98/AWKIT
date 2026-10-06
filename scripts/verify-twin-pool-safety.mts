@@ -12,6 +12,12 @@
  * After the step first passes, its target is removed (no element may be returned) or, on the control page, its id
  * drifts (the exact target must be returned). Older winner memory without the L12.25 field must load, fail closed and
  * be upgraded by the next pass. The gate is a pure function, its failure modes are mutation-tested in-process.
+ *
+ * L12.27 (awkit-djnl.21.27), section D: independent QC's L12.26 repro. The look-alike set was written at the FIRST
+ * success only, so a look-alike that appeared before a later passing resolve was never remembered and recovery acted
+ * on it once the target was gone. TWIN_LATE_LAB applies look-alikes between passing resolves (one, three, hidden,
+ * outside the container, gone and back, beside a recovered target) and a control that must still recover. Red first:
+ * 22 of 24 late observations, then the recovery case 4 of 4, acted on a wrong element.
  */
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
@@ -23,12 +29,12 @@ import { chromium, type Browser, type Page } from "playwright";
 import type { FlowStep } from "@src/profiles/FlowProfile";
 import { LocatorFactory, type LocatorRecoveryEngine, type LocatorRecoveryEvent } from "@src/runner/LocatorFactory";
 import { FileLocatorRecoveryStore } from "@src/runner/LocatorRecoveryStore";
-import { TWIN_POOL_LAB, coveragePage, type TwinPoolPage } from "../mock-site/dom-coverage-corpus.mjs";
+import { TWIN_LATE_LAB, TWIN_POOL_LAB, coveragePage, type TwinLatePage, type TwinPoolPage } from "../mock-site/dom-coverage-corpus.mjs";
 
 const ENGINES: LocatorRecoveryEngine[] = ["snapshot", "legacy"];
 const SCOPES = ["container", "document"] as const;
 /** Pinned so a dropped page fails the gate instead of shrinking it. */
-const PINNED = { pages: 6, controls: 1, crowded: 3 };
+const PINNED = { pages: 6, controls: 1, crowded: 3, late: 7 };
 
 type Scope = (typeof SCOPES)[number];
 export interface PoolObservation {
@@ -81,6 +87,112 @@ export function twinPoolGate(lab: TwinPoolPage[], rows: PoolObservation[]): stri
     }
   }
   return reasons;
+}
+
+/** L12.27: one late look-alike sequence on one engine and scope. */
+export interface LateObservation {
+  id: string;
+  engine: LocatorRecoveryEngine;
+  scope: Scope;
+  /** Every passing resolve (the first and one after each `passes` entry) returned the original target node. */
+  passed: boolean;
+  /** Digests winner memory held after the last pass (undefined: none written). */
+  remembered: number | undefined;
+  resolved: string[];
+  reasons: string[];
+  /** The record's walk key and digest count after the first pass and after each later one. */
+  history: Array<{ key?: string; digests?: number }>;
+}
+
+/** The L12.27 gate. Pure, like the F1 gate. */
+export function lateTwinGate(lab: TwinLatePage[], rows: LateObservation[]): string[] {
+  const reasons: string[] = [];
+  if (lab.length !== PINNED.late) reasons.push(`late page count ${lab.length}, pinned ${PINNED.late}`);
+  if (lab.filter((page) => page.expect === "recover").length !== 1) reasons.push("late control page count, pinned 1");
+  const expected = lab.length * ENGINES.length * SCOPES.length;
+  if (rows.length !== expected) reasons.push(`${rows.length} late observations, expected ${expected}`);
+  for (const page of lab) {
+    for (const engine of ENGINES) {
+      for (const scope of SCOPES) {
+        const at = `${page.id} ${engine}/${scope}`;
+        const row = rows.find((o) => o.id === page.id && o.engine === engine && o.scope === scope);
+        if (!row) {
+          reasons.push(`${at}: not observed`);
+          continue;
+        }
+        if (!row.passed) reasons.push(`${at}: a passing resolve did not return the original target`);
+        if (row.remembered !== page.remembered) reasons.push(`${at}: memory holds ${row.remembered ?? "no"} look-alikes after the last pass, expected ${page.remembered}`);
+        if (page.expect === "recover") {
+          if (row.resolved.length !== 1 || row.resolved[0] !== "<target>") reasons.push(`${at}: legitimate recovery lost (${row.resolved.join(",") || "none"})`);
+        } else if (row.resolved.length) {
+          reasons.push(`${at}: WRONG element after the target was removed: ${row.resolved.join(",")}`);
+        }
+      }
+    }
+  }
+  return reasons;
+}
+
+/** First pass, then each `passes` entry and another normal pass, then `final` and one more resolve. */
+async function observeLate(browser: Browser, url: string, page: TwinLatePage, engine: LocatorRecoveryEngine, scope: Scope, root: string): Promise<LateObservation> {
+  const tab: Page = await browser.newPage();
+  try {
+    await tab.goto(url);
+    const folder = await mkdtemp(join(root, "late-"));
+    const store = new FileLocatorRecoveryStore(folder);
+    const events: LocatorRecoveryEvent[] = [];
+    const step = {
+      id: "save-profile",
+      name: "Save profile",
+      type: "click",
+      locator: {
+        strategy: "css",
+        value: "#save-profile",
+        ...(scope === "container" ? { context: { containers: [{ type: "landmark", strategy: "css", value: 'main[id="editor"]' }] } } : {})
+      }
+    } as unknown as FlowStep;
+    const factory = () =>
+      new LocatorFactory(tab, { recoveryStore: store, scope: { scenarioId: "l12-27", flowId: page.id }, recoveryGraceMs: 0, recoveryEngine: engine, onRecoveryEvent: (event) => events.push(event) });
+    await tab.evaluate(() => {
+      (window as unknown as { __target: Element }).__target = document.getElementById("save-profile")!;
+    });
+    const isTarget = async () =>
+      (await factory().resolve(step)).evaluate((element) => element === (window as unknown as { __target: Element }).__target).catch(() => false);
+    const history: LateObservation["history"] = [];
+    const snapshot = async () => {
+      const [name] = (await readdir(folder)).filter((entry) => entry.endsWith(".json"));
+      const saved = name ? (JSON.parse(await readFile(join(folder, name), "utf8")) as { twinScanKey?: string; twinDigests?: unknown[] }) : undefined;
+      history.push({ key: saved?.twinScanKey, digests: saved?.twinDigests?.length });
+    };
+    let passed = await isTarget();
+    await snapshot();
+    for (const ops of page.passes) {
+      for (const op of ops) await tab.evaluate((value) => (window as unknown as { __fixture: { run(op: string): boolean } }).__fixture.run(value), op);
+      passed = (await isTarget()) && passed;
+      await snapshot();
+    }
+    if (page.recovery) {
+      for (const op of page.recovery) await tab.evaluate((value) => (window as unknown as { __fixture: { run(op: string): boolean } }).__fixture.run(value), op);
+      events.length = 0;
+      // The original node, through a proven local recovery (not a candidate that still matched).
+      passed = (await isTarget()) && events.some((event) => event.type === "local-recovery") && passed;
+    }
+    const [file] = (await readdir(folder)).filter((name) => name.endsWith(".json"));
+    const record = file ? (JSON.parse(await readFile(join(folder, file), "utf8")) as { twinDigests?: unknown[] }) : undefined;
+    for (const op of page.final) await tab.evaluate((value) => (window as unknown as { __fixture: { run(op: string): boolean } }).__fixture.run(value), op);
+    events.length = 0;
+    let resolved: string[] = [];
+    try {
+      const locator = await factory().resolve(step);
+      resolved = await locator.evaluateAll((elements) => elements.map((element) => (element === (window as unknown as { __target: Element }).__target ? "<target>" : `#${element.id}`)));
+    } catch {
+      resolved = [];
+    }
+    const reasons = events.flatMap((event) => event.trace?.stages ?? []).flatMap((stage) => (stage.reason ? [`${stage.stage}:${stage.reason}`] : [`${stage.stage}:${stage.outcome}`]));
+    return { id: page.id, engine, scope, passed, remembered: Array.isArray(record?.twinDigests) ? record.twinDigests.length : undefined, resolved, reasons, history };
+  } finally {
+    await tab.close();
+  }
 }
 
 /** Seed winner memory with one passing resolve, mutate, resolve again. */
@@ -218,6 +330,57 @@ async function main(): Promise<void> {
       "a crowded page dropped from the lab fails the gate",
       twinPoolGate(TWIN_POOL_LAB.filter((p) => p.id !== "twins-hidden-12"), rows.filter((o) => o.id !== "twins-hidden-12")).some((r) => r.includes("pinned"))
     );
+
+    // ── D. L12.27: look-alikes that arrive after the first success ───────────────────────────────────
+    console.log(`D. L12.27: ${TWIN_LATE_LAB.length} late look-alike sequences x ${ENGINES.length} engines x ${SCOPES.length} scopes`);
+    const late: LateObservation[] = [];
+    for (const page of TWIN_LATE_LAB) {
+      for (const engine of ENGINES) {
+        for (const scope of SCOPES) {
+          const row = await observeLate(browser, urlOf(page.id), page, engine, scope, root);
+          late.push(row);
+          console.log(`    ${page.id.padEnd(16)} ${engine.padEnd(8)} ${scope.padEnd(9)} remembered=${row.remembered ?? "-"} -> ${row.resolved.join(",") || "no element"}  [${row.reasons.join(" ")}]`);
+        }
+      }
+    }
+    const lateReasons = lateTwinGate(TWIN_LATE_LAB, late);
+    check("a look-alike that arrives after the first success is remembered by the next passing resolve, and recovery never acts on it", lateReasons.length === 0, lateReasons.slice(0, 12));
+    check(
+      "the QC repro (late-one) refuses on every engine and scope, by the pre-existing-twin veto",
+      late.filter((o) => o.id === "late-one").every((o) => o.resolved.length === 0 && o.reasons.includes("local:pre-existing-twin")),
+      late.filter((o) => o.id === "late-one").map((o) => o.reasons)
+    );
+    // The walk key: a new look-alike changes it (so the set is derived again), an unchanged page keeps it (and the set).
+    check(
+      "late-one: the added Save changes the walk key and the set (0 -> 1), the unchanged pass after it keeps both",
+      late
+        .filter((o) => o.id === "late-one")
+        .every((o) => o.history.length === 3 && o.history.every((h) => typeof h.key === "string") && o.history[0].key !== o.history[1].key && o.history[1].key === o.history[2].key && o.history.map((h) => h.digests).join() === "0,1,1"),
+      late.filter((o) => o.id === "late-one").map((o) => o.history)
+    );
+    check(
+      "the L12.26 P2 path (late-after-recovery): a Save that stood beside the target at a recovery is remembered, so recovery never acts on it",
+      late.filter((o) => o.id === "late-after-recovery").every((o) => o.passed && o.resolved.length === 0 && o.reasons.includes("local:pre-existing-twin")),
+      late.filter((o) => o.id === "late-after-recovery").map((o) => ({ passed: o.passed, resolved: o.resolved, reasons: o.reasons }))
+    );
+    {
+      const lateCopy = () => structuredClone(late);
+      const one = late.findIndex((o) => o.id === "late-one");
+      const control = late.findIndex((o) => o.id === "late-control");
+      let altered = lateCopy();
+      altered[one].resolved = ["#save-notes"];
+      check("D mutation: a recovery to the late look-alike fails the gate", lateTwinGate(TWIN_LATE_LAB, altered).some((r) => r.includes("WRONG element")));
+      altered = lateCopy();
+      altered[one].remembered = 0;
+      check("D mutation: memory frozen at the first success (0 look-alikes) fails the gate", lateTwinGate(TWIN_LATE_LAB, altered).some((r) => r.includes("expected 1")));
+      altered = lateCopy();
+      altered[control].resolved = [];
+      check("D mutation: a lost legitimate recovery fails the gate", lateTwinGate(TWIN_LATE_LAB, altered).some((r) => r.includes("legitimate recovery lost")));
+      altered = lateCopy();
+      altered[one].passed = false;
+      check("D mutation: a passing resolve that returned another element fails the gate", lateTwinGate(TWIN_LATE_LAB, altered).some((r) => r.includes("did not return the original")));
+      check("D mutation: a dropped late page fails the gate", lateTwinGate(TWIN_LATE_LAB.slice(1), late.filter((o) => o.id !== TWIN_LATE_LAB[0].id)).some((r) => r.includes("pinned")));
+    }
   } finally {
     await browser?.close().catch(() => undefined);
     server.close();

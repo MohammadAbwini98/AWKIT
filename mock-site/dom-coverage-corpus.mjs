@@ -443,7 +443,22 @@ export const SIMILAR_ROW_LAB = [
   { id: "rows-unavailable-siblings", title: "Reject disabled and Delete hidden when the loop is made", expect: 6,
     html: () => rowLab("Unavailable siblings", (n) => `${approve(n)} ${act("reject", "Reject", " disabled")} ${act("delete", "Delete", " hidden")}`) },
   { id: "rows-same-style-names", title: "Same styling and visible text, different accessible names", expect: 6,
-    html: () => rowLab("Named actions", (n) => `${act("approve", "Go", ` class="btn act" aria-label="Approve"${mark(n === PICK)}`)} ${act("reject", "Go", ' class="btn act" aria-label="Reject"')}`) }
+    html: () => rowLab("Named actions", (n) => `${act("approve", "Go", ` class="btn act" aria-label="Approve"${mark(n === PICK)}`)} ${act("reject", "Go", ' class="btn act" aria-label="Reject"')}`) },
+  // L12.27 (independent QC's L12.26 probes, tmp/qc-l12/l12-26-probes.mts): Approve's name carries the row's invoice
+  // and nothing shared names it, so the only selector left was the tag path `tbody > tr > td > button`. It was offered
+  // because no other action sat on that exact path when it was made: Reject was a link, or a disabled button inside a
+  // wrapper. Later Approve became Unapprove (clicked in every row), or the wrappers flipped (Reject clicked in every
+  // row). A tag path is not an action's identity: no loop.
+  { id: "rows-qc-link-reject", title: "Approve named after its row, Reject a link", expect: "refuse",
+    html: () => rowLab("Link reject", (n) => `${act("approve", `Approve INV-${n}`, mark(n === PICK))} <a href="#reject-${n}" data-oracle-intent="reject">Reject</a>`) },
+  { id: "rows-qc-wrapped-reject", title: "Approve named after its row, a disabled Reject inside a wrapper", expect: "refuse",
+    html: () => rowLab("Wrapped reject", (n) => `${act("approve", `Approve INV-${n}`, mark(n === PICK))} <span class="wrap">${act("reject", "Reject", " disabled")}</span>`) },
+  // The same with a role: `span[role="button"]` says it is a button, not which action.
+  { id: "rows-role-only", title: "Approve a span with role=button named after its row, Reject a button", expect: "refuse",
+    html: () => rowLab("Role-only actions", (n) => `<span role="button" tabindex="0" data-oracle-intent="approve"${mark(n === PICK)}>Approve INV-${n}</span> ${act("reject", "Reject")}`) },
+  // Row data in both names, but a shared data-action names each action: the loop is offered and keys on it.
+  { id: "rows-row-data-action", title: "Names carry the row's invoice, data-action names the action", expect: 6,
+    html: () => rowLab("Row-named actions", (n) => `${act("approve", `Approve INV-${n}`, ` data-action="approve"${mark(n === PICK)}`)} ${act("reject", `Reject INV-${n}`, ' data-action="reject"')}`) }
 ];
 
 // ── L12.25: twin-pool lab (verify:twin-pool-safety) ──────────────────────────────────────────────────
@@ -479,6 +494,58 @@ export const TWIN_POOL_LAB = [
   { id: "twins-hidden-outside-12", hidden: 12, where: "outside" },
   { id: "twins-control-12", hidden: 12, where: "inside", control: true }
 ];
+
+// ── L12.27: late look-alike lab (verify:twin-pool-safety, section D) ─────────────────────────────────
+
+/**
+ * Independent QC's L12.26 repro (tmp/qc-l12/l12-26-probes.mts) as pages. The step first passes with the profile's Save
+ * alone. `passes` are applied one at a time, each followed by another NORMAL passing resolve of `#save-profile`; then
+ * `final` is applied and the step resolves once more. Before L12.27 the look-alike set was written at the first success
+ * only, so a look-alike that arrived later was never remembered and recovery acted on it once the target was gone.
+ * `remembered`: the digest count winner memory must hold after the last pass. `expect`: "refuse" (no element) or
+ * "recover" (the exact drifted target). Ops, run by `window.__fixture.run`: `add:<id>:<name>:<label>` (visible, in the
+ * editor), `hide:<id>:<name>:<label>` (hidden, in the editor), `out:<id>:<name>:<label>` (visible, in an archive outside
+ * the editor container), `show:<id>`, `drop:<id>`, `drop-target`, `drift-target` (the target's id changes),
+ * `relabel-target:<label>`, `drop-drifted`, `bare:<label>` (an attribute-less button beside the target).
+ */
+export const TWIN_LATE_LAB = [
+  // The second, empty pass changes nothing: the walk's key and the set must stay as they are (verifier section D).
+  { id: "late-one", title: "QC repro: a visible Save added after the first success", passes: [["add:notes:save-notes:Save"], []], final: ["drop-target"], remembered: 1, expect: "refuse" },
+  { id: "late-many", title: "Three visible Saves, one added before each later success", passes: [["add:notes:save-notes:Save"], ["add:comments:save-comments:Save comment"], ["add:drafts:save-drafts:Save draft"]], final: ["drop-target"], remembered: 3, expect: "refuse" },
+  { id: "late-hidden", title: "A hidden Save added later, shown once the target is gone", passes: [["hide:tab1:save:Save"]], final: ["drop-target", "show:tab1"], remembered: 1, expect: "refuse" },
+  { id: "late-outside", title: "A Save added later outside the editor container", passes: [["out:archive1:save:Save"]], final: ["drop-target"], remembered: 1, expect: "refuse" },
+  { id: "late-returning", title: "A Save seen at one success, gone at the next, back once the target is gone", passes: [["add:notes:save-notes:Save"], ["drop:notes"]], final: ["drop-target", "add:notes:save-notes:Save"], remembered: 1, expect: "refuse" },
+  // The L12.26 P2, confirmed as a wrong action by L12.27: the target's id drifts while an attribute-less Save appears
+  // beside it. Recovery proves the drifted target (0.983 against 0.900), but the recovery write kept the look-alike set
+  // of the first success, so once the drifted target was removed the next recovery acted on the bare Save.
+  // `recovery`: ops applied before a resolve that must RECOVER the original node.
+  { id: "late-after-recovery", title: "A Save that appeared beside the target at a recovery", passes: [], recovery: ["drift-target", "bare:Save"], final: ["drop-drifted"], remembered: 1, expect: "refuse" },
+  { id: "late-control", title: "Control: a distinct 'Save notes' added later; the target's id drifts and it still recovers", passes: [["add:notes:save-notes:Save notes"]], final: ["drift-target"], remembered: 1, expect: "recover" }
+];
+
+function twinLate() {
+  const script =
+    "function sec(id,name,label,hidden){var s=document.createElement('section');s.id=id;if(hidden)s.hidden=true;" +
+    "s.innerHTML='<h2>'+id+'</h2><div class=\"actions\"><button type=\"button\" id=\"save-'+id+'\" name=\"'+name+'\">'+label+'</button></div>';return s;}" +
+    "window.__fixture={run:function(op){var p=op.split(':');switch(p[0]){" +
+    "case 'add':document.querySelector('#editor > .panel').appendChild(sec(p[1],p[2],p[3],false));break;" +
+    "case 'hide':document.querySelector('#editor > .panel').appendChild(sec(p[1],p[2],p[3],true));break;" +
+    "case 'out':document.querySelector('#archive > .panel').appendChild(sec(p[1],p[2],p[3],false));break;" +
+    "case 'show':document.getElementById(p[1]).hidden=false;break;" +
+    "case 'drop':document.getElementById(p[1]).remove();break;" +
+    "case 'drop-target':document.getElementById('save-profile').remove();break;" +
+    "case 'drift-target':document.getElementById('save-profile').id='save-profile-v2';break;" +
+    "case 'relabel-target':var t=document.getElementById('save-profile');t.id='save-profile-v2';t.textContent=p[1];break;" +
+    "case 'drop-drifted':document.getElementById('save-profile-v2').remove();break;" +
+    "case 'bare':var b=document.createElement('button');b.textContent=p[1];document.querySelector('#profile .actions').appendChild(b);break;" +
+    "default:throw new Error('unknown op '+op);}return true;}};";
+  return shell(
+    "Profile editor",
+    `<main id="editor" aria-label="Editor"><div class="panel"><section id="profile"><h2>profile</h2><div class="actions"><button type="button" id="save-profile" name="save">Save</button></div></section></div></main>` +
+      `<aside id="archive" aria-label="Archive"><div class="panel"></div></aside>`,
+    script
+  );
+}
 
 // ── Manifest ──────────────────────────────────────────────────────────────────────────────────────────
 
@@ -582,6 +649,7 @@ export function coveragePage(key) {
   if (PAGES[key]) return PAGES[key]();
   const pool = TWIN_POOL_LAB.find((page) => page.id === key);
   if (pool) return twinPool(pool.hidden, pool.where, pool.control);
+  if (TWIN_LATE_LAB.some((page) => page.id === key)) return twinLate();
   return CHALLENGE_PAGES.find((page) => page.id === key)?.html ?? SIMILAR_ROW_LAB.find((page) => page.id === key)?.html();
 }
 
@@ -592,10 +660,11 @@ export function coverageIndexPage() {
   const challenges = CHALLENGE_PAGES.map((p) => `<li data-testid="coverage-challenge-${p.id}"><a href="/dom-coverage-lab/${p.id}">${p.id}</a></li>`).join("");
   const rows = SIMILAR_ROW_LAB.map((p) => `<li data-testid="coverage-similar-${p.id}"><a href="/dom-coverage-lab/${p.id}">${p.title}</a> <small>(loop: ${p.expect})</small></li>`).join("");
   const pools = TWIN_POOL_LAB.map((p) => `<li data-testid="coverage-twins-${p.id}"><a href="/dom-coverage-lab/${p.id}">${p.id}</a> <small>(${p.hidden} hidden, ${p.where})</small></li>`).join("");
+  const late = TWIN_LATE_LAB.map((p) => `<li data-testid="coverage-late-${p.id}"><a href="/dom-coverage-lab/${p.id}">${p.title}</a> <small>(${p.expect})</small></li>`).join("");
   return shell(
     "DOM Coverage Lab",
     `<main><h1>DOM Coverage Lab</h1><h2>Recovery fixtures</h2><ul>${items}</ul><h2>Protected-login pages</h2><ul>${challenges}</ul><h2>Similar-rows semantic lab</h2><ul>${rows}</ul>` +
-      `<h2>Twin-pool lab</h2><ul>${pools}</ul></main>`
+      `<h2>Twin-pool lab</h2><ul>${pools}</ul><h2>Late look-alike lab</h2><ul>${late}</ul></main>`
   );
 }
 

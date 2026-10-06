@@ -755,11 +755,22 @@ try {
   const challengeLinks = await page.locator('[data-testid^="coverage-challenge-"] a').evaluateAll((links) => links.map((link) => link.getAttribute("href")));
   const similarLinks = await page.locator('[data-testid^="coverage-similar-"] a').evaluateAll((links) => links.map((link) => link.getAttribute("href")));
   const twinLinks = await page.locator('[data-testid^="coverage-twins-"] a').evaluateAll((links) => links.map((link) => link.getAttribute("href")));
+  const lateLinks = await page.locator('[data-testid^="coverage-late-"] a').evaluateAll((links) => links.map((link) => link.getAttribute("href")));
   check(
-    "the index lists 22 recovery fixtures, 8 protected-login pages, 15 similar-rows pages and 6 twin-pool pages",
-    coverageLinks.length === 22 && challengeLinks.length === 8 && similarLinks.length === 15 && twinLinks.length === 6,
-    { fixtures: coverageLinks.length, challenges: challengeLinks.length, similar: similarLinks.length, twins: twinLinks.length }
+    "the index lists 22 recovery fixtures, 8 protected-login pages, 19 similar-rows pages, 6 twin-pool pages and 7 late look-alike pages",
+    coverageLinks.length === 22 && challengeLinks.length === 8 && similarLinks.length === 19 && twinLinks.length === 6 && lateLinks.length === 7,
+    { fixtures: coverageLinks.length, challenges: challengeLinks.length, similar: similarLinks.length, twins: twinLinks.length, late: lateLinks.length }
   );
+  // L12.27: each late look-alike page starts with the target alone, and its fixture adds a visible look-alike on demand.
+  const lateMisses = [];
+  for (const href of lateLinks) {
+    await page.goto(`${BASE}${href}`);
+    const before = { target: await page.locator("#save-profile").count(), buttons: await page.locator("button").count() };
+    await page.evaluate(() => window.__fixture.run("add:notes:save-notes:Save"));
+    const added = await page.locator("#save-notes:visible").count();
+    if (before.target !== 1 || before.buttons !== 1 || added !== 1) lateMisses.push(`${href}: ${JSON.stringify({ ...before, added })}`);
+  }
+  check("every late look-alike page holds the target alone, and its fixture adds a visible look-alike", lateLinks.length > 0 && lateMisses.length === 0, lateMisses);
   // L12.25: each twin-pool page holds the target, the visible notes look-alike and its stated hidden look-alikes.
   const twinMisses = [];
   for (const href of twinLinks) {
@@ -774,7 +785,7 @@ try {
   for (const href of similarLinks) {
     await page.goto(`${BASE}${href}`);
     const oracles = await page.locator('[data-testid="oracle-target"]').count();
-    const unlabelled = await page.locator("#lab-body button:not([data-oracle-intent])").count();
+    const unlabelled = await page.locator("#lab-body :is(button, a, [role=button]):not([data-oracle-intent])").count();
     if (oracles !== 1 || unlabelled !== 0) similarMisses.push(`${href}: ${oracles} targets, ${unlabelled} buttons without an intent`);
   }
   check("every similar-rows page holds one picked control and an intent on every action", similarLinks.length > 0 && similarMisses.length === 0, similarMisses);
