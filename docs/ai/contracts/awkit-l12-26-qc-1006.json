@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-l12-26-qc-1006",
+    "title": "L12.26 second independent read-only QC of L12.25 and the two original P1 repros",
+    "objective": "Owner request of 2026-10-06: run awkit-djnl.21.26, a read-only, independent QC of L12.25 (dfb9a036). An independent reviewer (awkit-qc-reviewer subagent, read-only tools) judged the code and evidence; the orchestrator re-ran the two original QC repros unmodified and the reviewer's probes from gitignored scratch files. Findings are filed, not fixed. Phase L hardening is not declared closed.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "1b9ef4dd",
+    "working_tree_expected": "clean",
+    "preserved_paths": []
+  },
+  "classification": {
+    "project_state_change": true
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "qa",
+      "project-state"
+    ],
+    "expected_paths": [
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/contracts/awkit-l12-25-implementation-1006.json",
+      "docs/ai/contracts/awkit-l12-26-qc-1006.json",
+      "docs/ai/contracts/active-lease.json",
+      "scripts/verify-roadmap-dashboard.mjs",
+      ".beads/**"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "L12-26-QC",
+      "description": "An independent read-only review reports whether both original repros now refuse or act only on the intended element, whether any new wrong-element path exists in the L12.25 changes, and whether the new verifiers can pass vacuously; each finding filed with severity.",
+      "evidence_required": [
+        "qc-report"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "qc-report",
+      "type": "inspection",
+      "required": true,
+      "command": "awkit-qc-reviewer subagent (read-only), original repros tmp/qc-l12/twin-cap-repro.mts and similar-rows-state-repro.mts, probes tmp/qc-l12/l12-26-probes.mts",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "The QC ran and reported (verdict on L12.25: FAIL). Original repros on 1b9ef4dd: twin-cap refuses at 0, 7, 8 and 12 (pre-existing-twin), similar-rows-state offers no loop. Probes: P1 recovery acted on save-notes after a look-alike appeared in a later passing run, P2 the digests were not refreshed by a recovery, P3 a nameless loop clicked unapprove x4, P4 it clicked reject x4. Findings filed as awkit-djnl.21.27. Reviewer NOT CHECKED: the twin-pool verifier, pinned counts, loopRowDepth plumbing and designer round trip, old-record handling, the agreement re-proof."
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "177/177 with 'Sources agree' on the first run after moving the pins (361 issues, 24 outstanding / 337 closed, 248 edges)."
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true
+  },
+  "completion": {
+    "status": "complete",
+    "qa_status": "PASS",
+    "qa_basis": "The QC ran: the reviewer's findings were each confirmed or left as stated (PLAUSIBLE/NOT CHECKED) by runtime probes, the original repros were re-run unmodified, and the tracker and state sources record the FAIL verdict and the filed L12.27.",
+    "qc_status": "pending",
+    "qc_note": "This task IS the independent QC of L12.25; its verdict on L12.25 is FAIL. No separate review of this bookkeeping was run."
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-l12-26-qc-1006:project-state:2026-10-06T00:08:46.540Z",
+        "task": "awkit-l12-26-qc-1006",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-06T00:08:46.540Z",
+        "acquired_at_commit": "1b9ef4dd2f883a55b09065dbef73bc66568726d6",
+        "released_at": "2026-10-06T00:09:18.439Z",
+        "released_reason": "L12.26 closed with a FAIL verdict and L12.27 filed, export refreshed, docs and roadmap pin continue unleased",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

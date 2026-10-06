@@ -1,6 +1,21 @@
 # CURRENT_STATE
 
-## L12.25 done: twin veto covers every look-alike; similar-row loops never rely on transient state (2026-10-06, latest)
+## L12.26 independent QC of L12.25: FAIL, three wrong-target paths filed as L12.27 (2026-10-06, latest)
+
+- **How:** an independent read-only reviewer (`awkit-qc-reviewer` subagent, no shell) read the code and evidence.
+  The orchestrator re-ran the two original QC repros unmodified and the reviewer's probes
+  (`tmp/qc-l12/l12-26-probes.mts`, gitignored) through temporary npm script entries, which were removed afterwards.
+- **Original repros:** fixed. Twin-cap refuses at 0, 7, 8 and 12 hidden look-alikes. The state-only page gets no
+  loop.
+- **New, confirmed by probes (`awkit-djnl.21.27`, P1, OPEN):**
+  - the look-alike list is frozen at the first success, and recovery acted on `#save-notes` (P1)
+  - the list is not refreshed after a recovery (P2)
+  - a loop selector with no semantic part is offered, and clicked Unapprove, then Reject, in all 4 rows (P1)
+  - `verify:similar-rows-safety` section F has vacuous checks
+- **Tracker:** `.21.26` closed (FAIL). Phase L hardening stays open. Nothing in the product changed in this task.
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## L12.25 done: twin veto covers every look-alike; similar-row loops never rely on transient state (2026-10-06)
 
 - **Source:** independent Phase L QC reproduced two wrong actions through production code (repros in
   `tmp/qc-l12/`). L12.22 to L12.24 are not reopened; their recorded statements stay as written.

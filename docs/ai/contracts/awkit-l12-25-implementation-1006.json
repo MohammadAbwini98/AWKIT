@@ -176,8 +176,8 @@
     "qa_status": "PASS",
     "qa_basis": "Both QC repros are permanent deterministic cases that were red on the pre-fix code and are green now, and each fix is mutation tested: verify:twin-pool-safety 12/0, verify:similar-rows-safety 28/0, plus the regression set.",
     "qa_known_limitations": "F3 (P2): a loop that needs a state filter can skip rows when a click disables its own button, never another action. A look-alike that itself drifted is not recognised. Similar-rows loops saved before L12.25 have no run-time row check. Memory written before L12.25 refuses recovery until the step passes again.",
-    "qc_status": "pending",
-    "qc_note": "No independent review in this session. The owner requires a second independent read-only QC targeted at L12.25 and the two original P1 repros (awkit-djnl.21.26) before Phase L hardening may be declared closed."
+    "qc_status": "FAIL",
+    "qc_note": "L12.26 independent read-only QC (awkit-djnl.21.26, contract awkit-l12-26-qc-1006): both original repros fixed, but three wrong-target paths in this design confirmed by probes (frozen look-alike list, stale list after recovery, loop selectors with no semantic part) and verifier vacuity in verify:similar-rows-safety section F. Filed as awkit-djnl.21.27 (P1)."
   },
   "write_lease": {
     "history": [

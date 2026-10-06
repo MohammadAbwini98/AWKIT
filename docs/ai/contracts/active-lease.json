@@ -1,26 +1,18 @@
 {
-  "task": "awkit-l12-25-implementation-1006",
-  "contract_path": "docs/ai/contracts/awkit-l12-25-implementation-1006.json",
+  "task": "awkit-l12-26-qc-1006",
+  "contract_path": "docs/ai/contracts/awkit-l12-26-qc-1006.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-05T23:51:55.927Z",
-  "acquired_at_commit": "6945cdca03688f1a85e277d6d1adae1f7a523638",
+  "acquired_at": "2026-10-06T00:08:46.540Z",
+  "acquired_at_commit": "1b9ef4dd2f883a55b09065dbef73bc66568726d6",
   "baseline_dirty": [
-    ".beads/interactions.jsonl",
-    ".beads/issues.jsonl",
-    "docs/ai/KNOWN_ISSUES.md",
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-l12-25-implementation-1006.json"
+    "docs/ai/contracts/awkit-l12-26-qc-1006.json"
   ],
   "baseline_dirty_fingerprints": {
-    ".beads/interactions.jsonl": "6fd42a1c8509c4147fce23eeefbe42fd8a0862d7a8965fddc46427cf6b6ebe48",
-    ".beads/issues.jsonl": "5a888a8c0907251b98925e288ff8d6a3803e9bf66d4049d7179bfaa6b0ca451b",
-    "docs/ai/KNOWN_ISSUES.md": "732a76ea0f594cd3e6371b0b8f422ad4c7a8d5da66327e1d05b889e65e8178e6",
-    "docs/ai/contracts/active-lease.json": "c313fd262878f406222736f7e826bed2e2e1db4c3f3d478755b302cb8a6e0c8b",
-    "docs/ai/contracts/awkit-l12-25-implementation-1006.json": "d89ee98fc25cd99c1b129982616bda52cc45c8b687a2c206aec5776a74b9b905"
+    "docs/ai/contracts/awkit-l12-26-qc-1006.json": "0e3839a47e3d455e0eca920953406f1b0813fd40c06af65f267f71dff4796986"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -35,7 +27,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-05T23:52:52.237Z",
-  "released_reason": "L12.25 closed and L12.26 independent QC filed, export refreshed, roadmap pin and docs continue unleased",
-  "archived_at": "2026-10-05T23:52:52.238Z"
+  "released_at": "2026-10-06T00:09:18.439Z",
+  "released_reason": "L12.26 closed with a FAIL verdict and L12.27 filed, export refreshed, docs and roadmap pin continue unleased",
+  "archived_at": "2026-10-06T00:09:18.441Z"
 }

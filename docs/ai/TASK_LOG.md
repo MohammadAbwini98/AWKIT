@@ -1,6 +1,19 @@
 # TASK_LOG
 
-## 2026-10-06 (latest) — L12.25 wrong-target residuals: twin pool and state-only loops (Claude)
+## 2026-10-06 (latest) — L12.26 independent read-only QC of L12.25 (Claude)
+
+- **Task:** owner asked to run `awkit-djnl.21.26`. Read-only: findings filed, not fixed.
+- **Method:** the `awkit-qc-reviewer` subagent (read-only tools) reviewed the L12.25 diff adversarially. It hit its
+  turn limit once and was resumed for the report, and it marked the twin-pool verifier, pins and plumbing as NOT
+  CHECKED. The orchestrator ran the two original repros and four probes through temporary `verify:qc-l12-*`
+  entries (removed, so `package.json` is unchanged). The shell guard blocks all shell for subagents.
+- **Results:** the original repros are safe. Probes confirmed a frozen look-alike list (WRONG `#save-notes`), a
+  stale list after a recovery, and nameless loop selectors (Unapprove x4, Reject x4), plus vacuous checks in
+  `verify:similar-rows-safety` F.
+- **Tracker:** `.21.26` closed FAIL, `.21.27` filed P1 OPEN. Contract `awkit-l12-26-qc-1006`. The L12.25 contract's
+  QC is recorded as FAIL.
+
+## 2026-10-06 — L12.25 wrong-target residuals: twin pool and state-only loops (Claude)
 
 - **Task:** owner asked to create and implement L12.25 (P1, under L12) for the two wrong-action defects independent
   Phase L QC reproduced (`tmp/qc-l12/`), red first, mutation tested; F3 investigated. L12.22-L12.24 not reopened.

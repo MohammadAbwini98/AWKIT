@@ -1,5 +1,30 @@
 # KNOWN_ISSUES
 
+## L12.25 still leaves three wrong-target paths (found 2026-10-06 by the L12.26 independent QC, OPEN, `awkit-djnl.21.27`, P1)
+
+Each was confirmed by a runtime probe on `main` @ `1b9ef4dd` (`tmp/qc-l12/l12-26-probes.mts`, gitignored). The two
+original QC repros are fixed: recovery refuses at 0/7/8/12 hidden look-alikes, and the state-only page gets no loop.
+
+- **Frozen look-alike list (P1, wrong element).** `rememberWinner` reuses `twinDigests` while the winner's
+  fingerprint is unchanged, so a look-alike that first appears in a later passing run is never remembered. Probe:
+  run 1 Save alone (`[]`), run 2 a look-alike added and the step passes (still `[]`), run 3 the target removed:
+  recovery acted on `#save-notes`. The L12.25 claim that the set is "complete" holds only at the first success.
+- **Stale list after a recovery (P2).** The recovery write keeps the old target's `twinDigests` and replaces only
+  the fingerprint, so the next recovery scores against the recovered element but vetoes with the old list. Probe: a
+  look-alike present at the recovery is not remembered. A wrong action through this needs the provider-agreement
+  layer (not probed).
+- **Loop selectors with no semantic part (P1, wrong action).** When the picked name carries row data and nothing
+  shared names it, the loop selector is the tag path alone (`tbody[id=…] > tr > td > button`), and it is OFFERED
+  whenever no other action sits on that exact path at generation. Probes: Reject as a link with Approve renamed
+  Unapprove later clicked Unapprove in all 4 rows. Reject wrapped and disabled with the wrappers flipped later
+  clicked Reject in all 4 rows. **Correction:** the L12.25 entry below says such a loop is "refused (not
+  offered)". That is wrong, and its text is left as written.
+- **Verifier vacuity (`verify:similar-rows-safety`, section F).** A scenario on a page with no loop passes without
+  executing anything (so the "QC repro" scenario never runs the StepExecutor). Two scenarios accept any failure
+  instead of `SIMILAR_ROWS_LOOP_BROADENED` or exact click counts. The F3 check has no cardinality.
+- **Info, unverified:** `extractSimilarRows` takes the picked index from `body.querySelectorAll('*')`, while the
+  provider uses Playwright's `body *`, which pierces open shadow roots (predates L12.25).
+
 ## Twin veto and similar-row loops still acted on a wrong element (found 2026-10-06 by independent QC, RESOLVED 2026-10-06 by L12.25, `awkit-djnl.21.25`)
 
 - **F1 (P1).** The L12.24 twin memory kept the 8 closest look-alikes of the whole document, hidden ones included,
