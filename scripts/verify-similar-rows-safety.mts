@@ -44,7 +44,7 @@ import { stageHost } from "./dom-intelligence/stagedHost.mts";
 
 const RUNS = 3;
 /** Pinned so a dropped page, or a dropped ambiguous page, fails the gate instead of shrinking it. */
-const PINNED = { pages: 19, refuse: 8 };
+const PINNED = { pages: 21, refuse: 9 };
 
 export interface LoopObservation {
   id: string;
@@ -393,6 +393,22 @@ async function main(): Promise<void> {
         title: "a role-only Approve: Reject becomes a span with role=button: no loop, nothing clicked",
         change: `document.querySelectorAll("#lab-body td:last-child > button").forEach(function (b) { var s = document.createElement("span"); s.setAttribute("role", "button"); s.tabIndex = 0; s.textContent = "Reject"; window.__awkitCoverage.intents.set(s, "reject"); b.replaceWith(s); })`,
         expect: "refuse"
+      },
+      // L12.28 QC: a form name the actions share is not the action's name.
+      {
+        id: "rows-name-decision",
+        title: "L12.28 QC probe: a shared form name only, Approve becomes Unapprove: no loop, nothing clicked",
+        change: `document.querySelectorAll("#lab-body button").forEach(function (b) { b.textContent = b.textContent.replace("Approve", "Unapprove"); b.value = "unapprove"; window.__awkitCoverage.intents.set(b, "unapprove"); })`,
+        expect: "refuse"
+      },
+      // A title that is a textless control's accessible name still names it.
+      { id: "rows-title-icons", title: "title-named icons, as made: Approve in all 6 rows", expect: { status: "passed", clicks: clicks("approve", ...ALL) } },
+      {
+        id: "rows-title-icons",
+        title: "title-named icons: an Escalate icon added to every row and the actions reversed: Approve in all 6 rows",
+        change:
+          `document.querySelectorAll("#lab-body td:last-child").forEach(function (c) { var d = document.createElement("button"); d.type = "button"; d.title = "Escalate"; window.__awkitCoverage.intents.set(d, "escalate-new"); c.prepend(d); Array.prototype.slice.call(c.children).reverse().forEach(function (k) { c.appendChild(k); }); })`,
+        expect: { status: "passed", clicks: clicks("approve", ...ALL) }
       },
       // A stable identity (data-action) with row data in the names: the loop is offered and survives the same changes.
       { id: "rows-row-data-action", title: "data-action identity, as made: Approve in all 6 rows", expect: { status: "passed", clicks: clicks("approve", ...ALL) } },

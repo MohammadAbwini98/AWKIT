@@ -126,6 +126,10 @@ export function lateTwinGate(lab: TwinLatePage[], rows: LateObservation[]): stri
           if (row.resolved.length !== 1 || row.resolved[0] !== "<target>") reasons.push(`${at}: legitimate recovery lost (${row.resolved.join(",") || "none"})`);
         } else if (row.resolved.length) {
           reasons.push(`${at}: WRONG element after the target was removed: ${row.resolved.join(",")}`);
+        } else if (scope === "document" && !row.reasons.includes("local:pre-existing-twin")) {
+          // In document scope every late look-alike is in the local layer's pool, so only the veto may refuse it
+          // (not a thrown resolve, the container or visibility).
+          reasons.push(`${at}: refused without the pre-existing-twin veto (${row.reasons.join(" ") || "no trace"})`);
         }
       }
     }
@@ -312,6 +316,46 @@ async function main(): Promise<void> {
       await tab.close();
     }
 
+    // L12.28 QC: a record written before L12.27 holds the set of its FIRST success and no walk key. Trusting it kept the
+    // L12.26 bug alive on existing installs: recovery acted on #save-notes on both engines.
+    console.log("B2. L12.25-era winner memory (a set but no walk key): fails closed, is upgraded by the next pass");
+    for (const engine of ENGINES) {
+      const tab = await browser.newPage();
+      await tab.goto(urlOf("late-one"));
+      const folder = await mkdtemp(join(root, "frozen-"));
+      const store = new FileLocatorRecoveryStore(folder);
+      const events: LocatorRecoveryEvent[] = [];
+      const step = { id: "save-profile", name: "Save profile", type: "click", locator: { strategy: "css", value: "#save-profile" } } as unknown as FlowStep;
+      const factory = () => new LocatorFactory(tab, { recoveryStore: store, scope: { scenarioId: "l12-27", flowId: "frozen" }, recoveryGraceMs: 0, recoveryEngine: engine, onRecoveryEvent: (event) => events.push(event) });
+      const run = (op: string) => tab.evaluate((value) => (window as unknown as { __fixture: { run(op: string): boolean } }).__fixture.run(value), op);
+      await factory().resolve(step);
+      await run("add:notes:save-notes:Save");
+      await factory().resolve(step);
+      const [file] = (await readdir(folder)).filter((name) => name.endsWith(".json"));
+      const record = JSON.parse(await readFile(join(folder, file), "utf8")) as Record<string, unknown>;
+      // Exactly what the L12.25 code left: the set of the first success (no look-alike then), no walk key.
+      record.twinDigests = [];
+      delete record.twinScanKey;
+      await writeFile(join(folder, file), JSON.stringify(record));
+      if (engine === "snapshot") {
+        await factory().resolve(step);
+        const upgraded = JSON.parse(await readFile(join(folder, file), "utf8")) as { twinDigests?: unknown[]; twinScanKey?: unknown };
+        check("B2: the next passing resolve upgrades an L12.25-era record (walk key and the late look-alike)", typeof upgraded.twinScanKey === "string" && upgraded.twinDigests?.length === 1, upgraded);
+        await writeFile(join(folder, file), JSON.stringify(record));
+      }
+      await run("drop-target");
+      events.length = 0;
+      let resolved: string[] = [];
+      try {
+        resolved = await (await factory().resolve(step)).evaluateAll((elements) => elements.map((element) => `#${element.id}`));
+      } catch {
+        resolved = [];
+      }
+      const stages = events.flatMap((event) => event.trace?.stages ?? []).map((stage) => `${stage.stage}:${stage.reason ?? stage.outcome}`);
+      check(`B2 ${engine}: recovery from an L12.25-era record acts on nothing, refused as twins-unproven`, resolved.length === 0 && stages.includes("local:twins-unproven"), { resolved, stages });
+      await tab.close();
+    }
+
     console.log("C. Mutation controls: the gate fails for each defect it exists to catch");
     const copy = () => structuredClone(rows);
     const crowded = rows.findIndex((o) => o.id === "twins-hidden-8");
@@ -379,6 +423,9 @@ async function main(): Promise<void> {
       altered = lateCopy();
       altered[one].passed = false;
       check("D mutation: a passing resolve that returned another element fails the gate", lateTwinGate(TWIN_LATE_LAB, altered).some((r) => r.includes("did not return the original")));
+      altered = lateCopy();
+      altered[late.findIndex((o) => o.id === "late-one" && o.scope === "document")].reasons = ["local:no-candidate"];
+      check("D mutation: a document-scope refusal without the veto fails the gate", lateTwinGate(TWIN_LATE_LAB, altered).some((r) => r.includes("without the pre-existing-twin veto")));
       check("D mutation: a dropped late page fails the gate", lateTwinGate(TWIN_LATE_LAB.slice(1), late.filter((o) => o.id !== TWIN_LATE_LAB[0].id)).some((r) => r.includes("pinned")));
     }
   } finally {

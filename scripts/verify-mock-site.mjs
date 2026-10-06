@@ -757,8 +757,8 @@ try {
   const twinLinks = await page.locator('[data-testid^="coverage-twins-"] a').evaluateAll((links) => links.map((link) => link.getAttribute("href")));
   const lateLinks = await page.locator('[data-testid^="coverage-late-"] a').evaluateAll((links) => links.map((link) => link.getAttribute("href")));
   check(
-    "the index lists 22 recovery fixtures, 8 protected-login pages, 19 similar-rows pages, 6 twin-pool pages and 7 late look-alike pages",
-    coverageLinks.length === 22 && challengeLinks.length === 8 && similarLinks.length === 19 && twinLinks.length === 6 && lateLinks.length === 7,
+    "the index lists 22 recovery fixtures, 8 protected-login pages, 21 similar-rows pages, 6 twin-pool pages and 7 late look-alike pages",
+    coverageLinks.length === 22 && challengeLinks.length === 8 && similarLinks.length === 21 && twinLinks.length === 6 && lateLinks.length === 7,
     { fixtures: coverageLinks.length, challenges: challengeLinks.length, similar: similarLinks.length, twins: twinLinks.length, late: lateLinks.length }
   );
   // L12.27: each late look-alike page starts with the target alone, and its fixture adds a visible look-alike on demand.

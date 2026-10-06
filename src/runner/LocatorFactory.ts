@@ -438,7 +438,9 @@ export class LocatorFactory {
       if (pass.allMissing && !sensitiveAction) {
         const recovered = await this.recover(root, step, applicableMemory.fingerprint, {
           route: applicableMemory.route,
-          twinDigests: applicableMemory.twinDigests,
+          // L12.28 QC: a set without a walk key was written before L12.27, frozen at its first success, so it cannot say
+          // which look-alikes stood beside the target since. Recovery refuses (twins-unproven) until the step passes again.
+          twinDigests: applicableMemory.twinScanKey ? applicableMemory.twinDigests : undefined,
           candidatesTried: ordered.length
         });
         if (recovered) {
@@ -1008,13 +1010,17 @@ export class LocatorFactory {
   ): Promise<Pick<LocatorRecoveryRecord, "twinDigests" | "twinScanKey">> {
     try {
       const frame = await this.blueprintFrame(step.locator?.context);
-      // Only a kept set derived for this same winner may be reused.
-      const reusable = previous?.twinDigests && previous.twinScanKey && previous.fingerprint && sameElementFingerprint(previous.fingerprint, fingerprint) ? previous.twinScanKey : undefined;
+      // Only a kept set derived for this same winner and step type (the set is filtered by type) may be reused.
+      const typed = `${step.type}|`;
+      const reusable =
+        previous?.twinDigests && previous.twinScanKey?.startsWith(typed) && previous.fingerprint && sameElementFingerprint(previous.fingerprint, fingerprint)
+          ? previous.twinScanKey.slice(typed.length)
+          : undefined;
       const scan = await scanLookAlikes(frame.locator("body *"), fingerprint, reusable);
-      if (scan.same) return { twinDigests: previous!.twinDigests, twinScanKey: scan.key };
+      if (scan.same) return { twinDigests: previous!.twinDigests, twinScanKey: typed + scan.key };
       if (scan.truncated) return {};
       const twinDigests = mergeTwinDigests(previous?.twinDigests, preExistingTwinDigests(step, fingerprint, scan.candidates), fingerprint);
-      return twinDigests ? { twinDigests, twinScanKey: scan.key } : {};
+      return twinDigests ? { twinDigests, twinScanKey: typed + scan.key } : {};
     } catch {
       return {};
     }

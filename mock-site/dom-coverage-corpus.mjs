@@ -456,6 +456,13 @@ export const SIMILAR_ROW_LAB = [
   // The same with a role: `span[role="button"]` says it is a button, not which action.
   { id: "rows-role-only", title: "Approve a span with role=button named after its row, Reject a button", expect: "refuse",
     html: () => rowLab("Role-only actions", (n) => `<span role="button" tabindex="0" data-oracle-intent="approve"${mark(n === PICK)}>Approve INV-${n}</span> ${act("reject", "Reject")}`) },
+  // L12.28 QC (independent review of L12.27): a form `name` shared by every action (they differ by `value`) is not the
+  // action's name. Keyed on `button[name="decision"]`, the loop clicked Unapprove in every row once Approve was renamed.
+  { id: "rows-name-decision", title: "Approve named after its row, told apart only by a form name the actions share", expect: "refuse",
+    html: () => rowLab("Form-name actions", (n) => `${act("approve", `Approve INV-${n}`, ` name="decision" value="approve"${mark(n === PICK)}`)} <a href="#reject-${n}" data-oracle-intent="reject">Reject</a>`) },
+  // A title IS the accessible name of a control with no text, so icon buttons named only by title still get a loop.
+  { id: "rows-title-icons", title: "Icon-only Approve and Reject named only by title", expect: 6,
+    html: () => rowLab("Titled icons", (n) => `${icon("approve", "", n === PICK).replace("<button", '<button title="Approve"')}${icon("reject", "", false).replace("<button", '<button title="Reject"')}`) },
   // Row data in both names, but a shared data-action names each action: the loop is offered and keys on it.
   { id: "rows-row-data-action", title: "Names carry the row's invoice, data-action names the action", expect: 6,
     html: () => rowLab("Row-named actions", (n) => `${act("approve", `Approve INV-${n}`, ` data-action="approve"${mark(n === PICK)}`)} ${act("reject", `Reject INV-${n}`, ' data-action="reject"')}`) }

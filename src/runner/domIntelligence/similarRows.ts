@@ -185,8 +185,8 @@ const semanticIdentity = (elements: Element[], arg: { wanted: number[]; picked: 
  * action, never a different action: that one is told apart by state alone, which the page can change before the
  * loop runs. `rowDepth` is how far above a matched element its row is (the row is a child of the rows' container).
  *
- * L12.27 (awkit-djnl.21.27): the semantic part must NAME the action (a shared `aria-label`, `data-action`, `name` or
- * `title`, or the shared text). A tag path, a role, position or state alone is never enough, even when it matches
+ * L12.27 (awkit-djnl.21.27): the semantic part must NAME the action (a shared `aria-label`, `data-action`, a `title`
+ * that is a textless control's accessible name, or the shared text; L12.28 QC: never a form `name`). A tag path, a role, position or state alone is never enough, even when it matches
  * only the picked action today: the page can rename, unwrap or add an action before the loop runs.
  */
 export async function commonRowSelector(frame: Frame, wanted: number[], same: number[]): Promise<{ selector: string; rowDepth: number } | null> {
@@ -206,17 +206,19 @@ export async function commonRowSelector(frame: Frame, wanted: number[], same: nu
     });
     if (chains.some((chain) => chain !== chains[0])) return null;
     // Attribute values and text are quoted as CSS strings: `"` and `\` escaped.
+    const texts = rows.map((row) => (row.textContent ?? "").replace(/\s+/g, " ").trim());
     let attributes = "";
     let named = false;
     for (const name of ["aria-label", "data-action", "name", "title", "role"]) {
       const value = rows[0].getAttribute(name);
       if (value && rows.every((row) => row.getAttribute(name) === value)) {
         attributes += `[${name}="${value.replace(/["\\]/g, "\\$&")}"]`;
-        // A role says what kind of control it is, never which action.
-        if (name !== "role") named = true;
+        // What names the action: its aria-label, its data-action, or a title that is its accessible name (no text).
+        // A role says what kind of control it is, and a form `name` is shared by every action of one form
+        // (`decision=approve|reject`, L12.28 QC: such a loop clicked Unapprove in every row): they only narrow.
+        if (name === "aria-label" || name === "data-action" || (name === "title" && texts.every((text) => !text))) named = true;
       }
     }
-    const texts = rows.map((row) => (row.textContent ?? "").replace(/\s+/g, " ").trim());
     const sharedText = texts[0] && texts[0].length <= 80 && texts.every((text) => text === texts[0]) ? texts[0] : "";
     // L12.27: every head names the action, by a shared attribute or the shared text. A tag path (with a role at most)
     // was offered whenever no other action sat on that exact path when the loop was made, and clicked Unapprove, or a
