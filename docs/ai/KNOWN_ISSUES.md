@@ -1,5 +1,33 @@
 # KNOWN_ISSUES
 
+## L12.26's three wrong-target paths (FIXED 2026-10-06 by L12.27, `awkit-djnl.21.27`, `72925a0`; independent QC `awkit-djnl.21.28` pending)
+
+- **Late look-alikes (P1).** Every passing resolve now walks the look-alikes again and merges them with the set
+  already kept (earlier ones stay, so one that leaves and comes back is still vetoed). The page keys the walk, so an
+  unchanged page returns nothing else. `verify:twin-pool-safety` section D: red first 22 of 24 WRONG, now 0.
+- **Look-alikes at a recovery (P2 promoted to fixed).** Reproduced as a wrong action without the provider: an
+  attribute-less Save appeared beside the target while its id drifted, recovery proved the drifted target (0.983
+  against 0.900), and once that was removed the next recovery acted on the Save. The recovery write now walks the
+  recovered element's look-alikes. Red first 4 of 4 WRONG (`late-after-recovery`), now 0.
+- **Nameless loop selectors (P1).** A loop selector must name the action (shared `aria-label`, `data-action`,
+  `name` or `title`, or the shared text). A tag path or a role alone is never offered. The two QC probes are lab pages
+  and refuse. The real StepExecutor clicked unapprove x6 and reject x6 before the fix, nothing after.
+- **Verifier vacuity.** Fixed: exact ordered clicks (action and row), status and error per scenario, refusal proves no
+  loop, no execution, no click, and a crashed provider fails. Section G mutation-tests the judge.
+- **`verify:frame-chain` [9] "flake" was a verifier race:** the frames report a click by postMessage, which can land
+  after the click resolves. [1], [2] and [9] now wait up to 3 s for it and still fail when it never comes.
+- **Still known, not fixed:**
+  - A look-alike that first appears while the step is already failing (no passing resolve and no recovery in between)
+    cannot be told from a re-rendered target. Measured: the target's id drifts and a near Save appears at the same
+    time; recovery refuses on margin while both stand, then acts on the Save once the drifted target is removed. This
+    is the same evidence recovery uses for every legitimate re-render.
+  - Cost: each passing resolve of a non-sensitive step walks its frame (measured on the Linux dev host, p50 added:
+    +1.6 ms on 59 elements, +3.7 ms on 123, +15 ms on the 400-row ledger, +24 ms on about 8,000 elements).
+  - The walk key is 64 bits and not cryptographic. A collision reuses the earlier set. A page could only craft one
+    to do what it could already do by relabelling its own controls.
+  - A loop over row-named actions with no shared attribute is refused (recall traded for safety), as before.
+  - Info, still unverified: the shadow-DOM index mismatch between `extractSimilarRows` and the provider.
+
 ## L12.25 still leaves three wrong-target paths (found 2026-10-06 by the L12.26 independent QC, OPEN, `awkit-djnl.21.27`, P1)
 
 Each was confirmed by a runtime probe on `main` @ `1b9ef4dd` (`tmp/qc-l12/l12-26-probes.mts`, gitignored). The two

@@ -1,6 +1,19 @@
 # DECISIONS
 
-### 2026-10-05 (latest) — L12.24: a similar-rows loop repeats one action, or is not offered (owner, implementer design) (`awkit-djnl.21.24`)
+### 2026-10-06 (latest) — L12.27: look-alike memory follows every proof, and a loop must name its action (implementer, measured) (`awkit-djnl.21.27`)
+
+- **Supersedes the L12.23/L12.24 choice of a one-time look-alike scan** (below, text left as written). Independent QC
+  proved it unsafe: a look-alike that appeared before a later passing resolve was never remembered. Every passing
+  resolve and every recovery now walks the look-alikes and merges them with the set already kept. A sensitive step
+  never recovers, so it keeps none and pays nothing.
+- **Cost bound:** the page keys the walk (length plus two 32-bit hashes of the kept raw fingerprints, from the same
+  walk) and returns nothing else when the key, the winner and a kept set are unchanged. The full re-hash added
+  +58 ms per passing resolve on the 400-row ledger. With the key it adds +15 ms.
+- **Loops:** the selector's semantic part must name the action by a shared `aria-label`, `data-action`, `name` or
+  `title`, or the shared text. A tag path, a role, position or state is never enough, even when it matches only the
+  picked action at generation. No stripping of text until something matches: no shared name means no loop.
+
+### 2026-10-05 — L12.24: a similar-rows loop repeats one action, or is not offered (owner, implementer design) (`awkit-djnl.21.24`)
 
 - **Owner:** a mixed loop is a wrong-target safety defect; refuse when a safe selector cannot be proven, never
   broaden to raise the row count, keep verifier-only oracle data out of production.
