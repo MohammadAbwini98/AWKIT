@@ -46,6 +46,16 @@ export interface TwinLatePage {
   expect: "refuse" | "recover";
 }
 export const TWIN_LATE_LAB: TwinLatePage[];
+/** L12.30: a look-alike remembered, then a pass that overflows or truncates the history; `reason` is the required refusal. */
+export interface TwinHistoryPage {
+  id: string;
+  title: string;
+  passes: string[][];
+  final: string[];
+  remembered: number | undefined;
+  reason: "twins-unproven" | "pre-existing-twin";
+}
+export const TWIN_HISTORY_LAB: TwinHistoryPage[];
 export const ORACLE_SELECTOR: string;
 export const COVERAGE_FIXTURES: CoverageFixture[];
 export const CHALLENGE_PAGES: ChallengePage[];

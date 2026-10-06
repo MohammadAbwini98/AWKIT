@@ -40,7 +40,7 @@ export async function extractSimilarRows(
     if (!similar.ok) return { ok: false, reason: similar.code === "DISABLED" || similar.code === "UNAVAILABLE" ? "provider-unavailable" : "provider-error" };
     const found = [...new Set([index, ...similar.similar])].sort((a, b) => a - b);
     const complete = found.length === similar.count + 1;
-    const identity = await frame.locator("body *").evaluateAll(semanticIdentity, { wanted: found, picked: index });
+    const identity = await frame.locator("body *").evaluateAll(semanticIdentity, { wanted: found, picked: index, control: CONTROL });
     const wanted = identity.keep;
     // Visible text nodes joined by a space, so adjacent inline cells do not run together ("Alice View", not
     // "AliceView"). Hidden text (display:none, visibility:hidden) and script or style bodies are never read.
@@ -93,8 +93,11 @@ export async function extractSimilarRows(
  * element carrying it, available or not) is the only set a loop selector may match before its state filters.
  * NOTE: no named inner functions in this evaluate body (esbuild's `__name` helper is undefined in the page).
  */
-const semanticIdentity = (elements: Element[], arg: { wanted: number[]; picked: number }): { keep: number[]; same: number[]; proven: boolean } => {
-  const CONTROL = "button,a[href],input:not([type=hidden]),select,textarea,summary,[role=button],[role=link],[role=menuitem],[role=menuitemcheckbox],[role=menuitemradio],[role=tab],[role=checkbox],[role=radio],[role=switch],[role=option],[role=treeitem]";
+const CONTROL =
+  "button,a[href],input:not([type=hidden]),select,textarea,summary,[role=button],[role=link],[role=menuitem],[role=menuitemcheckbox],[role=menuitemradio],[role=tab],[role=checkbox],[role=radio],[role=switch],[role=option],[role=treeitem]";
+
+const semanticIdentity = (elements: Element[], arg: { wanted: number[]; picked: number; control: string }): { keep: number[]; same: number[]; proven: boolean } => {
+  const CONTROL = arg.control;
   const nodes = arg.wanted.map((i) => elements[i]);
   if (nodes.some((node) => !node)) return { keep: [arg.picked], same: [], proven: false };
   let common: Element | null = nodes.length > 1 ? nodes[0].parentElement : null;
@@ -188,6 +191,11 @@ const semanticIdentity = (elements: Element[], arg: { wanted: number[]; picked: 
  * L12.27 (awkit-djnl.21.27): the semantic part must NAME the action (a shared `aria-label`, `data-action`, a `title`
  * that is a textless control's accessible name, or the shared text; L12.28 QC: never a form `name`). A tag path, a role, position or state alone is never enough, even when it matches
  * only the picked action today: the page can rename, unwrap or add an action before the loop runs.
+ *
+ * L12.30 (awkit-djnl.21.30, re-QC N4/N5): a value is not the action's name merely because every picked row carries it. It
+ * names the action only when no other control under the rows' container (another action, in any state, on any path)
+ * carries it too, and, when there is no other action to tell it apart from, only when it agrees with what the control
+ * itself shows (a word of its text or icon name). A generic "Row action" label, data-action or title only narrows.
  */
 export async function commonRowSelector(frame: Frame, wanted: number[], same: number[]): Promise<{ selector: string; rowDepth: number } | null> {
   // NOTE: no named inner functions in this evaluate body (esbuild's `__name` helper is undefined in the page).
@@ -207,6 +215,24 @@ export async function commonRowSelector(frame: Frame, wanted: number[], same: nu
     if (chains.some((chain) => chain !== chains[0])) return null;
     // Attribute values and text are quoted as CSS strings: `"` and `\` escaped.
     const texts = rows.map((row) => (row.textContent ?? "").replace(/\s+/g, " ").trim());
+    // L12.30 (re-QC N4/N5): the names every OTHER control under the rows' container carries (another action, in any state
+    // and on any path), and the words each picked control shows itself (its text, or its icon's own name).
+    const siblingNames = new Set<string>();
+    let siblings = 0;
+    for (const element of Array.from(common.querySelectorAll(arg.control))) {
+      if (allowed.has(element)) continue;
+      siblings += 1;
+      for (const value of [element.getAttribute("aria-label"), element.getAttribute("data-action"), element.getAttribute("title"), element.textContent]) {
+        const label = (value ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+        if (label) siblingNames.add(label);
+      }
+    }
+    const shown = rows.map((row, k) =>
+      (texts[k] || row.querySelector("img[alt]")?.getAttribute("alt") || row.querySelector("svg title")?.textContent || "")
+        .toLowerCase()
+        .split(/[^\p{L}\p{N}]+/u)
+        .filter((word) => word.length > 2 && !/^\d+$/.test(word))
+    );
     let attributes = "";
     let named = false;
     for (const name of ["aria-label", "data-action", "name", "title", "role"]) {
@@ -216,7 +242,14 @@ export async function commonRowSelector(frame: Frame, wanted: number[], same: nu
         // What names the action: its aria-label, its data-action, or a title that is its accessible name (no text).
         // A role says what kind of control it is, and a form `name` is shared by every action of one form
         // (`decision=approve|reject`, L12.28 QC: such a loop clicked Unapprove in every row): they only narrow.
-        if (name === "aria-label" || name === "data-action" || (name === "title" && texts.every((text) => !text))) named = true;
+        if (name === "aria-label" || name === "data-action" || (name === "title" && texts.every((text) => !text))) {
+          // L12.30: and only when it tells this action apart. Not when another action carries it too (a generic "Row
+          // action": the loop clicked Unapprove, or Reject, in every row once the page changed), and, with no other
+          // action to tell it from, only when it agrees with what the control itself shows. Otherwise it only narrows.
+          const label = value.replace(/\s+/g, " ").trim().toLowerCase();
+          const words = label.split(/[^\p{L}\p{N}]+/u);
+          if (!siblingNames.has(label) && (siblings > 0 || shown.every((own) => own.some((word) => words.includes(word))))) named = true;
+        }
       }
     }
     const sharedText = texts[0] && texts[0].length <= 80 && texts.every((text) => text === texts[0]) ? texts[0] : "";
@@ -270,7 +303,7 @@ export async function commonRowSelector(frame: Frame, wanted: number[], same: nu
       below = `${anchor.localName} > ${below}`;
     }
     return null;
-  }, { wanted, same });
+  }, { wanted, same, control: CONTROL });
   if (!found || found.rows.includes(-1)) return null;
   // The loop runs on Playwright's selector engine, so Playwright, not the page, has the final word: on the selector,
   // and on its semantic part naming nothing but the picked action.

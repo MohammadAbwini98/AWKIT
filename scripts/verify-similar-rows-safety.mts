@@ -44,7 +44,7 @@ import { stageHost } from "./dom-intelligence/stagedHost.mts";
 
 const RUNS = 3;
 /** Pinned so a dropped page, or a dropped ambiguous page, fails the gate instead of shrinking it. */
-const PINNED = { pages: 21, refuse: 9 };
+const PINNED = { pages: 26, refuse: 13 };
 
 export interface LoopObservation {
   id: string;
@@ -428,6 +428,67 @@ async function main(): Promise<void> {
       {
         id: "rows-row-data-action",
         title: "data-action identity: every Approve wrapped and Reject left bare: nothing matches, nothing clicked (never Reject)",
+        change: wrapEach("#lab-body button[data-action=approve]"),
+        expect: { status: "passed", clicks: [] }
+      },
+      // L12.30 (L12.29 re-QC N4/N5): a generic aria-label, data-action or title every row action carries is not the action's
+      // name. Before L12.30 each of these loops was offered and the real StepExecutor clicked the action stated in brackets.
+      {
+        id: "rows-generic-aria",
+        title: "N4 generic aria-label: Approve → Unapprove in every row, label kept: no loop, nothing clicked (was unapprove x6)",
+        change: `document.querySelectorAll("#lab-body button").forEach(function (b) { b.textContent = b.textContent.replace("Approve", "Unapprove"); window.__awkitCoverage.intents.set(b, "unapprove"); })`,
+        expect: "refuse"
+      },
+      {
+        id: "rows-generic-aria",
+        title: "N4 generic aria-label: Approve → Reject, a Reject button with the same label replaces Approve and the link: no loop, nothing clicked (was reject x6)",
+        change: `document.querySelectorAll("#lab-body td:last-child").forEach(function (c) { var r = document.createElement("button"); r.type = "button"; r.setAttribute("aria-label", "Row action"); r.textContent = "Reject"; window.__awkitCoverage.intents.set(r, "reject"); c.replaceChildren(r); })`,
+        expect: "refuse"
+      },
+      {
+        id: "rows-generic-data-action",
+        title: "N4 generic data-action: the wrappers flip and Reject is enabled: no loop, nothing clicked (was reject x6)",
+        change:
+          `document.querySelectorAll("#lab-body span.wrap > button").forEach(function (b) { b.disabled = false; b.parentElement.replaceWith(b); });` +
+          wrapEach("#lab-body td:last-child > button:first-child"),
+        expect: "refuse"
+      },
+      {
+        id: "rows-generic-title",
+        title: "N5 generic title: each Approve icon becomes a Reject icon, title kept: no loop, nothing clicked (was reject x6)",
+        change: `document.querySelectorAll("#lab-body button").forEach(function (b) { window.__awkitCoverage.intents.set(b, "reject"); b.querySelector("path").setAttribute("d", "M3 3l10 10M13 3L3 13"); })`,
+        expect: "refuse"
+      },
+      {
+        id: "rows-generic-lone",
+        title: "N4 lone generic label: Approve → Reject in every row, label kept: no loop, nothing clicked (was reject x6)",
+        change: `document.querySelectorAll("#lab-body button").forEach(function (b) { b.textContent = b.textContent.replace("Approve", "Reject"); window.__awkitCoverage.intents.set(b, "reject"); })`,
+        expect: "refuse"
+      },
+      {
+        id: "rows-generic-lone",
+        title: "N4 lone generic label: a Reject with the same label added to every row after generation: no loop, nothing clicked",
+        change: `document.querySelectorAll("#lab-body td:last-child").forEach(function (c) { var r = document.createElement("button"); r.type = "button"; r.setAttribute("aria-label", "Row action"); r.textContent = "Reject"; window.__awkitCoverage.intents.set(r, "reject"); c.prepend(r); })`,
+        expect: "refuse"
+      },
+      // Positive control: a data-action that names what the control's own text says still loops, and survives the page.
+      { id: "rows-lone-action", title: "lone data-action identity, as made: Approve in all 6 rows", expect: { status: "passed", clicks: clicks("approve", ...ALL) } },
+      {
+        id: "rows-lone-action",
+        title: "lone data-action identity: a Reject (data-action=reject) added to every row after generation, actions reversed: Approve in all 6 rows",
+        change:
+          `document.querySelectorAll("#lab-body td:last-child").forEach(function (c) { var r = document.createElement("button"); r.type = "button"; r.setAttribute("data-action", "reject"); r.textContent = "Reject"; window.__awkitCoverage.intents.set(r, "reject"); c.prepend(r); Array.prototype.slice.call(c.children).reverse().forEach(function (k) { c.appendChild(k); }); })`,
+        expect: { status: "passed", clicks: clicks("approve", ...ALL) }
+      },
+      {
+        id: "rows-lone-action",
+        title: "lone data-action identity: Approve → Unapprove (text and data-action) in INV-3001 and INV-3002: the other 4 Approves",
+        change: `Array.prototype.slice.call(document.querySelectorAll("#lab-body tr"), 0, 2).forEach(function (r) { var b = r.querySelector("button"); b.textContent = b.textContent.replace("Approve", "Unapprove"); b.setAttribute("data-action", "unapprove"); window.__awkitCoverage.intents.set(b, "unapprove"); })`,
+        expect: { status: "passed", clicks: clicks("approve", 3003, 3004, 3005, 3006) }
+      },
+      {
+        id: "rows-lone-action",
+        title: "lone data-action identity: every Approve wrapped: nothing matches, nothing clicked",
         change: wrapEach("#lab-body button[data-action=approve]"),
         expect: { status: "passed", clicks: [] }
       },

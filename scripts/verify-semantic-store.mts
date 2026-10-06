@@ -663,11 +663,13 @@ console.log("\nIncremental indexing wiring (a guard nothing calls guards nothing
   // The locator write funnel reports only AFTER a successful put; reporting a key whose record was
   // never stored would have the run ask the index to project something that does not exist.
   const factorySource = readFileSync(fileURLToPath(new URL("../src/runner/LocatorFactory.ts", import.meta.url)), "utf8");
-  const writeMemory = /private async writeMemory[\s\S]*?\n  \}/.exec(factorySource)?.[0] ?? "";
+  // L12.30: the funnel is `updateMemory` (a serialized read-merge-write, with a get-then-put fallback for stores without one).
+  const writeMemory = /private async updateMemory[\s\S]*?\n  \}/.exec(factorySource)?.[0] ?? "";
   check("the locator write funnel was found to inspect", writeMemory.length > 0);
+  const reported = writeMemory.indexOf("onRemembered?.");
   check(
-    "onRemembered fires only after a successful put",
-    writeMemory.indexOf("recoveryStore?.put") < writeMemory.indexOf("onRemembered?."),
+    "onRemembered fires only after a successful write (both the update and the put path are found, and precede it)",
+    reported > 0 && ["store.update(", "store.put("].every((write) => writeMemory.indexOf(write) >= 0 && writeMemory.indexOf(write) < reported),
     writeMemory.slice(0, 160)
   );
 

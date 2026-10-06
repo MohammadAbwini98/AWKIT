@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import type { LocatorElementFingerprint } from "@src/profiles/FlowProfile";
 import type { LocatorReplayProofRecord } from "@src/ai/pendingUpgrade";
 
@@ -30,11 +30,13 @@ export interface LocatorRecoveryRecord {
    * scanned or held too many, and on older records: recovery from such a record refuses (`twins-unproven`).
    * L12.27: re-scanned on every passing resolve and every recovery, merged with the set already kept
    * (`mergeTwinDigests`), so a look-alike that appeared after the first success is remembered too. Same shape.
+   * L12.30: trusted only together with `twinScanKey` (`twinHistoryTrusted`); once a record has neither it never gets
+   * them back, since the successes it did not observe cannot be observed later.
    */
   twinDigests?: string[];
   /**
    * L12.27: a 64-bit key of the look-alike walk `twinDigests` was last derived from (`scanLookAlikes`). Equal key and
-   * winner: the set is reused and nothing else leaves the page. Absent on older records: the set is derived again.
+   * winner: the set is reused and nothing else leaves the page. Absent on older records, which stay unproven (L12.30).
    */
   twinScanKey?: string;
   source: "recorded-candidate" | "local-recovery";
@@ -44,6 +46,12 @@ export interface LocatorRecoveryRecord {
 export interface LocatorRecoveryStore {
   get(scopeKey: string): Promise<LocatorRecoveryRecord | undefined>;
   put(record: LocatorRecoveryRecord): Promise<void>;
+  /**
+   * L12.30: read-modify-write of one record, serialized per record against every other store on the same folder in this
+   * process. A record is shared by every instance and run of its scenario step, and a read taken at the start of a resolve
+   * is stale by its write (re-QC N3: one instance's write erased a look-alike another had remembered).
+   */
+  update?(scopeKey: string, change: (latest: LocatorRecoveryRecord | undefined) => LocatorRecoveryRecord): Promise<LocatorRecoveryRecord>;
   /**
    * Every remembered record. Bounded by `limit` because this memory grows with every distinct step
    * the runner has ever resolved, and the only caller (the semantic snapshot) wants a bounded
@@ -63,6 +71,20 @@ export interface LocatorRecoveryStore {
    * one by name and must scan. Malformed files are skipped, like `list`.
    */
   listReplayProofs?(limit?: number): Promise<LocatorReplayProofRecord[]>;
+}
+
+// ponytail: in-process lanes keyed by file path, shared by every store instance (each PlaywrightRunner builds its own);
+// another process writing the same folder is not serialized, add a file lock if one ever does.
+const lanes = new Map<string, Promise<unknown>>();
+function serialized<T>(path: string, task: () => Promise<T>): Promise<T> {
+  const key = resolve(path);
+  const run = (lanes.get(key) ?? Promise.resolve()).then(task);
+  const lane = run.catch(() => undefined);
+  lanes.set(key, lane);
+  void lane.then(() => {
+    if (lanes.get(key) === lane) lanes.delete(key);
+  });
+  return run;
 }
 
 /** Durable, offline-only locator memory. One hashed file per step avoids cross-run file contention. */
@@ -97,6 +119,14 @@ export class FileLocatorRecoveryStore implements LocatorRecoveryStore {
       await rm(temp, { force: true }).catch(() => undefined);
       throw error;
     }
+  }
+
+  update(scopeKey: string, change: (latest: LocatorRecoveryRecord | undefined) => LocatorRecoveryRecord): Promise<LocatorRecoveryRecord> {
+    return serialized(this.pathFor(scopeKey), async () => {
+      const next = change(await this.get(scopeKey));
+      await this.put(next);
+      return next;
+    });
   }
 
   async list(limit = 2000): Promise<LocatorRecoveryRecord[]> {
@@ -190,10 +220,10 @@ export class FileLocatorRecoveryStore implements LocatorRecoveryStore {
     scopeKey: string,
     change: (previous: LocatorReplayProofRecord | undefined) => LocatorReplayProofRecord
   ): Promise<LocatorReplayProofRecord> {
-    // ponytail: in-process serialization only; the engine is the single writer of this folder.
-    const run = (this.proofLanes.get(scopeKey) ?? Promise.resolve()).then(async () => {
+    // L12.30: on the shared per-file lane; a per-instance lane did not serialize two runs' stores.
+    const target = this.proofPathFor(scopeKey);
+    return serialized(target, async () => {
       const next = change(await this.getReplayProof(scopeKey));
-      const target = this.proofPathFor(scopeKey);
       await mkdir(join(this.folder, "upgrade-proofs"), { recursive: true });
       const temp = `${target}.${process.pid}.${Date.now()}.${Math.random().toString(16).slice(2)}.tmp`;
       await writeFile(temp, `${JSON.stringify(next, null, 2)}\n`, "utf8");
@@ -205,15 +235,7 @@ export class FileLocatorRecoveryStore implements LocatorRecoveryStore {
       }
       return next;
     });
-    const lane = run.catch(() => undefined);
-    this.proofLanes.set(scopeKey, lane);
-    void lane.then(() => {
-      if (this.proofLanes.get(scopeKey) === lane) this.proofLanes.delete(scopeKey);
-    });
-    return run;
   }
-
-  private readonly proofLanes = new Map<string, Promise<unknown>>();
 
   private proofPathFor(scopeKey: string): string {
     const digest = createHash("sha256").update(scopeKey).digest("hex");

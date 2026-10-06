@@ -465,7 +465,29 @@ export const SIMILAR_ROW_LAB = [
     html: () => rowLab("Titled icons", (n) => `${icon("approve", "", n === PICK).replace("<button", '<button title="Approve"')}${icon("reject", "", false).replace("<button", '<button title="Reject"')}`) },
   // Row data in both names, but a shared data-action names each action: the loop is offered and keys on it.
   { id: "rows-row-data-action", title: "Names carry the row's invoice, data-action names the action", expect: 6,
-    html: () => rowLab("Row-named actions", (n) => `${act("approve", `Approve INV-${n}`, ` data-action="approve"${mark(n === PICK)}`)} ${act("reject", `Reject INV-${n}`, ' data-action="reject"')}`) }
+    html: () => rowLab("Row-named actions", (n) => `${act("approve", `Approve INV-${n}`, ` data-action="approve"${mark(n === PICK)}`)} ${act("reject", `Reject INV-${n}`, ' data-action="reject"')}`) },
+  // L12.30 (awkit-djnl.21.30, L12.29 re-QC N4/N5): a value every row action carries says nothing about which action it is.
+  // Approve's name carries the row's invoice, and a generic aria-label, data-action or title was the only shared thing,
+  // also carried by a Reject on another path (a link, a wrapped button). The loop keyed on it and the real StepExecutor
+  // clicked Unapprove, or Reject, in every row once the page changed. No loop.
+  { id: "rows-generic-aria", title: "Approve named after its row; Approve and a Reject link both labelled 'Row action'", expect: "refuse",
+    html: () => rowLab("Generic aria-label", (n) => `${act("approve", `Approve INV-${n}`, ` aria-label="Row action"${mark(n === PICK)}`)} <a href="#reject-${n}" aria-label="Row action" data-oracle-intent="reject">Reject</a>`) },
+  { id: "rows-generic-data-action", title: "Approve named after its row; Approve and a wrapped, disabled Reject share data-action='row-action'", expect: "refuse",
+    html: () => rowLab("Generic data-action", (n) => `${act("approve", `Approve INV-${n}`, ` data-action="row-action"${mark(n === PICK)}`)} <span class="wrap">${act("reject", "Reject", ' data-action="row-action" disabled')}</span>`) },
+  { id: "rows-generic-title", title: "Icon-only Approve and a Reject icon link, both titled 'Row action'", expect: "refuse",
+    html: () =>
+      rowLab(
+        "Generic title",
+        (n) =>
+          `${icon("approve", "", n === PICK).replace("<button", '<button title="Row action"')}<a href="#reject-${n}" title="Row action" data-oracle-intent="reject">` +
+          '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13"/></svg></a>'
+      ) },
+  // No sibling to tell it apart from, and 'Row action' is not what its text says: nothing proves it names Approve.
+  { id: "rows-generic-lone", title: "Approve alone in each row, named after its row, labelled only 'Row action'", expect: "refuse",
+    html: () => rowLab("Generic lone label", (n) => act("approve", `Approve INV-${n}`, ` aria-label="Row action"${mark(n === PICK)}`)) },
+  // Positive control: alone in each row too, but its data-action names the action its own text says.
+  { id: "rows-lone-action", title: "Approve alone in each row, named after its row, data-action='approve'", expect: 6,
+    html: () => rowLab("Lone named action", (n) => act("approve", `Approve INV-${n}`, ` data-action="approve"${mark(n === PICK)}`)) }
 ];
 
 // ── L12.25: twin-pool lab (verify:twin-pool-safety) ──────────────────────────────────────────────────
@@ -530,6 +552,23 @@ export const TWIN_LATE_LAB = [
   { id: "late-control", title: "Control: a distinct 'Save notes' added later; the target's id drifts and it still recovers", passes: [["add:notes:save-notes:Save notes"]], final: ["drift-target"], remembered: 1, expect: "recover" }
 ];
 
+/**
+ * L12.30 (awkit-djnl.21.30): the L12.29 re-QC's history-integrity sequences, on the late look-alike page. The notes' Save
+ * (#save-notes) is remembered at one success and absent at a later one; then the target is removed and it returns. Before
+ * L12.30 the later success turned an incomplete history back into a trusted one, and recovery acted on #save-notes. N1:
+ * past MAX_TWIN_DIGESTS (1024) the merge kept the current walk alone. N2: a walk cut at SNAPSHOT_PRUNED_CAP (5,000 kept
+ * same-tag elements) wrote no set, and the next complete walk started a fresh trusted one. `reason`: the refusal recovery
+ * must give. `remembered`: digests kept after the last pass (undefined: none, the history is unproven). The `-bound`
+ * pages sit exactly at each limit and must stay complete. Extra ops: `many:<prefix>:<n>` (n visible look-alike Saves),
+ * `drop-many:<prefix>`, `fill:<n>` (n plain buttons that are not look-alikes but count toward the walk's cap), `unfill`.
+ */
+export const TWIN_HISTORY_LAB = [
+  { id: "hist-overflow", title: "N1: 1,024 new look-alikes after #save-notes left, so the merged history overflows", passes: [["add:notes:save-notes:Save"], ["drop:notes", "many:f:1024"]], final: ["drop-target", "drop-many:f", "add:notes:save-notes:Save"], remembered: undefined, reason: "twins-unproven" },
+  { id: "hist-overflow-bound", title: "Control: 1,023 new look-alikes, the merged history holds exactly 1,024", passes: [["add:notes:save-notes:Save"], ["drop:notes", "many:f:1023"]], final: ["drop-target", "drop-many:f", "add:notes:save-notes:Save"], remembered: 1024, reason: "pre-existing-twin" },
+  { id: "hist-truncated", title: "N2: a walk one element past the 5,000 cap (cut short), then a complete walk without #save-notes", passes: [["add:notes:save-notes:Save"], ["fill:4999"], ["unfill", "drop:notes"]], final: ["drop-target", "add:notes:save-notes:Save"], remembered: undefined, reason: "twins-unproven" },
+  { id: "hist-walk-bound", title: "Control: exactly 5,000 kept elements (target, #save-notes, 4,998 fillers), the walk is complete", passes: [["add:notes:save-notes:Save"], ["fill:4998"], ["unfill", "drop:notes"]], final: ["drop-target", "add:notes:save-notes:Save"], remembered: 1, reason: "pre-existing-twin" }
+];
+
 function twinLate() {
   const script =
     "function sec(id,name,label,hidden){var s=document.createElement('section');s.id=id;if(hidden)s.hidden=true;" +
@@ -545,6 +584,10 @@ function twinLate() {
     "case 'relabel-target':var t=document.getElementById('save-profile');t.id='save-profile-v2';t.textContent=p[1];break;" +
     "case 'drop-drifted':document.getElementById('save-profile-v2').remove();break;" +
     "case 'bare':var b=document.createElement('button');b.textContent=p[1];document.querySelector('#profile .actions').appendChild(b);break;" +
+    "case 'many':var m=document.createElement('div');m.id='many-'+p[1];for(var i=1;i<=+p[2];i++)m.appendChild(sec(p[1]+i,'save-'+p[1]+i,'Save',false));document.querySelector('#editor > .panel').appendChild(m);break;" +
+    "case 'drop-many':document.getElementById('many-'+p[1]).remove();break;" +
+    "case 'fill':var f=document.createElement('div');f.id='fill';for(var j=1;j<=+p[1];j++){var x=document.createElement('button');x.textContent='Filler '+j;f.appendChild(x);}document.body.appendChild(f);break;" +
+    "case 'unfill':document.getElementById('fill').remove();break;" +
     "default:throw new Error('unknown op '+op);}return true;}};";
   return shell(
     "Profile editor",
@@ -656,7 +699,7 @@ export function coveragePage(key) {
   if (PAGES[key]) return PAGES[key]();
   const pool = TWIN_POOL_LAB.find((page) => page.id === key);
   if (pool) return twinPool(pool.hidden, pool.where, pool.control);
-  if (TWIN_LATE_LAB.some((page) => page.id === key)) return twinLate();
+  if (TWIN_LATE_LAB.some((page) => page.id === key) || TWIN_HISTORY_LAB.some((page) => page.id === key)) return twinLate();
   return CHALLENGE_PAGES.find((page) => page.id === key)?.html ?? SIMILAR_ROW_LAB.find((page) => page.id === key)?.html();
 }
 
@@ -667,7 +710,9 @@ export function coverageIndexPage() {
   const challenges = CHALLENGE_PAGES.map((p) => `<li data-testid="coverage-challenge-${p.id}"><a href="/dom-coverage-lab/${p.id}">${p.id}</a></li>`).join("");
   const rows = SIMILAR_ROW_LAB.map((p) => `<li data-testid="coverage-similar-${p.id}"><a href="/dom-coverage-lab/${p.id}">${p.title}</a> <small>(loop: ${p.expect})</small></li>`).join("");
   const pools = TWIN_POOL_LAB.map((p) => `<li data-testid="coverage-twins-${p.id}"><a href="/dom-coverage-lab/${p.id}">${p.id}</a> <small>(${p.hidden} hidden, ${p.where})</small></li>`).join("");
-  const late = TWIN_LATE_LAB.map((p) => `<li data-testid="coverage-late-${p.id}"><a href="/dom-coverage-lab/${p.id}">${p.title}</a> <small>(${p.expect})</small></li>`).join("");
+  const late = [...TWIN_LATE_LAB, ...TWIN_HISTORY_LAB.map((p) => ({ ...p, expect: `refuse: ${p.reason}` }))]
+    .map((p) => `<li data-testid="coverage-late-${p.id}"><a href="/dom-coverage-lab/${p.id}">${p.title}</a> <small>(${p.expect})</small></li>`)
+    .join("");
   return shell(
     "DOM Coverage Lab",
     `<main><h1>DOM Coverage Lab</h1><h2>Recovery fixtures</h2><ul>${items}</ul><h2>Protected-login pages</h2><ul>${challenges}</ul><h2>Similar-rows semantic lab</h2><ul>${rows}</ul>` +

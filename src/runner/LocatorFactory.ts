@@ -42,12 +42,13 @@ import {
   decideProviderAgreement,
   gateRecovery,
   isRecoveryCompatible,
-  mergeTwinDigests,
+  nextTwinHistory,
   preExistingTwinDigests,
   rankLocalRecovery,
   recheckSnapshotWinner,
   sameElementFingerprint,
   scanLookAlikes,
+  twinHistoryTrusted,
   twinVeto,
   type RecoveryDecision,
   type RecoveryRefusal,
@@ -435,30 +436,37 @@ export class LocatorFactory {
 
       // Sensitive actions may retry their exact recorded candidates after the bounded grace period,
       // but must never select a different element through broad or blueprint-guided recovery.
-      if (pass.allMissing && !sensitiveAction) {
+      if (pass.allMissing && !sensitiveAction && scopeKey) {
+        // L12.30 (re-QC N3): another instance may have remembered a look-alike since this resolve read the record, so the
+        // veto also reads the record as it is now. Both must be trusted (L12.28 QC: a set without a walk key was frozen
+        // at its first success; L12.30: unproven is sticky), and every look-alike either holds is vetoed.
+        const latest = await this.readMemory(scopeKey, step.id);
+        const current = latest?.candidatesDigest === digest ? latest : undefined;
         const recovered = await this.recover(root, step, applicableMemory.fingerprint, {
           route: applicableMemory.route,
-          // L12.28 QC: a set without a walk key was written before L12.27, frozen at its first success, so it cannot say
-          // which look-alikes stood beside the target since. Recovery refuses (twins-unproven) until the step passes again.
-          twinDigests: applicableMemory.twinScanKey ? applicableMemory.twinDigests : undefined,
+          twinDigests:
+            twinHistoryTrusted(applicableMemory) && twinHistoryTrusted(current)
+              ? [...new Set([...applicableMemory.twinDigests!, ...current!.twinDigests!])]
+              : undefined,
           candidatesTried: ordered.length
         });
         if (recovered) {
           // L12.27: the recovered element is the identity from now on, so its look-alikes are scanned too. The old set
           // alone missed one that stood beside it at this recovery, and the next recovery acted on it.
-          const twins = await this.rememberTwins(step, recovered.fingerprint, applicableMemory);
-          await this.writeMemory(
-            {
-              ...applicableMemory,
-              // Both replaced: an unscannable page drops the old set, so the next recovery refuses (twins-unproven).
-              twinDigests: twins.twinDigests,
-              twinScanKey: twins.twinScanKey,
+          const walk = await this.observeTwins(step, recovered.fingerprint, applicableMemory);
+          await this.updateMemory(scopeKey, digest, step.id, (now) => {
+            const base = now ?? applicableMemory;
+            // Both replaced: an incomplete walk leaves the history unproven, so the next recovery refuses (twins-unproven).
+            const history = nextTwinHistory(base, walk, recovered.fingerprint);
+            return {
+              ...base,
+              twinDigests: history.twinDigests,
+              twinScanKey: history.twinScanKey,
               fingerprint: recovered.fingerprint,
               source: "local-recovery",
               updatedAt: new Date().toISOString()
-            },
-            step.id
-          );
+            };
+          });
           this.emit({
             type: "local-recovery",
             stepId: step.id,
@@ -876,21 +884,20 @@ export class LocatorFactory {
     // L12.27 (awkit-djnl.21.27): every passing resolve re-scans the look-alikes. L12.23 scanned once, at the first
     // success, so one that appeared later was never remembered and recovery acted on it once the target was gone
     // (independent QC). A sensitive step never recovers, so it keeps no set and pays no scan.
-    const twins = !fingerprint || LocatorFactory.isSensitive(step) ? {} : await this.rememberTwins(step, fingerprint, previous);
-    await this.writeMemory(
-      {
-        version: 1,
-        scopeKey,
-        candidatesDigest,
-        winningCandidateSignature: winner.ranked.signature,
-        fingerprint,
-        ...twins,
-        route: await this.stepRoute(step),
-        source: "recorded-candidate",
-        updatedAt: new Date().toISOString()
-      },
-      step.id
-    );
+    const walk = !fingerprint || LocatorFactory.isSensitive(step) ? undefined : await this.observeTwins(step, fingerprint, previous);
+    const route = await this.stepRoute(step);
+    // L12.30: merged into the record as it is when written, not as it was read at the start of this resolve (re-QC N3).
+    await this.updateMemory(scopeKey, candidatesDigest, step.id, (latest) => ({
+      version: 1,
+      scopeKey,
+      candidatesDigest,
+      winningCandidateSignature: winner.ranked.signature,
+      fingerprint,
+      ...(fingerprint ? nextTwinHistory(latest, walk, fingerprint) : {}),
+      route,
+      source: "recorded-candidate",
+      updatedAt: new Date().toISOString()
+    }));
   }
 
   /**
@@ -999,15 +1006,19 @@ export class LocatorFactory {
    * digests. Undefined when the page is too large to scan or cannot be read; recovery then refuses rather than
    * trusting a partial list.
    *
-   * L12.27: what the memory keeps after this proven winner: the current set merged with `previous`'s (see
-   * mergeTwinDigests). When the walk's key, the winner and a kept set are all unchanged the set is reused without
-   * hashing every look-alike again (it would come out the same).
+   * L12.27: when the walk's key, the winner and a kept set are all unchanged the set is reused without hashing every
+   * look-alike again (it would come out the same).
+   *
+   * L12.30 (awkit-djnl.21.30): this only OBSERVES. The walk's look-alikes and key, or undefined when the walk was cut
+   * short, failed or held too many (the write then leaves the history unproven, re-QC N1/N2); `nextTwinHistory` merges it
+   * into the record as it is at the write. No walk at all when `previous` is already unproven: it stays unproven.
    */
-  private async rememberTwins(
+  private async observeTwins(
     step: FlowStep,
     fingerprint: LocatorElementFingerprint,
     previous: Pick<LocatorRecoveryRecord, "fingerprint" | "twinDigests" | "twinScanKey"> | undefined
-  ): Promise<Pick<LocatorRecoveryRecord, "twinDigests" | "twinScanKey">> {
+  ): Promise<{ key: string; digests: readonly string[] } | undefined> {
+    if (previous && !twinHistoryTrusted(previous)) return undefined;
     try {
       const frame = await this.blueprintFrame(step.locator?.context);
       // Only a kept set derived for this same winner and step type (the set is filtered by type) may be reused.
@@ -1017,12 +1028,13 @@ export class LocatorFactory {
           ? previous.twinScanKey.slice(typed.length)
           : undefined;
       const scan = await scanLookAlikes(frame.locator("body *"), fingerprint, reusable);
-      if (scan.same) return { twinDigests: previous!.twinDigests, twinScanKey: typed + scan.key };
-      if (scan.truncated) return {};
-      const twinDigests = mergeTwinDigests(previous?.twinDigests, preExistingTwinDigests(step, fingerprint, scan.candidates), fingerprint);
-      return twinDigests ? { twinDigests, twinScanKey: typed + scan.key } : {};
+      // The very walk `previous.twinDigests` already merged, so they cover it.
+      if (scan.same) return { key: typed + scan.key, digests: previous!.twinDigests! };
+      if (scan.truncated) return undefined;
+      const digests = preExistingTwinDigests(step, fingerprint, scan.candidates);
+      return digests ? { key: typed + scan.key, digests } : undefined;
     } catch {
-      return {};
+      return undefined;
     }
   }
 
@@ -1299,12 +1311,27 @@ export class LocatorFactory {
     }
   }
 
-  private async writeMemory(record: LocatorRecoveryRecord, stepId: string): Promise<void> {
+  /**
+   * L12.30 (re-QC N3): every write is a read-modify-write of the record as it is NOW, serialized per record by the store,
+   * because the record is shared by every instance and run of the step. A record bound to other candidates belongs to
+   * the step's earlier locator: `change` sees none and starts a new history.
+   */
+  private async updateMemory(
+    scopeKey: string,
+    candidatesDigest: string,
+    stepId: string,
+    change: (latest: LocatorRecoveryRecord | undefined) => LocatorRecoveryRecord
+  ): Promise<void> {
+    const store = this.options.recoveryStore;
+    if (!store) return;
+    const scoped = (record: LocatorRecoveryRecord | undefined) => change(record?.candidatesDigest === candidatesDigest ? record : undefined);
     try {
-      await this.options.recoveryStore?.put(record);
+      let written: LocatorRecoveryRecord;
+      if (store.update) written = await store.update(scopeKey, scoped);
+      else await store.put((written = scoped(await store.get(scopeKey))));
       // Only after the write SUCCEEDED. Reporting a key whose record was never stored would have the
       // run ask the index to project something that does not exist.
-      this.options.onRemembered?.(record.scopeKey);
+      this.options.onRemembered?.(written.scopeKey);
     } catch (error) {
       this.emit({ type: "memory-error", stepId, message: `Locator memory write failed: ${String(error)}` });
     }

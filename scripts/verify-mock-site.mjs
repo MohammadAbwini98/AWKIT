@@ -757,8 +757,8 @@ try {
   const twinLinks = await page.locator('[data-testid^="coverage-twins-"] a').evaluateAll((links) => links.map((link) => link.getAttribute("href")));
   const lateLinks = await page.locator('[data-testid^="coverage-late-"] a').evaluateAll((links) => links.map((link) => link.getAttribute("href")));
   check(
-    "the index lists 22 recovery fixtures, 8 protected-login pages, 21 similar-rows pages, 6 twin-pool pages and 7 late look-alike pages",
-    coverageLinks.length === 22 && challengeLinks.length === 8 && similarLinks.length === 21 && twinLinks.length === 6 && lateLinks.length === 7,
+    "the index lists 22 recovery fixtures, 8 protected-login pages, 26 similar-rows pages, 6 twin-pool pages and 11 late look-alike and history pages",
+    coverageLinks.length === 22 && challengeLinks.length === 8 && similarLinks.length === 26 && twinLinks.length === 6 && lateLinks.length === 11,
     { fixtures: coverageLinks.length, challenges: challengeLinks.length, similar: similarLinks.length, twins: twinLinks.length, late: lateLinks.length }
   );
   // L12.27: each late look-alike page starts with the target alone, and its fixture adds a visible look-alike on demand.
@@ -771,6 +771,12 @@ try {
     if (before.target !== 1 || before.buttons !== 1 || added !== 1) lateMisses.push(`${href}: ${JSON.stringify({ ...before, added })}`);
   }
   check("every late look-alike page holds the target alone, and its fixture adds a visible look-alike", lateLinks.length > 0 && lateMisses.length === 0, lateMisses);
+  // L12.30: the history pages' bulk ops: `many` adds visible look-alike Saves, `fill` plain buttons, and both undo.
+  await page.goto(`${BASE}/dom-coverage-lab/hist-overflow`);
+  await page.evaluate(() => (window.__fixture.run("many:f:5"), window.__fixture.run("fill:7")));
+  const bulk = { saves: await page.locator('#many-f button:visible:text-is("Save")').count(), fillers: await page.locator("#fill button").count() };
+  await page.evaluate(() => (window.__fixture.run("drop-many:f"), window.__fixture.run("unfill")));
+  check("the history pages' many/fill ops add 5 look-alike Saves and 7 fillers, and remove them", bulk.saves === 5 && bulk.fillers === 7 && (await page.locator("button").count()) === 1, bulk);
   // L12.25: each twin-pool page holds the target, the visible notes look-alike and its stated hidden look-alikes.
   const twinMisses = [];
   for (const href of twinLinks) {

@@ -209,14 +209,46 @@ export function preExistingTwinDigests(
 /**
  * L12.27 (awkit-djnl.21.27): the set a passing resolve remembers. The current scan, plus what earlier successes saw
  * (a look-alike present then, absent now, can come back once the target is gone), minus the winner itself. Undefined,
- * so recovery refuses, when the current scan is unknown. Over MAX_TWIN_DIGESTS the current scan alone is kept: it
- * is complete for the latest proven success, which is the guarantee; the older digests are extra.
+ * so recovery refuses, when the current scan is unknown.
+ *
+ * L12.30 (awkit-djnl.21.30, re-QC N1): over MAX_TWIN_DIGESTS the merge is undefined too. Keeping the current scan alone
+ * dropped what earlier successes saw, so a look-alike seen then and absent now was trusted away and acted on when it
+ * came back. The bound limits storage; past it the history is unproven.
  */
 export function mergeTwinDigests(previous: readonly string[] | undefined, current: readonly string[] | undefined, winner: LocatorElementFingerprint): string[] | undefined {
   if (!current) return undefined;
   const self = twinDigest(winner);
   const merged = new Set([...current, ...(previous ?? [])].filter((digest) => digest !== self));
-  return merged.size > MAX_TWIN_DIGESTS ? [...current].sort() : [...merged].sort();
+  return merged.size > MAX_TWIN_DIGESTS ? undefined : [...merged].sort();
+}
+
+/**
+ * L12.30 (awkit-djnl.21.30): the one history-integrity rule. A record's look-alike set is TRUSTED only while every proven
+ * success since the record began was fully observed and merged, which is exactly when it carries a set and a walk key.
+ * Anything else is UNPROVEN: a walk cut at SNAPSHOT_PRUNED_CAP, a failed walk, an overflow (re-QC N1/N2), a record written
+ * before L12.27 (a set frozen at its first success) or before L12.25 (no set), a sensitive or unfingerprinted pass.
+ *
+ * Unproven is STICKY: a later complete walk sees only today's page, never what stood beside the target at the successes
+ * that were not observed, so it cannot make the record trusted again. Only a new record (the step's candidates changed)
+ * starts a new history. Recovery from an unproven record refuses (`twins-unproven`).
+ */
+export function twinHistoryTrusted(record: { twinDigests?: readonly string[]; twinScanKey?: string } | undefined): boolean {
+  return Boolean(record?.twinDigests && record.twinScanKey);
+}
+
+/**
+ * L12.30: the history a write leaves, given the record as it is NOW (`latest`, read under the store's per-record lane, so
+ * another instance's write is never lost, re-QC N3) and this pass's walk (undefined when it was not complete). A fresh
+ * record (no `latest`) starts from the walk; an existing one stays trusted only by a complete merge.
+ */
+export function nextTwinHistory(
+  latest: { twinDigests?: readonly string[]; twinScanKey?: string } | undefined,
+  walk: { key: string; digests: readonly string[] } | undefined,
+  winner: LocatorElementFingerprint
+): { twinDigests?: string[]; twinScanKey?: string } {
+  if (!walk || (latest && !twinHistoryTrusted(latest))) return {};
+  const twinDigests = mergeTwinDigests(latest?.twinDigests, walk.digests, winner);
+  return twinDigests ? { twinDigests, twinScanKey: walk.key } : {};
 }
 
 /** Why a recovery winner may not act on this memory, or undefined when it may. */
