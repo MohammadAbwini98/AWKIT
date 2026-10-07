@@ -118,8 +118,8 @@
       "required": true,
       "command": "git push origin main",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": ""
+      "result": "PASS",
+      "observed": "git fetch origin showed origin/main still at f7c5e549, then f7c5e549..8ce02adf main -> main (the L12.31 QC record)."
     }
   ],
   "git": {
