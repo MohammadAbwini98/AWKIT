@@ -1,6 +1,42 @@
 # CURRENT_STATE
 
-## L12.30 done: look-alike history integrity, shared winner memory merged under a lane, generic labels never name a loop action (2026-10-06, latest)
+## L12.31 independent Windows QC of L12.30: FAIL, one wrong-action path left (N6); `.21.31` stays OPEN (2026-10-07, latest)
+
+- **Verdict FAIL.** QC re-ran the matrix on `f7c5e549` (= `origin/main`) without trusting L12.30's reported results.
+- **N1-N3 confirmed fixed.**
+  - Overflow, cut-short or failed walks and pre-L12.27 records stay unproven, and recovery refuses (`twins-unproven`).
+  - The recovery condition in code matches `DECISIONS.md`: the resolve-start read and the final re-read must both be trusted.
+  - Section F orders the concurrent instances with promise barriers, not sleeps.
+  - The four limitations are documented as limitations, not as fixes: the lane is in-process only, pages always
+    over the scan limits never get recovery, a write after recovery's final read is not seen by it, and older records
+    need re-recording.
+- **N6 (P1, new, `src/runner/domIntelligence/similarRows.ts` `commonRowSelector`).** N4/N5 is closed only where every
+  action carries the generic value. A generic `aria-label`, `data-action` or textless `title` carried by the picked
+  action alone still names the loop whenever any differently named sibling exists, because `siblings > 0` waives the
+  check against the control's own text. Probe `tmp/qc-l12/l12-31-probe.mts` (gitignored), run through the real
+  StepExecutor on Windows:
+  - control `rows-generic-aria`: no loop, nothing clicked;
+  - aria-label "Row action" on Approve, Reject link unlabelled, Approve becomes Unapprove: unapprove clicked in all 6 rows;
+  - icon titled "Row action" beside a Reject icon titled "Reject", the icon becomes Reject: reject clicked in all 6 rows;
+  - data-action "row-action" on Approve, wrapped Reject without it, Approve becomes Unapprove: unapprove clicked in all 6 rows.
+- **Matrix on `f7c5e549`:**
+  - build OK, typecheck:scripts clean, twin-pool 48/0, similar-rows 63/0 (they pass while N6 exists: no shipped page has the shape).
+  - coverage 74/0 (0 WRONG), l12 82/0, wrong-element 14/0, runner 138/0, recorder 297/0, mock-site 265/265.
+  - verifier-classification reconciled, semantic-store 261/0, ai-fallback 51/0, roadmap-dashboard 177/177, `git diff --check` clean.
+  - `verify:dom-intelligence-acceptance` BLOCKED: Windows refuses its fixed port 4694 (`listen EACCES`). Part 1's
+    product column had no WRONG.
+- **Tracker BLOCKED.** The lease guard refused `bd create` for the project-state lease holder and marked it terminal.
+  The Beads DB and `.beads/issues.jsonl` are unchanged (365 issues). A session the guard admits must run:
+  1. `bd create` the L12.32 remediation: P1 task, parent `awkit-djnl.21`, labels `ai,phase-l,roadmap`. Description and
+     acceptance are in contract `awkit-l12-31-qc-1007` (the N6 finding and the probe pages as permanent red-first cases).
+  2. `bd dep add awkit-djnl.21.31 <new id>`.
+  3. `bd update awkit-djnl.21.31 --notes` with the L12.31 FAIL summary.
+  4. `bd export -o .beads/issues.jsonl`.
+  5. Move the `verify:roadmap-dashboard` pins: 366 issues, 25 outstanding / 341 closed, and the measured edge count.
+- **Phase L hardening is NOT closed.** Next: L12.32 fixes N6, then the independent Windows re-QC `.21.31` runs again.
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## L12.30 done: look-alike history integrity, shared winner memory merged under a lane, generic labels never name a loop action (2026-10-06)
 
 - **Tracker reconciled first.** The Linux session behind `33e6adf` had no `bd` and hand-edited `.beads/issues.jsonl`.
   On Windows the Beads DB still held `.21.27` OPEN and no `.21.28`/`.21.29`. They were replayed through `bd` (not

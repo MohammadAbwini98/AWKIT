@@ -1,6 +1,22 @@
 # TASK_LOG
 
-## 2026-10-06 (latest) — L12.30 history integrity and generic loop labels, the L12.29 re-QC N1-N5 (Claude)
+## 2026-10-07 (latest) — L12.31 independent Windows QC of L12.30: FAIL (N6) (Claude)
+
+- **Task:** `awkit-djnl.21.31` (P1), read-only QC on the Windows development machine. Contract `awkit-l12-31-qc-1007`.
+- **Git:** `main` = `origin/main` = `f7c5e549` after `git fetch origin`. The untracked L12.27 contract is preserved.
+- **Result:** FAIL. N1-N3 confirmed. N4/N5 is incomplete: a new wrong-action path, N6 (P1), was reproduced through
+  the real StepExecutor (unapprove x6, reject x6, unapprove x6). Details in `KNOWN_ISSUES.md`. No product code changed.
+- **Checks:**
+  - build OK, typecheck:scripts clean, twin-pool 48/0, similar-rows 63/0, coverage 74/0, l12 82/0.
+  - wrong-element 14/0, runner 138/0, recorder 297/0, mock-site 265/265, verifier-classification reconciled.
+  - semantic-store 261/0, ai-fallback 51/0, roadmap-dashboard 177/177, `git diff --check` clean.
+  - dom-intelligence-acceptance BLOCKED (port 4694, `listen EACCES`).
+  - The probe `tmp/qc-l12/l12-31-probe.mts` was run by the owner in the Terminal panel, because the lease guard
+    refuses ad-hoc `tsx`.
+- **Tracker:** BLOCKED. The guard refused `bd create` for the project-state lease holder (terminal). The lease was
+  released with that reason. `.21.31` stays OPEN and unchanged, and L12.32 is not filed (commands in `CURRENT_STATE.md`).
+
+## 2026-10-06 — L12.30 history integrity and generic loop labels, the L12.29 re-QC N1-N5 (Claude)
 
 - **Task:** `awkit-djnl.21.30` (P1), on the Windows development machine. Contract `awkit-l12-30-implementation-1006`.
 - **Git:** local `main` was `5b080a3` and strictly behind `origin/main` `33e6adf`. Fast-forwarded (`--ff-only`). The

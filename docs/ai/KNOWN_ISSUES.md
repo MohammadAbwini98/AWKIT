@@ -1,6 +1,22 @@
 # KNOWN_ISSUES
 
-## L12.29 re-QC: five wrong-target and wrong-action paths N1-N5 (FIXED 2026-10-06 by L12.30, `awkit-djnl.21.30`, `1a6cb6f5`; final independent Windows QC `awkit-djnl.21.31` OPEN)
+## L12.31 QC: N6, a generic label unique to the picked action still names a similar-rows loop (OPEN, P1, found 2026-10-07)
+
+- **Where:** `src/runner/domIntelligence/similarRows.ts` `commonRowSelector` (the `named` test, about line 251). A
+  generic value names the action when no other control in the rows carries it. The text check only runs when there
+  are no sibling controls (`siblings > 0 ||`). Any differently named sibling (a Reject link, a Delete button) waives it.
+- **Effect:** the same wrong-action class as N4/N5. Through the real StepExecutor on Windows, all 6 rows:
+  - aria-label "Row action" on Approve only: unapprove x6 after Approve became Unapprove with the label kept;
+  - title "Row action" on the Approve icon only: reject x6 after the icon became Reject;
+  - data-action "row-action" on Approve only: unapprove x6 after Approve became Unapprove.
+  The shipped `rows-generic-*` pages all give the generic value to every action, so `verify:similar-rows-safety`
+  63/0 passes while this path exists.
+- **Repro:** `tmp/qc-l12/l12-31-probe.mts` (gitignored, run with `npx tsx`). It derives the three pages from
+  `rows-generic-aria`, `-title` and `-data-action` by removing the value from the sibling action, plus a control.
+- **Follow-up:** L12.32, to be filed as a P1 child of `awkit-djnl.21` that blocks the re-QC `.21.31`. Filing was
+  BLOCKED by the lease guard on 2026-10-07; the commands are in `CURRENT_STATE.md`.
+
+## L12.29 re-QC: five wrong-target and wrong-action paths N1-N5 (FIXED 2026-10-06 by L12.30, `awkit-djnl.21.30`, `1a6cb6f5`; final independent Windows QC `awkit-djnl.21.31` FAIL 2026-10-07: N1-N3 confirmed, N4/N5 incomplete, see N6 above)
 
 - **N1 history overflow (P1).** Past 1,024 look-alike digests the merge kept the current walk alone, so a look-alike
   seen at an earlier success was forgotten and recovery acted on it when it came back. Now the history is unproven.
