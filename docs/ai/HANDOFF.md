@@ -1,6 +1,24 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-03, latest) — NVIDIA console checks deferred; N1 plan written; Phase N implementation awaits the owner
+## HANDOFF (2026-10-08, latest) — L12.32 is on main, but the Beads records for it are still to write
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **State.** The N6 fix (`2f08ac31`) is in, and the L12.31 re-QC passed in the session that wrote it. The Beads DB
+  has neither L12.32 nor an update to `awkit-djnl.21.31`. The lease guard marked `bd create` terminal in that session
+  because the argument text contained `;`. That is the guard's unsafe-shell-syntax rule, not a role problem.
+- **Next, in a fresh session** (`npm run agent:lease-grant -- --task awkit-l12-31-qc-1007 --holder project-state
+  --paths ".beads/**"`, then as the project-state holder). Each command is one call, with no `;`, `&`, `|`, `<`, `>`,
+  backtick, `$` or `^` in its arguments:
+  1. `bd create "L12.32 A generic label carried only by the picked action named a similar-rows loop when any sibling action existed (L12.31 QC N6)" -p 1 -t task --parent awkit-djnl.21 --labels ai,phase-l,roadmap -d "Found by the L12.31 Windows QC of 1a6cb6f5, fixed in 2f08ac31. See KNOWN_ISSUES N6 and DECISIONS L12.32." --acceptance "Three rows-unique-generic pages in verify:similar-rows-safety refuse or follow the icon with 0 wrong clicks through the real StepExecutor, red first under the old rule, positives still loop."`
+  2. `bd close <new id> --reason "Fixed in 2f08ac31, similar-rows 68/0, mutations red (62/6, 62/6, 66/2)"`
+  3. `bd update awkit-djnl.21.31 --notes "2026-10-07 FAIL (N6). 2026-10-08 re-QC after 2f08ac31 PASS in the implementing session: N6 0 wrong clicks, N1-N3 hold, matrix green, overhead INCONCLUSIVE (host noise). Independent re-QC still owed."`
+  4. `bd export -o .beads/issues.jsonl`, then move the `verify:roadmap-dashboard` pins to the measured counts
+     (expected 366 issues, 24 outstanding / 342 closed, 253 edges), and run it until it reports Sources agree.
+- **Then:** an independent read-only Windows re-QC closes `.21.31`. The owner rule needs an independent reviewer for
+  Phase L hardening.
+
+## HANDOFF (2026-10-03) — NVIDIA console checks deferred; N1 plan written; Phase N implementation awaits the owner
 
 No product code changed. The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

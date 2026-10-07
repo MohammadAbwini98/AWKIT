@@ -1,6 +1,25 @@
 # TASK_LOG
 
-## 2026-10-07 (latest) — L12.31 independent Windows QC of L12.30: FAIL (N6) (Claude)
+## 2026-10-08 (latest) — L12.32 N6 fix and L12.31 re-QC (Claude)
+
+- **Git:** started at `8c74be23` (= `origin/main`). The untracked L12.27 contract is preserved.
+- **Commits:** `2f08ac31` (fix and regression cases), `9eb9d77f` (overhead evidence, runs 31 and 32), then this state
+  commit.
+- **Fix:** `commonRowSelector` requires a label to agree with the control's own text, with or without sibling actions.
+  Icons are pinned in the selector. Details in `DECISIONS.md`.
+- **Regression:** 3 new similar-rows pages and 5 StepExecutor scenarios.
+  - Mutations: old rule 62/6, unique-generic trust 62/6, pin dropped 66/2.
+  - Final 68/0.
+- **Checks (Windows, final sources):**
+  - build OK, typecheck:scripts clean, similar-rows 68/0, twin-pool 48/0, coverage 74/0, l12 82/0.
+  - wrong-element 14/0, runner 138/0, recorder 297/0, mock-site 265/265, semantic-store 261/0, ai-fallback 51/0.
+  - verifier-classification reconciled, dom-intelligence-acceptance 12/0, roadmap-dashboard (see the state commit),
+    `git diff --check` clean.
+  - failure-capture-overhead INCONCLUSIVE twice (host noise, 0 failed).
+- **Tracker:** BLOCKED (the `bd create` gate is terminal for this session). The cause, `;` in the argument text, is
+  recorded with corrected commands in `HANDOFF.md`.
+
+## 2026-10-07 — L12.31 independent Windows QC of L12.30: FAIL (N6) (Claude)
 
 - **Task:** `awkit-djnl.21.31` (P1), read-only QC on the Windows development machine. Contract `awkit-l12-31-qc-1007`.
 - **Git:** `main` = `origin/main` = `f7c5e549` after `git fetch origin`. The untracked L12.27 contract is preserved.

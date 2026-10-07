@@ -1,6 +1,17 @@
 # KNOWN_ISSUES
 
-## L12.31 QC: N6, a generic label unique to the picked action still names a similar-rows loop (OPEN, P1, found 2026-10-07)
+## L12.31 QC: N6, a generic label unique to the picked action still names a similar-rows loop (FIXED 2026-10-08 by L12.32, `2f08ac31`; tracker filing still BLOCKED, see `HANDOFF.md`)
+
+- **Fix:** the label must agree with what the control shows, whether or not sibling actions exist. An icon is named
+  only with its icon pinned in the selector. The three probe shapes are now permanent `verify:similar-rows-safety`
+  pages (`rows-unique-generic-*`), red first under the old rule.
+- **Still known, not fixed:**
+  - An icon loop follows the icon itself (`path[d]`, `use[href]` or `img[src]`). If the page redraws the same action
+    with different geometry or a new sprite href, the loop matches nothing (safe, but no loop).
+  - Icons drawn by CSS (a background image or a font glyph on an `<i>` class) have no pin, so they get no loop.
+  - A page that keeps a label and the text it agrees with, but changes what the control does, still loops (as before).
+
+The original finding, as recorded on 2026-10-07:
 
 - **Where:** `src/runner/domIntelligence/similarRows.ts` `commonRowSelector` (the `named` test, about line 251). A
   generic value names the action when no other control in the rows carries it. The text check only runs when there

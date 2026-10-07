@@ -1,6 +1,18 @@
 # DECISIONS
 
-### 2026-10-06 (latest) — L12.30: one history-integrity rule, a shared record merged under a lane, and an action name must tell actions apart (owner invariants, implementer design, measured) (`awkit-djnl.21.30`)
+### 2026-10-08 (latest) — L12.32: a loop label must agree with what the control shows; an icon is pinned (implementer, measured) (`L12.32`, not yet filed in Beads)
+
+- **Supersedes the L12.30 sibling waiver.** L12.30 let a value unique among the row controls name the action whenever
+  another action existed, and required agreement with the control's own text only for a lone action. The L12.31 QC
+  (N6) showed that telling actions apart today is not naming one. A "Row action" label on Approve alone, beside a
+  differently named Reject, followed Approve when it became Unapprove. Agreement is now required in every case.
+- **Icons.** A control that shows no name has no text to agree with. Its label names it only together with its icon,
+  pinned in the selector as `:has(path[d=…])`, `:has(use[href=…])` or `:has(img[src=…])`, whichever is first shared by
+  every picked row. Rejecting icon loops outright would have broken the approved `rows-icon-only` and
+  `rows-title-icons` positives. The pin keeps them, and an icon that turns into another action matches nothing.
+- **Cost:** none measurable. The work is a few `querySelector` calls inside the existing evaluate.
+
+### 2026-10-06 — L12.30: one history-integrity rule, a shared record merged under a lane, and an action name must tell actions apart (owner invariants, implementer design, measured) (`awkit-djnl.21.30`)
 
 - **History integrity (re-QC N1-N3, owner: overflow, truncation, failure and concurrency must never turn incomplete
   history into trusted history; no larger cap).** A record's look-alike set is TRUSTED only while every proven success

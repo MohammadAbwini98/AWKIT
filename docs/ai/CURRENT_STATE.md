@@ -1,6 +1,36 @@
 # CURRENT_STATE
 
-## L12.31 independent Windows QC of L12.30: FAIL, one wrong-action path left (N6); `.21.31` stays OPEN (2026-10-07, latest)
+## L12.32 fixes N6; L12.31 re-QC PASS on Windows; tracker writes still BLOCKED, so `.21.31` stays OPEN (2026-10-08, latest)
+
+- **Fix (`2f08ac31`, `src/runner/domIntelligence/similarRows.ts` `commonRowSelector`):**
+  - A generic `aria-label`, `data-action` or textless `title` names a loop action only when it agrees with what the
+    control itself shows, whether or not sibling actions exist. The L12.30 `siblings > 0` waiver is gone.
+  - A control that shows no name at all (an icon) is named only with its icon pinned in the selector
+    (`:has(path[d=…])`, `use[href]` or `img[src]`), so the loop follows the icon, never the label alone.
+- **Permanent cases:** three probe pages (`rows-unique-generic-aria`, `-data-action`, `-title`), with 5 real
+  StepExecutor scenarios. `verify:similar-rows-safety` now pins 29 pages and 15 refusals.
+- **Mutation tests:**
+  - old rule (mutation 1): 62/6, unapprove x6, unapprove x6 and reject x6 twice;
+  - trusting any unique generic label (mutation 2): 62/6;
+  - icon pin dropped (mutation 3): 66/2, reject x6 twice.
+  - All restored. Final 68/0.
+- **Re-QC of L12.31 on Windows (same session as the fix, not independent):**
+  - N6: the three variants refuse or follow the icon, with 0 wrong-action clicks.
+  - N1-N3 hold: twin-pool 48/0.
+  - Matrix:
+    - build OK, typecheck:scripts clean, coverage 74/0 (0 WRONG), l12 82/0, wrong-element 14/0.
+    - runner 138/0, recorder 297/0, mock-site 265/265, semantic-store 261/0, ai-fallback 51/0.
+    - verifier-classification reconciled, `git diff --check` clean.
+    - dom-intelligence-acceptance 12/0 (product 11/14, 0 WRONG; port 4694 was free this time).
+  - `verify:failure-capture-overhead` INCONCLUSIVE twice (runs 31 and 32, host noise, 0 failed).
+- **Tracker BLOCKED.** The lease guard marked `bd create` terminal in this session. The cause was found: the
+  argument text contained `;`, which the guard refuses as shell syntax. L12.32 is not filed and `.21.31` is not
+  updated or closed. The commands, rewritten without `;`, are in `HANDOFF.md` (latest) for a fresh session.
+- **Phase L hardening is NOT closed.** The owner rule asks for an independent read-only Windows QC, and this re-QC
+  ran in the session that wrote the fix.
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## L12.31 independent Windows QC of L12.30: FAIL, one wrong-action path left (N6); `.21.31` stays OPEN (2026-10-07)
 
 - **Verdict FAIL.** QC re-ran the matrix on `f7c5e549` (= `origin/main`) without trusting L12.30's reported results.
 - **N1-N3 confirmed fixed.**
