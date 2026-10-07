@@ -44,7 +44,7 @@ import { stageHost } from "./dom-intelligence/stagedHost.mts";
 
 const RUNS = 3;
 /** Pinned so a dropped page, or a dropped ambiguous page, fails the gate instead of shrinking it. */
-const PINNED = { pages: 26, refuse: 13 };
+const PINNED = { pages: 29, refuse: 15 };
 
 export interface LoopObservation {
   id: string;
@@ -490,6 +490,33 @@ async function main(): Promise<void> {
         id: "rows-lone-action",
         title: "lone data-action identity: every Approve wrapped: nothing matches, nothing clicked",
         change: wrapEach("#lab-body button[data-action=approve]"),
+        expect: { status: "passed", clicks: [] }
+      },
+      // L12.32 (L12.31 QC N6): the generic value on the picked action ALONE, a differently named Reject beside it. Before
+      // L12.32 each loop was offered and the real StepExecutor clicked the action stated in brackets.
+      {
+        id: "rows-unique-generic-aria",
+        title: "N6 generic aria-label on Approve alone: Approve → Unapprove in every row, label kept: no loop, nothing clicked (was unapprove x6)",
+        change: `document.querySelectorAll("#lab-body button").forEach(function (b) { b.textContent = b.textContent.replace("Approve", "Unapprove"); window.__awkitCoverage.intents.set(b, "unapprove"); })`,
+        expect: "refuse"
+      },
+      {
+        id: "rows-unique-generic-data-action",
+        title: "N6 generic data-action on Approve alone: Approve → Unapprove in every row, value kept: no loop, nothing clicked (was unapprove x6)",
+        change: `document.querySelectorAll("#lab-body td:last-child > button").forEach(function (b) { b.textContent = b.textContent.replace("Approve", "Unapprove"); window.__awkitCoverage.intents.set(b, "unapprove"); })`,
+        expect: "refuse"
+      },
+      { id: "rows-unique-generic-title", title: "N6 generic title on an icon Approve alone, as made: the icon-pinned loop clicks Approve in all 6 rows", expect: { status: "passed", clicks: clicks("approve", ...ALL) } },
+      {
+        id: "rows-unique-generic-title",
+        title: "N6 generic title on an icon Approve alone: each Approve icon becomes a Reject icon, title kept: nothing matches, nothing clicked (was reject x6)",
+        change: `document.querySelectorAll("#lab-body button").forEach(function (b) { window.__awkitCoverage.intents.set(b, "reject"); b.querySelector("path").setAttribute("d", "M3 3l10 10M13 3L3 13"); })`,
+        expect: { status: "passed", clicks: [] }
+      },
+      {
+        id: "rows-unique-generic-title",
+        title: "N6 generic title on an icon Approve alone: every row's actions replaced by one Reject icon button titled 'Row action': nothing clicked",
+        change: `document.querySelectorAll("#lab-body td:last-child").forEach(function (c) { var r = document.createElement("button"); r.type = "button"; r.title = "Row action"; r.innerHTML = '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13"/></svg>'; window.__awkitCoverage.intents.set(r, "reject"); c.replaceChildren(r); })`,
         expect: { status: "passed", clicks: [] }
       },
       // F3 (P2, bounded): a state-filtered loop re-resolves every iteration, so an Approve that disables itself when

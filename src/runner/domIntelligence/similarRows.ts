@@ -196,6 +196,9 @@ const semanticIdentity = (elements: Element[], arg: { wanted: number[]; picked: 
  * names the action only when no other control under the rows' container (another action, in any state, on any path)
  * carries it too, and, when there is no other action to tell it apart from, only when it agrees with what the control
  * itself shows (a word of its text or icon name). A generic "Row action" label, data-action or title only narrows.
+ *
+ * L12.32 (L12.31 QC N6): the agreement is required whether or not other actions exist; telling actions apart today is
+ * not naming one. A control that shows no name at all (an icon) is named only with its icon pinned in the selector.
  */
 export async function commonRowSelector(frame: Frame, wanted: number[], same: number[]): Promise<{ selector: string; rowDepth: number } | null> {
   // NOTE: no named inner functions in this evaluate body (esbuild's `__name` helper is undefined in the page).
@@ -218,10 +221,8 @@ export async function commonRowSelector(frame: Frame, wanted: number[], same: nu
     // L12.30 (re-QC N4/N5): the names every OTHER control under the rows' container carries (another action, in any state
     // and on any path), and the words each picked control shows itself (its text, or its icon's own name).
     const siblingNames = new Set<string>();
-    let siblings = 0;
     for (const element of Array.from(common.querySelectorAll(arg.control))) {
       if (allowed.has(element)) continue;
-      siblings += 1;
       for (const value of [element.getAttribute("aria-label"), element.getAttribute("data-action"), element.getAttribute("title"), element.textContent]) {
         const label = (value ?? "").replace(/\s+/g, " ").trim().toLowerCase();
         if (label) siblingNames.add(label);
@@ -233,6 +234,19 @@ export async function commonRowSelector(frame: Frame, wanted: number[], same: nu
         .split(/[^\p{L}\p{N}]+/u)
         .filter((word) => word.length > 2 && !/^\d+$/.test(word))
     );
+    // L12.32 (L12.31 QC N6): a control that shows no name at all (an icon) shows its icon. A label can name such an
+    // action only together with that icon, pinned in the selector (`:has(...)`), so the loop follows what the user sees,
+    // never the label alone: an icon that becomes Reject under the same "Row action" title then matches nothing.
+    let pin = "";
+    if (shown.every((own) => !own.length)) {
+      for (const [tag, name] of [["path", "d"], ["use", "href"], ["img", "src"]]) {
+        const value = rows[0].querySelector(`${tag}[${name}]`)?.getAttribute(name) ?? "";
+        if (value && !/[\r\n]/.test(value) && rows.every((row) => row.querySelector(`${tag}[${name}]`)?.getAttribute(name) === value)) {
+          pin = `:has(${tag}[${name}="${value.replace(/["\\]/g, "\\$&")}"])`;
+          break;
+        }
+      }
+    }
     let attributes = "";
     let named = false;
     for (const name of ["aria-label", "data-action", "name", "title", "role"]) {
@@ -244,14 +258,17 @@ export async function commonRowSelector(frame: Frame, wanted: number[], same: nu
         // (`decision=approve|reject`, L12.28 QC: such a loop clicked Unapprove in every row): they only narrow.
         if (name === "aria-label" || name === "data-action" || (name === "title" && texts.every((text) => !text))) {
           // L12.30: and only when it tells this action apart. Not when another action carries it too (a generic "Row
-          // action": the loop clicked Unapprove, or Reject, in every row once the page changed), and, with no other
-          // action to tell it from, only when it agrees with what the control itself shows. Otherwise it only narrows.
+          // action": the loop clicked Unapprove, or Reject, in every row once the page changed). L12.32 (L12.31 QC N6):
+          // and, whether or not other actions exist, only when it agrees with what the control itself shows, or, for an
+          // icon, with its icon pinned. Telling actions apart today is not naming one: a "Row action" carried by Approve
+          // alone, beside a differently named Reject, followed Approve when it became Unapprove. Otherwise it only narrows.
           const label = value.replace(/\s+/g, " ").trim().toLowerCase();
           const words = label.split(/[^\p{L}\p{N}]+/u);
-          if (!siblingNames.has(label) && (siblings > 0 || shown.every((own) => own.some((word) => words.includes(word))))) named = true;
+          if (!siblingNames.has(label) && (pin || shown.every((own) => own.some((word) => words.includes(word))))) named = true;
         }
       }
     }
+    if (named) attributes += pin;
     const sharedText = texts[0] && texts[0].length <= 80 && texts.every((text) => text === texts[0]) ? texts[0] : "";
     // L12.27: every head names the action, by a shared attribute or the shared text. A tag path (with a role at most)
     // was offered whenever no other action sat on that exact path when the loop was made, and clicked Unapprove, or a

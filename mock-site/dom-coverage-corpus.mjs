@@ -487,7 +487,23 @@ export const SIMILAR_ROW_LAB = [
     html: () => rowLab("Generic lone label", (n) => act("approve", `Approve INV-${n}`, ` aria-label="Row action"${mark(n === PICK)}`)) },
   // Positive control: alone in each row too, but its data-action names the action its own text says.
   { id: "rows-lone-action", title: "Approve alone in each row, named after its row, data-action='approve'", expect: 6,
-    html: () => rowLab("Lone named action", (n) => act("approve", `Approve INV-${n}`, ` data-action="approve"${mark(n === PICK)}`)) }
+    html: () => rowLab("Lone named action", (n) => act("approve", `Approve INV-${n}`, ` data-action="approve"${mark(n === PICK)}`)) },
+  // L12.32 (L12.31 QC N6): the generic value is carried by the picked action ALONE, beside a differently named Reject.
+  // Telling actions apart today is not naming one: before L12.32 each loop was offered and the real StepExecutor clicked
+  // Unapprove, or Reject, in every row once the page changed. A control with text must agree with it: no loop.
+  { id: "rows-unique-generic-aria", title: "Approve named after its row, alone labelled 'Row action'; the Reject link unlabelled", expect: "refuse",
+    html: () => rowLab("Unique generic aria-label", (n) => `${act("approve", `Approve INV-${n}`, ` aria-label="Row action"${mark(n === PICK)}`)} <a href="#reject-${n}" data-oracle-intent="reject">Reject</a>`) },
+  { id: "rows-unique-generic-data-action", title: "Approve named after its row, alone with data-action='row-action'; a wrapped, disabled Reject without one", expect: "refuse",
+    html: () => rowLab("Unique generic data-action", (n) => `${act("approve", `Approve INV-${n}`, ` data-action="row-action"${mark(n === PICK)}`)} <span class="wrap">${act("reject", "Reject", " disabled")}</span>`) },
+  // An icon shows no name, so its title names it only together with the icon: the loop is offered pinned to the icon.
+  { id: "rows-unique-generic-title", title: "Icon-only Approve alone titled 'Row action'; the Reject icon link titled 'Reject'", expect: 6,
+    html: () =>
+      rowLab(
+        "Unique generic title",
+        (n) =>
+          `${icon("approve", "", n === PICK).replace("<button", '<button title="Row action"')}<a href="#reject-${n}" title="Reject" data-oracle-intent="reject">` +
+          '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13"/></svg></a>'
+      ) }
 ];
 
 // ── L12.25: twin-pool lab (verify:twin-pool-safety) ──────────────────────────────────────────────────
