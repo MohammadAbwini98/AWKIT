@@ -1,6 +1,23 @@
 # TASK_LOG
 
-## 2026-10-08 (latest) — L12.32 N6 fix and L12.31 re-QC (Claude)
+## 2026-10-08 (latest) — Independent re-QC of L12.32 and tracker reconciliation (Claude, with a fresh-context awkit-qc-reviewer)
+
+- **Git:** started at `46e0f6da` (= `origin/main`). The untracked L12.27 contract is preserved.
+- **Result:** FAIL. N7 paths A, B and C were reproduced through the real StepExecutor using temporary verifier pages,
+  then reverted. Details in `KNOWN_ISSUES.md`. No product code changed.
+- **Tracker:** project-state lease on contract `awkit-l12-31-qc-1007`. The corrected `bd` commands ran clean.
+  - `.21.32` created and closed.
+  - `.21.33` created (P1, OPEN) and blocks `.21.31`.
+  - `.21.31` notes updated.
+  - Export 367.
+  - Dashboard pins moved.
+- **Checks (Windows, `46e0f6da`):**
+  - build OK, typecheck:scripts clean, similar-rows 68/0, twin-pool 48/0, coverage 74/0, l12 82/0.
+  - wrong-element 14/0, runner 138/0, recorder 297/0, mock-site 265/265, semantic-store 261/0, ai-fallback 51/0.
+  - acceptance 12/0, verifier-classification reconciled, roadmap-dashboard (see the commit).
+  - failure-capture-overhead NOT RUN (no code change).
+
+## 2026-10-08 — L12.32 N6 fix and L12.31 re-QC (Claude)
 
 - **Git:** started at `8c74be23` (= `origin/main`). The untracked L12.27 contract is preserved.
 - **Commits:** `2f08ac31` (fix and regression cases), `9eb9d77f` (overhead evidence, runs 31 and 32), then this state

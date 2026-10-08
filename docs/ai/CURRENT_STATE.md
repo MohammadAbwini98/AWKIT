@@ -1,6 +1,32 @@
 # CURRENT_STATE
 
-## L12.32 fixes N6; L12.31 re-QC PASS on Windows; tracker writes still BLOCKED, so `.21.31` stays OPEN (2026-10-08, latest)
+## Independent re-QC of L12.32 (`2f08ac31`): FAIL, N7 filed as `.21.33`; tracker reconciled; `.21.31` stays OPEN (2026-10-08, latest)
+
+- **Independent review.** A fresh-context read-only `awkit-qc-reviewer` reviewed `2f08ac31`. The main session ran
+  every predicted repro through `verify:similar-rows-safety`, using temporary pages that were reverted, not committed.
+- **N7 (P1), executed through the real StepExecutor** (`src/runner/domIntelligence/similarRows.ts` `commonRowSelector`):
+  - **A. Any shared word counts as agreement.** Text "Approve invoice INV-n" with aria-label "Invoice action", and
+    text "Approve row INV-n" with `data-action="row-action"`, each got a loop that clicked unapprove x6 after
+    Approve became Unapprove.
+  - **B. The icon pin is only the first `path[d]`.** Approve and Reject icons sharing a first circle path got a loop
+    pinned to that circle. It clicked reject x6 after the check path became an x.
+  - **C. Icons named by `img alt` or `svg title` get no pin.** Title and alt "Row action" clicked reject x6 after the
+    image became `reject.svg`.
+- **Shipped corpus green on `46e0f6da`:**
+  - build OK, typecheck:scripts clean, similar-rows 68/0 (all 29 pages, the 3 N6 pages refuse or follow the icon).
+  - twin-pool 48/0. N1-N3 hold, and `2f08ac31` touched none of their files.
+  - coverage 74/0 (0 WRONG), l12 82/0, wrong-element 14/0, runner 138/0, recorder 297/0.
+  - mock-site 265/265, semantic-store 261/0, ai-fallback 51/0, acceptance 12/0, verifier-classification reconciled.
+  - `verify:failure-capture-overhead` not rerun: no code changed this session.
+- **Tracker reconciled:**
+  - `awkit-djnl.21.32` (L12.32) filed and closed, since its own acceptance was met.
+  - `awkit-djnl.21.33` (L12.33, P1, OPEN) filed for N7. It blocks `.21.31`.
+  - `.21.31` notes updated, still OPEN.
+  - `bd export` 367 issues. The dashboard pins moved to 367 issues, 25 outstanding / 342 closed, 255 edges.
+- **Phase L hardening is NOT closed.** Next: L12.33, then an independent Windows re-QC of `.21.31`.
+- Validation ledger unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+## L12.32 fixes N6; L12.31 re-QC PASS on Windows; tracker writes still BLOCKED, so `.21.31` stays OPEN (2026-10-08)
 
 - **Fix (`2f08ac31`, `src/runner/domIntelligence/similarRows.ts` `commonRowSelector`):**
   - A generic `aria-label`, `data-action` or textless `title` names a loop action only when it agrees with what the

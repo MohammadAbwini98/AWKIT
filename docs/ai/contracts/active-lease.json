@@ -6,15 +6,13 @@
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-07T20:52:29.957Z",
-  "acquired_at_commit": "f7c5e549d33bd434e3505eea02e62863c54f5eed",
+  "acquired_at": "2026-10-07T23:59:23.124Z",
+  "acquired_at_commit": "46e0f6dad2e8ffc39a1ae54f1a7fabc5071b29bf",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-l12-31-qc-1007.json"
+    "docs/ai/contracts/awkit-l12-27-implementation-1006.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-l12-31-qc-1007.json": "abb14f226200f6179632ca7aee04ccb540e711c40063a9fd128efc925eb6f5a0"
+    "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -29,7 +27,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-07T20:53:47.514Z",
-  "released_reason": "L12.31 tracker writes BLOCKED by the lease guard, bd create refused for the project-state holder, tracker unchanged",
-  "archived_at": "2026-10-07T20:53:47.516Z"
+  "released_at": "2026-10-08T00:00:29.286Z",
+  "released_reason": "L12.32 filed and closed as awkit-djnl.21.32, N7 filed as awkit-djnl.21.33 blocking awkit-djnl.21.31, JSONL exported",
+  "archived_at": "2026-10-08T00:00:29.287Z"
 }

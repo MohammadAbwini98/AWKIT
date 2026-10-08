@@ -1,5 +1,27 @@
 # KNOWN_ISSUES
 
+## L12.31 independent re-QC: N7, similar-rows loop naming still accepts non-naming values (OPEN, P1, `awkit-djnl.21.33`, found 2026-10-08)
+
+- **Where:** `src/runner/domIntelligence/similarRows.ts` `commonRowSelector`, the `named` test and the icon `pin`
+  added by L12.32 (`2f08ac31`).
+- **Executed** through `verify:similar-rows-safety` with temporary pages (reverted). Each loop below came from the
+  real StepExecutor, in all 6 rows:
+  - **A. Agreement on any shared word longer than 2 letters.** Text "Approve invoice INV-n" with aria-label "Invoice
+    action", and text "Approve row INV-n" with `data-action="row-action"`: unapprove x6 each, after Approve became
+    Unapprove.
+  - **B. The pin is the first `path[d]` only, never checked as unique to the action.** Approve and Reject icons that
+    share a first circle path: reject x6 after the check path became an x.
+  - **C. An icon named by `img alt` or `svg title` has non-empty `shown`, so it gets no pin.** Title and alt "Row
+    action": reject x6 after the image became `reject.svg`.
+- **Why the shipped verifier is green:** none of the 29 pages has a label sharing an incidental word with the text,
+  a multi-path icon, or an alt or svg-title icon.
+- **Required (L12.33 acceptance):**
+  - Agreement covers the action words the control shows.
+  - The icon pin covers the whole icon and is unique to the action under the rows' container.
+  - Controls without visible text always go through the icon rule.
+  - The four shapes become permanent red-first pages.
+- **Pre-existing concern, not N7:** `sharedText` names a loop by any shared text, including generic text.
+
 ## L12.31 QC: N6, a generic label unique to the picked action still names a similar-rows loop (FIXED 2026-10-08 by L12.32, `2f08ac31`; tracker filing still BLOCKED, see `HANDOFF.md`)
 
 - **Fix:** the label must agree with what the control shows, whether or not sibling actions exist. An icon is named

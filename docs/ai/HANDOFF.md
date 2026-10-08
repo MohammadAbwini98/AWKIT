@@ -1,6 +1,19 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-08, latest) — L12.32 is on main, but the Beads records for it are still to write
+## HANDOFF (2026-10-08, latest) — the independent re-QC failed (N7); L12.33 is next
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Tracker done.** The commands in the section below ran clean: `.21.32` is closed and `.21.33` (N7) is OPEN and
+  blocks `.21.31`. The section below is kept for history only.
+- **Next, implementation:** `awkit-djnl.21.33`, in `commonRowSelector`. Turn the four repro shapes in
+  `KNOWN_ISSUES.md` (top) into red-first `verify:similar-rows-safety` pages first. Then tighten:
+  - agreement must cover the action words the control shows;
+  - the icon pin must cover the full icon and be unique to the action under the container;
+  - every control without visible text must go through the icon rule.
+- **Then:** an independent Windows re-QC of `.21.31`, by a reviewer that did not write L12.33.
+
+## HANDOFF (2026-10-08) — L12.32 is on main, but the Beads records for it are still to write
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
