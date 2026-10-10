@@ -10,8 +10,8 @@ contract and CURRENT_STATE for exact evidence. The default single-agent policy a
 QC reader only when explicitly requested; no independent approval is claimed. Review the new
 authorization boundaries and negative controls before marking QC APPROVED or using final release
 authorization. No portable executable was rebuilt for this repository-hook correction.
-The required Graphify refresh is INCONCLUSIVE after bounded execution; extraction completed but
-the full update did not finish. Details are in TASK_LOG. Refresh the derived graph separately.
+The required Graphify refresh completed successfully (20,082 nodes, 43,906 edges). Its zero-node
+and community-label warnings are recorded in TASK_LOG; no generated graph artifacts committed.
 
 The four pre-existing dirty/untracked files are preserved and excluded from this task's commit.
 The existing N7/L12.33 work and its independent review requirements remain as recorded below.
