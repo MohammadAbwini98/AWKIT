@@ -33,6 +33,7 @@ import { DENIAL_TERMINAL_THRESHOLD, recordDenial } from "./guard-denials.mjs";
 import { CONCURRENCY_POLICY } from "./context-policy.mjs";
 import { AGENTS, agent, protectedPathFor } from "./routing-matrix.mjs";
 import { evaluateTaskGate } from "./task-gate.mjs";
+import { boundedLogAlternative, inspectionArgs, inspectionCommand } from "./git-inspection.mjs";
 
 const ALLOW = 0;
 const BLOCK = 2;
@@ -83,11 +84,9 @@ export function isContractControlPath(relativePath) {
 export function isReadOnlyShellCommand(command) {
   if (typeof command !== "string") return false;
   const value = command.trim();
+  if (/^(?:git\s|node\s+tools[\\/]agents[\\/]git-inspection\.mjs(?:\s|$))/.test(value)) return inspectionArgs(value) !== null;
   if (!value || /[;&|><`\r\n]/.test(value) || /\$\(|\$\{|\^/.test(value)) return false;
   if (/--(?:output|out|write|save|update|install|delete|remove|force|exec-path|graph|extract-path)\b/i.test(value)) return false;
-  if (/^git\s+(?:status|diff|log|show|rev-parse|ls-files)(?:\s|$)/i.test(value)) {
-    return !/--(?:ext-diff|textconv)\b|\s-[cC]\s/i.test(value);
-  }
   if (/^graphify\s+(?:query|explain|path|affected|god-nodes|benchmark)(?:\s|$)/i.test(value)) return true;
   if (/^graphify\s+(?:diagnose\s+multigraph|hook\s+status|global\s+(?:list|path))(?:\s|$)/i.test(value)) return true;
   if (/^bd\s+(?:show|list|stats|ready|blocked)(?:\s|$)/i.test(value)) {
@@ -188,7 +187,7 @@ export function isPhysicallyWithinRepo(candidate, repoRoot = REPO_ROOT) {
 export function hasUnsafeShellSyntax(command) {
   if (typeof command !== "string") return true;
   const value = command.trim();
-  return !value || /[;&|><`\r\n]/.test(value) || /\$\(|\$\{|\^/.test(value);
+  return !value || /[;&|><`$%!^\r\n]/.test(value);
 }
 
 /** Exact lease bootstrap command. The CLI performs contract/routing/path validation before writing. */
@@ -207,7 +206,14 @@ export function isLeaseLifecycleCommand(command) {
   if (/^npm\s+run\s+agent:lease-amend\s+--\s+--add\s+[^\s]+\s+--reason\s+.+$/i.test(value)) return true;
   if (isLeaseHandoffCommand(value)) return true;
   if (isLeaseFinalizeCommand(value)) return true;
+  if (isCommandRecoveryCommand(value)) return true;
   return false;
+}
+
+export function isCommandRecoveryCommand(command) {
+  if (hasUnsafeShellSyntax(command)) return false;
+  const tokens = shellTokens(command.trim());
+  return Boolean(tokens?.length === 6 && tokens[0] === "node" && tokens[1]?.replace(/\\/g, "/") === "tools/agents/command-recovery.mjs" && tokens[2] === "--task" && /^[a-z0-9][a-z0-9._-]*$/.test(tokens[3]) && ["--path", "--command"].includes(tokens[4]) && tokens[5]);
 }
 
 /** Exact direct CLI handoff; it advances one routed lease and has no no-lease mode. */
@@ -441,6 +447,7 @@ function isManagerWriterCommand(command) {
   return (
     value === "node tools/agents/render-platform-agents.mjs --write" ||
     isContractCleanupCommand(command) ||
+    isCommandRecoveryCommand(command) ||
     /^npm\s+run\s+agent:check-agents\s*$/i.test(value)
   );
 }
@@ -464,7 +471,7 @@ export function isAllowedActiveShellCommand(
   } = {}
 ) {
   if (!lease || runInBackground || hasUnsafeShellSyntax(command)) return false;
-  if (isReadOnlyShellCommand(command)) return true;
+  if (canonicalActorId(agentType, agentId) && isReadOnlyShellCommand(command)) return true;
 
   const actor = canonicalActorId(agentType, agentId);
   if (!actor) return false;
@@ -489,6 +496,7 @@ export function isAllowedActiveShellCommand(
 
 /** Commands for the direct loop when no critical-path lease is active. */
 export function isAllowedUnleasedShellCommand(command, { stagedPaths = [], agentType, agentId } = {}) {
+  if (canonicalActorId(agentType, agentId) && isReadOnlyShellCommand(command)) return true;
   if (!isRootPrimaryIdentity(agentType, agentId)) return false;
   return (
     isReadOnlyShellCommand(command) ||
@@ -632,15 +640,19 @@ function denialNotice(intent, payload) {
   } catch {
     // Fail open to the uncounted classification.
   }
+  const code = intent.startsWith("write:") ? "lease-scope" : "unsupported-command";
+  const denial = { version: 1, code, terminal: recorded.terminal, count: recorded.count, recoveryLimit: 2,
+    nextAction: recorded.terminal ? "report-blocked" : code === "lease-scope" ? "validate-contract-and-route-lease" : "use-approved-command-or-report-blocked" };
+  const structured = `[write-lease] DENIAL ${JSON.stringify(denial)}\n`;
   if (recorded.terminal) {
     return (
-      `[write-lease] Classification: TERMINAL for this gate — identical denial #${recorded.count} this session.\n` +
+      structured + `[write-lease] Classification: TERMINAL for this gate — identical denial #${recorded.count} this session.\n` +
       "[write-lease] Do not attempt another variant. Report this gate as BLOCKED with the reason above\n" +
       "[write-lease] and continue independent work (AGENTS.md > Stopping semantics).\n"
     );
   }
   return (
-    `[write-lease] Classification: correctable — bounded remediation (denial ${recorded.count} of ` +
+    structured + `[write-lease] Classification: correctable — bounded remediation (denial ${recorded.count} of ` +
     `${DENIAL_TERMINAL_THRESHOLD} for this operation this session).\n`
   );
 }
@@ -679,13 +691,30 @@ async function main() {
 
   const toolName = String(payload?.tool_name ?? "");
   if (/^(?:Bash|PowerShell)$/i.test(toolName)) {
-    const command = payload?.tool_input?.command;
+    const originalCommand = payload?.tool_input?.command;
+    const command = boundedLogAlternative(originalCommand) ?? originalCommand;
     if (payload?.tool_input?.run_in_background === true) {
       process.stderr.write(
         "[write-lease] BLOCKED: background shell commands can outlive their holder's lease.\n"
       );
       process.exit(BLOCK);
     }
+    const readArgs = inspectionArgs(command);
+    if (readArgs) {
+      try {
+        if (relative(realpathSync(REPO_ROOT), realpathSync(payload?.cwd ?? process.cwd())) !== "") throw new Error("different root");
+      } catch {
+        process.stderr.write("[write-lease] BLOCKED: Git inspection requires the verified AWKIT repository root.\n" + denialNotice("shell:repository-context", payload));
+        process.exit(BLOCK);
+      }
+    }
+    const allowShell = () => {
+      // updatedInput preserves the normal permission layer; it does not auto-approve a tool.
+      if (readArgs && !/^node\s+tools[\\/]agents[\\/]git-inspection\.mjs(?:\s|$)/.test(String(originalCommand).trim())) {
+        process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: "PreToolUse", updatedInput: { ...payload.tool_input, command: inspectionCommand(readArgs) }, additionalContext: "Repository inspection is bounded to 128 KiB and 10 seconds with Git execution helpers disabled. A supported log/head pipeline was replaced with Git-native bounds when applicable." } }));
+      }
+      process.exit(ALLOW);
+    };
     if (!lease) {
       let cachedPaths = [];
       if (/^git\s+commit\s/i.test(String(command ?? "").trim())) {
@@ -703,7 +732,7 @@ async function main() {
         agentType: payload?.agent_type,
         agentId: payload?.agent_id
       })) {
-        process.exit(ALLOW);
+        allowShell();
       }
       process.stderr.write(
         "[write-lease] BLOCKED: direct work permits only bounded routine commands and direct-main Git.\n" +
@@ -733,7 +762,7 @@ async function main() {
         runInBackground: payload?.tool_input?.run_in_background === true
       })
     ) {
-      process.exit(ALLOW);
+      allowShell();
     }
     process.stderr.write(
       "[write-lease] BLOCKED: shell command is outside the active " + lease.holder + " lease or the actor's role.\n" +

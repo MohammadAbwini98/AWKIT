@@ -1,5 +1,34 @@
 # COMMANDS
 
+## Bounded repository inspection and authorization recovery (verified 2026-10-10)
+
+The PreToolUse hook validates approved Git argv at the physical repository root and rewrites
+reads to `node tools/agents/git-inspection.mjs`. That helper uses argv execution, disables
+execution-capable Git helpers, and limits each read to 10 seconds and 128 KiB.
+
+```bash
+git status --short
+git diff --stat
+git diff --name-only
+git log --all -20 --oneline
+git show --stat HEAD
+git branch --list
+node tools/agents/git-inspection.mjs show HEAD:docs/ai/contracts/awkit-command-authorization-1010.json
+node tools/agents/command-recovery.mjs --task awkit-command-authorization-1010 --command 'git status --short'
+```
+
+For a denied protected write, use the existing validated task contract's ID with
+`node tools/agents/command-recovery.mjs --task <id> --path <repository-relative-path>`.
+Only the root primary can recover. The adapter calls the official lease CLI, verifies the
+granted task, writer and exact scope, then probes authorization once and prepares one retry.
+It does not perform the write. Busy leases require an authorized official amend or handoff;
+terminal denials stop immediately. The literal bounded log/head pattern has a native Git
+equivalent; arbitrary pipelines, interpolation and configuration flags remain rejected.
+
+Regression verification: `npm run verify:agent-routing` (1,165 checks with the QA lease and
+Windows junction probe; conditional counts vary with the live lease/environment). Node 24
+was used for this verification.
+
 > **Workflow (2026-07-25):** AWKIT develops on `main` only. A failing verifier does not block a
 > commit — commit the reproducible state and keep fixing.
 > Authority: `docs/ai/BRANCH_AND_COMMIT_POLICY.md`.

@@ -1,0 +1,202 @@
+{
+  "git": {
+    "commit_policy": "coherent",
+    "destructive_reset": false,
+    "direct_main": true,
+    "force_push": false
+  },
+  "acceptance": [
+    {
+      "description": "Safe bounded reads pass and unsafe operations and Risk-3 writes stay gated, recovery is bounded and contract backed",
+      "id": "commands",
+      "evidence_required": [
+        "routing",
+        "build"
+      ]
+    }
+  ],
+  "classification": {
+    "project_state_change": true,
+    "cross_layer_count": 3,
+    "agent_infrastructure_change": true,
+    "authorization_change": true
+  },
+  "routing": {
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "manager": "manager",
+    "consultants": [
+      "architect",
+      "security"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        "docs/ai/COMMANDS.md",
+        "docs/ai/CURRENT_STATE.md",
+        "docs/ai/HANDOFF.md",
+        "docs/ai/KNOWN_ISSUES.md",
+        "docs/ai/TASK_LOG.md",
+        "docs/ai/contracts/awkit-command-authorization-1010.json",
+        "docs/ai/routing/ROUTING_MATRIX.md"
+      ]
+    },
+    "expected_paths": [
+      "tools/agents/lease-guard.mjs",
+      "tools/agents/git-inspection.mjs",
+      "tools/agents/command-recovery.mjs",
+      "tools/agents/routing-matrix.mjs",
+      "tools/agents/render-platform-agents.mjs",
+      ".claude/settings.json",
+      ".claude/agents/**",
+      ".codex/skills/agent-routing/SKILL.md",
+      ".gemini/skills/agent-routing/SKILL.md",
+      "AGENTS.md",
+      "CLAUDE.md",
+      "scripts/verify-agent-routing.mjs",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/COMMANDS.md",
+      "docs/ai/routing/ROUTING_MATRIX.md",
+      "docs/ai/contracts/awkit-command-authorization-1010.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "activated_agents": [
+      "manager",
+      "architect",
+      "qa",
+      "qc",
+      "security",
+      "project-state"
+    ]
+  },
+  "completion": {
+    "qc_status": "pending",
+    "qa_status": "PASS",
+    "status": "implemented"
+  },
+  "repository": {
+    "preserved_paths": [
+      {
+        "sha256": "3b3a967f8b449818a696a8fc5c0552edc0d1b0dbed94a224ecb6b5ee1ef01cb7",
+        "git_status": " M",
+        "path": "mock-site/dom-coverage-corpus.mjs"
+      },
+      {
+        "sha256": "7be961fd3a793d7ab9fb24613c541eaf45853f279d662c11447816563f67381b",
+        "git_status": " M",
+        "path": "scripts/verify-similar-rows-safety.mts"
+      },
+      {
+        "sha256": "8223b985eb42edece0cd706fbd432828953eecd469799ced21feabb8517e0d50",
+        "git_status": " M",
+        "path": "src/runner/domIntelligence/similarRows.ts"
+      },
+      {
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
+        "git_status": "??",
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json"
+      }
+    ],
+    "working_tree_expected": "preserved_changes",
+    "baseline_commit": "68f66e6f740dc33dfde5aded0c0989b2eb722be3",
+    "branch": "main"
+  },
+  "version": 1,
+  "task": {
+    "id": "awkit-command-authorization-1010",
+    "title": "Bounded command authorization and recovery",
+    "risk_level": 3,
+    "objective": "Fix safe Git inspection, structured denials and legitimate bounded recovery without bypassing routed leases",
+    "mode": "change",
+    "requested_by": "repository owner"
+  },
+  "evidence": [
+    {
+      "result": "PASS",
+      "id": "routing",
+      "command": "npm run verify:agent-routing",
+      "type": "security",
+      "required": true
+    },
+    {
+      "result": "PASS",
+      "id": "build",
+      "command": "npm run build",
+      "type": "build",
+      "required": true
+    }
+  ],
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-command-authorization-1010:manager:2026-10-10T17:55:38.267Z",
+        "task": "awkit-command-authorization-1010",
+        "holder": "manager",
+        "status": "released",
+        "allowed_paths": [
+          ".claude/agents/**",
+          ".claude/settings.json",
+          ".codex/skills/agent-routing/SKILL.md",
+          ".gemini/skills/agent-routing/SKILL.md",
+          "AGENTS.md",
+          "CLAUDE.md",
+          "tools/agents/command-recovery.mjs",
+          "tools/agents/git-inspection.mjs",
+          "tools/agents/lease-guard.mjs",
+          "tools/agents/render-platform-agents.mjs",
+          "tools/agents/routing-matrix.mjs"
+        ],
+        "acquired_at": "2026-10-10T17:55:38.267Z",
+        "acquired_at_commit": "68f66e6f740dc33dfde5aded0c0989b2eb722be3",
+        "released_at": "2026-10-10T18:03:01.222Z",
+        "released_reason": "handoff to qa: Regression tests for bounded command authorization",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-command-authorization-1010:qa:2026-10-10T18:03:01.290Z",
+        "task": "awkit-command-authorization-1010",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-agent-routing.mjs"
+        ],
+        "acquired_at": "2026-10-10T18:03:01.290Z",
+        "acquired_at_commit": "68f66e6f740dc33dfde5aded0c0989b2eb722be3",
+        "released_at": "2026-10-10T18:09:17.231Z",
+        "released_reason": "handoff to project-state: Record verified authorization regression and build evidence",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-command-authorization-1010:project-state:2026-10-10T18:09:17.387Z",
+        "task": "awkit-command-authorization-1010",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/COMMANDS.md",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-command-authorization-1010.json",
+          "docs/ai/routing/ROUTING_MATRIX.md"
+        ],
+        "acquired_at": "2026-10-10T18:09:17.387Z",
+        "acquired_at_commit": "68f66e6f740dc33dfde5aded0c0989b2eb722be3",
+        "released_at": "2026-10-10T18:11:48.484Z",
+        "released_reason": "Implementation and QA passed, independent QC remains pending",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

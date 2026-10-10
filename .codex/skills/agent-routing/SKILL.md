@@ -4,7 +4,7 @@ description: >-
   AWKIT's canonical specialist roles, ownership boundaries and write-lease rules for Codex.
   Read before taking on work that spans more than one area, before editing outside your own
   domain, and before claiming a task is complete.
-allowed-tools: Read, Glob, Grep, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(git rev-parse:*), Bash(git ls-files:*), Bash(npm run agent:lease), Bash(npm run agent:lease-grant:*), Bash(node tools/agents/task-gate.mjs:*)
+allowed-tools: Read, Glob, Grep, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(git rev-parse:*), Bash(git ls-files:*), Bash(git branch --list:*), Bash(git branch --show-current), Bash(node tools/agents/git-inspection.mjs:*), Bash(node tools/agents/command-recovery.mjs:*), Bash(npm run agent:lease), Bash(npm run agent:lease-grant:*), Bash(node tools/agents/task-gate.mjs:*)
 ---
 
 # Agent Routing
@@ -46,6 +46,7 @@ does have a subagent runtime, gets generated definitions under `.claude/agents/`
 3. **Evidence vocabulary is the ledger's:** PASS | FAIL | BLOCKED | NOT RUN | NOT APPLICABLE. No `INCONCLUSIVE`, no underscored `NOT_RUN`.
 4. **Declare evidence before implementing**, and never weaken an assertion to get green.
 5. **No worktrees, no new branches.** See `docs/ai/BRANCH_AND_COMMIT_POLICY.md`.
+Bounded reads: `git log --all -20 --oneline`, `git diff --stat`, `git diff --name-only`, `git show --stat HEAD`, `git branch --list`. Approved reads use a hardened 10-second/128-KiB helper. Parse `[write-lease] DENIAL`, use a valid contract and official lease recovery once, then report BLOCKED when authorization fails. Never retry terminal denials or expand shell permissions.
 6. **One agent, one task.** Routine work uses 0 subagents. Only `explicit-request` permits 1 independent review. Subagents must complete their assigned scope themselves. They must not delegate to additional agents unless the primary agent explicitly authorizes nested delegation.
 7. **Load what the task needs.** Always: AGENTS.md + CLAUDE.md, the user's task. Open a conditional source only when its trigger actually fires, and stop there. Open a historical document only to answer a specific question, and read the section, not the file. Never load the whole repository, every planning file, all phase reports or unrelated architecture documents to make a scoped change: for a small single-layer change the always-set is the whole budget, and a tiny UI bug loads no persistence, release, architecture or historical validation context at all. The conditional sources and the triggers that open them:
    - architecture or cross-layer change → docs/ai/ARCHITECTURE.md, docs/ai/DECISIONS.md

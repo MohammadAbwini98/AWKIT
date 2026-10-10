@@ -2,6 +2,12 @@
 
 # CLAUDE.md — Direct Claude Code execution
 
+Use bounded Git reads listed in `AGENTS.md`. The PreToolUse hook replaces approved inspection
+with the argv-only 10-second/128-KiB helper, without bypassing Claude permissions. Follow structured
+`[write-lease] DENIAL` recovery actions once; terminal denials are BLOCKED, not prompts for variants.
+Acquire protected-operation authorization only through an existing valid contract and the official
+lease CLI (or its bounded `command-recovery.mjs` adapter). Never weaken hooks to continue a task.
+
 These are Claude Code-specific operating rules for AWKIT. `AGENTS.md` remains the shared source for product, security, offline, UI, testing, and Git constraints. This file controls **how Claude consumes context and executes work**.
 
 ## CodeCraft Agent control

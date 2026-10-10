@@ -126,6 +126,8 @@ import {
   resolveContractTarget
 } from "../tools/agents/contract-cleanup.mjs";
 import { DENIAL_TERMINAL_THRESHOLD, recordDenial } from "../tools/agents/guard-denials.mjs";
+import { boundedLogAlternative, inspectionArgs, inspectionTokens, runInspection } from "../tools/agents/git-inspection.mjs";
+import { parseStructuredDenial, recoverAuthorization } from "../tools/agents/command-recovery.mjs";
 
 /**
  * Quiet by default, opt-in verbose.
@@ -175,7 +177,8 @@ const VERBOSE = process.argv.slice(2).some((arg) => arg === "--verbose" || arg =
 // record surviving it, idempotency, ten refusal shapes and the manager-only authorization boundary.
 // +3 (2026-09-30, awkit-djnl.15): the QA `scripts/ai-harness/**` domain, the same three checks.
 // +1 (2026-10-03): the exact `git merge --ff-only origin/main` fast-forward pull and its refusals.
-const EXPECTED_UNCONDITIONAL_CHECKS = 1146;
+// +15 (2026-10-10): bounded Git reads, execution-helper isolation and authorized recovery.
+const EXPECTED_UNCONDITIONAL_CHECKS = 1161;
 /** Live PreToolUse hook probes; run only when the active lease grants this verifier's own path. */
 const EXPECTED_LIVE_LEASE_CHECKS = 3;
 /** Junction-escape confinement probe; runs only where the filesystem/privileges allow a junction. */
@@ -3297,6 +3300,57 @@ try {
     "npm run agent:lease",
     "node tools/agents/task-gate.mjs docs/ai/contracts/awkit-fixture.json"
   ];
+  {
+    const approvedCommands = ["git status", "git diff --stat", "git diff --name-only", "git log -20 --oneline", "git log --all -20 --oneline", "git show --stat HEAD", "git branch --list", "git branch --show-current", "git show HEAD:docs/ai/contracts/awkit-fixture.json"];
+    check("bounded Git inspection families are approved", approvedCommands.every(isReadOnlyShellCommand));
+    const refusedCommands = ["git log --all --oneline", "git log -201 --oneline", "git log -20 --max-count=999999", "git diff --output=stolen", "git diff --no-index ../a ../b", "git diff --ext-diff", "git show --textconv HEAD", "git -c alias.x=!evil x", "git -C C:/outside status", "git --git-dir=C:/outside status", "git branch new", "git branch --list -D main", "git branch --set-upstream-to=evil", "git show HEAD:../outside", "git status && evil", "git log -20 | evil", "git status $(evil)", "git diff $env:USERPROFILE", "git diff %USERPROFILE%", "git status \"--output\"=evil"];
+    check("unsafe Git argv, interpolation, helpers and branch mutations stay blocked", refusedCommands.every(command => !isReadOnlyShellCommand(command)), refusedCommands.filter(isReadOnlyShellCommand).join(" | "));
+    check("known read-only agents can inspect without a writer lease, degraded identities cannot", isAllowedUnleasedShellCommand("git status", { agentType: "awkit-qc-reviewer", agentId: "qc-read" }) && !isAllowedUnleasedShellCommand("git status", { agentType: "unknown", agentId: "degraded" }));
+    check("only the exact bounded log-head pattern gets an equivalent native command", boundedLogAlternative("git log --all --oneline | head -20") === "git log --all -20 --oneline" && boundedLogAlternative("git log --oneline | head -n 5") === "git log -5 --oneline" && boundedLogAlternative("git log --all --oneline | head -20; evil") === null && boundedLogAlternative("git log --all --oneline | head -999999") === null);
+    check("Windows paths and quoted spaces tokenize safely; shell concatenation does not", inspectionArgs("git diff -- 'docs\\ai\\COMMANDS.md'")?.at(-1) === "docs\\ai\\COMMANDS.md" && inspectionArgs('git diff -- "docs/with spaces.md"')?.at(-1) === "docs/with spaces.md" && inspectionTokens('git status "--output"=evil') === null);
+    const denialText = (terminal = false) => '[write-lease] DENIAL ' + JSON.stringify({ version: 1, code: "lease-scope", terminal, count: terminal ? 3 : 1, recoveryLimit: 2 });
+    check("structured denials parse and malformed evidence fails closed", parseStructuredDenial(denialText(true))?.terminal === true && parseStructuredDenial("[write-lease] DENIAL {}") === null && parseStructuredDenial("[write-lease] DENIAL not-json") === null);
+    const local = mkdtempSync(join(tmpdir(), "awkit-command-policy-")); tempDirs.push(local);
+    const guard = (command, session = "rewrite") => spawnSync(process.execPath, ["tools/agents/lease-guard.mjs"], { cwd: process.cwd(), env: { ...process.env, LOCALAPPDATA: local }, input: JSON.stringify({ tool_name: "Bash", tool_input: { command }, session_id: session, cwd: process.cwd() }), encoding: "utf8", windowsHide: true });
+    const converted = guard("git log --all --oneline | head -20"), hook = converted.status === 0 ? JSON.parse(converted.stdout) : {};
+    check("the real hook rewrites a log pipeline without bypassing normal permissions", converted.status === 0 && inspectionArgs(hook.hookSpecificOutput?.updatedInput?.command)?.includes("-20") && hook.hookSpecificOutput?.permissionDecision === undefined, converted.stderr);
+    const denied = Array.from({ length: 3 }, () => guard("git log --unsupported", "terminal"));
+    check("the real hook terminates identical command denials predictably", denied.every(result => result.status === 2) && parseStructuredDenial(denied[2].stderr)?.terminal === true);
+    const gitEnv = { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: process.platform === "win32" ? "NUL" : "/dev/null" };
+    const gitRoot = join(local, "repository"); mkdirSync(gitRoot);
+    const git = args => execFileSync("git", args, { cwd: gitRoot, env: gitEnv, encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
+    git(["init", "--initial-branch=main"]); git(["config", "user.name", "Fixture"]); git(["config", "user.email", "fixture@example.invalid"]); git(["config", "commit.gpgSign", "false"]); git(["config", "core.hooksPath", join(local, "disabled-hooks")]);
+    mkdirSync(join(gitRoot, "docs/ai/contracts"), { recursive: true }); writeFileSync(join(gitRoot, "docs/ai/contracts/fixture.json"), '{"contract":"authorized fixture"}\n'); writeFileSync(join(gitRoot, "file.txt"), "before\n"); git(["add", "--", "file.txt", "docs/ai/contracts/fixture.json"]); git(["commit", "-m", "Fixture"]);
+    const inspect = args => runInspection(args, { cwd: gitRoot, repoRoot: gitRoot, env: gitEnv });
+    check("real bounded Git reads and authorized contract reads succeed", /Fixture/.test(inspect(["log", "--all", "-20", "--oneline"])) && /main/.test(inspect(["branch", "--list"])) && /authorized fixture/.test(inspect(["show", "HEAD:docs/ai/contracts/fixture.json"])) && inspect(["status", "--short"]) === "");
+    const marker = join(local, "helper-ran"), helperPath = join(local, "external.cjs");
+    writeFileSync(helperPath, `require('node:fs').appendFileSync(${JSON.stringify(marker)},'executed');`);
+    const helperCommand = `"${process.execPath.replace(/\\/g, "/")}" "${helperPath.replace(/\\/g, "/")}"`;
+    git(["config", "diff.external", helperCommand]); git(["config", "core.fsmonitor", helperCommand]); writeFileSync(join(gitRoot, "file.txt"), "after\n");
+    // A negative control proves the external helper fixture is capable of execution.
+    git(["-c", "core.fsmonitor=false", "diff"]); const controlExecuted = existsSync(marker); rmSync(marker, { force: true });
+    const safeDiff = runInspection(["diff", "--stat"], { cwd: gitRoot, repoRoot: gitRoot, env: { ...gitEnv, GIT_EXTERNAL_DIFF: helperCommand, GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "core.fsmonitor", GIT_CONFIG_VALUE_0: helperCommand } });
+    check("execution-capable Git config and injected environment cannot run helpers", controlExecuted && /file.txt/.test(safeDiff) && !existsSync(marker));
+    writeFileSync(join(gitRoot, "large.txt"), "large fact\n".repeat(20000)); git(["-c", "core.fsmonitor=false", "add", "--", "large.txt"]); git(["-c", "core.fsmonitor=false", "commit", "-m", "Large fixture"]);
+    check("large reads stop at the byte budget", !invoke(inspect, ["show", "HEAD:large.txt"]).ok);
+    check("inspection rejects outside execution context", !invoke(runInspection, ["status"], { cwd: tmpdir(), repoRoot: gitRoot, env: gitEnv }).ok);
+    const contract = validContract(), payload = { tool_name: "Write", tool_input: { file_path: "app/renderer/components/Thing.tsx" } };
+    let acquireCount = 0, probeCount = 0, actual = null;
+    const options = { task: contract.task.id, load: () => contract, currentLease: () => actual, acquire: (_task, writer) => { acquireCount++; actual = { task: contract.task.id, holder: writer.agent_id, allowed_paths: writer.allowed_paths }; return { status: 0 }; }, probe: () => ++probeCount === 1 ? { status: 2, stderr: denialText() } : { status: 0, stdout: "" } };
+    const resumed = recoverAuthorization(payload, options);
+    check("authorized recovery grants once, validates the actual lease and prepares one retry", resumed.status === "AUTHORIZED" && resumed.leaseAcquired === true && probeCount === 2 && acquireCount === 1);
+    let forbiddenAcquires = 0;
+    const denyOptions = { ...options, acquire: () => { forbiddenAcquires++; return { status: 0 }; }, currentLease: () => null, probe: () => ({ status: 2, stderr: denialText() }) };
+    const terminal = recoverAuthorization(payload, { ...denyOptions, probe: () => ({ status: 2, stderr: denialText(true) }) });
+    const outOfScope = recoverAuthorization({ tool_name: "Write", tool_input: { file_path: "src/licensing/x.ts" } }, denyOptions);
+    const unsafe = recoverAuthorization({ tool_name: "Bash", tool_input: { command: "git add -- app/renderer/components/Thing.tsx; evil" } }, denyOptions);
+    const invalid = recoverAuthorization(payload, { ...denyOptions, load: () => ({}) });
+    const failedGrant = recoverAuthorization(payload, { ...denyOptions, acquire: () => ({ status: 1, stderr: "baseline mismatch" }) });
+    let finalProbes = 0, recoveryGranted = false;
+    const exhausted = recoverAuthorization(payload, { ...options, acquire: (task, writer) => { recoveryGranted = true; return options.acquire(task, writer); }, probe: () => { finalProbes++; return { status: 2, stderr: denialText() }; }, currentLease: () => recoveryGranted ? actual : null });
+    check("terminal, invalid, unsupported, out-of-scope and failed recovery stop without denial loops", [terminal, outOfScope, unsafe, invalid, failedGrant, exhausted].every(result => result.status === "BLOCKED" && result.retryOperation === false) && forbiddenAcquires === 0 && finalProbes === 2);
+    check("recovery never releases or replaces a busy writer", recoverAuthorization(payload, { ...denyOptions, currentLease: () => ({ task: "other-task", holder: "runtime" }) }).status === "BLOCKED" && forbiddenAcquires === 0);
+  }
   const exactLeaseGrant =
     "npm run agent:lease-grant -- --task awkit-fixture --holder qa --paths scripts/verify-agent-routing.mjs";
   const unsafeNoLeaseCommands = [
@@ -3870,16 +3924,16 @@ try {
   const projectPermissionAllows = claudeSettings.permissions?.allow ?? [];
   const projectPermissionDenies = claudeSettings.permissions?.deny ?? [];
   check(
-    "project settings have the byte/order-exact 30-entry direct-work allowlist",
-    expectedProjectPermissionAllows.length === 30 &&
-      projectPermissionAllows.length === 30 &&
+    "project settings have the byte/order-exact 34-entry direct-work allowlist",
+    expectedProjectPermissionAllows.length === 34 &&
+      projectPermissionAllows.length === 34 &&
       sameArray(projectPermissionAllows, expectedProjectPermissionAllows),
     JSON.stringify(projectPermissionAllows)
   );
   check(
-    "project settings have the byte/order-exact 40-entry permission denylist",
-    CLAUDE_PERMISSION_DENIES.length === 40 &&
-      projectPermissionDenies.length === 40 &&
+    "project settings have the byte/order-exact 48-entry permission denylist",
+    CLAUDE_PERMISSION_DENIES.length === 48 &&
+      projectPermissionDenies.length === 48 &&
       sameArray(projectPermissionDenies, CLAUDE_PERMISSION_DENIES),
     JSON.stringify(projectPermissionDenies)
   );

@@ -1,5 +1,19 @@
 # Agent Handoff
 
+## HANDOFF (2026-10-10, latest) — command authorization implemented; independent QC pending
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+The implementation and regression coverage are in the repository's lease hook, bounded Git
+helper, recovery adapter and generated agent instructions. See the command-authorization
+contract and CURRENT_STATE for exact evidence. The default single-agent policy allows a separate
+QC reader only when explicitly requested; no independent approval is claimed. Review the new
+authorization boundaries and negative controls before marking QC APPROVED or using final release
+authorization. No portable executable was rebuilt for this repository-hook correction.
+
+The four pre-existing dirty/untracked files are preserved and excluded from this task's commit.
+The existing N7/L12.33 work and its independent review requirements remain as recorded below.
+
 ## HANDOFF (2026-10-08, latest) — the independent re-QC failed (N7); L12.33 is next
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.

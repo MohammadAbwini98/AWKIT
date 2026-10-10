@@ -1,5 +1,31 @@
 # TASK_LOG
 
+## 2026-10-10 (latest) — Bounded command authorization and legitimate recovery
+
+- Baseline `68f66e6f740dc33dfde5aded0c0989b2eb722be3`, on `main`. Official serialized
+  leases: manager implementation, QA regression, project-state evidence. No governance bypass.
+- Changed `lease-guard.mjs`, new `git-inspection.mjs` and `command-recovery.mjs`, routing registry,
+  platform generator/settings, generated Claude roles and Codex/Gemini routing adapters,
+  AGENTS/CLAUDE instructions, routing verifier and the AI memory/command documentation.
+- `node scripts/verify-agent-routing.mjs`: PASS, 1,165/1,165 (1,161 unconditional plus three
+  QA-lease probes and one Windows junction probe). Initial run: 1,163/1,165, caused by two fixture
+  mistakes (denial logs inside the Git fixture and an invisible simulated grant); fixed and rerun.
+- Real recovery CLI for `git status --short` returns AUTHORIZED with the hardened helper command.
+  The recovery adapter's denied-write grant path is covered with injected official-CLI results;
+  the repository's official grant/handoff path was exercised by this task and the existing suite.
+- `npm run build`: PASS with Node 24 (typecheck and Electron main/preload/renderer bundles).
+- The first final roadmap check passed 173/175: the new memory headings omitted the unchanged
+  validation-ledger tally required by its narrative parser. Added the measured 65 PASS / 2 NOT RUN /
+  0 BLOCKED tally to both newest sections and ran the one permitted corrective reconciliation.
+- Final `verify:roadmap-dashboard`: PASS, 177/177, Sources agree. The task gate reports no scope
+  escapes and only the pending independent QC blocker; the contract is `implemented`, not complete.
+- Whole-tree `git diff --check` reports four pre-existing trailing-space lines in the preserved
+  `mock-site/dom-coverage-corpus.mjs`; those user edits are untouched. Scoped staged diff checked
+  separately before commit.
+- All four preserved-file fingerprints match. Existing user changes are not staged by this task.
+- Independent QC pending. Live Claude reload and long-session behavior NOT RUN. Product runner
+  verifiers NOT RUN because no product runner source was changed by this task.
+
 ## 2026-10-08 (latest) — Independent re-QC of L12.32 and tracker reconciliation (Claude, with a fresh-context awkit-qc-reviewer)
 
 - **Git:** started at `46e0f6da` (= `origin/main`). The untracked L12.27 contract is preserved.

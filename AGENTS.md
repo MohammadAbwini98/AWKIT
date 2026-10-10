@@ -20,6 +20,15 @@ AWKIT uses `main` as its single continuing development branch.
 
 ## Stopping semantics — authoritative anti-loop policy
 
+Approved bounded Git inspection includes `git status`, `git diff --stat`, `git diff --name-only`,
+`git log --all -20 --oneline`, `git show --stat HEAD`, and `git branch --list`. The hook routes these
+through `tools/agents/git-inspection.mjs` with a 10-second/128-KiB ceiling and execution helpers
+disabled. Use native Git counts; only the exact log/oneline/head pattern is automatically replaced.
+Parse structured `[write-lease] DENIAL` output. The root primary may use
+`node tools/agents/command-recovery.mjs --task <contract-id> --path <path>` (or `--command "git add -- <path>"`)
+to acquire a valid contract-backed lease and prepare one retry. Busy, damaged, terminal, unsupported
+or out-of-scope authorization stays BLOCKED. Never bypass a lease, change branches, or retry a terminal denial.
+
 A 2026-09 diagnostic measured one Claude Code session at 44 MB / 53 compactions of repeated
 reconnaissance, lease denials, and verifier reruns. These rules are binding; they refine (never
 weaken) the safeguards below.

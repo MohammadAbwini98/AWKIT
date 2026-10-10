@@ -220,6 +220,8 @@ function roleBody(a) {
 
   lines.push("## Rules that bind you");
   lines.push("");
+  lines.push("- **Bounded inspection:** use `git status`, `git diff --stat`, `git diff --name-only`, `git log --all -20 --oneline`, `git show --stat HEAD`, or `git branch --list`. The hook routes approved reads through the bounded Git helper. Do not use arbitrary pipelines, interpolation or external Git helpers.");
+  lines.push("- **Recovery:** obey structured `[write-lease] DENIAL` output. The exact log/head pattern has one safe automatic replacement. For a protected operation use `node tools/agents/command-recovery.mjs --task <contract-id> --path <path>` from the root primary; it uses the official lease CLI and prepares at most one retry. A damaged, busy, invalid or out-of-scope lease stays BLOCKED. Never repeat a terminal denial or fabricate approval.");
   lines.push(
     "- **One writer at a time.** A multi-domain task is a sequence of leases, not a committee. " +
       `Lease order: ${WRITER_PRECEDENCE.join(" -> ")}.`
@@ -334,7 +336,7 @@ export function renderAdapter(platform) {
     `  AWKIT's canonical specialist roles, ownership boundaries and write-lease rules for ${platform}.`,
     "  Read before taking on work that spans more than one area, before editing outside your own",
     "  domain, and before claiming a task is complete.",
-    "allowed-tools: Read, Glob, Grep, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(git rev-parse:*), Bash(git ls-files:*), Bash(npm run agent:lease), Bash(npm run agent:lease-grant:*), Bash(node tools/agents/task-gate.mjs:*)",
+    "allowed-tools: Read, Glob, Grep, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(git rev-parse:*), Bash(git ls-files:*), Bash(git branch --list:*), Bash(git branch --show-current), Bash(node tools/agents/git-inspection.mjs:*), Bash(node tools/agents/command-recovery.mjs:*), Bash(npm run agent:lease), Bash(npm run agent:lease-grant:*), Bash(node tools/agents/task-gate.mjs:*)",
     "---",
     "",
     "# Agent Routing",
@@ -378,6 +380,7 @@ export function renderAdapter(platform) {
   );
   lines.push("4. **Declare evidence before implementing**, and never weaken an assertion to get green.");
   lines.push("5. **No worktrees, no new branches.** See `docs/ai/BRANCH_AND_COMMIT_POLICY.md`.");
+  lines.push("Bounded reads: `git log --all -20 --oneline`, `git diff --stat`, `git diff --name-only`, `git show --stat HEAD`, `git branch --list`. Approved reads use a hardened 10-second/128-KiB helper. Parse `[write-lease] DENIAL`, use a valid contract and official lease recovery once, then report BLOCKED when authorization fails. Never retry terminal denials or expand shell permissions.");
   lines.push(
     `6. **One agent, one task.** Routine work uses ${CONCURRENCY_POLICY.routineSubagents} subagents. ` +
       `Only \`explicit-request\` permits ${CONCURRENCY_POLICY.defaultMaxSubagentsPerTask} independent review. ` +

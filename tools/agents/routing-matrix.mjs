@@ -498,7 +498,10 @@ export const GIT_READ_TOOLS = Object.freeze([
   "Bash(git log:*)",
   "Bash(git show:*)",
   "Bash(git rev-parse:*)",
-  "Bash(git ls-files:*)"
+  "Bash(git ls-files:*)",
+  "Bash(git branch --list:*)",
+  "Bash(git branch --show-current)",
+  "Bash(node tools/agents/git-inspection.mjs:*)"
 ]);
 
 export const VERIFICATION_TOOLS = Object.freeze([
@@ -546,6 +549,7 @@ export const PROJECT_STATE_SHELL_TOOLS = Object.freeze([
 ]);
 
 export const MANAGER_SHELL_TOOLS = Object.freeze([
+  "Bash(node tools/agents/command-recovery.mjs:*)",
   "Bash(npm run agent:lease)",
   "Bash(npm run agent:lease-grant:*)",
   "Bash(npm run agent:lease-amend:*)",
@@ -563,6 +567,7 @@ export const MANAGER_SHELL_TOOLS = Object.freeze([
 
 /** The exact project permission allowlist for the direct Claude Code loop. */
 export const CLAUDE_BASH_PERMISSION_RULES = Object.freeze([
+  "Bash(node tools/agents/command-recovery.mjs:*)",
   ...GIT_READ_TOOLS,
   "Bash(git fetch origin)",
   "Bash(git merge --ff-only origin/main)",
@@ -643,7 +648,16 @@ export const DESTRUCTIVE_GIT_DENIES = Object.freeze([
   "Bash(git clean:*)",
   "Bash(git stash:*)",
   "Bash(git worktree:*)",
-  "Bash(git branch:*)",
+  // The lease guard accepts only --list/--show-current; a blanket deny blocks those reads.
+  "Bash(git branch -d:*)",
+  "Bash(git branch -D:*)",
+  "Bash(git branch --delete:*)",
+  "Bash(git branch -m:*)",
+  "Bash(git branch -M:*)",
+  "Bash(git branch --move:*)",
+  "Bash(git branch -c:*)",
+  "Bash(git branch -C:*)",
+  "Bash(git branch --copy:*)",
   "Bash(git switch:*)",
   "Bash(git checkout:*)",
   // No `git merge:*` deny: a deny beats the exact ff-only allow, so the lease guard refuses every

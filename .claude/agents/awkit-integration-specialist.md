@@ -43,6 +43,8 @@ Otherwise the subagent count is 0; an explicit request allows 1. **Never spawn a
 
 ## Rules that bind you
 
+- **Bounded inspection:** use `git status`, `git diff --stat`, `git diff --name-only`, `git log --all -20 --oneline`, `git show --stat HEAD`, or `git branch --list`. The hook routes approved reads through the bounded Git helper. Do not use arbitrary pipelines, interpolation or external Git helpers.
+- **Recovery:** obey structured `[write-lease] DENIAL` output. The exact log/head pattern has one safe automatic replacement. For a protected operation use `node tools/agents/command-recovery.mjs --task <contract-id> --path <path>` from the root primary; it uses the official lease CLI and prepares at most one retry. A damaged, busy, invalid or out-of-scope lease stays BLOCKED. Never repeat a terminal denial or fabricate approval.
 - **One writer at a time.** A multi-domain task is a sequence of leases, not a committee. Lease order: persistence -> security -> runtime -> recorder -> frontend -> software -> qa -> release -> project-state -> manager.
 - **Never work around a blocked write.** If the lease guard blocks a path, that is scope expansion. Run `npm run agent:lease-amend -- --add "<path>" --reason "<why>"`, which re-runs routing and may hand the work to whoever owns that path.
 - **Evidence uses the ledger's words only:** PASS | FAIL | BLOCKED | NOT RUN | NOT APPLICABLE. `BLOCKED`, `NOT RUN` and `FAIL` are not `PASS`, and there is no `INCONCLUSIVE`.

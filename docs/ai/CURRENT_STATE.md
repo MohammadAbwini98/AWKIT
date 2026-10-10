@@ -1,5 +1,27 @@
 # CURRENT_STATE
 
+## Bounded command authorization implemented; independent QC pending (2026-10-10, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Confirmed:** the recurring log/head rejection was the shell-composition guard; a separate
+  blanket Claude branch deny blocked branch inspection. The old Git classifier did not verify
+  bounded argv/context or neutralize execution-capable Git configuration. Known read-only roles
+  also needed consistent unleased inspection handling.
+- **Implemented:** approved reads are rewritten to an argv-only Git helper at the physical repo
+  root (10 seconds / 128 KiB, no pager, external diff, textconv, fsmonitor or lazy fetch).
+  Structured denials retain the terminal ledger. A contract-backed recovery adapter uses the
+  official grant CLI, validates the granted lease and prepares at most one operation retry.
+  Busy writers, unsafe syntax, unauthorized scope and terminal denials remain blocked.
+- **Regression:** `verify:agent-routing` PASS, 1,165/1,165 with the QA lease and Windows junction
+  probe. Fifteen new checks cover safe/unsafe argv, actual hook rewriting and terminal denials,
+  Git-helper negative controls, byte/context limits, authorized recovery and blocked recovery.
+- **Integrity:** all four initially dirty/untracked file SHA-256 fingerprints match the contract
+  baseline. Main-only workflow retained; no reset, checkout, clean, branch or worktree created.
+- **Gate:** independent QC is pending, not self-approved. Build and final reconciliation evidence
+  are recorded in `contracts/awkit-command-authorization-1010.json` and TASK_LOG below.
+  This is the AWTKIT repository hook, not a new CodeCraft Gateway executable.
+
 ## Independent re-QC of L12.32 (`2f08ac31`): FAIL, N7 filed as `.21.33`; tracker reconciled; `.21.31` stays OPEN (2026-10-08, latest)
 
 - **Independent review.** A fresh-context read-only `awkit-qc-reviewer` reviewed `2f08ac31`. The main session ran

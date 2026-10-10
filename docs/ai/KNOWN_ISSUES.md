@@ -1,5 +1,15 @@
 # KNOWN_ISSUES
 
+## Command authorization correction: independent QC and live Claude reload pending (2026-10-10)
+
+Automated hook/argv/lease regressions pass. A running Claude session may need to reload its
+project settings and agent definitions to use the new permission rules. Reload behavior and a
+long-running Claude session have not been verified here. Independent QC remains pending under
+the explicit-request-only review policy; automated checks are not an independent approval.
+Generic pipelines and shell composition intentionally remain blocked. Recovery supports scoped
+file writes and explicit `git add -- <paths>`; unsupported mutations require the existing official
+routing workflow. Inspection output beyond 128 KiB or 10 seconds needs a narrower read.
+
 ## L12.31 independent re-QC: N7, similar-rows loop naming still accepts non-naming values (OPEN, P1, `awkit-djnl.21.33`, found 2026-10-08)
 
 - **Where:** `src/runner/domIntelligence/similarRows.ts` `commonRowSelector`, the `named` test and the icon `pin`
