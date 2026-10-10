@@ -2,6 +2,10 @@
 
 ## Command authorization correction: independent QC and live Claude reload pending (2026-10-10)
 
+Follow-up status-command regressions pass 1,169/1,169. Fresh build is BLOCKED by Windows virtual
+memory exhaustion (1450 / npm child launch failure); graph refresh NOT RUN under that resource
+pressure. The screenshot's `-- silent` status variant is now normalized safely, not broadly granted.
+
 Automated hook/argv/lease regressions pass. A running Claude session may need to reload its
 project settings and agent definitions to use the new permission rules. Reload behavior and a
 long-running Claude session have not been verified here. Independent QC remains pending under

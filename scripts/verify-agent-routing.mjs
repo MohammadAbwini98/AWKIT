@@ -114,6 +114,7 @@ import {
   isManagerGitCommand,
   isPhysicallyWithinRepo,
   isReadOnlyShellCommand,
+  leaseStatusAlternative,
   isRootPrimaryIdentity,
   isUnleasedGitCommand,
   pushAuthorizedForLease,
@@ -178,7 +179,8 @@ const VERBOSE = process.argv.slice(2).some((arg) => arg === "--verbose" || arg =
 // +3 (2026-09-30, awkit-djnl.15): the QA `scripts/ai-harness/**` domain, the same three checks.
 // +1 (2026-10-03): the exact `git merge --ff-only origin/main` fast-forward pull and its refusals.
 // +15 (2026-10-10): bounded Git reads, execution-helper isolation and authorized recovery.
-const EXPECTED_UNCONDITIONAL_CHECKS = 1161;
+// +4 (2026-10-10): quiet lease-status classification, hook rewriting and repository confinement.
+const EXPECTED_UNCONDITIONAL_CHECKS = 1165;
 /** Live PreToolUse hook probes; run only when the active lease grants this verifier's own path. */
 const EXPECTED_LIVE_LEASE_CHECKS = 3;
 /** Junction-escape confinement probe; runs only where the filesystem/privileges allow a junction. */
@@ -3311,7 +3313,14 @@ try {
     const denialText = (terminal = false) => '[write-lease] DENIAL ' + JSON.stringify({ version: 1, code: "lease-scope", terminal, count: terminal ? 3 : 1, recoveryLimit: 2 });
     check("structured denials parse and malformed evidence fails closed", parseStructuredDenial(denialText(true))?.terminal === true && parseStructuredDenial("[write-lease] DENIAL {}") === null && parseStructuredDenial("[write-lease] DENIAL not-json") === null);
     const local = mkdtempSync(join(tmpdir(), "awkit-command-policy-")); tempDirs.push(local);
-    const guard = (command, session = "rewrite") => spawnSync(process.execPath, ["tools/agents/lease-guard.mjs"], { cwd: process.cwd(), env: { ...process.env, LOCALAPPDATA: local }, input: JSON.stringify({ tool_name: "Bash", tool_input: { command }, session_id: session, cwd: process.cwd() }), encoding: "utf8", windowsHide: true });
+    const guard = (command, session = "rewrite", cwd = process.cwd()) => spawnSync(process.execPath, ["tools/agents/lease-guard.mjs"], { cwd: process.cwd(), env: { ...process.env, LOCALAPPDATA: local }, input: JSON.stringify({ tool_name: "Bash", tool_input: { command }, session_id: session, cwd }), encoding: "utf8", windowsHide: true });
+    const statusVariants = ["npm run agent:lease", "npm run agent:lease --", "npm run agent:lease -- silent", "npm run agent:lease -- --silent", "npm run agent:lease --silent", "npm run --silent agent:lease", "npm --silent run agent:lease", "npm run -s agent:lease", "npm -s run agent:lease"];
+    check("lease-status quiet variants normalize to the exact approved read", statusVariants.every(command => leaseStatusAlternative(command) === "npm run agent:lease" && isReadOnlyShellCommand(command) && isAllowedUnleasedShellCommand(command) && isAllowedActiveShellCommand(command, actorLease)));
+    const unsafeStatusVariants = ["npm run agent:lease -- grant", "npm run agent:lease -- --task other", "npm run agent:lease-grant -- silent", "npm run --prefix outside agent:lease", "npm run agent:lease -- silent extra", "npm run agent:lease -- silent; evil", "npm run agent:lease -- silent | evil", "npm run agent:lease -- $MODE", "npm run agent:lease -- %MODE%"];
+    check("status normalization rejects mutations, arbitrary npm options and shell syntax", unsafeStatusVariants.every(command => leaseStatusAlternative(command) === null && !isReadOnlyShellCommand(command)));
+    const normalizedStatus = statusVariants.slice(2).map(command => guard(command, "status-quiet"));
+    check("the real status hook rewrites quiet variants without overriding permissions", normalizedStatus.every(result => { if (result.status !== 0) return false; const output = JSON.parse(result.stdout); return output.hookSpecificOutput?.updatedInput?.command === "npm run agent:lease" && output.hookSpecificOutput?.permissionDecision === undefined; }), normalizedStatus.filter(result => result.status !== 0).map(result => String(result.error?.message ?? result.stderr)).join(" | "));
+    check("lease-status normalization cannot inspect another repository", guard("npm run agent:lease -- silent", "status-outside", tmpdir()).status === 2);
     const converted = guard("git log --all --oneline | head -20"), hook = converted.status === 0 ? JSON.parse(converted.stdout) : {};
     check("the real hook rewrites a log pipeline without bypassing normal permissions", converted.status === 0 && inspectionArgs(hook.hookSpecificOutput?.updatedInput?.command)?.includes("-20") && hook.hookSpecificOutput?.permissionDecision === undefined, converted.stderr);
     const denied = Array.from({ length: 3 }, () => guard("git log --unsupported", "terminal"));

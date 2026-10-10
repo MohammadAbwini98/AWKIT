@@ -2,6 +2,13 @@
 
 ## Bounded repository inspection and authorization recovery (verified 2026-10-10)
 
+Lease-status reads should use `npm run agent:lease`. The hook now recognizes npm quiet forms
+(`npm run --silent agent:lease`, `npm --silent run agent:lease`, `-s`, and a trailing `--silent`)
+and the observed misplaced `npm run agent:lease -- silent`. They are rewritten to the exact
+approved `npm run agent:lease` command, which prints normal status output. This is status only:
+extra arguments, alternate npm prefixes, lease mutations and shell composition remain blocked.
+The status read also requires the verified physical repository root.
+
 The PreToolUse hook validates approved Git argv at the physical repository root and rewrites
 reads to `node tools/agents/git-inspection.mjs`. That helper uses argv execution, disables
 execution-capable Git helpers, and limits each read to 10 seconds and 128 KiB.
@@ -25,7 +32,7 @@ It does not perform the write. Busy leases require an authorized official amend 
 terminal denials stop immediately. The literal bounded log/head pattern has a native Git
 equivalent; arbitrary pipelines, interpolation and configuration flags remain rejected.
 
-Regression verification: `npm run verify:agent-routing` (1,165 checks with the QA lease and
+Regression verification: `npm run verify:agent-routing` (1,169 checks with the QA lease and
 Windows junction probe; conditional counts vary with the live lease/environment). Node 24
 was used for this verification.
 

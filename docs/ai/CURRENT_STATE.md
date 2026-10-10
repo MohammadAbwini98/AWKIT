@@ -16,6 +16,13 @@ The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 
 - **Regression:** `verify:agent-routing` PASS, 1,165/1,165 with the QA lease and Windows junction
   probe. Fifteen new checks cover safe/unsafe argv, actual hook rewriting and terminal denials,
   Git-helper negative controls, byte/context limits, authorized recovery and blocked recovery.
+- **Follow-up:** the screenshot's `npm run agent:lease -- silent` is a harmless extra status
+  argument that the earlier classifier rejected. Exact quiet/status forms now normalize to the
+  approved command before denial counting, with repository confinement and unchanged permission
+  checks. Four additional regression checks PASS: 1,169/1,169 with a temporary 128-MiB Node heap.
+  Latest build BLOCKED by Windows virtual-memory exhaustion (error 1450 and npm child-launch
+  failure), not claimed PASS; the preceding full build passed. Graph refresh NOT RUN under this
+  resource pressure. Independent QC and live Claude long-session behavior remain pending.
 - **Integrity:** all four initially dirty/untracked file SHA-256 fingerprints match the contract
   baseline. Main-only workflow retained; no reset, checkout, clean, branch or worktree created.
 - **Gate:** independent QC is pending, not self-approved. Build and final reconciliation evidence

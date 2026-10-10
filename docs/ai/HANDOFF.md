@@ -4,6 +4,13 @@
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
+Follow-up: exact lease-status quiet forms, including the screenshot's misplaced `-- silent`, now
+normalize to `npm run agent:lease`. Final routing regression PASS 1,169/1,169. Windows reported
+232,100 KiB free virtual memory during failed child launches (error 1450). Latest build BLOCKED,
+follow-up graph refresh NOT RUN; rerun those gates after resource headroom is restored. No other
+apps were terminated or system memory settings changed. The previous build/graph results below
+belong to the initial correction, not this follow-up.
+
 The implementation and regression coverage are in the repository's lease hook, bounded Git
 helper, recovery adapter and generated agent instructions. See the command-authorization
 contract and CURRENT_STATE for exact evidence. The default single-agent policy allows a separate

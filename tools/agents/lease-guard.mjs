@@ -81,6 +81,14 @@ export function isContractControlPath(relativePath) {
  * A deliberately small no-lease shell grammar. It recognizes complete safe command families, not
  * arbitrary shell intent; uncertainty blocks. The precondition rejects chaining/redirection first.
  */
+export function leaseStatusAlternative(command) {
+  if (typeof command !== "string") return null;
+  // Match status only. A misplaced literal "silent" is harmless to this CLI's status
+  // branch, but must not become a general npm argument or lifecycle-command grant.
+  return /^npm(?:\s+(?:--silent|-s))?\s+run(?:\s+(?:--silent|-s))?\s+agent:lease(?:\s+(?:--silent|-s)|\s+--(?:\s+(?:silent|--silent|-s))?)?\s*$/.test(command.trim())
+    ? "npm run agent:lease" : null;
+}
+
 export function isReadOnlyShellCommand(command) {
   if (typeof command !== "string") return false;
   const value = command.trim();
@@ -93,7 +101,7 @@ export function isReadOnlyShellCommand(command) {
     return !hasForbiddenBdOptions(value, false);
   }
   if (/^claude\s+(?:--version|--help|mcp\s+list)\s*$/i.test(value)) return true;
-  if (/^npm\s+run\s+agent:lease(?:\s+--\s*)?$/i.test(value)) return true;
+  if (leaseStatusAlternative(value)) return true;
   if (
     /^node\s+tools\/agents\/task-gate\.mjs\s+docs\/ai\/contracts\/[a-z0-9][a-z0-9._-]*\.json\s*$/.test(
       value.replace(/\\/g, "/")
@@ -692,7 +700,8 @@ async function main() {
   const toolName = String(payload?.tool_name ?? "");
   if (/^(?:Bash|PowerShell)$/i.test(toolName)) {
     const originalCommand = payload?.tool_input?.command;
-    const command = boundedLogAlternative(originalCommand) ?? originalCommand;
+    const leaseStatus = leaseStatusAlternative(originalCommand);
+    const command = boundedLogAlternative(originalCommand) ?? leaseStatus ?? originalCommand;
     if (payload?.tool_input?.run_in_background === true) {
       process.stderr.write(
         "[write-lease] BLOCKED: background shell commands can outlive their holder's lease.\n"
@@ -700,16 +709,20 @@ async function main() {
       process.exit(BLOCK);
     }
     const readArgs = inspectionArgs(command);
-    if (readArgs) {
+    if (readArgs || leaseStatus) {
       try {
         if (relative(realpathSync(REPO_ROOT), realpathSync(payload?.cwd ?? process.cwd())) !== "") throw new Error("different root");
       } catch {
-        process.stderr.write("[write-lease] BLOCKED: Git inspection requires the verified AWKIT repository root.\n" + denialNotice("shell:repository-context", payload));
+        process.stderr.write("[write-lease] BLOCKED: repository inspection requires the verified AWKIT repository root.\n" + denialNotice("shell:repository-context", payload));
         process.exit(BLOCK);
       }
     }
     const allowShell = () => {
       // updatedInput preserves the normal permission layer; it does not auto-approve a tool.
+      if (leaseStatus && String(originalCommand).trim() !== leaseStatus) {
+        process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: "PreToolUse", updatedInput: { ...payload.tool_input, command: leaseStatus }, additionalContext: "Use the approved lease status command. Quiet-mode variants were normalized; lease mutations still require their existing authorization." } }));
+        process.exit(ALLOW);
+      }
       if (readArgs && !/^node\s+tools[\\/]agents[\\/]git-inspection\.mjs(?:\s|$)/.test(String(originalCommand).trim())) {
         process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: "PreToolUse", updatedInput: { ...payload.tool_input, command: inspectionCommand(readArgs) }, additionalContext: "Repository inspection is bounded to 128 KiB and 10 seconds with Git execution helpers disabled. A supported log/head pipeline was replaced with Git-native bounds when applicable." } }));
       }

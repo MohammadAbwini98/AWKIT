@@ -39,8 +39,7 @@
         "docs/ai/HANDOFF.md",
         "docs/ai/KNOWN_ISSUES.md",
         "docs/ai/TASK_LOG.md",
-        "docs/ai/contracts/awkit-command-authorization-1010.json",
-        "docs/ai/routing/ROUTING_MATRIX.md"
+        "docs/ai/contracts/awkit-command-authorization-1010.json"
       ]
     },
     "expected_paths": [
@@ -124,7 +123,7 @@
       "required": true
     },
     {
-      "result": "PASS",
+      "result": "BLOCKED",
       "id": "build",
       "command": "npm run build",
       "type": "build",
@@ -193,6 +192,59 @@
         "acquired_at_commit": "68f66e6f740dc33dfde5aded0c0989b2eb722be3",
         "released_at": "2026-10-10T18:11:48.484Z",
         "released_reason": "Implementation and QA passed, independent QC remains pending",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-command-authorization-1010:manager:2026-10-10T18:20:39.164Z",
+        "task": "awkit-command-authorization-1010",
+        "holder": "manager",
+        "status": "released",
+        "allowed_paths": [
+          "tools/agents/lease-guard.mjs"
+        ],
+        "acquired_at": "2026-10-10T18:20:39.164Z",
+        "acquired_at_commit": "2ae1d24e1877618adc1b32a4743ec6be80ba0da3",
+        "released_at": "2026-10-10T18:20:41.637Z",
+        "released_reason": "handoff to qa: Regression for quiet lease-status variants",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-command-authorization-1010:qa:2026-10-10T18:20:41.745Z",
+        "task": "awkit-command-authorization-1010",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-agent-routing.mjs"
+        ],
+        "acquired_at": "2026-10-10T18:20:41.745Z",
+        "acquired_at_commit": "2ae1d24e1877618adc1b32a4743ec6be80ba0da3",
+        "released_at": "2026-10-10T18:23:07.979Z",
+        "released_reason": "handoff to project-state: Record lease-status normalization and bounded verification",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-command-authorization-1010:project-state:2026-10-10T18:23:08.046Z",
+        "task": "awkit-command-authorization-1010",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/COMMANDS.md",
+          "docs/ai/CURRENT_STATE.md",
+          "docs/ai/HANDOFF.md",
+          "docs/ai/KNOWN_ISSUES.md",
+          "docs/ai/TASK_LOG.md",
+          "docs/ai/contracts/awkit-command-authorization-1010.json"
+        ],
+        "acquired_at": "2026-10-10T18:23:08.046Z",
+        "acquired_at_commit": "2ae1d24e1877618adc1b32a4743ec6be80ba0da3",
+        "released_at": "2026-10-10T18:23:52.544Z",
+        "released_reason": "Quiet lease status regressions passed, build resource blocked and QC pending",
         "amendments": [],
         "overrides": [],
         "violations": []

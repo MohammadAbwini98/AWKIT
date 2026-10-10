@@ -1,5 +1,25 @@
 # TASK_LOG
 
+## 2026-10-10 — Follow-up: quiet lease-status command denied in Claude screenshot
+
+- Root cause: `npm run agent:lease -- silent` passes an ignored positional status argument;
+  the earlier exact-command classifier rejected it. Proper npm quiet forms were also unrecognized.
+- Hook now matches exact status-only variants, verifies physical repository context, and rewrites
+  to the already approved `npm run agent:lease`. No broad npm permission grants, denial-ledger reset,
+  mutation authorization changes or hook bypass. Unsupported arguments remain blocked.
+- Added four checks: safe classification, unsafe variants, real hook rewrites without permission
+  override, and rejection outside the repository. Updated the unconditional pin to 1,165.
+- First full regression crashed launching the existing external-Git-helper fixture; Windows also
+  returned error 1450. Diagnosed resource pressure: 232,100 KiB free virtual memory. One sequential
+  retry with task-local `NODE_OPTIONS=--max-old-space-size=128` PASS, 1,169/1,169.
+- Fresh `npm run build`: BLOCKED (npm child startup: `Cannot read properties of undefined (reading
+  'stdin')`, alongside OS resource errors). No product or TypeScript source changed by this task.
+  Previous build PASS is historical; follow-up graph refresh NOT RUN because of the same resource
+  pressure. No arbitrary processes killed, environment settings permanently changed, or repeated
+  failed build attempts. Independent QC and live Claude testing still pending.
+- Final roadmap reconciliation PASS 177/177; scoped staged diff check clean; all four original
+  modified/untracked file fingerprints match the preserved baseline and remain excluded.
+
 ## 2026-10-10 (latest) — Bounded command authorization and legitimate recovery
 
 - Baseline `68f66e6f740dc33dfde5aded0c0989b2eb722be3`, on `main`. Official serialized
