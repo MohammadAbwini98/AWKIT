@@ -19,6 +19,9 @@
   0 BLOCKED tally to both newest sections and ran the one permitted corrective reconciliation.
 - Final `verify:roadmap-dashboard`: PASS, 177/177, Sources agree. The task gate reports no scope
   escapes and only the pending independent QC blocker; the contract is `implemented`, not complete.
+- `graphify update .`: INCONCLUSIVE. AST extraction reached 1,639/1,639 uncached files, with 215
+  zero-node warnings, but the refresh did not finish after five minutes of CPU work. Stopped only
+  the verified task-owned Graphify processes; no retry or generated graph artifacts committed.
 - Whole-tree `git diff --check` reports four pre-existing trailing-space lines in the preserved
   `mock-site/dom-coverage-corpus.mjs`; those user edits are untouched. Scoped staged diff checked
   separately before commit.
