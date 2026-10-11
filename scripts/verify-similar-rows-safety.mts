@@ -44,7 +44,7 @@ import { stageHost } from "./dom-intelligence/stagedHost.mts";
 
 const RUNS = 3;
 /** Pinned so a dropped page, or a dropped ambiguous page, fails the gate instead of shrinking it. */
-const PINNED = { pages: 29, refuse: 15 };
+const PINNED = { pages: 33, refuse: 19 };
 
 export interface LoopObservation {
   id: string;

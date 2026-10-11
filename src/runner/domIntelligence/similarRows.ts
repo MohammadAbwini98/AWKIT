@@ -96,8 +96,8 @@ export async function extractSimilarRows(
 const CONTROL =
   "button,a[href],input:not([type=hidden]),select,textarea,summary,[role=button],[role=link],[role=menuitem],[role=menuitemcheckbox],[role=menuitemradio],[role=tab],[role=checkbox],[role=radio],[role=switch],[role=option],[role=treeitem]";
 
-const semanticIdentity = (elements: Element[], arg: { wanted: number[]; picked: number; control: string }): { keep: number[]; same: number[]; proven: boolean } => {
-  const CONTROL = arg.control;
+function semanticIdentity(elements: Element[], arg: { wanted: number[]; picked: number; control: string }): { keep: number[]; same: number[]; proven: boolean } {
+  const _ctl = arg.control;
   const nodes = arg.wanted.map((i) => elements[i]);
   if (nodes.some((node) => !node)) return { keep: [arg.picked], same: [], proven: false };
   let common: Element | null = nodes.length > 1 ? nodes[0].parentElement : null;
@@ -110,9 +110,9 @@ const semanticIdentity = (elements: Element[], arg: { wanted: number[]; picked: 
   const facts = pool.map((el) => {
     let row: Element = el;
     while (common && row.parentElement && row.parentElement !== common) row = row.parentElement;
-    if (!el.matches(CONTROL)) {
+    if (!el.matches(_ctl)) {
       const key = `${el.localName}|${el.getAttribute("role") ?? ""}`;
-      return { key, semantic: key, row, control: false, named: true, nested: el.querySelector(CONTROL) !== null };
+      return { key, semantic: key, row, control: false, named: true, nested: el.querySelector(_ctl) !== null };
     }
     // The row's own data: visible text outside this element and outside every other control in the row.
     const pieces: string[] = [];
@@ -120,7 +120,7 @@ const semanticIdentity = (elements: Element[], arg: { wanted: number[]; picked: 
       const walker = el.ownerDocument.createTreeWalker(row, 4);
       for (let node = walker.nextNode(); node; node = walker.nextNode()) {
         const parent = node.parentElement;
-        if (!parent || el.contains(parent) || parent.closest(CONTROL) || /^(SCRIPT|STYLE|TEMPLATE)$/.test(parent.tagName)) continue;
+        if (!parent || el.contains(parent) || parent.closest(_ctl) || /^(SCRIPT|STYLE|TEMPLATE)$/.test(parent.tagName)) continue;
         const text = (node.nodeValue ?? "").replace(/\s+/g, " ").trim();
         if (text.length > 1) pieces.push(text);
       }
@@ -229,21 +229,57 @@ export async function commonRowSelector(frame: Frame, wanted: number[], same: nu
       }
     }
     const shown = rows.map((row, k) =>
-      (texts[k] || row.querySelector("img[alt]")?.getAttribute("alt") || row.querySelector("svg title")?.textContent || "")
+      texts[k]
         .toLowerCase()
         .split(/[^\p{L}\p{N}]+/u)
         .filter((word) => word.length > 2 && !/^\d+$/.test(word))
     );
-    // L12.32 (L12.31 QC N6): a control that shows no name at all (an icon) shows its icon. A label can name such an
-    // action only together with that icon, pinned in the selector (`:has(...)`), so the loop follows what the user sees,
-    // never the label alone: an icon that becomes Reject under the same "Row action" title then matches nothing.
+    const isTextless = shown.every((own) => !own.length);
     let pin = "";
-    if (shown.every((own) => !own.length)) {
-      for (const [tag, name] of [["path", "d"], ["use", "href"], ["img", "src"]]) {
-        const value = rows[0].querySelector(`${tag}[${name}]`)?.getAttribute(name) ?? "";
-        if (value && !/[\r\n]/.test(value) && rows.every((row) => row.querySelector(`${tag}[${name}]`)?.getAttribute(name) === value)) {
-          pin = `:has(${tag}[${name}="${value.replace(/["\\]/g, "\\$&")}"])`;
-          break;
+    if (isTextless) {
+      const fps = (function() {
+        var out: string[] = [];
+        for (var _ri = 0; _ri < rows.length; _ri++) {
+          var _el = rows[_ri] as Element;
+          var _parts: string[] = [];
+          var _paths = Array.from(_el.querySelectorAll("path[d]"));
+          for (var _pi = 0; _pi < _paths.length; _pi++) { var _d = (_paths[_pi] as Element).getAttribute("d"); if (_d && !/[\r\n]/.test(_d)) _parts.push("path:" + _d.trim()); if (_parts.length > 10) break; }
+          var _uses = Array.from(_el.querySelectorAll("use[href]"));
+          for (var _ui = 0; _ui < _uses.length; _ui++) { var _h = (_uses[_ui] as Element).getAttribute("href"); if (_h && !/[\r\n]/.test(_h)) _parts.push("use:" + _h.trim()); }
+          var _uses2 = Array.from(_el.querySelectorAll("use"));
+          for (var _vi = 0; _vi < _uses2.length; _vi++) { var _h2 = (_uses2[_vi] as Element).getAttribute("xlink:href"); if (_h2 && !/[\r\n]/.test(_h2) && !_parts.includes("use:" + _h2.trim())) _parts.push("use:" + _h2.trim()); }
+          var _img = _el.querySelector("img[src]"); if (_img) { var _s = _img.getAttribute("src"); if (_s && !/[\r\n]/.test(_s)) _parts.push("img:" + _s.trim()); }
+          _parts.sort(); out.push(_parts.join("|").slice(0, 500));
+        }
+        return out;
+      })();
+      const first = fps[0] ?? "";
+      var _everySame = true; for (var _ei = 0; _ei < fps.length; _ei++) if (fps[_ei] !== first) { _everySame = false; break; }
+      if (first && _everySame) {
+        let unique = true;
+        var _rowSet = new Set<Element>(rows as Element[]);
+        for (const _cand of Array.from(common.querySelectorAll(arg.control))) {
+          if (_rowSet.has(_cand as Element)) continue;
+          var _cp: string[] = [];
+          var _cPaths = Array.from((_cand as Element).querySelectorAll("path[d]"));
+          for (var _ci = 0; _ci < _cPaths.length; _ci++) { var _cd = (_cPaths[_ci] as Element).getAttribute("d"); if (_cd && !/[\r\n]/.test(_cd)) _cp.push("path:" + _cd.trim()); if (_cp.length > 10) break; }
+          var _cUses = Array.from((_cand as Element).querySelectorAll("use[href]"));
+          for (var _cu = 0; _cu < _cUses.length; _cu++) { var _ch = (_cUses[_cu] as Element).getAttribute("href"); if (_ch && !/[\r\n]/.test(_ch)) _cp.push("use:" + _ch.trim()); }
+          var _cUses2 = Array.from((_cand as Element).querySelectorAll("use"));
+          for (var _cv = 0; _cv < _cUses2.length; _cv++) { var _ch2 = (_cUses2[_cv] as Element).getAttribute("xlink:href"); if (_ch2 && !/[\r\n]/.test(_ch2) && !_cp.includes("use:" + _ch2.trim())) _cp.push("use:" + _ch2.trim()); }
+          var _cImg = (_cand as Element).querySelector("img[src]"); if (_cImg) { var _cs = _cImg.getAttribute("src"); if (_cs && !/[\r\n]/.test(_cs)) _cp.push("img:" + _cs.trim()); }
+          _cp.sort(); if (_cp.join("|").slice(0, 500) === first) { unique = false; break; }
+        }
+        if (unique) {
+          pin = first
+            .split("|")
+            .map((p) => {
+              if (p.startsWith("path:")) return `:has(path[d="${p.slice(5).replace(/["\\]/g, "\\$&")}"])`;
+              if (p.startsWith("use:")) return `:has(use[href="${p.slice(4).replace(/["\\]/g, "\\$&")}"])`;
+              if (p.startsWith("img:")) return `:has(img[src="${p.slice(4).replace(/["\\]/g, "\\$&")}"])`;
+              return "";
+            })
+            .join("");
         }
       }
     }
@@ -257,14 +293,48 @@ export async function commonRowSelector(frame: Frame, wanted: number[], same: nu
         // A role says what kind of control it is, and a form `name` is shared by every action of one form
         // (`decision=approve|reject`, L12.28 QC: such a loop clicked Unapprove in every row): they only narrow.
         if (name === "aria-label" || name === "data-action" || (name === "title" && texts.every((text) => !text))) {
-          // L12.30: and only when it tells this action apart. Not when another action carries it too (a generic "Row
-          // action": the loop clicked Unapprove, or Reject, in every row once the page changed). L12.32 (L12.31 QC N6):
-          // and, whether or not other actions exist, only when it agrees with what the control itself shows, or, for an
-          // icon, with its icon pinned. Telling actions apart today is not naming one: a "Row action" carried by Approve
-          // alone, beside a differently named Reject, followed Approve when it became Unapprove. Otherwise it only narrows.
           const label = value.replace(/\s+/g, " ").trim().toLowerCase();
-          const words = label.split(/[^\p{L}\p{N}]+/u);
-          if (!siblingNames.has(label) && (pin || shown.every((own) => own.some((word) => words.includes(word))))) named = true;
+          const words = label.split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 2 && !/^\d+$/.test(w));
+          const GENERIC = new Set([
+            "action","actions","row","rows","item","items","invoice","invoices","inv","order","orders",
+            "vendor","vendors","amount","amounts","total","totals","number","numbers",
+            "name","names","title","titles","description","descriptions","price","prices",
+            "quantity","quantities","status","statuses","date","dates","time","times"
+          ]);
+          const labelSet = new Set(words);
+          // N7 Shape A: when visible text exists, the label must agree with a non-generic action word
+          // shown on the control itself. Generic/business nouns alone prove nothing. We only enforce
+          // this when no sharedText head exists (otherwise text itself is sufficient and the label
+          // variant is an alternative). For sharedText pages the head already proves identity.
+          const sharedTextForLabel = texts[0] && texts[0].length <= 80 && texts.every((text) => text === texts[0]);
+          if (isTextless) {
+            // Textless controls (C1/C2): icon safety via complete fingerprint. Alt/title/images provide
+            // no safety — shown is empty so we require an actual unique icon pin.
+            if (pin && !siblingNames.has(label)) named = true;
+          } else if (!siblingNames.has(label)) {
+            if (sharedTextForLabel) {
+              // Text already names the action; label variant is just an attribute alternative — allow it.
+              named = true;
+            } else {
+              const perRowActionWords = shown.map((own) => own.filter((w) => !GENERIC.has(w)));
+              const hasActionWord = perRowActionWords.some((arr) => arr.length > 0);
+              if (!hasActionWord) {
+                // No non-generic word shown anywhere — e.g. "Invoice action" vs "Approve INV-n" where
+                // "approve" is the action word; if shown has only generic left after filtering,
+                // generic agreement must not count unless backed by a pin (textless already handled).
+                // Here: require at least one per-row generic agreement *and* pin would be textless;
+                // without generics this branch incorrectly blocked text loops — so allow via text head
+                // instead: do not claim label identity here; sharedText or icon path handles it.
+                // To keep behavior: if no action word exists, only the icon-pinned textless path
+                // is safe — this branch intentionally does not set named.
+              } else {
+                // At least one row shows a non-generic action word; require label to contain every
+                // such distinct action word (so "Invoice action" does NOT match "Approve").
+                const distinctActionWords = [...new Set(perRowActionWords.flat())];
+                if (distinctActionWords.every((w) => labelSet.has(w))) named = true;
+              }
+            }
+          }
         }
       }
     }

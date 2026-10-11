@@ -396,6 +396,24 @@ function rowLab(title, actions, extraRows = "") {
  * is a mixed loop: the defect L12.24 exists to stop.
  */
 export const SIMILAR_ROW_LAB = [
+  // N7: controls without visible text must use icon safety; alt/svg-title must not bypass it.
+  // N7 fixtures below are refuse cases that previously got a loop and clicked the wrong action.
+  { id: "rows-n7-alt-bypass", title: "N7 C1: img-alt icon without visible text (alt must not bypass icon pin)", expect: "refuse",
+    html: () => rowLab("N7 alt bypass", (n) =>
+      `<button type="button"${mark(n === PICK)} data-oracle-intent="approve"><img src="approve.svg" alt="Row action"></button> ` +
+      `<button type="button" data-oracle-intent="reject"><img src="reject.svg" alt="Row action"></button>`) },
+  { id: "rows-n7-title-bypass", title: "N7 C2: svg-title icon without visible text (title must not bypass icon pin)", expect: "refuse",
+    html: () => rowLab("N7 svg title bypass", (n) =>
+      `<button type="button"${mark(n === PICK)} data-oracle-intent="approve"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><title>Row action</title><path d="M2 8l4 4 8-8"/></svg></button> ` +
+      `<button type="button" data-oracle-intent="reject"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><title>Row action</title><path d="M3 3l10 10M13 3L3 13"/></svg></button>`) },
+  { id: "rows-n7-shared-icon", title: "N7 B: two actions share first path but differ in full icon (partial pin unsafe)", expect: "refuse",
+    html: () => rowLab("N7 shared icon", (n) =>
+      `<button type="button"${mark(n === PICK)} data-oracle-intent="approve" aria-label="Action A"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M1 1"/><path d="M2 8l4 4 8-8"/></svg></button> ` +
+      `<button type="button" data-oracle-intent="reject" aria-label="Action A"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M1 1"/><path d="M9 9l1 1"/></svg></button>`) },
+  { id: "rows-n7-incidental-word", title: "N7 A: label agrees only on generic row noun, not the action word", expect: "refuse",
+    html: () => rowLab("N7 incidental word", (n) =>
+      act("approve", `Approve INV-${n}`, ` aria-label="Invoice action"${mark(n === PICK)}`) + " " +
+      act("reject", `Reject INV-${n}`)) },
   { id: "rows-approve-reject", title: "Approve beside Reject in every row", expect: 6,
     html: () => rowLab("Approve or reject", (n) => `${approve(n)} ${act("reject", "Reject")}`) },
   { id: "rows-approve-delete", title: "Approve beside Delete in every row", expect: 6,
