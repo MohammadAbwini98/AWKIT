@@ -24,6 +24,7 @@ export { VISUAL_EVIDENCE_VERSION, buildVisualEvidence, type VisualEvidence } fro
 export {
   FUSION_MAX_COMPETITORS,
   FUSION_VERDICT_VERSION,
+  MEASURED_FUSION_POLICY,
   UNCALIBRATED_FUSION_POLICY,
   decideFusion,
   type FusionInput,

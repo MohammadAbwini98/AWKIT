@@ -278,6 +278,11 @@ N2.1 → N2.2 → N2.3 → (N2.4 ∥ N2.7-contract) → N2.5 → N2.6 → N2.8
 
 N2.6 may be deferred by FD-9 without blocking N2's shadow-mode closure.
 
+**N2.3 outcome (2026-10-12).** The lab showed no separation between F1 restyles and the F2 swap, so R8 is disabled
+(`MEASURED_FUSION_POLICY`), N2 ships shadow-only and N2.6 is deferred. Four element captures exceeded the FD-5 budget
+(median 499 ms), so N2.4/N2.5 should crop one viewport screenshot. A real headed Ctrl+zoom is refused by capture. See
+`N2.3-fusion-calibration.md`.
+
 ### Feature Test Lab scenarios (N2.3)
 
 Each scenario gets a stable URL, title, expected behaviour and `data-testid` selectors, and is

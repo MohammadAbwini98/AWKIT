@@ -1,6 +1,45 @@
 # TASK_LOG
 
-## 2026-10-12 (latest) — Phase N: N2.2 pure fusion policy implemented (Claude)
+## 2026-10-12 (latest) — Phase N: N2.3 fusion calibration lab and measurement (Claude)
+
+- **Scope:** "start N2.3", under contract `awkit-vra-12-3-fusion-calibration-1012`. CodeCraft was not used
+  (`CODECRAFT_MODE=off`).
+- **Tracker:** closed `awkit-vra.12.3`. The tracker now has 380 issues, 30 outstanding / 350 closed and 281 edges.
+- **N2.3:**
+  - Added the fusion lab `/visual-intelligence/fusion` (F1-F8).
+  - Added the informational `benchmark:visual-fusion` and `benchmark:visual-fusion-zoom`.
+  - Added `MEASURED_FUSION_POLICY`. Separation was not achieved, so it has `contradictionEnabled: false` (shadow-only).
+  - Ran the real headed Ctrl+zoom check. The capture was refused, never mis-cropped.
+- **Files:**
+  - `mock-site/{public/index.html,public/visual-intelligence-fusion.html,server.mjs,README.md}`;
+  - `src/visual/{index.ts,geometry.ts,fusion/decideFusion.ts}`;
+  - `scripts/{benchmark-visual-fusion.mts,verify-visual-fusion.mts,verify-mock-site.mjs}` and `package.json`;
+  - `scripts/verify-roadmap-dashboard.mjs`, for the pins;
+  - `.beads/issues.jsonl`;
+  - `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,DECISIONS}.md`;
+  - `docs/plans/ai-upgrade-v5/{N2.3-fusion-calibration.md,N2-dom-vision-evidence-fusion.md,ROADMAP.md}` and
+    `src/roadmap/ImplementationRoadmap.ts`;
+  - the contracts and the lease files.
+- **Checks:**
+
+  | Check | Result |
+  |---|---|
+  | `verify:visual-fusion` | 268/0 |
+  | real-file mutation (`contradictionEnabled: true`) | 265/3, restored |
+  | `verify:visual-isolation` | 28/0 |
+  | `verify:mock-site` | 299/299 |
+  | `npm run build` | PASS |
+  | `benchmark:visual-fusion` | not separated; 62/62 structural; 0 false vetoes |
+  | `benchmark:visual-fusion-zoom` | capture refused at zoom; reset confirmed |
+  | `verify:roadmap-dashboard` | Sources agree |
+
+- **Lease note:**
+  - A contract that sets `mock_site_required` must activate `recorder` and list it as a consultant.
+  - The valid evidence types do not include `benchmark`.
+  - The lease guard denies arguments to benchmark scripts, so the zoom check got its own script.
+- **Preserved:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`, untracked and unchanged.
+
+## 2026-10-12 — Phase N: N2.2 pure fusion policy implemented (Claude)
 
 - **Scope:** "start N2.2", under contract `awkit-vra-12-2-fusion-policy-1012`. CodeCraft was not used
   (`CODECRAFT_MODE=off`).

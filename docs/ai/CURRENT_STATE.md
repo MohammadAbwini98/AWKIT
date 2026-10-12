@@ -1,6 +1,30 @@
 # CURRENT_STATE
 
-## Phase N: N2.2 pure fusion policy done (2026-10-12, latest)
+## Phase N: N2.3 fusion calibration measured; N2 ships shadow-only (2026-10-12, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task.
+
+- **N2.3 done** (`awkit-vra.12.3` closed). Full write-up: `docs/plans/ai-upgrade-v5/N2.3-fusion-calibration.md`.
+  - New Feature Test Lab page `/visual-intelligence/fusion` (`mock-site/public/visual-intelligence-fusion.html`)
+    with scenarios F1-F8, covered by 17 new `verify:mock-site` checks (299/299).
+  - New informational `benchmark:visual-fusion` measured the score distributions at DPR 1, 1.25 and 2, headed and
+    headless. 62/62 structural rows PASS and 0 false vetoes.
+- **FD-9 outcome: no separation.** The highest F1/F4 look-alike lead (3118 bp) is above the lowest F2 real
+  contradiction lead (323 bp) in every group. So `MEASURED_FUSION_POLICY` sets `contradictionEnabled: false`, R8
+  never vetoes, and N2 ships shadow-only. N2.6 (enforce-veto) stays deferred. `contradictMarginBp` 3618 records the
+  F1/F4 maximum plus the 500 bp safety gap for reference only.
+- **`verify:visual-fusion` 268/0**, with 5 new measured-policy checks: 0 vetoes over 4000 seeded inputs, plus a
+  non-vacuity check. Setting `contradictionEnabled: true` in the real file gave 265/3 (118 vetoes); restored.
+- **Real headed Ctrl+zoom: RUN** (`benchmark:visual-fusion-zoom`). It was NOT RUN since N0. An OS Ctrl+= took
+  devicePixelRatio from 2 to 2.2, but the screenshot stayed at scale 2.0. Viewport and element capture were both
+  refused with `CAPTURE_UNAVAILABLE` and never mis-cropped; the reset was confirmed.
+- **FD-5 finding:** four captures per step took median 499 ms and p95 1111 ms, against the 400 ms budget.
+  N2.4/N2.5 must cut capture work, for example by capturing once per step and cropping candidates from it.
+- **Other checks:** `verify:visual-isolation` 28/0; `npm run build` PASS.
+- **Next:** N2.4 (`awkit-vra.12.4`).
+
+## Phase N: N2.2 pure fusion policy done (2026-10-12)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed by this task.

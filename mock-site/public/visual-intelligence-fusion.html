@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Visual Fusion Calibration Lab</title>
+    <!--
+      Phase N, N2.3 (awkit-vra.12.3) Visual Fusion Calibration Lab. An icon-only toolbar of four same-size buttons that
+      share role, accessible name and ancestry, so only their icons tell them apart: the case DOM + Vision fusion exists
+      for. window.__fusionLab.setState({ scenario, target, style }) redraws it deterministically:
+        baseline          the remembered state; the reference is captured from button `target`
+        restyle-selected  F1: only the target changes look (inverted, selected); it is still the right button
+        restyle-pressed   F1: only the target changes look (darker, inset ring); it is still the right button
+        swap              F2: the target's icon is swapped with its right-hand neighbour, so the button in the
+                          remembered position is now wrong and a competitor carries the remembered icon
+        twins             F3: every button carries the target's icon (true twins)
+        theme-dark        F4: page-wide restyle, every button at once
+        theme-contrast    F4: page-wide restyle, every button at once
+      F5 (protected surface) uses injectProtected(kind); F6 (offscreen) uses the vf-offscreen-tool copy below the
+      fold; F7 uses the ?embed=1 frame copy, the ?popup=1 popup and a different device scale factor; F8 is fusion off.
+      Nothing is random or time-dependent and the page carries no credential field. Sized for an 800x600 viewport.
+      Measured by npm run benchmark:visual-fusion; served by npm run verify:mock-site.
+    -->
+    <style>
+      html, body { margin: 0; padding: 0; background: #ffffff; }
+      body { font-family: Arial, Helvetica, sans-serif; font-size: 14px; color: #111111; width: 800px; height: 3200px; position: relative; overflow-x: hidden; }
+      h1 { position: absolute; left: 100px; top: 20px; margin: 0; font-size: 18px; line-height: 24px; }
+      .vf-toolbar { position: absolute; left: 92px; top: 112px; width: 264px; height: 56px; background: #f1f5f9; border-radius: 8px; }
+      .vf-toolbar[data-theme="theme-dark"] { background: #020617; }
+      .vf-toolbar[data-theme="theme-contrast"] { background: #000000; }
+      .vf-tool { position: absolute; top: 8px; box-sizing: border-box; width: 48px; height: 40px; padding: 0; border: 1px solid; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+      .vf-tool svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+      .vf-style-a { background: #2563eb; border-color: #1d4ed8; color: #ffffff; }
+      .vf-style-b { background: #475569; border-color: #334155; color: #ffffff; }
+      .vf-style-c { background: #0f766e; border-color: #115e59; color: #ffffff; }
+      .vf-toolbar[data-theme="theme-dark"] .vf-tool { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+      .vf-toolbar[data-theme="theme-contrast"] .vf-tool { background: #000000; border-color: #facc15; color: #facc15; }
+      .vf-tool.vf-selected { background: #ffffff; border-width: 2px; }
+      .vf-style-a.vf-selected { color: #2563eb; border-color: #2563eb; }
+      .vf-style-b.vf-selected { color: #475569; border-color: #475569; }
+      .vf-style-c.vf-selected { color: #0f766e; border-color: #0f766e; }
+      .vf-tool.vf-pressed { filter: brightness(0.72); box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.55); }
+      .vf-offscreen { position: absolute; left: 100px; top: 3000px; width: 64px; height: 56px; }
+      .vf-offscreen .vf-tool { left: 8px; }
+      .vf-frame { position: absolute; left: 92px; top: 260px; width: 280px; height: 72px; border: 0; }
+      .vf-open-popup { position: absolute; left: 420px; top: 120px; height: 36px; padding: 0 14px; font: 14px Arial, Helvetica, sans-serif; border: 1px solid #334155; border-radius: 4px; background: #e2e8f0; color: #0f172a; cursor: pointer; }
+      body.vf-embed { width: auto; height: auto; }
+      body.vf-embed .vf-toolbar { left: 8px; top: 8px; }
+      body.vf-embed h1, body.vf-embed .vf-frame, body.vf-embed .vf-open-popup, body.vf-embed .vf-offscreen { display: none; }
+    </style>
+  </head>
+  <body>
+    <h1 data-testid="vf-title">Visual Fusion Calibration Lab</h1>
+    <div class="vf-toolbar" data-testid="vf-toolbar" role="toolbar" aria-label="Item actions"></div>
+    <button type="button" class="vf-open-popup" data-testid="vf-open-popup" onclick="window.open('/visual-intelligence/fusion?popup=1', 'visual-fusion-popup', 'width=400,height=300')">Open toolbar popup</button>
+    <iframe class="vf-frame" data-testid="vf-frame" title="Toolbar frame copy"></iframe>
+    <!-- F6: a copy of the target far below the fold. A capture must refuse it, never scroll to it. -->
+    <div class="vf-offscreen" data-testid="vf-offscreen"></div>
+
+    <script>
+      const ICONS = {
+        trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/>',
+        archive: '<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v11h14V9M10 13h4"/>',
+        flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
+        pin: '<path d="M12 21s-6-6.5-6-11a6 6 0 0 1 12 0c0 4.5-6 11-6 11z"/><circle cx="12" cy="10" r="2"/>'
+      };
+      const ORDER = ["trash", "archive", "flag", "pin"];
+      const SCENARIOS = ["baseline", "restyle-selected", "restyle-pressed", "swap", "twins", "theme-dark", "theme-contrast"];
+      const STYLES = ["a", "b", "c"];
+      const params = new URLSearchParams(location.search);
+      const embedded = params.has("embed");
+      if (embedded) document.body.classList.add("vf-embed");
+
+      function button(testId, icon, style, extra) {
+        return '<button type="button" class="vf-tool vf-style-' + style + (extra ? " " + extra : "") + '" data-testid="' + testId +
+          '" data-icon="' + icon + '" aria-label="Item action"><svg viewBox="0 0 24 24" aria-hidden="true">' + ICONS[icon] + "</svg></button>";
+      }
+
+      let current = { scenario: "baseline", target: 0, style: "a" };
+
+      function render() {
+        const { scenario, target, style } = current;
+        const icons = ORDER.slice();
+        if (scenario === "swap") {
+          const neighbour = (target + 1) % icons.length;
+          [icons[target], icons[neighbour]] = [icons[neighbour], icons[target]];
+        } else if (scenario === "twins") {
+          icons.fill(ORDER[target]);
+        }
+        const toolbar = document.querySelector("[data-testid='vf-toolbar']");
+        toolbar.dataset.theme = scenario.startsWith("theme-") ? scenario : "";
+        toolbar.innerHTML = icons
+          .map((icon, i) => {
+            const extra = i !== target ? "" : scenario === "restyle-selected" ? "vf-selected" : scenario === "restyle-pressed" ? "vf-pressed" : "";
+            return button("vf-tool-" + i, icon, style, extra).replace("<button ", '<button style="left: ' + (8 + i * 64) + 'px" ');
+          })
+          .join("");
+        if (!embedded) document.querySelector("[data-testid='vf-offscreen']").innerHTML = button("vf-offscreen-tool", ORDER[target], style, "");
+      }
+
+      window.__fusionLab = {
+        interactions: 0,
+        scenarios: SCENARIOS.slice(),
+        styles: STYLES.slice(),
+        icons: ORDER.slice(),
+        setState(next) {
+          const candidate = { ...current, ...(next || {}) };
+          if (!SCENARIOS.includes(candidate.scenario)) throw new Error("unknown scenario");
+          if (!STYLES.includes(candidate.style)) throw new Error("unknown style");
+          if (!Number.isInteger(candidate.target) || candidate.target < 0 || candidate.target >= ORDER.length) throw new Error("unknown target");
+          current = candidate;
+          render();
+          const frame = document.querySelector("[data-testid='vf-frame']");
+          frame?.contentWindow?.__fusionLab?.setState(current);
+          return window.__fusionLab.describe();
+        },
+        describe() {
+          return {
+            ...current,
+            icons: [...document.querySelectorAll("[data-testid='vf-toolbar'] .vf-tool")].map((node) => node.dataset.icon)
+          };
+        },
+        // A protected surface of each kind visual capture must refuse, added on demand so the page itself stays
+        // unprotected.
+        injectProtected(kind) {
+          window.__fusionLab.removeProtected();
+          const box = document.createElement("div");
+          box.setAttribute("data-testid", "vf-protected-" + kind);
+          box.className = "vf-protected";
+          box.style.cssText = "position: absolute; left: 420px; top: 400px; width: 180px; height: 50px";
+          if (kind === "otp") box.innerHTML = "<input autocomplete='one-time-code' inputmode='numeric'>";
+          else if (kind === "mfa") box.innerHTML = "<input aria-label='Verification code'>";
+          else if (kind === "captcha") box.innerHTML = "<div class='g-recaptcha' data-sitekey='lab-only'></div>";
+          else if (kind === "passkey") box.innerHTML = "<button type='button' aria-label='Use a passkey'>Continue</button>";
+          else throw new Error("unknown protected kind");
+          document.body.appendChild(box);
+        },
+        removeProtected() {
+          for (const node of document.querySelectorAll(".vf-protected")) node.remove();
+        }
+      };
+      render();
+      if (!embedded) {
+        const frame = document.querySelector("[data-testid='vf-frame']");
+        frame.addEventListener("load", () => frame.contentWindow.__fusionLab?.setState(current));
+        frame.src = "/visual-intelligence/fusion?embed=1";
+      }
+      // Interaction counter: a visual capture must never click, focus or scroll the page.
+      for (const type of ["click", "mousedown", "keydown", "focusin", "scroll"]) {
+        window.addEventListener(type, () => { window.__fusionLab.interactions += 1; }, true);
+      }
+    </script>
+  </body>
+</html>

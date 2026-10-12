@@ -1,0 +1,216 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-12-3-fusion-calibration-1012",
+    "title": "N2.3 fusion calibration lab and measurement, with the real headed Ctrl+zoom check",
+    "objective": "Implement awkit-vra.12.3: the Visual Fusion Calibration Lab at /visual-intelligence/fusion with scenarios F1-F8, the informational benchmark:visual-fusion measuring score distributions at DPR 1, 1.25 and 2, headed and headless, the FD-9 margins derived with a safety gap, and the real headed Ctrl+zoom capture check that was NOT RUN for N0. If there is no separation, R8 is disabled and N2 ships shadow-only. No runner wiring, schema, settings or UI change.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "14e6b3c9",
+    "working_tree_expected": "clean",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true,
+    "general_engineering_change": true,
+    "mock_site_required": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "recorder",
+      "qa",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "mock-site/**",
+      "src/visual/**",
+      "scripts/benchmark-visual-fusion.mts",
+      "scripts/verify-visual-fusion.mts",
+      "scripts/verify-mock-site.mjs",
+      "package.json",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/awkit-vra-12-3-fusion-calibration-1012.json",
+      "docs/ai/contracts/awkit-vra-12-2-fusion-policy-1012.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [
+      "recorder"
+    ],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N2.3",
+      "description": "The fusion lab serves F1-F8 with stable selectors and docs; benchmark:visual-fusion records the raw distributions at DPR 1, 1.25 and 2, headed and headless, derives the FD-9 policy with a safety gap, and reports the separation; with no separation, MEASURED_FUSION_POLICY disables R8 and verify:visual-fusion proves it never vetoes; the real headed Ctrl+zoom check is run and its result recorded.",
+      "evidence_required": [
+        "build",
+        "verify:mock-site",
+        "verify:visual-fusion",
+        "verify:visual-isolation",
+        "benchmark:visual-fusion",
+        "benchmark:visual-fusion-zoom"
+      ]
+    },
+    {
+      "id": "N2.3-STATE",
+      "description": "awkit-vra.12.3 is closed, Beads exported, and verify:roadmap-dashboard reports Sources agree.",
+      "evidence_required": [
+        "beads-export",
+        "verify:roadmap-dashboard"
+      ]
+    },
+    {
+      "id": "N2.3-GIT",
+      "description": "The work lands on main and is pushed without force; the L12.27 contract stays untracked and unchanged.",
+      "evidence_required": [
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc --noEmit and electron-vite build succeeded"
+    },
+    {
+      "id": "verify:mock-site",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:mock-site",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "299/299, including 17 Visual Fusion Calibration Lab checks"
+    },
+    {
+      "id": "verify:visual-fusion",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-fusion",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "268/0 with 5 measured-policy checks; real-file mutation contradictionEnabled true on MEASURED_FUSION_POLICY gave 265/3 (118 vetoes), restored"
+    },
+    {
+      "id": "verify:visual-isolation",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-isolation",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "28/0"
+    },
+    {
+      "id": "benchmark:visual-fusion",
+      "type": "inspection",
+      "required": true,
+      "command": "npm run benchmark:visual-fusion",
+      "artifact": "docs/plans/ai-upgrade-v5/N2.3-fusion-calibration.md",
+      "result": "PASS",
+      "observed": "informational; 62/62 structural rows; not separated (max F1/F4 lead 3118 bp, min F2 lead 323 bp), so contradictionEnabled false; false vetoes 0; four captures median 499 ms, p95 1111 ms"
+    },
+    {
+      "id": "benchmark:visual-fusion-zoom",
+      "type": "gui",
+      "required": true,
+      "command": "npm run benchmark:visual-fusion-zoom",
+      "artifact": "docs/plans/ai-upgrade-v5/N2.3-fusion-calibration.md",
+      "result": "PASS",
+      "observed": "real headed OS Ctrl+= took devicePixelRatio 2 to 2.2; screenshot stayed at scale 2.0; viewport and element capture refused with CAPTURE_UNAVAILABLE, never mis-cropped; reset confirmed"
+    },
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "Exported 380 issues; awkit-vra.12.3 closed, none filed or renumbered"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "177/177, Sources agree; pins moved to 30 outstanding / 350 closed, 380 issues and 281 edges unchanged"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "pending",
+      "observed": ""
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-12-3-fusion-calibration-1012:project-state:2026-10-12T15:41:13.246Z",
+        "task": "awkit-vra-12-3-fusion-calibration-1012",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-12T15:41:13.246Z",
+        "acquired_at_commit": "14e6b3c941d68f81d823a6b0b9cd91c612733f7f",
+        "released_at": "2026-10-12T15:41:58.017Z",
+        "released_reason": "N2.3-closed-and-Beads-exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

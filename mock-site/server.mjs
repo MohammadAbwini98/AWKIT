@@ -223,6 +223,8 @@ const server = createServer(async (req, res) => {
   if (req.method === "GET" && path === "/visual-intelligence/frames") return serveStatic(res, "visual-intelligence-frames.html");
   if (req.method === "GET" && path === "/visual-intelligence/popup") return serveStatic(res, "visual-intelligence-popup.html");
   if (req.method === "GET" && path === "/visual-intelligence/account") return serveStatic(res, "visual-intelligence-account.html");
+  // Phase N, N2.3 Visual Fusion Calibration Lab; ?embed=1 is its frame copy and ?popup=1 its popup.
+  if (req.method === "GET" && path === "/visual-intelligence/fusion") return serveStatic(res, "visual-intelligence-fusion.html");
   // L11.F DOM Context Lab: its SPA routes serve the lab itself, so a reload stays on the same view.
   if (req.method === "GET" && path === "/dom-context-lab/frame") return serveStatic(res, "dom-context-lab-frame.html");
   if (req.method === "GET" && path === "/dom-context-lab/popup") return serveStatic(res, "dom-context-lab-popup.html");

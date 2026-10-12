@@ -329,6 +329,8 @@
     "verify:visual-fusion": "tsx scripts/verify-visual-fusion.mts",
     "verify:visual-isolation": "tsx scripts/verify-visual-isolation.mts",
     "benchmark:visual-capture": "tsx scripts/benchmark-visual-capture.mts",
+    "benchmark:visual-fusion": "tsx scripts/benchmark-visual-fusion.mts",
+    "benchmark:visual-fusion-zoom": "tsx scripts/benchmark-visual-fusion.mts --zoom-only",
     "verify:ai-model-pack": "tsx scripts/verify-ai-model-pack.mts",
     "verify:ai-model-compatibility": "tsx scripts/verify-ai-model-compatibility.mts",
     "verify:ai-model-inspect": "tsx scripts/verify-ai-model-inspect.mts",

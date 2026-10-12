@@ -92,6 +92,18 @@
             <dd><code>/visual-intelligence</code>, <code>/visual-intelligence/frames</code></dd>
           </dl>
         </article>
+        <article data-testid="scenario-visual-fusion">
+          <h2><a href="/visual-intelligence/fusion">Visual Fusion Calibration Lab</a></h2>
+          <p>An icon-only toolbar of four same-size buttons that share role, accessible name and ancestry, redrawn deterministically as a baseline, a restyle of the right button, an icon swap, true twins or a page-wide theme, with a frame copy, a popup, an offscreen copy and on-demand protected surfaces.</p>
+          <dl class="scenario-meta">
+            <dt>Expected</dt>
+            <dd>Restyles (F1/F4) never veto, an icon swap (F2) is measured, protected, offscreen, frame, popup and scale cases degrade to dom-only or conditions-changed; the separation is measured by <code>npm run benchmark:visual-fusion</code>.</dd>
+            <dt>Related feature</dt>
+            <dd>DOM + Vision evidence fusion calibration (Phase N, N2.3).</dd>
+            <dt>Stable URL</dt>
+            <dd><code>/visual-intelligence/fusion</code> (frame copy <code>?embed=1</code>, popup <code>?popup=1</code>)</dd>
+          </dl>
+        </article>
         <article data-testid="scenario-dom-context">
           <h2><a href="/dom-context-lab">DOM Context Lab</a></h2>
           <p>Frame, popup, SPA-route, virtualized-list and delayed-render contexts, each with a look-alike control where a step must not recover from.</p>

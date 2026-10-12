@@ -4,7 +4,8 @@
  * One canonical space: CSS pixels of the MAIN frame's viewport, which is what Playwright's `boundingBox()` reports
  * for an element in any frame (iframe offsets and inner scroll already applied) and what `page.screenshot()` covers.
  * The screenshot is in device pixels, so a CSS rectangle is scaled per axis by `imageSize / viewportCssSize` — the
- * MEASURED ratio, not `devicePixelRatio`, so browser zoom and fractional DPR are covered by the same arithmetic.
+ * MEASURED ratio, not `devicePixelRatio`, so fractional DPR is covered by the same arithmetic. Browser zoom is not: the
+ * screenshot then disagrees with `devicePixelRatio` and is refused (see `scaleMatchesDevicePixelRatio`).
  *
  * Rounding is outward (floor the start, ceil the end) so a crop never loses a partially covered edge pixel, then the
  * result is clamped to the image; `wasClipped` records that the clamp removed part of the request.
@@ -66,10 +67,13 @@ export function measureAxisScale(
 }
 
 /**
- * Whether a measured screenshot scale is the page's own `devicePixelRatio`. Chromium folds browser zoom into
- * `devicePixelRatio`, so under zoom the two still agree and mapping stays exact. If they disagree, something between
- * the page and the screenshot rescaled the image in a way this mapping cannot see, and the capture must be refused
- * rather than cropped at a guessed offset. The tolerance is the same one-pixel rounding slack as `measureAxisScale`.
+ * Whether a measured screenshot scale is the page's own `devicePixelRatio`. If they disagree, something between the
+ * page and the screenshot rescaled the image in a way this mapping cannot see, and the capture must be refused rather
+ * than cropped at a guessed offset. The tolerance is the same one-pixel rounding slack as `measureAxisScale`.
+ *
+ * Browser zoom is such a case. Chromium folds it into `devicePixelRatio` and the CSS viewport, but Playwright's
+ * device-scale screenshot stays at the unzoomed ratio: measured in N2.3 on a real headed Ctrl+zoom (110% on a 2x
+ * display), devicePixelRatio 2.2 against a 942x679 CSS viewport, screenshot 1884x1358 = 2.0. Zoomed pages are refused.
  */
 export function scaleMatchesDevicePixelRatio(
   scale: AxisScale,

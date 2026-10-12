@@ -1,6 +1,19 @@
 # DECISIONS
 
-### 2026-10-12 (latest) — Phase N N2: owner decisions FD-1 to FD-9 approved as recommended (owner, in session) (`awkit-vra.12`)
+### 2026-10-12 (latest) — Phase N N2.3: FD-9 outcome is no separation, so R8 is disabled and N2 ships shadow-only (measurement, applying FD-9) (`awkit-vra.12.3`)
+
+The N2.3 calibration lab (`docs/plans/ai-upgrade-v5/N2.3-fusion-calibration.md`) measured the lead of the best
+competitor over the DOM winner at DPR 1, 1.25 and 2, headed and headless. A restyle of the right element (F1) reached
+3118 bp, while an icon swap (F2) led by as little as 323 bp. The two do not separate in any group.
+
+- **Applied (FD-9 fallback, already approved).** `MEASURED_FUSION_POLICY` is calibrated with R8 disabled
+  (`contradictionEnabled: false`). N2 ships shadow-only, and N2.6 (enforce-veto) is deferred by this outcome.
+- **FD-5 finding.** Four element captures took a median 499 ms, p95 1111 ms, which is over the 400 ms budget. N2.4/N2.5
+  should take one viewport screenshot per evaluation and crop it, rather than change the budget.
+- **Browser zoom.** On a real headed Ctrl+zoom, capture refuses (the screenshot scale stays at the unzoomed ratio),
+  so fusion degrades to `dom-only/capture-failed`. The N0 claim that zoom was mapped was wrong and is corrected.
+
+### 2026-10-12 — Phase N N2: owner decisions FD-1 to FD-9 approved as recommended (owner, in session) (`awkit-vra.12`)
 
 The owner approved FD-1 to FD-9 of `docs/plans/ai-upgrade-v5/N2-dom-vision-evidence-fusion.md` as recommended, in
 these words: "FD-1 to FD-9 approved as recommended". The plan's policy holds: fusion is veto-only and runs last in

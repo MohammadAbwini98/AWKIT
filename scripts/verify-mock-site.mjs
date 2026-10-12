@@ -754,6 +754,38 @@ try {
   await page.evaluate(() => window.__visualLab.removeProtected());
   check("removeProtected() removes it", (await page.locator(".vi-protected").count()) === 0);
 
+  // Phase N, N2.3 Visual Fusion Calibration Lab: the toolbar, its scenarios and the F5-F7 fixtures serve.
+  // The score distributions and the Ctrl+zoom check are measured by npm run benchmark:visual-fusion.
+  console.log("Visual Fusion Calibration Lab (/visual-intelligence/fusion):");
+  await page.goto(`${BASE}/`);
+  check("index lists the Visual Fusion Calibration Lab scenario", (await page.getByTestId("scenario-visual-fusion").count()) === 1);
+  await page.goto(`${BASE}/visual-intelligence/fusion`);
+  check("the fusion lab serves its title", (await page.title()) === "Visual Fusion Calibration Lab");
+  check("the toolbar holds four icon buttons that, with the offscreen copy, share one accessible name",(await page.locator('[data-testid^="vf-tool-"]').count()) === 4 && (await page.getByRole("button", { name: "Item action" }).count()) === 5);
+  check("the fusion lab carries no credential field", (await page.locator('input[type="password"], input[autocomplete="one-time-code"]').count()) === 0);
+  await page.frameLocator('[data-testid="vf-frame"]').getByTestId("vf-tool-0").waitFor();
+  check("the frame copy holds the toolbar", (await page.frameLocator('[data-testid="vf-frame"]').locator('[data-testid^="vf-tool-"]').count()) === 4);
+  check("the offscreen copy sits below the fold", ((await page.getByTestId("vf-offscreen-tool").boundingBox())?.y ?? 0) > 2000);
+  const fusionIcons = async () => page.evaluate(() => window.__fusionLab.describe().icons.join(","));
+  check("baseline icons are in their remembered order", (await fusionIcons()) === "trash,archive,flag,pin");
+  await page.evaluate(() => window.__fusionLab.setState({ scenario: "swap", target: 3, style: "b" }));
+  check("swap exchanges the target's icon with its neighbour, wrapping round", (await fusionIcons()) === "pin,archive,flag,trash");
+  await page.evaluate(() => window.__fusionLab.setState({ scenario: "twins", target: 2 }));
+  check("twins gives every button the target's icon", (await fusionIcons()) === "flag,flag,flag,flag");
+  await page.evaluate(() => window.__fusionLab.setState({ scenario: "restyle-selected", target: 1 }));
+  check("restyle-selected restyles only the target", (await page.locator(".vf-selected").count()) === 1 && (await page.getByTestId("vf-tool-1").getAttribute("class")).includes("vf-selected"));
+  check("setState refuses an unknown scenario", await page.evaluate(() => { try { window.__fusionLab.setState({ scenario: "nope" }); return false; } catch { return true; } }));
+  for (const kind of ["otp", "mfa", "captcha", "passkey"]) {
+    await page.evaluate((k) => window.__fusionLab.injectProtected(k), kind);
+    check(`fusion injectProtected("${kind}") adds exactly one protected surface`, (await page.locator(".vf-protected").count()) === 1 && (await page.getByTestId(`vf-protected-${kind}`).count()) === 1);
+  }
+  await page.evaluate(() => window.__fusionLab.removeProtected());
+  check("fusion removeProtected() removes it", (await page.locator(".vf-protected").count()) === 0);
+  const [fusionPopup] = await Promise.all([page.waitForEvent("popup"), page.getByTestId("vf-open-popup").click()]);
+  await fusionPopup.waitForLoadState();
+  check("the fusion popup holds the toolbar", (await fusionPopup.locator('[data-testid^="vf-tool-"]').count()) === 4);
+  await fusionPopup.close();
+
   // L11.F DOM Context Lab: the lab and its SPA routes serve, each look-alike exists where its case needs it.
   // The recovery behaviour itself is gated by verify:dom-intelligence-contexts.
   console.log("DOM Context Lab (/dom-context-lab):");

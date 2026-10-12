@@ -709,8 +709,10 @@ try {
   // filed as `awkit-vra.12.1`…`.12.8` and N2.1 implemented and closed (eight in, one closed).
   // Then 31/349 of 380 later on 2026-10-12 (contract `awkit-vra-12-2-fusion-policy-1012`): N2.2 `awkit-vra.12.2`
   // implemented and closed (one closed, none filed).
-    "31 outstanding / 349 closed",
-    beads.stats.outstanding === 31 && beads.stats.closed === 349,
+  // Then 30/350 of 380 later on 2026-10-12 (contract `awkit-vra-12-3-fusion-calibration-1012`): N2.3
+  // `awkit-vra.12.3` calibration lab measured and closed (one closed, none filed).
+    "30 outstanding / 350 closed",
+    beads.stats.outstanding === 30 && beads.stats.closed === 350,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

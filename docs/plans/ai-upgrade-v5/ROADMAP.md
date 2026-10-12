@@ -631,7 +631,7 @@ not renumbered; titles and notes map existing history onto the canonical names.
 |---|---|---|---|
 | N0 | Visual Intelligence Foundation / Capture | `awkit-vra.1` | closed — re-QC PASS at `222b04d3` |
 | N1 | Deterministic Visual Element Fingerprints | `awkit-vra.3.1` | closed — re-QC PASS at `222b04d3` |
-| N2 | DOM + Vision Evidence Fusion | `awkit-vra.12` | in progress — FD-1 to FD-9 approved, N2.1-N2.8 filed (`.12.1`…`.12.8`), N2.1 and N2.2 done |
+| N2 | DOM + Vision Evidence Fusion | `awkit-vra.12` | in progress — FD-1 to FD-9 approved, N2.1-N2.8 filed (`.12.1`…`.12.8`), N2.1-N2.3 done; N2 ships shadow-only (FD-9, no separation) |
 | N3 | Visual Locator Recovery | — | not yet filed |
 | N4 | Recorder Visual Intelligence | — | not yet filed |
 | N5 | Visual Failure Diagnosis | — | not yet filed |
@@ -654,7 +654,8 @@ and corroboration is reported but never executes. It defines invariants I1-I9, t
 and the owner decisions FD-1 to FD-9. The owner approved FD-1 to FD-9 as recommended on 2026-10-12
 (`docs/ai/DECISIONS.md`). N2.1-N2.8 are filed as `awkit-vra.12.1`…`.12.8`, and N2.1 (capture
 verification seams made verifier-only) and N2.2 (the pure veto-only `decideFusion` policy, guarded by
-`verify:visual-fusion`) are done.
+`verify:visual-fusion`) are done. N2.3 (the calibration lab, `N2.3-fusion-calibration.md`) found no
+separation between look-alikes and real contradictions, so R8 is disabled and N2 ships shadow-only (FD-9).
 
 ### Planned workstreams and dependencies (original numbering, 2026-09-22)
 

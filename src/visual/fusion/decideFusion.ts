@@ -111,6 +111,22 @@ export const UNCALIBRATED_FUSION_POLICY: FusionPolicy = Object.freeze({
   contradictionEnabled: false
 });
 
+/**
+ * The policy N2.3 (awkit-vra.12.3) derived from the Visual Fusion Calibration Lab at DPR 1, 1.25 and 2, headed and
+ * headless (docs/plans/ai-upgrade-v5/N2.3-fusion-calibration.md). Restyles of the right element (F1/F4) and an icon
+ * swap (F2) did NOT separate: the largest F1/F4 competitor lead was 3118 bp, the smallest F2 lead 323 bp. Per FD-9,
+ * R8 is therefore disabled and N2 ships shadow-only; `contradictMarginBp` is the F1/F4 maximum plus the 500 bp safety
+ * gap, recorded so a future re-measurement starts from the same rule. Corroboration keeps the 500 bp gap.
+ */
+export const MEASURED_FUSION_POLICY: FusionPolicy = Object.freeze({
+  calibrated: true,
+  corroborateMarginBp: 500,
+  contradictMarginBp: 3618,
+  domDecisiveMarginBp: 1600,
+  minSizeRatioBp: 5000,
+  contradictionEnabled: false
+});
+
 export interface FusionVerdictEvidence {
   winnerScore?: number;
   bestCompetitorScore?: number;

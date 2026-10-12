@@ -33,6 +33,7 @@ import type { VisualErrorCode } from "@src/visual/errors";
 import { fingerprintVisualImage, type VisualFingerprint } from "@src/visual/fingerprint";
 import {
   FUSION_MAX_COMPETITORS,
+  MEASURED_FUSION_POLICY,
   UNCALIBRATED_FUSION_POLICY,
   decideFusion,
   type FusionEvidenceInput,
@@ -492,6 +493,39 @@ check("precondition: the mid gap is below the derived margin on both sides", S.n
 
 const cases = buildCases();
 for (const outcome of evaluateSuite(decideFusion, cases, PROPERTY_RUNS)) check(outcome.label, outcome.ok, outcome.detail);
+
+// N2.3: the measured policy is valid and calibrated, yet never vetoes, because the lab found no separation (FD-9).
+console.log("\n  measured policy (N2.3, shadow-only)");
+check("the measured policy is frozen, calibrated and has R8 disabled", Object.isFrozen(MEASURED_FUSION_POLICY) && MEASURED_FUSION_POLICY.calibrated && !MEASURED_FUSION_POLICY.contradictionEnabled);
+const measuredCanonical = decideFusion(vetoInput(), MEASURED_FUSION_POLICY);
+check(
+  "the measured policy is accepted and turns the canonical contradiction into contested/none",
+  measuredCanonical.outcome === "contested" && measuredCanonical.effect === "none",
+  `${measuredCanonical.outcome}/${measuredCanonical.reason}/${measuredCanonical.effect}`
+);
+{
+  const random = mulberry32(0x5eed3);
+  let verdicts = 0;
+  let vetoes = 0;
+  let rejected = 0;
+  let rejectedByReference = 0;
+  let enforcing = 0;
+  let wouldVeto = 0;
+  for (let i = 0; i < PROPERTY_RUNS; i++) {
+    const { input } = generate(random);
+    const verdict = decideFusion(input, MEASURED_FUSION_POLICY);
+    const reference = decideFusion(input, POLICY);
+    verdicts += 1;
+    if (verdict.effect === "veto") vetoes += 1;
+    if (verdict.reason === "invalid-input" || verdict.reason === "uncalibrated") rejected += 1;
+    if (reference.reason === "invalid-input" || reference.reason === "uncalibrated") rejectedByReference += 1;
+    if (input.mode === "enforce-veto" && input.eligibility === "eligible") enforcing += 1;
+    if (reference.effect === "veto") wouldVeto += 1;
+  }
+  check(`the measured policy never vetoes across ${PROPERTY_RUNS} generated inputs`, verdicts === PROPERTY_RUNS && vetoes === 0, `${verdicts} verdicts, ${vetoes} vetoes`);
+  check("the measured-policy run is non-vacuous: eligible enforce-veto inputs the R8-enabled policy vetoes", enforcing > 0 && wouldVeto > 0, `${enforcing} eligible enforce-veto inputs, ${wouldVeto} vetoed with R8 enabled`);
+  check("the measured policy rejects no more inputs than the synthetic calibrated policy", rejected === rejectedByReference, `${rejected} against ${rejectedByReference}`);
+}
 
 console.log("\n  mutants (each must FAIL the suite)");
 const UNAVAILABLE = new Set(["protected-surface", "budget-exhausted", "cancelled", "target-stale", "target-offscreen", "frame-mapping-failed", "version-mismatch", "capture-failed"]);

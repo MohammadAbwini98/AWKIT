@@ -1,6 +1,22 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-12, latest) — Phase N: N2.2 done, next is N2.3
+## HANDOFF (2026-10-12, latest) — Phase N: N2.3 done, N2 ships shadow-only, next is N2.4
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** N2.3 (`awkit-vra.12.3` closed). The measurements are in
+  `docs/plans/ai-upgrade-v5/N2.3-fusion-calibration.md`.
+- **FD-9 applied:** there was no separation, so `MEASURED_FUSION_POLICY` has `contradictionEnabled: false`. R8 never
+  vetoes and N2 ships shadow-only. N2.6 stays deferred.
+- **Next action:** N2.4 (`awkit-vra.12.4`).
+- **Binding for implementers:**
+  - Use `MEASURED_FUSION_POLICY`. Never turn on contradiction without a new measurement that separates.
+  - Capture cost is over the FD-5 budget (p95 1111 ms against 400 ms). Capture once per step and crop from it.
+  - Zoomed pages are refused (`CAPTURE_UNAVAILABLE`). Keep that refusal.
+- **Ctrl+zoom:** now RUN, and the capture was safely refused.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-12) — Phase N: N2.2 done, next is N2.3
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
