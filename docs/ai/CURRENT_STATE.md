@@ -1,6 +1,33 @@
 # CURRENT_STATE
 
-## Phase N: N2.3 fusion calibration measured; N2 ships shadow-only (2026-10-12, latest)
+## Phase N: N2.4 single-capture candidate fan-out implemented; FD-5 PASS (2026-10-12, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task.
+
+- **N2.4 implemented** (`awkit-vra.12.4`, re-scoped by the owner). Write-up:
+  `docs/plans/ai-upgrade-v5/N2.4-capture-fanout.md`.
+  - `captureCandidates(page, candidates)` takes **one** immutable `VisualCaptureFrame` per decision cycle. Every
+    candidate's crop, fingerprint and `captureId` come from it, through the deterministic `cropFromVisualFrame`.
+  - Candidate failures (stale, not unique, offscreen, frame mapping) are scoped to that candidate and never recapture.
+  - New `CAPTURE_STALE` on navigation, popup, page close, viewport/DPR change, expiry and release. Fusion maps it to
+    R2 (`dom-only/capture-failed`).
+  - The protected-surface guard runs once before and once after the screenshot, whatever the candidate count.
+  - The frame is released in `finally`. Nothing is stored globally, cached or written to disk.
+  - `buildCandidateEvidence` (`src/visual/candidateEvidence.ts`) carries no screenshot or crop bytes.
+  - Library only: nothing in the runner calls it yet. That is N2.5.
+- **New `verify:visual-capture-fanout`** (real browser): 192/0. Mutations A-E on `captureCore.ts` all went red
+  (168/24, 173/19, 90/55, 177/15, 186/6) and were restored.
+- **FD-5: PASS** against the unchanged 400 ms budget. One screenshot per evaluation instead of four. Fan-out median
+  171 ms, p95 237 ms (N2.3: 499/1111; same-run sequential 467/723). Every DPR × headed/headless group is under budget.
+- **Largest remaining phase:** resolve, 55 ms (32%). N2.5 should reuse the DOM recovery's resolved candidates.
+- **Fusion policy unchanged:** `MEASURED_FUSION_POLICY.contradictionEnabled = false`. N2 is shadow-only and N2.6
+  stays deferred.
+- **Tracker BLOCKED:** the `bd` re-scope (retitle `.12.4`, file the reference store as N2.4b blocking `.12.5`, close
+  `.12.4`, export) was terminally denied by the lease guard. `awkit-vra.12.4` is still open; see `HANDOFF.md`.
+- **Next:** N2.5, aimed at the resolve bottleneck. Phase N stays IN PROGRESS.
+
+## Phase N: N2.3 fusion calibration measured; N2 ships shadow-only (2026-10-12)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed by this task.

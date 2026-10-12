@@ -1,6 +1,28 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-12, latest) — Phase N: N2.3 done, N2 ships shadow-only, next is N2.4
+## HANDOFF (2026-10-12, latest) — Phase N: N2.4 implemented (FD-5 PASS); tracker re-scope owed; next is N2.5
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** N2.4, the single-capture candidate fan-out. See `docs/plans/ai-upgrade-v5/N2.4-capture-fanout.md`.
+  `verify:visual-capture-fanout` is 192/0. FD-5 is PASS: p95 237 ms against the unchanged 400 ms budget.
+- **Owed — tracker (BLOCKED in this session).** The lease guard terminally denied `bd update` ("outside the active
+  project-state lease or the actor's role"). An actor holding the project-state role must:
+  1. retitle `awkit-vra.12.4` to "N2.4 — Single-capture candidate fan-out";
+  2. file N2.4b, the `VisualReferenceStore` sidecar plus passing-resolve refresh, as a child of `awkit-vra.12` that
+     blocks `awkit-vra.12.5`;
+  3. close `awkit-vra.12.4`;
+  4. run `bd export -o .beads/issues.jsonl`, then repin the dashboard counts in `scripts/verify-roadmap-dashboard.mjs`
+     and run `verify:roadmap-dashboard`.
+- **Next action:** N2.5 (`awkit-vra.12.5`), the single runner adapter, after N2.4b. Resolve is the largest phase
+  (55 ms, 32%), so the adapter should reuse the DOM recovery's resolved handles and bounds.
+- **Binding for implementers:**
+  - Product code calls `captureCandidates` (one screenshot per cycle). Never loop `captureElement` per candidate.
+  - Never store a `VisualCaptureFrame` beyond its cycle, and never put image bytes in evidence.
+  - `MEASURED_FUSION_POLICY.contradictionEnabled` stays `false`. Do not enable N2.6 enforcement.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-12) — Phase N: N2.3 done, N2 ships shadow-only, next is N2.4
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

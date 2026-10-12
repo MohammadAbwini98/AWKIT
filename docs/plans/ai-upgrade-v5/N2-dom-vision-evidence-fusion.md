@@ -264,7 +264,8 @@ Proposed Beads children of `awkit-vra.12`. They are filed only on authorization.
 | N2.1 | Prerequisite debt: move the `internals` test seam off the exported `captureViewport`/`captureElement` (a module-private seam or a verifier-only entry), and correct the `png.ts` colour-chunk comment (only `tRNS` is refused). | 1 | software, qa | `verify:visual-capture` (the seam mutations must still be reachable), isolation, build |
 | N2.2 | Pure policy `src/visual/fusion/decideFusion.ts` and `FusionVerdict` types. No I/O. | 1 | software, qa | New `verify:visual-fusion`: the exhaustive decision table, property-based I2 over generated inputs, I7 determinism, cardinality guards on every collection |
 | N2.3 | Calibration lab and measurement. Extend `mock-site/public/visual-intelligence*.html` with the scenarios below, measure score distributions at DPR 1, 1.25 and 2, headed and headless, and record FD-9 values with the raw distributions. Also performs the **real headed Ctrl+zoom** check that is NOT RUN for N0. | 1 | qa, recorder-playwright | `verify:mock-site`, a new `benchmark:visual-fusion` (informational) |
-| N2.4 | `VisualReferenceStore` (runner-owned sidecar, atomic, versioned, bounded, corruption-tolerant) and the passing-resolve refresh hook. | 2 | data-persistence, backend | `verify:visual-fusion-runtime` store cases: corrupt, oversized, wrong version, EPERM retry, concurrent instances |
+| N2.4 | **Re-scoped by the owner (2026-10-12):** single-capture candidate fan-out. One immutable `VisualCaptureFrame` per visual decision cycle is cropped for every candidate, with `CAPTURE_STALE` invalidation and no recapture. See `N2.4-capture-fanout.md`. | 1 | software, qa, performance | `verify:visual-capture-fanout`, `benchmark:visual-fusion` against FD-5 |
+| N2.4b (to be filed) | The former N2.4: `VisualReferenceStore` (runner-owned sidecar, atomic, versioned, bounded, corruption-tolerant) and the passing-resolve refresh hook. It must block N2.5. | 2 | data-persistence, backend | `verify:visual-fusion-runtime` store cases: corrupt, oversized, wrong version, EPERM retry, concurrent instances |
 | N2.5 | `VisualFusionStage` adapter, the `LocatorFactoryOptions.visualFusion` injection and **shadow** mode. Update `verify:visual-isolation` per FD-2. | 2 | backend, integration (review), qa | `verify:visual-fusion-runtime` (shadow: stage outcomes byte-identical to off, A/B), `verify:visual-isolation`, `verify:runner`, `verify:locator-guard`, existing recovery suites |
 | N2.6 | **enforce-veto** mode: R8 rewrites the stage to `refused` / `visual-contradiction`; add the reason to the union. | 2 | backend, qa, qc-reviewer | Runtime lab: the contradiction scenario vetoes; restyle, twin and protected scenarios do not; false-veto count 0 on the lab |
 | N2.7 | Provenance: the `recovery-trace` `visual` block; the run-history and report contract check. | 2 | backend, integration (review) | The relevant report/run-history verifiers, build |
@@ -273,7 +274,7 @@ Proposed Beads children of `awkit-vra.12`. They are filed only on authorization.
 Dependency order:
 
 ```text
-N2.1 → N2.2 → N2.3 → (N2.4 ∥ N2.7-contract) → N2.5 → N2.6 → N2.8
+N2.1 → N2.2 → N2.3 → N2.4 (fan-out) → (N2.4b store ∥ N2.7-contract) → N2.5 → N2.6 → N2.8
 ```
 
 N2.6 may be deferred by FD-9 without blocking N2's shadow-mode closure.
@@ -282,6 +283,11 @@ N2.6 may be deferred by FD-9 without blocking N2's shadow-mode closure.
 (`MEASURED_FUSION_POLICY`), N2 ships shadow-only and N2.6 is deferred. Four element captures exceeded the FD-5 budget
 (median 499 ms), so N2.4/N2.5 should crop one viewport screenshot. A real headed Ctrl+zoom is refused by capture. See
 `N2.3-fusion-calibration.md`.
+
+**N2.4 outcome (2026-10-12).** The single-capture fan-out takes 1 screenshot per evaluation instead of 4. The
+measured median is 171 ms and the p95 237 ms, so FD-5 is a **PASS** against the unchanged 400 ms budget. The largest
+remaining phase is per-candidate resolve (32%), which N2.5 should remove by reusing the DOM recovery's resolved
+candidates. N2 stays shadow-only. See `N2.4-capture-fanout.md`.
 
 ### Feature Test Lab scenarios (N2.3)
 

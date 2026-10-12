@@ -1,6 +1,20 @@
 # DECISIONS
 
-### 2026-10-12 (latest) — Phase N N2.3: FD-9 outcome is no separation, so R8 is disabled and N2 ships shadow-only (measurement, applying FD-9) (`awkit-vra.12.3`)
+### 2026-10-12 (latest) — Phase N N2.4: re-scoped to a single-capture fan-out; FD-5 met without changing the budget (owner re-scope, measurement) (`awkit-vra.12.4`)
+
+- **Re-scope (owner).** N2.4 is now "Single-capture candidate fan-out": one immutable viewport screenshot per visual
+  decision cycle, cropped for every candidate. The former N2.4 scope, the `VisualReferenceStore` sidecar and the
+  passing-resolve refresh, becomes N2.4b. It must block N2.5. Filing it is owed (tracker write BLOCKED; see
+  `HANDOFF.md`).
+- **Failure scope.** Candidate failures are scoped and never recapture. `PROTECTED_SURFACE`, `CAPTURE_STALE`,
+  `PAGE_CLOSED`, `BUDGET_EXHAUSTED` and `CANCELLED` abort the whole cycle with no crops.
+- **No capture retention.** A frame lives for one cycle and is released in `finally`. There is no global frame, no
+  cache and no disk write. Evidence never carries image bytes.
+- **FD-5 PASS, budget unchanged.** The fan-out p95 is 237 ms against 400 ms (N2.3: 1111 ms with four captures). The
+  budget was not altered.
+- **Fusion policy unchanged.** `contradictionEnabled` stays `false`; N2 is shadow-only and N2.6 stays deferred.
+
+### 2026-10-12 — Phase N N2.3: FD-9 outcome is no separation, so R8 is disabled and N2 ships shadow-only (measurement, applying FD-9) (`awkit-vra.12.3`)
 
 The N2.3 calibration lab (`docs/plans/ai-upgrade-v5/N2.3-fusion-calibration.md`) measured the lead of the best
 competitor over the DOM winner at DPR 1, 1.25 and 2, headed and headless. A restyle of the right element (F1) reached

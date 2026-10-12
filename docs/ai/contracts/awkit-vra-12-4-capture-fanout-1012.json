@@ -1,0 +1,274 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-12-4-capture-fanout-1012",
+    "title": "N2.4 single-capture candidate fan-out",
+    "objective": "Implement awkit-vra.12.4 as re-scoped by the owner: one immutable VisualCaptureFrame per visual decision cycle, cropped deterministically for every candidate (target crop, optional context crop, fingerprint, captureId), with candidate-scoped failures that never recapture, CAPTURE_STALE invalidation on navigation, popup, page close and viewport/DPR change, one protected-surface check before and one after the screenshot, frame release after the cycle and no capture cache. New verify:visual-capture-fanout with mutations A-E, and the fan-out measured against FD-5 in benchmark:visual-fusion. N2 stays shadow-only: MEASURED_FUSION_POLICY.contradictionEnabled stays false; no runner wiring, veto, locator replacement, vision click, OCR, threshold recalibration or persisted capture. The former N2.4 reference store is refiled as its own bead blocking N2.5.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "76978ba6",
+    "working_tree_expected": "clean",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true,
+    "general_engineering_change": true,
+    "performance_change": true,
+    "mock_site_required": false,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "qa",
+      "performance",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "src/visual/**",
+      "scripts/verify-visual-capture-fanout.mts",
+      "scripts/verify-visual-fusion.mts",
+      "scripts/verify-visual-isolation.mts",
+      "scripts/benchmark-visual-fusion.mts",
+      "scripts/lib/verifier-classification.ts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "package.json",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/awkit-vra-12-4-capture-fanout-1012.json",
+      "docs/ai/contracts/awkit-vra-12-3-fusion-calibration-1012.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [
+      "software",
+      "performance"
+    ],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N2.4",
+      "description": "captureCandidates takes at most one screenshot per cycle whatever the candidate count; every crop is pixel-identical to the element's solo capture and comes from the original frame after a DOM change; candidate failures are scoped and never recapture; navigation, popup, page close, resize and DPR change give CAPTURE_STALE; top-level, iframe and nested-iframe candidates share one screenshot; the protected guard runs once before and once after; frames are released and no listener or capture is retained; mutations A-E each turn verify:visual-capture-fanout red and are restored.",
+      "evidence_required": [
+        "build",
+        "typecheck:scripts",
+        "verify:visual-capture",
+        "verify:visual-fingerprint",
+        "verify:visual-isolation",
+        "verify:visual-fusion",
+        "verify:visual-capture-fanout",
+        "verify:mock-site",
+        "verify:verifier-classification",
+        "git-diff-check"
+      ]
+    },
+    {
+      "id": "N2.4-PERF",
+      "description": "benchmark:visual-fusion measures the fan-out (screenshot count, capture, decode, crops, fingerprints, fusion, total, median, p95) against the same-run sequential path and the N2.3 baseline, and classifies it against the unchanged 400 ms FD-5 budget.",
+      "evidence_required": [
+        "benchmark:visual-fusion"
+      ]
+    },
+    {
+      "id": "N2.4-STATE",
+      "description": "awkit-vra.12.4 is retitled and closed, the reference store is refiled as a new bead blocking awkit-vra.12.5, Beads exported, and verify:roadmap-dashboard reports Sources agree.",
+      "evidence_required": [
+        "beads-export",
+        "verify:roadmap-dashboard"
+      ]
+    },
+    {
+      "id": "N2.4-GIT",
+      "description": "The work lands on main and is pushed without force; the L12.27 contract stays untracked and unchanged.",
+      "evidence_required": [
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "npm run build (tsc --noEmit plus bundles) PASS at the final source state"
+    },
+    {
+      "id": "typecheck:scripts",
+      "type": "build",
+      "required": true,
+      "command": "npm run typecheck:scripts",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc -p tsconfig.scripts.json clean"
+    },
+    {
+      "id": "verify:visual-capture",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-capture",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "274/0"
+    },
+    {
+      "id": "verify:visual-fingerprint",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-fingerprint",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "58/0"
+    },
+    {
+      "id": "verify:visual-isolation",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-isolation",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "30/0, including the captureCandidates seam mutations"
+    },
+    {
+      "id": "verify:visual-fusion",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-fusion",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "271/0, including the CAPTURE_STALE R2 row"
+    },
+    {
+      "id": "verify:visual-capture-fanout",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-capture-fanout",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "192/0; mutations on src/visual/internal/captureCore.ts, each restored: A per-candidate screenshot 168/24, B first crop for every candidate 173/19, C global shared frame 90/55, D invalidation ignored 177/15, E no post-capture guard 186/6"
+    },
+    {
+      "id": "verify:mock-site",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:mock-site",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "299/299"
+    },
+    {
+      "id": "verify:verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "reconciled: 330 scripts; verify:visual-capture-fanout registered as real-browser"
+    },
+    {
+      "id": "git-diff-check",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff --check",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "clean"
+    },
+    {
+      "id": "benchmark:visual-fusion",
+      "type": "inspection",
+      "required": true,
+      "command": "npm run benchmark:visual-fusion",
+      "artifact": "docs/plans/ai-upgrade-v5/N2.4-capture-fanout.md",
+      "result": "PASS",
+      "observed": "informational; 66/66 structural rows; 432 evaluations, fan-out 1 real screenshot each vs sequential 4; fan-out total median 171 ms, p95 237 ms, max 288 vs same-run sequential median 467, p95 723 (N2.3 recorded 499/1111); FD-5 400 ms unchanged: PASS; fingerprints identical to the sequential captures 432/432; largest remaining phase resolve 55 ms (32%)"
+    },
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "BLOCKED",
+      "observed": "terminal lease-guard denial: bd update outside the active project-state lease or the actor's role; no variant attempted and the lease released; awkit-vra.12.4 stays open, N2.4b not filed, .beads/issues.jsonl unchanged"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "177/177, Sources agree; 380 issues, 30 outstanding / 350 closed, 281 edges, unchanged because no bd write happened"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": ""
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-12-4-capture-fanout-1012:project-state:2026-10-12T18:28:48.515Z",
+        "task": "awkit-vra-12-4-capture-fanout-1012",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-12T18:28:48.515Z",
+        "acquired_at_commit": "76978ba63570e62daef93ee9eea9fc315939373b",
+        "released_at": "2026-10-12T18:30:22.192Z",
+        "released_reason": "tracker-write-terminally-denied-gate-blocked",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

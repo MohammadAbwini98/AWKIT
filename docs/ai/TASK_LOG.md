@@ -1,6 +1,46 @@
 # TASK_LOG
 
-## 2026-10-12 (latest) — Phase N: N2.3 fusion calibration lab and measurement (Claude)
+## 2026-10-12 (latest) — Phase N: N2.4 single-capture candidate fan-out (Claude)
+
+- **Scope:** "Phase N2.4: Single-Capture Candidate Fan-Out", under contract `awkit-vra-12-4-capture-fanout-1012`.
+  CodeCraft was not used (`CODECRAFT_MODE=off`).
+- **N2.4:**
+  - Added `VisualCaptureFrame`, `captureVisualFrame`, `cropFromVisualFrame`, `validateVisualFrame`,
+    `releaseVisualFrame` and `captureCandidates`.
+  - Added `CAPTURE_STALE` and `buildCandidateEvidence`.
+  - Added `verify:visual-capture-fanout`, and the fan-out measurement in `benchmark:visual-fusion`.
+- **Files:**
+  - `src/visual/{capture.ts,errors.ts,index.ts,candidateEvidence.ts,internal/captureCore.ts}`;
+  - `scripts/{verify-visual-capture-fanout.mts,verify-visual-fusion.mts,verify-visual-isolation.mts,benchmark-visual-fusion.mts}`;
+  - `scripts/lib/verifier-classification.ts` and `package.json`;
+  - `docs/plans/ai-upgrade-v5/{N2.4-capture-fanout.md,N2-dom-vision-evidence-fusion.md,N2.3-fusion-calibration.md}`;
+  - `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,DECISIONS}.md`;
+  - the contracts and the lease file.
+- **Checks:**
+
+  | Check | Result |
+  |---|---|
+  | `verify:visual-capture-fanout` | 192/0 |
+  | mutations A-E on `captureCore.ts` | 168/24, 173/19, 90/55, 177/15, 186/6; all restored |
+  | `verify:visual-fusion` | 271/0 |
+  | `verify:visual-isolation` | 30/0 |
+  | `verify:visual-capture` | 274/0 |
+  | `verify:visual-fingerprint` | 58/0 |
+  | `verify:mock-site` | 299/299 |
+  | `verify:verifier-classification` | PASS |
+  | `typecheck:scripts` | PASS |
+  | `npm run build` | PASS |
+  | `git diff --check` | PASS |
+  | `benchmark:visual-fusion` | 1 screenshot per evaluation; median 171 ms, p95 237 ms; FD-5 PASS |
+
+- **Tracker BLOCKED:** `bd update awkit-vra.12.4` was terminally denied ("outside the active project-state lease or
+  the actor's role"). No variant was tried, and the lease was released. `.12.4` stays open, N2.4b is not filed, and
+  `.beads/issues.jsonl` is unchanged.
+- **Lease note:** the guard denies `npm run X` with a pipe or a redirect (`unsupported-command`). Run the bare
+  command.
+- **Preserved:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`, untracked and unchanged.
+
+## 2026-10-12 — Phase N: N2.3 fusion calibration lab and measurement (Claude)
 
 - **Scope:** "start N2.3", under contract `awkit-vra-12-3-fusion-calibration-1012`. CodeCraft was not used
   (`CODECRAFT_MODE=off`).
