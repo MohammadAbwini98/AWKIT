@@ -1,5 +1,25 @@
 # KNOWN_ISSUES
 
+## Visual fingerprints measure appearance, not identity or meaning (Phase N, 2026-10-12)
+
+Measured by `verify:visual-fingerprint` on the lab's fixed fixtures:
+
+- Look-alike controls with OPPOSITE meaning score high: Approve vs Reject icon twins score 0.9434.
+- A same-meaning restyle scores LOWER than an unrelated image (0.6705 vs 0.7307).
+- A pure position change is identical by design (score 1).
+
+**Rules:**
+
+- A score must therefore never select, click, fill or recover an element. `compareVisualFingerprints` returns no decision and no threshold.
+- `verify:visual-isolation` keeps `src/visual` out of every execution and renderer import closure.
+- Any future consumer must treat a score as advisory evidence beside a locator, never instead of one.
+
+**Other limits:**
+
+- Capture refuses the whole page whenever any protected or credential surface is present, including one that appears only after the screenshot. That is deliberate and can look like an over-refusal.
+- Pinch zoom is reported as unavailable rather than mapped.
+- Full-viewport fingerprinting at DPR 2 costs about 160 ms on this host.
+
 ## Command authorization correction: independent QC and live Claude reload pending (2026-10-10)
 
 Follow-up status-command regressions pass 1,169/1,169. Fresh build is BLOCKED by Windows virtual

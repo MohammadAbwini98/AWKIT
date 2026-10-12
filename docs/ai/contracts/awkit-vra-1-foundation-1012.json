@@ -40,6 +40,8 @@
       "src/roadmap/ImplementationRoadmap.ts",
       "scripts/verify-visual-*.mjs",
       "scripts/verify-visual-*.ts",
+      "scripts/verify-visual-*.mts",
+      "scripts/benchmark-visual-*.mts",
       "scripts/verify-roadmap-dashboard.mjs",
       "scripts/verify-mock-site.mjs",
       "scripts/lib/verifier-classification.ts",
@@ -100,7 +102,8 @@
       "required": true,
       "command": "bd export -o .beads/issues.jsonl",
       "artifact": ".beads/issues.jsonl",
-      "result": "pending"
+      "result": "PASS",
+      "observed": "2026-10-12 under the project-state lease: S0 deferred the Phase M beads, set awkit-vra.1 in progress and filed vra.3.1 and vra.9-11 (Exported 371 issues). S4 set awkit-vra.3.1 in_progress, added evidence notes to vra.1 and vra.3.1, then Exported 371 issues. Neither is closed: independent QC is pending."
     },
     {
       "id": "verify:roadmap-dashboard",
@@ -108,7 +111,8 @@
       "required": true,
       "command": "npm run verify:roadmap-dashboard",
       "artifact": null,
-      "result": "pending"
+      "result": "PASS",
+      "observed": "2026-10-12, final source state: 177/177, Overview banner Sources agree. 371 issues, 26 outstanding / 345 closed, 262 edges, ledger 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases, traceability 87/12/3 of 102, 14 phases A..N."
     },
     {
       "id": "verify:visual-capture",
@@ -116,7 +120,8 @@
       "required": true,
       "command": "npm run verify:visual-capture",
       "artifact": null,
-      "result": "pending"
+      "result": "PASS",
+      "observed": "2026-10-12: 123 passed, 0 failed at DPR 1, 1.5 and 2. Mutation controls (DPR scaling removed, post-capture protected recheck skipped) observed failing. The first run failed 3 checks on a wrong expected value in the verifier (124 for 144), corrected; the product was unchanged."
     },
     {
       "id": "verify:visual-fingerprint",
@@ -124,7 +129,8 @@
       "required": true,
       "command": "npm run verify:visual-fingerprint",
       "artifact": null,
-      "result": "pending"
+      "result": "PASS",
+      "observed": "2026-10-12: 33 passed, 0 failed. Mutants (constant fingerprint, always-1 score, empty pair list) fail the suite on 9, 8 and 13 checks. Unrelated ceiling 0.80 set from measured 0.7307."
     },
     {
       "id": "verify:visual-isolation",
@@ -132,7 +138,8 @@
       "required": true,
       "command": "npm run verify:visual-isolation",
       "artifact": null,
-      "result": "pending"
+      "result": "PASS",
+      "observed": "2026-10-12: 13 passed, 0 failed. No runner, recorder, orchestrator, instances, session, main execution/IPC, preload or renderer import closure reaches src/visual. An injected seed import and 8 planted forbidden APIs are caught."
     },
     {
       "id": "verify:mock-site",
@@ -140,7 +147,8 @@
       "required": true,
       "command": "npm run verify:mock-site",
       "artifact": null,
-      "result": "pending"
+      "result": "PASS",
+      "observed": "2026-10-12: 272/272 including the /visual-intelligence lab pages."
     },
     {
       "id": "build",
@@ -148,7 +156,8 @@
       "required": true,
       "command": "npm run build",
       "artifact": null,
-      "result": "pending"
+      "result": "PASS",
+      "observed": "2026-10-12, final state: embedded roadmap snapshot 542 records from 14 sources, tsc --noEmit clean, electron-vite main, preload and renderer bundles built. typecheck:scripts PASS, verify:verifier-classification 328."
     },
     {
       "id": "git-push",
@@ -156,7 +165,8 @@
       "required": true,
       "command": "git push origin main",
       "artifact": null,
-      "result": "pending"
+      "result": "PASS",
+      "observed": "S0 f1a6d6db, S1 72583b24, S2 34994866 and S3 dca08808 pushed to origin/main without force (34994866..dca08808 main -> main). The S4 state commit containing this record is pushed the same way. The L12.27 contract was never staged."
     }
   ],
   "git": {
@@ -168,7 +178,7 @@
     "push_evidence_id": "git-push"
   },
   "completion": {
-    "status": "pending",
+    "status": "implemented",
     "qa_status": "pending",
     "qc_status": "NOT_REQUIRED"
   },
@@ -186,6 +196,22 @@
         "acquired_at_commit": "b21e5a663eafb3528f5d3c43c33da14d9dc075b4",
         "released_at": "2026-10-12T08:51:55.590Z",
         "released_reason": "Phase N start governance: Phase M beads deferred, awkit-vra.1 in progress, vra.3.1 and vra.9-11 filed with blocks edges, JSONL exported with 371 issues",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-vra-1-foundation-1012:project-state:2026-10-12T09:22:50.402Z",
+        "task": "awkit-vra-1-foundation-1012",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-12T09:22:50.402Z",
+        "acquired_at_commit": "dca08808c524926157dafc952bc78489383ce13d",
+        "released_at": "2026-10-12T09:23:17.998Z",
+        "released_reason": "Phase N S4: awkit-vra.3.1 in_progress, evidence notes on vra.1 and vra.3.1, JSONL exported with 371 issues",
         "amendments": [],
         "overrides": [],
         "violations": []

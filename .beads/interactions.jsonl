@@ -409,3 +409,4 @@
 {"id":"int-3da50705b90542f5493dd1a481912eeb","kind":"field_change","created_at":"2026-10-12T08:50:54.7137227Z","actor":"MohammadAbwini98","issue_id":"awkit-akb.6","extra":{"field":"status","new_value":"deferred","old_value":"open"}}
 {"id":"int-d44f81a03f218fc83ee30f419de517a0","kind":"field_change","created_at":"2026-10-12T08:50:54.973504Z","actor":"MohammadAbwini98","issue_id":"awkit-akb.7","extra":{"field":"status","new_value":"deferred","old_value":"open"}}
 {"id":"int-e4d957e86a61611d2842ba251e7c9514","kind":"field_change","created_at":"2026-10-12T08:51:07.8630221Z","actor":"MohammadAbwini98","issue_id":"awkit-vra.1","extra":{"field":"status","new_value":"in_progress","old_value":"open"}}
+{"id":"int-994f409b4cf4ccb19d5c598e2cb4f9ea","kind":"field_change","created_at":"2026-10-12T09:22:58.3455924Z","actor":"MohammadAbwini98","issue_id":"awkit-vra.3.1","extra":{"field":"status","new_value":"in_progress","old_value":"open"}}

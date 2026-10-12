@@ -1,6 +1,46 @@
 # CURRENT_STATE
 
-## Phase L CLOSED for its approved scope: L12 `.21`, `.21.31` and `.21.33` closed by governance reconciliation (2026-10-12, latest)
+## Phase N started: N0 capture and N1 fingerprint foundation implemented, library only; Phase M postponed (2026-10-12, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task.
+
+- **Governance (`f1a6d6db`):**
+  - Phase M (Optional Application Knowledge Base, `awkit-akb`) is POSTPONED and non-blocking.
+  - Phase N (Visual Intelligence, `awkit-vra`) is in progress.
+  - Filed under `awkit-vra.3`: N1 `awkit-vra.3.1`. Also filed: `.9`–`.11` for OCR, row/grid and screenshot state.
+  - Contract `awkit-vra-1-foundation-1012`.
+- **N0, capture (`72583b24`):** `src/visual` provides:
+  - `captureViewport` / `captureElement`, with element and context crops at the device scale factor;
+  - `requestedBounds` (CSS) / `actualBounds` (device px) / `wasClipped`, with outward rounding;
+  - iframe mapping into the main viewport, and a popup captured from its own page;
+  - a typed error taxonomy: not unique, stale, invalid bounds, offscreen, moved during capture, wrong page, closed page, cancelled, budget exhausted;
+  - a pure PNG decoder.
+  - **Protected refusal runs both before and after the screenshot.** It covers protected step types, a handed-off session, and any credential, OTP or protected frame on the page.
+- **N1, fingerprint (`34994866`):** a deterministic integer fingerprint (`awkit-vfp-1`, about 940 bytes, no image).
+  - `compareVisualFingerprints` is ADVISORY ONLY: no match decision, no threshold, `advisory: true`.
+  - `buildVisualEvidence` is module-only; no persisted shape changes.
+- **Isolation:** nothing in the runner, recorder, orchestrator, instances, session, main execution/IPC, preload or renderer import closure reaches `src/visual`.
+  - Visual similarity cannot click, fill, replace a selector or recover a locator.
+  - No network, disk write, console logging, vision LLM or new dependency.
+- **Lab and verifiers (`dca08808`):** `/visual-intelligence`, plus `/frame`, `/popup` and `/account`.
+  - `verify:visual-capture` 123/0, `verify:visual-fingerprint` 33/0, `verify:visual-isolation` 13/0, `verify:mock-site` 272/272.
+  - Each verifier's mutation controls were observed failing: DPR scaling removed, the post-capture recheck skipped, a constant fingerprint, an always-1 score, an empty pair list, injected imports and planted APIs.
+  - `verify:verifier-classification` 328. `typecheck:scripts` and `build` PASS.
+- **Baseline (informational, `benchmark:visual-capture`, this host, median / p95):**
+
+  | Operation | DPR 1 | DPR 2 |
+  |---|---|---|
+  | Viewport capture | 53 / 68 ms | 178 / 517 ms |
+  | Element capture with context | 68 / 74 ms | 188 / 517 ms |
+  | Fingerprint, full viewport | 18 ms | 158 ms |
+  | Fingerprint, element | 0.2 ms | 0.7 ms |
+  | Compare | under 0.2 ms | under 0.2 ms |
+
+- **Tracker:** `awkit-vra.1` (N0) and `awkit-vra.3.1` (N1) are `in_progress`, implemented and verified. Independent review is pending; they are not self-closed.
+- **Not started:** N2 onward (OCR, rows, screenshot state, any runtime use) and wiring `visualEvidence` into reports.
+
+## Phase L CLOSED for its approved scope: L12 `.21`, `.21.31` and `.21.33` closed by governance reconciliation (2026-10-12)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed by this task.

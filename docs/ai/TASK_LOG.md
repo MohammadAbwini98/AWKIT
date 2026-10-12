@@ -1,6 +1,31 @@
 # TASK_LOG
 
-## 2026-10-12 (latest) — Phase L governance reconciliation and closure (Claude)
+## 2026-10-12 (latest) — Phase N start: N0 capture and N1 fingerprint foundation (Claude)
+
+- **Contract:** `awkit-vra-1-foundation-1012`, risk 2, library only. A project-state lease on `.beads/**` was used for
+  the tracker writes.
+- **Commits:**
+  - S0 `f1a6d6db`: governance. M postponed, N active, `vra.3.1` and `.9`–`.11` filed.
+  - S1 `72583b24`: capture.
+  - S2 `34994866`: fingerprint, comparison and evidence.
+  - S3 `dca08808`: lab and verifiers.
+  - S4: baseline and state.
+- **Files:**
+  - `src/visual/*`.
+  - `mock-site/public/visual-intelligence*.html`, `mock-site/server.mjs`, the index and the README.
+  - `scripts/verify-visual-{capture,fingerprint,isolation}.mts`, `scripts/benchmark-visual-capture.mts`.
+  - `scripts/verify-mock-site.mjs`, `scripts/lib/verifier-classification.ts`, `package.json`.
+- **Checks:**
+  - `verify:visual-capture` 123/0. The first run had 3 failures, all from a wrong expected value in the verifier (I wrote 124 for 148−4=144). The product was correct.
+  - `verify:visual-fingerprint` 33/0. The unrelated-image ceiling was set at 0.80 from the measured 0.7307; the initial 0.75 guess left too thin a margin.
+  - `verify:visual-isolation` 13/0, `verify:mock-site` 272/272, `verify:verifier-classification` 328.
+  - `typecheck:scripts` and `build`: PASS.
+  - `verify:roadmap-dashboard`: final-state result in the contract.
+- **Tracker:** `awkit-vra.1` and `awkit-vra.3.1` are `in_progress`, awaiting independent QC. Not self-closed.
+- **Validation ledger:** unchanged at 65/2/0.
+- **Preserved:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`, untracked and unchanged.
+
+## 2026-10-12 — Phase L governance reconciliation and closure (Claude)
 
 - **Contract:** `awkit-phase-l-governance-close-1012`, governance only.
   - Baseline `32595348`. The `task-gate` contract validation found 0 violations.

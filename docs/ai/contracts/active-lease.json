@@ -6,19 +6,29 @@
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-12T08:45:25.867Z",
-  "acquired_at_commit": "b21e5a663eafb3528f5d3c43c33da14d9dc075b4",
+  "acquired_at": "2026-10-12T09:22:50.402Z",
+  "acquired_at_commit": "dca08808c524926157dafc952bc78489383ce13d",
   "baseline_dirty": [
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/HANDOFF.md",
+    "docs/ai/KNOWN_ISSUES.md",
+    "docs/ai/TASK_LOG.md",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-vra-1-foundation-1012.json"
+    "package.json",
+    "scripts/benchmark-visual-capture.mts"
   ],
   "baseline_dirty_fingerprints": {
+    "docs/ai/CURRENT_STATE.md": "8d04e070c203f6eedb5ef617e6ea3065562fa9e66b1bbeb21b1f0d274fce7ddc",
+    "docs/ai/HANDOFF.md": "93f1c405456555b2563dd5541da55132f6c8b4de8a038c6467444d9a9066efaa",
+    "docs/ai/KNOWN_ISSUES.md": "dcc42857c20c74c0407743034e3ec73845ebd05dc17fd60c0c189752336d2d91",
+    "docs/ai/TASK_LOG.md": "a9e756237c0c5108fc08fc00c25c91a6978b21460699d0db83688c4df87eaf59",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-vra-1-foundation-1012.json": "ee95f0224f192b004888c3000f60df6d52fe36ccd135f3956fed43bd78d269f1"
+    "package.json": "5f26eb5e38000d28e3b39b804ceb2daa9fe41b34b4a9ad743fa0d551b95aa211",
+    "scripts/benchmark-visual-capture.mts": "55bea51a43789b99a8a228f95cae2f59f5e9942b7a71ce0fb45967ccbb47dbb8"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
-    ".claude/settings.local.json": "6281:1790846284510.6143",
+    ".claude/settings.local.json": "6404:1791795066732.7412",
     "storage-state.json": "absent",
     "auth-state.json": "absent",
     "session-profiles.json": "absent",
@@ -29,7 +39,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-12T08:51:55.590Z",
-  "released_reason": "Phase N start governance: Phase M beads deferred, awkit-vra.1 in progress, vra.3.1 and vra.9-11 filed with blocks edges, JSONL exported with 371 issues",
-  "archived_at": "2026-10-12T08:51:55.591Z"
+  "released_at": "2026-10-12T09:23:17.998Z",
+  "released_reason": "Phase N S4: awkit-vra.3.1 in_progress, evidence notes on vra.1 and vra.3.1, JSONL exported with 371 issues",
+  "archived_at": "2026-10-12T09:23:17.999Z"
 }

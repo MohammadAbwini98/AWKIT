@@ -1,6 +1,27 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-12, latest) — Phase L closed for its approved scope; next is Phase M, not started
+## HANDOFF (2026-10-12, latest) — Phase N: N0/N1 implemented and verified, awaiting independent review
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Supersedes the "next is Phase M" note below.** Phase M (`awkit-akb`) is POSTPONED and non-blocking. Phase N
+  (`awkit-vra`) is active.
+- **Done:** contract `awkit-vra-1-foundation-1012`, commits `f1a6d6db`, `72583b24`, `34994866`, `dca08808` and the S4
+  state commit.
+  - `src/visual` (capture, geometry, PNG, protected guard, fingerprint, compare, module-only evidence).
+  - The `/visual-intelligence` lab.
+  - Verifiers: `verify:visual-capture` 123/0, `verify:visual-fingerprint` 33/0, `verify:visual-isolation` 13/0.
+  - `benchmark:visual-capture`, informational.
+- **Open:**
+  - `awkit-vra.1` and `awkit-vra.3.1` are `in_progress`. An independent QC is needed before either is closed.
+  - Nothing consumes `src/visual` at runtime, by design. Any future wiring must keep `verify:visual-isolation`
+    green or deliberately and visibly change its seed list.
+- **Do not:** use a similarity score to pick, click, fill or recover an element. Look-alikes score high, and a
+  same-meaning restyle scores lower than an unrelated image (see KNOWN_ISSUES).
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json` is still untracked and
+  byte-identical.
+
+## HANDOFF (2026-10-12) — Phase L closed for its approved scope; next is Phase M, not started
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
