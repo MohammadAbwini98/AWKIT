@@ -13,6 +13,10 @@
  * derived policy and counts vetoes, checks the unavailable/mismatch rows on real captures (F5 protected surface, F6
  * offscreen, F7 frame / popup / scale factor, F8 off), and attempts the real headed Ctrl+zoom capture check.
  *
+ * N2.4 (awkit-vra.12.4): on every non-baseline state it also runs the same evaluation through `captureCandidates`
+ * (one shared screenshot), `buildCandidateEvidence` and shadow-mode `decideFusion`, alternating which path runs first,
+ * and reports the per-phase cost, the real screenshot counts and the FD-5 outcome against the unchanged 400 ms budget.
+ *
  * Nothing it measures is asserted as a product gate. It exits non-zero only when the harness fails or a structural
  * row (R1/R2/R3, no scroll, no interaction) is wrong. No image leaves the process; `--json <path>` writes the numeric
  * samples only.
@@ -28,9 +32,10 @@ import { writeFileSync } from "node:fs";
 
 import { chromium, type Browser, type BrowserContext, type Locator, type Page } from "playwright";
 
-import { captureElement, captureViewport } from "@src/visual/capture";
+import { buildCandidateEvidence } from "@src/visual/candidateEvidence";
+import { captureCandidates, captureElement, captureViewport } from "@src/visual/capture";
 import { compareVisualFingerprints } from "@src/visual/compare";
-import { decideFusion, UNCALIBRATED_FUSION_POLICY, type FusionEvidenceInput, type FusionInput, type FusionPolicy } from "@src/visual/fusion/decideFusion";
+import { decideFusion, MEASURED_FUSION_POLICY, UNCALIBRATED_FUSION_POLICY, type FusionEvidenceInput, type FusionInput, type FusionPolicy } from "@src/visual/fusion/decideFusion";
 import { buildVisualEvidence, type VisualEvidence } from "@src/visual/visualEvidence";
 
 const PORT = 4426;
@@ -74,6 +79,44 @@ interface Sample {
   minSizeRatioBp: number;
   evaluationMs: number;
 }
+
+/**
+ * N2.4 (awkit-vra.12.4): the same evaluation through the shared-capture fan-out, measured on the same lab state as
+ * the sequential N2.3 path it replaces. FD-5 is the whole visual stage, so `totalMs` = capture + evidence + fusion.
+ */
+interface FanoutSample {
+  headless: boolean;
+  dpr: number;
+  scenario: string;
+  /** Real page.screenshot calls: the fan-out cycle, and the sequential path on the same state. */
+  screenshots: number;
+  sequentialScreenshots: number;
+  /** The N2.3 path: four captureElement calls, each with its evidence. */
+  sequentialMs: number;
+  resolveMs: number;
+  screenshotMs: number;
+  decodeMs: number;
+  recheckMs: number;
+  cropMs: number;
+  /** Cycle time outside the measured phases: preflight and the two protected-surface checks. */
+  guardMs: number;
+  captureMs: number;
+  fingerprintMs: number;
+  fusionMs: number;
+  totalMs: number;
+  /** Every fan-out fingerprint is identical to the sequential capture's of the same element. */
+  sameAsSequential: boolean;
+  peakTemporaryBytes: number;
+}
+
+/** FD-5: the visual stage budget per recovery attempt, wall clock, including captures. Not tuned here. */
+const FD5_BUDGET_MS = 400;
+/** The N2.3 measurement (four element screenshots per evaluation) this compares against. */
+const N23_BASELINE = { screenshots: 4, medianMs: 499, p95Ms: 1111 };
+/** A change under 10% either way is not a material one. */
+const MATERIAL_CHANGE = 0.1;
+
+const fanoutSamples: FanoutSample[] = [];
 
 const samples: Sample[] = [];
 /** The captured evidence behind each sample, same index, kept in memory only for the decideFusion replay. */
@@ -133,8 +176,59 @@ async function setState(page: Page, state: { scenario: string; target: number; s
   await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
 }
 
+/** Real page.screenshot calls per lab page, counted at the Playwright boundary rather than trusted from a result. */
+const screenshotCounts = new WeakMap<Page, { count: number }>();
+
+function countScreenshots(page: Page): void {
+  const counter = { count: 0 };
+  const original = page.screenshot.bind(page);
+  page.screenshot = ((options?: Parameters<Page["screenshot"]>[0]) => {
+    counter.count += 1;
+    return original(options);
+  }) as Page["screenshot"];
+  screenshotCounts.set(page, counter);
+}
+
+const shotsOf = (page: Page): number => screenshotCounts.get(page)?.count ?? 0;
+
+type FanoutRun = Omit<FanoutSample, "headless" | "dpr" | "scenario" | "sequentialScreenshots" | "sequentialMs" | "sameAsSequential"> & { evidence: VisualEvidence[] };
+
+/** One shadow-mode evaluation through the fan-out: winner first, then its three competitors, from one screenshot. */
+async function runFanout(page: Page, scenario: string, target: number, reference: VisualEvidence): Promise<FanoutRun> {
+  const ids = [target, ...TARGETS.filter((index) => index !== target)];
+  const shotsBefore = shotsOf(page);
+  const started = performance.now();
+  const fanout = await captureCandidates(page, ids.map((index) => ({ id: `t${index}`, target: tool(page, index) })), { contextPaddingCss: 0 });
+  const captured = performance.now();
+  if (!fanout.ok) throw new Error(`${scenario} fan-out failed: ${fanout.code} (${fanout.message})`);
+  const evidence = buildCandidateEvidence(fanout.value);
+  const inputs: FusionEvidenceInput[] = evidence.candidates.map((c) => (c.evidence.ok ? c.evidence.value : { available: false, code: c.evidence.code }));
+  const fused = performance.now();
+  decideFusion(labInput("shadow", reference, inputs[0], inputs.slice(1)), MEASURED_FUSION_POLICY);
+  const ended = performance.now();
+  const screenshots = shotsOf(page) - shotsBefore;
+  if (!inputs.every(isEvidence)) throw new Error(`${scenario} fan-out candidate failed`);
+  const t = fanout.value.timing;
+  return {
+    evidence: inputs as VisualEvidence[],
+    screenshots,
+    resolveMs: t.resolveMs,
+    screenshotMs: t.screenshotMs,
+    decodeMs: t.decodeMs,
+    recheckMs: t.recheckMs,
+    cropMs: t.cropMs,
+    guardMs: Math.max(0, t.totalMs - (t.resolveMs + t.screenshotMs + t.decodeMs + t.recheckMs + t.cropMs)),
+    captureMs: captured - started,
+    fingerprintMs: evidence.fingerprintMs,
+    fusionMs: ended - fused,
+    totalMs: ended - started,
+    peakTemporaryBytes: fanout.value.memory.peakTemporaryBytes
+  };
+}
+
 async function openLab(context: BrowserContext): Promise<Page> {
   const page = await context.newPage();
+  countScreenshots(page);
   await page.goto(LAB);
   await page.frameLocator('[data-testid="vf-frame"]').getByTestId("vf-tool-0").waitFor();
   return page;
@@ -150,12 +244,24 @@ async function measureDistributions(page: Page, headless: boolean, dpr: number):
       if (!isEvidence(reference)) throw new Error(`reference capture failed: ${reference.code}`);
       for (const scenario of SCENARIOS) {
         await setState(page, { scenario, target, style });
+        // Alternate which path runs first on this state, so neither gains from the other warming the renderer.
+        const fanFirst = samples.length % 2 === 1;
+        let fan = scenario !== "baseline" && fanFirst ? await runFanout(page, scenario, target, reference) : null;
+        const shotsBefore = shotsOf(page);
         const started = performance.now();
         const winner = await evidenceOf(page, tool(page, target));
         const competitors: FusionEvidenceInput[] = [];
         for (const index of TARGETS) if (index !== target) competitors.push(await evidenceOf(page, tool(page, index)));
         const evaluationMs = performance.now() - started;
         if (!isEvidence(winner) || !competitors.every(isEvidence)) throw new Error(`${scenario} capture failed`);
+        const sequentialShots = shotsOf(page) - shotsBefore;
+        if (scenario !== "baseline" && !fanFirst) fan = await runFanout(page, scenario, target, reference);
+        if (fan) {
+          const sequential = [winner, ...(competitors as VisualEvidence[])];
+          const { evidence, ...measured } = fan;
+          const sameAsSequential = evidence.length === sequential.length && evidence.every((e, i) => scoreBp(sequential[i], e).identical);
+          fanoutSamples.push({ headless, dpr, scenario, sequentialScreenshots: sequentialShots, sequentialMs: evaluationMs, sameAsSequential, ...measured });
+        }
         const w = scoreBp(reference, winner);
         const best = Math.max(...(competitors as VisualEvidence[]).map((c) => scoreBp(reference, c).bp));
         const ratios = [winner, ...(competitors as VisualEvidence[])].map((e) => sizeRatioBp(reference, e));
@@ -327,6 +433,83 @@ function quantiles(values: number[]): string {
   return `n=${s.length} min ${s[0]} p05 ${at(0.05)} median ${at(0.5)} p95 ${at(0.95)} max ${s[s.length - 1]}`;
 }
 
+function quantileOf(values: number[], q: number): number {
+  const s = [...values].sort((a, b) => a - b);
+  return s[Math.min(s.length - 1, Math.floor(q * s.length))];
+}
+
+/**
+ * Exactly one FD-5 outcome for the fan-out, from its p95 against the budget and its median against the sequential
+ * path measured on the same states in the same run (the N2.3 numbers came from another run, so they are context only).
+ */
+function classifyFanout(): { outcome: string; why: string } {
+  const minimum = TARGETS.length * STYLES.length * (SCENARIOS.length - 1);
+  if (fanoutSamples.length < minimum) return { outcome: "INCONCLUSIVE", why: `${fanoutSamples.length} fan-out samples, fewer than one DPR's ${minimum}` };
+  if (fanoutSamples.some((s) => s.screenshots !== 1)) return { outcome: "INCONCLUSIVE", why: "a fan-out cycle did not take exactly one screenshot" };
+  const fanMedian = quantileOf(fanoutSamples.map((s) => s.totalMs), 0.5);
+  const fanP95 = quantileOf(fanoutSamples.map((s) => s.totalMs), 0.95);
+  const seqMedian = quantileOf(fanoutSamples.map((s) => s.sequentialMs), 0.5);
+  const change = (seqMedian - fanMedian) / seqMedian;
+  const numbers = `fan-out median ${fanMedian.toFixed(0)} p95 ${fanP95.toFixed(0)} ms vs sequential median ${seqMedian.toFixed(0)} ms (${(change * 100).toFixed(0)}% faster), budget ${FD5_BUDGET_MS} ms`;
+  if (change <= -MATERIAL_CHANGE) return { outcome: "REGRESSION", why: numbers };
+  if (fanP95 <= FD5_BUDGET_MS) return { outcome: "PASS", why: numbers };
+  if (change >= MATERIAL_CHANGE) return { outcome: "IMPROVED BUT ABOVE BUDGET", why: numbers };
+  return { outcome: "NO MATERIAL IMPROVEMENT", why: numbers };
+}
+
+function reportFanout(): void {
+  const ms = (pick: (s: FanoutSample) => number, rows = fanoutSamples): string => quantiles(rows.map((s) => Math.round(pick(s))));
+  console.log(`\nN2.4 shared-capture fan-out (winner + 3 competitors from one screenshot, shadow mode, ${fanoutSamples.length} evaluations):`);
+  console.log(`  real screenshots per evaluation: fan-out ${[...new Set(fanoutSamples.map((s) => s.screenshots))].join("/")}, sequential ${[...new Set(fanoutSamples.map((s) => s.sequentialScreenshots))].join("/")}`);
+  console.log(`  resolve      ${ms((s) => s.resolveMs)}`);
+  console.log(`  screenshot   ${ms((s) => s.screenshotMs)}`);
+  console.log(`  decode       ${ms((s) => s.decodeMs)}`);
+  console.log(`  recheck      ${ms((s) => s.recheckMs)}`);
+  console.log(`  crops        ${ms((s) => s.cropMs)}`);
+  console.log(`  guards+other ${ms((s) => s.guardMs)}`);
+  console.log(`  capture      ${ms((s) => s.captureMs)}`);
+  console.log(`  fingerprints ${ms((s) => s.fingerprintMs)}`);
+  console.log(`  fusion       ${ms((s) => s.fusionMs)}`);
+  console.log(`  TOTAL        ${ms((s) => s.totalMs)}`);
+  console.log(`  sequential   ${ms((s) => s.sequentialMs)}  (same states, same run; N2.3 recorded median ${N23_BASELINE.medianMs} p95 ${N23_BASELINE.p95Ms} with ${N23_BASELINE.screenshots} screenshots)`);
+  console.log(`  peak transient image bytes ${quantiles(fanoutSamples.map((s) => s.peakTemporaryBytes))}`);
+  console.log("  per group (fan-out total vs sequential, ms):");
+  for (const headless of HEADLESS_MODES) {
+    for (const dpr of DPRS) {
+      const group = fanoutSamples.filter((s) => s.headless === headless && s.dpr === dpr);
+      if (group.length === 0) continue;
+      const f = group.map((s) => s.totalMs);
+      const q = group.map((s) => s.sequentialMs);
+      const shot = group.map((s) => s.screenshotMs + s.decodeMs);
+      console.log(
+        `    ${headless ? "headless" : "headed  "} DPR ${String(dpr).padEnd(4)} fan-out median ${quantileOf(f, 0.5).toFixed(0)} p95 ${quantileOf(f, 0.95).toFixed(0)}  sequential median ${quantileOf(q, 0.5).toFixed(0)} p95 ${quantileOf(q, 0.95).toFixed(0)}  screenshot+decode median ${quantileOf(shot, 0.5).toFixed(0)}`
+      );
+    }
+  }
+  // The bottleneck for N2.5: the phase with the largest median share of the fan-out total.
+  const phases: [string, (s: FanoutSample) => number][] = [
+    ["resolve", (s) => s.resolveMs],
+    ["screenshot", (s) => s.screenshotMs],
+    ["decode", (s) => s.decodeMs],
+    ["recheck", (s) => s.recheckMs],
+    ["crops", (s) => s.cropMs],
+    ["guards+other", (s) => s.guardMs],
+    ["fingerprints", (s) => s.fingerprintMs],
+    ["fusion", (s) => s.fusionMs]
+  ];
+  const total = quantileOf(fanoutSamples.map((s) => s.totalMs), 0.5);
+  const ranked = phases.map(([name, pick]) => ({ name, median: quantileOf(fanoutSamples.map(pick), 0.5) })).sort((a, b) => b.median - a.median);
+  console.log(`  median share of the total: ${ranked.map((p) => `${p.name} ${p.median.toFixed(1)} ms (${((p.median / total) * 100).toFixed(0)}%)`).join(", ")}`);
+  const verdict = classifyFanout();
+  console.log(`  FD-5 (${FD5_BUDGET_MS} ms per attempt, unchanged): ${verdict.outcome} — ${verdict.why}`);
+
+  const mismatches = fanoutSamples.filter((s) => !s.sameAsSequential).length;
+  record("every fan-out evaluation took exactly one real screenshot", fanoutSamples.length > 0 && fanoutSamples.every((s) => s.screenshots === 1), `${fanoutSamples.length} evaluations`);
+  record("every sequential evaluation took four real screenshots", fanoutSamples.length > 0 && fanoutSamples.every((s) => s.sequentialScreenshots === 4), "");
+  record("fan-out fingerprints are identical to the sequential captures'", fanoutSamples.length > 0 && mismatches === 0, `${mismatches} of ${fanoutSamples.length} differ`);
+  record("MEASURED_FUSION_POLICY.contradictionEnabled is still false", MEASURED_FUSION_POLICY.contradictionEnabled === false, "");
+}
+
 function derivePolicy(): { policy: FusionPolicy; separated: boolean; maxNoVeto: number; minVeto: number; gap: number } {
   const noVeto = samples.filter((s) => NO_VETO.includes(s.scenario)).map((s) => s.c);
   const veto = samples.filter((s) => VETO_WANTED.includes(s.scenario)).map((s) => s.c);
@@ -399,7 +582,7 @@ try {
     for (const line of zoom.detail) console.log(`  ${line}`);
   }
   if (structural.some((row) => !row.ok)) exitCode = 1;
-  if (JSON_PATH) writeFileSync(JSON_PATH, JSON.stringify({ samples, structural, zoom }, null, 2));
+  if (JSON_PATH) writeFileSync(JSON_PATH, JSON.stringify({ samples, fanoutSamples, structural, zoom }, null, 2));
 } catch (error) {
   exitCode = 1;
   console.error(error);
@@ -444,6 +627,7 @@ async function runCalibration(): Promise<void> {
   }
   const timing = samples.filter((s) => s.scenario !== "baseline").map((s) => Math.round(s.evaluationMs));
   console.log(`\nWinner + 3 competitor captures per evaluation (ms): ${quantiles(timing)}`);
+  reportFanout();
 
   const derived = derivePolicy();
   console.log(`\nSeparation: max c over F1/F4 = ${derived.maxNoVeto}, min c over F2 = ${derived.minVeto}, gap ${derived.gap} bp, required ${2 * SAFETY_GAP_BP} (safety gap ${SAFETY_GAP_BP} each side)`);

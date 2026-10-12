@@ -230,6 +230,7 @@ function buildCases(): Case[] {
     ["IMAGE_DECODE_FAILED", "capture-failed"],
     ["FINGERPRINT_FAILED", "capture-failed"],
     ["UNSUPPORTED_FINGERPRINT_VERSION", "version-mismatch"],
+    ["CAPTURE_STALE", "capture-failed"],
     ["PAGE_CLOSED", "target-stale"],
     ["BUDGET_EXHAUSTED", "budget-exhausted"],
     ["CANCELLED", "cancelled"]

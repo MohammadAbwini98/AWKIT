@@ -13,9 +13,10 @@
  *   3. The module itself: no network, filesystem, process or console API; only `node:crypto` and `node:zlib`
  *      builtins; no page interaction or navigation call. A planted offender must be caught by the same scan.
  *   4. The capture verification seams (N2.1, awkit-vra.12.1): across src, app, scripts, tools, mock-site and tests,
- *      only `src/visual/capture.ts` and `scripts/verify-visual-capture.mts` import `src/visual/internal`; the public
- *      `captureViewport` / `captureElement` take no seam parameter and nothing seam-shaped is re-exported. Planted
- *      importers (aliased, relative, index re-export) and planted surface leaks must each be caught.
+ *      only `src/visual/capture.ts`, `scripts/verify-visual-capture.mts` and (N2.4) `scripts/verify-visual-capture-fanout.mts`
+ *      import `src/visual/internal`; the public `captureViewport` / `captureElement` / `captureVisualFrame` /
+ *      `captureCandidates` take no seam parameter and nothing seam-shaped is re-exported. Planted importers (aliased,
+ *      relative, index re-export) and planted surface leaks must each be caught.
  *
  * Run: npm run verify:visual-isolation
  */
@@ -280,9 +281,9 @@ function violations(text: string): string[] {
 console.log("\nThe capture verification seams are verifier-only (N2.1):\n");
 {
   // The seams can replace the protected-surface guard, so the seam-taking entry may be imported by the public capture
-  // module and the capture verifier only — never by product code, another script, or a re-export.
+  // module and the capture verifiers only — never by product code, another script, or a re-export.
   const SEAM_ENTRY = "src/visual/internal";
-  const SEAM_IMPORTERS = ["scripts/verify-visual-capture.mts", "src/visual/capture.ts"];
+  const SEAM_IMPORTERS = ["scripts/verify-visual-capture-fanout.mts", "scripts/verify-visual-capture.mts", "src/visual/capture.ts"];
   const SCAN_ROOTS = ["src", "app", "scripts", "tools", "mock-site", "tests"];
   const isSeamEntry = (target: string): boolean => target === SEAM_ENTRY || target.startsWith(`${SEAM_ENTRY}/`);
 
@@ -324,13 +325,18 @@ console.log("\nThe capture verification seams are verifier-only (N2.1):\n");
   check("the seam entry exists", seamFiles.includes(`${SEAM_ENTRY}/captureCore.ts`), seamFiles.join(", ") || "missing");
   const importers = await seamImporters();
   check(
-    "only src/visual/capture.ts and scripts/verify-visual-capture.mts import the seam entry (both do)",
+    "only src/visual/capture.ts and the two capture verifiers import the seam entry (all three do)",
     exactlyAllowed(importers),
     importers.join(", ") || "no importer found"
   );
 
   // The public surface: the exported functions take no seam parameter, and nothing seam-shaped is re-exported.
-  const PUBLIC_PARAMS: Record<string, string[]> = { captureViewport: ["page", "options"], captureElement: ["page", "target", "options"] };
+  const PUBLIC_PARAMS: Record<string, string[]> = {
+    captureViewport: ["page", "options"],
+    captureElement: ["page", "target", "options"],
+    captureVisualFrame: ["page", "options"],
+    captureCandidates: ["page", "candidates", "options"]
+  };
   function surfaceProblems(text: string): string[] {
     const problems: string[] = [];
     for (const [name, want] of Object.entries(PUBLIC_PARAMS)) {
@@ -352,7 +358,7 @@ console.log("\nThe capture verification seams are verifier-only (N2.1):\n");
   }
   const captureText = await readFile(join(REPO, "src/visual/capture.ts"), "utf8");
   const surface = surfaceProblems(captureText);
-  check("the public captureViewport / captureElement take no seam and nothing seam-shaped is re-exported", surface.length === 0, surface.join("; "));
+  check("the four public capture functions take no seam and nothing seam-shaped is re-exported", surface.length === 0, surface.join("; "));
 
   console.log("\nMutation controls (each planted seam leak must be caught):\n");
   for (const [file, specifier, label] of [
@@ -373,7 +379,12 @@ console.log("\nThe capture verification seams are verifier-only (N2.1):\n");
       "a seam parameter on the public captureElement",
       captureText.replace("captureElement(page: Page, target: Locator, options: VisualCaptureOptions = {})", "captureElement(page: Page, target: Locator, options: VisualCaptureOptions = {}, seams?: VisualCaptureSeams)")
     ],
+    [
+      "a seam parameter on the public captureCandidates (N2.4)",
+      captureText.replace("options: VisualCaptureFrameOptions = {}\n): Promise<VisualResult<VisualCandidateFanout>>", "options: VisualCaptureFrameOptions = {},\n  seams?: VisualCaptureSeams\n): Promise<VisualResult<VisualCandidateFanout>>")
+    ],
     ["a re-export of the seam-taking function", `${captureText}\nexport { captureViewportWithSeams } from "./internal/captureCore";\n`],
+    ["a re-export of the seam-taking fan-out (N2.4)", `${captureText}\nexport { captureCandidatesWithSeams } from "./internal/captureCore";\n`],
     ["a star re-export of the seam entry", `${captureText}\nexport * from "./internal/captureCore";\n`]
   ];
   for (const [label, text] of plants) {
