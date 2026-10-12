@@ -153,8 +153,8 @@
       "required": true,
       "command": "git push origin main",
       "artifact": null,
-      "result": "pending",
-      "observed": ""
+      "result": "PASS",
+      "observed": "git fetch origin showed origin/main still at 32595348 (up to date, no divergence), then 32595348..69965e42 main -> main, without force. The L12.27 contract was never staged."
     }
   ],
   "git": {
@@ -166,7 +166,8 @@
     "push_evidence_id": "git-push"
   },
   "completion": {
-    "status": "pending",
+    "status": "complete",
+    "closed_at_commit": "69965e429e0f229e5920279b83b07b026e624035",
     "qa_status": "PASS",
     "qa_basis": "Governance gates executed this session: bd closes and export, build, verifier-classification 325, roadmap-dashboard 177/177 Sources agree, git diff --check clean. Product QC evidence is the owner-supplied independent re-QC PASS, not this session.",
     "qa_known_limitations": "Deferred, not PASS: verify:failure-capture-overhead (INCONCLUSIVE or NOT RUN), the physical-console Automatic GPU checks, host-dependent gates, and E2 awkit-djnl.20 PENDING / BLOCKED.",
