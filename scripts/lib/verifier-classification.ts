@@ -517,6 +517,31 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
       "src/ai"
     ]
   },
+  "verify:visual-capture": {
+    class: "real-browser",
+    why: "Phase N0 (awkit-vra.1) on real Chromium against the /visual-intelligence lab at DPR 1, 1.5 and 2: viewport, element and context crops whose every pixel is the fixture's fill, fractional bounds rounding outward, CSS zoom, a same-origin iframe mapped into the main viewport, a popup page, clipped and offscreen targets, the full error taxonomy (not unique, stale, invalid bounds, offscreen, moved during capture, wrong page, closed page, cancelled, budget exhausted), protected refusal for the account route, an injected credential frame, protected step types, a handed-off session and a credential frame that appears only after the screenshot, no click/key/focus/scroll and no off-site request, and image bytes omitted from JSON. Mutation controls: DPR scaling removed and the post-capture recheck skipped must each flip their check."
+  },
+  "verify:visual-fingerprint": {
+    class: "real-browser",
+    why: "Phase N1 (awkit-vra.3.1): fingerprints of the lab's fixed fixtures captured on real Chromium — determinism, repeat capture identical, slight rendering change high but not identical, icon and SVG glyph changes detected, unrelated image low, position-free, size change reported, theme change, look-alikes above unrelated (appearance is not identity), non-vacuous grids with a solid-fill negative control, the payload ceiling, symmetry, malformed input and version mismatch as typed failures, and decodePng byte-identical to sharp. The same suite must FAIL for a constant fingerprint, an always-1 score and an empty fixture-pair list."
+  },
+  "verify:visual-isolation": {
+    class: "static-source-validation",
+    why: "Phase N: a resolved-import TRANSITIVE CLOSURE walk proving nothing the execution tree (runner, recorder, orchestrator, instances, session, main execution service and IPC, preload) or the renderer reaches imports src/visual, with cardinality floors and injected-import mutations at a seed and at a transitively reached module; plus a scan proving src/visual has no network, filesystem, process, console, page-interaction, input-device or navigation API (only node:crypto and node:zlib), with planted offenders caught by the same scan.",
+    guards: [
+      "src/visual",
+      "src/runner",
+      "src/recorder",
+      "src/orchestrator",
+      "src/instances",
+      "src/session",
+      "app/main/execution",
+      "app/main/ipc/execution.ipc.ts",
+      "app/main/ipc/recorder.ipc.ts",
+      "app/main/preload.ts",
+      "app/renderer"
+    ]
+  },
   "verify:ai-settings-gui": {
     class: "real-browser",
     why: "Real-Electron walkthrough of Settings › Local AI on an isolated profile: AI off with no pack/runtime/audit by default, tier selectors bounded by each feature's ceiling, and the master switch and a lowered tier persisting to ai-settings.json on disk across navigation. L8a.4: Automatic (the default since 2026-10-03) and the three E4 modes as a keyboard-driven radio group, Automatic's GPU check informational and GPU-Offload's a warning, the VRAM reserve refused (never clamped) out of range with an accessible error, both themes on Hologram tokens; after a restart with the non-packaged test provider and GPU fixture, GPU-Only refusal told apart from GPU-Offload fallback for a missing pack, no NVIDIA adapter, mixed or unreadable adapters and low VRAM, fixture placements labelled unqualified, Automatic on every layer with one NVIDIA adapter (Runs on, GPU use and diagnostics' Running as name the mode the load ran as, GPU-Offload, chosen by Automatic, never Automatic as the runtime mode) and on CPU & RAM only (no fallback) with a mixed set, a mode change and a reserve-only change each unloading the idle model, a slow load showing its real stage, and a pre-L8a settings file reading as Automatic."

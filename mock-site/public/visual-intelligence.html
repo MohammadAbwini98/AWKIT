@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Visual Intelligence Lab</title>
+    <!--
+      Phase N (awkit-vra.1 / awkit-vra.3.1) Visual Intelligence Lab. Every fixture is absolutely positioned at whole
+      CSS pixels with solid, known fills so verify:visual-capture can assert exact bounds and pixel colours at any
+      device scale factor, and verify:visual-fingerprint can compare pairs that differ in exactly one way. Nothing
+      here is random or time-dependent. This page deliberately carries no credential field and none of the words the
+      protected-login detector reacts to: a protected surface is the separate /visual-intelligence/account route, or
+      the frame window.__visualLab.injectAccountFrame() adds on demand.
+      Layout is sized for an 800x600 viewport.
+    -->
+    <style>
+      html, body { margin: 0; padding: 0; background: #ffffff; }
+      body { font-family: Arial, Helvetica, sans-serif; font-size: 14px; color: #111111; width: 800px; height: 3200px; position: relative; overflow-x: hidden; }
+      .vi-abs { position: absolute; box-sizing: border-box; }
+      .vi-solid { position: absolute; }
+      .vi-btn { position: absolute; box-sizing: border-box; height: 36px; padding: 0 14px; font: 14px Arial, Helvetica, sans-serif; line-height: 34px; border: 1px solid #1d4ed8; border-radius: 4px; background: #2563eb; color: #ffffff; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+      .vi-btn svg { width: 16px; height: 16px; }
+      .vi-row-label { position: absolute; font-size: 14px; line-height: 36px; }
+      .vi-approve-primary { background: #15803d; border-color: #166534; }
+      .vi-approve-outline { background: #ffffff; border: 2px solid #15803d; color: #15803d; border-radius: 18px; }
+      .vi-twin { background: #475569; border-color: #334155; }
+      .vi-render-minor { border-radius: 6px; border-color: #1e40af; }
+      .vi-geom { justify-content: center; }
+      .vi-download { background: #7c3aed; border-color: #6d28d9; }
+      .vi-icon { position: absolute; width: 48px; height: 48px; background: #ffffff; }
+      .vi-theme { position: absolute; box-sizing: border-box; width: 160px; height: 70px; padding: 10px 12px; border-radius: 8px; font-size: 13px; }
+      .vi-theme strong { display: block; font-size: 15px; margin-bottom: 6px; }
+      .vi-theme-light { background: #f8fafc; color: #0f172a; border: 1px solid #cbd5e1; }
+      .vi-theme-dark { background: #0f172a; color: #f8fafc; border: 1px solid #334155; }
+      .vi-unrelated { position: absolute; width: 100px; height: 48px; background: repeating-linear-gradient(45deg, #f59e0b 0px, #f59e0b 8px, #111827 8px, #111827 16px); }
+    </style>
+  </head>
+  <body>
+    <!-- Calibration: solid fills at whole and fractional CSS positions. -->
+    <div class="vi-solid" data-testid="vi-cal-red" style="left: 20px; top: 20px; width: 100px; height: 60px; background: #ff0000"></div>
+    <div class="vi-solid" data-testid="vi-cal-fraction" style="left: 140.5px; top: 20.25px; width: 50.5px; height: 30.75px; background: #00a000"></div>
+    <div class="vi-solid" data-testid="vi-cal-zero" style="left: 200px; top: 20px; width: 0; height: 0"></div>
+    <div class="vi-solid" data-testid="vi-cal-none" style="left: 200px; top: 40px; width: 20px; height: 20px; display: none; background: #000000"></div>
+
+    <!-- CSS zoom: a 40x40 box inside a zoom: 1.5 wrapper lays out as 60x60. -->
+    <div class="vi-abs" style="left: 260px; top: 20px">
+      <div style="zoom: 1.5"><div data-testid="vi-zoom-inner" style="width: 40px; height: 40px; background: #ff8800"></div></div>
+    </div>
+
+    <!-- Same-origin iframe: its target sits at (30, 20) inside a frame placed at (360, 20). -->
+    <iframe class="vi-abs" data-testid="vi-frame" title="Visual lab frame" src="/visual-intelligence/frame" style="left: 360px; top: 20px; width: 200px; height: 100px; border: 0"></iframe>
+
+    <!-- Popup. -->
+    <button type="button" class="vi-btn" data-testid="vi-open-popup" style="left: 580px; top: 20px" onclick="window.open('/visual-intelligence/popup', 'visual-lab-popup', 'width=400,height=300')">Open popup window</button>
+
+    <!-- Clipped: half of this fixed box hangs past the right edge of any viewport. Offscreen: far below the fold. -->
+    <div data-testid="vi-clipped" style="position: fixed; top: 140px; right: -50px; width: 100px; height: 40px; background: #00ffff"></div>
+    <div class="vi-solid" data-testid="vi-offscreen" style="left: 20px; top: 3000px; width: 100px; height: 40px; background: #808080"></div>
+
+    <!-- Moves on demand (window.__visualLab.moveMover()), for the moved-during-capture case. -->
+    <div class="vi-solid" data-testid="vi-mover" style="left: 640px; top: 200px; width: 40px; height: 40px; background: #ffff00"></div>
+
+    <!-- Identical controls in three rows: same look, same text, different row. -->
+    <span class="vi-row-label" style="left: 20px; top: 200px">Row 1</span>
+    <button type="button" class="vi-btn vi-row-open" data-testid="vi-row-1-open" style="left: 120px; top: 200px">Open</button>
+    <span class="vi-row-label" style="left: 20px; top: 250px">Row 2</span>
+    <button type="button" class="vi-btn vi-row-open" data-testid="vi-row-2-open" style="left: 120px; top: 250px">Open</button>
+    <span class="vi-row-label" style="left: 20px; top: 300px">Row 3</span>
+    <button type="button" class="vi-btn vi-row-open" data-testid="vi-row-3-open" style="left: 120px; top: 300px">Open</button>
+
+    <!-- Same semantics, different visual: both Approve. -->
+    <button type="button" class="vi-btn vi-approve-primary" data-testid="vi-approve-primary" style="left: 300px; top: 200px">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5 L6.5 12 L13 4.5" fill="none" stroke="#ffffff" stroke-width="2" /></svg>Approve
+    </button>
+    <button type="button" class="vi-btn vi-approve-outline" data-testid="vi-approve-outline" style="left: 300px; top: 250px">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="#15803d" stroke-width="2" /></svg>Approve
+    </button>
+
+    <!-- Different semantics, similar visual: same style and icon structure, Approve vs Reject. -->
+    <button type="button" class="vi-btn vi-twin" data-testid="vi-twin-approve" style="left: 460px; top: 200px">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5 L6.5 12 L13 4.5" fill="none" stroke="#ffffff" stroke-width="2" /></svg>Approve
+    </button>
+    <button type="button" class="vi-btn vi-twin" data-testid="vi-twin-reject" style="left: 460px; top: 250px">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4 L12 12 M12 4 L4 12" fill="none" stroke="#ffffff" stroke-width="2" /></svg>Reject
+    </button>
+
+    <!-- Minor rendering change: radius 4 -> 6 and a darker border. -->
+    <button type="button" class="vi-btn" data-testid="vi-render-base" style="left: 20px; top: 360px">Save changes</button>
+    <button type="button" class="vi-btn vi-render-minor" data-testid="vi-render-minor" style="left: 200px; top: 360px">Save changes</button>
+
+    <!-- Geometry change: same control, wider. -->
+    <button type="button" class="vi-btn vi-geom" data-testid="vi-geom-base" style="left: 20px; top: 420px; width: 120px">Continue</button>
+    <button type="button" class="vi-btn vi-geom" data-testid="vi-geom-resized" style="left: 200px; top: 420px; width: 160px">Continue</button>
+
+    <!-- Position change: identical controls at different places. -->
+    <button type="button" class="vi-btn vi-download" data-testid="vi-pos-a" style="left: 380px; top: 360px">Download</button>
+    <button type="button" class="vi-btn vi-download" data-testid="vi-pos-b" style="left: 560px; top: 420px">Download</button>
+
+    <!-- Theme variant: the same card, light and dark. -->
+    <div class="vi-theme vi-theme-light" data-testid="vi-theme-light" style="left: 20px; top: 480px"><strong>Monthly total</strong>4,280 items</div>
+    <div class="vi-theme vi-theme-dark" data-testid="vi-theme-dark" style="left: 200px; top: 480px"><strong>Monthly total</strong>4,280 items</div>
+
+    <!-- Icon mutation: one SVG path differs (the arrow head). -->
+    <svg class="vi-icon" data-testid="vi-icon-base" style="left: 380px; top: 480px" viewBox="0 0 48 48" aria-hidden="true">
+      <rect x="4" y="4" width="40" height="40" rx="6" fill="#e2e8f0" />
+      <path d="M12 24 H34" stroke="#0f172a" stroke-width="4" fill="none" />
+      <path d="M26 16 L34 24 L26 32" stroke="#0f172a" stroke-width="4" fill="none" />
+    </svg>
+    <svg class="vi-icon" data-testid="vi-icon-mutated" style="left: 470px; top: 480px" viewBox="0 0 48 48" aria-hidden="true">
+      <rect x="4" y="4" width="40" height="40" rx="6" fill="#e2e8f0" />
+      <path d="M12 24 H34" stroke="#0f172a" stroke-width="4" fill="none" />
+      <path d="M22 12 L12 24 L22 36" stroke="#0f172a" stroke-width="4" fill="none" />
+    </svg>
+
+    <!-- Unrelated: a striped tile that resembles none of the controls. -->
+    <div class="vi-unrelated" data-testid="vi-unrelated" style="left: 560px; top: 480px"></div>
+
+    <script>
+      // Interaction counter: a visual capture must never click, focus or scroll the page.
+      window.__visualLab = {
+        interactions: 0,
+        moveMover() {
+          document.querySelector("[data-testid='vi-mover']").style.left = "680px";
+        },
+        injectAccountFrame() {
+          if (document.querySelector("[data-testid='vi-account-frame']")) return;
+          const frame = document.createElement("iframe");
+          frame.setAttribute("data-testid", "vi-account-frame");
+          frame.setAttribute("title", "Account frame");
+          frame.style.cssText = "position: absolute; left: 600px; top: 540px; width: 180px; height: 50px; border: 0";
+          frame.srcdoc = "<!doctype html><form><label>Account key <input type='password' autocomplete='current-password'></label></form>";
+          document.body.appendChild(frame);
+        },
+        removeAccountFrame() {
+          document.querySelector("[data-testid='vi-account-frame']")?.remove();
+        }
+      };
+      for (const type of ["click", "mousedown", "keydown", "focusin", "scroll"]) {
+        window.addEventListener(type, () => { window.__visualLab.interactions += 1; }, true);
+      }
+    </script>
+  </body>
+</html>

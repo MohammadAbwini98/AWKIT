@@ -721,6 +721,22 @@ try {
   check("index lists the DOM Context Lab scenario", await page.getByTestId("scenario-dom-context").isVisible());
   check("index lists the DOM Coverage Lab scenario", await page.getByTestId("scenario-dom-coverage").isVisible());
 
+  // Phase N Visual Intelligence Lab: the lab and its routes serve; only the account route carries a credential field.
+  // Capture and fingerprint behaviour are gated by verify:visual-capture and verify:visual-fingerprint.
+  console.log("Visual Intelligence Lab (/visual-intelligence):");
+  check("index lists the Visual Intelligence Lab scenario", await page.getByTestId("scenario-visual-intelligence").count() === 1);
+  await page.goto(`${BASE}/visual-intelligence`);
+  check("the lab serves its title", (await page.title()) === "Visual Intelligence Lab");
+  check("every visual fixture is present once", (await page.locator('[data-testid^="vi-"]').count()) >= 24 && (await page.getByTestId("vi-cal-red").count()) === 1);
+  check("the lab carries no credential field", (await page.locator('input[type="password"], input[autocomplete="one-time-code"]').count()) === 0);
+  check("the frame holds its target", (await page.frameLocator('[data-testid="vi-frame"]').getByTestId("vi-frame-target").count()) === 1);
+  const [visualPopup] = await Promise.all([page.waitForEvent("popup"), page.getByTestId("vi-open-popup").click()]);
+  await visualPopup.waitForLoadState();
+  check("the popup holds its target", (await visualPopup.getByTestId("vi-popup-target").count()) === 1);
+  await visualPopup.close();
+  await page.goto(`${BASE}/visual-intelligence/account`);
+  check("the account route carries its credential field", (await page.locator('input[type="password"]').count()) === 1);
+
   // L11.F DOM Context Lab: the lab and its SPA routes serve, each look-alike exists where its case needs it.
   // The recovery behaviour itself is gated by verify:dom-intelligence-contexts.
   console.log("DOM Context Lab (/dom-context-lab):");

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Visual Intelligence Lab account form</title>
+    <!--
+      The protected fixture: a credential field, so Visual Intelligence must refuse to capture any part of this page.
+      It accepts and sends nothing (no action, no submit handler).
+    -->
+    <style>
+      html, body { margin: 0; padding: 0; background: #ffffff; font-family: Arial, Helvetica, sans-serif; }
+      form { position: absolute; left: 20px; top: 20px; }
+    </style>
+  </head>
+  <body>
+    <form onsubmit="return false">
+      <label>Account key <input type="password" data-testid="vi-account-key" autocomplete="current-password" /></label>
+      <button type="button" data-testid="vi-account-continue" style="background: #2563eb; color: #ffffff">Continue</button>
+    </form>
+  </body>
+</html>
