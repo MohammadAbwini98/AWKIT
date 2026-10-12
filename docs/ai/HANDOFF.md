@@ -1,6 +1,25 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-10, latest) — command authorization implemented; independent QC pending
+## HANDOFF (2026-10-12, latest) — Phase L closed for its approved scope; next is Phase M, not started
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done (governance only, `awkit-phase-l-governance-close-1012`):**
+  - `.21.33` (N7, `f386089b` plus `32595348`) closed on the independent Windows re-QC PASS.
+  - The final Phase L QC `.21.31` closed on that same independent evidence.
+  - L12 `.21` closed with all 33 children closed.
+  - `ImplementationRoadmap` Phase L is `complete`. The 2026-10-08 L12.33 handoff below is history.
+- **Still open, unchanged:**
+  - Epic `awkit-djnl`: open only as the container for E2 `awkit-djnl.20`, which is PENDING / BLOCKED.
+  - `verify:failure-capture-overhead`: INCONCLUSIVE or NOT RUN.
+  - The physical-console Automatic GPU checks: deferred, non-blocking.
+  - Host-dependent gates.
+  - The 2026-10-10 command-authorization QC (below) is still pending.
+- **Next:** Phase M (Optional Application Knowledge Base, `awkit-akb`). Start it only under its own contract.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json` is still untracked and
+  byte-identical.
+
+## HANDOFF (2026-10-10) — command authorization implemented; independent QC pending
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

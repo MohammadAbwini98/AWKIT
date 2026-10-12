@@ -1,6 +1,33 @@
 # CURRENT_STATE
 
-## Bounded command authorization implemented; independent QC pending (2026-10-10, latest)
+## Phase L CLOSED for its approved scope: L12 `.21`, `.21.31` and `.21.33` closed by governance reconciliation (2026-10-12, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task.
+
+- **Governance only.** Contract `awkit-phase-l-governance-close-1012`. No production code, test, verifier logic,
+  DOM intelligence, recorder, runner, AI or packaging change, and no review or QC was repeated.
+- **Implementation evidence (implementing session):** L12.33 / N7 in `f386089b`, plus the mock-site pin in `32595348`.
+- **Independent QC evidence (fresh-context Windows re-QC, PASS):**
+  - Build and `typecheck:scripts` PASS.
+  - Verifiers: similar-rows-safety 68/0, twin-pool-safety 48/0, dom-intelligence-coverage 74/0,
+    locator-wrong-element 14/0, runner 138/0, mock-site 265/265.
+  - Dashboard and registry: verifier-classification 325, roadmap-dashboard 177/177 Sources agree.
+  - Behaviour: N7 A/B/C safe, runtime mutation fails closed, 0 wrong-action clicks, 19 ambiguous cases refused,
+    14 valid loops preserved. The mutation controls caught the old unsafe behaviour.
+- **Tracker:** `awkit-djnl.21.33`, `awkit-djnl.21.31` (the final Phase L QC) and `awkit-djnl.21` (L12, all 33 children
+  closed) are closed through `bd` and exported. Beads now reads 367 issues, 22 outstanding / 345 closed, 255 edges.
+  `ImplementationRoadmap` Phase L is `complete`.
+- **Still open, deliberately:**
+  - The epic `awkit-djnl` stays open only as the container for E2 hybrid physical-adapter correlation
+    (`awkit-djnl.20`, P4). E2 is PENDING / BLOCKED: not waived and not PASS.
+- **Deferred, not PASS:**
+  - `verify:failure-capture-overhead`: INCONCLUSIVE for L12.32 because of host noise, NOT RUN for L12.33.
+  - Three Automatic GPU checks have run only over Remote Desktop. The owner deferred them as non-blocking on 2026-10-03.
+  - Host-dependent gates remain deferred.
+- **Next phase:** M (Optional Application Knowledge Base, `awkit-akb`), pending. Nothing has been started.
+
+## Bounded command authorization implemented; independent QC pending (2026-10-10)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

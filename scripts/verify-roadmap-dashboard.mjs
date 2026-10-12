@@ -695,8 +695,10 @@ try {
   // (one out, one in, one closed). Measured after `bd export -o .beads/issues.jsonl`.
   // Then 24/341 of 365 later on 2026-10-06: `.21.30` closed (N1-N5 fixed) and the final QC `.21.31` filed OPEN.
   // Then 25/342 of 367 on 2026-10-08: `.21.32` filed and closed (N6 shipped), `.21.33` filed OPEN (re-QC N7).
-    "25 outstanding / 342 closed",
-    beads.stats.outstanding === 25 && beads.stats.closed === 342,
+  // Then 22/345 of 367 on 2026-10-12 (contract `awkit-phase-l-governance-close-1012`): `.21.33`, the final QC
+  // `.21.31` and L12 `.21` closed (three out, three closed, none filed). Measured after `bd export -o .beads/issues.jsonl`.
+    "22 outstanding / 345 closed",
+    beads.stats.outstanding === 22 && beads.stats.closed === 345,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

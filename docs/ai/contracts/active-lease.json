@@ -1,37 +1,20 @@
 {
-  "task": "awkit-command-authorization-1010",
-  "contract_path": "docs/ai/contracts/awkit-command-authorization-1010.json",
+  "task": "awkit-phase-l-governance-close-1012",
+  "contract_path": "docs/ai/contracts/awkit-phase-l-governance-close-1012.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
-    "docs/ai/COMMANDS.md",
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/HANDOFF.md",
-    "docs/ai/KNOWN_ISSUES.md",
-    "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/awkit-command-authorization-1010.json"
+    ".beads/**"
   ],
-  "acquired_at": "2026-10-10T18:23:08.046Z",
-  "acquired_at_commit": "2ae1d24e1877618adc1b32a4743ec6be80ba0da3",
+  "acquired_at": "2026-10-12T07:34:46.967Z",
+  "acquired_at_commit": "32595348e0d52e09404fe2bbf21a90ac0a150ab9",
   "baseline_dirty": [
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-command-authorization-1010.json",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "mock-site/dom-coverage-corpus.mjs",
-    "scripts/verify-agent-routing.mjs",
-    "scripts/verify-similar-rows-safety.mts",
-    "src/runner/domIntelligence/similarRows.ts",
-    "tools/agents/lease-guard.mjs"
+    "docs/ai/contracts/awkit-phase-l-governance-close-1012.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "cce20547dcf8f6586326bc6e943e24fe35e5760e3f4280869dafe8615471be5d",
-    "docs/ai/contracts/awkit-command-authorization-1010.json": "be3dac56de0f90ea40420c08b13eb16207cb9f97e9c985c3fc45b0c7575327a3",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "mock-site/dom-coverage-corpus.mjs": "3b3a967f8b449818a696a8fc5c0552edc0d1b0dbed94a224ecb6b5ee1ef01cb7",
-    "scripts/verify-agent-routing.mjs": "57eb9e85d1d0d51ca787690c0d70b1c728098cbf21d427cd86ceaecac196ec53",
-    "scripts/verify-similar-rows-safety.mts": "7be961fd3a793d7ab9fb24613c541eaf45853f279d662c11447816563f67381b",
-    "src/runner/domIntelligence/similarRows.ts": "8223b985eb42edece0cd706fbd432828953eecd469799ced21feabb8517e0d50",
-    "tools/agents/lease-guard.mjs": "759823568a504c84650090dd57f7cce7de2ca6c1817ef3438109140d14a75413"
+    "docs/ai/contracts/awkit-phase-l-governance-close-1012.json": "ed7811abf4e3db76f2a69dca3f342722216808ceaaf638e3550e7d3d484e963b"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -41,12 +24,12 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(8):command-authorization-build.log:1791655824280.519|command-authorization-graphify.log:1791656102774.0833|command-authorization-roadmap.log:1791655956531.24|command-authorization-routing.log:1791655726727.7021|command-authorization-task-gate.json:1791655978836.031|lease-status-build.log:1791656486702.492|lease-status-routing.log:1791656586249.2314|native-hosts:1791093594496.971"
+    "build": "dir(9):command-authorization-build.log:1791655824280.519|command-authorization-graphify.log:1791656102774.0833|command-authorization-roadmap.log:1791655956531.24|command-authorization-routing.log:1791655726727.7021|command-authorization-task-gate.json:1791655978836.031|lease-status-build.log:1791656486702.492|lease-status-roadmap.log:1791656634670.6677|lease-status-routing.log:1791656586249.2314|native-hosts:1791093594496.971"
   },
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-10T18:23:52.544Z",
-  "released_reason": "Quiet lease status regressions passed, build resource blocked and QC pending",
-  "archived_at": "2026-10-10T18:23:52.546Z"
+  "released_at": "2026-10-12T07:35:39.426Z",
+  "released_reason": "Phase L governance close: awkit-djnl.21.33, .21.31 and .21 closed through bd, JSONL exported with 367 issues",
+  "archived_at": "2026-10-12T07:35:39.427Z"
 }

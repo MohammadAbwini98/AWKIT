@@ -1,5 +1,29 @@
 # TASK_LOG
 
+## 2026-10-12 (latest) — Phase L governance reconciliation and closure (Claude)
+
+- **Contract:** `awkit-phase-l-governance-close-1012`, governance only.
+  - Baseline `32595348`. The `task-gate` contract validation found 0 violations.
+  - Project-state lease on `.beads/**`: granted and released.
+  - Production code, tests and verifier logic: no changes. No review or QC repeated.
+- **Evidence, kept separate:**
+  - Implementation: `f386089b` (L12.33 / N7) and `32595348` (mock-site pin).
+  - Independent fresh-context Windows re-QC, owner-supplied: PASS.
+- **Tracker, through `bd`:**
+  - Closed `awkit-djnl.21.33`, then `awkit-djnl.21.31` (on the independent QC only), then `awkit-djnl.21`.
+  - `bd export -o .beads/issues.jsonl` gives 367 issues, 22 outstanding / 345 closed. Edges are unchanged at 255.
+  - The epic `awkit-djnl` stays open only as the container for E2 `.20`, which is PENDING / BLOCKED.
+- **Sources:**
+  - `ImplementationRoadmap` Phase L is now `complete`.
+  - The dashboard pin moved 25/342 to 22/345.
+  - Also updated: CURRENT_STATE, HANDOFF, KNOWN_ISSUES (N7 marked fixed).
+- **Validation ledger:** unchanged at 65/2/0. No case was executed.
+- **Checks this session:**
+  - `npm run build`: PASS.
+  - `verify:verifier-classification`: PASS (325 scripts).
+  - `verify:roadmap-dashboard` and `git diff --check`: final-state results are in the contract.
+- **Preserved:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json` is untracked, with an unchanged fingerprint.
+
 ## 2026-10-10 — Follow-up: quiet lease-status command denied in Claude screenshot
 
 - Root cause: `npm run agent:lease -- silent` passes an ignored positional status argument;

@@ -14,8 +14,14 @@ Generic pipelines and shell composition intentionally remain blocked. Recovery s
 file writes and explicit `git add -- <paths>`; unsupported mutations require the existing official
 routing workflow. Inspection output beyond 128 KiB or 10 seconds needs a narrower read.
 
-## L12.31 independent re-QC: N7, similar-rows loop naming still accepts non-naming values (OPEN, P1, `awkit-djnl.21.33`, found 2026-10-08)
+## L12.31 independent re-QC: N7, similar-rows loop naming still accepts non-naming values (FIXED by L12.33 `f386089b` plus mock-site pin `32595348`; independent re-QC PASS; `awkit-djnl.21.33` closed 2026-10-12)
 
+- **Closed:**
+  - Independent fresh-context Windows re-QC: similar-rows-safety 68/0, 0 wrong-action clicks, 19 ambiguous cases
+    refused, 14 valid loops preserved. N7 A/B/C are safe, runtime mutation fails closed, and the mutation controls
+    catch the old behaviour.
+  - Tracker closed by governance reconciliation (`awkit-phase-l-governance-close-1012`). The record below is history.
+  - The `sharedText` concern at the end of this entry was not re-examined by this task.
 - **Where:** `src/runner/domIntelligence/similarRows.ts` `commonRowSelector`, the `named` test and the icon `pin`
   added by L12.32 (`2f08ac31`).
 - **Executed** through `verify:similar-rows-safety` with temporary pages (reverted). Each loop below came from the
