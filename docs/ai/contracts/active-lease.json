@@ -1,20 +1,20 @@
 {
-  "task": "awkit-phase-l-governance-close-1012",
-  "contract_path": "docs/ai/contracts/awkit-phase-l-governance-close-1012.json",
+  "task": "awkit-vra-1-foundation-1012",
+  "contract_path": "docs/ai/contracts/awkit-vra-1-foundation-1012.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-12T07:34:46.967Z",
-  "acquired_at_commit": "32595348e0d52e09404fe2bbf21a90ac0a150ab9",
+  "acquired_at": "2026-10-12T08:45:25.867Z",
+  "acquired_at_commit": "b21e5a663eafb3528f5d3c43c33da14d9dc075b4",
   "baseline_dirty": [
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-phase-l-governance-close-1012.json"
+    "docs/ai/contracts/awkit-vra-1-foundation-1012.json"
   ],
   "baseline_dirty_fingerprints": {
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-phase-l-governance-close-1012.json": "ed7811abf4e3db76f2a69dca3f342722216808ceaaf638e3550e7d3d484e963b"
+    "docs/ai/contracts/awkit-vra-1-foundation-1012.json": "ee95f0224f192b004888c3000f60df6d52fe36ccd135f3956fed43bd78d269f1"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -29,7 +29,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-12T07:35:39.426Z",
-  "released_reason": "Phase L governance close: awkit-djnl.21.33, .21.31 and .21 closed through bd, JSONL exported with 367 issues",
-  "archived_at": "2026-10-12T07:35:39.427Z"
+  "released_at": "2026-10-12T08:51:55.590Z",
+  "released_reason": "Phase N start governance: Phase M beads deferred, awkit-vra.1 in progress, vra.3.1 and vra.9-11 filed with blocks edges, JSONL exported with 371 issues",
+  "archived_at": "2026-10-12T08:51:55.591Z"
 }

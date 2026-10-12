@@ -1,6 +1,32 @@
 # DECISIONS
 
-### 2026-10-08 (latest) — L12.32: a loop label must agree with what the control shows; an icon is pinned (implementer, measured) (`L12.32`, not yet filed in Beads)
+### 2026-10-12 (latest) — Phase N starts and Phase M is postponed; the N1 foundation is a library with no execution influence (owner, implementer design) (`awkit-vra.1`, `awkit-vra.3.1`)
+
+- **Redirect (owner).** Phase M (Application Knowledge Base, `awkit-akb`) is postponed and non-blocking. Its roadmap
+  status stays `pending` and its beads move to `deferred`. They are not cancelled and not waived. Phase N becomes
+  `in-progress`.
+- **Numbering.** The existing `awkit-vra` N1 to N8 IDs are kept. The new scope from the owner prompt is filed as
+  children, not renumbered: `awkit-vra.3.1` (deterministic fingerprints and comparison), plus `awkit-vra.9` OCR,
+  `.10` row and grid recognition and `.11` screenshot state recognition. The three P3 items are planning only and
+  wait on N3.
+- **Where it lives.** The code goes in `src/visual/`, not under `src/runner/`. `verify:visual-isolation` proves that the
+  import closures of the Runner, Recorder, locator factory and preload never reach it. Visual similarity must never
+  cause a click, a fill, a selector replacement or a locator recovery.
+- **`visualEvidence`** is a versioned type with a fail-closed parser inside the module. No FlowProfile, run record or
+  other persisted shape changes now.
+- **N1 decisions settled for the library (`N1-visual-capture-infrastructure.md`):**
+  - **VC-D4:** no scrolling. An element outside the viewport is refused as `TARGET_OFFSCREEN`.
+  - **VC-D6:** every protected surface is refused, in any frame, and checked again after the capture. The
+    failure-screenshot alignment stays a separate, owner-approved change.
+  - **VC-D8:** caps are set from measurement.
+  - **VC-D9:** PNG only, decoded in memory by a pure decoder on `node:zlib`. No new dependency is added.
+- **Deferred, no hooks added:** VC-D1, VC-D2, VC-D3, VC-D5, VC-D7 and VC-D10. They govern product capture modes,
+  permissions, the Take Screenshot node, animations, text suppression and resource profiles, none of which this slice
+  wires.
+- **Never.** No vision LLM, cloud API or network dependency. No disk write of captures. No image bytes in logs. No
+  inspection of CAPTCHA, MFA, OTP, passkey, device-approval or bot-detection surfaces.
+
+### 2026-10-08 — L12.32: a loop label must agree with what the control shows; an icon is pinned (implementer, measured) (`L12.32`, not yet filed in Beads)
 
 - **Supersedes the L12.30 sibling waiver.** L12.30 let a value unique among the row controls name the action whenever
   another action existed, and required agreement with the control's own text only for a lone action. The L12.31 QC

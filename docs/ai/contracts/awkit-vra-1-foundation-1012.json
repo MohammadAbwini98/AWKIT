@@ -1,0 +1,195 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-1-foundation-1012",
+    "title": "Phase N start: governance redirect and visual capture + fingerprint foundation (library only)",
+    "objective": "Owner request of 2026-10-12 after review: start Phase N under the existing awkit-vra numbering. S0 records the M-to-N redirect (Phase M deferred, non-blocking), the VC decisions this slice settles and the ones it defers, claims awkit-vra.1, files the fingerprint child under awkit-vra.3 and the new-scope OCR, row/grid and screenshot-state items. S1-S4 add a library-only src/visual module (viewport capture, coordinate mapping, bounds safety, protected-surface refusal, a pure PNG decoder, deterministic fingerprints and comparison), a mock-site visual lab, verifiers with mutation controls and an import-isolation guard proving no Runner, Recorder or preload code reaches the module. No execution influence, no persisted-shape change, no new dependency, no disk writes of captures.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "b21e5a66",
+    "working_tree_expected": "clean",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true,
+    "general_engineering_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "qa",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "src/visual/**",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "scripts/verify-visual-*.mjs",
+      "scripts/verify-visual-*.ts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "scripts/verify-mock-site.mjs",
+      "scripts/lib/verifier-classification.ts",
+      "mock-site/**",
+      "package.json",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/contracts/awkit-vra-1-foundation-1012.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "VN-GOV",
+      "description": "DECISIONS records the Phase M-to-N redirect and the VC decisions; Phase M beads are deferred, awkit-vra.1 is in progress, the fingerprint and new-scope items are filed, ImplementationRoadmap records M pending (postponed) and N in progress, the dashboard pins move to measured counts and verify:roadmap-dashboard reports Sources agree.",
+      "evidence_required": [
+        "beads-export",
+        "verify:roadmap-dashboard"
+      ]
+    },
+    {
+      "id": "VN-LIB",
+      "description": "src/visual capture, geometry, PNG decode and fingerprint modules pass verify:visual-capture and verify:visual-fingerprint with mutation controls observed failing, and verify:visual-isolation proves no Runner, Recorder or preload import closure reaches src/visual.",
+      "evidence_required": [
+        "verify:visual-capture",
+        "verify:visual-fingerprint",
+        "verify:visual-isolation",
+        "verify:mock-site",
+        "build"
+      ]
+    },
+    {
+      "id": "VN-GIT",
+      "description": "Commits land on main and are pushed without force; the L12.27 contract stays untracked and unchanged.",
+      "evidence_required": [
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "pending"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "pending"
+    },
+    {
+      "id": "verify:visual-capture",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-capture",
+      "artifact": null,
+      "result": "pending"
+    },
+    {
+      "id": "verify:visual-fingerprint",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-fingerprint",
+      "artifact": null,
+      "result": "pending"
+    },
+    {
+      "id": "verify:visual-isolation",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-isolation",
+      "artifact": null,
+      "result": "pending"
+    },
+    {
+      "id": "verify:mock-site",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:mock-site",
+      "artifact": null,
+      "result": "pending"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "pending"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-1-foundation-1012:project-state:2026-10-12T08:45:25.867Z",
+        "task": "awkit-vra-1-foundation-1012",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-12T08:45:25.867Z",
+        "acquired_at_commit": "b21e5a663eafb3528f5d3c43c33da14d9dc075b4",
+        "released_at": "2026-10-12T08:51:55.590Z",
+        "released_reason": "Phase N start governance: Phase M beads deferred, awkit-vra.1 in progress, vra.3.1 and vra.9-11 filed with blocks edges, JSONL exported with 371 issues",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}
