@@ -1,6 +1,48 @@
 # CURRENT_STATE
 
-## Phase N: N2 DOM + Vision Evidence Fusion implementation plan delivered (2026-10-12, latest)
+## Phase N: N2 started; FD-1 to FD-9 approved, N2.1-N2.8 filed, N2.1 done (2026-10-12, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task.
+
+- **Decisions:** the owner approved FD-1 to FD-9 as recommended. They are recorded in `docs/ai/DECISIONS.md`.
+- **Filed** as children of `awkit-vra.12` (now `in_progress`), in the plan's dependency order. No existing ID was
+  renumbered.
+
+  | Bead | Item |
+  |---|---|
+  | `.12.1` | seam encapsulation (closed) |
+  | `.12.2` | pure fusion policy |
+  | `.12.3` | calibration lab, including the headed Ctrl+zoom check |
+  | `.12.4` | reference sidecar store |
+  | `.12.5` | runner adapter (shadow) and the isolation-boundary change |
+  | `.12.6` | enforce-veto |
+  | `.12.7` | provenance |
+  | `.12.8` | reconciliation |
+
+- **N2.1 done:**
+  - The implementation moved to `src/visual/internal/captureCore.ts`, which holds the seam-taking
+    `captureViewportWithSeams`/`captureElementWithSeams`.
+  - The public `captureViewport(page, options)` and `captureElement(page, target, options)` take no seam.
+  - `verify:visual-isolation` proves that only `src/visual/capture.ts` and `scripts/verify-visual-capture.mts`
+    import the internal entry. It scans more than 500 repository sources, and seven mutation controls show it
+    catches an alias import, a relative import, a re-export and a seam parameter.
+  - The `png.ts` comment now says only `tRNS` is refused.
+  - No fusion, runner, schema, settings or UI change.
+- **Checks:**
+
+  | Check | Result |
+  |---|---|
+  | `verify:visual-isolation` | 28/0 |
+  | `verify:visual-capture` | 274/0 |
+  | `verify:visual-fingerprint` | 58/0 |
+  | `npm run build` | PASS |
+  | real-file mutation run | 25/3, restored |
+
+- **Still NOT RUN:** a real headed Ctrl+zoom capture. It belongs to N2.3 (`awkit-vra.12.3`).
+- **Next:** N2.2 (`awkit-vra.12.2`), the pure `decideFusion` policy.
+
+## Phase N: N2 DOM + Vision Evidence Fusion implementation plan delivered (2026-10-12)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed by this task.

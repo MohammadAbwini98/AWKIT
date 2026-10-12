@@ -1,6 +1,38 @@
 # DECISIONS
 
-### 2026-10-12 (latest) — Phase N starts and Phase M is postponed; the N1 foundation is a library with no execution influence (owner, implementer design) (`awkit-vra.1`, `awkit-vra.3.1`)
+### 2026-10-12 (latest) — Phase N N2: owner decisions FD-1 to FD-9 approved as recommended (owner, in session) (`awkit-vra.12`)
+
+The owner approved FD-1 to FD-9 of `docs/plans/ai-upgrade-v5/N2-dom-vision-evidence-fusion.md` as recommended, in
+these words: "FD-1 to FD-9 approved as recommended". The plan's policy holds: fusion is veto-only and runs last in
+`LocatorFactory.recover()`'s veto chain, corroboration never executes, and visual evidence never yields a locator,
+index or coordinate.
+
+- **FD-1 Modes.** `off` (the default), `shadow` and `enforce-veto`. Shadow ships first, and enforce follows only after
+  N2.6 is accepted.
+- **FD-2 Isolation boundary.** `verify:visual-isolation` is relaxed for exactly one allow-listed runner adapter, the
+  N2.5 `VisualFusionStage`, with the plan's mutation controls.
+- **FD-3 Strengthening.** It is reporting-only (R4/R6). Execution-affecting strengthening is deferred to N3 under the
+  L12 `agreed` template.
+- **FD-4 Reference store.** References live in a runner-owned sidecar store, not in a `LocatorRecoveryRecord` field.
+  There are two reasons:
+  - an older build that rewrites a record would silently drop an unknown field;
+  - every reference write would contend with the twin-history read-modify-write.
+- **FD-5 Budget.** 400 ms per recovery attempt, wall clock, including captures. Exhaustion gives R2. The budget is
+  revisited after the N2.3 measurements.
+- **FD-6 Eligible steps.** Recovery winners of element steps (click-like, fill, select, check, radio) from all three
+  layers. The primary-locator path is observed in shadow mode only. Sensitive guarded-positional steps are shadow-only
+  and never enforced.
+- **FD-7 Competitors.** Up to K = 3 gated-out DOM candidates with the highest DOM score, in the viewport only, because
+  capture never scrolls.
+- **FD-8 Enablement.** A run option plus the `AWKIT_VISUAL_FUSION` environment variable. A persisted Settings key waits
+  until enforce is accepted, because `retainKnownKeys` drops unknown settings groups on older builds.
+- **FD-9 Margins.** They come from the N2.3 calibration measurements, with a safety gap. If the measurements show no
+  separation, R8 is disabled and N2 ships shadow-only.
+
+**Consequences.** N2.1-N2.8 are filed as `awkit-vra.12.1`…`.12.8` with the plan's dependency order. N2.1 is
+implemented and closed. No existing Beads ID was renumbered.
+
+### 2026-10-12 — Phase N starts and Phase M is postponed; the N1 foundation is a library with no execution influence (owner, implementer design) (`awkit-vra.1`, `awkit-vra.3.1`)
 
 - **Redirect (owner).** Phase M (Application Knowledge Base, `awkit-akb`) is postponed and non-blocking. Its roadmap
   status stays `pending` and its beads move to `deferred`. They are not cancelled and not waived. Phase N becomes

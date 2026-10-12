@@ -1,6 +1,44 @@
 # TASK_LOG
 
-## 2026-10-12 (latest) — Phase N: N2 DOM + Vision Evidence Fusion implementation plan (Claude)
+## 2026-10-12 (latest) — Phase N: N2 decisions recorded, N2.1-N2.8 filed, N2.1 implemented (Claude)
+
+- **Scope:** owner approval "FD-1 to FD-9 approved as recommended; file N2.1-N2.8 and start N2.1", under contract
+  `awkit-vra-12-n2-start-1012`. CodeCraft was not used (`CODECRAFT_MODE=off`).
+- **Tracker:** filed `awkit-vra.12.1`…`.12.8` with 8 parent-child and 8 blocks edges, closed `.12.1`, and set
+  `awkit-vra.12` to `in_progress`. The tracker now has 380 issues, 32 outstanding / 348 closed and 281 edges.
+- **N2.1:**
+  - The capture implementation and seams moved to `src/visual/internal/captureCore.ts`.
+  - `src/visual/capture.ts` is now a seam-free public wrapper.
+  - `verify:visual-capture` uses the `*WithSeams` entry.
+  - `verify:visual-isolation` adds an importer allow-list and a public-surface check, each with mutation controls.
+  - The `png.ts` comment was corrected.
+- **Files:**
+  - `src/visual/{capture.ts,png.ts,internal/captureCore.ts}`;
+  - `scripts/verify-visual-{capture,isolation}.mts`;
+  - `scripts/verify-roadmap-dashboard.mjs`, for the pins;
+  - `.beads/issues.jsonl`;
+  - `docs/ai/{DECISIONS,CURRENT_STATE,HANDOFF,TASK_LOG}.md`;
+  - `docs/plans/ai-upgrade-v5/ROADMAP.md`;
+  - the contract;
+  - the lease and assignments files, which the lease CLI changed.
+- **Checks:**
+
+  | Check | Result |
+  |---|---|
+  | `verify:visual-isolation` | 28/0 |
+  | `verify:visual-capture` | 274/0 |
+  | `verify:visual-fingerprint` | 58/0 |
+  | `npm run build` | PASS |
+  | real-file mutation run | 25/3, restored |
+  | `verify:roadmap-dashboard` | Sources agree |
+  | `git diff --check` | PASS |
+
+- **Lease note:** a release whose reason contained `;` was the third unsupported-command denial and became a TERMINAL
+  gate. It was not retried. The guard-printed single-path amend then rerouted, which released the lease.
+- **Not run:** a real headed Ctrl+zoom capture (N2.3).
+- **Preserved:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`, untracked and unchanged.
+
+## 2026-10-12 — Phase N: N2 DOM + Vision Evidence Fusion implementation plan (Claude)
 
 - **Scope:** planning only. N2 was not implemented, and no production, schema, settings or tracker change was made.
   CodeCraft was not used (`CODECRAFT_MODE=off`).

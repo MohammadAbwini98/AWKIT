@@ -12,6 +12,10 @@
  *      transitively, into main.ts, into an IPC handler and behind an aliased import must all be detected.
  *   3. The module itself: no network, filesystem, process or console API; only `node:crypto` and `node:zlib`
  *      builtins; no page interaction or navigation call. A planted offender must be caught by the same scan.
+ *   4. The capture verification seams (N2.1, awkit-vra.12.1): across src, app, scripts, tools, mock-site and tests,
+ *      only `src/visual/capture.ts` and `scripts/verify-visual-capture.mts` import `src/visual/internal`; the public
+ *      `captureViewport` / `captureElement` take no seam parameter and nothing seam-shaped is re-exported. Planted
+ *      importers (aliased, relative, index re-export) and planted surface leaks must each be caught.
  *
  * Run: npm run verify:visual-isolation
  */
@@ -271,6 +275,110 @@ function violations(text: string): string[] {
   ];
   const missed = planted.filter(([, code]) => violations(code).length === 0).map(([name]) => name);
   check(`MUTATION: every planted offender is caught by the same scan (${planted.length})`, missed.length === 0, `missed: ${missed.join(", ")}`);
+}
+
+console.log("\nThe capture verification seams are verifier-only (N2.1):\n");
+{
+  // The seams can replace the protected-surface guard, so the seam-taking entry may be imported by the public capture
+  // module and the capture verifier only — never by product code, another script, or a re-export.
+  const SEAM_ENTRY = "src/visual/internal";
+  const SEAM_IMPORTERS = ["scripts/verify-visual-capture.mts", "src/visual/capture.ts"];
+  const SCAN_ROOTS = ["src", "app", "scripts", "tools", "mock-site", "tests"];
+  const isSeamEntry = (target: string): boolean => target === SEAM_ENTRY || target.startsWith(`${SEAM_ENTRY}/`);
+
+  async function repoSources(dir: string): Promise<string[]> {
+    const out: string[] = [];
+    let entries;
+    try {
+      entries = await readdir(dir, { withFileTypes: true });
+    } catch {
+      return out;
+    }
+    for (const entry of entries) {
+      if (entry.isDirectory() && ["node_modules", "dist", "out", ".git"].includes(entry.name)) continue;
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) out.push(...(await repoSources(path)));
+      else if (/\.(?:ts|tsx|mts|cts|js|mjs|cjs)$/.test(entry.name)) out.push(path);
+    }
+    return out;
+  }
+
+  const scanned = (await Promise.all(SCAN_ROOTS.map((root) => repoSources(join(REPO, root))))).flat().map(toRepo);
+  // Files inside the seam entry itself are its implementation, not importers of it.
+  const candidates = scanned.filter((file) => !isSeamEntry(file.replace(/\.[^.]+$/, "")) && !file.startsWith(`${SEAM_ENTRY}/`));
+
+  /** Every file importing the seam entry. `inject` adds raw specifiers, resolved exactly like real ones. */
+  async function seamImporters(inject: Map<string, string[]> = new Map()): Promise<string[]> {
+    const found: string[] = [];
+    for (const file of candidates) {
+      const injected = (inject.get(file) ?? []).map((specifier) => resolveSpecifier(file, specifier)).filter((t): t is string => t !== null);
+      if ([...(await importTargets(file)), ...injected].some(isSeamEntry)) found.push(file);
+    }
+    return found.sort();
+  }
+
+  const exactlyAllowed = (importers: string[]): boolean => JSON.stringify(importers) === JSON.stringify([...SEAM_IMPORTERS].sort());
+
+  check("the repository was actually scanned", scanned.length >= 500 && candidates.includes("src/runner/PlaywrightRunner.ts"), String(scanned.length));
+  const seamFiles = (await sourceFiles(join(REPO, SEAM_ENTRY))).map(toRepo);
+  check("the seam entry exists", seamFiles.includes(`${SEAM_ENTRY}/captureCore.ts`), seamFiles.join(", ") || "missing");
+  const importers = await seamImporters();
+  check(
+    "only src/visual/capture.ts and scripts/verify-visual-capture.mts import the seam entry (both do)",
+    exactlyAllowed(importers),
+    importers.join(", ") || "no importer found"
+  );
+
+  // The public surface: the exported functions take no seam parameter, and nothing seam-shaped is re-exported.
+  const PUBLIC_PARAMS: Record<string, string[]> = { captureViewport: ["page", "options"], captureElement: ["page", "target", "options"] };
+  function surfaceProblems(text: string): string[] {
+    const problems: string[] = [];
+    for (const [name, want] of Object.entries(PUBLIC_PARAMS)) {
+      const match = new RegExp(`export\\s+(?:async\\s+)?function\\s+${name}\\s*\\(([^)]*)\\)`).exec(text);
+      if (!match) {
+        problems.push(`${name} is not exported`);
+        continue;
+      }
+      const params = match[1].split(",").map((p) => p.trim().replace(/[?:=\s].*$/s, "")).filter(Boolean);
+      if (JSON.stringify(params) !== JSON.stringify(want)) problems.push(`${name}(${params.join(", ")})`);
+    }
+    const exported = [
+      ...[...text.matchAll(/\bexport\s+(?:type\s+)?\{([^}]*)\}/g)].flatMap((m) => m[1].split(",").map((n) => n.trim().split(/\s+as\s+/).pop() ?? "")),
+      ...[...text.matchAll(/\bexport\s+(?:declare\s+)?(?:async\s+)?(?:function|const|let|var|class|interface|type)\s+(\w+)/g)].map((m) => m[1])
+    ].filter(Boolean);
+    for (const name of exported) if (/WithSeams|Seams$|Internals$/.test(name)) problems.push(`exports ${name}`);
+    if (/\bexport\s*\*\s*(?:as\s+\w+\s+)?from\s*["'][^"']*internal/.test(text)) problems.push("export * from the seam entry");
+    return problems;
+  }
+  const captureText = await readFile(join(REPO, "src/visual/capture.ts"), "utf8");
+  const surface = surfaceProblems(captureText);
+  check("the public captureViewport / captureElement take no seam and nothing seam-shaped is re-exported", surface.length === 0, surface.join("; "));
+
+  console.log("\nMutation controls (each planted seam leak must be caught):\n");
+  for (const [file, specifier, label] of [
+    ["src/runner/PlaywrightRunner.ts", "@src/visual/internal/captureCore", "a runner import through the @src/ alias"],
+    ["src/visual/index.ts", "./internal/captureCore", "a re-export from the visual index"],
+    ["scripts/benchmark-visual-capture.mts", "../src/visual/internal/captureCore", "another script's relative import"]
+  ] as const) {
+    const mutated = await seamImporters(new Map([[file, [specifier]]]));
+    check(`MUTATION: ${label} is caught`, candidates.includes(file) && !exactlyAllowed(mutated) && mutated.includes(file), mutated.join(", "));
+  }
+
+  const plants: Array<[string, string]> = [
+    [
+      "a seam parameter on the public captureViewport",
+      captureText.replace("captureViewport(page: Page, options: VisualCaptureOptions = {})", "captureViewport(page: Page, options: VisualCaptureOptions = {}, seams?: VisualCaptureSeams)")
+    ],
+    [
+      "a seam parameter on the public captureElement",
+      captureText.replace("captureElement(page: Page, target: Locator, options: VisualCaptureOptions = {})", "captureElement(page: Page, target: Locator, options: VisualCaptureOptions = {}, seams?: VisualCaptureSeams)")
+    ],
+    ["a re-export of the seam-taking function", `${captureText}\nexport { captureViewportWithSeams } from "./internal/captureCore";\n`],
+    ["a star re-export of the seam entry", `${captureText}\nexport * from "./internal/captureCore";\n`]
+  ];
+  for (const [label, text] of plants) {
+    check(`MUTATION: ${label} is caught`, text !== captureText && surfaceProblems(text).length > 0, "not caught or not planted");
+  }
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

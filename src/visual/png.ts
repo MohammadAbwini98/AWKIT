@@ -76,7 +76,10 @@ function isChunkLetter(byte: number): boolean {
 
 /** Critical chunks this decoder understands; any other critical chunk changes the image meaning and is refused. */
 const KNOWN_CRITICAL = new Set(["IHDR", "IDAT", "IEND", "PLTE"]);
-/** Ancillary chunks that would change the decoded pixels (transparency, colour management) and are refused, not ignored. */
+/**
+ * Ancillary chunks that would change the decoded pixels and are refused, not ignored. Only transparency (`tRNS`) is
+ * refused; colour-management chunks (`gAMA`, `cHRM`, `sRGB`, `iCCP`) are ignored like every other ancillary chunk.
+ */
 const REFUSED_ANCILLARY = new Set(["tRNS"]);
 const MAX_CHUNK_LENGTH = 0x7fffffff;
 

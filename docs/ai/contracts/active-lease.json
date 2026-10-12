@@ -1,20 +1,36 @@
 {
-  "task": "awkit-vra-n0n1-reqc-1012",
-  "contract_path": "docs/ai/contracts/awkit-vra-n0n1-reqc-1012.json",
+  "task": "awkit-vra-12-n2-start-1012",
+  "contract_path": "docs/ai/contracts/awkit-vra-12-n2-start-1012.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-12T12:45:48.559Z",
-  "acquired_at_commit": "222b04d3bc59036b0ba7baf3f5138121904a42cb",
+  "acquired_at": "2026-10-12T13:26:27.333Z",
+  "acquired_at_commit": "b7e51148d9d924776e8774eb63cf7a3743a56ea3",
   "baseline_dirty": [
+    ".beads/interactions.jsonl",
+    ".beads/issues.jsonl",
+    "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-vra-n0n1-reqc-1012.json"
+    "docs/ai/contracts/awkit-vra-12-n2-start-1012.json",
+    "scripts/verify-visual-capture.mts",
+    "scripts/verify-visual-isolation.mts",
+    "src/visual/capture.ts",
+    "src/visual/internal/",
+    "src/visual/png.ts"
   ],
   "baseline_dirty_fingerprints": {
+    ".beads/interactions.jsonl": "a52d60e933611defd6e331586530235f71643d7d61e6a3cf69bbca0a04be7105",
+    ".beads/issues.jsonl": "1a9e30a04879fe989038b79bb8f1195cd3fd4023a5ffe6f913cda07d45d714c4",
+    "docs/ai/contracts/active-lease.json": "a8b0bdb389ab1eeaf1176a01a3b765d6fdef6c70a8a7e596f1d78fa7f488f3af",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-vra-n0n1-reqc-1012.json": "e32e3a5008e15253c949cf792f86d685db6263bd77a642e9215bdaf27a143f8b"
+    "docs/ai/contracts/awkit-vra-12-n2-start-1012.json": "680546c21784c62dec195b73ee902b2d037f239cb95af9c81c3139090dbaad15",
+    "scripts/verify-visual-capture.mts": "f44d437d6839b1bdbf9e331088f3eca65b0f973d1d13cd463f44b7e88872ff60",
+    "scripts/verify-visual-isolation.mts": "f0811b45180f7f0db31daca0fc6dd1546892d9298099dc674c5f952f764212cc",
+    "src/visual/capture.ts": "1971c755e433b05785bd8f73e431307e79417e8151e3eaa8e07ccefd96606ca2",
+    "src/visual/internal/": "absent",
+    "src/visual/png.ts": "e66096bb53aa85045dd0d460115f71f396d6275b42c0d993dacf92e2039eaa70"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -29,7 +45,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-12T12:48:03.249Z",
-  "released_reason": "N0/N1 re-QC governance: vra.1 and vra.3.1 retitled to canonical N0/N1 and closed, N2 fusion filed as awkit-vra.12 blocked by both, vra.9-11 mapped to N7-N9, epic canonical map noted, JSONL exported with 372 issues",
-  "archived_at": "2026-10-12T12:48:03.251Z"
+  "released_at": "2026-10-12T13:26:55.363Z",
+  "released_reason": "N2.1 closed and Beads exported",
+  "archived_at": "2026-10-12T13:26:55.364Z"
 }

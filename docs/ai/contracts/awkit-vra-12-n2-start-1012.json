@@ -1,0 +1,213 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-12-n2-start-1012",
+    "title": "N2 owner decisions recorded, N2.1-N2.8 filed, N2.1 capture test-seam encapsulation",
+    "objective": "Owner approval of 2026-10-12: record FD-1 to FD-9 of docs/plans/ai-upgrade-v5/N2-dom-vision-evidence-fusion.md as recommended in DECISIONS.md, file the proposed work items N2.1 to N2.8 as Beads children of awkit-vra.12 with the plan's dependency order without renumbering any existing ID, and implement N2.1: move the capture verification seams (afterScreenshot, guard) off the exported captureViewport/captureElement into a verifier-only internal entry that verify:visual-isolation proves only capture.ts and the capture verifier import, and correct the png.ts comment so it states only tRNS is refused. No fusion, runner, schema, settings or UI change.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "b7e51148",
+    "working_tree_expected": "clean",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true,
+    "general_engineering_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "qa",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "src/visual/**",
+      "scripts/verify-visual-capture.mts",
+      "scripts/verify-visual-isolation.mts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/awkit-vra-12-n2-start-1012.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N2-GOV",
+      "description": "FD-1 to FD-9 are recorded in DECISIONS.md as approved, N2.1 to N2.8 are filed as children of awkit-vra.12 with the plan's blocks edges, no existing Beads ID is renumbered, and verify:roadmap-dashboard reports Sources agree.",
+      "evidence_required": [
+        "beads-export",
+        "verify:roadmap-dashboard"
+      ]
+    },
+    {
+      "id": "N2.1",
+      "description": "The exported captureViewport/captureElement take no verification seam; the seams are reachable only through a verifier-only internal entry; verify:visual-isolation proves only src/visual/capture.ts and scripts/verify-visual-capture.mts import it, with mutation controls; the png.ts comment is accurate; capture, fingerprint and isolation verifiers and the build pass.",
+      "evidence_required": [
+        "build",
+        "verify:visual-capture",
+        "verify:visual-fingerprint",
+        "verify:visual-isolation"
+      ]
+    },
+    {
+      "id": "N2-GIT",
+      "description": "The work lands on main and is pushed without force; the L12.27 contract stays untracked and unchanged.",
+      "evidence_required": [
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc --noEmit and electron-vite build succeeded against the final state, after the ImplementationRoadmap.ts note update"
+    },
+    {
+      "id": "verify:visual-capture",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-capture",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "274/0 with the seam cases routed through src/visual/internal/captureCore"
+    },
+    {
+      "id": "verify:visual-fingerprint",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-fingerprint",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "58/0"
+    },
+    {
+      "id": "verify:visual-isolation",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-isolation",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "28/0: importers of the seam entry are exactly capture.ts and verify-visual-capture.mts over >500 scanned sources; seven mutation controls detected; a real-file mutation run (seam param on captureViewport plus an index re-export) gave 25/3 and was restored"
+    },
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "Exported 380 issues; awkit-vra.12.1 to .12.8 filed with 8 parent-child and 8 blocks edges, .12.1 closed, awkit-vra.12 in_progress, no existing ID renumbered"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "177/177, Sources agree; pins moved to 380 issues, 32 outstanding / 348 closed, 281 edges"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "pending",
+      "observed": ""
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-12-n2-start-1012:project-state:2026-10-12T13:15:43.804Z",
+        "task": "awkit-vra-12-n2-start-1012",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-12T13:15:43.804Z",
+        "acquired_at_commit": "b7e51148d9d924776e8774eb63cf7a3743a56ea3",
+        "released_at": "2026-10-12T13:20:53.032Z",
+        "released_reason": "amendment added paths outside project-state's ownership (src/visual/internal/captureCore.ts) — routing re-run requires a different specialist",
+        "amendments": [
+          {
+            "timestamp": "2026-10-12T13:20:53.031Z",
+            "added": [
+              "src/visual/internal/captureCore.ts"
+            ],
+            "reason": "N2.1 capture seam encapsulation needs src/visual which project-state does not own",
+            "triggered_escalation": [],
+            "approved_by": "manager"
+          }
+        ],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-vra-12-n2-start-1012:project-state:2026-10-12T13:26:27.333Z",
+        "task": "awkit-vra-12-n2-start-1012",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-12T13:26:27.333Z",
+        "acquired_at_commit": "b7e51148d9d924776e8774eb63cf7a3743a56ea3",
+        "released_at": "2026-10-12T13:26:55.363Z",
+        "released_reason": "N2.1 closed and Beads exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

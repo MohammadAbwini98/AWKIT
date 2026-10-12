@@ -19,6 +19,9 @@
  *   - no side effects: no click, key, focus or scroll on the page, and no request leaves the local mock site;
  *   - a capture's JSON form omits image bytes; evidence holds no image at all.
  *
+ * Cases that change the page mid-capture or substitute the guard use the verifier-only `internal/captureCore` entry
+ * (N2.1); every other case uses the public, seam-free `captureViewport` / `captureElement`.
+ *
  * Mutation controls (each must flip the check it guards):
  *   - DPR scaling removed: cropping the same screenshot with scale 1 at DPR 2 must FAIL the exact-pixel predicate;
  *   - post-capture recheck skipped: a guard that only checks once must let the late credential frame through.
@@ -33,6 +36,8 @@ import { chromium, type Browser, type BrowserContext, type Page } from "playwrig
 import sharp from "sharp";
 
 import { captureElement, captureViewport, type VisualCrop } from "@src/visual/capture";
+// The seam-taking entry is verifier-only (N2.1): the public functions above take no seam.
+import { captureElementWithSeams, captureViewportWithSeams } from "@src/visual/internal/captureCore";
 import type { VisualResult } from "@src/visual/errors";
 import { clampPixelRect, cssRectToPixelRect, scaleMatchesDevicePixelRatio, type CssRect } from "@src/visual/geometry";
 import { cropImage, decodePng, PngDecodeError, type VisualImage } from "@src/visual/png";
@@ -531,7 +536,7 @@ try {
       check("...mapped with the frame's inner scroll applied, pixel for pixel", mappedSolid(inScrolled.value.element, { x: 432, y: 100, width: 80, height: 40 }, BLUE, dpr, [402, 40, 40 - 260]), JSON.stringify(inScrolled.value.element.requestedBounds));
     }
     const frameScroll = { afterScreenshot: (p: Page) => p.frames().find((f) => f.url().includes("scroll=1"))!.evaluate("window.scrollTo(0, 280)").then(() => undefined) };
-    check("a frame that scrolls during capture makes its target TARGET_STALE", outcome(await captureElement(frames, scrolledFrame.getByTestId("vi-frame-target"), {}, frameScroll)) === "TARGET_STALE");
+    check("a frame that scrolls during capture makes its target TARGET_STALE", outcome(await captureElementWithSeams(frames, scrolledFrame.getByTestId("vi-frame-target"), {}, frameScroll)) === "TARGET_STALE");
 
     check("a frame target below the fold is TARGET_OFFSCREEN", outcome(await captureElement(frames, belowTarget)) === "TARGET_OFFSCREEN");
     await frames.evaluate("window.scrollTo(0, 800)");
@@ -560,7 +565,7 @@ try {
     check("a box that is not rendered is INVALID_BOUNDS", outcome(await captureElement(page, page.getByTestId("vi-cal-none"))) === "INVALID_BOUNDS");
     check("a target below the fold is TARGET_OFFSCREEN (never scrolled to)", outcome(await captureElement(page, page.getByTestId("vi-offscreen"))) === "TARGET_OFFSCREEN" && (await page.evaluate("window.scrollY")) === 0);
 
-    const moved = await captureElement(page, page.getByTestId("vi-mover"), {}, { afterScreenshot: (p) => p.evaluate("window.__visualLab.moveMover()").then(() => undefined) });
+    const moved = await captureElementWithSeams(page, page.getByTestId("vi-mover"), {}, { afterScreenshot: (p) => p.evaluate("window.__visualLab.moveMover()").then(() => undefined) });
     check("a target that moves during capture is TARGET_STALE, not a crop of the old box", outcome(moved) === "TARGET_STALE", outcome(moved));
 
     const controller = new AbortController();
@@ -571,7 +576,7 @@ try {
       return { protected: false };
     };
     const started = Date.now();
-    const exhausted = await captureViewport(page, { timeoutMs: 150 }, { guard: slowGuard });
+    const exhausted = await captureViewportWithSeams(page, { timeoutMs: 150 }, { guard: slowGuard });
     check("a call over budget is BUDGET_EXHAUSTED, inside the budget", outcome(exhausted) === "BUDGET_EXHAUSTED" && Date.now() - started < 400, `${outcome(exhausted)} after ${Date.now() - started} ms`);
 
     console.log("\nActive page, popup and wrong page:\n");
@@ -614,7 +619,7 @@ try {
       check(`${kind}: viewport and element captures are refused`, outcome(await captureViewport(page)) === "PROTECTED_SURFACE" && outcome(await captureElement(page, page.getByTestId("vi-cal-red"))) === "PROTECTED_SURFACE");
       await page.evaluate("window.__visualLab.removeProtected()");
       check(`${kind}: removing it lifts the refusal (so the case discriminates)`, (await captureViewport(page)).ok);
-      const lateKind = await captureElement(page, page.getByTestId("vi-cal-red"), {}, { afterScreenshot: inject });
+      const lateKind = await captureElementWithSeams(page, page.getByTestId("vi-cal-red"), {}, { afterScreenshot: inject });
       check(`${kind}: appearing only after the screenshot is still refused`, outcome(lateKind) === "PROTECTED_SURFACE" && !lateKind.ok && lateKind.message.includes("after capture"), lateKind.ok ? "ok" : lateKind.message);
       await page.evaluate("window.__visualLab.removeProtected()");
     }
@@ -626,17 +631,17 @@ try {
     check("NEGATIVE CONTROL: an ordinary step type is not refused", (await captureViewport(page, { stepType: "click" })).ok);
 
     const late = { afterScreenshot: (p: Page) => injectAccountFrame(p) };
-    const lateViewport = await captureViewport(page, {}, late);
+    const lateViewport = await captureViewportWithSeams(page, {}, late);
     check("a credential frame that appears after the screenshot is still refused", outcome(lateViewport) === "PROTECTED_SURFACE" && !lateViewport.ok && lateViewport.message.includes("after capture"), lateViewport.ok ? "ok" : lateViewport.message);
     await page.evaluate("window.__visualLab.removeAccountFrame()");
-    const lateElement = await captureElement(page, page.getByTestId("vi-cal-red"), {}, late);
+    const lateElement = await captureElementWithSeams(page, page.getByTestId("vi-cal-red"), {}, late);
     check("...for an element capture too", outcome(lateElement) === "PROTECTED_SURFACE");
     await page.evaluate("window.__visualLab.removeAccountFrame()");
 
     // Mutation: a guard that only checks before the screenshot (the recheck skipped) must let the late frame through.
     let calls = 0;
     const checkOnce = (p: Page): Promise<ProtectedGuardVerdict> => (calls++ === 0 ? checkProtectedSurface(p) : Promise.resolve({ protected: false }));
-    const mutant = await captureViewport(page, {}, { ...late, guard: checkOnce });
+    const mutant = await captureViewportWithSeams(page, {}, { ...late, guard: checkOnce });
     check("MUTATION: skipping the post-capture recheck lets the late frame through (so the case discriminates)", mutant.ok && calls === 2, outcome(mutant));
     await context.close();
   }

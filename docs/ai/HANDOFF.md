@@ -1,6 +1,21 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-12, latest) — Phase N: N2 fusion plan delivered; awaiting owner decisions
+## HANDOFF (2026-10-12, latest) — Phase N: N2 in progress; N2.1 done, next is N2.2
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Decided:** FD-1 to FD-9 approved as recommended (`docs/ai/DECISIONS.md`).
+- **Filed:** N2.1-N2.8 as `awkit-vra.12.1`…`.12.8`. `.12.1` is closed and `awkit-vra.12` is `in_progress`.
+- **Next action:** N2.2 (`awkit-vra.12.2`), a pure `decideFusion` policy and `FusionVerdict`. It is a library only,
+  with no runner wiring until N2.5.
+- **Binding for implementers:**
+  - Product code imports only `captureViewport`/`captureElement`.
+  - The seam entry `src/visual/internal/captureCore.ts` is verifier-only, and `verify:visual-isolation` enforces it.
+  - The isolation gate changes only in N2.5, for the single FD-2 adapter, with its mutation controls.
+- **NOT RUN:** a real headed Ctrl+zoom capture. It is scheduled in N2.3.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-12) — Phase N: N2 fusion plan delivered; awaiting owner decisions
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
