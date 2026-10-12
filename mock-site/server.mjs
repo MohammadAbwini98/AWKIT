@@ -220,6 +220,7 @@ const server = createServer(async (req, res) => {
   // Phase N Visual Intelligence Lab: the lab, its same-origin frame and popup, and the protected account fixture.
   if (req.method === "GET" && path === "/visual-intelligence") return serveStatic(res, "visual-intelligence.html");
   if (req.method === "GET" && path === "/visual-intelligence/frame") return serveStatic(res, "visual-intelligence-frame.html");
+  if (req.method === "GET" && path === "/visual-intelligence/frames") return serveStatic(res, "visual-intelligence-frames.html");
   if (req.method === "GET" && path === "/visual-intelligence/popup") return serveStatic(res, "visual-intelligence-popup.html");
   if (req.method === "GET" && path === "/visual-intelligence/account") return serveStatic(res, "visual-intelligence-account.html");
   // L11.F DOM Context Lab: its SPA routes serve the lab itself, so a reload stays on the same view.

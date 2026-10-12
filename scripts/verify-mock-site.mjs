@@ -736,6 +736,23 @@ try {
   await visualPopup.close();
   await page.goto(`${BASE}/visual-intelligence/account`);
   check("the account route carries its credential field", (await page.locator('input[type="password"]').count()) === 1);
+  await page.goto(`${BASE}/visual-intelligence/frames`);
+  check("the frames page serves its title", (await page.title()) === "Visual Intelligence Lab frames");
+  check(
+    "the frames page holds a target two frames deep",
+    (await page.frameLocator('[data-testid="vi-frames-nested"]').frameLocator('[data-testid="vi-frame-inner"]').getByTestId("vi-frame-target").count()) === 1
+  );
+  await page.frameLocator('[data-testid="vi-frames-scrolled"]').locator("body[data-scrolled]").waitFor();
+  check("the scrolled frame scrolls its own document to 260", (await page.frameLocator('[data-testid="vi-frames-scrolled"]').locator("body").getAttribute("data-scrolled")) === "260");
+  check("the below-the-fold frame and solid are present", (await page.frameLocator('[data-testid="vi-frames-below"]').getByTestId("vi-frame-target").count()) === 1 && (await page.getByTestId("vi-frames-below-solid").count()) === 1);
+  check("the frames page carries no credential field", (await page.locator('input[type="password"], input[autocomplete="one-time-code"]').count()) === 0);
+  await page.goto(`${BASE}/visual-intelligence`);
+  for (const kind of ["otp", "mfa", "captcha", "passkey"]) {
+    await page.evaluate((k) => window.__visualLab.injectProtected(k), kind);
+    check(`injectProtected("${kind}") adds exactly one protected surface`, (await page.locator(".vi-protected").count()) === 1 && (await page.getByTestId(`vi-protected-${kind}`).count()) === 1);
+  }
+  await page.evaluate(() => window.__visualLab.removeProtected());
+  check("removeProtected() removes it", (await page.locator(".vi-protected").count()) === 0);
 
   // L11.F DOM Context Lab: the lab and its SPA routes serve, each look-alike exists where its case needs it.
   // The recovery behaviour itself is gated by verify:dom-intelligence-contexts.

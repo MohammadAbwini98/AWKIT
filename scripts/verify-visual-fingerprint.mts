@@ -9,7 +9,12 @@
  * The same suite is then run against three mutants, each of which must make it FAIL:
  *   - a fingerprint function that returns one constant fingerprint;
  *   - a comparison that always scores 1;
- *   - an empty fixture-pair list (the suite must not pass by checking nothing).
+ *   - an empty fixture-pair list (the suite must not pass by checking nothing);
+ *   - a pair list or a fixture corpus one short of its hardcoded floor (caught by that floor, not by accident);
+ *   - a fingerprint that yields NaN on tiny images, and a comparison that yields NaN for zero-variance fills.
+ *
+ * Every fixture is fingerprinted 100 times (alternating original and copied buffers), and synthetic tiny (1x1 to 3x3),
+ * strip (8192x2, 2x8192) and huge (4096x4096) images must fingerprint within the ceiling with finite numbers.
  *
  * The score thresholds were set from a measured run, not predicted; the measured table is printed every run.
  * Scores are advisory evidence: nothing here, or in src/visual, picks, clicks or recovers an element.
@@ -100,7 +105,10 @@ const PAIRS: Pair[] = [
   { name: "restyle", a: "vi-approve-primary", b: "vi-approve-outline" },
   { name: "theme", a: "vi-theme-light", b: "vi-theme-dark" }
 ];
-const MIN_PAIRS = PAIRS.length;
+// Hardcoded floors, never derived from the lists they guard: a deleted fixture or pair must fail the suite.
+const MIN_PAIRS = 9;
+const MIN_FIXTURES = 16;
+const DETERMINISM_RUNS = 100;
 
 function distinctCells(base64: string): number {
   return new Set(Buffer.from(base64, "base64")).size;
@@ -123,16 +131,22 @@ function evaluateSuite(corpus: Corpus, pairs: Pair[], fingerprint: Fingerprinter
     if (result.ok) fingerprints[name] = result.value;
     else fingerprintFailures += 1;
   }
-  add("every fixture image fingerprints", fingerprintFailures === 0 && Object.keys(fingerprints).length === Object.keys(corpus).length && Object.keys(corpus).length >= FIXTURES.length);
+  add("every fixture image fingerprints", fingerprintFailures === 0 && Object.keys(fingerprints).length === Object.keys(corpus).length && Object.keys(corpus).filter((name) => !name.includes("#")).length >= MIN_FIXTURES);
 
-  // 1. Determinism: the same pixels, fingerprinted again or from a copied buffer, give the same fingerprint.
-  let deterministic = Object.keys(corpus).length > 0;
+  // 1. Determinism: the same pixels, fingerprinted DETERMINISM_RUNS times, alternately from the original and from a
+  //    fresh copy of the buffer, give the same fingerprint every time. The run count is asserted, not assumed.
+  let deterministic = Object.keys(corpus).length >= MIN_FIXTURES;
+  let runs = 0;
   for (const [name, image] of Object.entries(corpus)) {
-    const again = fingerprint(image);
-    const copy = fingerprint(new VisualImage(image.width, image.height, Uint8Array.from(image.data)));
-    if (!again.ok || !copy.ok || JSON.stringify(again.value) !== JSON.stringify(fingerprints[name]) || JSON.stringify(copy.value) !== JSON.stringify(fingerprints[name])) deterministic = false;
+    const expected = JSON.stringify(fingerprints[name]);
+    for (let i = 0; i < DETERMINISM_RUNS; i += 1) {
+      const source = i % 2 === 0 ? image : new VisualImage(image.width, image.height, Uint8Array.from(image.data));
+      const again = fingerprint(source);
+      runs += 1;
+      if (!again.ok || JSON.stringify(again.value) !== expected) deterministic = false;
+    }
   }
-  add("the same pixels always give the same fingerprint", deterministic);
+  add(`the same pixels give the same fingerprint ${DETERMINISM_RUNS} times out of ${DETERMINISM_RUNS}`, deterministic && runs === DETERMINISM_RUNS * Object.keys(corpus).length, `${runs} runs`);
 
   const results: Record<string, VisualComparison> = {};
   let compareFailures = 0;
@@ -199,6 +213,93 @@ function evaluateSuite(corpus: Corpus, pairs: Pair[], fingerprint: Fingerprinter
   // 10. Payload ceiling.
   const sizes = Object.values(fingerprints).map((f) => JSON.stringify(f).length);
   add(`every fingerprint serialises within ${VISUAL_FINGERPRINT_MAX_BYTES} bytes`, sizes.length > 0 && Math.max(...sizes) <= VISUAL_FINGERPRINT_MAX_BYTES, `max ${Math.max(0, ...sizes)}`);
+  return outcomes;
+}
+
+/** A synthetic image: a solid fill, or deterministic noise from a fixed-seed LCG. */
+function synthetic(width: number, height: number, fill: [number, number, number] | "noise"): VisualImage {
+  const data = new Uint8Array(width * height * 4);
+  let seed = 0x2545f491;
+  for (let p = 0; p < data.length; p += 4) {
+    if (fill === "noise") {
+      seed = (Math.imul(seed, 1103515245) + 12345) >>> 0;
+      data[p] = seed >>> 24;
+      data[p + 1] = (seed >>> 16) & 0xff;
+      data[p + 2] = (seed >>> 8) & 0xff;
+    } else {
+      data[p] = fill[0];
+      data[p + 1] = fill[1];
+      data[p + 2] = fill[2];
+    }
+    data[p + 3] = 255;
+  }
+  return new VisualImage(width, height, data);
+}
+
+const finiteNumbers = (value: object): boolean => Object.values(value).every((v) => typeof v !== "number" || Number.isFinite(v));
+
+/**
+ * Tiny and huge images: every size fingerprints within the ceiling with finite numbers and a full grid, is stable
+ * across repeat runs, and compares (including two zero-variance fills, the divide-by-zero case) to a finite score in
+ * [0, 1]. Pure, so the NaN mutant can be run through it.
+ */
+function evaluateExtremes(fingerprint: Fingerprinter, compare: Comparer): Outcome[] {
+  const outcomes: Outcome[] = [];
+  const add = (label: string, ok: boolean, detail?: string): void => {
+    outcomes.push({ label, ok, detail });
+  };
+  const sizes: Array<[string, VisualImage]> = [
+    ["1x1", synthetic(1, 1, [200, 30, 30])],
+    ["1x2", synthetic(1, 2, "noise")],
+    ["2x1", synthetic(2, 1, "noise")],
+    ["2x2", synthetic(2, 2, "noise")],
+    ["3x3", synthetic(3, 3, "noise")],
+    ["8192x2", synthetic(8192, 2, "noise")],
+    ["2x8192", synthetic(2, 8192, "noise")],
+    ["4096x4096", synthetic(4096, 4096, "noise")]
+  ];
+  const prints: Record<string, VisualFingerprint> = {};
+  for (const [name, image] of sizes) {
+    const result = fingerprint(image);
+    if (!result.ok) {
+      add(`${name} fingerprints`, false, result.code);
+      continue;
+    }
+    const f = result.value;
+    prints[name] = f;
+    const cells = f.gridSize * f.gridSize;
+    add(
+      `${name} fingerprints within the ceiling, finite, with a full grid and its own size`,
+      JSON.stringify(f).length <= VISUAL_FINGERPRINT_MAX_BYTES &&
+        finiteNumbers(f) &&
+        f.width === image.width &&
+        f.height === image.height &&
+        Buffer.from(f.grid, "base64").length === cells &&
+        Buffer.from(f.edgeGrid, "base64").length === cells &&
+        /^[0-9a-f]{16}$/.test(f.dHash),
+      `${JSON.stringify(f).length} bytes`
+    );
+    const repeats = image.width * image.height <= 64 ? DETERMINISM_RUNS : 3;
+    let stable = true;
+    for (let i = 0; i < repeats; i += 1) {
+      const again = fingerprint(new VisualImage(image.width, image.height, Uint8Array.from(image.data)));
+      if (!again.ok || JSON.stringify(again.value) !== JSON.stringify(f)) stable = false;
+    }
+    add(`${name} is stable over ${repeats} runs`, stable);
+  }
+  add("every size fingerprinted", Object.keys(prints).length === sizes.length, `${Object.keys(prints).length} of ${sizes.length}`);
+
+  const scored = (label: string, x: VisualFingerprint | undefined, y: VisualFingerprint | undefined, identical: boolean): void => {
+    const result = x && y ? compare(x, y) : null;
+    const c = result?.ok ? result.value : null;
+    add(label, !!c && finiteNumbers(c) && c.score >= 0 && c.score <= 1 && c.identical === identical && (!identical || c.score === 1), c ? `score ${c.score}` : "compare failed");
+  };
+  const black = fingerprint(synthetic(16, 16, [0, 0, 0]));
+  const white = fingerprint(synthetic(16, 16, [255, 255, 255]));
+  scored("1x1 compared with itself is identical and scores 1", prints["1x1"], prints["1x1"], true);
+  scored("1x1 compared with 4096x4096 gives a finite score in [0, 1]", prints["1x1"], prints["4096x4096"], false);
+  scored("two zero-variance fills (black, white) give a finite score in [0, 1], never NaN", black.ok ? black.value : undefined, white.ok ? white.value : undefined, false);
+  scored("a 1-pixel-wide and a 1-pixel-tall strip compare finitely", prints["1x2"], prints["2x1"], false);
   return outcomes;
 }
 
@@ -312,6 +413,9 @@ try {
     viewportPrint?.ok ? `${JSON.stringify(viewportPrint.value).length} bytes` : "capture failed"
   );
 
+  console.log("\nTiny and huge images:\n");
+  for (const outcome of evaluateExtremes(fingerprintVisualImage, compareVisualFingerprints)) check(outcome.label, outcome.ok, outcome.detail);
+
   console.log("\nMutation controls (each must make the suite fail):\n");
   const constantPrint = fingerprintVisualImage(corpus["vi-cal-red"]);
   const constant: Fingerprinter = () => constantPrint;
@@ -319,14 +423,26 @@ try {
     const result = compareVisualFingerprints(x, y);
     return result.ok ? { ...result, value: { ...result.value, score: 1 } } : result;
   };
-  const mutants: Array<[string, Outcome[]]> = [
+  // The optional third entry names the check that must be among the failures, so a floor mutant is caught by its floor.
+  const mutants: Array<[string, Outcome[], string?]> = [
     ["a constant fingerprint", evaluateSuite(corpus, PAIRS, constant, compareVisualFingerprints)],
     ["a comparison that always scores 1", evaluateSuite(corpus, PAIRS, fingerprintVisualImage, alwaysOne)],
-    ["an empty fixture-pair list", evaluateSuite(corpus, [], fingerprintVisualImage, compareVisualFingerprints)]
+    ["an empty fixture-pair list", evaluateSuite(corpus, [], fingerprintVisualImage, compareVisualFingerprints)],
+    ["a fixture-pair list one short of the floor", evaluateSuite(corpus, PAIRS.filter((p) => p.name !== "theme"), fingerprintVisualImage, compareVisualFingerprints), "every fixture pair compares"],
+    ["a corpus one fixture short of the floor", evaluateSuite(Object.fromEntries(Object.entries(corpus).filter(([name]) => name !== "vi-cal-red")), PAIRS, fingerprintVisualImage, compareVisualFingerprints), "every fixture image fingerprints"],
+    ["a fingerprint that divides by zero on tiny images (NaN)", evaluateExtremes((image) => {
+      const result = fingerprintVisualImage(image);
+      return result.ok && image.width * image.height < 4 ? { ...result, value: { ...result.value, lumaVariance: NaN } } : result;
+    }, compareVisualFingerprints)],
+    ["a comparison that returns NaN for zero-variance fills", evaluateExtremes(fingerprintVisualImage, (x, y) => {
+      const result = compareVisualFingerprints(x, y);
+      return result.ok && x.lumaVariance === 0 && y.lumaVariance === 0 ? { ...result, value: { ...result.value, score: NaN } } : result;
+    })]
   ];
-  for (const [name, outcomes] of mutants) {
+  for (const [name, outcomes, mustFail] of mutants) {
     const failing = outcomes.filter((o) => !o.ok).map((o) => o.label);
-    check(`MUTATION: ${name} fails the suite (${failing.length} checks)`, failing.length > 0, "the suite passed a mutant");
+    const caughtBy = mustFail === undefined || failing.some((label) => label.startsWith(mustFail));
+    check(`MUTATION: ${name} fails the suite (${failing.length} checks${mustFail ? `, including "${mustFail}"` : ""})`, failing.length > 0 && caughtBy, `the suite passed a mutant: ${failing.join("; ") || "nothing failed"}`);
   }
   await context.close();
 } catch (error) {

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Visual Intelligence Lab frames</title>
+    <!--
+      Phase N (awkit-vra.1) Visual Intelligence Lab, frame-mapping fixtures. verify:visual-capture asserts that an
+      element's captured pixels are exactly its own at every device scale factor (1, 1.25, 1.5, 1.75, 2) when the
+      element sits:
+        - two frames deep (vi-frames-nested -> vi-frame-inner -> target at viewport 92,80),
+        - inside a frame that has scrolled its own document (vi-frames-scrolled -> target at viewport 432,100),
+        - below the fold, after the TEST (never the capture) scrolls the page to 800: a frame target at 72,120 and a
+          page-level solid at 400,100.
+      Every target edge maps to a whole device pixel at 1.25 and 1.75. Some frame origins (402, 42, and the nested
+      frame's 62) deliberately do not: Chromium snaps a frame's content to a whole device pixel, so the verifier
+      demands an exact crop only where the frame origins are whole too, and a covering, inset-solid crop otherwise.
+      Like the main lab page, this page carries no credential field and none of the protected-login words.
+      Layout is sized for an 800x600 viewport.
+    -->
+    <style>
+      html, body { margin: 0; padding: 0; background: #ffffff; }
+      body { width: 800px; height: 2000px; position: relative; overflow-x: hidden; }
+      iframe { position: absolute; border: 0; }
+    </style>
+  </head>
+  <body>
+    <iframe data-testid="vi-frames-nested" title="Nested frame" src="/visual-intelligence/frame?nested=1" style="left: 40px; top: 40px; width: 300px; height: 200px"></iframe>
+    <iframe data-testid="vi-frames-scrolled" title="Scrolled frame" src="/visual-intelligence/frame?scroll=1" style="left: 402px; top: 40px; width: 300px; height: 200px"></iframe>
+
+    <!-- Below the fold: reached only after the test scrolls the page to 800. -->
+    <iframe data-testid="vi-frames-below" title="Below the fold frame" src="/visual-intelligence/frame" style="left: 42px; top: 900px; width: 200px; height: 100px"></iframe>
+    <div data-testid="vi-frames-below-solid" style="position: absolute; left: 400px; top: 900px; width: 80px; height: 40px; background: #00ff00"></div>
+  </body>
+</html>

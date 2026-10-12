@@ -65,6 +65,23 @@ export function measureAxisScale(
   return { scaleX, scaleY };
 }
 
+/**
+ * Whether a measured screenshot scale is the page's own `devicePixelRatio`. Chromium folds browser zoom into
+ * `devicePixelRatio`, so under zoom the two still agree and mapping stays exact. If they disagree, something between
+ * the page and the screenshot rescaled the image in a way this mapping cannot see, and the capture must be refused
+ * rather than cropped at a guessed offset. The tolerance is the same one-pixel rounding slack as `measureAxisScale`.
+ */
+export function scaleMatchesDevicePixelRatio(
+  scale: AxisScale,
+  devicePixelRatio: number,
+  viewportCssWidth: number,
+  viewportCssHeight: number
+): boolean {
+  if (!(Number.isFinite(devicePixelRatio) && devicePixelRatio > 0 && viewportCssWidth > 0 && viewportCssHeight > 0)) return false;
+  const tolerance = 1 / Math.min(viewportCssWidth, viewportCssHeight) + ROUNDING_EPSILON;
+  return Math.abs(scale.scaleX - devicePixelRatio) <= tolerance && Math.abs(scale.scaleY - devicePixelRatio) <= tolerance;
+}
+
 /** Map a CSS rectangle to device pixels, rounding outward. The result may extend beyond the image. */
 export function cssRectToPixelRect(rect: CssRect, scale: AxisScale): PixelRect {
   const x0 = Math.floor(rect.x * scale.scaleX + ROUNDING_EPSILON);

@@ -10,6 +10,7 @@ import {
   isValidCssRect,
   measureAxisScale,
   pixelRectToCssRect,
+  scaleMatchesDevicePixelRatio,
   type AxisScale,
   type CssRect,
   type PixelRect
@@ -205,6 +206,9 @@ async function screenshotViewport(page: Page, budget: Budget, metrics: ViewportM
   const image = decodePng(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
   const scale = measureAxisScale(image.width, image.height, metrics.cssWidth, metrics.cssHeight);
   if (!scale) refuse("CAPTURE_UNAVAILABLE", "the screenshot does not match the measured viewport");
+  if (!scaleMatchesDevicePixelRatio(scale, metrics.devicePixelRatio, metrics.cssWidth, metrics.cssHeight)) {
+    refuse("CAPTURE_UNAVAILABLE", "the screenshot scale does not match the device pixel ratio");
+  }
   return { image, scale };
 }
 

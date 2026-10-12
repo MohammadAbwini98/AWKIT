@@ -9,7 +9,9 @@
       device scale factor, and verify:visual-fingerprint can compare pairs that differ in exactly one way. Nothing
       here is random or time-dependent. This page deliberately carries no credential field and none of the words the
       protected-login detector reacts to: a protected surface is the separate /visual-intelligence/account route, or
-      the frame window.__visualLab.injectAccountFrame() adds on demand.
+      the frame window.__visualLab.injectAccountFrame() adds on demand, or one of the OTP / MFA / CAPTCHA / passkey
+      surfaces window.__visualLab.injectProtected(kind) adds on demand. Nested, scrolled and below-the-fold frames
+      live on the separate /visual-intelligence/frames page.
       Layout is sized for an 800x600 viewport.
     -->
     <style>
@@ -132,6 +134,24 @@
         },
         removeAccountFrame() {
           document.querySelector("[data-testid='vi-account-frame']")?.remove();
+        },
+        // One protected surface of each kind visual capture must refuse, added on demand so the page itself stays
+        // unprotected: an OTP field, an MFA verification-code field, a CAPTCHA widget and a passkey prompt.
+        injectProtected(kind) {
+          window.__visualLab.removeProtected();
+          const box = document.createElement("div");
+          box.setAttribute("data-testid", "vi-protected-" + kind);
+          box.className = "vi-protected";
+          box.style.cssText = "position: absolute; left: 600px; top: 540px; width: 180px; height: 50px";
+          if (kind === "otp") box.innerHTML = "<input autocomplete='one-time-code' inputmode='numeric'>";
+          else if (kind === "mfa") box.innerHTML = "<input aria-label='Verification code'>";
+          else if (kind === "captcha") box.innerHTML = "<div class='g-recaptcha' data-sitekey='lab-only'></div>";
+          else if (kind === "passkey") box.innerHTML = "<button type='button' aria-label='Use a passkey'>Continue</button>";
+          else throw new Error("unknown protected kind");
+          document.body.appendChild(box);
+        },
+        removeProtected() {
+          for (const node of document.querySelectorAll(".vi-protected")) node.remove();
         }
       };
       for (const type of ["click", "mousedown", "keydown", "focusin", "scroll"]) {

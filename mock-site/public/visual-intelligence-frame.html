@@ -9,5 +9,28 @@
   </head>
   <body>
     <div data-testid="vi-frame-target" style="position: absolute; left: 30px; top: 20px; width: 80px; height: 40px; background: #0000ff"></div>
+    <script>
+      // ?nested=1 — this frame holds a second frame (this same page) instead of the target, so the target sits two
+      //             frames deep at (22 + 30, 20 + 20) inside this one.
+      // ?scroll=1 — the target sits at top 320 of a tall document that this frame scrolls to 260 by itself, so it
+      //             shows at (30, 60) only because of the frame's own inner scroll. data-scrolled marks it done.
+      const params = new URLSearchParams(location.search);
+      if (params.get("nested") === "1") {
+        document.querySelector("[data-testid='vi-frame-target']").remove();
+        const inner = document.createElement("iframe");
+        inner.setAttribute("data-testid", "vi-frame-inner");
+        inner.setAttribute("title", "Inner frame");
+        inner.src = "/visual-intelligence/frame";
+        inner.style.cssText = "position: absolute; left: 22px; top: 20px; width: 200px; height: 100px; border: 0";
+        document.body.appendChild(inner);
+      } else if (params.get("scroll") === "1") {
+        document.querySelector("[data-testid='vi-frame-target']").style.top = "320px";
+        const spacer = document.createElement("div");
+        spacer.style.cssText = "height: 2000px";
+        document.body.appendChild(spacer);
+        window.scrollTo(0, 260);
+        document.body.setAttribute("data-scrolled", String(window.scrollY));
+      }
+    </script>
   </body>
 </html>

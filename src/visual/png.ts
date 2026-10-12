@@ -53,7 +53,37 @@ function readUint32(bytes: Uint8Array, offset: number): number {
   return ((bytes[offset] << 24) | (bytes[offset + 1] << 16) | (bytes[offset + 2] << 8) | bytes[offset + 3]) >>> 0;
 }
 
-/** Decode a PNG to RGBA. Throws `PngDecodeError` for anything outside the supported subset or any truncation. */
+const CRC_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    table[n] = c >>> 0;
+  }
+  return table;
+})();
+
+/** CRC-32 (ISO 3309) over `bytes[start, end)`, as PNG computes it over a chunk's type and data. */
+function crc32(bytes: Uint8Array, start: number, end: number): number {
+  let c = 0xffffffff;
+  for (let i = start; i < end; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+function isChunkLetter(byte: number): boolean {
+  return (byte >= 0x41 && byte <= 0x5a) || (byte >= 0x61 && byte <= 0x7a);
+}
+
+/** Critical chunks this decoder understands; any other critical chunk changes the image meaning and is refused. */
+const KNOWN_CRITICAL = new Set(["IHDR", "IDAT", "IEND", "PLTE"]);
+/** Ancillary chunks that would change the decoded pixels (transparency, colour management) and are refused, not ignored. */
+const REFUSED_ANCILLARY = new Set(["tRNS"]);
+const MAX_CHUNK_LENGTH = 0x7fffffff;
+
+/**
+ * Decode a PNG to RGBA. Throws `PngDecodeError` for anything outside the supported subset, any truncation, any chunk
+ * whose CRC does not match, and any chunk order the PNG specification forbids (IHDR first, IDAT chunks consecutive).
+ */
 export function decodePng(input: Uint8Array): VisualImage {
   const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
   if (bytes.length < PNG_SIGNATURE.length + 12) throw new PngDecodeError("too short to be a PNG");
@@ -69,13 +99,26 @@ export function decodePng(input: Uint8Array): VisualImage {
   let sawEnd = false;
   const idat: Uint8Array[] = [];
   let idatLength = 0;
+  let idatClosed = false;
+  let firstChunk = true;
 
   while (offset + 12 <= bytes.length) {
     const length = readUint32(bytes, offset);
+    if (length > MAX_CHUNK_LENGTH) throw new PngDecodeError("chunk length out of range");
+    for (let i = 4; i < 8; i++) {
+      if (!isChunkLetter(bytes[offset + i])) throw new PngDecodeError("invalid chunk type");
+    }
     const type = String.fromCharCode(bytes[offset + 4], bytes[offset + 5], bytes[offset + 6], bytes[offset + 7]);
     const dataStart = offset + 8;
     const dataEnd = dataStart + length;
     if (dataEnd + 4 > bytes.length) throw new PngDecodeError("truncated chunk");
+    if (crc32(bytes, offset + 4, dataEnd) !== readUint32(bytes, dataEnd)) throw new PngDecodeError("chunk CRC mismatch");
+    if (firstChunk && type !== "IHDR") throw new PngDecodeError("IHDR is not the first chunk");
+    firstChunk = false;
+    const critical = (bytes[offset + 4] & 0x20) === 0;
+    if (critical && !KNOWN_CRITICAL.has(type)) throw new PngDecodeError("unsupported critical chunk");
+    if (REFUSED_ANCILLARY.has(type)) throw new PngDecodeError("unsupported transparency chunk");
+    if (type !== "IDAT" && idat.length > 0) idatClosed = true;
 
     if (type === "IHDR") {
       if (length !== 13 || sawHeader) throw new PngDecodeError("bad IHDR");
@@ -94,13 +137,14 @@ export function decodePng(input: Uint8Array): VisualImage {
       sawHeader = true;
     } else if (type === "IDAT") {
       if (!sawHeader) throw new PngDecodeError("IDAT before IHDR");
+      if (idatClosed) throw new PngDecodeError("IDAT chunks are not consecutive");
       idat.push(bytes.subarray(dataStart, dataEnd));
       idatLength += length;
     } else if (type === "IEND") {
       sawEnd = true;
       break;
     }
-    offset = dataEnd + 4; // Skip the CRC.
+    offset = dataEnd + 4; // Past the (verified) CRC.
   }
 
   if (!sawHeader || !sawEnd || idat.length === 0) throw new PngDecodeError("missing IHDR, IDAT or IEND");

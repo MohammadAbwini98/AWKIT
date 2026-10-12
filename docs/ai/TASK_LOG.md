@@ -1,6 +1,54 @@
 # TASK_LOG
 
-## 2026-10-12 (latest) — Phase N start: N0 capture and N1 fingerprint foundation (Claude)
+## 2026-10-12 (latest) — Phase N: N0/N1 QC remediation (Claude)
+
+- **Trigger:** independent QC of N0/N1 at `843cb390` returned FAIL. This task is the minimal remediation; it does not
+  implement N2.
+- **Product changes:**
+  - `src/visual/png.ts`: the decoder now verifies every chunk's CRC. It also refuses an out-of-range length, a
+    non-letter type, IHDR not first, an unknown critical chunk, `tRNS`, and non-consecutive IDAT.
+  - `src/visual/geometry.ts` / `capture.ts`: a screenshot whose measured scale disagrees with `devicePixelRatio` is
+    `CAPTURE_UNAVAILABLE`. This covers browser zoom. A crop is never taken at a guessed offset.
+- **Verifier and lab changes:**
+  - `verify:visual-isolation` seeds ALL of `app/main`, including every IPC handler (the QC missed
+    `domIntelligence.ipc.ts`), and resolves `@src/` / `@main/` / `@renderer/` aliases.
+  - `verify:visual-capture`:
+    - a PNG malformed-input matrix: 39 refusals, all 242 truncations, every byte flip, and a cross-check against sharp;
+    - DPR 1.25 and 1.75 added;
+    - nested, self-scrolled, scrolled-during-capture and post-scroll frames (new `/visual-intelligence/frames`);
+    - OTP / MFA / CAPTCHA / passkey surfaces, each refused, lifted on removal, and refused when injected late;
+    - a zoom spoof.
+  - `verify:visual-fingerprint`:
+    - hardcoded floors (9 pairs, 16 fixtures) and 100× determinism;
+    - tiny (1×1 to 3×3), strip and 4096×4096 images;
+    - a zero-variance compare with no NaN;
+    - floor and NaN mutants.
+- **Files:**
+  - `src/visual/{png,geometry,capture}.ts`;
+  - `scripts/verify-visual-{capture,fingerprint,isolation}.mts`, `scripts/verify-mock-site.mjs`;
+  - `mock-site/public/visual-intelligence{,-frame,-frames}.html`, `mock-site/server.mjs`, the index and the README.
+- **Checks:**
+  - `verify:visual-capture` 274/0. The first two runs had 4 and then 2 failures, all verifier predicates, not product
+    defects:
+    - a mid-pixel clipped edge at 1.25;
+    - the scrolled frame's origin at 402 CSS px, which is 502.5 device px at 1.25, so Chromium snaps the frame content.
+    - The exact-pixel predicate now applies only when every edge AND frame origin is a whole device pixel. It is still
+      exact at 1, 1.5 and 2.
+  - `verify:visual-fingerprint` 58/0, `verify:visual-isolation` 17/0, `verify:mock-site` 282/282.
+  - `typecheck:scripts` and `build`: PASS.
+- **Real-source mutations (each observed failing, then restored):**
+  - CRC check disabled: 2 PNG checks fail.
+  - DPR refusal disabled: 2 zoom checks fail.
+  - `import "@src/visual/fingerprint"` in `domIntelligence.ipc.ts`: isolation fails with the chain.
+- **Not done:**
+  - The `internals` test seam is still the optional 4th parameter of `captureViewport` / `captureElement`
+    (optional item; isolation proves no production caller).
+  - Governance renumbering and the N2 fusion item need owner action (see CURRENT_STATE).
+  - A real headed Ctrl+zoom capture: NOT RUN. It is emulated by a DPR spoof.
+- **Tracker:** unchanged. `vra.1` and `vra.3.1` remain `in_progress`, awaiting re-QC.
+- **Preserved:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`, untracked and unchanged.
+
+## 2026-10-12 — Phase N start: N0 capture and N1 fingerprint foundation (Claude)
 
 - **Contract:** `awkit-vra-1-foundation-1012`, risk 2, library only. A project-state lease on `.beads/**` was used for
   the tracker writes.

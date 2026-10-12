@@ -4,11 +4,12 @@
  * N0/N1 ship `src/visual` as evidence-only code. Visual similarity must never cause a Playwright click, fill, selector
  * replacement or locator recovery, and nothing may send pixels anywhere. This verifier proves it statically:
  *
- *   1. Reachability: walking the full import closure (at any depth) from the execution tree — runner, recorder,
- *      orchestrator, instances, session, the main-process execution service and IPC, the preload bridge — and from
- *      the renderer never reaches `src/visual`. Cardinality floors prove the walk saw the tree.
- *   2. Mutation controls: a synthetic import of `src/visual` injected into a seed module, and into a module reached
- *      only transitively, must both be detected, with the chain that reaches it.
+ *   1. Reachability: walking the full import closure (at any depth, following the @src/, @main/ and @renderer/
+ *      aliases) from the execution tree — runner, recorder, orchestrator, instances, session — from EVERY module of
+ *      the Electron main process (main.ts, preload, every IPC handler, every service), and from the renderer never
+ *      reaches `src/visual`. Cardinality floors prove the walk saw the tree.
+ *   2. Mutation controls: a synthetic import of `src/visual` injected into a seed module, into a module reached only
+ *      transitively, into main.ts, into an IPC handler and behind an aliased import must all be detected.
  *   3. The module itself: no network, filesystem, process or console API; only `node:crypto` and `node:zlib`
  *      builtins; no page interaction or navigation call. A planted offender must be caught by the same scan.
  *
@@ -51,6 +52,16 @@ async function sourceFiles(dir: string): Promise<string[]> {
   return out;
 }
 
+/** Resolve one specifier to a repo-relative target: the tsconfig aliases and relative paths; packages are null. */
+function resolveSpecifier(file: string, specifier: string): string | null {
+  let absolute: string | null = null;
+  if (specifier.startsWith("@src/")) absolute = join(REPO, "src", specifier.slice(5));
+  else if (specifier.startsWith("@main/")) absolute = join(REPO, "app/main", specifier.slice(6));
+  else if (specifier.startsWith("@renderer/")) absolute = join(REPO, "app/renderer", specifier.slice(10));
+  else if (specifier.startsWith(".")) absolute = resolve(dirname(join(REPO, file)), specifier);
+  return absolute ? toRepo(absolute) : null;
+}
+
 /** Resolve every import/require specifier in a file to a repo-relative target (aliases included). */
 const targetCache = new Map<string, string[]>();
 async function importTargets(file: string): Promise<string[]> {
@@ -59,11 +70,8 @@ async function importTargets(file: string): Promise<string[]> {
   const text = await readFile(join(REPO, file), "utf8");
   const targets: string[] = [];
   for (const match of text.matchAll(/(?:\bfrom\s+|\bimport\s*\(\s*|\brequire\s*\(\s*|^\s*import\s+)["']([^"']+)["']/gm)) {
-    const specifier = match[1];
-    let absolute: string | null = null;
-    if (specifier.startsWith("@src/")) absolute = join(REPO, "src", specifier.slice(5));
-    else if (specifier.startsWith(".")) absolute = resolve(dirname(join(REPO, file)), specifier);
-    if (absolute) targets.push(toRepo(absolute));
+    const target = resolveSpecifier(file, match[1]);
+    if (target) targets.push(target);
   }
   targetCache.set(file, targets);
   return targets;
@@ -134,17 +142,32 @@ async function walk(seeds: string[], inject: Map<string, string[]> = new Map()):
   return { files: start.length, imports, seen, offenders };
 }
 
-const EXECUTION_TREES = ["src/runner", "src/recorder", "src/orchestrator", "src/instances", "src/session", "app/main/execution"];
-const EXECUTION_FILES = ["app/main/preload.ts", "app/main/ipc/execution.ipc.ts", "app/main/ipc/recorder.ipc.ts"];
+// The whole Electron main process is seeded, not a hand-picked list of IPC handlers: N0/N1 expose no IPC surface, so
+// no main-process module (main.ts, preload, any *.ipc.ts handler, any service) may reach src/visual at all.
+const EXECUTION_TREES = ["src/runner", "src/recorder", "src/orchestrator", "src/instances", "src/session", "app/main"];
+const EXECUTION_FILES = [
+  "app/main/main.ts",
+  "app/main/preload.ts",
+  "app/main/ipc/index.ts",
+  "app/main/ipc/execution.ipc.ts",
+  "app/main/ipc/recorder.ipc.ts",
+  "app/main/ipc/domIntelligence.ipc.ts"
+];
 
-console.log("\nThe execution tree cannot reach src/visual:\n");
+console.log("\nThe execution tree and the main process cannot reach src/visual:\n");
 const executionSeeds = [
-  ...(await Promise.all(EXECUTION_TREES.map((tree) => sourceFiles(join(REPO, tree))))).flat().map(toRepo),
-  ...EXECUTION_FILES
+  ...new Set([...(await Promise.all(EXECUTION_TREES.map((tree) => sourceFiles(join(REPO, tree))))).flat().map(toRepo), ...EXECUTION_FILES])
 ];
 const execution = await walk(executionSeeds);
 check("every named entry file exists", (await Promise.all(EXECUTION_FILES.map(resolveModule))).every((f) => f !== null));
-check("the execution tree was actually scanned", execution.files >= 100, String(execution.files));
+const mainFiles = (await sourceFiles(join(REPO, "app/main"))).map(toRepo);
+const ipcHandlers = mainFiles.filter((f) => /^app\/main\/ipc\/[^/]+\.ipc\.ts$/.test(f));
+check(
+  "every app/main module, including every IPC handler, is a seed",
+  mainFiles.length >= 60 && ipcHandlers.length >= 25 && mainFiles.every((f) => executionSeeds.includes(f)),
+  `${mainFiles.length} main modules, ${ipcHandlers.length} IPC handlers`
+);
+check("the execution tree was actually scanned", execution.files >= 160, String(execution.files));
 check("its imports were resolved", execution.imports >= 300, String(execution.imports));
 check(
   "the closure was actually walked, wider than its seeds",
@@ -173,6 +196,34 @@ console.log("\nMutation controls (each injected import must be caught):\n");
     "MUTATION: an import of src/visual in a module reached only transitively is caught, with its chain",
     !!transitive && !!deep && deep.offenders.some((o) => o.endsWith(`${transitive} -> src/visual`) && o.split(" -> ").length >= 3),
     deep ? deep.offenders.join("; ") || `not caught (${transitive})` : "no transitive module found"
+  );
+
+  for (const [mainSeed, specifier] of [
+    ["app/main/ipc/domIntelligence.ipc.ts", "src/visual/fingerprint"],
+    ["app/main/main.ts", "src/visual"]
+  ] as const) {
+    const mutated = await walk(executionSeeds, new Map([[mainSeed, [specifier]]]));
+    check(
+      `MUTATION: an import of src/visual in ${mainSeed} is caught`,
+      executionSeeds.includes(mainSeed) && mutated.offenders.some((o) => o.endsWith(`${mainSeed} -> ${specifier}`)),
+      mutated.offenders.join("; ") || "not caught"
+    );
+  }
+
+  // Aliased imports must resolve like relative ones: @src/, @main/ and @renderer/ specifiers are followed, not dropped.
+  const aliases: Array<[string, string]> = [
+    ["@src/visual/capture", "src/visual/capture"],
+    ["@main/ipc/domIntelligence.ipc", "app/main/ipc/domIntelligence.ipc"],
+    ["@renderer/App", "app/renderer/App"]
+  ];
+  const unresolved = aliases.filter(([specifier, want]) => resolveSpecifier("app/renderer/pages/x.tsx", specifier) !== want).map(([s]) => s);
+  const licensing = await importTargets("app/renderer/pages/admin/LicensingPage.tsx");
+  const viaMainAlias = licensing.find((t) => t.startsWith("app/main/licensing/"));
+  const aliasWalk = viaMainAlias ? await walk(rendererSeeds, new Map([[(await resolveModule(viaMainAlias)) ?? "", ["src/visual"]]])) : null;
+  check(
+    "MUTATION: aliased imports resolve, and an src/visual import behind a renderer @main/ import is caught",
+    unresolved.length === 0 && !!aliasWalk && aliasWalk.offenders.some((o) => o.includes("LicensingPage.tsx -> app/main/licensing/")),
+    unresolved.length ? `unresolved: ${unresolved.join(", ")}` : aliasWalk?.offenders.join("; ") || "not caught"
   );
 }
 

@@ -1,6 +1,41 @@
 # CURRENT_STATE
 
-## Phase N started: N0 capture and N1 fingerprint foundation implemented, library only; Phase M postponed (2026-10-12, latest)
+## Phase N: N0/N1 QC remediation implemented; re-QC pending; numbering and N2 fusion need owner action (2026-10-12, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task.
+
+- **QC FAIL at `843cb390` is remediated:**
+  - **PNG decoder:** chunk CRCs are verified. Structural refusals were added: length, type letters, IHDR first, unknown
+    critical chunks, `tRNS`, and consecutive IDAT.
+  - **Browser zoom:** a screenshot whose scale disagrees with `devicePixelRatio` is `CAPTURE_UNAVAILABLE`.
+  - **Isolation:** the isolation verifier seeds all of `app/main`, including `ipc/domIntelligence.ipc.ts`, with aliases
+    resolved.
+  - **New coverage:** DPR 1.25/1.75; nested, self-scrolled, scrolled-during-capture and post-scroll frames
+    (`/visual-intelligence/frames`); OTP/MFA/CAPTCHA/passkey refusal (late injection too); 100× determinism; tiny,
+    strip and 4096² images.
+  - **Floors:** the self-referential `MIN_PAIRS` was replaced by hardcoded floors (9 pairs, 16 fixtures).
+- **Verifiers:** `verify:visual-capture` 274/0, `verify:visual-fingerprint` 58/0, `verify:visual-isolation` 17/0, `verify:mock-site` 282/282.
+  `typecheck:scripts` and `build` PASS. Real-source mutations (CRC off, DPR refusal off, a visual import in
+  `domIntelligence.ipc.ts`) were each observed failing, then restored.
+- **Owner action (governance, not changed here):** the tracker numbering differs from the Phase N plan.
+
+  | Plan | Tracker |
+  |---|---|
+  | N0 capture | `awkit-vra.1` (titled "N1: Visual capture infrastructure") |
+  | N1 fingerprint | `awkit-vra.3.1` (titled "N3a") |
+  | OCR | `.9` |
+  | Row/grid | `.10` |
+  | Screenshot state | `.11` |
+  | N2 fusion | **no tracker item** |
+
+  The repository holds no N2 fusion spec, so no item was invented. The owner should file it (or say where it lives)
+  and decide whether to retitle `.1` and `.3.1`.
+- **Open, optional:** the `internals` test seam is still a 4th parameter on the public capture functions.
+- **NOT RUN:** a real headed Ctrl+zoom capture. Zoom is emulated by a `devicePixelRatio` spoof.
+- **Tracker:** `awkit-vra.1` and `awkit-vra.3.1` remain `in_progress`, awaiting re-QC.
+
+## Phase N started: N0 capture and N1 fingerprint foundation implemented, library only; Phase M postponed (2026-10-12)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed by this task.
