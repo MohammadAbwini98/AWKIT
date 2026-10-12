@@ -1,6 +1,40 @@
 # TASK_LOG
 
-## 2026-10-12 (latest) — Phase N: N2 decisions recorded, N2.1-N2.8 filed, N2.1 implemented (Claude)
+## 2026-10-12 (latest) — Phase N: N2.2 pure fusion policy implemented (Claude)
+
+- **Scope:** "start N2.2", under contract `awkit-vra-12-2-fusion-policy-1012`. CodeCraft was not used
+  (`CODECRAFT_MODE=off`).
+- **Tracker:** closed `awkit-vra.12.2`. The tracker now has 380 issues, 31 outstanding / 349 closed and 281 edges.
+- **N2.2:**
+  - Added the pure veto-only `decideFusion` (R1-R8, integer basis points, no absolute threshold, uncalibrated by
+    default) and the `FusionVerdict` types.
+  - Added the new verifier `verify:visual-fusion`.
+- **Files:**
+  - `src/visual/{index.ts,fusion/decideFusion.ts}`;
+  - `scripts/verify-visual-fusion.mts`;
+  - `scripts/lib/verifier-classification.ts` and `package.json`;
+  - `scripts/verify-roadmap-dashboard.mjs`, for the pins;
+  - `.beads/issues.jsonl`;
+  - `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md`;
+  - `docs/plans/ai-upgrade-v5/ROADMAP.md` and `src/roadmap/ImplementationRoadmap.ts`;
+  - the contracts;
+  - the lease and assignments files, which the lease CLI changed.
+- **Checks:**
+
+  | Check | Result |
+  |---|---|
+  | `verify:visual-fusion` | 263/0 |
+  | `verify:visual-isolation` | 28/0 |
+  | `npm run build` | PASS |
+  | real-file mutations | 247/16, 261/2 and 257/6, each restored |
+  | `verify:roadmap-dashboard` | Sources agree |
+  | `git diff --check` | PASS |
+
+- **Lease note:** a contract listing `package.json` must activate the `release` role.
+- **Not run:** a real headed Ctrl+zoom capture (N2.3).
+- **Preserved:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`, untracked and unchanged.
+
+## 2026-10-12 — Phase N: N2 decisions recorded, N2.1-N2.8 filed, N2.1 implemented (Claude)
 
 - **Scope:** owner approval "FD-1 to FD-9 approved as recommended; file N2.1-N2.8 and start N2.1", under contract
   `awkit-vra-12-n2-start-1012`. CodeCraft was not used (`CODECRAFT_MODE=off`).

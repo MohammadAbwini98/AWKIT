@@ -525,6 +525,10 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "real-browser",
     why: "Phase N1 (awkit-vra.3.1): fingerprints of the lab's fixed fixtures captured on real Chromium — determinism, repeat capture identical, slight rendering change high but not identical, icon and SVG glyph changes detected, unrelated image low, position-free, size change reported, theme change, look-alikes above unrelated (appearance is not identity), non-vacuous grids with a solid-fill negative control, the payload ceiling, symmetry, malformed input and version mismatch as typed failures, and decodePng byte-identical to sharp. The same suite must FAIL for a constant fingerprint, an always-1 score and an empty fixture-pair list."
   },
+  "verify:visual-fusion": {
+    class: "unit",
+    why: "Phase N2.2 (awkit-vra.12.2): the pure veto-only fusion policy decideFusion over real fingerprints of synthetic images — an exhaustive R1-R8 decision table with every VisualErrorCode, invalid input, the uncalibrated policy and each >= boundary at and one basis point past its measured-score-derived margin; I1 verdict-shape allow-list, I2 monotone-safety property over a seeded generated run, I7 determinism and replay, and cardinality floors. The same suite must FAIL for always-corroborate, R8 disabled, unavailable-vetoes, corroboration-acts, an absolute-score veto, a first-competitor-only cap, a shadow-mode veto and empty or short case sets."
+  },
   "verify:visual-isolation": {
     class: "static-source-validation",
     why: "Phase N: a resolved-import TRANSITIVE CLOSURE walk proving nothing the execution tree (runner, recorder, orchestrator, instances, session, main execution service and IPC, preload) or the renderer reaches imports src/visual, with cardinality floors and injected-import mutations at a seed and at a transitively reached module; plus a scan proving src/visual has no network, filesystem, process, console, page-interaction, input-device or navigation API (only node:crypto and node:zlib), with planted offenders caught by the same scan.",

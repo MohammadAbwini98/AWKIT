@@ -1,6 +1,21 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-12, latest) — Phase N: N2 in progress; N2.1 done, next is N2.2
+## HANDOFF (2026-10-12, latest) — Phase N: N2.2 done, next is N2.3
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** N2.2 (`awkit-vra.12.2` closed). `decideFusion` and `FusionVerdict` are in
+  `src/visual/fusion/decideFusion.ts`, guarded by `verify:visual-fusion` (263/0).
+- **Next action:** N2.3 (`awkit-vra.12.3`), the calibration lab. It must measure the corroboration, contradiction,
+  DOM-decisive and size-ratio margins that `FusionPolicy` takes, and it includes the headed Ctrl+zoom check.
+- **Binding for implementers:**
+  - Until N2.3 supplies measured margins, only `UNCALIBRATED_FUSION_POLICY` exists, and it never vetoes.
+  - Never add an absolute score threshold.
+  - Any veto path must keep `verify:visual-fusion` I2 green.
+- **NOT RUN:** a real headed Ctrl+zoom capture. It is scheduled in N2.3.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-12) — Phase N: N2 in progress; N2.1 done, next is N2.2
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

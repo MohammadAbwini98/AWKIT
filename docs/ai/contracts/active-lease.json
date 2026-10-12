@@ -1,36 +1,32 @@
 {
-  "task": "awkit-vra-12-n2-start-1012",
-  "contract_path": "docs/ai/contracts/awkit-vra-12-n2-start-1012.json",
+  "task": "awkit-vra-12-2-fusion-policy-1012",
+  "contract_path": "docs/ai/contracts/awkit-vra-12-2-fusion-policy-1012.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-12T13:26:27.333Z",
-  "acquired_at_commit": "b7e51148d9d924776e8774eb63cf7a3743a56ea3",
+  "acquired_at": "2026-10-12T15:01:41.362Z",
+  "acquired_at_commit": "53199f828ed7e5c4193d81b0c5e8528cdad5a476",
   "baseline_dirty": [
-    ".beads/interactions.jsonl",
-    ".beads/issues.jsonl",
-    "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+    "docs/ai/contracts/awkit-vra-12-2-fusion-policy-1012.json",
     "docs/ai/contracts/awkit-vra-12-n2-start-1012.json",
-    "scripts/verify-visual-capture.mts",
-    "scripts/verify-visual-isolation.mts",
-    "src/visual/capture.ts",
-    "src/visual/internal/",
-    "src/visual/png.ts"
+    "package.json",
+    "scripts/lib/verifier-classification.ts",
+    "scripts/verify-visual-fusion.mts",
+    "src/visual/fusion/",
+    "src/visual/index.ts"
   ],
   "baseline_dirty_fingerprints": {
-    ".beads/interactions.jsonl": "a52d60e933611defd6e331586530235f71643d7d61e6a3cf69bbca0a04be7105",
-    ".beads/issues.jsonl": "1a9e30a04879fe989038b79bb8f1195cd3fd4023a5ffe6f913cda07d45d714c4",
-    "docs/ai/contracts/active-lease.json": "a8b0bdb389ab1eeaf1176a01a3b765d6fdef6c70a8a7e596f1d78fa7f488f3af",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-vra-12-n2-start-1012.json": "680546c21784c62dec195b73ee902b2d037f239cb95af9c81c3139090dbaad15",
-    "scripts/verify-visual-capture.mts": "f44d437d6839b1bdbf9e331088f3eca65b0f973d1d13cd463f44b7e88872ff60",
-    "scripts/verify-visual-isolation.mts": "f0811b45180f7f0db31daca0fc6dd1546892d9298099dc674c5f952f764212cc",
-    "src/visual/capture.ts": "1971c755e433b05785bd8f73e431307e79417e8151e3eaa8e07ccefd96606ca2",
-    "src/visual/internal/": "absent",
-    "src/visual/png.ts": "e66096bb53aa85045dd0d460115f71f396d6275b42c0d993dacf92e2039eaa70"
+    "docs/ai/contracts/awkit-vra-12-2-fusion-policy-1012.json": "b28d124f2ea012a9a582c939e0f4f3349fc9a7d5b704a8caf8033b83d0f9907d",
+    "docs/ai/contracts/awkit-vra-12-n2-start-1012.json": "e04d1bac775ecf6e2ca4c113fa4b50bf889d3bc59e39811d3b8afb69d3a6bcfd",
+    "package.json": "9bf6c5b81a0342c293bd6ce7720e1598e4ee8a903b598a4f0c72f306b56720a5",
+    "scripts/lib/verifier-classification.ts": "4bbb4b0e037de3954d88a8fa41ac16eba06371b82f932bac8d0afc2b75ec93e7",
+    "scripts/verify-visual-fusion.mts": "0cf88506586ff36c51a4d288afea23041aeda23fe8c37e93808dd4a29b8efb2e",
+    "src/visual/fusion/": "absent",
+    "src/visual/index.ts": "3baca6f6d2c97ebcefab4aae4dd16803ab7b185f872de5860254e5149f16e9de"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -45,7 +41,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-12T13:26:55.363Z",
-  "released_reason": "N2.1 closed and Beads exported",
-  "archived_at": "2026-10-12T13:26:55.364Z"
+  "released_at": "2026-10-12T15:02:17.560Z",
+  "released_reason": "N2.2-closed-and-Beads-exported",
+  "archived_at": "2026-10-12T15:02:17.563Z"
 }

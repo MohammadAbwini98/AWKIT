@@ -1,0 +1,179 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-12-2-fusion-policy-1012",
+    "title": "N2.2 pure fusion policy decideFusion and FusionVerdict",
+    "objective": "Implement awkit-vra.12.2: the pure policy src/visual/fusion/decideFusion.ts and the FusionVerdict types with no I/O. Veto-only decision table R1-R8, no absolute score threshold, integer basis-point arithmetic, uncalibrated by default (FD-9). New verify:visual-fusion: exhaustive decision table, property-based monotone safety I2, determinism I7, cardinality guards and in-suite mutants. No runner wiring, schema, settings or UI change.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "53199f82",
+    "working_tree_expected": "clean",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true,
+    "general_engineering_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "qa",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "src/visual/**",
+      "scripts/verify-visual-fusion.mts",
+      "scripts/lib/verifier-classification.ts",
+      "package.json",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/awkit-vra-12-2-fusion-policy-1012.json",
+      "docs/ai/contracts/awkit-vra-12-n2-start-1012.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N2.2",
+      "description": "decideFusion is pure, veto-only and relative: it never makes a candidate act, never vetoes on an unavailable, mismatched or invalid input, vetoes only in enforce-veto mode on an eligible step under a calibrated policy with contradiction enabled, and uses integer basis points. verify:visual-fusion covers every row R1-R8 plus invalid and uncalibrated inputs with a cardinality floor, proves I2 and I7 over a seeded property run, and catches its in-suite mutants; verify:visual-isolation and the build pass.",
+      "evidence_required": [
+        "build",
+        "verify:visual-fusion",
+        "verify:visual-isolation"
+      ]
+    },
+    {
+      "id": "N2.2-STATE",
+      "description": "awkit-vra.12.2 is closed, Beads exported, and verify:roadmap-dashboard reports Sources agree.",
+      "evidence_required": [
+        "beads-export",
+        "verify:roadmap-dashboard"
+      ]
+    },
+    {
+      "id": "N2.2-GIT",
+      "description": "The work lands on main and is pushed without force; the L12.27 contract stays untracked and unchanged.",
+      "evidence_required": [
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc --noEmit and electron-vite build succeeded"
+    },
+    {
+      "id": "verify:visual-fusion",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-fusion",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "263/0: 80 table cases over R1-R8, invalid and uncalibrated, 4000 seeded property verdicts, 10 in-suite mutants caught; real-file mutations gave 247/16 (leader loop capped to competitor 0), 261/2 (DOM-decisive clause removed) and 257/6 (R3 removed), each restored"
+    },
+    {
+      "id": "verify:visual-isolation",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-isolation",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "28/0 with src/visual/fusion in the purity scan"
+    },
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "Exported 380 issues; awkit-vra.12.2 closed, none filed or renumbered"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "177/177, Sources agree; pins moved to 31 outstanding / 349 closed, 380 issues and 281 edges unchanged"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "pending",
+      "observed": ""
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-12-2-fusion-policy-1012:project-state:2026-10-12T15:01:41.362Z",
+        "task": "awkit-vra-12-2-fusion-policy-1012",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-12T15:01:41.362Z",
+        "acquired_at_commit": "53199f828ed7e5c4193d81b0c5e8528cdad5a476",
+        "released_at": "2026-10-12T15:02:17.560Z",
+        "released_reason": "N2.2-closed-and-Beads-exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

@@ -707,8 +707,10 @@ try {
   // N0 `awkit-vra.1` and N1 `awkit-vra.3.1` and filed N2 `awkit-vra.12` (two closed, one in).
   // Then 32/348 of 380 later on 2026-10-12 (contract `awkit-vra-12-n2-start-1012`): FD-1..FD-9 approved, N2.1-N2.8
   // filed as `awkit-vra.12.1`…`.12.8` and N2.1 implemented and closed (eight in, one closed).
-    "32 outstanding / 348 closed",
-    beads.stats.outstanding === 32 && beads.stats.closed === 348,
+  // Then 31/349 of 380 later on 2026-10-12 (contract `awkit-vra-12-2-fusion-policy-1012`): N2.2 `awkit-vra.12.2`
+  // implemented and closed (one closed, none filed).
+    "31 outstanding / 349 closed",
+    beads.stats.outstanding === 31 && beads.stats.closed === 349,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

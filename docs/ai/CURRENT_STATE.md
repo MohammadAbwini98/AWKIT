@@ -1,6 +1,40 @@
 # CURRENT_STATE
 
-## Phase N: N2 started; FD-1 to FD-9 approved, N2.1-N2.8 filed, N2.1 done (2026-10-12, latest)
+## Phase N: N2.2 pure fusion policy done (2026-10-12, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task.
+
+- **N2.2 done** (`awkit-vra.12.2` closed):
+  - `src/visual/fusion/decideFusion.ts` is a pure, veto-only policy, and `FusionVerdict` is its result. It is
+    exported from `src/visual/index.ts`, but nothing in the runner calls it yet. The runner adapter comes in N2.5.
+  - It implements decision table R1-R8.
+  - It is relative only: there is no absolute score threshold, and the arithmetic is integer basis points.
+  - The default `UNCALIBRATED_FUSION_POLICY` never vetoes (FD-9). Calibrated margins come from N2.3.
+  - A veto requires all of: `enforce-veto` mode, an `eligible` step, a calibrated policy, contradiction enabled, a
+    leading look-alike beyond the contradiction margin, a DOM margin below the decisive margin, and both sizes in
+    bounds.
+  - Unavailable, version-mismatched, condition-changed or invalid inputs always fall back to `dom-only`.
+- **New `verify:visual-fusion`** (registered as `unit`): 263/0.
+  - The decision table has 80 cases covering R1-R8, invalid input and the uncalibrated policy, with an exact
+    cardinality floor.
+  - A seeded property run of 4000 verdicts checks I2, monotone safety: with fusion, actions are a subset of those
+    without it. It also checks I7 replay determinism.
+  - It covers competitor-order invariance, the verdict shape allow-list, and an input-untouched check.
+  - Ten in-suite mutants are all caught.
+- **Real-file mutations**, each run on the real file, observed and then restored:
+
+  | Mutation | Result |
+  |---|---|
+  | leader loop capped to competitor 0 | 247/16 |
+  | DOM-decisive clause removed | 261/2 |
+  | R3 conditions check removed | 257/6 |
+
+- **Other checks:** `verify:visual-isolation` 28/0 (`src/visual/fusion` is in the purity scan); `npm run build` PASS.
+- **Still NOT RUN:** a real headed Ctrl+zoom capture. It belongs to N2.3 (`awkit-vra.12.3`).
+- **Next:** N2.3 (`awkit-vra.12.3`), the calibration lab.
+
+## Phase N: N2 started; FD-1 to FD-9 approved, N2.1-N2.8 filed, N2.1 done (2026-10-12)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed by this task.

@@ -21,3 +21,13 @@ export { checkProtectedSurface, protectedCallerVerdict, type ProtectedGuardVerdi
 export { VISUAL_FINGERPRINT_VERSION, fingerprintVisualImage, type VisualFingerprint } from "./fingerprint";
 export { compareVisualFingerprints, type VisualComparison } from "./compare";
 export { VISUAL_EVIDENCE_VERSION, buildVisualEvidence, type VisualEvidence } from "./visualEvidence";
+export {
+  FUSION_MAX_COMPETITORS,
+  FUSION_VERDICT_VERSION,
+  UNCALIBRATED_FUSION_POLICY,
+  decideFusion,
+  type FusionInput,
+  type FusionPolicy,
+  type FusionReason,
+  type FusionVerdict
+} from "./fusion/decideFusion";
