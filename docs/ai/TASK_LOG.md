@@ -1,6 +1,29 @@
 # TASK_LOG
 
-## 2026-10-12 (latest) — Phase N: independent re-QC of N0/N1 and tracker reconciliation (Claude)
+## 2026-10-12 (latest) — Phase N: N2 DOM + Vision Evidence Fusion implementation plan (Claude)
+
+- **Scope:** planning only. N2 was not implemented, and no production, schema, settings or tracker change was made.
+  CodeCraft was not used (`CODECRAFT_MODE=off`).
+- **Delivered:** `docs/plans/ai-upgrade-v5/N2-dom-vision-evidence-fusion.md`, covering:
+  - the objective and non-goals (N3-N10 scope excluded);
+  - the as-built DOM and visual baseline;
+  - a veto-only decision table (R1-R8);
+  - invariants I1-I9;
+  - the architecture: one allow-listed runner adapter and a sidecar reference store;
+  - owner decisions FD-1 to FD-9;
+  - work items N2.1-N2.8 (proposed, not filed);
+  - lab scenarios F1-F8;
+  - a mutation contract;
+  - acceptance criteria and risks.
+- **Files:**
+  - the plan;
+  - `docs/plans/ai-upgrade-v5/ROADMAP.md`, with the N2 row and a pointer to the plan;
+  - `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md`.
+- **Checks:** `verify:roadmap-dashboard`, `git diff --check`.
+- **Not run:** a real headed Ctrl+zoom capture. The plan schedules it in N2.3.
+- **Preserved:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`, untracked and unchanged.
+
+## 2026-10-12 — Phase N: independent re-QC of N0/N1 and tracker reconciliation (Claude)
 
 - **Scope:** independent re-QC at `222b04d3`, then governance only. No N0/N1 production change and no N2
   implementation. CodeCraft was not used (`CODECRAFT_MODE=off`).

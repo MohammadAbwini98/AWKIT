@@ -631,7 +631,7 @@ not renumbered; titles and notes map existing history onto the canonical names.
 |---|---|---|---|
 | N0 | Visual Intelligence Foundation / Capture | `awkit-vra.1` | closed — re-QC PASS at `222b04d3` |
 | N1 | Deterministic Visual Element Fingerprints | `awkit-vra.3.1` | closed — re-QC PASS at `222b04d3` |
-| N2 | DOM + Vision Evidence Fusion | `awkit-vra.12` | planned, blocked by N0 and N1 |
+| N2 | DOM + Vision Evidence Fusion | `awkit-vra.12` | planned — plan delivered, implementation not authorized |
 | N3 | Visual Locator Recovery | — | not yet filed |
 | N4 | Recorder Visual Intelligence | — | not yet filed |
 | N5 | Visual Failure Diagnosis | — | not yet filed |
@@ -647,6 +647,12 @@ candidate but must not independently identify an action or cause a click. No coo
 execution, no visual-score-only recovery and no model requirement. OCR, row/grid and screenshot-state
 scope stays in N7-N9. The legacy workstreams `awkit-vra.2` to `.8` below keep their original titles
 as planning records.
+
+The N2 implementation plan is `N2-dom-vision-evidence-fusion.md` (2026-10-12, zero implementation).
+Its policy is veto-only: a relative, calibrated contradiction can refuse a DOM-chosen recovery winner,
+and corroboration is reported but never executes. It defines invariants I1-I9, the work items N2.1-N2.8
+(proposed, not yet filed) and the owner decisions FD-1 to FD-9 that must be recorded before
+implementation starts.
 
 ### Planned workstreams and dependencies (original numbering, 2026-09-22)
 

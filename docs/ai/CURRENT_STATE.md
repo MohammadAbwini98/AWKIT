@@ -1,6 +1,39 @@
 # CURRENT_STATE
 
-## Phase N: N0/N1 independent re-QC PASS; N0/N1 closed; canonical numbering and N2 fusion filed (2026-10-12, latest)
+## Phase N: N2 DOM + Vision Evidence Fusion implementation plan delivered (2026-10-12, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task.
+
+- **Plan:** `docs/plans/ai-upgrade-v5/N2-dom-vision-evidence-fusion.md`, for `awkit-vra.12`. **Zero implementation**:
+  no runtime, schema, settings, UI, dependency or tracker change.
+- **Policy:** veto-only fusion, placed last in `LocatorFactory.recover()`'s veto chain, after `requireActionable`.
+  - A visual contradiction can refuse a DOM-chosen recovery winner, with the reason `visual-contradiction`.
+  - Corroboration is reported but never executes.
+  - Visual evidence never yields a locator, index or coordinate.
+  - The contradiction rule is relative to the DOM's own competitors and needs a DOM near-tie. It uses no absolute
+    score threshold, because the measured N1 scores are not monotone in identity: a look-alike scores 0.9434 and the
+    same control restyled scores 0.6705.
+- **Defined in the plan:**
+  - invariants I1-I9;
+  - Feature Test Lab scenarios F1-F8;
+  - a 10-item mutation contract;
+  - the acceptance criteria;
+  - proposed work items N2.1-N2.8, which are **not filed**.
+- **Owner decisions FD-1 to FD-9 are required before implementation.** They cover:
+  - the modes (off, shadow, enforce-veto);
+  - relaxing `verify:visual-isolation` to allow one runner adapter;
+  - what "strengthen" means;
+  - a sidecar reference store;
+  - a 400 ms budget;
+  - eligible steps;
+  - K ≤ 3 competitors;
+  - an env/run-option enablement;
+  - margins measured in the N2.3 calibration lab.
+- **Still NOT RUN:** a real headed Ctrl+zoom capture. The plan schedules it in N2.3.
+- **Next:** owner review of the plan and of FD-1 to FD-9, then authorization to file N2.1-N2.8 and begin N2.1.
+
+## Phase N: N0/N1 independent re-QC PASS; N0/N1 closed; canonical numbering and N2 fusion filed (2026-10-12)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed by this task.

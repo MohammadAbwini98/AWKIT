@@ -1,6 +1,23 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-12, latest) — Phase N: N0/N1 closed on independent re-QC PASS; next is the N2 plan
+## HANDOFF (2026-10-12, latest) — Phase N: N2 fusion plan delivered; awaiting owner decisions
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Plan:** `docs/plans/ai-upgrade-v5/N2-dom-vision-evidence-fusion.md` (`awkit-vra.12`). Nothing is implemented.
+- **Next action (owner):**
+  1. Record FD-1 to FD-9 in `DECISIONS.md`.
+  2. Authorize filing N2.1-N2.8 as children of `awkit-vra.12`.
+  3. Authorize N2.1, which encapsulates the `internals` test seam and fixes the `png.ts` comment.
+- **Binding for implementers:**
+  - Fusion is veto-only and sits last in `recover()`'s veto chain.
+  - There are no absolute score thresholds.
+  - Margins come from the N2.3 lab measurements.
+  - The isolation gate changes only as FD-2 states, with its mutation controls.
+- **NOT RUN:** a real headed Ctrl+zoom capture. It is scheduled in N2.3.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-12) — Phase N: N0/N1 closed on independent re-QC PASS; next is the N2 plan
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
