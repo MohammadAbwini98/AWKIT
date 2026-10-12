@@ -8,15 +8,29 @@ export type { VisualErrorCode, VisualFailure, VisualResult, VisualSuccess } from
 export type { CssRect, PixelRect } from "./geometry";
 export { VisualImage, decodePng } from "./png";
 export {
+  VISUAL_FANOUT_MAX_CANDIDATES,
+  captureCandidates,
   captureElement,
   captureViewport,
+  captureVisualFrame,
+  cropFromVisualFrame,
+  releaseVisualFrame,
+  validateVisualFrame,
+  type VisualCandidateCapture,
+  type VisualCandidateFanout,
+  type VisualCandidateTarget,
+  type VisualCaptureFrame,
+  type VisualCaptureFrameOptions,
   type VisualCaptureOptions,
   type VisualCrop,
   type VisualElementCapture,
+  type VisualFrameCrop,
   type VisualFrameInfo,
+  type VisualFrameStaleReason,
   type VisualViewportCapture,
   type VisualViewportInfo
 } from "./capture";
+export { buildCandidateEvidence, type VisualCandidateEvidence, type VisualFanoutEvidence } from "./candidateEvidence";
 export { checkProtectedSurface, protectedCallerVerdict, type ProtectedGuardVerdict } from "./protectedGuard";
 export { VISUAL_FINGERPRINT_VERSION, fingerprintVisualImage, type VisualFingerprint } from "./fingerprint";
 export { compareVisualFingerprints, type VisualComparison } from "./compare";

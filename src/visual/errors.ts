@@ -27,6 +27,11 @@ export type VisualErrorCode =
   | "FINGERPRINT_FAILED"
   /** A fingerprint was produced by a different fingerprint version and cannot be compared. */
   | "UNSUPPORTED_FINGERPRINT_VERSION"
+  /**
+   * A shared capture no longer describes the page: it was released or expired, or the page navigated, opened a popup,
+   * closed, or changed its viewport size or device pixel ratio after the screenshot. Never recaptured automatically.
+   */
+  | "CAPTURE_STALE"
   /** The page (or its browser) closed. */
   | "PAGE_CLOSED"
   /** The caller's time budget ran out. */
