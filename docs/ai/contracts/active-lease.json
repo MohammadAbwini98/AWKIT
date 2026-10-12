@@ -1,30 +1,20 @@
 {
-  "task": "awkit-vra-1-foundation-1012",
-  "contract_path": "docs/ai/contracts/awkit-vra-1-foundation-1012.json",
+  "task": "awkit-vra-n0n1-reqc-1012",
+  "contract_path": "docs/ai/contracts/awkit-vra-n0n1-reqc-1012.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-12T09:22:50.402Z",
-  "acquired_at_commit": "dca08808c524926157dafc952bc78489383ce13d",
+  "acquired_at": "2026-10-12T12:45:48.559Z",
+  "acquired_at_commit": "222b04d3bc59036b0ba7baf3f5138121904a42cb",
   "baseline_dirty": [
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/HANDOFF.md",
-    "docs/ai/KNOWN_ISSUES.md",
-    "docs/ai/TASK_LOG.md",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "package.json",
-    "scripts/benchmark-visual-capture.mts"
+    "docs/ai/contracts/awkit-vra-n0n1-reqc-1012.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/CURRENT_STATE.md": "8d04e070c203f6eedb5ef617e6ea3065562fa9e66b1bbeb21b1f0d274fce7ddc",
-    "docs/ai/HANDOFF.md": "93f1c405456555b2563dd5541da55132f6c8b4de8a038c6467444d9a9066efaa",
-    "docs/ai/KNOWN_ISSUES.md": "dcc42857c20c74c0407743034e3ec73845ebd05dc17fd60c0c189752336d2d91",
-    "docs/ai/TASK_LOG.md": "a9e756237c0c5108fc08fc00c25c91a6978b21460699d0db83688c4df87eaf59",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "package.json": "5f26eb5e38000d28e3b39b804ceb2daa9fe41b34b4a9ad743fa0d551b95aa211",
-    "scripts/benchmark-visual-capture.mts": "55bea51a43789b99a8a228f95cae2f59f5e9942b7a71ce0fb45967ccbb47dbb8"
+    "docs/ai/contracts/awkit-vra-n0n1-reqc-1012.json": "e32e3a5008e15253c949cf792f86d685db6263bd77a642e9215bdaf27a143f8b"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -39,7 +29,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-12T09:23:17.998Z",
-  "released_reason": "Phase N S4: awkit-vra.3.1 in_progress, evidence notes on vra.1 and vra.3.1, JSONL exported with 371 issues",
-  "archived_at": "2026-10-12T09:23:17.999Z"
+  "released_at": "2026-10-12T12:48:03.249Z",
+  "released_reason": "N0/N1 re-QC governance: vra.1 and vra.3.1 retitled to canonical N0/N1 and closed, N2 fusion filed as awkit-vra.12 blocked by both, vra.9-11 mapped to N7-N9, epic canonical map noted, JSONL exported with 372 issues",
+  "archived_at": "2026-10-12T12:48:03.251Z"
 }

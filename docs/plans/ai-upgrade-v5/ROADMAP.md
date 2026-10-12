@@ -599,7 +599,8 @@ so the Phase L extension does not hold Phase M back; M1's edge on closed L7 stay
 
 ## Phase N — Visual Recognition and Automation
 
-Status: **NOT STARTED — zero implementation progress**. Roadmap Phase `N` (`pending`), Beads epic
+Status: **IN PROGRESS** since 2026-10-12 (roadmap Phase `N` `in-progress`); N0 and N1 complete
+after an independent re-QC PASS at `222b04d3`. *Registered 2026-09-22 as NOT STARTED.* Beads epic
 `awkit-vra`. Phase N follows the Phase L release foundation, remains separate from Phase L and
 Phase M, and does not change either phase's status, acceptance criteria or dependencies. Phase M is
 not a prerequisite for Phase N.
@@ -621,7 +622,33 @@ handoff and local-data storage policies. It introduces no mandatory AI, model, c
 dependency. This section registers planning only and does not authorize implementation, dependencies,
 schemas, services, UI components, models or runtime behavior.
 
-### Planned workstreams and dependencies
+### Canonical milestone map (2026-10-12)
+
+The owner's canonical Phase N plan supersedes the original workstream numbering below. Beads IDs were
+not renumbered; titles and notes map existing history onto the canonical names.
+
+| Canonical | Milestone | Beads | State |
+|---|---|---|---|
+| N0 | Visual Intelligence Foundation / Capture | `awkit-vra.1` | closed — re-QC PASS at `222b04d3` |
+| N1 | Deterministic Visual Element Fingerprints | `awkit-vra.3.1` | closed — re-QC PASS at `222b04d3` |
+| N2 | DOM + Vision Evidence Fusion | `awkit-vra.12` | planned, blocked by N0 and N1 |
+| N3 | Visual Locator Recovery | — | not yet filed |
+| N4 | Recorder Visual Intelligence | — | not yet filed |
+| N5 | Visual Failure Diagnosis | — | not yet filed |
+| N6 | Visual Assertions | — | not yet filed |
+| N7 | OCR / Text-in-Image | `awkit-vra.9` | planned |
+| N8 | Visual Row/Grid Intelligence | `awkit-vra.10` | planned |
+| N9 | Screenshot State Recognition | `awkit-vra.11` | planned |
+| N10 | Optional Local Vision Model | — | not yet filed |
+
+N2 combines existing DOM/accessibility/structural evidence with advisory visual evidence under a
+fail-closed confidence/contradiction policy. Visual evidence may strengthen or veto a semantic
+candidate but must not independently identify an action or cause a click. No coordinate-only
+execution, no visual-score-only recovery and no model requirement. OCR, row/grid and screenshot-state
+scope stays in N7-N9. The legacy workstreams `awkit-vra.2` to `.8` below keep their original titles
+as planning records.
+
+### Planned workstreams and dependencies (original numbering, 2026-09-22)
 
 | ID | Planned workstream | Depends | Beads |
 |---|---|---|---|

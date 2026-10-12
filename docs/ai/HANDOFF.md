@@ -1,6 +1,27 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-12, latest) — Phase N: N0/N1 implemented and verified, awaiting independent review
+## HANDOFF (2026-10-12, latest) — Phase N: N0/N1 closed on independent re-QC PASS; next is the N2 plan
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Supersedes the "awaiting independent review" note below.**
+  - N0 (`awkit-vra.1`) and N1 (`awkit-vra.3.1`) are closed on an independent re-QC PASS at `222b04d3`. The evidence
+    is in CURRENT_STATE and the contract `awkit-vra-n0n1-reqc-1012`.
+- **Next action:** prepare the N2 DOM + Vision Evidence Fusion implementation plan (`awkit-vra.12`).
+  - It is planning only, and no implementation is authorized yet.
+  - Visual evidence may strengthen or veto a semantic candidate, but it must never identify an action or cause a
+    click on its own.
+  - No coordinate-only execution, no visual-score-only recovery, and no model requirement.
+- **Before N2 wires anything:**
+  - Encapsulate the `internals` test seam. It is currently visible on the exported capture functions.
+  - Keep `verify:visual-isolation` green, or deliberately and visibly change its seed list.
+- **Numbering:** canonical N0-N10 is mapped onto the existing IDs, which were not renumbered.
+  - N7, N8 and N9 are `awkit-vra.9`, `.10` and `.11`.
+  - Do not move their scope into N2.
+- **NOT RUN:** a real headed Ctrl+zoom capture.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-12) — Phase N: N0/N1 implemented and verified, awaiting independent review
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

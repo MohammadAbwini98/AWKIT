@@ -1,6 +1,54 @@
 # CURRENT_STATE
 
-## Phase N: N0/N1 QC remediation implemented; re-QC pending; numbering and N2 fusion need owner action (2026-10-12, latest)
+## Phase N: N0/N1 independent re-QC PASS; N0/N1 closed; canonical numbering and N2 fusion filed (2026-10-12, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task.
+
+- **Re-QC verdict: PASS.** This was an independent re-QC at `222b04d3` (contract `awkit-vra-n0n1-reqc-1012`), and every
+  result below was produced fresh.
+
+  | Check | Result |
+  |---|---|
+  | `build` and `typecheck:scripts` | PASS |
+  | `verify:visual-capture` | 274/0 |
+  | `verify:visual-fingerprint` | 58/0 |
+  | `verify:visual-isolation` | 17/0 |
+  | `verify:mock-site` | 282/282 |
+  | `verify:verifier-classification` | PASS |
+  | Visual code in `out/` | none |
+
+  Seven mutations were each observed failing, then restored:
+
+  | Mutation | Failures |
+  |---|---|
+  | PNG CRC check disabled | 2 |
+  | DPR/zoom refusal disabled | 2 |
+  | Post-capture protected check skipped | 7 |
+  | `src/visual` import in `execution.ipc.ts` | 2 (isolation) |
+  | Constant fingerprint | 19 |
+  | Constant score 1 | 8 |
+  | Empty fixture set | 17, plus an abort |
+- **Tracker reconciled. No Beads ID was renumbered.**
+  - Closed:
+    - `awkit-vra.1` is now "N0 — Visual Intelligence Foundation / Capture".
+    - `awkit-vra.3.1` is now "N1 — Deterministic Visual Element Fingerprints".
+  - Filed: `awkit-vra.12` "N2 — DOM + Vision Evidence Fusion". It is planning only and is blocked by `.1` and `.3.1`.
+  - Retitled with IDs kept:
+    - `awkit-vra.9` is N7 OCR / Text-in-Image.
+    - `.10` is N8 Visual Row/Grid Intelligence.
+    - `.11` is N9 Screenshot State Recognition.
+  - The legacy `awkit-vra.2` to `.8` keep their original titles.
+  - The canonical map is in `docs/plans/ai-upgrade-v5/ROADMAP.md` and in the `ImplementationRoadmap.ts` deliverables.
+  - Phase N stays **IN PROGRESS**.
+- **NOT RUN:** a real headed Ctrl+zoom capture. Only a `devicePixelRatio` spoof was tested.
+- **Non-blocking debt:**
+  - The `internals` test seam, including the guard override, is visible on the exported `captureViewport` /
+    `captureElement`. Encapsulate it before N2 wires anything.
+  - The `png.ts` comment overstates the refusal of colour-management chunks; only `tRNS` is refused.
+- **Next:** prepare the N2 DOM + Vision Evidence Fusion implementation plan. N2 is not implemented.
+
+## Phase N: N0/N1 QC remediation implemented; re-QC pending; numbering and N2 fusion need owner action (2026-10-12)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed by this task.

@@ -1,6 +1,44 @@
 # TASK_LOG
 
-## 2026-10-12 (latest) — Phase N: N0/N1 QC remediation (Claude)
+## 2026-10-12 (latest) — Phase N: independent re-QC of N0/N1 and tracker reconciliation (Claude)
+
+- **Scope:** independent re-QC at `222b04d3`, then governance only. No N0/N1 production change and no N2
+  implementation. CodeCraft was not used (`CODECRAFT_MODE=off`).
+- **Re-QC checks (all fresh, PASS):**
+  - `build`, `typecheck:scripts`;
+  - `verify:visual-capture` 274/0, `verify:visual-fingerprint` 58/0, `verify:visual-isolation` 17/0;
+  - `verify:mock-site` 282/282;
+  - `verify:verifier-classification`;
+  - `benchmark:visual-capture`, informational. At DPR 1 viewport capture took a median 51.7 ms, and at DPR 2 it took
+    149.9 ms. Fingerprints are 941–943 bytes.
+- **Mutations (each observed failing, then restored, with no mutation code left):**
+
+  | Mutation | Failures |
+  |---|---|
+  | CRC check off | 2 |
+  | DPR refusal off | 2 |
+  | Post-capture protected check skipped | 7 |
+  | Visual import in `execution.ipc.ts` | 2 |
+  | Constant fingerprint | 19 |
+  | Constant score | 8 |
+  | Empty fixtures | 17, plus an abort |
+- **Tracker:** this ran under a project-state lease on contract `awkit-vra-n0n1-reqc-1012`.
+  - `awkit-vra.1` was retitled to N0 and `awkit-vra.3.1` to N1, and both were closed.
+  - `awkit-vra.12` was filed as N2 fusion, planning only, blocked by both.
+  - `.9`, `.10` and `.11` were retitled to N7, N8 and N9.
+  - The epic notes now carry the canonical map.
+  - The JSONL was exported with 372 issues.
+- **Files:**
+  - `.beads/issues.jsonl`;
+  - `scripts/verify-roadmap-dashboard.mjs`, with pins at 372 issues, 25 outstanding / 347 closed and 265 edges;
+  - `src/roadmap/ImplementationRoadmap.ts`;
+  - `docs/plans/ai-upgrade-v5/ROADMAP.md`;
+  - `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md`;
+  - `docs/ai/contracts/awkit-vra-n0n1-reqc-1012.json`.
+- **Not run:** a real headed Ctrl+zoom capture.
+- **Preserved:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`, untracked and unchanged.
+
+## 2026-10-12 — Phase N: N0/N1 QC remediation (Claude)
 
 - **Trigger:** independent QC of N0/N1 at `843cb390` returned FAIL. This task is the minimal remediation; it does not
   implement N2.

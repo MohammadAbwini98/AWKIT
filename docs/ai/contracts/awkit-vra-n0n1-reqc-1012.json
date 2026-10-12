@@ -1,0 +1,193 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-n0n1-reqc-1012",
+    "title": "Independent re-QC of N0/N1 and Phase N tracker reconciliation (governance only)",
+    "objective": "Owner request of 2026-10-12: independently re-QC N0 capture and N1 fingerprints at remediation 222b04d3 and, only on PASS, reconcile the tracker to the canonical Phase N plan without renumbering Beads IDs. awkit-vra.1 becomes N0 — Visual Intelligence Foundation / Capture and awkit-vra.3.1 becomes N1 — Deterministic Visual Element Fingerprints, both closed with commit and QC evidence. A planning-only N2 — DOM + Vision Evidence Fusion child is filed depending on both. awkit-vra.9, .10 and .11 keep their IDs and map to N7 OCR, N8 row/grid and N9 screenshot state. Phase N stays in progress. No N2 implementation and no N0/N1 production change.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "222b04d3",
+    "working_tree_expected": "clean",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true,
+    "general_engineering_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "qa",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/awkit-vra-n0n1-reqc-1012.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "RQ-QC",
+      "description": "Fresh independent QC at 222b04d3 passes build, verify:visual-capture, verify:visual-fingerprint, verify:visual-isolation and verify:mock-site, with seven anti-vacuity mutations observed failing and fully restored.",
+      "evidence_required": [
+        "build",
+        "verify:visual-capture",
+        "verify:visual-fingerprint",
+        "verify:visual-isolation",
+        "verify:mock-site"
+      ]
+    },
+    {
+      "id": "RQ-GOV",
+      "description": "awkit-vra.1 and awkit-vra.3.1 carry canonical N0/N1 titles and are closed with evidence, the N2 fusion child is filed under awkit-vra depending on both, vra.9-11 map to N7-N9 with IDs unchanged, Phase N stays in progress and verify:roadmap-dashboard reports Sources agree.",
+      "evidence_required": [
+        "beads-export",
+        "verify:roadmap-dashboard"
+      ]
+    },
+    {
+      "id": "RQ-GIT",
+      "description": "Governance-only commit lands on main and is pushed without force; the L12.27 contract stays untracked and unchanged.",
+      "evidence_required": [
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "2026-10-12 at 222b04d3: tsc --noEmit clean and electron-vite bundles built. typecheck:scripts PASS. A grep of out/ for awkit-vfp, captureViewport, fingerprintVisualImage, VISUAL_EVIDENCE_VERSION and decodePng found nothing."
+    },
+    {
+      "id": "verify:visual-capture",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-capture",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "2026-10-12 at 222b04d3: 274 passed, 0 failed. Mutations PNG CRC disabled (2 failed), DPR refusal disabled (2 failed) and post-capture protected check skipped (7 failed) observed failing and restored."
+    },
+    {
+      "id": "verify:visual-fingerprint",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-fingerprint",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "2026-10-12 at 222b04d3: 58 passed, 0 failed. Mutations constant fingerprint (19 failed), constant score 1 (8 failed) and empty fixture set (17 failed plus abort) observed failing and restored."
+    },
+    {
+      "id": "verify:visual-isolation",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-isolation",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "2026-10-12 at 222b04d3: 17 passed, 0 failed. An injected src/visual import in app/main/ipc/execution.ipc.ts failed 2 checks (execution and renderer chains) and was restored."
+    },
+    {
+      "id": "verify:mock-site",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:mock-site",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "2026-10-12 at 222b04d3: 282/282."
+    },
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "2026-10-12 under the project-state lease: awkit-vra.1 and awkit-vra.3.1 retitled to canonical N0/N1 and closed, awkit-vra.12 N2 fusion filed blocked by both, awkit-vra.9-11 retitled N7-N9 with IDs kept, epic canonical map noted. Exported 372 issues."
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "2026-10-12, final source state: 177/177, Overview banner Sources agree. 372 issues, 25 outstanding / 347 closed, 265 edges, ledger 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases, traceability 87/12/3 of 102, 14 phases A..N. verify:verifier-classification PASS (328), git diff --check clean, build PASS (embedded roadmap snapshot 543 records)."
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "pending",
+      "observed": "Governance commit to be pushed to origin/main without force; the L12.27 contract is never staged."
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-n0n1-reqc-1012:project-state:2026-10-12T12:45:48.559Z",
+        "task": "awkit-vra-n0n1-reqc-1012",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-12T12:45:48.559Z",
+        "acquired_at_commit": "222b04d3bc59036b0ba7baf3f5138121904a42cb",
+        "released_at": "2026-10-12T12:48:03.249Z",
+        "released_reason": "N0/N1 re-QC governance: vra.1 and vra.3.1 retitled to canonical N0/N1 and closed, N2 fusion filed as awkit-vra.12 blocked by both, vra.9-11 mapped to N7-N9, epic canonical map noted, JSONL exported with 372 issues",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}
