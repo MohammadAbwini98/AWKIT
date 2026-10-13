@@ -1,6 +1,22 @@
 # TASK_LOG
 
-## 2026-10-13 (latest) — Phase N: close `awkit-vra.12` in the tracker (Claude)
+## 2026-10-13 (latest) — Phase N: N3 Visual Locator Recovery plan (Claude)
+
+- **Scope:** advance Phase N to its next valid work. CodeCraft was not used (`CODECRAFT_MODE=off`).
+- **Authority:** N0, N1 and N2 are closed, and N3 is the next canonical milestone. N3 had no plan and no bead, and the
+  2026-10-12 owner directive forbids any visual locator recovery. So the valid next step is the plan, not runtime
+  code, following the N1/N2 process: plan, then owner decisions, then filing.
+- **Change:**
+  - new `docs/plans/ai-upgrade-v5/N3-visual-locator-recovery.md`, with zero implementation: the A1-A9 policy,
+    invariants J1-J9, work items N3.1-N3.6 and owner decisions VR-0 to VR-9;
+  - the ROADMAP Phase N milestone map and summary updated;
+  - the stale Phase N `implementationNote` replaced.
+- **Files:** `docs/plans/ai-upgrade-v5/{N3-visual-locator-recovery,ROADMAP}.md`, `src/roadmap/ImplementationRoadmap.ts`,
+  `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md`.
+- **Tracker:** unchanged, deliberately. The N3 bead mapping is owner decision VR-9.
+- **Result:** the plan is delivered. N3 implementation waits on VR-0 to VR-9 and an explicit authorization.
+
+## 2026-10-13 — Phase N: close `awkit-vra.12` in the tracker (Claude)
 
 - **Scope:** "close awkit-vra.12 in the tracker". CodeCraft was not used (`CODECRAFT_MODE=off`).
 - **Change:** tracker only, under a `project-state` lease on contract `awkit-vra-12-n2-start-1012` (scope

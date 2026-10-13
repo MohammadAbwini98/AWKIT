@@ -1,6 +1,30 @@
 # CURRENT_STATE
 
-## Phase N: N2 closed in the tracker, shadow-only (2026-10-13, latest)
+## Phase N: N3 Visual Locator Recovery plan delivered, zero implementation (2026-10-13, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task.
+
+- **N3 plan:** `docs/plans/ai-upgrade-v5/N3-visual-locator-recovery.md`. It is the execution-affecting step that N2
+  FD-3 deferred, on the L12 `agreed` template, narrowed further:
+  - only a local `below-threshold` refusal qualifies, and the DOM best must still hold the 0.08 margin, 0.5 ancestry
+    and 0.6 score floors;
+  - the best's current appearance must be pixel-identical to the step's reference, and no captured DOM competitor
+    may be identical;
+  - the candidate then passes the unchanged `distinct` → `insideContainer` → `requireActionable` chain and pin.
+  - Visual evidence never breaks a DOM near-tie (`ambiguous-margin`), because N2.3 showed a swap cannot be told from
+    a restyle.
+- **Not authorized.** N3 runtime work waits on owner decisions VR-0 to VR-9 and an explicit authorization. VR-0
+  amends the 2026-10-12 directive "Visual similarity must never cause … a locator recovery", and without it N3 stops
+  at shadow.
+- **Tracker unchanged.** VR-9 proposes retitling legacy `awkit-vra.4` to N3. That waits for the owner, so the
+  dashboard pins (381 issues, 25 / 356, 283 edges) are unchanged.
+- **Roadmap sources:** ROADMAP's milestone map now shows N2 closed and N3 planned. The Phase N `implementationNote`
+  in `src/roadmap/ImplementationRoadmap.ts` replaces the stale "N2 IN PROGRESS … next is N2.4" text.
+- **v0.1.53 carry-over unchanged:** packaged licensed Parts D–J are BLOCKED (`AWKIT_PACKAGED_LICENSE_ISSUER_KEY`
+  unavailable), and the clean offline Windows VM walkthrough is NOT RUN.
+
+## Phase N: N2 closed in the tracker, shadow-only (2026-10-13)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed by this task.

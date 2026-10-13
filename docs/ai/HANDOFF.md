@@ -1,6 +1,25 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-13, latest) — Phase N: N2 closed in the tracker; dashboard repinned
+## HANDOFF (2026-10-13, latest) — Phase N: N3 plan delivered; owner decisions owed
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** `docs/plans/ai-upgrade-v5/N3-visual-locator-recovery.md`, a plan with zero implementation. The stale N2
+  text in the ROADMAP and in the Phase N `implementationNote` is corrected.
+- **Owed — owner:** decisions VR-0 to VR-9, recorded in `docs/ai/DECISIONS.md`, and an explicit N3 authorization.
+  - VR-0 amends the 2026-10-12 "no visual locator recovery" directive. Without it, only N3.1-N3.3 (policy,
+    calibration, shadow) may proceed.
+  - VR-9 decides the tracker home; the proposal is to retitle legacy `awkit-vra.4`.
+- **After authorization:**
+  1. retitle or file the N3 bead and its N3.1-N3.6 children;
+  2. run `bd export -o .beads/issues.jsonl`;
+  3. repin the dashboard counts in `scripts/verify-roadmap-dashboard.mjs`. Edit the verifier *before* taking a
+     `.beads/**`-only lease.
+- **First implementation item:** N3.1, the pure `decideVisualAgreement` policy with `verify:visual-agreement`.
+- **v0.1.53 carry-over unchanged:** Parts D–J are BLOCKED (no issuer key), and the clean-VM walkthrough is NOT RUN.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-13) — Phase N: N2 closed in the tracker; dashboard repinned
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
