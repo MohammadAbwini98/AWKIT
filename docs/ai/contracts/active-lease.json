@@ -1,18 +1,32 @@
 {
-  "task": "awkit-vra-12-n2-start-1012",
-  "contract_path": "docs/ai/contracts/awkit-vra-12-n2-start-1012.json",
+  "task": "awkit-vra-4-n3-start-1013",
+  "contract_path": "docs/ai/contracts/awkit-vra-4-n3-start-1013.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-13T10:52:37.091Z",
-  "acquired_at_commit": "be4b24f6a8a2bd97445b8f76ca526cc0b9ae7cad",
+  "acquired_at": "2026-10-13T17:45:46.776Z",
+  "acquired_at_commit": "343043c80501a1a6353ff4b42f472c9b4d40e5ba",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-l12-27-implementation-1006.json"
+    "docs/ai/DECISIONS.md",
+    "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+    "docs/ai/contracts/awkit-vra-4-n3-start-1013.json",
+    "package.json",
+    "scripts/lib/verifier-classification.ts",
+    "scripts/verify-visual-agreement.mts",
+    "src/visual/fusion/decideVisualAgreement.ts",
+    "src/visual/index.ts"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+    "docs/ai/DECISIONS.md": "5ff5e7aec00d9d39ed5fef43cb209ca5373778743fa7ff2dd4ef7a40ef56a81d",
+    "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
+    "docs/ai/contracts/awkit-vra-4-n3-start-1013.json": "0abddcea897d07157d23ef346754221638feb2d98f0a56b3cd795baa539be5c7",
+    "package.json": "075c673a6ccf276bfa78cbcbdf41d16d3fc061c75ca9d408efc2fb56db889f33",
+    "scripts/lib/verifier-classification.ts": "862e184123c7334beeffd27a7024b6becc602ac2ee25e0027ce2c7706297148b",
+    "scripts/verify-visual-agreement.mts": "175dee5bf4b3e59ada85e336e15e8897f9cafcd640e1290008480e66f7f17711",
+    "src/visual/fusion/decideVisualAgreement.ts": "7ee166a53478a6e8fbae0cc2afc58b2882cf4a282b3ee2a005dc01765bead48f",
+    "src/visual/index.ts": "9da18f4973160d3dab97a17ad2105d912a41180bd7381cf8614bb413fcc069dc"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -22,12 +36,12 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(9):command-authorization-build.log:1791655824280.519|command-authorization-graphify.log:1791656102774.0833|command-authorization-roadmap.log:1791655956531.24|command-authorization-routing.log:1791655726727.7021|command-authorization-task-gate.json:1791655978836.031|lease-status-build.log:1791656486702.492|lease-status-roadmap.log:1791656634670.6677|lease-status-routing.log:1791656586249.2314|native-hosts:1791093594496.971"
+    "build": "dir(9):command-authorization-build.log:1791655824280.519|command-authorization-graphify.log:1791656102774.0833|command-authorization-roadmap.log:1791655956531.24|command-authorization-routing.log:1791655726727.7021|command-authorization-task-gate.json:1791655978836.031|lease-status-build.log:1791656486702.492|lease-status-roadmap.log:1791656634670.6677|lease-status-routing.log:1791656586249.2314|native-hosts:1791906584967.718"
   },
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-13T10:54:49.773Z",
-  "released_reason": "tracker-closed-dashboard-repin-terminally-denied",
-  "archived_at": "2026-10-13T10:54:49.774Z"
+  "released_at": "2026-10-13T17:48:46.556Z",
+  "released_reason": "N3 tracker filed and N3.1 closed, beads exported",
+  "archived_at": "2026-10-13T17:48:46.557Z"
 }

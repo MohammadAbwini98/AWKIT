@@ -161,7 +161,8 @@ try {
   // Then 372 later on 2026-10-12: the N0/N1 re-QC filed the canonical N2 fusion item `awkit-vra.12`.
   // Then 380 later on 2026-10-12 (contract `awkit-vra-12-n2-start-1012`): N2.1-N2.8 filed as `awkit-vra.12.1`…`.12.8`.
   // Then 381 on 2026-10-13 (contract `awkit-vra-12-n2-start-1012`): N2.4b filed as `awkit-vra.12.9`.
-  check("381 issues parse", beads.stats.total === 381, `got ${beads.stats.total}`);
+  // Then 387 on 2026-10-13 (contract `awkit-vra-4-n3-start-1013`): N3.1-N3.6 filed as `awkit-vra.4.1`…`.4.6`.
+  check("387 issues parse", beads.stats.total === 387, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -715,8 +716,10 @@ try {
   // Then 25/356 of 381 on 2026-10-13 (contract `awkit-vra-12-n2-start-1012`): N2.4b `awkit-vra.12.9` filed and
   // closed, `.12.4`, `.12.5`, `.12.7`, `.12.8` and the N2 epic `awkit-vra.12` closed, and N2.6 `.12.6` deferred
   // per FD-9, which still counts as outstanding (one in, six closed).
-    "25 outstanding / 356 closed",
-    beads.stats.outstanding === 25 && beads.stats.closed === 356,
+  // Then 30/357 of 387 on 2026-10-13 (contract `awkit-vra-4-n3-start-1013`): N3.1-N3.6 `awkit-vra.4.1`…`.4.6`
+  // filed and N3.1 `.4.1` closed; `awkit-vra.4` was already outstanding (six in, one closed).
+    "30 outstanding / 357 closed",
+    beads.stats.outstanding === 30 && beads.stats.closed === 357,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -828,9 +831,11 @@ try {
   // Then 265 later on 2026-10-12: `awkit-vra.12` (one parent-child link) blocked by `.1` and `.3.1`.
   // Then 281 later on 2026-10-12: `awkit-vra.12.1`…`.12.8` (eight parent-child links) and eight blocks edges.
   // Then 283 on 2026-10-13: `awkit-vra.12.9` (one parent-child link) and `.12.9` blocks `.12.5`.
+  // Then 295 on 2026-10-13 (contract `awkit-vra-4-n3-start-1013`): `awkit-vra.4.1`…`.4.6` (six parent-child links),
+  // `.12` blocks `.4.1` and the five chained blocks edges `.4.1` -> `.4.2` … `.4.5` -> `.4.6`.
   check(
-    "283 edges are present to classify",
-    beads.stats.edges === 283,
+    "295 edges are present to classify",
+    beads.stats.edges === 295,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(

@@ -1,6 +1,26 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-13, latest) — Phase N: N3 plan delivered; owner decisions owed
+## HANDOFF (2026-10-13, latest) — Phase N: N3 started; N3.1 done, N3.2 next
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:**
+  - VR-0 to VR-9 are recorded as approved.
+  - `awkit-vra.4` is retitled and N3.1-N3.6 are filed as `.4.1`-`.4.6`.
+  - N3.1 `decideVisualAgreement` is done and `.4.1` is closed, with `verify:visual-agreement` at 258/0.
+  - The dashboard is repinned (387 / 30 / 357 / 295).
+- **Next — N3.2 (`awkit-vra.4.2`), calibration.**
+  - Add a drift scenario to the existing `mock-site/public/visual-intelligence-fusion.html`.
+  - Build `benchmark:visual-agreement`, measuring `agreed` on swap, look-alike and twin probes across DPR 1, 1.25
+    and 2, headed and headless.
+  - Any false `agreed` closes N3 shadow-only: N3.4 enforce is then not built.
+- **Then:** N3.3 runner shadow, N3.4 enforce (only if N3.2 is clean), N3.5 provenance, N3.6 state.
+- **Lease note:** the release form the guard accepts is `npm run agent:lease-release -- --reason "<text>"`, not
+  `--task`.
+- **v0.1.53 carry-over unchanged:** Parts D–J are BLOCKED (no issuer key), and the clean-VM walkthrough is NOT RUN.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-13) — Phase N: N3 plan delivered; owner decisions owed
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

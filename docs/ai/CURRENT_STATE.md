@@ -1,6 +1,31 @@
 # CURRENT_STATE
 
-## Phase N: N3 Visual Locator Recovery plan delivered, zero implementation (2026-10-13, latest)
+## Phase N: N3 started; owner decisions recorded, N3.1 agreement policy done (2026-10-13, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task.
+
+- **Owner decisions:** VR-0 to VR-9 were approved as recommended and are recorded in `docs/ai/DECISIONS.md`
+  (2026-10-13). VR-0 amends the 2026-10-12 directive: pixel *identity*, never similarity, may let the DOM's own
+  `below-threshold` best candidate proceed through the unchanged veto chain. The old directive carries an amendment
+  note.
+- **Tracker:** `awkit-vra.4` is retitled "N3: Visual Locator Recovery" and is `in_progress`. N3.1-N3.6 are filed as
+  `awkit-vra.4.1`-`.4.6`, chained in plan order, with `awkit-vra.12` blocking `.4.1`. The edges to `.6` and `.8` are
+  kept and no ID is renumbered. The dashboard is repinned to 387 issues, 30 / 357 and 295 edges.
+- **N3.1 done (`awkit-vra.4.1` closed):** `src/visual/fusion/decideVisualAgreement.ts`.
+  - It is a pure policy implementing decision table A1-A9, exported only through `src/visual/index.ts`.
+  - It reaches `agreed` only in A9: equal `contentDigest` and every captured competitor non-identical.
+  - Its effect is `proceed` only in `enforce`.
+  - Capture conditions are derived from the evidence, never trusted from the caller.
+  - `verify:visual-agreement` is 258/0, with 12 in-suite mutants red. A real-file mutation run gave 251/7 and was
+    restored.
+  - The verifier is registered as `unit`.
+- **Not yet wired:** the Runner, settings, schema and UI are unchanged, and `AWKIT_VISUAL_RECOVERY` does not exist
+  yet. N3.2 (calibration lab) is next; one false `agreed` closes N3 shadow-only.
+- **v0.1.53 carry-over unchanged:** packaged licensed Parts D–J are BLOCKED (`AWKIT_PACKAGED_LICENSE_ISSUER_KEY`
+  unavailable), and the clean offline Windows VM walkthrough is NOT RUN.
+
+## Phase N: N3 Visual Locator Recovery plan delivered, zero implementation (2026-10-13)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed by this task.

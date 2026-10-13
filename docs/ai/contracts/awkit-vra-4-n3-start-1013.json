@@ -1,0 +1,197 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-4-n3-start-1013",
+    "title": "N3 owner decisions recorded, awkit-vra.4 retitled, N3.1-N3.6 filed, N3.1 pure agreement policy",
+    "objective": "Owner approval of 2026-10-13: record VR-0 to VR-9 of docs/plans/ai-upgrade-v5/N3-visual-locator-recovery.md as recommended in DECISIONS.md, including the VR-0 amendment of the 2026-10-12 directive; retitle legacy awkit-vra.4 to N3: Visual Locator Recovery and file N3.1 to N3.6 as its children in the plan's dependency order, blocked by awkit-vra.12, keeping its edges to .6 and .8 and renumbering no existing ID; implement N3.1: the pure decideVisualAgreement policy in src/visual/fusion with the new verify:visual-agreement (decision table A1-A9, J1-J4 property run against an independent oracle, mutation contract). No runner, schema, settings or UI change.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "343043c8",
+    "working_tree_expected": "clean",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true,
+    "general_engineering_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "qa",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "src/visual/**",
+      "scripts/verify-visual-agreement.mts",
+      "scripts/lib/verifier-classification.ts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/awkit-vra-4-n3-start-1013.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N3-GOV",
+      "description": "VR-0 to VR-9 are recorded in DECISIONS.md as approved with the VR-0 directive amendment, awkit-vra.4 is retitled, N3.1 to N3.6 are filed as its children with the plan's blocks edges and awkit-vra.12 blocking N3.1, no existing Beads ID is renumbered, and verify:roadmap-dashboard reports Sources agree.",
+      "evidence_required": [
+        "beads-export",
+        "verify:roadmap-dashboard"
+      ]
+    },
+    {
+      "id": "N3.1",
+      "description": "decideVisualAgreement is pure, exported only through the src/visual index, reaches agreed only in row A9 on pixel identity with every captured competitor non-identical, never proceeds outside enforce, and verify:visual-agreement passes with its mutation contract red; isolation, fusion, classification and the build pass.",
+      "evidence_required": [
+        "build",
+        "verify:visual-agreement",
+        "verify:visual-isolation",
+        "verify:visual-fusion",
+        "verify:verifier-classification"
+      ]
+    },
+    {
+      "id": "N3-GIT",
+      "description": "The work lands on main and is pushed without force; the L12.27 contract stays untracked and unchanged.",
+      "evidence_required": [
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc --noEmit clean and electron-vite main, preload and renderer bundles built; embedded roadmap snapshot 558 records from 14 sources"
+    },
+    {
+      "id": "verify:visual-agreement",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-agreement",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "258/0 with 12 in-suite mutants red; a real-file mutation run (A6 short-set clause removed plus A8 capped at competitor 0) gave 251/7 and was restored to 258/0"
+    },
+    {
+      "id": "verify:visual-isolation",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-isolation",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "40/0, still one allowed edge"
+    },
+    {
+      "id": "verify:visual-fusion",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-fusion",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "271/0, N2 policy unchanged"
+    },
+    {
+      "id": "verify:verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "332 scripts classified, unit 79, reconciled"
+    },
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "Exported 387 issues. awkit-vra.4 retitled and in_progress with children .4.1 to .4.6, .4.1 closed, .12 blocks .4.1, chained blocks .4.1 to .4.6, edges to .6 and .8 kept"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "177/177, Sources agree, repinned to 387 issues, 30 outstanding / 357 closed, 295 edges, tally 65 PASS / 2 NOT RUN / 0 BLOCKED"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "runs after the commit that carries this contract; its outcome is reported in the session report and the next contract"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-4-n3-start-1013:project-state:2026-10-13T17:45:46.776Z",
+        "task": "awkit-vra-4-n3-start-1013",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-13T17:45:46.776Z",
+        "acquired_at_commit": "343043c80501a1a6353ff4b42f472c9b4d40e5ba",
+        "released_at": "2026-10-13T17:48:46.556Z",
+        "released_reason": "N3 tracker filed and N3.1 closed, beads exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

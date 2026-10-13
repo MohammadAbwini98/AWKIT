@@ -2,11 +2,13 @@
 
 Shared rules and the Phase N boundary: `ROADMAP.md` › *Phase N — Visual Recognition and Automation* ›
 *Canonical milestone map*. Epic `awkit-vra`. N3 follows N2 (`awkit-vra.12`, closed 2026-10-13, shadow-only). The
-legacy workstream `awkit-vra.4` ("Visual locator fallback") is the proposed tracker home for N3 (VR-9).
+legacy workstream `awkit-vra.4` ("Visual locator fallback") is the tracker home for N3 (VR-9), retitled
+"N3: Visual Locator Recovery" with children `awkit-vra.4.1`-`.4.6`.
 
-**Status (2026-10-13): PLAN DELIVERED, zero implementation.** This document is the N3 implementation plan. It
-authorizes no runtime, schema, settings, UI, dependency, model or service change. Implementation starts only after
-three things happen:
+**Status (2026-10-13): IN PROGRESS.** The owner approved VR-0 to VR-9 as recommended and authorized N3 (DECISIONS
+2026-10-13, contract `awkit-vra-4-n3-start-1013`). N3.1 is done: `decideVisualAgreement` in
+`src/visual/fusion/decideVisualAgreement.ts`, proven by `verify:visual-agreement` 258/0. N3.2-N3.6 are open in that
+order. The three preconditions below were the plan-time gates, kept for the record. All three are now met:
 
 - the owner **amends the 2026-10-12 directive** in `docs/ai/DECISIONS.md`, which today says "Visual similarity must
   never cause a click, a fill, a selector replacement or a locator recovery" (VR-0). Without that amendment N3 cannot

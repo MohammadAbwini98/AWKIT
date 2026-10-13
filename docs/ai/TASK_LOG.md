@@ -1,6 +1,33 @@
 # TASK_LOG
 
-## 2026-10-13 (latest) — Phase N: N3 Visual Locator Recovery plan (Claude)
+## 2026-10-13 (latest) — Phase N: start N3, decisions recorded, N3.1 agreement policy (Claude)
+
+- **Scope:** the owner said "VR-0 to VR-9 approved as recommended, start N3". The contract is
+  `awkit-vra-4-n3-start-1013`. CodeCraft was not used (`CODECRAFT_MODE=off`).
+- **Governance:**
+  - DECISIONS records VR-0 to VR-9, and the 2026-10-12 directive carries the VR-0 amendment note;
+  - `awkit-vra.4` is retitled and `in_progress`;
+  - N3.1-N3.6 are filed as `.4.1`-`.4.6`, blocked in plan order, with `.12` blocking `.4.1`;
+  - `.4.1` is closed;
+  - the dashboard is repinned to 387 issues, 30 / 357 and 295 edges.
+- **Change:** new `src/visual/fusion/decideVisualAgreement.ts`, the pure A1-A9 policy, exported via
+  `src/visual/index.ts`. The new `verify:visual-agreement` covers the table, the J1-J4 property run against an
+  independent oracle and 12 in-suite mutants. It is registered as `unit`.
+- **Files:**
+  - `src/visual/{index.ts,fusion/decideVisualAgreement.ts}`
+  - `scripts/{verify-visual-agreement.mts,verify-roadmap-dashboard.mjs,lib/verifier-classification.ts}`
+  - `package.json`, `.beads/issues.jsonl`
+  - `docs/ai/{DECISIONS,CURRENT_STATE,HANDOFF,TASK_LOG}.md`
+  - `docs/plans/ai-upgrade-v5/{N3-visual-locator-recovery,ROADMAP}.md`
+  - `src/roadmap/ImplementationRoadmap.ts`
+  - the contract.
+- **Tests:**
+  - visual-agreement 258/0; the real-file mutation run went red at 251/7 and was restored;
+  - visual-isolation 40/0, visual-fusion 271/0, verifier-classification PASS;
+  - build and roadmap-dashboard: see the contract.
+- **Result:** N3.1 done. N3.2 calibration is next.
+
+## 2026-10-13 — Phase N: N3 Visual Locator Recovery plan (Claude)
 
 - **Scope:** advance Phase N to its next valid work. CodeCraft was not used (`CODECRAFT_MODE=off`).
 - **Authority:** N0, N1 and N2 are closed, and N3 is the next canonical milestone. N3 had no plan and no bead, and the

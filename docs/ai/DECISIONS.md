@@ -1,6 +1,34 @@
 # DECISIONS
 
-### 2026-10-13 (latest) — Phase N N2.7: the shadow verdict reaches the report only through the recovery trace (`awkit-vra.12.7`)
+### 2026-10-13 (latest) — Phase N N3: owner decisions VR-0 to VR-9 approved as recommended; N3.1 implemented (owner, in session) (`awkit-vra.4`)
+
+- **Approval (owner).** "VR-0 to VR-9 approved as recommended, start N3". The recommendations are those in
+  `docs/plans/ai-upgrade-v5/N3-visual-locator-recovery.md` › *Owner decisions before implementation*.
+- **VR-0 — directive amended.** The 2026-10-12 directive below now reads: "Visual similarity must never cause a click,
+  a fill or a selector replacement. Pixel identity may let the DOM's own best candidate proceed under N3's agreement
+  rule." This is the first Phase N decision that lets visual evidence affect execution. Enforce still waits for N3.4
+  acceptance (VR-1).
+- **VR-1.** Modes `off` (default) / `shadow` / `enforce`; shadow first.
+- **VR-2.** Pixel identity only (equal `contentDigest`), with the default 24 px context crop; no similarity threshold.
+- **VR-3.** Only `below-threshold` refusals are eligible, with margin ≥ 0.08, ancestry ≥ 0.5 and best ≥ 0.6.
+  `ambiguous-margin` stays refused.
+- **VR-4.** Every other pruned-snapshot candidate must be captured, up to 8; more refuses as `competitors-uncaptured`.
+  This widens FD-7's K = 3 for this path only; N3.2 must show it fits FD-5.
+- **VR-5.** Element steps only (click-like, fill, select, check, radio), never sensitive, protected or handed off.
+- **VR-6.** Local layer only; blueprint and provider refusals keep their current behavior.
+- **VR-7.** The reference is the N2.4b store. A `visual-agreed` recovery never refreshes it (J7).
+- **VR-8.** Env `AWKIT_VISUAL_RECOVERY=shadow|enforce`, separate from `AWKIT_VISUAL_FUSION`; no Settings key.
+- **VR-9.** Legacy `awkit-vra.4` is retitled "N3: Visual Locator Recovery"; N3.1 onward are its children, blocked by
+  `awkit-vra.12`; its edges to `.6` and `.8` are kept.
+- **N3.1 as built (`decideVisualAgreement`, `verify:visual-agreement`).** Three readings of the plan, all fail closed:
+  - Conditions (DPR, viewport, frame depth) are derived from the evidence, as N2's R3 does, not taken from a
+    caller-supplied `conditions` object as the plan's sketch shows.
+  - An offscreen or failed competitor capture reports row A4 (`unavailable`, the capture code), because the table's A4
+    names exactly those captures and every earlier row wins. VR-4's `competitors-uncaptured` is reported for the rows
+    it alone covers: more than 8 competitors, or fewer captures than DOM competitors. Both have no effect.
+  - Malformed DOM numbers or evidence pairing report `unavailable` / `invalid-input`, never an eligible row.
+
+### 2026-10-13 — Phase N N2.7: the shadow verdict reaches the report only through the recovery trace (`awkit-vra.12.7`)
 
 - **Trace-carried verdict.** `LocatorFactory.recover()` observes the recovered winner in its `finally`, after every
   DOM veto, and copies only the returned codes and rounded scores into that attempt's `recovery-trace` as `visual`.
@@ -100,7 +128,8 @@ implemented and closed. No existing Beads ID was renumbered.
   wait on N3.
 - **Where it lives.** The code goes in `src/visual/`, not under `src/runner/`. `verify:visual-isolation` proves that the
   import closures of the Runner, Recorder, locator factory and preload never reach it. Visual similarity must never
-  cause a click, a fill, a selector replacement or a locator recovery.
+  cause a click, a fill, a selector replacement or a locator recovery. *(Amended 2026-10-13 by VR-0: pixel identity may
+  let the DOM's own best candidate proceed under N3's agreement rule. See the N3 entry above.)*
 - **`visualEvidence`** is a versioned type with a fail-closed parser inside the module. No FlowProfile, run record or
   other persisted shape changes now.
 - **N1 decisions settled for the library (`N1-visual-capture-infrastructure.md`):**
