@@ -328,6 +328,7 @@
     "verify:visual-capture-fanout": "tsx scripts/verify-visual-capture-fanout.mts",
     "verify:visual-fingerprint": "tsx scripts/verify-visual-fingerprint.mts",
     "verify:visual-fusion": "tsx scripts/verify-visual-fusion.mts",
+    "verify:visual-fusion-runtime": "tsx scripts/verify-visual-fusion-runtime.mts",
     "verify:visual-isolation": "tsx scripts/verify-visual-isolation.mts",
     "benchmark:visual-capture": "tsx scripts/benchmark-visual-capture.mts",
     "benchmark:visual-fusion": "tsx scripts/benchmark-visual-fusion.mts",
