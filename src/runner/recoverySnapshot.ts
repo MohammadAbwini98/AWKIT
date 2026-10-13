@@ -72,12 +72,19 @@ export interface RecoveryDecision {
    * observation only (FD-7). No gate reads it.
    */
   contenders?: ScoredCandidate[];
+  /**
+   * N3.3: the best-scored candidates after `best`, at most `RECOVERY_AGREEMENT_COMPETITORS`, for the shadow
+   * visual-agreement observation of a local `below-threshold` refusal only (VR-4). No gate reads it.
+   */
+  agreementCompetitors?: ScoredCandidate[];
   /** Compatible candidates scored (after pruning). */
   considered: number;
 }
 
 /** FD-7: the visual-fusion stage compares at most this many gated-out DOM candidates (`FUSION_MAX_COMPETITORS`). */
 export const RECOVERY_CONTENDERS = 3;
+/** VR-4: the visual-agreement observation captures every other candidate, up to this many (`AGREEMENT_MAX_COMPETITORS`). */
+export const RECOVERY_AGREEMENT_COMPETITORS = 8;
 
 /** Whether a fingerprint can be the target of `step` at all (a fill needs a text control, …). */
 export function isRecoveryCompatible(step: Pick<FlowStep, "type">, fingerprint: Pick<LocatorElementFingerprint, "tag" | "role">): boolean {
@@ -118,7 +125,13 @@ export function rankLocalRecovery(
  */
 export function gateRecovery(ranked: readonly ScoredCandidate[], expectedAncestry: string[], considered: number): RecoveryDecision {
   const [best, runnerUp] = ranked;
-  const base = { best, runnerUp, contenders: ranked.slice(1, 1 + RECOVERY_CONTENDERS), considered };
+  const base = {
+    best,
+    runnerUp,
+    contenders: ranked.slice(1, 1 + RECOVERY_CONTENDERS),
+    agreementCompetitors: ranked.slice(1, 1 + RECOVERY_AGREEMENT_COMPETITORS),
+    considered
+  };
   if (!best) return { ...base, refusal: considered === 0 ? "no-candidate" : "below-threshold" };
   if (best.score < RECOVERY_SCORE_THRESHOLD) return { ...base, refusal: "below-threshold" };
   if (runnerUp && best.score - runnerUp.score < RECOVERY_MARGIN) return { ...base, refusal: "ambiguous-margin" };

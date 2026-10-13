@@ -7,7 +7,7 @@ import type { InstanceConfig } from "@src/instances/InstanceConfig";
 import { BrowserContextFactory, type BrowserContextFactoryOptions, type BrowserRuntime } from "./BrowserContextFactory";
 import { FlowExecutor } from "./FlowExecutor";
 import type { InstanceExecutionContext } from "./InstanceExecutionContext";
-import { LocatorFactory, type LocatorVisualFusion } from "./LocatorFactory";
+import { LocatorFactory, type LocatorVisualAgreementObservation, type LocatorVisualFusion } from "./LocatorFactory";
 import { closedShadowBridgeScript } from "./closedShadowBridge";
 import { FileLocatorRecoveryStore, type LocatorRecoveryStore } from "./LocatorRecoveryStore";
 import { FileLocatorBlueprintStore, type LocatorBlueprintStore } from "./LocatorBlueprintStore";
@@ -149,6 +149,12 @@ export interface PlaywrightRunnerOptions extends BrowserContextFactoryOptions {
    * `pageHandedOff` does not clear is never captured.
    */
   visualFusionRoot?: string;
+  /**
+   * N3.3 (VR-8): `AWKIT_VISUAL_RECOVERY`, the shadow visual-agreement observation of a local `below-threshold`
+   * refusal. Needs `visualFusionRoot` (the reference store); absent, `agree` is not even offered to the factory.
+   * `enforce` is decided as shadow: N3 closed shadow-only, so no step is ever changed.
+   */
+  visualAgreement?: "shadow" | "enforce";
 }
 
 /**
@@ -160,7 +166,9 @@ function lazyVisualFusion(options: VisualFusionStageOptions): LocatorVisualFusio
   const load = () => (stage ??= import("./visualFusion/VisualFusionStage").then(({ VisualFusionStage }) => new VisualFusionStage(options)));
   return {
     observeRecovery: async (observation) => (await load()).observeRecovery(observation),
-    observePass: async (observation) => (await load()).observePass(observation)
+    observePass: async (observation) => (await load()).observePass(observation),
+    // N3.3: offered only when agreement is on, so with it off the factory builds no agreement input at all.
+    ...(options.agreement ? { agree: async (observation: LocatorVisualAgreementObservation) => (await load()).agree?.(observation) } : {})
   };
 }
 
@@ -825,7 +833,11 @@ export class PlaywrightRunner {
       onRemembered: this.options.onLocatorRemembered,
       // N2.7: the shadow verdict reaches the report only as the recovery trace's sanitized `visual` block below.
       visualFusion: this.options.visualFusionRoot
-        ? lazyVisualFusion({ folder: this.options.visualFusionRoot, handedOff: (target) => this.pageHandedOff(target) })
+        ? lazyVisualFusion({
+            folder: this.options.visualFusionRoot,
+            handedOff: (target) => this.pageHandedOff(target),
+            ...(this.options.visualAgreement ? { agreement: this.options.visualAgreement } : {})
+          })
         : undefined,
       onRecoveryEvent: (event) =>
         logger.log({

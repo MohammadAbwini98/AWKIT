@@ -1,4 +1,5 @@
 import {
+  AGREEMENT_MAX_COMPETITORS,
   FUSION_MAX_COMPETITORS,
   MEASURED_FUSION_POLICY,
   VISUAL_EVIDENCE_MAX_BYTES,
@@ -6,14 +7,23 @@ import {
   buildCandidateEvidence,
   captureCandidates,
   decideFusion,
+  decideVisualAgreement,
   type FusionInput,
   type FusionVerdict,
+  type VisualAgreementInput,
+  type VisualAgreementVerdict,
   type VisualEvidence,
   type VisualResult
 } from "@src/visual";
 import type { FlowStep } from "@src/profiles/FlowProfile";
 import type { Page } from "playwright";
-import { VISUAL_OBSERVATION_BUDGET_MS, type LocatorVisualFusion, type LocatorVisualPassObservation, type LocatorVisualRecoveryObservation } from "../LocatorFactory";
+import {
+  VISUAL_OBSERVATION_BUDGET_MS,
+  type LocatorVisualAgreementObservation,
+  type LocatorVisualFusion,
+  type LocatorVisualPassObservation,
+  type LocatorVisualRecoveryObservation
+} from "../LocatorFactory";
 import { VisualReferenceStore } from "./VisualReferenceStore";
 
 /**
@@ -33,6 +43,9 @@ import { VisualReferenceStore } from "./VisualReferenceStore";
  * at most once per `REFERENCE_REFRESH` (FD-9) — a failed attempt spends the slot too — and from a recovery winner only
  * when there was no reference or the verdict corroborated it. A handed-off page (I5, `handedOff`) is never captured.
  * Never throws; a failed capture only means no verdict or no refresh.
+ *
+ * N3.3 (awkit-vra.4.3): `agree` is the shadow Visual Locator Recovery observation of a local `below-threshold` refusal
+ * (docs/plans/ai-upgrade-v5/N3-visual-locator-recovery.md). Still observes, never decides: N3 closed shadow-only.
  */
 
 /**
@@ -86,7 +99,29 @@ export interface VisualFusionStageOptions {
   budgetMs?: number;
   /** Verifier override; production builds the store from `folder`. */
   store?: VisualReferenceStore;
+  /**
+   * N3.3 (VR-8): the requested `AWKIT_VISUAL_RECOVERY` mode; absent (the default) means agreement is off and `agree`
+   * answers nothing. N3 closed shadow-only (N3.2 fallback, N3.4 deferred), so `enforce` is decided as `shadow`: the
+   * verdict's `effect` is always "none" and the step is never changed.
+   */
+  agreement?: "shadow" | "enforce";
+  /** Where a shadow agreement verdict goes. Called at most once per observed refusal; a throwing sink is ignored. */
+  onAgreement?: (record: VisualAgreementRecord) => void;
 }
+
+/** N3.3: what a shadow agreement verdict may say about a step: codes only, never pixels, bounds, digests or locators. */
+export interface VisualAgreementRecord {
+  stepId: string;
+  mode: "shadow";
+  requested: "shadow" | "enforce";
+  eligibility: VisualAgreementInput["eligibility"];
+  outcome: VisualAgreementVerdict["outcome"];
+  reason: VisualAgreementVerdict["reason"];
+  effect: VisualAgreementVerdict["effect"];
+}
+
+/** Stands in for the best's capture while rows A1-A3 are decided without capturing anything; those rows never read it. */
+const NOT_CAPTURED: VisualAgreementInput["best"] = { available: false, code: "CAPTURE_UNAVAILABLE" };
 
 /** The evidence's own content digest, the store's change detector. */
 function digestOf(value: unknown): string | null {
@@ -168,6 +203,72 @@ export class VisualFusionStage implements LocatorVisualFusion {
       const refreshable = reference === null || verdict.outcome === "corroborated";
       if (eligibility === "eligible" && "fingerprint" in winner && refreshable && !observation.signal.aborted) await this.store.refresh(scopeKey, winner);
       return verdictRecord;
+    } catch {
+      // Shadow mode: an observation that fails is simply not recorded.
+      return undefined;
+    }
+  }
+
+  /**
+   * N3.3: the shadow visual-agreement verdict on a local `below-threshold` refusal, or undefined when agreement is off or
+   * the observation failed. Rows A1-A3 are decided before anything is captured; then the DOM best and up to
+   * `AGREEMENT_MAX_COMPETITORS` other candidates are captured from ONE screenshot and `decideVisualAgreement` decides.
+   * SHADOW ONLY: the policy is always asked in `shadow`, so `effect` is "none". J7: never refreshes the reference.
+   */
+  async agree(observation: LocatorVisualAgreementObservation): Promise<VisualAgreementRecord | undefined> {
+    const requested = this.options.agreement;
+    if (requested !== "shadow" && requested !== "enforce") return undefined;
+    try {
+      const { step, sensitive, signal } = observation;      // VR-5 / J8: element steps only, never sensitive; a handed-off page is refused by the capture's own guard.
+      const eligibility: VisualAgreementInput["eligibility"] = ELIGIBLE_STEPS.has(step.type) && !sensitive ? "eligible" : "ineligible";
+      const base = {
+        mode: "shadow" as const,
+        eligibility,
+        dom: { refusal: observation.refusal, best: observation.best, margin: observation.margin, competitorCount: observation.competitorCount }
+      };
+      let verdict = decideVisualAgreement({ ...base, reference: null, best: NOT_CAPTURED, competitors: [] });
+      if (verdict.reason === "no-reference") {
+        const remaining = this.deadline();
+        const reference = await this.reference(observation.scopeKey);
+        if (signal.aborted) return undefined;
+        if (reference !== null && (reference as { available?: unknown }).available !== false) {
+          const competitors = observation.competitors.slice(0, AGREEMENT_MAX_COMPETITORS);
+          const fanout = await captureCandidates(
+            observation.page,
+            [{ id: "best", target: observation.locator }, ...competitors.map((target, index) => ({ id: `competitor-${index}`, target }))],
+            { timeoutMs: remaining(), signal, stepType: step.type, handedOff: this.handedOff(observation.page) }
+          );
+          if (signal.aborted) return undefined;
+          let best: VisualAgreementInput["best"];
+          let captured: VisualAgreementInput["competitors"] = [];
+          if (!fanout.ok) {
+            best = { available: false, code: fanout.code };
+          } else {
+            const [own, ...others] = buildCandidateEvidence(fanout.value).candidates;
+            best = toInput(own.evidence);            // VR-4: an offscreen or failed competitor stays in, so the policy refuses rather than ignoring it.
+            captured = others.map((candidate) => toInput(candidate.evidence));
+          }
+          verdict = decideVisualAgreement({ ...base, reference, best, competitors: captured });
+        } else {
+          verdict = decideVisualAgreement({ ...base, reference, best: NOT_CAPTURED, competitors: [] });
+        }
+      }
+      const agreementRecord: VisualAgreementRecord = {
+        stepId: step.id,
+        mode: "shadow",
+        requested,
+        eligibility,
+        outcome: verdict.outcome,
+        reason: verdict.reason,
+        effect: verdict.effect
+      };
+      try {
+        this.options.onAgreement?.(agreementRecord);
+      } catch {
+        // A sink is a recorder, not a participant.
+      }
+      // Deliberately no `store.refresh` here (J7): an agreement observation never writes the reference.
+      return agreementRecord;
     } catch {
       // Shadow mode: an observation that fails is simply not recorded.
       return undefined;

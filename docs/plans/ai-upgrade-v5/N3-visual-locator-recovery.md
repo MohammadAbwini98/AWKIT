@@ -10,7 +10,8 @@ legacy workstream `awkit-vra.4` ("Visual locator fallback") is the tracker home 
 `src/visual/fusion/decideVisualAgreement.ts`, proven by `verify:visual-agreement` 258/0. N3.2 is done and its
 acceptance **failed**: 28 `twins` decisions reached `agreed` in headless, because headless Chromium renders identical
 icons with position-dependent bytes (`N3.2-agreement-calibration.md`). By the fallback fixed below, **N3 closes
-shadow-only**: N3.4 and N3.5 are deferred, N3.3 and N3.6 remain. The three preconditions below were the plan-time
+shadow-only**: N3.4 and N3.5 are deferred. N3.3 is done (`verify:visual-agreement-runtime` 68/0, contract
+`awkit-vra-4-3-runner-shadow-1013`); N3.6 remains. The three preconditions below were the plan-time
 gates, kept for the record. All three are now met:
 
 - the owner **amends the 2026-10-12 directive** in `docs/ai/DECISIONS.md`, which today says "Visual similarity must
@@ -196,6 +197,10 @@ under FD-9.
 **N3.2 outcome (2026-10-13): fallback applied.** Recall was useful (cross-launch 66/72 baseline, 65/72 drift; every
 miss headless DPR 1), and no decision whose DOM best was not the true element agreed (0 of 4644), but `twins` gave 28
 false `agreed`, all headless. N3.4 and N3.5 are deferred; the order is now N3.3 → N3.6.
+
+**N3.3 outcome (2026-10-13): done, shadow only.** The verdict is recorded as a sibling `visualAgreement` trace block
+rather than inside `trace.visual`, so the N2 block stays byte-identical and J6 compares runs with that one key
+dropped. `enforce` is decided as `shadow` with effect `none`. Provenance is unchanged. Only N3.6 remains.
 
 ## Acceptance criteria for closing N3
 

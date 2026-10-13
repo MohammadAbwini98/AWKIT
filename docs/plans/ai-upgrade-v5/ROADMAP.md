@@ -632,7 +632,7 @@ not renumbered; titles and notes map existing history onto the canonical names.
 | N0 | Visual Intelligence Foundation / Capture | `awkit-vra.1` | closed — re-QC PASS at `222b04d3` |
 | N1 | Deterministic Visual Element Fingerprints | `awkit-vra.3.1` | closed — re-QC PASS at `222b04d3` |
 | N2 | DOM + Vision Evidence Fusion | `awkit-vra.12` | in progress — FD-1 to FD-9 approved, N2.1-N2.8 filed (`.12.1`…`.12.8`), N2.1-N2.5, N2.4b, N2.7 and N2.8 done, N2.6 deferred; N2 ships shadow-only (FD-9, no separation); the QC review ran (FAIL, fixed: budget, handoff, refresh gating); the overhead matrix is measured (2026-10-13), so all seven acceptance criteria are met; closed in the tracker 2026-10-13 (`.12.6` deferred) |
-| N3 | Visual Locator Recovery | `awkit-vra.4` (retitled per VR-9), children `.4.1`-`.4.6` | in progress since 2026-10-13: VR-0 to VR-9 approved, N3.1 pure agreement policy done (`verify:visual-agreement` 258/0); N3.2 calibration done, 28 false `agreed` on headless twins, so N3 closes shadow-only (N3.4/N3.5 deferred); N3.3 runner shadow next |
+| N3 | Visual Locator Recovery | `awkit-vra.4` (retitled per VR-9), children `.4.1`-`.4.6` | in progress since 2026-10-13: VR-0 to VR-9 approved, N3.1 pure agreement policy done (`verify:visual-agreement` 258/0); N3.2 calibration done, 28 false `agreed` on headless twins, so N3 closes shadow-only (N3.4/N3.5 deferred); N3.3 runner shadow done (`verify:visual-agreement-runtime` 68/0); N3.6 next |
 | N4 | Recorder Visual Intelligence | — | not yet filed |
 | N5 | Visual Failure Diagnosis | — | not yet filed |
 | N6 | Visual Assertions | — | not yet filed |
@@ -680,8 +680,11 @@ false `agreed` closes N3 shadow-only.
 N3.2 is done (`N3.2-agreement-calibration.md`) and that is the outcome: `twins` reached `agreed` 28 times in
 headless, never headed, because headless Chromium renders identical icons with position-dependent bytes, so the A8
 uniqueness check cannot see the twin. Recall was useful (cross-launch 66/72 baseline, 65/72 drift) and no decision
-whose DOM best was not the true element agreed (0 of 4644). N3 closes shadow-only: N3.4 and N3.5 are deferred, and
-N3.3 (runner shadow) then N3.6 remain.
+whose DOM best was not the true element agreed (0 of 4644). N3 closes shadow-only: N3.4 and N3.5 are deferred.
+
+N3.3 (runner shadow) is done: agreement is observed on a local `below-threshold` refusal after the whole DOM chain
+and recorded as a codes-only `visualAgreement` trace block with effect `none`, also under `enforce`
+(`verify:visual-agreement-runtime` 68/0). N3.6 (state and docs) is next.
 
 ### Planned workstreams and dependencies (original numbering, 2026-09-22)
 

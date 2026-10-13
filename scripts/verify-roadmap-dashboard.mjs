@@ -720,8 +720,9 @@ try {
   // filed and N3.1 `.4.1` closed; `awkit-vra.4` was already outstanding (six in, one closed).
   // Then 29/358 of 387 on 2026-10-13 (contract `awkit-vra-4-2-calibration-1013`): N3.2 `awkit-vra.4.2` closed and,
   // by its shadow-only outcome, N3.4 `.4.4` and N3.5 `.4.5` deferred, which still counts as outstanding (one closed).
-    "29 outstanding / 358 closed",
-    beads.stats.outstanding === 29 && beads.stats.closed === 358,
+  // Then 28/359 of 387 on 2026-10-13 (contract `awkit-vra-4-3-runner-shadow-1013`): N3.3 `awkit-vra.4.3` closed.
+    "28 outstanding / 359 closed",
+    beads.stats.outstanding === 28 && beads.stats.closed === 359,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -835,9 +836,12 @@ try {
   // Then 283 on 2026-10-13: `awkit-vra.12.9` (one parent-child link) and `.12.9` blocks `.12.5`.
   // Then 295 on 2026-10-13 (contract `awkit-vra-4-n3-start-1013`): `awkit-vra.4.1`…`.4.6` (six parent-child links),
   // `.12` blocks `.4.1` and the five chained blocks edges `.4.1` -> `.4.2` … `.4.5` -> `.4.6`.
+  // Then 294 on 2026-10-13 (contract `awkit-vra-4-3-runner-shadow-1013`): the export taken after closing N3.3
+  // `awkit-vra.4.3` no longer carries the `.4.5` -> `.4.6` blocks edge, the owner-run `bd dep remove awkit-vra.4.6
+  // awkit-vra.4.5` that N3.2 recorded as pending. Closing `.4.3` itself removed no edge. Measured, not assumed.
   check(
-    "295 edges are present to classify",
-    beads.stats.edges === 295,
+    "294 edges are present to classify",
+    beads.stats.edges === 294,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(
@@ -1039,10 +1043,12 @@ try {
   // declared blocked, not `deferred`, because N3.6 `.4.6` still carries a `blocks` edge from `.4.5` that only
   // `bd dep remove` (not a guard-approved command) can lift, and a deferred blocker leaves the queue entirely.
   // `.4.6` is therefore externally blocked too, so five ids sit out of the layers until that edge is removed.
+  // Then 4 later on 2026-10-13 (contract `awkit-vra-4-3-runner-shadow-1013`): that edge is gone from the export
+  // (see the edge pin), so N3.6 `.4.6` is schedulable again and only the four declared-blocked ids sit out.
   check(
     "every declared-blocked issue is present and out of the layers",
     order.stats.declaredBlocked === 4 &&
-      order.externallyBlocked.length === 5 &&
+      order.externallyBlocked.length === 4 &&
       order.externallyBlocked.every((id) => order.ordered.find((o) => o.id === id)?.layer === null),
     `declaredBlocked ${order.stats.declaredBlocked}, externallyBlocked ${order.externallyBlocked.length}`
   );

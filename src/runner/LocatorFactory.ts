@@ -1,5 +1,5 @@
 import type { Page, Locator, Frame, ElementHandle } from "playwright";
-import { createPageFingerprint, fingerprintChanges, fingerprintsEqual, hashFingerprint, hashToken, similarity } from "./locatorFingerprint";
+import { ancestrySimilarity, createPageFingerprint, fingerprintChanges, fingerprintsEqual, hashFingerprint, hashToken, similarity } from "./locatorFingerprint";
 import {
   locatorContainerChain,
   locatorFrameChain,
@@ -173,6 +173,22 @@ export interface LocatorRecoveryTrace {
    * eligible and the observer answered. Codes and rounded scores only (I9); `totalMs` excludes its `ms`.
    */
   visual?: LocatorRecoveryVisual;
+  /**
+   * N3.3: the shadow visual-agreement verdict on a local `below-threshold` refusal, present only when agreement is on
+   * and the observer answered. A sibling of `visual` because one attempt can carry both: the local layer's refusal and
+   * a later layer's recovered winner. Codes only; `effect` is always "none" (N3 closed shadow-only); `totalMs` excludes
+   * its `ms`. Not in the report's provenance (N3.5 is deferred).
+   */
+  visualAgreement?: LocatorRecoveryVisualAgreement;
+}
+
+export interface LocatorRecoveryVisualAgreement {
+  mode: "shadow";
+  kind: "agreement";
+  outcome: string;
+  reason: string;
+  effect: "none";
+  ms: number;
 }
 
 export interface LocatorRecoveryVisual {
@@ -333,10 +349,42 @@ export interface LocatorVisualVerdict {
   evidence: { winnerScore?: number; bestCompetitorScore?: number };
 }
 
+/**
+ * N3.3: a local layer's `below-threshold` refusal, shown to the shadow visual-agreement observer. `locator` is the DOM
+ * layer's own best candidate; nothing here names another element it could act on (J1), and nothing is acted on.
+ */
+export interface LocatorVisualAgreementObservation extends LocatorVisualPassObservation {
+  refusal: string;
+  /** The DOM best candidate's score and recorded-ancestry similarity, 0-1. */
+  best: { score: number; ancestry: number };
+  /** Best minus runner-up DOM score, 0-1; 1 when the layer had no runner-up. */
+  margin: number;
+  /** Candidates of the pruned snapshot other than the best (may exceed `competitors.length`). */
+  competitorCount: number;
+  /** The other candidates, best first, at most `RECOVERY_AGREEMENT_COMPETITORS` (read-only: never acted on). */
+  competitors: Locator[];
+}
+
+/** N3.3: the part of an agreement verdict the trace keeps. */
+export interface LocatorVisualAgreementVerdict {
+  outcome: string;
+  reason: string;
+  effect: string;
+}
+
 /** Structural, so this module never imports the adapter (`verify:visual-isolation`). */
 export interface LocatorVisualFusion {
   observeRecovery(observation: LocatorVisualRecoveryObservation): Promise<LocatorVisualVerdict | undefined | void>;
   observePass(observation: LocatorVisualPassObservation): Promise<void>;
+  /** N3.3: present only when visual agreement is on (`AWKIT_VISUAL_RECOVERY`); absent, no agreement input is built. */
+  agree?(observation: LocatorVisualAgreementObservation): Promise<LocatorVisualAgreementVerdict | undefined | void>;
+}
+
+/** N3.3: a local layer's refused decision, kept for the shadow agreement observation after the DOM chain. */
+interface LocalRefusal {
+  list: Locator;
+  decision: RecoveryDecision;
+  ancestry: number;
 }
 
 type BoundedVisualObservation<T> = { status: "done"; value: T } | { status: "timeout" } | { status: "failed" };
@@ -1008,6 +1056,41 @@ export class LocatorFactory {
     };
   }
 
+  /**
+   * N3.3: show a local `below-threshold` refusal to the shadow visual-agreement observer, after the whole DOM chain, and
+   * keep only the codes of the verdict it returns. Undefined when agreement is off, the observer answers nothing, or it
+   * fails. SHADOW ONLY: whatever it answers, nothing is acted on and the recovery's result is already settled.
+   */
+  private async observeAgreementVisual(step: FlowStep, scopeKey: string | undefined, sensitive: boolean, refused: LocalRefusal): Promise<LocatorRecoveryVisualAgreement | undefined> {
+    const agree = this.options.visualFusion?.agree?.bind(this.options.visualFusion);
+    const { list, decision } = refused;
+    if (!agree || !scopeKey || !decision.best || !decision.refusal) return undefined;
+    const best = decision.best;
+    const competitors = decision.agreementCompetitors ?? [];
+    const started = performance.now();
+    const observed = await boundedVisualObservation((signal) =>
+      agree({
+        page: this.page,
+        step,
+        scopeKey,
+        // Named by index for a read-only capture; N3.4 would have to re-prove and pin before any action.
+        locator: list.nth(best.index),
+        sensitive,
+        signal,
+        refusal: decision.refusal!,
+        best: { score: best.score, ancestry: refused.ancestry },
+        margin: decision.runnerUp ? best.score - decision.runnerUp.score : 1,
+        competitorCount: Math.max(0, decision.considered - 1),
+        competitors: competitors.map(({ index }) => list.nth(index))
+      })
+    );
+    // J9: the step stopped waiting; the trace says so with the policy's own code, never with a late verdict.
+    if (observed.status === "timeout") return { mode: "shadow", kind: "agreement", outcome: "unavailable", reason: "budget-exhausted", effect: "none", ms: performance.now() - started };
+    if (observed.status === "failed" || !observed.value) return undefined;
+    // Shadow: an observer answering "proceed" is still recorded as no effect, because nothing here can act on it.
+    return { mode: "shadow", kind: "agreement", outcome: String(observed.value.outcome), reason: String(observed.value.reason), effect: "none", ms: performance.now() - started };
+  }
+
   private async rememberWinner(
     scopeKey: string | undefined,
     candidatesDigest: string,
@@ -1067,6 +1150,8 @@ export class LocatorFactory {
     let recovered: RecoveredElement | undefined;
     let suggestion: DomRepairSuggestion | undefined;
     let container: ElementHandle | undefined;
+    // N3.3: filled by the local layer only when agreement is on and it refused `below-threshold`.
+    const local: { refused?: LocalRefusal } = {};
     try {
       // The remembered identity was proven on another route: a similar control here is not that element,
       // and no layer (local, blueprint or provider) may look for one (L11.F).
@@ -1086,7 +1171,7 @@ export class LocatorFactory {
       };
       recovered = await this.requireActionable(
         step,
-        distinct(engine === "legacy" ? await this.recoverLocallyLegacy(root, step, expected, stages) : await this.recoverLocallySnapshot(root, step, expected, stages)),
+        distinct(engine === "legacy" ? await this.recoverLocallyLegacy(root, step, expected, stages, local) : await this.recoverLocallySnapshot(root, step, expected, stages, local)),
         stages
       );
       // L12.24: the local layer already searches inside the step's container; the later layers read the whole
@@ -1114,6 +1199,8 @@ export class LocatorFactory {
       const totalMs = performance.now() - started;
       // N2.5/N2.7: last in the chain, after every DOM veto; shadow only, and recorded in this attempt's trace.
       const visual = recovered ? await this.observeRecoveryVisual(step, memory.scopeKey, memory.sensitive ?? false, recovered) : undefined;
+      // N3.3: after the whole DOM chain too, so every layer runs exactly when it would without it (J6); shadow only.
+      const visualAgreement = local.refused ? await this.observeAgreementVisual(step, memory.scopeKey, memory.sensitive ?? false, local.refused) : undefined;
       this.emitTrace(step, {
         engine,
         result: recovered ? "recovered" : "unresolved",
@@ -1122,7 +1209,8 @@ export class LocatorFactory {
         suggestion,
         context,
         candidatesTried: memory.candidatesTried,
-        ...(visual ? { visual } : {})
+        ...(visual ? { visual } : {}),
+        ...(visualAgreement ? { visualAgreement } : {})
       });
     }
   }
@@ -1231,7 +1319,8 @@ export class LocatorFactory {
     root: LocatorRoot,
     step: FlowStep,
     expected: LocatorElementFingerprint,
-    stages: LocatorRecoveryStage[]
+    stages: LocatorRecoveryStage[],
+    local?: { refused?: LocalRefusal }
   ): Promise<RecoveredElement | undefined> {
     const started = performance.now();
     const visible = root.locator("*:visible");
@@ -1247,7 +1336,7 @@ export class LocatorFactory {
       stages.push({ stage: "local", outcome: "error", reason: "snapshot-failed", ms: performance.now() - started });
       return undefined;
     }
-    return this.proveSnapshotWinner(visible, root, decision, "local", started, stages, expected);
+    return this.proveSnapshotWinner(visible, root, decision, "local", started, stages, expected, local);
   }
 
   /**
@@ -1258,12 +1347,13 @@ export class LocatorFactory {
     root: LocatorRoot,
     step: FlowStep,
     expected: LocatorElementFingerprint,
-    stages: LocatorRecoveryStage[]
+    stages: LocatorRecoveryStage[],
+    local?: { refused?: LocalRefusal }
   ): Promise<RecoveredElement | undefined> {
     const started = performance.now();
     const visible = root.locator("*:visible");
     const decision = rankLocalRecovery(step, expected, await LocatorFactory.fingerprintMany(visible, RECOVERY_SCAN_CAP));
-    return this.proveSnapshotWinner(visible, root, decision, "local", started, stages, expected);
+    return this.proveSnapshotWinner(visible, root, decision, "local", started, stages, expected, local);
   }
 
   /**
@@ -1278,12 +1368,18 @@ export class LocatorFactory {
     stage: "local" | "blueprint",
     started: number,
     stages: LocatorRecoveryStage[],
-    expected?: LocatorElementFingerprint
+    expected?: LocatorElementFingerprint,
+    local?: { refused?: LocalRefusal }
   ): Promise<RecoveredElement | undefined> {
     if (!decision.winner) {
       LocatorFactory.recordStage(stages, stage, decision, started);
       // L12.16: what changed between the recorded element and the closest one, for the report (codes only).
       if (expected && decision.best) stages[stages.length - 1].changed = fingerprintChanges(expected, decision.best.fingerprint);
+      // N3.3 (VR-3, VR-6): only a local `below-threshold` refusal is shown to the agreement observer, and only when it
+      // is on. Kept, not acted on: the observation runs after the whole DOM chain.
+      if (local && stage === "local" && expected && decision.best && decision.refusal === "below-threshold" && this.options.visualFusion?.agree) {
+        local.refused = { list, decision, ancestry: ancestrySimilarity(expected.ancestry, decision.best.fingerprint.ancestry) };
+      }
       return undefined;
     }
     const locator = await recheckSnapshotWinner(list, scope, decision.winner).catch(() => undefined);
@@ -1331,10 +1427,12 @@ export class LocatorFactory {
           (stage.changed && stage.score !== undefined ? ` [closest ${stage.score.toFixed(2)}, differs in ${stage.changed.length ? stage.changed.join(" ") : "nothing recorded"}]` : "")
       )
       .join(", ");
+    // N3.3: the shadow agreement verdict is not in the report's provenance (N3.5 deferred), so the log line carries its codes.
+    const agreement = trace.visualAgreement ? ` Visual agreement (shadow, no effect): ${trace.visualAgreement.outcome}(${trace.visualAgreement.reason}).` : "";
     this.emit({
       type: "recovery-trace",
       stepId: step.id,
-      message: `Locator recovery for "${step.name}" ${trace.result} in ${trace.totalMs.toFixed(0)} ms [${trace.engine}]: ${summary}.`,
+      message: `Locator recovery for "${step.name}" ${trace.result} in ${trace.totalMs.toFixed(0)} ms [${trace.engine}]: ${summary}.${agreement}`,
       trace
     });
   }

@@ -1,0 +1,273 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-4-3-runner-shadow-1013",
+    "title": "N3.3 runner shadow: visual agreement observed on a local below-threshold refusal, no effect",
+    "objective": "Implement N3.3 of docs/plans/ai-upgrade-v5/N3-visual-locator-recovery.md: VisualFusionStage.agree, the local-layer hook in LocatorFactory.recover(), and a codes-only visualAgreement trace block, behind AWKIT_VISUAL_RECOVERY (off unless shadow or enforce, and enforce is decided as shadow with effect none because N3 closed shadow-only). Nothing may proceed and execution must not change: off-vs-shadow A/B identical apart from the agreement block. Add verify:visual-agreement-runtime (real browser), close awkit-vra.4.3.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "e2ddcee8",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true,
+    "runner_change": true,
+    "execution_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "runtime",
+      "qa",
+      "qc",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "src/runner/LocatorFactory.ts",
+      "src/runner/recoverySnapshot.ts",
+      "src/runner/PlaywrightRunner.ts",
+      "src/runner/ExecutionEngine.ts",
+      "src/runner/visualFusion/VisualFusionStage.ts",
+      "scripts/verify-visual-agreement-runtime.mts",
+      "scripts/lib/verifier-classification.ts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "package.json",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/awkit-vra-4-3-runner-shadow-1013.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N3.3",
+      "description": "Only a local below-threshold refusal is shown to the agreement observer, after the whole DOM chain; the verdict reaches the recovery trace as a codes-only visualAgreement block with effect none, also when enforce is requested; off, the N2 stage alone, shadow and enforce give identical events, traces and winner memory apart from that block (J6); agreement never writes the reference (J7); sensitive and ineligible steps are decided before any read (J8); a slow observer is cut at the shared 400 ms budget (J9); provenance is unchanged (N3.5 deferred).",
+      "evidence_required": [
+        "verify:visual-agreement-runtime",
+        "verify:visual-isolation",
+        "verify:runner",
+        "verify:locator-guard",
+        "verify:twin-pool-safety",
+        "verify:recovery-provenance",
+        "build"
+      ]
+    },
+    {
+      "id": "N3.3-STATE",
+      "description": "awkit-vra.4.3 is closed, the verifier is registered, and DECISIONS, the N3 plan, ROADMAP and ImplementationRoadmap agree that N3.6 is next; verify:roadmap-dashboard reports Sources agree.",
+      "evidence_required": [
+        "verify:verifier-classification",
+        "beads-export",
+        "verify:roadmap-dashboard"
+      ]
+    },
+    {
+      "id": "N3.3-GIT",
+      "description": "The work lands on main and is pushed without force; the L12.27 contract stays untracked and unchanged.",
+      "evidence_required": [
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:visual-agreement-runtime",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-agreement-runtime",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "68/0 on clean source, 5 runs cut by the 400 ms budget and repeated within the bound of 5; mutations M1 (stage decides in the requested mode), M2 (refresh during agree), M3 (local layer keeps any refusal) and M4 (reference read before rows A1-A2) each turned it red and were reverted"
+    },
+    {
+      "id": "verify:visual-isolation",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-isolation",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "40/0, still the one adapter edge"
+    },
+    {
+      "id": "verify:visual-agreement",
+      "type": "verifier",
+      "required": false,
+      "command": "npm run verify:visual-agreement",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "258/0"
+    },
+    {
+      "id": "verify:visual-fusion",
+      "type": "verifier",
+      "required": false,
+      "command": "npm run verify:visual-fusion",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "271/0"
+    },
+    {
+      "id": "verify:visual-fusion-runtime",
+      "type": "verifier",
+      "required": false,
+      "command": "npm run verify:visual-fusion-runtime",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "145/0"
+    },
+    {
+      "id": "verify:runner",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:runner",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "138/0"
+    },
+    {
+      "id": "verify:locator-guard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:locator-guard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "38/0"
+    },
+    {
+      "id": "verify:twin-pool-safety",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:twin-pool-safety",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "48/0"
+    },
+    {
+      "id": "verify:recovery-provenance",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:recovery-provenance",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "46/0"
+    },
+    {
+      "id": "verify:dom-intelligence-coverage",
+      "type": "verifier",
+      "required": false,
+      "command": "npm run verify:dom-intelligence-coverage",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "74/0, run because it guards LocatorFactory.ts and recoverySnapshot.ts"
+    },
+    {
+      "id": "verify:verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "333 scripts classified, 153 real-browser"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc --noEmit clean and electron-vite main, preload and renderer bundles built"
+    },
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "awkit-vra.4.3 closed and exported"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "177/177 Sources agree in reconciliation round 2: round 1 was 175/177 because the fresh export no longer carries the awkit-vra.4.5 to awkit-vra.4.6 blocks edge (the owner-run dep removal N3.2 recorded as pending), so the pins were remeasured to 28 outstanding / 359 closed of 387, 294 edges and 4 externally blocked"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "runs after the commit that carries this contract; its outcome is reported in the session report and the next contract"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-4-3-runner-shadow-1013:project-state:2026-10-13T19:15:56.743Z",
+        "task": "awkit-vra-4-3-runner-shadow-1013",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-13T19:15:56.743Z",
+        "acquired_at_commit": "e2ddcee8633a15fd12a2120054d5dbff319f7eca",
+        "released_at": "2026-10-13T19:16:21.242Z",
+        "released_reason": "N3.3 closed, beads exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

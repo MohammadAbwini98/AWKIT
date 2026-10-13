@@ -1,6 +1,25 @@
 # CURRENT_STATE
 
-## Phase N: N3.2 calibration measured; N3 closes shadow-only (2026-10-13, latest)
+## Phase N: N3.3 runner shadow — visual agreement observed, never acted on (2026-10-13, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task.
+
+- **Runner:** `AWKIT_VISUAL_RECOVERY` (`off` default, `shadow`, `enforce`) also enables the N2 observer. When the
+  local layer of `LocatorFactory.recover()` refuses its DOM best as `below-threshold`, the `finally` (after the whole
+  DOM chain) asks `VisualFusionStage.agree`, which decides with `decideVisualAgreement` in `shadow` and records a
+  codes-only `visualAgreement` trace block with effect `none`. `enforce` is decided as shadow because N3 closed
+  shadow-only. Nothing proceeds; events, traces and winner memory are identical to `off` apart from that block (J6).
+- **Guarantees proven** (`verify:visual-agreement-runtime` 68/0, real browser): agreement never writes the reference
+  (J7); sensitive and ineligible steps are decided before any read (J8); a slow observer is cut at the shared 400 ms
+  budget (J9); competitors are capped at 8; no other refusal kind is shown to the observer. Provenance unchanged.
+- **Tracker:** `awkit-vra.4.3` closed. The `.4.5` → `.4.6` edge is gone, so N3.6 is schedulable. Dashboard: 28
+  outstanding / 359 closed, 294 edges, 4 declared blocked, 4 externally blocked.
+- **Next:** N3.6 (`awkit-vra.4.6`). N3.4 and N3.5 stay `blocked` (owner-gated).
+- **v0.1.53 carry-over unchanged:** packaged licensed Parts D–J are BLOCKED (`AWKIT_PACKAGED_LICENSE_ISSUER_KEY`
+  unavailable), and the clean offline Windows VM walkthrough is NOT RUN.
+
+## Phase N: N3.2 calibration measured; N3 closes shadow-only (2026-10-13)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed by this task.

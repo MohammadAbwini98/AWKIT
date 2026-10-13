@@ -1627,8 +1627,11 @@ export class ExecutionEngine {
       locatorRecoveryRoot: join(dirs.root, "locator-recovery"),
       locatorBlueprintRoot: join(dirs.root, "locator-blueprints"),
       domIntelligence: this.domIntelligence,
-      // N2.5 (FD-8): visual fusion is off unless AWKIT_VISUAL_FUSION=shadow; N2 has no other mode.
-      visualFusionRoot: process.env.AWKIT_VISUAL_FUSION === "shadow" ? join(dirs.root, "visual-references") : undefined,
+      // N2.5 (FD-8): visual fusion is off unless AWKIT_VISUAL_FUSION=shadow; N2 has no other mode. N3.3 (VR-8):
+      // AWKIT_VISUAL_RECOVERY=shadow|enforce adds the shadow agreement observation, which reads the same reference store
+      // the shadow fusion observer keeps, so it turns that observer on too. Both are shadow; neither changes a step.
+      visualFusionRoot: process.env.AWKIT_VISUAL_FUSION === "shadow" || visualAgreementMode() ? join(dirs.root, "visual-references") : undefined,
+      visualAgreement: visualAgreementMode(),
       // Accumulate only — no projection, no I/O, no emitter on the locator resolution path. The set
       // is read once when this instance finishes.
       onLocatorRemembered: (scopeKey) => {
@@ -2221,6 +2224,12 @@ function observationBucketMsFromEnv(): number {
   const parsed = raw ? Number.parseInt(raw, 10) : NaN;
   if (!Number.isFinite(parsed)) return 30_000;
   return Math.min(300_000, Math.max(5_000, parsed));
+}
+
+/** N3.3 (VR-8): `AWKIT_VISUAL_RECOVERY`, off unless exactly `shadow` or `enforce` (decided as shadow, see the runner). */
+function visualAgreementMode(): "shadow" | "enforce" | undefined {
+  const raw = process.env.AWKIT_VISUAL_RECOVERY;
+  return raw === "shadow" || raw === "enforce" ? raw : undefined;
 }
 
 /** Resolve the run's headed dimension from its config (headless === false → headed; undefined when unknown). */

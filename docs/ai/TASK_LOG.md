@@ -1,6 +1,29 @@
 # TASK_LOG
 
-## 2026-10-13 (latest) — Phase N: N3.2 visual agreement calibration (Claude)
+## 2026-10-13 (latest) — Phase N: N3.3 runner shadow (Claude)
+
+- **Scope:** "continue with N3.3". Contract `awkit-vra-4-3-runner-shadow-1013`. CodeCraft was not used
+  (`CODECRAFT_MODE=off`).
+- **Change:** `VisualFusionStage.agree`; the local below-threshold hook in `LocatorFactory.recover()` with a codes-only
+  `visualAgreement` trace block (effect `none`, also under `enforce`); `AWKIT_VISUAL_RECOVERY` wiring in
+  `PlaywrightRunner`/`ExecutionEngine`; `RECOVERY_AGREEMENT_COMPETITORS = 8`; new `verify:visual-agreement-runtime`.
+- **Governance:** `.4.3` closed; the export no longer carries the `.4.5` → `.4.6` edge, so the dashboard is
+  repinned to 28 / 359, 294 edges and 4 externally blocked; DECISIONS, the N3 plan, ROADMAP and ImplementationRoadmap
+  say N3.6 is next.
+- **Files:**
+  - `src/runner/{LocatorFactory,recoverySnapshot,PlaywrightRunner,ExecutionEngine}.ts`,
+    `src/runner/visualFusion/VisualFusionStage.ts`, `src/roadmap/ImplementationRoadmap.ts`
+  - `scripts/{verify-visual-agreement-runtime.mts,verify-roadmap-dashboard.mjs}`, `scripts/lib/verifier-classification.ts`
+  - `package.json`, `.beads/issues.jsonl`
+  - `docs/ai/{DECISIONS,CURRENT_STATE,HANDOFF,TASK_LOG}.md`, `docs/plans/ai-upgrade-v5/{N3-visual-locator-recovery,ROADMAP}.md`
+  - the contract.
+- **Tests:** visual-agreement-runtime 68/0 (M1-M4 red); visual-isolation 40/0; visual-agreement 258/0; visual-fusion
+  271/0; visual-fusion-runtime 145/0; runner 138/0; locator-guard 38/0; twin-pool-safety 48/0; recovery-provenance
+  46/0; dom-intelligence-coverage 74/0; verifier-classification PASS; roadmap-dashboard 177/177 Sources agree; build
+  PASS. QC NOT RUN.
+- **Result:** N3.3 done. N3.6 is next.
+
+## 2026-10-13 — Phase N: N3.2 visual agreement calibration (Claude)
 
 - **Scope:** "continue with N3.2". Contract `awkit-vra-4-2-calibration-1013`. CodeCraft was not used
   (`CODECRAFT_MODE=off`).

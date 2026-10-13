@@ -1,6 +1,22 @@
 # DECISIONS
 
-### 2026-10-13 (latest) — Phase N N3.2: twins agree in headless, so N3 closes shadow-only and N3.4/N3.5 are deferred (measurement, applying the plan's pre-agreed fallback) (`awkit-vra.4.2`)
+### 2026-10-13 (latest) — Phase N N3.3: runner shadow shape (implementation choices within VR-0..VR-9) (`awkit-vra.4.3`)
+
+- **Trace key.** The verdict is a sibling `visualAgreement` block on the recovery trace, not inside `trace.visual`,
+  so the N2 observation block stays byte-identical and the A/B comparison (J6) can drop exactly one key.
+- **Placement.** Agreement runs in the `recover()` `finally`, after the whole DOM chain, and sees only a local-layer
+  `below-threshold` refusal of the DOM best. It cannot change which layer or candidate the chain chose.
+- **Enforce.** `AWKIT_VISUAL_RECOVERY=enforce` is accepted but decided as `shadow` with effect `none`, because N3.2
+  closed N3 shadow-only. Nothing proceeds until N3.4 is reopened by new measurements and an owner decision.
+- **Wiring.** `AWKIT_VISUAL_RECOVERY` in `shadow`/`enforce` also turns on the N2 observer, since agreement needs its
+  stage; `off` leaves both off.
+- **Competitors.** At most 8 (`RECOVERY_AGREEMENT_COMPETITORS`), kept separate from the contender cap.
+- **Provenance.** Unchanged: no `visual-agreed` provenance is emitted (N3.5 deferred).
+- **Budget.** Captures stay under the fixed 400 ms production budget. On a loaded host a nine-element capture can
+  exceed it; the verifier repeats such a run a bounded five times and counts it rather than raising the budget.
+- **Review.** Independent QC was not run for N3.3; the contract records `qc_status: pending`.
+
+### 2026-10-13 — Phase N N3.2: twins agree in headless, so N3 closes shadow-only and N3.4/N3.5 are deferred (measurement, applying the plan's pre-agreed fallback) (`awkit-vra.4.2`)
 
 - **Rule applied, not a new judgment.** The N3 plan fixed in advance: "If N3.2 shows any false `agreed` … N3 closes
   shadow-only". N3.2 measured 28 false `agreed` on `twins` (all headless; headed 0), so the rule applies.
