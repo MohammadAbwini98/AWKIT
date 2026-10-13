@@ -1,6 +1,6 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-13, latest) — Phase N: N2 closed in the tracker; dashboard repin owed
+## HANDOFF (2026-10-13, latest) — Phase N: N2 closed in the tracker; dashboard repinned
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
@@ -10,13 +10,9 @@ The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 
   - `.12.5`, `.12.7` and `.12.8` closed; N2.6 `.12.6` set to `deferred` per FD-9;
   - the epic `awkit-vra.12` closed, citing `b38651d7` and `be4b24f6`;
   - `bd export -o .beads/issues.jsonl` wrote 381 issues. The lease is released.
-- **Owed — dashboard repin (BLOCKED: the lease guard terminally denied the edit to
-  `scripts/verify-roadmap-dashboard.mjs`, scope `.beads/**` only).** Change three pins:
-  - `380 issues parse` → 381;
-  - `30 outstanding / 350 closed` → 25 / 356 (the deferred `.12.6` still counts as outstanding);
-  - `281 edges` → 283 (one parent-child link and one blocks edge for `.12.9`).
-  Then run `npm run verify:roadmap-dashboard` (NOT RUN this session; it will FAIL on those pins until they are
-  repinned) and confirm "Sources agree". The numbers are computed from the export, not yet confirmed by the verifier.
+- **Done — dashboard repin.** The pins now read 381 issues, 25 outstanding / 356 closed (the deferred `.12.6` still
+  counts as outstanding), and 283 edges. `verify:roadmap-dashboard` is 177/177, "Sources agree".
+- **Nothing owed for N2.** N2.6 stays deferred until a new FD-9 measurement shows separation.
 - **Binding:** N2 ships shadow-only, `contradictionEnabled` stays `false`, and N2.6 stays deferred.
 - **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
 

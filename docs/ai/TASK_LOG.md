@@ -16,13 +16,14 @@
 
   | Check | Result |
   |---|---|
-  | Dashboard repin in `scripts/verify-roadmap-dashboard.mjs` (381 issues, 25/356, 283 edges) | BLOCKED: lease-scope denial, terminal on the third attempt |
-  | `verify:roadmap-dashboard` | NOT RUN: shell gate terminal. Expected to FAIL on the three stale pins |
+  | Dashboard repin in `scripts/verify-roadmap-dashboard.mjs` (381 issues, 25/356, 283 edges) | BLOCKED under the lease (lease-scope denial, terminal on the third attempt). Done in a follow-up after the lease was released |
+  | `verify:roadmap-dashboard` (follow-up, final state) | PASS, 177/177, "Sources agree" |
   | `npm run build` | NOT RUN: no source changed |
 
 - **Process note:** the three verifier edits were sent in parallel while the lease covered only `.beads/**`. That
   spent all three denials at once. Edit the verifier before granting a scoped lease, or amend the lease first.
-- **Result:** N2 is closed in the tracker and stays shadow-only. The dashboard repin is owed (HANDOFF).
+- **Result:** N2 is closed in the tracker and stays shadow-only. The dashboard is repinned and agrees with the
+  sources (`scripts/verify-roadmap-dashboard.mjs` was added to the files).
 
 ## 2026-10-13 — Phase N: N2 overhead matrix, acceptance #7 (Claude)
 
