@@ -1,6 +1,30 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-12, latest) — Phase N: N2.4 implemented (FD-5 PASS); tracker re-scope owed; next is N2.5
+## HANDOFF (2026-10-13, latest) — Phase N: N2.4b and N2.5 implemented (shadow only); tracker owed; next is N2.7
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:**
+  - N2.4b: `VisualReferenceStore`, commit `a7313047`.
+  - N2.5: `VisualFusionStage`, the shadow adapter, commit `eeacc3dc`.
+  - `verify:visual-fusion-runtime` 95/0 (real browser) and `verify:visual-isolation` 40/0.
+- **Owed — tracker (BLOCKED in this session, same lease denial as N2.4).** An actor holding the project-state role
+  must:
+  1. retitle and close `awkit-vra.12.4`, per the 2026-10-12 section below;
+  2. file N2.4b as a child of `awkit-vra.12` that blocks `awkit-vra.12.5`, then close it (done in `a7313047`);
+  3. close `awkit-vra.12.5` (done in `eeacc3dc`);
+  4. run `bd export -o .beads/issues.jsonl`, then repin the dashboard counts in `scripts/verify-roadmap-dashboard.mjs`
+     and run `verify:roadmap-dashboard`.
+- **Next action:** N2.7, provenance. N2.6 (enforcement) stays deferred.
+- **Binding for implementers:**
+  - `src/runner/visualFusion/VisualFusionStage.ts` is the only runner edge into `src/visual`
+    (`verify:visual-isolation`).
+  - The stage observes and never decides. Do not route its verdict back into `LocatorFactory`.
+  - `MEASURED_FUSION_POLICY.contradictionEnabled` stays `false`.
+  - The switch is env-only (`AWKIT_VISUAL_FUSION=shadow`). Wiring the run-card UI option is separate scope.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-12) — Phase N: N2.4 implemented (FD-5 PASS); tracker re-scope owed; next is N2.5
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

@@ -1,6 +1,38 @@
 # CURRENT_STATE
 
-## Phase N: N2.4 single-capture candidate fan-out implemented; FD-5 PASS (2026-10-12, latest)
+## Phase N: N2.4b reference store and N2.5 shadow fusion stage (2026-10-13, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task.
+
+- **N2.4b implemented** (owner-ordered before N2.5; tracker item not yet filed). New
+  `src/runner/visualFusion/VisualReferenceStore.ts`, runner-owned:
+  - one bounded, versioned sidecar per step under `<runtime root>/visual-references`, keyed by the step's scopeKey;
+  - tmp + `rename` with a bounded `EPERM`/`EBUSY` retry;
+  - a corrupt sidecar reads as R1 (no reference), another evidence version as R2. Reads never throw;
+  - refresh is rate-limited to once per 60 s (`REFERENCE_REFRESH`), gated on a content-digest change, with a capped
+    in-memory refresh table.
+- **N2.5 implemented** (`awkit-vra.12.5`). New `src/runner/visualFusion/VisualFusionStage.ts`, the only runner
+  module importing `src/visual` (its index only; FD-2):
+  - injected as `LocatorFactoryOptions.visualFusion` behind a lazy loader, so nothing loads when it is off;
+  - observes each recovery winner after every DOM veto, with up to 3 gated-out contenders
+    (`RecoveryDecision.contenders`, FD-7), captured from one screenshot;
+  - refreshes the reference after passing resolves of eligible, non-sensitive steps (FD-6);
+  - verdicts are logged at debug (`[visual-fusion:shadow]`) and carry only verdict, reason and rounded scores (I9);
+  - nothing flows back: an off-vs-shadow A/B produces identical stages, trace and resolved element (I3).
+- **Switch:** env `AWKIT_VISUAL_FUSION=shadow` only. The run-card UI option is not wired.
+- **Fusion policy unchanged:** `MEASURED_FUSION_POLICY.contradictionEnabled = false`. N2 is shadow-only and N2.6
+  stays deferred.
+- **`verify:visual-fusion-runtime`** is now real-browser, 95/0.
+  - N2.4b mutations M1-M6: 63/1, 58/6, 62/3, 57/8, 62/3, 63/2.
+  - N2.5 mutations: contenders capped at 1 gave 94/1, wrong scopeKey 92/3, unswallowed observer 94/1, emitting
+    observer 87/8.
+  - All mutations were red and restored.
+- **Tracker BLOCKED** (unchanged lease denial): `.12.4` is still open, N2.4b is not filed and `.12.5` is not closed.
+  See `HANDOFF.md`.
+- **Next:** N2.7 provenance. Phase N stays IN PROGRESS.
+
+## Phase N: N2.4 single-capture candidate fan-out implemented; FD-5 PASS (2026-10-12)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed by this task.

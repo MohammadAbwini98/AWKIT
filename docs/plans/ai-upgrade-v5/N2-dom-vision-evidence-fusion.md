@@ -289,6 +289,18 @@ measured median is 171 ms and the p95 237 ms, so FD-5 is a **PASS** against the 
 remaining phase is per-candidate resolve (32%), which N2.5 should remove by reusing the DOM recovery's resolved
 candidates. N2 stays shadow-only. See `N2.4-capture-fanout.md`.
 
+**N2.4b outcome (2026-10-13).** `src/runner/visualFusion/VisualReferenceStore.ts` keeps one bounded, versioned
+sidecar per step scopeKey under `visual-references`. Writes use tmp + `rename` with a bounded `EPERM`/`EBUSY` retry. A
+corrupt sidecar reads as R1, another evidence version as R2. Refresh happens at most every 60 s and only on a digest
+change, with a capped table. Covered by `verify:visual-fusion-runtime` (mutations M1-M6 red).
+
+**N2.5 outcome (2026-10-13).** `src/runner/visualFusion/VisualFusionStage.ts` is the single adapter edge into
+`src/visual`. It is injected as `LocatorFactoryOptions.visualFusion` and loaded lazily only when
+`AWKIT_VISUAL_FUSION=shadow`. It reuses the DOM recovery's resolved winner and up to 3 gated-out contenders
+(`RecoveryDecision.contenders`), so there is no second resolve. Verdicts are debug-logged with I9 fields only. An
+off-vs-shadow A/B is identical, and `verify:visual-fusion-runtime` is real-browser 95/0. `contradictionEnabled` stays
+`false`, and the run-card option is not wired.
+
 ### Feature Test Lab scenarios (N2.3)
 
 Each scenario gets a stable URL, title, expected behaviour and `data-testid` selectors, and is

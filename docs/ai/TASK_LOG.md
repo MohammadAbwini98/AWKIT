@@ -1,6 +1,43 @@
 # TASK_LOG
 
-## 2026-10-12 (latest) — Phase N: N2.4 single-capture candidate fan-out (Claude)
+## 2026-10-13 (latest) — Phase N: N2.4b reference store and N2.5 shadow fusion stage (Claude)
+
+- **Scope:** "start N2.5"; the owner chose "N2.4b first, then N2.5". CodeCraft was not used (`CODECRAFT_MODE=off`).
+- **N2.4b** (`a7313047`): added `VisualReferenceStore` and the new `verify:visual-fusion-runtime`.
+- **N2.5** (`eeacc3dc`):
+  - added `VisualFusionStage` and the `LocatorFactoryOptions.visualFusion` seam;
+  - added `RecoveryDecision.contenders` (at most 3);
+  - added the lazy loader in `PlaywrightRunner`, and the env switch in `ExecutionEngine`;
+  - allowed the single adapter edge in `verify:visual-isolation`.
+- **Files:**
+  - `src/runner/visualFusion/{VisualReferenceStore.ts,VisualFusionStage.ts}`;
+  - `src/runner/{LocatorFactory.ts,recoverySnapshot.ts,PlaywrightRunner.ts,ExecutionEngine.ts}` and
+    `src/visual/index.ts`;
+  - `scripts/{verify-visual-fusion-runtime.mts,verify-visual-isolation.mts}`;
+  - `scripts/lib/verifier-classification.ts` and `package.json`;
+  - `docs/plans/ai-upgrade-v5/N2-dom-vision-evidence-fusion.md`;
+  - `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,DECISIONS}.md`.
+- **Checks:**
+
+  | Check | Result |
+  |---|---|
+  | `verify:visual-fusion-runtime` | 95/0 (N2.4b alone: 65/0) |
+  | N2.4b mutations M1-M6 | 63/1, 58/6, 62/3, 57/8, 62/3, 63/2; all restored |
+  | N2.5 mutations | 94/1, 92/3, 94/1, 87/8; all restored |
+  | `verify:visual-isolation` | 40/0 |
+  | `verify:runner` | 138/0 |
+  | `verify:locator-guard` | 38/0 |
+  | `verify:twin-pool-safety` | 48/0 |
+  | `verify:dom-intelligence-coverage` | 74/0 |
+  | `npm run build` | PASS |
+  | `verify:mock-site` | NOT RUN (no mock-site change) |
+
+- **Tracker BLOCKED:** the same lease denial as N2.4. No `bd` write was attempted, and `.beads/issues.jsonl` is
+  unchanged.
+- **Commit trailer:** the lease guard accepts only a single-line `-m`, so the `Co-Authored-By` trailer is missing.
+- **Preserved:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`, untracked and unchanged.
+
+## 2026-10-12 — Phase N: N2.4 single-capture candidate fan-out (Claude)
 
 - **Scope:** "Phase N2.4: Single-Capture Candidate Fan-Out", under contract `awkit-vra-12-4-capture-fanout-1012`.
   CodeCraft was not used (`CODECRAFT_MODE=off`).

@@ -1,6 +1,21 @@
 # DECISIONS
 
-### 2026-10-12 (latest) — Phase N N2.4: re-scoped to a single-capture fan-out; FD-5 met without changing the budget (owner re-scope, measurement) (`awkit-vra.12.4`)
+### 2026-10-13 (latest) — Phase N N2.4b/N2.5: runner-owned reference store; one adapter edge; shadow by env only (implementation, applying FD-2/6/7/8/9) (`awkit-vra.12.5`)
+
+- **Order (owner).** N2.4b ran before N2.5, as recommended.
+- **Reference store.** References are runner-owned sidecars under `<runtime root>/visual-references`, one per step
+  scopeKey, versioned and bounded by `VISUAL_EVIDENCE_MAX_BYTES`. Writes use tmp + `rename` with a bounded
+  `EPERM`/`EBUSY` retry. A corrupt sidecar is R1, another evidence version is R2, and reads never throw.
+- **REFERENCE_REFRESH = 60 s.** A step's reference refreshes at most once a minute, and only when the content digest
+  changed. The refresh table is capped, so there is no unbounded cache.
+- **Single adapter edge (FD-2).** `src/runner/visualFusion/VisualFusionStage.ts` is the only runner module allowed to
+  import `src/visual`, and only through its index. `verify:visual-isolation` allows exactly that edge.
+- **Observe, never decide.** The stage sees the DOM's final winner after every veto, with at most 3 gated-out
+  contenders (FD-7). Its result never flows back, so off and shadow runs are identical.
+- **Switch (FD-8).** Env `AWKIT_VISUAL_FUSION=shadow` is the only way to turn it on. The run-card option is not wired.
+- **Fusion policy unchanged.** `contradictionEnabled` stays `false`; N2.6 stays deferred.
+
+### 2026-10-12 — Phase N N2.4: re-scoped to a single-capture fan-out; FD-5 met without changing the budget (owner re-scope, measurement) (`awkit-vra.12.4`)
 
 - **Re-scope (owner).** N2.4 is now "Single-capture candidate fan-out": one immutable viewport screenshot per visual
   decision cycle, cropped for every candidate. The former N2.4 scope, the `VisualReferenceStore` sidecar and the
