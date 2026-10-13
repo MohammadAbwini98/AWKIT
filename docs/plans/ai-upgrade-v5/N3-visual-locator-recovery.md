@@ -7,8 +7,11 @@ legacy workstream `awkit-vra.4` ("Visual locator fallback") is the tracker home 
 
 **Status (2026-10-13): IN PROGRESS.** The owner approved VR-0 to VR-9 as recommended and authorized N3 (DECISIONS
 2026-10-13, contract `awkit-vra-4-n3-start-1013`). N3.1 is done: `decideVisualAgreement` in
-`src/visual/fusion/decideVisualAgreement.ts`, proven by `verify:visual-agreement` 258/0. N3.2-N3.6 are open in that
-order. The three preconditions below were the plan-time gates, kept for the record. All three are now met:
+`src/visual/fusion/decideVisualAgreement.ts`, proven by `verify:visual-agreement` 258/0. N3.2 is done and its
+acceptance **failed**: 28 `twins` decisions reached `agreed` in headless, because headless Chromium renders identical
+icons with position-dependent bytes (`N3.2-agreement-calibration.md`). By the fallback fixed below, **N3 closes
+shadow-only**: N3.4 and N3.5 are deferred, N3.3 and N3.6 remain. The three preconditions below were the plan-time
+gates, kept for the record. All three are now met:
 
 - the owner **amends the 2026-10-12 directive** in `docs/ai/DECISIONS.md`, which today says "Visual similarity must
   never cause a click, a fill, a selector replacement or a locator recovery" (VR-0). Without that amendment N3 cannot
@@ -189,6 +192,10 @@ N3.1 → N3.2 → N3.3 → (VR-0 recorded) → N3.4 → N3.5 → N3.6
 
 If N3.2 shows any false `agreed`, or recall too low to be useful, N3 closes shadow-only, the same fallback N2 used
 under FD-9.
+
+**N3.2 outcome (2026-10-13): fallback applied.** Recall was useful (cross-launch 66/72 baseline, 65/72 drift; every
+miss headless DPR 1), and no decision whose DOM best was not the true element agreed (0 of 4644), but `twins` gave 28
+false `agreed`, all headless. N3.4 and N3.5 are deferred; the order is now N3.3 → N3.6.
 
 ## Acceptance criteria for closing N3
 

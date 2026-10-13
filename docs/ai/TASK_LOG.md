@@ -1,6 +1,28 @@
 # TASK_LOG
 
-## 2026-10-13 (latest) — Phase N: start N3, decisions recorded, N3.1 agreement policy (Claude)
+## 2026-10-13 (latest) — Phase N: N3.2 visual agreement calibration (Claude)
+
+- **Scope:** "continue with N3.2". Contract `awkit-vra-4-2-calibration-1013`. CodeCraft was not used
+  (`CODECRAFT_MODE=off`).
+- **Change:** the fusion lab gains `drift` and the hidden wide toolbar; `verify:mock-site` covers both; new
+  informational `benchmark:visual-agreement` (`scripts/benchmark-visual-agreement.mts`).
+- **Measured:** recall cross-launch 66/72 baseline, 65/72 drift; 0 of 4644 non-true-best decisions agreed; 28 false
+  `agreed` on headless twins (position-dependent headless rasterization), headed 0.
+- **Outcome:** the acceptance fails, so N3 closes shadow-only by the plan's fallback. `.4.2` closed, `.4.4`/`.4.5`
+  `blocked` (owner-gated); DECISIONS, the N3 plan, ROADMAP and ImplementationRoadmap updated; dashboard repinned to
+  29 / 358 and 4 declared blocked.
+- **Files:**
+  - `mock-site/public/visual-intelligence-fusion.html`, `mock-site/README.md`
+  - `scripts/{benchmark-visual-agreement.mts,verify-mock-site.mjs,verify-roadmap-dashboard.mjs}`
+  - `package.json`, `.beads/issues.jsonl`, `src/roadmap/ImplementationRoadmap.ts`
+  - `docs/ai/{DECISIONS,CURRENT_STATE,HANDOFF,TASK_LOG}.md`
+  - `docs/plans/ai-upgrade-v5/{N3.2-agreement-calibration,N3-visual-locator-recovery,ROADMAP}.md`
+  - the contract.
+- **Tests:** mock-site 307/307; benchmark run twice (informational); roadmap-dashboard 177/177 Sources agree; build:
+  see the contract. The benchmark `--json` output is BLOCKED by the command guard.
+- **Result:** N3.2 done; N3 shadow-only. N3.3 runner shadow is next.
+
+## 2026-10-13 — Phase N: start N3, decisions recorded, N3.1 agreement policy (Claude)
 
 - **Scope:** the owner said "VR-0 to VR-9 approved as recommended, start N3". The contract is
   `awkit-vra-4-n3-start-1013`. CodeCraft was not used (`CODECRAFT_MODE=off`).

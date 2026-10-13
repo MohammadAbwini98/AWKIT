@@ -1,6 +1,23 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-13, latest) — Phase N: N3 started; N3.1 done, N3.2 next
+## HANDOFF (2026-10-13, latest) — Phase N: N3.2 done; N3 closes shadow-only; N3.3 next
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** the fusion lab has `drift` and the wide toolbar; `benchmark:visual-agreement` measured recall (cross-launch
+  66/72 baseline, 65/72 drift) and 28 false `agreed` on headless twins. By the plan's fallback N3 closes shadow-only.
+  `.4.2` closed; `.4.4` and `.4.5` are `blocked` pending new measurements plus an owner decision.
+- **Owner action:** run `bd dep remove awkit-vra.4.6 awkit-vra.4.5` (not guard-approved for agents), then
+  `bd export -o .beads/issues.jsonl`, and repin the declared-blocked check in `scripts/verify-roadmap-dashboard.mjs`
+  (externally blocked drops from 5 to 4).
+- **Next — N3.3 (`awkit-vra.4.3`), runner shadow:** `VisualFusionStage.agree`, the local-layer hook in `recover()`
+  and the `trace.visual` block, with `verify:visual-agreement-runtime` (off-vs-shadow A/B identical apart from
+  `trace.visual`). Shadow only; nothing may proceed. Then N3.6.
+- **Guard note:** do not pass extra arguments to `npm run benchmark:*` (the `--json` form is refused).
+- **v0.1.53 carry-over unchanged:** Parts D–J are BLOCKED (no issuer key), and the clean-VM walkthrough is NOT RUN.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-13) — Phase N: N3 started; N3.1 done, N3.2 next
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

@@ -718,8 +718,10 @@ try {
   // per FD-9, which still counts as outstanding (one in, six closed).
   // Then 30/357 of 387 on 2026-10-13 (contract `awkit-vra-4-n3-start-1013`): N3.1-N3.6 `awkit-vra.4.1`…`.4.6`
   // filed and N3.1 `.4.1` closed; `awkit-vra.4` was already outstanding (six in, one closed).
-    "30 outstanding / 357 closed",
-    beads.stats.outstanding === 30 && beads.stats.closed === 357,
+  // Then 29/358 of 387 on 2026-10-13 (contract `awkit-vra-4-2-calibration-1013`): N3.2 `awkit-vra.4.2` closed and,
+  // by its shadow-only outcome, N3.4 `.4.4` and N3.5 `.4.5` deferred, which still counts as outstanding (one closed).
+    "29 outstanding / 358 closed",
+    beads.stats.outstanding === 29 && beads.stats.closed === 358,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -1032,10 +1034,15 @@ try {
   // express an owner-run command, so it is declared, like `awkit-hgol` was.
   // Then 2 later on 2026-09-13: the owner ran it, `awkit-icon2` closed on verify:app-icon 29/29, and
   // the real Oracle items `awkit-7bu` and `awkit-cm8` are again the only declared-blocked issues.
+  // Then 4 on 2026-10-13 (contract `awkit-vra-4-2-calibration-1013`): the N3.2 outcome closed N3 shadow-only, and
+  // N3.4 `awkit-vra.4.4` and N3.5 `.4.5` wait on new headless twin measurements plus an owner decision. They are
+  // declared blocked, not `deferred`, because N3.6 `.4.6` still carries a `blocks` edge from `.4.5` that only
+  // `bd dep remove` (not a guard-approved command) can lift, and a deferred blocker leaves the queue entirely.
+  // `.4.6` is therefore externally blocked too, so five ids sit out of the layers until that edge is removed.
   check(
     "every declared-blocked issue is present and out of the layers",
-    order.stats.declaredBlocked === 2 &&
-      order.externallyBlocked.length === 2 &&
+    order.stats.declaredBlocked === 4 &&
+      order.externallyBlocked.length === 5 &&
       order.externallyBlocked.every((id) => order.ordered.find((o) => o.id === id)?.layer === null),
     `declaredBlocked ${order.stats.declaredBlocked}, externallyBlocked ${order.externallyBlocked.length}`
   );

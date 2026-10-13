@@ -1,6 +1,32 @@
 # CURRENT_STATE
 
-## Phase N: N3 started; owner decisions recorded, N3.1 agreement policy done (2026-10-13, latest)
+## Phase N: N3.2 calibration measured; N3 closes shadow-only (2026-10-13, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task.
+
+- **Lab:** `/visual-intelligence/fusion` gains a `drift` scenario (the target's id, `data-drift` and accessible name
+  change, its pixels do not) and a hidden nine-button wide toolbar (`setState({ wide: true })`) so a decision can carry
+  8 competitors. Earlier scenarios render unchanged. `verify:mock-site` 307/307.
+- **Benchmark:** new informational `npm run benchmark:visual-agreement` (never a gate) measured DPR 1, 1.25 and 2,
+  headed and headless, references from one launch and decisions from a fresh one, in two complete runs.
+- **Results** (`docs/plans/ai-upgrade-v5/N3.2-agreement-calibration.md`):
+  - recall, cross-launch: 66/72 baseline and 65/72 drift, every miss headless DPR 1; same-launch 72/72 and 71/72;
+  - no decision whose DOM best was not the true element agreed (0 of 4644);
+  - **28 false `agreed` on `twins`, all headless** (headed 0): headless Chromium renders identical icons with
+    position-dependent bytes, so the A8 uniqueness check cannot see the twin;
+  - cost within FD-5 400 ms except one headless DPR 1 run (p95 516 ms for 4 candidates, outliers to 2.4 s for 9).
+- **Outcome:** the plan's acceptance (false `agreed` = 0 on swap, twins, restyle) fails, so by its pre-agreed fallback
+  **N3 closes shadow-only**. `awkit-vra.4.2` is closed; N3.4 `.4.4` and N3.5 `.4.5` are `blocked` (owner-gated, see
+  DECISIONS). N3.3 runner shadow is next, then N3.6. Dashboard: 29 outstanding / 358 closed, 4 declared blocked.
+- **Tracker debt:** `.4.5` still `blocks` `.4.6`; only `bd dep remove awkit-vra.4.6 awkit-vra.4.5` lifts it, and that
+  command is not guard-approved, so the owner must run it before N3.6.
+- **Unchanged:** Runner, settings, schema and UI. The benchmark's `--json` output was not produced because the command
+  guard refuses extra npm-script arguments; the numbers are transcribed into the calibration document.
+- **v0.1.53 carry-over unchanged:** packaged licensed Parts D–J are BLOCKED (`AWKIT_PACKAGED_LICENSE_ISSUER_KEY`
+  unavailable), and the clean offline Windows VM walkthrough is NOT RUN.
+
+## Phase N: N3 started; owner decisions recorded, N3.1 agreement policy done (2026-10-13)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed by this task.

@@ -775,6 +775,22 @@ try {
   await page.evaluate(() => window.__fusionLab.setState({ scenario: "restyle-selected", target: 1 }));
   check("restyle-selected restyles only the target", (await page.locator(".vf-selected").count()) === 1 && (await page.getByTestId("vf-tool-1").getAttribute("class")).includes("vf-selected"));
   check("setState refuses an unknown scenario", await page.evaluate(() => { try { window.__fusionLab.setState({ scenario: "nope" }); return false; } catch { return true; } }));
+  // N3.2 drift: the target's DOM identity changes, its icon and classes do not, every other button is untouched.
+  await page.evaluate(() => window.__fusionLab.setState({ scenario: "baseline", target: 2, style: "a" }));
+  const driftBefore = await page.getByTestId("vf-tool-2").evaluate((n) => ({ cls: n.className, style: n.getAttribute("style"), svg: n.innerHTML }));
+  await page.evaluate(() => window.__fusionLab.setState({ scenario: "drift" }));
+  const driftAfter = await page.getByTestId("vf-tool-2").evaluate((n) => ({ cls: n.className, style: n.getAttribute("style"), svg: n.innerHTML, id: n.id, drift: n.dataset.drift }));
+  check("drift keeps the icons in their remembered order", (await fusionIcons()) === "trash,archive,flag,pin");
+  check("drift renames only the target", (await page.evaluate(() => window.__fusionLab.describe().names.join(","))) === "Item action,Item action,Delete selected item,Item action" && (await page.getByRole("button", { name: "Delete selected item" }).count()) === 1);
+  check("drift adds an id and data-drift to the target only", driftAfter.id === "vf-drifted" && driftAfter.drift === "renamed" && (await page.locator("[data-drift]").count()) === 1);
+  check("drift leaves the target's classes, position and icon markup unchanged", driftAfter.cls === driftBefore.cls && driftAfter.style === driftBefore.style && driftAfter.svg === driftBefore.svg);
+  check("the wide toolbar is hidden by default", (await page.getByTestId("vf-wide-toolbar").isHidden()) && (await page.getByTestId("vf-wide-tool-0").isHidden()));
+  await page.evaluate(() => window.__fusionLab.setState({ scenario: "baseline", wide: true }));
+  check("wide: true shows nine buttons with nine distinct icons inside the viewport", (await page.locator('[data-testid^="vf-wide-tool-"]:visible').count()) === 9 && new Set(await page.evaluate(() => window.__fusionLab.describe().wideIcons)).size === 9 && ((await page.getByTestId("vf-wide-tool-8").boundingBox())?.x ?? 999) + 48 <= 800 && ((await page.getByTestId("vf-wide-tool-8").boundingBox())?.y ?? 999) + 40 <= 600);
+  await page.evaluate(() => window.__fusionLab.setState({ scenario: "twins" }));
+  check("twins gives every wide button the first icon", (await page.evaluate(() => window.__fusionLab.describe().wideIcons.join(","))) === Array(9).fill("trash").join(","));
+  check("setState refuses a non-boolean wide", await page.evaluate(() => { try { window.__fusionLab.setState({ wide: "yes" }); return false; } catch { return true; } }));
+  await page.evaluate(() => window.__fusionLab.setState({ scenario: "baseline", target: 0, style: "a", wide: false }));
   for (const kind of ["otp", "mfa", "captcha", "passkey"]) {
     await page.evaluate((k) => window.__fusionLab.injectProtected(k), kind);
     check(`fusion injectProtected("${kind}") adds exactly one protected surface`, (await page.locator(".vf-protected").count()) === 1 && (await page.getByTestId(`vf-protected-${kind}`).count()) === 1);

@@ -1,32 +1,48 @@
 {
-  "task": "awkit-vra-4-n3-start-1013",
-  "contract_path": "docs/ai/contracts/awkit-vra-4-n3-start-1013.json",
+  "task": "awkit-vra-4-2-calibration-1013",
+  "contract_path": "docs/ai/contracts/awkit-vra-4-2-calibration-1013.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-13T17:45:46.776Z",
-  "acquired_at_commit": "343043c80501a1a6353ff4b42f472c9b4d40e5ba",
+  "acquired_at": "2026-10-13T18:25:26.821Z",
+  "acquired_at_commit": "9f32bc07c785a238c86c0d0ab1be34fb8325a17c",
   "baseline_dirty": [
+    ".beads/interactions.jsonl",
+    ".beads/issues.jsonl",
     "docs/ai/DECISIONS.md",
+    "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-vra-4-n3-start-1013.json",
+    "docs/ai/contracts/awkit-vra-4-2-calibration-1013.json",
+    "docs/plans/ai-upgrade-v5/N3-visual-locator-recovery.md",
+    "docs/plans/ai-upgrade-v5/N3.2-agreement-calibration.md",
+    "docs/plans/ai-upgrade-v5/ROADMAP.md",
+    "mock-site/README.md",
+    "mock-site/public/visual-intelligence-fusion.html",
     "package.json",
-    "scripts/lib/verifier-classification.ts",
-    "scripts/verify-visual-agreement.mts",
-    "src/visual/fusion/decideVisualAgreement.ts",
-    "src/visual/index.ts"
+    "scripts/benchmark-visual-agreement.mts",
+    "scripts/verify-mock-site.mjs",
+    "scripts/verify-roadmap-dashboard.mjs",
+    "src/roadmap/ImplementationRoadmap.ts"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/DECISIONS.md": "5ff5e7aec00d9d39ed5fef43cb209ca5373778743fa7ff2dd4ef7a40ef56a81d",
+    ".beads/interactions.jsonl": "deb827ec363b17c52b17a3c6fafabec6a4686589aa2eacfba547ce6101e9924c",
+    ".beads/issues.jsonl": "59c0ede976b54581d1adec8dd725b83bd21c67c985d9f725b251608c14d7eae3",
+    "docs/ai/DECISIONS.md": "51bc6b7c029d1e07b38ae15549a3feb9c67d71dacfd3bb8383d853794dfdf492",
+    "docs/ai/contracts/active-lease.json": "6e8afd84e6eb3ec5c427bdd6ea015c228b1e2ff6b094c2707a5da8e1f39bd7d3",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-vra-4-n3-start-1013.json": "0abddcea897d07157d23ef346754221638feb2d98f0a56b3cd795baa539be5c7",
-    "package.json": "075c673a6ccf276bfa78cbcbdf41d16d3fc061c75ca9d408efc2fb56db889f33",
-    "scripts/lib/verifier-classification.ts": "862e184123c7334beeffd27a7024b6becc602ac2ee25e0027ce2c7706297148b",
-    "scripts/verify-visual-agreement.mts": "175dee5bf4b3e59ada85e336e15e8897f9cafcd640e1290008480e66f7f17711",
-    "src/visual/fusion/decideVisualAgreement.ts": "7ee166a53478a6e8fbae0cc2afc58b2882cf4a282b3ee2a005dc01765bead48f",
-    "src/visual/index.ts": "9da18f4973160d3dab97a17ad2105d912a41180bd7381cf8614bb413fcc069dc"
+    "docs/ai/contracts/awkit-vra-4-2-calibration-1013.json": "4ac399b684e3cea6389f46f398483ddc0c8626d35948bc34a2c0095d728de784",
+    "docs/plans/ai-upgrade-v5/N3-visual-locator-recovery.md": "ccd7ec68f90c60fa0e7142bb23e1ea945fccfe8a76de9005e97ce40a25705803",
+    "docs/plans/ai-upgrade-v5/N3.2-agreement-calibration.md": "b8baae86967d0473f9a5354786b0f8f1921a3db4ba43becf0f0fd3a1cf4ab9e9",
+    "docs/plans/ai-upgrade-v5/ROADMAP.md": "b32e6680407aceb98af729fc829916843cefef97fa8cdebd4ead85d5e90f94ec",
+    "mock-site/README.md": "308c7c5b6ea287e7462efcb085fd530dd87c22dc778359c291123439b79ed7a0",
+    "mock-site/public/visual-intelligence-fusion.html": "40b60bed311e7127a6cd29c5493cdc15f97d38a2f724fed092ed75ef5ef6996d",
+    "package.json": "67f33fa417a635528ce2f5c8f95a65eda080e188df58f7f365323955a2e7e50d",
+    "scripts/benchmark-visual-agreement.mts": "d94ab9a9b69e0cd4d0c4378cb21a7bc1e6982b98cfe14eaabcc905c80b44d7f5",
+    "scripts/verify-mock-site.mjs": "963af2261c4b796eecfd4fcbd347aee98e6c51285fa20d2b220b304847e30dca",
+    "scripts/verify-roadmap-dashboard.mjs": "c0f54e777542a6beedec5d7d2af2b1b0520791e59a0462e61172d8120e7ee25d",
+    "src/roadmap/ImplementationRoadmap.ts": "f667c0e361d9aa3c191cce95883701d7701ba9b8b557ee6a97a9188e3f68265f"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -41,7 +57,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-13T17:48:46.556Z",
-  "released_reason": "N3 tracker filed and N3.1 closed, beads exported",
-  "archived_at": "2026-10-13T17:48:46.557Z"
+  "released_at": "2026-10-13T18:25:56.754Z",
+  "released_reason": "N3.4 and N3.5 set blocked pending owner decision, beads exported",
+  "archived_at": "2026-10-13T18:25:56.756Z"
 }

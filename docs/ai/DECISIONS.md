@@ -1,6 +1,25 @@
 # DECISIONS
 
-### 2026-10-13 (latest) — Phase N N3: owner decisions VR-0 to VR-9 approved as recommended; N3.1 implemented (owner, in session) (`awkit-vra.4`)
+### 2026-10-13 (latest) — Phase N N3.2: twins agree in headless, so N3 closes shadow-only and N3.4/N3.5 are deferred (measurement, applying the plan's pre-agreed fallback) (`awkit-vra.4.2`)
+
+- **Rule applied, not a new judgment.** The N3 plan fixed in advance: "If N3.2 shows any false `agreed` … N3 closes
+  shadow-only". N3.2 measured 28 false `agreed` on `twins` (all headless; headed 0), so the rule applies.
+- **Cause (measured).** Headless Chromium renders identical icons with position-dependent bytes: byte-identical twin
+  pairs were 0/72 at headless DPR 1, 36/72 at 1.25 and 12/72 at 2, but 72/72 headed. A8 cannot see a twin it cannot
+  match, so A9 agrees on a page where the picture cannot tell the buttons apart. VR-2 (exact identity only) stays;
+  a similarity threshold is not a fix (N2.3).
+- **What held.** No decision whose DOM best was not the true element agreed (0 of 4644); recall was useful
+  (cross-launch 66/72 baseline, 65/72 drift, every miss headless DPR 1); swap, restyle and theme never agreed on the
+  remembered position.
+- **Consequence.** `awkit-vra.4.4` (enforce) and `awkit-vra.4.5` (provenance) are deferred. In Beads they carry
+  status `blocked` (owner-gated), not `deferred` as N2.6 did, because `.4.5` still `blocks` N3.6 `.4.6` and the
+  dashboard drops a deferred blocker from the queue; removing that edge needs `bd dep remove`, which the command
+  guard does not approve, so the owner must run it. N3.3 (runner shadow) and N3.6 (state and docs) remain. VR-0
+  stays recorded but nothing in N3 uses it.
+- **Reopening** enforce needs new measurements showing false `agreed` = 0 on twins in headless, and a fresh owner
+  decision. Evidence: `docs/plans/ai-upgrade-v5/N3.2-agreement-calibration.md`, `npm run benchmark:visual-agreement`.
+
+### 2026-10-13 — Phase N N3: owner decisions VR-0 to VR-9 approved as recommended; N3.1 implemented (owner, in session) (`awkit-vra.4`)
 
 - **Approval (owner).** "VR-0 to VR-9 approved as recommended, start N3". The recommendations are those in
   `docs/plans/ai-upgrade-v5/N3-visual-locator-recovery.md` › *Owner decisions before implementation*.

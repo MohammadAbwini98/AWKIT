@@ -1,0 +1,194 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-4-2-calibration-1013",
+    "title": "N3.2 visual agreement calibration measured; N3 closes shadow-only",
+    "objective": "Implement N3.2 of docs/plans/ai-upgrade-v5/N3-visual-locator-recovery.md: extend the /visual-intelligence/fusion lab with a drift scenario and a hidden nine-button wide toolbar for 8 competitors, add the informational benchmark:visual-agreement, measure identical recall, false agreed and capture cost at DPR 1, 1.25 and 2, headed and headless, across fresh launches, record the outcome, close awkit-vra.4.2 and apply the pre-agreed fallback: any false agreed closes N3 shadow-only with N3.4 and N3.5 deferred. No runner, schema, settings or UI change.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "9f32bc07",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true,
+    "general_engineering_change": true,
+    "cross_layer_count": 1
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "qa",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "mock-site/public/visual-intelligence-fusion.html",
+      "mock-site/README.md",
+      "scripts/verify-mock-site.mjs",
+      "scripts/benchmark-visual-agreement.mts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/awkit-vra-4-2-calibration-1013.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N3.2",
+      "description": "The fusion lab carries the drift scenario and the wide toolbar, verify:mock-site covers both, benchmark:visual-agreement measures recall, false agreed and cost across DPR 1, 1.25 and 2, headed and headless, with fresh launches, and the outcome is recorded with its numbers rather than assumed.",
+      "evidence_required": [
+        "verify:mock-site",
+        "benchmark:visual-agreement",
+        "build"
+      ]
+    },
+    {
+      "id": "N3.2-OUTCOME",
+      "description": "The pre-agreed fallback is applied as measured: 28 false agreed on headless twins, so N3 closes shadow-only, awkit-vra.4.2 is closed, awkit-vra.4.4 and awkit-vra.4.5 are deferred, and DECISIONS, the N3 plan, ROADMAP and ImplementationRoadmap agree; verify:roadmap-dashboard reports Sources agree.",
+      "evidence_required": [
+        "beads-export",
+        "verify:roadmap-dashboard"
+      ]
+    },
+    {
+      "id": "N3.2-GIT",
+      "description": "The work lands on main and is pushed without force; the L12.27 contract stays untracked and unchanged.",
+      "evidence_required": [
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:mock-site",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:mock-site",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "307/307, including the drift and wide-toolbar checks"
+    },
+    {
+      "id": "benchmark:visual-agreement",
+      "type": "inspection",
+      "required": true,
+      "command": "npm run benchmark:visual-agreement",
+      "artifact": "docs/plans/ai-upgrade-v5/N3.2-agreement-calibration.md",
+      "result": "PASS",
+      "observed": "two complete runs, identical decision counts; recall cross-launch 66/72 baseline and 65/72 drift; 0 of 4644 non-true-best decisions agreed; 28 twins agreed in headless, 0 headed; all structural rows passed. The benchmark ran; the plan acceptance it measures FAILED, which applies the shadow-only fallback"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc --noEmit clean and electron-vite main, preload and renderer bundles built; embedded roadmap snapshot 558 records from 14 sources"
+    },
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "Exported 387 issues. awkit-vra.4.2 closed; awkit-vra.4.4 and awkit-vra.4.5 first set deferred, then blocked (owner-gated) because the deferred .4.5 left .4.6 waiting on an unqueued blocker and bd dep remove is not guard-approved; edges unchanged at 295"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "177/177, Sources agree, repinned to 29 outstanding / 358 closed of 387, 295 edges, 4 declared blocked and 5 externally blocked, tally 65 PASS / 2 NOT RUN / 0 BLOCKED. The first run with deferred status was 175/177 and drove the blocked correction"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "runs after the commit that carries this contract; its outcome is reported in the session report and the next contract"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-4-2-calibration-1013:project-state:2026-10-13T18:23:47.804Z",
+        "task": "awkit-vra-4-2-calibration-1013",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-13T18:23:47.804Z",
+        "acquired_at_commit": "9f32bc07c785a238c86c0d0ab1be34fb8325a17c",
+        "released_at": "2026-10-13T18:24:26.606Z",
+        "released_reason": "N3.2 closed and N3.4 N3.5 deferred, beads exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-vra-4-2-calibration-1013:project-state:2026-10-13T18:25:26.821Z",
+        "task": "awkit-vra-4-2-calibration-1013",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-13T18:25:26.821Z",
+        "acquired_at_commit": "9f32bc07c785a238c86c0d0ab1be34fb8325a17c",
+        "released_at": "2026-10-13T18:25:56.754Z",
+        "released_reason": "N3.4 and N3.5 set blocked pending owner decision, beads exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

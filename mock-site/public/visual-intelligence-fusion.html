@@ -15,10 +15,16 @@
         twins             F3: every button carries the target's icon (true twins)
         theme-dark        F4: page-wide restyle, every button at once
         theme-contrast    F4: page-wide restyle, every button at once
+        drift             N3.2: only the target's DOM identity changes (accessible name "Delete selected item", an id
+                          and data-drift), so DOM scoring drops below its threshold while the pixels stay exactly
+                          the remembered ones; the data-testid stays so a harness can still address it
+      setState({ wide: true }) also shows vf-wide-toolbar (92,470): nine 48x40 buttons vf-wide-tool-0..8 with nine
+      distinct icons (in `twins`, all carry vf-wide-tool-0's icon), the target plus 8 competitors of N3 VR-4.
       F5 (protected surface) uses injectProtected(kind); F6 (offscreen) uses the vf-offscreen-tool copy below the
       fold; F7 uses the ?embed=1 frame copy, the ?popup=1 popup and a different device scale factor; F8 is fusion off.
       Nothing is random or time-dependent and the page carries no credential field. Sized for an 800x600 viewport.
-      Measured by npm run benchmark:visual-fusion; served by npm run verify:mock-site.
+      Measured by npm run benchmark:visual-fusion and npm run benchmark:visual-agreement; served by npm run
+      verify:mock-site.
     -->
     <style>
       html, body { margin: 0; padding: 0; background: #ffffff; }
@@ -39,13 +45,15 @@
       .vf-style-b.vf-selected { color: #475569; border-color: #475569; }
       .vf-style-c.vf-selected { color: #0f766e; border-color: #0f766e; }
       .vf-tool.vf-pressed { filter: brightness(0.72); box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.55); }
+      .vf-wide { position: absolute; left: 92px; top: 470px; width: 584px; height: 56px; background: #f1f5f9; border-radius: 8px; }
+      .vf-wide[hidden] { display: none; }
       .vf-offscreen { position: absolute; left: 100px; top: 3000px; width: 64px; height: 56px; }
       .vf-offscreen .vf-tool { left: 8px; }
       .vf-frame { position: absolute; left: 92px; top: 260px; width: 280px; height: 72px; border: 0; }
       .vf-open-popup { position: absolute; left: 420px; top: 120px; height: 36px; padding: 0 14px; font: 14px Arial, Helvetica, sans-serif; border: 1px solid #334155; border-radius: 4px; background: #e2e8f0; color: #0f172a; cursor: pointer; }
       body.vf-embed { width: auto; height: auto; }
       body.vf-embed .vf-toolbar { left: 8px; top: 8px; }
-      body.vf-embed h1, body.vf-embed .vf-frame, body.vf-embed .vf-open-popup, body.vf-embed .vf-offscreen { display: none; }
+      body.vf-embed h1, body.vf-embed .vf-frame, body.vf-embed .vf-open-popup, body.vf-embed .vf-offscreen, body.vf-embed .vf-wide { display: none; }
     </style>
   </head>
   <body>
@@ -55,16 +63,24 @@
     <iframe class="vf-frame" data-testid="vf-frame" title="Toolbar frame copy"></iframe>
     <!-- F6: a copy of the target far below the fold. A capture must refuse it, never scroll to it. -->
     <div class="vf-offscreen" data-testid="vf-offscreen"></div>
+    <!-- N3.2: a nine-button toolbar for the 8-competitor capture cost, hidden unless setState({ wide: true }). -->
+    <div class="vf-wide" data-testid="vf-wide-toolbar" role="toolbar" aria-label="More item actions" hidden></div>
 
     <script>
       const ICONS = {
         trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/>',
         archive: '<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v11h14V9M10 13h4"/>',
         flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
-        pin: '<path d="M12 21s-6-6.5-6-11a6 6 0 0 1 12 0c0 4.5-6 11-6 11z"/><circle cx="12" cy="10" r="2"/>'
+        pin: '<path d="M12 21s-6-6.5-6-11a6 6 0 0 1 12 0c0 4.5-6 11-6 11z"/><circle cx="12" cy="10" r="2"/>',
+        star: '<path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/>',
+        bell: '<path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/>',
+        home: '<path d="M3 11l9-7 9 7M5 10v10h14V10"/>',
+        plus: '<path d="M12 5v14M5 12h14"/>',
+        check: '<path d="M5 12l5 5 9-10"/>'
       };
       const ORDER = ["trash", "archive", "flag", "pin"];
-      const SCENARIOS = ["baseline", "restyle-selected", "restyle-pressed", "swap", "twins", "theme-dark", "theme-contrast"];
+      const WIDE_ORDER = ["trash", "archive", "flag", "pin", "star", "bell", "home", "plus", "check"];
+      const SCENARIOS = ["baseline", "restyle-selected", "restyle-pressed", "swap", "twins", "theme-dark", "theme-contrast", "drift"];
       const STYLES = ["a", "b", "c"];
       const params = new URLSearchParams(location.search);
       const embedded = params.has("embed");
@@ -75,10 +91,16 @@
           '" data-icon="' + icon + '" aria-label="Item action"><svg viewBox="0 0 24 24" aria-hidden="true">' + ICONS[icon] + "</svg></button>";
       }
 
-      let current = { scenario: "baseline", target: 0, style: "a" };
+      let current = { scenario: "baseline", target: 0, style: "a", wide: false };
+
+      // N3.2 drift: the DOM identity changes and the pixels do not. The new name is an aria-label, which the browser
+      // never paints (the icon is aria-hidden), and the id / data-drift attributes carry no style.
+      function drift(markup) {
+        return markup.replace('aria-label="Item action"', 'id="vf-drifted" data-drift="renamed" aria-label="Delete selected item"');
+      }
 
       function render() {
-        const { scenario, target, style } = current;
+        const { scenario, target, style, wide } = current;
         const icons = ORDER.slice();
         if (scenario === "swap") {
           const neighbour = (target + 1) % icons.length;
@@ -91,10 +113,16 @@
         toolbar.innerHTML = icons
           .map((icon, i) => {
             const extra = i !== target ? "" : scenario === "restyle-selected" ? "vf-selected" : scenario === "restyle-pressed" ? "vf-pressed" : "";
-            return button("vf-tool-" + i, icon, style, extra).replace("<button ", '<button style="left: ' + (8 + i * 64) + 'px" ');
+            const markup = button("vf-tool-" + i, icon, style, extra).replace("<button ", '<button style="left: ' + (8 + i * 64) + 'px" ');
+            return scenario === "drift" && i === target ? drift(markup) : markup;
           })
           .join("");
         if (!embedded) document.querySelector("[data-testid='vf-offscreen']").innerHTML = button("vf-offscreen-tool", ORDER[target], style, "");
+        const wideBar = document.querySelector("[data-testid='vf-wide-toolbar']");
+        wideBar.hidden = !wide || embedded;
+        wideBar.innerHTML = WIDE_ORDER
+          .map((icon, i) => button("vf-wide-tool-" + i, scenario === "twins" ? WIDE_ORDER[0] : icon, style, "").replace("<button ", '<button style="left: ' + (8 + i * 64) + 'px" '))
+          .join("");
       }
 
       window.__fusionLab = {
@@ -107,6 +135,7 @@
           if (!SCENARIOS.includes(candidate.scenario)) throw new Error("unknown scenario");
           if (!STYLES.includes(candidate.style)) throw new Error("unknown style");
           if (!Number.isInteger(candidate.target) || candidate.target < 0 || candidate.target >= ORDER.length) throw new Error("unknown target");
+          if (typeof candidate.wide !== "boolean") throw new Error("wide must be a boolean");
           current = candidate;
           render();
           const frame = document.querySelector("[data-testid='vf-frame']");
@@ -116,7 +145,9 @@
         describe() {
           return {
             ...current,
-            icons: [...document.querySelectorAll("[data-testid='vf-toolbar'] .vf-tool")].map((node) => node.dataset.icon)
+            icons: [...document.querySelectorAll("[data-testid='vf-toolbar'] .vf-tool")].map((node) => node.dataset.icon),
+            names: [...document.querySelectorAll("[data-testid='vf-toolbar'] .vf-tool")].map((node) => node.getAttribute("aria-label")),
+            wideIcons: [...document.querySelectorAll("[data-testid='vf-wide-toolbar'] .vf-tool")].map((node) => node.dataset.icon)
           };
         },
         // A protected surface of each kind visual capture must refuse, added on demand so the page itself stays
