@@ -5,16 +5,21 @@ Shared rules and the Phase N boundary: `ROADMAP.md` › *Phase N — Visual Reco
 (`awkit-vra.4`, closed 2026-10-13, shadow-only). The tracker home for N4 is the new bead **`awkit-vra.13`**, with
 children `awkit-vra.13.1`-`.13.7`. The legacy 2026-09-22 workstreams `awkit-vra.2`-`.8` are not reused.
 
-**Status (2026-10-13): PLANNING ONLY. No implementation is authorized.** Contract `awkit-vra-n4-plan-1013` filed
-this plan and the beads. The owner decisions RV-0 to RV-8 below are **proposed, not ratified**. RV-1 (isolation) and
-RV-2 (trigger) decide the first implementation slice, N4.2, so no N4 code may land until the owner records them.
-Implementation starts only when **all** of the following hold:
+**Status (2026-10-14): IN PROGRESS. N4.1 and N4.2 done.** The owner approved RV-0 to RV-8 as recommended ("I approve
+RV-0 to RV-8 as recommended, start N4"). That approval is recorded in `docs/ai/DECISIONS.md` (2026-10-14), and RV-1
+amends the 2026-10-12 isolation decision and FD-2 there. Contract `awkit-vra-13-n4-start-1013`.
 
-- the owner records RV-0 to RV-8 in `docs/ai/DECISIONS.md` (as recommended or otherwise), which closes N4.1
-  (`awkit-vra.13.1`);
-- the owner amends the 2026-10-12 isolation decision and FD-2, as RV-1 describes, if a Recorder edge into
-  `src/visual` is approved;
-- the owner authorizes N4 implementation.
+- **N4.1 `awkit-vra.13.1`: closed.**
+- **N4.2 `awkit-vra.13.2`: closed.** Delivered:
+  - `src/recorder/visual/RecorderVisualCapture.ts`, the only Recorder edge into `src/visual`, loaded lazily;
+  - `src/recorder/visual/recorderVisualCaptureCodes.ts`, the pure contract;
+  - `RecorderService.captureVisualReference` and `visualReferenceStatus`, with the in-memory pending map.
+
+  Gates:
+  - `verify:recorder-visual-capture` 78/0, with mutations M1, M2b, M3, M4 and M5 red and M2 a recorded survivor;
+  - `verify:visual-isolation` 51/0, pinning two edges with the third-edge mutation red.
+- **Next:** N4.3 persistence and N4.5 calibration. There is still no IPC, preload, UI, persistence or runner reading
+  of a recorded reference.
 
 ## Objective
 
@@ -273,6 +278,17 @@ unaffected, and N4.2 confirms that by running it once if the adapter changes any
 
 Final codes are fixed in N4.2. The rule is a fixed code and fixed text, never raw error text.
 
+**As built (N4.2).** `src/recorder/visual/recorderVisualCaptureCodes.ts` fixes 17 codes:
+`disabled`, `not-recording`, `handoff-active`, `action-not-found`, `not-eligible`, `sensitive`, `protected-surface`,
+`no-live-page`, `not-unique`, `not-found`, `offscreen`, `frame-mapping-failed`, `page-closed`, `timeout`, `stale`,
+`capture-unavailable` and `capture-failed`.
+
+- `action-not-found` (the step was deleted) and `page-closed` (the page closed during the capture) were added to the
+  table above.
+- A masked-field target (password, one-time code, PIN, card number and similar) is refused as `sensitive`.
+- An unfinished or failed protected-login scan refuses as `timeout` or `protected-surface`, never as clear.
+- An unknown N0 code maps to `capture-failed`, never to a success.
+
 ## Performance budgets
 
 - **Manual capture:** bounded by a per-capture deadline set from N4.5 measurement (VC-D8). The provisional ceiling is
@@ -297,7 +313,7 @@ Final codes are fixed in N4.2. The rule is a fixed code and fixed text, never ra
 - The GUI verifier asserts focus by containment and drives it with real `Tab`. The capture outcome is asserted from
   the live region, never from a fallback element's text.
 
-## Owner decisions before implementation (proposed, not ratified)
+## Owner decisions before implementation (approved as recommended, 2026-10-14)
 
 Each decision is needed because N4 would otherwise silently change a recorded invariant. The narrowest option is
 recommended. Ordinary engineering details, such as code names, key encoding, file names and verifier names, are

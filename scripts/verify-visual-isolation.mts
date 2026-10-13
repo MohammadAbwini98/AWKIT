@@ -7,9 +7,11 @@
  *   1. Reachability: walking the full import closure (at any depth, following the @src/, @main/ and @renderer/
  *      aliases) from the execution tree — runner, recorder, orchestrator, instances, session — from EVERY module of
  *      the Electron main process (main.ts, preload, every IPC handler, every service), and from the renderer never
- *      reaches `src/visual` — except through ONE allow-listed edge (N2.5, FD-2): the shadow adapter
- *      `src/runner/visualFusion/VisualFusionStage.ts` importing the public index. A second importer, or the adapter
- *      importing anything deeper, is still an offender. Cardinality floors prove the walk saw the tree.
+ *      reaches `src/visual` — except through exactly TWO allow-listed edges, each importing the public index: the
+ *      runner's shadow adapter `src/runner/visualFusion/VisualFusionStage.ts` (N2.5, FD-2) and the Recorder's capture
+ *      adapter `src/recorder/visual/RecorderVisualCapture.ts` (N4.2, RV-1, which amends FD-2). A third importer, either
+ *      adapter importing anything deeper, or the Recorder's pure code contract importing `src/visual` is still an
+ *      offender. Cardinality floors prove the walk saw the tree.
  *   2. Mutation controls: a synthetic import of `src/visual` injected into a seed module, into a module reached only
  *      transitively, into main.ts, into an IPC handler and behind an aliased import must all be detected.
  *   3. The module itself: no network, filesystem, process or console API; only `node:crypto` and `node:zlib`
@@ -19,7 +21,8 @@
  *      import `src/visual/internal`; the public `captureViewport` / `captureElement` / `captureVisualFrame` /
  *      `captureCandidates` take no seam parameter and nothing seam-shaped is re-exported. Planted importers (aliased,
  *      relative, index re-export) and planted surface leaks must each be caught.
- *   5. The adapter (N2.5) gets the same pure-code scan as `src/visual`: no click, fill, input device or navigation.
+ *   5. Both adapters (N2.5, N4.2) get the same pure-code scan as `src/visual`: no click, fill, input device, navigation,
+ *      scrolling, file write or console; the Recorder's code contract imports nothing at all.
  *
  * Run: npm run verify:visual-isolation
  */
@@ -118,11 +121,18 @@ interface Walk {
 }
 
 /**
- * N2.5 (FD-2): the one shadow adapter may import `src/visual`, and only its public index. Any other importer, or any
- * deeper `src/visual/...` import from the adapter itself, is still an offender.
+ * N2.5 (FD-2): the runner's shadow adapter may import `src/visual`, and only its public index. N4.2 (RV-1, amending
+ * FD-2): so may the Recorder's capture adapter. Any other importer, or any deeper `src/visual/...` import from either
+ * adapter, is still an offender.
  */
 const ADAPTER = "src/runner/visualFusion/VisualFusionStage.ts";
 const ADAPTER_EDGE = `${ADAPTER} -> src/visual`;
+const RECORDER_ADAPTER = "src/recorder/visual/RecorderVisualCapture.ts";
+const RECORDER_EDGE = `${RECORDER_ADAPTER} -> src/visual`;
+/** The Recorder's IPC-shareable code contract: it imports nothing, so a renderer can use it without reaching src/visual. */
+const RECORDER_CODES = "src/recorder/visual/recorderVisualCaptureCodes.ts";
+const APPROVED_EDGES = [ADAPTER_EDGE, RECORDER_EDGE].sort();
+const sameEdges = (edges: readonly string[]): boolean => JSON.stringify([...edges].sort()) === JSON.stringify(APPROVED_EDGES);
 
 /**
  * Breadth-first over the import closure of `seeds`. `inject` adds synthetic import targets to named modules, so the
@@ -181,7 +191,7 @@ console.log("\nThe execution tree and the main process cannot reach src/visual:\
 const executionSeeds = [
   ...new Set([...(await Promise.all(EXECUTION_TREES.map((tree) => sourceFiles(join(REPO, tree))))).flat().map(toRepo), ...EXECUTION_FILES])
 ];
-const ALLOW = new Set([ADAPTER_EDGE]);
+const ALLOW = new Set(APPROVED_EDGES);
 const execution = await walk(executionSeeds, new Map(), ALLOW);
 check("every named entry file exists", (await Promise.all(EXECUTION_FILES.map(resolveModule))).every((f) => f !== null));
 const mainFiles = (await sourceFiles(join(REPO, "app/main"))).map(toRepo);
@@ -199,31 +209,35 @@ check(
   `${execution.seen.size} modules from ${execution.files} files`
 );
 check(
-  "no module the execution tree can reach, at any depth, imports src/visual except the shadow adapter",
+  "no module the execution tree can reach, at any depth, imports src/visual except the two approved adapters",
   execution.offenders.length === 0,
   execution.offenders.join("; ")
 );
 check(
-  "the shadow adapter is a seed and its one public-index import is the only allowed edge (N2.5)",
-  executionSeeds.includes(ADAPTER) && JSON.stringify(execution.allowed) === JSON.stringify([ADAPTER_EDGE]),
+  "both adapters are seeds and their public-index imports are exactly the two allowed edges (N2.5, N4.2 RV-1)",
+  executionSeeds.includes(ADAPTER) && executionSeeds.includes(RECORDER_ADAPTER) && execution.allowed.length === 2 && sameEdges(execution.allowed),
   execution.allowed.join("; ") || "no allowed edge met"
 );
-check(
-  "without the allow-list the same walk flags exactly that edge (the adapter's import is real, not missed)",
-  JSON.stringify((await walk(executionSeeds)).offenders.map((o) => o.split(" -> ").slice(-2).join(" -> "))) === JSON.stringify([ADAPTER_EDGE])
-);
+{
+  const unallowed = (await walk(executionSeeds)).offenders.map((o) => o.split(" -> ").slice(-2).join(" -> "));
+  check(
+    "without the allow-list the same walk flags exactly those two edges (both imports are real, not missed)",
+    unallowed.length === 2 && sameEdges(unallowed),
+    unallowed.join("; ") || "nothing flagged"
+  );
+}
 
 console.log("\nThe renderer cannot reach src/visual:\n");
 const rendererSeeds = (await sourceFiles(join(REPO, "app/renderer"))).map(toRepo);
-// The renderer's closure reaches the main process through the preload typings, so it meets the adapter's edge too; the
-// allow-list is the same single edge, and anything else is an offender.
+// The renderer's closure reaches the main process through the preload typings, so it may meet an adapter's edge too;
+// the allow-list is the same two edges, and anything else is an offender.
 const renderer = await walk(rendererSeeds, new Map(), ALLOW);
 check("the renderer was actually scanned", renderer.files >= 50, String(renderer.files));
-check("no module the renderer can reach imports src/visual except through the shadow adapter's edge", renderer.offenders.length === 0, renderer.offenders.join("; "));
+check("no module the renderer can reach imports src/visual except through an approved adapter's edge", renderer.offenders.length === 0, renderer.offenders.join("; "));
 check(
-  "the only src/visual edge the renderer's closure meets is the adapter's",
-  renderer.allowed.every((edge) => edge === ADAPTER_EDGE),
-  renderer.allowed.join("; ")
+  "the src/visual edges the renderer's closure meets are approved ones, and it meets at least one (the walk crossed the preload)",
+  renderer.allowed.length >= 1 && renderer.allowed.every((edge) => ALLOW.has(edge)),
+  renderer.allowed.join("; ") || "no allowed edge met"
 );
 
 console.log("\nMutation controls (each injected import must be caught):\n");
@@ -254,14 +268,23 @@ console.log("\nMutation controls (each injected import must be caught):\n");
     );
   }
 
-  // N2.5: the allow-list is one exact edge, not a module or a directory.
+  // N2.5 and N4.2 (RV-1): the allow-list is two exact edges, not a module or a directory.
   for (const [importer, specifier, label] of [
     ["src/runner/LocatorFactory.ts", "src/visual", "a second runner importer of the same public index"],
     [ADAPTER, "src/visual/fingerprint", "the adapter importing a src/visual internal"],
-    [ADAPTER, "src/visual/internal/captureCore", "the adapter importing the capture seam entry"]
+    [ADAPTER, "src/visual/internal/captureCore", "the adapter importing the capture seam entry"],
+    ["src/recorder/RecorderService.ts", "src/visual", "a third edge: the Recorder service importing the public index directly"],
+    [RECORDER_ADAPTER, "src/visual/fingerprint", "the Recorder adapter importing a src/visual internal"],
+    [RECORDER_ADAPTER, "src/visual/internal/captureCore", "the Recorder adapter importing the capture seam entry"],
+    [RECORDER_CODES, "src/visual", "the Recorder's pure code contract importing src/visual"]
   ] as const) {
+    const reached = execution.seen.has(importer);
     const mutated = await walk(executionSeeds, new Map([[importer, [specifier]]]), ALLOW);
-    check(`MUTATION: ${label} is caught`, mutated.offenders.some((o) => o.endsWith(`${importer} -> ${specifier}`)), mutated.offenders.join("; ") || "not caught");
+    check(
+      `MUTATION: ${label} is caught`,
+      reached && mutated.offenders.some((o) => o.endsWith(`${importer} -> ${specifier}`)),
+      reached ? mutated.offenders.join("; ") || "not caught" : `${importer} not reached by the walk`
+    );
   }
 
   // Aliased imports must resolve like relative ones: @src/, @main/ and @renderer/ specifiers are followed, not dropped.
@@ -341,6 +364,41 @@ console.log("\nThe shadow adapter observes and never acts (N2.5):\n");
     const planted = `${adapterText}\n${code}\n`;
     check(`MUTATION: ${label} planted in the adapter is caught`, violations(planted).length > 0, "not caught");
   }
+}
+
+console.log("\nThe Recorder adapter captures and never acts (N4.2, RV-1):\n");
+{
+  // The Recorder adapter captures one already-proven element; it never scrolls, focuses, clicks, types, writes or logs.
+  const recorderText = await readFile(join(REPO, RECORDER_ADAPTER), "utf8");
+  check(
+    "the Recorder adapter was actually read",
+    recorderText.includes("export async function captureRecorderVisualEvidence") && recorderText.includes('from "@src/visual"')
+  );
+  const problems = violations(recorderText);
+  check("no network, filesystem, process, console, interaction or navigation API in the Recorder adapter", problems.length === 0, problems.join("; "));
+  for (const [label, code] of [
+    ["a click", "await request.target.click();"],
+    ["mouse input", "await request.page.mouse.move(1, 2);"],
+    ["a scroll", "await request.target.scrollIntoViewIfNeeded();"]
+  ] as const) {
+    const planted = `${recorderText}\n${code}\n`;
+    check(`MUTATION: ${label} planted in the Recorder adapter is caught`, violations(planted).length > 0, "not caught");
+  }
+
+  // The code contract is what N4.4's IPC, preload and renderer share, so it must import nothing at all.
+  const codesText = await readFile(join(REPO, RECORDER_CODES), "utf8");
+  const codesImports = [...codesText.matchAll(/^\s*(?:import|export)\b[^;]*?\bfrom\s*["']([^"']+)["']/gm)].map((m) => m[1]);
+  check(
+    "the Recorder code contract was read and imports nothing (no src/visual, no Playwright)",
+    codesText.includes("export function recorderVisualCodeFor") && codesImports.length === 0 && violations(codesText).length === 0,
+    codesImports.join(", ") || violations(codesText).join("; ")
+  );
+  const plantedImport = `import type { Page } from "playwright";\n${codesText}`;
+  check(
+    "MUTATION: an import planted in the Recorder code contract is caught",
+    [...plantedImport.matchAll(/^\s*(?:import|export)\b[^;]*?\bfrom\s*["']([^"']+)["']/gm)].length === 1,
+    "not caught"
+  );
 }
 
 console.log("\nThe capture verification seams are verifier-only (N2.1):\n");

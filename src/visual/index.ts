@@ -1,7 +1,9 @@
 /**
  * Visual Intelligence (Phase N) public surface. A library with no execution influence: nothing in the Runner,
- * Recorder, orchestrator or preload may import it except the one shadow adapter
- * `src/runner/visualFusion/VisualFusionStage.ts`, through this index only (N2.5, FD-2, `verify:visual-isolation`).
+ * Recorder, orchestrator or preload may import it except two approved adapters, through this index only
+ * (`verify:visual-isolation` pins exactly those two edges): the runner's shadow adapter
+ * `src/runner/visualFusion/VisualFusionStage.ts` (N2.5, FD-2) and the Recorder's capture adapter
+ * `src/recorder/visual/RecorderVisualCapture.ts` (N4.2, RV-1, the 2026-10-13 amendment to FD-2).
  * Visual similarity must never drive a click, fill or selector replacement. Under the 2026-10-13 amendment (VR-0) the
  * only execution-affecting result is `decideVisualAgreement`'s `agreed`, which lets the DOM's own best candidate proceed.
  */

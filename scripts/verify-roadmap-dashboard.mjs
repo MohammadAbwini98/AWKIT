@@ -729,8 +729,10 @@ try {
   // owner removed the legacy `awkit-vra.3` -> `awkit-vra.4` edge and closed the N3 epic `awkit-vra.4`.
   // Then 34/361 of 395 on 2026-10-13 (contract `awkit-vra-n4-plan-1013`): N4 `awkit-vra.13` and its seven
   // children `.13.1`…`.13.7` filed open, planning only (eight in, none closed).
-    "34 outstanding / 361 closed",
-    beads.stats.outstanding === 34 && beads.stats.closed === 361,
+  // Then 32/363 of 395 on 2026-10-14 (contract `awkit-vra-13-n4-start-1013`): the owner approved RV-0 to RV-8, so
+  // N4.1 `awkit-vra.13.1` closed, and N4.2 `awkit-vra.13.2` closed on its gates; the epic `.13` is in progress.
+    "32 outstanding / 363 closed",
+    beads.stats.outstanding === 32 && beads.stats.closed === 363,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

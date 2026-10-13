@@ -1,6 +1,29 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-13, latest) — Phase N: canonical N4 registered, waiting on owner decisions RV-0 to RV-8
+## HANDOFF (2026-10-14, latest) — Phase N: N4 started; N4.1 and N4.2 done, N4.3 and N4.5 next
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:**
+  - RV-0 to RV-8 approved as recommended (DECISIONS 2026-10-14, with the RV-1 amendment to the isolation decision and
+    FD-2).
+  - N4.2: the Recorder adapter `src/recorder/visual/RecorderVisualCapture.ts`, the pure codes file and
+    `RecorderService.captureVisualReference`/`visualReferenceStatus`, which hold references in memory only.
+  - Verifiers: `verify:recorder-visual-capture` 78/0 and the two-edge `verify:visual-isolation` 51/0.
+  - Contract `awkit-vra-13-n4-start-1013`. Dashboard 32 / 363 of 395, 311 edges.
+- **Next:**
+  - N4.3 `awkit-vra.13.3` (`visualReferencesOut` at save into the existing `visual-references/` store, the recorded
+    namespace key, a failed write never failing the save);
+  - N4.5 `awkit-vra.13.5` (calibration).
+  - N4.4 (IPC/UI) follows N4.3.
+- **Watch:** M2 (drop `count !== 1`) survives by design, because `LocatorFactory.resolve` refuses a non-unique locator
+  first. Do not "fix" the verifier into asserting it.
+- **Boundaries:** N3 stays shadow-only and N3.4/N3.5 stay `blocked`. A recorded reference may only ever feed the N2
+  shadow observation (N4.6, after N4.5).
+- **v0.1.53 carry-over unchanged:** Parts D–J are BLOCKED (no issuer key), and the clean-VM walkthrough is NOT RUN.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-13) — Phase N: canonical N4 registered, waiting on owner decisions RV-0 to RV-8
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

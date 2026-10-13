@@ -890,6 +890,30 @@ Invariants:
   `budget-exhausted` without a capture (J9); competitors are capped at 8.
 - `verify:visual-isolation` still allows exactly one runner edge into `src/visual`.
 
+### Recorder visual capture (Phase N N4.2; reference seeding only)
+
+```text
+src/recorder/visual/recorderVisualCaptureCodes.ts   Pure contract (no imports): 17 codes, fixed text, the 7 eligible
+                                                    step types, the 1500 ms bounds, AWKIT_VISUAL_RECORDER=manual.
+src/recorder/visual/RecorderVisualCapture.ts        The ONLY Recorder module that imports src/visual (RV-1; the
+                                                    second and last allow-listed edge, -> src/visual/index).
+Wiring:
+  RecorderService.captureVisualReference(actionId) -> lazy import() seam (own chunk, not main.js)
+    -> re-prove the step's own locator (LocatorFactory.resolve, count 1, visible) -> masked-field refusal
+    -> protected-login detector (fail closed) -> captureCandidates (one candidate) + buildCandidateEvidence,
+       as the runner's N2 reference refresh does -> detector again
+    -> session/step/page rechecks -> visualPending (memory only, bound to stepCandidatesDigest)
+```
+
+Invariants:
+
+- Reference seeding only (RV-0): the step, its locator, the draft and recording are never changed. The pending
+  reference is not in the draft, the FlowProfile, an export or IPC. N4.3 persists it at save, N4.4 adds the channel.
+- Never scrolls, focuses or clicks (RV-7). Sensitive steps, masked fields and protected surfaces refuse. A detector
+  scan that does not finish is never "clear".
+- `verify:visual-isolation` allows exactly two edges into `src/visual`: the runner's `VisualFusionStage` and this
+  adapter.
+
 ## Semantic index (separate process boundary)
 
 ```text

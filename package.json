@@ -332,6 +332,7 @@
     "verify:visual-fusion": "tsx scripts/verify-visual-fusion.mts",
     "verify:visual-fusion-runtime": "tsx scripts/verify-visual-fusion-runtime.mts",
     "verify:visual-isolation": "tsx scripts/verify-visual-isolation.mts",
+    "verify:recorder-visual-capture": "tsx scripts/verify-recorder-visual-capture.mts",
     "benchmark:visual-capture": "tsx scripts/benchmark-visual-capture.mts",
     "benchmark:visual-fusion": "tsx scripts/benchmark-visual-fusion.mts",
     "benchmark:visual-fusion-zoom": "tsx scripts/benchmark-visual-fusion.mts --zoom-only",

@@ -18,7 +18,8 @@ import {
 /**
  * Visual capture (Phase N, N0). A library: it captures what the caller points it at and returns pixels in memory.
  * It never scrolls, clicks, focuses, waits for or otherwise drives the page, never writes a capture to disk, and
- * nothing in the Runner, Recorder or preload imports it (`verify:visual-isolation`).
+ * nothing in the Runner, Recorder or preload imports it except the two approved adapters, through the public index
+ * (N2.5 FD-2, N4.2 RV-1, `verify:visual-isolation`).
  *
  * The implementation lives in `internal/captureCore.ts` together with its verification seams. This public surface
  * takes no seam (N2.1), so no product caller can replace the protected-surface guard; `verify:visual-isolation`

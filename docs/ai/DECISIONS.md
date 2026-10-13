@@ -1,6 +1,38 @@
 # DECISIONS
 
-### 2026-10-13 (latest) — Phase N N3: QC findings closed; one attempt budget; the legacy edge is the owner's (`awkit-vra.4`)
+### 2026-10-14 (latest) — Phase N N4: owner decisions RV-0 to RV-8 approved as recommended; N4.2 implemented (owner, in session) (`awkit-vra.13`)
+
+- **Approval.** The owner wrote "I approve RV-0 to RV-8 as recommended, start N4". That records N4.1
+  (`awkit-vra.13.1`) and authorizes N4 implementation. Plan: `docs/plans/ai-upgrade-v5/N4-recorder-visual-intelligence.md`.
+- **RV-0 Authority.** Recorder visual data seeds a reference and a status only. It never changes recording, a locator,
+  ranking, the uniqueness proof or execution, and it cannot lift N3's blocked enforcement.
+- **RV-1 Isolation (amends the 2026-10-12 Phase N start decision and FD-2).** Exactly one new edge into `src/visual`:
+  `src/recorder/visual/RecorderVisualCapture.ts -> src/visual/index`. `verify:visual-isolation` now pins exactly two
+  edges (the runner's `VisualFusionStage` and this adapter), and a third-edge mutation is red. Renderer, preload,
+  `app/main` and every other Recorder module still cannot reach `src/visual`.
+- **RV-2 Trigger.** Manual only, on the live page, with the step's own locator re-proven first. Eligible steps: click,
+  dblclick, contextMenu, clickAndHold, check, uncheck and radio. Fill and select are excluded.
+- **RV-3 Storage.** The existing `VisualReferenceStore` in `visual-references/`, unchanged. A reference is never stored
+  in the FlowProfile, the draft, an export or IPC (persistence is N4.3).
+- **RV-4 Runner.** Recorded references may feed only the shadow observation, and only after N4.5 calibration (N4.6).
+- **RV-5 Permission.** `PAGE_RECORDER`, with no re-authentication (the channel is N4.4).
+- **RV-6 Flag.** `AWKIT_VISUAL_RECORDER=manual`; off by default.
+- **RV-7 Viewport.** Never scroll; an offscreen element is refused.
+- **RV-8 Disclosure.** Only codes and fixed text cross IPC; no pixels, digest, locator or URL.
+- **N4.2 implementation choices (within RV-0 to RV-8).** `RecorderService` loads the adapter through a lazy `import()`
+  seam, so `src/visual` builds as its own chunk and stays out of `main.js` unless a capture runs. The capture contract is
+  the pure `recorderVisualCaptureCodes.ts` (no imports, so N4.4 can share it). It defines 17 fixed codes, adding
+  `action-not-found` and `page-closed` to the plan's list. The protected-login detector runs before and after the
+  screenshot with a 1500 ms bound and fails closed: an unfinished or failed scan is never "clear". A masked-field
+  target (password, one-time code, PIN, card number and similar) is refused as `sensitive`. The pending reference is
+  held in memory, bound to `stepCandidatesDigest`. It turns `stale` when the step's locator changes. It is dropped on
+  `deleteAction`, `applyInspection`, `clearActions`, `startRecording`, `discardDraft` and cancel, and kept across
+  `stopRecording` for the N4.3 save.
+- **Mutation honesty.** Dropping the `count !== 1` re-check SURVIVES, because `LocatorFactory.resolve` refuses a
+  non-unique locator first, so that branch is defence in depth. The realistic uniqueness mutation (a first-match
+  fallback) is red.
+
+### 2026-10-13 — Phase N N3: QC findings closed; one attempt budget; the legacy edge is the owner's (`awkit-vra.4`)
 
 - **One budget per attempt (Q4-a).** The N2 recovery observation and the N3 agreement share the single 400 ms FD-5
   budget of a recovery attempt (J9), instead of 400 ms each. The agreement receives what the observation left; with
@@ -163,7 +195,8 @@ index or coordinate.
 - **FD-1 Modes.** `off` (the default), `shadow` and `enforce-veto`. Shadow ships first, and enforce follows only after
   N2.6 is accepted.
 - **FD-2 Isolation boundary.** `verify:visual-isolation` is relaxed for exactly one allow-listed runner adapter, the
-  N2.5 `VisualFusionStage`, with the plan's mutation controls.
+  N2.5 `VisualFusionStage`, with the plan's mutation controls. *(Amended 2026-10-14 by RV-1: a second allow-listed
+  edge, the N4 Recorder adapter `src/recorder/visual/RecorderVisualCapture.ts`, and no third. See the N4 entry above.)*
 - **FD-3 Strengthening.** It is reporting-only (R4/R6). Execution-affecting strengthening is deferred to N3 under the
   L12 `agreed` template.
 - **FD-4 Reference store.** References live in a runner-owned sidecar store, not in a `LocatorRecoveryRecord` field.
@@ -197,7 +230,9 @@ implemented and closed. No existing Beads ID was renumbered.
 - **Where it lives.** The code goes in `src/visual/`, not under `src/runner/`. `verify:visual-isolation` proves that the
   import closures of the Runner, Recorder, locator factory and preload never reach it. Visual similarity must never
   cause a click, a fill, a selector replacement or a locator recovery. *(Amended 2026-10-13 by VR-0: pixel identity may
-  let the DOM's own best candidate proceed under N3's agreement rule. See the N3 entry above.)*
+  let the DOM's own best candidate proceed under N3's agreement rule. See the N3 entry above.)* *(Amended 2026-10-14
+  by RV-1: the Recorder may reach it through exactly one adapter, `src/recorder/visual/RecorderVisualCapture.ts`, to
+  seed a reference only. See the N4 entry above.)*
 - **`visualEvidence`** is a versioned type with a fail-closed parser inside the module. No FlowProfile, run record or
   other persisted shape changes now.
 - **N1 decisions settled for the library (`N1-visual-capture-infrastructure.md`):**

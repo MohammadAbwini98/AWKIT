@@ -1,6 +1,58 @@
 # TASK_LOG
 
-## 2026-10-13 (latest) — Phase N: canonical N4 Recorder Visual Intelligence planned and registered (Claude)
+## 2026-10-14 (latest) — Phase N: N4 started, RV-0 to RV-8 approved, N4.2 Recorder visual capture implemented (Claude)
+
+- **Scope:** "I approve RV-0 to RV-8 as recommended, start N4". N4.1 (record the decisions, including the RV-1
+  isolation amendment) and N4.2 (adapter, service method, pending map, codes, isolation). Contract
+  `awkit-vra-13-n4-start-1013`. CodeCraft was not used (`CODECRAFT_MODE=off`).
+- **Decisions:** DECISIONS 2026-10-14 records RV-0 to RV-8 and the N4.2 choices. The 2026-10-12 Phase N start entry and
+  FD-2 carry the RV-1 amendment notes (exactly two `src/visual` edges).
+- **Implementation:**
+  - `src/recorder/visual/RecorderVisualCapture.ts`: the only Recorder edge into `src/visual`. It is loaded through a lazy
+    `import()` seam and builds as its own chunk.
+  - `src/recorder/visual/recorderVisualCaptureCodes.ts`: the pure contract with 17 codes.
+  - `RecorderService.captureVisualReference` / `visualReferenceStatus`:
+    - re-proves the step's own locator and refuses masked fields;
+    - runs the protected-login detector before and after the capture, failing closed;
+    - rechecks the session, the step and the page after the capture;
+    - holds the reference in memory, bound to `stepCandidatesDigest`, and drops it on delete, inspection apply, clear,
+      start, discard and cancel.
+  - `src/visual/{index,capture}.ts` docblocks name the two adapters.
+- **Verifiers:**
+  - New `verify:recorder-visual-capture` (real-browser, registered), 78/0. Mutations M1, M2b, M3, M4 and M5 were red.
+    M2 (drop `count !== 1`) survived, because `LocatorFactory.resolve` refuses first, and is recorded as such.
+  - `verify:visual-isolation` 51/0 pins two edges, and the third-edge mutation is red.
+- **Governance:**
+  - `awkit-vra.13.1` and `.13.2` closed and `.13` set to in progress. Export taken (395).
+  - Dashboard repinned to the measured 32 / 363 of 395, 311 edges.
+  - ROADMAP, ImplementationRoadmap, ARCHITECTURE and the N4 plan updated.
+- **Files:**
+  - `src/recorder/RecorderService.ts`, `src/recorder/visual/*`, `src/visual/{index,capture}.ts`;
+  - `scripts/verify-{recorder-visual-capture,visual-isolation}.mts`, `scripts/verify-roadmap-dashboard.mjs`,
+    `scripts/lib/verifier-classification.ts`, `package.json`;
+  - `src/roadmap/ImplementationRoadmap.ts`, `.beads/issues.jsonl`;
+  - `docs/ai/{DECISIONS,ARCHITECTURE,CURRENT_STATE,HANDOFF,TASK_LOG}.md`;
+  - `docs/plans/ai-upgrade-v5/{N4-recorder-visual-intelligence,ROADMAP}.md`;
+  - the contract.
+- **Tests (all PASS):**
+
+  | Check | Result |
+  |---|---|
+  | `npm run build` | PASS |
+  | `verify:recorder-visual-capture` | 78/0 |
+  | `verify:visual-isolation` | 51/0 |
+  | `verify:locator-guard` | 38/0 |
+  | `verify:protected-login-recorder` | 96/96 |
+  | `verify:recorder` | 297/0 |
+  | `verify:element-spy` | 206/0 |
+  | `verify:verifier-classification` | PASS |
+  | `verify:roadmap-dashboard` | as recorded in the contract |
+
+  Not run: `verify:mock-site` (no mock-site change; the existing `/visual-intelligence` lab was reused).
+- **Result:** N4.1 and N4.2 done; N4.3 and N4.5 next. No IPC, preload, UI, persistence or runner change.
+  `docs/ai/contracts/awkit-l12-27-implementation-1006.json` preserved.
+
+## 2026-10-13 — Phase N: canonical N4 Recorder Visual Intelligence planned and registered (Claude)
 
 - **Scope:** "Start Canonical Phase N4: Recorder Visual Intelligence", planning and registration only. Contract
   `awkit-vra-n4-plan-1013`, Risk 0. CodeCraft was not used (`CODECRAFT_MODE=off`).

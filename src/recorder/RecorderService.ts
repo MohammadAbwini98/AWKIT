@@ -1,4 +1,4 @@
-import { chromium, type Browser, type BrowserContext, type Frame, type Page } from "playwright";
+import { chromium, type Browser, type BrowserContext, type Frame, type Locator, type Page } from "playwright";
 import { randomUUID } from "node:crypto";
 import { rename, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
@@ -41,7 +41,27 @@ import type { DialogExpectation, FlowStep, LocatorCandidate, PendingLocatorUpgra
 import { buildRecordedStep } from "./buildRecordedFlow";
 import { buildFrameChain } from "./frameChainCapture";
 import { LocatorFactory } from "../runner/LocatorFactory";
+import { stepCandidatesDigest } from "../runner/LocatorRecoveryStore";
+import { resolveStepSafety } from "../runner/runtime/StepSafetyPolicy";
 import { sanitizeDomReferenceCapture } from "../runner/domIntelligence/domReference";
+// N4.2 (RV-1): the Recorder reaches `src/visual` only through this one adapter, loaded on the first capture so a
+// Recorder with the flag off never evaluates it or `src/visual` (as the runner's N2.5 stage).
+import type {
+  RecorderVisualCaptureOutcome,
+  RecorderVisualCaptureRequest,
+  VisualEvidence
+} from "./visual/RecorderVisualCapture";
+import {
+  RECORDER_VISUAL_CAPTURE_TIMEOUT_MS,
+  RECORDER_VISUAL_DETECTOR_TIMEOUT_MS,
+  RECORDER_VISUAL_ELIGIBLE_STEPS,
+  RECORDER_VISUAL_PROOF_TIMEOUT_MS,
+  recorderVisualCaptureMode,
+  recorderVisualCodeFor,
+  recorderVisualRefusal,
+  type RecorderVisualCaptureResult,
+  type RecorderVisualReferenceStatus
+} from "./visual/recorderVisualCaptureCodes";
 import { derivePopupAlias } from "../runner/runtime/PopupIdentityRegistry";
 import {
   buildBrowserContextOptions,
@@ -73,6 +93,22 @@ const WAIT_CAPTURE_MIN_MS = 500;
 const WAIT_CAPTURE_MAX_MS = 60_000;
 /** Cap on how many saved URLs are kept in the reusable history. */
 const URL_HISTORY_LIMIT = 200;
+
+/** The promise's value, or `undefined` once `ms` have passed. The promise itself is left to settle on its own. */
+function withinDeadline<T>(promise: Promise<T>, ms: number): Promise<T | undefined> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<undefined>((resolve) => {
+    timer = setTimeout(() => resolve(undefined), ms);
+  });
+  return Promise.race([promise, deadline]).finally(() => clearTimeout(timer));
+}
+
+/** N4.2: a pending visual reference, memory-only (N4.3 persists it at save), bound to the step's candidate digest. */
+interface PendingVisualReference {
+  evidence: VisualEvidence;
+  bindingDigest: string;
+  capturedAt: string;
+}
 
 /** On-disk shape of the persistent, reusable recorded-URL history (survives draft discard/restart). */
 interface RecordedUrlHistory {
@@ -157,6 +193,11 @@ export class RecorderService {
   private protectedPages = new WeakSet<Page>();
   /** L2 capture-time upgrade context per recorded action id: memory-only, TTL-bounded, never persisted. */
   private upgradeContexts = new Map<string, { context: UpgradeContext; at: number }>();
+  /** N4.2 (RV-3): visual references captured per recorded action id. Never in the draft, a profile, an export or IPC. */
+  private visualPending = new Map<string, PendingVisualReference>();
+  /** N4.2 verification seam: `verify:recorder-visual-capture` swaps it to change the page mid-capture. */
+  private captureVisual: (request: RecorderVisualCaptureRequest) => Promise<RecorderVisualCaptureOutcome> = async (request) =>
+    (await import("./visual/RecorderVisualCapture")).captureRecorderVisualEvidence(request);
   private actions: RecordedAction[] = [];
   private isRecording = false;
   /** The page the last recorded action came from, used to detect tab/URL switches. */
@@ -611,6 +652,7 @@ export class RecorderService {
       this.draftTimer = null;
     }
     this.actions = [];
+    this.visualPending.clear();
     this.ambiguityState = null;
     this.ambiguityPage = null;
     this.draftLoad = Promise.resolve(); // don't re-restore the just-cleared draft
@@ -844,6 +886,7 @@ export class RecorderService {
     // A recording owns the browser; an open inspect-only session ends first.
     if (this.inspectSession) await this.stopInspection();
     this.upgradeContexts.clear();
+    this.visualPending.clear();
 
     // The reusable URL history must be loaded before we start appending this session's URLs.
     await this.ensureUrlHistoryLoaded();
@@ -1772,6 +1815,7 @@ export class RecorderService {
   public async clearActions(): Promise<RecordedAction[]> {
     await this.actionQueue.catch(() => undefined);
     this.actions = [];
+    this.visualPending.clear();
     this.lastActionAt = 0;
     this.lastActionPage = null;
     this.signals = [];
@@ -1798,6 +1842,7 @@ export class RecorderService {
     const result = removeRecordedAction(this.actions, actionId);
     if (result.removedIds.length === 0) return result;
     this.actions = result.actions;
+    for (const id of result.removedIds) this.visualPending.delete(id);
     this.lastActionAt = 0;
     this.signals = [];
     for (const [page, click] of this.lastClickByPage) {
@@ -1972,8 +2017,9 @@ export class RecorderService {
     const blocker = inspectionApplyBlocker(action, inspection, candidateIndex);
     if (blocker || !action) return { ok: false, reason: blocker ?? "Choose a recorded element step." };
     action.locator = locatorFromInspection(action, inspection, candidateIndex);
-    // The previous target's upgrade context no longer describes this step.
+    // The previous target's upgrade context and visual reference no longer describe this step.
     this.upgradeContexts.delete(action.id);
+    this.visualPending.delete(action.id);
     if (this.draftTimer) {
       clearTimeout(this.draftTimer);
       this.draftTimer = null;
@@ -2033,6 +2079,119 @@ export class RecorderService {
   /** L3 U1: main's own pending candidates by action id, for the save boundary (`buildRecordedFlow`). */
   public draftPendingUpgrades(): Map<string, PendingLocatorUpgrade> {
     return new Map(this.actions.flatMap((action) => (action.locator?.pendingUpgrade ? [[action.id, action.locator.pendingUpgrade] as const] : [])));
+  }
+
+  /**
+   * N4.2 (awkit-vra.13.2, RV-0 to RV-8): capture a visual reference for one recorded element step on the live page it
+   * was recorded on, behind `AWKIT_VISUAL_RECORDER=manual`. The step's own locator is re-proven to match exactly one
+   * visible element first. Nothing is scrolled, focused or clicked; a sensitive step, a masked field or a protected
+   * surface (before or after the screenshot) refuses. The evidence is held in memory against the step's binding digest;
+   * the step, its locator and the draft are never changed. The answer is a code and fixed text only (RV-8).
+   */
+  public async captureVisualReference(actionId: string): Promise<RecorderVisualCaptureResult> {
+    if (recorderVisualCaptureMode() !== "manual") return recorderVisualRefusal("disabled");
+    await this.ensureDraftLoaded();
+    await this.actionQueue.catch(() => undefined);
+    if (!this.isRecording) return recorderVisualRefusal("not-recording");
+    if (this.handoff?.active) return recorderVisualRefusal("handoff-active");
+    const action = this.actions.find((candidate) => candidate.id === actionId);
+    if (!action) return recorderVisualRefusal("action-not-found");
+    const step = buildRecordedStep(action);
+    if (!step?.locator || !RECORDER_VISUAL_ELIGIBLE_STEPS.has(step.type)) return recorderVisualRefusal("not-eligible");
+    const safety = resolveStepSafety(step).sideEffectLevel;
+    if (safety === "dangerousMutation" || safety === "externalCommit") return recorderVisualRefusal("sensitive");
+    const alias = action.pageAlias ?? "main";
+    if (this.inspectionRefused) return recorderVisualRefusal("protected-surface");
+    const page = this.getLivePage(alias);
+    if (!page) return recorderVisualRefusal("no-live-page");
+    if (this.protectedPages.has(page)) return recorderVisualRefusal("protected-surface");
+
+    // Re-prove the step's own locator the way replay resolves it (frame chain, shadow, guarded positional).
+    const resolved = await withinDeadline(
+      new LocatorFactory(page).resolve(step).then(
+        (locator): Locator | null => locator,
+        () => null
+      ),
+      RECORDER_VISUAL_PROOF_TIMEOUT_MS
+    );
+    if (resolved === undefined) return recorderVisualRefusal("timeout");
+    if (resolved === null) return recorderVisualRefusal("not-unique");
+    const target = resolved;
+    const count = await withinDeadline(target.count().catch(() => -1), RECORDER_VISUAL_PROOF_TIMEOUT_MS);
+    if (count === undefined) return recorderVisualRefusal("timeout");
+    if (count < 0) return recorderVisualRefusal(page.isClosed() ? "page-closed" : "stale");
+    if (count === 0) return recorderVisualRefusal("not-found");
+    if (count !== 1) return recorderVisualRefusal("not-unique");
+    if (!(await target.isVisible().catch(() => false))) return recorderVisualRefusal("not-found");
+    const masked = await withinDeadline(
+      target
+        .evaluate((element) => {
+          const control = element.tagName === "LABEL" ? ((element as HTMLLabelElement).control ?? element) : element;
+          if (control.tagName !== "INPUT" && control.tagName !== "TEXTAREA") return false;
+          const autocomplete = (control.getAttribute("autocomplete") ?? "").toLowerCase();
+          if ((control.getAttribute("type") ?? "").toLowerCase() === "password") return true;
+          if (/one-time-code|current-password|new-password|cc-number|cc-csc/.test(autocomplete)) return true;
+          const described = [control.getAttribute("name"), control.id, autocomplete, control.getAttribute("aria-label"), control.getAttribute("placeholder")].join(" ");
+          return /otp|one[-_ ]?time|passcode|\bpin\b|\bcvv\b|\bcvc\b|\bcsc\b|card[-_ ]?number|cardnumber|credit[-_ ]?card|\bssn\b|social[-_ ]?security|\bsecret\b|\btoken\b/i.test(described);
+        })
+        .catch(() => null),
+      RECORDER_VISUAL_PROOF_TIMEOUT_MS
+    );
+    if (masked === undefined) return recorderVisualRefusal("timeout");
+    if (masked === null) return recorderVisualRefusal("stale");
+    if (masked) return recorderVisualRefusal("sensitive");
+    const before = await this.visualProtectedVerdict(page);
+    if (before !== "clear") return recorderVisualRefusal(before === "timeout" ? "timeout" : "protected-surface");
+
+    const bindingDigest = stepCandidatesDigest(step.locator);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), RECORDER_VISUAL_CAPTURE_TIMEOUT_MS);
+    let outcome: RecorderVisualCaptureOutcome;
+    try {
+      outcome = await this.captureVisual({ page, target, stepType: step.type, timeoutMs: RECORDER_VISUAL_CAPTURE_TIMEOUT_MS, signal: controller.signal });
+    } catch {
+      outcome = { ok: false, code: page.isClosed() ? "PAGE_CLOSED" : "CAPTURE_FAILED" };
+    } finally {
+      clearTimeout(timer);
+    }
+    if (!outcome.ok) return recorderVisualRefusal(recorderVisualCodeFor(outcome.code));
+
+    // Nothing changed while the screenshot was taken: the page is still clear, the session and the step still hold.
+    if (page.isClosed()) return recorderVisualRefusal("page-closed");
+    const after = await this.visualProtectedVerdict(page);
+    if (after !== "clear") return recorderVisualRefusal(after === "timeout" ? "timeout" : "protected-surface");
+    if (!this.isRecording) return recorderVisualRefusal("not-recording");
+    if (this.handoff?.active) return recorderVisualRefusal("handoff-active");
+    if (this.inspectionRefused || this.protectedPages.has(page)) return recorderVisualRefusal("protected-surface");
+    const current = this.actions.find((candidate) => candidate.id === actionId);
+    if (!current) return recorderVisualRefusal("action-not-found");
+    const rebuilt = buildRecordedStep(current);
+    if (!rebuilt?.locator || stepCandidatesDigest(rebuilt.locator) !== bindingDigest || this.getLivePage(alias) !== page) {
+      return recorderVisualRefusal("stale");
+    }
+    this.visualPending.set(actionId, { evidence: outcome.evidence, bindingDigest, capturedAt: new Date().toISOString() });
+    return { ok: true, status: "captured" };
+  }
+
+  /** N4.2: whether a recorded step holds a pending visual reference, and whether its binding still matches the step. */
+  public visualReferenceStatus(actionId: string): RecorderVisualReferenceStatus {
+    const pending = this.visualPending.get(actionId);
+    if (!pending) return "none";
+    const action = this.actions.find((candidate) => candidate.id === actionId);
+    const step = action ? buildRecordedStep(action) : undefined;
+    return step?.locator && stepCandidatesDigest(step.locator) === pending.bindingDigest ? "captured" : "stale";
+  }
+
+  /** One bounded protected-login detector pass. An unfinished or failed scan never reads as clear. */
+  private async visualProtectedVerdict(page: Page): Promise<"clear" | "protected" | "timeout"> {
+    const verdict = await withinDeadline(
+      detectRecorderProtectedLogin(page).then(
+        (detection): "clear" | "protected" => (detection.detected && detection.recommendedAction === "pause" ? "protected" : "clear"),
+        (): "protected" => "protected"
+      ),
+      RECORDER_VISUAL_DETECTOR_TIMEOUT_MS
+    );
+    return verdict ?? "timeout";
   }
 
   private async recordInspection(sourcePage: Page | undefined, sourceFrame: Frame | undefined, raw: unknown): Promise<void> {

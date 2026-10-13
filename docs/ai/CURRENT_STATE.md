@@ -1,6 +1,36 @@
 # CURRENT_STATE
 
-## Phase N: canonical N4 Recorder Visual Intelligence registered, planning only (2026-10-13, latest)
+## Phase N: N4 started — RV-0 to RV-8 approved, N4.2 Recorder visual capture implemented (2026-10-14, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task.
+
+- **Owner decisions:** RV-0 to RV-8 approved as recommended and recorded in DECISIONS (2026-10-14). N4.1
+  `awkit-vra.13.1` is closed. RV-1 amends the 2026-10-12 isolation decision and FD-2: exactly two edges into
+  `src/visual`, the runner's `VisualFusionStage` and the new Recorder adapter.
+- **N4.2 `awkit-vra.13.2` closed.** Behind `AWKIT_VISUAL_RECORDER=manual`, which is off by default,
+  `RecorderService.captureVisualReference(actionId)` does the following:
+  - re-proves an eligible step's own locator on its live page (click-like, check, uncheck and radio only);
+  - refuses sensitive steps, masked fields, offscreen targets and protected surfaces, running the detector before and
+    after the capture and failing closed;
+  - captures through the lazily loaded `src/recorder/visual/RecorderVisualCapture.ts`;
+  - holds the evidence in memory only, bound to the binding digest.
+
+  The answer is one of 17 fixed codes. The step, its locator and the draft are never changed.
+- **Not yet:** no IPC/preload/UI (N4.4), no persistence (N4.3), and no runner read (N4.6). N4.3 and N4.5 are next.
+- **Verifiers:**
+  - new `verify:recorder-visual-capture` 78/0 (M2 a recorded survivor, see DECISIONS);
+  - `verify:visual-isolation` 51/0;
+  - `verify:locator-guard` 38/0, `verify:protected-login-recorder` 96/96, `verify:recorder` 297/0,
+    `verify:element-spy` 206/0;
+  - build PASS.
+- **Dashboard:** repinned to the measured 32 outstanding / 363 closed of 395, 311 edges.
+- **Boundaries unchanged:** N3 stays shadow-only and N3.4/N3.5 stay `blocked`. No legacy `awkit-vra.6`/`.8` work.
+- **v0.1.53 carry-over unchanged:** packaged licensed Parts D–J are BLOCKED (`AWKIT_PACKAGED_LICENSE_ISSUER_KEY`
+  unavailable), and the clean offline Windows VM walkthrough is NOT RUN.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## Phase N: canonical N4 Recorder Visual Intelligence registered, planning only (2026-10-13)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed by this task, and no product code changed.

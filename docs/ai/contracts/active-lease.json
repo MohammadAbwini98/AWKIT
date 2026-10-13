@@ -1,22 +1,48 @@
 {
-  "task": "awkit-vra-n4-plan-1013",
-  "contract_path": "docs/ai/contracts/awkit-vra-n4-plan-1013.json",
+  "task": "awkit-vra-13-n4-start-1013",
+  "contract_path": "docs/ai/contracts/awkit-vra-13-n4-start-1013.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-13T20:36:25.170Z",
-  "acquired_at_commit": "86ae16da7393808f3b3f2349d92265f702d68290",
+  "acquired_at": "2026-10-13T21:31:04.287Z",
+  "acquired_at_commit": "55ca5baf7a2ee605e5d4c27f09e18662a8e4b050",
   "baseline_dirty": [
-    ".beads/interactions.jsonl",
+    "docs/ai/ARCHITECTURE.md",
+    "docs/ai/DECISIONS.md",
+    "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-vra-n4-plan-1013.json"
+    "docs/ai/contracts/awkit-vra-13-n4-start-1013.json",
+    "docs/plans/ai-upgrade-v5/N4-recorder-visual-intelligence.md",
+    "docs/plans/ai-upgrade-v5/ROADMAP.md",
+    "package.json",
+    "scripts/lib/verifier-classification.ts",
+    "scripts/verify-recorder-visual-capture.mts",
+    "scripts/verify-visual-isolation.mts",
+    "src/recorder/RecorderService.ts",
+    "src/recorder/visual/",
+    "src/roadmap/ImplementationRoadmap.ts",
+    "src/visual/capture.ts",
+    "src/visual/index.ts"
   ],
   "baseline_dirty_fingerprints": {
-    ".beads/interactions.jsonl": "2140fd4893d06712d4706887cb97585866407fb4991f6dcb98740f47d4a1c378",
+    "docs/ai/ARCHITECTURE.md": "b40c58001055ae28f0e2fa6b3c459ff51d6dfc6ed68ce80de3823a0bb3bf3404",
+    "docs/ai/DECISIONS.md": "ff3b3c88ae65ab529888964353e8264052764fa22382dd5c8b148dd5adc01392",
+    "docs/ai/contracts/active-lease.json": "b4d690e5afafb9fdeecc40e32aac7aaba2b20213f97c255fb41e20f0fe7b3cd0",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-vra-n4-plan-1013.json": "5a3677596f4148eabe2fbe8cf3bfb8baca0f621d3bb6b9d12718c1f6851be0d4"
+    "docs/ai/contracts/awkit-vra-13-n4-start-1013.json": "7f246eef36acff2895258cf11998f2d6fd513bf28e4fe6067103d77de9778566",
+    "docs/plans/ai-upgrade-v5/N4-recorder-visual-intelligence.md": "aa720759bdd2e0d415bb641eeb807a8a2c0ef0b8a0bb2ea73365e94111c58f69",
+    "docs/plans/ai-upgrade-v5/ROADMAP.md": "475e2b0045a59d16b0695006226f56007bbeae10219ec16f9ddfce82b7eb751f",
+    "package.json": "3500374b60b69d8f065e62b250ed2264ba3f184409b3138bec90744cf3b4decb",
+    "scripts/lib/verifier-classification.ts": "4149b7eb37693fcc6bf9d84b4c6d93206d6a0c41ecf6802261c49f11fa044cde",
+    "scripts/verify-recorder-visual-capture.mts": "e8712731b6de3d7882e45429f51e0a7b36a54002c0146593fc5ebab52ae406cb",
+    "scripts/verify-visual-isolation.mts": "7d300466a2275382e627c939a4e76c73dd4e6cc57a4c593a0e0549dda2cea318",
+    "src/recorder/RecorderService.ts": "05ef5bd2d4ee5a9c781318618a352acdcf500d75162483c91cf81b34bcfa29e7",
+    "src/recorder/visual/": "absent",
+    "src/roadmap/ImplementationRoadmap.ts": "9c40824a787d5d63baf1ee699a7b27e42920ae3fe97cfe038f5df63285a8d4ee",
+    "src/visual/capture.ts": "bcf4cc0d2963a227dd42f3ab223c395f2e9fe5cbae4a5b03fb1cab71c9efe5c9",
+    "src/visual/index.ts": "de73dc660b7771723e2bb5a0a1f5dd0ff9dde471095cb39074ea50da4b2ef8c6"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -31,7 +57,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-13T20:41:07.976Z",
-  "released_reason": "N4 registration recorded and beads exported",
-  "archived_at": "2026-10-13T20:41:07.978Z"
+  "released_at": "2026-10-13T21:31:42.684Z",
+  "released_reason": "n4.1-and-n4.2-closed-and-exported",
+  "archived_at": "2026-10-13T21:31:42.685Z"
 }

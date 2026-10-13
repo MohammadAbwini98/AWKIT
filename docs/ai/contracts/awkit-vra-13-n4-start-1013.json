@@ -1,0 +1,233 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-13-n4-start-1013",
+    "title": "Start canonical Phase N4: record the owner approval of RV-0 to RV-8 (N4.1) and implement the first slice N4.2 Recorder visual capture",
+    "objective": "Record the owner approval of RV-0 to RV-8 as recommended including the RV-1 isolation amendment to the 2026-10-12 decision and FD-2, close awkit-vra.13.1, and implement N4.2 awkit-vra.13.2: a pure capture-code contract, the RecorderVisualCapture adapter as the single approved second src/visual edge, RecorderService.captureVisualReference behind AWKIT_VISUAL_RECORDER=manual with an in-memory pending map and its drop rules, verify:visual-isolation pinned to exactly the two approved edges with a third-edge mutation red, and a new verify:recorder-visual-capture with a mutation contract. No channel, preload, UI, persistence or runner change.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "55ca5baf",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true,
+    "recorder_change": true,
+    "playwright_change": true
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "recorder",
+      "qa",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "src/recorder/RecorderService.ts",
+      "src/recorder/visual/**",
+      "src/visual/index.ts",
+      "src/visual/capture.ts",
+      "scripts/verify-visual-isolation.mts",
+      "scripts/verify-recorder-visual-capture.mts",
+      "scripts/lib/verifier-classification.ts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "package.json",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/ARCHITECTURE.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/awkit-vra-13-n4-start-1013.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N4-APPROVAL",
+      "description": "DECISIONS records the owner approval of RV-0 to RV-8 as recommended, the RV-1 amendment to the 2026-10-12 isolation decision and FD-2, and the N4.2 implementation choices; awkit-vra.13.1 is closed through bd and exported.",
+      "evidence_required": [
+        "beads-export"
+      ]
+    },
+    {
+      "id": "N4.2-CAPTURE",
+      "description": "RecorderService.captureVisualReference captures N2-comparable evidence for an eligible recorded step only after re-proving its locator unique on the live page, refuses every RV-2/RV-7/RV-8 case with a fixed code, never scrolls or modifies the page, keeps the result in memory only and drops it when the binding changes, under AWKIT_VISUAL_RECORDER=manual default off.",
+      "evidence_required": [
+        "verify:recorder-visual-capture",
+        "build"
+      ]
+    },
+    {
+      "id": "N4.2-ISOLATION",
+      "description": "verify:visual-isolation pins exactly the two approved src/visual edges for the execution and renderer walks, and a planted third edge is red.",
+      "evidence_required": [
+        "verify:visual-isolation"
+      ]
+    },
+    {
+      "id": "N4-GIT",
+      "description": "The work lands on main and is pushed without force; the L12.27 contract stays untracked and unchanged.",
+      "evidence_required": [
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "Exported 395 issues, awkit-vra.13.1 and awkit-vra.13.2 closed, awkit-vra.13 in progress"
+    },
+    {
+      "id": "verify:recorder-visual-capture",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:recorder-visual-capture",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "78 passed, 0 failed on clean source with its mutations observed red and reverted, M2 survivor recorded in DECISIONS and HANDOFF with M2b as the red uniqueness mutation"
+    },
+    {
+      "id": "verify:visual-isolation",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-isolation",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "51 passed, 0 failed, exactly the two approved src/visual edges and a planted third edge red"
+    },
+    {
+      "id": "verify:locator-guard",
+      "type": "verifier",
+      "required": false,
+      "command": "npm run verify:locator-guard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "38/0"
+    },
+    {
+      "id": "verify:protected-login-recorder",
+      "type": "verifier",
+      "required": false,
+      "command": "npm run verify:protected-login-recorder",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "96/96"
+    },
+    {
+      "id": "verify:recorder",
+      "type": "verifier",
+      "required": false,
+      "command": "npm run verify:recorder",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "297/0"
+    },
+    {
+      "id": "verify:element-spy",
+      "type": "verifier",
+      "required": false,
+      "command": "npm run verify:element-spy",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "206/0"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc --noEmit and bundles PASS, RecorderVisualCapture emitted as its own lazy chunk outside main.js"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "runs after the commit that carries this contract; its outcome is reported in the session report and the next contract"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-13-n4-start-1013:project-state:2026-10-13T20:58:03.084Z",
+        "task": "awkit-vra-13-n4-start-1013",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-13T20:58:03.084Z",
+        "acquired_at_commit": "55ca5baf7a2ee605e5d4c27f09e18662a8e4b050",
+        "released_at": "2026-10-13T21:03:08.871Z",
+        "released_reason": "bead changes deferred until DECISIONS and the N4 plan record the RV approval",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-vra-13-n4-start-1013:project-state:2026-10-13T21:31:04.287Z",
+        "task": "awkit-vra-13-n4-start-1013",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-13T21:31:04.287Z",
+        "acquired_at_commit": "55ca5baf7a2ee605e5d4c27f09e18662a8e4b050",
+        "released_at": "2026-10-13T21:31:42.684Z",
+        "released_reason": "n4.1-and-n4.2-closed-and-exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}
