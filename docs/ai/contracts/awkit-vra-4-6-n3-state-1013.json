@@ -1,0 +1,166 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-4-6-n3-state-1013",
+    "title": "N3.6 state and docs: record the N3 shadow-only close and its closure gates",
+    "objective": "Implement N3.6 of docs/plans/ai-upgrade-v5/N3-visual-locator-recovery.md: record N3 Visual Locator Recovery as closed shadow-only in CURRENT_STATE, HANDOFF, TASK_LOG, ARCHITECTURE (the agreement layer boundary), DECISIONS (VR-0 to VR-9 outcome), the N3 plan, ROADMAP and ImplementationRoadmap, confirm the verifier registry, repin the dashboard, close awkit-vra.4.6, and leave awkit-vra.4 open with the independent QC review (closure criterion 5) recorded as the one remaining gate.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 0
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "2183a81d",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "qa",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/ARCHITECTURE.md",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/awkit-vra-4-6-n3-state-1013.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N3.6",
+      "description": "CURRENT_STATE, HANDOFF, TASK_LOG, ARCHITECTURE, DECISIONS, the N3 plan, ROADMAP and ImplementationRoadmap agree that N3 closed shadow-only with N3.4 and N3.5 deferred by the N3.2 outcome, and name the independent QC review as the one remaining closure gate; both N3 verifiers stay registered; awkit-vra.4.6 is closed and verify:roadmap-dashboard reports Sources agree.",
+      "evidence_required": [
+        "verify:verifier-classification",
+        "beads-export",
+        "verify:roadmap-dashboard",
+        "build"
+      ]
+    },
+    {
+      "id": "N3.6-GIT",
+      "description": "The work lands on main and is pushed without force; the L12.27 contract stays untracked and unchanged.",
+      "evidence_required": [
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:similar-rows-safety",
+      "type": "verifier",
+      "required": false,
+      "command": "npm run verify:similar-rows-safety",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "68/0 at the N3.3 final source state, the L12 recovery suite not yet run against the changed LocatorFactory"
+    },
+    {
+      "id": "verify:verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "333 scripts classified, 153 real-browser, both N3 verifiers registered"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc --noEmit clean and electron-vite main, preload and renderer bundles built"
+    },
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "387 issues exported, awkit-vra.4.6 closed, awkit-vra.4 notes record the open QC gate"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "177/177 Sources agree in reconciliation round 1, pins 27 outstanding / 360 closed of 387, 294 edges unchanged"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "runs after the commit that carries this contract; its outcome is reported in the session report"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-4-6-n3-state-1013:project-state:2026-10-13T19:35:18.118Z",
+        "task": "awkit-vra-4-6-n3-state-1013",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-13T19:35:18.118Z",
+        "acquired_at_commit": "2183a81d49ff8bd84f874995452cbc70a659561f",
+        "released_at": "2026-10-13T19:36:00.699Z",
+        "released_reason": "N3.6 closed and vra.4 notes recorded, beads exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

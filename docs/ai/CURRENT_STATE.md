@@ -1,6 +1,24 @@
 # CURRENT_STATE
 
-## Phase N: N3.3 runner shadow — visual agreement observed, never acted on (2026-10-13, latest)
+## Phase N: N3.6 — N3 closed shadow-only; independent QC is the last gate (2026-10-13, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task.
+
+- **N3 outcome:** Visual Locator Recovery ships shadow only. `decideVisualAgreement` (N3.1) and
+  `VisualFusionStage.agree` with the codes-only `trace.visualAgreement` block (N3.3) are on `main` behind
+  `AWKIT_VISUAL_RECOVERY` (off by default). Nothing proceeds on visual evidence. N3.4 (enforce) and N3.5 (provenance)
+  stay `blocked`, deferred by the N3.2 measurement (28 false `agreed` on headless twins).
+- **Records:** ARCHITECTURE gains the agreement-layer boundary; DECISIONS records the VR-0 to VR-9 outcome; the N3
+  plan has a *Closure gates* table; ROADMAP and ImplementationRoadmap agree. Both N3 verifiers are registered.
+- **Closure gates:** criteria 1-4 and 6 met (`verify:similar-rows-safety` 68/0 added at the final state); criterion 5,
+  the independent QC review of N3.1 and N3.3, is **NOT RUN**, so `awkit-vra.4` stays `in_progress`.
+- **Tracker:** `awkit-vra.4.6` closed; `awkit-vra.4` notes record the gate. Dashboard: 27 outstanding / 360 closed.
+- **Next:** an independent QC review of N3 (owner request needed for a reviewer agent), then close `awkit-vra.4`.
+- **v0.1.53 carry-over unchanged:** packaged licensed Parts D–J are BLOCKED (`AWKIT_PACKAGED_LICENSE_ISSUER_KEY`
+  unavailable), and the clean offline Windows VM walkthrough is NOT RUN.
+
+## Phase N: N3.3 runner shadow — visual agreement observed, never acted on (2026-10-13)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed by this task.

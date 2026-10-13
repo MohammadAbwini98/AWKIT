@@ -1,6 +1,24 @@
 # DECISIONS
 
-### 2026-10-13 (latest) — Phase N N3.3: runner shadow shape (implementation choices within VR-0..VR-9) (`awkit-vra.4.3`)
+### 2026-10-13 (latest) — Phase N N3: closed shadow-only; the epic stays open on independent QC (`awkit-vra.4.6`)
+
+- **Outcome of VR-0 to VR-9.** VR-0 amended the 2026-10-12 directive so visual identity *could* let the DOM best of
+  a local `below-threshold` refusal proceed under `enforce`, but N3.2 measured 28 false `agreed` on headless twins,
+  so the pre-agreed fallback applies: N3 ships shadow only. In practice the 2026-10-12 rule still holds: visual
+  similarity causes no click, fill, selector replacement or locator recovery. VR-1 to VR-9 stand as recorded;
+  N3.4 (enforce, VR-0's execution effect) and N3.5 (`visual-agreed` provenance) are deferred, declared `blocked`, and
+  reopen only on new measurements that remove the headless twin false positives plus a fresh owner decision.
+- **What shipped.** The pure policy `decideVisualAgreement` (N3.1) and the runner shadow observation
+  `VisualFusionStage.agree` with the codes-only `trace.visualAgreement` block (N3.3), behind `AWKIT_VISUAL_RECOVERY`,
+  off by default, `enforce` decided as `shadow` with effect `none`.
+- **Closure gates.** Criteria 1-4 and 6 of the N3 plan are met (recorded in the plan's *Closure gates* table).
+  Criterion 5, an independent QC review, has not run. N2 closed only after its QC findings were closed, so
+  `awkit-vra.4` stays `in_progress` and `awkit-vra.6`/`awkit-vra.8` stay waiting until a QC review of N3.1 and N3.3
+  runs and its findings are closed. Closing the epic without it would report a gate as passed that never ran.
+- **FD-5.** One headless DPR 1 N3.2 run exceeded the 400 ms budget at p95 (cut as R2). Any future enforce work must
+  re-measure FD-5 first.
+
+### 2026-10-13 — Phase N N3.3: runner shadow shape (implementation choices within VR-0..VR-9) (`awkit-vra.4.3`)
 
 - **Trace key.** The verdict is a sibling `visualAgreement` block on the recovery trace, not inside `trace.visual`,
   so the N2 observation block stays byte-identical and the A/B comparison (J6) can drop exactly one key.

@@ -5,13 +5,16 @@ Shared rules and the Phase N boundary: `ROADMAP.md` › *Phase N — Visual Reco
 legacy workstream `awkit-vra.4` ("Visual locator fallback") is the tracker home for N3 (VR-9), retitled
 "N3: Visual Locator Recovery" with children `awkit-vra.4.1`-`.4.6`.
 
-**Status (2026-10-13): IN PROGRESS.** The owner approved VR-0 to VR-9 as recommended and authorized N3 (DECISIONS
+**Status (2026-10-13): SHADOW-ONLY CLOSE RECORDED, one gate open.** N3.6 recorded the close (contract
+`awkit-vra-4-6-n3-state-1013`); closure criteria 1-4 and 6 are met, and criterion 5 (independent QC review of N3.1
+and N3.3) is NOT RUN, so the epic bead `awkit-vra.4` stays `in_progress` until it is. See *Closure gates* below.
+History: the owner approved VR-0 to VR-9 as recommended and authorized N3 (DECISIONS
 2026-10-13, contract `awkit-vra-4-n3-start-1013`). N3.1 is done: `decideVisualAgreement` in
 `src/visual/fusion/decideVisualAgreement.ts`, proven by `verify:visual-agreement` 258/0. N3.2 is done and its
 acceptance **failed**: 28 `twins` decisions reached `agreed` in headless, because headless Chromium renders identical
 icons with position-dependent bytes (`N3.2-agreement-calibration.md`). By the fallback fixed below, **N3 closes
 shadow-only**: N3.4 and N3.5 are deferred. N3.3 is done (`verify:visual-agreement-runtime` 68/0, contract
-`awkit-vra-4-3-runner-shadow-1013`); N3.6 remains. The three preconditions below were the plan-time
+`awkit-vra-4-3-runner-shadow-1013`); N3.6 is done. The three preconditions below were the plan-time
 gates, kept for the record. All three are now met:
 
 - the owner **amends the 2026-10-12 directive** in `docs/ai/DECISIONS.md`, which today says "Visual similarity must
@@ -200,7 +203,11 @@ false `agreed`, all headless. N3.4 and N3.5 are deferred; the order is now N3.3 
 
 **N3.3 outcome (2026-10-13): done, shadow only.** The verdict is recorded as a sibling `visualAgreement` trace block
 rather than inside `trace.visual`, so the N2 block stays byte-identical and J6 compares runs with that one key
-dropped. `enforce` is decided as `shadow` with effect `none`. Provenance is unchanged. Only N3.6 remains.
+dropped. `enforce` is decided as `shadow` with effect `none`. Provenance is unchanged.
+
+**N3.6 outcome (2026-10-13): done.** `CURRENT_STATE`, `HANDOFF`, `TASK_LOG`, `ARCHITECTURE` (agreement-layer
+boundary), `DECISIONS` (VR-0 to VR-9 outcome), this plan, `ROADMAP` and `ImplementationRoadmap` record the
+shadow-only close; both N3 verifiers are registered; `awkit-vra.4.6` is closed.
 
 ## Acceptance criteria for closing N3
 
@@ -212,6 +219,17 @@ dropped. `enforce` is decided as `shadow` with effect `none`. Provenance is unch
 4. J6 A/B neutrality measured for off and shadow.
 5. Independent QC review (Risk 3 for N3.4).
 6. Overhead on the lab, DPR 1 and 2, headed and headless, within FD-5.
+
+### Closure gates (recorded 2026-10-13, N3.6)
+
+| # | State | Evidence |
+|---|---|---|
+| 1 | MET | N3.1, N3.2, N3.3 and N3.6 done; N3.4 and N3.5 deferred by the recorded N3.2 outcome (`awkit-vra.4.4`/`.4.5` declared blocked). |
+| 2 | MET | `verify:visual-agreement` 258/0 and `verify:visual-agreement-runtime` 68/0, both registered; mutation contracts observed red (N3.1 policy mutations; runtime M1-M4). |
+| 3 | MET | At the N3.3 source state: `verify:visual-fusion` 271/0, `verify:visual-fusion-runtime` 145/0, `verify:visual-isolation` 40/0, `verify:runner` 138/0, `verify:locator-guard` 38/0, `verify:twin-pool-safety` 48/0, `verify:recovery-provenance` 46/0, `verify:similar-rows-safety` 68/0 (run at N3.6), `verify:mock-site` 307/307 (N3.2; inputs unchanged), `npm run build` PASS. |
+| 4 | MET | `verify:visual-agreement-runtime` compares off, the N2 stage alone, shadow and enforce with only the `visualAgreement` key dropped. |
+| 5 | **NOT RUN** | No independent QC review of N3.1/N3.3 has been executed (N3.4, the Risk-3 item, was not built). This is the one gate holding `awkit-vra.4` open. |
+| 6 | MET (shadow) | N3.2 measured the agreement read within the 400 ms FD-5 budget in every cell but one headless DPR 1 run, which the budget cuts (R2). FD-5 must be re-measured before any enforce work. |
 
 ## Risks
 

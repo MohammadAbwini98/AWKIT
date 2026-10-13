@@ -721,8 +721,10 @@ try {
   // Then 29/358 of 387 on 2026-10-13 (contract `awkit-vra-4-2-calibration-1013`): N3.2 `awkit-vra.4.2` closed and,
   // by its shadow-only outcome, N3.4 `.4.4` and N3.5 `.4.5` deferred, which still counts as outstanding (one closed).
   // Then 28/359 of 387 on 2026-10-13 (contract `awkit-vra-4-3-runner-shadow-1013`): N3.3 `awkit-vra.4.3` closed.
-    "28 outstanding / 359 closed",
-    beads.stats.outstanding === 28 && beads.stats.closed === 359,
+  // Then 27/360 of 387 on 2026-10-13 (contract `awkit-vra-4-6-n3-state-1013`): N3.6 `awkit-vra.4.6` closed; the N3
+  // epic `awkit-vra.4` stays outstanding until its independent QC gate runs.
+    "27 outstanding / 360 closed",
+    beads.stats.outstanding === 27 && beads.stats.closed === 360,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

@@ -1,38 +1,20 @@
 {
-  "task": "awkit-vra-4-3-runner-shadow-1013",
-  "contract_path": "docs/ai/contracts/awkit-vra-4-3-runner-shadow-1013.json",
+  "task": "awkit-vra-4-6-n3-state-1013",
+  "contract_path": "docs/ai/contracts/awkit-vra-4-6-n3-state-1013.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-13T19:15:56.743Z",
-  "acquired_at_commit": "e2ddcee8633a15fd12a2120054d5dbff319f7eca",
+  "acquired_at": "2026-10-13T19:35:18.118Z",
+  "acquired_at_commit": "2183a81d49ff8bd84f874995452cbc70a659561f",
   "baseline_dirty": [
-    ".beads/issues.jsonl",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-vra-4-3-runner-shadow-1013.json",
-    "package.json",
-    "scripts/lib/verifier-classification.ts",
-    "scripts/verify-visual-agreement-runtime.mts",
-    "src/runner/ExecutionEngine.ts",
-    "src/runner/LocatorFactory.ts",
-    "src/runner/PlaywrightRunner.ts",
-    "src/runner/recoverySnapshot.ts",
-    "src/runner/visualFusion/VisualFusionStage.ts"
+    "docs/ai/contracts/awkit-vra-4-6-n3-state-1013.json"
   ],
   "baseline_dirty_fingerprints": {
-    ".beads/issues.jsonl": "a3664407c81c3749e7713c4f1502c9f1b1d96cd1ace99d9199cdaf6b3f3544ea",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-vra-4-3-runner-shadow-1013.json": "32e34045ba2c6dd86184a186118c6bce384fe64225dfc88e249d1e23b630b7a6",
-    "package.json": "3e95d1b76ea1adf702c4ab634b540dddfce7266d41ca8e79723b82cea7680697",
-    "scripts/lib/verifier-classification.ts": "e6ad7e6e44d7cf3f2c1b45996c06937423510fc3ff7f830ed87226deaa83e245",
-    "scripts/verify-visual-agreement-runtime.mts": "f85ef8e3bc4e18f4ce13620b62070d872702b2e38a0632aeb8f4ccfb2efbd982",
-    "src/runner/ExecutionEngine.ts": "2c5f3f87f3e40b919b9f8c8eab23983fd20c5e20abfae057da8f5fd4bf17e833",
-    "src/runner/LocatorFactory.ts": "513f912c97491b4fe0f7818e3b9eb0f67389998fef8bfa35666360c967879515",
-    "src/runner/PlaywrightRunner.ts": "389955b9413ab9b3c53cb56bce6966c09b8d9b3004c0ccee14357da09133dec2",
-    "src/runner/recoverySnapshot.ts": "7a4643aeba23cbfc8f61d62d001ae150f8e8b7cdcdae64d512bd9fc8532b0c54",
-    "src/runner/visualFusion/VisualFusionStage.ts": "918063b15fc71fa07ab606b343fbd0e87aa011ac792ae35ad1fcf0f4ca79ab8d"
+    "docs/ai/contracts/awkit-vra-4-6-n3-state-1013.json": "25070a5415156d039df0f6837ff79562cb8dcffe72bc529468235773c9fe1899"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -47,7 +29,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-13T19:16:21.242Z",
-  "released_reason": "N3.3 closed, beads exported",
-  "archived_at": "2026-10-13T19:16:21.244Z"
+  "released_at": "2026-10-13T19:36:00.699Z",
+  "released_reason": "N3.6 closed and vra.4 notes recorded, beads exported",
+  "archived_at": "2026-10-13T19:36:00.701Z"
 }

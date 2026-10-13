@@ -862,6 +862,31 @@ Invariants:
   the verdict.
 - Protected surfaces are excluded by the N0 guard before and after capture.
 
+### Visual agreement layer (Phase N N3; closed shadow-only)
+
+```text
+src/visual/fusion/decideVisualAgreement.ts   Pure policy (rows A1-A9): identity only, DOM best only, may
+                                             answer proceed only in enforce. Exported via src/visual/index.
+src/runner/visualFusion/VisualFusionStage.agree
+                                             Reads the same VisualReferenceStore (never writes it, J7).
+Wiring:
+  ExecutionEngine (AWKIT_VISUAL_RECOVERY=shadow|enforce, else off) -> PlaywrightRunner visualAgreement
+    -> lazyVisualFusion({ agreement }) -> LocatorFactoryOptions.visualFusion
+  LocatorFactory.recover() -> local layer keeps only a below-threshold refusal, after the whole DOM chain
+    -> observeAgreementVisual -> trace.visualAgreement (sibling of trace.visual; codes only, effect none)
+```
+
+Invariants:
+
+- Shadow only: `enforce` is decided as `shadow`, `effect` is always `none`, and agreement never lets a candidate
+  proceed, never breaks a near-tie and never writes the reference. N3.4 (enforce) and N3.5 (`visual-agreed`
+  provenance) are deferred because N3.2 measured 28 false `agreed` on headless twins.
+- Off is the default. Off, the N2 stage alone, shadow and enforce give identical events, traces and winner memory
+  apart from the `visualAgreement` key (J6, `verify:visual-agreement-runtime`).
+- Sensitive and ineligible steps are decided before any read (J8); a slow read is cut at the shared 400 ms FD-5
+  budget (J9); competitors are capped at 8.
+- `verify:visual-isolation` still allows exactly one runner edge into `src/visual`.
+
 ## Semantic index (separate process boundary)
 
 ```text

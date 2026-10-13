@@ -1,6 +1,21 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-13, latest) — Phase N: N3.3 runner shadow done; N3.6 next
+## HANDOFF (2026-10-13, latest) — Phase N: N3.6 done; N3 closed shadow-only, independent QC pending
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** N3.6 records the N3 shadow-only close in CURRENT_STATE, TASK_LOG, ARCHITECTURE, DECISIONS, the N3 plan
+  (*Closure gates*), ROADMAP and ImplementationRoadmap. `.4.6` closed. Dashboard repinned to 27 / 360.
+- **Open gate:** criterion 5, an independent QC review of N3.1 (`decideVisualAgreement`) and N3.3
+  (`VisualFusionStage.agree`, the `recover()` hook, `verify:visual-agreement-runtime`), is NOT RUN. `awkit-vra.4`
+  stays `in_progress`; `awkit-vra.6` and `awkit-vra.8` wait on it. Contract `awkit-vra-4-3-runner-shadow-1013` records
+  `qc_status: pending`; N3.1 shipped under `awkit-vra-4-n3-start-1013`.
+- **Next:** run that review (needs an explicit owner request for a reviewer agent), close its findings, then close
+  `awkit-vra.4` with a reason naming the QC commit. `.4.4`/`.4.5` stay `blocked`.
+- **v0.1.53 carry-over unchanged:** Parts D–J are BLOCKED (no issuer key), and the clean-VM walkthrough is NOT RUN.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-13) — Phase N: N3.3 runner shadow done; N3.6 next
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

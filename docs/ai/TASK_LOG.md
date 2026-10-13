@@ -1,6 +1,21 @@
 # TASK_LOG
 
-## 2026-10-13 (latest) — Phase N: N3.3 runner shadow (Claude)
+## 2026-10-13 (latest) — Phase N: N3.6 state and docs, N3 shadow-only close (Claude)
+
+- **Scope:** "continue with N3.6". Contract `awkit-vra-4-6-n3-state-1013`, Risk 0. CodeCraft was not used
+  (`CODECRAFT_MODE=off`).
+- **Change:** docs and state only. ARCHITECTURE agreement-layer boundary; DECISIONS N3 close record; N3 plan status
+  and *Closure gates* table; ROADMAP row and paragraph; ImplementationRoadmap note; CURRENT_STATE and HANDOFF.
+- **Governance:** `.4.6` closed; `awkit-vra.4` left `in_progress` with notes naming criterion 5 (independent QC, NOT
+  RUN) as the remaining gate; dashboard repinned to 27 / 360.
+- **Files:** `.beads/issues.jsonl`, `scripts/verify-roadmap-dashboard.mjs`, `src/roadmap/ImplementationRoadmap.ts`,
+  `docs/ai/{ARCHITECTURE,DECISIONS,CURRENT_STATE,HANDOFF,TASK_LOG}.md`,
+  `docs/plans/ai-upgrade-v5/{N3-visual-locator-recovery,ROADMAP}.md`, the contract.
+- **Tests:** similar-rows-safety 68/0 (closure criterion 3 at the final source state); verifier-classification,
+  roadmap-dashboard and build as recorded in the contract. QC NOT RUN.
+- **Result:** N3.6 done. N3 closed shadow-only except the independent QC gate.
+
+## 2026-10-13 — Phase N: N3.3 runner shadow (Claude)
 
 - **Scope:** "continue with N3.3". Contract `awkit-vra-4-3-runner-shadow-1013`. CodeCraft was not used
   (`CODECRAFT_MODE=off`).
