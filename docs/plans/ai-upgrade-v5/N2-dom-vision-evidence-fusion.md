@@ -315,6 +315,38 @@ verdict's only report path.
 - Verification: `verify:visual-fusion-runtime` 115/0 and `verify:recovery-provenance` 46/0, the latter including a
   real `AWKIT_VISUAL_FUSION=shadow` ExecutionEngine run. Mutations were red and restored.
 
+**N2.8 outcome (2026-10-13).** `docs/ai/ARCHITECTURE.md` gains the "Visual evidence fusion boundary" section (the
+`src/visual` library, the single adapter edge, the reference store and the trace-to-report path). FD-1 to FD-9 were
+already recorded in `DECISIONS.md` on 2026-10-12, and no new verifier was added, so the registry is unchanged. The
+closure gates were run against the final state:
+
+| Gate | Result |
+|---|---|
+| `verify:visual-fusion` | 271/0 |
+| `verify:visual-fusion-runtime` | 115/0 |
+| `verify:visual-capture` | 274/0 |
+| `verify:visual-capture-fanout` | 192/0 |
+| `verify:visual-fingerprint` | 58/0 |
+| `verify:visual-isolation` | 40/0 |
+| `verify:runner` / `verify:locator-guard` | 138/0 / 38/0 |
+| L11/L12 suites: `verify:dom-intelligence-coverage` / `verify:twin-pool-safety` / `verify:recovery-provenance` | 74/0 / 48/0 / 46/0 |
+| `verify:mock-site` | 299/299 |
+| `npm run build` | PASS |
+
+Status of the acceptance criteria for closing `awkit-vra.12`:
+
+| # | Criterion | State |
+|---|---|---|
+| 1 | Work items complete | PASS: N2.1-N2.5, N2.4b, N2.7, N2.8 done; N2.6 deferred by the recorded FD-9 outcome |
+| 2 | Fusion verifiers pass, registered, mutation contract observed | PASS for both verifiers and registration. Contract items 1-5, 7-10 observed red. Item 6 (the budget ignored) has no dedicated mutation: INCONCLUSIVE |
+| 3 | Existing gates pass at the final state | PASS (table above) |
+| 4 | I3 A/B neutrality | PASS: off-vs-shadow identical apart from `trace.visual` (`verify:visual-fusion-runtime`) |
+| 5 | Headed Ctrl+zoom capture | PASS (executed in N2.3, refused with `CAPTURE_UNAVAILABLE`) |
+| 6 | Independent QC review | NOT RUN |
+| 7 | Overhead on the lab, DPR 1 and 2, headed and headless | Partial: the N2.4 fan-out evaluation cost is measured across that matrix. The end-to-end recovery-attempt overhead, the reference-refresh overhead and the fusion-off baseline are NOT RUN |
+
+`awkit-vra.12` therefore stays open, shadow-only, until criteria 6 and 7 (and the item-6 mutation) are done.
+
 ### Feature Test Lab scenarios (N2.3)
 
 Each scenario gets a stable URL, title, expected behaviour and `data-testid` selectors, and is

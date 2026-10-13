@@ -1,6 +1,27 @@
 # CURRENT_STATE
 
-## Phase N: N2.7 shadow verdict provenance in the recovery trace and report (2026-10-13, latest)
+## Phase N: N2.8 state and docs closure; N2 shadow-only, not closed (2026-10-13, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task.
+
+- **N2.8 done** (`awkit-vra.12.8`, docs only):
+  - `ARCHITECTURE.md` has a "Visual evidence fusion boundary" section.
+  - The N2 plan has the closure-gate results and the acceptance status.
+  - The ROADMAP N2 row is current.
+- **Closure gates, final state:**
+  - `verify:visual-fusion` 271/0, `verify:visual-fusion-runtime` 115/0;
+  - `verify:visual-capture` 274/0, `verify:visual-capture-fanout` 192/0, `verify:visual-fingerprint` 58/0;
+  - `verify:mock-site` 299/299;
+  - isolation, runner, locator-guard, the L11/L12 suites and build green at N2.7, with source unchanged since.
+- **`awkit-vra.12` stays open.** Owed:
+  - the independent QC review (NOT RUN);
+  - the end-to-end recovery-attempt, reference-refresh and fusion-off overhead measurements (NOT RUN);
+  - a dedicated "budget ignored" mutation (INCONCLUSIVE).
+- **Binding:** N2 is shadow-only, `contradictionEnabled` stays `false`, and N2.6 stays deferred.
+- **Tracker BLOCKED** (lease denial): `.12.4`, N2.4b, `.12.5`, `.12.7` and `.12.8` are owed. See `HANDOFF.md`.
+
+## Phase N: N2.7 shadow verdict provenance in the recovery trace and report (2026-10-13)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed by this task.

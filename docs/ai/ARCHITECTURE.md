@@ -831,6 +831,37 @@ Invariants:
 - Fail-open with the original failure unchanged; no shadow-DOM claim.
 - Phase M source knowledge and Phase N visual recognition stay separate.
 
+## Visual evidence fusion boundary (Phase N N1/N2; shadow only)
+
+```text
+src/visual/                  Pure library (no Electron, no runner import): capture (internal/captureCore),
+                             png, fingerprint, compare, geometry, protectedGuard, candidateEvidence,
+                             visualEvidence, fusion/decideFusion (the pure FusionVerdict policy).
+  index.ts                   The ONLY public entry.
+src/runner/visualFusion/
+  VisualFusionStage.ts       The ONLY runner module that imports src/visual (FD-2; one allow-listed
+                             edge, VisualFusionStage -> src/visual/index, in verify:visual-isolation).
+  VisualReferenceStore.ts    Runner-owned sidecar store (FD-4): <runtime root>/visual-references/
+                             <sha256(scopeKey)>.json; bounded, versioned, tmp + rename with EPERM/EBUSY retry.
+Wiring:
+  ExecutionEngine (AWKIT_VISUAL_FUSION=shadow only, FD-8) -> visualFusionRoot
+    -> PlaywrightRunner lazyVisualFusion -> LocatorFactoryOptions.visualFusion
+  LocatorFactory.recover() finally -> observeRecovery(winner, <=3 contenders) -> trace.visual
+    -> toRecoveryProvenance -> report.json data.locatorRecovery (schema 1, recovered records only)
+```
+
+Invariants:
+
+- Shadow only in N2: `MEASURED_FUSION_POLICY.contradictionEnabled = false`, `effect` is always `none`, and the
+  verdict never chooses, vetoes, replaces or re-ranks a locator. N2.6 (enforce-veto) is deferred by FD-9.
+- Off is the default and loads nothing (lazy loader). An off-vs-shadow A/B is identical apart from `trace.visual` (I3).
+- Observation runs only after the DOM recovery has decided, reuses its resolved winner and gated-out contenders (no
+  second resolve), is element-step only (FD-6), viewport only and never scrolls (FD-7), within a 400 ms budget (FD-5).
+- Reported fields are codes and rounded scores only (I9); no screenshot bytes are persisted in evidence or the trace.
+- Renderer, preload and every `app/main` module cannot reach `src/visual`; `RunHistoryRow` (SQLite) never carries
+  the verdict.
+- Protected surfaces are excluded by the N0 guard before and after capture.
+
 ## Semantic index (separate process boundary)
 
 ```text

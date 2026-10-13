@@ -1,6 +1,27 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-13, latest) — Phase N: N2.7 provenance implemented; tracker owed; next is N2.8
+## HANDOFF (2026-10-13, latest) — Phase N: N2.8 docs closure done; N2 not closed
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:**
+  - N2.8: the `ARCHITECTURE` boundary section, the closure gates and the acceptance status in the N2 plan, and the
+    ROADMAP row.
+  - Every closure gate is green against the final state (see the N2 plan's "N2.8 outcome").
+- **Owed before `awkit-vra.12` can close:**
+  1. an independent qc-reviewer pass over the isolation-boundary change and the (deferred) enforce path;
+  2. on the lab at DPR 1 and 2, headed and headless: the end-to-end recovery-attempt overhead with fusion on (p50 and
+     p95), the reference-refresh overhead on a passing resolve, and the fusion-off overhead against the baseline;
+  3. a dedicated "budget ignored" mutation (mutation-contract item 6).
+- **Owed — tracker (still BLOCKED by the lease denial).** Close `awkit-vra.12.8` too, in addition to the steps
+  below, then run `bd export -o .beads/issues.jsonl` and repin the dashboard counts.
+- **Binding:**
+  - Shadow-only.
+  - Keep `contradictionEnabled` `false`.
+  - N2.6 stays deferred until a new FD-9 measurement shows separation.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-13) — Phase N: N2.7 provenance implemented; tracker owed; next is N2.8
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

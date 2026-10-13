@@ -631,7 +631,7 @@ not renumbered; titles and notes map existing history onto the canonical names.
 |---|---|---|---|
 | N0 | Visual Intelligence Foundation / Capture | `awkit-vra.1` | closed — re-QC PASS at `222b04d3` |
 | N1 | Deterministic Visual Element Fingerprints | `awkit-vra.3.1` | closed — re-QC PASS at `222b04d3` |
-| N2 | DOM + Vision Evidence Fusion | `awkit-vra.12` | in progress — FD-1 to FD-9 approved, N2.1-N2.8 filed (`.12.1`…`.12.8`), N2.1-N2.3 done; N2 ships shadow-only (FD-9, no separation) |
+| N2 | DOM + Vision Evidence Fusion | `awkit-vra.12` | in progress — FD-1 to FD-9 approved, N2.1-N2.8 filed (`.12.1`…`.12.8`), N2.1-N2.5, N2.4b, N2.7 and N2.8 done, N2.6 deferred; N2 ships shadow-only (FD-9, no separation); closure owes the QC review and the overhead matrix |
 | N3 | Visual Locator Recovery | — | not yet filed |
 | N4 | Recorder Visual Intelligence | — | not yet filed |
 | N5 | Visual Failure Diagnosis | — | not yet filed |
@@ -656,6 +656,9 @@ and the owner decisions FD-1 to FD-9. The owner approved FD-1 to FD-9 as recomme
 verification seams made verifier-only) and N2.2 (the pure veto-only `decideFusion` policy, guarded by
 `verify:visual-fusion`) are done. N2.3 (the calibration lab, `N2.3-fusion-calibration.md`) found no
 separation between look-alikes and real contradictions, so R8 is disabled and N2 ships shadow-only (FD-9).
+N2.4 (single-capture fan-out), N2.4b (reference store), N2.5 (the shadow `VisualFusionStage`), N2.7 (the verdict in
+the recovery trace and report) and N2.8 (state and docs) followed on 2026-10-12/13. `awkit-vra.12` stays open until
+the independent QC review and the remaining overhead measurements of its acceptance criteria are done.
 
 ### Planned workstreams and dependencies (original numbering, 2026-09-22)
 
