@@ -1,6 +1,21 @@
 # DECISIONS
 
-### 2026-10-13 (latest) — Phase N N2.4b/N2.5: runner-owned reference store; one adapter edge; shadow by env only (implementation, applying FD-2/6/7/8/9) (`awkit-vra.12.5`)
+### 2026-10-13 (latest) — Phase N N2.7: the shadow verdict reaches the report only through the recovery trace (`awkit-vra.12.7`)
+
+- **Trace-carried verdict.** `LocatorFactory.recover()` observes the recovered winner in its `finally`, after every
+  DOM veto, and copies only the returned codes and rounded scores into that attempt's `recovery-trace` as `visual`.
+  Capture never scrolls (FD-7), so stages, events, winner memory and the resolved element stay identical to a run
+  with fusion off (I3). `totalMs` excludes the observation time.
+- **Shape.** The block is `{ mode, outcome, reason, effect, ms, winnerScore?, competitorScore? }`: the plan's
+  *Reporting* block plus `effect`, which N2 never sets to anything but `none`.
+- **One path only.** The N2.5 `[visual-fusion:shadow]` debug log is removed, so a verdict is never reported twice.
+- **Report record stays schema 1.** `LocatorRecoveryProvenance.visual` is additive and optional. It is sanitized
+  (code allowlist, else `invalid`; unit-range scores to 3 decimals; integer ms) and kept on recovered records only,
+  so older readers and fusion-off reports are unchanged.
+- **Not in run history.** `RunHistoryRow` stays its fixed columns. The block lives only in `report.json`.
+- **Unchanged.** `contradictionEnabled = false`, the env-only switch and N2.6 deferral.
+
+### 2026-10-13 — Phase N N2.4b/N2.5: runner-owned reference store; one adapter edge; shadow by env only (implementation, applying FD-2/6/7/8/9) (`awkit-vra.12.5`)
 
 - **Order (owner).** N2.4b ran before N2.5, as recommended.
 - **Reference store.** References are runner-owned sidecars under `<runtime root>/visual-references`, one per step

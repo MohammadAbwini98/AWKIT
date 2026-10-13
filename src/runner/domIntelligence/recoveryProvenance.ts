@@ -68,6 +68,22 @@ export interface LocatorRecoveryProvenance {
   route: "match" | "mismatch" | "unbound";
   totalMs: number;
   events: RecoveryProvenanceEvent[];
+  /**
+   * N2.7 (additive, schema 1): the SHADOW visual-fusion verdict on the recovered winner. Present only on a recovered
+   * record whose trace carried one (fusion on, eligible step). Fixed codes and 3-decimal scores only (I9); in N2 its
+   * `effect` is always "none" and it never chose or changed what the step acted on.
+   */
+  visual?: RecoveryProvenanceVisual;
+}
+
+export interface RecoveryProvenanceVisual {
+  mode: "shadow";
+  outcome: string;
+  reason: string;
+  effect: "none" | "veto";
+  ms: number;
+  winnerScore?: number;
+  competitorScore?: number;
 }
 
 /** Hard bound on events per record (the trace has at most three stages, so this is never reached). */
@@ -77,6 +93,23 @@ const PAGE_ALIAS = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const ms = (value: number): number => Math.max(0, Math.round(value));
 const score = (value: number | undefined): number | undefined => (value === undefined || !Number.isFinite(value) ? undefined : Number(value.toFixed(3)));
 const pick = <T extends object>(value: T): T => Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined)) as T;
+/** A fusion outcome or reason code (`decideFusion`); anything else is recorded as `invalid`, never verbatim. */
+const VISUAL_CODE = /^[a-z][a-z0-9-]{0,39}$/;
+const code = (value: unknown): string => (typeof value === "string" && VISUAL_CODE.test(value) ? value : "invalid");
+const unitScore = (value: unknown): number | undefined => (typeof value === "number" && value >= 0 && value <= 1 ? score(value) : undefined);
+
+function toVisualProvenance(visual: LocatorRecoveryTrace["visual"]): RecoveryProvenanceVisual | undefined {
+  if (!visual || visual.mode !== "shadow") return undefined;
+  return pick({
+    mode: "shadow" as const,
+    outcome: code(visual.outcome),
+    reason: code(visual.reason),
+    effect: visual.effect === "veto" ? ("veto" as const) : ("none" as const),
+    ms: Number.isFinite(visual.ms) ? ms(visual.ms) : 0,
+    winnerScore: unitScore(visual.winnerScore),
+    competitorScore: unitScore(visual.competitorScore)
+  });
+}
 
 export function toRecoveryProvenance(trace: LocatorRecoveryTrace): LocatorRecoveryProvenance {
   const events: RecoveryProvenanceEvent[] = [{ event: "primary-failed", source: "awkit", candidates: trace.candidatesTried }];
@@ -132,6 +165,7 @@ export function toRecoveryProvenance(trace: LocatorRecoveryTrace): LocatorRecove
     events.push(pick({ event, source: "dom-intelligence", stage: "provider", effect: "none", provider, ms: ms(stage.ms), reason: stage.reason }) as RecoveryProvenanceEvent);
   }
   if (trace.result === "unresolved") events.push({ event: "fallback-used", source: "awkit", fallback: "recorded-locator" });
+  const visual = trace.result === "recovered" ? toVisualProvenance(trace.visual) : undefined;
   return {
     schemaVersion: RECOVERY_PROVENANCE_VERSION,
     engine: trace.engine,
@@ -144,6 +178,7 @@ export function toRecoveryProvenance(trace: LocatorRecoveryTrace): LocatorRecove
     frameDepth: Math.min(8, Math.max(0, trace.context.frameDepth)),
     route: trace.context.route,
     totalMs: ms(trace.totalMs),
-    events: events.slice(0, RECOVERY_PROVENANCE_MAX_EVENTS)
+    events: events.slice(0, RECOVERY_PROVENANCE_MAX_EVENTS),
+    ...(visual ? { visual } : {})
   };
 }

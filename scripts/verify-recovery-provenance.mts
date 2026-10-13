@@ -16,6 +16,10 @@
  * AWKIT's proof acted; provider evidence always `effect: none`; never DOM, page text, a selector, a URL or a
  * secret. A hung provider must not hold the step past its budget.
  *
+ * N2.7: with visual fusion off no record has a `visual` block; under AWKIT_VISUAL_FUSION=shadow a seed and a drift
+ * put the shadow verdict into the recovered record as `visual` (codes, integer ms, 3-decimal scores, effect none)
+ * with the same events, and `RunHistoryRow` stays fixed columns, so the block never reaches run history.
+ *
  * Run: npm run verify:recovery-provenance   (node scripts/benchmark/run.mjs → tsx + the electron stub)
  */
 import { spawn, type ChildProcess } from "node:child_process";
@@ -144,7 +148,9 @@ async function run(engine: ExecutionEngine, dirs: Awaited<ReturnType<typeof buil
   return { instance, logs, provenance, wallMs };
 }
 
-const FIELDS = new Set(["schemaVersion", "engine", "result", "actedOn", "page", "frame", "frameDepth", "route", "totalMs", "events"]);
+const FIELDS = new Set(["schemaVersion", "engine", "result", "actedOn", "page", "frame", "frameDepth", "route", "totalMs", "events", "visual"]);
+/** N2.7: the shadow visual-fusion block, codes and rounded numbers only. */
+const VISUAL_FIELDS = new Set(["mode", "outcome", "reason", "effect", "ms", "winnerScore", "competitorScore"]);
 const EVENT_FIELDS = new Set(["event", "source", "stage", "ms", "candidates", "score", "runnerUpScore", "reason", "effect", "provider", "providerScore", "awkitScore", "fallback", "changed"]);
 /** L12.16: `changed` holds field names only: a fixed field, or an attribute key the fingerprint allowlists. */
 const CHANGE_CODE = /^(tag|role|name|text|position|attribute:(id|name|type|placeholder|data-testid|aria-label|data-key|data-id|data-row-key|data-item-key))$/;
@@ -171,6 +177,15 @@ function privacyProblems(record: LocatorRecoveryProvenance): string[] {
     }
   }
   for (const value of [record.engine, record.result, record.page, record.frame, record.route]) if (!CODE.test(String(value))) problems.push(`value ${value}`);
+  if (record.visual !== undefined) {
+    if (record.result !== "recovered") problems.push("visual on an unresolved record");
+    for (const [key, value] of Object.entries(record.visual)) {
+      if (!VISUAL_FIELDS.has(key)) problems.push(`visual field ${key}`);
+      if (typeof value === "string" && !CODE.test(value)) problems.push(`visual value ${value}`);
+      if (typeof value === "number" && (!Number.isFinite(value) || Number(value.toFixed(3)) !== value)) problems.push(`visual ${key} ${value}`);
+      if (typeof value !== "string" && typeof value !== "number") problems.push(`visual ${key} is ${typeof value}`);
+    }
+  }
   return problems;
 }
 
@@ -273,6 +288,37 @@ try {
     candidatesTried: 1
   });
   check("a provider name outside the fixed codes is recorded as 'none'", forged.events.some((event) => event.event === "provider-suggestion-generated" && event.provider === "none") && !JSON.stringify(forged).includes("evil"), forged.events);
+  check("with visual fusion off (the default), no record carries a visual block", all.every((record) => record.visual === undefined));
+
+  // N2.7: the same seed and drift under AWKIT_VISUAL_FUSION=shadow, through the real report.
+  console.log("N2.7 shadow visual fusion: the verdict reaches the report as the record's visual block");
+  process.env.AWKIT_VISUAL_FUSION = "shadow";
+  try {
+    const shadowSeed = await run(engine, dirs, "shadow-seed", [goto(ORDERS), exportStep]);
+    check("shadow seed run passed with no recovery record", shadowSeed.instance?.status === "passed" && shadowSeed.provenance.length === 0, shadowSeed.instance?.status);
+    check("the passing resolve wrote the step's visual reference", existsSync(join(dirs.root, "visual-references")));
+    const shadowRecovered = await run(engine, dirs, "shadow-recovered", [goto(`${ORDERS}?drift=testid`), exportStep]);
+    const shadowRec = shadowRecovered.provenance[0];
+    check("the drifted shadow run passed through the same AWKIT proof", shadowRecovered.instance?.status === "passed" && shadowRecovered.provenance.length === 1 && shadowRec?.actedOn === "awkit-proof", shadowRec);
+    check("its events are those of the fusion-off recovery", names(shadowRec) === names(rec), names(shadowRec));
+    const visual = shadowRec?.visual;
+    check("the record carries a shadow visual block with effect none", visual?.mode === "shadow" && visual.effect === "none", shadowRec);
+    check("the verdict compared against the seeded reference (not R1 no-reference)", typeof visual?.outcome === "string" && visual.reason !== "no-reference" && visual.reason !== "invalid", visual);
+    check("its observation time is an integer ms", Number.isInteger(visual?.ms), visual);
+    check("the shadow record is bounded, code-only and private", shadowRec !== undefined && privacyProblems(shadowRec).length === 0, shadowRec ? privacyProblems(shadowRec) : "no record");
+    check("no visual-fusion debug line duplicates it in the report", !shadowRecovered.logs.some((log) => log.message.includes("[visual-fusion")));
+  } finally {
+    delete process.env.AWKIT_VISUAL_FUSION;
+  }
+
+  // N2.7 run-history contract: a history row is fixed columns with no log data, so the block can only live in the report.
+  const telemetry = readFileSync(join(ROOT, "src", "reports", "TelemetryContracts.ts"), "utf8");
+  const rowBody = /export interface RunHistoryRow \{([^}]*)\}/.exec(telemetry)?.[1] ?? "";
+  // Captured permissively (any identifier before a colon), validated strictly against the allowlist below.
+  const rowFields = [...rowBody.matchAll(/^\s*([^\s:?]+)\??\s*:/gm)].map((match) => match[1]);
+  const HISTORY_FIELDS = ["instanceId", "executionId", "scenarioId", "scenarioName", "status", "startedAt", "endedAt", "durationMs", "queueWaitMs", "reportCategory", "errorClass"];
+  check("RunHistoryRow is read (non-vacuous)", rowFields.length >= HISTORY_FIELDS.length, rowFields);
+  check("RunHistoryRow carries only its fixed columns: no log data, provenance or visual field", rowFields.every((field) => HISTORY_FIELDS.includes(field)), rowFields);
 } finally {
   mockSite?.kill();
   await cleanupRoot(root);

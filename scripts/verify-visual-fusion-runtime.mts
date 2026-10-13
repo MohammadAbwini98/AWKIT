@@ -24,6 +24,11 @@
  *   - I9: the verdict record is eight fields with rounded scores and no digest, bounds or pixels;
  *   - ineligible steps get no verdict and sensitive steps never refresh; effect is always none.
  *
+ * N2.7 (awkit-vra.12.7): the verdict reaches the `recovery-trace` as its `visual` block — absent with fusion off, for
+ * ineligible steps and for a failing observer, the A/B otherwise identical — and `toRecoveryProvenance` keeps a
+ * sanitized copy (codes or `invalid`, effect none or veto, integer ms, 3-decimal unit scores) the report's
+ * SecretMasker leaves intact and that names no element, URL, digest or pixels.
+ *
  * Run: npm run verify:visual-fusion-runtime
  */
 
@@ -35,7 +40,16 @@ import { chromium, type Browser, type Page } from "playwright";
 import { VISUAL_EVIDENCE_MAX_BYTES, VISUAL_EVIDENCE_VERSION, type VisualEvidence } from "@src/visual/visualEvidence";
 import { MEASURED_FUSION_POLICY } from "@src/visual/fusion/decideFusion";
 import type { FlowStep } from "@src/profiles/FlowProfile";
-import { LocatorFactory, type LocatorRecoveryEvent, type LocatorVisualFusion, type LocatorVisualRecoveryObservation } from "@src/runner/LocatorFactory";
+import {
+  LocatorFactory,
+  type LocatorRecoveryEvent,
+  type LocatorRecoveryTrace,
+  type LocatorRecoveryVisual,
+  type LocatorVisualFusion,
+  type LocatorVisualRecoveryObservation
+} from "@src/runner/LocatorFactory";
+import { toRecoveryProvenance } from "@src/runner/domIntelligence/recoveryProvenance";
+import { SecretMasker } from "@src/reports/SecretMasker";
 import { FileLocatorRecoveryStore } from "@src/runner/LocatorRecoveryStore";
 import { VisualFusionStage, visualFusionEligibility, type VisualFusionVerdictRecord } from "@src/runner/visualFusion/VisualFusionStage";
 import {
@@ -118,9 +132,12 @@ const LAB = `<!doctype html><html><body style="font:16px sans-serif;margin:24px;
 <button id="export-profile" type="button" style="background:#bbf7d0;border:0;padding:8px 16px">Export</button>
 </div></section></main></body></html>`;
 
-/** Timestamps and durations differ between any two runs, also inside trace messages; everything else must not. */
+/**
+ * Timestamps and durations differ between any two runs, also inside trace messages; everything else must not. N2.7: the
+ * trace's `visual` block exists only with fusion on, so the A/B compares without it and `visuals` is asserted on its own.
+ */
 const stable = (key: string, value: unknown): unknown => {
-  if (/(^ms|Ms|At)$/.test(key)) return undefined;
+  if (/(^ms|Ms|At)$/.test(key) || key === "visual") return undefined;
   return typeof value === "string" ? value.replace(/\d+ ?ms\b/g, "#ms") : value;
 };
 
@@ -131,6 +148,8 @@ interface ScenarioRun {
   resolvedText: string | null;
   events: string;
   memory: string;
+  /** N2.7: each recovery trace's `visual` block, in order (`null` when the trace had none); excluded from the A/B. */
+  visuals: (LocatorRecoveryVisual | null)[];
 }
 
 /**
@@ -183,7 +202,8 @@ async function scenario(
       isTarget,
       resolvedText,
       events: JSON.stringify(events, stable),
-      memory: JSON.stringify(memory, stable)
+      memory: JSON.stringify(memory, stable),
+      visuals: events.filter((event) => event.type === "recovery-trace").map((event) => event.trace?.visual ?? null)
     };
   } finally {
     await page.close().catch(() => undefined);
@@ -225,7 +245,7 @@ async function shadow(onVerdict?: (record: VisualFusionVerdictRecord) => void): 
     observeRecovery: async (observation) => {
       out.observed.push(observation);
       out.competitorTexts.push(await Promise.all(observation.competitors.map((c) => c.locator.textContent().catch(() => null))));
-      await stage.observeRecovery(observation);
+      return stage.observeRecovery(observation);
     },
     observePass: async (observation) => {
       out.passes += 1;
@@ -235,7 +255,7 @@ async function shadow(onVerdict?: (record: VisualFusionVerdictRecord) => void): 
   return out;
 }
 
-const sameRun = (a: ScenarioRun, b: ScenarioRun): boolean => JSON.stringify(a) === JSON.stringify(b);
+const sameRun = (a: ScenarioRun, b: ScenarioRun): boolean => JSON.stringify({ ...a, visuals: undefined }) === JSON.stringify({ ...b, visuals: undefined });
 const threeDecimals = (value: unknown): boolean => typeof value === "number" && Math.abs(value * 1000 - Math.round(value * 1000)) < 1e-9;
 
 async function shadowStageCases(): Promise<void> {
@@ -329,6 +349,73 @@ async function shadowStageCases(): Promise<void> {
   check("the stage's mode is fixed to shadow", new VisualFusionStage({ folder: ROOT }).mode === "shadow");
   const all = [a, b, c, d, e].flatMap((x) => x.verdicts);
   check("no verdict of any case had an effect", all.length >= 3 && all.every((v) => v.effect === "none"), String(all.length));
+
+  console.log("\nN2.7: the recovery trace carries the shadow verdict as its `visual` block:\n");
+  check("fusion off: one recovery trace, and it has no visual block", off.visuals.length === 1 && off.visuals[0] === null, JSON.stringify(off.visuals));
+  const [visual] = on.visuals;
+  check("fusion on: one recovery trace, and it has a visual block", on.visuals.length === 1 && visual !== null, JSON.stringify(on.visuals));
+  check(
+    "the block is the allowlisted fields only",
+    visual !== null && Object.keys(visual).every((k) => ["mode", "outcome", "reason", "effect", "ms", "winnerScore", "competitorScore"].includes(k)),
+    JSON.stringify(visual)
+  );
+  check("it is the stage's verdict: shadow mode, same outcome, reason and effect none", visual?.mode === "shadow" && visual.outcome === verdict?.outcome && visual.reason === verdict?.reason && visual.effect === "none", JSON.stringify(visual));
+  check(
+    "its scores are the verdict's rounded scores, under the trace's names",
+    visual?.winnerScore === verdict?.evidence.winnerScore && visual?.competitorScore === verdict?.evidence.bestCompetitorScore && (visual?.winnerScore === undefined || threeDecimals(visual.winnerScore)),
+    `${JSON.stringify(visual)} vs ${JSON.stringify(verdict?.evidence)}`
+  );
+  check("its observation time is a finite, non-negative number", typeof visual?.ms === "number" && Number.isFinite(visual.ms) && visual.ms >= 0);
+  check("before a reference exists the block says R1 no-reference", noRef.visuals.length === 1 && noRef.visuals[0]?.reason === "no-reference", JSON.stringify(noRef.visuals));
+  check("an ineligible step's trace has no visual block", hoverOn.visuals.length === 1 && hoverOn.visuals[0] === null, JSON.stringify(hoverOn.visuals));
+  check("a sensitive step never recovers, so it has no trace to carry one", sensitiveOn.visuals.length === 0, JSON.stringify(sensitiveOn.visuals));
+  check("a throwing verdict sink still yields the block (the sink is a recorder)", throwingSink.visuals.length === 1 && throwingSink.visuals[0]?.mode === "shadow", JSON.stringify(throwingSink.visuals));
+  check("a rejecting observer yields no block, and the run is otherwise identical", brokenRun.visuals.length === 1 && brokenRun.visuals[0] === null, JSON.stringify(brokenRun.visuals));
+  const verdictOnly: LocatorVisualFusion = {
+    observeRecovery: async () => ({ mode: "shadow", outcome: "corroborated", reason: "visual-leader", effect: "none", evidence: { winnerScore: 0.9, bestCompetitorScore: 0.2 } }),
+    observePass: async () => undefined
+  };
+  const injected = await scenario("click", { recover: verdictOnly });
+  check(
+    "the factory copies only the codes and scores it is given (no evidence object, no extra fields)",
+    JSON.stringify({ ...injected.visuals[0], ms: 0 }) === JSON.stringify({ mode: "shadow", outcome: "corroborated", reason: "visual-leader", effect: "none", ms: 0, winnerScore: 0.9, competitorScore: 0.2 }),
+    JSON.stringify(injected.visuals)
+  );
+  check("...and the injected verdict changes nothing else", sameRun(injected, off));
+
+  console.log("\nN2.7: the report's provenance record keeps a sanitized copy:\n");
+  const trace = (extra: Partial<LocatorRecoveryTrace>): LocatorRecoveryTrace =>
+    ({
+      engine: "snapshot",
+      result: "recovered",
+      totalMs: 12.4,
+      stages: [{ stage: "local", outcome: "proven", ms: 3.2, candidates: 4, score: 0.9 }],
+      context: { page: "main", frame: "main", frameDepth: 0, route: "match" },
+      candidatesTried: 1,
+      ...extra
+    }) as LocatorRecoveryTrace;
+  const plain = toRecoveryProvenance(trace({}));
+  check("a trace without a block gives a record without the key (fusion-off reports unchanged)", !("visual" in plain) && plain.schemaVersion === 1);
+  const real = toRecoveryProvenance(trace({ visual: visual ?? undefined })).visual;
+  check(
+    "the real block survives intact, ms rounded to an integer",
+    real !== undefined && real.outcome === visual?.outcome && real.reason === visual?.reason && real.effect === "none" && Number.isInteger(real.ms) && real.winnerScore === visual?.winnerScore,
+    JSON.stringify(real)
+  );
+  const forged = toRecoveryProvenance(
+    trace({ visual: { mode: "shadow", outcome: "<img src=x onerror=alert(1)>", reason: "https://example.test/?token=abc", effect: "veto-all" as "none", ms: 12.6789, winnerScore: 0.123456, competitorScore: 7 } })
+  ).visual;
+  check(
+    "forged codes become invalid, an unknown effect becomes none, scores are rounded or dropped",
+    JSON.stringify(forged) === JSON.stringify({ mode: "shadow", outcome: "invalid", reason: "invalid", effect: "none", ms: 13, winnerScore: 0.123 }),
+    JSON.stringify(forged)
+  );
+  check("a non-shadow block is dropped", !("visual" in toRecoveryProvenance(trace({ visual: { ...(visual as LocatorRecoveryVisual), mode: "enforce" as "shadow" } }))));
+  check("an unresolved record never carries a block", !("visual" in toRecoveryProvenance(trace({ result: "unresolved", visual: visual ?? undefined }))));
+  const logged = { locatorRecovery: toRecoveryProvenance(trace({ visual: visual ?? undefined })) };
+  check("the report's SecretMasker leaves the block intact (no field read as a secret)", JSON.stringify(new SecretMasker().maskRecord(logged)) === JSON.stringify(logged), JSON.stringify(logged));
+  const recordText = JSON.stringify(logged);
+  check("I9: the record names no element, URL, digest or pixels", !/save-profile|profile-save|http|sha256|digest|base64|bounds|[0-9a-f]{16}/i.test(recordText), recordText);
 }
 
 try {
@@ -577,11 +664,14 @@ try {
   }
 
   await shadowStageCases();
+} catch (error) {
+  // A thrown case is a failure with its message, not a dump of the bundled source.
+  check("the suite ran to completion", false, (error instanceof Error ? (error.stack ?? error.message) : String(error)).slice(0, 800));
 } finally {
   await browser?.close().catch(() => undefined);
   await rm(ROOT, { recursive: true, force: true }).catch(() => undefined);
 }
 
-check("the suite is non-vacuous", passed >= 90, String(passed));
+check("the suite is non-vacuous", passed >= 110, String(passed));
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);

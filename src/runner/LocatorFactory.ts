@@ -168,6 +168,21 @@ export interface LocatorRecoveryTrace {
   context: LocatorRecoveryContext;
   /** Recorded candidates (primary plus usable alternatives) that all missed before recovery ran. */
   candidatesTried: number;
+  /**
+   * N2.7: the shadow visual-fusion verdict on the recovered winner, present only when fusion is on, the step is
+   * eligible and the observer answered. Codes and rounded scores only (I9); `totalMs` excludes its `ms`.
+   */
+  visual?: LocatorRecoveryVisual;
+}
+
+export interface LocatorRecoveryVisual {
+  mode: "shadow";
+  outcome: string;
+  reason: string;
+  effect: "none" | "veto";
+  ms: number;
+  winnerScore?: number;
+  competitorScore?: number;
 }
 
 export interface LocatorRecoveryContext {
@@ -276,9 +291,9 @@ export interface LocatorFactoryOptions {
   onRemembered?: (scopeKey: string) => void;
   /**
    * N2.5: the SHADOW visual-fusion observer (`src/runner/visualFusion/VisualFusionStage.ts`), injected like
-   * `domIntelligence`. It is shown each recovery's final winner, after every DOM veto, and each passing resolve; it
-   * returns nothing and its failures are swallowed, so stages, trace and the resolved element are unchanged (I3).
-   * Absent, no observation is built.
+   * `domIntelligence`. It is shown each recovery's final winner, after every DOM veto, and each passing resolve; its
+   * failures are swallowed, so stages and the resolved element are unchanged (I3). N2.7: a recovery verdict it returns
+   * is copied into the trace's `visual` block, nothing else. Absent, no observation is built.
    */
   visualFusion?: LocatorVisualFusion;
 }
@@ -301,9 +316,18 @@ export interface LocatorVisualRecoveryObservation extends LocatorVisualPassObser
   margin: number;
 }
 
+/** N2.7: the part of a recovery verdict the trace keeps. */
+export interface LocatorVisualVerdict {
+  mode: "shadow";
+  outcome: string;
+  reason: string;
+  effect: "none" | "veto";
+  evidence: { winnerScore?: number; bestCompetitorScore?: number };
+}
+
 /** Structural, so this module never imports the adapter (`verify:visual-isolation`). */
 export interface LocatorVisualFusion {
-  observeRecovery(observation: LocatorVisualRecoveryObservation): Promise<void>;
+  observeRecovery(observation: LocatorVisualRecoveryObservation): Promise<LocatorVisualVerdict | undefined | void>;
   observePass(observation: LocatorVisualPassObservation): Promise<void>;
 }
 
@@ -483,7 +507,9 @@ export class LocatorFactory {
             twinHistoryTrusted(applicableMemory) && twinHistoryTrusted(current)
               ? [...new Set([...applicableMemory.twinDigests!, ...current!.twinDigests!])]
               : undefined,
-          candidatesTried: ordered.length
+          candidatesTried: ordered.length,
+          scopeKey,
+          sensitive: sensitiveAction
         });
         if (recovered) {
           // L12.27: the recovered element is the identity from now on, so its look-alikes are scanned too. The old set
@@ -510,8 +536,6 @@ export class LocatorFactory {
               `RECOVERED locator for "${step.name}" with local similarity ${recovered.score.toFixed(3)} ` +
               `(all saved candidates missed). Re-record this step to replace the stale locator.`
           });
-          // N2.5: last in the chain, after every DOM veto and outside the recovery trace; shadow only.
-          await this.observeVisual(step, scopeKey, recovered.locator, sensitiveAction, recovered);
           return recovered.locator;
         }
       }
@@ -903,22 +927,52 @@ export class LocatorFactory {
   }
 
   /**
-   * N2.5: show a passing resolve to the shadow visual-fusion observer. A recovered winner is observed with its layer's
-   * competitors (a provider-agreed winner carries none); a recorded-candidate winner is only offered as a reference
-   * refresh. Returns nothing, and nothing it does can fail the resolve.
+   * N2.5: show a passing resolve to the shadow visual-fusion observer, as a reference refresh only. Returns nothing,
+   * and nothing it does can fail the resolve.
    */
-  private async observeVisual(step: FlowStep, scopeKey: string | undefined, locator: Locator, sensitive: boolean, recovered?: RecoveredElement): Promise<void> {
+  private async observeVisual(step: FlowStep, scopeKey: string | undefined, locator: Locator, sensitive: boolean): Promise<void> {
     const fusion = this.options.visualFusion;
     if (!fusion || !scopeKey) return;
-    const observation: LocatorVisualPassObservation = { page: this.page, step, scopeKey, locator, sensitive };
     try {
-      if (recovered) {
-        await fusion.observeRecovery({ ...observation, score: recovered.score, ...(recovered.visual ?? { layer: "provider-agreed", competitors: [], margin: 0 }) });
-      } else {
-        await fusion.observePass(observation);
-      }
+      await fusion.observePass({ page: this.page, step, scopeKey, locator, sensitive });
     } catch {
       // Shadow mode: the observer never participates in the resolve.
+    }
+  }
+
+  /**
+   * N2.5/N2.7: show a recovered winner, after every DOM veto, to the shadow observer with its layer's competitors (a
+   * provider-agreed winner carries none), and keep only the codes and rounded scores of the verdict it returns for the
+   * trace. Undefined when fusion is off, the observer answers nothing, or it fails; it can never fail the recovery.
+   */
+  private async observeRecoveryVisual(step: FlowStep, scopeKey: string | undefined, sensitive: boolean, recovered: RecoveredElement): Promise<LocatorRecoveryVisual | undefined> {
+    const fusion = this.options.visualFusion;
+    if (!fusion || !scopeKey) return undefined;
+    const started = performance.now();
+    try {
+      const verdict = await fusion.observeRecovery({
+        page: this.page,
+        step,
+        scopeKey,
+        locator: recovered.locator,
+        sensitive,
+        score: recovered.score,
+        ...(recovered.visual ?? { layer: "provider-agreed", competitors: [], margin: 0 })
+      });
+      if (!verdict) return undefined;
+      const { winnerScore, bestCompetitorScore } = verdict.evidence ?? {};
+      return {
+        mode: "shadow",
+        outcome: String(verdict.outcome),
+        reason: String(verdict.reason),
+        effect: verdict.effect === "veto" ? "veto" : "none",
+        ms: performance.now() - started,
+        ...(typeof winnerScore === "number" ? { winnerScore } : {}),
+        ...(typeof bestCompetitorScore === "number" ? { competitorScore: bestCompetitorScore } : {})
+      };
+    } catch {
+      // Shadow mode: the observer never participates in the resolve.
+      return undefined;
     }
   }
 
@@ -966,7 +1020,7 @@ export class LocatorFactory {
     root: LocatorRoot,
     step: FlowStep,
     expected: LocatorElementFingerprint,
-    memory: { route?: string; twinDigests?: string[]; candidatesTried: number }
+    memory: { route?: string; twinDigests?: string[]; candidatesTried: number; scopeKey?: string; sensitive?: boolean }
   ): Promise<RecoveredElement | undefined> {
     const engine: LocatorRecoveryEngine = this.options.recoveryEngine ?? "snapshot";
     const started = performance.now();
@@ -1025,14 +1079,18 @@ export class LocatorFactory {
       return recovered;
     } finally {
       await container?.dispose().catch(() => undefined);
+      const totalMs = performance.now() - started;
+      // N2.5/N2.7: last in the chain, after every DOM veto; shadow only, and recorded in this attempt's trace.
+      const visual = recovered ? await this.observeRecoveryVisual(step, memory.scopeKey, memory.sensitive ?? false, recovered) : undefined;
       this.emitTrace(step, {
         engine,
         result: recovered ? "recovered" : "unresolved",
-        totalMs: performance.now() - started,
+        totalMs,
         stages,
         suggestion,
         context,
-        candidatesTried: memory.candidatesTried
+        candidatesTried: memory.candidatesTried,
+        ...(visual ? { visual } : {})
       });
     }
   }

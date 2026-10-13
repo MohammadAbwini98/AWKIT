@@ -821,20 +821,8 @@ export class PlaywrightRunner {
       // Operator kill switch back to the pre-L11 per-element recovery loops (same decision rules).
       recoveryEngine: process.env.AWKIT_LOCATOR_RECOVERY_ENGINE === "legacy" ? "legacy" : "snapshot",
       onRemembered: this.options.onLocatorRemembered,
-      visualFusion: this.options.visualFusionRoot
-        ? lazyVisualFusion({
-            folder: this.options.visualFusionRoot,
-            onVerdict: ({ stepId, ...visualFusion }) =>
-              logger.log({
-                level: "debug",
-                message: `[visual-fusion:shadow] ${visualFusion.outcome} (${visualFusion.reason}) for a ${visualFusion.layer} recovery winner.`,
-                ...this.logMeta(context),
-                stepId,
-                // I9: verdict, reason and rounded scores only (never pixels, bounds or digests).
-                data: { visualFusion }
-              })
-          })
-        : undefined,
+      // N2.7: the shadow verdict reaches the report only as the recovery trace's sanitized `visual` block below.
+      visualFusion: this.options.visualFusionRoot ? lazyVisualFusion({ folder: this.options.visualFusionRoot }) : undefined,
       onRecoveryEvent: (event) =>
         logger.log({
           level: event.type === "local-recovery" || event.type === "memory-error" ? "warn" : "info",

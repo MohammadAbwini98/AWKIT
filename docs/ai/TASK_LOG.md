@@ -1,6 +1,41 @@
 # TASK_LOG
 
-## 2026-10-13 (latest) — Phase N: N2.4b reference store and N2.5 shadow fusion stage (Claude)
+## 2026-10-13 (latest) — Phase N: N2.7 shadow verdict provenance (Claude)
+
+- **Scope:** "start N2.7", the `recovery-trace` `visual` block plus the run-history and report contract check.
+  CodeCraft was not used (`CODECRAFT_MODE=off`).
+- **Change:**
+  - the recovery observation moved into `LocatorFactory.recover()`'s `finally`, and the trace carries the
+    returned verdict's codes and rounded scores;
+  - `VisualFusionStage.observeRecovery` returns its record;
+  - the `PlaywrightRunner` debug log was removed;
+  - `toRecoveryProvenance` sanitizes and keeps the block on recovered records (schema 1).
+- **Files:**
+  - `src/runner/{LocatorFactory.ts,PlaywrightRunner.ts}`, `src/runner/visualFusion/VisualFusionStage.ts` and
+    `src/runner/domIntelligence/recoveryProvenance.ts`;
+  - `scripts/{verify-visual-fusion-runtime.mts,verify-recovery-provenance.mts}` and
+    `scripts/lib/verifier-classification.ts`;
+  - `docs/plans/ai-upgrade-v5/N2-dom-vision-evidence-fusion.md`;
+  - `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,DECISIONS,KNOWN_ISSUES}.md`.
+- **Checks:**
+
+  | Check | Result |
+  |---|---|
+  | `verify:visual-fusion-runtime` | 115/0 (was 95) |
+  | `verify:recovery-provenance` | 46/0 (was 35) |
+  | Mutations: codes unvalidated / block unattached / A/B not excluding it | 113/2; 105/10 and 43/3; 104/11; all restored |
+  | `verify:visual-isolation` | 40/0 |
+  | `verify:runner` | 138/0 |
+  | `verify:locator-guard` | 38/0 |
+  | `verify:twin-pool-safety` / `verify:dom-intelligence-coverage` | 48/0 / 74/0 |
+  | `verify:verifier-classification` | reconciled |
+  | `npm run build` | PASS |
+  | `verify:roadmap-dashboard` | 177/177, Sources agree |
+
+- **Blocked:** bd writes (lease denial) and the piped verifier invocation (terminal denial, not retried).
+- **Result:** N2.7 complete in shadow mode. The tracker is owed.
+
+## 2026-10-13 — Phase N: N2.4b reference store and N2.5 shadow fusion stage (Claude)
 
 - **Scope:** "start N2.5"; the owner chose "N2.4b first, then N2.5". CodeCraft was not used (`CODECRAFT_MODE=off`).
 - **N2.4b** (`a7313047`): added `VisualReferenceStore` and the new `verify:visual-fusion-runtime`.

@@ -1,5 +1,16 @@
 # KNOWN_ISSUES
 
+## `verify:visual-fusion-runtime` N2.5 capture checks are load-sensitive (Phase N, 2026-10-13)
+
+Two of five runs on 2026-10-13 failed N2.5 checks that passed on the next clean run. In one, the verdict evidence was
+`{}`. In the other, the seed pass wrote no reference, so the verdict was R1 `no-reference`. Both come from a capture
+that missed `VISUAL_FUSION_BUDGET_MS` (400 ms) or was otherwise unavailable, which is correct shadow behaviour:
+`dom-only` with an unavailable reason, or no refresh.
+
+- Do not relax these assertions. A conditional "evidence only if compared" check would pass vacuously.
+- On a failure, re-run once on an idle host before treating it as a regression.
+- A real fix would make the lab's capture deterministic, for example with a warm-up capture before the A/B.
+
 ## Visual fingerprints measure appearance, not identity or meaning (Phase N, 2026-10-12)
 
 Measured by `verify:visual-fingerprint` on the lab's fixed fixtures:

@@ -1,6 +1,35 @@
 # CURRENT_STATE
 
-## Phase N: N2.4b reference store and N2.5 shadow fusion stage (2026-10-13, latest)
+## Phase N: N2.7 shadow verdict provenance in the recovery trace and report (2026-10-13, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task.
+
+- **N2.7 implemented** (`awkit-vra.12.7`): the shadow verdict now reaches the report.
+  - `LocatorFactory.recover()` observes the recovered winner in its `finally`. The attempt's `recovery-trace` then
+    carries an optional `visual` block, `{ mode, outcome, reason, effect, ms, winnerScore?, competitorScore? }`, with
+    codes and rounded scores only (I9).
+  - `VisualFusionStage.observeRecovery` returns its verdict record. The N2.5 debug log in `PlaywrightRunner` is
+    removed.
+  - `toRecoveryProvenance` keeps a sanitized copy on recovered records in `report.json` (`data.locatorRecovery`). The
+    record stays schema 1. `RunHistoryRow` (SQLite) is unchanged and never carries it.
+  - An off-vs-shadow A/B is still identical apart from the block (I3). `contradictionEnabled` stays `false`, and
+    `effect` is always `none`.
+- **Checks:**
+  - `verify:visual-fusion-runtime` 115/0;
+  - `verify:recovery-provenance` 46/0 (was 35), including a real `AWKIT_VISUAL_FUSION=shadow` run and the
+    run-history column check;
+  - `verify:visual-isolation` 40/0, `verify:runner` 138/0, `verify:locator-guard` 38/0 and build PASS.
+- **Mutations** (all red, all restored):
+  - codes not validated: 113/2;
+  - block not attached: 105/10 and 43/3;
+  - A/B not excluding the block: 104/11.
+- **Intermittent seen** (see `KNOWN_ISSUES.md`): under load, an N2.5 capture can miss the 400 ms budget. This was
+  seen twice in 5 runs, and a clean re-run was 115/0.
+- **Tracker BLOCKED** (lease denial, as before): `.12.4`, N2.4b, `.12.5` and `.12.7` are owed. See `HANDOFF.md`.
+- **Next:** N2.8 state and docs closure. N2.6 stays deferred, and Phase N stays IN PROGRESS.
+
+## Phase N: N2.4b reference store and N2.5 shadow fusion stage (2026-10-13)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed by this task.

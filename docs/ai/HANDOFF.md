@@ -1,6 +1,25 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-13, latest) — Phase N: N2.4b and N2.5 implemented (shadow only); tracker owed; next is N2.7
+## HANDOFF (2026-10-13, latest) — Phase N: N2.7 provenance implemented; tracker owed; next is N2.8
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** N2.7, in which the shadow verdict reaches the report.
+  - The recovery trace has a `visual` block, and `toRecoveryProvenance` keeps a sanitized, schema-1 copy in
+    `report.json`.
+  - The N2.5 debug log is gone.
+  - Run history is unchanged.
+  - `verify:visual-fusion-runtime` 115/0 and `verify:recovery-provenance` 46/0.
+- **Owed — tracker (still BLOCKED by the lease denial).** In addition to the four steps in the section below, close
+  `awkit-vra.12.7` before running `bd export -o .beads/issues.jsonl` and repinning the dashboard counts.
+- **Next action:** N2.8, state and docs closure: `ARCHITECTURE` gets the adapter boundary, and `DECISIONS` gets
+  FD-1 to FD-9. N2.6 stays deferred.
+- **Binding:**
+  - The block is reporting only. Never read `trace.visual` to choose, veto or re-rank anything in N2.
+  - Keep `contradictionEnabled` `false`.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-13) — Phase N: N2.4b and N2.5 implemented (shadow only); tracker owed; next is N2.7
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

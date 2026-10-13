@@ -301,6 +301,20 @@ change, with a capped table. Covered by `verify:visual-fusion-runtime` (mutation
 off-vs-shadow A/B is identical, and `verify:visual-fusion-runtime` is real-browser 95/0. `contradictionEnabled` stays
 `false`, and the run-card option is not wired.
 
+**N2.7 outcome (2026-10-13).** The recovery observation moved into `LocatorFactory.recover()`'s `finally`, so the
+attempt's `recovery-trace` carries the verdict as its optional `visual` block:
+`{ mode, outcome, reason, effect, ms, winnerScore?, competitorScore? }`. That is the *Reporting* shape plus `effect`,
+which is always `none` in N2. `totalMs` excludes the block's `ms`. The N2.5 debug log was removed, so the trace is the
+verdict's only report path.
+
+- `toRecoveryProvenance` keeps a sanitized copy in `report.json`'s `data.locatorRecovery`, on recovered records only.
+  Codes outside `^[a-z][a-z0-9-]{0,39}$` become `invalid`. Scores outside 0..1 are dropped. The record stays schema 1,
+  because the field is additive and optional.
+- Run history is unaffected. `RunHistoryRow` is fixed SQLite columns with no log data, which
+  `verify:recovery-provenance` checks against the source.
+- Verification: `verify:visual-fusion-runtime` 115/0 and `verify:recovery-provenance` 46/0, the latter including a
+  real `AWKIT_VISUAL_FUSION=shadow` ExecutionEngine run. Mutations were red and restored.
+
 ### Feature Test Lab scenarios (N2.3)
 
 Each scenario gets a stable URL, title, expected behaviour and `data-testid` selectors, and is

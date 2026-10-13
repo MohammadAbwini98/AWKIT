@@ -23,9 +23,10 @@ import { VisualReferenceStore } from "./VisualReferenceStore";
  *
  * OBSERVES, NEVER DECIDES. It receives the DOM's final recovery winner (after the twin, container and actionability
  * vetoes) and up to three gated-out DOM competitors, captures them from ONE screenshot, asks `decideFusion` for a
- * verdict and hands the verdict to `onVerdict`. Nothing flows back: `LocatorFactory` ignores the returned promise's
- * value, so stages, trace and the resolved element are those of a run without it (I3). In N2 the mode is fixed to
- * `shadow` and `MEASURED_FUSION_POLICY.contradictionEnabled` is false, so `effect` is always "none".
+ * verdict, hands it to `onVerdict` and returns it. N2.7: `LocatorFactory` copies only the returned codes and rounded
+ * scores into that attempt's `recovery-trace` (`visual`); stages, winner memory and the resolved element are those of a
+ * run without it (I3). In N2 the mode is fixed to `shadow` and `MEASURED_FUSION_POLICY.contradictionEnabled` is false,
+ * so `effect` is always "none".
  *
  * Also refreshes the step's last-known-good reference after a passing resolve of an eligible, non-sensitive step,
  * at most once per `REFERENCE_REFRESH` (FD-9). Never throws; a failed capture only means no verdict or no refresh.
@@ -101,11 +102,12 @@ export class VisualFusionStage implements LocatorVisualFusion {
     this.budgetMs = options.budgetMs ?? VISUAL_FUSION_BUDGET_MS;
   }
 
-  async observeRecovery(observation: LocatorVisualRecoveryObservation): Promise<void> {
+  /** The verdict record, or undefined for an ineligible step or a failed observation. */
+  async observeRecovery(observation: LocatorVisualRecoveryObservation): Promise<VisualFusionVerdictRecord | undefined> {
     try {
       const { step, sensitive, scopeKey } = observation;
       const eligibility = visualFusionEligibility(step, sensitive);
-      if (eligibility === "ineligible") return;
+      if (eligibility === "ineligible") return undefined;
       const reference = await this.reference(scopeKey);
       // Without a reference the verdict is R1 `no-reference` whatever the competitors look like: capture the winner only,
       // for the refresh below.
@@ -139,14 +141,17 @@ export class VisualFusionStage implements LocatorVisualFusion {
         },
         MEASURED_FUSION_POLICY
       );
+      const verdictRecord = record(step.id, observation.layer, eligibility, verdict);
       try {
-        this.options.onVerdict?.(record(step.id, observation.layer, eligibility, verdict));
+        this.options.onVerdict?.(verdictRecord);
       } catch {
         // A sink is a recorder, not a participant.
       }
       if (eligibility === "eligible" && "fingerprint" in winner) await this.store.refresh(scopeKey, winner);
+      return verdictRecord;
     } catch {
       // Shadow mode: an observation that fails is simply not recorded.
+      return undefined;
     }
   }
 
