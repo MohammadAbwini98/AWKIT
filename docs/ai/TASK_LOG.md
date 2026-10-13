@@ -1,6 +1,37 @@
 # TASK_LOG
 
-## 2026-10-13 (latest) — Phase N: N2 QC review and its findings fixed (Claude)
+## 2026-10-13 (latest) — Phase N: N2 overhead matrix, acceptance #7 (Claude)
+
+- **Scope:** "run the overhead matrix for N2". CodeCraft was not used (`CODECRAFT_MODE=off`).
+- **Change:** a new benchmark, `scripts/benchmark-visual-fusion-overhead.mts` (`npm run benchmark:visual-fusion-overhead`).
+  - It runs a real `LocatorFactory` resolve on Chromium at DPR 1 and 2, headed and headless, with 25 paired iterations
+    and three rotated arms: baseline, off and shadow.
+  - It times the first seed (P1), a repeat pass (P2), the next-run refresh past the 60 s window (P3, on an injected
+    store clock) and a recovery (R).
+  - It requires each sample to prove the path it measured. An FD-5 overrun is counted and reported as an overrun,
+    not as a broken sample.
+  - No product code changed.
+- **Files:** `scripts/benchmark-visual-fusion-overhead.mts`, `package.json`,
+  `docs/plans/ai-upgrade-v5/evidence/N2-overhead-matrix.json`,
+  `docs/plans/ai-upgrade-v5/{N2-dom-vision-evidence-fusion,ROADMAP}.md`, `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,KNOWN_ISSUES}.md`.
+- **Checks (final state):**
+
+  | Check | Result |
+  |---|---|
+  | `benchmark:visual-fusion-overhead` (final run) | 3 cells MEASURED; headless DPR 1 INCONCLUSIVE from one overrun-chain sample; exit 1. Off within noise in 16/16 cell-metrics |
+  | Recovery overhead with fusion on, p50 / p95 | 160/430, 251/309, 177/195 and 259/284 ms (headless DPR 1, headless DPR 2, headed DPR 1, headed DPR 2) |
+  | `npm run build` | PASS |
+  | `verify:roadmap-dashboard` | 177/177, "Sources agree" |
+
+- **Diagnosis across runs:**
+  - Run 1 found that the reference refresh table is process-wide, so a next run inside 60 s is rate-limited. The
+    harness was fixed with an injected clock; the product is correct.
+  - Run 2 surfaced the late store write after an overrun pass, which is recorded for N2.6.
+  - Run 3 is the final run.
+- **Blocked:** bd writes (lease denial). `awkit-vra.12` is ready to close but is still open in the tracker.
+- **Result:** criterion 7 is measured, and all seven N2 acceptance criteria are met. N2 is shadow-only.
+
+## 2026-10-13 — Phase N: N2 QC review and its findings fixed (Claude)
 
 - **Scope:** "run the QC review subagent for N2" (it returned FAIL), then "go ahead and fix the QC findings".
   CodeCraft was not used (`CODECRAFT_MODE=off`).

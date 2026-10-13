@@ -343,9 +343,57 @@ Status of the acceptance criteria for closing `awkit-vra.12`:
 | 4 | I3 A/B neutrality | PASS: off-vs-shadow identical apart from `trace.visual` (`verify:visual-fusion-runtime`) |
 | 5 | Headed Ctrl+zoom capture | PASS (executed in N2.3, refused with `CAPTURE_UNAVAILABLE`) |
 | 6 | Independent QC review | RUN: FAIL, then fixed and re-verified (see "QC review outcome" below) |
-| 7 | Overhead on the lab, DPR 1 and 2, headed and headless | Partial: the N2.4 fan-out evaluation cost is measured across that matrix. The end-to-end recovery-attempt overhead, the reference-refresh overhead and the fusion-off baseline are NOT RUN |
+| 7 | Overhead on the lab, DPR 1 and 2, headed and headless | MEASURED (2026-10-13, `benchmark:visual-fusion-overhead`, see "Overhead matrix" below): all three quantities in all four cells. Fusion off is within noise of the baseline in every cell and metric |
 
-`awkit-vra.12` therefore stays open, shadow-only, until criterion 7 is measured.
+All seven criteria are now met, and N2 stays shadow-only. Closing `awkit-vra.12` in the tracker is BLOCKED: the
+lease guard denies `bd` writes from this session, so the bead stays open until a session with tracker write access
+closes it.
+
+**Overhead matrix (criterion 7, 2026-10-13).** Command: `npm run benchmark:visual-fusion-overhead`. Evidence:
+[`evidence/N2-overhead-matrix.json`](evidence/N2-overhead-matrix.json), which holds timings, codes and rounded scores
+only. The benchmark uses the runtime verifier's lab, four distinctly named buttons with one step on `#save-profile`,
+at 800x600 on Chromium 149.0.7827.55, Windows, an i7-8750H with 12 logical CPUs, and Node 18.16, with 25 iterations
+per cell. There are three arms, rotated each iteration:
+
+- baseline, with no `visualFusion` key;
+- off, `visualFusion: undefined`, which is what `PlaywrightRunner` passes when the switch is unset;
+- shadow, a real `VisualFusionStage` on the production store.
+
+Each overhead below is the paired per-iteration difference against baseline, in ms, as p50 / p95. Baseline itself
+is about 30 ms for a recovery and 20-53 ms for a passing resolve.
+
+| Cell | Recovery attempt | First seed (P1) | Next-run refresh (P3) | Repeat pass in window (P2) | FD-5 overruns |
+|---|---|---|---|---|---|
+| headless, DPR 1 | 160.1 / 429.6 | 97.2 / 507.1 | 88.1 / 336.8 | -1.6 / 80.2 | 3/25 samples |
+| headless, DPR 2 | 251.2 / 309.0 | 191.6 / 213.6 | 180.9 / 221.2 | 0.7 / 9.7 | 0/25 |
+| headed, DPR 1 | 177.3 / 194.8 | 131.3 / 160.7 | 115.6 / 135.8 | 1.7 / 9.5 | 0/25 |
+| headed, DPR 2 | 259.4 / 283.8 | 198.8 / 222.2 | 183.5 / 197.7 | 2.1 / 9.3 | 0/25 |
+
+The fusion stage itself (`trace.visual.ms`) takes 160-259 ms at p50 on a recovery, and every compared verdict was
+`corroborated` / `identical`. Fusion off against baseline has a median difference of -1.1 to +1.9 ms. Its 95%
+bootstrap confidence interval contains 0, or its median is within half the baseline interquartile range, in all 16
+cell-metric pairs. Three runs were made, and the off result was the same in all of them.
+
+The refresh table is process-wide, so a passing resolve refreshes at most once per step per 60 s. A next run inside
+that window costs the same as P2, which is nothing.
+
+**FD-5 overruns.** The 400 ms budget was left unchanged, and it held in every case:
+
+- **headless, DPR 1.** Two recoveries overran and read `dom-only` / `budget-exhausted`. In one sample both passes
+  overran. Each pass held its slot, so no reference existed and that sample's recovery correctly read `unchecked` /
+  `no-reference`. The harness still counts that sample as invalid, so the cell's own state reads INCONCLUSIVE and the
+  run exits 1. The cause is the overrun chain, not a broken measurement.
+- **Across all three runs**, overruns appeared in 0-3 of 25 shadow samples per cell, and a different cell had them
+  each time. The cause is load on this machine. The overruns' capped cost stays in the p95 figures.
+
+Two findings for N2.6:
+
+- The measured capture is screenshot-bound at 88-199 ms per pass at p50. That is above the Risks table's ~50-150 ms
+  estimate, and it is about 1.5 times slower at DPR 2. A headed DPR-2 recovery stage's p95 of 284 ms sits about
+  115 ms under the budget.
+- A pass observation that overruns after its capture has finished still completes its one store write after the
+  step has stopped waiting. The stage checks the abort before the write, not during it. That late write was observed
+  once, in a pre-final run. It is bounded and it never doubles a refresh, but it is a write past the budget.
 
 **QC review outcome (2026-10-13).** The independent qc-reviewer pass returned FAIL on the shadow path. Every finding
 was fixed in the same change, still shadow-only, with `contradictionEnabled` `false` and FD-5 unchanged:

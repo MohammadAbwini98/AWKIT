@@ -1,6 +1,23 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-13, latest) — Phase N: N2 QC findings fixed; N2 not closed
+## HANDOFF (2026-10-13, latest) — Phase N: N2 overhead matrix measured; tracker closure owed
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** acceptance #7. `npm run benchmark:visual-fusion-overhead` measured the lab at DPR 1 and 2, headed and
+  headless. Evidence is `docs/plans/ai-upgrade-v5/evidence/N2-overhead-matrix.json`, and the table is in the N2
+  plan's "Overhead matrix". Fusion off is within noise everywhere, and FD-5 stays at 400 ms.
+- **Owed — tracker (BLOCKED by the lease denial):** close `awkit-vra.12` (all seven criteria are met), then run
+  `bd export -o .beads/issues.jsonl` and `npm run verify:roadmap-dashboard`.
+- **Carried to N2.6 (still deferred):** the items below, plus the late store write after an overrun pass
+  observation (N2 plan, "FD-5 overruns").
+- **Benchmark note:** with an overrun chain (P1 and P3 both overrun, so there is no reference), R reads
+  `no-reference`. The harness still counts that sample as invalid, so a run under load can exit 1 for that reason
+  alone.
+- **Binding:** shadow-only, and `contradictionEnabled` stays `false`.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-13) — Phase N: N2 QC findings fixed; N2 not closed
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

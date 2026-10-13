@@ -1,6 +1,29 @@
 # CURRENT_STATE
 
-## Phase N: N2 QC review findings fixed; N2 shadow-only, not closed (2026-10-13, latest)
+## Phase N: N2 overhead matrix measured; all acceptance criteria met, shadow-only (2026-10-13, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task.
+
+- **Acceptance #7 MEASURED** with the new `npm run benchmark:visual-fusion-overhead`. Evidence is in
+  `docs/plans/ai-upgrade-v5/evidence/N2-overhead-matrix.json`, and the table is in the N2 plan under "Overhead
+  matrix". The measurement covers the lab at DPR 1 and 2, headed and headless, with 25 paired iterations per cell.
+  Overheads against baseline, as p50 / p95:
+  - recovery attempt with fusion on: 160 / 430 ms (headless DPR 1, under load) to 259 / 284 ms (headed DPR 2);
+  - first reference seed: 97-199 ms at p50; next-run refresh after the 60 s window: 88-184 ms at p50;
+  - a repeat pass inside the window: about 0.
+- **Fusion off is within noise of baseline** in all 16 cell-metric pairs, with a median of -1.1 to +1.9 ms. Three
+  runs agreed.
+- **FD-5 is unchanged, and it held.** Overruns were 0-3 of 25 shadow samples per cell, caused by load on this
+  machine. In one sample both passes overran, so no reference existed and that sample's recovery read
+  `unchecked` / `no-reference`. The strict harness therefore marks that cell INCONCLUSIVE and the benchmark exits 1.
+  The other three cells read MEASURED.
+- **Finding for N2.6:** an overrun pass observation whose capture already finished still completes its one store
+  write after the step moved on. It is bounded and never a second refresh.
+- **`awkit-vra.12`:** all seven criteria are met. Tracker closure is BLOCKED by the lease denial.
+- **Binding:** N2 is shadow-only, `contradictionEnabled` stays `false`, and N2.6 stays deferred.
+
+## Phase N: N2 QC review findings fixed; N2 shadow-only, not closed (2026-10-13)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed by this task.

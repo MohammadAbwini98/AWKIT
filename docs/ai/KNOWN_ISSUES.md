@@ -17,6 +17,14 @@ that missed `VISUAL_FUSION_BUDGET_MS` (400 ms) or was otherwise unavailable, whi
     seeded at the next passing resolve after the 60 s window.
   - With `AWKIT_FAILURE_EVIDENCE=0` there is no evidence collector to answer the I5 handoff check. Fusion then fails
     closed, and every page counts as handed off, so shadow fusion captures nothing.
+- **Measured 2026-10-13 (overhead matrix):** under load, 0-3 of 25 shadow samples per cell overran the budget,
+  including warm ones, so the slot-hold above is not only a cold-browser case.
+  - When a pass overruns after its capture has already finished, the stage's one store write still completes after
+    the step has moved on. The abort is checked before the write, not during it. The write is bounded, and it never
+    causes a second refresh.
+  - `benchmark:visual-fusion-overhead` counts a recovery that reads `no-reference` after an overrun chain as an
+    invalid sample. A loaded run can therefore exit 1 with every timing still valid.
+  - The details are in the N2 plan, "Overhead matrix".
 
 ## Visual fingerprints measure appearance, not identity or meaning (Phase N, 2026-10-12)
 
