@@ -12,7 +12,8 @@ import {
   type VisualResult
 } from "@src/visual";
 import type { FlowStep } from "@src/profiles/FlowProfile";
-import type { LocatorVisualFusion, LocatorVisualPassObservation, LocatorVisualRecoveryObservation } from "../LocatorFactory";
+import type { Page } from "playwright";
+import { VISUAL_OBSERVATION_BUDGET_MS, type LocatorVisualFusion, type LocatorVisualPassObservation, type LocatorVisualRecoveryObservation } from "../LocatorFactory";
 import { VisualReferenceStore } from "./VisualReferenceStore";
 
 /**
@@ -29,11 +30,17 @@ import { VisualReferenceStore } from "./VisualReferenceStore";
  * so `effect` is always "none".
  *
  * Also refreshes the step's last-known-good reference after a passing resolve of an eligible, non-sensitive step,
- * at most once per `REFERENCE_REFRESH` (FD-9). Never throws; a failed capture only means no verdict or no refresh.
+ * at most once per `REFERENCE_REFRESH` (FD-9) — a failed attempt spends the slot too — and from a recovery winner only
+ * when there was no reference or the verdict corroborated it. A handed-off page (I5, `handedOff`) is never captured.
+ * Never throws; a failed capture only means no verdict or no refresh.
  */
 
-/** I8 / FD-5: the whole visual cycle of one decision, screenshot to verdict. */
-export const VISUAL_FUSION_BUDGET_MS = 400;
+/**
+ * I8 / FD-5: the whole visual cycle of one decision. `LocatorFactory` enforces it around the entire observation
+ * (reference read, capture, verdict, refresh) and aborts `observation.signal` on expiry; the capture inside gets
+ * whatever is left of it.
+ */
+export const VISUAL_FUSION_BUDGET_MS = VISUAL_OBSERVATION_BUDGET_MS;
 
 /** FD-6: the element steps whose recovery winners fusion may observe. */
 const ELIGIBLE_STEPS: ReadonlySet<string> = new Set(["click", "dblclick", "contextMenu", "clickAndHold", "fill", "select", "check", "uncheck", "radio"]);
@@ -68,6 +75,12 @@ function record(stepId: string, layer: VisualFusionVerdictRecord["layer"], eligi
 export interface VisualFusionStageOptions {
   /** `<runtime root>/visual-references`. */
   folder: string;
+  /**
+   * I5: true while `page` is handed off to the user or guarded as a protected surface (manual action, protected-login
+   * handoff, a protected step). Required, synchronous and fail-closed: a throw or anything but `false` means handed off,
+   * so nothing is captured and no reference is written.
+   */
+  handedOff: (page: Page) => boolean;
   /** Where a shadow verdict goes. Called at most once per observed recovery; a throwing sink is ignored. */
   onVerdict?: (record: VisualFusionVerdictRecord) => void;
   budgetMs?: number;
@@ -108,14 +121,17 @@ export class VisualFusionStage implements LocatorVisualFusion {
       const { step, sensitive, scopeKey } = observation;
       const eligibility = visualFusionEligibility(step, sensitive);
       if (eligibility === "ineligible") return undefined;
+      const remaining = this.deadline();
       const reference = await this.reference(scopeKey);
+      if (observation.signal.aborted) return undefined;
       // Without a reference the verdict is R1 `no-reference` whatever the competitors look like: capture the winner only,
       // for the refresh below.
       const competitors = reference === null ? [] : observation.competitors.slice(0, FUSION_MAX_COMPETITORS);
+      // A handed-off page is refused by the capture's own I5 guard (`HANDED_OFF`), so the verdict is R2 and nothing refreshes.
       const fanout = await captureCandidates(
         observation.page,
         [{ id: "winner", target: observation.locator }, ...competitors.map((competitor, index) => ({ id: `competitor-${index}`, target: competitor.locator }))],
-        { timeoutMs: this.budgetMs, stepType: step.type, handedOff: false }
+        { timeoutMs: remaining(), signal: observation.signal, stepType: step.type, handedOff: this.handedOff(observation.page) }
       );
       let winner: EvidenceInput;
       const kept: { score: number; evidence: EvidenceInput }[] = [];
@@ -147,7 +163,10 @@ export class VisualFusionStage implements LocatorVisualFusion {
       } catch {
         // A sink is a recorder, not a participant.
       }
-      if (eligibility === "eligible" && "fingerprint" in winner) await this.store.refresh(scopeKey, winner);
+      // A recovery winner becomes the reference only when there was none yet or the existing one corroborated it: a
+      // contested or contradicted winner must not overwrite the last-known-good look it disagreed with.
+      const refreshable = reference === null || verdict.outcome === "corroborated";
+      if (eligibility === "eligible" && "fingerprint" in winner && refreshable && !observation.signal.aborted) await this.store.refresh(scopeKey, winner);
       return verdictRecord;
     } catch {
       // Shadow mode: an observation that fails is simply not recorded.
@@ -156,20 +175,44 @@ export class VisualFusionStage implements LocatorVisualFusion {
   }
 
   async observePass(observation: LocatorVisualPassObservation): Promise<void> {
+    const { step, sensitive, scopeKey } = observation;
+    // I5: a handed-off page is never captured, and does not spend the refresh slot.
+    if (visualFusionEligibility(step, sensitive) !== "eligible" || !this.store.dueForRefresh(scopeKey) || this.handedOff(observation.page)) return;
+    let refreshed = false;
     try {
-      const { step, sensitive, scopeKey } = observation;
-      if (visualFusionEligibility(step, sensitive) !== "eligible" || !this.store.dueForRefresh(scopeKey)) return;
       const fanout = await captureCandidates(observation.page, [{ id: "winner", target: observation.locator }], {
         timeoutMs: this.budgetMs,
+        signal: observation.signal,
         stepType: step.type,
-        handedOff: false
+        handedOff: this.handedOff(observation.page)
       });
-      if (!fanout.ok) return;
+      if (!fanout.ok || observation.signal.aborted) return;
       const [own] = buildCandidateEvidence(fanout.value).candidates;
-      if (own?.evidence.ok) await this.store.refresh(scopeKey, own.evidence.value);
+      if (own?.evidence.ok) {
+        refreshed = true;
+        await this.store.refresh(scopeKey, own.evidence.value);
+      }
     } catch {
       // A missed refresh only leaves the previous reference in place.
+    } finally {
+      // A failed, refused or overrun capture still spends the slot, so a failing step is not re-captured every pass.
+      if (!refreshed) this.store.holdRefresh(scopeKey);
     }
+  }
+
+  /** I5, fail-closed: only an explicit `false` lets a capture run. */
+  private handedOff(page: Page): boolean {
+    try {
+      return this.options.handedOff(page) !== false;
+    } catch {
+      return true;
+    }
+  }
+
+  /** Milliseconds left of this observation's budget for the capture (at least 1, so the capture's own timer still runs). */
+  private deadline(): () => number {
+    const end = Date.now() + this.budgetMs;
+    return () => Math.max(1, end - Date.now());
   }
 
   /** R1/R2 input for the step's stored reference: absent or unreadable is null; another evidence version is R2. */

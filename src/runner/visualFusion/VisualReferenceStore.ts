@@ -154,6 +154,14 @@ export class VisualReferenceStore {
   }
 
   /**
+   * Spend this step's refresh slot without writing: a refresh attempt whose capture failed, was refused or overran its
+   * budget still counts against `refreshMs`, so a failing step is not re-captured on every passing resolve.
+   */
+  holdRefresh(scopeKey: string): void {
+    markRefreshed(this.laneKey(scopeKey), this.now());
+  }
+
+  /**
    * Replace a step's reference with `evidence`, at most once per `refreshMs` and only when its content digest changed.
    * The caller decides eligibility (never a protected, handed-off, sensitive or ineligible step, never a refused
    * capture); this store only ever accepts a complete evidence record of its own version.

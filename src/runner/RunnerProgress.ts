@@ -60,6 +60,8 @@ export interface RunnerProgressReporter {
   observe?(observation: StepProvenanceObservation): void;
   /** L11.G, asked BEFORE a page context is captured: whether one for this step and page could be kept. Synchronous; never throws. */
   pageContextAllowed?(stepId: string, page: Page): boolean;
+  /** N2 I5, asked BEFORE a shadow visual capture: whether `page` is handed off or protected. Synchronous; never throws. */
+  pageHandedOff?(page: Page): boolean;
 }
 
 /** Per-step state accumulated in the live snapshot (bounded). */

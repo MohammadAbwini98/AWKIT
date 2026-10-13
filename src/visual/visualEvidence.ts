@@ -6,8 +6,8 @@ import type { CssRect, PixelRect } from "./geometry";
 /**
  * `visualEvidence` (Phase N, N1): the image-free summary of one capture — geometry and fingerprints, never pixels.
  *
- * MODULE-ONLY by owner decision of 2026-10-12: no run record, report, flow profile or IPC payload carries this shape
- * yet, so adding it changed no persisted contract. Persisting it is a later, separately reviewed step.
+ * Persisted in ONE place since N2.4b (FD-4): the runner's `VisualReferenceStore` sidecar keeps one step's last-known-good
+ * record under `visual-references/`. No run record, report, flow profile or IPC payload carries this shape.
  */
 
 export const VISUAL_EVIDENCE_VERSION = 1;

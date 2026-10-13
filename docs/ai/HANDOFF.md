@@ -1,6 +1,23 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-13, latest) — Phase N: N2.8 docs closure done; N2 not closed
+## HANDOFF (2026-10-13, latest) — Phase N: N2 QC findings fixed; N2 not closed
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** the QC review ran (FAIL), and every finding is fixed and mutation-tested: the 400 ms budget at the
+  factory, the I5 handoff check, the held refresh slot, and refresh gating on recovery. `verify:visual-fusion-runtime`
+  is 145/0. See the N2 plan's "QC review outcome".
+- **Owed before `awkit-vra.12` can close:** only the overhead matrix (acceptance #7, on the lab at DPR 1 and 2,
+  headed and headless).
+- **Carried to N2.6 (still deferred):**
+  - pin competitors by `nth` or re-prove them before any enforce;
+  - add a full off-versus-shadow I3 run through `ExecutionEngine`;
+  - verify the capture's `caret: "hide"` style.
+- **Owed — tracker (still BLOCKED by the lease denial):** the same steps as below.
+- **Binding:** shadow-only, `contradictionEnabled` stays `false`, and FD-5 stays at 400 ms.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-13) — Phase N: N2.8 docs closure done; N2 not closed
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

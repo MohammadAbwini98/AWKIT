@@ -476,6 +476,19 @@ export class FailureEvidenceCollector {
     }
   }
 
+  /**
+   * N2 I5, asked by the shadow visual-fusion stage BEFORE it screenshots a page: true while a protected-login step runs,
+   * the run waits for manual action, or the page shows a guarded protected document — and once this collector stopped.
+   * Synchronous; never throws (a failure answers true, so nothing is captured).
+   */
+  pageHandedOff(page: Page): boolean {
+    try {
+      return this.stopped || this.isProtected(page);
+    } catch {
+      return true;
+    }
+  }
+
   private isProtected(page: Page | undefined): boolean {
     if (this.suppressed) return true;
     const frames = page ? this.guardedFrames.get(page) : undefined;

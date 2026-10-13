@@ -631,7 +631,7 @@ not renumbered; titles and notes map existing history onto the canonical names.
 |---|---|---|---|
 | N0 | Visual Intelligence Foundation / Capture | `awkit-vra.1` | closed — re-QC PASS at `222b04d3` |
 | N1 | Deterministic Visual Element Fingerprints | `awkit-vra.3.1` | closed — re-QC PASS at `222b04d3` |
-| N2 | DOM + Vision Evidence Fusion | `awkit-vra.12` | in progress — FD-1 to FD-9 approved, N2.1-N2.8 filed (`.12.1`…`.12.8`), N2.1-N2.5, N2.4b, N2.7 and N2.8 done, N2.6 deferred; N2 ships shadow-only (FD-9, no separation); closure owes the QC review and the overhead matrix |
+| N2 | DOM + Vision Evidence Fusion | `awkit-vra.12` | in progress — FD-1 to FD-9 approved, N2.1-N2.8 filed (`.12.1`…`.12.8`), N2.1-N2.5, N2.4b, N2.7 and N2.8 done, N2.6 deferred; N2 ships shadow-only (FD-9, no separation); the QC review ran (FAIL, fixed: budget, handoff, refresh gating); closure owes the overhead matrix |
 | N3 | Visual Locator Recovery | — | not yet filed |
 | N4 | Recorder Visual Intelligence | — | not yet filed |
 | N5 | Visual Failure Diagnosis | — | not yet filed |

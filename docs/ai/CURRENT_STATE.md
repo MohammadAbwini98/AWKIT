@@ -1,6 +1,31 @@
 # CURRENT_STATE
 
-## Phase N: N2.8 state and docs closure; N2 shadow-only, not closed (2026-10-13, latest)
+## Phase N: N2 QC review findings fixed; N2 shadow-only, not closed (2026-10-13, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task.
+
+- **QC review RUN: FAIL, now fixed** (N2 plan, "QC review outcome"):
+  - I8/FD-5 is enforced at the factory: every observation races 400 ms and is aborted on expiry. An overrun
+    recovery reads `dom-only` / `budget-exhausted`.
+  - I5: the stage never captures a handed-off page. `FailureEvidenceCollector.pageHandedOff` answers the check, and
+    it fails closed: with no collector (`AWKIT_FAILURE_EVIDENCE=0`), no capture runs.
+  - A failed refresh capture spends the step's refresh slot.
+  - A recovery refreshes the reference only when there is none yet or the verdict is `corroborated`.
+  - The vacuous verifier check is strict now, and the stale comments are corrected.
+- **Checks:**
+  - `verify:visual-fusion-runtime` 145/0 (was 115);
+  - mutations, all red and restored: budget race removed 138/7, `holdRefresh` removed 142/3, `handedOff` forced
+    false 133/12, refresh gate removed 143/2;
+  - `verify:visual-isolation` 40/0, `verify:recovery-provenance` 46/0, `verify:request-provenance` 93/0;
+  - `verify:runner` 138/0, `verify:locator-guard` 38/0;
+  - `verify:failure-capture-overhead` 18/0, `verify:ai-fallback` 51/0;
+  - build PASS.
+- **`awkit-vra.12` stays open.** Owed: the overhead matrix (acceptance #7, NOT RUN).
+- **Binding:** N2 is shadow-only, `contradictionEnabled` stays `false`, and N2.6 stays deferred.
+- **Tracker BLOCKED** (lease denial), as before.
+
+## Phase N: N2.8 state and docs closure; N2 shadow-only, not closed (2026-10-13)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed by this task.

@@ -6,7 +6,8 @@ import { buildVisualEvidence, type VisualEvidence } from "./visualEvidence";
  * Per-candidate evidence of one shared-capture cycle (Phase N, N2.4 / awkit-vra.12.4). Each candidate's crop is reduced
  * to the unchanged N1 `VisualEvidence` (geometry and fingerprints, never pixels) and labelled with the `captureId` of
  * the one screenshot it was cut from, so a consumer can tell that every candidate was judged against the same moment.
- * MODULE-ONLY like `visualEvidence`: nothing persists this shape.
+ * This wrapper is never persisted; only one candidate's inner `VisualEvidence` may be, as the runner's reference sidecar
+ * (N2.4b, FD-4). No run record, report, profile or IPC payload carries either.
  */
 
 export interface VisualCandidateEvidence {

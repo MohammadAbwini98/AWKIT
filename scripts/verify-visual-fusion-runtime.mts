@@ -29,6 +29,11 @@
  * sanitized copy (codes or `invalid`, effect none or veto, integer ms, 3-decimal unit scores) the report's
  * SecretMasker leaves intact and that names no element, URL, digest or pixels.
  *
+ * N2 QC fixes: I8/FD-5 — a hanging observer or a slow reference read holds a resolve at most the observation budget,
+ * the trace says `budget-exhausted`, the signal is aborted and the late stage writes nothing; I5 — a stage whose handoff
+ * check says handed off (or throws) never captures or refreshes, and the evidence collector answers it; a failed refresh
+ * capture spends the step's slot; a recovery winner the reference did not corroborate never replaces it.
+ *
  * Run: npm run verify:visual-fusion-runtime
  */
 
@@ -40,8 +45,12 @@ import { chromium, type Browser, type Page } from "playwright";
 import { VISUAL_EVIDENCE_MAX_BYTES, VISUAL_EVIDENCE_VERSION, type VisualEvidence } from "@src/visual/visualEvidence";
 import { MEASURED_FUSION_POLICY } from "@src/visual/fusion/decideFusion";
 import type { FlowStep } from "@src/profiles/FlowProfile";
+import { FailureEvidenceCollector } from "@src/runner/evidence/FailureEvidenceCollector";
+import { EvidenceRunBudget } from "@src/runner/evidence/ExecutionEvidence";
+import type { RunnerProgressEvent } from "@src/runner/RunnerProgress";
 import {
   LocatorFactory,
+  VISUAL_OBSERVATION_BUDGET_MS,
   type LocatorRecoveryEvent,
   type LocatorRecoveryTrace,
   type LocatorRecoveryVisual,
@@ -150,6 +159,8 @@ interface ScenarioRun {
   memory: string;
   /** N2.7: each recovery trace's `visual` block, in order (`null` when the trace had none); excluded from the A/B. */
   visuals: (LocatorRecoveryVisual | null)[];
+  /** QC fix (I8): wall time of the seeding and the recovering resolve; excluded from the A/B. */
+  resolveMs: [number, number];
 }
 
 /**
@@ -179,17 +190,25 @@ async function scenario(
     await page.evaluate(() => {
       (window as unknown as { __target: Element }).__target = document.getElementById("save-profile")!;
     });
-    const seeded = await factory(fusion.seed)
+    const seedStarted = performance.now();
+    const seededLocator = await factory(fusion.seed)
       .resolve(step)
-      .then((locator) => locator.evaluate((element) => element === (window as unknown as { __target: Element }).__target))
-      .catch(() => false);
+      .catch(() => null);
+    const seedMs = performance.now() - seedStarted;
+    const seeded = seededLocator
+      ? await seededLocator.evaluate((element) => element === (window as unknown as { __target: Element }).__target).catch(() => false)
+      : false;
     await page.evaluate(() => {
       document.getElementById("save-profile")!.id = "profile-save";
     });
     let isTarget = false;
     let resolvedText: string | null = null;
+    let recoverMs = 0;
     try {
-      const locator = await factory(fusion.recover).resolve(step);
+      const recoverStarted = performance.now();
+      const locator = await factory(fusion.recover)
+        .resolve(step)
+        .finally(() => (recoverMs = performance.now() - recoverStarted));
       isTarget = await locator.evaluate((element) => element === (window as unknown as { __target: Element }).__target);
       resolvedText = await locator.textContent();
     } catch {
@@ -203,7 +222,8 @@ async function scenario(
       resolvedText,
       events: JSON.stringify(events, stable),
       memory: JSON.stringify(memory, stable),
-      visuals: events.filter((event) => event.type === "recovery-trace").map((event) => event.trace?.visual ?? null)
+      visuals: events.filter((event) => event.type === "recovery-trace").map((event) => event.trace?.visual ?? null),
+      resolveMs: [seedMs, recoverMs]
     };
   } finally {
     await page.close().catch(() => undefined);
@@ -228,14 +248,34 @@ interface Shadow {
   passes: number;
 }
 
+/** A store whose reference read takes `delayMs`, to push the stage past its budget before it captures anything. */
+class SlowStore extends CountingStore {
+  delayMs = 0;
+  override async get(...args: Parameters<VisualReferenceStore["get"]>): ReturnType<VisualReferenceStore["get"]> {
+    await new Promise((resolve) => setTimeout(resolve, this.delayMs));
+    return super.get(...args);
+  }
+}
+
+interface ShadowOptions {
+  handedOff?: (page: Page) => boolean;
+  /** Share another shadow's reference folder (default: a fresh one). */
+  folder?: string;
+  /** A `refreshMs` clock for the store (default real time). */
+  now?: () => number;
+  slowGetMs?: number;
+}
+
 /** A real VisualFusionStage on its own folder, wrapped to record what LocatorFactory handed it. */
-async function shadow(onVerdict?: (record: VisualFusionVerdictRecord) => void): Promise<Shadow> {
-  const folder = await mkdtemp(join(ROOT, "visual-"));
-  const s = new CountingStore({ folder, evidenceVersion: VISUAL_EVIDENCE_VERSION, maxEvidenceBytes: VISUAL_EVIDENCE_MAX_BYTES, digestOf });
+async function shadow(onVerdict?: (record: VisualFusionVerdictRecord) => void, options: ShadowOptions = {}): Promise<Shadow> {
+  const folder = options.folder ?? (await mkdtemp(join(ROOT, "visual-")));
+  const storeOptions: VisualReferenceStoreOptions = { folder, evidenceVersion: VISUAL_EVIDENCE_VERSION, maxEvidenceBytes: VISUAL_EVIDENCE_MAX_BYTES, digestOf, ...(options.now ? { now: options.now } : {}) };
+  const s = options.slowGetMs === undefined ? new CountingStore(storeOptions) : Object.assign(new SlowStore(storeOptions), { delayMs: options.slowGetMs });
   const out: Shadow = { fusion: undefined as unknown as LocatorVisualFusion, folder, store: s, verdicts: [], observed: [], competitorTexts: [], passes: 0 };
   const stage = new VisualFusionStage({
     folder,
     store: s,
+    handedOff: options.handedOff ?? (() => false),
     onVerdict: (record) => {
       out.verdicts.push(record);
       onVerdict?.(record);
@@ -255,11 +295,20 @@ async function shadow(onVerdict?: (record: VisualFusionVerdictRecord) => void): 
   return out;
 }
 
-const sameRun = (a: ScenarioRun, b: ScenarioRun): boolean => JSON.stringify({ ...a, visuals: undefined }) === JSON.stringify({ ...b, visuals: undefined });
+const sameRun = (a: ScenarioRun, b: ScenarioRun): boolean =>
+  JSON.stringify({ ...a, visuals: undefined, resolveMs: undefined }) === JSON.stringify({ ...b, visuals: undefined, resolveMs: undefined });
+/** R2 and the other "no visual comparison happened" reasons (`decideFusion`). */
+const UNCOMPARED = new Set(["protected-surface", "budget-exhausted", "cancelled", "target-stale", "target-offscreen", "frame-mapping-failed", "version-mismatch", "capture-failed", "fusion-off", "step-ineligible", "no-reference", "invalid-input"]);
+const settle = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 const threeDecimals = (value: unknown): boolean => typeof value === "number" && Math.abs(value * 1000 - Math.round(value * 1000)) < 1e-9;
 
 async function shadowStageCases(): Promise<void> {
   browser = await chromium.launch();
+  // Warm-up, discarded: the first screenshot and fingerprint of a fresh browser process can exceed the 400 ms FD-5 budget
+  // on their own, which would turn the seed pass into budget-exhausted and void every case that needs a reference.
+  // The budget is not relaxed for this; a cold first seed in production is held and retried after the refresh window.
+  const warm = await shadow();
+  await scenario("click", { seed: warm.fusion, recover: warm.fusion });
 
   console.log("\nN2.5 I3: shadow fusion leaves the resolve byte-identical to fusion off (A/B):\n");
   const off = await scenario("click");
@@ -284,7 +333,12 @@ async function shadowStageCases(): Promise<void> {
   const [verdict] = a.verdicts;
   check("exactly one verdict, shadow mode, local layer, eligible", a.verdicts.length === 1 && verdict.mode === "shadow" && verdict.layer === "local" && verdict.eligibility === "eligible", JSON.stringify(a.verdicts));
   check("the passing resolve seeded the reference, so the verdict is not R1 no-reference", verdict?.reason !== "no-reference", `${verdict?.outcome} (${verdict?.reason})`);
-  check("the verdict is a visual comparison against the reference", verdict?.outcome === "corroborated" || verdict?.outcome === "dom-only" || verdict?.outcome === "contradicted", `${verdict?.outcome} (${verdict?.reason})`);
+  // QC fix: `dom-only` alone also covers every R2 refusal, so the comparison must show in a winner score and a compared reason.
+  check(
+    "the verdict is a visual comparison against the reference: a winner score and a reason other than an R1/R2 refusal",
+    typeof verdict?.evidence.winnerScore === "number" && !UNCOMPARED.has(verdict.reason) && verdict.outcome !== "unchecked",
+    `${verdict?.outcome} (${verdict?.reason}) ${JSON.stringify(verdict?.evidence)}`
+  );
   check("effect is none (shadow, contradiction disabled)", verdict?.effect === "none");
   const evidenceKeys = Object.keys(verdict?.evidence ?? {});
   check(
@@ -346,7 +400,7 @@ async function shadowStageCases(): Promise<void> {
 
   console.log("\nN2.5 shadow-only invariants:\n");
   check("MEASURED_FUSION_POLICY.contradictionEnabled is still false", MEASURED_FUSION_POLICY.contradictionEnabled === false);
-  check("the stage's mode is fixed to shadow", new VisualFusionStage({ folder: ROOT }).mode === "shadow");
+  check("the stage's mode is fixed to shadow", new VisualFusionStage({ folder: ROOT, handedOff: () => false }).mode === "shadow");
   const all = [a, b, c, d, e].flatMap((x) => x.verdicts);
   check("no verdict of any case had an effect", all.length >= 3 && all.every((v) => v.effect === "none"), String(all.length));
 
@@ -416,6 +470,172 @@ async function shadowStageCases(): Promise<void> {
   check("the report's SecretMasker leaves the block intact (no field read as a secret)", JSON.stringify(new SecretMasker().maskRecord(logged)) === JSON.stringify(logged), JSON.stringify(logged));
   const recordText = JSON.stringify(logged);
   check("I9: the record names no element, URL, digest or pixels", !/save-profile|profile-save|http|sha256|digest|base64|bounds|[0-9a-f]{16}/i.test(recordText), recordText);
+
+  // ── QC fixes (N2 review 2026-10-13) ──────────────────────────────────────────────────────────────────────────────
+  const BUDGET = VISUAL_OBSERVATION_BUDGET_MS;
+  const SLACK = 600;
+  console.log(`\nQC fix I8 / FD-5: a step waits at most ${BUDGET} ms for the whole observation:\n`);
+  const signals: AbortSignal[] = [];
+  const hang = async (observation: { signal: AbortSignal }): Promise<undefined> => {
+    signals.push(observation.signal);
+    await settle(2500);
+    return undefined;
+  };
+  const hanging: LocatorVisualFusion = { observeRecovery: hang, observePass: hang };
+  const hung = await scenario("click", { seed: hanging, recover: hanging });
+  check("a hanging observer: the resolve is otherwise identical to off", sameRun(hung, off));
+  check(
+    "a hanging observePass holds the passing resolve for at most the budget (plus slack), not its 2500 ms",
+    hung.resolveMs[0] - off.resolveMs[0] < BUDGET + SLACK,
+    `${Math.round(hung.resolveMs[0])} vs off ${Math.round(off.resolveMs[0])} ms`
+  );
+  check(
+    "a hanging observeRecovery holds the recovering resolve for at most the budget (plus slack)",
+    hung.resolveMs[1] - off.resolveMs[1] < BUDGET + SLACK,
+    `${Math.round(hung.resolveMs[1])} vs off ${Math.round(off.resolveMs[1])} ms`
+  );
+  const [overrun] = hung.visuals;
+  check(
+    "the overrun shows in the trace as dom-only / budget-exhausted, effect none, after about the budget",
+    hung.visuals.length === 1 && overrun?.outcome === "dom-only" && overrun.reason === "budget-exhausted" && overrun.effect === "none" && overrun.ms >= BUDGET - 25 && overrun.ms < BUDGET + SLACK,
+    JSON.stringify(hung.visuals)
+  );
+  check("every overrun observation's signal was aborted", signals.length >= 2 && signals.every((signal) => signal.aborted), `${signals.length} signals, ${signals.filter((s) => s.aborted).length} aborted`);
+  check("an observation that finishes in time is not aborted", a.observed.length === 1 && a.observed.every((o) => !o.signal.aborted));
+
+  const slow = await shadow(undefined, { slowGetMs: 1500 });
+  const slowRun = await scenario("click", { recover: slow.fusion });
+  check("a real stage over a slow reference read: the resolve is identical to off", sameRun(slowRun, off));
+  check(
+    "...the recovering resolve is not held for the read, and the trace says budget-exhausted",
+    slowRun.resolveMs[1] - off.resolveMs[1] < BUDGET + SLACK && slowRun.visuals[0]?.reason === "budget-exhausted",
+    `${Math.round(slowRun.resolveMs[1])} ms, ${JSON.stringify(slowRun.visuals)}`
+  );
+  await settle(1700);
+  check(
+    "...and once the read returned, the aborted stage captured nothing, produced no verdict and wrote no reference",
+    slow.observed.length === 1 && slow.verdicts.length === 0 && slow.store.refreshes === 0 && (await jsonFiles(slow.folder)).length === 0,
+    `${slow.observed.length} observed, ${slow.verdicts.length} verdicts, ${slow.store.refreshes} refreshes`
+  );
+
+  console.log("\nQC fix I5: a handed-off page is never captured:\n");
+  const seededRef = await shadow();
+  await scenario("click", { seed: seededRef.fusion });
+  const [referenceName] = await jsonFiles(seededRef.folder);
+  const referenceBefore = referenceName ? await readFile(join(seededRef.folder, referenceName), "utf8") : "";
+  check("precondition: the step has a stored reference", referenceBefore.length > 0);
+  const handoffChecks: [string, (page: Page) => boolean][] = [
+    ["reports the page handed off", () => true],
+    [
+      "throws",
+      () => {
+        throw new Error("handoff state unknown");
+      }
+    ]
+  ];
+  for (const [label, handedOff] of handoffChecks) {
+    const h = await shadow(undefined, { handedOff, folder: seededRef.folder });
+    const run = await scenario("click", { seed: h.fusion, recover: h.fusion });
+    check(`a stage whose handoff check ${label}: the resolve is identical to off`, sameRun(run, off));
+    check(
+      "...its recovery verdict is R2 protected-surface (the capture refused), in the stage and in the trace",
+      h.verdicts.length === 1 && h.verdicts[0].outcome === "dom-only" && h.verdicts[0].reason === "protected-surface" && run.visuals[0]?.reason === "protected-surface",
+      JSON.stringify(h.verdicts)
+    );
+    check(
+      "...and neither its pass nor its recovery refreshed the reference",
+      h.passes >= 1 && h.store.refreshes === 0 && (await readFile(join(seededRef.folder, referenceName ?? "missing"), "utf8").catch(() => "")) === referenceBefore,
+      `${h.passes} passes, ${h.store.refreshes} refreshes`
+    );
+  }
+  {
+    const page = await browser!.newPage();
+    try {
+      const collector = new FailureEvidenceCollector({ executionId: "n2-qc", instanceId: "n2-qc-1", budget: new EvidenceRunBudget() });
+      const event = (status: string, extra: Record<string, unknown> = {}) => ({ status, flowId: "f", ...extra }) as unknown as RunnerProgressEvent;
+      check("the evidence collector: an ordinary page is not handed off", collector.pageHandedOff(page) === false);
+      collector.onProgress(event("running", { stepId: "s-login", stepType: "protectedLoginHandoff" }));
+      check("...a protected-login step hands every page off", collector.pageHandedOff(page) === true);
+      collector.onProgress(event("running", { stepId: "s-click", stepType: "click" }));
+      check("...an ordinary step after it clears that", collector.pageHandedOff(page) === false);
+      collector.onProgress(event("waitingForManualAction", { stepId: "s-click" }));
+      check("...waiting for manual action hands every page off", collector.pageHandedOff(page) === true);
+      collector.onProgress(event("running", { stepId: "s-next", stepType: "click" }));
+      collector.stop();
+      check("...and a stopped collector answers handed off", collector.pageHandedOff(page) === true);
+    } finally {
+      await page.close().catch(() => undefined);
+    }
+  }
+
+  console.log("\nQC fix: a failed refresh capture still spends the step's refresh slot:\n");
+  {
+    const page = await browser!.newPage();
+    try {
+      await page.setContent(LAB);
+      const time = clock();
+      const folder = await mkdtemp(join(ROOT, "hold-"));
+      const held = new CountingStore({ folder, evidenceVersion: VISUAL_EVIDENCE_VERSION, maxEvidenceBytes: VISUAL_EVIDENCE_MAX_BYTES, digestOf, now: time.now });
+      const stage = new VisualFusionStage({ folder, store: held, handedOff: () => false });
+      const pass = (selector: string) =>
+        stage.observePass({
+          page,
+          step: { id: "hold", name: "Hold", type: "click" } as unknown as FlowStep,
+          scopeKey: "n2-qc|hold",
+          locator: page.locator(selector),
+          sensitive: false,
+          signal: new AbortController().signal
+        });
+      await pass("#no-such-element");
+      check("a pass whose capture failed wrote nothing", held.refreshes === 0 && (await jsonFiles(folder)).length === 0, `${held.refreshes} refreshes`);
+      check("...but its slot is spent: the step is not due again inside the refresh window", held.dueForRefresh("n2-qc|hold") === false);
+      await pass("#save-profile");
+      check("...so an immediate second pass does not capture either", held.refreshes === 0);
+      time.advance(60_000);
+      check("...the step is due again once the window has passed", held.dueForRefresh("n2-qc|hold") === true);
+      await pass("#save-profile");
+      check("...and a pass that captures then refreshes it (non-vacuous)", held.refreshes === 1 && (await jsonFiles(folder)).length === 1, `${held.refreshes} refreshes`);
+    } finally {
+      await page.close().catch(() => undefined);
+    }
+  }
+
+  console.log("\nQC fix: a recovery winner the reference disagrees with never replaces it:\n");
+  {
+    let at = 1_000_000;
+    // Every read of the clock is a refresh window later, so only the gate (never the rate limit) can stop a refresh.
+    const g = await shadow(undefined, { now: () => (at += 61_000) });
+    // The step's reference is a competitor's look (as after a page redesign swapped them), so the winner cannot lead.
+    const seedPage = await browser!.newPage({ viewport: { width: 800, height: 600 } });
+    try {
+      await seedPage.setContent(LAB);
+      await g.fusion.observePass({
+        page: seedPage,
+        step: { id: "save-profile", name: "Save profile", type: "click" } as unknown as FlowStep,
+        scopeKey: observation?.scopeKey ?? "",
+        locator: seedPage.locator("#export-profile"),
+        sensitive: false,
+        signal: new AbortController().signal
+      });
+    } finally {
+      await seedPage.close().catch(() => undefined);
+    }
+    const [name] = await jsonFiles(g.folder);
+    const seededText = name ? await readFile(join(g.folder, name), "utf8") : "";
+    const run = await scenario("click", { recover: g.fusion });
+    check("precondition: the target is recovered, and the step had a stored reference", run.recovered && run.isTarget && g.store.refreshes === 1 && seededText.length > 0, `${g.store.refreshes} refreshes`);
+    check(
+      "precondition: the verdict compared against the reference and did not corroborate the winner",
+      g.verdicts.length === 1 && g.verdicts[0].outcome !== "corroborated" && !UNCOMPARED.has(g.verdicts[0].reason),
+      JSON.stringify(g.verdicts)
+    );
+    check(
+      "the recovery did not refresh: one refresh in all, and the stored reference is still the seeded one",
+      g.store.refreshes === 1 && (await readFile(join(g.folder, name ?? "missing"), "utf8").catch(() => "")) === seededText,
+      `${g.store.refreshes} refreshes`
+    );
+    check("...while a recovery with no reference yet (case B) still refreshes once", b.store.refreshes === 1, `${b.store.refreshes} refreshes`);
+  }
 }
 
 try {
@@ -672,6 +892,6 @@ try {
   await rm(ROOT, { recursive: true, force: true }).catch(() => undefined);
 }
 
-check("the suite is non-vacuous", passed >= 110, String(passed));
+check("the suite is non-vacuous", passed >= 144, String(passed));
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);

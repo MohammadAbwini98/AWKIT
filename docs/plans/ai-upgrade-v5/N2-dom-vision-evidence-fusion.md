@@ -338,14 +338,34 @@ Status of the acceptance criteria for closing `awkit-vra.12`:
 | # | Criterion | State |
 |---|---|---|
 | 1 | Work items complete | PASS: N2.1-N2.5, N2.4b, N2.7, N2.8 done; N2.6 deferred by the recorded FD-9 outcome |
-| 2 | Fusion verifiers pass, registered, mutation contract observed | PASS for both verifiers and registration. Contract items 1-5, 7-10 observed red. Item 6 (the budget ignored) has no dedicated mutation: INCONCLUSIVE |
+| 2 | Fusion verifiers pass, registered, mutation contract observed | PASS: both verifiers registered; contract items 1-10 observed red. Item 6 (the budget ignored) was added after the QC review (138/7, below) |
 | 3 | Existing gates pass at the final state | PASS (table above) |
 | 4 | I3 A/B neutrality | PASS: off-vs-shadow identical apart from `trace.visual` (`verify:visual-fusion-runtime`) |
 | 5 | Headed Ctrl+zoom capture | PASS (executed in N2.3, refused with `CAPTURE_UNAVAILABLE`) |
-| 6 | Independent QC review | NOT RUN |
+| 6 | Independent QC review | RUN: FAIL, then fixed and re-verified (see "QC review outcome" below) |
 | 7 | Overhead on the lab, DPR 1 and 2, headed and headless | Partial: the N2.4 fan-out evaluation cost is measured across that matrix. The end-to-end recovery-attempt overhead, the reference-refresh overhead and the fusion-off baseline are NOT RUN |
 
-`awkit-vra.12` therefore stays open, shadow-only, until criteria 6 and 7 (and the item-6 mutation) are done.
+`awkit-vra.12` therefore stays open, shadow-only, until criterion 7 is measured.
+
+**QC review outcome (2026-10-13).** The independent qc-reviewer pass returned FAIL on the shadow path. Every finding
+was fixed in the same change, still shadow-only, with `contradictionEnabled` `false` and FD-5 unchanged:
+
+| Finding | Fix |
+|---|---|
+| I8/FD-5 was not enforced at the factory: a slow or hanging observer held the resolve for its whole duration | `LocatorFactory` races every observation against `VISUAL_OBSERVATION_BUDGET_MS` (400) and aborts its `AbortSignal` on expiry. An overrun recovery reads `dom-only` / `budget-exhausted`, effect `none`. The stage captures with the remaining budget and the signal, and writes nothing after an abort |
+| I5: a handed-off page could still be captured | The stage takes a required `handedOff(page)` check that fails closed (a throw counts as handed off). `FailureEvidenceCollector.pageHandedOff` answers it (protected login, manual wait, stopped). Without a collector (`AWKIT_FAILURE_EVIDENCE=0`) every page counts as handed off, so no capture runs |
+| A failed refresh capture left the step due, so every passing resolve captured again | `VisualReferenceStore.holdRefresh` spends the refresh slot when a pass does not refresh |
+| A recovery winner the reference disagreed with could replace the reference | A recovery refreshes only when no reference exists, or when the verdict is `corroborated` |
+| A verifier check accepted an `unchecked` verdict as a visual comparison | The check now requires a numeric `winnerScore`, a reason outside the R1/R2 set and an outcome other than `unchecked` |
+| Stale comments: `visualEvidence` "never persisted", the runner's "debug-logged only" | Corrected (the FD-4 sidecar is the one persisted copy, and the N2.7 trace block is the report path) |
+
+`verify:visual-fusion-runtime` grows from 115 to 145/0. Mutations, each red and restored: the budget race removed
+(item 6) 138/7; `holdRefresh` removed 142/3; `handedOff` forced false 133/12; the refresh gate removed 143/2. The
+verifier warms the capture pipeline once, because a fresh browser's first screenshot can exceed 400 ms on its own.
+Notes the review carried forward to N2.6, which is still deferred: competitors are passed as locators, not pinned by
+`nth`, so enforce must re-prove each one; the I3 A/B is proven at the factory and in `verify:recovery-provenance`'s
+real shadow run, but not as a full off-versus-shadow run through `ExecutionEngine`; and the capture's
+`caret: "hide"` style is unverified.
 
 ### Feature Test Lab scenarios (N2.3)
 

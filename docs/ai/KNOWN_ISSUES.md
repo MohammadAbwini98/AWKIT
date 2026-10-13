@@ -10,6 +10,13 @@ that missed `VISUAL_FUSION_BUDGET_MS` (400 ms) or was otherwise unavailable, whi
 - Do not relax these assertions. A conditional "evidence only if compared" check would pass vacuously.
 - On a failure, re-run once on an idle host before treating it as a regression.
 - A real fix would make the lab's capture deterministic, for example with a warm-up capture before the A/B.
+- **Mitigated 2026-10-13 (QC fix):** the factory now enforces the 400 ms budget on every observation, which made a
+  cold first capture fail the seed more often (once at 434 ms). The verifier now runs one discarded warm-up shadow
+  scenario before the A/B, and the budget is unchanged. Two production consequences remain:
+  - On a cold browser, the first seed pass of a step can miss the budget. Its refresh slot is then held, so the step is
+    seeded at the next passing resolve after the 60 s window.
+  - With `AWKIT_FAILURE_EVIDENCE=0` there is no evidence collector to answer the I5 handoff check. Fusion then fails
+    closed, and every page counts as handed off, so shadow fusion captures nothing.
 
 ## Visual fingerprints measure appearance, not identity or meaning (Phase N, 2026-10-12)
 

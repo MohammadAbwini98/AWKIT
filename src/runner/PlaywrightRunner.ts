@@ -144,7 +144,9 @@ export interface PlaywrightRunnerOptions extends BrowserContextFactoryOptions {
   onLocatorRemembered?: (scopeKey: string) => void;
   /**
    * N2.5 (FD-8): the visual-reference folder that turns on SHADOW visual fusion for this run. Absent (the default)
-   * means off and no visual code runs. Shadow verdicts are logged at debug level only; they never change a step.
+   * means off and no visual code runs. N2.7: a shadow verdict reaches the report only as the recovery trace's
+   * sanitized `visual` block (codes and rounded scores); it never changes a step. I5: a page the progress reporter's
+   * `pageHandedOff` does not clear is never captured.
    */
   visualFusionRoot?: string;
 }
@@ -822,7 +824,9 @@ export class PlaywrightRunner {
       recoveryEngine: process.env.AWKIT_LOCATOR_RECOVERY_ENGINE === "legacy" ? "legacy" : "snapshot",
       onRemembered: this.options.onLocatorRemembered,
       // N2.7: the shadow verdict reaches the report only as the recovery trace's sanitized `visual` block below.
-      visualFusion: this.options.visualFusionRoot ? lazyVisualFusion({ folder: this.options.visualFusionRoot }) : undefined,
+      visualFusion: this.options.visualFusionRoot
+        ? lazyVisualFusion({ folder: this.options.visualFusionRoot, handedOff: (target) => this.pageHandedOff(target) })
+        : undefined,
       onRecoveryEvent: (event) =>
         logger.log({
           level: event.type === "local-recovery" || event.type === "memory-error" ? "warn" : "info",
@@ -833,6 +837,16 @@ export class PlaywrightRunner {
           ...(event.trace ? { data: { locatorRecovery: toRecoveryProvenance(event.trace) } } : {})
         })
     });
+  }
+
+  /** N2 I5, fail-closed: without a reporter that knows the handoff state, every page counts as handed off. */
+  private pageHandedOff(page: Page): boolean {
+    try {
+      const progress = this.options.progress;
+      return progress?.pageHandedOff ? progress.pageHandedOff(page) !== false : true;
+    } catch {
+      return true;
+    }
   }
 
   private finish(

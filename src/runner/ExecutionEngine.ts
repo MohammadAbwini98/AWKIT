@@ -1893,6 +1893,8 @@ export class ExecutionEngine {
       observe: (observation) => extras?.evidence?.observe(observation),
       // No collector, nothing could keep a page context: never capture one.
       pageContextAllowed: (stepId, page) => extras?.evidence?.pageContextAllowed(stepId, page) ?? false,
+      // N2 I5: without a collector (AWKIT_FAILURE_EVIDENCE=0) nothing knows the handoff state, so no visual capture runs.
+      pageHandedOff: (page) => extras?.evidence?.pageHandedOff(page) ?? true,
       report: (event: RunnerProgressEvent) => {
         const now = event.timestamp;
         // L5a step-window correlation. Synchronous and bounded; never throws into progress.

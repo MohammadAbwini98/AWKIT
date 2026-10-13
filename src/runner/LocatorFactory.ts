@@ -298,12 +298,20 @@ export interface LocatorFactoryOptions {
   visualFusion?: LocatorVisualFusion;
 }
 
+/**
+ * I8 / FD-5: the longest a step waits on one shadow visual observation — reference read, capture, verdict and refresh,
+ * and the adapter's first load. Past it the step goes on and the observation is aborted.
+ */
+export const VISUAL_OBSERVATION_BUDGET_MS = 400;
+
 export interface LocatorVisualPassObservation {
   page: Page;
   step: FlowStep;
   scopeKey: string;
   locator: Locator;
   sensitive: boolean;
+  /** Aborted once the observation outlives `VISUAL_OBSERVATION_BUDGET_MS`; the step no longer waits for it. */
+  signal: AbortSignal;
 }
 
 export interface LocatorVisualRecoveryObservation extends LocatorVisualPassObservation {
@@ -329,6 +337,31 @@ export interface LocatorVisualVerdict {
 export interface LocatorVisualFusion {
   observeRecovery(observation: LocatorVisualRecoveryObservation): Promise<LocatorVisualVerdict | undefined | void>;
   observePass(observation: LocatorVisualPassObservation): Promise<void>;
+}
+
+type BoundedVisualObservation<T> = { status: "done"; value: T } | { status: "timeout" } | { status: "failed" };
+
+/**
+ * I8 / FD-5: runs one shadow visual observation under `VISUAL_OBSERVATION_BUDGET_MS`, covering everything it awaits
+ * (adapter load, reference read, capture, refresh). On expiry the step stops waiting and the signal is aborted so the
+ * observer stops before its next stage; a throw is reported as `failed`. Never throws.
+ */
+async function boundedVisualObservation<T>(observe: (signal: AbortSignal) => Promise<T>): Promise<BoundedVisualObservation<T>> {
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const expired = new Promise<BoundedVisualObservation<T>>((resolve) => {
+    timer = setTimeout(() => resolve({ status: "timeout" }), VISUAL_OBSERVATION_BUDGET_MS);
+  });
+  const run = (async (): Promise<BoundedVisualObservation<T>> => ({ status: "done", value: await observe(controller.signal) }))().catch(
+    (): BoundedVisualObservation<T> => ({ status: "failed" })
+  );
+  try {
+    const outcome = await Promise.race([run, expired]);
+    if (outcome.status === "timeout") controller.abort();
+    return outcome;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 interface RankedCandidate {
@@ -933,11 +966,8 @@ export class LocatorFactory {
   private async observeVisual(step: FlowStep, scopeKey: string | undefined, locator: Locator, sensitive: boolean): Promise<void> {
     const fusion = this.options.visualFusion;
     if (!fusion || !scopeKey) return;
-    try {
-      await fusion.observePass({ page: this.page, step, scopeKey, locator, sensitive });
-    } catch {
-      // Shadow mode: the observer never participates in the resolve.
-    }
+    // Shadow mode: the observer never participates in the resolve; a failure or an overrun only means no refresh.
+    await boundedVisualObservation((signal) => fusion.observePass({ page: this.page, step, scopeKey, locator, sensitive, signal }));
   }
 
   /**
@@ -949,31 +979,33 @@ export class LocatorFactory {
     const fusion = this.options.visualFusion;
     if (!fusion || !scopeKey) return undefined;
     const started = performance.now();
-    try {
-      const verdict = await fusion.observeRecovery({
+    const observed = await boundedVisualObservation((signal) =>
+      fusion.observeRecovery({
         page: this.page,
         step,
         scopeKey,
         locator: recovered.locator,
         sensitive,
+        signal,
         score: recovered.score,
         ...(recovered.visual ?? { layer: "provider-agreed", competitors: [], margin: 0 })
-      });
-      if (!verdict) return undefined;
-      const { winnerScore, bestCompetitorScore } = verdict.evidence ?? {};
-      return {
-        mode: "shadow",
-        outcome: String(verdict.outcome),
-        reason: String(verdict.reason),
-        effect: verdict.effect === "veto" ? "veto" : "none",
-        ms: performance.now() - started,
-        ...(typeof winnerScore === "number" ? { winnerScore } : {}),
-        ...(typeof bestCompetitorScore === "number" ? { competitorScore: bestCompetitorScore } : {})
-      };
-    } catch {
-      // Shadow mode: the observer never participates in the resolve.
-      return undefined;
-    }
+      })
+    );
+    // I8: the step stopped waiting; the trace says so with the fusion R2 code, never with a late verdict.
+    if (observed.status === "timeout") return { mode: "shadow", outcome: "dom-only", reason: "budget-exhausted", effect: "none", ms: performance.now() - started };
+    // Shadow mode: the observer never participates in the resolve.
+    if (observed.status === "failed" || !observed.value) return undefined;
+    const verdict = observed.value;
+    const { winnerScore, bestCompetitorScore } = verdict.evidence ?? {};
+    return {
+      mode: "shadow",
+      outcome: String(verdict.outcome),
+      reason: String(verdict.reason),
+      effect: verdict.effect === "veto" ? "veto" : "none",
+      ms: performance.now() - started,
+      ...(typeof winnerScore === "number" ? { winnerScore } : {}),
+      ...(typeof bestCompetitorScore === "number" ? { competitorScore: bestCompetitorScore } : {})
+    };
   }
 
   private async rememberWinner(
