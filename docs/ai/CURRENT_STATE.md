@@ -1,6 +1,20 @@
 # CURRENT_STATE
 
-## Phase N: N2 overhead matrix measured; all acceptance criteria met, shadow-only (2026-10-13, latest)
+## Phase N: N2 closed in the tracker, shadow-only (2026-10-13, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task.
+
+- **`awkit-vra.12` (N2) is CLOSED** in the tracker. `.12.4` (retitled "N2.4 — Single-capture candidate fan-out"),
+  the new N2.4b bead `.12.9`, `.12.5`, `.12.7` and `.12.8` are closed. N2.6 `.12.6` is `deferred` per FD-9.
+  `.beads/issues.jsonl` is re-exported with 381 issues.
+- **Dashboard repin BLOCKED.** The pins in `scripts/verify-roadmap-dashboard.mjs` still read 380 issues, 30 / 350,
+  and 281 edges. The export implies 381, 25 / 356 and 283. The lease guard terminally denied the edit, and
+  `verify:roadmap-dashboard` is NOT RUN against this state; until the repin lands it will FAIL on those three pins.
+  See HANDOFF.
+- **Binding:** N2 is shadow-only, `contradictionEnabled` stays `false`, and N2.6 stays deferred.
+
+## Phase N: N2 overhead matrix measured; all acceptance criteria met, shadow-only (2026-10-13)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed by this task.

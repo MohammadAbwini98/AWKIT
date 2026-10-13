@@ -1,6 +1,30 @@
 # TASK_LOG
 
-## 2026-10-13 (latest) — Phase N: N2 overhead matrix, acceptance #7 (Claude)
+## 2026-10-13 (latest) — Phase N: close `awkit-vra.12` in the tracker (Claude)
+
+- **Scope:** "close awkit-vra.12 in the tracker". CodeCraft was not used (`CODECRAFT_MODE=off`).
+- **Change:** tracker only, under a `project-state` lease on contract `awkit-vra-12-n2-start-1012` (scope
+  `.beads/**`, released afterwards).
+  - `.12.4` was retitled and closed.
+  - N2.4b was filed as `.12.9`, made to block `.12.5`, and closed.
+  - `.12.7`, `.12.5` and `.12.8` were closed in dependency order.
+  - `.12.6` was set to `deferred`.
+  - `awkit-vra.12` was closed.
+  - `bd export -o .beads/issues.jsonl` wrote 381 issues.
+- **Files:** `.beads/issues.jsonl`, `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md`.
+- **Checks:**
+
+  | Check | Result |
+  |---|---|
+  | Dashboard repin in `scripts/verify-roadmap-dashboard.mjs` (381 issues, 25/356, 283 edges) | BLOCKED: lease-scope denial, terminal on the third attempt |
+  | `verify:roadmap-dashboard` | NOT RUN: shell gate terminal. Expected to FAIL on the three stale pins |
+  | `npm run build` | NOT RUN: no source changed |
+
+- **Process note:** the three verifier edits were sent in parallel while the lease covered only `.beads/**`. That
+  spent all three denials at once. Edit the verifier before granting a scoped lease, or amend the lease first.
+- **Result:** N2 is closed in the tracker and stays shadow-only. The dashboard repin is owed (HANDOFF).
+
+## 2026-10-13 — Phase N: N2 overhead matrix, acceptance #7 (Claude)
 
 - **Scope:** "run the overhead matrix for N2". CodeCraft was not used (`CODECRAFT_MODE=off`).
 - **Change:** a new benchmark, `scripts/benchmark-visual-fusion-overhead.mts` (`npm run benchmark:visual-fusion-overhead`).

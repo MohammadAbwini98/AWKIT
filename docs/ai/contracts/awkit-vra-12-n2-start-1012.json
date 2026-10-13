@@ -207,6 +207,22 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-vra-12-n2-start-1012:project-state:2026-10-13T10:52:37.091Z",
+        "task": "awkit-vra-12-n2-start-1012",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-13T10:52:37.091Z",
+        "acquired_at_commit": "be4b24f6a8a2bd97445b8f76ca526cc0b9ae7cad",
+        "released_at": "2026-10-13T10:54:49.773Z",
+        "released_reason": "tracker-closed-dashboard-repin-terminally-denied",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }

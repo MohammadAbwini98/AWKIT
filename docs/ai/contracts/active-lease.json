@@ -1,44 +1,18 @@
 {
-  "task": "awkit-vra-12-4-capture-fanout-1012",
-  "contract_path": "docs/ai/contracts/awkit-vra-12-4-capture-fanout-1012.json",
+  "task": "awkit-vra-12-n2-start-1012",
+  "contract_path": "docs/ai/contracts/awkit-vra-12-n2-start-1012.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-12T18:28:48.515Z",
-  "acquired_at_commit": "76978ba63570e62daef93ee9eea9fc315939373b",
+  "acquired_at": "2026-10-13T10:52:37.091Z",
+  "acquired_at_commit": "be4b24f6a8a2bd97445b8f76ca526cc0b9ae7cad",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-vra-12-3-fusion-calibration-1012.json",
-    "docs/ai/contracts/awkit-vra-12-4-capture-fanout-1012.json",
-    "package.json",
-    "scripts/benchmark-visual-fusion.mts",
-    "scripts/lib/verifier-classification.ts",
-    "scripts/verify-visual-capture-fanout.mts",
-    "scripts/verify-visual-fusion.mts",
-    "scripts/verify-visual-isolation.mts",
-    "src/visual/candidateEvidence.ts",
-    "src/visual/capture.ts",
-    "src/visual/errors.ts",
-    "src/visual/index.ts",
-    "src/visual/internal/captureCore.ts"
+    "docs/ai/contracts/awkit-l12-27-implementation-1006.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-vra-12-3-fusion-calibration-1012.json": "c17dab21839fe876b5be2a37701da629297a8a49c8b3eaced88997e81a3c6b42",
-    "docs/ai/contracts/awkit-vra-12-4-capture-fanout-1012.json": "dc939fa01b7444bb415846089ed2fd790cd74179c8613cfc1d253a9a8cd08037",
-    "package.json": "8aa95333c694e3fd7df41ac316a73873867b18cb28b42e15e550c60388b101dd",
-    "scripts/benchmark-visual-fusion.mts": "b8c67efb47afe6f2e43f042677b755472792e9914bfac817ae738f4be4ca1802",
-    "scripts/lib/verifier-classification.ts": "6ac224ecec1faad74a1c8fe873a593c44421f170d82ce37688be35c9e0f3940a",
-    "scripts/verify-visual-capture-fanout.mts": "00118778fa5624628e77e79de4e1ee6f4546ff9d5de7008e288ffec545e9b386",
-    "scripts/verify-visual-fusion.mts": "573fde3a93d60668a0af83106d09fd98aaad93889b38b075539cf4c837bb5e44",
-    "scripts/verify-visual-isolation.mts": "6490d06c58aabd91d96685b62f09bf83f2c60e1160e03daa2b3c043f89d1cd3c",
-    "src/visual/candidateEvidence.ts": "d793ad8ef2c60007c1246b2f609eb08d3ac93f7605c84a1a896fa1e88c3117bf",
-    "src/visual/capture.ts": "f5657f1dc3d25529f12fcc9cc6ffbd0606dce3f96fc5ead9cd534c7cac76c573",
-    "src/visual/errors.ts": "ebe8cf27354f2bf1be71aa689e4251269586628842e8ba117ecfb90705ac3055",
-    "src/visual/index.ts": "d393f3994cea23af4920147356871ec93c11ec41ea6f2229bdfcdd008b04812a",
-    "src/visual/internal/captureCore.ts": "a25c98dde7edf49d9175e28fccb2b2213444a40e520c3792dce622ad872c4a1c"
+    "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -53,7 +27,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-12T18:30:22.192Z",
-  "released_reason": "tracker-write-terminally-denied-gate-blocked",
-  "archived_at": "2026-10-12T18:30:22.194Z"
+  "released_at": "2026-10-13T10:54:49.773Z",
+  "released_reason": "tracker-closed-dashboard-repin-terminally-denied",
+  "archived_at": "2026-10-13T10:54:49.774Z"
 }
