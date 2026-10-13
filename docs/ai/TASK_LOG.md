@@ -1,6 +1,27 @@
 # TASK_LOG
 
-## 2026-10-13 (latest) — Phase N: N3.6 state and docs, N3 shadow-only close (Claude)
+## 2026-10-13 (latest) — Phase N: independent QC of N3 and its findings closed (Claude, with a fresh-context awkit-qc-reviewer)
+
+- **Scope:** "run the independent QC review of N3". Contract `awkit-vra-4-qc-n3-1013`, Risk 2. CodeCraft was not used
+  (`CODECRAFT_MODE=off`).
+- **QC:** APPROVED WITH FINDINGS. Q4-a (shared 400 ms budget, J9) and Q8/Q9-a (J6 A/B keeps `visual`, docs name the
+  event-message suffix) minor, fixed; Q8-b (vacuous sensitive check) nit, fixed; Q8-c (retries) nit, dispositioned.
+  The reviewer did not read DECISIONS: that cross-check is INCONCLUSIVE.
+- **Change:** `boundedVisualObservation` takes a budget; the agreement gets the remainder of the attempt budget and
+  records `budget-exhausted` at 0 ms when none is left. The runtime verifier gains the J9 section, the M5 mutation, a
+  `visual`-keeping J6 A/B and a non-vacuous sensitive check.
+- **Governance:** `awkit-vra.4` notes record the QC; `bd close` refused it on the legacy `awkit-vra.3` edge (no
+  `--force`, dep removal left to the owner). Dashboard counts unchanged.
+- **Files:** `src/runner/LocatorFactory.ts`, `scripts/verify-visual-agreement-runtime.mts`, `.beads/issues.jsonl`,
+  `src/roadmap/ImplementationRoadmap.ts`, `docs/ai/{ARCHITECTURE,DECISIONS,CURRENT_STATE,HANDOFF,TASK_LOG}.md`,
+  `docs/plans/ai-upgrade-v5/{N3-visual-locator-recovery,ROADMAP}.md`, the contract, `active-lease.json`.
+- **Tests:** visual-agreement-runtime 81/0 (first run 79/2 from seed-capture cuts on a loaded host, rerun green),
+  visual-agreement 258/0, visual-fusion-runtime 145/0, visual-isolation 40/0, runner 138/0, locator-guard 38/0,
+  twin-pool-safety 48/0, recovery-provenance 46/0, similar-rows-safety 68/0, dom-intelligence-coverage 74/0, build
+  PASS; verifier-classification and roadmap-dashboard as recorded in the contract.
+- **Result:** N3 closure criteria 1-6 met; the epic close is one owner tracker action away.
+
+## 2026-10-13 — Phase N: N3.6 state and docs, N3 shadow-only close (Claude)
 
 - **Scope:** "continue with N3.6". Contract `awkit-vra-4-6-n3-state-1013`, Risk 0. CodeCraft was not used
   (`CODECRAFT_MODE=off`).

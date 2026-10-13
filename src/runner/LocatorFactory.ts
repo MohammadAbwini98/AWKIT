@@ -394,11 +394,11 @@ type BoundedVisualObservation<T> = { status: "done"; value: T } | { status: "tim
  * (adapter load, reference read, capture, refresh). On expiry the step stops waiting and the signal is aborted so the
  * observer stops before its next stage; a throw is reported as `failed`. Never throws.
  */
-async function boundedVisualObservation<T>(observe: (signal: AbortSignal) => Promise<T>): Promise<BoundedVisualObservation<T>> {
+async function boundedVisualObservation<T>(observe: (signal: AbortSignal) => Promise<T>, budgetMs = VISUAL_OBSERVATION_BUDGET_MS): Promise<BoundedVisualObservation<T>> {
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const expired = new Promise<BoundedVisualObservation<T>>((resolve) => {
-    timer = setTimeout(() => resolve({ status: "timeout" }), VISUAL_OBSERVATION_BUDGET_MS);
+    timer = setTimeout(() => resolve({ status: "timeout" }), budgetMs);
   });
   const run = (async (): Promise<BoundedVisualObservation<T>> => ({ status: "done", value: await observe(controller.signal) }))().catch(
     (): BoundedVisualObservation<T> => ({ status: "failed" })
@@ -1060,11 +1060,14 @@ export class LocatorFactory {
    * N3.3: show a local `below-threshold` refusal to the shadow visual-agreement observer, after the whole DOM chain, and
    * keep only the codes of the verdict it returns. Undefined when agreement is off, the observer answers nothing, or it
    * fails. SHADOW ONLY: whatever it answers, nothing is acted on and the recovery's result is already settled.
+   * `budgetMs` is what the N2 observation of the same attempt left of the shared FD-5 budget (J9); none left is
+   * budget-exhausted without a capture.
    */
-  private async observeAgreementVisual(step: FlowStep, scopeKey: string | undefined, sensitive: boolean, refused: LocalRefusal): Promise<LocatorRecoveryVisualAgreement | undefined> {
+  private async observeAgreementVisual(step: FlowStep, scopeKey: string | undefined, sensitive: boolean, refused: LocalRefusal, budgetMs: number): Promise<LocatorRecoveryVisualAgreement | undefined> {
     const agree = this.options.visualFusion?.agree?.bind(this.options.visualFusion);
     const { list, decision } = refused;
     if (!agree || !scopeKey || !decision.best || !decision.refusal) return undefined;
+    if (budgetMs <= 0) return { mode: "shadow", kind: "agreement", outcome: "unavailable", reason: "budget-exhausted", effect: "none", ms: 0 };
     const best = decision.best;
     const competitors = decision.agreementCompetitors ?? [];
     const started = performance.now();
@@ -1082,7 +1085,8 @@ export class LocatorFactory {
         margin: decision.runnerUp ? best.score - decision.runnerUp.score : 1,
         competitorCount: Math.max(0, decision.considered - 1),
         competitors: competitors.map(({ index }) => list.nth(index))
-      })
+      }),
+      budgetMs
     );
     // J9: the step stopped waiting; the trace says so with the policy's own code, never with a late verdict.
     if (observed.status === "timeout") return { mode: "shadow", kind: "agreement", outcome: "unavailable", reason: "budget-exhausted", effect: "none", ms: performance.now() - started };
@@ -1198,9 +1202,13 @@ export class LocatorFactory {
       await container?.dispose().catch(() => undefined);
       const totalMs = performance.now() - started;
       // N2.5/N2.7: last in the chain, after every DOM veto; shadow only, and recorded in this attempt's trace.
+      const visualStarted = performance.now();
       const visual = recovered ? await this.observeRecoveryVisual(step, memory.scopeKey, memory.sensitive ?? false, recovered) : undefined;
       // N3.3: after the whole DOM chain too, so every layer runs exactly when it would without it (J6); shadow only.
-      const visualAgreement = local.refused ? await this.observeAgreementVisual(step, memory.scopeKey, memory.sensitive ?? false, local.refused) : undefined;
+      // J9: a local refusal a later layer recovered meets both observers, and they share the one FD-5 budget.
+      const visualAgreement = local.refused
+        ? await this.observeAgreementVisual(step, memory.scopeKey, memory.sensitive ?? false, local.refused, VISUAL_OBSERVATION_BUDGET_MS - (performance.now() - visualStarted))
+        : undefined;
       this.emitTrace(step, {
         engine,
         result: recovered ? "recovered" : "unresolved",

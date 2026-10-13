@@ -5,9 +5,14 @@ Shared rules and the Phase N boundary: `ROADMAP.md` › *Phase N — Visual Reco
 legacy workstream `awkit-vra.4` ("Visual locator fallback") is the tracker home for N3 (VR-9), retitled
 "N3: Visual Locator Recovery" with children `awkit-vra.4.1`-`.4.6`.
 
-**Status (2026-10-13): SHADOW-ONLY CLOSE RECORDED, one gate open.** N3.6 recorded the close (contract
-`awkit-vra-4-6-n3-state-1013`); closure criteria 1-4 and 6 are met, and criterion 5 (independent QC review of N3.1
-and N3.3) is NOT RUN, so the epic bead `awkit-vra.4` stays `in_progress` until it is. See *Closure gates* below.
+**Status (2026-10-13): CLOSED SHADOW-ONLY.** N3.6 recorded the close (contract `awkit-vra-4-6-n3-state-1013`), and
+the independent QC review of N3.1 and N3.3 (closure criterion 5) returned APPROVED WITH FINDINGS; its four findings
+are closed (contract `awkit-vra-4-qc-n3-1013`), so all six closure criteria are met. The epic bead `awkit-vra.4`
+stays **in_progress only on a tracker edge**: `bd close` refuses it because the legacy 2026-09-22 `blocks` edge from
+`awkit-vra.3` (the original-numbering planning record, still open) remains, although the canonical map makes N3 depend
+on N2 `awkit-vra.12` (closed). Owner action: `bd dep remove awkit-vra.4 awkit-vra.3`, then `bd close awkit-vra.4` (or
+an owner decision on `awkit-vra.3`). N3.4 and N3.5 stay deferred (`awkit-vra.4.4`/`.4.5` blocked). See *Closure gates*
+below.
 History: the owner approved VR-0 to VR-9 as recommended and authorized N3 (DECISIONS
 2026-10-13, contract `awkit-vra-4-n3-start-1013`). N3.1 is done: `decideVisualAgreement` in
 `src/visual/fusion/decideVisualAgreement.ts`, proven by `verify:visual-agreement` 258/0. N3.2 is done and its
@@ -202,8 +207,9 @@ miss headless DPR 1), and no decision whose DOM best was not the true element ag
 false `agreed`, all headless. N3.4 and N3.5 are deferred; the order is now N3.3 → N3.6.
 
 **N3.3 outcome (2026-10-13): done, shadow only.** The verdict is recorded as a sibling `visualAgreement` trace block
-rather than inside `trace.visual`, so the N2 block stays byte-identical and J6 compares runs with that one key
-dropped. `enforce` is decided as `shadow` with effect `none`. Provenance is unchanged.
+rather than inside `trace.visual`, so the N2 block keeps its codes (only its timings differ) and J6 compares runs
+with that key and the event-message suffix it appends dropped. `enforce` is decided as `shadow` with effect `none`.
+Provenance is unchanged.
 
 **N3.6 outcome (2026-10-13): done.** `CURRENT_STATE`, `HANDOFF`, `TASK_LOG`, `ARCHITECTURE` (agreement-layer
 boundary), `DECISIONS` (VR-0 to VR-9 outcome), this plan, `ROADMAP` and `ImplementationRoadmap` record the
@@ -228,8 +234,25 @@ shadow-only close; both N3 verifiers are registered; `awkit-vra.4.6` is closed.
 | 2 | MET | `verify:visual-agreement` 258/0 and `verify:visual-agreement-runtime` 68/0, both registered; mutation contracts observed red (N3.1 policy mutations; runtime M1-M4). |
 | 3 | MET | At the N3.3 source state: `verify:visual-fusion` 271/0, `verify:visual-fusion-runtime` 145/0, `verify:visual-isolation` 40/0, `verify:runner` 138/0, `verify:locator-guard` 38/0, `verify:twin-pool-safety` 48/0, `verify:recovery-provenance` 46/0, `verify:similar-rows-safety` 68/0 (run at N3.6), `verify:mock-site` 307/307 (N3.2; inputs unchanged), `npm run build` PASS. |
 | 4 | MET | `verify:visual-agreement-runtime` compares off, the N2 stage alone, shadow and enforce with only the `visualAgreement` key dropped. |
-| 5 | **NOT RUN** | No independent QC review of N3.1/N3.3 has been executed (N3.4, the Risk-3 item, was not built). This is the one gate holding `awkit-vra.4` open. |
+| 5 | MET | Independent QC review of N3.1/N3.3 (2026-10-13): APPROVED WITH FINDINGS, all four closed in the QC-close commit (contract `awkit-vra-4-qc-n3-1013`). See *QC findings* below. N3.4, the Risk-3 item, was not built, so no Risk-3 review was owed. |
 | 6 | MET (shadow) | N3.2 measured the agreement read within the 400 ms FD-5 budget in every cell but one headless DPR 1 run, which the budget cuts (R2). FD-5 must be re-measured before any enforce work. |
+
+Re-run at the QC-close source state: `verify:visual-agreement-runtime` 81/0 (mutation M5 observed red),
+`verify:visual-agreement` 258/0, `verify:visual-fusion-runtime` 145/0, `verify:visual-isolation` 40/0,
+`verify:runner` 138/0, `verify:locator-guard` 38/0, `verify:twin-pool-safety` 48/0, `verify:recovery-provenance`
+46/0, `verify:similar-rows-safety` 68/0, `verify:dom-intelligence-coverage` 74/0, `npm run build` PASS.
+
+### QC findings (independent review, 2026-10-13)
+
+Verdict APPROVED WITH FINDINGS: no blocker, no safety defect; the shadow-only boundary, J7 and J8 held. The
+reviewer did not read `DECISIONS.md`, so that cross-check is INCONCLUSIVE, not passed.
+
+| ID | Severity | Finding | Closure |
+|---|---|---|---|
+| Q4-a | minor | A local refusal that a later layer recovered ran the N2 observation and the agreement back to back with 400 ms each, about 800 ms, against J9. | Fixed: `boundedVisualObservation` takes a budget and the agreement gets what the N2 observation left (none left is `budget-exhausted` without a capture). New J9 section (quick, partial, spent) in `verify:visual-agreement-runtime`; mutation M5 (a fresh 400 ms) is red on 3 checks. |
+| Q8/Q9-a | minor | Docs and test overstated J6: the agreement also appends an event-message suffix, and the A/B dropped the whole N2 block. | Fixed: a new A/B keeps `visual` and strips only timings, `visualAgreement` and the suffix; `ARCHITECTURE` and this plan now state both differences. |
+| Q8-b | nit | The sensitive-step check passed on an empty record set. | Fixed: asserts zero observations, records, reference reads and no trace block, because the factory refuses sensitive recovery before any layer scores. |
+| Q8-c | nit | Retries on `no-reference`/`budget-exhausted` could hide an intermittent regression. | Dispositioned: a case whose every attempt is cut fails, never passes on the cut; the per-case retry count is printed. No suite-wide ceiling was added, because a loaded host measured 9 cuts in one run and 4 in the next with no code change (rationale in the verifier docblock). |
 
 ## Risks
 

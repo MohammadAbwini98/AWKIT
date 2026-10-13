@@ -1,6 +1,21 @@
 # DECISIONS
 
-### 2026-10-13 (latest) — Phase N N3: closed shadow-only; the epic stays open on independent QC (`awkit-vra.4.6`)
+### 2026-10-13 (latest) — Phase N N3: QC findings closed; one attempt budget; the legacy edge is the owner's (`awkit-vra.4`)
+
+- **One budget per attempt (Q4-a).** The N2 recovery observation and the N3 agreement share the single 400 ms FD-5
+  budget of a recovery attempt (J9), instead of 400 ms each. The agreement receives what the observation left; with
+  nothing left it records `unavailable`/`budget-exhausted` without capturing. Shadow-only, so no execution effect.
+- **J6 wording (Q8/Q9-a).** This supersedes the N3.3 entry's "byte-identical": the N2 `visual` block keeps its codes
+  but its timings may differ, and the event message gains the " Visual agreement (shadow, no effect): …" suffix. J6 is
+  now stated and tested as: dropping the `visualAgreement` key and that suffix leaves the run identical to the N2 stage
+  alone, with `visual` kept and compared on its codes and scores (only timings dropped).
+- **Retries (Q8-c).** The runtime verifier keeps its per-case retries for browser timing noise; no suite-wide ceiling
+  is added. The rationale is in the verifier docblock.
+- **Tracker.** All six closure criteria are met, but `awkit-vra.4` is not force-closed: `bd close` refuses it on the
+  legacy 2026-09-22 `awkit-vra.3` edge, and removing a dependency edge is an owner action. The QC reviewer did not read
+  DECISIONS, so that cross-check is INCONCLUSIVE.
+
+### 2026-10-13 — Phase N N3: closed shadow-only; the epic stays open on independent QC (`awkit-vra.4.6`)
 
 - **Outcome of VR-0 to VR-9.** VR-0 amended the 2026-10-12 directive so visual identity *could* let the DOM best of
   a local `below-threshold` refusal proceed under `enforce`, but N3.2 measured 28 false `agreed` on headless twins,

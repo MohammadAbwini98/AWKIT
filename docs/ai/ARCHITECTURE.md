@@ -882,9 +882,12 @@ Invariants:
   proceed, never breaks a near-tie and never writes the reference. N3.4 (enforce) and N3.5 (`visual-agreed`
   provenance) are deferred because N3.2 measured 28 false `agreed` on headless twins.
 - Off is the default. Off, the N2 stage alone, shadow and enforce give identical events, traces and winner memory
-  apart from the `visualAgreement` key (J6, `verify:visual-agreement-runtime`).
-- Sensitive and ineligible steps are decided before any read (J8); a slow read is cut at the shared 400 ms FD-5
-  budget (J9); competitors are capped at 8.
+  apart from the `visualAgreement` key and the " Visual agreement (shadow, no effect): …" suffix it appends to the
+  step's event message; the N2 `visual` block is kept and differs only in its timings (J6,
+  `verify:visual-agreement-runtime`).
+- Sensitive and ineligible steps are decided before any read (J8). The N2 recovery observation and the agreement
+  share ONE 400 ms FD-5 budget per attempt: the agreement gets only what the N2 observation left, and none left is
+  `budget-exhausted` without a capture (J9); competitors are capped at 8.
 - `verify:visual-isolation` still allows exactly one runner edge into `src/visual`.
 
 ## Semantic index (separate process boundary)

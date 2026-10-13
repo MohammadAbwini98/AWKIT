@@ -29,10 +29,19 @@
  *   M3 the local layer keeps any refusal, not only `below-threshold` — red: the ambiguous margin is observed;
  *   M4 the stage reads the reference before deciding rows A1-A2 — red: the hover step and the direct ineligible
  *      calls read the store.
+ *   M5 (QC finding Q4-a, 2026-10-13) the agreement gets a fresh 400 ms after the N2 observation instead of what it left
+ *      — red: the two observation sums (664 and 811 ms) and the one-budget resolve wait (874 vs 49 ms off).
+ *
+ * QC additions (2026-10-13): a local below-threshold refusal that the blueprint layer then recovers meets BOTH shadow
+ * observers in one attempt, and they share the one FD-5 budget (J9); the N2-alone vs N2-plus-agreement A/B there keeps
+ * the N2 `visual` block, so J6 is proven with only the agreement block and its log suffix excluded; a sensitive step is
+ * asserted to reach the observer zero times rather than with a vacuous `every`.
  *
  * The 400 ms budget is a production constant, and on a loaded host it can cut a seed's or an agreement's capture. Such a
  * run is repeated a bounded number of times (the count is printed); the crowded factory case may end either way and is
- * proven deterministically on an unhurried stage.
+ * proven deterministically on an unhurried stage. A case whose every attempt is cut FAILS, it never passes on the cut
+ * (QC Q8-c: on a loaded host on 2026-10-13, 9 cuts left the crowded and throwing-sink cases red; the rerun had 4 cuts and
+ * passed), so no suite-wide ceiling is added: the per-case bound already turns persistent load into a failure.
  *
  * Run: npm run verify:visual-agreement-runtime
  */
@@ -50,8 +59,11 @@ import {
   type LocatorRecoveryTrace,
   type LocatorRecoveryVisualAgreement,
   type LocatorVisualAgreementObservation,
-  type LocatorVisualFusion
+  type LocatorVisualFusion,
+  type LocatorVisualVerdict
 } from "@src/runner/LocatorFactory";
+import { computePageKey, type LocatorBlueprintStore, type PageBlueprint } from "@src/runner/LocatorBlueprintStore";
+import { captureBlueprintSnapshot } from "@src/runner/recoverySnapshot";
 import { toRecoveryProvenance } from "@src/runner/domIntelligence/recoveryProvenance";
 import { FileLocatorRecoveryStore } from "@src/runner/LocatorRecoveryStore";
 import { VisualFusionStage, type VisualAgreementRecord } from "@src/runner/visualFusion/VisualFusionStage";
@@ -147,6 +159,43 @@ interface ScenarioOptions {
   beforeRecover?: () => void;
   /** Runs after the second resolve, while the page is still open. */
   afterRecover?: () => Promise<unknown>;
+  /**
+   * Give the step a blueprint of the target as it looks AFTER the mutation: the local layer still refuses against
+   * winner memory, then the blueprint layer recovers the target, so one attempt meets both observers (J9).
+   */
+  blueprint?: boolean;
+}
+
+const BLUEPRINT_ID = "bp-save-profile";
+
+/** A page blueprint of the marked target as the page is now, captured with the factory's own snapshot. */
+async function blueprintOfTarget(page: Page): Promise<PageBlueprint> {
+  const order = await page.evaluate(() => Array.from(document.body.querySelectorAll("*")).indexOf((window as unknown as { __target: Element }).__target));
+  const snapshot = await captureBlueprintSnapshot(page.locator("body *"), { documentOrder: order });
+  const own = snapshot.window.find((entry) => entry.index === order);
+  if (!own) throw new Error(`the target (document order ${order}) is not in its own blueprint window`);
+  return {
+    schemaVersion: 1,
+    pageKey: computePageKey(page.url(), await page.title()),
+    canonicalUrl: page.url(),
+    capturedAtUtc: new Date().toISOString(),
+    documentFingerprint: snapshot.documentFingerprint,
+    elements: [
+      {
+        blueprintId: BLUEPRINT_ID,
+        documentOrder: order,
+        siblingIndex: own.siblingIndex,
+        sameTagIndex: own.sameTagIndex,
+        tag: "button",
+        ancestry: [...own.fingerprint.ancestry],
+        fingerprint: own.fingerprint,
+        primaryLocatorDigest: "n3-qc",
+        alternativeCount: 0,
+        visible: true,
+        boundingRegion: own.boundingRegion
+      }
+    ]
+  };
 }
 
 /** Seed winner memory (and, with a stage, the reference) with one passing resolve, mutate, resolve again. */
@@ -157,13 +206,22 @@ async function scenario(mutation: MutationName, fusion: { seed?: LocatorVisualFu
     const folder = await mkdtemp(join(ROOT, "recovery-"));
     const recoveryStore = new FileLocatorRecoveryStore(folder);
     const events: LocatorRecoveryEvent[] = [];
-    const step = { id: "save-profile", name: "Save profile", type: options.type ?? "click", locator: { strategy: "css", value: "#save-profile" }, ...options.extra } as unknown as FlowStep;
+    const step = {
+      id: "save-profile",
+      name: "Save profile",
+      type: options.type ?? "click",
+      locator: { strategy: "css", value: "#save-profile", ...(options.blueprint ? { blueprintId: BLUEPRINT_ID } : {}) },
+      ...options.extra
+    } as unknown as FlowStep;
+    let blueprint: PageBlueprint | undefined;
+    const blueprintStore: LocatorBlueprintStore = { get: async (pageKey) => (blueprint?.pageKey === pageKey ? blueprint : undefined), put: async () => undefined, list: async () => (blueprint ? [blueprint] : []) };
     const factory = (visualFusion?: LocatorVisualFusion) =>
       new LocatorFactory(page, {
         recoveryStore,
         scope: { scenarioId: "n3-3", flowId: "agreement" },
         recoveryGraceMs: 0,
         onRecoveryEvent: (event) => events.push(event),
+        ...(options.blueprint ? { blueprintStore } : {}),
         ...(visualFusion ? { visualFusion } : {})
       });
     await page.evaluate(() => {
@@ -183,6 +241,7 @@ async function scenario(mutation: MutationName, fusion: { seed?: LocatorVisualFu
       if (spec.append) document.getElementById("bar")!.insertAdjacentHTML("beforeend", spec.append);
       if (spec.id) target.id = spec.id;
     }, MUTATIONS[mutation] as Mutation);
+    if (options.blueprint) blueprint = await blueprintOfTarget(page);
     let isTarget = false;
     let resolvedText: string | null = null;
     let recoverMs = 0;
@@ -462,10 +521,12 @@ async function main(): Promise<void> {
   const sensitiveOff = await scenario("drift", {}, { extra: sensitiveExtra });
   const sensitive = await agreed("drift", "shadow", {}, { extra: sensitiveExtra });
   check("sensitive: identical to off", sameRun(sensitive.run, sensitiveOff));
+  // The factory refuses a sensitive step's recovery before any layer scores, so nothing reaches the observer; the
+  // stage's own sensitive refusal is proven by the direct calls below.
   check(
-    "sensitive: never agreed, never captured or read (no observation, or not-eligible with no read)",
-    sensitive.a.records.every((r) => r.outcome === "not-eligible" && r.reason === "ineligible-step") && sensitive.a.getsDuringAgree === 0 && sensitive.block?.outcome !== "agreed",
-    JSON.stringify(sensitive.a.records)
+    "sensitive: never observed, so never agreed, captured or read (zero observations, verdicts and reads; no block)",
+    sensitive.a.observations.length === 0 && sensitive.a.records.length === 0 && sensitive.a.getsDuringAgree === 0 && sensitive.block === null,
+    JSON.stringify({ observations: sensitive.a.observations.length, records: sensitive.a.records, block: sensitive.block })
   );
   // The same observation the drift produced, replayed straight into the seeded stage with one field changed.
   const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
@@ -543,6 +604,106 @@ async function main(): Promise<void> {
   );
   await settle(VISUAL_OBSERVATION_BUDGET_MS + 900);
   check("the late stage wrote nothing", slow.a.store.refreshes === 1 && !slow.a.referenceChanged, `${slow.a.store.refreshes}`);
+
+  console.log("\nJ9: a local refusal a later layer recovers meets both observers, inside ONE budget:\n");
+  const bpOff = await scenario("drift", {}, { blueprint: true });
+  const bpStages = bpOff.traces[0]?.stages ?? [];
+  check(
+    "off: the local layer refuses below-threshold, then the blueprint layer proves the drifted target (non-vacuous)",
+    bpOff.recovered && bpOff.isTarget && bpStages.some((s) => s.stage === "local" && s.outcome === "refused" && s.reason === "below-threshold") && bpStages.some((s) => s.stage === "blueprint" && s.outcome === "proven"),
+    JSON.stringify(bpStages)
+  );
+  // Stub observers that ignore the abort signal: only the factory's bound can stop the step waiting for them.
+  const stubbed = (recoveryMs: number, agreeMs: number) => {
+    const calls = { recoveries: 0, agreements: 0 };
+    const fusion: LocatorVisualFusion = {
+      observePass: async () => undefined,
+      observeRecovery: async (): Promise<LocatorVisualVerdict> => {
+        calls.recoveries += 1;
+        await settle(recoveryMs);
+        return { mode: "shadow", outcome: "dom-only", reason: "stub", effect: "none", evidence: {} };
+      },
+      agree: async () => {
+        calls.agreements += 1;
+        await settle(agreeMs);
+        return { outcome: "refused", reason: "stub", effect: "none" };
+      }
+    };
+    return { fusion, calls };
+  };
+  const quick = stubbed(0, 0);
+  const quickRun = await scenario("drift", { seed: quick.fusion, recover: quick.fusion }, { blueprint: true });
+  const quickTrace = quickRun.traces[0];
+  check(
+    "quick observers: both are asked once and both blocks are recorded (the shared-budget path is live)",
+    quick.calls.recoveries === 1 && quick.calls.agreements === 1 && quickTrace?.visual?.reason === "stub" && quickTrace.visualAgreement?.reason === "stub",
+    JSON.stringify({ calls: quick.calls, visual: quickTrace?.visual, agreement: quickTrace?.visualAgreement })
+  );
+  check("quick observers: identical to off", sameRun(quickRun, bpOff));
+  const SLACK_MS = 120;
+  const partial = stubbed(250, VISUAL_OBSERVATION_BUDGET_MS + 600);
+  const partialRun = await scenario("drift", { seed: partial.fusion, recover: partial.fusion }, { blueprint: true });
+  const partialTrace = partialRun.traces[0];
+  const partialSum = (partialTrace?.visual?.ms ?? Infinity) + (partialTrace?.visualAgreement?.ms ?? Infinity);
+  check(
+    "N2 takes 250 ms: the agreement gets only the remainder and is cut there (budget-exhausted)",
+    partialTrace?.visual?.reason === "stub" && partialTrace.visualAgreement?.reason === "budget-exhausted" && partialTrace.visualAgreement.effect === "none",
+    JSON.stringify({ visual: partialTrace?.visual, agreement: partialTrace?.visualAgreement })
+  );
+  check(`...the two observations together stay within the ${VISUAL_OBSERVATION_BUDGET_MS} ms budget`, partialSum < VISUAL_OBSERVATION_BUDGET_MS + SLACK_MS, `${partialSum.toFixed(0)} ms`);
+  check("...identical to off", sameRun(partialRun, bpOff));
+  const spent = stubbed(VISUAL_OBSERVATION_BUDGET_MS + 600, VISUAL_OBSERVATION_BUDGET_MS + 600);
+  const spentRun = await scenario("drift", { seed: spent.fusion, recover: spent.fusion }, { blueprint: true });
+  const spentTrace = spentRun.traces[0];
+  const spentSum = (spentTrace?.visual?.ms ?? Infinity) + (spentTrace?.visualAgreement?.ms ?? Infinity);
+  check(
+    "both slow: N2 is cut at the budget and the agreement records budget-exhausted, effect none",
+    spentTrace?.visual?.reason === "budget-exhausted" && spentTrace.visualAgreement?.outcome === "unavailable" && spentTrace.visualAgreement.reason === "budget-exhausted" && spentTrace.visualAgreement.effect === "none",
+    JSON.stringify({ visual: spentTrace?.visual, agreement: spentTrace?.visualAgreement })
+  );
+  check(`...together within the ${VISUAL_OBSERVATION_BUDGET_MS} ms budget, not two of them`, spentSum < VISUAL_OBSERVATION_BUDGET_MS + SLACK_MS, `${spentSum.toFixed(0)} ms`);
+  check(
+    "...and the resolve waited about one budget, not two",
+    spentRun.recoverMs < bpOff.recoverMs + VISUAL_OBSERVATION_BUDGET_MS + 250,
+    `${spentRun.recoverMs.toFixed(0)} ms vs off ${bpOff.recoverMs.toFixed(0)} ms`
+  );
+  check("...identical to off", sameRun(spentRun, bpOff));
+
+  console.log("\nJ6 with the N2 block kept: the N2 stage alone and N2 plus agreement differ only by the agreement:\n");
+  /** As `stable`, but the N2 `visual` block stays (its codes and scores; only its duration goes). */
+  const keepVisual = (key: string, value: unknown): unknown => {
+    if (/(^ms|Ms|At)$/.test(key) || key === "visualAgreement") return undefined;
+    return typeof value === "string" ? value.replace(AGREEMENT_SUFFIX, "").replace(/\d+ ?ms\b/g, "#ms") : value;
+  };
+  const visualOf = (run: ScenarioRun) => run.traces[0]?.visual;
+  const cutVisual = (run: ScenarioRun) => !visualOf(run) || ["budget-exhausted", "no-reference"].includes(visualOf(run)!.reason);
+  let n2Only: ScenarioRun | undefined;
+  let n2Plus: ScenarioRun | undefined;
+  let n2PlusAgreement: (LocatorRecoveryVisualAgreement | null) | undefined;
+  for (let attempt = 1; attempt <= BUDGET_ATTEMPTS; attempt += 1) {
+    const alone = await agreeing(undefined);
+    n2Only = await scenario("drift", { seed: alone.fusion, recover: alone.fusion }, { blueprint: true });
+    const both = await agreeing("shadow");
+    n2Plus = await scenario("drift", { seed: both.fusion, recover: both.fusion }, { blueprint: true, afterRecover: () => Promise.all(both.pending) });
+    await Promise.all(both.pending);
+    n2PlusAgreement = n2Plus.agreements.find(Boolean) ?? null;
+    if (!cutVisual(n2Only) && !cutVisual(n2Plus)) break;
+    if (attempt < BUDGET_ATTEMPTS) budgetRetries += 1;
+  }
+  check(
+    "both runs recovered via the blueprint and carry a real N2 visual block (non-vacuous)",
+    !!n2Only && !!n2Plus && n2Only.isTarget && n2Plus.isTarget && !cutVisual(n2Only) && !cutVisual(n2Plus),
+    JSON.stringify({ alone: n2Only && visualOf(n2Only), plus: n2Plus && visualOf(n2Plus) })
+  );
+  check("N2 plus agreement carries an agreement block; the N2 stage alone carries none", !!n2PlusAgreement && !!n2Only && n2Only.agreements.every((block) => block === null), JSON.stringify(n2PlusAgreement));
+  check(
+    "events, traces including the N2 visual block, and winner memory identical apart from the agreement block and its log suffix",
+    !!n2Only &&
+      !!n2Plus &&
+      JSON.stringify([n2Only.traces, n2Only.messages], keepVisual) === JSON.stringify([n2Plus.traces, n2Plus.messages], keepVisual) &&
+      sameRun(n2Only, n2Plus),
+    n2Only && n2Plus ? `${JSON.stringify(visualOf(n2Only))} vs ${JSON.stringify(visualOf(n2Plus))}` : "missing run"
+  );
 }
 
 try {

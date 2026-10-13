@@ -1,6 +1,30 @@
 # CURRENT_STATE
 
-## Phase N: N3.6 — N3 closed shadow-only; independent QC is the last gate (2026-10-13, latest)
+## Phase N: N3 independent QC — APPROVED WITH FINDINGS, findings closed; epic close waits on one tracker edge (2026-10-13, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task.
+
+- **QC (closure criterion 5):** a fresh-context `awkit-qc-reviewer` reviewed N3.1 and N3.3 at `0e38f26a`: APPROVED
+  WITH FINDINGS, no blocker or safety defect. Contract `awkit-vra-4-qc-n3-1013`.
+- **Fixed:** Q4-a (minor): the N2 recovery observation and the agreement now share **one** 400 ms FD-5 budget per
+  attempt (J9); the agreement gets the remainder and records `budget-exhausted` without a capture when none is left.
+  Q8/Q9-a (minor): the J6 A/B keeps the N2 `visual` block (only timings differ) and ARCHITECTURE and the plan name the
+  event-message suffix. Q8-b (nit): the sensitive check can no longer pass on an empty record set. Q8-c (nit): verifier
+  retries dispositioned in the verifier docblock.
+- **Evidence:** `verify:visual-agreement-runtime` 81/0 (new mutation M5, a fresh 400 ms for the agreement, red),
+  visual-agreement 258/0, visual-fusion-runtime 145/0, visual-isolation 40/0, runner 138/0, locator-guard 38/0,
+  twin-pool-safety 48/0, recovery-provenance 46/0, similar-rows-safety 68/0, dom-intelligence-coverage 74/0, build PASS.
+- **Closure gates:** all six N3 criteria are met. `awkit-vra.4` stays `in_progress` **only** because `bd close` refuses
+  it on the legacy 2026-09-22 `blocks` edge from `awkit-vra.3` (open, original-numbering record). Owner action:
+  `bd dep remove awkit-vra.4 awkit-vra.3`, then `bd close awkit-vra.4`. Its notes record the QC result. Dashboard
+  counts unchanged (27 outstanding / 360 closed).
+- **INCONCLUSIVE:** the reviewer did not read DECISIONS, so its DECISIONS cross-check is not evidence. The N3.3
+  DECISIONS entry's "byte-identical" wording is superseded by the newest DECISIONS entry.
+- **v0.1.53 carry-over unchanged:** packaged licensed Parts D–J are BLOCKED (`AWKIT_PACKAGED_LICENSE_ISSUER_KEY`
+  unavailable), and the clean offline Windows VM walkthrough is NOT RUN.
+
+## Phase N: N3.6 — N3 closed shadow-only; independent QC is the last gate (2026-10-13)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed by this task.

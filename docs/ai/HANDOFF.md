@@ -1,6 +1,21 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-13, latest) — Phase N: N3.6 done; N3 closed shadow-only, independent QC pending
+## HANDOFF (2026-10-13, latest) — Phase N: N3 QC done and its findings closed; one owner tracker action left
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** the independent QC review of N3 (closure criterion 5) returned APPROVED WITH FINDINGS; Q4-a, Q8/Q9-a and
+  Q8-b are fixed in `LocatorFactory.ts` and `verify:visual-agreement-runtime` (81/0, M5 red), Q8-c is dispositioned.
+  All six N3 closure criteria are met. Contract `awkit-vra-4-qc-n3-1013`.
+- **Owner action:** `bd close awkit-vra.4` is refused because the legacy 2026-09-22 edge from `awkit-vra.3` still
+  blocks it (the canonical map puts N3 after N2 `awkit-vra.12`, closed). Run `bd dep remove awkit-vra.4 awkit-vra.3`
+  (not guard-approved for agents), then `bd close awkit-vra.4`, `bd export -o .beads/issues.jsonl`, and repin
+  `scripts/verify-roadmap-dashboard.mjs` (26 outstanding / 361 closed). Or decide `awkit-vra.3` itself.
+- **Next after that:** `awkit-vra.6` (N6) and `awkit-vra.8` (N8) become schedulable. `.4.4`/`.4.5` stay `blocked`.
+- **v0.1.53 carry-over unchanged:** Parts D–J are BLOCKED (no issuer key), and the clean-VM walkthrough is NOT RUN.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-13) — Phase N: N3.6 done; N3 closed shadow-only, independent QC pending
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
