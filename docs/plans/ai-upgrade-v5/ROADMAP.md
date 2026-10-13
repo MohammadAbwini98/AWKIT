@@ -600,7 +600,9 @@ so the Phase L extension does not hold Phase M back; M1's edge on closed L7 stay
 ## Phase N — Visual Recognition and Automation
 
 Status: **IN PROGRESS** since 2026-10-12 (roadmap Phase `N` `in-progress`); N0 and N1 complete
-after an independent re-QC PASS at `222b04d3`. *Registered 2026-09-22 as NOT STARTED.* Beads epic
+after an independent re-QC PASS at `222b04d3`; N2 (`awkit-vra.12`) and N3 (`awkit-vra.4`) closed shadow-only on
+2026-10-13; N4 (`awkit-vra.13`) registered 2026-10-13, planning only, owner decisions RV-0 to RV-8 pending.
+*Registered 2026-09-22 as NOT STARTED.* Beads epic
 `awkit-vra`. Phase N follows the Phase L release foundation, remains separate from Phase L and
 Phase M, and does not change either phase's status, acceptance criteria or dependencies. Phase M is
 not a prerequisite for Phase N.
@@ -631,9 +633,9 @@ not renumbered; titles and notes map existing history onto the canonical names.
 |---|---|---|---|
 | N0 | Visual Intelligence Foundation / Capture | `awkit-vra.1` | closed — re-QC PASS at `222b04d3` |
 | N1 | Deterministic Visual Element Fingerprints | `awkit-vra.3.1` | closed — re-QC PASS at `222b04d3` |
-| N2 | DOM + Vision Evidence Fusion | `awkit-vra.12` | in progress — FD-1 to FD-9 approved, N2.1-N2.8 filed (`.12.1`…`.12.8`), N2.1-N2.5, N2.4b, N2.7 and N2.8 done, N2.6 deferred; N2 ships shadow-only (FD-9, no separation); the QC review ran (FAIL, fixed: budget, handoff, refresh gating); the overhead matrix is measured (2026-10-13), so all seven acceptance criteria are met; closed in the tracker 2026-10-13 (`.12.6` deferred) |
+| N2 | DOM + Vision Evidence Fusion | `awkit-vra.12` | closed shadow-only 2026-10-13 — FD-1 to FD-9 approved, N2.1-N2.8 filed (`.12.1`…`.12.8`), N2.1-N2.5, N2.4b, N2.7 and N2.8 done, N2.6 deferred; N2 ships shadow-only (FD-9, no separation); the QC review ran (FAIL, fixed: budget, handoff, refresh gating); the overhead matrix is measured (2026-10-13), so all seven acceptance criteria are met; closed in the tracker 2026-10-13 (`.12.6` deferred) |
 | N3 | Visual Locator Recovery | `awkit-vra.4` (retitled per VR-9), children `.4.1`-`.4.6` | closed shadow-only 2026-10-13: VR-0 to VR-9 approved, N3.1 pure agreement policy done (`verify:visual-agreement` 258/0); N3.2 calibration done, 28 false `agreed` on headless twins, so N3 closes shadow-only (N3.4/N3.5 deferred); N3.3 runner shadow done (`verify:visual-agreement-runtime` 68/0); N3.6 state and docs done, shadow-only close recorded; independent QC (closure criterion 5) APPROVED WITH FINDINGS, all four closed (`verify:visual-agreement-runtime` 81/0); all six closure criteria met; the owner removed the legacy `awkit-vra.3` edge and `awkit-vra.4` is closed (N3.4/N3.5 stay blocked) |
-| N4 | Recorder Visual Intelligence | — | not yet filed |
+| N4 | Recorder Visual Intelligence | `awkit-vra.13`, children `.13.1`-`.13.7` | registered 2026-10-13, planning only — plan `N4-recorder-visual-intelligence.md`; owner decisions RV-0 to RV-8 proposed, not ratified (N4.1 `.13.1`); no implementation authorized; blocked by N2 `.12` and N3 `.4` (both closed) |
 | N5 | Visual Failure Diagnosis | — | not yet filed |
 | N6 | Visual Assertions | — | not yet filed |
 | N7 | OCR / Text-in-Image | `awkit-vra.9` | planned |
@@ -674,7 +676,7 @@ On 2026-10-13 the owner approved VR-0 to VR-9 as recommended (DECISIONS 2026-10-
 `awkit-vra-4-n3-start-1013`). `awkit-vra.4` is retitled "N3: Visual Locator Recovery" and N3.1-N3.6 are filed as
 `awkit-vra.4.1`-`.4.6`, chained in plan order with `awkit-vra.12` blocking `.4.1`. N3.1 is done: the pure
 `decideVisualAgreement` policy in `src/visual/fusion`, proven by `verify:visual-agreement` 258/0 with its mutation
-contract red. Nothing in the Runner reaches it yet. N3.2 (calibration) decides whether N3 can enforce at all: one
+contract red. At that point nothing in the Runner reached it; N3.3 later wired it in shadow. N3.2 (calibration) decides whether N3 can enforce at all: one
 false `agreed` closes N3 shadow-only.
 
 N3.2 is done (`N3.2-agreement-calibration.md`) and that is the outcome: `twins` reached `agreed` 28 times in
@@ -689,6 +691,17 @@ closure criteria 1-4 and 6 are met. Criterion 5, the independent QC review of N3
 APPROVED WITH FINDINGS, and its four findings are closed (contract `awkit-vra-4-qc-n3-1013`; the N2 observation and
 the agreement now share one 400 ms budget per attempt). All six criteria are met. The owner removed the legacy `awkit-vra.3` edge from the table below, which had kept
 `bd close` from accepting the epic, and `awkit-vra.4` is closed; `awkit-vra.6` and `awkit-vra.8` no longer wait on N3.
+
+The N4 implementation plan is `N4-recorder-visual-intelligence.md` (2026-10-13, planning only, contract
+`awkit-vra-n4-plan-1013`). N4 lets the Recorder seed an advisory, image-free visual reference for a recorded element
+step: a manual capture, only after the step's own DOM locator re-proves exactly one visible element, persisted beside
+the flow in the existing `visual-references/` store (never in the FlowProfile, export or IPC), bound to the locator
+binding digest, with a per-step status in the Recorder. Visual data never changes recording, locator generation,
+the uniqueness proof or execution, and a recorded reference may only ever feed the N2 shadow observation with effect
+`none`, so N4 cannot lift N3's blocked enforcement. N4 is filed as `awkit-vra.13` (blocked by `.12` and `.4`) with
+N4.1-N4.7 as `.13.1`-`.13.7`. The owner decisions RV-0 to RV-8 are proposed, not ratified; RV-1 (an isolation
+amendment for one Recorder adapter edge into `src/visual`) and RV-2 (manual trigger, non-value-bearing steps) decide
+the first slice, so implementation waits for N4.1. The legacy `awkit-vra.2`-`.8` records are not reused.
 
 ### Planned workstreams and dependencies (original numbering, 2026-09-22)
 

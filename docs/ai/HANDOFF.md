@@ -1,6 +1,23 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-13, latest) — Phase N: N3 closed; N6 and N8 no longer wait on it
+## HANDOFF (2026-10-13, latest) — Phase N: canonical N4 registered, waiting on owner decisions RV-0 to RV-8
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** N4 Recorder Visual Intelligence is planned in
+  `docs/plans/ai-upgrade-v5/N4-recorder-visual-intelligence.md` and filed as `awkit-vra.13` with N4.1-N4.7
+  (`.13.1`-`.13.7`), contract `awkit-vra-n4-plan-1013`. The dashboard is repinned to 34 / 361 of 395, 311 edges.
+- **Next (owner):** N4.1, which means recording RV-0 to RV-8 in `docs/ai/DECISIONS.md`, as recommended or otherwise,
+  amending the isolation decision if RV-1 is approved, and authorizing N4. Then N4.2 (Recorder adapter and isolation
+  amendment) is the first implementation slice. No N4 code before that.
+- **Correction:** the previous handoff named legacy `awkit-vra.6` (N6) and `awkit-vra.8` (N8) as next. Those are
+  2026-09-22 planning records, not canonical milestones; canonical N4 is next.
+- **Boundaries:** N3 stays shadow-only. N3.4/N3.5 stay `blocked` until new headless twin measurements plus an owner
+  decision, and N4 must never feed a recorded reference into anything but a shadow observation.
+- **v0.1.53 carry-over unchanged:** Parts D–J are BLOCKED (no issuer key), and the clean-VM walkthrough is NOT RUN.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-13) — Phase N: N3 closed; N6 and N8 no longer wait on it
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

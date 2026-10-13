@@ -162,7 +162,9 @@ try {
   // Then 380 later on 2026-10-12 (contract `awkit-vra-12-n2-start-1012`): N2.1-N2.8 filed as `awkit-vra.12.1`…`.12.8`.
   // Then 381 on 2026-10-13 (contract `awkit-vra-12-n2-start-1012`): N2.4b filed as `awkit-vra.12.9`.
   // Then 387 on 2026-10-13 (contract `awkit-vra-4-n3-start-1013`): N3.1-N3.6 filed as `awkit-vra.4.1`…`.4.6`.
-  check("387 issues parse", beads.stats.total === 387, `got ${beads.stats.total}`);
+  // Then 395 on 2026-10-13 (contract `awkit-vra-n4-plan-1013`): canonical N4 filed as `awkit-vra.13` with
+  // N4.1-N4.7 as `awkit-vra.13.1`…`.13.7`.
+  check("395 issues parse", beads.stats.total === 395, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -725,8 +727,10 @@ try {
   // epic `awkit-vra.4` stays outstanding until its independent QC gate runs.
   // Then 26/361 of 387 on 2026-10-13 (contract `awkit-vra-4-close-1013`): the QC findings closed in `f00019b3`, the
   // owner removed the legacy `awkit-vra.3` -> `awkit-vra.4` edge and closed the N3 epic `awkit-vra.4`.
-    "26 outstanding / 361 closed",
-    beads.stats.outstanding === 26 && beads.stats.closed === 361,
+  // Then 34/361 of 395 on 2026-10-13 (contract `awkit-vra-n4-plan-1013`): N4 `awkit-vra.13` and its seven
+  // children `.13.1`…`.13.7` filed open, planning only (eight in, none closed).
+    "34 outstanding / 361 closed",
+    beads.stats.outstanding === 34 && beads.stats.closed === 361,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -845,9 +849,12 @@ try {
   // awkit-vra.4.5` that N3.2 recorded as pending. Closing `.4.3` itself removed no edge. Measured, not assumed.
   // Then 293 on 2026-10-13 (contract `awkit-vra-4-close-1013`): the owner-run `bd dep remove awkit-vra.4
   // awkit-vra.3` removed the legacy 2026-09-22 blocks edge; closing `awkit-vra.4` removed none. Measured.
+  // Then 311 on 2026-10-13 (contract `awkit-vra-n4-plan-1013`): `awkit-vra.13` and `.13.1`…`.13.7` (eight
+  // parent-child links) and ten blocks edges: `.13` on `.4` and `.12`, `.13.2` on `.13.1`, `.13.3` on `.13.2`,
+  // `.13.4` on `.13.3`, `.13.5` on `.13.2`, `.13.6` on `.13.3` and `.13.5`, `.13.7` on `.13.4` and `.13.6`. Measured.
   check(
-    "293 edges are present to classify",
-    beads.stats.edges === 293,
+    "311 edges are present to classify",
+    beads.stats.edges === 311,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(

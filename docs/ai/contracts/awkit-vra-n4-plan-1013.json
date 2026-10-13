@@ -1,0 +1,177 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-n4-plan-1013",
+    "title": "Start canonical Phase N4 Recorder Visual Intelligence: plan, owner-decision package and tracker registration",
+    "objective": "Correct stale Phase N prose (ROADMAP, ImplementationRoadmap, CURRENT_STATE, HANDOFF, epic notes), establish the N4 baseline from the Recorder and Phase N code, write docs/plans/ai-upgrade-v5/N4-recorder-visual-intelligence.md with an RV-prefixed owner-decision package, register N4 as a new awkit-vra child bead with its predecessors, children and acceptance, repin the dashboard to measured counts, and stop at planning because unresolved owner decisions affect the first slice.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 0
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "86ae16da",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "qa",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/awkit-vra-n4-plan-1013.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N4-PLAN",
+      "description": "The N4 plan exists with objective, baseline, scope, non-goals, owners, data flow, persistence, privacy and protected-auth boundary, headed/headless, frames/popups, offline, AI independence, deterministic authority, compatibility, failure/fallback, budgets, accessibility/UI, work items, dependency chain, verifier/mutation/mock-site strategy, completion criteria and rollback, plus RV-prefixed owner decisions that are proposed and not ratified.",
+      "evidence_required": [
+        "build"
+      ]
+    },
+    {
+      "id": "N4-REGISTER",
+      "description": "N4 is a new awkit-vra child bead obtained through bd, depends on N2 awkit-vra.12 and N3 awkit-vra.4, carries acceptance, labels, a spec link and children gated by the owner-decision item; legacy awkit-vra.2 to .8 are not repurposed; the export carries it; the dashboard pins match the measured counts and report Sources agree.",
+      "evidence_required": [
+        "beads-export",
+        "verify:roadmap-dashboard",
+        "verify:verifier-classification"
+      ]
+    },
+    {
+      "id": "N4-STALE",
+      "description": "Demonstrably stale Phase N prose is corrected without rewriting history, evidence or decisions, and the state docs name canonical N4 owner decisions, not legacy N6/N8, as the next step.",
+      "evidence_required": [
+        "diff-check"
+      ]
+    },
+    {
+      "id": "N4-GIT",
+      "description": "The work lands on main and is pushed without force; the L12.27 contract stays untracked and unchanged.",
+      "evidence_required": [
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "395 issues exported (387 + awkit-vra.13 and its seven children awkit-vra.13.1 to .13.7), 311 edges (293 + 8 parent-child + 10 blocks)"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "round 1 measured 174/177 with only the three pins failing (395 issues, 34 outstanding / 361 closed, 311 edges); repinned; round 2 177/177, Overview banner reads Sources agree, ledger 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases"
+    },
+    {
+      "id": "verify:verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "all 333 verify:/validate: scripts classified, classification reconciled; no verifier added by this task"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "embedded roadmap snapshot 566 records from 14 sources, tsc --noEmit clean, electron-vite main, preload and renderer bundles built"
+    },
+    {
+      "id": "diff-check",
+      "type": "inspection",
+      "required": true,
+      "command": "git diff --check",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "no whitespace errors"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "runs after the commit that carries this contract; its outcome is reported in the session report"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-n4-plan-1013:project-state:2026-10-13T20:36:25.170Z",
+        "task": "awkit-vra-n4-plan-1013",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-13T20:36:25.170Z",
+        "acquired_at_commit": "86ae16da7393808f3b3f2349d92265f702d68290",
+        "released_at": "2026-10-13T20:41:07.976Z",
+        "released_reason": "N4 registration recorded and beads exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

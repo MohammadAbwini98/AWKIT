@@ -1,24 +1,22 @@
 {
-  "task": "awkit-vra-4-close-1013",
-  "contract_path": "docs/ai/contracts/awkit-vra-4-close-1013.json",
+  "task": "awkit-vra-n4-plan-1013",
+  "contract_path": "docs/ai/contracts/awkit-vra-n4-plan-1013.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-13T20:13:11.888Z",
-  "acquired_at_commit": "f00019b34ddc7acc3b5f24d5b66eea1f78a40311",
+  "acquired_at": "2026-10-13T20:36:25.170Z",
+  "acquired_at_commit": "86ae16da7393808f3b3f2349d92265f702d68290",
   "baseline_dirty": [
     ".beads/interactions.jsonl",
-    ".beads/issues.jsonl",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-vra-4-close-1013.json"
+    "docs/ai/contracts/awkit-vra-n4-plan-1013.json"
   ],
   "baseline_dirty_fingerprints": {
     ".beads/interactions.jsonl": "2140fd4893d06712d4706887cb97585866407fb4991f6dcb98740f47d4a1c378",
-    ".beads/issues.jsonl": "42e8dce9d107332cc6ce8f2c3b724b59e5c28cb15610ca8390b6192e04e342fc",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-vra-4-close-1013.json": "b13e1127d3463286657313359f76d07352ef95f9640f852862f3292c5e6767a4"
+    "docs/ai/contracts/awkit-vra-n4-plan-1013.json": "5a3677596f4148eabe2fbe8cf3bfb8baca0f621d3bb6b9d12718c1f6851be0d4"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -33,7 +31,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-13T20:13:46.746Z",
-  "released_reason": "vra.4 close recorded and beads exported",
-  "archived_at": "2026-10-13T20:13:46.747Z"
+  "released_at": "2026-10-13T20:41:07.976Z",
+  "released_reason": "N4 registration recorded and beads exported",
+  "archived_at": "2026-10-13T20:41:07.978Z"
 }

@@ -1,6 +1,25 @@
 # TASK_LOG
 
-## 2026-10-13 (latest) — Phase N: N3 epic closed and dashboard repinned (Claude)
+## 2026-10-13 (latest) — Phase N: canonical N4 Recorder Visual Intelligence planned and registered (Claude)
+
+- **Scope:** "Start Canonical Phase N4: Recorder Visual Intelligence", planning and registration only. Contract
+  `awkit-vra-n4-plan-1013`, Risk 0. CodeCraft was not used (`CODECRAFT_MODE=off`).
+- **Plan:** `docs/plans/ai-upgrade-v5/N4-recorder-visual-intelligence.md` (baseline from code at `86ae16da`, contract,
+  owner decisions RV-0 to RV-8 proposed and not ratified, work items N4.1-N4.7, verifier/mutation/mock-site strategy,
+  completion criteria, rollback). No product code changed; RV-1 and RV-2 decide the first slice, so implementation
+  waits for N4.1.
+- **Governance:** filed `awkit-vra.13` (blocked by `.12` and `.4`) with `.13.1`-`.13.7`; `awkit-vra` notes restate the
+  canonical map; export taken (395). Dashboard repinned to the measured 34 / 361 of 395 and 311 edges (+8 beads, +18
+  edges). Legacy `awkit-vra.2`-`.8` untouched; `awkit-vra.3` not closed.
+- **Stale prose corrected:** ROADMAP status line, N2 and N4 rows and the "nothing in the Runner reaches it" sentence;
+  the matching ImplementationRoadmap note; the previous CURRENT_STATE and HANDOFF "Next: N6/N8" (legacy numbering).
+- **Files:** `.beads/{issues,interactions}.jsonl`, `scripts/verify-roadmap-dashboard.mjs`,
+  `src/roadmap/ImplementationRoadmap.ts`, `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md`,
+  `docs/plans/ai-upgrade-v5/{N4-recorder-visual-intelligence,ROADMAP}.md`, the contract, `active-lease.json`.
+- **Tests:** build, verifier-classification, roadmap-dashboard and `git diff --check` as recorded in the contract.
+- **Result:** N4 registered, planning only. `docs/ai/contracts/awkit-l12-27-implementation-1006.json` preserved.
+
+## 2026-10-13 — Phase N: N3 epic closed and dashboard repinned (Claude)
 
 - **Scope:** "I removed the vra.3 edge, close vra.4 and repin". Contract `awkit-vra-4-close-1013`, Risk 0. CodeCraft
   was not used (`CODECRAFT_MODE=off`).

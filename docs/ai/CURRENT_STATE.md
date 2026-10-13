@@ -1,6 +1,37 @@
 # CURRENT_STATE
 
-## Phase N: N3 epic `awkit-vra.4` closed shadow-only (2026-10-13, latest)
+## Phase N: canonical N4 Recorder Visual Intelligence registered, planning only (2026-10-13, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task, and no product code changed.
+
+- **Canonical Phase N state:** N0 `awkit-vra.1` and N1 `awkit-vra.3.1` closed; N2 `awkit-vra.12` and N3
+  `awkit-vra.4` closed shadow-only (N3.4 `.4.4` and N3.5 `.4.5` stay `blocked`, and the 28 false `agreed`
+  headless-twin result stands); **N4 `awkit-vra.13` registered, planning only**; N5, N6 and N10 not filed; N7
+  `awkit-vra.9`, N8 `awkit-vra.10` and N9 `awkit-vra.11` planned.
+- **N4 plan:** `docs/plans/ai-upgrade-v5/N4-recorder-visual-intelligence.md` (contract `awkit-vra-n4-plan-1013`). A
+  manual Recorder capture of an advisory, image-free `VisualEvidence` v1 for an element step whose own DOM locator
+  re-proves exactly one element, persisted beside the flow in the existing `visual-references/` store (never in the
+  FlowProfile, export or IPC) and bound to the binding digest, with a per-step Recorder status. A recorded reference
+  may only feed the N2 shadow observation with effect `none`, so N4 cannot lift N3's blocked enforcement.
+- **Owner decisions RV-0 to RV-8:** proposed, not ratified. RV-1 (one Recorder adapter edge into `src/visual`,
+  amending the 2026-10-12 isolation decision and FD-2) and RV-2 (manual trigger; click-like, check, uncheck and radio
+  only) decide the first slice, so **no N4 implementation is authorized** until N4.1 `awkit-vra.13.1` records them.
+- **Tracker:** `awkit-vra.13` (blocked by `.12` and `.4`, both closed) with N4.1-N4.7 as `.13.1`-`.13.7`, chained
+  `.13.1` -> `.13.2` -> `.13.3` -> `.13.4` -> `.13.7`, `.13.2` -> `.13.5` -> `.13.6` -> `.13.7` and `.13.3` -> `.13.6`.
+  The epic notes now restate the canonical map. Legacy `awkit-vra.2`-`.8` are untouched planning records.
+- **Dashboard:** repinned to the measured 34 outstanding / 361 closed of 395, 311 edges (eight beads and 18 edges
+  added: eight parent-child links and ten blocks edges).
+- **Correction:** the previous section's "Next" named the legacy `awkit-vra.6` and `awkit-vra.8` records. Under the
+  canonical map the next Phase N step is the N4 owner decisions (N4.1), not legacy N6/N8.
+- **Stale prose corrected:** ROADMAP's Phase N status line, the N2 row (closed shadow-only, not in progress) and the
+  N4 row; ROADMAP and ImplementationRoadmap now say the N3.1 policy was not reached by the Runner *at that point*
+  (N3.3 later wired it in shadow).
+- **v0.1.53 carry-over unchanged:** packaged licensed Parts D–J are BLOCKED (`AWKIT_PACKAGED_LICENSE_ISSUER_KEY`
+  unavailable), and the clean offline Windows VM walkthrough is NOT RUN.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## Phase N: N3 epic `awkit-vra.4` closed shadow-only (2026-10-13)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed by this task.
