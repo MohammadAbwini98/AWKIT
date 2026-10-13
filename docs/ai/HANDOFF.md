@@ -1,6 +1,17 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-13, latest) — Phase N: N3 QC done and its findings closed; one owner tracker action left
+## HANDOFF (2026-10-13, latest) — Phase N: N3 closed; N6 and N8 no longer wait on it
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** the owner removed the legacy `awkit-vra.3` edge; `awkit-vra.4` is closed (contract
+  `awkit-vra-4-close-1013`). Dashboard repinned to 26 / 361 of 387, 293 edges.
+- **Next:** the next Phase N milestone per `docs/plans/ai-upgrade-v5/ROADMAP.md` (N6 `awkit-vra.6`, N8
+  `awkit-vra.8`). N3.4/N3.5 stay `blocked` until new headless twin measurements plus an owner decision.
+- **v0.1.53 carry-over unchanged:** Parts D–J are BLOCKED (no issuer key), and the clean-VM walkthrough is NOT RUN.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-13) — Phase N: N3 QC done and its findings closed; one owner tracker action left
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

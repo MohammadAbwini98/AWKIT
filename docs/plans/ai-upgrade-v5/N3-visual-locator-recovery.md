@@ -7,12 +7,10 @@ legacy workstream `awkit-vra.4` ("Visual locator fallback") is the tracker home 
 
 **Status (2026-10-13): CLOSED SHADOW-ONLY.** N3.6 recorded the close (contract `awkit-vra-4-6-n3-state-1013`), and
 the independent QC review of N3.1 and N3.3 (closure criterion 5) returned APPROVED WITH FINDINGS; its four findings
-are closed (contract `awkit-vra-4-qc-n3-1013`), so all six closure criteria are met. The epic bead `awkit-vra.4`
-stays **in_progress only on a tracker edge**: `bd close` refuses it because the legacy 2026-09-22 `blocks` edge from
-`awkit-vra.3` (the original-numbering planning record, still open) remains, although the canonical map makes N3 depend
-on N2 `awkit-vra.12` (closed). Owner action: `bd dep remove awkit-vra.4 awkit-vra.3`, then `bd close awkit-vra.4` (or
-an owner decision on `awkit-vra.3`). N3.4 and N3.5 stay deferred (`awkit-vra.4.4`/`.4.5` blocked). See *Closure gates*
-below.
+are closed (contract `awkit-vra-4-qc-n3-1013`), so all six closure criteria are met. The owner then removed the
+legacy 2026-09-22 `blocks` edge from `awkit-vra.3` that had kept `bd close` from accepting it, and the epic bead
+`awkit-vra.4` is **closed** (contract `awkit-vra-4-close-1013`). N3.4 and N3.5 stay deferred (`awkit-vra.4.4`/`.4.5`
+blocked). See *Closure gates* below.
 History: the owner approved VR-0 to VR-9 as recommended and authorized N3 (DECISIONS
 2026-10-13, contract `awkit-vra-4-n3-start-1013`). N3.1 is done: `decideVisualAgreement` in
 `src/visual/fusion/decideVisualAgreement.ts`, proven by `verify:visual-agreement` 258/0. N3.2 is done and its

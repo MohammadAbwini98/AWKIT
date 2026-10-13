@@ -1,28 +1,24 @@
 {
-  "task": "awkit-vra-4-qc-n3-1013",
-  "contract_path": "docs/ai/contracts/awkit-vra-4-qc-n3-1013.json",
+  "task": "awkit-vra-4-close-1013",
+  "contract_path": "docs/ai/contracts/awkit-vra-4-close-1013.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-13T20:01:07.965Z",
-  "acquired_at_commit": "0e38f26a2b2d41dddf938e04f1a5b96b49343542",
+  "acquired_at": "2026-10-13T20:13:11.888Z",
+  "acquired_at_commit": "f00019b34ddc7acc3b5f24d5b66eea1f78a40311",
   "baseline_dirty": [
-    "docs/ai/ARCHITECTURE.md",
+    ".beads/interactions.jsonl",
+    ".beads/issues.jsonl",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-vra-4-qc-n3-1013.json",
-    "docs/plans/ai-upgrade-v5/N3-visual-locator-recovery.md",
-    "scripts/verify-visual-agreement-runtime.mts",
-    "src/runner/LocatorFactory.ts"
+    "docs/ai/contracts/awkit-vra-4-close-1013.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/ARCHITECTURE.md": "c580c4a73e923672a5d5f2ded95ded126bd64345ac1858f069700556a858a6d8",
+    ".beads/interactions.jsonl": "2140fd4893d06712d4706887cb97585866407fb4991f6dcb98740f47d4a1c378",
+    ".beads/issues.jsonl": "42e8dce9d107332cc6ce8f2c3b724b59e5c28cb15610ca8390b6192e04e342fc",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-vra-4-qc-n3-1013.json": "ea632946c1ac6702e5de07f4b28477ad5bee2f18be2ce3a85e5e35f2874aaeb2",
-    "docs/plans/ai-upgrade-v5/N3-visual-locator-recovery.md": "e9d6311c73297663f0f1892577a35d4540960551fa5d57a190ae2570748dbbd1",
-    "scripts/verify-visual-agreement-runtime.mts": "15c3a08bc7963defeef2019a9d3fbc0f8f82272aa030caf6044d41ca9213408b",
-    "src/runner/LocatorFactory.ts": "db8ad6c326dbe155e1fd257b6e1e2ab0e9fd45aefa56feaaf6eeb57ea66a57ec"
+    "docs/ai/contracts/awkit-vra-4-close-1013.json": "b13e1127d3463286657313359f76d07352ef95f9640f852862f3292c5e6767a4"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -37,7 +33,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-13T20:03:32.858Z",
-  "released_reason": "QC findings recorded on vra.4, close blocked by legacy vra.3 edge, beads exported",
-  "archived_at": "2026-10-13T20:03:32.859Z"
+  "released_at": "2026-10-13T20:13:46.746Z",
+  "released_reason": "vra.4 close recorded and beads exported",
+  "archived_at": "2026-10-13T20:13:46.747Z"
 }

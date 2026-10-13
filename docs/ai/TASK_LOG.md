@@ -1,6 +1,18 @@
 # TASK_LOG
 
-## 2026-10-13 (latest) — Phase N: independent QC of N3 and its findings closed (Claude, with a fresh-context awkit-qc-reviewer)
+## 2026-10-13 (latest) — Phase N: N3 epic closed and dashboard repinned (Claude)
+
+- **Scope:** "I removed the vra.3 edge, close vra.4 and repin". Contract `awkit-vra-4-close-1013`, Risk 0. CodeCraft
+  was not used (`CODECRAFT_MODE=off`).
+- **Governance:** `awkit-vra.4` was found already `closed` once the owner removed the edge; its notes were rewritten to
+  record the close; export taken; dashboard repinned to 26 / 361 of 387 and 293 edges after one measuring run.
+- **Files:** `.beads/issues.jsonl`, `scripts/verify-roadmap-dashboard.mjs`, `src/roadmap/ImplementationRoadmap.ts`,
+  `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md`, `docs/plans/ai-upgrade-v5/{N3-visual-locator-recovery,ROADMAP}.md`,
+  the contract, `active-lease.json`.
+- **Tests:** roadmap-dashboard and build as recorded in the contract.
+- **Result:** N3 Visual Locator Recovery closed shadow-only.
+
+## 2026-10-13 — Phase N: independent QC of N3 and its findings closed (Claude, with a fresh-context awkit-qc-reviewer)
 
 - **Scope:** "run the independent QC review of N3". Contract `awkit-vra-4-qc-n3-1013`, Risk 2. CodeCraft was not used
   (`CODECRAFT_MODE=off`).

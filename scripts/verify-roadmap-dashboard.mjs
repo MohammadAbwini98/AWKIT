@@ -723,8 +723,10 @@ try {
   // Then 28/359 of 387 on 2026-10-13 (contract `awkit-vra-4-3-runner-shadow-1013`): N3.3 `awkit-vra.4.3` closed.
   // Then 27/360 of 387 on 2026-10-13 (contract `awkit-vra-4-6-n3-state-1013`): N3.6 `awkit-vra.4.6` closed; the N3
   // epic `awkit-vra.4` stays outstanding until its independent QC gate runs.
-    "27 outstanding / 360 closed",
-    beads.stats.outstanding === 27 && beads.stats.closed === 360,
+  // Then 26/361 of 387 on 2026-10-13 (contract `awkit-vra-4-close-1013`): the QC findings closed in `f00019b3`, the
+  // owner removed the legacy `awkit-vra.3` -> `awkit-vra.4` edge and closed the N3 epic `awkit-vra.4`.
+    "26 outstanding / 361 closed",
+    beads.stats.outstanding === 26 && beads.stats.closed === 361,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -841,9 +843,11 @@ try {
   // Then 294 on 2026-10-13 (contract `awkit-vra-4-3-runner-shadow-1013`): the export taken after closing N3.3
   // `awkit-vra.4.3` no longer carries the `.4.5` -> `.4.6` blocks edge, the owner-run `bd dep remove awkit-vra.4.6
   // awkit-vra.4.5` that N3.2 recorded as pending. Closing `.4.3` itself removed no edge. Measured, not assumed.
+  // Then 293 on 2026-10-13 (contract `awkit-vra-4-close-1013`): the owner-run `bd dep remove awkit-vra.4
+  // awkit-vra.3` removed the legacy 2026-09-22 blocks edge; closing `awkit-vra.4` removed none. Measured.
   check(
-    "294 edges are present to classify",
-    beads.stats.edges === 294,
+    "293 edges are present to classify",
+    beads.stats.edges === 293,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(

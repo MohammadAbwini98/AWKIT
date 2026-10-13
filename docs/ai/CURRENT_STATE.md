@@ -1,6 +1,19 @@
 # CURRENT_STATE
 
-## Phase N: N3 independent QC — APPROVED WITH FINDINGS, findings closed; epic close waits on one tracker edge (2026-10-13, latest)
+## Phase N: N3 epic `awkit-vra.4` closed shadow-only (2026-10-13, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task.
+
+- **Tracker:** the owner removed the legacy 2026-09-22 `awkit-vra.3` -> `awkit-vra.4` edge, and `awkit-vra.4` (N3
+  Visual Locator Recovery) is closed with notes naming the QC contract `awkit-vra-4-qc-n3-1013` and this close
+  (contract `awkit-vra-4-close-1013`). N3.4 `awkit-vra.4.4` and N3.5 `.4.5` stay `blocked`.
+- **Dashboard:** repinned to 26 outstanding / 361 closed of 387, 293 edges (the removed edge), measured.
+- **Next:** N6 `awkit-vra.6` and N8 `awkit-vra.8` no longer wait on N3.
+- **v0.1.53 carry-over unchanged:** packaged licensed Parts D–J are BLOCKED (`AWKIT_PACKAGED_LICENSE_ISSUER_KEY`
+  unavailable), and the clean offline Windows VM walkthrough is NOT RUN.
+
+## Phase N: N3 independent QC — APPROVED WITH FINDINGS, findings closed; epic close waits on one tracker edge (2026-10-13)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed by this task.

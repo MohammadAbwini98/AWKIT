@@ -632,7 +632,7 @@ not renumbered; titles and notes map existing history onto the canonical names.
 | N0 | Visual Intelligence Foundation / Capture | `awkit-vra.1` | closed — re-QC PASS at `222b04d3` |
 | N1 | Deterministic Visual Element Fingerprints | `awkit-vra.3.1` | closed — re-QC PASS at `222b04d3` |
 | N2 | DOM + Vision Evidence Fusion | `awkit-vra.12` | in progress — FD-1 to FD-9 approved, N2.1-N2.8 filed (`.12.1`…`.12.8`), N2.1-N2.5, N2.4b, N2.7 and N2.8 done, N2.6 deferred; N2 ships shadow-only (FD-9, no separation); the QC review ran (FAIL, fixed: budget, handoff, refresh gating); the overhead matrix is measured (2026-10-13), so all seven acceptance criteria are met; closed in the tracker 2026-10-13 (`.12.6` deferred) |
-| N3 | Visual Locator Recovery | `awkit-vra.4` (retitled per VR-9), children `.4.1`-`.4.6` | in progress since 2026-10-13: VR-0 to VR-9 approved, N3.1 pure agreement policy done (`verify:visual-agreement` 258/0); N3.2 calibration done, 28 false `agreed` on headless twins, so N3 closes shadow-only (N3.4/N3.5 deferred); N3.3 runner shadow done (`verify:visual-agreement-runtime` 68/0); N3.6 state and docs done, shadow-only close recorded; independent QC (closure criterion 5) APPROVED WITH FINDINGS, all four closed (`verify:visual-agreement-runtime` 81/0); all six closure criteria met, the bead close waits only on the owner removing the legacy `awkit-vra.3` edge |
+| N3 | Visual Locator Recovery | `awkit-vra.4` (retitled per VR-9), children `.4.1`-`.4.6` | closed shadow-only 2026-10-13: VR-0 to VR-9 approved, N3.1 pure agreement policy done (`verify:visual-agreement` 258/0); N3.2 calibration done, 28 false `agreed` on headless twins, so N3 closes shadow-only (N3.4/N3.5 deferred); N3.3 runner shadow done (`verify:visual-agreement-runtime` 68/0); N3.6 state and docs done, shadow-only close recorded; independent QC (closure criterion 5) APPROVED WITH FINDINGS, all four closed (`verify:visual-agreement-runtime` 81/0); all six closure criteria met; the owner removed the legacy `awkit-vra.3` edge and `awkit-vra.4` is closed (N3.4/N3.5 stay blocked) |
 | N4 | Recorder Visual Intelligence | — | not yet filed |
 | N5 | Visual Failure Diagnosis | — | not yet filed |
 | N6 | Visual Assertions | — | not yet filed |
@@ -687,9 +687,8 @@ and recorded as a codes-only `visualAgreement` trace block with effect `none`, a
 (`verify:visual-agreement-runtime` 68/0). N3.6 (state and docs) is done and records N3 as closed shadow-only:
 closure criteria 1-4 and 6 are met. Criterion 5, the independent QC review of N3.1 and N3.3, ran on 2026-10-13:
 APPROVED WITH FINDINGS, and its four findings are closed (contract `awkit-vra-4-qc-n3-1013`; the N2 observation and
-the agreement now share one 400 ms budget per attempt). All six criteria are met. `awkit-vra.4` stays `in_progress`
-only because `bd close` refuses it on the legacy `awkit-vra.3` edge from the table below; the owner removes that edge
-(`bd dep remove awkit-vra.4 awkit-vra.3`) and closes it, after which `awkit-vra.6` and `awkit-vra.8` are schedulable.
+the agreement now share one 400 ms budget per attempt). All six criteria are met. The owner removed the legacy `awkit-vra.3` edge from the table below, which had kept
+`bd close` from accepting the epic, and `awkit-vra.4` is closed; `awkit-vra.6` and `awkit-vra.8` no longer wait on N3.
 
 ### Planned workstreams and dependencies (original numbering, 2026-09-22)
 
