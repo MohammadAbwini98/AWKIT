@@ -7,10 +7,11 @@ import type { InstanceConfig } from "@src/instances/InstanceConfig";
 import { BrowserContextFactory, type BrowserContextFactoryOptions, type BrowserRuntime } from "./BrowserContextFactory";
 import { FlowExecutor } from "./FlowExecutor";
 import type { InstanceExecutionContext } from "./InstanceExecutionContext";
-import { LocatorFactory } from "./LocatorFactory";
+import { LocatorFactory, type LocatorVisualFusion } from "./LocatorFactory";
 import { closedShadowBridgeScript } from "./closedShadowBridge";
 import { FileLocatorRecoveryStore, type LocatorRecoveryStore } from "./LocatorRecoveryStore";
 import { FileLocatorBlueprintStore, type LocatorBlueprintStore } from "./LocatorBlueprintStore";
+import type { VisualFusionStageOptions } from "./visualFusion/VisualFusionStage";
 import type { DomIntelligenceRecoveryOptions } from "./domIntelligence/DomIntelligenceProvider";
 import { toRecoveryProvenance } from "./domIntelligence/recoveryProvenance";
 import { ManualHandoffController } from "./ManualHandoffController";
@@ -141,6 +142,24 @@ export interface PlaywrightRunnerOptions extends BrowserContextFactoryOptions {
    * because a step can re-resolve.
    */
   onLocatorRemembered?: (scopeKey: string) => void;
+  /**
+   * N2.5 (FD-8): the visual-reference folder that turns on SHADOW visual fusion for this run. Absent (the default)
+   * means off and no visual code runs. Shadow verdicts are logged at debug level only; they never change a step.
+   */
+  visualFusionRoot?: string;
+}
+
+/**
+ * N2.5: the shadow stage behind a loader, so a runner without `visualFusionRoot` never evaluates the adapter or
+ * `src/visual` (plan › "no import executed"). The first observation loads it once per factory.
+ */
+function lazyVisualFusion(options: VisualFusionStageOptions): LocatorVisualFusion {
+  let stage: Promise<LocatorVisualFusion> | undefined;
+  const load = () => (stage ??= import("./visualFusion/VisualFusionStage").then(({ VisualFusionStage }) => new VisualFusionStage(options)));
+  return {
+    observeRecovery: async (observation) => (await load()).observeRecovery(observation),
+    observePass: async (observation) => (await load()).observePass(observation)
+  };
 }
 
 export class PlaywrightRunner {
@@ -802,6 +821,20 @@ export class PlaywrightRunner {
       // Operator kill switch back to the pre-L11 per-element recovery loops (same decision rules).
       recoveryEngine: process.env.AWKIT_LOCATOR_RECOVERY_ENGINE === "legacy" ? "legacy" : "snapshot",
       onRemembered: this.options.onLocatorRemembered,
+      visualFusion: this.options.visualFusionRoot
+        ? lazyVisualFusion({
+            folder: this.options.visualFusionRoot,
+            onVerdict: ({ stepId, ...visualFusion }) =>
+              logger.log({
+                level: "debug",
+                message: `[visual-fusion:shadow] ${visualFusion.outcome} (${visualFusion.reason}) for a ${visualFusion.layer} recovery winner.`,
+                ...this.logMeta(context),
+                stepId,
+                // I9: verdict, reason and rounded scores only (never pixels, bounds or digests).
+                data: { visualFusion }
+              })
+          })
+        : undefined,
       onRecoveryEvent: (event) =>
         logger.log({
           level: event.type === "local-recovery" || event.type === "memory-error" ? "warn" : "info",

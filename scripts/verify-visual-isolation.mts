@@ -7,7 +7,9 @@
  *   1. Reachability: walking the full import closure (at any depth, following the @src/, @main/ and @renderer/
  *      aliases) from the execution tree — runner, recorder, orchestrator, instances, session — from EVERY module of
  *      the Electron main process (main.ts, preload, every IPC handler, every service), and from the renderer never
- *      reaches `src/visual`. Cardinality floors prove the walk saw the tree.
+ *      reaches `src/visual` — except through ONE allow-listed edge (N2.5, FD-2): the shadow adapter
+ *      `src/runner/visualFusion/VisualFusionStage.ts` importing the public index. A second importer, or the adapter
+ *      importing anything deeper, is still an offender. Cardinality floors prove the walk saw the tree.
  *   2. Mutation controls: a synthetic import of `src/visual` injected into a seed module, into a module reached only
  *      transitively, into main.ts, into an IPC handler and behind an aliased import must all be detected.
  *   3. The module itself: no network, filesystem, process or console API; only `node:crypto` and `node:zlib`
@@ -17,6 +19,7 @@
  *      import `src/visual/internal`; the public `captureViewport` / `captureElement` / `captureVisualFrame` /
  *      `captureCandidates` take no seam parameter and nothing seam-shaped is re-exported. Planted importers (aliased,
  *      relative, index re-export) and planted surface leaks must each be caught.
+ *   5. The adapter (N2.5) gets the same pure-code scan as `src/visual`: no click, fill, input device or navigation.
  *
  * Run: npm run verify:visual-isolation
  */
@@ -110,24 +113,39 @@ interface Walk {
   imports: number;
   seen: Set<string>;
   offenders: string[];
+  /** Allow-listed `importer -> src/visual` edges the walk met (counted, never descended). */
+  allowed: string[];
 }
 
 /**
- * Breadth-first over the import closure of `seeds`. `inject` adds synthetic import targets to named modules, so the
- * mutation controls exercise exactly this walk rather than a copy of it.
+ * N2.5 (FD-2): the one shadow adapter may import `src/visual`, and only its public index. Any other importer, or any
+ * deeper `src/visual/...` import from the adapter itself, is still an offender.
  */
-async function walk(seeds: string[], inject: Map<string, string[]> = new Map()): Promise<Walk> {
+const ADAPTER = "src/runner/visualFusion/VisualFusionStage.ts";
+const ADAPTER_EDGE = `${ADAPTER} -> src/visual`;
+
+/**
+ * Breadth-first over the import closure of `seeds`. `inject` adds synthetic import targets to named modules, so the
+ * mutation controls exercise exactly this walk rather than a copy of it. `allow` names exact `importer -> target`
+ * edges that are recorded instead of flagged.
+ */
+async function walk(seeds: string[], inject: Map<string, string[]> = new Map(), allow: ReadonlySet<string> = new Set()): Promise<Walk> {
   const start = [...new Set(seeds)];
   const seen = new Set<string>(start);
   const cameFrom = new Map<string, string>();
   const queue = [...start];
   const offenders: string[] = [];
+  const allowed: string[] = [];
   let imports = 0;
   while (queue.length > 0) {
     const current = queue.shift() as string;
     const targets = [...(await importTargets(current)), ...(inject.get(current) ?? [])];
     if (start.includes(current)) imports += targets.length;
     for (const target of targets) {
+      if (allow.has(`${current} -> ${target}`)) {
+        allowed.push(`${current} -> ${target}`);
+        continue;
+      }
       if (isVisual(target)) {
         const chain = [current];
         for (let at = current; cameFrom.has(at); ) {
@@ -144,7 +162,7 @@ async function walk(seeds: string[], inject: Map<string, string[]> = new Map()):
       queue.push(resolved);
     }
   }
-  return { files: start.length, imports, seen, offenders };
+  return { files: start.length, imports, seen, offenders, allowed };
 }
 
 // The whole Electron main process is seeded, not a hand-picked list of IPC handlers: N0/N1 expose no IPC surface, so
@@ -163,7 +181,8 @@ console.log("\nThe execution tree and the main process cannot reach src/visual:\
 const executionSeeds = [
   ...new Set([...(await Promise.all(EXECUTION_TREES.map((tree) => sourceFiles(join(REPO, tree))))).flat().map(toRepo), ...EXECUTION_FILES])
 ];
-const execution = await walk(executionSeeds);
+const ALLOW = new Set([ADAPTER_EDGE]);
+const execution = await walk(executionSeeds, new Map(), ALLOW);
 check("every named entry file exists", (await Promise.all(EXECUTION_FILES.map(resolveModule))).every((f) => f !== null));
 const mainFiles = (await sourceFiles(join(REPO, "app/main"))).map(toRepo);
 const ipcHandlers = mainFiles.filter((f) => /^app\/main\/ipc\/[^/]+\.ipc\.ts$/.test(f));
@@ -179,24 +198,44 @@ check(
   execution.seen.size >= 150 && execution.seen.size > execution.files,
   `${execution.seen.size} modules from ${execution.files} files`
 );
-check("no module the execution tree can reach, at any depth, imports src/visual", execution.offenders.length === 0, execution.offenders.join("; "));
+check(
+  "no module the execution tree can reach, at any depth, imports src/visual except the shadow adapter",
+  execution.offenders.length === 0,
+  execution.offenders.join("; ")
+);
+check(
+  "the shadow adapter is a seed and its one public-index import is the only allowed edge (N2.5)",
+  executionSeeds.includes(ADAPTER) && JSON.stringify(execution.allowed) === JSON.stringify([ADAPTER_EDGE]),
+  execution.allowed.join("; ") || "no allowed edge met"
+);
+check(
+  "without the allow-list the same walk flags exactly that edge (the adapter's import is real, not missed)",
+  JSON.stringify((await walk(executionSeeds)).offenders.map((o) => o.split(" -> ").slice(-2).join(" -> "))) === JSON.stringify([ADAPTER_EDGE])
+);
 
 console.log("\nThe renderer cannot reach src/visual:\n");
 const rendererSeeds = (await sourceFiles(join(REPO, "app/renderer"))).map(toRepo);
-const renderer = await walk(rendererSeeds);
+// The renderer's closure reaches the main process through the preload typings, so it meets the adapter's edge too; the
+// allow-list is the same single edge, and anything else is an offender.
+const renderer = await walk(rendererSeeds, new Map(), ALLOW);
 check("the renderer was actually scanned", renderer.files >= 50, String(renderer.files));
-check("no module the renderer can reach imports src/visual", renderer.offenders.length === 0, renderer.offenders.join("; "));
+check("no module the renderer can reach imports src/visual except through the shadow adapter's edge", renderer.offenders.length === 0, renderer.offenders.join("; "));
+check(
+  "the only src/visual edge the renderer's closure meets is the adapter's",
+  renderer.allowed.every((edge) => edge === ADAPTER_EDGE),
+  renderer.allowed.join("; ")
+);
 
 console.log("\nMutation controls (each injected import must be caught):\n");
 {
   const seed = "src/runner/PlaywrightRunner.ts";
   const seedExists = executionSeeds.includes(seed);
-  const atSeed = await walk(executionSeeds, new Map([[seed, ["src/visual/capture"]]]));
+  const atSeed = await walk(executionSeeds, new Map([[seed, ["src/visual/capture"]]]), ALLOW);
   check("MUTATION: an import of src/visual in a seed module is caught", seedExists && atSeed.offenders.some((o) => o.endsWith(`${seed} -> src/visual/capture`)), atSeed.offenders.join("; ") || "not caught");
 
   const seedSet = new Set(executionSeeds);
   const transitive = [...execution.seen].find((m) => !seedSet.has(m) && m.startsWith("src/"));
-  const deep = transitive ? await walk(executionSeeds, new Map([[transitive, ["src/visual"]]])) : null;
+  const deep = transitive ? await walk(executionSeeds, new Map([[transitive, ["src/visual"]]]), ALLOW) : null;
   check(
     "MUTATION: an import of src/visual in a module reached only transitively is caught, with its chain",
     !!transitive && !!deep && deep.offenders.some((o) => o.endsWith(`${transitive} -> src/visual`) && o.split(" -> ").length >= 3),
@@ -207,12 +246,22 @@ console.log("\nMutation controls (each injected import must be caught):\n");
     ["app/main/ipc/domIntelligence.ipc.ts", "src/visual/fingerprint"],
     ["app/main/main.ts", "src/visual"]
   ] as const) {
-    const mutated = await walk(executionSeeds, new Map([[mainSeed, [specifier]]]));
+    const mutated = await walk(executionSeeds, new Map([[mainSeed, [specifier]]]), ALLOW);
     check(
       `MUTATION: an import of src/visual in ${mainSeed} is caught`,
       executionSeeds.includes(mainSeed) && mutated.offenders.some((o) => o.endsWith(`${mainSeed} -> ${specifier}`)),
       mutated.offenders.join("; ") || "not caught"
     );
+  }
+
+  // N2.5: the allow-list is one exact edge, not a module or a directory.
+  for (const [importer, specifier, label] of [
+    ["src/runner/LocatorFactory.ts", "src/visual", "a second runner importer of the same public index"],
+    [ADAPTER, "src/visual/fingerprint", "the adapter importing a src/visual internal"],
+    [ADAPTER, "src/visual/internal/captureCore", "the adapter importing the capture seam entry"]
+  ] as const) {
+    const mutated = await walk(executionSeeds, new Map([[importer, [specifier]]]), ALLOW);
+    check(`MUTATION: ${label} is caught`, mutated.offenders.some((o) => o.endsWith(`${importer} -> ${specifier}`)), mutated.offenders.join("; ") || "not caught");
   }
 
   // Aliased imports must resolve like relative ones: @src/, @main/ and @renderer/ specifiers are followed, not dropped.
@@ -276,6 +325,22 @@ function violations(text: string): string[] {
   ];
   const missed = planted.filter(([, code]) => violations(code).length === 0).map(([name]) => name);
   check(`MUTATION: every planted offender is caught by the same scan (${planted.length})`, missed.length === 0, `missed: ${missed.join(", ")}`);
+}
+
+console.log("\nThe shadow adapter observes and never acts (N2.5):\n");
+{
+  // The reference store does the adapter's file I/O; the adapter itself gets the same scan as src/visual.
+  const adapterText = await readFile(join(REPO, ADAPTER), "utf8");
+  check("the adapter was actually read", adapterText.includes("class VisualFusionStage") && adapterText.includes('from "@src/visual"'));
+  const problems = violations(adapterText);
+  check("no network, filesystem, process, console, interaction or navigation API in the adapter", problems.length === 0, problems.join("; "));
+  for (const [label, code] of [
+    ["a click", "await observation.locator.click();"],
+    ["mouse input", "await observation.page.mouse.move(1, 2);"]
+  ] as const) {
+    const planted = `${adapterText}\n${code}\n`;
+    check(`MUTATION: ${label} planted in the adapter is caught`, violations(planted).length > 0, "not caught");
+  }
 }
 
 console.log("\nThe capture verification seams are verifier-only (N2.1):\n");

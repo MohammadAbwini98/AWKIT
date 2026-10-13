@@ -274,6 +274,37 @@ export interface LocatorFactoryOptions {
    * afterwards without misattributing under concurrent runs.
    */
   onRemembered?: (scopeKey: string) => void;
+  /**
+   * N2.5: the SHADOW visual-fusion observer (`src/runner/visualFusion/VisualFusionStage.ts`), injected like
+   * `domIntelligence`. It is shown each recovery's final winner, after every DOM veto, and each passing resolve; it
+   * returns nothing and its failures are swallowed, so stages, trace and the resolved element are unchanged (I3).
+   * Absent, no observation is built.
+   */
+  visualFusion?: LocatorVisualFusion;
+}
+
+export interface LocatorVisualPassObservation {
+  page: Page;
+  step: FlowStep;
+  scopeKey: string;
+  locator: Locator;
+  sensitive: boolean;
+}
+
+export interface LocatorVisualRecoveryObservation extends LocatorVisualPassObservation {
+  layer: "local" | "blueprint" | "provider-agreed";
+  /** The DOM winner's score, 0-1. */
+  score: number;
+  /** The layer's gated-out candidates, best first (read-only: a competitor is never acted on). */
+  competitors: { locator: Locator; score: number }[];
+  /** Winner minus runner-up DOM score, 0-1; 0 when the layer had no runner-up. */
+  margin: number;
+}
+
+/** Structural, so this module never imports the adapter (`verify:visual-isolation`). */
+export interface LocatorVisualFusion {
+  observeRecovery(observation: LocatorVisualRecoveryObservation): Promise<void>;
+  observePass(observation: LocatorVisualPassObservation): Promise<void>;
 }
 
 interface RankedCandidate {
@@ -298,6 +329,8 @@ interface RecoveredElement {
   locator: Locator;
   fingerprint: LocatorElementFingerprint;
   score: number;
+  /** N2.5: what the shadow visual observation is shown; set only for a snapshot layer's winner. */
+  visual?: Pick<LocatorVisualRecoveryObservation, "layer" | "competitors" | "margin">;
 }
 
 export class LocatorFactory {
@@ -417,7 +450,8 @@ export class LocatorFactory {
           message: `Using user-approved positional fallback locator (lower resilience) for "${step.name}".`
         });
       }
-      
+
+      await this.observeVisual(step, scopeKey, pass.winner.locator, sensitiveAction);
       return pass.winner.locator;
     }
 
@@ -430,6 +464,7 @@ export class LocatorFactory {
         pass = await this.tryCandidates(root, ordered);
         if (pass.winner) {
           await this.rememberWinner(scopeKey, digest, pass.winner, step, applicableMemory);
+          await this.observeVisual(step, scopeKey, pass.winner.locator, sensitiveAction);
           return pass.winner.locator;
         }
       }
@@ -475,6 +510,8 @@ export class LocatorFactory {
               `RECOVERED locator for "${step.name}" with local similarity ${recovered.score.toFixed(3)} ` +
               `(all saved candidates missed). Re-record this step to replace the stale locator.`
           });
+          // N2.5: last in the chain, after every DOM veto and outside the recovery trace; shadow only.
+          await this.observeVisual(step, scopeKey, recovered.locator, sensitiveAction, recovered);
           return recovered.locator;
         }
       }
@@ -865,6 +902,26 @@ export class LocatorFactory {
     }
   }
 
+  /**
+   * N2.5: show a passing resolve to the shadow visual-fusion observer. A recovered winner is observed with its layer's
+   * competitors (a provider-agreed winner carries none); a recorded-candidate winner is only offered as a reference
+   * refresh. Returns nothing, and nothing it does can fail the resolve.
+   */
+  private async observeVisual(step: FlowStep, scopeKey: string | undefined, locator: Locator, sensitive: boolean, recovered?: RecoveredElement): Promise<void> {
+    const fusion = this.options.visualFusion;
+    if (!fusion || !scopeKey) return;
+    const observation: LocatorVisualPassObservation = { page: this.page, step, scopeKey, locator, sensitive };
+    try {
+      if (recovered) {
+        await fusion.observeRecovery({ ...observation, score: recovered.score, ...(recovered.visual ?? { layer: "provider-agreed", competitors: [], margin: 0 }) });
+      } else {
+        await fusion.observePass(observation);
+      }
+    } catch {
+      // Shadow mode: the observer never participates in the resolve.
+    }
+  }
+
   private async rememberWinner(
     scopeKey: string | undefined,
     candidatesDigest: string,
@@ -1145,7 +1202,22 @@ export class LocatorFactory {
       return undefined;
     }
     LocatorFactory.recordStage(stages, stage, decision, started);
-    return { locator, fingerprint: decision.winner.fingerprint, score: decision.winner.score };
+    const winner = decision.winner;
+    return {
+      locator,
+      fingerprint: winner.fingerprint,
+      score: winner.score,
+      // N2.5: the competitors are named by index for a read-only capture; N2.6 must pin them before any enforcement.
+      ...(this.options.visualFusion
+        ? {
+            visual: {
+              layer: stage,
+              competitors: (decision.contenders ?? []).map(({ index, score }) => ({ locator: list.nth(index), score })),
+              margin: decision.runnerUp ? winner.score - decision.runnerUp.score : 0
+            }
+          }
+        : {})
+    };
   }
 
   private static recordStage(stages: LocatorRecoveryStage[], stage: "local" | "blueprint", decision: RecoveryDecision, started: number): void {

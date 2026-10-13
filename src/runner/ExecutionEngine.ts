@@ -1627,6 +1627,8 @@ export class ExecutionEngine {
       locatorRecoveryRoot: join(dirs.root, "locator-recovery"),
       locatorBlueprintRoot: join(dirs.root, "locator-blueprints"),
       domIntelligence: this.domIntelligence,
+      // N2.5 (FD-8): visual fusion is off unless AWKIT_VISUAL_FUSION=shadow; N2 has no other mode.
+      visualFusionRoot: process.env.AWKIT_VISUAL_FUSION === "shadow" ? join(dirs.root, "visual-references") : undefined,
       // Accumulate only — no projection, no I/O, no emitter on the locator resolution path. The set
       // is read once when this instance finishes.
       onLocatorRemembered: (scopeKey) => {

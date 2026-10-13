@@ -15,6 +15,15 @@
  *     of writes to one step leaves a whole record and no temp files;
  *   - the refresh table stays bounded, and an unwritable folder fails without throwing.
  *
+ * N2.5 (awkit-vra.12.5), on real Chromium: the shadow `VisualFusionStage` injected into a real `LocatorFactory`.
+ *   - I3 A/B: seed, break, recover with fusion off and with the stage on — recovered element, events, traces (timings
+ *     excluded) and winner memory are identical, for an eligible, an ineligible and a sensitive step, and with a
+ *     throwing verdict sink or a rejecting/throwing fusion option;
+ *   - the observation carries the local winner and up to three distinct gated-out competitors; one verdict per
+ *     recovery, R1 `no-reference` before a reference exists, a visual verdict after a passing resolve seeded one;
+ *   - I9: the verdict record is eight fields with rounded scores and no digest, bounds or pixels;
+ *   - ineligible steps get no verdict and sensitive steps never refresh; effect is always none.
+ *
  * Run: npm run verify:visual-fusion-runtime
  */
 
@@ -22,7 +31,13 @@ import { mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:fs/promi
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
+import { chromium, type Browser, type Page } from "playwright";
 import { VISUAL_EVIDENCE_MAX_BYTES, VISUAL_EVIDENCE_VERSION, type VisualEvidence } from "@src/visual/visualEvidence";
+import { MEASURED_FUSION_POLICY } from "@src/visual/fusion/decideFusion";
+import type { FlowStep } from "@src/profiles/FlowProfile";
+import { LocatorFactory, type LocatorRecoveryEvent, type LocatorVisualFusion, type LocatorVisualRecoveryObservation } from "@src/runner/LocatorFactory";
+import { FileLocatorRecoveryStore } from "@src/runner/LocatorRecoveryStore";
+import { VisualFusionStage, visualFusionEligibility, type VisualFusionVerdictRecord } from "@src/runner/visualFusion/VisualFusionStage";
 import {
   VISUAL_REFERENCE_REFRESH_ENTRIES,
   VisualReferenceStore,
@@ -90,6 +105,231 @@ function clock(start = 1_000_000): { now: () => number; advance: (ms: number) =>
 }
 
 const tempFiles = async (folder: string): Promise<string[]> => (await readdir(folder).catch(() => [] as string[])).filter((n) => n.endsWith(".tmp"));
+const jsonFiles = async (folder: string): Promise<string[]> => (await readdir(folder).catch(() => [] as string[])).filter((n) => n.endsWith(".json"));
+
+// ── N2.5: the shadow stage inside a real LocatorFactory on real Chromium ──────────────────────────────────────────
+let browser: Browser | undefined;
+
+const LAB = `<!doctype html><html><body style="font:16px sans-serif;margin:24px;background:#fff">
+<main><section id="profile"><h2>Profile</h2><div class="actions" style="display:flex;gap:12px">
+<button id="save-profile" type="button" style="background:#1d4ed8;color:#fff;border:0;padding:8px 16px">Save profile</button>
+<button id="cancel-profile" type="button" style="background:#e5e7eb;border:0;padding:8px 16px">Cancel</button>
+<button id="reset-profile" type="button" style="background:#fde68a;border:0;padding:8px 16px">Reset form</button>
+<button id="export-profile" type="button" style="background:#bbf7d0;border:0;padding:8px 16px">Export</button>
+</div></section></main></body></html>`;
+
+/** Timestamps and durations differ between any two runs, also inside trace messages; everything else must not. */
+const stable = (key: string, value: unknown): unknown => {
+  if (/(^ms|Ms|At)$/.test(key)) return undefined;
+  return typeof value === "string" ? value.replace(/\d+ ?ms\b/g, "#ms") : value;
+};
+
+interface ScenarioRun {
+  seeded: boolean;
+  recovered: boolean;
+  isTarget: boolean;
+  resolvedText: string | null;
+  events: string;
+  memory: string;
+}
+
+/**
+ * Seed winner memory with one passing resolve, rename the target's id so every saved candidate misses, resolve again.
+ * `seed` / `recover` are the visual-fusion options of the two factories; absent is fusion off.
+ */
+async function scenario(
+  type: string,
+  fusion: { seed?: LocatorVisualFusion; recover?: LocatorVisualFusion } = {},
+  extra: Partial<FlowStep> = {}
+): Promise<ScenarioRun> {
+  const page: Page = await browser!.newPage({ viewport: { width: 800, height: 600 } });
+  try {
+    await page.setContent(LAB);
+    const folder = await mkdtemp(join(ROOT, "recovery-"));
+    const recoveryStore = new FileLocatorRecoveryStore(folder);
+    const events: LocatorRecoveryEvent[] = [];
+    const step = { id: "save-profile", name: "Save profile", type, locator: { strategy: "css", value: "#save-profile" }, ...extra } as unknown as FlowStep;
+    const factory = (visualFusion?: LocatorVisualFusion) =>
+      new LocatorFactory(page, {
+        recoveryStore,
+        scope: { scenarioId: "n2-5", flowId: "shadow" },
+        recoveryGraceMs: 0,
+        onRecoveryEvent: (event) => events.push(event),
+        ...(visualFusion ? { visualFusion } : {})
+      });
+    await page.evaluate(() => {
+      (window as unknown as { __target: Element }).__target = document.getElementById("save-profile")!;
+    });
+    const seeded = await factory(fusion.seed)
+      .resolve(step)
+      .then((locator) => locator.evaluate((element) => element === (window as unknown as { __target: Element }).__target))
+      .catch(() => false);
+    await page.evaluate(() => {
+      document.getElementById("save-profile")!.id = "profile-save";
+    });
+    let isTarget = false;
+    let resolvedText: string | null = null;
+    try {
+      const locator = await factory(fusion.recover).resolve(step);
+      isTarget = await locator.evaluate((element) => element === (window as unknown as { __target: Element }).__target);
+      resolvedText = await locator.textContent();
+    } catch {
+      resolvedText = null;
+    }
+    const memory = await Promise.all((await jsonFiles(folder)).sort().map(async (name) => JSON.parse(await readFile(join(folder, name), "utf8")) as unknown));
+    return {
+      seeded,
+      recovered: events.some((event) => event.type === "local-recovery"),
+      isTarget,
+      resolvedText,
+      events: JSON.stringify(events, stable),
+      memory: JSON.stringify(memory, stable)
+    };
+  } finally {
+    await page.close().catch(() => undefined);
+  }
+}
+
+class CountingStore extends VisualReferenceStore {
+  refreshes = 0;
+  override async refresh(...args: Parameters<VisualReferenceStore["refresh"]>): ReturnType<VisualReferenceStore["refresh"]> {
+    this.refreshes += 1;
+    return super.refresh(...args);
+  }
+}
+
+interface Shadow {
+  fusion: LocatorVisualFusion;
+  folder: string;
+  store: CountingStore;
+  verdicts: VisualFusionVerdictRecord[];
+  observed: LocatorVisualRecoveryObservation[];
+  competitorTexts: (string | null)[][];
+  passes: number;
+}
+
+/** A real VisualFusionStage on its own folder, wrapped to record what LocatorFactory handed it. */
+async function shadow(onVerdict?: (record: VisualFusionVerdictRecord) => void): Promise<Shadow> {
+  const folder = await mkdtemp(join(ROOT, "visual-"));
+  const s = new CountingStore({ folder, evidenceVersion: VISUAL_EVIDENCE_VERSION, maxEvidenceBytes: VISUAL_EVIDENCE_MAX_BYTES, digestOf });
+  const out: Shadow = { fusion: undefined as unknown as LocatorVisualFusion, folder, store: s, verdicts: [], observed: [], competitorTexts: [], passes: 0 };
+  const stage = new VisualFusionStage({
+    folder,
+    store: s,
+    onVerdict: (record) => {
+      out.verdicts.push(record);
+      onVerdict?.(record);
+    }
+  });
+  out.fusion = {
+    observeRecovery: async (observation) => {
+      out.observed.push(observation);
+      out.competitorTexts.push(await Promise.all(observation.competitors.map((c) => c.locator.textContent().catch(() => null))));
+      await stage.observeRecovery(observation);
+    },
+    observePass: async (observation) => {
+      out.passes += 1;
+      await stage.observePass(observation);
+    }
+  };
+  return out;
+}
+
+const sameRun = (a: ScenarioRun, b: ScenarioRun): boolean => JSON.stringify(a) === JSON.stringify(b);
+const threeDecimals = (value: unknown): boolean => typeof value === "number" && Math.abs(value * 1000 - Math.round(value * 1000)) < 1e-9;
+
+async function shadowStageCases(): Promise<void> {
+  browser = await chromium.launch();
+
+  console.log("\nN2.5 I3: shadow fusion leaves the resolve byte-identical to fusion off (A/B):\n");
+  const off = await scenario("click");
+  check("the off run seeds, then recovers the renamed target locally (non-vacuous)", off.seeded && off.recovered && off.isTarget && off.resolvedText === "Save profile", JSON.stringify(off).slice(0, 300));
+  const a = await shadow();
+  const on = await scenario("click", { seed: a.fusion, recover: a.fusion });
+  check("shadow run: same seed, same recovered element, same text", on.seeded && on.recovered && on.isTarget && on.resolvedText === off.resolvedText);
+  check("shadow run: identical recovery events and traces (timings excluded)", on.events === off.events, `${on.events.slice(0, 200)} vs ${off.events.slice(0, 200)}`);
+  check("shadow run: identical winner memory", on.memory === off.memory);
+  check("the A/B pair is identical as a whole", sameRun(on, off));
+  check("the stage saw the passing resolve and exactly one recovery", a.passes >= 1 && a.observed.length === 1, `${a.passes} passes, ${a.observed.length} recoveries`);
+
+  console.log("\nN2.5: the recovery observation and its verdict:\n");
+  const [observation] = a.observed;
+  check("the observation is the local layer's winner with its DOM score and margin", observation?.layer === "local" && observation.score > 0 && observation.margin >= 0, JSON.stringify({ layer: observation?.layer, score: observation?.score, margin: observation?.margin }));
+  const texts = a.competitorTexts[0] ?? [];
+  check(
+    "up to three gated-out DOM competitors, each a distinct element other than the winner",
+    texts.length === 3 && new Set(texts).size === 3 && !texts.includes("Save profile") && texts.every((t) => t !== null),
+    JSON.stringify(texts)
+  );
+  const [verdict] = a.verdicts;
+  check("exactly one verdict, shadow mode, local layer, eligible", a.verdicts.length === 1 && verdict.mode === "shadow" && verdict.layer === "local" && verdict.eligibility === "eligible", JSON.stringify(a.verdicts));
+  check("the passing resolve seeded the reference, so the verdict is not R1 no-reference", verdict?.reason !== "no-reference", `${verdict?.outcome} (${verdict?.reason})`);
+  check("the verdict is a visual comparison against the reference", verdict?.outcome === "corroborated" || verdict?.outcome === "dom-only" || verdict?.outcome === "contradicted", `${verdict?.outcome} (${verdict?.reason})`);
+  check("effect is none (shadow, contradiction disabled)", verdict?.effect === "none");
+  const evidenceKeys = Object.keys(verdict?.evidence ?? {});
+  check(
+    "I9: evidence is the four allowed fields only, scores rounded to 3 decimals",
+    evidenceKeys.length > 0 &&
+      evidenceKeys.every((k) => ["winnerScore", "bestCompetitorScore", "visualMargin", "identical"].includes(k)) &&
+      ["winnerScore", "bestCompetitorScore", "visualMargin"].every((k) => !(k in verdict.evidence) || threeDecimals((verdict.evidence as Record<string, unknown>)[k])),
+    JSON.stringify(verdict?.evidence)
+  );
+  check(
+    "I9: the record has exactly its eight fields and no digest, bounds, pixels or selector",
+    JSON.stringify(Object.keys(verdict ?? {}).sort()) === JSON.stringify(["effect", "eligibility", "evidence", "layer", "mode", "outcome", "reason", "stepId"]) &&
+      !/sha256|digest|bounds|base64|#save-profile|"x":/i.test(JSON.stringify(verdict)),
+    JSON.stringify(verdict)
+  );
+  const referenceFiles = await jsonFiles(a.folder);
+  const referenceText = referenceFiles.length === 1 ? await readFile(join(a.folder, referenceFiles[0]), "utf8") : "";
+  check("one reference record for the one step, holding no image bytes", referenceFiles.length === 1 && !/data:image|base64|"bytes"/.test(referenceText), referenceFiles.join(", "));
+  check("the reference is keyed by the step's scopeKey", referenceFiles[0] === `${createHash("sha256").update(observation?.scopeKey ?? "").digest("hex")}.json`);
+
+  console.log("\nN2.5: R1 without a reference, then a refresh:\n");
+  const b = await shadow();
+  const noRef = await scenario("click", { recover: b.fusion });
+  check("recovery with fusion only on the recovering factory is still identical to off", sameRun(noRef, off));
+  check("no reference yet: the verdict is R1 no-reference", b.verdicts.length === 1 && b.verdicts[0].reason === "no-reference", JSON.stringify(b.verdicts));
+  check("...and the eligible winner then becomes the reference", (await jsonFiles(b.folder)).length === 1 && b.store.refreshes === 1, `${b.store.refreshes} refreshes`);
+
+  console.log("\nN2.5: ineligible and sensitive steps:\n");
+  check("FD-6 eligibility table", visualFusionEligibility({ type: "click" }, false) === "eligible" && visualFusionEligibility({ type: "fill" }, false) === "eligible" && visualFusionEligibility({ type: "click" }, true) === "shadow-only" && visualFusionEligibility({ type: "hover" }, false) === "ineligible");
+  const hoverOff = await scenario("hover");
+  const c = await shadow();
+  const hoverOn = await scenario("hover", { seed: c.fusion, recover: c.fusion });
+  check("an ineligible step recovers (non-vacuous) and its A/B pair is identical", hoverOff.recovered && hoverOff.isTarget && sameRun(hoverOn, hoverOff));
+  check("an ineligible step is observed but gets no verdict, no capture and no reference", c.observed.length === 1 && c.verdicts.length === 0 && c.store.refreshes === 0 && (await jsonFiles(c.folder)).length === 0, `${c.observed.length} observed, ${c.verdicts.length} verdicts, ${c.store.refreshes} refreshes`);
+  const sensitive = { safety: { sideEffectLevel: "dangerousMutation", retryable: false } } as unknown as Partial<FlowStep>;
+  const sensitiveOff = await scenario("click", {}, sensitive);
+  const d = await shadow();
+  const sensitiveOn = await scenario("click", { seed: d.fusion, recover: d.fusion }, sensitive);
+  check("a sensitive step seeds, never recovers, and its A/B pair is identical", sensitiveOff.seeded && !sensitiveOff.recovered && sensitiveOff.resolvedText === null && sameRun(sensitiveOn, sensitiveOff));
+  check("a sensitive pass is observed but never refreshes the reference (shadow-only)", d.passes >= 1 && d.store.refreshes === 0 && (await jsonFiles(d.folder)).length === 0, `${d.passes} passes, ${d.store.refreshes} refreshes`);
+
+  console.log("\nN2.5: a failing observer cannot change the resolve:\n");
+  const e = await shadow(() => {
+    throw new Error("sink exploded");
+  });
+  const throwingSink = await scenario("click", { seed: e.fusion, recover: e.fusion });
+  check("a throwing verdict sink: the verdict was produced, the resolve is identical to off", e.verdicts.length === 1 && sameRun(throwingSink, off));
+  check("...and the reference refresh still ran after the sink threw", e.store.refreshes >= 1);
+  const broken: LocatorVisualFusion = {
+    observeRecovery: async () => {
+      throw new Error("observer rejected");
+    },
+    observePass: () => {
+      throw new Error("observer threw synchronously");
+    }
+  };
+  const brokenRun = await scenario("click", { seed: broken, recover: broken });
+  check("a rejecting / synchronously throwing fusion option: the resolve is identical to off", sameRun(brokenRun, off));
+
+  console.log("\nN2.5 shadow-only invariants:\n");
+  check("MEASURED_FUSION_POLICY.contradictionEnabled is still false", MEASURED_FUSION_POLICY.contradictionEnabled === false);
+  check("the stage's mode is fixed to shadow", new VisualFusionStage({ folder: ROOT }).mode === "shadow");
+  const all = [a, b, c, d, e].flatMap((x) => x.verdicts);
+  check("no verdict of any case had an effect", all.length >= 3 && all.every((v) => v.effect === "none"), String(all.length));
+}
 
 try {
   console.log("\nRound trip and scope binding:\n");
@@ -335,10 +575,13 @@ try {
     );
     check("the oldest step was forgotten first and is due again", s.dueForRefresh("bound-0") && !s.dueForRefresh(`bound-${VISUAL_REFERENCE_REFRESH_ENTRIES + extra - 1}`));
   }
+
+  await shadowStageCases();
 } finally {
+  await browser?.close().catch(() => undefined);
   await rm(ROOT, { recursive: true, force: true }).catch(() => undefined);
 }
 
-check("the suite is non-vacuous", passed >= 60, String(passed));
+check("the suite is non-vacuous", passed >= 90, String(passed));
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);
