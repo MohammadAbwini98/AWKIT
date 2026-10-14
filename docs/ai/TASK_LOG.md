@@ -1,6 +1,20 @@
 # TASK_LOG
 
-## 2026-10-14 (latest) — Phase N: N4.4 Recorder visual capture channel and per-step UI (Claude)
+## 2026-10-14 (latest) — Phase N: N4.5 recorded baseline calibration (Claude)
+
+- **Task:** N4.5 `awkit-vra.13.5`, contract `awkit-vra-13-5-n4-calibration-1014`. **Result: N4.5 criterion MET.**
+- **Files:** new `scripts/benchmark-recorder-visual-baseline.mts`; `package.json` (`benchmark:recorder-visual-baseline`);
+  `docs/plans/ai-upgrade-v5/N4-recorder-visual-intelligence.md`; `src/roadmap/ImplementationRoadmap.ts`;
+  `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md`; the contract.
+- **Measured:** recorded false agreed 0 per cell and in total (N3.2 17), best != true 0 of 2340, wide twins 0 of 18
+  (N3.2 3); runtime control equal to N3.2; headless replay recall 0/36; capture median 199.3 / p95 337.4 / max 472.7
+  ms, 0 over 1500 ms, 0 refusals.
+- **Tests:** benchmark PASS; mock-site 308/308; recorder-visual-capture 119/0; visual-capture 274/0;
+  visual-fingerprint 58/0; visual-fusion-runtime 145/0; visual-agreement 258/0; visual-agreement-runtime 81/0;
+  visual-isolation 54/0; verifier-classification PASS; build PASS; roadmap-dashboard see CURRENT_STATE.
+- **BLOCKED:** bead notes/close/export (lease guard `unsupported-command`, terminal).
+
+## 2026-10-14 — Phase N: N4.4 Recorder visual capture channel and per-step UI (Claude)
 
 - **Scope:** "continue with N4.4", which is `awkit-vra.13.4`. Contract `awkit-vra-13-4-n4-channel-ui-1014`. CodeCraft
   was not used (`CODECRAFT_MODE=off`).

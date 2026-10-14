@@ -1,6 +1,23 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-14, latest) — Phase N: N4.4 channel and UI done; N4.5 then N4.6 next
+## HANDOFF (2026-10-14, latest) — Phase N: N4.5 calibration MET; N4.6 next
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** N4.5 `awkit-vra.13.5`, contract `awkit-vra-13-5-n4-calibration-1014`. **N4.5 criterion: MET.**
+  `npm run benchmark:recorder-visual-baseline`: recorded false agreed 0 in every cell (N3.2: 17), wide twins 0 of 18
+  (N3.2: 3), headless replay of a headed recording recall 0/36 (recall loss only), capture max 472.7 ms of 1500 ms.
+  Tables in the N4 plan § N4.5 calibration results.
+- **Owed (BLOCKED in this session):** the lease guard refused `bd update`/`bd close` for `awkit-vra.13.5`
+  (`unsupported-command`, terminal), even for the project-state holder. Owner: run
+  `bd close awkit-vra.13.5`, `bd export -o .beads/issues.jsonl`, then `npm run verify:roadmap-dashboard` and repin
+  the outstanding/closed baselines (expected 29 / 366 of 395).
+- **Next:** N4.6 `awkit-vra.13.6` runner shadow fallback (eligible), then N4.7 QC.
+- **Watch for N4.6:** a headed recording gives headless replay no recall at any DPR, and the production Recorder
+  context runs at Playwright's default viewport and DPR 1, so a recorded reference only compares when replay matches
+  (A5). The fusion lab has no hover/focus/checked styling, so the post-action effect is unmeasured on such pages.
+
+## HANDOFF (2026-10-14) — Phase N: N4.4 channel and UI done; N4.5 then N4.6 next
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

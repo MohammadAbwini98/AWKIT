@@ -339,6 +339,7 @@
     "benchmark:visual-fusion-zoom": "tsx scripts/benchmark-visual-fusion.mts --zoom-only",
     "benchmark:visual-fusion-overhead": "tsx scripts/benchmark-visual-fusion-overhead.mts",
     "benchmark:visual-agreement": "tsx scripts/benchmark-visual-agreement.mts",
+    "benchmark:recorder-visual-baseline": "tsx scripts/benchmark-recorder-visual-baseline.mts",
     "verify:ai-model-pack": "tsx scripts/verify-ai-model-pack.mts",
     "verify:ai-model-compatibility": "tsx scripts/verify-ai-model-compatibility.mts",
     "verify:ai-model-inspect": "tsx scripts/verify-ai-model-inspect.mts",

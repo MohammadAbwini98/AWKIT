@@ -1,6 +1,37 @@
 # CURRENT_STATE
 
-## Phase N: N4.4 channel and UI — the Recorder can capture a visual reference per step (2026-10-14, latest)
+## Phase N: N4.5 recorded baseline calibration — criterion MET (2026-10-14, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task.
+
+- **N4.5 criterion: MET.** Contract `awkit-vra-13-5-n4-calibration-1014`. New informational
+  `npm run benchmark:recorder-visual-baseline` (`scripts/benchmark-recorder-visual-baseline.mts`):
+  - headed references recorded through the real `RecorderService.captureVisualReference` (fresh launch per DPR,
+    `AWKIT_VISUAL_RECORDER=manual`), persisted and read back 45/45, replayed headed and headless at DPR 1, 1.25
+    and 2 with fresh launches using the unchanged N3.2 method and `decideVisualAgreement` in shadow;
+  - recorded false `agreed`: 0 in every cell (N3.2 cross-launch 17); best != true element 0 of 2340 (N3.2 0);
+    wide twins 0 of 18 (N3.2 3). The in-run runtime control reproduced N3.2 exactly (17 / 11, recall 66/72, 72/72);
+  - headed replay recall 36/36; headless replay of a headed recording 0/36, all `not-identical` (recall loss,
+    never false identity);
+  - capture cost 135 samples, median 199.3 ms, p95 337.4 ms, max 472.7 ms, 0 over the unchanged 1500 ms ceiling,
+    0 refusals; recorded-key `store.get` median 1.25 ms.
+  - Full tables: `docs/plans/ai-upgrade-v5/N4-recorder-visual-intelligence.md` § N4.5 calibration results.
+- **Tracker: BLOCKED.** `bd update`/`close` for `awkit-vra.13.5` was refused by the lease guard
+  (`unsupported-command`, terminal) even under the project-state lease; the bead stays open and `.beads/issues.jsonl`
+  was not re-exported. Owed: notes, close, `bd export -o .beads/issues.jsonl`, then repin the dashboard.
+- **No product change:** no runner, locator, threshold, IPC, UI or persistence change; N4.6 not started; N3 stays
+  shadow-only with N3.4/N3.5 `blocked`.
+- **Verifiers:** benchmark PASS (structural 25/25); `verify:mock-site` 308/308, `verify:recorder-visual-capture`
+  119/0, `verify:visual-capture` 274/0, `verify:visual-fingerprint` 58/0, `verify:visual-fusion-runtime` 145/0,
+  `verify:visual-agreement` 258/0, `verify:visual-agreement-runtime` 81/0, `verify:visual-isolation` 54/0,
+  verifier-classification PASS, build PASS.
+- **v0.1.53 carry-over unchanged:** packaged licensed Parts D–J are BLOCKED (`AWKIT_PACKAGED_LICENSE_ISSUER_KEY`
+  unavailable), and the clean offline Windows VM walkthrough is NOT RUN.
+- **Next:** N4.6 runner shadow fallback (eligible).
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## Phase N: N4.4 channel and UI — the Recorder can capture a visual reference per step (2026-10-14)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed by this task.

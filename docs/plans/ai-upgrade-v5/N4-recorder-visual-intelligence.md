@@ -5,7 +5,7 @@ Shared rules and the Phase N boundary: `ROADMAP.md` › *Phase N — Visual Reco
 (`awkit-vra.4`, closed 2026-10-13, shadow-only). The tracker home for N4 is the new bead **`awkit-vra.13`**, with
 children `awkit-vra.13.1`-`.13.7`. The legacy 2026-09-22 workstreams `awkit-vra.2`-`.8` are not reused.
 
-**Status (2026-10-14): IN PROGRESS. N4.1, N4.2, N4.3 and N4.4 done.** The owner approved RV-0 to RV-8 as recommended ("I approve
+**Status (2026-10-14): IN PROGRESS. N4.1 to N4.5 done; N4.5 criterion MET, N4.6 eligible.** The owner approved RV-0 to RV-8 as recommended ("I approve
 RV-0 to RV-8 as recommended, start N4"). That approval is recorded in `docs/ai/DECISIONS.md` (2026-10-14), and RV-1
 amends the 2026-10-12 isolation decision and FD-2 there. Contract `awkit-vra-13-n4-start-1013`.
 
@@ -47,7 +47,13 @@ amends the 2026-10-12 isolation decision and FD-2 there. Contract `awkit-vra-13-
   - `verify:recorder-authz` 65/0, with the channel denied pre-auth, to a Viewer and after sign-out, permitted to an
     Operator, and M5 (the permission check dropped) red on all three denials;
   - `verify:ipc-contract` 10/10 and `verify:visual-isolation` 54/0.
-- **Next:** N4.5 calibration, then N4.6 replay. There is still no runner reading of a recorded reference.
+- **N4.5 `awkit-vra.13.5`: closed. N4.5 criterion: MET** (2026-10-14). `benchmark:recorder-visual-baseline`
+  (informational) recorded headed baselines through the real `RecorderService.captureVisualReference` and replayed
+  them headed and headless at DPR 1, 1.25 and 2 with the unchanged N3.2 method: 0 recorded false `agreed` (N3.2: 17
+  cross-launch, 0 with best != true element), wide twins 0 of 18 (N3.2: 3). The in-run runtime control reproduced
+  N3.2 exactly. Headless replay never matched a headed recording (recall 0/36, all `not-identical`): a recall loss,
+  never a false identity. See *N4.5 calibration results* below.
+- **Next:** N4.6 runner shadow fallback (eligible: N4.5 met). There is still no runner reading of a recorded reference.
 
 ## Objective
 
@@ -258,6 +264,87 @@ results. If it is met, N4.6 may proceed. If not, **N4.6 is deferred and N4 close
 references are written, but no runner reads them. This is the same fallback pattern N2 and N3 used. A
 conditions mismatch (DPR or zoom) always degrades to N0's refusal or N2's conditions-changed path, never to a
 comparison.
+
+## N4.5 calibration results (2026-10-14, `awkit-vra.13.5`)
+
+**N4.5 criterion: MET.** Measured with `npm run benchmark:recorder-visual-baseline`
+(`scripts/benchmark-recorder-visual-baseline.mts`, informational, never a release gate) on Windows 10.0.19045, 12
+logical CPUs, Node v18.16.0, bundled Playwright Chromium 149.0.7827.55, against the local mock site
+(`/visual-intelligence/fusion`, unchanged; no fixture was added).
+
+**Method.** Per DPR (1, 1.25, 2):
+
+- **Recorder launch (fresh, headed).** The production `RecorderService` records a real click on each of the four
+  toolbar targets in styles a, b and c on the baseline state (12 steps), plus `vf-wide-tool-0` per style (3 steps),
+  and captures each recorded step through `captureVisualReference` with `AWKIT_VISUAL_RECORDER=manual`, three times
+  per step. The first capture is the reference. The production launch (headed, hardening args) is observed and not
+  changed: the benchmark gives only the Recorder's *context* the cell's viewport (800x600, as N3.2) and device scale
+  factor, because A5 compares only equal viewport and DPR; the production Recorder context otherwise uses Playwright's
+  default. Structural rows prove the launch was headed and the page ran at the cell's DPR and viewport. Every
+  reference is then written through `persistRecordedVisualReferences` and read back under its recorded key (45/45).
+- **Replay (fresh launches, headed and headless).** Exactly the N3.2 method: launch A captures the runtime reference
+  (an in-run control), launch B runs one fan-out per scenario (baseline, drift, swap, twins, restyle-selected,
+  restyle-pressed, theme-dark, theme-contrast, plus the wide toolbar baseline and twins) and decides every candidate
+  as the DOM best through the real `decideVisualAgreement` (shadow), against the recorded reference, the
+  cross-launch runtime reference and the same-launch reference. The synthetic DOM half is N3.2's (`below-threshold`,
+  0.7 / 0.8 / margin 0.08). Replay touched the page 0 times and took exactly one screenshot per fan-out (structural).
+- No sleeps beyond the double rAF after a state change, no retries, no page change to make a capture succeed, no
+  scrolling, animations untouched, no network beyond the local mock site, no images written anywhere.
+
+**Metric definitions** (per decision, one candidate as DOM best): *identical* = crop digest equals the reference
+digest; *true element* = the remembered position (on swap, the neighbour carrying the remembered icon); *recall* =
+baseline/drift, best = true element, `agreed`; *false identical* = identical with best != true element, or on
+swap/restyle with best = remembered position; *false agreed* = `agreed` with best != true element, or (N3.2's
+acceptance row) `agreed` on swap, twins or restyle with best = remembered position.
+
+**Identity quality, recorded reference, four-button toolbar** (48 decisions per row; 12 true-element decisions):
+
+| Mode | DPR | Scenario | Recall | Identical | Agreed | False identical | False agreed | Other outcomes |
+|---|---|---|---|---|---|---|---|---|
+| headed | 1, 1.25, 2 (each) | baseline | 12/12 | 12 | 12 | 0 | 0 | not-identical 36 |
+| headed | 1, 1.25, 2 (each) | drift | 12/12 | 12 | 12 | 0 | 0 | not-identical 36 |
+| headed | 1, 1.25, 2 (each) | swap | - | 12 | 12 (all the true neighbour) | 0 | 0 | not-identical 36 |
+| headed | 1, 1.25, 2 (each) | twins | - | 48 | 0 | 36 | 0 | identical-competitor 48 |
+| headed | 1, 1.25, 2 (each) | restyle-selected / -pressed | - | 0 | 0 | 0 | 0 | not-identical 48 |
+| headed | 1, 1.25, 2 (each) | theme-dark / -contrast | - | 0 | 0 | 0 | 0 | not-identical 48 |
+| headless | 1, 1.25, 2 (each) | every scenario | 0/12 (baseline, drift) | 0 | 0 | 0 | 0 | not-identical 48 |
+
+**Side by side with N3.2** (acceptance-row false agreed; N3.2 from `N3.2-agreement-calibration.md`, not re-derived):
+
+| Cell | N3.2 cross-launch | Recorded | In-run runtime cross | In-run runtime same | Baseline recall rec / cross / same |
+|---|---|---|---|---|---|
+| headed DPR 1 | 0 | 0 | 0 | 0 | 12/12 / 12/12 / 12/12 |
+| headed DPR 1.25 | 0 | 0 | 0 | 0 | 12/12 / 12/12 / 12/12 |
+| headed DPR 2 | 0 | 0 | 0 | 0 | 12/12 / 12/12 / 12/12 |
+| headless DPR 1 | 8 | 0 | 8 | 2 | 0/12 / 6/12 / 12/12 |
+| headless DPR 1.25 | 3 | 0 | 3 | 3 | 0/12 / 12/12 / 12/12 |
+| headless DPR 2 | 6 | 0 | 6 | 6 | 0/12 / 12/12 / 12/12 |
+| **total** | **17** (same-launch 11) | **0** | **17** | **11** | 36/72 / 66/72 / 72/72 |
+
+- False agreed with best != true element: N3.2 0 of 4644; recorded 0 of 2340; runtime-cross 0 of 2340.
+- Every false agreed in the controls is twins, headless (as N3.2). Swap and restyle: 0 for every source.
+- Recall: recorded baseline 36/72 and drift 36/72 (all 36 headed hits, 0 headless); runtime-cross 66/72 and 65/72,
+  runtime-same 72/72 and 71/72, which are N3.2's numbers exactly, so this machine renders as it did for N3.2.
+- Wide toolbar (8 competitors): twins agreed recorded 0 of 18, runtime-cross 3 of 18 (N3.2: 3 of 18); baseline
+  recall recorded 9 of 18 (headed 9/9, headless 0/9), runtime-cross 17 of 18.
+- **Headless twins.** Headless rasterizes identical icons with position-dependent bytes (N3.2), so a headless twin
+  can be identical to the reference while its siblings are not, and a runtime reference agrees on it. A headed
+  Recorder reference is never byte-identical to a headless crop at any DPR here, so it never reaches A8/A9 headless:
+  the headless twin hazard does not arise, and every headless decision is a `not-identical` refusal.
+- **Post-action effect.** The recorded reference (captured after the recorded click) equals a never-clicked headed
+  capture 12/12 at every DPR, and a headless capture 0/12. Repeated Recorder captures of the same step equal the
+  first 90/90. This lab has no hover, focus-visible or checked styling, so focus/hover/checked differences were not
+  exercised (see Risks).
+
+**Criterion, mechanically** (fixed in the script header before the run): (1) recorded false agreed with best != true
+element 0 <= N3.2 0: yes; (2) acceptance row per cell (0<=0, 0<=0, 0<=0, 0<=8, 0<=3, 0<=6) and total 0 <= 17: yes;
+(3) wide twins agreed 0 <= 3: yes. **MET.** N4.6 is eligible. Meeting it in headless is a consequence of
+`not-identical` refusals, not of correct identification: a headed recording gives headless replay no recall.
+
+**Capture cost** (`captureVisualReference` wall clock: re-proof, protected checks before and after, one capture):
+135 samples, median 199.3 ms, p95 337.4 ms, max 472.7 ms, 0 over the provisional 1500 ms ceiling, 0 refusals,
+0 timeouts. Recommendation: keep 1500 ms (about 3x the measured max); no change made. **N4.6 read cost:** recorded-key
+`store.get`, 45 samples, median 1.25 ms, p95 1.54 ms, max 1.69 ms, far inside the FD-5 400 ms budget.
 
 ## Frames, popups and shadow roots
 
@@ -483,7 +570,7 @@ recommended. Ordinary engineering details, such as code names, key encoding, fil
 | N4.2 Adapter and isolation | `awkit-vra.13.2` | recorder-playwright, qa | N4.1 | `RecorderVisualCapture`, `RecorderService.captureVisualReference`, the pending map, refusal codes, the isolation amendment | New `verify:recorder-visual-capture` with a mutation contract. `verify:visual-isolation` pins exactly the approved edges, with a third-edge mutation red. Build |
 | N4.3 Persistence | `awkit-vra.13.3` | data-persistence, backend | N4.2 | `visualReferencesOut`, save-path writes, the recorded namespace key, binding-digest drop | FlowProfile and export byte-identical with the feature on and off. Key non-collision. Failed write never fails save. Build |
 | N4.4 Channel and UI | `awkit-vra.13.4` | backend, frontend, ui-designer | N4.3 | Channel, preload, Recorder state flag, step status UI | IPC contract and both-direction role checks. GUI verifier for status, focus, live region and reduced motion. Build |
-| N4.5 Calibration | `awkit-vra.13.5` | qa, recorder-playwright | N4.2 | Informational benchmark: capture cost, recorded headed against replay headed and headless, DPR 1, 1.25 and 2, fresh launches | `verify:mock-site` green. The criterion reported as met or not met |
+| N4.5 Calibration | `awkit-vra.13.5` | qa, recorder-playwright | N4.2 | Informational benchmark: capture cost, recorded headed against replay headed and headless, DPR 1, 1.25 and 2, fresh launches | `verify:mock-site` green. The criterion reported as met or not met. **Done 2026-10-14: MET** |
 | N4.6 Runner shadow fallback | `awkit-vra.13.6` | backend, qa | N4.3, N4.5 | The recorded-reference fallback in the N2 stage, trace source, the effect-none invariant | Runner A/B unchanged. A mutation proves a recorded reference cannot reach enforce or be refreshed. N2 and N3 suites, runner, locator-guard and recovery-provenance green. **Deferred if N4.5 fails** |
 | N4.7 State, docs, closure | `awkit-vra.13.7` | project-state, qc | N4.4, N4.6 | State docs, ARCHITECTURE, DECISIONS outcome, independent QC, dashboard repin | QC approved with findings closed. Sources agree. Build |
 
@@ -593,7 +680,7 @@ N4 closes when every item holds, or is truthfully recorded as deferred:
 
 | Risk | Mitigation |
 |---|---|
-| Post-action appearance (focus, hover, checked) differs from replay | Recall loss only, never false identity. Measured in N4.5 |
+| Post-action appearance (focus, hover, checked) differs from replay | Recall loss only, never false identity. Measured in N4.5: no effect in the fusion lab (12/12 identical headed), but the lab has no hover/focus/checked styling, so this stays unmeasured on such pages. A headed recording also gives headless replay 0 recall |
 | Headless position-dependent rasterization (N3.2) | N4.5 criterion. N4.6 deferred if false `agreed` grows |
 | Users capture after the element has left the page | Refusal codes with guidance. Capture is per step and repeatable |
 | Orphaned recorded files after locator edits or flow deletes | Small, inert and bounded. Future sweep candidate, not in N4 |
