@@ -18406,6 +18406,49 @@ button.sys-th-button:hover,
   white-space: nowrap;
 }
 
+/* N4.4 (awkit-vra.13.4): a step's visual reference status. Text plus an icon carry the state; colour only reinforces it. */
+.recorder-visual-status {
+  align-items: center;
+  color: var(--awkit-text-muted);
+  display: inline-flex;
+  font-size: var(--text-caption);
+  gap: var(--space-1);
+  transition: color var(--awkit-dur-fast) var(--awkit-ease-out);
+}
+
+.recorder-visual-status[data-status="captured"] {
+  color: var(--awkit-success-text);
+}
+
+.recorder-visual-status[data-status="stale"] {
+  color: var(--awkit-warning-text);
+}
+
+.recorder-visual-status[data-status="refused"] {
+  color: var(--awkit-danger-text);
+}
+
+.recorder-visual-status-icon {
+  flex: none;
+}
+
+.recorder-visual-status[data-status="capturing"] .recorder-visual-status-icon {
+  animation: awkit-loader-pulse calc(var(--awkit-dur-modal) * 3) var(--awkit-motion-ease) infinite;
+}
+
+.recorder-visual-capture[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recorder-visual-status,
+  .recorder-visual-status[data-status="capturing"] .recorder-visual-status-icon {
+    animation: none;
+    transition: none;
+  }
+}
+
 .recorder-save-row {
   align-items: flex-end;
   border-top: 1px solid var(--awkit-divider);

@@ -1,6 +1,39 @@
 # DECISIONS
 
-### 2026-10-14 (latest) — Phase N N4.3: the recorded namespace key and the save-time write (implementation, within RV-3) (`awkit-vra.13.3`)
+### 2026-10-14 (latest) — Phase N N4.4: the capture channel, the status read and the per-step UI (implementation, within RV-1/RV-5/RV-6/RV-8) (`awkit-vra.13.4`)
+
+- **Channel shape.** `recorder:captureVisualReference(actionId)` checks three things, in this order:
+  - `assertSenderPermission(PAGE_RECORDER)`, with no re-authentication (RV-5);
+  - `recorderVisualActionId`: the request must be a non-blank string of at most 256 characters, or it answers
+    `action-not-found` without reaching the service;
+  - `recorderVisualCaptureResponse`: the service answer is rebuilt as `{ ok, status }` or `{ ok, code, message }`
+    with the code's own fixed text. An unknown code becomes `capture-failed`.
+
+  Extra fields and page text never cross (RV-8). The preload sends the id only. Both helpers live in the pure
+  `recorderVisualCaptureCodes.ts`, the only visual module the renderer imports (RV-1).
+- **The status rides `recorder:getStatus`; there is no second read channel.** The Recorder state flag is
+  `visualCaptureAvailable`, read per call, so flipping `AWKIT_VISUAL_RECORDER` takes effect without a restart (RV-6).
+  The statuses come in `visualReferences`, an action-id map of `captured` or `stale` only: no evidence, digest or
+  capture time. With the flag off the read reports unavailable and an empty map, while the in-memory references are
+  kept.
+- **`aria-disabled`, never `disabled`.** The plan said the button is "disabled with a reason while running". The
+  `disabled` attribute moved focus to `<body>` mid-capture (mutation M1, 10 FAIL). So the busy button is
+  `aria-disabled="true"`, and the handler returns early while a capture runs.
+- **One announcement surface.** The status line carries `aria-live="off"`, and its icon is `aria-hidden`. The single
+  polite region is cleared before each request, so an identical repeated result is announced again (M4 red).
+- **Not changed.** The save result is not widened. A failed save-time write stays a logged fixed-text count
+  (DECISIONS N4.3). Widening it was a possibility left to N4.4, not an N4.4 acceptance item, and nothing needs it yet.
+- **Mock site.** `/recorder-lab?rec018=1&visualDetach=1` removes the recorded submit button 300 ms after the REC-018
+  harness, so the GUI meets a real service refusal (`not-found`). The submit step, not the checkbox, is detached
+  because a click can be classed sensitive; the check step stays the success path.
+- **Evidence.**
+  - New `verify:recorder-visual-gui` (real Electron) is 55/0. Mutations M1 to M4 were red: M1 gave 10 FAIL, M2
+    (reduced-motion guard) 2 FAIL, and M3 + M4 (flag gate, live-region clear) 6 FAIL.
+  - `verify:recorder-authz` is 65/0. The permission check dropped (M5) is red pre-auth, for a Viewer and after
+    sign-out.
+  - `verify:recorder-visual-capture` is 119/0. Its section H turns red when the answer leaks (M6).
+
+### 2026-10-14 — Phase N N4.3: the recorded namespace key and the save-time write (implementation, within RV-3) (`awkit-vra.13.3`)
 
 - **Key encoding.** `recordedVisualReferenceKey(flowId, stepId, bindingDigest)` returns the fixed prefix
   `awkit:recorded-visual-reference:v1:` plus `JSON.stringify([flowId, stepId, bindingDigest])`. It lives in the pure,

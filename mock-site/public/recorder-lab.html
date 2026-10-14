@@ -1157,6 +1157,14 @@
           function () {
             $("recorderSubmit").click();
             status.textContent = "REC-018 harness completed";
+            // N4.4: `&visualDetach=1` then removes the recorded submit button, so a manual visual capture of that
+            // step meets a real refusal while the newsletter check step stays capturable.
+            if (params.get("visualDetach") === "1") {
+              window.setTimeout(function () {
+                $("recorderSubmit").remove();
+                status.textContent = "REC-018 harness completed; submit detached";
+              }, 300);
+            }
           }
         ];
         // Bounded, deterministic stagger: enough separation for the Recorder to attribute each

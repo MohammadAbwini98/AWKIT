@@ -1,6 +1,45 @@
 # CURRENT_STATE
 
-## Phase N: N4.3 persistence — a captured visual reference is stored beside the saved flow (2026-10-14, latest)
+## Phase N: N4.4 channel and UI — the Recorder can capture a visual reference per step (2026-10-14, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task.
+
+- **N4.4 `awkit-vra.13.4` is closed.** Contract `awkit-vra-13-4-n4-channel-ui-1014`.
+  - Channel `recorder:captureVisualReference(actionId)`:
+    - asserts `PAGE_RECORDER` with no re-auth (RV-5);
+    - sanitizes the request to one action id (a non-blank string of at most 256 characters, else
+      `action-not-found` without reaching the service);
+    - rebuilds the answer field by field to a code and its fixed text (RV-8).
+  - Preload: `window.playwrightFlowStudio.recorder.captureVisualReference`.
+  - `recorder:getStatus` now also carries `visualCaptureAvailable` (the flag, read per call) and `visualReferences`
+    (action id → `captured` | `stale`). There is no second status channel.
+  - Recorder UI: a per-step "Capture visual reference" button and status line, for RV-2 steps only, and only while
+    `AWKIT_VISUAL_RECORDER=manual` (off by default).
+    - While busy the button is `aria-disabled`, never `disabled`, so focus is not lost.
+    - The status line is `aria-live="off"`. One polite region is cleared before each request, so a repeated result
+      or a refusal is announced again.
+    - Reduced motion is honoured.
+  - The renderer imports only the pure `recorderVisualCaptureCodes.ts` (RV-1).
+  - Mock site: the `visualDetach` scenario in `recorder-lab.html` removes only the recorded submit button.
+- **Not changed:** the save result is not widened; a failed reference write stays a logged count (DECISIONS
+  2026-10-14). There is no runner read yet. N4.5 calibration, then N4.6 replay, are next.
+- **Verifiers:**
+  - new `verify:recorder-visual-gui` 55/0 in the real Electron app, with mutations M1 to M4 red;
+  - `verify:recorder-visual-capture` 119/0 (M6 red);
+  - `verify:recorder-authz` 65/0 (M5 red);
+  - `verify:ipc-contract` 10/10, `verify:visual-isolation` 54/0, `verify:mock-site` 308/308;
+  - `verify:ai-permissions` 135/0, `verify:ai-fallback` 51/0, `verify:protected-diagnosis` 75/0,
+    `verify:dom-intelligence-l12` 82/0, verifier-classification PASS;
+  - build PASS.
+- **Independent QC:** not run (contract `qc_status` pending). N4.7 carries the independent QC for N4.
+- **Dashboard:** repinned to the measured 30 outstanding / 365 closed of 395.
+- **Boundaries unchanged:** N3 stays shadow-only and N3.4/N3.5 stay `blocked`. No legacy `awkit-vra.6`/`.8` work.
+- **v0.1.53 carry-over unchanged:** packaged licensed Parts D–J are BLOCKED (`AWKIT_PACKAGED_LICENSE_ISSUER_KEY`
+  unavailable), and the clean offline Windows VM walkthrough is NOT RUN.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## Phase N: N4.3 persistence — a captured visual reference is stored beside the saved flow (2026-10-14)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed by this task.

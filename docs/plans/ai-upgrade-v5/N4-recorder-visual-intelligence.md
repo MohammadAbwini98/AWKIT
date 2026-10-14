@@ -5,7 +5,7 @@ Shared rules and the Phase N boundary: `ROADMAP.md` › *Phase N — Visual Reco
 (`awkit-vra.4`, closed 2026-10-13, shadow-only). The tracker home for N4 is the new bead **`awkit-vra.13`**, with
 children `awkit-vra.13.1`-`.13.7`. The legacy 2026-09-22 workstreams `awkit-vra.2`-`.8` are not reused.
 
-**Status (2026-10-14): IN PROGRESS. N4.1, N4.2 and N4.3 done.** The owner approved RV-0 to RV-8 as recommended ("I approve
+**Status (2026-10-14): IN PROGRESS. N4.1, N4.2, N4.3 and N4.4 done.** The owner approved RV-0 to RV-8 as recommended ("I approve
 RV-0 to RV-8 as recommended, start N4"). That approval is recorded in `docs/ai/DECISIONS.md` (2026-10-14), and RV-1
 amends the 2026-10-12 isolation decision and FD-2 there. Contract `awkit-vra-13-n4-start-1013`.
 
@@ -31,8 +31,23 @@ amends the 2026-10-12 isolation decision and FD-2 there. Contract `awkit-vra-13-
   Gates:
   - `verify:recorder-visual-capture` 102/0, with mutations N1 to N7 red;
   - `verify:visual-isolation` 54/0, with the Recorder adapter's imports pinned and a planted second write path red.
-- **Next:** N4.4 channel and UI and N4.5 calibration. There is still no IPC, preload, UI or runner reading of a
-  recorded reference.
+- **N4.4 `awkit-vra.13.4`: closed.** Contract `awkit-vra-13-4-n4-channel-ui-1014`. Delivered:
+  - the `recorder:captureVisualReference(actionId)` channel. It asserts `page.recorder` first (RV-5), then sanitizes
+    the id (`recorderVisualActionId`: a non-blank string of at most 256 characters; anything else answers `action-not-found`),
+    then rebuilds the service answer field by field (`recorderVisualCaptureResponse`), so only a code and its fixed
+    text cross (RV-8);
+  - the preload entry `recorder.captureVisualReference(actionId)`, sending the id only;
+  - the Recorder state flag: `recorder:getStatus` carries `visualCaptureAvailable` (RV-6, read per call) and
+    `visualReferences`, a map of action id to `captured` or `stale` with no evidence, digest or capture time;
+  - the per-step status UI in `Recorder.tsx`, which imports only the pure codes file (RV-1).
+
+  Gates:
+  - `verify:recorder-visual-gui` 55/0 (new, real Electron), with mutations M1 to M4 red;
+  - `verify:recorder-visual-capture` 119/0, with section H for the channel and M6 (a leaking response) red;
+  - `verify:recorder-authz` 65/0, with the channel denied pre-auth, to a Viewer and after sign-out, permitted to an
+    Operator, and M5 (the permission check dropped) red on all three denials;
+  - `verify:ipc-contract` 10/10 and `verify:visual-isolation` 54/0.
+- **Next:** N4.5 calibration, then N4.6 replay. There is still no runner reading of a recorded reference.
 
 ## Objective
 
@@ -329,6 +344,21 @@ Final codes are fixed in N4.2. The rule is a fixed code and fixed text, never ra
 - Hidden entirely when the feature is off.
 - The GUI verifier asserts focus by containment and drives it with real `Tab`. The capture outcome is asserted from
   the live region, never from a fallback element's text.
+
+**As built (N4.4, DECISIONS 2026-10-14).**
+- "Disabled with a reason while running" is `aria-disabled="true"` plus an early return, never the `disabled`
+  attribute. With `disabled`, focus fell to `<body>` during the capture (mutation M1 of `verify:recorder-visual-gui`).
+- The status line is text plus an `aria-hidden` icon with `aria-live="off"`. The only announcement is the single
+  polite, visually hidden region, which is cleared before every request so that a repeated result is announced again.
+- *Captured* and *Stale* come from the service status read. *Not captured — reason* is the last refusal for that step
+  in this window, cleared by a later success, and *Capturing visual reference…* shows while a request runs.
+- Under `prefers-reduced-motion: reduce`, the status colour transition and the capturing icon's pulse are off,
+  measured both ways.
+- After Stop the buttons go and the statuses stay, because the pending references are kept for the save.
+- *Stale — locator changed* is not driven in the GUI, because the GUI can only edit a step's locator through Element
+  Spy. Its status read is proven by `verify:recorder-visual-capture` section E.
+- Mock site: `/recorder-lab?rec018=1&visualDetach=1` removes the recorded submit button after the REC-018 harness, so
+  the GUI meets a real `not-found` refusal while the check step stays capturable.
 
 ## Owner decisions before implementation (approved as recommended, 2026-10-14)
 

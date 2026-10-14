@@ -23,6 +23,11 @@
  *      byte-identical with and without a reference; the write lands under the recorded key, read back by the runner's
  *      own store, and the runner key and another binding read missing; a write that fails or throws is counted and
  *      never rejects the save; the flag off writes nothing; the save handler's order is read from source
+ *   H  N4.4 (awkit-vra.13.4) the capture channel: the Recorder status read (in E) carries the one flag and the per-step
+ *      codes, and nothing while the flag is off; the request is one sanitized action id; the answer is rebuilt to a
+ *      code and fixed text; the handler asserts page.recorder before anything else; the preload and the page send the
+ *      id only; the page imports nothing under src/visual; page.recorder is Operator-held, Viewer-denied, no re-auth.
+ *      The live channel and the GUI are covered by verify:recorder-authz and verify:recorder-visual-gui.
  *
  * Mutation contract (each run against RecorderService before this suite was committed, then reverted; the red checks
  * are the ones observed):
@@ -72,13 +77,17 @@ import { VisualReferenceStore } from "@src/runner/visualFusion/VisualReferenceSt
 import { JsonProfileStore } from "@src/storage/ProfileStore";
 import type { RecordedAction } from "@src/recorder/RecorderTypes";
 import {
+  RECORDER_VISUAL_ACTION_ID_MAX_LENGTH,
   RECORDER_VISUAL_CAPTURE_MESSAGES,
   RECORDER_VISUAL_ELIGIBLE_STEPS,
+  recorderVisualActionId,
   recorderVisualCaptureMode,
+  recorderVisualCaptureResponse,
   recorderVisualCodeFor,
   type RecorderVisualCaptureCode,
   type RecorderVisualCaptureResult
 } from "@src/recorder/visual/recorderVisualCaptureCodes";
+import { effectivePermissions, Permission, SENSITIVE_PERMISSIONS } from "@src/security/authz/Permissions";
 import type {
   RecordedVisualPersistCounts,
   RecorderVisualCaptureOutcome,
@@ -431,10 +440,33 @@ async function main(): Promise<void> {
     check("the draft file was written and carries no evidence, digest or capture time (RV-3)", draft.includes(rowOne!.id) && evidenceTokens.every((token) => !draft.includes(token)), evidenceTokens.filter((t) => draft.includes(t)).join(", "));
     check("the recorded actions carry no evidence", evidenceTokens.every((token) => !actionsText.includes(token)));
     {
+      // N4.4: the Recorder status read carries one flag and the per-step statuses, as codes, keyed by action id.
+      const held = [...(internal.visualPending as Map<string, PendingView>).keys()].sort();
+      const statusOn = recorder.getStatus();
+      const readIds = Object.keys(statusOn.visualReferences).sort();
+      check(
+        "the status read reports the feature available and every held reference as captured, nothing else (4)",
+        statusOn.visualCaptureAvailable === true && held.length === 4 && JSON.stringify(readIds) === JSON.stringify(held) && readIds.every((id) => statusOn.visualReferences[id] === "captured"),
+        JSON.stringify(statusOn.visualReferences)
+      );
+      check("…a step without a reference is absent from it", !(approve!.id in statusOn.visualReferences) && !(filled!.id in statusOn.visualReferences));
+      const statusText = JSON.stringify(statusOn);
+      check("…and it carries no evidence, digest or capture time (RV-8)", evidenceTokens.every((token) => !statusText.includes(token)), evidenceTokens.filter((t) => statusText.includes(t)).join(", "));
+      process.env.AWKIT_VISUAL_RECORDER = "off";
+      const statusOff = recorder.getStatus();
+      process.env.AWKIT_VISUAL_RECORDER = "manual";
+      check(
+        "with the flag off the status read reports unavailable and no statuses, while the references are still held",
+        statusOff.visualCaptureAvailable === false && Object.keys(statusOff.visualReferences).length === 0 && internal.visualPending.size === 4,
+        JSON.stringify(statusOff.visualReferences)
+      );
+    }
+    {
       const live = recorder.getActions().find((a) => a.id === rowOne!.id)!;
       const original = structuredClone(live.locator);
       live.locator = { ...live.locator!, value: "vi-row-3-open" };
       check("a locator edit after the capture reads stale", recorder.visualReferenceStatus(rowOne!.id) === "stale");
+      check("…and the status read carries it as stale (N4.4)", recorder.getStatus().visualReferences[rowOne!.id] === "stale");
       live.locator = original;
       check("…and the original binding reads captured again", recorder.visualReferenceStatus(rowOne!.id) === "captured");
     }
@@ -708,6 +740,81 @@ async function main(): Promise<void> {
       codes.size === expected.length && expected.every((code) => codes.has(code)),
       [...codes].join(", ")
     );
+
+    // ── H: N4.4 the capture channel ──────────────────────────────────────────────────────────────
+    console.log("\nH  The capture channel: one action id in, a code and fixed text out, gated by page.recorder (N4.4)");
+    {
+      const accepted = ["action-1", "a", "x".repeat(RECORDER_VISUAL_ACTION_ID_MAX_LENGTH)];
+      const rejected: unknown[] = [undefined, null, 42, {}, ["action-1"], "", "   ", "x".repeat(RECORDER_VISUAL_ACTION_ID_MAX_LENGTH + 1), { id: "action-1" }];
+      check(
+        `the request accepts a recorded action id as it is (${accepted.length})`,
+        accepted.length === 3 && accepted.every((id) => recorderVisualActionId(id) === id)
+      );
+      check(
+        `…and refuses anything else: a non-string, a blank or an over-long id (${rejected.length})`,
+        rejected.length === 9 && rejected.every((raw) => recorderVisualActionId(raw) === null),
+        rejected.filter((raw) => recorderVisualActionId(raw) !== null).map((raw) => JSON.stringify(raw)).join(", ")
+      );
+      const leaky = {
+        ok: true,
+        status: "captured",
+        evidence: { fingerprint: { grid: "secret-grid" } },
+        bindingDigest: "sha256:leak",
+        capturedAt: "2026-10-14T00:00:00.000Z",
+        locator: "#leak"
+      } as unknown as RecorderVisualCaptureResult;
+      const leakyRefusal = { ok: false, code: "not-unique", message: "page text: Jane Doe", evidence: { grid: "secret-grid" } } as unknown as RecorderVisualCaptureResult;
+      const unknownCode = { ok: false, code: "SOMETHING_NEW", message: "raw error from the page" } as unknown as RecorderVisualCaptureResult;
+      const responses = [recorderVisualCaptureResponse(leaky), recorderVisualCaptureResponse(leakyRefusal), recorderVisualCaptureResponse(unknownCode)];
+      check(
+        "the answer is rebuilt field by field: extra fields and page text are dropped, the message is the code's own text",
+        JSON.stringify(responses[0]) === '{"ok":true,"status":"captured"}' &&
+          JSON.stringify(responses[1]) === JSON.stringify({ ok: false, code: "not-unique", message: RECORDER_VISUAL_CAPTURE_MESSAGES["not-unique"] }),
+        JSON.stringify(responses.slice(0, 2))
+      );
+      check(
+        "an unknown refusal code answers capture-failed, never the raw code or message",
+        JSON.stringify(responses[2]) === JSON.stringify({ ok: false, code: "capture-failed", message: RECORDER_VISUAL_CAPTURE_MESSAGES["capture-failed"] }),
+        JSON.stringify(responses[2])
+      );
+      check("every answer from the real service passes through unchanged", results.every((result) => JSON.stringify(recorderVisualCaptureResponse(result)) === JSON.stringify(result)) && results.length === 26);
+
+      const ipc = await readFile(join(process.cwd(), "app/main/ipc/recorder.ipc.ts"), "utf8");
+      const start = ipc.indexOf('ipcMain.handle("recorder:captureVisualReference"');
+      const handler = start >= 0 ? ipc.slice(start, ipc.indexOf("ipcMain.handle(", start + 1)) : "";
+      const at = (needle: string) => handler.indexOf(needle);
+      check(
+        "the handler (source) asserts page.recorder first, then sanitizes the id, then rebuilds the service answer",
+        at("assertSenderPermission(event, Permission.PAGE_RECORDER)") > 0 &&
+          at("recorderVisualActionId(") > at("assertSenderPermission(") &&
+          at("recorderVisualCaptureResponse(await recorderService.captureVisualReference(id))") > at("recorderVisualActionId(") &&
+          !/re-?auth|requireReauth/i.test(handler),
+        handler.length ? "order or call missing" : "handler not found"
+      );
+      check("exactly one capture channel is registered", ipc.split('"recorder:captureVisualReference"').length === 2);
+      const preload = await readFile(join(process.cwd(), "app/main/preload.ts"), "utf8");
+      check("the preload exposes it as recorder.captureVisualReference(actionId), sending the id only", /captureVisualReference: \(actionId: string\) =>\s*invoke\("recorder:captureVisualReference", actionId\)/.test(preload));
+      const renderer = await readFile(join(process.cwd(), "app/renderer/pages/Recorder.tsx"), "utf8");
+      const rendererImports = [...renderer.matchAll(/from\s+["']([^"']+)["']/g)].map((match) => match[1]);
+      check(
+        "the Recorder page imports the pure codes file and nothing under src/visual (RV-1)",
+        rendererImports.includes("@src/recorder/visual/recorderVisualCaptureCodes") && rendererImports.length > 5 && !rendererImports.some((path) => /(^|\/)src\/visual\/|@src\/visual\/|\/RecorderVisualCapture$/.test(path)),
+        rendererImports.filter((path) => path.toLowerCase().includes("visual")).join(", ")
+      );
+      check(
+        "the Recorder page sends the action id only, from one call site",
+        /\.recorder\.captureVisualReference\(actionId\)/.test(renderer) && renderer.split(".recorder.captureVisualReference(").length === 2,
+        String(renderer.split(".recorder.captureVisualReference(").length - 1)
+      );
+      const viewer = effectivePermissions({ roles: ["Viewer"] });
+      const operator = effectivePermissions({ roles: ["Operator"] });
+      check(
+        "the channel reuses page.recorder (RV-5): an Operator holds it, a Viewer does not",
+        operator.has(Permission.PAGE_RECORDER) && !viewer.has(Permission.PAGE_RECORDER) && viewer.size > 0,
+        `operator ${operator.has(Permission.PAGE_RECORDER)}, viewer ${viewer.has(Permission.PAGE_RECORDER)}`
+      );
+      check("page.recorder needs no re-authentication (RV-5)", !SENSITIVE_PERMISSIONS.has(Permission.PAGE_RECORDER));
+    }
   } finally {
     if (previousFlag === undefined) delete process.env.AWKIT_VISUAL_RECORDER;
     else process.env.AWKIT_VISUAL_RECORDER = previousFlag;

@@ -601,7 +601,7 @@ so the Phase L extension does not hold Phase M back; M1's edge on closed L7 stay
 
 Status: **IN PROGRESS** since 2026-10-12 (roadmap Phase `N` `in-progress`); N0 and N1 complete
 after an independent re-QC PASS at `222b04d3`; N2 (`awkit-vra.12`) and N3 (`awkit-vra.4`) closed shadow-only on
-2026-10-13; N4 (`awkit-vra.13`) in progress since 2026-10-14, RV-0 to RV-8 approved and N4.2 and N4.3 implemented.
+2026-10-13; N4 (`awkit-vra.13`) in progress since 2026-10-14, RV-0 to RV-8 approved and N4.2, N4.3 and N4.4 implemented.
 *Registered 2026-09-22 as NOT STARTED.* Beads epic
 `awkit-vra`. Phase N follows the Phase L release foundation, remains separate from Phase L and
 Phase M, and does not change either phase's status, acceptance criteria or dependencies. Phase M is
@@ -635,7 +635,7 @@ not renumbered; titles and notes map existing history onto the canonical names.
 | N1 | Deterministic Visual Element Fingerprints | `awkit-vra.3.1` | closed — re-QC PASS at `222b04d3` |
 | N2 | DOM + Vision Evidence Fusion | `awkit-vra.12` | closed shadow-only 2026-10-13 — FD-1 to FD-9 approved, N2.1-N2.8 filed (`.12.1`…`.12.8`), N2.1-N2.5, N2.4b, N2.7 and N2.8 done, N2.6 deferred; N2 ships shadow-only (FD-9, no separation); the QC review ran (FAIL, fixed: budget, handoff, refresh gating); the overhead matrix is measured (2026-10-13), so all seven acceptance criteria are met; closed in the tracker 2026-10-13 (`.12.6` deferred) |
 | N3 | Visual Locator Recovery | `awkit-vra.4` (retitled per VR-9), children `.4.1`-`.4.6` | closed shadow-only 2026-10-13: VR-0 to VR-9 approved, N3.1 pure agreement policy done (`verify:visual-agreement` 258/0); N3.2 calibration done, 28 false `agreed` on headless twins, so N3 closes shadow-only (N3.4/N3.5 deferred); N3.3 runner shadow done (`verify:visual-agreement-runtime` 68/0); N3.6 state and docs done, shadow-only close recorded; independent QC (closure criterion 5) APPROVED WITH FINDINGS, all four closed (`verify:visual-agreement-runtime` 81/0); all six closure criteria met; the owner removed the legacy `awkit-vra.3` edge and `awkit-vra.4` is closed (N3.4/N3.5 stay blocked) |
-| N4 | Recorder Visual Intelligence | `awkit-vra.13`, children `.13.1`-`.13.7` | in progress since 2026-10-14. Plan: `N4-recorder-visual-intelligence.md`. Owner decisions RV-0 to RV-8 approved as recommended (N4.1 `.13.1` closed). N4.2 `.13.2` closed: the Recorder adapter and the isolation amendment (two edges). N4.3 `.13.3` closed: the save stores the reference in `visual-references/` under the recorded namespace key, flow byte-identical. Next: N4.4 and N4.5 |
+| N4 | Recorder Visual Intelligence | `awkit-vra.13`, children `.13.1`-`.13.7` | in progress since 2026-10-14. Plan: `N4-recorder-visual-intelligence.md`. Owner decisions RV-0 to RV-8 approved as recommended (N4.1 `.13.1` closed). N4.2 `.13.2` closed: the Recorder adapter and the isolation amendment (two edges). N4.3 `.13.3` closed: the save stores the reference in `visual-references/` under the recorded namespace key, flow byte-identical. N4.4 `.13.4` closed: the capture channel, preload, status read and per-step UI. Next: N4.5 then N4.6 |
 | N5 | Visual Failure Diagnosis | — | not yet filed |
 | N6 | Visual Assertions | — | not yet filed |
 | N7 | OCR / Text-in-Image | `awkit-vra.9` | planned |
@@ -715,7 +715,16 @@ it when the binding changed or the saved step is ineligible or sensitive. It sto
 `src/runner/visualFusion/recordedVisualReferenceKey.ts`, which never collides with a runner key. The FlowProfile and its
 export stay byte-identical, and a failed write never fails the save.
 
-There is no IPC, UI or runner read yet. The legacy `awkit-vra.2`-`.8` records are not reused.
+N4.4 followed on 2026-10-14 and is closed. It adds:
+- the `recorder:captureVisualReference` channel behind `PAGE_RECORDER` with no re-auth (RV-5), answering a code and
+  fixed text only (RV-8);
+- the preload entry;
+- the flag and the per-step statuses on the Recorder status read;
+- a per-step capture button and status line, proven by the new `verify:recorder-visual-gui` (focus, live region,
+  reduced motion).
+
+There is no runner read yet; N4.5 calibration and N4.6 replay are next. The legacy `awkit-vra.2`-`.8` records are not
+reused.
 
 ### Planned workstreams and dependencies (original numbering, 2026-09-22)
 

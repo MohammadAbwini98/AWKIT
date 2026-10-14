@@ -16,6 +16,7 @@ import { assertSenderPermission } from "../security/sessionContext";
 import { Permission } from "@src/security/authz/Permissions";
 import { InstalledChromeResolver } from "@src/session/InstalledChromeResolver";
 import { assertSenderSuperUser } from "../security/sessionContext";
+import { recorderVisualActionId, recorderVisualCaptureResponse, recorderVisualRefusal } from "@src/recorder/visual/recorderVisualCaptureCodes";
 
 export function registerRecorderIpc(): void {
   // Persist an unsaved recording (actions) to a draft under the runtime data folder so it survives an
@@ -159,6 +160,15 @@ export function registerRecorderIpc(): void {
   ipcMain.handle("recorder:getStatus", async (event) => {
     await assertSenderPermission(event, Permission.PAGE_RECORDER);
     return recorderService.getStatus();
+  });
+
+  // N4.4 (awkit-vra.13.4, RV-5, RV-8): the manual visual capture for one recorded step. The Recorder permission is
+  // asserted first, the request is sanitized to one action id, and the answer is rebuilt to a code and fixed text.
+  ipcMain.handle("recorder:captureVisualReference", async (event, actionId: unknown) => {
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
+    const id = recorderVisualActionId(actionId);
+    if (id === null) return recorderVisualRefusal("action-not-found");
+    return recorderVisualCaptureResponse(await recorderService.captureVisualReference(id));
   });
 
   ipcMain.handle("recorder:getUrls", async (event) => {

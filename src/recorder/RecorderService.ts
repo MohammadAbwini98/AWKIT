@@ -62,7 +62,8 @@ import {
   recorderVisualCodeFor,
   recorderVisualRefusal,
   type RecorderVisualCaptureResult,
-  type RecorderVisualReferenceStatus
+  type RecorderVisualReferenceStatus,
+  type RecorderVisualReferenceStatuses
 } from "./visual/recorderVisualCaptureCodes";
 import { derivePopupAlias } from "../runner/runtime/PopupIdentityRegistry";
 import {
@@ -1876,7 +1877,10 @@ export class RecorderService {
       protectedDetectionIgnored: this.ignoreProtectedDetectionGlobal || this.ignoreProtectedDetectionSession,
       // Drives the Recorder's non-blocking "certificate validation is disabled" indicator.
       ignoreHttpsErrors: this.ignoreHttpsErrors,
-      instrumentationError: this.instrumentationError
+      instrumentationError: this.instrumentationError,
+      // N4.4: the one Recorder state flag for the manual visual capture (RV-6), and its per-step statuses as codes.
+      visualCaptureAvailable: recorderVisualCaptureMode() === "manual",
+      visualReferences: this.visualReferenceStatuses()
     };
   }
 
@@ -2209,6 +2213,17 @@ export class RecorderService {
     const action = this.actions.find((candidate) => candidate.id === actionId);
     const step = action ? buildRecordedStep(action) : undefined;
     return step?.locator && stepCandidatesDigest(step.locator) === pending.bindingDigest ? "captured" : "stale";
+  }
+
+  /** N4.4: every pending reference's status by action id, for the Recorder UI. Empty while the feature is off. */
+  public visualReferenceStatuses(): RecorderVisualReferenceStatuses {
+    const statuses: Record<string, "captured" | "stale"> = {};
+    if (recorderVisualCaptureMode() !== "manual") return statuses;
+    for (const actionId of this.visualPending.keys()) {
+      const status = this.visualReferenceStatus(actionId);
+      if (status !== "none") statuses[actionId] = status;
+    }
+    return statuses;
   }
 
   /** One bounded protected-login detector pass. An unfinished or failed scan never reads as clear. */

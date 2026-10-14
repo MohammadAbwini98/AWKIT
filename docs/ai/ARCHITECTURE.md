@@ -915,6 +915,14 @@ Save (N4.3):
     -> discardDraft
 src/runner/visualFusion/recordedVisualReferenceKey.ts   Pure (no imports): prefix + JSON array, never a NUL, so it is
                                                         disjoint from LocatorFactory.scopeKey; N4.6 reads the same key.
+Channel and UI (N4.4):
+  Recorder.tsx "Capture visual reference" (RV-2 steps, only while getStatus().visualCaptureAvailable)
+    -> preload recorder.captureVisualReference(actionId)
+    -> recorder:captureVisualReference: assertSenderPermission(PAGE_RECORDER, no re-auth, RV-5)
+       -> recorderVisualActionId (non-blank string, at most 256 chars, else "action-not-found")
+       -> recorderVisualCaptureResponse(await captureVisualReference(id))   rebuilt field by field (RV-8)
+  recorder:getStatus also carries visualCaptureAvailable (flag read per call) and visualReferences
+    (action id -> "captured" | "stale"); the per-step status line renders from it, refusals from the reply.
 ```
 
 Invariants:
@@ -924,7 +932,9 @@ Invariants:
   - N4.3 stores it beside the flow at save, keyed by its binding digest. The FlowProfile and its export stay
     byte-identical.
   - A failed write is counted and logged as fixed text, and never fails the save.
-  - N4.4 adds the channel.
+  - N4.4's channel answers a code and fixed text only; the renderer imports only the pure codes module (RV-1).
+    The capture button is `aria-disabled` while busy (never `disabled`, which drops focus), the status line is
+    `aria-live="off"`, and one polite region is cleared before each request so a repeated result re-announces.
 - Never scrolls, focuses or clicks (RV-7). Sensitive steps, masked fields and protected surfaces refuse. A detector
   scan that does not finish is never "clear".
 - `verify:visual-isolation` allows exactly two edges into `src/visual`: the runner's `VisualFusionStage` and this

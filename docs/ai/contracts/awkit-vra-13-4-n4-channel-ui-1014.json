@@ -1,0 +1,251 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-13-4-n4-channel-ui-1014",
+    "title": "Phase N4.4 Channel and UI: the Recorder visual capture channel, preload entry, status read and per-step UI",
+    "objective": "Implement N4.4 awkit-vra.13.4 under RV-1, RV-5, RV-6 and RV-8: the recorder:captureVisualReference(actionId) channel asserts PAGE_RECORDER with no re-auth, sanitizes the request to one action id and rebuilds the answer to a status code and fixed text only, the preload exposes it, recorder:getStatus carries the flag and the per-step captured or stale statuses, and the Recorder renders a per-step capture button and status line for RV-2 steps only while AWKIT_VISUAL_RECORDER=manual, with the button aria-disabled while busy, the status line aria-live off, one polite region cleared before each request and reduced motion honoured. The renderer imports only the pure codes module. No calibration, runner reading, persistence or FlowProfile change.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "2af1febf",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true,
+    "recorder_change": true,
+    "ipc_change": true,
+    "renderer_visual_change": true,
+    "accessibility_change": true,
+    "mock_site_required": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "uiux",
+      "frontend",
+      "software",
+      "runtime",
+      "integration",
+      "recorder",
+      "qa",
+      "qc",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "app/main/ipc/recorder.ipc.ts",
+      "app/main/preload.ts",
+      "app/renderer/pages/Recorder.tsx",
+      "app/renderer/styles/global.css",
+      "src/recorder/RecorderService.ts",
+      "src/recorder/visual/recorderVisualCaptureCodes.ts",
+      "mock-site/public/recorder-lab.html",
+      "mock-site/README.md",
+      "scripts/verify-mock-site.mjs",
+      "scripts/verify-recorder-authz.mts",
+      "scripts/verify-recorder-visual-capture.mts",
+      "scripts/verify-recorder-visual-gui.mts",
+      "scripts/lib/verifier-classification.ts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "package.json",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/ARCHITECTURE.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/awkit-vra-13-4-n4-channel-ui-1014.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [
+      "uiux",
+      "integration"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N4.4-IPC-CONTRACT",
+      "description": "The capture channel answers only a status code and its fixed text, an unknown refusal code answers capture-failed, a malformed action id answers action-not-found before the service is reached, and the status read carries only the flag and captured or stale statuses by action id.",
+      "evidence_required": [
+        "verify:recorder-visual-capture",
+        "verify:ipc-contract"
+      ]
+    },
+    {
+      "id": "N4.4-ROLES",
+      "description": "Every role holding PAGE_RECORDER reaches the capture channel without re-auth and every role without it is refused before the service is called.",
+      "evidence_required": [
+        "verify:recorder-authz"
+      ]
+    },
+    {
+      "id": "N4.4-GUI",
+      "description": "In the real Electron app the capture button and status line appear only while the flag is manual and only for RV-2 steps, keep focus while busy, announce each result once through one cleared polite region including a repeated result and a refusal, and stop animating under reduced motion.",
+      "evidence_required": [
+        "verify:recorder-visual-gui"
+      ]
+    },
+    {
+      "id": "N4.4-ISOLATION",
+      "description": "The renderer and preload reach only the pure codes module, and exactly the two approved src/visual edges remain.",
+      "evidence_required": [
+        "verify:visual-isolation",
+        "build"
+      ]
+    },
+    {
+      "id": "N4.4-BEADS",
+      "description": "awkit-vra.13.4 is closed through bd and exported.",
+      "evidence_required": [
+        "beads-export"
+      ]
+    },
+    {
+      "id": "N4-GIT",
+      "description": "The work lands on main and is pushed without force, the L12.27 contract stays untracked and unchanged.",
+      "evidence_required": [
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "Exported 395 issues, awkit-vra.13.4 closed, awkit-vra.13 in progress"
+    },
+    {
+      "id": "verify:recorder-visual-gui",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:recorder-visual-gui",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "55 passed, 0 failed against a rebuilt bundle, with M1 disabled instead of aria-disabled 10 FAIL, M2 the reduced-motion guard removed 2 FAIL, M3 plus M4 the flag gate and the live-region clear removed 6 FAIL, each reverted"
+    },
+    {
+      "id": "verify:recorder-visual-capture",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:recorder-visual-capture",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "119 passed, 0 failed, with M6 a response that spreads the service result red at 118/1"
+    },
+    {
+      "id": "verify:recorder-authz",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:recorder-authz",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "65 passed, 0 failed, with M5 the dropped permission check red at 62/3"
+    },
+    {
+      "id": "verify:ipc-contract",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ipc-contract",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "10/10"
+    },
+    {
+      "id": "verify:visual-isolation",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-isolation",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "54/0, exactly the two approved src/visual edges"
+    },
+    {
+      "id": "verify:mock-site",
+      "type": "verifier",
+      "required": false,
+      "command": "npm run verify:mock-site",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "308/308 including the visualDetach scenario"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc --noEmit and bundles PASS"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "runs after the commit that carries this contract; its outcome is reported in the session report and the next contract"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-13-4-n4-channel-ui-1014:project-state:2026-10-14T07:38:05.167Z",
+        "task": "awkit-vra-13-4-n4-channel-ui-1014",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-14T07:38:05.167Z",
+        "acquired_at_commit": "2af1febf3e9a1d9e84e3a7c7456860aaffb31da4",
+        "released_at": "2026-10-14T07:38:23.987Z",
+        "released_reason": "n4.4-closed-and-exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

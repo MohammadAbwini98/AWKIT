@@ -99,6 +99,7 @@ function probeScript(url: string, flowName: string): string {
       deleteAction: function () { return api.deleteAction("rec028-nonexistent-action"); },
       getUrls: function () { return api.getUrls(); },
       getHandoff: function () { return api.getHandoff(); },
+      captureVisualReference: function () { return api.captureVisualReference("rec028-nonexistent-action"); },
       saveUrl: function () { return api.saveUrl(${JSON.stringify(url)}); },
       saveFlow: function () { return api.saveFlow(${JSON.stringify(flowName)}, [
         { type: "goto", url: ${JSON.stringify(url)}, timestamp: 1 }
@@ -153,6 +154,7 @@ const channels = [
   "deleteAction",
   "getUrls",
   "getHandoff",
+  "captureVisualReference",
   "saveUrl",
   "saveFlow",
   "ignoreProtectedDetection",
@@ -315,21 +317,45 @@ try {
       clearActions: function () { return api.clearActions(); },
       deleteAction: function () { return api.deleteAction("rec028-nonexistent-action"); },
       getUrls: function () { return api.getUrls(); },
-      getHandoff: function () { return api.getHandoff(); }
+      getHandoff: function () { return api.getHandoff(); },
+      captureVisualReference: function () { return api.captureVisualReference("rec028-nonexistent-action"); }
     };
     for (const name of Object.keys(calls)) {
       try {
-        await calls[name]();
-        out[name] = { rejected: false, message: "allowed" };
+        out[name] = { rejected: false, message: "allowed", value: await calls[name]() };
       } catch (error) {
         out[name] = { rejected: true, message: error instanceof Error ? error.message : String(error) };
       }
     }
     return out;
-  })()`)) as ProbeSet;
+  })()`)) as ValueProbeSet;
+  check("REC-028 Operator probed every read, the N4.4 capture channel included (7)", Object.keys(operatorReads).length === 7, Object.keys(operatorReads).join(", "));
   for (const [name, probe] of Object.entries(operatorReads)) {
     check(`REC-028 Operator recorder:${name} is permitted`, !probe.rejected, probe.message);
   }
+  // N4.4 (RV-5, RV-8): reaching the handler is not enough; its answer must be a code and its fixed text. The isolated
+  // launch leaves AWKIT_VISUAL_RECORDER unset unless the caller's environment sets it, so the expected code follows it.
+  const captureAnswer = operatorReads.captureVisualReference?.value as { ok?: unknown; code?: unknown; message?: unknown } | undefined;
+  const expectedCaptureCode = env.AWKIT_VISUAL_RECORDER === "manual" ? "not-recording" : "disabled";
+  check(
+    `REC-028 Operator recorder:captureVisualReference answers ${expectedCaptureCode} as a code and fixed text only`,
+    captureAnswer?.ok === false &&
+      captureAnswer.code === expectedCaptureCode &&
+      typeof captureAnswer.message === "string" &&
+      captureAnswer.message.length > 10 &&
+      JSON.stringify(Object.keys(captureAnswer)) === '["ok","code","message"]',
+    JSON.stringify(captureAnswer)
+  );
+  const operatorStatus = (await win.evaluate(() => window.playwrightFlowStudio.recorder.getStatus())) as {
+    visualCaptureAvailable?: unknown;
+    visualReferences?: unknown;
+  };
+  check(
+    "REC-028 Operator recorder:getStatus carries the N4.4 flag and an empty status map while nothing is captured",
+    operatorStatus.visualCaptureAvailable === (env.AWKIT_VISUAL_RECORDER === "manual") &&
+      JSON.stringify(operatorStatus.visualReferences) === "{}",
+    JSON.stringify({ available: operatorStatus.visualCaptureAvailable, references: operatorStatus.visualReferences })
+  );
 
   // ── Phase E — the session is gone. The renderer must lose access with it. ─────────────────────
   await signOut(win);

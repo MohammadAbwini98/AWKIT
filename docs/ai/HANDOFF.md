@@ -1,6 +1,34 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-14, latest) — Phase N: N4.3 persistence done; N4.4 and N4.5 next
+## HANDOFF (2026-10-14, latest) — Phase N: N4.4 channel and UI done; N4.5 then N4.6 next
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** N4.4 `awkit-vra.13.4`, contract `awkit-vra-13-4-n4-channel-ui-1014`.
+  - `recorder:captureVisualReference` behind `PAGE_RECORDER` (no re-auth), the preload entry, and
+    `visualCaptureAvailable` / `visualReferences` on `recorder:getStatus`.
+  - The per-step capture button and status line in `Recorder.tsx`, for RV-2 steps only and only while
+    `AWKIT_VISUAL_RECORDER=manual`.
+  - Verifiers: new `verify:recorder-visual-gui` 55/0 (M1 to M4 red), `verify:recorder-visual-capture` 119/0 (M6
+    red), `verify:recorder-authz` 65/0 (M5 red), `verify:ipc-contract` 10/10, `verify:visual-isolation` 54/0.
+  - Dashboard: 30 / 365 of 395.
+- **Next:**
+  - N4.5 `awkit-vra.13.5`: calibration.
+  - N4.6 `awkit-vra.13.6`: the runner reads `recordedVisualReferenceKey` into the N2 shadow observation only; it
+    needs N4.5.
+  - N4.7: independent QC for N4.
+- **Watch:**
+  - Keep the busy button `aria-disabled` with the early return. `disabled` drops focus to `<body>` (M1, 10 FAIL).
+  - The polite region must be cleared before each request, or a repeated result is never re-announced (M4).
+  - "Stale" is shown from `getStatus` but is not driven in the GUI verifier; it is proven in
+    `verify:recorder-visual-capture`.
+  - The save result was deliberately not widened; a failed reference write is still only a logged count.
+- **Boundaries:** N3 stays shadow-only and N3.4/N3.5 stay `blocked`. A recorded reference may only ever feed the N2
+  shadow observation (N4.6, after N4.5).
+- **v0.1.53 carry-over unchanged:** Parts D–J are BLOCKED (no issuer key), and the clean-VM walkthrough is NOT RUN.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-14) — Phase N: N4.3 persistence done; N4.4 and N4.5 next
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

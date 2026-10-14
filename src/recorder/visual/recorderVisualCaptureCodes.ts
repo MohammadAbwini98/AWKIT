@@ -73,8 +73,30 @@ export type RecorderVisualCaptureResult =
 /** Memory-only status of one recorded step's pending reference (N4.3 persists it at save; N4.4 shows it). */
 export type RecorderVisualReferenceStatus = "none" | "captured" | "stale";
 
+/** N4.4: the per-step statuses the Recorder status read carries, by action id. A step with no reference is absent. */
+export type RecorderVisualReferenceStatuses = Readonly<Record<string, Exclude<RecorderVisualReferenceStatus, "none">>>;
+
 export function recorderVisualRefusal(code: RecorderVisualCaptureCode): RecorderVisualCaptureResult {
   return { ok: false, code, message: RECORDER_VISUAL_CAPTURE_MESSAGES[code] };
+}
+
+/** N4.4: the longest recorded action id the capture channel accepts. Recorded ids are far shorter. */
+export const RECORDER_VISUAL_ACTION_ID_MAX_LENGTH = 256;
+
+/** N4.4: the capture channel's request, sanitized to one recorded action id, or null when it is not one. */
+export function recorderVisualActionId(raw: unknown): string | null {
+  if (typeof raw !== "string" || !raw.trim() || raw.length > RECORDER_VISUAL_ACTION_ID_MAX_LENGTH) return null;
+  return raw;
+}
+
+/**
+ * N4.4 (RV-8): the capture channel's answer, rebuilt field by field so nothing but a status code and its fixed text
+ * crosses IPC, whatever else a result object might carry. An unknown refusal code answers `capture-failed`.
+ */
+export function recorderVisualCaptureResponse(result: RecorderVisualCaptureResult): RecorderVisualCaptureResult {
+  if (result.ok === true) return { ok: true, status: "captured" };
+  const code: RecorderVisualCaptureCode = Object.prototype.hasOwnProperty.call(RECORDER_VISUAL_CAPTURE_MESSAGES, result.code) ? result.code : "capture-failed";
+  return recorderVisualRefusal(code);
 }
 
 /**

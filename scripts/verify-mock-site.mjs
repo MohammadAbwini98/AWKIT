@@ -248,6 +248,18 @@ try {
       capturedState.latest?.newsletter === true,
     JSON.stringify(capturedState)
   );
+  // N4.4 (verify:recorder-visual-gui): the recording-only detach variant removes the submit button, and only it.
+  await page.goto(`${BASE}/recorder-lab?rec018=1&visualDetach=1`);
+  await page.waitForTimeout(2000);
+  check(
+    "N4.4 visualDetach removes only the recorded submit button after the REC-018 harness completes",
+    (await page.locator("#recorderSubmit").count()) === 0 &&
+      (await page.locator("#recorderNewsletter").count()) === 1 &&
+      (await page.isChecked("#recorderNewsletter")) &&
+      (await page.getByTestId("rec018-status").textContent()) === "REC-018 harness completed; submit detached",
+    await page.getByTestId("rec018-status").textContent()
+  );
+  await page.request.post(`${BASE}/api/rec018/reset`);
 
   console.log("Session reuse scenario:");
   await page.goto(`${BASE}/mock/session-reuse`);

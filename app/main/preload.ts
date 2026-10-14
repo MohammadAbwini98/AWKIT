@@ -125,6 +125,10 @@ type RecorderStatus = {
   ignoreHttpsErrors: boolean;
   /** Non-secret popup capture initialization failure, when one occurred. */
   instrumentationError?: string;
+  /** N4.4: true when the manual visual capture is on (`AWKIT_VISUAL_RECORDER=manual`, RV-6). */
+  visualCaptureAvailable?: boolean;
+  /** N4.4: captured or stale per recorded action id, as codes only (RV-8). Empty while the feature is off. */
+  visualReferences?: import("@src/recorder/visual/recorderVisualCaptureCodes").RecorderVisualReferenceStatuses;
 };
 
 /**
@@ -615,6 +619,9 @@ const api = {
       removedIds: string[];
     }>,
     getStatus: () => invoke("recorder:getStatus") as Promise<RecorderStatus>,
+    // N4.4: manual visual capture for one recorded step, gated by page.recorder; answers a code and fixed text only.
+    captureVisualReference: (actionId: string) =>
+      invoke("recorder:captureVisualReference", actionId) as Promise<import("@src/recorder/visual/recorderVisualCaptureCodes").RecorderVisualCaptureResult>,
     getUrls: () => invoke("recorder:getUrls") as Promise<import("@src/recorder/RecorderTypes").RecordedUrl[]>,
     saveUrl: (url: string) => invoke("recorder:saveUrl", url) as Promise<import("@src/recorder/RecorderTypes").RecordedUrl[]>,
     getFavoriteUrls: () => invoke("recorder:getFavoriteUrls") as Promise<import("@src/recorder/RecorderTypes").RecordedUrl[]>,

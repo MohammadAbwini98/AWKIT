@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   Bookmark,
+  Camera,
   CheckCircle2,
+  CircleDashed,
   ClipboardCheck,
   Clock,
   Copy,
@@ -82,6 +84,33 @@ import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { LocatorDiagnosisSection } from "../components/workflow/LocatorDiagnosisSection";
 import { SimilarRowsSection } from "../components/workflow/SimilarRowsSection";
 import { RECORDED_URL_SENSITIVE_QUERY_KEYS } from "@src/recorder/recordedUrlPolicy";
+import { RECORDER_VISUAL_ELIGIBLE_STEPS, type RecorderVisualReferenceStatuses } from "@src/recorder/visual/recorderVisualCaptureCodes";
+
+/** N4.4: a recorded step's visual reference status, shown as text plus an icon, never colour alone. */
+type VisualStepStatus = "capturing" | "captured" | "stale" | "refused" | "none";
+const VISUAL_STATUS_ICON = { capturing: Clock, captured: CheckCircle2, stale: AlertCircle, refused: XCircle, none: CircleDashed } as const;
+/** Fixed text for a capture request that threw (IPC denial or failure); nothing from the error is shown. */
+const VISUAL_CAPTURE_REQUEST_FAILED = "The capture request failed.";
+
+function visualStatusText(status: VisualStepStatus, refusal: string | undefined): string {
+  switch (status) {
+    case "capturing":
+      return "Capturing visual reference…";
+    case "captured":
+      return "Visual reference captured";
+    case "stale":
+      return "Stale — locator changed";
+    case "refused":
+      return `Not captured — ${refusal ?? VISUAL_CAPTURE_REQUEST_FAILED}`;
+    default:
+      return "No visual reference";
+  }
+}
+
+function sameVisualStatuses(a: RecorderVisualReferenceStatuses, b: RecorderVisualReferenceStatuses): boolean {
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((key) => a[key] === b[key]);
+}
 
 export function Recorder() {
   const [url, setUrl] = useState("https://example.com");
@@ -126,6 +155,14 @@ export function Recorder() {
   const [sessionNameInput, setSessionNameInput] = useState("");
   /** True while protected-login detection is being ignored (global setting or session override). */
   const [protectedDetectionIgnored, setProtectedDetectionIgnored] = useState(false);
+  // N4.4 (awkit-vra.13.4): manual visual reference capture, hidden entirely unless main reports the feature on (RV-6).
+  // Statuses and refusals are codes and fixed text only (RV-8); the last refusal is kept per step for its status line.
+  const [visualCaptureAvailable, setVisualCaptureAvailable] = useState(false);
+  const [visualReferences, setVisualReferences] = useState<RecorderVisualReferenceStatuses>({});
+  const [visualRefusals, setVisualRefusals] = useState<Record<string, string>>({});
+  const [visualCaptureBusyId, setVisualCaptureBusyId] = useState("");
+  const [visualAnnouncement, setVisualAnnouncement] = useState("");
+  const visualCaptureBusyRef = useRef("");
 
   const [urls, setUrls] = useState<RecordedUrl[]>([]);
   const [favoriteUrls, setFavoriteUrls] = useState<RecordedUrl[]>([]);
@@ -299,6 +336,9 @@ export function Recorder() {
           // current Settings value — a mid-session Settings change must not change the indicator.
           setIgnoreHttpsErrors(status.ignoreHttpsErrors ?? false);
           setInstrumentationError(status.instrumentationError ?? "");
+          setVisualCaptureAvailable(status.visualCaptureAvailable === true);
+          const references = status.visualReferences ?? {};
+          setVisualReferences((current) => (sameVisualStatuses(current, references) ? current : references));
         })
         .catch(() => undefined);
       if (canSpy) {
@@ -560,6 +600,39 @@ export function Recorder() {
     } catch (err: any) {
       setStatusMsg(`Error: ${err.message}`);
     }
+  };
+
+  // N4.4: one manual capture at a time, sending the action id only. The button stays focusable while it runs
+  // (aria-disabled, never `disabled`, so focus does not fall to the page body), and the polite live region is
+  // cleared first so a repeated result is announced again.
+  const handleCaptureVisualReference = async (actionId: string, stepNumber: number) => {
+    if (visualCaptureBusyRef.current) return;
+    visualCaptureBusyRef.current = actionId;
+    setVisualCaptureBusyId(actionId);
+    setVisualAnnouncement("");
+    let announcement = "";
+    try {
+      const result = await window.playwrightFlowStudio.recorder.captureVisualReference(actionId);
+      if (result.ok) {
+        setVisualRefusals((current) => {
+          const next = { ...current };
+          delete next[actionId];
+          return next;
+        });
+        setVisualReferences((current) => ({ ...current, [actionId]: "captured" }));
+        announcement = `Step ${stepNumber}: visual reference captured.`;
+      } else {
+        setVisualRefusals((current) => ({ ...current, [actionId]: result.message }));
+        announcement = `Step ${stepNumber}: not captured. ${result.message}`;
+      }
+    } catch {
+      setVisualRefusals((current) => ({ ...current, [actionId]: VISUAL_CAPTURE_REQUEST_FAILED }));
+      announcement = `Step ${stepNumber}: not captured. ${VISUAL_CAPTURE_REQUEST_FAILED}`;
+    } finally {
+      visualCaptureBusyRef.current = "";
+      setVisualCaptureBusyId("");
+    }
+    setVisualAnnouncement(announcement);
   };
 
   const handleIgnoreProtected = async () => {
@@ -1349,6 +1422,13 @@ export function Recorder() {
                     action.valueSource ? `Value → ${action.valueSource.value}` : "",
                     action.locator?.pendingUpgrade ? "AI suggestion attached, not applied" : ""
                   ].filter(Boolean);
+                  // N4.4: the visual capture UI exists only while the feature is on, and only on eligible element steps.
+                  const visualEligible = visualCaptureAvailable && RECORDER_VISUAL_ELIGIBLE_STEPS.has(action.type) && Boolean(action.locator);
+                  const visualBusy = visualCaptureBusyId !== "";
+                  const visualStatus: VisualStepStatus =
+                    visualCaptureBusyId === action.id ? "capturing" : visualReferences[action.id] ?? (visualRefusals[action.id] ? "refused" : "none");
+                  const VisualStatusIcon = VISUAL_STATUS_ICON[visualStatus];
+                  const visualStatusId = `recorder-visual-status-${index}`;
                   return (
                     <SysTimelineRow
                       key={action.id}
@@ -1372,20 +1452,43 @@ export function Recorder() {
                         </>
                       }
                       actions={
-                        <SysIconButton
-                          icon={Trash2}
-                          tone="danger"
-                          className="recorder-action-delete"
-                          label={`Delete recorded action ${index + 1}: ${action.name}`}
-                          title="Delete recorded action"
-                          disabled={actionMutationBusy}
-                          onClick={() => setActionMutationConfirm({ kind: "delete", action })}
-                        />
+                        <>
+                          {visualEligible && isRecording ? (
+                            <SysIconButton
+                              icon={Camera}
+                              className="recorder-visual-capture"
+                              label={`Capture visual reference for step ${index + 1}`}
+                              title={visualBusy ? "A visual reference capture is running" : `Capture visual reference for step ${index + 1}`}
+                              aria-disabled={visualBusy ? true : undefined}
+                              aria-describedby={visualStatusId}
+                              onClick={() => {
+                                if (visualBusy) return;
+                                void handleCaptureVisualReference(action.id, index + 1);
+                              }}
+                            />
+                          ) : null}
+                          <SysIconButton
+                            icon={Trash2}
+                            tone="danger"
+                            className="recorder-action-delete"
+                            label={`Delete recorded action ${index + 1}: ${action.name}`}
+                            title="Delete recorded action"
+                            disabled={actionMutationBusy}
+                            onClick={() => setActionMutationConfirm({ kind: "delete", action })}
+                          />
+                        </>
                       }
                     >
                       {meta.length ? (
                         <span className="recorder-step-meta" title={action.valueSource?.value}>
                           {meta.join(" · ")}
+                        </span>
+                      ) : null}
+                      {visualEligible ? (
+                        // aria-live="off": the timeline is itself a live region; the result is announced once, below.
+                        <span className="recorder-visual-status" id={visualStatusId} data-status={visualStatus} aria-live="off">
+                          <VisualStatusIcon size={13} strokeWidth={1.9} aria-hidden="true" className="recorder-visual-status-icon" />
+                          {visualStatusText(visualStatus, visualRefusals[action.id])}
                         </span>
                       ) : null}
                     </SysTimelineRow>
@@ -1394,6 +1497,11 @@ export function Recorder() {
               </SysTimeline>
             </div>
           )}
+          {visualCaptureAvailable ? (
+            <p className="sr-only" role="status" aria-live="polite" data-testid="recorder-visual-live">
+              {visualAnnouncement}
+            </p>
+          ) : null}
         </SysPanel>
       </SysPanels>
 

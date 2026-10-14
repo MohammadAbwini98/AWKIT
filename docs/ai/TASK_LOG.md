@@ -1,6 +1,76 @@
 # TASK_LOG
 
-## 2026-10-14 (latest) — Phase N: N4.3 persistence of Recorder visual references (Claude)
+## 2026-10-14 (latest) — Phase N: N4.4 Recorder visual capture channel and per-step UI (Claude)
+
+- **Scope:** "continue with N4.4", which is `awkit-vra.13.4`. Contract `awkit-vra-13-4-n4-channel-ui-1014`. CodeCraft
+  was not used (`CODECRAFT_MODE=off`).
+- **Decisions:** DECISIONS 2026-10-14 (N4.4) records:
+  - the channel shape;
+  - the status riding `getStatus` (no second channel);
+  - `aria-disabled`, never `disabled`;
+  - one announcement surface;
+  - the save result left unwidened;
+  - the mock-site detach.
+- **Implementation:**
+  - `recorderVisualCaptureCodes.ts` gains `recorderVisualActionId`, `recorderVisualCaptureResponse` and
+    `RecorderVisualReferenceStatuses`.
+  - `recorder:captureVisualReference` in `recorder.ipc.ts`; the preload entry and its types.
+  - `RecorderService.getStatus` carries `visualCaptureAvailable` and `visualReferences`.
+  - `Recorder.tsx`: the per-step button, status line and one cleared polite region. `global.css`: the status styles
+    and the reduced-motion guard.
+  - Mock site: the `visualDetach` scenario in `recorder-lab.html`.
+- **Verifiers:**
+  - New `verify:recorder-visual-gui` (real Electron app): 55/0. M1 `disabled` 10 FAIL, M2 the reduced-motion guard
+    removed 2 FAIL, M3+M4 the flag gate and the live-region clear removed 6 FAIL.
+  - M1 first passed the re-announce check on leftover text, so the check now requires a cleared sample before the new
+    text.
+  - `verify:recorder-visual-capture` gains section H: 119/0, M6 (a spread response) red.
+  - `verify:recorder-authz`: 65/0, M5 (the dropped permission check) red at 62/3.
+- **Governance:**
+  - `awkit-vra.13.4` closed and the export taken (395).
+  - Dashboard repinned to 30 / 365 of 395.
+  - ROADMAP, ImplementationRoadmap, ARCHITECTURE, the N4 plan and the verifier registry updated.
+  - The contract's routing includes `uiux`, `software`, `integration` and `release`, as the validator requires.
+    `qc_status` is pending; independent QC is N4.7.
+- **Files:**
+  - `app/main/ipc/recorder.ipc.ts`, `app/main/preload.ts`, `app/renderer/pages/Recorder.tsx`,
+    `app/renderer/styles/global.css`;
+  - `src/recorder/RecorderService.ts`, `src/recorder/visual/recorderVisualCaptureCodes.ts`;
+  - `mock-site/public/recorder-lab.html`, `mock-site/README.md`, `scripts/verify-mock-site.mjs`;
+  - `scripts/verify-recorder-{visual-gui,visual-capture,authz}.mts`, `scripts/lib/verifier-classification.ts`,
+    `scripts/verify-roadmap-dashboard.mjs`, `package.json`;
+  - `src/roadmap/ImplementationRoadmap.ts`, `.beads/issues.jsonl`;
+  - `docs/ai/{DECISIONS,ARCHITECTURE,CURRENT_STATE,HANDOFF,TASK_LOG}.md`;
+  - `docs/plans/ai-upgrade-v5/{N4-recorder-visual-intelligence,ROADMAP}.md`;
+  - the contract.
+- **Tests (all PASS):**
+
+  | Check | Result |
+  |---|---|
+  | `npm run build` | PASS |
+  | `verify:recorder-visual-gui` | 55/0 |
+  | `verify:recorder-visual-capture` | 119/0 |
+  | `verify:recorder-authz` | 65/0 |
+  | `verify:ipc-contract` | 10/10 |
+  | `verify:visual-isolation` | 54/0 |
+  | `verify:mock-site` | 308/308 |
+  | `verify:ai-permissions` | 135/0 |
+  | `verify:ai-fallback` | 51/0 |
+  | `verify:protected-diagnosis` | 75/0 |
+  | `verify:dom-intelligence-l12` | 82/0 |
+  | `verify:verifier-classification` | PASS |
+  | `verify:roadmap-dashboard` | as recorded in the contract |
+
+  Not run:
+  - `verify:recorder-gui`: the Recorder page is driven in the real app by the new GUI verifier, and the existing
+    controls are unchanged with the flag off;
+  - `verify:recorder`, `verify:locator-guard`, `verify:protected-login-recorder`: recording, locators and the
+    protected-login path are unchanged, and `RecorderService` changed only by two additive status fields;
+  - `verify:element-spy`: no element-spy input changed.
+- **Result:** N4.4 done; N4.5 then N4.6 next. No runner, persistence or FlowProfile change.
+  `docs/ai/contracts/awkit-l12-27-implementation-1006.json` preserved.
+
+## 2026-10-14 — Phase N: N4.3 persistence of Recorder visual references (Claude)
 
 - **Scope:** "continue with N4.3", which is `awkit-vra.13.3`. Contract `awkit-vra-13-3-n4-persistence-1014`. CodeCraft
   was not used (`CODECRAFT_MODE=off`).
