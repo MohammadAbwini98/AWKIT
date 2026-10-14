@@ -1,6 +1,31 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-14, latest) — Phase N: N4 started; N4.1 and N4.2 done, N4.3 and N4.5 next
+## HANDOFF (2026-10-14, latest) — Phase N: N4.3 persistence done; N4.4 and N4.5 next
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** N4.3 `awkit-vra.13.3`, contract `awkit-vra-13-3-n4-persistence-1014`.
+  - The save binds a captured reference to its saved step and stores it in `visual-references/` under
+    `recordedVisualReferenceKey`.
+  - The FlowProfile is byte-identical, and a failed write never fails the save.
+  - Verifiers: `verify:recorder-visual-capture` 102/0 (N1 to N7 red) and `verify:visual-isolation` 54/0.
+  - Dashboard: 31 / 364 of 395.
+- **Next:**
+  - N4.4 `awkit-vra.13.4`: channel, preload, Recorder state flag and step status UI. If the save should report how many
+    references failed, this is where the save result widens; today it only logs a count.
+  - N4.5 `awkit-vra.13.5`: calibration.
+  - N4.6 reads `recordedVisualReferenceKey` and needs both N4.3 and N4.5.
+- **Watch:**
+  - The key is disjoint from runner keys only because JSON escapes control characters. Never switch to a separator
+    join; the N3 mutation in the capture verifier is red for exactly that.
+  - M2 survives by design.
+  - Independent QC for N4 is N4.7; it has not run.
+- **Boundaries:** N3 stays shadow-only and N3.4/N3.5 stay `blocked`. A recorded reference may only ever feed the N2
+  shadow observation (N4.6, after N4.5).
+- **v0.1.53 carry-over unchanged:** Parts D–J are BLOCKED (no issuer key), and the clean-VM walkthrough is NOT RUN.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-14) — Phase N: N4 started; N4.1 and N4.2 done, N4.3 and N4.5 next
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

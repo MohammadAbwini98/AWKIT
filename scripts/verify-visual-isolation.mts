@@ -368,7 +368,8 @@ console.log("\nThe shadow adapter observes and never acts (N2.5):\n");
 
 console.log("\nThe Recorder adapter captures and never acts (N4.2, RV-1):\n");
 {
-  // The Recorder adapter captures one already-proven element; it never scrolls, focuses, clicks, types, writes or logs.
+  // The Recorder adapter captures one already-proven element; it never scrolls, focuses, clicks, types or logs. N4.3: it
+  // persists only by handing references to the unchanged runner `VisualReferenceStore`, which does the file I/O.
   const recorderText = await readFile(join(REPO, RECORDER_ADAPTER), "utf8");
   check(
     "the Recorder adapter was actually read",
@@ -384,6 +385,31 @@ console.log("\nThe Recorder adapter captures and never acts (N4.2, RV-1):\n");
     const planted = `${recorderText}\n${code}\n`;
     check(`MUTATION: ${label} planted in the Recorder adapter is caught`, violations(planted).length > 0, "not caught");
   }
+  const importsOf = (text: string) => [...text.matchAll(/^\s*(?:import|export)\b[^;]*?\bfrom\s*["']([^"']+)["']/gm)].map((m) => m[1]).sort();
+  const recorderImports = importsOf(recorderText);
+  const allowedRecorderImports = [
+    "@src/visual",
+    "playwright",
+    "../../runner/visualFusion/VisualReferenceStore",
+    "../../runner/visualFusion/recordedVisualReferenceKey"
+  ].sort();
+  check(
+    "the Recorder adapter imports exactly src/visual, Playwright, the unchanged reference store and the recorded key (N4.3)",
+    JSON.stringify(recorderImports) === JSON.stringify(allowedRecorderImports),
+    recorderImports.join(", ")
+  );
+  check(
+    "MUTATION: a second write path planted in the Recorder adapter (its own store import) breaks the import pin",
+    JSON.stringify(importsOf(`${recorderText}\nimport { FileDomReferenceStore } from "../../runner/domIntelligence/domReference";\n`)) !==
+      JSON.stringify(allowedRecorderImports),
+    "not caught"
+  );
+  const keyText = await readFile(join(REPO, "src/runner/visualFusion/recordedVisualReferenceKey.ts"), "utf8");
+  check(
+    "the recorded key module was read and imports nothing (N4.3)",
+    keyText.includes("export function recordedVisualReferenceKey") && importsOf(keyText).length === 0 && violations(keyText).length === 0,
+    importsOf(keyText).join(", ") || violations(keyText).join("; ")
+  );
 
   // The code contract is what N4.4's IPC, preload and renderer share, so it must import nothing at all.
   const codesText = await readFile(join(REPO, RECORDER_CODES), "utf8");

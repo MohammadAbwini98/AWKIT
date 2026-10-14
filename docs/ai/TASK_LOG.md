@@ -1,6 +1,62 @@
 # TASK_LOG
 
-## 2026-10-14 (latest) — Phase N: N4 started, RV-0 to RV-8 approved, N4.2 Recorder visual capture implemented (Claude)
+## 2026-10-14 (latest) — Phase N: N4.3 persistence of Recorder visual references (Claude)
+
+- **Scope:** "continue with N4.3", which is `awkit-vra.13.3`. Contract `awkit-vra-13-3-n4-persistence-1014`. CodeCraft
+  was not used (`CODECRAFT_MODE=off`).
+- **Decisions:** DECISIONS 2026-10-14 (N4.3) records:
+  - the key encoding and its non-collision proof;
+  - where the write runs;
+  - the no-warning-surface deviation (a fixed-text log count);
+  - rate-limited counted as failed;
+  - the duplicated `digestOf`.
+- **Implementation:**
+  - New pure `src/runner/visualFusion/recordedVisualReferenceKey.ts`.
+  - `buildRecordedFlow` gains `visualReferences` / `visualReferencesOut`. A reference is bound to `step-N` only when its
+    digest matches, the step is an RV-2 type and it is not sensitive.
+  - `RecorderVisualCapture.persistRecordedVisualReferences` writes through the unchanged `VisualReferenceStore`.
+  - `RecorderService.draftVisualReferences` / `persistVisualReferences` are flag-gated and never reject.
+  - `recorder:saveFlow` stores after `store.create` and before `discardDraft`.
+- **Verifiers:**
+  - `verify:recorder-visual-capture` gains section G and is now 102/0. Mutations N1 to N7 were red.
+  - The N3 bare-NUL-join key first survived the injectivity check. A NUL-bearing colliding triple was added, and the
+    check is now red.
+  - `verify:visual-isolation` is 54/0. It pins the adapter's imports, carries a planted second-write-path mutation and
+    checks that the key module imports nothing.
+- **Governance:**
+  - `awkit-vra.13.3` closed and the export taken (395).
+  - Dashboard repinned to 31 / 364 of 395.
+  - ROADMAP, ImplementationRoadmap, ARCHITECTURE and the N4 plan updated.
+  - The contract's routing now includes `runtime`, `qc` and `persistence`, as the validator requires. `qc_status` is
+    pending; independent QC is N4.7.
+- **Files:**
+  - `app/main/ipc/recorder.ipc.ts`, `src/recorder/{RecorderService,buildRecordedFlow}.ts`,
+    `src/recorder/visual/RecorderVisualCapture.ts`, `src/runner/visualFusion/recordedVisualReferenceKey.ts`;
+  - `scripts/verify-{recorder-visual-capture,visual-isolation}.mts`, `scripts/verify-roadmap-dashboard.mjs`;
+  - `src/roadmap/ImplementationRoadmap.ts`, `.beads/issues.jsonl`;
+  - `docs/ai/{DECISIONS,ARCHITECTURE,CURRENT_STATE,HANDOFF,TASK_LOG}.md`;
+  - `docs/plans/ai-upgrade-v5/{N4-recorder-visual-intelligence,ROADMAP}.md`;
+  - the contract.
+- **Tests (all PASS):**
+
+  | Check | Result |
+  |---|---|
+  | `npm run build` | PASS |
+  | `verify:recorder-visual-capture` | 102/0 |
+  | `verify:visual-isolation` | 54/0 |
+  | `verify:locator-guard` | 38/0 |
+  | `verify:protected-login-recorder` | 96/96 |
+  | `verify:recorder` | 297/0 |
+  | `verify:roadmap-dashboard` | as recorded in the contract |
+
+  Not run:
+  - `verify:element-spy` (no element-spy input changed);
+  - `verify:mock-site` (no mock-site change);
+  - `verify:verifier-classification` (no verifier added).
+- **Result:** N4.3 done; N4.4 and N4.5 next. No IPC, preload, UI or runner change.
+  `docs/ai/contracts/awkit-l12-27-implementation-1006.json` preserved.
+
+## 2026-10-14 — Phase N: N4 started, RV-0 to RV-8 approved, N4.2 Recorder visual capture implemented (Claude)
 
 - **Scope:** "I approve RV-0 to RV-8 as recommended, start N4". N4.1 (record the decisions, including the RV-1
   isolation amendment) and N4.2 (adapter, service method, pending map, codes, isolation). Contract

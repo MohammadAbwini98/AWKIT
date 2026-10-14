@@ -47,6 +47,8 @@ import { sanitizeDomReferenceCapture } from "../runner/domIntelligence/domRefere
 // N4.2 (RV-1): the Recorder reaches `src/visual` only through this one adapter, loaded on the first capture so a
 // Recorder with the flag off never evaluates it or `src/visual` (as the runner's N2.5 stage).
 import type {
+  RecordedVisualPersistCounts,
+  RecordedVisualReferenceWrite,
   RecorderVisualCaptureOutcome,
   RecorderVisualCaptureRequest,
   VisualEvidence
@@ -198,6 +200,9 @@ export class RecorderService {
   /** N4.2 verification seam: `verify:recorder-visual-capture` swaps it to change the page mid-capture. */
   private captureVisual: (request: RecorderVisualCaptureRequest) => Promise<RecorderVisualCaptureOutcome> = async (request) =>
     (await import("./visual/RecorderVisualCapture")).captureRecorderVisualEvidence(request);
+  /** N4.3: the save-time write, loaded lazily like the capture so a save with nothing to store never evaluates it. */
+  private persistVisual: (folder: string, flowId: string, references: readonly RecordedVisualReferenceWrite[]) => Promise<RecordedVisualPersistCounts> =
+    async (folder, flowId, references) => (await import("./visual/RecorderVisualCapture")).persistRecordedVisualReferences(folder, flowId, references);
   private actions: RecordedAction[] = [];
   private isRecording = false;
   /** The page the last recorded action came from, used to detect tab/URL switches. */
@@ -2079,6 +2084,30 @@ export class RecorderService {
   /** L3 U1: main's own pending candidates by action id, for the save boundary (`buildRecordedFlow`). */
   public draftPendingUpgrades(): Map<string, PendingLocatorUpgrade> {
     return new Map(this.actions.flatMap((action) => (action.locator?.pendingUpgrade ? [[action.id, action.locator.pendingUpgrade] as const] : [])));
+  }
+
+  /** N4.3: main's own captured visual references by action id, for the save boundary (`buildRecordedFlow`). */
+  public draftVisualReferences(): Map<string, PendingVisualReference> {
+    return new Map(this.visualPending);
+  }
+
+  /**
+   * N4.3 (awkit-vra.13.3, RV-3): store the references `buildRecordedFlow` bound to a just-saved flow's steps, beside the
+   * flow in `folder` under the recorded key. Best-effort and never throws, so a reference that cannot be written never
+   * fails the save; nothing is written while `AWKIT_VISUAL_RECORDER` is not `manual`.
+   */
+  public async persistVisualReferences(
+    flowId: string,
+    references: readonly RecordedVisualReferenceWrite[],
+    folder: string
+  ): Promise<RecordedVisualPersistCounts> {
+    const none: RecordedVisualPersistCounts = { written: 0, unchanged: 0, refused: 0, failed: 0 };
+    if (recorderVisualCaptureMode() !== "manual" || references.length === 0) return none;
+    try {
+      return await this.persistVisual(folder, flowId, references);
+    } catch {
+      return { ...none, failed: references.length };
+    }
   }
 
   /**

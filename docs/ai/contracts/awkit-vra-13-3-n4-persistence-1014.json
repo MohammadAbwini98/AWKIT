@@ -1,0 +1,227 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-13-3-n4-persistence-1014",
+    "title": "Phase N4.3 Persistence: store a Recorder-captured visual reference beside the saved flow under a recorded namespace key",
+    "objective": "Implement N4.3 awkit-vra.13.3 under RV-3: buildRecordedFlow binds the pending reference to its saved step through visualReferencesOut and drops it on a binding change or an ineligible or sensitive saved step, the recorder:saveFlow handler stores the bound references through the unchanged VisualReferenceStore in visual-references under the pure recorded namespace key after the flow is created and before the draft is discarded, behind AWKIT_VISUAL_RECORDER=manual default off, a failed write is counted and never fails the save, the FlowProfile and its export stay byte-identical with and without a reference, and key non-collision with the runner key is proven. No IPC channel, preload, UI, calibration or runner reading change.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "2ef644a7",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true,
+    "recorder_change": true,
+    "persisted_shape_change": false,
+    "filesystem_write_change": true
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "runtime",
+      "recorder",
+      "qa",
+      "qc",
+      "persistence",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "app/main/ipc/recorder.ipc.ts",
+      "src/recorder/RecorderService.ts",
+      "src/recorder/buildRecordedFlow.ts",
+      "src/recorder/visual/**",
+      "src/runner/visualFusion/recordedVisualReferenceKey.ts",
+      "scripts/verify-visual-isolation.mts",
+      "scripts/verify-recorder-visual-capture.mts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/ARCHITECTURE.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/awkit-vra-13-3-n4-persistence-1014.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [
+      "persistence"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N4.3-BYTE-IDENTICAL",
+      "description": "The saved FlowProfile file and its export are byte-identical with and without a captured reference, and carry no evidence, digest, key or capture time.",
+      "evidence_required": [
+        "verify:recorder-visual-capture"
+      ]
+    },
+    {
+      "id": "N4.3-KEY",
+      "description": "The recorded namespace key holds no NUL or control character, is injective over flow, step and binding, never equals a runner key and never passes the replay-proof scope check, and the runner key and another binding read missing on disk.",
+      "evidence_required": [
+        "verify:recorder-visual-capture"
+      ]
+    },
+    {
+      "id": "N4.3-FAILED-WRITE",
+      "description": "A write that fails or throws is counted and never rejects or fails the save, the flag off writes nothing, and the save handler stores after the flow is created and before the draft is discarded.",
+      "evidence_required": [
+        "verify:recorder-visual-capture",
+        "build"
+      ]
+    },
+    {
+      "id": "N4.3-ISOLATION",
+      "description": "The Recorder adapter stays the single Recorder src/visual edge and writes only through the unchanged VisualReferenceStore and the pure key module, with a planted second write path red.",
+      "evidence_required": [
+        "verify:visual-isolation"
+      ]
+    },
+    {
+      "id": "N4.3-BEADS",
+      "description": "awkit-vra.13.3 is closed through bd and exported.",
+      "evidence_required": [
+        "beads-export"
+      ]
+    },
+    {
+      "id": "N4-GIT",
+      "description": "The work lands on main and is pushed without force, the L12.27 contract stays untracked and unchanged.",
+      "evidence_required": [
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "Exported 395 issues, awkit-vra.13.3 closed, awkit-vra.13 in progress"
+    },
+    {
+      "id": "verify:recorder-visual-capture",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:recorder-visual-capture",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "102 passed, 0 failed on clean source with the N1 to N7 mutations observed red and reverted, the N3 injectivity survivor closed by a NUL-bearing colliding triple"
+    },
+    {
+      "id": "verify:visual-isolation",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-isolation",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "54 passed, 0 failed, exactly the two approved src/visual edges, the Recorder adapter import set pinned and a planted second write path red"
+    },
+    {
+      "id": "verify:locator-guard",
+      "type": "verifier",
+      "required": false,
+      "command": "npm run verify:locator-guard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "38/0"
+    },
+    {
+      "id": "verify:protected-login-recorder",
+      "type": "verifier",
+      "required": false,
+      "command": "npm run verify:protected-login-recorder",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "96/96"
+    },
+    {
+      "id": "verify:recorder",
+      "type": "verifier",
+      "required": false,
+      "command": "npm run verify:recorder",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "297/0"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc --noEmit and bundles PASS, RecorderVisualCapture and VisualReferenceStore stay lazy chunks outside main.js"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "runs after the commit that carries this contract; its outcome is reported in the session report and the next contract"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-13-3-n4-persistence-1014:project-state:2026-10-14T06:50:34.277Z",
+        "task": "awkit-vra-13-3-n4-persistence-1014",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-14T06:50:34.277Z",
+        "acquired_at_commit": "2ef644a74fd7bab167587d72476befc79a131510",
+        "released_at": "2026-10-14T06:51:01.675Z",
+        "released_reason": "n4.3-closed-and-exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

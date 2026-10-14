@@ -16,6 +16,20 @@ import { stepCandidatesDigest } from "../runner/LocatorRecoveryStore";
 import { buildDomReference, type DomReferenceRecord } from "../runner/domIntelligence/domReference";
 import { routeKey } from "../runner/routeIdentity";
 import type { RecordedAction, RecordedActionLocator } from "./RecorderTypes";
+import { RECORDER_VISUAL_ELIGIBLE_STEPS } from "./visual/recorderVisualCaptureCodes";
+
+/** N4.3 (RV-3): a captured visual reference by action id. Only its binding is read here; the evidence passes through. */
+export interface RecordedVisualReferenceInput {
+  bindingDigest: string;
+  evidence: unknown;
+}
+
+/** N4.3: a reference bound to the saved step it was captured for, for the save path to store beside the flow. */
+export interface RecordedVisualReferenceOut {
+  stepId: string;
+  bindingDigest: string;
+  evidence: unknown;
+}
 
 /** A step whose side effect is dangerous enough to require a runtime identity guard on a positional locator. */
 function isSensitiveAction(action: RecordedAction): boolean {
@@ -144,11 +158,19 @@ export function buildRecordedFlow(
      * blueprint and whose capture carried one. Stored beside the flow, never inside it.
      */
     domReferencesOut?: DomReferenceRecord[];
+    /** N4.3: main's own captured visual references by action id (`RecorderService.draftVisualReferences`). */
+    visualReferences?: ReadonlyMap<string, RecordedVisualReferenceInput>;
+    /**
+     * N4.3 (RV-3): receives each reference whose binding still matches the saved, non-sensitive, eligible step it was
+     * captured for. Stored beside the flow under the recorded key, never inside it: the profile is the same either way.
+     */
+    visualReferencesOut?: RecordedVisualReferenceOut[];
   } = {}
 ): FlowProfile {
   // Guard against any Start/End sneaking in from the recording so we never duplicate them.
   const actionSteps = actions.filter((action) => action.type !== "start" && action.type !== "end");
   const pendingSteps: Array<[string, PendingLocatorUpgrade]> = [];
+  const visualSteps: Array<[string, RecordedVisualReferenceInput]> = [];
 
   let currentY = 100;
   const startStep: FlowStep = { id: "start", type: "start", name: "Start", position: { x: 300, y: currentY } };
@@ -162,6 +184,8 @@ export function buildRecordedFlow(
       name: action.name,
       position: { x: 300, y: currentY }
     };
+    const capturedVisual = options.visualReferences?.get(action.id);
+    if (capturedVisual) visualSteps.push([step.id, capturedVisual]);
 
     if (action.locator) {
       step.locator = {
@@ -503,6 +527,19 @@ export function buildRecordedFlow(
     if (flow.nodes.find((node) => node.id === stepId)?.locator?.resolution !== "resolved") continue;
     const attached = attachPendingUpgrade(flow, stepId, pending);
     if (attached.ok) flow = attached.profile;
+  }
+
+  // N4.3: a visual reference follows its step only while the step as saved still has the binding it was captured
+  // against and is still an eligible, non-sensitive element step (RV-2); otherwise it is dropped, never re-bound.
+  if (options.visualReferencesOut) {
+    for (const [stepId, captured] of visualSteps) {
+      const saved = flow.nodes.find((node) => node.id === stepId);
+      if (!saved?.locator || !RECORDER_VISUAL_ELIGIBLE_STEPS.has(saved.type)) continue;
+      const safety = resolveStepSafety(saved).sideEffectLevel;
+      if (safety === "dangerousMutation" || safety === "externalCommit") continue;
+      if (stepCandidatesDigest(saved.locator) !== captured.bindingDigest) continue;
+      options.visualReferencesOut.push({ stepId, bindingDigest: captured.bindingDigest, evidence: captured.evidence });
+    }
   }
   return flow;
 }

@@ -4,7 +4,7 @@ import { recorderService } from "@src/recorder/RecorderService";
 import { BundledBrowserResolver } from "@src/offline/BundledBrowserResolver";
 import { createFlowProfileStore } from "../profileStores";
 import { getResourcesRoot, getRuntimeDataRoot, getRuntimePaths, isProductionOffline } from "../appPaths";
-import { buildRecordedFlow } from "@src/recorder/buildRecordedFlow";
+import { buildRecordedFlow, type RecordedVisualReferenceOut } from "@src/recorder/buildRecordedFlow";
 import { isLocatorRecordingMode, LOCATOR_RECORDING_MODES, type RecordedAction } from "@src/recorder/RecorderTypes";
 import { FileLocatorBlueprintStore, type PageBlueprint } from "@src/runner/LocatorBlueprintStore";
 import { DOM_REFERENCE_FOLDER, FileDomReferenceStore, type DomReferenceRecord } from "@src/runner/domIntelligence/domReference";
@@ -225,10 +225,14 @@ export function registerRecorderIpc(): void {
     // replaying recorded waits/tab-switches. Logic lives in a pure, unit-tested helper.
     const blueprints: PageBlueprint[] = [];
     const domReferences: DomReferenceRecord[] = [];
-    // L3 U1: a pending AI candidate comes only from main's own draft, never from these actions.
+    const visualReferences: RecordedVisualReferenceOut[] = [];
+    // L3 U1: a pending AI candidate comes only from main's own draft, never from these actions. N4.3: so does a
+    // captured visual reference.
     const flowProfile = buildRecordedFlow(name, actions, blueprints, {
       pendingUpgrades: recorderService.draftPendingUpgrades(),
-      domReferencesOut: domReferences
+      domReferencesOut: domReferences,
+      visualReferences: recorderService.draftVisualReferences(),
+      visualReferencesOut: visualReferences
     });
     await store.create(flowProfile);
 
@@ -242,6 +246,13 @@ export function registerRecorderIpc(): void {
     if (domReferences.length > 0) {
       const referenceStore = new FileDomReferenceStore(join(getRuntimePaths().root, DOM_REFERENCE_FOLDER));
       await Promise.allSettled(domReferences.map((reference) => referenceStore.put(reference)));
+    }
+    // N4.3 (RV-3): captured visual references beside the flow under the recorded key (never inside it). Best-effort:
+    // the write never throws, and a reference that cannot be stored is only counted here, so the save still succeeds.
+    if (visualReferences.length > 0) {
+      const stored = await recorderService.persistVisualReferences(flowProfile.id, visualReferences, join(getRuntimePaths().root, "visual-references"));
+      const missed = stored.failed + stored.refused;
+      if (missed > 0) console.warn(`[recorder] ${missed} visual reference(s) could not be stored; the flow was saved without them.`);
     }
 
     // The session is now persisted as a flow — clear the unsaved-recording draft.

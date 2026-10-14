@@ -1,7 +1,7 @@
 /**
  * verify:recorder-visual-capture — Phase N4.2 (awkit-vra.13.2): the Recorder's manual visual-reference capture,
  * end to end, on the REAL RecorderService (its own Recorder browser) against the Visual Intelligence lab
- * (/visual-intelligence).
+ * (/visual-intelligence). N4.3 (awkit-vra.13.3) adds G, its save-time persistence.
  *
  *   A  the pure contract: AWKIT_VISUAL_RECORDER=manual only (RV-6), the seven RV-2 step types, the N0 code mapping and
  *      the fixed text of every code (RV-8)
@@ -17,6 +17,12 @@
  *   E  memory only: the draft file and the recorded actions never carry evidence (RV-3); deleteAction, clearActions,
  *      applyInspection, startRecording and cancelRecording drop it; a locator edit reads `stale`
  *   F  every result is a code and fixed text, or `captured` (RV-8)
+ *   G  N4.3 persistence (RV-3): the recorded namespace key holds no NUL or control character, is injective and never
+ *      equals or passes for a runner replay-proof scope; the save binds a reference only to the saved, eligible,
+ *      non-sensitive step whose binding still matches, and drops it otherwise; the flow file and its export are
+ *      byte-identical with and without a reference; the write lands under the recorded key, read back by the runner's
+ *      own store, and the runner key and another binding read missing; a write that fails or throws is counted and
+ *      never rejects the save; the flag off writes nothing; the save handler's order is read from source
  *
  * Mutation contract (each run against RecorderService before this suite was committed, then reverted; the red checks
  * are the ones observed):
@@ -32,15 +38,38 @@
  *       recheck still refused and stored nothing).
  *   verify:visual-isolation carries the third-edge mutation (the Recorder service importing src/visual directly).
  *
+ * N4.3 mutation contract (each run against the product code, observed, then reverted):
+ *   N1  buildRecordedFlow skips the binding-digest comparison — red: "a binding change before the save drops the
+ *       reference instead of re-binding it" (step-3).
+ *   N2  persistVisualReferences without its try/catch — red: "a write that throws is counted as failed and never
+ *       rejects the save".
+ *   N3  the key is a bare NUL join — red: no control character (12 keys), injective (11 distinct of 12) and the
+ *       runner-key / replay-proof check. The injectivity check first SURVIVED N3, because no triple merged under a NUL
+ *       join; the NUL-bearing pair that does merge was added and the check is red now.
+ *   N3b the key is the prefix plus a ":" join — red: no control character (3 keys) and injective (11 of 12).
+ *   N4  the eligibility and sensitivity filter removed — red: "a sensitive or ineligible step never carries a
+ *       reference" (step-1, step-2, step-3). N4b, the sensitivity line alone — red: the same check (step-1, Approve).
+ *   N5  the flag gate removed from persistVisualReferences — red: "with the flag off the save writes nothing".
+ *   N6  the binding digest written onto the saved step — red: the byte-identical file, the export, and "carries no
+ *       evidence, digest, key or capture time".
+ *   N7  the save handler discards the draft before storing — red: the save handler source-order check.
+ *
  * Run: npm run verify:recorder-visual-capture
  */
 import { spawn } from "node:child_process";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium, type Page } from "playwright";
+import { replayProofScopeMatches } from "@src/ai/pendingUpgrade";
+import type { FlowProfile } from "@src/profiles/FlowProfile";
 import { RecorderService } from "@src/recorder/RecorderService";
-import { buildRecordedStep } from "@src/recorder/buildRecordedFlow";
+import { buildRecordedFlow, buildRecordedStep, type RecordedVisualReferenceOut } from "@src/recorder/buildRecordedFlow";
+import { LocatorFactory } from "@src/runner/LocatorFactory";
+import { resolveStepSafety } from "@src/runner/runtime/StepSafetyPolicy";
+import { recordedVisualReferenceKey } from "@src/runner/visualFusion/recordedVisualReferenceKey";
+import { VisualReferenceStore } from "@src/runner/visualFusion/VisualReferenceStore";
+import { JsonProfileStore } from "@src/storage/ProfileStore";
 import type { RecordedAction } from "@src/recorder/RecorderTypes";
 import {
   RECORDER_VISUAL_CAPTURE_MESSAGES,
@@ -50,7 +79,11 @@ import {
   type RecorderVisualCaptureCode,
   type RecorderVisualCaptureResult
 } from "@src/recorder/visual/recorderVisualCaptureCodes";
-import type { RecorderVisualCaptureOutcome, RecorderVisualCaptureRequest } from "@src/recorder/visual/RecorderVisualCapture";
+import type {
+  RecordedVisualPersistCounts,
+  RecorderVisualCaptureOutcome,
+  RecorderVisualCaptureRequest
+} from "@src/recorder/visual/RecorderVisualCapture";
 import { stepCandidatesDigest } from "@src/runner/LocatorRecoveryStore";
 import { VISUAL_EVIDENCE_MAX_BYTES, VISUAL_EVIDENCE_VERSION, type VisualEvidence } from "@src/visual/visualEvidence";
 
@@ -437,6 +470,197 @@ async function main(): Promise<void> {
     check("a new recording captures again", Boolean(freshResult?.ok), freshResult ? codeOf(freshResult) : "not recorded");
     await recorder.stopRecording();
     check("stopping keeps the reference for the save (N4.3)", Boolean(fresh) && recorder.visualReferenceStatus(fresh!.id) === "captured" && internal.visualPending.size === 1);
+
+    // ── G: N4.3 persistence ──────────────────────────────────────────────────────────────────────
+    console.log("\nG  The save stores the reference beside the flow under the recorded key; the flow is unchanged (N4.3)");
+    {
+      const NUL = String.fromCharCode(0);
+      // The key: no NUL or other control character whatever the ids hold, injective, never a runner replay-proof scope.
+      const runnerKey = (new LocatorFactory(null as unknown as Page, { scope: { scenarioId: "scenario-1", flowId: "flow-a" } }) as any).scopeKey({ id: "step-1" }) as string;
+      check(
+        "precondition: the runner's own key has three NUL-separated parts and passes the replay-proof scope check",
+        runnerKey.split(NUL).length === 3 && replayProofScopeMatches(runnerKey, "flow-a", "step-1"),
+        JSON.stringify(runnerKey)
+      );
+      const triples: Array<[string, string, string]> = [
+        ["flow-a", "step-1", "sha256:x"],
+        ["flow-a", "step-1", "sha256:y"],
+        ["flow-a", "step-2", "sha256:x"],
+        ["flow-b", "step-1", "sha256:x"],
+        ["scenario-1", "flow-a", "step-1"],
+        [`flow-a${NUL}step-1`, "", "sha256:x"],
+        [`flow-a${NUL}step-1`, "sha256:x", ""],
+        ["flow-a", `step-1${NUL}sha256:x`, ""],
+        ['flow-a","step-1', "sha256:x", ""],
+        ["flow-a", 'step-1","sha256:x', ""],
+        ["flow-a:step-1", "sha256:x", ""],
+        ["flow-a", "step-1:sha256:x", ""]
+      ];
+      const keys = triples.map(([flowId, stepId, digest]) => recordedVisualReferenceKey(flowId, stepId, digest));
+      check(
+        `the recorded key never holds a NUL or other control character, even for NUL-bearing ids (${keys.length})`,
+        keys.length === triples.length && keys.every((key) => [...key].every((ch) => ch.charCodeAt(0) >= 0x20)),
+        keys.filter((key) => [...key].some((ch) => ch.charCodeAt(0) < 0x20)).map((key) => JSON.stringify(key)).join(", ")
+      );
+      check(
+        "distinct triples give distinct keys, including ones a separator join would merge (injective)",
+        new Set(keys).size === triples.length,
+        `${new Set(keys).size} distinct of ${triples.length}`
+      );
+      check(
+        "no recorded key equals a runner key or passes the replay-proof scope check, even for the runner's own parts",
+        !keys.includes(runnerKey) && triples.every(([flowId, stepId, digest], index) => !replayProofScopeMatches(keys[index], flowId, stepId) && !replayProofScopeMatches(keys[index], stepId, digest))
+      );
+
+      // The save: buildRecordedFlow binds the reference to the saved step; the profile is the same with or without it.
+      const savedActions = recorder.getActions();
+      const snapshot = recorder.draftVisualReferences();
+      const held = pending(fresh!.id);
+      check("the save snapshot is a copy of main's map carrying the captured reference", snapshot.size === 1 && snapshot.get(fresh!.id) === held && snapshot !== internal.visualPending);
+      const ordinal = savedActions.filter((a) => a.type !== "start" && a.type !== "end").findIndex((a) => a.id === fresh!.id);
+      const stepId = `step-${ordinal + 1}`;
+      const bound: RecordedVisualReferenceOut[] = [];
+      const withVisual = buildRecordedFlow("Visual save", savedActions, undefined, { visualReferences: snapshot, visualReferencesOut: bound });
+      const withoutVisual = buildRecordedFlow("Visual save", savedActions);
+      const savedStep = withVisual.nodes.find((node) => node.id === stepId);
+      check(
+        "the save binds exactly the captured step's reference, to the step it was captured for",
+        ordinal >= 0 && bound.length === 1 && bound[0].stepId === stepId && Boolean(savedStep?.locator) && bound[0].bindingDigest === stepCandidatesDigest(savedStep!.locator!) && bound[0].evidence === held?.evidence,
+        JSON.stringify(bound.map((entry) => [entry.stepId, entry.bindingDigest]))
+      );
+      const storeOn = new JsonProfileStore<FlowProfile>({ folder: join(work, "flows-on") });
+      const storeOff = new JsonProfileStore<FlowProfile>({ folder: join(work, "flows-off") });
+      await storeOn.create(withVisual);
+      await storeOff.create({ ...withoutVisual, id: withVisual.id });
+      const [onFiles, offFiles] = await Promise.all([readdir(join(work, "flows-on")), readdir(join(work, "flows-off"))]);
+      const onBytes = onFiles.length === 1 ? await readFile(join(work, "flows-on", onFiles[0])) : Buffer.alloc(0);
+      const offBytes = offFiles.length === 1 ? await readFile(join(work, "flows-off", offFiles[0])) : Buffer.alloc(1);
+      check(
+        "the saved flow file is byte-identical with and without the captured reference (RV-3)",
+        onFiles.length === 1 && JSON.stringify(onFiles) === JSON.stringify(offFiles) && onBytes.length > 0 && onBytes.equals(offBytes),
+        `${onFiles.join(",")} ${onBytes.length}B vs ${offFiles.join(",")} ${offBytes.length}B`
+      );
+      const [onExport, offExport] = await Promise.all([storeOn.export(withVisual.id), storeOff.export(withVisual.id)]);
+      check("…and so is its export", JSON.stringify(onExport) === JSON.stringify(offExport) && onExport.nodes.some((node) => node.id === stepId));
+      const savedText = onBytes.toString("utf8");
+      const savedTokens = [held!.bindingDigest, held!.evidence.fingerprint.contentDigest, held!.evidence.fingerprint.grid, held!.capturedAt, "recorded-visual-reference", "bindingDigest"];
+      check(
+        "the saved flow carries no evidence, digest, key or capture time",
+        savedTokens.every((token) => !savedText.includes(token)),
+        savedTokens.filter((token) => savedText.includes(token)).join(", ")
+      );
+
+      // The write: beside the flow, under the recorded key, readable by the runner's own store.
+      const visualFolder = join(work, "visual-references");
+      const stored = await recorder.persistVisualReferences(withVisual.id, bound, visualFolder);
+      check("the save-time write stores the bound reference", stored.written === 1 && stored.failed === 0 && stored.refused === 0, JSON.stringify(stored));
+      const reader = new VisualReferenceStore({
+        folder: visualFolder,
+        evidenceVersion: VISUAL_EVIDENCE_VERSION,
+        maxEvidenceBytes: VISUAL_EVIDENCE_MAX_BYTES,
+        digestOf: (value) => (value as VisualEvidence | null)?.fingerprint?.contentDigest ?? null
+      });
+      const key = recordedVisualReferenceKey(withVisual.id, stepId, bound[0]?.bindingDigest ?? "");
+      const read = await reader.get(key);
+      check(
+        "the runner's own store reads it back under the recorded key, digest and evidence intact",
+        read.status === "found" && read.contentDigest === held!.evidence.fingerprint.contentDigest && JSON.stringify(read.evidence) === JSON.stringify(held!.evidence),
+        read.status
+      );
+      const written = await readdir(visualFolder);
+      const record = written.length === 1 ? JSON.parse(await readFile(join(visualFolder, written[0]), "utf8")) : null;
+      check(
+        "one record, keyed by the recorded key, at the runner's evidence version (N4.6 reads it as its own)",
+        written.length === 1 && record?.scopeKey === key && record?.evidenceVersion === VISUAL_EVIDENCE_VERSION && record?.version === 1,
+        JSON.stringify(written)
+      );
+      check("the runner's key for the same flow and step reads missing (no collision on disk)", (await reader.get(`scenario-1${NUL}${withVisual.id}${NUL}${stepId}`)).status === "missing");
+      check(
+        "another binding for the same step reads missing (a re-targeted step never meets old evidence)",
+        (await reader.get(recordedVisualReferenceKey(withVisual.id, stepId, `sha256:${"0".repeat(64)}`))).status === "missing"
+      );
+
+      // The drop rules at the save boundary.
+      {
+        const live = savedActions.find((a) => a.id === fresh!.id)!;
+        const edited: RecordedAction = { ...live, locator: { ...live.locator!, value: "vi-row-3-open" } };
+        check("precondition: the edit changes the step's binding", stepCandidatesDigest(buildRecordedStep(edited)!.locator!) !== held!.bindingDigest);
+        const droppedOut: RecordedVisualReferenceOut[] = [];
+        const editedFlow = buildRecordedFlow("Visual save", savedActions.map((a) => (a.id === live.id ? edited : a)), undefined, { visualReferences: snapshot, visualReferencesOut: droppedOut });
+        check(
+          "a binding change before the save drops the reference instead of re-binding it",
+          droppedOut.length === 0 && editedFlow.nodes.some((node) => node.id === stepId && node.locator?.value === "vi-row-3-open"),
+          droppedOut.map((entry) => entry.stepId).join(", ")
+        );
+      }
+      {
+        const evidence = held!.evidence;
+        const entry = (action: RecordedAction) => [action.id, { bindingDigest: stepCandidatesDigest(buildRecordedStep(action)!.locator!), evidence }] as const;
+        const others = [approve!, filled!, selected!];
+        const approveLevel = resolveStepSafety(buildRecordedStep(approve!)!).sideEffectLevel;
+        check(
+          "precondition: the Approve step is sensitive and fill and select are not RV-2 types",
+          (approveLevel === "dangerousMutation" || approveLevel === "externalCommit") && !RECORDER_VISUAL_ELIGIBLE_STEPS.has(filled!.type) && !RECORDER_VISUAL_ELIGIBLE_STEPS.has(selected!.type),
+          approveLevel
+        );
+        const otherOut: RecordedVisualReferenceOut[] = [];
+        buildRecordedFlow("Visual save", others, undefined, { visualReferences: new Map(others.map(entry)), visualReferencesOut: otherOut });
+        check("a sensitive or ineligible step never carries a reference into the save, even with a matching binding", otherOut.length === 0, otherOut.map((out) => out.stepId).join(", "));
+        const controlOut: RecordedVisualReferenceOut[] = [];
+        buildRecordedFlow("Visual save", [checked!], undefined, { visualReferences: new Map([entry(checked!)]), visualReferencesOut: controlOut });
+        check("…while an eligible step given the same map shape does (the drop is not vacuous)", controlOut.length === 1 && controlOut[0].stepId === "step-1");
+      }
+
+      // A failed write never fails the save, and the flag off writes nothing.
+      {
+        const blocker = join(work, "not-a-folder");
+        await writeFile(blocker, "x");
+        const failedWrite = await recorder.persistVisualReferences("flow-failed", bound, blocker);
+        check("a write into a folder that cannot exist resolves with the failure counted, never rejects", failedWrite.failed === 1 && failedWrite.written === 0, JSON.stringify(failedWrite));
+        const productionPersist = internal.persistVisual;
+        internal.persistVisual = async () => {
+          throw new Error("disk gone");
+        };
+        let rejected = false;
+        let counted: RecordedVisualPersistCounts | undefined;
+        try {
+          counted = await recorder.persistVisualReferences("flow-throwing", bound, join(work, "throwing"));
+        } catch {
+          rejected = true;
+        }
+        internal.persistVisual = productionPersist;
+        check("a write that throws is counted as failed and never rejects the save", !rejected && counted?.failed === bound.length && counted?.written === 0, JSON.stringify(counted));
+        delete process.env.AWKIT_VISUAL_RECORDER;
+        const offFolder = join(work, "visual-off");
+        const off = await recorder.persistVisualReferences("flow-off", bound, offFolder);
+        process.env.AWKIT_VISUAL_RECORDER = "manual";
+        const offExists = await stat(offFolder).then(
+          () => true,
+          () => false
+        );
+        check("with the flag off the save writes nothing", off.written + off.unchanged + off.refused + off.failed === 0 && !offExists, JSON.stringify(off));
+      }
+
+      // The Electron save handler cannot run here, so its wiring is read from source.
+      {
+        const ipc = await readFile(join(process.cwd(), "app/main/ipc/recorder.ipc.ts"), "utf8");
+        const start = ipc.indexOf('"recorder:saveFlow"');
+        const handler = start >= 0 ? ipc.slice(start, ipc.indexOf("ipcMain.handle(", start + 1)) : "";
+        const at = (needle: string) => handler.indexOf(needle);
+        check(
+          "the save handler (source) binds through the builder, stores after the flow is created and before the draft is discarded, and still returns the flow",
+          at("visualReferences: recorderService.draftVisualReferences()") > 0 &&
+            at("visualReferencesOut: visualReferences") > 0 &&
+            at("store.create(flowProfile)") > 0 &&
+            at("persistVisualReferences(") > at("store.create(flowProfile)") &&
+            at("discardDraft()") > at("persistVisualReferences(") &&
+            at("return flowProfile;") > at("discardDraft()"),
+          handler.length ? "order or call missing" : "handler not found"
+        );
+        check("the main process never imports the Recorder adapter statically", ipc.includes("recorderService.persistVisualReferences") && !/from\s+["'][^"']*RecorderVisualCapture["']/.test(ipc));
+      }
+    }
+
     await refusedBefore("a capture after the recording stopped", fresh?.id ?? "", "not-recording");
     await recorder.startRecording(LAB, { executablePath: chromium.executablePath(), captureSmartWaits: false, captureWaitTime: false });
     check("starting the next recording drops every reference from the last one", internal.visualPending.size === 0, String(internal.visualPending.size));

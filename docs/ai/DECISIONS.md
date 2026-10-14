@@ -1,6 +1,45 @@
 # DECISIONS
 
-### 2026-10-14 (latest) — Phase N N4: owner decisions RV-0 to RV-8 approved as recommended; N4.2 implemented (owner, in session) (`awkit-vra.13`)
+### 2026-10-14 (latest) — Phase N N4.3: the recorded namespace key and the save-time write (implementation, within RV-3) (`awkit-vra.13.3`)
+
+- **Key encoding.** `recordedVisualReferenceKey(flowId, stepId, bindingDigest)` returns the fixed prefix
+  `awkit:recorded-visual-reference:v1:` plus `JSON.stringify([flowId, stepId, bindingDigest])`. It lives in the pure,
+  import-free `src/runner/visualFusion/recordedVisualReferenceKey.ts`, so the save writes and N4.6 reads the same key.
+  - **Disjoint from runner keys.** A runner key (`LocatorFactory.scopeKey`) always contains two NUL characters. JSON
+    escapes every character from U+0000 to U+001F, so the recorded key holds no NUL whatever the ids contain. That
+    also means it never passes `replayProofScopeMatches`.
+  - **Injective.** A JSON array leaves no separator for an id to forge.
+  - **Binding.** The binding digest is part of the key, so a re-targeted step reads `missing`.
+  - **Evidence.** `verify:recorder-visual-capture` proves all four properties, including NUL-bearing ids and a pair
+    that a separator join merges. The bare NUL-join mutation is red.
+- **Where the write runs.** Inside `recorder:saveFlow`:
+  - after `store.create` and the blueprint and DOM-reference writes;
+  - before `discardDraft`;
+  - from a snapshot of the pending map taken when the flow is built.
+
+  `buildRecordedFlow` binds a captured reference to its saved `step-N` only when all three hold:
+  - the saved step's candidate digest still equals the captured binding;
+  - the saved step is an RV-2 type;
+  - the saved step is not `dangerousMutation` or `externalCommit`.
+
+  Otherwise the reference is dropped. The FlowProfile is never touched, and the file and its export are proven
+  byte-identical with and without a reference.
+- **Deviation: no save-warning surface exists.** The plan said a failed write is counted in "the save result's existing
+  warning surface". `recorder:saveFlow` returns only the FlowProfile, and widening that is N4.4 IPC scope. So:
+  - `persistVisualReferences` never rejects;
+  - failed and refused writes are counted;
+  - the handler logs one fixed-text count line (no id, key or path);
+  - the save always succeeds.
+
+  Two related counting rules:
+  - a `rate-limited` outcome counts as failed;
+  - the flag off writes nothing.
+- **Dependency shape.** The Recorder adapter duplicates the four-line `digestOf` rather than importing it from
+  `VisualFusionStage`, so the Recorder closure never pulls in the runner stage. `verify:visual-isolation` pins the
+  adapter's imports to exactly four: `@src/visual`, `playwright`, `VisualReferenceStore` and the key module. A planted
+  second write path is red there.
+
+### 2026-10-14 — Phase N N4: owner decisions RV-0 to RV-8 approved as recommended; N4.2 implemented (owner, in session) (`awkit-vra.13`)
 
 - **Approval.** The owner wrote "I approve RV-0 to RV-8 as recommended, start N4". That records N4.1
   (`awkit-vra.13.1`) and authorizes N4 implementation. Plan: `docs/plans/ai-upgrade-v5/N4-recorder-visual-intelligence.md`.

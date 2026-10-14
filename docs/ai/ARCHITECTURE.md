@@ -903,16 +903,32 @@ Wiring:
     -> protected-login detector (fail closed) -> captureCandidates (one candidate) + buildCandidateEvidence,
        as the runner's N2 reference refresh does -> detector again
     -> session/step/page rechecks -> visualPending (memory only, bound to stepCandidatesDigest)
+Save (N4.3):
+  recorder:saveFlow -> buildRecordedFlow({ visualReferences: draftVisualReferences() snapshot,
+                                           visualReferencesOut })
+    -> bound to step-N only if its digest still matches, it is an RV-2 type and not sensitive
+    -> store.create(flow)  (FlowProfile unchanged)
+    -> blueprints + DOM references
+    -> RecorderService.persistVisualReferences (flag-gated, never rejects)
+    -> adapter: VisualReferenceStore.refresh(recordedVisualReferenceKey(flowId, stepId, bindingDigest))
+       in <root>/visual-references/
+    -> discardDraft
+src/runner/visualFusion/recordedVisualReferenceKey.ts   Pure (no imports): prefix + JSON array, never a NUL, so it is
+                                                        disjoint from LocatorFactory.scopeKey; N4.6 reads the same key.
 ```
 
 Invariants:
 
-- Reference seeding only (RV-0): the step, its locator, the draft and recording are never changed. The pending
-  reference is not in the draft, the FlowProfile, an export or IPC. N4.3 persists it at save, N4.4 adds the channel.
+- Reference seeding only (RV-0): the step, its locator, the draft and recording are never changed.
+  - The pending reference is never in the draft, the FlowProfile, an export or IPC.
+  - N4.3 stores it beside the flow at save, keyed by its binding digest. The FlowProfile and its export stay
+    byte-identical.
+  - A failed write is counted and logged as fixed text, and never fails the save.
+  - N4.4 adds the channel.
 - Never scrolls, focuses or clicks (RV-7). Sensitive steps, masked fields and protected surfaces refuse. A detector
   scan that does not finish is never "clear".
 - `verify:visual-isolation` allows exactly two edges into `src/visual`: the runner's `VisualFusionStage` and this
-  adapter.
+  adapter. The adapter's imports are pinned: `@src/visual`, `playwright`, `VisualReferenceStore` and the key module.
 
 ## Semantic index (separate process boundary)
 

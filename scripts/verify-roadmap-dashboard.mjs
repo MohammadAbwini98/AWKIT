@@ -731,8 +731,10 @@ try {
   // children `.13.1`…`.13.7` filed open, planning only (eight in, none closed).
   // Then 32/363 of 395 on 2026-10-14 (contract `awkit-vra-13-n4-start-1013`): the owner approved RV-0 to RV-8, so
   // N4.1 `awkit-vra.13.1` closed, and N4.2 `awkit-vra.13.2` closed on its gates; the epic `.13` is in progress.
-    "32 outstanding / 363 closed",
-    beads.stats.outstanding === 32 && beads.stats.closed === 363,
+  // Then 31/364 of 395 on 2026-10-14 (contract `awkit-vra-13-3-n4-persistence-1014`): N4.3 `awkit-vra.13.3` closed
+  // on its gates; the epic `.13` stays in progress.
+    "31 outstanding / 364 closed",
+    beads.stats.outstanding === 31 && beads.stats.closed === 364,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

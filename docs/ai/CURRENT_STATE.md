@@ -1,6 +1,35 @@
 # CURRENT_STATE
 
-## Phase N: N4 started — RV-0 to RV-8 approved, N4.2 Recorder visual capture implemented (2026-10-14, latest)
+## Phase N: N4.3 persistence — a captured visual reference is stored beside the saved flow (2026-10-14, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task.
+
+- **N4.3 `awkit-vra.13.3` is closed.** Contract `awkit-vra-13-3-n4-persistence-1014`. Under
+  `AWKIT_VISUAL_RECORDER=manual` (off by default), `recorder:saveFlow` stores each captured reference through the
+  unchanged `VisualReferenceStore` in `<root>/visual-references/`.
+  - The key is `src/runner/visualFusion/recordedVisualReferenceKey.ts`: a prefix plus a JSON array of the flow id,
+    step id and binding digest. It never holds a NUL, so it never meets a runner key.
+  - A reference is stored only when its saved step's binding still matches, the step is an RV-2 type and it is not
+    sensitive. Otherwise it is dropped.
+  - The FlowProfile and its export are byte-identical with and without a reference.
+  - A failed write is counted and logged as one fixed-text line, and never fails the save.
+- **Deviation (DECISIONS 2026-10-14):** the plan's "existing save-warning surface" does not exist, so the failure is
+  logged rather than returned. Widening the save result is N4.4 scope.
+- **Not yet:** no IPC, preload or UI (N4.4), and no runner read (N4.6). N4.4 and N4.5 are next.
+- **Verifiers:**
+  - `verify:recorder-visual-capture` 102/0, with mutations N1 to N7 red;
+  - `verify:visual-isolation` 54/0, with the adapter's imports pinned and a planted second write path red;
+  - `verify:locator-guard` 38/0, `verify:protected-login-recorder` 96/96, `verify:recorder` 297/0;
+  - build PASS.
+- **Independent QC:** not run (contract `qc_status` pending). N4.7 carries the independent QC for N4.
+- **Dashboard:** repinned to the measured 31 outstanding / 364 closed of 395.
+- **Boundaries unchanged:** N3 stays shadow-only and N3.4/N3.5 stay `blocked`. No legacy `awkit-vra.6`/`.8` work.
+- **v0.1.53 carry-over unchanged:** packaged licensed Parts D–J are BLOCKED (`AWKIT_PACKAGED_LICENSE_ISSUER_KEY`
+  unavailable), and the clean offline Windows VM walkthrough is NOT RUN.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## Phase N: N4 started — RV-0 to RV-8 approved, N4.2 Recorder visual capture implemented (2026-10-14)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed by this task.
