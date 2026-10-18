@@ -129,7 +129,7 @@
       "command": "npm run verify:roadmap-dashboard",
       "artifact": null,
       "result": "PASS",
-      "observed": "177/177, Sources agree, 29 outstanding / 366 closed of 395 (2026-10-18)"
+      "observed": "177/177 on 2026-10-18 recovery, Sources agree confirmed by buildSnapshot consistency.agrees true, 28 outstanding / 367 closed of 395 after bd export"
     },
     {
       "id": "verify:recorded-visual-fallback",
@@ -191,8 +191,8 @@
       "required": true,
       "command": "npm run build",
       "artifact": null,
-      "result": "BLOCKED",
-      "observed": "tsc --noEmit PASS; electron-vite build fails because X: resolves to \\\\Mac\\Samsung 9100 PRO and Vite's net use parser stops at the space (environment, KNOWN_ISSUES 2026-10-18)"
+      "result": "PASS",
+      "observed": "2026-10-18 recovery: full npm run build PASS on Windows ARM64, x64 Node emulated, X: maps to no-space share Samsung9100PRO. No Vite patch."
     },
     {
       "id": "beads-export-13-6",
@@ -200,8 +200,8 @@
       "required": true,
       "command": "bd export -o .beads/issues.jsonl",
       "artifact": ".beads/issues.jsonl",
-      "result": "BLOCKED",
-      "observed": "the installed bd 1.1.0 release binary has no CGO and cannot open the embedded Dolt database; awkit-vra.13.6 stays open"
+      "result": "PASS",
+      "observed": "2026-10-18: official same-version x64 CGO bd reads embedded Dolt. Closed awkit-vra.13.6 under existing project-state lease and exported 395 issues, 28 outstanding and 367 closed. Lease released."
     },
     {
       "id": "git-push",
@@ -236,10 +236,26 @@
         "allowed_paths": [
           ".beads/**"
         ],
-        "acquired_at": "2026-10-14T09:38:00.500Z",
+        "acquired_at": "2026-10-14T09:38:00.5Z",
         "acquired_at_commit": "5de292973387ab029c91957d72ba802a755f6350",
         "released_at": "2026-10-14T09:38:43.304Z",
         "released_reason": "n4-5-notes-exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-vra-13-6-n4-recorded-fallback-1014:project-state:2026-10-18T18:51:05.799Z",
+        "task": "awkit-vra-13-6-n4-recorded-fallback-1014",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-18T18:51:05.799Z",
+        "acquired_at_commit": "84b45aeb1350d943d02af3677e5c97142ada01d3",
+        "released_at": "2026-10-18T18:52:03.304Z",
+        "released_reason": "Environment recovery completed N4.6 tracker close and export",
         "amendments": [],
         "overrides": [],
         "violations": []

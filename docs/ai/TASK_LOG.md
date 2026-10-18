@@ -1,5 +1,14 @@
 # TASK_LOG
 
+## 2026-10-18 — Codex: restore Windows ARM64 development tools and N4 handoff
+
+- Recovered Beads embedded access with the SHA256-verified official v1.1.0 windows_amd64 CGO executable, replacing only the installed nocgo ARM64 binary. Hash-verified 130-file database backup and original executable retained outside Git. Read N4.5 CLOSED/MET. Closed/exported N4.6 using existing committed evidence plus the now-passing build through its validated project-state lease, then released it.
+- Installed optional verified per-user LLVM-MinGW 20261006, validated native ARM64 C compilation/execution, exposed Bash/Go/compiler/Claude in user PATH, added a version-specific launcher for the already installed Claude Code. No auth material copied, no approval or hook settings altered.
+- PASS: full build, 1168/1168 agent routing, 336 verifier classifications, actual Playwright page, Zvec native module load, Electron Node mode, bounded Git helper, allowed tracker command and denied destructive/non-holder hook probes. Roadmap baseline repinned from authoritative export to 28/367 of 395.
+- BLOCKED: authenticated Claude Bash tool test (Not logged in / Please run /login). Native x64 hardware and release/packaged acceptance not run. Next product task N4.7 QC; no product implementation changed.
+- Files: .beads/{issues,interactions}.jsonl, contract/lease history, roadmap count assertion, docs/ai/{CURRENT_STATE,HANDOFF,KNOWN_ISSUES,COMMANDS,TASK_LOG}. Existing untracked L12.27 contract preserved.
+
+
 ## 2026-10-18 (latest) — ARM64 migration recovery, N4.5 reconciliation, N4.6 runner shadow fallback (Claude)
 
 - **Task:** recover the environment after the move to a Windows 11 ARM64 machine (repo on the X: Parallels share),

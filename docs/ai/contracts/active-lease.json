@@ -6,19 +6,13 @@
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-14T09:38:00.500Z",
-  "acquired_at_commit": "5de292973387ab029c91957d72ba802a755f6350",
+  "acquired_at": "2026-10-18T18:51:05.799Z",
+  "acquired_at_commit": "84b45aeb1350d943d02af3677e5c97142ada01d3",
   "baseline_dirty": [
-    ".beads/interactions.jsonl",
-    ".beads/issues.jsonl",
-    "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-vra-13-6-n4-recorded-fallback-1014.json"
+    "docs/ai/contracts/awkit-l12-27-implementation-1006.json"
   ],
   "baseline_dirty_fingerprints": {
-    ".beads/interactions.jsonl": "c79c59615c14bcdf496e53e28fdd8a5f8a2e6aa3062fb76f883a35da6e2cb2f0",
-    ".beads/issues.jsonl": "ec25a6b332a223adfb6e88e7246524cf1fb064eba5b7aba673d1c53809455d10",
-    "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-vra-13-6-n4-recorded-fallback-1014.json": "46bfa77e5ba457e0ed321751e792d78143b5a3c07130bbab8c9b85045bd05c3d"
+    "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -27,13 +21,13 @@
     "auth-state.json": "absent",
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
-    "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
-    "build": "dir(9):command-authorization-build.log:1791655824280.519|command-authorization-graphify.log:1791656102774.0833|command-authorization-roadmap.log:1791655956531.24|command-authorization-routing.log:1791655726727.7021|command-authorization-task-gate.json:1791655978836.031|lease-status-build.log:1791656486702.492|lease-status-roadmap.log:1791656634670.6677|lease-status-routing.log:1791656586249.2314|native-hosts:1791906584967.718"
+    "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.59|manifest.json:1785274864439.5393",
+    "build": "dir(9):command-authorization-build.log:1791655824280.519|command-authorization-graphify.log:1791656102774.0833|command-authorization-roadmap.log:1791655956531.24|command-authorization-routing.log:1791655726727.7021|command-authorization-task-gate.json:1791655978836.031|lease-status-build.log:1791656486702.492|lease-status-roadmap.log:1791656634670.6675|lease-status-routing.log:1791656586249.2314|native-hosts:1791906584967.718"
   },
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-14T09:38:43.304Z",
-  "released_reason": "n4-5-notes-exported",
-  "archived_at": "2026-10-14T09:38:43.306Z"
+  "released_at": "2026-10-18T18:52:03.304Z",
+  "released_reason": "Environment recovery completed N4.6 tracker close and export",
+  "archived_at": "2026-10-18T18:52:03.307Z"
 }

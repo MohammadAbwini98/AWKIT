@@ -1,5 +1,22 @@
 # CURRENT_STATE
 
+## Environment recovery: build and embedded Beads restored (2026-10-18, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was executed.
+
+- Confirmed on Windows 11 Pro ARM64 10.0.26300, profile C:\Users\mohammadabwini, existing X: checkout on main.
+- X: now maps to \\Mac\Samsung9100PRO (no spaces). Full npm run build PASS, with no Vite patch or package upgrade.
+- Replaced the ARM64 Beads 1.1.0 nocgo executable with the official same-version x64 CGO release, SHA256 verified against GitHub release metadata. Embedded Dolt is preserved. bd --readonly show awkit-vra.13.5 PASS, CLOSED with criterion MET. A hash-verified 130-file .beads backup was made outside the checkout before opening it. No init, backend change or version upgrade.
+- N4.6 awkit-vra.13.6 closed and exported through bd under its existing contract-backed project-state lease, using committed 84b45aeb evidence plus the recovered build. Lease released. Counts: 28 outstanding / 367 closed of 395. N4 remains in progress; N4.7 open.
+- Native ARM64: Git 2.55, Go 1.27.1, Claude Code 2.1.299, LLVM-MinGW clang 23.1.3. Compiler builds and executes an ARM64 C probe. Git Bash is the installed Git-for-Windows Bash (x64 MSYS), whose CLANGARM64 label does not imply MSYS2/pacman is installed.
+- Emulated x64: Node 24.20.0, npm 11.19.0, Beads 1.1.0, Electron 33.4.11, Playwright 1.61.0 Chromium 149.0.7827.55. Zvec native module loads; Electron Node mode and a local headless Playwright page succeed. Existing dependencies and lockfile preserved, distribution configuration unchanged. No native x64 hardware test claimed.
+- Per-user PATH now exposes Git Bash, Go, optional LLVM-MinGW and a claude.cmd launcher under %LOCALAPPDATA%/Programs/AWKIT-Tools. Launcher uses the existing verified Claude Code executable and sets its Git Bash path. New terminals inherit the changes.
+- Guard checks PASS: approved bounded Git read accepted, project-state bd update/close/export accepted, destructive command and non-holder write rejected. verify:agent-routing 1168/1168, verifier-classification 336 PASS. Guard and permission settings unchanged. Semicolons are rejected even inside quoted notes, so use simple note text.
+- BLOCKED: Claude Code starts but the attempted actual Bash smoke test returns Not logged in / Please run /login. User must authenticate in Claude Code, then repeat an approved git status --short tool call. Hook probes are evidence of the hook, not proof of an authenticated Claude tool call.
+- Legacy .claude/settings.local.json allowances and .codex/hooks.json graphify path reference the old profile. They were not copied or broadened; the latter is a Codex Graphify integration, not the active Claude lease guard. Historical path evidence remains untouched.
+- Next development task: N4.7 independent QC and N4 closure, not a repeat of N4.5 calibration or N4.6 implementation. Packaged licensing and clean offline VM gates remain unchanged.
+
+
 ## Phase N: N4.6 runner shadow fallback implemented and verified; ARM64 migration recovered (2026-10-18, latest)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
