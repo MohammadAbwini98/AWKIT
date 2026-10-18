@@ -1,26 +1,24 @@
 {
-  "task": "awkit-vra-13-5-n4-calibration-1014",
-  "contract_path": "docs/ai/contracts/awkit-vra-13-5-n4-calibration-1014.json",
+  "task": "awkit-vra-13-6-n4-recorded-fallback-1014",
+  "contract_path": "docs/ai/contracts/awkit-vra-13-6-n4-recorded-fallback-1014.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-14T08:22:42.455Z",
-  "acquired_at_commit": "bb15b1b1dbf5b4aa5b812cb84fb7eae797b3d69c",
+  "acquired_at": "2026-10-14T09:38:00.500Z",
+  "acquired_at_commit": "5de292973387ab029c91957d72ba802a755f6350",
   "baseline_dirty": [
+    ".beads/interactions.jsonl",
+    ".beads/issues.jsonl",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-vra-13-5-n4-calibration-1014.json",
-    "docs/plans/ai-upgrade-v5/N4-recorder-visual-intelligence.md",
-    "package.json",
-    "scripts/benchmark-recorder-visual-baseline.mts"
+    "docs/ai/contracts/awkit-vra-13-6-n4-recorded-fallback-1014.json"
   ],
   "baseline_dirty_fingerprints": {
+    ".beads/interactions.jsonl": "c79c59615c14bcdf496e53e28fdd8a5f8a2e6aa3062fb76f883a35da6e2cb2f0",
+    ".beads/issues.jsonl": "ec25a6b332a223adfb6e88e7246524cf1fb064eba5b7aba673d1c53809455d10",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-vra-13-5-n4-calibration-1014.json": "45acaf070e0ca0b9058bd208b396a2cbac04c320561b508df80e699c07637bb0",
-    "docs/plans/ai-upgrade-v5/N4-recorder-visual-intelligence.md": "8984d3945d0dba8858c3465cdb8e82916329a0af459933357cc830ce278bde8e",
-    "package.json": "cb666995303aa5e72c349a1e86650c6dc6a7354f9a91a27715845e0224e4bb26",
-    "scripts/benchmark-recorder-visual-baseline.mts": "82f874a06cfbf066291f71b37265389d8337e0565b807b84dade1f3b021d1794"
+    "docs/ai/contracts/awkit-vra-13-6-n4-recorded-fallback-1014.json": "46bfa77e5ba457e0ed321751e792d78143b5a3c07130bbab8c9b85045bd05c3d"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -35,7 +33,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-14T08:23:44.855Z",
-  "released_reason": "bd-writes-blocked-by-guard",
-  "archived_at": "2026-10-14T08:23:44.856Z"
+  "released_at": "2026-10-14T09:38:43.304Z",
+  "released_reason": "n4-5-notes-exported",
+  "archived_at": "2026-10-14T09:38:43.306Z"
 }
