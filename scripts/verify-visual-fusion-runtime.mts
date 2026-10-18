@@ -349,8 +349,9 @@ async function shadowStageCases(): Promise<void> {
     JSON.stringify(verdict?.evidence)
   );
   check(
-    "I9: the record has exactly its eight fields and no digest, bounds, pixels or selector",
-    JSON.stringify(Object.keys(verdict ?? {}).sort()) === JSON.stringify(["effect", "eligibility", "evidence", "layer", "mode", "outcome", "reason", "stepId"]) &&
+    "I9: the record has exactly its nine fields (N4.6 referenceSource runtime) and no digest, bounds, pixels or selector",
+    JSON.stringify(Object.keys(verdict ?? {}).sort()) === JSON.stringify(["effect", "eligibility", "evidence", "layer", "mode", "outcome", "reason", "referenceSource", "stepId"]) &&
+      verdict?.referenceSource === "runtime" &&
       !/sha256|digest|bounds|base64|#save-profile|"x":/i.test(JSON.stringify(verdict)),
     JSON.stringify(verdict)
   );
@@ -410,9 +411,10 @@ async function shadowStageCases(): Promise<void> {
   check("fusion on: one recovery trace, and it has a visual block", on.visuals.length === 1 && visual !== null, JSON.stringify(on.visuals));
   check(
     "the block is the allowlisted fields only",
-    visual !== null && Object.keys(visual).every((k) => ["mode", "outcome", "reason", "effect", "ms", "winnerScore", "competitorScore"].includes(k)),
+    visual !== null && Object.keys(visual).every((k) => ["mode", "outcome", "reason", "effect", "ms", "winnerScore", "competitorScore", "referenceSource"].includes(k)),
     JSON.stringify(visual)
   );
+  check("N4.6: the block's referenceSource is the stage's fixed code (runtime)", visual?.referenceSource === "runtime" && visual.referenceSource === verdict?.referenceSource, JSON.stringify(visual));
   check("it is the stage's verdict: shadow mode, same outcome, reason and effect none", visual?.mode === "shadow" && visual.outcome === verdict?.outcome && visual.reason === verdict?.reason && visual.effect === "none", JSON.stringify(visual));
   check(
     "its scores are the verdict's rounded scores, under the trace's names",

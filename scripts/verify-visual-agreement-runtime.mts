@@ -453,8 +453,11 @@ async function main(): Promise<void> {
     JSON.stringify(shadow.block)
   );
   check(
-    "the trace block holds codes only: exactly its six fields",
-    JSON.stringify(Object.keys(shadow.block ?? {}).sort()) === JSON.stringify(["effect", "kind", "mode", "ms", "outcome", "reason"]) && !/sha256|digest|bounds|base64|#save|profile-save|"x":/i.test(JSON.stringify(shadow.block))
+    "the trace block holds codes only: exactly its seven fields (N4.6 referenceSource runtime)",
+    JSON.stringify(Object.keys(shadow.block ?? {}).sort()) === JSON.stringify(["effect", "kind", "mode", "ms", "outcome", "reason", "referenceSource"]) &&
+      shadow.block?.referenceSource === "runtime" &&
+      shadow.record?.referenceSource === "runtime" &&
+      !/sha256|digest|bounds|base64|#save|profile-save|"x":/i.test(JSON.stringify(shadow.block))
   );
   check("the log line says it had no effect", shadow.run.messages.some((m) => m.endsWith(" Visual agreement (shadow, no effect): agreed(identical-unique).")), shadow.run.messages.join(" | "));
   check("the step result is unchanged: the drifted target was NOT resolved", !shadow.run.isTarget && shadow.run.resolvedText === null && shadow.run.traces[0]?.result === "unresolved");

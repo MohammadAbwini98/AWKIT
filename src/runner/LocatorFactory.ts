@@ -189,6 +189,8 @@ export interface LocatorRecoveryVisualAgreement {
   reason: string;
   effect: "none";
   ms: number;
+  /** N4.6: which stored reference the verdict compared against; a fixed code. */
+  referenceSource?: VisualReferenceSourceCode;
 }
 
 export interface LocatorRecoveryVisual {
@@ -199,6 +201,16 @@ export interface LocatorRecoveryVisual {
   ms: number;
   winnerScore?: number;
   competitorScore?: number;
+  /** N4.6: which stored reference the verdict compared against; a fixed code. "recorded" always has effect "none". */
+  referenceSource?: VisualReferenceSourceCode;
+}
+
+/** N4.6: the fixed reference-source codes a trace may carry. */
+export type VisualReferenceSourceCode = "runtime" | "recorded" | "none";
+
+/** N4.6: the observer's `referenceSource` when it is one of the fixed codes, else nothing (backward compatible). */
+function referenceSourceOf(value: unknown): { referenceSource: VisualReferenceSourceCode } | {} {
+  return value === "runtime" || value === "recorded" || value === "none" ? { referenceSource: value } : {};
 }
 
 export interface LocatorRecoveryContext {
@@ -347,6 +359,7 @@ export interface LocatorVisualVerdict {
   reason: string;
   effect: "none" | "veto";
   evidence: { winnerScore?: number; bestCompetitorScore?: number };
+  referenceSource?: string;
 }
 
 /**
@@ -370,6 +383,7 @@ export interface LocatorVisualAgreementVerdict {
   outcome: string;
   reason: string;
   effect: string;
+  referenceSource?: string;
 }
 
 /** Structural, so this module never imports the adapter (`verify:visual-isolation`). */
@@ -1045,11 +1059,14 @@ export class LocatorFactory {
     if (observed.status === "failed" || !observed.value) return undefined;
     const verdict = observed.value;
     const { winnerScore, bestCompetitorScore } = verdict.evidence ?? {};
+    const source = referenceSourceOf(verdict.referenceSource);
     return {
       mode: "shadow",
       outcome: String(verdict.outcome),
       reason: String(verdict.reason),
-      effect: verdict.effect === "veto" ? "veto" : "none",
+      // N4.6: a verdict against a Recorder-seeded reference never carries authority, whatever the observer said.
+      effect: verdict.effect === "veto" && verdict.referenceSource !== "recorded" ? "veto" : "none",
+      ...source,
       ms: performance.now() - started,
       ...(typeof winnerScore === "number" ? { winnerScore } : {}),
       ...(typeof bestCompetitorScore === "number" ? { competitorScore: bestCompetitorScore } : {})
@@ -1092,7 +1109,15 @@ export class LocatorFactory {
     if (observed.status === "timeout") return { mode: "shadow", kind: "agreement", outcome: "unavailable", reason: "budget-exhausted", effect: "none", ms: performance.now() - started };
     if (observed.status === "failed" || !observed.value) return undefined;
     // Shadow: an observer answering "proceed" is still recorded as no effect, because nothing here can act on it.
-    return { mode: "shadow", kind: "agreement", outcome: String(observed.value.outcome), reason: String(observed.value.reason), effect: "none", ms: performance.now() - started };
+    return {
+      mode: "shadow",
+      kind: "agreement",
+      outcome: String(observed.value.outcome),
+      reason: String(observed.value.reason),
+      effect: "none",
+      ms: performance.now() - started,
+      ...referenceSourceOf(observed.value.referenceSource)
+    };
   }
 
   private async rememberWinner(

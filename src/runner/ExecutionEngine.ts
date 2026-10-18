@@ -1632,6 +1632,9 @@ export class ExecutionEngine {
       // the shadow fusion observer keeps, so it turns that observer on too. Both are shadow; neither changes a step.
       visualFusionRoot: process.env.AWKIT_VISUAL_FUSION === "shadow" || visualAgreementMode() ? join(dirs.root, "visual-references") : undefined,
       visualAgreement: visualAgreementMode(),
+      // N4.6: the Recorder-seeded reference is read only under the approved N4 enablement (RV-6); unset, the runner
+      // never reads a recorded key (plan › Failure and fallback, Rollback and disable).
+      visualRecordedFallback: process.env.AWKIT_VISUAL_RECORDER === "manual",
       // Accumulate only — no projection, no I/O, no emitter on the locator resolution path. The set
       // is read once when this instance finishes.
       onLocatorRemembered: (scopeKey) => {

@@ -155,6 +155,11 @@ export interface PlaywrightRunnerOptions extends BrowserContextFactoryOptions {
    * `enforce` is decided as shadow: N3 closed shadow-only, so no step is ever changed.
    */
   visualAgreement?: "shadow" | "enforce";
+  /**
+   * N4.6: `AWKIT_VISUAL_RECORDER=manual`. Lets the shadow stage fall back to the Recorder-seeded reference when the
+   * runtime one is missing. Needs `visualFusionRoot`; absent or false, no recorded key is ever read.
+   */
+  visualRecordedFallback?: boolean;
 }
 
 /**
@@ -836,7 +841,8 @@ export class PlaywrightRunner {
         ? lazyVisualFusion({
             folder: this.options.visualFusionRoot,
             handedOff: (target) => this.pageHandedOff(target),
-            ...(this.options.visualAgreement ? { agreement: this.options.visualAgreement } : {})
+            ...(this.options.visualAgreement ? { agreement: this.options.visualAgreement } : {}),
+            ...(this.options.visualRecordedFallback === true ? { recordedFallback: true } : {})
           })
         : undefined,
       onRecoveryEvent: (event) =>

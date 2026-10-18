@@ -24,7 +24,9 @@ import {
   type LocatorVisualPassObservation,
   type LocatorVisualRecoveryObservation
 } from "../LocatorFactory";
+import { stepCandidatesDigest } from "../LocatorRecoveryStore";
 import { VisualReferenceStore } from "./VisualReferenceStore";
+import { recordedVisualReferenceKey } from "./recordedVisualReferenceKey";
 
 /**
  * N2.5 (awkit-vra.12.5): the visual-fusion stage of locator recovery, in SHADOW mode. The ONLY runner module allowed
@@ -46,7 +48,30 @@ import { VisualReferenceStore } from "./VisualReferenceStore";
  *
  * N3.3 (awkit-vra.4.3): `agree` is the shadow Visual Locator Recovery observation of a local `below-threshold` refusal
  * (docs/plans/ai-upgrade-v5/N3-visual-locator-recovery.md). Still observes, never decides: N3 closed shadow-only.
+ *
+ * N4.6 (awkit-vra.13.6, docs/plans/ai-upgrade-v5/N4-recorder-visual-intelligence.md): only with `recordedFallback`
+ * (`AWKIT_VISUAL_RECORDER=manual`) and when the step's runtime reference is `missing`, an eligible observation falls back to the Recorder-seeded reference stored under
+ * `recordedVisualReferenceKey(flow, step, stepCandidatesDigest(step.locator))` — the CURRENT binding, so a re-targeted
+ * step reads `missing` for its old look. READ-ONLY and comparison-only: it is never refreshed, rewritten or copied into
+ * the runtime key (a refresh only ever writes `scopeKey`, and only on the runtime reference's own rule), it reaches no
+ * DOM decision, and a verdict compared against it always has `effect` "none" whatever the policy or requested mode.
+ * Traced as `referenceSource` ("runtime" / "recorded" / "none"), a fixed code and nothing else.
  */
+
+/** N4.6: which stored reference a verdict compared against; a fixed code, never the key, digest or evidence. */
+export type VisualReferenceSource = "runtime" | "recorded" | "none";
+
+/**
+ * N4.6: the one place a verdict's effect meets its reference source. A Recorder-seeded reference is observational only:
+ * whatever a policy answers (today always "none" in shadow; "veto" or "proceed" if N3 enforce is ever lifted), a verdict
+ * compared against a recorded reference has effect "none".
+ */
+export function effectForReferenceSource<E extends string>(source: VisualReferenceSource, effect: E): E | "none" {
+  return source === "recorded" ? "none" : effect;
+}
+
+/** N4.6: bounds the per-stage memo of recorded reads (one `store.get` per flow, step and binding per stage). */
+const RECORDED_READ_MEMO_MAX = 256;
 
 /**
  * I8 / FD-5: the whole visual cycle of one decision. `LocatorFactory` enforces it around the entire observation
@@ -71,18 +96,22 @@ export interface VisualFusionVerdictRecord {
   reason: FusionVerdict["reason"];
   effect: FusionVerdict["effect"];
   evidence: FusionVerdict["evidence"];
+  /** N4.6: the reference the verdict compared against. */
+  referenceSource: VisualReferenceSource;
 }
 
 const round3 = (value: number): number => Math.round(value * 1000) / 1000;
 
-function record(stepId: string, layer: VisualFusionVerdictRecord["layer"], eligibility: Eligibility, verdict: FusionVerdict): VisualFusionVerdictRecord {
+function record(stepId: string, layer: VisualFusionVerdictRecord["layer"], eligibility: Eligibility, verdict: FusionVerdict, referenceSource: VisualReferenceSource): VisualFusionVerdictRecord {
   const { winnerScore, bestCompetitorScore, visualMargin, identical } = verdict.evidence;
   const evidence: FusionVerdict["evidence"] = {};
   if (winnerScore !== undefined) evidence.winnerScore = round3(winnerScore);
   if (bestCompetitorScore !== undefined) evidence.bestCompetitorScore = round3(bestCompetitorScore);
   if (visualMargin !== undefined) evidence.visualMargin = round3(visualMargin);
   if (identical !== undefined) evidence.identical = identical;
-  return { stepId, mode: "shadow", layer, eligibility, outcome: verdict.outcome, reason: verdict.reason, effect: verdict.effect, evidence };
+  // N4.6: a recorded reference never has authority, whatever the policy answered.
+  const effect: FusionVerdict["effect"] = effectForReferenceSource(referenceSource, verdict.effect);
+  return { stepId, mode: "shadow", layer, eligibility, outcome: verdict.outcome, reason: verdict.reason, effect, evidence, referenceSource };
 }
 
 export interface VisualFusionStageOptions {
@@ -107,6 +136,11 @@ export interface VisualFusionStageOptions {
   agreement?: "shadow" | "enforce";
   /** Where a shadow agreement verdict goes. Called at most once per observed refusal; a throwing sink is ignored. */
   onAgreement?: (record: VisualAgreementRecord) => void;
+  /**
+   * N4.6: true only under `AWKIT_VISUAL_RECORDER=manual` (RV-6). Absent or anything but `true`, the stage never reads a
+   * recorded key and behaves exactly as before N4.
+   */
+  recordedFallback?: boolean;
 }
 
 /** N3.3: what a shadow agreement verdict may say about a step: codes only, never pixels, bounds, digests or locators. */
@@ -118,6 +152,8 @@ export interface VisualAgreementRecord {
   outcome: VisualAgreementVerdict["outcome"];
   reason: VisualAgreementVerdict["reason"];
   effect: VisualAgreementVerdict["effect"];
+  /** N4.6: the reference the verdict compared against. */
+  referenceSource: VisualReferenceSource;
 }
 
 /** Stands in for the best's capture while rows A1-A3 are decided without capturing anything; those rows never read it. */
@@ -142,6 +178,7 @@ export class VisualFusionStage implements LocatorVisualFusion {
   readonly mode = "shadow" as const;
   private readonly store: VisualReferenceStore;
   private readonly budgetMs: number;
+  private readonly recordedReads = new Map<string, VisualEvidence | null>();
 
   constructor(private readonly options: VisualFusionStageOptions) {
     this.store =
@@ -157,7 +194,7 @@ export class VisualFusionStage implements LocatorVisualFusion {
       const eligibility = visualFusionEligibility(step, sensitive);
       if (eligibility === "ineligible") return undefined;
       const remaining = this.deadline();
-      const reference = await this.reference(scopeKey);
+      const { reference, runtime, source } = await this.reference(scopeKey, step, eligibility === "eligible");
       if (observation.signal.aborted) return undefined;
       // Without a reference the verdict is R1 `no-reference` whatever the competitors look like: capture the winner only,
       // for the refresh below.
@@ -192,15 +229,16 @@ export class VisualFusionStage implements LocatorVisualFusion {
         },
         MEASURED_FUSION_POLICY
       );
-      const verdictRecord = record(step.id, observation.layer, eligibility, verdict);
+      const verdictRecord = record(step.id, observation.layer, eligibility, verdict, source);
       try {
         this.options.onVerdict?.(verdictRecord);
       } catch {
         // A sink is a recorder, not a participant.
       }
       // A recovery winner becomes the reference only when there was none yet or the existing one corroborated it: a
-      // contested or contradicted winner must not overwrite the last-known-good look it disagreed with.
-      const refreshable = reference === null || verdict.outcome === "corroborated";
+      // contested or contradicted winner must not overwrite the last-known-good look it disagreed with. N4.6: decided on
+      // the RUNTIME reference alone, exactly as without a recorded one, and it only ever writes the runtime `scopeKey`.
+      const refreshable = runtime === null || verdict.outcome === "corroborated";
       if (eligibility === "eligible" && "fingerprint" in winner && refreshable && !observation.signal.aborted) await this.store.refresh(scopeKey, winner);
       return verdictRecord;
     } catch {
@@ -227,9 +265,12 @@ export class VisualFusionStage implements LocatorVisualFusion {
         dom: { refusal: observation.refusal, best: observation.best, margin: observation.margin, competitorCount: observation.competitorCount }
       };
       let verdict = decideVisualAgreement({ ...base, reference: null, best: NOT_CAPTURED, competitors: [] });
+      let source: VisualReferenceSource = "none";
       if (verdict.reason === "no-reference") {
         const remaining = this.deadline();
-        const reference = await this.reference(observation.scopeKey);
+        const read = await this.reference(observation.scopeKey, step, eligibility === "eligible");
+        const reference = read.reference;
+        source = read.source;
         if (signal.aborted) return undefined;
         if (reference !== null && (reference as { available?: unknown }).available !== false) {
           const competitors = observation.competitors.slice(0, AGREEMENT_MAX_COMPETITORS);
@@ -260,7 +301,9 @@ export class VisualFusionStage implements LocatorVisualFusion {
         eligibility,
         outcome: verdict.outcome,
         reason: verdict.reason,
-        effect: verdict.effect
+        // N4.6: a recorded reference never has authority (the policy is asked in shadow anyway).
+        effect: effectForReferenceSource(source, verdict.effect),
+        referenceSource: source
       };
       try {
         this.options.onAgreement?.(agreementRecord);
@@ -316,11 +359,44 @@ export class VisualFusionStage implements LocatorVisualFusion {
     return () => Math.max(1, end - Date.now());
   }
 
-  /** R1/R2 input for the step's stored reference: absent or unreadable is null; another evidence version is R2. */
-  private async reference(scopeKey: string): Promise<FusionInput["reference"]> {
+  /**
+   * R1/R2 input for the step's stored reference: absent or unreadable is null; another evidence version is R2. N4.6:
+   * runtime first; only a `missing` runtime reference of an eligible observation falls back to the recorded one, and
+   * `runtime` is always the runtime read alone (what the refresh rule decides on).
+   */
+  private async reference(
+    scopeKey: string,
+    step: FlowStep,
+    allowRecorded: boolean
+  ): Promise<{ reference: FusionInput["reference"]; runtime: FusionInput["reference"]; source: VisualReferenceSource }> {
     const read = await this.store.get(scopeKey);
-    if (read.status === "found") return read.evidence as VisualEvidence;
-    if (read.status === "version-mismatch") return { available: false, code: "UNSUPPORTED_FINGERPRINT_VERSION" };
-    return null;
+    if (read.status === "found") {
+      const runtime = read.evidence as VisualEvidence;
+      return { reference: runtime, runtime, source: "runtime" };
+    }
+    if (read.status === "version-mismatch") {
+      const runtime: FusionInput["reference"] = { available: false, code: "UNSUPPORTED_FINGERPRINT_VERSION" };
+      return { reference: runtime, runtime, source: "runtime" };
+    }
+    const recorded = read.status === "missing" && allowRecorded && this.options.recordedFallback === true ? await this.recordedReference(scopeKey, step) : null;
+    return recorded ? { reference: recorded, runtime: null, source: "recorded" } : { reference: null, runtime: null, source: "none" };
+  }
+
+  /**
+   * N4.6: the Recorder-seeded reference bound to the step's CURRENT locator, or null. Read through `store.get` only and
+   * at most once per flow, step and binding per stage (every outcome is memoized: the runner never writes this key, so
+   * it cannot change under a run). Anything but `found` — missing, corrupt, another version — is null: no reference.
+   */
+  private async recordedReference(scopeKey: string, step: FlowStep): Promise<VisualEvidence | null> {
+    const parts = scopeKey.split(String.fromCharCode(0));
+    const flowId = parts.length === 3 && parts[2] === step.id ? parts[1] : "";
+    if (!flowId || !step.locator) return null;
+    const key = recordedVisualReferenceKey(flowId, step.id, stepCandidatesDigest(step.locator));
+    if (this.recordedReads.has(key)) return this.recordedReads.get(key) ?? null;
+    const read = await this.store.get(key);
+    const evidence = read.status === "found" ? (read.evidence as VisualEvidence) : null;
+    if (this.recordedReads.size >= RECORDED_READ_MEMO_MAX) this.recordedReads.clear();
+    this.recordedReads.set(key, evidence);
+    return evidence;
   }
 }
