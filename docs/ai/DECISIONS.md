@@ -1,6 +1,25 @@
 # DECISIONS
 
-### 2026-10-14 (latest) — Phase N N4.4: the capture channel, the status read and the per-step UI (implementation, within RV-1/RV-5/RV-6/RV-8) (`awkit-vra.13.4`)
+### 2026-10-18 (latest) — Windows ARM64 is the development and acceptance machine; x64 distribution targets stay (owner, in session)
+
+- **Owner decision.** The development machine is now Windows 11 ARM64. It is the primary development, build,
+  verification and acceptance environment, and ARM64 machine acceptance satisfies the owner-approved machine
+  acceptance requirement. No separate physical x86/x64 machine is required to close milestones.
+- **Distribution targets are unchanged.** `electron-builder.json` keeps `portable` + `nsis` for `x64` only; ia32 was
+  never a target and is not added. No ARM64 distribution target is added: `@zvec/bindings` 0.6.0 ships no
+  `win32-arm64` binding (lockfile: win32-x64, linux-x64/arm64, darwin-arm64 only), so an ARM64 build could not load
+  the vector store. Adding one needs a new owner decision once that binding exists.
+- **Toolchain on the ARM64 machine.** Node is the x64 build (24.x) running under Windows x64 emulation, so the
+  lockfile-installed x64 `node_modules` (Electron, esbuild, rollup, sharp 0.32.6, zvec), the x64 Electron used for
+  packaging and the pinned `chrome-win64` bundled Chromium all match the shipped target. Git and Beads (`bd` 1.1.0)
+  run as native ARM64 builds. Native arm64 Node fails `npm run build` (`@rollup/rollup-win32-arm64-msvc` not installed)
+  and could not load zvec, so it is not used. No dependency version changed.
+- **How results are labelled.** Every verifier run on this machine is recorded as ARM64-machine execution, naming
+  whether the binary ran natively (ARM64) or emulated (x64), or whether the evidence is static/package inspection.
+  None of it is reported as native x64/ia32 execution. Release gates (packaged licensed Parts D–J, clean offline VM
+  walkthrough) keep their existing terminal states.
+
+### 2026-10-14 — Phase N N4.4: the capture channel, the status read and the per-step UI (implementation, within RV-1/RV-5/RV-6/RV-8) (`awkit-vra.13.4`)
 
 - **Channel shape.** `recorder:captureVisualReference(actionId)` checks three things, in this order:
   - `assertSenderPermission(PAGE_RECORDER)`, with no re-authentication (RV-5);

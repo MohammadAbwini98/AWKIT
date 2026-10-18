@@ -41,7 +41,9 @@ was used for this verification.
 > Authority: `docs/ai/BRANCH_AND_COMMIT_POLICY.md`.
 
 All commands verified against `package.json` scripts and repo scripts (2026-06-26).
-Platform: **Windows** (packaging/offline scripts are PowerShell). Node 18 in the current dev env.
+Platform: **Windows** (packaging/offline scripts are PowerShell). Development machine since 2026-10-18 is
+Windows 11 ARM64 running the **x64** Node 24 build under emulation (the x64 `node_modules`, zvec binding and
+packaging target require it); distribution targets stay x64. See DECISIONS 2026-10-18.
 
 ## Super User, Recorder UX, and editor-history focused verification
 

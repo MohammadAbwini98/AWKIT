@@ -28,6 +28,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmSync,
   statSync,
   symlinkSync,
@@ -127,7 +128,7 @@ import {
   resolveContractTarget
 } from "../tools/agents/contract-cleanup.mjs";
 import { DENIAL_TERMINAL_THRESHOLD, recordDenial } from "../tools/agents/guard-denials.mjs";
-import { boundedLogAlternative, inspectionArgs, inspectionTokens, runInspection } from "../tools/agents/git-inspection.mjs";
+import { boundedLogAlternative, inspectionArgs, inspectionGitFlags, inspectionTokens, runInspection } from "../tools/agents/git-inspection.mjs";
 import { parseStructuredDenial, recoverAuthorization } from "../tools/agents/command-recovery.mjs";
 
 /**
@@ -180,7 +181,8 @@ const VERBOSE = process.argv.slice(2).some((arg) => arg === "--verbose" || arg =
 // +1 (2026-10-03): the exact `git merge --ff-only origin/main` fast-forward pull and its refusals.
 // +15 (2026-10-10): bounded Git reads, execution-helper isolation and authorized recovery.
 // +4 (2026-10-10): quiet lease-status classification, hook rewriting and repository confinement.
-const EXPECTED_UNCONDITIONAL_CHECKS = 1165;
+// +2 (2026-10-18): inspection trusts only its verified root (share-hosted checkout) and keeps global config off as /dev/null.
+const EXPECTED_UNCONDITIONAL_CHECKS = 1167;
 /** Live PreToolUse hook probes; run only when the active lease grants this verifier's own path. */
 const EXPECTED_LIVE_LEASE_CHECKS = 3;
 /** Junction-escape confinement probe; runs only where the filesystem/privileges allow a junction. */
@@ -3325,7 +3327,10 @@ try {
     check("the real hook rewrites a log pipeline without bypassing normal permissions", converted.status === 0 && inspectionArgs(hook.hookSpecificOutput?.updatedInput?.command)?.includes("-20") && hook.hookSpecificOutput?.permissionDecision === undefined, converted.stderr);
     const denied = Array.from({ length: 3 }, () => guard("git log --unsupported", "terminal"));
     check("the real hook terminates identical command denials predictably", denied.every(result => result.status === 2) && parseStructuredDenial(denied[2].stderr)?.terminal === true);
-    const gitEnv = { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: process.platform === "win32" ? "NUL" : "/dev/null" };
+    // "/dev/null" on every platform: Git for Windows 2.55 rejects "NUL" ("unable to access 'NUL'").
+    const gitEnv = { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: "/dev/null" };
+    // Kept in tmpdir() form on purpose: it can be an 8.3 short path (C:\Users\ABCDEF~1) that Git reports expanded,
+    // which only the helper's native-realpath root comparison accepts.
     const gitRoot = join(local, "repository"); mkdirSync(gitRoot);
     const git = args => execFileSync("git", args, { cwd: gitRoot, env: gitEnv, encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
     git(["init", "--initial-branch=main"]); git(["config", "user.name", "Fixture"]); git(["config", "user.email", "fixture@example.invalid"]); git(["config", "commit.gpgSign", "false"]); git(["config", "core.hooksPath", join(local, "disabled-hooks")]);
@@ -3343,6 +3348,9 @@ try {
     writeFileSync(join(gitRoot, "large.txt"), "large fact\n".repeat(20000)); git(["-c", "core.fsmonitor=false", "add", "--", "large.txt"]); git(["-c", "core.fsmonitor=false", "commit", "-m", "Large fixture"]);
     check("large reads stop at the byte budget", !invoke(inspect, ["show", "HEAD:large.txt"]).ok);
     check("inspection rejects outside execution context", !invoke(runInspection, ["status"], { cwd: tmpdir(), repoRoot: gitRoot, env: gitEnv }).ok);
+    const trusted = inspectionGitFlags(gitRoot).filter(flag => /^safe\.directory=/i.test(flag));
+    check("inspection trusts exactly its verified root, never a wildcard", trusted.length === 1 && trusted[0] === `safe.directory=${realpathSync(gitRoot).replace(/\\/g, "/")}` && !trusted[0].includes("*"), trusted.join(" "));
+    check("inspection keeps global and system Git config off on every platform", /GIT_CONFIG_GLOBAL: "\/dev\/null"/.test(readFileSync("tools/agents/git-inspection.mjs", "utf8")) && !/GIT_CONFIG_GLOBAL:[^,]*"NUL"/.test(readFileSync("tools/agents/git-inspection.mjs", "utf8")));
     const contract = validContract(), payload = { tool_name: "Write", tool_input: { file_path: "app/renderer/components/Thing.tsx" } };
     let acquireCount = 0, probeCount = 0, actual = null;
     const options = { task: contract.task.id, load: () => contract, currentLease: () => actual, acquire: (_task, writer) => { acquireCount++; actual = { task: contract.task.id, holder: writer.agent_id, allowed_paths: writer.allowed_paths }; return { status: 0 }; }, probe: () => ++probeCount === 1 ? { status: 2, stderr: denialText() } : { status: 0, stdout: "" } };

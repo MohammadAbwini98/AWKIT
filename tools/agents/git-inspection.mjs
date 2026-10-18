@@ -72,13 +72,22 @@ export function inspectionCommand(args) {
   if (!validInspectionArgs(args)) throw new Error("Unsupported inspection arguments");
   return INSPECTION_PREFIX + " " + args.map(a => `'${a.replace(/\\/g, "/")}'`).join(" ");
 }
+/**
+ * Fixed Git flags for one verified root. Global/system config is off, so a share-hosted checkout (no local owner SID)
+ * would hit "dubious ownership"; command-line config is protected config, so trust exactly this root and nothing else.
+ */
+export function inspectionGitFlags(repoRoot) {
+  return ["--no-pager", "--no-optional-locks", "--literal-pathspecs", "-c", "core.fsmonitor=false", "-c", "log.showSignature=false", "-c", `safe.directory=${realpathSync(repoRoot).replace(/\\/g, "/")}`];
+}
 export function runInspection(args, { cwd = ROOT, repoRoot = ROOT, env = process.env } = {}) {
   if (!validInspectionArgs(args) || relative(realpathSync(repoRoot), realpathSync(cwd)) !== "") throw new Error("Inspection requires approved argv at the repository root");
+  // Global config is "/dev/null" on every platform; Git for Windows 2.55 rejects "NUL" ("unable to access 'NUL'").
   const cleanEnv = Object.fromEntries(Object.entries(env).filter(([key]) => !/^GIT_/i.test(key) && !/^PAGER$/i.test(key)));
-  Object.assign(cleanEnv, { GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: process.platform === "win32" ? "NUL" : "/dev/null", GIT_NO_LAZY_FETCH: "1", GIT_TERMINAL_PROMPT: "0", GIT_PAGER: "cat" });
-  const flags = ["--no-pager", "--no-optional-locks", "--literal-pathspecs", "-c", "core.fsmonitor=false", "-c", "log.showSignature=false"];
+  Object.assign(cleanEnv, { GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: "/dev/null", GIT_NO_LAZY_FETCH: "1", GIT_TERMINAL_PROMPT: "0", GIT_PAGER: "cat" });
+  const flags = inspectionGitFlags(repoRoot);
   const git = argv => execFileSync("git", [...flags, ...argv], { cwd, env: cleanEnv, encoding: "utf8", windowsHide: true, timeout: 10000, maxBuffer: MAX_INSPECTION_BYTES, stdio: ["ignore", "pipe", "pipe"] });
-  if (relative(realpathSync(repoRoot), realpathSync(git(["rev-parse", "--show-toplevel"]).trim())) !== "") throw new Error("Inspection context is a different repository");
+  // Native realpath: Git reports a mapped drive by its UNC path, which only the native form resolves to the same root.
+  if (relative(realpathSync.native(repoRoot), realpathSync.native(git(["rev-parse", "--show-toplevel"]).trim())) !== "") throw new Error("Inspection context is a different repository");
   const [verb, ...rest] = args;
   const hardened = ["diff", "show", "log"].includes(verb) ? ["--no-ext-diff", "--no-textconv", ...(verb !== "diff" ? ["--no-show-signature"] : [])] : [];
   return git([verb, ...hardened, ...rest]);
