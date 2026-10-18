@@ -1,6 +1,6 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-18, latest) — recovered build and Beads, Claude authentication remains external
+## HANDOFF (2026-10-18, latest) — recovered build and Beads, authenticated Claude acceptance PASS
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
@@ -8,7 +8,7 @@ The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 
 - Use installed Beads 1.1.0 x64 CGO build under ARM64 emulation, preserving embedded Dolt. Do not reinstall the nocgo ARM64 release. Database backup and original binary retained outside the checkout in the recovery chat work directory.
 - X: resolves to the no-space share \\Mac\Samsung9100PRO. No source workaround, package upgrade, dependency reinstall or distribution target change was needed.
 - Fresh terminals resolve bash, go, clang and claude through per-user PATH. claude.cmd wraps the existing desktop-bundled 2.1.299 executable and points it to installed Git Bash. If a desktop update removes that versioned executable, refresh the wrapper to the new verified installed version.
-- Required operator action: run claude, complete /login, then ask for exactly git status --short. Startup works but the real model/tool check was BLOCKED by Not logged in. Do not copy old credentials or bypass permissions. Lease guard positive/negative probes and 1168/1168 routing checks PASS.
+- Authentication blocker RESOLVED after user sign-in (2026-10-18). Actual Claude Bash git status --short PASS through the PreToolUse bounded inspection helper, confirmed in the local tool-use/tool-result transcript. CLI exit 0. Only the preserved untracked L12.27 contract was reported. Claude is ready for N4.7 QC. Lease guard positive/negative probes and 1168/1168 routing checks remain PASS.
 - Next authorized product work is awkit-vra.13.7 independent QC and N4 state/docs/closure, following N4 plan. Do not redo completed calibration or feature implementation. N3 stays shadow-only. Existing release-license and clean-VM gates remain external.
 - Preserved unchanged/untracked: docs/ai/contracts/awkit-l12-27-implementation-1006.json.
 

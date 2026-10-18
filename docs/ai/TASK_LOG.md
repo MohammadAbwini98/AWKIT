@@ -1,5 +1,11 @@
 # TASK_LOG
 
+## 2026-10-18 — Codex: authenticated Claude acceptance completed
+
+- After user sign-in, retried the existing Claude launcher with exactly one requested Bash command, git status --short. PASS: CLI exit 0, is_error=false; local transcript confirms the real Bash invocation and successful tool result. PreToolUse used the bounded inspection helper. Only the preserved untracked L12.27 contract was reported.
+- No production or hook configuration change. Updated current state, handoff, commands and known issues to resolve the authentication blocker. Claude can resume N4.7 independent QC. Existing build/routing results retained; no unchanged product tests rerun.
+
+
 ## 2026-10-18 — Codex: restore Windows ARM64 development tools and N4 handoff
 
 - Recovered Beads embedded access with the SHA256-verified official v1.1.0 windows_amd64 CGO executable, replacing only the installed nocgo ARM64 binary. Hash-verified 130-file database backup and original executable retained outside Git. Read N4.5 CLOSED/MET. Closed/exported N4.6 using existing committed evidence plus the now-passing build through its validated project-state lease, then released it.

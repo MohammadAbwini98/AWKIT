@@ -2,7 +2,7 @@
 
 ## Recovered Windows ARM64 tools (verified 2026-10-18)
 
-Open a fresh terminal after the per-user PATH update. bash, go, clang and claude are exposed. claude uses %LOCALAPPDATA%/Programs/AWKIT-Tools/claude.cmd and the existing desktop-bundled 2.1.299 executable, with CLAUDE_CODE_GIT_BASH_PATH pointing to C:/Program Files/Git/bin/bash.exe. User /login is still required.
+Open a fresh terminal after the per-user PATH update. bash, go, clang and claude are exposed. claude uses %LOCALAPPDATA%/Programs/AWKIT-Tools/claude.cmd and the existing desktop-bundled 2.1.299 executable, with CLAUDE_CODE_GIT_BASH_PATH pointing to C:/Program Files/Git/bin/bash.exe. User sign-in was completed and an actual Claude Bash git status --short call passed through the bounded inspection helper (2026-10-18).
 
 Beads 1.1.0 is the official x64 CGO release under emulation, not the ARM64 nocgo release. bd --readonly show awkit-vra.13.5 reads embedded Dolt successfully. No C compiler is needed for this binary installation. Optional native LLVM-MinGW 20261006 clang 23.1.3 is installed per user and its ARM64 compile/run probe passes. Full npm run build works from X: on the no-space share.
 

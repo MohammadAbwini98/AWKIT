@@ -4,7 +4,7 @@
 
 - Build PASS on the existing X: checkout after its share became \\Mac\Samsung9100PRO, with no spaces.
 - The earlier statement that every Beads 1.1.0 Windows ZIP lacks CGO was too broad. The official windows_amd64 release has CGO_ENABLED=1 and works with this embedded database under ARM64 emulation; windows_arm64 has CGO_ENABLED=0. Installed the verified same-version x64 release, backed up the database first, and closed/exported N4.6 through bd. No migration or backend switch.
-- Claude Code 2.1.299 starts but its CLI reports Not logged in. User /login is required before an actual Claude tool call can be verified. Direct lease-hook positive/negative checks pass; no hook or permission setting was changed.
+- Claude Code authentication RESOLVED after user sign-in (2026-10-18): actual Bash git status --short PASS through the bounded inspection helper, with a successful tool result confirmed in the local transcript. No hook or permission setting was changed.
 - Legacy .codex/hooks.json points Graphify at C:/Users/moham/.local/bin/graphify.EXE. It is separate from Claude's working lease guard. Not changed as part of Claude recovery. Old per-command approvals in .claude/settings.local.json also remain untouched.
 - The per-user claude.cmd launcher uses the existing desktop-bundled versioned executable; refresh its target if a future desktop update removes 2.1.299.
 
