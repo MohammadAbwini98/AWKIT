@@ -1,6 +1,23 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-14, latest) — Phase N: N4.5 calibration MET; N4.6 next
+## HANDOFF (2026-10-18, latest) — Phase N: N4.6 verified, bead close and build BLOCKED on the migrated machine
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** N4.6 `awkit-vra.13.6` code and evidence, contract `awkit-vra-13-6-n4-recorded-fallback-1014`:
+  `verify:recorded-visual-fallback` 58/0 with M1-M5 red and every N2/N3/runner/locator/recovery suite green (N4 plan).
+  `awkit-vra.13.5` is closed and exported. Guard Git inspection repaired for Git 2.55 and the share checkout.
+- **Owed (owner, environment):**
+  1. `bd` with embedded Dolt: the 1.1.0 release zips are built without CGO and refuse this repository's database.
+     Install an embedded-capable build (Beads docs: `go install` with `CGO_ENABLED=1` and MinGW-w64 gcc), then
+     `bd close awkit-vra.13.6` with the evidence, `bd export -o .beads/issues.jsonl`, and repin
+     `verify:roadmap-dashboard` (expected 28 / 367 of 395). Do not switch the tracker to server mode to work round it.
+  2. The build: X: still maps to `\\Mac\Samsung 9100 PRO`; Vite's `net use` parser stops at the space. Map the share
+     under a name without spaces, confirm with `git rev-parse --show-toplevel`, then run `npm run build`.
+- **Next:** after both, N4.7 `awkit-vra.13.7` independent QC and N4 closure. N4 and N4.7 stay open.
+- **Watch:** headless replay of a headed recording has no recall (N4.5); a missing visual observation is expected.
+
+## HANDOFF (2026-10-14) — Phase N: N4.5 calibration MET; N4.6 next
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

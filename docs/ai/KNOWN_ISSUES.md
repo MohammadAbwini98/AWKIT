@@ -1,5 +1,25 @@
 # KNOWN_ISSUES
 
+## ARM64 migration machine: build, Beads and timing caveats (2026-10-18)
+
+The repository now sits on a Parallels share of the Mac host mapped as X: on Windows 11 ARM64 (DECISIONS 2026-10-18).
+
+- **`electron-vite build` fails on a share whose name has spaces.** Vite resolves real paths natively (X: becomes
+  `\\Mac\Samsung 9100 PRO\...`) and maps them back by parsing `net use` with `/^\w* +(\w:) +([^ ]+)\s/`, which stops at
+  the first space and yields `X: 9100 PRO/...` (ENOENT). `tsc --noEmit` is unaffected. Fix in the environment: map the
+  share under a name without spaces and confirm with `git rev-parse --show-toplevel`. Never patch `node_modules`.
+- **`bd` 1.1.0 release zips are built without CGO**, so they cannot open this repository's embedded Dolt database
+  ("embedded Dolt requires a CGO build"). Install an embedded-capable build (`go install` with `CGO_ENABLED=1` and
+  MinGW-w64 gcc per the Beads docs). Do not switch the tracker to server mode to get round it.
+- **Bounded Git inspection on a share** needed `/dev/null` global config (Git 2.55 rejects `NUL`), a native-realpath
+  root check (Git reports the UNC path) and `safe.directory` for the verified root (no local owner SID); fixed in
+  `9741fc7`, guarded by `verify:agent-routing`.
+- **Host timing:** `verify:runner` "protected login capture ignores navigation timeout" gives `page.goto` a deliberate
+  25 ms budget on a `data:` page; on x64 Chromium under ARM64 emulation the navigation once exceeded it (137/1), and
+  the permitted rerun passed 138/0. Treat a single failure of that case here as host timing, not a regression.
+- **Dev browsers:** the dev verifiers use Playwright's own `%LOCALAPPDATA%\ms-playwright` cache (installed with
+  `npx playwright install chromium chromium-headless-shell`); the packaged app keeps its pinned bundled Chromium.
+
 ## `verify:visual-fusion-runtime` N2.5 capture checks are load-sensitive (Phase N, 2026-10-13)
 
 Two of five runs on 2026-10-13 failed N2.5 checks that passed on the next clean run. In one, the verdict evidence was

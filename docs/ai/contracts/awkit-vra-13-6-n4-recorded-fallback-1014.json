@@ -119,8 +119,8 @@
       "required": true,
       "command": "bd export -o .beads/issues.jsonl",
       "artifact": ".beads/issues.jsonl",
-      "result": "NOT RUN",
-      "observed": "pending"
+      "result": "PASS",
+      "observed": "2026-10-14 export carries awkit-vra.13.5 closed with the 5de29297 evidence notes; committed d6e4829"
     },
     {
       "id": "verify:roadmap-dashboard",
@@ -128,8 +128,8 @@
       "required": true,
       "command": "npm run verify:roadmap-dashboard",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": "pending"
+      "result": "PASS",
+      "observed": "177/177, Sources agree, 29 outstanding / 366 closed of 395 (2026-10-18)"
     },
     {
       "id": "verify:recorded-visual-fallback",
@@ -137,8 +137,8 @@
       "required": true,
       "command": "npm run verify:recorded-visual-fallback",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": "pending"
+      "result": "PASS",
+      "observed": "58/0 on the ARM64 machine (x64 Node and Chromium emulated); mutations M1 56/58, M1b 57/58, M2 57/58, M3 54/58, M4 56/58, M5 56/58, all red"
     },
     {
       "id": "verify:visual-fusion-runtime",
@@ -146,8 +146,8 @@
       "required": true,
       "command": "npm run verify:visual-fusion-runtime",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": "pending"
+      "result": "PASS",
+      "observed": "146/0"
     },
     {
       "id": "verify:visual-agreement-runtime",
@@ -155,8 +155,8 @@
       "required": true,
       "command": "npm run verify:visual-agreement-runtime",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": "pending"
+      "result": "PASS",
+      "observed": "81/0, 0 budget cuts"
     },
     {
       "id": "verify:runner",
@@ -164,8 +164,8 @@
       "required": true,
       "command": "npm run verify:runner",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": "pending"
+      "result": "PASS",
+      "observed": "138/0 on the permitted rerun; first run 137/1 on the 25 ms protected-login navigation case (host timing, KNOWN_ISSUES 2026-10-18)"
     },
     {
       "id": "verify:locator-guard",
@@ -173,8 +173,8 @@
       "required": true,
       "command": "npm run verify:locator-guard",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": "pending"
+      "result": "PASS",
+      "observed": "38/0"
     },
     {
       "id": "verify:recovery-provenance",
@@ -182,8 +182,8 @@
       "required": true,
       "command": "npm run verify:recovery-provenance",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": "pending"
+      "result": "PASS",
+      "observed": "46/0"
     },
     {
       "id": "build",
@@ -191,8 +191,8 @@
       "required": true,
       "command": "npm run build",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": "pending"
+      "result": "BLOCKED",
+      "observed": "tsc --noEmit PASS; electron-vite build fails because X: resolves to \\\\Mac\\Samsung 9100 PRO and Vite's net use parser stops at the space (environment, KNOWN_ISSUES 2026-10-18)"
     },
     {
       "id": "beads-export-13-6",
@@ -200,8 +200,8 @@
       "required": true,
       "command": "bd export -o .beads/issues.jsonl",
       "artifact": ".beads/issues.jsonl",
-      "result": "NOT RUN",
-      "observed": "pending"
+      "result": "BLOCKED",
+      "observed": "the installed bd 1.1.0 release binary has no CGO and cannot open the embedded Dolt database; awkit-vra.13.6 stays open"
     },
     {
       "id": "git-push",

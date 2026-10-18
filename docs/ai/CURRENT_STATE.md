@@ -1,6 +1,37 @@
 # CURRENT_STATE
 
-## Phase N: N4.5 recorded baseline calibration — criterion MET (2026-10-14, latest)
+## Phase N: N4.6 runner shadow fallback implemented and verified; ARM64 migration recovered (2026-10-18, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task.
+
+- **Machine (owner decision, DECISIONS 2026-10-18):** development and acceptance now run on Windows 11 ARM64 with x64
+  Node 24.20.0 under emulation, native ARM64 Git 2.55 and `bd` 1.1.0; distribution targets stay x64. Every result
+  below ran on that machine (x64 Node and the x64 Playwright Chromium emulated); none is native x64 hardware evidence.
+- **Guard fix (`9741fc7`):** bounded Git inspection works on Git for Windows 2.55 and a share-hosted checkout
+  (`/dev/null` global config, native-realpath root check, `safe.directory` for the verified root only);
+  `verify:agent-routing` 1168/1168 with three mutations red.
+- **N4.5 reconciled (`d6e4829`):** `awkit-vra.13.5` closed with its 5de29297 evidence; dashboard 29 / 366 of 395.
+- **N4.6 `awkit-vra.13.6` implemented and verified** (contract `awkit-vra-13-6-n4-recorded-fallback-1014`): with
+  `AWKIT_VISUAL_RECORDER=manual` and only when the runtime reference is missing, the N2 stage reads the recorded
+  reference for the step's current binding digest (one read per key per stage), traces `referenceSource`
+  `runtime`/`recorded`/`none`, never refreshes or overwrites it, and a recorded verdict always has effect `none`.
+  New `verify:recorded-visual-fallback` 58/0 with M1, M1b, M2, M3, M4 and M5 red. Runner A/B identical with the
+  recorded reference present, absent and fusion off. Full results in the N4 plan.
+- **Verifiers:** visual-fusion-runtime 146/0, visual-agreement-runtime 81/0, visual-agreement 258/0, visual-capture
+  274/0, visual-fingerprint 58/0, visual-isolation 54/0, recorder-visual-capture 119/0, runner 138/0, locator-guard
+  38/0, recovery-provenance 46/0, twin-pool-safety 48/0, mock-site 308/308, typecheck and typecheck:scripts PASS,
+  verifier-classification PASS (336).
+- **BLOCKED (environment, KNOWN_ISSUES 2026-10-18):** `npm run build` stops in `electron-vite build` (tsc PASS)
+  because X: still resolves to the share `\\Mac\Samsung 9100 PRO`; the `.13.6` close needs a CGO `bd` build.
+  `awkit-vra.13.6` therefore stays open.
+- **Unchanged:** N3 stays shadow-only, N3.4/N3.5 `blocked`; no threshold, policy, IPC, UI or persisted shape changed.
+- **v0.1.53 carry-over unchanged:** packaged licensed Parts D–J are BLOCKED (`AWKIT_PACKAGED_LICENSE_ISSUER_KEY`
+  unavailable), and the clean offline Windows VM walkthrough is NOT RUN.
+- **Next:** close `.13.6` once `bd` and the build run, then N4.7 independent QC and N4 closure.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## Phase N: N4.5 recorded baseline calibration — criterion MET (2026-10-14)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed by this task.

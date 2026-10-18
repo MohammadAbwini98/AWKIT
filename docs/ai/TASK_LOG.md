@@ -1,6 +1,26 @@
 # TASK_LOG
 
-## 2026-10-14 (latest) — Phase N: N4.5 recorded baseline calibration (Claude)
+## 2026-10-18 (latest) — ARM64 migration recovery, N4.5 reconciliation, N4.6 runner shadow fallback (Claude)
+
+- **Task:** recover the environment after the move to a Windows 11 ARM64 machine (repo on the X: Parallels share),
+  reconcile N4.5, implement N4.6 `awkit-vra.13.6` (contract `awkit-vra-13-6-n4-recorded-fallback-1014`).
+- **Commits:** `9741fc7` guard Git inspection fix and the ARM64 owner decision; `d6e4829` N4.5 reconciliation
+  (`.13.5` closed, dashboard 29/366 of 395); `2ca2e49` N4.6 wip checkpoint; this commit the N4.6 evidence and docs.
+- **Files:** `tools/agents/git-inspection.mjs`, `scripts/verify-agent-routing.mjs`; `src/runner/{ExecutionEngine,
+  PlaywrightRunner,LocatorFactory}.ts`, `src/runner/visualFusion/VisualFusionStage.ts`; new
+  `scripts/verify-recorded-visual-fallback.mts`; `scripts/verify-visual-{fusion,agreement}-runtime.mts`;
+  `package.json`; `scripts/lib/verifier-classification.ts`; `src/roadmap/ImplementationRoadmap.ts`; the N4 plan;
+  `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,KNOWN_ISSUES,DECISIONS,COMMANDS}.md`; the contract.
+- **Tests (ARM64 machine, x64 Node and Chromium emulated):** recorded-visual-fallback 58/0 with M1, M1b, M2, M3, M4,
+  M5 red (56, 57, 57, 54, 56, 56 of 58); agent-routing 1168/1168; visual-fusion-runtime 146/0;
+  visual-agreement-runtime 81/0; visual-agreement 258/0; visual-capture 274/0; visual-fingerprint 58/0;
+  visual-isolation 54/0; recorder-visual-capture 119/0; runner 138/0 (first run 137/1, host timing);
+  locator-guard 38/0; recovery-provenance 46/0; twin-pool-safety 48/0; mock-site 308/308; typecheck and
+  typecheck:scripts PASS; verifier-classification PASS (336); roadmap-dashboard 177/177 Sources agree.
+- **BLOCKED:** `npm run build` at `electron-vite build` (share name with spaces; tsc PASS) and the `.13.6` bead close
+  (`bd` release binary without CGO). Both environment, KNOWN_ISSUES 2026-10-18. `.13.6`, `.13.7` and N4 stay open.
+
+## 2026-10-14 — Phase N: N4.5 recorded baseline calibration (Claude)
 
 - **Task:** N4.5 `awkit-vra.13.5`, contract `awkit-vra-13-5-n4-calibration-1014`. **Result: N4.5 criterion MET.**
 - **Files:** new `scripts/benchmark-recorder-visual-baseline.mts`; `package.json` (`benchmark:recorder-visual-baseline`);

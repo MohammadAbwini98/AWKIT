@@ -5,7 +5,8 @@ Shared rules and the Phase N boundary: `ROADMAP.md` › *Phase N — Visual Reco
 (`awkit-vra.4`, closed 2026-10-13, shadow-only). The tracker home for N4 is the new bead **`awkit-vra.13`**, with
 children `awkit-vra.13.1`-`.13.7`. The legacy 2026-09-22 workstreams `awkit-vra.2`-`.8` are not reused.
 
-**Status (2026-10-14): IN PROGRESS. N4.1 to N4.5 done; N4.5 criterion MET, N4.6 eligible.** The owner approved RV-0 to RV-8 as recommended ("I approve
+**Status (2026-10-18): IN PROGRESS. N4.1 to N4.5 closed; N4.6 implemented and verified, its bead close BLOCKED
+(tooling, see below); N4.7 next.** The owner approved RV-0 to RV-8 as recommended ("I approve
 RV-0 to RV-8 as recommended, start N4"). That approval is recorded in `docs/ai/DECISIONS.md` (2026-10-14), and RV-1
 amends the 2026-10-12 isolation decision and FD-2 there. Contract `awkit-vra-13-n4-start-1013`.
 
@@ -53,7 +54,39 @@ amends the 2026-10-12 isolation decision and FD-2 there. Contract `awkit-vra-13-
   cross-launch, 0 with best != true element), wide twins 0 of 18 (N3.2: 3). The in-run runtime control reproduced
   N3.2 exactly. Headless replay never matched a headed recording (recall 0/36, all `not-identical`): a recall loss,
   never a false identity. See *N4.5 calibration results* below.
-- **Next:** N4.6 runner shadow fallback (eligible: N4.5 met). There is still no runner reading of a recorded reference.
+- **N4.6 `awkit-vra.13.6`: implemented and verified, bead still open** (2026-10-18). Contract
+  `awkit-vra-13-6-n4-recorded-fallback-1014`. Delivered, all in the existing N2 path:
+  - `VisualFusionStage.reference`: the runtime read first; only when it is `missing`, the observation is `eligible`
+    and `recordedFallback` is set does the stage read `recordedVisualReferenceKey(flow, step,
+    stepCandidatesDigest(step.locator))`, the CURRENT binding, through the unchanged store, memoized to one read per
+    key per stage. Anything but `found` (missing, corrupt, version mismatch, another binding) is no reference.
+  - Enablement: `ExecutionEngine` sets `visualRecordedFallback` only from `AWKIT_VISUAL_RECORDER === "manual"`, and
+    `PlaywrightRunner` passes `recordedFallback: true` to the stage only then. Unset, no recorded key is ever read.
+  - Trace: `referenceSource` `runtime` / `recorded` / `none`, a fixed code on the fusion record, the agreement record
+    and both trace blocks. No key, digest or evidence.
+  - Authority: `effectForReferenceSource` is the one place a verdict's effect meets its source; `recorded` always
+    gives `none` whatever the policy answers (`veto`, or `proceed` if N3 enforce is ever lifted), and
+    `LocatorFactory` independently drops an observer's `veto` whose source is `recorded`.
+  - Immutability: the refresh rule is decided on the runtime read alone and only ever writes the step's own scope
+    key, so the runtime reference supersedes the recorded one from the next run; nothing refreshes the recorded key.
+
+  Gates (Windows 11 ARM64 machine, x64 Node 24.20.0 and x64 Chromium under emulation, DECISIONS 2026-10-18):
+  - new `verify:recorded-visual-fallback` 58/0 (real Chromium; cases 1-12 including runner A/B neutrality, N3
+    agreement in shadow and enforce, binding change, corrupt and version-mismatch records, enablement), with
+    mutations M1 (recorded effect passes through), M1b (factory keeps a recorded veto), M2 (replay refreshes the
+    recorded key), M3 (recorded preferred), M4 (binding digest of the primary candidate only) and M5 (gate removed)
+    each observed red: 56, 57, 57, 54, 56 and 56 of 58;
+  - `verify:visual-fusion-runtime` 146/0, `verify:visual-agreement-runtime` 81/0, `verify:visual-agreement` 258/0,
+    `verify:visual-capture` 274/0, `verify:visual-fingerprint` 58/0, `verify:visual-isolation` 54/0,
+    `verify:recorder-visual-capture` 119/0, `verify:runner` 138/0 (first run 137/1 on a host-timing flake, see
+    KNOWN_ISSUES), `verify:locator-guard` 38/0, `verify:recovery-provenance` 46/0, `verify:twin-pool-safety` 48/0,
+    `verify:mock-site` 308/308, `typecheck` and `typecheck:scripts` PASS;
+  - `npm run build`: `tsc --noEmit` PASS, `electron-vite build` BLOCKED by the migrated machine's network-share
+    mapping (KNOWN_ISSUES 2026-10-18), not by N4.6;
+  - the `.13.6` close is BLOCKED: the installed `bd` 1.1.0 release binary has no CGO and cannot open the embedded
+    Dolt database (KNOWN_ISSUES 2026-10-18).
+- **Next:** close `awkit-vra.13.6` once `bd` and the build run on this machine, then N4.7 independent QC and N4
+  closure.
 
 ## Objective
 
