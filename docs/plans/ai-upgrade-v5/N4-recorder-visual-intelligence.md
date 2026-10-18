@@ -5,8 +5,7 @@ Shared rules and the Phase N boundary: `ROADMAP.md` › *Phase N — Visual Reco
 (`awkit-vra.4`, closed 2026-10-13, shadow-only). The tracker home for N4 is the new bead **`awkit-vra.13`**, with
 children `awkit-vra.13.1`-`.13.7`. The legacy 2026-09-22 workstreams `awkit-vra.2`-`.8` are not reused.
 
-**Status (2026-10-18): IN PROGRESS. N4.1 to N4.5 closed; N4.6 implemented and verified, its bead close BLOCKED
-(tooling, see below); N4.7 next.** The owner approved RV-0 to RV-8 as recommended ("I approve
+**Status (2026-10-18): IN PROGRESS. N4.1 to N4.6 closed; N4.7 independent QC and N4 closure next.** The owner approved RV-0 to RV-8 as recommended ("I approve
 RV-0 to RV-8 as recommended, start N4"). That approval is recorded in `docs/ai/DECISIONS.md` (2026-10-14), and RV-1
 amends the 2026-10-12 isolation decision and FD-2 there. Contract `awkit-vra-13-n4-start-1013`.
 
@@ -54,7 +53,8 @@ amends the 2026-10-12 isolation decision and FD-2 there. Contract `awkit-vra-13-
   cross-launch, 0 with best != true element), wide twins 0 of 18 (N3.2: 3). The in-run runtime control reproduced
   N3.2 exactly. Headless replay never matched a headed recording (recall 0/36, all `not-identical`): a recall loss,
   never a false identity. See *N4.5 calibration results* below.
-- **N4.6 `awkit-vra.13.6`: implemented and verified, bead still open** (2026-10-18). Contract
+- **N4.6 `awkit-vra.13.6`: closed** (2026-10-18, after the environment recovery restored an embedded-capable `bd`;
+  `npm run build` PASS on the remapped share). Contract
   `awkit-vra-13-6-n4-recorded-fallback-1014`. Delivered, all in the existing N2 path:
   - `VisualFusionStage.reference`: the runtime read first; only when it is `missing`, the observation is `eligible`
     and `recordedFallback` is set does the stage read `recordedVisualReferenceKey(flow, step,
@@ -81,12 +81,9 @@ amends the 2026-10-12 isolation decision and FD-2 there. Contract `awkit-vra-13-
     `verify:recorder-visual-capture` 119/0, `verify:runner` 138/0 (first run 137/1 on a host-timing flake, see
     KNOWN_ISSUES), `verify:locator-guard` 38/0, `verify:recovery-provenance` 46/0, `verify:twin-pool-safety` 48/0,
     `verify:mock-site` 308/308, `typecheck` and `typecheck:scripts` PASS;
-  - `npm run build`: `tsc --noEmit` PASS, `electron-vite build` BLOCKED by the migrated machine's network-share
-    mapping (KNOWN_ISSUES 2026-10-18), not by N4.6;
-  - the `.13.6` close is BLOCKED: the installed `bd` 1.1.0 release binary has no CGO and cannot open the embedded
-    Dolt database (KNOWN_ISSUES 2026-10-18).
-- **Next:** close `awkit-vra.13.6` once `bd` and the build run on this machine, then N4.7 independent QC and N4
-  closure.
+  - `npm run build` PASS (first BLOCKED at `electron-vite build` while X: mapped to a share name with spaces, then
+    PASS once remapped), `verify:roadmap-dashboard` 177/177 Sources agree at 28 / 367 of 395.
+- **Next:** N4.7 `awkit-vra.13.7` independent QC and N4 closure.
 
 ## Objective
 
