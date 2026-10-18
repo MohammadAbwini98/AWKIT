@@ -1,0 +1,180 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-n5-plan-1019",
+    "title": "Initiate canonical Phase N5 Visual Failure Diagnosis: plan, owner-decision package, tracker registration and the ARM64 acceptance-environment decision",
+    "objective": "Write docs/plans/ai-upgrade-v5/N5-visual-failure-diagnosis.md from the as-built baseline at 2b13bda3 with a VD-prefixed owner-decision package, register N5 as a new awkit-vra child bead with predecessors, children N5.1-N5.7 and acceptance, record the owner decision that Windows 11 ARM64 in Parallels is the approved development and acceptance environment with no separate clean VM or physical x86/x64 machine required, update the acceptance documentation to distinguish that waiver from completed verification, correct stale Phase N prose, repin the dashboard to measured counts, and stop at planning without implementation.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 0
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "2b13bda3",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "qa",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/TESTING.md",
+      "CLEAN_MACHINE_VALIDATION_RUNBOOK.md",
+      "docs/ai/contracts/awkit-vra-n5-plan-1019.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N5-PLAN",
+      "description": "The N5 plan exists with objective, as-built baseline, reusable capabilities versus gaps, scope, non-goals, the N6/N7/N10 distinction, owners, data flow, vocabulary, persistence, security/privacy/protected-auth boundary, headed/headless, frames/popups, offline, AI independence, budgets, accessibility/UI, VD-prefixed owner decisions proposed and not ratified, work items, dependency chain, verification and QC matrix with mutations, completion criteria, rollback, risks and the exact next task.",
+      "evidence_required": [
+        "build"
+      ]
+    },
+    {
+      "id": "N5-REGISTER",
+      "description": "N5 is a new awkit-vra child bead obtained through bd, blocked by N2 awkit-vra.12, N3 awkit-vra.4 and N4 awkit-vra.13, with labels, a spec link, acceptance and children N5.1-N5.7 chained in plan order and gated by the owner-decision item; nothing is registered as implemented or closed; legacy awkit-vra.5 is not repurposed; the export carries it; the dashboard pins match the measured counts and report Sources agree.",
+      "evidence_required": [
+        "beads-export",
+        "verify:roadmap-dashboard",
+        "verify:verifier-classification"
+      ]
+    },
+    {
+      "id": "N5-ACCEPT-ENV",
+      "description": "The owner decision that Windows 11 ARM64 in Parallels is the approved development and acceptance environment, with no separate clean VM or physical x86/x64 machine required, is recorded in DECISIONS and the acceptance documentation as a waiver distinct from verification; no clean-machine or native x64 pass is claimed; x64 compatibility and the security, licensing and packaging gates are unchanged.",
+      "evidence_required": [
+        "verify:clean-machine-policy"
+      ]
+    },
+    {
+      "id": "N5-GIT",
+      "description": "The work lands on main and is pushed without force; the L12.27 contract stays untracked and unchanged.",
+      "evidence_required": [
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "403 issues exported (395 + awkit-vra.14 and its seven children awkit-vra.14.1 to .14.7, all open), 329 edges (311 + 8 parent-child + 10 blocks)"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "round 1 174/177 with only the three pins failing (403 issues, 34 outstanding / 369 closed, 329 edges); repinned; round 2 177/177, Overview banner reads Sources agree, ledger 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases"
+    },
+    {
+      "id": "verify:verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "all 336 verify:/validate: scripts classified, classification reconciled; no verifier added by this task"
+    },
+    {
+      "id": "verify:clean-machine-policy",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:clean-machine-policy",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "28 passed, 0 failed after the 2026-10-19 acceptance-environment banner note; the canonical policy file is unchanged and no check is claimed as executed"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "embedded roadmap snapshot 574 records from 14 sources, tsc --noEmit clean, electron-vite main, preload and renderer bundles built (ARM64 machine, x64 Node emulated)"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "runs after the commit that carries this contract; its outcome is reported in the session report"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-n5-plan-1019:project-state:2026-10-18T21:55:57.577Z",
+        "task": "awkit-vra-n5-plan-1019",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-18T21:55:57.577Z",
+        "acquired_at_commit": "2b13bda361143ff530a588b747fd6918b7b6b183",
+        "released_at": "2026-10-18T21:57:19.704Z",
+        "released_reason": "N5 registration recorded and beads exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

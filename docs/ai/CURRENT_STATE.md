@@ -1,6 +1,31 @@
 # CURRENT_STATE
 
-## Phase N: N4 Recorder Visual Intelligence CLOSED after independent QC (2026-10-19, latest)
+## Phase N: N5 Visual Failure Diagnosis PLANNED; ARM64 Parallels acceptance environment approved (2026-10-19, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task, and no product source changed.
+
+- **N5 planned, not started** (contract `awkit-vra-n5-plan-1019`). Plan:
+  `docs/plans/ai-upgrade-v5/N5-visual-failure-diagnosis.md`. After an eligible element step has finally failed, N5
+  would record an advisory, image-free, codes-only visual diagnosis (read-only reference, one protected-guarded N0
+  frame, DOM-named crops, read-only geometry facts, a pure closed-vocabulary policy) in the instance report and a
+  text-only drawer section. It never selects an element, changes a locator, retries, or changes the cause, L5b or the
+  run outcome, and is distinct from N6, N7 and N10.
+- **Tracker:** `awkit-vra.14` (blocked by the closed `.12`, `.4` and `.13`) with N5.1-N5.7 as `.14.1`-`.14.7`,
+  chained in plan order. All open; none registered as implemented. Legacy `awkit-vra.5` not reused.
+- **Owner decisions VD-0 to VD-10 are proposed, not ratified.** N5.1 gates every implementation item.
+- **Acceptance environment (owner decision, DECISIONS 2026-10-19):** Windows 11 ARM64 in Parallels is the approved
+  development and acceptance environment; a separate clean VM or physical x86/x64 machine is not required. This is
+  a waiver, not verification: the clean-machine disposition stays OWNER WAIVED / NON-BLOCKING, and the clean offline
+  Windows VM walkthrough stays not executed. x64 distribution targets, licensing, packaging and security gates are
+  unchanged. Recorded in the runbook banner and `docs/ai/TESTING.md`.
+- **Unchanged:** N3 shadow-only (N3.4/N3.5 blocked), N4 recorded fallback isolation (effect `none`), every visual flag
+  default off, `window.playwrightFlowStudio`, offline operation. v0.1.53 packaged licensed Parts D–J stay BLOCKED.
+- **Next:** the owner records VD-0 to VD-10 and authorizes N5 (N5.1). Only then N5.2 (the pure
+  `decideVisualDiagnosis` and `verify:visual-diagnosis`, plus two audits).
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## Phase N: N4 Recorder Visual Intelligence CLOSED after independent QC (2026-10-19)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed by this task.

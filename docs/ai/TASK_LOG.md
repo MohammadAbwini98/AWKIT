@@ -1,5 +1,34 @@
 # TASK_LOG
 
+## 2026-10-19 — Phase N: canonical N5 Visual Failure Diagnosis planned and registered; ARM64 acceptance environment recorded (Claude)
+
+- **Scope:** "Initiate N5 Visual Failure Diagnosis Planning", planning and registration only. Contract
+  `awkit-vra-n5-plan-1019`, Risk 0. No product source, schema, IPC, UI or verifier changed. CodeCraft: not used
+  (`CODECRAFT_MODE=off` default).
+- **Plan:** `docs/plans/ai-upgrade-v5/N5-visual-failure-diagnosis.md`: as-built baseline at `2b13bda3`, reusable
+  capabilities versus gaps, scope and non-goals, the N6/N7/N10 distinction, data flow, proposed vocabulary,
+  persistence, security/privacy/protected-auth, headed/headless, offline, budgets, UI, owner decisions VD-0 to VD-10
+  (proposed, not ratified), work items N5.1-N5.7, the verification and independent-QC matrix with mutations,
+  completion criteria, rollback, risks and the exact next task.
+- **Governance:** filed `awkit-vra.14` (blocked by `.12`, `.4`, `.13`) with `.14.1`-`.14.7` chained in plan order, all
+  open, under the project-state lease (released). Export 403 issues. Dashboard repinned to 34 / 369 of 403 and 329 edges
+  (+8 beads, +18 edges). Legacy `awkit-vra.5` untouched.
+- **Owner decision recorded:** Windows 11 ARM64 in Parallels is the approved development and acceptance environment;
+  no separate clean VM or physical x86/x64 machine is required. Recorded as a waiver in DECISIONS, the clean-machine
+  runbook banner and TESTING; nothing claimed as executed; x64 targets and the security, licensing and packaging
+  gates unchanged.
+- **Stale prose corrected:** ROADMAP Phase N status line and the N4/N5 canonical rows; ImplementationRoadmap Phase N
+  note gains N5.
+- **Files:** `.beads/{issues,interactions}.jsonl`, `CLEAN_MACHINE_VALIDATION_RUNBOOK.md`,
+  `scripts/verify-roadmap-dashboard.mjs`, `src/roadmap/ImplementationRoadmap.ts`,
+  `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,DECISIONS,TESTING}.md`,
+  `docs/plans/ai-upgrade-v5/{N5-visual-failure-diagnosis,ROADMAP}.md`, the contract, `active-lease.json`.
+- **Checks (ARM64 machine, x64 Node emulated):** `verify:roadmap-dashboard` round 1 174/177 (the three pins only),
+  round 2 after the repin; `verify:verifier-classification`; `verify:clean-machine-policy`; `npm run build`; results
+  in the contract.
+- **Result:** N5 planned; awaiting owner decisions VD-0 to VD-10 (N5.1). `docs/ai/contracts/awkit-l12-27-implementation-1006.json`
+  preserved.
+
 ## 2026-10-19 — Phase N: N4.7 independent QC and N4 closure (Claude)
 
 - **Task:** N4.7 `awkit-vra.13.7`, contract `awkit-vra-13-7-n4-qc-closure-1018`. **Result: N4 CLOSED, all ten

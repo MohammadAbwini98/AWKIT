@@ -1,6 +1,23 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-19, latest) — Phase N: N4 closed after independent QC
+## HANDOFF (2026-10-19, latest) — Phase N: N5 planned, awaiting owner decisions
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done (planning only):** `docs/plans/ai-upgrade-v5/N5-visual-failure-diagnosis.md`, with VD-0 to VD-10, the
+  verification and QC matrix, and the exact next task. Filed `awkit-vra.14` and `.14.1`-`.14.7` (all open). Contract
+  `awkit-vra-n5-plan-1019`; project-state lease released.
+- **Owner decision recorded:** Windows 11 ARM64 in Parallels is the acceptance environment; no separate clean VM
+  or x86/x64 machine is required. It is a waiver, so clean-machine stays optional and non-blocking by owner policy,
+  and nothing is reported as executed.
+- **Blocked on the owner:** N5.1 — approve, amend or reject VD-0 to VD-10 and authorize N5. No agent may ratify them
+  or start N5.2 before that.
+- **Then:** N5.2 `awkit-vra.14.2`: the pure `src/visual/diagnosis/decideVisualDiagnosis.ts`, `verify:visual-diagnosis`
+  with mutations, and the two audits (reference condition fields, B2 protected capture). No runner, IPC or UI change.
+- **Do not redo:** N4 implementation, calibration or QC.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-19) — Phase N: N4 closed after independent QC
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

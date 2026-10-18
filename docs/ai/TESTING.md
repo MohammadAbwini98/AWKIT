@@ -406,6 +406,12 @@ guards is removed** — that is the only thing separating a control from decorat
   A future clean-machine FAIL remains blocking. The dev-machine half remains
   `npm run verify:packaged-walkthrough`; owner policy does not waive checksum, offline-bundle,
   packaged-startup, artifact-integrity, dependency-manifest, or security gates.
+- **Acceptance environment (owner decision, DECISIONS 2026-10-19).** Windows 11 ARM64 in Parallels is the
+  approved development and acceptance machine; no separate clean VM or physical x86/x64 run is required
+  to accept a milestone. Report this as an owner waiver, never as an executed check: the clean offline VM
+  walkthrough stays NOT RUN, and results from this machine are labelled ARM64-machine execution (native
+  ARM64 or x64 emulated). x64 stays the distribution target; licensing, packaging and security gates keep
+  their own requirements.
 
 ### Visual QA — Hologram UI (Phase 14)
 

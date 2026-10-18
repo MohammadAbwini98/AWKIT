@@ -1,6 +1,39 @@
 # DECISIONS
 
-### 2026-10-19 (latest) — Phase N N4 outcome: closed with the shadow-only runner fallback (`awkit-vra.13.7`)
+### 2026-10-19 (latest) — Acceptance environment: Windows 11 ARM64 in Parallels; no separate clean VM or x86/x64 machine required (owner, in session)
+
+- **Owner decision (verbatim intent).** Windows 11 ARM64 running in Parallels is the approved development and
+  acceptance environment. A separate clean-VM or physical x86/x64 acceptance environment is not required. Existing
+  Intel/AMD Windows compatibility is preserved. No unexecuted clean-machine test is claimed as a pass. Independent
+  security, licensing and packaging requirements are maintained.
+- **What it extends.** The 2026-10-18 decision made the ARM64 machine the primary development and acceptance
+  machine. This decision adds that it runs in Parallels and that no separate clean VM or physical x86/x64 run is
+  required to accept a milestone, including Phase N milestones from N5 on.
+- **Waiver, not verification.** It waives a requirement; it executes nothing. The clean-machine disposition stays
+  `owner-waived-non-blocking` under the 2026-07-24 policy (`scripts/lib/clean-machine-validation-policy.ts`, unchanged):
+  the runbook checks stay Not Executed, the clean offline Windows VM walkthrough stays NOT RUN, and a future executed
+  FAIL would still block. Results on this machine stay labelled ARM64-machine execution (native ARM64, or x64 under
+  emulation) and are never reported as native x64 hardware evidence.
+- **Unchanged.** Distribution targets stay `x64` (`portable` + `nsis`) with no ia32 or ARM64 target. The checksum,
+  offline-bundle, packaged-startup, artifact-integrity, dependency-manifest and security gates stay mandatory.
+  Packaged licensed Parts D-J stay BLOCKED on `AWKIT_PACKAGED_LICENSE_ISSUER_KEY`.
+- **Recorded in:** `CLEAN_MACHINE_VALIDATION_RUNBOOK.md` (banner note), `docs/ai/TESTING.md` (manual checklist),
+  the N5 plan's carry-over boundaries, CURRENT_STATE and HANDOFF. Contract `awkit-vra-n5-plan-1019`.
+
+### 2026-10-19 — Phase N N5 Visual Failure Diagnosis planned; VD-0 to VD-10 proposed, not ratified (`awkit-vra.14`)
+
+- **Planning only.** `docs/plans/ai-upgrade-v5/N5-visual-failure-diagnosis.md` defines N5 as an advisory, image-free,
+  codes-only diagnosis recorded only after an eligible element step has finally failed. It is filed as `awkit-vra.14`
+  with N5.1-N5.7 as `.14.1`-`.14.7`. No product code, schema, IPC, UI or verifier changed.
+- **Not decided.** VD-0 (authority boundary), VD-1 (a third `src/visual` edge, amending the 2026-10-12 isolation
+  decision, FD-2 and RV-1), VD-2 (final-attempt trigger), VD-3 (evidence sources), VD-4 (no change to L5a or L5b),
+  VD-5 (report persistence), VD-6 (text-only UI), VD-7 (`AWKIT_VISUAL_DIAGNOSIS`, default off), VD-8 (budget and
+  cap), VD-9 (same-conditions comparison) and VD-10 (calibration gate) wait for the owner. Agents must not ratify
+  them; N5.1 records the outcome.
+- **Legacy record.** `awkit-vra.5` ("Visual assertions and failure evidence") is not repurposed; its scope is split
+  between canonical N5 and N6.
+
+### 2026-10-19 — Phase N N4 outcome: closed with the shadow-only runner fallback (`awkit-vra.13.7`)
 
 - **Outcome.** N4 Recorder Visual Intelligence is closed, with all ten completion criteria met (contract
   `awkit-vra-13-7-n4-qc-closure-1018`). N4.5 met its criterion, so N4 closes **with** the N4.6 runner fallback, not

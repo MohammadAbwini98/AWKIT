@@ -53,6 +53,16 @@ as a mandatory prerequisite — it does **not** turn a failed run into a non-blo
 does **not** waive checksum, offline-bundle, packaged-startup, artifact-integrity,
 dependency-manifest, or security validation.
 
+> **Acceptance environment — owner decision 2026-10-19 (DECISIONS 2026-10-19).** Windows 11 ARM64
+> running in Parallels is the approved development and acceptance environment. A separate clean VM or
+> physical x86/x64 machine is **not required** to accept a milestone. This is an **owner waiver, not
+> verification**: the disposition above stays OWNER WAIVED — NON-BLOCKING, every check below stays
+> Not Executed, and nothing here is claimed as run. ARM64-machine results are labelled as such (native
+> ARM64 or x64 under emulation), never as native x64 hardware evidence. Intel/AMD Windows x64 stays the
+> distribution target, and the protected gates (checksum, offline-bundle, packaged-startup,
+> artifact-integrity, dependency-manifest, security) and the licensing gates are unchanged. If this
+> runbook is ever executed, its result is recorded truthfully and a FAIL still blocks.
+
 ---
 
 > ## ⚠ Owner-approved development waiver — 2026-07-23
