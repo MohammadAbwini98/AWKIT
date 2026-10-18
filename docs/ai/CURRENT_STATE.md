@@ -1,6 +1,36 @@
 # CURRENT_STATE
 
-## Environment recovery: build and embedded Beads restored (2026-10-18, latest)
+## Phase N: N4 Recorder Visual Intelligence CLOSED after independent QC (2026-10-19, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed by this task.
+
+- **N4.7 `awkit-vra.13.7` closed** (contract `awkit-vra-13-7-n4-qc-closure-1018`). One fresh-context
+  `awkit-qc-reviewer` reviewed N4.2 to N4.6 against the N4 plan's criteria 1 to 10. Verdict: APPROVED WITH
+  FINDINGS, with no product defect. Both minor verifier findings are closed, and the re-review is APPROVED.
+  - Finding 1: the per-stage memo was unproven. New case 13 asserts one recorded read across two observations.
+  - Finding 2: the save-side to runner-read path was unproven. New case 14 covers `buildRecordedFlow` →
+    `persistRecordedVisualReferences` → replay as `recorded`, plus a source pin that both sides use
+    `getRuntimePaths().root`.
+- **N4 epic `awkit-vra.13` closed**, with all ten completion criteria met. It closes with the shadow-only N4.6 runner
+  fallback (effect always `none`), not recorder-only.
+- **Gates on the final state** (ARM64 machine, x64 Node and Chromium emulated):
+  - `verify:recorded-visual-fallback` 71/0, with mutation M6 (memo bypassed) observed red at 70/71;
+  - `verify:visual-isolation` 54/0;
+  - `typecheck:scripts` PASS;
+  - `npm run build` PASS;
+  - `verify:roadmap-dashboard` 177/177 Sources agree at 26 / 369 of 395.
+
+  No product source changed after `84b45aeb`, so the N4.6 suites stand without a rerun.
+- **Unchanged:** N3 stays shadow-only, and N3.4/N3.5 stay `blocked`. `AWKIT_VISUAL_RECORDER=manual` stays an
+  environment flag, default off, with no Settings key.
+- **v0.1.53 carry-over unchanged:** packaged licensed Parts D–J are BLOCKED (`AWKIT_PACKAGED_LICENSE_ISSUER_KEY`
+  unavailable), and the clean offline Windows VM walkthrough is NOT RUN.
+- **Next:** the next Phase N milestone (N5 Visual Failure Diagnosis) needs its own plan and owner authorization.
+  Nothing is started.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## Environment recovery: build and embedded Beads restored (2026-10-18)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was executed.
 

@@ -1,6 +1,20 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-18, latest) — recovered build and Beads, authenticated Claude acceptance PASS
+## HANDOFF (2026-10-19, latest) — Phase N: N4 closed after independent QC
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** N4.7 `awkit-vra.13.7` and the N4 epic `awkit-vra.13` are closed and exported (contract
+  `awkit-vra-13-7-n4-qc-closure-1018`). The independent QC is APPROVED, and its two verifier gaps are closed by
+  `verify:recorded-visual-fallback` cases 13 and 14 (71/0, M6 red).
+- **State:** 26 outstanding / 369 closed of 395, Sources agree, build PASS. The project-state lease is released.
+- **Do not redo:** the N4 calibration, the implementation or the QC.
+- **Still open:** N3.4/N3.5 stay blocked, and N3 stays shadow-only. The v0.1.53 packaged-license and clean-VM gates
+  remain external.
+- **Next:** no N4 work remains. N5 needs a plan and owner authorization first.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-18) — recovered build and Beads, authenticated Claude acceptance PASS
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

@@ -1,6 +1,19 @@
 # DECISIONS
 
-### 2026-10-18 (latest) — Windows ARM64 is the development and acceptance machine; x64 distribution targets stay (owner, in session)
+### 2026-10-19 (latest) — Phase N N4 outcome: closed with the shadow-only runner fallback (`awkit-vra.13.7`)
+
+- **Outcome.** N4 Recorder Visual Intelligence is closed, with all ten completion criteria met (contract
+  `awkit-vra-13-7-n4-qc-closure-1018`). N4.5 met its criterion, so N4 closes **with** the N4.6 runner fallback, not
+  recorder-only.
+- **What stands.** RV-0 to RV-8 stand as approved on 2026-10-14. A recorded reference is advisory: it feeds only the
+  N2 shadow observation with effect `none`, the runtime reference takes precedence, and the runner never writes the
+  recorded key. The enablement stays the environment flag `AWKIT_VISUAL_RECORDER=manual`, default off. N4 adds no
+  Settings key; exposing one is a separate future owner decision (RV-6, FD-8, VR-8).
+- **N3 unchanged.** N3 stays closed shadow-only, and N3.4 and N3.5 stay blocked. N4 creates no path that lifts them.
+- **Independent QC.** One fresh-context review was APPROVED. Its two minor verifier gaps were closed with new cases 13
+  and 14 in `verify:recorded-visual-fallback` (71/0, mutation M6 red). No product code changed.
+
+### 2026-10-18 — Windows ARM64 is the development and acceptance machine; x64 distribution targets stay (owner, in session)
 
 - **Owner decision.** The development machine is now Windows 11 ARM64. It is the primary development, build,
   verification and acceptance environment, and ARM64 machine acceptance satisfies the owner-approved machine

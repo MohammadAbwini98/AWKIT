@@ -923,6 +923,16 @@ Channel and UI (N4.4):
        -> recorderVisualCaptureResponse(await captureVisualReference(id))   rebuilt field by field (RV-8)
   recorder:getStatus also carries visualCaptureAvailable (flag read per call) and visualReferences
     (action id -> "captured" | "stale"); the per-step status line renders from it, refusals from the reply.
+Replay (N4.6, shadow only):
+  ExecutionEngine visualRecordedFallback = (AWKIT_VISUAL_RECORDER === "manual")
+    -> PlaywrightRunner passes recordedFallback: true to the N2 VisualFusionStage only then
+  VisualFusionStage.reference(scopeKey, step): store.get(runtime scopeKey) first
+    found / version-mismatch -> runtime;  corrupt -> none
+    missing + eligible + recordedFallback -> store.get(recordedVisualReferenceKey(flowId, stepId,
+      stepCandidatesDigest(step.locator)))   memoized once per key per stage; anything but found -> none
+  referenceSource runtime | recorded | none (fixed code) on the fusion and agreement records and trace blocks
+  effectForReferenceSource("recorded", any) = "none"; LocatorFactory also drops a recorded-source veto
+  refresh decided on the runtime read alone, writes only the runtime scopeKey (never the recorded key)
 ```
 
 Invariants:
@@ -939,6 +949,9 @@ Invariants:
   scan that does not finish is never "clear".
 - `verify:visual-isolation` allows exactly two edges into `src/visual`: the runner's `VisualFusionStage` and this
   adapter. The adapter's imports are pinned: `@src/visual`, `playwright`, `VisualReferenceStore` and the key module.
+- A recorded reference never has execution authority (RV-4). It only feeds the shadow observation with effect
+  `none`, is never refreshed or rewritten, and yields to the runtime reference. Both writer and reader resolve
+  `visual-references/` under `getRuntimePaths().root` (`verify:recorded-visual-fallback`, N4.7 case 14).
 
 ## Semantic index (separate process boundary)
 

@@ -1,18 +1,32 @@
 {
-  "task": "awkit-vra-13-6-n4-recorded-fallback-1014",
-  "contract_path": "docs/ai/contracts/awkit-vra-13-6-n4-recorded-fallback-1014.json",
+  "task": "awkit-vra-13-7-n4-qc-closure-1018",
+  "contract_path": "docs/ai/contracts/awkit-vra-13-7-n4-qc-closure-1018.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-18T18:51:05.799Z",
-  "acquired_at_commit": "84b45aeb1350d943d02af3677e5c97142ada01d3",
+  "acquired_at": "2026-10-18T21:04:31.661Z",
+  "acquired_at_commit": "e1dec2cc037ae8bad0c50b5494609573728a4d26",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-l12-27-implementation-1006.json"
+    "docs/ai/ARCHITECTURE.md",
+    "docs/ai/DECISIONS.md",
+    "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+    "docs/ai/contracts/awkit-vra-13-7-n4-qc-closure-1018.json",
+    "docs/plans/ai-upgrade-v5/N4-recorder-visual-intelligence.md",
+    "docs/plans/ai-upgrade-v5/ROADMAP.md",
+    "scripts/verify-recorded-visual-fallback.mts",
+    "src/roadmap/ImplementationRoadmap.ts"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+    "docs/ai/ARCHITECTURE.md": "a84d143449eca727ee1835678b7281fb98516eab7c78dff736360f4b95136a6a",
+    "docs/ai/DECISIONS.md": "56911dca9b100d2b32bbbc15ed3dbe88d6b5fc4580c1e434b33cedf96ac7664a",
+    "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
+    "docs/ai/contracts/awkit-vra-13-7-n4-qc-closure-1018.json": "21130e69a7faa8a55da1504aaed2bb0ea52bd093f249a244cc5e21a355afe637",
+    "docs/plans/ai-upgrade-v5/N4-recorder-visual-intelligence.md": "a1fa483573d9d6a9ddb5c611ec80d62475323403e6a2dead6d4bf719d4bfd010",
+    "docs/plans/ai-upgrade-v5/ROADMAP.md": "7ea1228fde4085ed79ed2a17aeb60e916a8481e6b4f55fba39965f2eec4b26f5",
+    "scripts/verify-recorded-visual-fallback.mts": "aeb0dab0a68f1114b240712ef3b273f0208bcd8ff6c2edef39f2da7c02228922",
+    "src/roadmap/ImplementationRoadmap.ts": "f5fcc805fe4d1be202f24d6cac859dc437c5949942926c75a5d6a9ac316c7719"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -27,7 +41,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-18T18:52:03.304Z",
-  "released_reason": "Environment recovery completed N4.6 tracker close and export",
-  "archived_at": "2026-10-18T18:52:03.307Z"
+  "released_at": "2026-10-18T21:05:19.633Z",
+  "released_reason": "N4.7 beads awkit-vra.13.7 and awkit-vra.13 closed and exported",
+  "archived_at": "2026-10-18T21:05:19.636Z"
 }

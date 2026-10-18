@@ -20,11 +20,15 @@
  *      effect none, the step stays unresolved, nothing is written;
  *   11 enablement: without `recordedFallback` (AWKIT_VISUAL_RECORDER unset) no recorded key is read; the engine sets it
  *      only from `AWKIT_VISUAL_RECORDER === "manual"` and the runner passes it only when true;
- *   12 the runtime refresh rule is unchanged: the same refresh calls with or without a recorded reference beside it.
+ *   12 the runtime refresh rule is unchanged: the same refresh calls with or without a recorded reference beside it;
+ *   13 (N4.7 QC) two observations through one stage read the recorded key once (the per-stage memo);
+ *   14 (N4.7 QC) end to end: `buildRecordedFlow` binds the reference, `persistRecordedVisualReferences` stores it, and a
+ *      replay of the saved step reads it as `recorded`; both sides use `getRuntimePaths().root` (source pin).
  *
  * Mutation contract (run 2026-10-18, each observed red): M1 `effectForReferenceSource` passes the effect through for
- * `recorded`; M2 the replay refreshes the recorded key; M3 the recorded reference is preferred over the runtime one;
- * M4 the binding digest ignores everything but the primary candidate; M5 the `recordedFallback` gate is removed.
+ * `recorded`; M1b `LocatorFactory` keeps a recorded veto; M2 the replay refreshes the recorded key; M3 the recorded
+ * reference is preferred over the runtime one; M4 the binding digest ignores everything but the primary candidate;
+ * M5 the `recordedFallback` gate is removed. M6 (run 2026-10-19): the recorded-read memo is bypassed.
  *
  * The 400 ms FD-5 budget is a production constant and is not relaxed: a run whose capture the budget cut is repeated a
  * bounded number of times (the count is printed); a case whose every attempt is cut FAILS.
@@ -56,6 +60,9 @@ import {
 } from "@src/runner/visualFusion/VisualFusionStage";
 import { VisualReferenceStore, type VisualReferenceStoreOptions } from "@src/runner/visualFusion/VisualReferenceStore";
 import { recordedVisualReferenceKey } from "@src/runner/visualFusion/recordedVisualReferenceKey";
+import type { RecordedAction } from "@src/recorder/RecorderTypes";
+import { buildRecordedFlow, buildRecordedStep, type RecordedVisualReferenceOut } from "@src/recorder/buildRecordedFlow";
+import { persistRecordedVisualReferences } from "@src/recorder/visual/RecorderVisualCapture";
 
 let passed = 0;
 let failed = 0;
@@ -124,7 +131,8 @@ const jsonFiles = async (folder: string): Promise<string[]> => (await readdir(fo
 async function scenario(
   mutation: MutationName,
   fusion: { seed?: LocatorVisualFusion; recover?: LocatorVisualFusion } = {},
-  locator: Record<string, unknown> = PRIMARY
+  locator: Record<string, unknown> = PRIMARY,
+  saved: { flowId?: string; step?: FlowStep } = {}
 ): Promise<ScenarioRun> {
   const page: Page = await browser!.newPage({ viewport: { width: 800, height: 600 } });
   try {
@@ -132,11 +140,11 @@ async function scenario(
     const folder = await mkdtemp(join(ROOT, "recovery-"));
     const recoveryStore = new FileLocatorRecoveryStore(folder);
     const events: LocatorRecoveryEvent[] = [];
-    const step = { id: STEP_ID, name: "Save profile", type: "click", locator } as unknown as FlowStep;
+    const step = saved.step ?? ({ id: STEP_ID, name: "Save profile", type: "click", locator } as unknown as FlowStep);
     const factory = (visualFusion?: LocatorVisualFusion) =>
       new LocatorFactory(page, {
         recoveryStore,
-        scope: { scenarioId: SCENARIO_ID, flowId: FLOW_ID },
+        scope: { scenarioId: SCENARIO_ID, flowId: saved.flowId ?? FLOW_ID },
         recoveryGraceMs: 0,
         onRecoveryEvent: (event) => events.push(event),
         ...(visualFusion ? { visualFusion } : {})
@@ -441,6 +449,57 @@ async function main(): Promise<void> {
   const runner = await readFile("src/runner/PlaywrightRunner.ts", "utf8");
   check("the engine sets the fallback only from AWKIT_VISUAL_RECORDER === \"manual\"", /visualRecordedFallback: process\.env\.AWKIT_VISUAL_RECORDER === "manual",/.test(engine) && (engine.match(/visualRecordedFallback/g) ?? []).length === 1);
   check("the runner passes recordedFallback to the stage only when it is exactly true", /\.\.\.\(this\.options\.visualRecordedFallback === true \? \{ recordedFallback: true \} : \{\}\)/.test(runner));
+
+  console.log("\n13: one recorded read per flow, step and binding per stage (N4.7 QC finding 1):\n");
+  // Two refusals of the same step through ONE stage: agreement never writes (J7) and the drifted step never passes, so
+  // the runtime reference stays missing and both observations reach the recorded fallback; only the memo stops the
+  // second read.
+  const memo = await attempted(async () => {
+    const s = await staged({ recordedFallback: true, agreement: "shadow" });
+    await writeRecorded(s.folder);
+    const runs = [await scenario("drift", { recover: s.fusion }), await scenario("drift", { recover: s.fusion })];
+    const complete = s.agreements.length === 2 && s.agreements.every((record) => !CUT.has(record.reason));
+    return { s, runs, verdict: complete ? s.agreements[1] : { reason: "budget-exhausted" } };
+  });
+  const memoReads = memo.s.store.gets.map((k) => (k === RECORDED_KEY ? "recorded" : k === SCOPE_KEY ? "runtime" : "other"));
+  check("non-vacuous: two agreement verdicts through one stage, both compared against the recorded reference", memo.s.agreements.length === 2 && memo.s.agreements.every((record) => record.referenceSource === "recorded"), JSON.stringify(memo.s.agreements));
+  check("the runtime key was read on both observations and stayed missing (nothing wrote it)", memoReads.filter((k) => k === "runtime").length === 2 && memo.s.store.refreshes.length === 0, JSON.stringify(memoReads));
+  check("the recorded key was read exactly once across both observations", memoReads.filter((k) => k === "recorded").length === 1, JSON.stringify(memoReads));
+  check("both runs unchanged from fusion off", memo.runs.length === 2 && memo.runs.every((run) => sameRun(run, offDrift)));
+
+  console.log("\n14: the Recorder's own save path feeds the runner's read (N4.7 QC finding 2):\n");
+  const action: RecordedAction = { id: "rec-open-tools", type: "click", name: "Open profile tools", locator: { ...PRIMARY } };
+  const recordedStep = buildRecordedStep(action);
+  check("precondition: the recorded action builds a click step with a locator", recordedStep?.type === "click" && Boolean(recordedStep.locator));
+  const out: RecordedVisualReferenceOut[] = [];
+  const flow = buildRecordedFlow("Recorded fallback", [action], undefined, {
+    visualReferences: new Map([[action.id, { bindingDigest: stepCandidatesDigest(recordedStep!.locator!), evidence: baseline }]]),
+    visualReferencesOut: out
+  });
+  const savedStep = flow.nodes.find((node) => node.id === out[0]?.stepId);
+  check("the save binds exactly one reference, to the saved step", out.length === 1 && Boolean(savedStep?.locator), JSON.stringify(out.map((o) => o.stepId)));
+  check("the saved FlowProfile carries no visual evidence", !JSON.stringify(flow).includes(digestOf(baseline)!) && !JSON.stringify(flow).includes(out[0]?.bindingDigest ?? "\u0000"));
+  const offSaved = await scenario("idOnly", {}, PRIMARY, { flowId: flow.id, step: savedStep });
+  const viaSave = await attempted(async () => {
+    const s = await staged({ recordedFallback: true });
+    const counts = await persistRecordedVisualReferences(s.folder, flow.id, out);
+    const run = await scenario("idOnly", { recover: s.fusion }, PRIMARY, { flowId: flow.id, step: savedStep });
+    return { s, counts, run, verdict: s.verdicts[0] };
+  });
+  check("the Recorder's persist wrote the reference", viaSave.counts.written === 1 && viaSave.counts.failed + viaSave.counts.refused === 0, JSON.stringify(viaSave.counts));
+  check("non-vacuous: the saved step recovers locally with fusion off", offSaved.recovered && offSaved.isTarget);
+  check("replaying the saved step reads the reference the save wrote: referenceSource recorded, effect none", viaSave.verdict?.referenceSource === "recorded" && viaSave.verdict.effect === "none" && !UNCOMPARED.has(viaSave.verdict.reason), JSON.stringify(viaSave.s.verdicts));
+  const savedScopeKey = `${SCENARIO_ID}\u0000${flow.id}\u0000${out[0]?.stepId}`;
+  check("…and the replay refreshed only the saved step's own runtime key", viaSave.s.store.refreshes.length >= 1 && viaSave.s.store.refreshes.every((k) => k === savedScopeKey), JSON.stringify(viaSave.s.store.refreshes.length));
+  check("execution unchanged from fusion off", sameRun(viaSave.run, offSaved));
+  const ipc = await readFile("app/main/ipc/recorder.ipc.ts", "utf8");
+  const application = await readFile("app/main/execution/ExecutionApplicationService.ts", "utf8");
+  check(
+    "one folder on both sides: the save writes under getRuntimePaths().root and the engine's root is getRuntimePaths().root",
+    /persistVisualReferences\(flowProfile\.id, visualReferences, join\(getRuntimePaths\(\)\.root, "visual-references"\)\)/.test(ipc) &&
+      /const runtimePaths = getRuntimePaths\(\);[\s\S]{0,120}root: runtimePaths\.root,/.test(application) &&
+      /visualFusionRoot: [^\n]*join\(dirs\.root, "visual-references"\)/.test(engine)
+  );
 
   console.log(`\nBudget-cut runs repeated: ${budgetRetries}`);
 }

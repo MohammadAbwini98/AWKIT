@@ -738,8 +738,10 @@ try {
   // Then 29/366 of 395 on 2026-10-14 (contract `awkit-vra-13-6-n4-recorded-fallback-1014`): N4.5 `awkit-vra.13.5`
   // closed by the owner through bd and its evidence from 5de29297 recorded; the epic `.13` stays in progress.
   // 2026-10-18 recovery: N4.6 closed/exported by bd after build PASS, 28/367 of 395.
-    "28 outstanding / 367 closed",
-    beads.stats.outstanding === 28 && beads.stats.closed === 367,
+  // Then 26/369 of 395 on 2026-10-19 (contract `awkit-vra-13-7-n4-qc-closure-1018`): N4.7 `awkit-vra.13.7` and the
+  // N4 epic `awkit-vra.13` closed through bd after the independent QC was APPROVED.
+    "26 outstanding / 369 closed",
+    beads.stats.outstanding === 26 && beads.stats.closed === 369,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

@@ -1,0 +1,178 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-13-7-n4-qc-closure-1018",
+    "title": "Phase N N4.7 independent QC of N4.2-N4.6 and N4 closure",
+    "objective": "N4.7 awkit-vra.13.7: one fresh-context independent QC review of N4.2-N4.6 against the N4 plan closure criteria 1-10, focused on the N4.6 recorded-reference shadow fallback. Close every finding, rerunning only verifiers whose inputs change. Record the N4 outcome in the state docs, the N4 plan, ROADMAP and ImplementationRoadmap.ts, close awkit-vra.13.7 and the epic awkit-vra.13 through bd under the project-state lease, export, repin verify:roadmap-dashboard, build, commit and push.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "e1dec2cc",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true,
+    "general_engineering_change": true,
+    "runner_change": false,
+    "recorder_change": false,
+    "ipc_change": false,
+    "renderer_visual_change": false,
+    "accessibility_change": false,
+    "mock_site_required": false,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "qa",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "scripts/verify-recorded-visual-fallback.mts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/ARCHITECTURE.md",
+      "docs/ai/contracts/awkit-vra-13-7-n4-qc-closure-1018.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N4.7-QC",
+      "description": "One fresh-context independent QC review of N4.2-N4.6 is APPROVED with every finding closed.",
+      "evidence_required": [
+        "qc-review"
+      ]
+    },
+    {
+      "id": "N4.7-BEADS",
+      "description": "awkit-vra.13.7 and, with every N4 closure criterion met, the epic awkit-vra.13 are closed and exported, and the dashboard reports Sources agree at the measured counts.",
+      "evidence_required": [
+        "beads-export-13-7",
+        "verify:roadmap-dashboard"
+      ]
+    },
+    {
+      "id": "N4.7-BUILD",
+      "description": "npm run build passes against the final state.",
+      "evidence_required": [
+        "build"
+      ]
+    },
+    {
+      "id": "N4-GIT",
+      "description": "The work lands on main and is pushed without force, the L12.27 contract stays untracked and unchanged.",
+      "evidence_required": [
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "qc-review",
+      "type": "inspection",
+      "required": true,
+      "command": "awkit-qc-reviewer (fresh context)",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "2026-10-19 APPROVED WITH FINDINGS (no product defect, two minor verifier gaps: memo cardinality and save-side end to end), both closed by verify:recorded-visual-fallback cases 13 and 14 (71/0, M6 memo-bypass red 70/71), re-review APPROVED. verify:visual-isolation 54/0, typecheck:scripts PASS on the final state."
+    },
+    {
+      "id": "beads-export-13-7",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "2026-10-19: awkit-vra.13.7 and the epic awkit-vra.13 closed through bd under the project-state lease, exported 395 issues, 26 outstanding and 369 closed. Lease released."
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "177/177, Sources agree, 26 outstanding / 369 closed of 395 after the repin (first run 176/177 on the stale 28/367 pin only)"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "2026-10-19 full npm run build PASS (embedded roadmap snapshot, tsc --noEmit, electron-vite build) on the ARM64 machine, x64 Node emulated"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "runs after the commit that carries this contract; its outcome is reported in the session report"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "APPROVED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-13-7-n4-qc-closure-1018:project-state:2026-10-18T21:04:31.661Z",
+        "task": "awkit-vra-13-7-n4-qc-closure-1018",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-18T21:04:31.661Z",
+        "acquired_at_commit": "e1dec2cc037ae8bad0c50b5494609573728a4d26",
+        "released_at": "2026-10-18T21:05:19.633Z",
+        "released_reason": "N4.7 beads awkit-vra.13.7 and awkit-vra.13 closed and exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

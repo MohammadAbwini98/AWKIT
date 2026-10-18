@@ -5,7 +5,8 @@ Shared rules and the Phase N boundary: `ROADMAP.md` › *Phase N — Visual Reco
 (`awkit-vra.4`, closed 2026-10-13, shadow-only). The tracker home for N4 is the new bead **`awkit-vra.13`**, with
 children `awkit-vra.13.1`-`.13.7`. The legacy 2026-09-22 workstreams `awkit-vra.2`-`.8` are not reused.
 
-**Status (2026-10-18): IN PROGRESS. N4.1 to N4.6 closed; N4.7 independent QC and N4 closure next.** The owner approved RV-0 to RV-8 as recommended ("I approve
+**Status (2026-10-19): CLOSED. N4.1 to N4.7 closed; all ten completion criteria met; independent QC APPROVED with
+both findings closed.** N3 stays shadow-only and N3.4/N3.5 stay blocked. The owner approved RV-0 to RV-8 as recommended ("I approve
 RV-0 to RV-8 as recommended, start N4"). That approval is recorded in `docs/ai/DECISIONS.md` (2026-10-14), and RV-1
 amends the 2026-10-12 isolation decision and FD-2 there. Contract `awkit-vra-13-n4-start-1013`.
 
@@ -83,7 +84,26 @@ amends the 2026-10-12 isolation decision and FD-2 there. Contract `awkit-vra-13-
     `verify:mock-site` 308/308, `typecheck` and `typecheck:scripts` PASS;
   - `npm run build` PASS (first BLOCKED at `electron-vite build` while X: mapped to a share name with spaces, then
     PASS once remapped), `verify:roadmap-dashboard` 177/177 Sources agree at 28 / 367 of 395.
-- **Next:** N4.7 `awkit-vra.13.7` independent QC and N4 closure.
+- **N4.7 `awkit-vra.13.7`: closed** (2026-10-19). Contract `awkit-vra-13-7-n4-qc-closure-1018`.
+  - One fresh-context `awkit-qc-reviewer` reviewed N4.2 to N4.6 against criteria 1 to 10, focusing on N4.6.
+    Verdict: **APPROVED WITH FINDINGS**, with no defect in product code. Checks that passed: the recorded effect is
+    `none` on both records and in the factory; the recorded key is never refreshed; the runtime read wins; both sides
+    use the same `stepCandidatesDigest`; the fallback is gated on exactly `manual` at the one production construction
+    site; traces carry fixed codes only; isolation allows exactly two edges.
+  - **Finding 1 (minor, verifier gap), closed.** Nothing proved the per-stage memo. New case 13 sends two refusals
+    through one stage while the runtime key stays missing, and asserts exactly one recorded read. Mutation M6
+    (memo bypassed) was observed red at 70/71.
+  - **Finding 2 (minor, verifier gap, fails safe), closed.** Nothing proved that the Recorder's save side matches what
+    the runner reads. New case 14 binds the reference with `buildRecordedFlow`, stores it with
+    `persistRecordedVisualReferences(folder, flow.id, …)`, and replays the saved step as `recorded` with effect `none`.
+    A source pin proves both sides use `getRuntimePaths().root` (`ExecutionApplicationService.resolveStorageDirs`).
+    That root is not a Settings path, so the two folders cannot diverge and no KNOWN_ISSUES entry is needed.
+  - The reviewer confirmed both findings closed: **APPROVED**.
+  - Gates on the final state: `verify:recorded-visual-fallback` 71/0, `verify:visual-isolation` 54/0 and
+    `typecheck:scripts` PASS. No product source changed after `84b45aeb`, so the criterion-8 suites keep their N4.6
+    results and were not rerun.
+- **Outcome.** N4 closes with the runner fallback, not recorder-only. Recorded references are written beside the flow
+  and read only as a shadow observation with effect `none`. N3 enforcement stays blocked.
 
 ## Objective
 
@@ -691,6 +711,18 @@ N4 closes when every item holds, or is truthfully recorded as deferred:
    state.
 9. Independent QC is APPROVED, with its findings closed.
 10. `verify:roadmap-dashboard` reports Sources agree.
+
+**Outcome (2026-10-19, N4.7): all ten met.**
+- 1: DECISIONS 2026-10-14.
+- 2: `verify:visual-isolation` 54/0, with the third-edge mutation red.
+- 3: `verify:recorder-visual-capture` 119/0, with its mutation contract.
+- 4: byte-identity and response-shape checks in N4.3 and N4.4, plus N4.7 case 14.
+- 5: `verify:recorder-visual-gui` 55/0.
+- 6: N4.5 MET, and N4.6 complete.
+- 7: `verify:recorded-visual-fallback` 71/0, with M1 to M6 red.
+- 8: the N4.6 suites, unchanged product source, and the N4.7 build.
+- 9: QC APPROVED.
+- 10: Sources agree at closure.
 
 ## Rollback and disable
 

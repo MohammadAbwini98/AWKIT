@@ -1,5 +1,34 @@
 # TASK_LOG
 
+## 2026-10-19 — Phase N: N4.7 independent QC and N4 closure (Claude)
+
+- **Task:** N4.7 `awkit-vra.13.7`, contract `awkit-vra-13-7-n4-qc-closure-1018`. **Result: N4 CLOSED, all ten
+  criteria met.**
+- **QC:** one fresh-context `awkit-qc-reviewer` reviewed N4.2-N4.6 and returned APPROVED WITH FINDINGS (no product
+  defect). Two minor verifier gaps were found:
+  - the per-stage recorded-read memo was unproven;
+  - the save side was never proven to feed the runner's read.
+
+  Both were closed with new cases 13 and 14, and the re-review is APPROVED.
+- **Files:**
+  - `scripts/verify-recorded-visual-fallback.mts`;
+  - `scripts/verify-roadmap-dashboard.mjs` (pin 26/369);
+  - `src/roadmap/ImplementationRoadmap.ts`;
+  - `docs/plans/ai-upgrade-v5/{N4-recorder-visual-intelligence,ROADMAP}.md`;
+  - `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,DECISIONS,ARCHITECTURE}.md`;
+  - `.beads/issues.jsonl`;
+  - the new contract.
+- **Tests (ARM64 machine, x64 Node emulated):**
+  - `verify:recorded-visual-fallback` 71/0, with M6 (memo bypass) red at 70/71 and the source restored;
+  - `visual-isolation` 54/0;
+  - `typecheck:scripts` PASS;
+  - `build` PASS;
+  - `roadmap-dashboard` 177/177, Sources agree.
+
+  Not rerun: the N4.6 suites, because no product source changed after `84b45aeb`.
+- **Beads:** `.13.7` and `.13` were closed under the project-state lease, exported (395 issues), and the lease
+  released.
+
 ## 2026-10-18 — Codex: authenticated Claude acceptance completed
 
 - After user sign-in, retried the existing Claude launcher with exactly one requested Bash command, git status --short. PASS: CLI exit 0, is_error=false; local transcript confirms the real Bash invocation and successful tool result. PreToolUse used the bounded inspection helper. Only the preserved untracked L12.27 contract was reported.

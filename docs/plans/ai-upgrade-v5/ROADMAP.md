@@ -723,8 +723,15 @@ N4.4 followed on 2026-10-14 and is closed. It adds:
 - a per-step capture button and status line, proven by the new `verify:recorder-visual-gui` (focus, live region,
   reduced motion).
 
-There is no runner read yet; N4.5 calibration and N4.6 replay are next. The legacy `awkit-vra.2`-`.8` records are not
-reused.
+N4.5 calibration met its criterion on 2026-10-14: recorded headed references added no false `agreed` relative to N3.2.
+N4.6 closed on 2026-10-18. With `AWKIT_VISUAL_RECORDER=manual`, and only when the runtime reference is missing, the N2
+shadow stage reads the recorded reference bound to the step's current binding digest. It traces `referenceSource` and
+never refreshes that reference, and a recorded verdict always has effect `none` (`verify:recorded-visual-fallback`).
+
+N4.7 closed on 2026-10-19 (contract `awkit-vra-13-7-n4-qc-closure-1018`). The independent QC of N4.2-N4.6 was APPROVED
+with its two minor verifier findings closed (`verify:recorded-visual-fallback` 71/0, mutation M6 red). All ten N4
+completion criteria are met, and `awkit-vra.13` is closed. N3.4 and N3.5 stay blocked. The legacy `awkit-vra.2`-`.8`
+records are not reused.
 
 ### Planned workstreams and dependencies (original numbering, 2026-09-22)
 
