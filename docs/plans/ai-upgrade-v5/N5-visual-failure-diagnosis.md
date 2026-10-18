@@ -8,9 +8,25 @@ legacy 2026-09-22 workstream `awkit-vra.5` ("Visual assertions and failure evide
 split between canonical N5 (this plan) and canonical N6 (Visual Assertions), and it keeps its original title as a
 planning record, as the N4 plan did for `awkit-vra.6` and `.8`.
 
-**Status (2026-10-19): PLANNED. Zero implementation. Owner decisions VD-0 to VD-10 are proposed and not ratified.**
-Contract `awkit-vra-n5-plan-1019`. No product source, schema, IPC, preload, UI, verifier or dependency changes with
-this plan. N5 implementation waits for N5.1 (the owner's decision record) and an explicit owner authorization.
+**Status (2026-10-19): PLANNED, revised after review. Zero implementation. Owner decisions VD-0 to VD-11 are proposed
+and not ratified.** Contracts `awkit-vra-n5-plan-1019` (plan, `725b129c`) and `awkit-vra-n5-plan-review-1019` (the six
+review corrections below). No product source, schema, IPC, preload or UI changed. The review added one security
+reproduction verifier, `verify:b2-protected-capture`, which is test code only. N5 implementation waits for N5.1 (the
+owner's decision record) and an explicit owner authorization.
+
+## Review corrections (2026-10-19)
+
+Six review findings were resolved in planning. Each correction is written into the sections it affects; this table
+is the index.
+
+| # | Finding | Evidence gathered | Correction | Where |
+|---|---|---|---|---|
+| 1 | VD-9 assumed stored references record render mode and zoom | Audit of `VisualEvidence` v1, `VisualViewportInfo`, `VisualFrameInfo`, the `VisualReferenceStore` envelope and both existing `sameConditions` rules | A field-by-field provable/unprovable table; a three-state, fail-closed condition rule; no migration or reinterpretation; a provenance envelope is a separate owner decision (VD-11) | *Reference-condition provenance*, VD-9, VD-11 |
+| 2 | The B2 failure capture's protected-surface exposure was unverified | Caller trace plus the new real-Chromium reproduction `verify:b2-protected-capture`: 11 passed / 3 failed; all preconditions and controls green; three protected paths write screenshot, DOM and a11y files | **Confirmed reachable defect**, filed as `awkit-4b5y` with a KNOWN_ISSUES entry for a separate security remediation; N5 does not touch B2 | *B2 protected-capture finding* |
+| 3 | Uniqueness was stated page-wide | The fan-out is capped (`VISUAL_FANOUT_MAX_CANDIDATES`), recovery contenders are capped, nothing outside the DOM-named set is examined, and headless renders twins with position-dependent bytes (N3.2) | Every identity code is scoped to the **examined** candidates, with counts and a truncation flag, and no code claims uniqueness. Truncation and omitted-contender negative controls added | Vocabulary, persistence, UI, matrix |
+| 4 | `viewport-uniform` needed a frame that the conditional capture never took for targetless pages | Architecture step 5 captured only when a DOM-named target was in the viewport | One bounded, protected-guarded frame per diagnosis, taken whether or not a target exists (VD-3 recommended), with an explicit exclusion alternative | Architecture, VD-3 |
+| 5 | The deadline had no cancellation or teardown semantics | N0 accepts `signal` and `timeoutMs`; a dispatched Playwright screenshot cannot be recalled | An abort-and-settle protocol: one abort signal, a single-assignment result slot closed at the deadline, release in `finally`, read-only probes, and proofs that late work changes nothing | *Deadline, cancellation and teardown* |
+| 6 | Report-only fallback had no tracker procedure | Dashboard rules: a `deferred` prerequisite blocks its dependent (fail closed); N2 closed with `.12.6` deferred | Truthful states per outcome. `.14.7` gains direct edges on `.14.4` and `.14.6`, so deferring `.14.5` needs one owner-approved edge removal | *Conditional closure and tracking* |
 
 ## Objective
 
@@ -19,22 +35,24 @@ the step's target beside the evidence the run already keeps (the L5a failure eve
 screenshot, DOM, accessibility and meta files, and the locator recovery trace). The diagnosis answers questions a
 person reading the failure would otherwise answer by squinting at the screenshot:
 
-- Did the element the step's own DOM locator names still look like its last-known-good appearance?
-- Did it look different (restyled, a different state, a different theme)?
+- Was the element the step's own DOM locator names byte-identical to its last-known-good appearance?
+- Did it differ, where the capture conditions can be proven equal (see *Reference-condition provenance*)?
 - Was it outside the viewport, zero-sized, or covered by another element at its centre?
-- Was the viewport almost uniform (blank or not yet painted)?
-- Was a DOM-named competitor identical to the reference, and was that identity unique or shared by twins?
-- Could no comparison be made, and why (no reference, conditions changed, protected page, budget)?
+- Was the viewport almost uniform (blank or not yet painted), even when no target exists?
+- How many of the **examined** DOM-named candidates were byte-identical to the reference, and was the examined set
+  truncated? N5 never claims an element is the only one, on the page or among the candidates.
+- Could no comparison be made, and why (no reference, conditions changed or unproven, protected page, budget)?
 
 Concretely, and nothing wider:
 
 > After the retry policy has declined a further attempt for an eligible element step, and only when the feature is
-> on, the runner takes at most one protected-guarded N0 viewport frame of the failed page, crops only the elements
-> the DOM has already named (the step locator's own matches and the recovery stage's existing contenders), compares
-> them through the N1 fingerprint against the step's last-known-good reference read **read-only** from the N2 store
-> (runtime first, then the N4 recorded key under the N4 flag), adds a small set of read-only DOM geometry facts, and
-> stores a closed set of codes in the instance report. Nothing it produces names, ranks, chooses, repairs, retries,
-> proves or fails anything.
+> on, the runner takes at most one protected-guarded N0 viewport frame of the failed page (whether or not a target
+> exists), crops only the elements the DOM has already named (the step locator's own matches and the recovery
+> stage's existing contenders, up to the fan-out cap), compares them through the N1 fingerprint against the step's
+> last-known-good reference read **read-only** from the N2 store (runtime first, then the N4 recorded key under the
+> N4 flag) under the fail-closed condition rule, adds a small set of read-only DOM geometry facts and a viewport
+> uniformity statistic, and stores a closed set of codes in the instance report. Nothing it produces names, ranks,
+> chooses, repairs, retries, proves or fails anything.
 
 Success statement:
 
@@ -52,10 +70,12 @@ Success statement:
 
 An operator opens a failed run in Execution Reports. Beside *Deterministic cause*, *Captured evidence* and *AI
 analysis* (L5b), a fourth section, *Visual diagnosis*, says in words what the target looked like when the step gave
-up: "The element the step targets looks the same as when it last passed. It was covered by another element at its
-centre." or "No element matched the step's locator. One other element on the page looks identical to the step's
-last-known-good appearance; another identical element also exists, so no single element can be named." Each line
-states its basis (which reference, which conditions) and its limits. Nothing the operator reads can make a run click
+up: "The element the step targets is pixel-identical to its appearance when it last passed. It was covered by another
+element at its centre." or "No element matched the step's locator. Of the 4 elements the run examined, 1 is
+pixel-identical to the step's last-known-good appearance. Elements the run did not examine were not compared, so this
+does not mean it is the only such element, and it does not identify an element to use." or "The page was almost
+blank when the step failed." Each line states its basis (which reference, which conditions, how many elements were
+examined, whether the set was cut short) and its limits. Nothing the operator reads can make a run click
 somewhere different, and nothing in it is offered as an action.
 
 ## Today's baseline (as built, `2b13bda3`)
@@ -63,7 +83,8 @@ somewhere different, and nothing in it is offered as an action.
 | Fact | Source | Consequence for N5 |
 |---|---|---|
 | On every failing attempt, before the retry decision, `FlowExecutor` calls `StepExecutor.captureFailureEvidence` when `step.onFailure.screenshot` (or the run default) is on. It writes a full-page PNG, masked DOM HTML, a masked aria snapshot and masked meta (URL, title) under `screenshots/<exec>/<inst>/<flow>/evidence/`, each bounded at 5 s, path-confined, through the screenshot limiter | `src/runner/FlowExecutor.ts:490-552`, `src/runner/StepExecutor.ts:1681-1809` | N5 does not change, reuse or re-read these files. Its own capture is a separate in-memory N0 frame with the N2 options, so digests stay comparable with the reference store |
-| The B2 capture path consults no protected-surface guard in the code read for this plan. Whether a protected-login step or handoff can reach it is **not verified** here | `StepExecutor.captureFailureEvidence` | N5.2 audits it and reports the result. A confirmed gap is filed as its own defect and is **not** fixed inside N5 (no production change outside N5's own path) |
+| The B2 capture consults no protected-surface, handoff or sensitivity guard, and a protected-login page reaches it on three paths. **Confirmed 2026-10-19** by `verify:b2-protected-capture` (11 passed / 3 failed) | `FlowExecutor.ts:490-552`, `StepExecutor.ts:1681-1809` | Filed as `awkit-4b5y` for a separate security remediation. N5 does not change, read or rely on B2 (see *B2 protected-capture finding*) |
+| `VisualEvidence` v1 stores the CSS viewport, DPR, scale and image size, frame depth and main-frame flag, bounds and fingerprints, and nothing about render mode, browser build, colour scheme or how DPR splits into device ratio and browser zoom. The store envelope adds only versions, the digest and `updatedAt`. N2 and N3 compare DPR, CSS width and height and frame depth only | `src/visual/visualEvidence.ts:24-34`, `internal/captureCore.ts:62-76`, `VisualReferenceStore.ts:35-42`, `decideFusion.ts:211-218`, `decideVisualAgreement.ts:156-163` | VD-9 is rewritten fail-closed around what the records prove (see *Reference-condition provenance*) |
 | L5a `FailureEvidenceCollector` owns run-lifetime events (`ui.*`, `http.error`, `network.failed`, `page.error`, `console.error`, `page.errorDocument`, `runner.failure`), masked, capped, de-duplicated, with request provenance. Protected-login surfaces are excluded entirely, and `pageHandedOff(page)` answers the N2 I5 question before any visual capture | `src/runner/evidence/ExecutionEvidence.ts`, `FailureEvidenceCollector.ts:20-23`, `:484` | N5 asks the same `pageHandedOff` before capturing and re-checks with N0 after, exactly as N2 does |
 | `deriveFailureCause` is a coded precedence table (13 `FailureCauseCode`s, direct evidence first, runner diagnosis next, `insufficient` last), always computed, no model | `src/runner/evidence/FailureCauseBaseline.ts:33-128` | N5 never adds a cause code, re-orders precedence or edits the baseline (VD-4) |
 | L5b failure analysis is on demand, cites closed evidence ids, coalesces by signature, stores redacted analyses in `ConcurrentRunReport.diagnostics.analyses`, and its request bytes are measured by a live quality gate | `src/ai/failureAnalysis.ts`, `docs/plans/ai-upgrade-v5/L5-failure-evidence-and-analysis.md` › L5b | N5 does not feed L5b (VD-4). L5b's request stays byte-identical, proven by `verify:ai-error-analysis` |
@@ -76,7 +97,7 @@ somewhere different, and nothing in it is offered as an action.
 | `VisualReferenceStore.get` answers found / missing / corrupt / version-mismatch. The runtime key is `scenarioId\0flowId\0stepId`; the N4 recorded key is `recordedVisualReferenceKey(flow, step, stepCandidatesDigest(step.locator))`, read only when `AWKIT_VISUAL_RECORDER=manual` and the runtime read is missing | `src/runner/visualFusion/VisualReferenceStore.ts`, `recordedVisualReferenceKey.ts`, N4 plan › N4.6 | N5 reads with the **same precedence** and **never writes, refreshes or deletes** any key (VD-3) |
 | `VisualFusionStage` records `referenceSource` `runtime` / `recorded` / `none`, and `effectForReferenceSource` forces `none` for `recorded`. FD-5: 400 ms per attempt, shared by fusion and agreement (J9) | `src/runner/visualFusion/VisualFusionStage.ts:62-156` | The N5 budget is separate and runs only after the final attempt, so it never competes with J9 inside an attempt (VD-8) |
 | Enablement today: `AWKIT_VISUAL_FUSION=shadow`, `AWKIT_VISUAL_RECOVERY=shadow|enforce`, `AWKIT_VISUAL_RECORDER=manual`; the store root is set only when fusion or agreement is on | `src/runner/ExecutionEngine.ts:1630-1634`, `:2233` | N5 adds its own environment flag and resolves the store root itself, read-only (VD-7) |
-| Calibration facts that bound what pixels can say: N2.3 found no separation between look-alikes and real contradictions; N3.2 saw 28 false `agreed` on headless twins (position-dependent bytes); N4.5 saw a headed recording never byte-identical to a headless crop (recall 0/36) | `N2.3-fusion-calibration.md`, `N3.2-agreement-calibration.md`, N4 plan › N4.5 | Twins, swap and restyle must degrade to `ambiguous` or `inconclusive`. Cross-mode comparison is refused (VD-9). N5.6 recalibrates every code before the UI shows it (VD-10) |
+| Calibration facts that bound what pixels can say: N2.3 found no separation between look-alikes and real contradictions; N3.2 saw 28 false `agreed` on headless twins (position-dependent bytes); N4.5 saw a headed recording never byte-identical to a headless crop (recall 0/36) | `N2.3-fusion-calibration.md`, `N3.2-agreement-calibration.md`, N4 plan › N4.5 | No code claims uniqueness, and counts are lower bounds over the examined set. Records cannot prove render mode, so differences are suppressed (VD-9). N5.6 recalibrates every code before the UI shows it (VD-10) |
 | Mock-site labs `/visual-intelligence` (frames, popup, account, protected injection) and `/visual-intelligence/fusion` (`vf-tool-0..3`, baseline, restyle, swap, twins, theme, drift, `wide`, `injectProtected`, `vf-offscreen-tool`) | `mock-site/` | N5 extends these labs; it adds failure states, not new pages, where it can |
 
 ## Reusable capabilities versus N5 gaps
@@ -85,7 +106,7 @@ somewhere different, and nothing in it is offered as an action.
 |---|---|---|
 | Failure moment and kind | `FlowExecutor` retry loop, `RunnerFailureKind`, L5a `runner.failure` | A hook **after** the final retry decision that cannot reach the decision |
 | Page-derived failure evidence | B2 screenshot/DOM/a11y/meta, L5a events and cause baseline | None. N5 adds no new page text or file |
-| Protected / handoff exclusion | `pageHandedOff`, N0 `checkProtectedSurface` before and after, protected-login step types | Wiring them into the N5 path, with an audit of the B2 path (report only) |
+| Protected / handoff exclusion | `pageHandedOff`, N0 `checkProtectedSurface` before and after, protected-login step types | Wiring them into the N5 path. The B2 audit is done: a confirmed defect, filed separately |
 | Capture and crop | N0 frame, crop and fan-out | None |
 | Fingerprint and comparison | N1 | None |
 | Last-known-good reference | N2 runtime store and N4 recorded key | A read-only reader that cannot write |
@@ -120,7 +141,9 @@ somewhere different, and nothing in it is offered as an action.
 - Writing, refreshing or deleting visual references; capturing on passing steps or non-final attempts.
 - Any thumbnail, annotated screenshot, bounding-box overlay or other pixel exposure in the UI or over IPC.
 - A Settings key, export or import of diagnoses, and any change to N3 (N3.4 and N3.5 stay blocked).
-- Fixing an unrelated B2 protected-capture gap if N5.2 confirms one (it is filed separately).
+- Fixing the confirmed B2 protected-capture defect (`awkit-4b5y`). It is a separate security remediation with its own
+  owner decision; N5 neither depends on it nor weakens any B2 capture.
+- Any claim that an element is unique, on the page or among candidates.
 
 ## Distinct from N6, N7 and N10
 
@@ -164,21 +187,30 @@ the existing retry loop, the record rides the L5a instance diagnostics, and the 
 3. **Reference read (read-only).** Runtime key first. Only if it is `missing` and `AWKIT_VISUAL_RECORDER=manual`,
    the recorded key for the step's **current** binding digest. Anything but `found` gives `referenceSource: none`.
    The adapter holds no handle that can call `refresh` (the reader interface exposes `get` only).
-4. **DOM facts (read-only, no action).** The step's own locator through its frame chain: match count (0, 1, many,
-   capped), and for each DOM-named target (the step's matches up to the cap, then the recovery decision's existing
-   contenders if the failure came from recovery): in-viewport, zero-size, and whether `elementsFromPoint` at its
-   centre returns the target or one of its descendants (`occluded` otherwise). No hover, focus, scroll, click or
-   evaluate that mutates.
-5. **One capture.** If any DOM-named target is in the viewport and conditions match the reference (VD-9), one N0
-   frame with the N2 runtime options, then crops of those targets only, then N1 fingerprints. N0 re-checks the
-   protected surface after capture; a hit discards everything and answers `protected-surface`. The frame is released
-   immediately; no pixels outlive the call.
-6. **Decide.** `decideVisualDiagnosis(input)` is pure: input is the reference presence and conditions, the
-   per-target comparison outcomes and geometry facts, and the viewport uniformity statistic; output is
-   `{ version, observations: Code[], referenceSource, conditions, basis }` with **no** element index, locator,
-   score detail beyond bucketed similarity, or effect.
-7. **Record.** The adapter returns the verdict; the executor attaches it to the failure; the report writer stores a
-   sanitized copy as `InstanceReport.diagnostics.visualDiagnosis[]` (one entry per finally failed step, capped).
+4. **DOM facts and the examined set (read-only, no action).** The step's own locator through its frame chain gives
+   a match count (0, 1, many; counted up to a fixed cap). The **DOM-named set** is the step locator's matches followed
+   by the recovery decision's existing contenders when the failure came from recovery, de-duplicated and in that
+   fixed order. The **examined set** is the first `VISUAL_FANOUT_MAX_CANDIDATES` members of the DOM-named set that are
+   in the viewport. The record keeps `domNamed` (capped count), `examined` (count) and `truncated` (true when the
+   DOM-named set was larger than the cap, or when the recovery decision itself dropped contenders past its own cap).
+   Nothing outside the DOM-named set is ever examined, so an element the DOM did not name is never compared. For each
+   examined member the probe records in-viewport, zero-size, and whether `elementsFromPoint` at its centre returns it
+   or a descendant (`occluded` otherwise). No hover, focus, scroll, click or mutating evaluate.
+5. **One bounded frame (VD-3).** If the page is not handed off or protected (`pageHandedOff`, then N0's guard), the
+   adapter takes **exactly one** N0 viewport frame with the N2 runtime options, **whether or not a target exists**.
+   From that one frame it crops the examined members only and fingerprints the whole viewport for the uniformity
+   statistic. N0 re-checks the protected surface after the screenshot. A hit discards the frame and every derived
+   value and answers `protected-surface`. There is never a second frame, a retry, a scroll or a page change. The frame
+   is released in `finally`, and no pixels outlive the call.
+6. **Decide.** `decideVisualDiagnosis(input)` is pure. Its input is the reference presence, the three-state condition
+   status (*Reference-condition provenance*), the per-member byte-identity outcomes, the examined, DOM-named and
+   truncation facts, the geometry facts and the viewport statistic. Its output is
+   `{ version, observations: Code[], referenceSource, conditions, examined, domNamed, truncated }`, with **no**
+   element index, locator, coordinate, score detail or effect, and no word that asserts uniqueness.
+7. **Settle and record.** The adapter's result is delivered through the single-assignment slot defined in
+   *Deadline, cancellation and teardown*. The executor builds the failure record from the slot's value at settle time.
+   The report writer stores a sanitized copy as `InstanceReport.diagnostics.visualDiagnosis[]` (one entry per finally
+   failed step, capped).
 8. **Read.** `reports:get` (PAGE_REPORTS, unchanged) returns the report; `FailureEvidenceSection` renders the
    section from the codes and fixed text. No new channel.
 
@@ -190,9 +222,12 @@ FlowExecutor attempt loop
         -> VisualFailureDiagnosis.diagnose (flag on only; the third and last src/visual edge)
              refusals: not-eligible / sensitive / handoff-active / protected-surface / page-closed / coalesced / budget
              reference: store.get(runtime) -> [flag] store.get(recorded, current binding)   (read-only)
-             DOM facts: count, in-viewport, zero-size, occluded (read-only)
-             N0 frame (protected before + after) -> crops of DOM-named targets -> N1 fingerprints
+             DOM facts: count, DOM-named set, examined set (capped, truncated flag), geometry (read-only)
+             one N0 frame, target or not (protected before + after) -> examined crops + viewport statistic
+             condition status: equal-proven / unproven / different (fail closed)
              decideVisualDiagnosis (pure) -> codes
+             all under one abort signal and deadline; frame released in finally
+        -> settle slot (closed at the deadline; late results dropped)
         -> attached to the failure record (never to status, error, retry, cause)
 ExecutionReport -> InstanceReport.diagnostics.visualDiagnosis[] (sanitized, codes only)
 reports:get [PAGE_REPORTS] -> FailureEvidenceSection -> "Visual diagnosis" (text only)
@@ -200,39 +235,172 @@ reports:get [PAGE_REPORTS] -> FailureEvidenceSection -> "Visual diagnosis" (text
 
 ## Diagnosis vocabulary (proposed; final set fixed in N5.2, pruned by N5.6)
 
-Observation codes are facts about the moment of failure, never causes and never instructions.
+Observation codes are facts about the moment of failure, never causes and never instructions. Every identity code is
+about **byte identity** (equal N1 `contentDigest`) among the **examined** set, never about visual sameness on the
+page. The record always carries `examined`, `domNamed` and `truncated` beside the codes.
 
-| Code | Meaning | Basis |
+| Code | Meaning | Allowed when (condition status, see *Reference-condition provenance*) |
 |---|---|---|
-| `reference-unavailable` | No last-known-good reference for this step | store `missing`, `corrupt` or `version-mismatch` |
-| `conditions-changed` | A reference exists but cannot be compared: DPR, zoom, viewport or render mode differs | VD-9, N0 conditions, N4.5 |
-| `target-not-in-dom` | The step's locator matched no element | DOM count 0 |
-| `target-not-unique` | The step's locator matched more than one element | DOM count > 1 |
-| `target-offscreen` | The DOM-named target is outside the viewport | bounding box |
-| `target-zero-size` | The DOM-named target has no area | bounding box |
-| `target-occluded` | Another element is topmost at the target's centre | `elementsFromPoint` |
-| `target-appearance-unchanged` | The single DOM-named target is identical to the reference | N1 identical |
-| `target-appearance-changed` | The single DOM-named target differs from the reference | N1 not identical |
-| `reference-seen-on-other-element` | Exactly one **other** DOM-named element is identical to the reference, and the step's own target is absent or different | N1 identical, uniqueness proven among DOM-named crops |
-| `reference-seen-ambiguous` | Two or more DOM-named elements are identical to the reference (twins) | N1, N3.2 twins hazard |
-| `viewport-uniform` | The viewport fingerprint is near-uniform (blank or unpainted) | N1 luma statistics, threshold from N5.6 |
-| `inconclusive` | A comparison ran but no calibrated code applies, or a code was pruned by N5.6 | VD-10 |
+| `reference-unavailable` | No usable last-known-good reference | store `missing`, `corrupt`, `version-mismatch`, or evidence that fails shape validation |
+| `conditions-changed` | A provable condition differs (DPR, CSS viewport, frame depth or main-frame flag, evidence or fingerprint version) | `different`; no comparison is reported |
+| `conditions-unproven` | Provable conditions are equal, but the record cannot prove render mode, browser build or colour scheme | `unproven`; **every v1 record**; restricts the codes below |
+| `target-not-in-dom` | The step's locator matched no element | always (DOM fact) |
+| `target-multiple-matches` | The step's locator matched more than one element (a count, not a uniqueness claim) | always (DOM fact) |
+| `target-offscreen` | The step's DOM-named target is outside the viewport | always (DOM fact) |
+| `target-zero-size` | The step's DOM-named target has no area | always (DOM fact) |
+| `target-occluded` | Another element is topmost at the target's centre | always (DOM fact) |
+| `target-identical-to-reference` | The step's single DOM-named target is byte-identical to the reference | `unproven` or `equal-proven` (byte equality proves itself) |
+| `target-differs-from-reference` | The step's single DOM-named target is not byte-identical | `equal-proven` only; under `unproven` a difference may be rendering, so it is suppressed |
+| `other-examined-identical` | At least one examined member **other than** the step's target is byte-identical; the record adds `identicalOthers` as `1` or `2+` | `unproven` or `equal-proven`; never worded as "only" or "unique" |
+| `no-examined-identical` | No examined member, target included, is byte-identical | `equal-proven` and `truncated: false` only; otherwise suppressed |
+| `viewport-uniform` | The viewport fingerprint is near-uniform (blank or unpainted), with or without a target | always (no reference involved); threshold from N5.6 |
+| `inconclusive` | A comparison ran but no allowed code applies, or the code was pruned by N5.6 | — |
 
-Refusal codes (no capture ran): `not-eligible`, `sensitive`, `handoff-active`, `protected-surface`, `page-closed`,
+Refusal codes (nothing captured): `not-eligible`, `sensitive`, `handoff-active`, `protected-surface`, `page-closed`,
 `coalesced`, `budget-exhausted`, `capture-failed`. An unknown code maps to `capture-failed`, never to an observation.
 
-`reference-seen-on-other-element` is the one code that could be read as "the right element is over there". It is
-never accompanied by an index, selector, coordinate or highlight, its fixed text says no element can be named for
-action, it is suppressed whenever the comparison is not same-mode and same-conditions, and N5.6 must show zero false
-attributions on swap, restyle and twins before the UI may show it (VD-10).
+**Scope rules (finding 3).**
+
+- No code, field or copy asserts uniqueness. `identicalOthers: "1"` means one **examined** member matched. Elements
+  past the cap, contenders the recovery decision dropped, and every element the DOM never named were not compared.
+- `truncated: true` forbids `no-examined-identical` and makes the UI say that the examined set was cut short.
+- Headless Chromium renders identical icons with position-dependent bytes (N3.2), so a visual twin can fail byte
+  identity. Counts are therefore lower bounds on byte-identical members and say nothing about visual twins.
+- `other-examined-identical` is never accompanied by an index, selector, coordinate or highlight. Its fixed text says
+  it does not identify an element to use. N5.6 must show zero false identity on swap, restyle and twins, and correct
+  `truncated` and omitted-contender behaviour, before the UI may show it (VD-10).
+
+## Reference-condition provenance (finding 1, audited 2026-10-19)
+
+**What a stored reference contains.** The envelope (`VisualReferenceRecord`, `VisualReferenceStore.ts:35-42`) holds
+`version`, `scopeKey`, `evidenceVersion`, `contentDigest`, `evidence` and `updatedAt`. The evidence (`VisualEvidence`
+v1, `visualEvidence.ts:24-34`) holds `kind`, `capturedAt`, `viewport` {`cssWidth`, `cssHeight`, `devicePixelRatio`,
+`scaleX`, `scaleY`, `imageWidth`, `imageHeight`}, `frame` {`isMainFrame`, `depth`}, `bounds`, optional
+`contextBounds`, `fingerprint` (version, size, luma and edge statistics, grids, dHash, `contentDigest`) and optional
+`contextFingerprint`. N0 records `devicePixelRatio` from `window.devicePixelRatio` and refuses a pinch-zoomed page
+(`captureCore.ts:202-216`).
+
+| Condition | Provable from every v1 record? | Note |
+|---|---|---|
+| Evidence version, fingerprint version | Yes | A mismatch is `reference-unavailable` or N1's unsupported-version refusal |
+| CSS viewport width and height | Yes | `viewport.cssWidth`, `cssHeight` |
+| Effective device pixel ratio | Yes, as a product only | Chromium folds browser zoom into `devicePixelRatio`, so 125 % zoom at DPR 1 equals a DPR 1.25 display. Equal values prove equal effective scale, not equal zoom |
+| Screenshot scale and image size | Yes | `scaleX`, `scaleY`, `imageWidth`, `imageHeight` |
+| Pinch zoom | Yes, implicitly | N0 refused any pinch-zoomed capture, so every stored record was taken at visual scale 1 |
+| Frame depth and main-frame flag | Yes | Not the frame's origin or chain |
+| Element size at capture | Yes | `bounds.actualCss` |
+| Render mode (headed or headless) | **No** | Absent. N4.5: a headed reference is never byte-identical to a headless crop |
+| Browser build, OS, GPU, fonts | **No** | Absent |
+| Colour scheme, forced colours, contrast, reduced motion | **No** | Absent |
+| Browser zoom separately from device ratio | **No** | Folded into DPR |
+| Page or frame origin | **No** (by design) | The record carries no URL |
+| Writer (runtime or recorded) | Only from the key namespace | Not stored in the record; N5 does not infer conditions from it |
+
+The existing N2 and N3 rules (`decideFusion.ts:211-218`, `decideVisualAgreement.ts:156-163`) compare DPR, CSS width
+and height and frame depth only. N5 adopts that provable set and adds the main-frame flag and both versions.
+
+**Fail-closed rule (proposed VD-9).** Each comparison gets one of three statuses:
+
+1. `different`: a provable field differs. The code is `conditions-changed`, and no identity or difference is reported.
+2. `unproven`: every provable field is equal, but render mode, browser build or colour scheme cannot be proven. This
+   is the status of **every existing record**. Only self-evidencing positives are allowed: `target-identical-to-reference`
+   and `other-examined-identical`, because byte equality proves itself. Differences, absences and counts that would
+   need equal rendering (`target-differs-from-reference`, `no-examined-identical`) are suppressed, and the record
+   carries `conditions-unproven`.
+3. `equal-proven`: every provable field is equal **and** a provenance envelope proves the rest. No v1 record can
+   reach it. It exists only if the owner approves VD-11.
+
+**Backward compatibility.** Stored records are read as they are. N5 never migrates, rewrites, backfills, re-stamps or
+deletes a reference, and never infers a missing condition, for example "a recorded key implies headed". A record that
+fails shape validation is `reference-unavailable`. Older builds are unaffected because N5 writes nothing to the store.
+The runner knows its own current render mode, but that cannot prove the reference side, so it does not lift a v1
+record out of `unproven`.
+
+**Consequence.** Against today's references, N5 can report byte identity of the target or of other examined members,
+geometry, uniformity and refusals, but not "the target changed". That stays out until VD-11 provenance exists and
+N5.6 calibrates it.
+
+## B2 protected-capture finding (finding 2, confirmed 2026-10-19)
+
+**Callers.** `StepExecutor.captureFailureEvidence` has one production caller, `FlowExecutor.executeWithRetry`
+(`FlowExecutor.ts:534`). It runs on **every** failing attempt, before the retry decision, whenever
+`step.onFailure.screenshot ?? screenshotOnFailureDefault` (the artifact profile's `screenshotOnFailure`, default
+`true`) holds. It consults no protected-surface, handoff or sensitivity guard. It writes a full-page PNG, `page.content()`
+HTML, an aria snapshot and meta (`StepExecutor.ts:1754-1807`). The text files are secret-masked; the PNG is not
+maskable. The verifiers `verify:concurrency`, `verify:failure-screenshot-precedence`, `verify:failure-evidence` and
+`verify:failure-evidence-live` call it through stubs or directly, not as product paths.
+
+**Paths traced, and the reproduction.** `verify:b2-protected-capture` drives the real `FlowExecutor` retry loop over a
+real `StepExecutor` in real Chromium against `mock-site/public/secure-login/protected-login.html`, served locally.
+Preconditions: the runner's deep scan and the N0 guard both classify the fixture as protected. Result: **11 passed /
+3 failed** (2026-10-19, ARM64 machine, x64 Node and Chromium emulated). Every precondition and control passed, and
+each security assertion failed:
+
+| Case | Path | Result |
+|---|---|---|
+| P1 | `protectedLoginHandoff` node pauses; the operator cancels; `Manual handoff was cancelled.` fails the step on the protected page | screenshot, DOM and a11y written: **defect** |
+| P2 | `goto` lands on the page; title-first auto-detection pauses (`PROTECTED_LOGIN_AUTODETECT_STEPS`); the operator cancels | screenshot, DOM and a11y written: **defect** |
+| P3 | an ordinary `click` fails on a protected page that no detector paused on. The fixture's own title has no protected wording, and auto-detection reads the body only for a suspicious title or URL (`ProtectedLoginDetector.ts:215-247`) | screenshot, DOM and a11y written: **defect** |
+| C1 | the same click failure on an ordinary page | all four files written: the capture is intact and was not weakened |
+| C2 | a value typed into an ordinary text field | not serialized into the DOM file (values are properties, not attributes) |
+
+Traced statically, not run: popup detection (`StepExecutor.ts:1952-1966`) uses the same `waitForHandoffAction` and
+reaches B2 the same way on cancel. A failure inside `captureProtectedLoginSession` after the automation browser was
+closed gives page-closed notes, not files. **Sensitive steps: INCONCLUSIVE.** The DOM file does not carry typed
+values (C2), but the full-page PNG renders whatever text-type inputs show, for example an OTP in a text field. No OCR
+was used, so leakage into pixels is not measured. Password inputs render masking glyphs (browser behaviour, not
+measured here).
+
+**Disposition.** This is a reachable defect, filed as `awkit-4b5y` (P1, security, discovered from `awkit-vra.14`) with a
+KNOWN_ISSUES entry, for a separate security remediation. The remediation needs its own owner decision on what B2 does
+on a protected surface: skip page-derived files, keep meta only, or another option. N5 does not fix it, does not
+weaken any capture, and never reads B2 files. `verify:b2-protected-capture` stays red until that remediation lands; it
+is never relaxed to pass. N5's own path is proven separately, because N5.3 reuses the P1-P3 fixtures to show zero N5
+captures.
+
+## Deadline, cancellation and teardown (finding 5)
+
+1. **One deadline, one abort signal.** On entry the adapter creates an `AbortController` and a timer for the
+   per-failure deadline (VD-8). Every N0 call receives that `signal` and `timeoutMs` = the remaining budget (N0's
+   `VisualCaptureOptions` already accepts both). Every DOM probe (`count`, `boundingBox`, the read-only
+   `elementsFromPoint` evaluate) has a Playwright `timeout` no larger than the remaining budget, and is raced against
+   the signal. The reference reads are raced the same way.
+2. **Single-assignment settle slot.** The executor awaits `Promise.race([diagnosis, deadline])`. Whichever settles
+   first writes the slot once: a verdict, or `budget-exhausted`. The slot is closed at that moment, and any later
+   value is discarded. The executor builds the failure record from the slot. The adapter holds no reference to the
+   step result, the report, the L5a buffer or any store writer (its reader exposes `get` only), so late work has
+   nothing to write to.
+3. **Cleanup in `finally`.** The adapter releases the frame (`releaseVisualFrame`), lets N0 detach its page watchers,
+   clears its timer and removes its abort listener, on every exit path: success, refusal, abort or throw.
+4. **What can still run after the deadline.** A screenshot already dispatched to the browser cannot be recalled. It is
+   read-only, and its bytes land in a released or abandoned frame and are dropped. Playwright hides the text caret
+   while it takes a screenshot (an existing N0/N2 property, not new in N5). No N5 operation clicks, focuses, hovers,
+   scrolls or writes to the page, so a late operation cannot change page state either.
+5. **Teardown.** The executor never waits past the deadline. Moving to the next step, ending the flow, closing the
+   context or writing the report proceeds once the slot is settled. If the page or context closes while work is in
+   flight, N0 answers `PAGE_CLOSED` or `CAPTURE_STALE` into the closed slot, where it is dropped. A per-instance
+   in-flight counter is checked before the report is written: abandoned work is counted in a fixed-text debug count,
+   never awaited.
+6. **Proof (N5.3).** A verifier-only seam holds the N0 guard or the screenshot past the deadline. The cases:
+   - the record says `budget-exhausted`;
+   - after an extra wait the report record, the step result and the store bytes are byte-identical;
+   - the frame-release seam (the N2.4 `onFrame` precedent) sees every frame released;
+   - the page's DOM digest and scroll position are unchanged across the whole diagnosis;
+   - a page closed mid-diagnosis yields a closed slot and no throw;
+   - no timer or page listener is left behind.
+
+   Mutations: write the late result after close; skip release; omit the signal from N0; await past the deadline.
+   Each must be observed red.
 
 ## Persistence
 
 - **Location:** `InstanceReport.diagnostics.visualDiagnosis?: VisualDiagnosisRecord[]` in the existing run report,
   optional and additive. Old reports load unchanged; the field is absent when the feature is off or nothing failed.
-- **Record:** `{ version: 1, stepId, attempt, failureKind, referenceSource, conditions: code, observations: code[],
-  similarity?: "identical" | "near" | "far", ms }`. Bounded: at most 8 observations per record and at most a capped
-  number of records per instance (fixed in N5.4).
+- **Record:** `{ version: 1, stepId, attempt, failureKind, referenceSource, conditions: "equal-proven" | "unproven" |
+  "different" | "none", observations: code[], examined, domNamed, truncated, identicalOthers?: "1" | "2+", ms }`.
+  Counts are small integers, capped. There is no similarity score: identity is byte equality, and near or far
+  similarity is not reported. Bounded: at most 8 observations per record and a capped number of records per instance
+  (fixed in N5.4).
 - **Sanitized on write:** codes outside `^[a-z][a-z0-9-]{0,39}$` become `invalid`; unknown keys are dropped; no
   free text. A key allowlist test proves no pixel, fingerprint, digest, selector, URL, title or page text can appear.
 - **Never in:** the FlowProfile, run history SQLite columns, flow export or import, the L5a events, the L5a cause
@@ -254,17 +422,20 @@ attributions on swap, restyle and twins before the UI may show it (VD-10).
 - **Data minimisation.** Pixels exist only in memory for the duration of one call and are released in `finally`. The
   stored record is codes only. The existing B2 screenshot is neither read nor altered.
 - **Redaction.** Fixed text only. No URL, selector, label, value or error message is logged by the N5 path.
-- **B2 audit.** N5.2 reports whether the existing B2 full-page failure screenshot can capture a protected surface.
-  N5 does not change B2. A confirmed gap becomes its own defect bead and KNOWN_ISSUES entry for an owner decision.
+- **B2 audit: done, defect confirmed.** The existing B2 failure capture photographs and serializes protected-login
+  pages on three reproduced paths (*B2 protected-capture finding*). It is filed as `awkit-4b5y` for a separate remediation.
+  N5 does not change B2, never reads its files, and proves its own path captures nothing on the same fixtures.
+- **Targetless frames.** The one VD-3 frame may be taken when no target exists. It passes the same `pageHandedOff`
+  and N0 before-and-after guards, and only a uniformity statistic of it is kept.
 
 ## Headed and headless
 
-A comparison is only made when the reference's recorded conditions (DPR, zoom, viewport, render mode) equal the
-failed page's. Otherwise the code is `conditions-changed` and no similarity is reported. N4.5 showed a headed
-recording is never byte-identical to a headless crop, and N3.2 showed headless twins render with position-dependent
-bytes, so identity-based codes are the ones most at risk; N5.6 measures each code headed and headless at DPR 1, 1.25
-and 2 on fresh launches. If the reference record lacks a field needed to prove equal conditions, N5.2 records it and
-the comparison is refused for that field (never assumed equal).
+No stored reference records render mode (*Reference-condition provenance*), so every comparison against an existing
+record is `unproven`. Only byte-identity positives are reported then, and a headed reference compared on a headless
+replay simply produces no identity (N4.5: never byte-identical). It never produces a "changed" observation, because
+that code is suppressed under `unproven`. N3.2's headless twins are handled by never claiming uniqueness and by
+treating counts as lower bounds. N5.6 measures each code headed and headless at DPR 1, 1.25 and 2 on fresh launches,
+including a headed reference replayed headless.
 
 ## Frames, popups and shadow roots
 
@@ -291,9 +462,10 @@ boundary.
 ## Performance budgets
 
 - **Passing steps and non-final attempts:** zero visual work (counted and proven by a capture spy).
-- **Final failure:** one reference read pair (runtime, then recorded), one DOM probe, at most one N0 frame and
-  `VISUAL_FANOUT_MAX_CANDIDATES` crops, under a per-failure deadline. Provisional ceiling **1000 ms**, fixed from N5.6
-  measurement (VD-8); overrun answers `budget-exhausted` and never delays teardown beyond the deadline.
+- **Final failure:** one reference read pair (runtime, then recorded), one DOM probe, **exactly one** N0 frame
+  (target or not) and at most `VISUAL_FANOUT_MAX_CANDIDATES` crops, under a per-failure deadline. Provisional ceiling
+  **1000 ms**, fixed from N5.6 measurement (VD-8). An overrun answers `budget-exhausted` under the abort-and-settle
+  protocol (*Deadline, cancellation and teardown*) and never delays teardown beyond the deadline.
 - **Concurrency:** through the existing screenshot limiter. A per-execution cap per signature (flow, step, failure
   kind) bounds a data-driven run that fails the same way 500 times; the remainder record `coalesced`.
 - **Disk:** a few hundred bytes per finally failed step, inside the report.
@@ -303,7 +475,13 @@ boundary.
 - A fourth section in the drawer, titled *Visual diagnosis*, after *Captured evidence* and before *AI analysis*,
   shown only when the report carries the block. Never merged with the other sections.
 - Each observation is a sentence of fixed text plus an `aria-hidden` icon, never colour alone. The section states its
-  basis ("compared with the reference from the last passing run" / "…from the Recorder" / "no reference").
+  basis ("compared with the reference from the last passing run" / "…from the Recorder" / "no reference") and, when
+  `conditions` is `unproven`, says that the reference does not record how it was rendered, so only exact matches are
+  reported.
+- Identity copy always names the examined scope: "Of the *n* elements the run examined, *k* are pixel-identical…".
+  When `truncated`, it adds "The run examined only the first *n* of the elements it found." It always ends with
+  "Elements the run did not examine were not compared." The words "only", "unique" and "the element" are never used
+  for an identity result. N5.5's GUI verifier asserts this copy.
 - A visible caveat: "Advisory. This does not identify an element to use, and it does not change the run."
 - No thumbnail, overlay, crop or digest (VD-6). Hologram tokens only; reduced motion respected; `.app-shell` and
   `.app-main` grids unchanged.
@@ -358,15 +536,26 @@ owner decisions. Each decision below is needed because N5 would otherwise silent
 ### VD-3 — Visual evidence sources
 
 - **Decision:** what pixels and references N5 may use.
-- **Recommended:** the reference read **read-only** with N4.6 precedence (runtime, then recorded under
-  `AWKIT_VISUAL_RECORDER=manual` for the current binding); one fresh N0 frame with the N2 runtime options; crops of
-  **DOM-named** targets only (the step locator's matches, then the recovery decision's existing contenders), capped
-  at `VISUAL_FANOUT_MAX_CANDIDATES`. No page-wide search. N5 never writes, refreshes or deletes a reference.
-- **Alternatives:** (a) template-search the whole screenshot for the reference, which locates a target by pixels
-  and reproduces the twins hazard; (b) decode the existing B2 full-page PNG instead of a fresh frame, which has
-  different capture options (digests not comparable) and is not protected-guarded; (c) let a passing comparison
-  refresh the runtime reference, which writes from a failure path.
-- **Consequence:** N5 says nothing about elements the DOM did not name.
+- **Recommended:**
+  - the reference is read **read-only** with N4.6 precedence (runtime, then recorded under
+    `AWKIT_VISUAL_RECORDER=manual` for the current binding);
+  - **exactly one** fresh N0 viewport frame per diagnosis with the N2 runtime options, taken **whether or not a target
+    exists**, behind `pageHandedOff` and N0's before-and-after guard (finding 4);
+  - from that frame, crops of the **examined** set only (*Architecture* step 4: the DOM-named set in fixed order,
+    capped at `VISUAL_FANOUT_MAX_CANDIDATES`, with `truncated` recorded), plus the whole-viewport fingerprint
+    statistic for `viewport-uniform`;
+  - no second frame, no page-wide search, and no write, refresh or delete of any reference.
+- **Alternatives:**
+  - (a) template-search the whole screenshot for the reference, which locates a target by pixels and reproduces the
+    twins hazard;
+  - (b) decode the existing B2 full-page PNG, whose capture options differ (so digests are not comparable) and which
+    is not protected-guarded (finding 2);
+  - (c) let a passing comparison refresh the runtime reference, which writes from a failure path;
+  - (d) **exclude targetless pages**: capture only when an examined member is in the viewport, and drop
+    `viewport-uniform` for `target-not-in-dom`. This is a narrower privacy surface, but it loses the blank-page case,
+    which is the one most likely to explain a missing target.
+- **Consequence:** N5 says nothing about elements the DOM did not name. With the recommendation, a blank or unpainted
+  page is reported even when the target is missing, and only a uniformity statistic of that frame is kept.
 - **Why needed:** it fixes what may be photographed at failure and keeps the store single-writer.
 
 ### VD-4 — Relationship to L5a and L5b
@@ -416,8 +605,9 @@ owner decisions. Each decision below is needed because N5 would otherwise silent
 
 - **Decision:** the cost N5 may add to a failed run.
 - **Recommended:** zero on passing steps and non-final attempts; a per-failure deadline, provisional 1000 ms, fixed
-  from N5.6 measurement; captures through the existing screenshot limiter; a per-execution cap per (flow, step,
-  failure kind) signature, provisional 20, after which entries record `coalesced`.
+  from N5.6 measurement, enforced by the abort-and-settle protocol (*Deadline, cancellation and teardown*); captures
+  through the existing screenshot limiter; a per-execution cap per (flow, step, failure kind) signature, provisional
+  20, after which entries record `coalesced`.
 - **Alternatives:** (a) no cap, so a 500-row failing run captures 500 times; (b) share the FD-5 400 ms attempt
   budget, which would make N5 compete with J9 inside an attempt.
 - **Consequence:** bounded, measured, and never on the happy path.
@@ -425,38 +615,70 @@ owner decisions. Each decision below is needed because N5 would otherwise silent
 
 ### VD-9 — Conditions and render mode
 
-- **Decision:** when a comparison is allowed.
-- **Recommended:** only when DPR, zoom, viewport and render mode (headed/headless) equal the reference's; otherwise
-  `conditions-changed` with no similarity. Never infer across modes.
-- **Alternatives:** (a) compare across modes with a looser threshold, which N3.2 and N4.5 showed produces false
-  identity or no recall.
-- **Consequence:** less coverage, no false identity from rendering differences.
-- **Why needed:** it fixes the trust model for identity codes.
+- **Decision:** when a comparison is allowed, given what stored references can prove (finding 1).
+- **Recommended:** the three-state fail-closed rule in *Reference-condition provenance*:
+  - any provable field differs: `conditions-changed`, and nothing is compared;
+  - provable fields equal but render mode, build or colour scheme unproven (**every v1 record**): only byte-identity
+    positives (`target-identical-to-reference`, `other-examined-identical`), with differences and absences suppressed;
+  - `equal-proven` only with a VD-11 provenance envelope.
+
+  Stored records are never migrated, rewritten or reinterpreted, and no condition is inferred from the key namespace.
+- **Alternatives:**
+  - (a) treat equal DPR and viewport as equal conditions, which reports headed-versus-headless rendering as "the
+    target changed" (N4.5);
+  - (b) compare across modes with a looser threshold, which N3.2 and N4.5 showed gives false identity or no recall;
+  - (c) refuse every comparison until provenance exists, which loses the self-evidencing identity facts.
+- **Consequence:** against today's references N5 never says "changed". It reports exact matches, geometry,
+  uniformity and refusals.
+- **Why needed:** it fixes the trust model for every identity code, and records cannot be fixed retroactively.
 
 ### VD-10 — Calibration gate and fallback
 
 - **Decision:** what must be measured before the UI shows a code.
-- **Recommended:** N5.6 runs every code headed and headless at DPR 1, 1.25 and 2 on fresh launches over the
-  mock-site failure states. Pre-agreed criterion: **zero** false `reference-seen-on-other-element` on swap, restyle
-  and twins; **zero** observations on protected, handoff and sensitive fixtures; geometry codes agree with the
-  fixture truth in every cell; p95 cost within the VD-8 deadline; zero visual work on passing runs. A code that
-  fails is pruned to `inconclusive` before N5.5 exposes it. If identity codes all fail, N5 closes **geometry and
-  refusal codes only**; if geometry codes also fail, N5 closes **report-only** (no UI).
+- **Recommended:** N5.6 runs every code headed and headless at DPR 1, 1.25 and 2 on fresh launches over the mock-site
+  failure states, including a headed reference replayed headless. Pre-agreed criterion:
+  - **zero** identity codes that disagree with byte truth on swap, restyle and twins;
+  - **zero** uniqueness wording anywhere;
+  - `truncated` is correct on the over-cap fixture, and an identical element beyond the cap is never counted;
+  - an identical but un-named element (the omitted-contender fixture) is never counted;
+  - **zero** observations on protected, handoff and sensitive fixtures;
+  - **zero** `target-differs-from-reference` or `no-examined-identical` under `unproven`;
+  - geometry and `viewport-uniform` agree with the fixture truth in every cell;
+  - p95 cost within the VD-8 deadline, and zero visual work on passing runs.
+
+  A code that fails is pruned to `inconclusive` before N5.5 exposes it. If every identity code fails, N5 closes with
+  **geometry, uniformity and refusal codes only**. If those fail too, N5 closes **report-only** (no UI), tracked as in
+  *Conditional closure and tracking*.
 - **Alternatives:** (a) ship the vocabulary uncalibrated; (b) block N5 entirely on any failed code.
 - **Consequence:** the same fallback pattern N2, N3 and N4 used.
 - **Why needed:** it fixes the acceptance rule before any measurement.
+
+### VD-11 — Reference provenance envelope (new, unresolved)
+
+- **Decision:** whether stored references should start recording the conditions they cannot prove today.
+- **Recommended:** **defer**. N5 ships with v1 semantics (`unproven` for every record). A later, separate milestone
+  may add an optional, additive `provenance` envelope (render mode, browser major version, colour scheme, forced
+  colours) to records **written after** it lands, by the two existing writers (the N2 refresh and the N4 Recorder
+  save). It would come with its own owner decision, a store-format review and N2/N4 regression gates.
+- **Alternatives:**
+  - (a) add the envelope inside N5, which changes the N2 and N4 writers, outside N5's read-only boundary;
+  - (b) backfill existing records, which is rejected because it reinterprets stored data;
+  - (c) never add it, so `target-differs-from-reference` and `no-examined-identical` stay dormant.
+- **Consequence:** with the recommendation, N5 cannot report "changed" until a later milestone, and old records
+  stay `unproven` forever.
+- **Why needed:** it is the only way to reach `equal-proven`, and it touches N2 and N4's persisted shape.
 
 ## Work breakdown
 
 | Item | Bead | Owner | Depends on | Delivers | Acceptance |
 |---|---|---|---|---|---|
-| N5.1 Owner decisions | `awkit-vra.14.1` | owner | — | VD-0 to VD-10 recorded in DECISIONS, the isolation amendment, N5 authorization | DECISIONS entry naming each VD approved, amended or rejected. Plan status updated |
-| N5.2 Pure diagnosis policy and baseline audit | `awkit-vra.14.2` | software, qa | N5.1 | `decideVisualDiagnosis` with its closed vocabulary; the reference-conditions field audit; the B2 protected-capture audit report | New `verify:visual-diagnosis` with a mutation contract (twins as other-element, conditions check skipped, an index or selector field added, unknown code as observation). Build |
-| N5.3 Runner adapter, hook and isolation | `awkit-vra.14.3` | backend, qa, recorder-playwright | N5.2 | `VisualFailureDiagnosis` (third edge), the final-attempt hook, read-only reader, DOM facts, refusals, budget, cap, mock-site failure states | New `verify:visual-diagnosis-runtime` (real Chromium): runner A/B identical on/off, zero work on passing steps and non-final attempts, protected/handoff/sensitive refusals with zero captures, store bytes unchanged, mutation contract. `verify:visual-isolation` exact three edges, fourth-edge mutation red. `verify:mock-site`. Build |
+| N5.1 Owner decisions | `awkit-vra.14.1` | owner | — | VD-0 to VD-11 recorded in DECISIONS, the isolation amendment, N5 authorization | DECISIONS entry naming each VD approved, amended, rejected or deferred. Plan status updated |
+| N5.2 Pure diagnosis policy | `awkit-vra.14.2` | software, qa | N5.1 | `decideVisualDiagnosis` with its closed vocabulary, the three-state condition rule and the examined-scope rules; a pinned list of the `VisualEvidence` v1 fields the rule relies on. The two audits were completed in planning (findings 1 and 2) | New `verify:visual-diagnosis` with a mutation contract: a twin counted as unique; `truncated` ignored; a difference allowed under `unproven`; a condition inferred from the key namespace; an index or selector field added; an unknown code mapped to an observation; a new evidence field not reflected in the pin. Build |
+| N5.3 Runner adapter, hook and isolation | `awkit-vra.14.3` | backend, qa, recorder-playwright | N5.2 | `VisualFailureDiagnosis` (third edge); the final-attempt hook; read-only reader; DOM facts and the examined set; one bounded frame, target or not; refusals; the abort-and-settle deadline; cap; mock-site failure states, including over-cap, omitted-contender and blank fixtures | New `verify:visual-diagnosis-runtime` (real Chromium): runner A/B identical on/off; zero work on passing steps and non-final attempts; zero N5 captures on the `verify:b2-protected-capture` P1-P3 fixtures and on sensitive steps; store bytes unchanged; the deadline proofs; truncation and omitted-contender controls; mutation contract. `verify:visual-isolation` pins exactly three edges, fourth-edge mutation red. `verify:mock-site`. Build |
 | N5.4 Report record and sanitizer | `awkit-vra.14.4` | data-persistence, backend | N5.3 | The additive `visualDiagnosis` block, sanitizer, caps | Old reports load; key allowlist; run history unchanged; FlowProfile and export byte-identical; `verify:recovery-provenance`, `verify:ai-error-analysis` (L5b request bytes unchanged). Build |
 | N5.5 Report section | `awkit-vra.14.5` | frontend, ui-designer | N5.4, N5.6 | The *Visual diagnosis* drawer section for calibrated codes only | New `verify:visual-diagnosis-gui` (real Electron: text, focus, absence, reduced motion), `verify:ai-assist-gui` unchanged. Build. **Report-only if N5.6 prunes everything** |
 | N5.6 Calibration | `awkit-vra.14.6` | qa, recorder-playwright | N5.3 | Informational `benchmark:visual-diagnosis`: every code headed and headless, DPR 1/1.25/2, fresh launches; cost | VD-10 criterion reported as met or not per code; pruned codes recorded |
-| N5.7 State, docs, QC, closure | `awkit-vra.14.7` | project-state, qc, security (review) | N5.5 | State docs, ARCHITECTURE, DECISIONS outcome, independent QC, security review, dashboard repin | QC APPROVED with findings closed. Sources agree. Build |
+| N5.7 State, docs, QC, closure | `awkit-vra.14.7` | project-state, qc, security (review) | N5.5 (or its recorded deferral), N5.4, N5.6 | State docs, ARCHITECTURE, DECISIONS outcome, independent QC, security review, dashboard repin | QC APPROVED with findings closed. Sources agree. Build |
 
 ### Dependency chain
 
@@ -464,27 +686,46 @@ owner decisions. Each decision below is needed because N5 would otherwise silent
 awkit-vra.12 (N2, closed) --+
 awkit-vra.4  (N3, closed) --+--> awkit-vra.14 (N5)
 awkit-vra.13 (N4, closed) --+
-N5.1 --> N5.2 --> N5.3 --+--> N5.4 --+
-                         |           +--> N5.5 --> N5.7
+N5.1 --> N5.2 --> N5.3 --+--> N5.4 --+--> N5.5 --> N5.7
+                         |           |
                          +--> N5.6 --+
+direct edges as well:  N5.4 --> N5.7,  N5.6 --> N5.7
 ```
 
-N5.5 depends on N5.4 and N5.6. If N5.6 prunes every code, N5.5 is recorded as deferred and N5.7 may close N5
-report-only.
+N5.7 is blocked by N5.5, N5.4 and N5.6. The last two edges are redundant while N5.5 is pending, and they exist so
+that a recorded deferral of N5.5 keeps N5.7 gated by the work that actually ran.
+
+### Conditional closure and tracking (finding 6)
+
+The dashboard treats a `deferred` prerequisite as blocking its dependent (fail closed), and N2 set the precedent of
+an epic closing with a deferred child (`awkit-vra.12` with `.12.6`). States are recorded as follows:
+
+| N5.6 outcome | N5.5 `awkit-vra.14.5` | N5.7 `awkit-vra.14.7` | Criterion 7 | Epic `awkit-vra.14` |
+|---|---|---|---|---|
+| All codes pass | Built and **closed** | Closes after QC | PASS | Closed when all ten criteria hold |
+| Some codes pruned | Built for the surviving codes and **closed**; the pruned codes are listed in this plan and DECISIONS | Closes after QC | PASS (surviving codes) | Closed |
+| Identity codes all pruned | Built with geometry, uniformity and refusal codes and **closed** | Closes after QC | PASS (reduced vocabulary) | Closed |
+| Every code pruned (report-only) | **Not built.** Status `deferred`, with a note naming the N5.6 result; never `closed` | The owner approves one edge removal, `bd dep remove awkit-vra.14.7 awkit-vra.14.5`, inside a contract-backed project-state lease. N5.7 stays gated by `.14.4` and `.14.6`, then closes after QC | **DEFERRED (report-only)**, never PASS | Closed with `.14.5` deferred and open, as with N2.6 |
+| N5.6 BLOCKED (environment) | `blocked`, not deferred | Stays blocked | NOT RUN | Stays open; N5 cannot close |
+
+Rules: a deferred item is never closed as completed; no completion criterion is reported PASS for work that did not
+run; the edge removal is the only tracker change that deferral needs, and it is made only after the owner records the
+N5.6 outcome. The dashboard pins move to the measured counts in the same task.
 
 ## Verification and independent QC matrix
 
 | Gate | Item | Type | What it proves | Mutations that must be observed red |
 |---|---|---|---|---|
-| `verify:visual-diagnosis` (new) | N5.2 | pure | Closed vocabulary; twins give `reference-seen-ambiguous`; conditions mismatch gives `conditions-changed`; no reference gives `reference-unavailable`; output has no index, locator, coordinate or effect | twins reported as `reference-seen-on-other-element`; conditions check removed; an index field added; unknown code mapped to an observation |
-| `verify:visual-diagnosis-runtime` (new) | N5.3 | real Chromium, mock-site | A/B identical: step status, error, attempts, retries, `nextStepId`, run status, L5a cause and evidence ids, B2 files; zero captures on passing steps and non-final attempts; refusals with zero captures on protected, handoff, sensitive; store files byte-identical; recorded reference read only under the N4 flag; budget and cap | diagnose passing steps; diagnose before the retry decision; skip the after-capture protected check; pass `allowProtected`; write or refresh a reference; let the verdict change status or cause; drop the cap |
+| `verify:b2-protected-capture` (added in planning, 2026-10-19) | separate remediation (`awkit-4b5y`) | real Chromium | The B2 capture writes no screenshot, DOM or a11y file of a protected page on P1-P3, and ordinary-page capture is intact (C1, C2) | none yet. It is a reproduction: **FAIL 11/3 today**, and it turns green only through the separate remediation, never by relaxing it |
+| `verify:visual-diagnosis` (new) | N5.2 | pure | Closed vocabulary. The three-state condition rule: `different` gives `conditions-changed`; `unproven` admits only byte-identity positives; `equal-proven` is unreachable without provenance. Identity counts are scoped to the examined set, and `truncated` forbids `no-examined-identical`. No uniqueness field or wording. No index, locator, coordinate or effect. Pin of the v1 evidence fields | a difference allowed under `unproven`; a condition inferred from the key namespace; `truncated` ignored; `identicalOthers` read as uniqueness; an index field added; an unknown code mapped to an observation; an evidence field added without updating the pin |
+| `verify:visual-diagnosis-runtime` (new) | N5.3 | real Chromium, mock-site | A/B identical: step status, error, attempts, retries, `nextStepId`, run status, L5a cause and evidence ids, B2 files. Zero captures on passing steps and non-final attempts. Zero N5 captures on the P1-P3 protected fixtures, handoff and sensitive steps. Store files byte-identical. Recorded reference read only under the N4 flag. Exactly one frame per diagnosis, target or not, released. **Truncation:** over-cap DOM-named set with the identical element past the cap, giving `truncated: true` and that element uncounted. **Omitted contender:** an identical element the DOM never named, and one dropped past the recovery contender cap, both uncounted. **Deadline:** the six proofs in *Deadline, cancellation and teardown*. Cap | diagnose passing steps; diagnose before the retry decision; skip the after-capture protected check; pass `allowProtected`; write or refresh a reference; let the verdict change status or cause; examine past the cap; search outside the DOM-named set; take a second frame; skip the frame when no target exists (with VD-3 as recommended); write a late result after close; skip release; omit the abort signal; await past the deadline; drop the cap |
 | `verify:visual-isolation` | N5.3 | static walk | Exactly three edges; renderer walk clean | a fourth edge; the report types importing `src/visual` |
 | Report contract checks | N5.4 | unit + real store | Additive field; old reports load; sanitizer; key allowlist; caps; run history columns unchanged; FlowProfile/export bytes unchanged; L5b request bytes unchanged | a pixel/digest/selector key admitted; sanitizer bypassed; field written into the FlowProfile |
-| `verify:visual-diagnosis-gui` (new) | N5.5 | real Electron | Section text and basis, caveat, absence when the field is absent, focus by containment with real `Tab`, reduced motion, no image element | section rendered with no data; colour-only status; an `<img>` or canvas in the section |
-| `benchmark:visual-diagnosis` (new, informational) | N5.6 | real Chromium | Per-code truth table headed/headless × DPR; cost; VD-10 criterion | — (benchmarks are never release gates) |
+| `verify:visual-diagnosis-gui` (new) | N5.5 | real Electron | Section text and basis; the `unproven` note; examined-scope and truncation copy; no "only", "unique" or "the element" in identity copy; the caveat; absence when the field is absent; focus by containment with real `Tab`; reduced motion; no image element | section rendered with no data; colour-only status; an `<img>` or canvas in the section; scope or truncation sentence dropped; a uniqueness word introduced |
+| `benchmark:visual-diagnosis` (new, informational) | N5.6 | real Chromium | Per-code truth table headed/headless × DPR 1/1.25/2 on fresh launches, including a headed reference replayed headless, the over-cap, omitted-contender and blank fixtures; cost; the VD-10 criterion per code | — (benchmarks are never release gates) |
 | Existing, must stay green | N5.3-N5.7 | — | `verify:visual-capture`, `verify:visual-fingerprint`, `verify:visual-fusion`, `verify:visual-fusion-runtime`, `verify:visual-agreement`, `verify:visual-agreement-runtime`, `verify:recorded-visual-fallback`, `verify:runner`, `verify:locator-guard`, `verify:recovery-provenance`, `verify:twin-pool-safety`, `verify:ai-error-analysis`, `verify:ai-assist-gui`, `verify:mock-site`, `typecheck:scripts`, `npm run build`; `validate:offline` once if a bundle boundary moves | — |
 | Independent QC | N5.7 | fresh-context `awkit-qc-reviewer` | Criteria 1-10 below, with focus on authority (VD-0), the protected boundary and the A/B neutrality proof | — |
-| Security review | N5.7 | `awkit-security-engineer` (review) | Protected-login, handoff, sensitive exclusion, redaction, no pixel IPC, B2 audit disposition | — |
+| Security review | N5.7 | `awkit-security-engineer` (review) | Protected-login, handoff, sensitive exclusion, the targetless frame, redaction, no pixel IPC, and that N5 neither reads nor depends on the B2 files (`awkit-4b5y` is reviewed in its own task) | — |
 
 Every new `verify:*` and `benchmark:*` script is registered in `scripts/lib/verifier-classification.ts` in the item
 that adds it. Mutation contracts are written **after** each mutation is run and its observed result recorded.
@@ -495,22 +736,31 @@ Rules carried from earlier phases: pair every `.every()` with a cardinality asse
 **Mock-site.** Extend `/visual-intelligence/fusion` rather than adding pages, with failure states that each have a
 stable URL, title, expected behaviour and `data-testid` selectors: target detached after the reference pass,
 target restyled, swapped, twins, an overlay covering the target, target scrolled offscreen, a zero-size target, a
-uniform (blank) viewport, and the existing protected injection. Each is covered by `verify:mock-site` and listed in
-the mock-site docs.
+uniform (blank) viewport with no target, an **over-cap** set (more DOM-named matches than `VISUAL_FANOUT_MAX_CANDIDATES`,
+with the reference-identical element past the cap), an **omitted contender** (a reference-identical element the
+step locator and recovery never name), and the existing protected injection. Each is covered by `verify:mock-site`
+and listed in the mock-site docs. The N5.3 runtime verifier also reuses the `verify:b2-protected-capture` fixtures.
 
 ## Completion criteria
 
 N5 closes when every item holds, or is truthfully recorded as deferred:
 
-1. VD-0 to VD-10 are recorded by the owner, and N5 was authorized before any code landed.
+1. VD-0 to VD-11 are recorded by the owner, and N5 was authorized before any code landed.
 2. `verify:visual-isolation` passes with exactly the approved edges, and its fourth-edge mutation is red.
-3. `verify:visual-diagnosis` passes with its mutation contract.
-4. `verify:visual-diagnosis-runtime` proves runner A/B neutrality, zero visual work on passing steps and non-final
-   attempts, every protected, handoff and sensitive refusal on a fixture, and an unchanged reference store.
+3. `verify:visual-diagnosis` passes with its mutation contract, including the fail-closed condition rule and the
+   examined-scope rules.
+4. `verify:visual-diagnosis-runtime` proves:
+   - runner A/B neutrality;
+   - zero visual work on passing steps and non-final attempts;
+   - every protected, handoff and sensitive refusal on a fixture, including the B2 P1-P3 fixtures;
+   - an unchanged reference store;
+   - the truncation and omitted-contender controls;
+   - the deadline proofs.
 5. No FlowProfile, export, run-history column, L5a event, L5a cause, L5b request, reference record or IPC payload
    carries N5 data beyond the codes-only report block, proven by byte-identity and allowlist checks.
 6. N5.6 measurements are recorded and the VD-10 criterion is reported per code; pruned codes are recorded.
-7. The report section passes its GUI verifier, or is deferred with N5 closing report-only.
+7. The report section passes its GUI verifier, or N5.5 is `deferred` with N5 closing report-only. In that case this
+   criterion is recorded as **DEFERRED (report-only)**, never PASS (*Conditional closure and tracking*).
 8. The N2, N3 and N4 suites, runner, locator-guard, recovery-provenance, twin-pool-safety, L5b, mock-site and build
    pass against the final state.
 9. Independent QC and the security review are APPROVED, with findings closed.
@@ -539,24 +789,50 @@ N5 closes when every item holds, or is truthfully recorded as deferred:
 
 | Risk | Mitigation |
 |---|---|
-| An operator reads `reference-seen-on-other-element` as "use that element" | No index or highlight; fixed caveat text; VD-10 zero-false-attribution gate; pruned to `inconclusive` if it fails |
-| Headless position-dependent rasterization (N3.2) makes twins look unique | `reference-seen-ambiguous` requires uniqueness only among DOM-named crops; N5.6 twins cells headed and headless |
-| Headed references never match headless crops (N4.5) | VD-9 refuses cross-mode comparison as `conditions-changed` |
+| An operator reads `other-examined-identical` as "use that element" | No index or highlight; examined-scope and truncation copy; the caveat text; the VD-10 gate; pruned to `inconclusive` if it fails |
+| Headless position-dependent rasterization (N3.2) hides visual twins from byte identity | No uniqueness claim exists; counts are lower bounds over the examined set; N5.6 twins cells headed and headless |
+| A count is read as page-wide | Every identity record carries `examined`, `domNamed` and `truncated`, and the UI states the scope; over-cap and omitted-contender controls in N5.3 and N5.6 |
+| Headed references never match headless crops (N4.5), and records do not say which mode they were taken in | Every v1 comparison is `unproven`: no "changed" code, only self-evidencing positives (VD-9) |
 | The diagnosis slows down failing data-driven runs | Final-attempt only, deadline, limiter, per-signature cap, measured in N5.6 |
 | A capture on a page that became protected after the check | N0 after-capture check discards the frame and answers `protected-surface` |
-| The B2 path may capture protected pages today (unverified) | Audited in N5.2 and filed separately; N5 does not widen it and never reads its files |
+| The B2 path captures protected pages today (**confirmed**, finding 2) | Filed as `awkit-4b5y` for a separate remediation; N5 does not widen it, never reads its files, and proves zero N5 captures on the same fixtures |
+| A targetless frame widens what is photographed | Same handoff and before-and-after protected guards; only a uniformity statistic is kept; the narrower alternative is VD-3 (d) |
+| A diagnosis outlives its deadline | Abort-and-settle protocol: the slot closes at the deadline, late results are dropped, everything is read-only and released in `finally`, and six proofs with mutations |
 | Failure state changes between the final attempt and the diagnosis (late network, animations) | The diagnosis runs immediately after the decision; it reports what it saw with `ms`; animations are not disabled (RV-7 precedent) |
 | Isolation amendment widens drift | Exact-set pinning with a fourth-edge mutation |
-| Reference records lack a field needed to prove equal conditions | N5.2 audit; refuse rather than assume |
+| Reference records lack fields needed to prove equal conditions (**confirmed**, finding 1) | Fail-closed three-state rule; no migration or inference; VD-11 governs any future provenance |
+
+## Unresolved owner decisions
+
+None of these is ratified. An agent may not decide them.
+
+| Decision | Recommended default | Unresolved because |
+|---|---|---|
+| VD-0 Scope and authority | Advisory codes only, after the final retry decision | Owner decision |
+| VD-1 Isolation amendment | A third, single adapter edge | Amends the 2026-10-12 isolation decision, FD-2 and RV-1 |
+| VD-2 Trigger | Final failed attempt, N2 eligible element steps | Overhead and privacy model |
+| VD-3 Evidence sources | Read-only reference; exactly one guarded frame, target or not; examined set only | The targetless frame is a privacy choice (alternative (d) excludes it) |
+| VD-4 L5a and L5b | Unchanged | Both carry owner-accepted measurements |
+| VD-5 Persistence | Optional codes-only report block | Report schema extension |
+| VD-6 UI | Text only, existing drawer and read | First visual result in the renderer |
+| VD-7 Enablement | `AWKIT_VISUAL_DIAGNOSIS=on`, default off | Default user experience |
+| VD-8 Budget | 1000 ms provisional, abort-and-settle, cap 20 per signature | Runtime cost on failing runs |
+| VD-9 Conditions | Three-state fail-closed rule; v1 records `unproven` | Trust model for identity codes |
+| VD-10 Calibration gate | Per-code criterion with pruning and the tracked fallbacks | Acceptance rule before measurement |
+| VD-11 Provenance envelope | Defer to a later milestone | Changes N2/N4 persisted shape |
+| B2 remediation (`awkit-4b5y`, outside N5) | Owner chooses B2's behaviour on a protected surface (skip page-derived files, meta only, or another option) | Security behaviour of an existing capture; not an N5 decision and not blocking N5 |
 
 ## Exact next implementation task (pending owner approval)
 
-1. **Owner:** record VD-0 to VD-10 (approved, amended or rejected) and authorize N5. That closes N5.1
-   (`awkit-vra.14.1`).
-2. **Then, and only then, N5.2 (`awkit-vra.14.2`):** add the pure `src/visual/diagnosis/decideVisualDiagnosis.ts`
-   with its closed vocabulary, exported through `src/visual/index.ts`, with no runner, recorder, IPC, report or UI
-   change; add `verify:visual-diagnosis` (pure, mutation contract observed red), register it in
-   `scripts/lib/verifier-classification.ts`, and record two audits in this plan: the reference record's
-   condition fields (VD-9) and whether the B2 failure screenshot can capture a protected surface. Gates:
-   `verify:visual-diagnosis`, `verify:visual-isolation` (unchanged at two edges, since no adapter lands in N5.2),
-   `typecheck:scripts`, `npm run build`, `verify:verifier-classification`, `verify:roadmap-dashboard`.
+1. **Owner:** record VD-0 to VD-11 (approved, amended, rejected or deferred) and authorize N5. That closes N5.1
+   (`awkit-vra.14.1`). Separately, and not blocking N5, prioritize the B2 remediation `awkit-4b5y`.
+2. **Then, and only then, N5.2 (`awkit-vra.14.2`):**
+   - add the pure `src/visual/diagnosis/decideVisualDiagnosis.ts` with its closed vocabulary, the three-state
+     condition rule, the examined-scope rules and the v1 field pin, exported through `src/visual/index.ts`;
+   - make no runner, recorder, IPC, report or UI change;
+   - add `verify:visual-diagnosis` (pure, mutation contract observed red) and register it in
+     `scripts/lib/verifier-classification.ts`.
+
+   Gates: `verify:visual-diagnosis`, `verify:visual-isolation` (unchanged at two edges, since no adapter lands in
+   N5.2), `typecheck:scripts`, `npm run build`, `verify:verifier-classification` and `verify:roadmap-dashboard`. The
+   two audits N5.2 used to own were completed in planning.

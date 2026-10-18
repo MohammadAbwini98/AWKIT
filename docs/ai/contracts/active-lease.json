@@ -1,22 +1,28 @@
 {
-  "task": "awkit-vra-n5-plan-1019",
-  "contract_path": "docs/ai/contracts/awkit-vra-n5-plan-1019.json",
+  "task": "awkit-vra-n5-plan-review-1019",
+  "contract_path": "docs/ai/contracts/awkit-vra-n5-plan-review-1019.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-18T21:55:57.577Z",
-  "acquired_at_commit": "2b13bda361143ff530a588b747fd6918b7b6b183",
+  "acquired_at": "2026-10-18T22:50:36.044Z",
+  "acquired_at_commit": "725b129c1c6b6f79c81e2d14f53469e3718239d0",
   "baseline_dirty": [
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-vra-n5-plan-1019.json",
-    "docs/plans/ai-upgrade-v5/N5-visual-failure-diagnosis.md"
+    "docs/ai/contracts/awkit-vra-n5-plan-review-1019.json",
+    "docs/plans/ai-upgrade-v5/N5-visual-failure-diagnosis.md",
+    "package.json",
+    "scripts/lib/verifier-classification.ts",
+    "scripts/verify-b2-protected-capture.mts"
   ],
   "baseline_dirty_fingerprints": {
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-vra-n5-plan-1019.json": "1897bb2759a8345cfd09b2b1c30dc9d771bf6b39a7fe13802fc256fb35d5284b",
-    "docs/plans/ai-upgrade-v5/N5-visual-failure-diagnosis.md": "2310bcc8351422876920de84fa4e8da62d1e541f8002e51af84e2c6420446c72"
+    "docs/ai/contracts/awkit-vra-n5-plan-review-1019.json": "72cfe7df7f06246f95eab7d2c62e05db1d48364b7b4f1ca5e4248ff42400c93f",
+    "docs/plans/ai-upgrade-v5/N5-visual-failure-diagnosis.md": "d3b6ebfbed5a79c5bdbd5f6fa049d246cab66ab9bd301c67b0f9abfd9b824471",
+    "package.json": "2cbd624a9aaefc714df3e083b6ba32db8041b10f8c87a290f743b242cc10660b",
+    "scripts/lib/verifier-classification.ts": "219b531476c24207c4cd6beae751cb4d2a1e0bd34af6c0dc5b6d99f0d1a07fff",
+    "scripts/verify-b2-protected-capture.mts": "30819cdb54fa92289c70d14c53af39b5f7500203b77d96dcc907b49626cd638c"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -31,7 +37,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-18T21:57:19.704Z",
-  "released_reason": "N5 registration recorded and beads exported",
-  "archived_at": "2026-10-18T21:57:19.707Z"
+  "released_at": "2026-10-18T22:51:16.460Z",
+  "released_reason": "B2 defect filed, N5 beads updated and edges added, beads exported",
+  "archived_at": "2026-10-18T22:51:16.462Z"
 }

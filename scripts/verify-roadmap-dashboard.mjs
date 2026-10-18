@@ -166,7 +166,9 @@ try {
   // N4.1-N4.7 as `awkit-vra.13.1`…`.13.7`.
   // Then 403 on 2026-10-19 (contract `awkit-vra-n5-plan-1019`): canonical N5 filed as `awkit-vra.14` with
   // N5.1-N5.7 as `awkit-vra.14.1`…`.14.7`, all open.
-  check("403 issues parse", beads.stats.total === 403, `got ${beads.stats.total}`);
+  // Then 404 on 2026-10-19 (contract `awkit-vra-n5-plan-review-1019`): the N5 plan review filed the confirmed B2
+  // protected-capture defect `awkit-4b5y` (open).
+  check("404 issues parse", beads.stats.total === 404, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -744,8 +746,9 @@ try {
   // N4 epic `awkit-vra.13` closed through bd after the independent QC was APPROVED.
   // Then 34/369 of 403 on 2026-10-19 (contract `awkit-vra-n5-plan-1019`): N5 `awkit-vra.14` and `.14.1`…`.14.7`
   // filed open for planning; nothing closed.
-    "34 outstanding / 369 closed",
-    beads.stats.outstanding === 34 && beads.stats.closed === 369,
+  // Then 35/369 of 404 on 2026-10-19 (contract `awkit-vra-n5-plan-review-1019`): `awkit-4b5y` filed open.
+    "35 outstanding / 369 closed",
+    beads.stats.outstanding === 35 && beads.stats.closed === 369,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -870,9 +873,11 @@ try {
   // Then 329 on 2026-10-19 (contract `awkit-vra-n5-plan-1019`): `awkit-vra.14` and `.14.1`…`.14.7` (eight
   // parent-child links) and ten blocks edges: `.14` on `.12`, `.4` and `.13`, `.14.2` on `.14.1`, `.14.3` on `.14.2`,
   // `.14.4` on `.14.3`, `.14.6` on `.14.3`, `.14.5` on `.14.4` and `.14.6`, `.14.7` on `.14.5`. Measured.
+  // Then 332 on 2026-10-19 (contract `awkit-vra-n5-plan-review-1019`): `awkit-4b5y` `discovered-from` `awkit-vra.14`
+  // and two blocks edges, `.14.7` on `.14.4` and on `.14.6`, so a deferred `.14.5` keeps N5.7 gated. Measured.
   check(
-    "329 edges are present to classify",
-    beads.stats.edges === 329,
+    "332 edges are present to classify",
+    beads.stats.edges === 332,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(

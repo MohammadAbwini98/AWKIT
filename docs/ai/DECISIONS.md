@@ -1,6 +1,27 @@
 # DECISIONS
 
-### 2026-10-19 (latest) — Acceptance environment: Windows 11 ARM64 in Parallels; no separate clean VM or x86/x64 machine required (owner, in session)
+### 2026-10-19 (latest) — Phase N N5 plan review corrections; VD-0 to VD-11 proposed, not ratified (`awkit-vra.14`)
+
+- **Planning only.** The N5 plan was revised for six review findings (contract `awkit-vra-n5-plan-review-1019`). No
+  product source changed, and no owner decision was ratified.
+- **Proposed, not decided.**
+  - VD-3 now proposes exactly one guarded frame per diagnosis, whether or not a target exists, with an exclusion
+    alternative.
+  - VD-8 proposes enforcing the deadline with an abort-and-settle protocol.
+  - VD-9 proposes a three-state fail-closed condition rule. Every existing `VisualEvidence` v1 record is `unproven`,
+    because none records render mode, browser build or colour scheme, and none is migrated or reinterpreted.
+  - VD-10 adds truncation and omitted-contender criteria.
+  - New VD-11 proposes deferring a reference provenance envelope to a later milestone.
+
+  Identity codes are scoped to examined DOM-named candidates, and no code claims uniqueness.
+- **Tracker.** Report-only closure would defer `awkit-vra.14.5`, never close it. `awkit-vra.14.7` gained direct
+  `blocks` edges on `.14.4` and `.14.6`, so deferral needs only one owner-approved edge removal.
+- **Security finding outside N5.** The existing B2 failure capture writes screenshot, DOM and a11y files of
+  protected-login pages (`verify:b2-protected-capture`, 11 passed / 3 failed). It is filed as `awkit-4b5y` (P1) with a
+  KNOWN_ISSUES entry. The remediation needs its own owner decision on B2's behaviour on a protected surface; N5 neither
+  fixes it nor depends on it.
+
+### 2026-10-19 — Acceptance environment: Windows 11 ARM64 in Parallels; no separate clean VM or x86/x64 machine required (owner, in session)
 
 - **Owner decision (verbatim intent).** Windows 11 ARM64 running in Parallels is the approved development and
   acceptance environment. A separate clean-VM or physical x86/x64 acceptance environment is not required. Existing

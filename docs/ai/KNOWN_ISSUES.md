@@ -1,5 +1,26 @@
 # KNOWN_ISSUES
 
+## B2 failure capture photographs and serializes protected-login pages (2026-10-19, OPEN, `awkit-4b5y`)
+
+- **What.** `StepExecutor.captureFailureEvidence` writes a full-page PNG, `page.content()` HTML, an aria snapshot and
+  meta on every failing attempt. Its only production caller is `FlowExecutor.executeWithRetry` (`FlowExecutor.ts:534`),
+  gated only by `step.onFailure.screenshot ?? screenshotOnFailure` (default `true`). It consults no protected-surface,
+  handoff or sensitivity guard, while the L5a collector and the N0 capture guard both exclude protected surfaces.
+- **Reproduced.** `npm run verify:b2-protected-capture` (real `FlowExecutor` and `StepExecutor`, real Chromium, the
+  `mock-site/public/secure-login/protected-login.html` fixture): **11 passed / 3 failed** on 2026-10-19 (ARM64 machine,
+  x64 Node and Chromium emulated). Screenshot, DOM and a11y files of the protected page are written when:
+  - a `protectedLoginHandoff` node is cancelled (P1);
+  - a `goto` paused by title-first auto-detection is cancelled (P2);
+  - an ordinary `click` fails on a protected page that no detector paused on (P3). Title-first auto-detection reads
+    the body only for a suspicious title or URL.
+
+  Controls pass: ordinary-page capture writes all four files, and typed values are not serialized into the DOM file.
+  Popup-detection cancel reaches the same path by static trace (not run). Sensitive text-field pixels are INCONCLUSIVE
+  (no OCR).
+- **Not done here.** No product change. The text files stay secret-masked; the PNG cannot be masked. The remediation
+  needs an owner decision on B2's behaviour on a protected surface, then makes the verifier green without relaxing
+  it. Found by the N5 plan review; N5 does not depend on it or read B2 files.
+
 ## Recovery update superseding the build/Beads blockers below (2026-10-18)
 
 - Build PASS on the existing X: checkout after its share became \\Mac\Samsung9100PRO, with no spaces.

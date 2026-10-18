@@ -1,6 +1,25 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-19, latest) — Phase N: N5 planned, awaiting owner decisions
+## HANDOFF (2026-10-19, latest) — Phase N: N5 plan corrected; awaiting owner decisions VD-0 to VD-11
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done (planning only):** six review corrections in `docs/plans/ai-upgrade-v5/N5-visual-failure-diagnosis.md`
+  (index table at the top). Contract `awkit-vra-n5-plan-review-1019`; the project-state lease is released.
+- **Confirmed defect, outside N5:** `awkit-4b5y` (P1). B2 failure capture writes screenshot, DOM and a11y files of
+  protected-login pages. Reproduce with `npm run verify:b2-protected-capture`: it is expected to FAIL 11/3 until the
+  remediation, and must never be relaxed to pass. Its remediation needs an owner decision on B2's protected-surface
+  behaviour. Do not weaken ordinary captures.
+- **Blocked on the owner:** N5.1 — approve, amend, reject or defer VD-0 to VD-11 and authorize N5. Recommended
+  defaults are in the plan's *Unresolved owner decisions* table.
+- **Then:** N5.2 `awkit-vra.14.2`, the pure policy with the fail-closed condition rule, the examined-scope rules and
+  `verify:visual-diagnosis`. The audits are already done.
+- **Tracker:** if N5.6 ever forces report-only, defer `.14.5` and remove only the `.14.7` → `.14.5` edge, after the
+  owner records the outcome. Never close `.14.5` as completed.
+- **Clean-machine** stays optional and non-blocking by owner policy; the ARM64 Parallels waiver stands.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-19) — Phase N: N5 planned, awaiting owner decisions
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

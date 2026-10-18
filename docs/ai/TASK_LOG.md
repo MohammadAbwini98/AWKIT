@@ -1,5 +1,36 @@
 # TASK_LOG
 
+## 2026-10-19 — Phase N: N5 plan review corrections; B2 protected-capture defect reproduced and filed (Claude)
+
+- **Scope:** "N5 Plan Review Corrections Before Owner Approval", planning only. Contract
+  `awkit-vra-n5-plan-review-1019`, Risk 1. No product source changed and no owner decision was ratified. CodeCraft:
+  not used (`CODECRAFT_MODE=off` default).
+- **Corrections in the N5 plan:**
+  1. provenance audit of `VisualEvidence` v1 and the store envelope, with a three-state fail-closed rule (every v1
+     record `unproven`, no migration);
+  2. B2 caller trace plus the reproduction verifier;
+  3. identity codes scoped to the examined candidates, with truncation and omitted-contender controls and no
+     uniqueness claim;
+  4. one guarded frame per diagnosis, whether or not a target exists;
+  5. the abort-and-settle deadline with six proofs;
+  6. the conditional closure table.
+
+  VD-3, VD-8, VD-9 and VD-10 were revised, VD-11 added, and an unresolved-decisions table added.
+- **New verifier:** `verify:b2-protected-capture` (real-browser, classified). It is a security reproduction and
+  ran FAIL, 11 passed / 3 failed: every precondition and control passed, and P1, P2 and P3 wrote screenshot, DOM and
+  a11y files of the protected page.
+- **Governance:** filed `awkit-4b5y` (P1 bug, `discovered-from awkit-vra.14`). Updated `.14.1` (VD-11), `.14.2`,
+  `.14.3` and the epic notes. Added blocks edges `.14.7` on `.14.4` and `.14.6`. Export 404 issues. Dashboard repinned
+  to 35 / 369 of 404 and 332 edges. KNOWN_ISSUES entry added.
+- **Files:** `.beads/issues.jsonl`, `package.json`, `scripts/verify-b2-protected-capture.mts`,
+  `scripts/lib/verifier-classification.ts`, `scripts/verify-roadmap-dashboard.mjs`,
+  `src/roadmap/ImplementationRoadmap.ts`, `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,DECISIONS,KNOWN_ISSUES}.md`,
+  `docs/plans/ai-upgrade-v5/{N5-visual-failure-diagnosis,ROADMAP}.md`, the contract, `active-lease.json`.
+- **Checks:** `verify:b2-protected-capture` FAIL 11/3 (intended reproduction); `verify:verifier-classification`,
+  `verify:clean-machine-policy`, `verify:roadmap-dashboard` and `npm run build`. Results are in the contract.
+- **Result:** the corrected plan is ready for owner approval. `docs/ai/contracts/awkit-l12-27-implementation-1006.json`
+  preserved.
+
 ## 2026-10-19 — Phase N: canonical N5 Visual Failure Diagnosis planned and registered; ARM64 acceptance environment recorded (Claude)
 
 - **Scope:** "Initiate N5 Visual Failure Diagnosis Planning", planning and registration only. Contract

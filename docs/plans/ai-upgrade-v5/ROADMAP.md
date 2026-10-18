@@ -602,7 +602,7 @@ so the Phase L extension does not hold Phase M back; M1's edge on closed L7 stay
 Status: **IN PROGRESS** since 2026-10-12 (roadmap Phase `N` `in-progress`); N0 and N1 complete
 after an independent re-QC PASS at `222b04d3`; N2 (`awkit-vra.12`) and N3 (`awkit-vra.4`) closed shadow-only on
 2026-10-13; N4 (`awkit-vra.13`) closed 2026-10-19 after independent QC; N5 (`awkit-vra.14`) planned 2026-10-19, owner
-decisions VD-0 to VD-10 pending, no implementation authorized.
+decisions VD-0 to VD-11 pending after the plan review corrections, no implementation authorized.
 *Registered 2026-09-22 as NOT STARTED.* Beads epic
 `awkit-vra`. Phase N follows the Phase L release foundation, remains separate from Phase L and
 Phase M, and does not change either phase's status, acceptance criteria or dependencies. Phase M is
@@ -637,7 +637,7 @@ not renumbered; titles and notes map existing history onto the canonical names.
 | N2 | DOM + Vision Evidence Fusion | `awkit-vra.12` | closed shadow-only 2026-10-13 — FD-1 to FD-9 approved, N2.1-N2.8 filed (`.12.1`…`.12.8`), N2.1-N2.5, N2.4b, N2.7 and N2.8 done, N2.6 deferred; N2 ships shadow-only (FD-9, no separation); the QC review ran (FAIL, fixed: budget, handoff, refresh gating); the overhead matrix is measured (2026-10-13), so all seven acceptance criteria are met; closed in the tracker 2026-10-13 (`.12.6` deferred) |
 | N3 | Visual Locator Recovery | `awkit-vra.4` (retitled per VR-9), children `.4.1`-`.4.6` | closed shadow-only 2026-10-13: VR-0 to VR-9 approved, N3.1 pure agreement policy done (`verify:visual-agreement` 258/0); N3.2 calibration done, 28 false `agreed` on headless twins, so N3 closes shadow-only (N3.4/N3.5 deferred); N3.3 runner shadow done (`verify:visual-agreement-runtime` 68/0); N3.6 state and docs done, shadow-only close recorded; independent QC (closure criterion 5) APPROVED WITH FINDINGS, all four closed (`verify:visual-agreement-runtime` 81/0); all six closure criteria met; the owner removed the legacy `awkit-vra.3` edge and `awkit-vra.4` is closed (N3.4/N3.5 stay blocked) |
 | N4 | Recorder Visual Intelligence | `awkit-vra.13`, children `.13.1`-`.13.7` | closed 2026-10-19 after independent QC APPROVED. Plan: `N4-recorder-visual-intelligence.md`. RV-0 to RV-8 approved as recommended; the Recorder adapter (second `src/visual` edge), persistence beside the flow, the capture channel and per-step UI, N4.5 calibration MET, and the N4.6 shadow-only runner fallback (effect always `none`); all ten completion criteria met |
-| N5 | Visual Failure Diagnosis | `awkit-vra.14`, children `.14.1`-`.14.7` | planned 2026-10-19, zero implementation. Plan: `N5-visual-failure-diagnosis.md`. Owner decisions VD-0 to VD-10 proposed, not ratified; N5.1 `.14.1` gates every implementation item. Legacy `awkit-vra.5` not reused |
+| N5 | Visual Failure Diagnosis | `awkit-vra.14`, children `.14.1`-`.14.7` | planned 2026-10-19, zero implementation. Plan: `N5-visual-failure-diagnosis.md`. Revised 2026-10-19 for six review findings. Owner decisions VD-0 to VD-11 proposed, not ratified; N5.1 `.14.1` gates every implementation item. Legacy `awkit-vra.5` not reused. The review's B2 protected-capture defect is filed separately as `awkit-4b5y` |
 | N6 | Visual Assertions | — | not yet filed |
 | N7 | OCR / Text-in-Image | `awkit-vra.9` | planned |
 | N8 | Visual Row/Grid Intelligence | `awkit-vra.10` | planned |
@@ -747,6 +747,20 @@ does no visual work on passing steps. It is distinct from N6 (assertions), N7 (O
 `awkit-vra.5` keeps its original title and is split between canonical N5 and N6. Acceptance for N5 runs on the
 owner-approved Windows 11 ARM64 Parallels machine (DECISIONS 2026-10-19); that is a waiver of a separate clean-VM or
 x86/x64 run, not a claim that one was executed.
+
+The plan was revised the same day for six review findings (contract `awkit-vra-n5-plan-review-1019`):
+- stored references cannot prove render mode, browser build or colour scheme, so every existing reference is compared
+  fail-closed as `unproven`, with no migration;
+- identity codes are scoped to the examined DOM-named candidates, with truncation and omitted-contender controls, and
+  no code claims uniqueness;
+- one guarded frame is taken per diagnosis, whether or not a target exists;
+- the deadline uses an abort-and-settle protocol;
+- report-only closure is tracked by deferring `.14.5`, and `.14.7` gains direct edges on `.14.4` and `.14.6`;
+- VD-11 (a future provenance envelope) is added.
+
+The review also confirmed that the existing B2 failure capture writes screenshot, DOM and a11y files of
+protected-login pages (`verify:b2-protected-capture`, 11 passed / 3 failed). That defect is filed as `awkit-4b5y` for a
+separate security remediation; it is not part of N5 and does not block it.
 
 ### Planned workstreams and dependencies (original numbering, 2026-09-22)
 

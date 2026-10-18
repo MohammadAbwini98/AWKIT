@@ -1,6 +1,33 @@
 # CURRENT_STATE
 
-## Phase N: N5 Visual Failure Diagnosis PLANNED; ARM64 Parallels acceptance environment approved (2026-10-19, latest)
+## Phase N: N5 plan corrected after review; B2 protected-capture defect confirmed (2026-10-19, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed, and no product source changed.
+
+- **N5 plan revised** (contract `awkit-vra-n5-plan-review-1019`) for six findings:
+  1. reference-condition provenance: every stored reference is `unproven`, compared fail-closed, never migrated;
+  2. B2 protected capture (below);
+  3. identity codes scoped to the examined candidates, with truncation and omitted-contender controls and no
+     uniqueness claim;
+  4. one guarded frame per diagnosis, whether or not a target exists;
+  5. an abort-and-settle deadline;
+  6. tracked report-only closure.
+
+  Owner decisions are now **VD-0 to VD-11**, all proposed, none ratified. N5 stays unimplemented and waits for N5.1.
+- **Security defect confirmed, outside N5: `awkit-4b5y` (P1, open).** The B2 failure capture writes screenshot, DOM
+  and a11y files of protected-login pages. New `verify:b2-protected-capture` (real Chromium): **FAIL, 11 passed /
+  3 failed**. This is the intended reproduction: all preconditions and ordinary-page controls pass, and it stays red
+  until a separate remediation lands with its own owner decision. Recorded in KNOWN_ISSUES.
+- **Tracker:** `awkit-vra.14.7` gained direct edges on `.14.4` and `.14.6`. N5.1-N5.3 text updated. Dashboard
+  35 outstanding / 369 closed of 404.
+- **Unchanged:** N3 shadow-only, the N4 recorded fallback, retry and execution authority, offline, the ARM64
+  Parallels acceptance waiver, and every visual flag default off.
+- **Next:** the owner records VD-0 to VD-11 and authorizes N5 (N5.1). Separately, the owner decides B2's protected-surface
+  behaviour and prioritizes the security task `awkit-4b5y`.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## Phase N: N5 Visual Failure Diagnosis PLANNED; ARM64 Parallels acceptance environment approved (2026-10-19)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed by this task, and no product source changed.

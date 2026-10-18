@@ -1,0 +1,193 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-n5-plan-review-1019",
+    "title": "N5 plan review corrections before owner approval: reference-condition provenance, B2 protected capture, examined-scope uniqueness, blank viewport, deadline enforcement and conditional closure",
+    "objective": "Revise docs/plans/ai-upgrade-v5/N5-visual-failure-diagnosis.md for six review findings without implementing N5 or ratifying owner decisions: audit the VisualEvidence and reference-store formats and define a fail-closed, non-migrating condition rule; trace every caller of StepExecutor.captureFailureEvidence and add the reproducible real-browser security verifier verify:b2-protected-capture, registering a confirmed reachable defect in Beads and KNOWN_ISSUES for a separate remediation; scope identity codes to examined DOM-named candidates with truncation and omitted-contender controls; define one bounded protected-guarded frame policy for blank viewports; define cancellation, cleanup and teardown for the deadline; and define truthful tracking for report-only closure, including the N5.7 edges.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "725b129c",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "qa",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "package.json",
+      "scripts/verify-b2-protected-capture.mts",
+      "scripts/lib/verifier-classification.ts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/contracts/awkit-vra-n5-plan-review-1019.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N5R-PLAN",
+      "description": "The N5 plan resolves findings 1-6 in place, with an index table, an evidence-backed provenance audit and fail-closed rule, the B2 finding with its reproduction result, examined-scope vocabulary, UI copy and controls, a single bounded frame policy, the abort-and-settle deadline protocol, the conditional closure table, an updated verification and mutation matrix, and an explicit list of unresolved owner decisions VD-0 to VD-11 that are proposed and not ratified.",
+      "evidence_required": [
+        "build"
+      ]
+    },
+    {
+      "id": "N5R-B2",
+      "description": "Every caller of StepExecutor.captureFailureEvidence is traced and verify:b2-protected-capture reproduces the reachable paths in real Chromium with preconditions and ordinary-page controls; the confirmed defect is registered in Beads and KNOWN_ISSUES for a separate remediation; no capture is weakened and no product source changes.",
+      "evidence_required": [
+        "verify:b2-protected-capture",
+        "beads-export"
+      ]
+    },
+    {
+      "id": "N5R-STATE",
+      "description": "Governance and state documents record the corrections, the bead updates and edges are exported, the new verifier is classified, the dashboard pins match the measured counts and report Sources agree.",
+      "evidence_required": [
+        "verify:verifier-classification",
+        "verify:roadmap-dashboard",
+        "verify:clean-machine-policy"
+      ]
+    },
+    {
+      "id": "N5R-GIT",
+      "description": "The work lands on main and is pushed without force; the L12.27 contract stays untracked and unchanged.",
+      "evidence_required": [
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:b2-protected-capture",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:b2-protected-capture",
+      "artifact": null,
+      "result": "FAIL",
+      "observed": "11 passed, 3 failed on the ARM64 machine (x64 Node and Chromium emulated): preconditions (deep-scan detector and N0 guard flag the fixture, MFA-titled variant pauses title-first detection) and controls C1 and C2 pass; P1 protectedLoginHandoff cancel, P2 goto auto-detect cancel and P3 undetected protected page each write screenshot, DOM and a11y files. This FAIL is the intended reproduction of the confirmed defect, not a regression."
+    },
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "404 issues exported (403 + awkit-4b5y), 332 edges (329 + awkit-4b5y discovered-from awkit-vra.14 + blocks awkit-vra.14.7 on .14.4 and on .14.6); awkit-vra.14, .14.1, .14.2 and .14.3 text updated; lease released"
+    },
+    {
+      "id": "verify:verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "all 337 verify:/validate: scripts classified (verify:b2-protected-capture added as real-browser, 157 in that class), classification reconciled; typecheck:scripts PASS"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "177/177 on the first run after the repin to 404 issues, 35 outstanding / 369 closed, 332 edges; Overview banner reads Sources agree; ledger 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases"
+    },
+    {
+      "id": "verify:clean-machine-policy",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:clean-machine-policy",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "28 passed, 0 failed against the updated CURRENT_STATE and HANDOFF"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "embedded roadmap snapshot 575 records from 14 sources, tsc --noEmit clean, electron-vite main, preload and renderer bundles built (ARM64 machine, x64 Node emulated)"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "runs after the commit that carries this contract; its outcome is reported in the session report"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-n5-plan-review-1019:project-state:2026-10-18T22:50:36.044Z",
+        "task": "awkit-vra-n5-plan-review-1019",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-18T22:50:36.044Z",
+        "acquired_at_commit": "725b129c1c6b6f79c81e2d14f53469e3718239d0",
+        "released_at": "2026-10-18T22:51:16.460Z",
+        "released_reason": "B2 defect filed, N5 beads updated and edges added, beads exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

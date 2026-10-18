@@ -164,6 +164,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:branding-gui": { class: "real-browser", why: "Real-Electron walkthrough of the Workspace Logo card + sidebar/login custom-logo rendering." },
   "verify:semantic-ui-gui": { class: "real-browser", why: "Real-Electron walkthrough of the Semantic Search page + Settings › Semantic Index, including that a Viewer never sees the nav entry." },
   "verify:failure-evidence-live": { class: "real-browser", why: "Real Chromium + local HTTP server: FR-B2 evidence files are written, safely named, path-confined, and secret-masked; page-identity + dead-page paths." },
+  "verify:b2-protected-capture": { class: "real-browser", why: "Real Chromium + the real FlowExecutor retry loop over a real StepExecutor: asserts the B2 failure capture writes no screenshot, DOM or a11y file of a protected-login surface (handoff cancelled, auto-detect cancelled, undetected protected page), with an ordinary-page control proving the capture is not weakened. A security reproduction from the N5 plan; red until the separate remediation lands." },
   "verify:random-live": { class: "real-browser", why: "Runs deterministic generated linear and isolated-page waitAll topologies through the real ExecutionEngine and bundled Chromium against the local Mock Site, then checks persisted reports, resource release, and secret-safe artifacts." },
 
   // ── Integration (real SQLite/sql.js, real Java bridge, real fs locks/atomic writes, live DB) ──
