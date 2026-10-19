@@ -1,28 +1,34 @@
 {
-  "task": "awkit-vra-n5-plan-review-1019",
-  "contract_path": "docs/ai/contracts/awkit-vra-n5-plan-review-1019.json",
+  "task": "awkit-vra-14-n5-start-1019",
+  "contract_path": "docs/ai/contracts/awkit-vra-14-n5-start-1019.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-18T22:50:36.044Z",
-  "acquired_at_commit": "725b129c1c6b6f79c81e2d14f53469e3718239d0",
+  "acquired_at": "2026-10-19T06:53:12.026Z",
+  "acquired_at_commit": "159d15581fd6ed0fb3453cfea61496f7eff743b7",
   "baseline_dirty": [
+    "docs/ai/DECISIONS.md",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-vra-n5-plan-review-1019.json",
+    "docs/ai/contracts/awkit-vra-14-n5-start-1019.json",
     "docs/plans/ai-upgrade-v5/N5-visual-failure-diagnosis.md",
     "package.json",
     "scripts/lib/verifier-classification.ts",
-    "scripts/verify-b2-protected-capture.mts"
+    "scripts/verify-visual-diagnosis.mts",
+    "src/visual/diagnosis/",
+    "src/visual/index.ts"
   ],
   "baseline_dirty_fingerprints": {
+    "docs/ai/DECISIONS.md": "9d8823d5df3b18cd93cc5d33ae99513b507c95917645bbed7032c9749cc969e6",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-vra-n5-plan-review-1019.json": "72cfe7df7f06246f95eab7d2c62e05db1d48364b7b4f1ca5e4248ff42400c93f",
-    "docs/plans/ai-upgrade-v5/N5-visual-failure-diagnosis.md": "d3b6ebfbed5a79c5bdbd5f6fa049d246cab66ab9bd301c67b0f9abfd9b824471",
-    "package.json": "2cbd624a9aaefc714df3e083b6ba32db8041b10f8c87a290f743b242cc10660b",
-    "scripts/lib/verifier-classification.ts": "219b531476c24207c4cd6beae751cb4d2a1e0bd34af6c0dc5b6d99f0d1a07fff",
-    "scripts/verify-b2-protected-capture.mts": "30819cdb54fa92289c70d14c53af39b5f7500203b77d96dcc907b49626cd638c"
+    "docs/ai/contracts/awkit-vra-14-n5-start-1019.json": "68a50d48207f531bd8180c93082e7593c36fa152f06d9487ed46a67097fb4782",
+    "docs/plans/ai-upgrade-v5/N5-visual-failure-diagnosis.md": "c2c3d6e1f9eecc745483057261b79311186e557f99d93faf5b006b4a2b2b95e9",
+    "package.json": "12c0d078af7906439b0a17e5807f27e745f149a0f358c2d56a1d77a635dc7845",
+    "scripts/lib/verifier-classification.ts": "fb6cdfa61938d17a068596de9d964ee46aca57bc65d5949a47761709983bb814",
+    "scripts/verify-visual-diagnosis.mts": "329c66f292c2f882cb84342024cd0391dcefbd05866b9fcf901ae6448ca4349f",
+    "src/visual/diagnosis/": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "src/visual/index.ts": "a7f19faf56db3699f45a4a0c88fca76572c8419012b8abe11e594a1dfc238a63"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -37,7 +43,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-18T22:51:16.460Z",
-  "released_reason": "B2 defect filed, N5 beads updated and edges added, beads exported",
-  "archived_at": "2026-10-18T22:51:16.462Z"
+  "released_at": "2026-10-19T06:53:30.175Z",
+  "released_reason": "N5.1 and N5.2 closed, epic in progress, beads exported",
+  "archived_at": "2026-10-19T06:53:30.178Z"
 }

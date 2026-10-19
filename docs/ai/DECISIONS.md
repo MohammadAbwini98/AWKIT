@@ -1,6 +1,46 @@
 # DECISIONS
 
-### 2026-10-19 (latest) — Phase N N5 plan review corrections; VD-0 to VD-11 proposed, not ratified (`awkit-vra.14`)
+### 2026-10-19 (latest) — Phase N N5: owner decisions VD-0 to VD-11 approved as recommended; N5.2 implemented (owner, in session) (`awkit-vra.14`)
+
+- **Approval.** The owner wrote "I approve VD-0 to VD-11 as recommended, start N5". That records N5.1
+  (`awkit-vra.14.1`) and authorizes N5 implementation. Plan: `docs/plans/ai-upgrade-v5/N5-visual-failure-diagnosis.md`
+  as revised by contract `awkit-vra-n5-plan-review-1019`. Contract `awkit-vra-14-n5-start-1019`.
+- **VD-0 Authority.** Advisory codes only, after the final retry decision. Never selects, ranks, repairs, retries or
+  changes a locator, the retry policy, the L5a cause, L5b or the run outcome.
+- **VD-1 Isolation (amends the 2026-10-12 Phase N start decision, FD-2 and RV-1).** Exactly one more edge into
+  `src/visual`, `src/runner/visualDiagnosis/VisualFailureDiagnosis.ts -> src/visual/index`, lazily loaded, so three
+  edges in all. It takes effect when N5.3 lands the adapter, with `verify:visual-isolation` pinning exactly three and
+  a fourth-edge mutation red. Until then the pin stays at two.
+- **VD-2 Trigger.** Final failed attempt only, N2 eligible element steps, failure kinds locator, timeout, assertion
+  and other. Never passing steps, non-final attempts, sensitive, protected-login, handoff, `Reuse Session` or
+  cancelled runs.
+- **VD-3 Evidence.** The reference is read only, with N4.6 precedence. Exactly one protected-guarded N0 frame per
+  diagnosis, taken whether or not a target exists. Crops of the examined DOM-named set only, capped at the fan-out
+  cap, plus a viewport uniformity statistic. No page-wide search and no reference write.
+- **VD-4.** L5a cause precedence and L5b requests unchanged.
+- **VD-5.** An optional, codes-only `visualDiagnosis` block on the instance report diagnostics.
+- **VD-6.** Text only in the Failure Evidence drawer, through PAGE_REPORTS `reports:get`, with no new channel or
+  permission.
+- **VD-7.** `AWKIT_VISUAL_DIAGNOSIS=on`, default off, independent of `AWKIT_VISUAL_FUSION`, no Settings key.
+- **VD-8.** Provisional 1000 ms per-failure deadline under the abort-and-settle protocol, through the screenshot
+  limiter, with a cap of 20 per (flow, step, failure kind) signature.
+- **VD-9 Conditions.** The three-state fail-closed rule. Every `VisualEvidence` v1 reference is `unproven`: only
+  byte-identity positives are reported, with no migration or inference.
+- **VD-10.** The per-code calibration criterion in N5.6, with pruning and the tracked fallbacks.
+- **VD-11 Provenance envelope: deferred** to a later milestone with its own owner decision. N5 writes nothing to the
+  reference store.
+- **N5.2 as built (`decideVisualDiagnosis`, `verify:visual-diagnosis`).** The input has no provenance field, so
+  `equal-proven` cannot be produced and `target-differs-from-reference` and `no-examined-identical` are part of the
+  vocabulary but are never emitted in v1. The examined cap is the pure module's own constant, pinned equal to
+  `VISUAL_FANOUT_MAX_CANDIDATES` (32) by the verifier, so the pure file never imports capture code. A member whose
+  capture refused with a protected-surface code refuses the whole diagnosis (fail closed). A budget or cancel code
+  answers `budget-exhausted`, and page closed answers `page-closed`. Any other member refusal leaves that member out
+  of `examined`. Viewport uniformity uses provisional floors (luma variance at most 4, mean edge at most 1), fixed by
+  N5.6. The v1 evidence keys are pinned at compile time by `Record<keyof …, …>` tables. An observed verdict is never
+  empty: when nothing else applies it says `inconclusive`. The property run found the empty case, for a single
+  in-viewport target with no comparable member. `verify:visual-diagnosis` is 82/0, with 13 mutants observed red.
+
+### 2026-10-19 — Phase N N5 plan review corrections; VD-0 to VD-11 proposed, not ratified (`awkit-vra.14`)
 
 - **Planning only.** The N5 plan was revised for six review findings (contract `awkit-vra-n5-plan-review-1019`). No
   product source changed, and no owner decision was ratified.

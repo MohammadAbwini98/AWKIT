@@ -59,3 +59,14 @@ export {
   type VisualAgreementReason,
   type VisualAgreementVerdict
 } from "./fusion/decideVisualAgreement";
+export {
+  VISUAL_DIAGNOSIS_MAX_EXAMINED,
+  VISUAL_DIAGNOSIS_VERSION,
+  decideVisualDiagnosis,
+  type VisualDiagnosisCode,
+  type VisualDiagnosisConditions,
+  type VisualDiagnosisInput,
+  type VisualDiagnosisMember,
+  type VisualDiagnosisRefusal,
+  type VisualDiagnosisVerdict
+} from "./diagnosis/decideVisualDiagnosis";

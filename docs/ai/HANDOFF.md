@@ -1,6 +1,26 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-19, latest) — Phase N: N5 plan corrected; awaiting owner decisions VD-0 to VD-11
+## HANDOFF (2026-10-19, latest) — Phase N: N5 started; N5.2 done, N5.3 next
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** VD-0 to VD-11 approved as recommended (DECISIONS 2026-10-19). N5.1 and N5.2 are closed, and the epic is in
+  progress. Contract `awkit-vra-14-n5-start-1019`; the project-state lease is released.
+- **Built:** `src/visual/diagnosis/decideVisualDiagnosis.ts` (pure) and `verify:visual-diagnosis` 82/0, with 13 mutants
+  red.
+- **Next: N5.3 `awkit-vra.14.3`.** Add `src/runner/visualDiagnosis/VisualFailureDiagnosis.ts` as the third and last
+  `src/visual` edge, behind `AWKIT_VISUAL_DIAGNOSIS=on`. Hook it after the retry policy declines a retry. Then:
+  - one guarded frame, whether or not a target exists;
+  - the abort-and-settle deadline;
+  - the mock-site failure states;
+  - `verify:visual-diagnosis-runtime`;
+  - `verify:visual-isolation` pinned to exactly three edges, with a fourth-edge mutation red.
+- **Do not:** write the reference store, read B2 files, relax `verify:b2-protected-capture` (`awkit-4b5y` stays open,
+  FAIL 11/3 by design), or touch N3 enforcement.
+- **Clean-machine** stays optional and non-blocking by owner policy; the ARM64 Parallels waiver stands.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-19) — Phase N: N5 plan corrected; awaiting owner decisions VD-0 to VD-11
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

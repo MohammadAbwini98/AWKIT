@@ -8,8 +8,25 @@ legacy 2026-09-22 workstream `awkit-vra.5` ("Visual assertions and failure evide
 split between canonical N5 (this plan) and canonical N6 (Visual Assertions), and it keeps its original title as a
 planning record, as the N4 plan did for `awkit-vra.6` and `.8`.
 
-**Status (2026-10-19): PLANNED, revised after review. Zero implementation. Owner decisions VD-0 to VD-11 are proposed
-and not ratified.** Contracts `awkit-vra-n5-plan-1019` (plan, `725b129c`) and `awkit-vra-n5-plan-review-1019` (the six
+**Status (2026-10-19): IN PROGRESS. The owner approved VD-0 to VD-11 as recommended ("I approve VD-0 to VD-11 as
+recommended, start N5"), recorded in DECISIONS 2026-10-19 (contract `awkit-vra-14-n5-start-1019`).**
+- **N5.1 `awkit-vra.14.1`: closed.** VD-1 (the third edge) takes effect when N5.3 lands the adapter. VD-11 is
+  deferred.
+- **N5.2 `awkit-vra.14.2`: closed.** Delivered the pure `src/visual/diagnosis/decideVisualDiagnosis.ts`, exported
+  through `src/visual/index.ts`:
+  - the closed vocabulary;
+  - the three-state rule, in which the input has no provenance field, so `equal-proven` is unreachable and
+    `target-differs-from-reference` and `no-examined-identical` are never emitted for v1;
+  - examined-scope counts with `truncated`, and no uniqueness field;
+  - no index or effect key;
+  - compile-time pins of the v1 evidence, viewport and frame keys;
+  - `inconclusive` instead of an empty record.
+
+  Gates: new `verify:visual-diagnosis` 82/0, with 13 mutants observed red; `verify:visual-isolation` 54/0, unchanged
+  at two edges; `typecheck:scripts` and `npm run build` PASS. No runner, recorder, IPC, report or UI change.
+- **Next: N5.3 `awkit-vra.14.3`**, the runner adapter, the final-attempt hook and the three-edge isolation pin.
+
+*Before approval:* Contracts `awkit-vra-n5-plan-1019` (plan, `725b129c`) and `awkit-vra-n5-plan-review-1019` (the six
 review corrections below). No product source, schema, IPC, preload or UI changed. The review added one security
 reproduction verifier, `verify:b2-protected-capture`, which is test code only. N5 implementation waits for N5.1 (the
 owner's decision record) and an explicit owner authorization.
@@ -254,7 +271,7 @@ page. The record always carries `examined`, `domNamed` and `truncated` beside th
 | `other-examined-identical` | At least one examined member **other than** the step's target is byte-identical; the record adds `identicalOthers` as `1` or `2+` | `unproven` or `equal-proven`; never worded as "only" or "unique" |
 | `no-examined-identical` | No examined member, target included, is byte-identical | `equal-proven` and `truncated: false` only; otherwise suppressed |
 | `viewport-uniform` | The viewport fingerprint is near-uniform (blank or unpainted), with or without a target | always (no reference involved); threshold from N5.6 |
-| `inconclusive` | A comparison ran but no allowed code applies, or the code was pruned by N5.6 | — |
+| `inconclusive` | A comparison ran but no allowed code applies, the code was pruned by N5.6, or nothing else applies (a record is never empty; N5.2 as built) | — |
 
 Refusal codes (nothing captured): `not-eligible`, `sensitive`, `handoff-active`, `protected-surface`, `page-closed`,
 `coalesced`, `budget-exhausted`, `capture-failed`. An unknown code maps to `capture-failed`, never to an observation.

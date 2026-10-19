@@ -1,6 +1,30 @@
 # CURRENT_STATE
 
-## Phase N: N5 plan corrected after review; B2 protected-capture defect confirmed (2026-10-19, latest)
+## Phase N: N5 started — VD-0 to VD-11 approved, N5.2 pure diagnosis policy done (2026-10-19, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed.
+
+- **Owner approval:** "I approve VD-0 to VD-11 as recommended, start N5", recorded in DECISIONS 2026-10-19 (contract
+  `awkit-vra-14-n5-start-1019`). N5.1 `awkit-vra.14.1` is closed and the epic `awkit-vra.14` is in progress. VD-11
+  (the provenance envelope) is deferred.
+- **N5.2 `awkit-vra.14.2` closed.** The new pure `src/visual/diagnosis/decideVisualDiagnosis.ts`, exported through
+  `src/visual/index.ts`:
+  - only byte-identity positives for any v1 reference (`equal-proven` is unreachable without provenance);
+  - counts over the examined candidates with `truncated`, and no uniqueness field;
+  - no index or effect key;
+  - compile-time pins of the v1 evidence keys;
+  - never an empty record.
+- **Gates (ARM64 machine, x64 Node emulated):** new `verify:visual-diagnosis` 82/0 with 13 mutants observed red;
+  `verify:visual-isolation` 54/0 (still exactly two edges, since no adapter landed); `typecheck:scripts`,
+  `verify:verifier-classification` (338) and `npm run build` PASS.
+- **Unchanged:** no runner, recorder, IPC, report or UI code; every visual flag default off; N3 shadow-only; the N4
+  recorded fallback. The B2 defect `awkit-4b5y` stays open for its own remediation.
+- **Next:** N5.3 `awkit-vra.14.3`, the runner adapter (the third edge), the final-attempt hook, the abort-and-settle
+  deadline and `verify:visual-diagnosis-runtime`.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## Phase N: N5 plan corrected after review; B2 protected-capture defect confirmed (2026-10-19)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed, and no product source changed.

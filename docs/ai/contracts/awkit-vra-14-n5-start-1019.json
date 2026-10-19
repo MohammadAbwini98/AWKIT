@@ -1,0 +1,205 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-14-n5-start-1019",
+    "title": "Start canonical Phase N5: record the owner approval of VD-0 to VD-11 (N5.1) and implement the first slice N5.2 pure visual diagnosis policy",
+    "objective": "Record the owner approval of VD-0 to VD-11 as recommended, including the VD-1 isolation amendment to the 2026-10-12 decision, FD-2 and RV-1 (effective when N5.3 lands the adapter) and VD-11 deferral, close awkit-vra.14.1, and implement N5.2 awkit-vra.14.2: the pure src/visual/diagnosis/decideVisualDiagnosis.ts with its closed vocabulary, the three-state fail-closed condition rule where every VisualEvidence v1 record is unproven, the examined-scope rules with truncation and no uniqueness claim, and a compile-time pin of the v1 evidence fields, exported through src/visual/index.ts, plus a new verify:visual-diagnosis with an observed-red mutation contract. No runner, recorder, IPC, report or UI change and no new src/visual import edge.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "159d1558",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true,
+    "general_engineering_change": true
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "qa",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "src/visual/diagnosis/**",
+      "src/visual/index.ts",
+      "scripts/verify-visual-diagnosis.mts",
+      "scripts/lib/verifier-classification.ts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "package.json",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/awkit-vra-14-n5-start-1019.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N5-APPROVAL",
+      "description": "DECISIONS records the owner approval of VD-0 to VD-11 as recommended, the VD-1 amendment and VD-11 deferral, and the N5.2 implementation choices; awkit-vra.14.1 is closed through bd and exported.",
+      "evidence_required": [
+        "beads-export"
+      ]
+    },
+    {
+      "id": "N5.2-POLICY",
+      "description": "The pure decideVisualDiagnosis exists with no I/O and no import outside src/visual, is exported only through src/visual/index.ts, emits no difference or absence code for any v1 reference, scopes identity counts to the examined set with a truncation flag and no uniqueness field, carries no index, locator, coordinate or effect, and is pinned to the VisualEvidence v1 fields at compile time; verify:visual-diagnosis passes and every listed mutation is observed red.",
+      "evidence_required": [
+        "verify:visual-diagnosis",
+        "verify:visual-isolation",
+        "typecheck:scripts",
+        "build"
+      ]
+    },
+    {
+      "id": "N5-STATE",
+      "description": "awkit-vra.14.2 is closed, the epic is in progress, the new verifier is classified, the dashboard pins match the measured counts and report Sources agree.",
+      "evidence_required": [
+        "verify:verifier-classification",
+        "verify:roadmap-dashboard"
+      ]
+    },
+    {
+      "id": "N5-GIT",
+      "description": "The work lands on main and is pushed without force; the L12.27 contract stays untracked and unchanged.",
+      "evidence_required": [
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:visual-diagnosis",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-diagnosis",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "82/0 on the final state (first run 80/1: the property run found observed verdicts with no codes, fixed by emitting inconclusive when nothing else applies, with a new table case). 13 mutants observed red: difference under unproven, recorded inferred as proven, truncation ignored, count read as uniqueness, index in the verdict, unknown refusal observed, protected capture skipped, conditions not compared, absence under unproven, empty and short case sets, empty property run, evidence pin missing a field."
+    },
+    {
+      "id": "verify:visual-isolation",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-isolation",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "54/0, still exactly the two approved edges; the src/visual purity scan covers the new diagnosis module"
+    },
+    {
+      "id": "typecheck:scripts",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run typecheck:scripts",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc -p tsconfig.scripts.json clean"
+    },
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "awkit-vra.14.1 and awkit-vra.14.2 closed and awkit-vra.14 set in_progress through bd under the project-state lease, 404 issues exported, lease released"
+    },
+    {
+      "id": "verify:verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "all 338 verify:/validate: scripts classified (verify:visual-diagnosis added as unit, 80 in that class)"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "177/177 after the repin to 33 outstanding / 371 closed of 404 and 332 edges; Overview banner reads Sources agree"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "embedded roadmap snapshot 575 records, tsc --noEmit clean, electron-vite build; main.js size unchanged, the policy lands in the existing lazily loaded visual chunk (ARM64 machine, x64 Node emulated). verify:clean-machine-policy 28/0."
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "runs after the commit that carries this contract; its outcome is reported in the session report"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-14-n5-start-1019:project-state:2026-10-19T06:53:12.026Z",
+        "task": "awkit-vra-14-n5-start-1019",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-19T06:53:12.026Z",
+        "acquired_at_commit": "159d15581fd6ed0fb3453cfea61496f7eff743b7",
+        "released_at": "2026-10-19T06:53:30.175Z",
+        "released_reason": "N5.1 and N5.2 closed, epic in progress, beads exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

@@ -1,5 +1,29 @@
 # TASK_LOG
 
+## 2026-10-19 — Phase N: N5 started; N5.1 approval recorded and N5.2 pure diagnosis policy implemented (Claude)
+
+- **Scope:** owner message "I approve VD-0 to VD-11 as recommended, start N5". Contract `awkit-vra-14-n5-start-1019`,
+  Risk 1. CodeCraft: not used (`CODECRAFT_MODE=off` default).
+- **N5.1:** DECISIONS entry naming each VD as approved, with the VD-1 amendment effective at N5.3 and VD-11 deferred.
+  `awkit-vra.14.1` closed, and the epic `awkit-vra.14` set in progress.
+- **N5.2:** the new pure `src/visual/diagnosis/decideVisualDiagnosis.ts`, exported through `src/visual/index.ts`, and
+  the new `verify:visual-diagnosis` (unit, classified). The property run found that a record could be empty, so an
+  observed verdict now carries `inconclusive` when nothing else applies. `awkit-vra.14.2` closed.
+- **Files:** `src/visual/diagnosis/decideVisualDiagnosis.ts`, `src/visual/index.ts`,
+  `scripts/verify-visual-diagnosis.mts`, `package.json`, `scripts/lib/verifier-classification.ts`,
+  `scripts/verify-roadmap-dashboard.mjs`, `src/roadmap/ImplementationRoadmap.ts`, `.beads/issues.jsonl`,
+  `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,DECISIONS}.md`,
+  `docs/plans/ai-upgrade-v5/{N5-visual-failure-diagnosis,ROADMAP}.md`, the contract, `active-lease.json`.
+- **Checks (ARM64 machine, x64 Node emulated):**
+  - `verify:visual-diagnosis` 82/0, with 13 mutants red;
+  - `verify:visual-isolation` 54/0;
+  - `typecheck:scripts` PASS;
+  - `verify:verifier-classification` PASS (338);
+  - `verify:roadmap-dashboard` and `npm run build`: results in the contract.
+
+  Not run: the runtime and GUI suites, because no runner or renderer code changed.
+- **Result:** N5 in progress; N5.3 next. `docs/ai/contracts/awkit-l12-27-implementation-1006.json` preserved.
+
 ## 2026-10-19 — Phase N: N5 plan review corrections; B2 protected-capture defect reproduced and filed (Claude)
 
 - **Scope:** "N5 Plan Review Corrections Before Owner Approval", planning only. Contract
