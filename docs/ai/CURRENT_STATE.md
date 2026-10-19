@@ -1,6 +1,37 @@
 # CURRENT_STATE
 
-## Phase N: N5 started — VD-0 to VD-11 approved, N5.2 pure diagnosis policy done (2026-10-19, latest)
+## Phase N: N5.3 runner visual-diagnosis adapter done (2026-10-19, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed.
+
+- **N5.3 `awkit-vra.14.3` closed** (contract `awkit-vra-14-3-n5-runner-adapter-1019`):
+  - `src/runner/visualDiagnosis/VisualFailureDiagnosis.ts` is the third and last `src/visual` edge, loaded lazily only
+    under `AWKIT_VISUAL_DIAGNOSIS=on` (default off);
+  - `FlowExecutor` calls it once, after the retry policy declined another attempt;
+  - it reads references only, takes one guarded frame whether or not a target exists, examines the primary
+    candidate's matches up to 32, refuses protected, handed-off, sensitive, handoff and ineligible steps with zero
+    frames, caps diagnoses at 20 per signature, and settles once at its 1000 ms deadline;
+  - its record goes only to a codes-only log line until N5.4.
+- **As built:** the DOM-named set is the primary candidate's matches only (recovery contenders not plumbed, and
+  alternatives marked `truncated`). A zero-size-reported-as-offscreen bug was found by the new verifier and fixed.
+  Details are in DECISIONS 2026-10-19.
+- **Mock site:** fusion-lab `setFailure(none|detach|overlay|zero|blank|many)`, documented in `mock-site/README.md`.
+- **Gates (ARM64 machine, x64 Node emulated):**
+  - new `verify:visual-diagnosis-runtime` 49/0, with mutations R1-R6 observed red;
+  - `verify:visual-isolation` 67/0 at exactly three edges;
+  - `verify:visual-diagnosis` 82/0, `verify:runner` 138/0, `verify:recorded-visual-fallback` 71/0,
+    `verify:recovery-provenance` 46/0, `verify:failure-evidence` 35/0, `verify:ai-fallback` 51/0;
+  - `verify:mock-site` 317/317, `verify:verifier-classification` (339), `typecheck:scripts` and `npm run build` PASS;
+  - `verify:similar-rows-safety`: all checks passed, then the process exited 1 on a Windows temp-folder `EPERM` in
+    its cleanup (harness);
+  - `verify:failure-capture-overhead` 17/0 with one INCONCLUSIVE (L5a Node-CPU interval; N5 was off in both arms).
+- **Unchanged:** no report, IPC, preload or UI change; N3 shadow-only; the N4 recorded fallback is read-only; B2
+  defect `awkit-4b5y` is open.
+- **Next:** N5.4 `awkit-vra.14.4`, the report block and sanitizer. N5.6 calibration is unblocked too.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## Phase N: N5 started — VD-0 to VD-11 approved, N5.2 pure diagnosis policy done (2026-10-19)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed.

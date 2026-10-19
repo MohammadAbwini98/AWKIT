@@ -809,6 +809,37 @@ try {
   }
   await page.evaluate(() => window.__fusionLab.removeProtected());
   check("fusion removeProtected() removes it", (await page.locator(".vf-protected").count()) === 0);
+  // N5.3 Visual Failure Diagnosis states (setFailure), each against its fixture truth.
+  check("failure states are listed and default to none", (await page.evaluate(() => window.__fusionLab.failures.join(","))) === "none,detach,overlay,zero,blank,many" && (await page.evaluate(() => window.__fusionLab.describe().failure)) === "none");
+  await page.evaluate(() => window.__fusionLab.setFailure("detach"));
+  check("detach removes only the target button", (await page.getByTestId("vf-tool-0").count()) === 0 && (await page.locator('[data-testid^="vf-tool-"]').count()) === 3);
+  await page.evaluate(() => window.__fusionLab.setFailure("overlay"));
+  check(
+    "overlay covers the target's centre",
+    (await page.getByTestId("vf-tool-0").count()) === 1 &&
+      (await page.evaluate(() => {
+        const r = document.querySelector("[data-testid='vf-tool-0']").getBoundingClientRect();
+        return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.getAttribute("data-testid") === "vf-overlay";
+      }))
+  );
+  await page.evaluate(() => window.__fusionLab.setFailure("zero"));
+  check("zero leaves the target with no size", await page.evaluate(() => { const r = document.querySelector("[data-testid='vf-tool-0']").getBoundingClientRect(); return r.width === 0 && r.height === 0; }));
+  await page.evaluate(() => window.__fusionLab.setFailure("blank"));
+  check("blank removes every toolbar button and hides the body", (await page.locator('[data-testid^="vf-tool-"]').count()) === 0 && (await page.evaluate(() => getComputedStyle(document.body).visibility)) === "hidden");
+  await page.evaluate(() => window.__fusionLab.setFailure("many"));
+  const manyBoxes = await page.locator('[data-testid="vf-many-tool"]').evaluateAll((nodes) => nodes.map((n) => { const r = n.getBoundingClientRect(); return [r.right, r.bottom]; }));
+  check(
+    "many shows forty same-test-id buttons, all inside the 800x600 viewport, and leaves the toolbar intact",
+    manyBoxes.length === 40 && manyBoxes.every(([right, bottom]) => right <= 800 && bottom <= 600) && (await page.locator('[data-testid^="vf-tool-"]').count()) === 4
+  );
+  const manyIcons = await page.locator('[data-testid="vf-many-tool"]').evaluateAll((nodes) => nodes.map((n) => n.dataset.icon));
+  check(
+    "many: the icon past the cap is used nowhere inside the first 32",
+    manyIcons.length === 40 && manyIcons.slice(32).every((icon) => icon === manyIcons[32]) && !manyIcons.slice(0, 32).includes(manyIcons[32])
+  );
+  check("setFailure refuses an unknown kind", await page.evaluate(() => { try { window.__fusionLab.setFailure("melt"); return false; } catch { return true; } }));
+  await page.evaluate(() => window.__fusionLab.setFailure("none"));
+  check("none restores the baseline toolbar with no overlay, grid or blank body", (await page.locator('[data-testid^="vf-tool-"]').count()) === 4 && (await page.locator(".vf-overlay").count()) === 0 && (await page.locator('[data-testid="vf-many-tool"]').count()) === 0 && (await page.evaluate(() => getComputedStyle(document.body).visibility)) === "visible");
   const [fusionPopup] = await Promise.all([page.waitForEvent("popup"), page.getByTestId("vf-open-popup").click()]);
   await fusionPopup.waitForLoadState();
   check("the fusion popup holds the toolbar", (await fusionPopup.locator('[data-testid^="vf-tool-"]').count()) === 4);

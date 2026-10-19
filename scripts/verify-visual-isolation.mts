@@ -131,7 +131,12 @@ const RECORDER_ADAPTER = "src/recorder/visual/RecorderVisualCapture.ts";
 const RECORDER_EDGE = `${RECORDER_ADAPTER} -> src/visual`;
 /** The Recorder's IPC-shareable code contract: it imports nothing, so a renderer can use it without reaching src/visual. */
 const RECORDER_CODES = "src/recorder/visual/recorderVisualCaptureCodes.ts";
-const APPROVED_EDGES = [ADAPTER_EDGE, RECORDER_EDGE].sort();
+/** N5.3 (VD-1, amending FD-2 and RV-1): the runner's visual failure diagnosis adapter, the third and last edge. */
+const DIAGNOSIS_ADAPTER = "src/runner/visualDiagnosis/VisualFailureDiagnosis.ts";
+const DIAGNOSIS_EDGE = `${DIAGNOSIS_ADAPTER} -> src/visual`;
+/** Its contract, shared with FlowExecutor and PlaywrightRunner: it must not reach src/visual. */
+const DIAGNOSIS_CONTRACT = "src/runner/visualDiagnosis/visualDiagnosisContract.ts";
+const APPROVED_EDGES = [ADAPTER_EDGE, RECORDER_EDGE, DIAGNOSIS_EDGE].sort();
 const sameEdges = (edges: readonly string[]): boolean => JSON.stringify([...edges].sort()) === JSON.stringify(APPROVED_EDGES);
 
 /**
@@ -209,20 +214,24 @@ check(
   `${execution.seen.size} modules from ${execution.files} files`
 );
 check(
-  "no module the execution tree can reach, at any depth, imports src/visual except the two approved adapters",
+  "no module the execution tree can reach, at any depth, imports src/visual except the three approved adapters",
   execution.offenders.length === 0,
   execution.offenders.join("; ")
 );
 check(
-  "both adapters are seeds and their public-index imports are exactly the two allowed edges (N2.5, N4.2 RV-1)",
-  executionSeeds.includes(ADAPTER) && executionSeeds.includes(RECORDER_ADAPTER) && execution.allowed.length === 2 && sameEdges(execution.allowed),
+  "all three adapters are seeds and their public-index imports are exactly the three allowed edges (N2.5, N4.2 RV-1, N5.3 VD-1)",
+  executionSeeds.includes(ADAPTER) &&
+    executionSeeds.includes(RECORDER_ADAPTER) &&
+    executionSeeds.includes(DIAGNOSIS_ADAPTER) &&
+    execution.allowed.length === 3 &&
+    sameEdges(execution.allowed),
   execution.allowed.join("; ") || "no allowed edge met"
 );
 {
   const unallowed = (await walk(executionSeeds)).offenders.map((o) => o.split(" -> ").slice(-2).join(" -> "));
   check(
-    "without the allow-list the same walk flags exactly those two edges (both imports are real, not missed)",
-    unallowed.length === 2 && sameEdges(unallowed),
+    "without the allow-list the same walk flags exactly those three edges (all three imports are real, not missed)",
+    unallowed.length === 3 && sameEdges(unallowed),
     unallowed.join("; ") || "nothing flagged"
   );
 }
@@ -230,7 +239,7 @@ check(
 console.log("\nThe renderer cannot reach src/visual:\n");
 const rendererSeeds = (await sourceFiles(join(REPO, "app/renderer"))).map(toRepo);
 // The renderer's closure reaches the main process through the preload typings, so it may meet an adapter's edge too;
-// the allow-list is the same two edges, and anything else is an offender.
+// the allow-list is the same three edges, and anything else is an offender.
 const renderer = await walk(rendererSeeds, new Map(), ALLOW);
 check("the renderer was actually scanned", renderer.files >= 50, String(renderer.files));
 check("no module the renderer can reach imports src/visual except through an approved adapter's edge", renderer.offenders.length === 0, renderer.offenders.join("; "));
@@ -268,15 +277,20 @@ console.log("\nMutation controls (each injected import must be caught):\n");
     );
   }
 
-  // N2.5 and N4.2 (RV-1): the allow-list is two exact edges, not a module or a directory.
+  // N2.5, N4.2 (RV-1) and N5.3 (VD-1): the allow-list is three exact edges, not a module or a directory.
   for (const [importer, specifier, label] of [
     ["src/runner/LocatorFactory.ts", "src/visual", "a second runner importer of the same public index"],
     [ADAPTER, "src/visual/fingerprint", "the adapter importing a src/visual internal"],
     [ADAPTER, "src/visual/internal/captureCore", "the adapter importing the capture seam entry"],
-    ["src/recorder/RecorderService.ts", "src/visual", "a third edge: the Recorder service importing the public index directly"],
+    ["src/recorder/RecorderService.ts", "src/visual", "another edge: the Recorder service importing the public index directly"],
     [RECORDER_ADAPTER, "src/visual/fingerprint", "the Recorder adapter importing a src/visual internal"],
     [RECORDER_ADAPTER, "src/visual/internal/captureCore", "the Recorder adapter importing the capture seam entry"],
-    [RECORDER_CODES, "src/visual", "the Recorder's pure code contract importing src/visual"]
+    [RECORDER_CODES, "src/visual", "the Recorder's pure code contract importing src/visual"],
+    ["src/runner/FlowExecutor.ts", "src/visual", "a fourth edge: the FlowExecutor hook importing the public index directly"],
+    ["src/runner/PlaywrightRunner.ts", "src/visual", "a fourth edge: the runner wiring importing the public index directly"],
+    [DIAGNOSIS_ADAPTER, "src/visual/fingerprint", "the diagnosis adapter importing a src/visual internal"],
+    [DIAGNOSIS_ADAPTER, "src/visual/internal/captureCore", "the diagnosis adapter importing the capture seam entry"],
+    [DIAGNOSIS_CONTRACT, "src/visual", "the diagnosis contract importing src/visual"]
   ] as const) {
     const reached = execution.seen.has(importer);
     const mutated = await walk(executionSeeds, new Map([[importer, [specifier]]]), ALLOW);
@@ -364,6 +378,43 @@ console.log("\nThe shadow adapter observes and never acts (N2.5):\n");
     const planted = `${adapterText}\n${code}\n`;
     check(`MUTATION: ${label} planted in the adapter is caught`, violations(planted).length > 0, "not caught");
   }
+}
+
+console.log("\nThe diagnosis adapter observes and never acts or writes (N5.3, VD-1):\n");
+{
+  // It reads the reference store through `get` only and takes one guarded frame; it never clicks, scrolls, logs or writes.
+  const diagnosisText = await readFile(join(REPO, DIAGNOSIS_ADAPTER), "utf8");
+  check(
+    "the diagnosis adapter was actually read",
+    diagnosisText.includes("class VisualFailureDiagnosis") && diagnosisText.includes('from "@src/visual"')
+  );
+  const problems = violations(diagnosisText);
+  check("no network, filesystem, process, console, interaction or navigation API in the diagnosis adapter", problems.length === 0, problems.join("; "));
+  const storeCalls = [...diagnosisText.matchAll(/\bstore\.(\w+)\s*\(/g)].map((m) => m[1]);
+  check(
+    "the diagnosis adapter calls no store write: no refresh, and every store call is `get`",
+    !/\.(?:refresh|holdRefresh)\s*\(/.test(diagnosisText) && storeCalls.length >= 1 && storeCalls.every((name) => name === "get"),
+    `store calls: ${storeCalls.join(", ") || "none"}`
+  );
+  for (const [label, code] of [
+    ["a click", "await member.click();"],
+    ["a scroll", "await member.scrollIntoViewIfNeeded();"],
+    ["mouse input", "await page.mouse.move(1, 2);"]
+  ] as const) {
+    check(`MUTATION: ${label} planted in the diagnosis adapter is caught`, violations(`${diagnosisText}\n${code}\n`).length > 0, "not caught");
+  }
+  check(
+    "MUTATION: a reference refresh planted in the diagnosis adapter is caught",
+    /\.refresh\s*\(/.test(`${diagnosisText}\nawait store.refresh(key, evidence);\n`),
+    "not caught"
+  );
+  const contractText = await readFile(join(REPO, DIAGNOSIS_CONTRACT), "utf8");
+  const contractImports = [...contractText.matchAll(/^\s*(?:import|export)\b[^;]*?\bfrom\s*["']([^"']+)["']/gm)].map((m) => m[1]).sort();
+  check(
+    "the diagnosis contract imports only types from Playwright, the flow profile and the error classifier (no src/visual)",
+    JSON.stringify(contractImports) === JSON.stringify(["../runtime/ErrorClassifier", "@src/profiles/FlowProfile", "playwright"].sort()) && /^import type /m.test(contractText) && !/^import \{/m.test(contractText),
+    contractImports.join(", ")
+  );
 }
 
 console.log("\nThe Recorder adapter captures and never acts (N4.2, RV-1):\n");

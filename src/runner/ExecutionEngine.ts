@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { PlaywrightRunner } from "./PlaywrightRunner";
+import { visualDiagnosisMode } from "./visualDiagnosis/visualDiagnosisContract";
 import { ManualHandoffController } from "./ManualHandoffController";
 import {
   LIVE_PROGRESS_MAX_EVENTS,
@@ -1635,6 +1636,9 @@ export class ExecutionEngine {
       // N4.6: the Recorder-seeded reference is read only under the approved N4 enablement (RV-6); unset, the runner
       // never reads a recorded key (plan › Failure and fallback, Rollback and disable).
       visualRecordedFallback: process.env.AWKIT_VISUAL_RECORDER === "manual",
+      // N5.3 (VD-7): the advisory visual failure diagnosis is off unless AWKIT_VISUAL_DIAGNOSIS=on, independent of
+      // AWKIT_VISUAL_FUSION. It reads the same reference folder and never writes it.
+      visualDiagnosisRoot: visualDiagnosisMode() === "on" ? join(dirs.root, "visual-references") : undefined,
       // Accumulate only — no projection, no I/O, no emitter on the locator resolution path. The set
       // is read once when this instance finishes.
       onLocatorRemembered: (scopeKey) => {

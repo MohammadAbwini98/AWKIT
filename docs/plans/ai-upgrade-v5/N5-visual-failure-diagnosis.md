@@ -24,7 +24,56 @@ recommended, start N5"), recorded in DECISIONS 2026-10-19 (contract `awkit-vra-1
 
   Gates: new `verify:visual-diagnosis` 82/0, with 13 mutants observed red; `verify:visual-isolation` 54/0, unchanged
   at two edges; `typecheck:scripts` and `npm run build` PASS. No runner, recorder, IPC, report or UI change.
-- **Next: N5.3 `awkit-vra.14.3`**, the runner adapter, the final-attempt hook and the three-edge isolation pin.
+- **N5.3 `awkit-vra.14.3`: closed.** Contract `awkit-vra-14-3-n5-runner-adapter-1019`. Delivered:
+  - `src/runner/visualDiagnosis/VisualFailureDiagnosis.ts`, the third and last `src/visual` edge, loaded lazily only
+    under `AWKIT_VISUAL_DIAGNOSIS=on`;
+  - the pure `visualDiagnosisContract.ts`, shared with `FlowExecutor` and `PlaywrightRunner`, which reaches no
+    `src/visual` code;
+  - the `FlowExecutor` hook after the final retry decision, and the `StepExecutor` helpers `diagnosisPage` (never a
+    fallback page) and `limitScreenshot`;
+  - read-only reference reads, one guarded frame (target or not), the abort-and-settle deadline and the
+    per-signature cap of 20;
+  - a codes-only log line as the record's only sink until N5.4;
+  - the fusion lab's `setFailure` states.
+
+  **As built, deviations recorded in DECISIONS 2026-10-19:**
+  - The DOM-named set is the step's primary-candidate matches only. Recovery contenders are not plumbed into the
+    hook, and alternatives are not examined, so a step with alternatives is recorded as `truncated`.
+  - Guarded-positional and instrumented closed-shadow steps refuse `not-eligible`.
+  - A handoff step is named `handoff-active` before its error class is read.
+
+  **Gates** (ARM64 machine, x64 Node and Chromium emulated):
+  - new `verify:visual-diagnosis-runtime` 49/0;
+  - `verify:visual-isolation` 67/0 at exactly three edges, with the fourth-edge mutations red;
+  - `verify:visual-diagnosis` 82/0;
+  - `verify:runner` 138/0;
+  - `verify:recorded-visual-fallback` 71/0;
+  - `verify:recovery-provenance` 46/0;
+  - `verify:failure-evidence` 35/0;
+  - `verify:ai-fallback` 51/0;
+  - `verify:mock-site` 317/317;
+  - `typecheck:scripts` and `npm run build` PASS;
+  - `verify:similar-rows-safety`: every check passed, then the process exited 1 on a Windows `EPERM` in its own
+    temp-folder cleanup (harness or environment);
+  - `verify:failure-capture-overhead` 17/0 with one INCONCLUSIVE: the L5a Node-CPU interval crossed its ceiling, and
+    N5 was off in both arms.
+
+  **Mutation contract** (temporary source edits, each observed red and reverted):
+
+  | Mutation | Result | Failing checks |
+  |---|---|---|
+  | R1: the hook diagnoses every attempt | 35/48 | 13 |
+  | R2: `handedOff` ignored | 47/48 | 1 |
+  | R3: the hook waits for the work instead of the deadline | 46/48 | 2, after G1 was strengthened to time the hook itself |
+  | R4: the frame is not released | 47/48 | 1, the leftover page listeners |
+  | R5: the adapter writes the store | 48/49 | 1. It first survived because the F window covered no seeded key; a whole-run seeded-files check now closes that gap |
+  | R6: the examined set ignores the cap | 47/49 | 2 |
+
+  The runtime verifier also found a real bug: a zero-size target would have been reported as offscreen. The adapter
+  now records position and size as separate facts. A wrong fixture URL found during the runs was corrected in the
+  verifier; it was not a product defect.
+- **Next: N5.4 `awkit-vra.14.4`**, the codes-only report block and sanitizer, replacing the log sink. N5.6 calibration
+  is also unblocked.
 
 *Before approval:* Contracts `awkit-vra-n5-plan-1019` (plan, `725b129c`) and `awkit-vra-n5-plan-review-1019` (the six
 review corrections below). No product source, schema, IPC, preload or UI changed. The review added one security

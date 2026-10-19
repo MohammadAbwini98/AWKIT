@@ -12,6 +12,8 @@ import { closedShadowBridgeScript } from "./closedShadowBridge";
 import { FileLocatorRecoveryStore, type LocatorRecoveryStore } from "./LocatorRecoveryStore";
 import { FileLocatorBlueprintStore, type LocatorBlueprintStore } from "./LocatorBlueprintStore";
 import type { VisualFusionStageOptions } from "./visualFusion/VisualFusionStage";
+import type { VisualFailureDiagnosisOptions } from "./visualDiagnosis/VisualFailureDiagnosis";
+import { describeVisualDiagnosis, type VisualFailureDiagnoser } from "./visualDiagnosis/visualDiagnosisContract";
 import type { DomIntelligenceRecoveryOptions } from "./domIntelligence/DomIntelligenceProvider";
 import { toRecoveryProvenance } from "./domIntelligence/recoveryProvenance";
 import { ManualHandoffController } from "./ManualHandoffController";
@@ -160,6 +162,21 @@ export interface PlaywrightRunnerOptions extends BrowserContextFactoryOptions {
    * runtime one is missing. Needs `visualFusionRoot`; absent or false, no recorded key is ever read.
    */
   visualRecordedFallback?: boolean;
+  /**
+   * N5.3 (VD-7): `AWKIT_VISUAL_DIAGNOSIS=on`. The visual-reference folder, read only, that turns on the advisory visual
+   * diagnosis of a step's final failure. Absent (the default), the adapter and `src/visual` are never loaded for it.
+   */
+  visualDiagnosisRoot?: string;
+}
+
+/**
+ * N5.3: the visual failure diagnosis behind a loader, so a runner without `visualDiagnosisRoot` never evaluates the
+ * adapter or `src/visual`. The first final failure loads it once per flow run.
+ */
+function lazyVisualDiagnosis(options: VisualFailureDiagnosisOptions): VisualFailureDiagnoser {
+  let adapter: Promise<VisualFailureDiagnoser> | undefined;
+  const load = () => (adapter ??= import("./visualDiagnosis/VisualFailureDiagnosis").then(({ VisualFailureDiagnosis }) => new VisualFailureDiagnosis(options)));
+  return { diagnoseFinalFailure: async (request) => (await load()).diagnoseFinalFailure(request) };
 }
 
 /**
@@ -789,7 +806,14 @@ export class PlaywrightRunner {
     // Save/restore around nested child flows so the parent's executor is active again afterwards.
     const previousExecutor = holder.activeExecutor;
     holder.activeExecutor = stepExecutor;
-    const flowExecutor = new FlowExecutor(stepExecutor, logger, this.options.progress, branchFactory, this.options.screenshotOnFailure);
+    const flowExecutor = new FlowExecutor(
+      stepExecutor,
+      logger,
+      this.options.progress,
+      branchFactory,
+      this.options.screenshotOnFailure,
+      this.createVisualDiagnosis(context, logger)
+    );
     try {
       return await flowExecutor.executeFlow(flow, context);
     } finally {
@@ -854,6 +878,21 @@ export class PlaywrightRunner {
           // L11.H: the bounded, code-only recovery provenance the report keeps (never DOM or page text).
           ...(event.trace ? { data: { locatorRecovery: toRecoveryProvenance(event.trace) } } : {})
         })
+    });
+  }
+
+  /**
+   * N5.3 (VD-7): the advisory visual failure diagnosis, only with `visualDiagnosisRoot`. Until N5.4 adds the report
+   * block, its settled record reaches the run only as one codes-only log line.
+   */
+  private createVisualDiagnosis(context: InstanceExecutionContext, logger: MemoryRunnerLogger): VisualFailureDiagnoser | undefined {
+    if (!this.options.visualDiagnosisRoot) return undefined;
+    return lazyVisualDiagnosis({
+      folder: this.options.visualDiagnosisRoot,
+      handedOff: (target) => this.pageHandedOff(target),
+      ...(this.options.visualRecordedFallback === true ? { recordedFallback: true } : {}),
+      onRecord: (record) =>
+        logger.log({ level: "info", message: `[visual-diagnosis] ${describeVisualDiagnosis(record)}`, ...this.logMeta(context), stepId: record.stepId })
     });
   }
 

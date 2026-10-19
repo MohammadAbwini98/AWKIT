@@ -22,6 +22,15 @@
       distinct icons (in `twins`, all carry vf-wide-tool-0's icon), the target plus 8 competitors of N3 VR-4.
       F5 (protected surface) uses injectProtected(kind); F6 (offscreen) uses the vf-offscreen-tool copy below the
       fold; F7 uses the ?embed=1 frame copy, the ?popup=1 popup and a different device scale factor; F8 is fusion off.
+      N5.3 (awkit-vra.14.3) Visual Failure Diagnosis states, setFailure(kind), applied on top of the scenario:
+        none     no failure state (the default)
+        detach   the target button is removed from the DOM (target-not-in-dom)
+        overlay  vf-overlay covers the target, so elementFromPoint at its centre is the overlay (target-occluded)
+        zero     the target has no size (target-zero-size)
+        blank    the toolbar is emptied and the body hidden, a uniform white viewport with no target (viewport-uniform)
+        many     vf-many-grid (20,340) shows forty 48x40 buttons vf-many-tool (same test id, data-index 0..39), more
+                 than the 32-member examined cap, all inside the viewport. Buttons 0..31 cycle eight icons; 32..39 carry a
+                 ninth icon used nowhere in 0..31, so an element past the cap has no twin inside it
       Nothing is random or time-dependent and the page carries no credential field. Sized for an 800x600 viewport.
       Measured by npm run benchmark:visual-fusion and npm run benchmark:visual-agreement; served by npm run
       verify:mock-site.
@@ -50,6 +59,11 @@
       .vf-offscreen { position: absolute; left: 100px; top: 3000px; width: 64px; height: 56px; }
       .vf-offscreen .vf-tool { left: 8px; }
       .vf-frame { position: absolute; left: 92px; top: 260px; width: 280px; height: 72px; border: 0; }
+      .vf-many { position: absolute; left: 20px; top: 340px; width: 640px; height: 192px; }
+      .vf-many[hidden] { display: none; }
+      .vf-overlay { position: absolute; width: 48px; height: 40px; background: #fde68a; z-index: 5; }
+      .vf-tool.vf-zero { width: 0; height: 0; border-width: 0; overflow: hidden; }
+      body.vf-blank { visibility: hidden; }
       .vf-open-popup { position: absolute; left: 420px; top: 120px; height: 36px; padding: 0 14px; font: 14px Arial, Helvetica, sans-serif; border: 1px solid #334155; border-radius: 4px; background: #e2e8f0; color: #0f172a; cursor: pointer; }
       body.vf-embed { width: auto; height: auto; }
       body.vf-embed .vf-toolbar { left: 8px; top: 8px; }
@@ -65,6 +79,8 @@
     <div class="vf-offscreen" data-testid="vf-offscreen"></div>
     <!-- N3.2: a nine-button toolbar for the 8-competitor capture cost, hidden unless setState({ wide: true }). -->
     <div class="vf-wide" data-testid="vf-wide-toolbar" role="toolbar" aria-label="More item actions" hidden></div>
+    <!-- N5.3: forty same-test-id buttons for the examined-cap (truncation) state, hidden unless setFailure("many"). -->
+    <div class="vf-many" data-testid="vf-many-grid" hidden></div>
 
     <script>
       const ICONS = {
@@ -92,6 +108,34 @@
       }
 
       let current = { scenario: "baseline", target: 0, style: "a", wide: false };
+      const FAILURES = ["none", "detach", "overlay", "zero", "blank", "many"];
+      let failure = "none";
+
+      // N5.3: a failure state drawn over the current scenario; "none" leaves the scenario exactly as render() drew it.
+      function applyFailure() {
+        if (embedded) return;
+        for (const node of document.querySelectorAll(".vf-overlay")) node.remove();
+        document.body.classList.toggle("vf-blank", failure === "blank");
+        const grid = document.querySelector("[data-testid='vf-many-grid']");
+        grid.hidden = failure !== "many";
+        grid.innerHTML = failure !== "many" ? "" : Array.from({ length: 40 }, (_, i) =>
+          button("vf-many-tool", i < 32 ? WIDE_ORDER[i % 8] : WIDE_ORDER[8], current.style, "")
+            .replace("<button ", '<button data-index="' + i + '" style="left: ' + ((i % 10) * 64) + 'px; top: ' + (Math.floor(i / 10) * 48) + 'px" ')
+        ).join("");
+        const toolbar = document.querySelector("[data-testid='vf-toolbar']");
+        const target = document.querySelector("[data-testid='vf-tool-" + current.target + "']");
+        if (failure === "detach" && target) target.remove();
+        if (failure === "zero" && target) target.classList.add("vf-zero");
+        if (failure === "blank") toolbar.innerHTML = "";
+        if (failure === "overlay") {
+          const overlay = document.createElement("div");
+          overlay.className = "vf-overlay";
+          overlay.setAttribute("data-testid", "vf-overlay");
+          overlay.style.left = (92 + 8 + current.target * 64) + "px";
+          overlay.style.top = (112 + 8) + "px";
+          document.body.appendChild(overlay);
+        }
+      }
 
       // N3.2 drift: the DOM identity changes and the pixels do not. The new name is an aria-label, which the browser
       // never paints (the icon is aria-hidden), and the id / data-drift attributes carry no style.
@@ -123,6 +167,7 @@
         wideBar.innerHTML = WIDE_ORDER
           .map((icon, i) => button("vf-wide-tool-" + i, scenario === "twins" ? WIDE_ORDER[0] : icon, style, "").replace("<button ", '<button style="left: ' + (8 + i * 64) + 'px" '))
           .join("");
+        applyFailure();
       }
 
       window.__fusionLab = {
@@ -142,9 +187,17 @@
           frame?.contentWindow?.__fusionLab?.setState(current);
           return window.__fusionLab.describe();
         },
+        failures: FAILURES.slice(),
+        setFailure(kind) {
+          if (!FAILURES.includes(kind)) throw new Error("unknown failure");
+          failure = kind;
+          render();
+          return window.__fusionLab.describe();
+        },
         describe() {
           return {
             ...current,
+            failure,
             icons: [...document.querySelectorAll("[data-testid='vf-toolbar'] .vf-tool")].map((node) => node.dataset.icon),
             names: [...document.querySelectorAll("[data-testid='vf-toolbar'] .vf-tool")].map((node) => node.getAttribute("aria-label")),
             wideIcons: [...document.querySelectorAll("[data-testid='vf-wide-toolbar'] .vf-tool")].map((node) => node.dataset.icon)

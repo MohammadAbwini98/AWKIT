@@ -602,8 +602,8 @@ so the Phase L extension does not hold Phase M back; M1's edge on closed L7 stay
 Status: **IN PROGRESS** since 2026-10-12 (roadmap Phase `N` `in-progress`); N0 and N1 complete
 after an independent re-QC PASS at `222b04d3`; N2 (`awkit-vra.12`) and N3 (`awkit-vra.4`) closed shadow-only on
 2026-10-13; N4 (`awkit-vra.13`) closed 2026-10-19 after independent QC; N5 (`awkit-vra.14`) planned 2026-10-19, owner
-decisions VD-0 to VD-11 approved as recommended 2026-10-19 and N5 started: N5.1 and N5.2 (the pure diagnosis policy)
-closed, N5.3 next.
+decisions VD-0 to VD-11 approved as recommended 2026-10-19 and N5 started: N5.1, N5.2 (the pure diagnosis policy) and
+N5.3 (the runner adapter, the third `src/visual` edge) closed, N5.4 next.
 *Registered 2026-09-22 as NOT STARTED.* Beads epic
 `awkit-vra`. Phase N follows the Phase L release foundation, remains separate from Phase L and
 Phase M, and does not change either phase's status, acceptance criteria or dependencies. Phase M is
@@ -638,7 +638,7 @@ not renumbered; titles and notes map existing history onto the canonical names.
 | N2 | DOM + Vision Evidence Fusion | `awkit-vra.12` | closed shadow-only 2026-10-13 — FD-1 to FD-9 approved, N2.1-N2.8 filed (`.12.1`…`.12.8`), N2.1-N2.5, N2.4b, N2.7 and N2.8 done, N2.6 deferred; N2 ships shadow-only (FD-9, no separation); the QC review ran (FAIL, fixed: budget, handoff, refresh gating); the overhead matrix is measured (2026-10-13), so all seven acceptance criteria are met; closed in the tracker 2026-10-13 (`.12.6` deferred) |
 | N3 | Visual Locator Recovery | `awkit-vra.4` (retitled per VR-9), children `.4.1`-`.4.6` | closed shadow-only 2026-10-13: VR-0 to VR-9 approved, N3.1 pure agreement policy done (`verify:visual-agreement` 258/0); N3.2 calibration done, 28 false `agreed` on headless twins, so N3 closes shadow-only (N3.4/N3.5 deferred); N3.3 runner shadow done (`verify:visual-agreement-runtime` 68/0); N3.6 state and docs done, shadow-only close recorded; independent QC (closure criterion 5) APPROVED WITH FINDINGS, all four closed (`verify:visual-agreement-runtime` 81/0); all six closure criteria met; the owner removed the legacy `awkit-vra.3` edge and `awkit-vra.4` is closed (N3.4/N3.5 stay blocked) |
 | N4 | Recorder Visual Intelligence | `awkit-vra.13`, children `.13.1`-`.13.7` | closed 2026-10-19 after independent QC APPROVED. Plan: `N4-recorder-visual-intelligence.md`. RV-0 to RV-8 approved as recommended; the Recorder adapter (second `src/visual` edge), persistence beside the flow, the capture channel and per-step UI, N4.5 calibration MET, and the N4.6 shadow-only runner fallback (effect always `none`); all ten completion criteria met |
-| N5 | Visual Failure Diagnosis | `awkit-vra.14`, children `.14.1`-`.14.7` | in progress since 2026-10-19. Plan: `N5-visual-failure-diagnosis.md`, revised for six review findings. VD-0 to VD-11 approved as recommended (N5.1 `.14.1` closed, VD-11 deferred). N5.2 `.14.2` closed: the pure `decideVisualDiagnosis` (`verify:visual-diagnosis` 82/0). Next: N5.3. Legacy `awkit-vra.5` not reused. The review's B2 protected-capture defect is filed separately as `awkit-4b5y` |
+| N5 | Visual Failure Diagnosis | `awkit-vra.14`, children `.14.1`-`.14.7` | in progress since 2026-10-19. Plan: `N5-visual-failure-diagnosis.md`, revised for six review findings. VD-0 to VD-11 approved as recommended (N5.1 `.14.1` closed, VD-11 deferred). N5.2 `.14.2` closed: the pure `decideVisualDiagnosis` (`verify:visual-diagnosis` 82/0). N5.3 `.14.3` closed: the runner adapter, the third edge and the final-attempt hook (`verify:visual-diagnosis-runtime` 49/0). Next: N5.4. Legacy `awkit-vra.5` not reused. The review's B2 protected-capture defect is filed separately as `awkit-4b5y` |
 | N6 | Visual Assertions | — | not yet filed |
 | N7 | OCR / Text-in-Image | `awkit-vra.9` | planned |
 | N8 | Visual Row/Grid Intelligence | `awkit-vra.10` | planned |
@@ -768,6 +768,18 @@ N5.1 is closed, and VD-1's third `src/visual` edge takes effect at N5.3. N5.2 is
 `src/visual/diagnosis/decideVisualDiagnosis.ts`, which emits only byte-identity positives for any v1 reference, scopes
 counts to examined candidates with a truncation flag, and has no index or effect key. It is proven by
 `verify:visual-diagnosis` (82/0, 13 mutants red). No runner, report or UI code changed.
+
+N5.3 closed the same day (contract `awkit-vra-14-3-n5-runner-adapter-1019`):
+- `src/runner/visualDiagnosis/VisualFailureDiagnosis.ts` is the third `src/visual` edge, loaded lazily only under
+  `AWKIT_VISUAL_DIAGNOSIS=on`;
+- it is called by `FlowExecutor` only after the retry policy declined another attempt;
+- it reads references only, takes one guarded frame whether or not a target exists, and examines the primary
+  candidate's matches up to 32;
+- it settles once at its deadline, and late work is dropped;
+- the record goes only to a codes-only log line until N5.4.
+
+Gates: `verify:visual-diagnosis-runtime` 49/0 with mutations R1-R6 red, `verify:visual-isolation` at exactly three edges,
+and `verify:runner`, `verify:recorded-visual-fallback` and `verify:mock-site` green.
 
 ### Planned workstreams and dependencies (original numbering, 2026-09-22)
 

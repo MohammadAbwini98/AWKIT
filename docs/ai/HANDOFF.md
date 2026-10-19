@@ -1,6 +1,25 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-19, latest) — Phase N: N5 started; N5.2 done, N5.3 next
+## HANDOFF (2026-10-19, latest) — Phase N: N5.3 done; N5.4 next
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** N5.3 `awkit-vra.14.3` (contract `awkit-vra-14-3-n5-runner-adapter-1019`, lease released). The runner
+  adapter is the third `src/visual` edge. It runs after the final retry decision, behind `AWKIT_VISUAL_DIAGNOSIS=on`,
+  and its record goes to a codes-only log line.
+- **Next: N5.4 `awkit-vra.14.4`.** Replace the log sink (`PlaywrightRunner.createVisualDiagnosis` `onRecord`) with the
+  sanitized, optional `visualDiagnosis` block on the instance report diagnostics, with a key allowlist and caps.
+  `VisualDiagnosisRecord` in `visualDiagnosisContract.ts` is the source shape. N5.6 calibration can run in parallel.
+- **Known gaps carried:**
+  - recovery contenders are not in the examined set (only the primary candidate's matches);
+  - `verify:similar-rows-safety` exits 1 on a Windows temp-folder `EPERM` in its cleanup, after every check passed;
+  - `verify:failure-capture-overhead` reports one L5a Node-CPU INCONCLUSIVE.
+- **Do not:** write the reference store from N5, read B2 files, or relax `verify:b2-protected-capture` (`awkit-4b5y`
+  stays open).
+- **Clean-machine** stays optional and non-blocking by owner policy; the ARM64 Parallels waiver stands.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-19) — Phase N: N5 started; N5.2 done, N5.3 next
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

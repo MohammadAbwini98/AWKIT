@@ -1,6 +1,31 @@
 # DECISIONS
 
-### 2026-10-19 (latest) — Phase N N5: owner decisions VD-0 to VD-11 approved as recommended; N5.2 implemented (owner, in session) (`awkit-vra.14`)
+### 2026-10-19 (latest) — Phase N N5.3: runner visual-diagnosis adapter as built, within VD-0 to VD-11 (`awkit-vra.14.3`)
+
+- **Third edge in effect (VD-1).** `src/runner/visualDiagnosis/VisualFailureDiagnosis.ts -> src/visual/index` is the
+  third and last allowed edge, loaded lazily through `PlaywrightRunner.createVisualDiagnosis`. `verify:visual-isolation`
+  now pins exactly three edges, with fourth-edge mutations red for `FlowExecutor` and `PlaywrightRunner`.
+- **The pure contract.** `src/runner/visualDiagnosis/visualDiagnosisContract.ts` holds the record type,
+  `visualDiagnosisMode`, the 1000 ms deadline, the cap of 20 and the error-class-to-kind map. It imports only types,
+  so the hook and the wiring never reach `src/visual`.
+- **DOM-named set narrowed (deviation from the plan's architecture step 4).** N5.3 examines only the step's
+  primary-candidate matches. Recovery contenders are not plumbed into the post-retry hook, and alternatives are not
+  examined, so a step with alternatives records `truncated: true`. The examined-scope copy already says unexamined
+  elements were not compared. Adding recovery contenders is an engineering follow-up, not a new owner decision.
+- **Refusal precedence.** A handoff step (`protectedLoginHandoff`, `autoSecureLogin`, `reuseSession`, `manualHandoff`)
+  is `handoff-active` before its error class is read, because its cancellation is also a non-diagnosable class.
+  `pageHandedOff` true is `protected-surface`. Guarded-positional and instrumented closed-shadow steps are
+  `not-eligible`.
+- **Geometry.** Position and size are separate facts: a zero-size target in the viewport is `target-zero-size`, never
+  `target-offscreen`. `verify:visual-diagnosis-runtime` found the conflation, and it was fixed before the commit.
+- **Sink until N5.4 (VD-5).** The settled record reaches the run only as one codes-only log line
+  (`describeVisualDiagnosis`, no URL, selector or test id). N5.4 replaces it with the sanitized report block.
+- **Verifier method.** Functional cases use the production 1000 ms deadline, with bounded repeats of a deadline-cut
+  run (counted and printed). The deadline mechanism is tested with verifier-only probes. Mutations R1-R6 were run as
+  temporary source edits, each observed red and reverted; R5 first survived, which exposed a verifier gap that was
+  closed. Results are in the N5 plan.
+
+### 2026-10-19 — Phase N N5: owner decisions VD-0 to VD-11 approved as recommended; N5.2 implemented (owner, in session) (`awkit-vra.14`)
 
 - **Approval.** The owner wrote "I approve VD-0 to VD-11 as recommended, start N5". That records N5.1
   (`awkit-vra.14.1`) and authorizes N5 implementation. Plan: `docs/plans/ai-upgrade-v5/N5-visual-failure-diagnosis.md`

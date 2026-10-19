@@ -13,6 +13,8 @@ import { SecretMasker } from "@src/reports/SecretMasker";
 import { FLOW_VALIDATION_LIMITS } from "@src/validation/FlowLimits";
 import { resolveJsonPath } from "@src/data/JsonPathResolver";
 import { loopIterationLimit, resolveLoopConnectorValues } from "./LoopConnectorRuntime";
+import type { ErrorClass } from "./runtime/ErrorClassifier";
+import type { VisualFailureDiagnoser } from "./visualDiagnosis/visualDiagnosisContract";
 
 /**
  * Hard cap on loop-connector iterations regardless of configured maxIterations.
@@ -54,7 +56,12 @@ export class FlowExecutor {
      * tier of the awkit-5yx precedence contract. Defaults to `true` so direct FlowExecutor users
      * (verify scripts) and the historical always-capture path are unchanged.
      */
-    private readonly screenshotOnFailureDefault: boolean = true
+    private readonly screenshotOnFailureDefault: boolean = true,
+    /**
+     * N5.3 (VD-2, VD-7): the advisory visual failure diagnosis, present only under `AWKIT_VISUAL_DIAGNOSIS=on`. Asked
+     * once per step, after the retry policy declined another attempt; its record goes to its own sink, never back here.
+     */
+    private readonly visualDiagnosis?: VisualFailureDiagnoser
   ) {}
 
   /**
@@ -483,6 +490,8 @@ export class FlowExecutor {
     const retryCount = step.retry?.count ?? 0;
     let lastResult: StepExecutionResult | undefined;
     let attemptsExecuted = 0;
+    /** The error class of the final, declined retry decision (N5.3). */
+    let finalErrorClass: ErrorClass | undefined;
 
     // Failure-evidence precedence (awkit-5yx): an explicit per-step override
     // (`step.onFailure.screenshot`) wins; otherwise the resolved artifact-profile default governs;
@@ -557,6 +566,7 @@ export class FlowExecutor {
         if (attempt < retryCount) {
           logRetry("warn", `Retry blocked for step "${step.name ?? step.id}": ${decision.reason} (error class: ${decision.errorClass}).`);
         }
+        finalErrorClass = decision.errorClass;
         break;
       }
 
@@ -567,6 +577,25 @@ export class FlowExecutor {
     // L11.G: the page the step failed on, as bounded context for the failure analysis (no-op unless
     // enabled, a provider exists and a collector listens). After the last attempt, before anything navigates.
     if (lastResult?.status === "failed") await this.stepExecutor.recordFailurePageContext?.(step).catch(() => undefined);
+
+    // N5.3 (VD-0, VD-2): the advisory visual diagnosis of the FINAL failure, after the retry decision and before anything
+    // navigates. It settles by its own deadline, and its record goes to its own sink: nothing here reads it, so it cannot
+    // change this result, its error, its evidence or the next step.
+    if (lastResult?.status === "failed" && finalErrorClass && context && this.visualDiagnosis) {
+      const stepExecutor = this.stepExecutor;
+      await this.visualDiagnosis
+        .diagnoseFinalFailure({
+          step,
+          attempt: attemptsExecuted - 1,
+          errorClass: finalErrorClass,
+          executionId: context.executionId,
+          scenarioId: context.scenarioId,
+          flowId: context.flowId ?? "",
+          page: () => stepExecutor.diagnosisPage(step),
+          limitScreenshot: (fn) => stepExecutor.limitScreenshot(fn)
+        })
+        .catch(() => undefined);
+    }
 
     // Attach the accumulated per-attempt evidence to the returned (last) attempt. The original
     // automation error on `lastResult` is untouched and remains the primary cause (B2.4/B2.5).

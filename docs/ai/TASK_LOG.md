@@ -1,5 +1,58 @@
 # TASK_LOG
 
+## 2026-10-19 — Phase N: N5.3 runner visual-diagnosis adapter, final-attempt hook and deadline (Claude)
+
+- **Scope:** "Proceed with N5.3". Contract `awkit-vra-14-3-n5-runner-adapter-1019`, Risk 2. CodeCraft: not used
+  (`CODECRAFT_MODE=off` default).
+- **Built:**
+  - `src/runner/visualDiagnosis/{VisualFailureDiagnosis,visualDiagnosisContract}.ts`;
+  - the `FlowExecutor` hook after the final retry decision;
+  - the `StepExecutor.diagnosisPage` and `limitScreenshot` helpers;
+  - the `PlaywrightRunner` lazy wiring with a codes-only log sink;
+  - the `ExecutionEngine` flag (`AWKIT_VISUAL_DIAGNOSIS=on`);
+  - the `src/visual/index.ts` type export;
+  - fusion-lab `setFailure` states with `verify:mock-site` checks and README;
+  - `verify:visual-isolation` at three edges;
+  - the new `verify:visual-diagnosis-runtime`, classified real-browser.
+- **Found and fixed during the work:**
+  - a zero-size target was reported as offscreen;
+  - a handoff cancellation was refused as `not-eligible` instead of `handoff-active`;
+  - the "many" grid icon cycle gave the beyond-cap element twins inside the cap;
+  - two verifier gaps found by mutations: R3 was caught weakly, and R5 survived until a whole-run seeded-files check
+    was added;
+  - a wrong fixture URL in the verifier (not a product defect).
+- **Mutations** (temporary source edits, reverted; each observed red): R1 35/48, R2 47/48, R3 46/48, R4 47/48,
+  R5 48/49, R6 47/49.
+- **Files:** the two new runner files, `src/runner/{FlowExecutor,StepExecutor,PlaywrightRunner,ExecutionEngine}.ts`,
+  `src/visual/index.ts`, `mock-site/public/visual-intelligence-fusion.html`, `mock-site/README.md`,
+  `scripts/{verify-visual-diagnosis-runtime.mts,verify-visual-isolation.mts,verify-mock-site.mjs,verify-roadmap-dashboard.mjs}`,
+  `scripts/lib/verifier-classification.ts`, `package.json`, `src/roadmap/ImplementationRoadmap.ts`,
+  `.beads/issues.jsonl`, `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,DECISIONS}.md`,
+  `docs/plans/ai-upgrade-v5/{N5-visual-failure-diagnosis,ROADMAP}.md`,
+  `docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json` (run 35 appended by the overhead gate), the contract,
+  `active-lease.json`.
+- **Checks (ARM64 machine, x64 Node emulated):**
+  - visual-diagnosis-runtime 49/0;
+  - visual-isolation 67/0;
+  - visual-diagnosis 82/0;
+  - runner 138/0;
+  - recorded-visual-fallback 71/0;
+  - recovery-provenance 46/0;
+  - failure-evidence 35/0;
+  - ai-fallback 51/0;
+  - mock-site 317/317;
+  - verifier-classification PASS (339);
+  - typecheck:scripts PASS;
+  - build PASS;
+  - similar-rows-safety: all checks passed, exit 1 on a cleanup `EPERM` (harness or environment);
+  - failure-capture-overhead 17/0 with one INCONCLUSIVE;
+  - roadmap dashboard: in the contract.
+
+  Not rerun: `verify:visual-fusion-runtime` and `verify:visual-agreement-runtime`. Their inputs changed only by
+  additive type exports, and the N2 and N4 stage paths are covered by recorded-visual-fallback and
+  recovery-provenance.
+- **Result:** N5.3 closed; N5.4 next. `docs/ai/contracts/awkit-l12-27-implementation-1006.json` preserved.
+
 ## 2026-10-19 — Phase N: N5 started; N5.1 approval recorded and N5.2 pure diagnosis policy implemented (Claude)
 
 - **Scope:** owner message "I approve VD-0 to VD-11 as recommended, start N5". Contract `awkit-vra-14-n5-start-1019`,

@@ -185,6 +185,25 @@ export class StepExecutor {
     return this.operationLimiters ? this.operationLimiters.run(kind, fn) : fn();
   }
 
+  /** N5.3: run one screenshot-class operation of the visual failure diagnosis under the screenshot limiter. */
+  limitScreenshot<T>(fn: () => Promise<T>): Promise<T> {
+    return this.limitOp("screenshot", fn);
+  }
+
+  /**
+   * N5.3: the step's OWN page for the read-only visual failure diagnosis, or null when it is closed or unavailable.
+   * Unlike `captureFailureEvidence` it never falls back to the active page: a comparison against another page would be
+   * a false observation.
+   */
+  async diagnosisPage(step: FlowStep): Promise<Page | null> {
+    try {
+      const page = await this.resolveStepPage(step);
+      return page.isClosed() ? null : page;
+    } catch {
+      return null;
+    }
+  }
+
   /**
    * Navigate under the navigation limiter, converting a certificate-trust rejection into an actionable
    * message that names the Settings toggle. Only `net::ERR_CERT_*` / `ERR_SSL_*` failures are rewritten

@@ -65,6 +65,7 @@ export {
   decideVisualDiagnosis,
   type VisualDiagnosisCode,
   type VisualDiagnosisConditions,
+  type VisualDiagnosisEvidenceInput,
   type VisualDiagnosisInput,
   type VisualDiagnosisMember,
   type VisualDiagnosisRefusal,

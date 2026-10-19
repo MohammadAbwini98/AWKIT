@@ -1,0 +1,221 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-14-3-n5-runner-adapter-1019",
+    "title": "Phase N N5.3: runner visual-diagnosis adapter, final-attempt hook, abort-and-settle deadline and verify:visual-diagnosis-runtime",
+    "objective": "Implement N5.3 awkit-vra.14.3 under the approved VD-0 to VD-11: src/runner/visualDiagnosis/VisualFailureDiagnosis.ts as the third and last src/visual edge (lazy, behind AWKIT_VISUAL_DIAGNOSIS=on), a pure contract file, a FlowExecutor hook that runs only after the retry policy declined another attempt, a read-only reference reader with N4.6 precedence, read-only DOM facts and the examined set, exactly one protected-guarded frame per diagnosis whether or not a target exists, fixed refusals, the per-signature cap, and the abort-and-settle deadline; a codes-only log sink until N5.4; mock-site failure states in the fusion lab; verify:visual-isolation pinned to exactly three edges with a fourth-edge mutation red; and a new real-Chromium verify:visual-diagnosis-runtime with an observed-red mutation contract. No report, IPC, preload or UI change.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "c8fc0c80",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true,
+    "runner_change": true,
+    "playwright_change": true,
+    "mock_site_required": true
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "runtime",
+      "recorder",
+      "qa",
+      "qc",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "src/runner/visualDiagnosis/**",
+      "src/runner/FlowExecutor.ts",
+      "src/runner/StepExecutor.ts",
+      "src/runner/PlaywrightRunner.ts",
+      "src/runner/ExecutionEngine.ts",
+      "mock-site/public/visual-intelligence-fusion.html",
+      "mock-site/README.md",
+      "scripts/verify-mock-site.mjs",
+      "scripts/verify-visual-isolation.mts",
+      "scripts/verify-visual-diagnosis-runtime.mts",
+      "scripts/lib/verifier-classification.ts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "package.json",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/awkit-vra-14-3-n5-runner-adapter-1019.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [
+      "recorder"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N5.3-ADAPTER",
+      "description": "The adapter is the third and last allowed src/visual edge, loaded only when AWKIT_VISUAL_DIAGNOSIS=on, runs only after the final retry decision, never writes the reference store, never acts on the page, takes at most one guarded frame, releases it on every path, and settles exactly once at the deadline with late work dropped.",
+      "evidence_required": [
+        "verify:visual-diagnosis-runtime",
+        "verify:visual-isolation"
+      ]
+    },
+    {
+      "id": "N5.3-REGRESSION",
+      "description": "Feature off and on leave step results, retries, errors, B2 evidence, the N2/N3/N4 behaviour and the runner suite unchanged.",
+      "evidence_required": [
+        "verify:visual-diagnosis-runtime",
+        "verify:runner",
+        "build"
+      ]
+    },
+    {
+      "id": "N5.3-STATE",
+      "description": "awkit-vra.14.3 is closed, the new verifier is classified, mock-site checks pass, the dashboard reports Sources agree.",
+      "evidence_required": [
+        "verify:mock-site",
+        "verify:verifier-classification",
+        "verify:roadmap-dashboard"
+      ]
+    },
+    {
+      "id": "N5.3-GIT",
+      "description": "The work lands on main and is pushed without force; the L12.27 contract stays untracked and unchanged.",
+      "evidence_required": [
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:visual-diagnosis-runtime",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-diagnosis-runtime",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "49/0 on the final source (0 deadline-cut repeats). Mutations by temporary source edits, each observed red and reverted: R1 every attempt diagnosed 35/48, R2 handedOff ignored 47/48, R3 deadline not raced 46/48, R4 frame not released 47/48, R5 store written 48/49 (first survived, verifier gap closed with a whole-run seeded-files check), R6 cap ignored 47/49."
+    },
+    {
+      "id": "verify:visual-isolation",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-isolation",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "67/0: exactly three edges, fourth-edge mutations (FlowExecutor, PlaywrightRunner) red, diagnosis adapter action and store-write scans with planted mutations red, contract imports types only"
+    },
+    {
+      "id": "verify:runner",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:runner",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "138/0. Also: verify:recorded-visual-fallback 71/0, verify:recovery-provenance 46/0, verify:failure-evidence 35/0, verify:ai-fallback 51/0, verify:visual-diagnosis 82/0. verify:similar-rows-safety: every check passed, then exit 1 on a Windows temp-folder EPERM in its own cleanup (harness/environment). verify:failure-capture-overhead 17/0 with 1 INCONCLUSIVE (L5a Node-CPU interval; N5 off in both arms)."
+    },
+    {
+      "id": "verify:mock-site",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:mock-site",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "317/317 including the new fusion-lab setFailure checks"
+    },
+    {
+      "id": "verify:verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "all 339 verify:/validate: scripts classified (verify:visual-diagnosis-runtime as real-browser, 158 in that class); typecheck:scripts PASS"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "177/177 after the repin to 32 outstanding / 372 closed of 404 and 332 edges; Overview banner reads Sources agree"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "final state: embedded roadmap snapshot 575 records, tsc --noEmit clean, electron-vite build with VisualFailureDiagnosis as its own lazy chunk (14.04 kB). verify:clean-machine-policy 28/0."
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "runs after the commit that carries this contract; its outcome is reported in the session report"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-14-3-n5-runner-adapter-1019:project-state:2026-10-19T07:36:21.209Z",
+        "task": "awkit-vra-14-3-n5-runner-adapter-1019",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-19T07:36:21.209Z",
+        "acquired_at_commit": "c8fc0c804a21a8e5a1feac40c0a262eb9abbfdfc",
+        "released_at": "2026-10-19T07:36:36.107Z",
+        "released_reason": "N5.3 awkit-vra.14.3 closed and beads exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}
