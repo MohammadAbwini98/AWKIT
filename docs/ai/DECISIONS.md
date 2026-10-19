@@ -1,6 +1,23 @@
 # DECISIONS
 
-### 2026-10-19 (latest) — Phase N N5.4: the visualDiagnosis report block as built, within VD-5 (`awkit-vra.14.4`)
+### 2026-10-19 (latest) — Phase N N5.6: VD-10 outcome and the `viewport-uniform` pruning (`awkit-vra.14.6`)
+
+- **Outcome.** `benchmark:visual-diagnosis` ran nine cells, none BLOCKED. The pre-agreed VD-10 criterion:
+  - MET for `target-identical-to-reference`, `other-examined-identical`, the four geometry codes, scope, refusals,
+    passing runs and record structure;
+  - MET for cost: p95 947 ms within the 1000 ms deadline;
+  - NOT MET for `viewport-uniform`, which was missed on the blank fixture in all three headed cells but never reported
+    falsely.
+- **Pruned at exposure, not at write.** `VISUAL_DIAGNOSIS_PRUNED_CODES` and `exposedVisualDiagnosisObservations` in the
+  zero-import record module turn a pruned code into `inconclusive` for anything that shows a diagnosis. Stored records
+  keep the raw code, so a later calibration can restore it without a schema change. N5.5 must show codes only through
+  this helper.
+- **Accepted gap.** Ten over-cap (40-element) diagnoses at DPR 1.25 and 2 were cut by the deadline and answered
+  `budget-exhausted`, so `truncated` was confirmed in the 8 of 18 over-cap runs that finished. The deadline stays at
+  1000 ms (VD-8); a cut run claims nothing. Batching the member probes is a possible follow-up, not a prerequisite.
+- **Calibration does not move N5 to report-only.** Identity and geometry codes are calibrated, so N5.5 proceeds.
+
+### 2026-10-19 — Phase N N5.4: the visualDiagnosis report block as built, within VD-5 (`awkit-vra.14.4`)
 
 - **Placement (a deviation from the plan's `InstanceReport.diagnostics.visualDiagnosis` wording).** The block is
   `InstanceReport.visualDiagnosis?`, beside the L5a `diagnostics` rather than inside them. `InstanceDiagnostics`

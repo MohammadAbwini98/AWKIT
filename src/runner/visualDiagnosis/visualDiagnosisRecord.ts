@@ -45,6 +45,24 @@ export const VISUAL_DIAGNOSIS_RECORD_KEYS: readonly (keyof VisualDiagnosisRecord
   "ms"
 ];
 
+/**
+ * N5.6 (VD-10): codes whose pre-agreed calibration criterion was NOT MET (benchmark:visual-diagnosis, 2026-10-19). A
+ * stored record keeps the raw code so it can be recalibrated later; anything that SHOWS a diagnosis (N5.5) must go
+ * through `exposedVisualDiagnosisObservations`, which turns a pruned code into `inconclusive`.
+ * `viewport-uniform`: never reported falsely, but missed on the blank fixture in all three headed cells.
+ */
+export const VISUAL_DIAGNOSIS_PRUNED_CODES: ReadonlySet<string> = new Set(["viewport-uniform"]);
+
+/** The observations a viewer may see: pruned codes become `inconclusive`, once, in their first position. */
+export function exposedVisualDiagnosisObservations(record: Pick<VisualDiagnosisRecord, "observations">): string[] {
+  const shown: string[] = [];
+  for (const code of record.observations) {
+    const visible = VISUAL_DIAGNOSIS_PRUNED_CODES.has(code) ? "inconclusive" : code;
+    if (!shown.includes(visible)) shown.push(visible);
+  }
+  return shown;
+}
+
 /** A fixed code: lower-case, digits and hyphens, at most 40 characters (the recovery-provenance pattern). */
 const CODE = /^[a-z][a-z0-9-]{0,39}$/;
 /** A flow step id: an identifier, never free text. */

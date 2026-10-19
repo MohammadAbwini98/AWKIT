@@ -751,8 +751,9 @@ try {
   // `awkit-vra.14.2` closed through bd; the epic `.14` is in progress.
   // Then 32/372 of 404 on 2026-10-19 (contract `awkit-vra-14-3-n5-runner-adapter-1019`): N5.3 `awkit-vra.14.3` closed.
   // Then 31/373 of 404 on 2026-10-19 (contract `awkit-vra-14-4-n5-report-record-1019`): N5.4 `awkit-vra.14.4` closed.
-    "31 outstanding / 373 closed",
-    beads.stats.outstanding === 31 && beads.stats.closed === 373,
+  // Then 30/374 of 404 on 2026-10-19 (contract `awkit-vra-14-6-n5-calibration-1019`): N5.6 `awkit-vra.14.6` closed.
+    "30 outstanding / 374 closed",
+    beads.stats.outstanding === 30 && beads.stats.closed === 374,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

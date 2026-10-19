@@ -1,6 +1,29 @@
 # CURRENT_STATE
 
-## Phase N: N5.4 codes-only visualDiagnosis report block done (2026-10-19, latest)
+## Phase N: N5.6 visual-diagnosis calibration done (2026-10-19, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed.
+
+- **N5.6 `awkit-vra.14.6` closed** (contract `awkit-vra-14-6-n5-calibration-1019`). New informational
+  `npm run benchmark:visual-diagnosis` (never a release gate). It covered nine cells (headed and headless at DPR 1,
+  1.25 and 2, plus a headed reference replayed headless), none BLOCKED. Evidence:
+  `docs/plans/ai-upgrade-v5/evidence/N5.6-visual-diagnosis-calibration.json`.
+- **VD-10 per code:**
+  - every identity, geometry, scope, refusal, passing and structure check MET;
+  - cost MET: median 383 ms, p95 947 ms, 10 over-cap runs cut by the 1000 ms deadline;
+  - `viewport-uniform` NOT MET in the headed cells.
+- **Pruning:** `viewport-uniform` becomes `inconclusive` through `exposedVisualDiagnosisObservations` in
+  `visualDiagnosisRecord.ts`; stored records keep the raw code (DECISIONS 2026-10-19).
+- **Recall (informational):** single-target identity 27/27, including headed-to-headless; group identity 30/36.
+- **Gates:** `verify:visual-diagnosis-report` 63/0 (pruning checks plus one mutation red), `verify:visual-isolation`
+  71/0, `typecheck:scripts` and `npm run build` PASS.
+- **Unchanged:** no runner, IPC, preload or UI change; B2 defect `awkit-4b5y` open.
+- **Next:** N5.5 `awkit-vra.14.5`, the drawer section, through `sanitizeVisualDiagnosisRecords` on read and
+  `exposedVisualDiagnosisObservations` for display.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## Phase N: N5.4 codes-only visualDiagnosis report block done (2026-10-19)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed.

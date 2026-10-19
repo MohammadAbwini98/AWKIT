@@ -1,5 +1,31 @@
 # TASK_LOG
 
+## 2026-10-19 — Phase N: N5.6 visual-diagnosis calibration and the VD-10 per-code criterion (Claude)
+
+- **Scope:** "Proceed with N5.6". Contract `awkit-vra-14-6-n5-calibration-1019`, Risk 1. CodeCraft: not used
+  (`CODECRAFT_MODE=off` default).
+- **Built:**
+  - the informational `benchmark:visual-diagnosis` (`scripts/benchmark-visual-diagnosis.mts`, port 4598). It runs the
+    real adapter through the real executors over the fusion-lab identity, geometry, scope, refusal and passing cases
+    in nine cells, and writes the evidence JSON;
+  - `VISUAL_DIAGNOSIS_PRUNED_CODES` and `exposedVisualDiagnosisObservations` in `visualDiagnosisRecord.ts`;
+  - Part 1b pruning checks and one mutation in `verify:visual-diagnosis-report`.
+- **Result of the calibration:** VD-10 MET for every code except `viewport-uniform` (missed on the blank fixture,
+  headed only), which is pruned. Cost p95 947 ms; 10 over-cap runs cut. Recall: single 27/27, group 30/36.
+- **Files:** `scripts/benchmark-visual-diagnosis.mts`, `package.json`,
+  `src/runner/visualDiagnosis/visualDiagnosisRecord.ts`,
+  `scripts/{verify-visual-diagnosis-report.mts,verify-roadmap-dashboard.mjs}`, `src/roadmap/ImplementationRoadmap.ts`,
+  `.beads/issues.jsonl`, `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,DECISIONS}.md`,
+  `docs/plans/ai-upgrade-v5/{N5-visual-failure-diagnosis,ROADMAP}.md`,
+  `docs/plans/ai-upgrade-v5/evidence/N5.6-visual-diagnosis-calibration.json`, the contract, `active-lease.json`.
+- **Checks (ARM64 machine, x64 Node emulated):**
+  - benchmark:visual-diagnosis ran, informational (VD-10 NOT MET on `viewport-uniform` only);
+  - visual-diagnosis-report 63/0;
+  - visual-isolation 71/0;
+  - typecheck:scripts PASS;
+  - build and roadmap dashboard: in the contract.
+- **Result:** N5.6 closed; N5.5 next. `docs/ai/contracts/awkit-l12-27-implementation-1006.json` preserved.
+
 ## 2026-10-19 — Phase N: N5.4 codes-only visualDiagnosis report block and sanitizer (Claude)
 
 - **Scope:** "Proceed with N5.4". Contract `awkit-vra-14-4-n5-report-record-1019`, Risk 2 (persisted shape).

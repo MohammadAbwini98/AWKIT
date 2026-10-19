@@ -35,7 +35,9 @@ import { ReportExportService } from "@src/reports/ReportExportService";
 import { ExecutionEngine } from "@src/runner/ExecutionEngine";
 import {
   VISUAL_DIAGNOSIS_MAX_RECORDS,
+  VISUAL_DIAGNOSIS_PRUNED_CODES,
   VISUAL_DIAGNOSIS_RECORD_KEYS,
+  exposedVisualDiagnosisObservations,
   sanitizeVisualDiagnosisRecords,
   type VisualDiagnosisRecord
 } from "@src/runner/visualDiagnosis/visualDiagnosisRecord";
@@ -308,6 +310,19 @@ const mutants: Array<[string, Outcome[], string]> = [
 for (const [name, outcomes, mustFail] of mutants) {
   const failing = outcomes.filter((o) => !o.ok).map((o) => o.label);
   check(`MUTATION: ${name} fails the suite (${failing.length} checks, including "${mustFail}")`, failing.some((label) => label.startsWith(mustFail)), failing.join("; ") || "nothing failed");
+}
+
+console.log("\nPart 1b. N5.6 pruning at exposure");
+{
+  const pruneSuite = (expose: (r: Pick<VisualDiagnosisRecord, "observations">) => string[]): Outcome[] => [
+    { label: "viewport-uniform is pruned (benchmark:visual-diagnosis NOT MET in headed cells)", ok: VISUAL_DIAGNOSIS_PRUNED_CODES.has("viewport-uniform") && VISUAL_DIAGNOSIS_PRUNED_CODES.size === 1 },
+    { label: "a pruned code is shown as inconclusive", ok: JSON.stringify(expose({ observations: ["reference-unavailable", "target-not-in-dom", "viewport-uniform"] })) === JSON.stringify(["reference-unavailable", "target-not-in-dom", "inconclusive"]) },
+    { label: "inconclusive is shown once when both appear", ok: JSON.stringify(expose({ observations: ["viewport-uniform", "inconclusive"] })) === JSON.stringify(["inconclusive"]) },
+    { label: "calibrated codes are shown unchanged", ok: JSON.stringify(expose({ observations: ["conditions-unproven", "target-identical-to-reference", "target-occluded"] })) === JSON.stringify(["conditions-unproven", "target-identical-to-reference", "target-occluded"]) }
+  ];
+  for (const outcome of pruneSuite(exposedVisualDiagnosisObservations)) check(outcome.label, outcome.ok);
+  const unpruned = pruneSuite((r) => [...r.observations]).filter((o) => !o.ok).map((o) => o.label);
+  check("MUTATION: exposure without pruning fails the pruning checks", unpruned.some((label) => label.startsWith("a pruned code is shown")), unpruned.join("; ") || "nothing failed");
 }
 
 console.log("\nPart 2. The real report, flag off and on");

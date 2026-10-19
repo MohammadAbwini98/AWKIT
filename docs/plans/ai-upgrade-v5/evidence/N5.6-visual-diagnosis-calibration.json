@@ -1,0 +1,4756 @@
+{
+  "benchmark": "benchmark:visual-diagnosis",
+  "task": "awkit-vra.14.6",
+  "informational": true,
+  "host": {
+    "platform": "win32",
+    "arch": "x64",
+    "cpus": 6,
+    "node": "v24.20.0",
+    "chromium": "chromium-1228"
+  },
+  "deadlineMs": 1000,
+  "cells": [
+    "headed DPR 1",
+    "headless DPR 1",
+    "headed DPR 1.25",
+    "headless DPR 1.25",
+    "headed DPR 2",
+    "headless DPR 2",
+    "headed ref -> headless DPR 1",
+    "headed ref -> headless DPR 1.25",
+    "headed ref -> headless DPR 2"
+  ],
+  "blocked": [],
+  "cases": [
+    {
+      "cell": "headed DPR 1",
+      "case": "identity baseline single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-identical-to-reference"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 387,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1",
+      "case": "identity baseline group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "1",
+      "frames": 1,
+      "ms": 270,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1",
+      "case": "identity drift single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-identical-to-reference"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 181,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1",
+      "case": "identity drift group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "1",
+      "frames": 1,
+      "ms": 243,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1",
+      "case": "identity restyle-selected single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 184,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1",
+      "case": "identity restyle-selected group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 232,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1",
+      "case": "identity restyle-pressed single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 168,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1",
+      "case": "identity restyle-pressed group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 241,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1",
+      "case": "identity swap single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 186,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1",
+      "case": "identity swap group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "1",
+      "frames": 1,
+      "ms": 244,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1",
+      "case": "identity twins single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-identical-to-reference"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 182,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1",
+      "case": "identity twins group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "2+",
+      "frames": 1,
+      "ms": 227,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1",
+      "case": "identity theme-dark single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 162,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1",
+      "case": "identity theme-dark group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 236,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1",
+      "case": "identity theme-contrast single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 166,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1",
+      "case": "identity theme-contrast group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 383,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1",
+      "case": "geometry detach",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-not-in-dom"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 1,
+      "ms": 258,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1",
+      "case": "geometry overlay",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-occluded"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 345,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1",
+      "case": "geometry zero",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-zero-size"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 283,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1",
+      "case": "geometry offscreen",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-offscreen"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 261,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1",
+      "case": "geometry blank",
+      "family": "geometry",
+      "observations": [
+        "target-not-in-dom"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 1,
+      "ms": 252,
+      "cut": false,
+      "problems": [
+        "missing viewport-uniform"
+      ]
+    },
+    {
+      "cell": "headed DPR 1",
+      "case": "geometry busy",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 291,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1",
+      "case": "scope over-cap, reference past the cap",
+      "family": "scope",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 32,
+      "domNamed": 40,
+      "truncated": true,
+      "frames": 1,
+      "ms": 915,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1",
+      "case": "scope over-cap, reference inside the cap",
+      "family": "scope",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 32,
+      "domNamed": 40,
+      "truncated": true,
+      "identicalOthers": "2+",
+      "frames": 1,
+      "ms": 930,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1",
+      "case": "scope omitted contender",
+      "family": "scope",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 301,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1",
+      "case": "refusal protected surface",
+      "family": "refusal",
+      "observations": [
+        "protected-surface"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 0,
+      "ms": 77,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1",
+      "case": "refusal handed off",
+      "family": "refusal",
+      "observations": [
+        "protected-surface"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 0,
+      "ms": 1,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1",
+      "case": "refusal sensitive field",
+      "family": "refusal",
+      "observations": [
+        "sensitive"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 0,
+      "ms": 27,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1",
+      "case": "passing click",
+      "family": "passing",
+      "observations": [],
+      "frames": 0,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1",
+      "case": "identity baseline single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-identical-to-reference"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 280,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1",
+      "case": "identity baseline group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "1",
+      "frames": 1,
+      "ms": 333,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1",
+      "case": "identity drift single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-identical-to-reference"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 307,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1",
+      "case": "identity drift group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "1",
+      "frames": 1,
+      "ms": 317,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1",
+      "case": "identity restyle-selected single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 237,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1",
+      "case": "identity restyle-selected group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 311,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1",
+      "case": "identity restyle-pressed single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 242,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1",
+      "case": "identity restyle-pressed group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 302,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1",
+      "case": "identity swap single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 242,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1",
+      "case": "identity swap group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "1",
+      "frames": 1,
+      "ms": 314,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1",
+      "case": "identity twins single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-identical-to-reference"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 245,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1",
+      "case": "identity twins group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "2+",
+      "frames": 1,
+      "ms": 320,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1",
+      "case": "identity theme-dark single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 242,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1",
+      "case": "identity theme-dark group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 297,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1",
+      "case": "identity theme-contrast single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 242,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1",
+      "case": "identity theme-contrast group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 307,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1",
+      "case": "geometry detach",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-not-in-dom"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 1,
+      "ms": 219,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1",
+      "case": "geometry overlay",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-occluded"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 297,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1",
+      "case": "geometry zero",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-zero-size"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 245,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1",
+      "case": "geometry offscreen",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-offscreen"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 207,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1",
+      "case": "geometry blank",
+      "family": "geometry",
+      "observations": [
+        "target-not-in-dom",
+        "viewport-uniform"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 1,
+      "ms": 204,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1",
+      "case": "geometry busy",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 245,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1",
+      "case": "scope over-cap, reference past the cap",
+      "family": "scope",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 32,
+      "domNamed": 40,
+      "truncated": true,
+      "frames": 1,
+      "ms": 884,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1",
+      "case": "scope over-cap, reference inside the cap",
+      "family": "scope",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 32,
+      "domNamed": 40,
+      "truncated": true,
+      "identicalOthers": "2+",
+      "frames": 1,
+      "ms": 866,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1",
+      "case": "scope omitted contender",
+      "family": "scope",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 229,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1",
+      "case": "refusal protected surface",
+      "family": "refusal",
+      "observations": [
+        "protected-surface"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 0,
+      "ms": 56,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1",
+      "case": "refusal handed off",
+      "family": "refusal",
+      "observations": [
+        "protected-surface"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 0,
+      "ms": 0,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1",
+      "case": "refusal sensitive field",
+      "family": "refusal",
+      "observations": [
+        "sensitive"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 0,
+      "ms": 21,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1",
+      "case": "passing click",
+      "family": "passing",
+      "observations": [],
+      "frames": 0,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1.25",
+      "case": "identity baseline single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-identical-to-reference"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 371,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1.25",
+      "case": "identity baseline group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "1",
+      "frames": 1,
+      "ms": 421,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1.25",
+      "case": "identity drift single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-identical-to-reference"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 371,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1.25",
+      "case": "identity drift group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "1",
+      "frames": 1,
+      "ms": 421,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1.25",
+      "case": "identity restyle-selected single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 367,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1.25",
+      "case": "identity restyle-selected group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 434,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1.25",
+      "case": "identity restyle-pressed single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 343,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1.25",
+      "case": "identity restyle-pressed group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 415,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1.25",
+      "case": "identity swap single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 356,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1.25",
+      "case": "identity swap group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 420,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1.25",
+      "case": "identity twins single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-identical-to-reference"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 342,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1.25",
+      "case": "identity twins group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "2+",
+      "frames": 1,
+      "ms": 507,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1.25",
+      "case": "identity theme-dark single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 375,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1.25",
+      "case": "identity theme-dark group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 435,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1.25",
+      "case": "identity theme-contrast single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 364,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1.25",
+      "case": "identity theme-contrast group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 425,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1.25",
+      "case": "geometry detach",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-not-in-dom"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 1,
+      "ms": 318,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1.25",
+      "case": "geometry overlay",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-occluded"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 365,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1.25",
+      "case": "geometry zero",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-zero-size"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 347,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1.25",
+      "case": "geometry offscreen",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-offscreen"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 323,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1.25",
+      "case": "geometry blank",
+      "family": "geometry",
+      "observations": [
+        "target-not-in-dom"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 1,
+      "ms": 307,
+      "cut": false,
+      "problems": [
+        "missing viewport-uniform"
+      ]
+    },
+    {
+      "cell": "headed DPR 1.25",
+      "case": "geometry busy",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 336,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1.25",
+      "case": "scope over-cap, reference past the cap",
+      "family": "scope",
+      "observations": [
+        "budget-exhausted"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 1,
+      "ms": 1000,
+      "cut": true,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1.25",
+      "case": "scope over-cap, reference inside the cap",
+      "family": "scope",
+      "observations": [
+        "budget-exhausted"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 1,
+      "ms": 1000,
+      "cut": true,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1.25",
+      "case": "scope omitted contender",
+      "family": "scope",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 361,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1.25",
+      "case": "refusal protected surface",
+      "family": "refusal",
+      "observations": [
+        "protected-surface"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 0,
+      "ms": 66,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1.25",
+      "case": "refusal handed off",
+      "family": "refusal",
+      "observations": [
+        "protected-surface"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 0,
+      "ms": 0,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1.25",
+      "case": "refusal sensitive field",
+      "family": "refusal",
+      "observations": [
+        "sensitive"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 0,
+      "ms": 24,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 1.25",
+      "case": "passing click",
+      "family": "passing",
+      "observations": [],
+      "frames": 0,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1.25",
+      "case": "identity baseline single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-identical-to-reference"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 341,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1.25",
+      "case": "identity baseline group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "1",
+      "frames": 1,
+      "ms": 400,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1.25",
+      "case": "identity drift single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-identical-to-reference"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 317,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1.25",
+      "case": "identity drift group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "1",
+      "frames": 1,
+      "ms": 400,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1.25",
+      "case": "identity restyle-selected single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 326,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1.25",
+      "case": "identity restyle-selected group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 401,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1.25",
+      "case": "identity restyle-pressed single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 330,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1.25",
+      "case": "identity restyle-pressed group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 387,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1.25",
+      "case": "identity swap single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 322,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1.25",
+      "case": "identity swap group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 403,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1.25",
+      "case": "identity twins single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-identical-to-reference"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 324,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1.25",
+      "case": "identity twins group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "2+",
+      "frames": 1,
+      "ms": 400,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1.25",
+      "case": "identity theme-dark single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 325,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1.25",
+      "case": "identity theme-dark group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 394,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1.25",
+      "case": "identity theme-contrast single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 323,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1.25",
+      "case": "identity theme-contrast group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 397,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1.25",
+      "case": "geometry detach",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-not-in-dom"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 1,
+      "ms": 306,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1.25",
+      "case": "geometry overlay",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-occluded"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 379,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1.25",
+      "case": "geometry zero",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-zero-size"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 365,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1.25",
+      "case": "geometry offscreen",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-offscreen"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 295,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1.25",
+      "case": "geometry blank",
+      "family": "geometry",
+      "observations": [
+        "target-not-in-dom",
+        "viewport-uniform"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 1,
+      "ms": 309,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1.25",
+      "case": "geometry busy",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 340,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1.25",
+      "case": "scope over-cap, reference past the cap",
+      "family": "scope",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 32,
+      "domNamed": 40,
+      "truncated": true,
+      "frames": 1,
+      "ms": 990,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1.25",
+      "case": "scope over-cap, reference inside the cap",
+      "family": "scope",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 32,
+      "domNamed": 40,
+      "truncated": true,
+      "identicalOthers": "1",
+      "frames": 1,
+      "ms": 988,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1.25",
+      "case": "scope omitted contender",
+      "family": "scope",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 322,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1.25",
+      "case": "refusal protected surface",
+      "family": "refusal",
+      "observations": [
+        "protected-surface"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 0,
+      "ms": 56,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1.25",
+      "case": "refusal handed off",
+      "family": "refusal",
+      "observations": [
+        "protected-surface"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 0,
+      "ms": 0,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1.25",
+      "case": "refusal sensitive field",
+      "family": "refusal",
+      "observations": [
+        "sensitive"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 0,
+      "ms": 21,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 1.25",
+      "case": "passing click",
+      "family": "passing",
+      "observations": [],
+      "frames": 0,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 2",
+      "case": "identity baseline single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-identical-to-reference"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 729,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 2",
+      "case": "identity baseline group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "1",
+      "frames": 1,
+      "ms": 778,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 2",
+      "case": "identity drift single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-identical-to-reference"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 690,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 2",
+      "case": "identity drift group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "1",
+      "frames": 1,
+      "ms": 783,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 2",
+      "case": "identity restyle-selected single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 709,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 2",
+      "case": "identity restyle-selected group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 759,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 2",
+      "case": "identity restyle-pressed single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 808,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 2",
+      "case": "identity restyle-pressed group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 774,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 2",
+      "case": "identity swap single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 695,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 2",
+      "case": "identity swap group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 779,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 2",
+      "case": "identity twins single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-identical-to-reference"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 675,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 2",
+      "case": "identity twins group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "1",
+      "frames": 1,
+      "ms": 772,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 2",
+      "case": "identity theme-dark single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 694,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 2",
+      "case": "identity theme-dark group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 762,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 2",
+      "case": "identity theme-contrast single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 799,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 2",
+      "case": "identity theme-contrast group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 800,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 2",
+      "case": "geometry detach",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-not-in-dom"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 1,
+      "ms": 627,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 2",
+      "case": "geometry overlay",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-occluded"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 713,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 2",
+      "case": "geometry zero",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-zero-size"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 668,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 2",
+      "case": "geometry offscreen",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-offscreen"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 650,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 2",
+      "case": "geometry blank",
+      "family": "geometry",
+      "observations": [
+        "target-not-in-dom"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 1,
+      "ms": 644,
+      "cut": false,
+      "problems": [
+        "missing viewport-uniform"
+      ]
+    },
+    {
+      "cell": "headed DPR 2",
+      "case": "geometry busy",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 679,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 2",
+      "case": "scope over-cap, reference past the cap",
+      "family": "scope",
+      "observations": [
+        "budget-exhausted"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 1,
+      "ms": 1213,
+      "cut": true,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 2",
+      "case": "scope over-cap, reference inside the cap",
+      "family": "scope",
+      "observations": [
+        "budget-exhausted"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 1,
+      "ms": 1294,
+      "cut": true,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 2",
+      "case": "scope omitted contender",
+      "family": "scope",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 695,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 2",
+      "case": "refusal protected surface",
+      "family": "refusal",
+      "observations": [
+        "protected-surface"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 0,
+      "ms": 82,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 2",
+      "case": "refusal handed off",
+      "family": "refusal",
+      "observations": [
+        "protected-surface"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 0,
+      "ms": 0,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 2",
+      "case": "refusal sensitive field",
+      "family": "refusal",
+      "observations": [
+        "sensitive"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 0,
+      "ms": 24,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed DPR 2",
+      "case": "passing click",
+      "family": "passing",
+      "observations": [],
+      "frames": 0,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 2",
+      "case": "identity baseline single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-identical-to-reference"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 698,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 2",
+      "case": "identity baseline group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "1",
+      "frames": 1,
+      "ms": 758,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 2",
+      "case": "identity drift single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-identical-to-reference"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 691,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 2",
+      "case": "identity drift group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "1",
+      "frames": 1,
+      "ms": 774,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 2",
+      "case": "identity restyle-selected single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 671,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 2",
+      "case": "identity restyle-selected group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 771,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 2",
+      "case": "identity restyle-pressed single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 680,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 2",
+      "case": "identity restyle-pressed group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 767,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 2",
+      "case": "identity swap single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 754,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 2",
+      "case": "identity swap group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 763,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 2",
+      "case": "identity twins single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-identical-to-reference"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 688,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 2",
+      "case": "identity twins group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "1",
+      "frames": 1,
+      "ms": 775,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 2",
+      "case": "identity theme-dark single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 685,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 2",
+      "case": "identity theme-dark group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 764,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 2",
+      "case": "identity theme-contrast single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 671,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 2",
+      "case": "identity theme-contrast group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 760,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 2",
+      "case": "geometry detach",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-not-in-dom"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 1,
+      "ms": 721,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 2",
+      "case": "geometry overlay",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-occluded"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 740,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 2",
+      "case": "geometry zero",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-zero-size"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 682,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 2",
+      "case": "geometry offscreen",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-offscreen"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 641,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 2",
+      "case": "geometry blank",
+      "family": "geometry",
+      "observations": [
+        "target-not-in-dom",
+        "viewport-uniform"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 1,
+      "ms": 647,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 2",
+      "case": "geometry busy",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 669,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 2",
+      "case": "scope over-cap, reference past the cap",
+      "family": "scope",
+      "observations": [
+        "budget-exhausted"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 1,
+      "ms": 1197,
+      "cut": true,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 2",
+      "case": "scope over-cap, reference inside the cap",
+      "family": "scope",
+      "observations": [
+        "budget-exhausted"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 1,
+      "ms": 1191,
+      "cut": true,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 2",
+      "case": "scope omitted contender",
+      "family": "scope",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 699,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 2",
+      "case": "refusal protected surface",
+      "family": "refusal",
+      "observations": [
+        "protected-surface"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 0,
+      "ms": 56,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 2",
+      "case": "refusal handed off",
+      "family": "refusal",
+      "observations": [
+        "protected-surface"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 0,
+      "ms": 0,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 2",
+      "case": "refusal sensitive field",
+      "family": "refusal",
+      "observations": [
+        "sensitive"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 0,
+      "ms": 22,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headless DPR 2",
+      "case": "passing click",
+      "family": "passing",
+      "observations": [],
+      "frames": 0,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1",
+      "case": "identity baseline single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-identical-to-reference"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 244,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1",
+      "case": "identity baseline group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "1",
+      "frames": 1,
+      "ms": 307,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1",
+      "case": "identity drift single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-identical-to-reference"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 245,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1",
+      "case": "identity drift group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "1",
+      "frames": 1,
+      "ms": 316,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1",
+      "case": "identity restyle-selected single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 242,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1",
+      "case": "identity restyle-selected group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 554,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1",
+      "case": "identity restyle-pressed single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 251,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1",
+      "case": "identity restyle-pressed group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 313,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1",
+      "case": "identity swap single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 261,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1",
+      "case": "identity swap group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "1",
+      "frames": 1,
+      "ms": 296,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1",
+      "case": "identity twins single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-identical-to-reference"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 273,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1",
+      "case": "identity twins group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "2+",
+      "frames": 1,
+      "ms": 380,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1",
+      "case": "identity theme-dark single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 238,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1",
+      "case": "identity theme-dark group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 312,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1",
+      "case": "identity theme-contrast single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 240,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1",
+      "case": "identity theme-contrast group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 308,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1",
+      "case": "geometry detach",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-not-in-dom"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 1,
+      "ms": 208,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1",
+      "case": "geometry overlay",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-occluded"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 283,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1",
+      "case": "geometry zero",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-zero-size"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 243,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1",
+      "case": "geometry offscreen",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-offscreen"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 213,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1",
+      "case": "geometry blank",
+      "family": "geometry",
+      "observations": [
+        "target-not-in-dom",
+        "viewport-uniform"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 1,
+      "ms": 209,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1",
+      "case": "geometry busy",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 251,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1",
+      "case": "scope over-cap, reference past the cap",
+      "family": "scope",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 32,
+      "domNamed": 40,
+      "truncated": true,
+      "frames": 1,
+      "ms": 890,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1",
+      "case": "scope over-cap, reference inside the cap",
+      "family": "scope",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 32,
+      "domNamed": 40,
+      "truncated": true,
+      "identicalOthers": "2+",
+      "frames": 1,
+      "ms": 907,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1",
+      "case": "scope omitted contender",
+      "family": "scope",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 237,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1",
+      "case": "refusal protected surface",
+      "family": "refusal",
+      "observations": [
+        "protected-surface"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 0,
+      "ms": 60,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1",
+      "case": "refusal handed off",
+      "family": "refusal",
+      "observations": [
+        "protected-surface"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 0,
+      "ms": 0,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1",
+      "case": "refusal sensitive field",
+      "family": "refusal",
+      "observations": [
+        "sensitive"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 0,
+      "ms": 22,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1",
+      "case": "passing click",
+      "family": "passing",
+      "observations": [],
+      "frames": 0,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1.25",
+      "case": "identity baseline single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-identical-to-reference"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 361,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1.25",
+      "case": "identity baseline group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "1",
+      "frames": 1,
+      "ms": 409,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1.25",
+      "case": "identity drift single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-identical-to-reference"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 326,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1.25",
+      "case": "identity drift group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "1",
+      "frames": 1,
+      "ms": 386,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1.25",
+      "case": "identity restyle-selected single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 329,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1.25",
+      "case": "identity restyle-selected group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 409,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1.25",
+      "case": "identity restyle-pressed single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 327,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1.25",
+      "case": "identity restyle-pressed group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 423,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1.25",
+      "case": "identity swap single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 344,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1.25",
+      "case": "identity swap group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 441,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1.25",
+      "case": "identity twins single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-identical-to-reference"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 363,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1.25",
+      "case": "identity twins group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "2+",
+      "frames": 1,
+      "ms": 395,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1.25",
+      "case": "identity theme-dark single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 354,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1.25",
+      "case": "identity theme-dark group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 421,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1.25",
+      "case": "identity theme-contrast single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 327,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1.25",
+      "case": "identity theme-contrast group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 407,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1.25",
+      "case": "geometry detach",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-not-in-dom"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 1,
+      "ms": 316,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1.25",
+      "case": "geometry overlay",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-occluded"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 375,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1.25",
+      "case": "geometry zero",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-zero-size"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 382,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1.25",
+      "case": "geometry offscreen",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-offscreen"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 305,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1.25",
+      "case": "geometry blank",
+      "family": "geometry",
+      "observations": [
+        "target-not-in-dom",
+        "viewport-uniform"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 1,
+      "ms": 295,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1.25",
+      "case": "geometry busy",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 326,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1.25",
+      "case": "scope over-cap, reference past the cap",
+      "family": "scope",
+      "observations": [
+        "budget-exhausted"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 1,
+      "ms": 1000,
+      "cut": true,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1.25",
+      "case": "scope over-cap, reference inside the cap",
+      "family": "scope",
+      "observations": [
+        "budget-exhausted"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 1,
+      "ms": 1000,
+      "cut": true,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1.25",
+      "case": "scope omitted contender",
+      "family": "scope",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 327,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1.25",
+      "case": "refusal protected surface",
+      "family": "refusal",
+      "observations": [
+        "protected-surface"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 0,
+      "ms": 59,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1.25",
+      "case": "refusal handed off",
+      "family": "refusal",
+      "observations": [
+        "protected-surface"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 0,
+      "ms": 0,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1.25",
+      "case": "refusal sensitive field",
+      "family": "refusal",
+      "observations": [
+        "sensitive"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 0,
+      "ms": 24,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 1.25",
+      "case": "passing click",
+      "family": "passing",
+      "observations": [],
+      "frames": 0,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 2",
+      "case": "identity baseline single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-identical-to-reference"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 711,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 2",
+      "case": "identity baseline group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "1",
+      "frames": 1,
+      "ms": 759,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 2",
+      "case": "identity drift single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-identical-to-reference"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 710,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 2",
+      "case": "identity drift group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "1",
+      "frames": 1,
+      "ms": 737,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 2",
+      "case": "identity restyle-selected single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 686,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 2",
+      "case": "identity restyle-selected group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 768,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 2",
+      "case": "identity restyle-pressed single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 711,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 2",
+      "case": "identity restyle-pressed group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 766,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 2",
+      "case": "identity swap single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 670,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 2",
+      "case": "identity swap group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 763,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 2",
+      "case": "identity twins single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-identical-to-reference"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 672,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 2",
+      "case": "identity twins group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "other-examined-identical"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "identicalOthers": "1",
+      "frames": 1,
+      "ms": 773,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 2",
+      "case": "identity theme-dark single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 670,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 2",
+      "case": "identity theme-dark group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 776,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 2",
+      "case": "identity theme-contrast single",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 688,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 2",
+      "case": "identity theme-contrast group",
+      "family": "identity",
+      "observations": [
+        "conditions-unproven",
+        "target-multiple-matches",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 4,
+      "domNamed": 4,
+      "truncated": false,
+      "frames": 1,
+      "ms": 774,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 2",
+      "case": "geometry detach",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-not-in-dom"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 1,
+      "ms": 692,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 2",
+      "case": "geometry overlay",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-occluded"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 777,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 2",
+      "case": "geometry zero",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-zero-size"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 696,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 2",
+      "case": "geometry offscreen",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable",
+        "target-offscreen"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 640,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 2",
+      "case": "geometry blank",
+      "family": "geometry",
+      "observations": [
+        "target-not-in-dom",
+        "viewport-uniform"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 1,
+      "ms": 633,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 2",
+      "case": "geometry busy",
+      "family": "geometry",
+      "observations": [
+        "reference-unavailable"
+      ],
+      "outcome": "observed",
+      "conditions": "none",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 947,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 2",
+      "case": "scope over-cap, reference past the cap",
+      "family": "scope",
+      "observations": [
+        "budget-exhausted"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 0,
+      "ms": 1001,
+      "cut": true,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 2",
+      "case": "scope over-cap, reference inside the cap",
+      "family": "scope",
+      "observations": [
+        "budget-exhausted"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 1,
+      "ms": 1214,
+      "cut": true,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 2",
+      "case": "scope omitted contender",
+      "family": "scope",
+      "observations": [
+        "conditions-unproven",
+        "inconclusive"
+      ],
+      "outcome": "observed",
+      "conditions": "unproven",
+      "examined": 1,
+      "domNamed": 1,
+      "truncated": false,
+      "frames": 1,
+      "ms": 706,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 2",
+      "case": "refusal protected surface",
+      "family": "refusal",
+      "observations": [
+        "protected-surface"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 0,
+      "ms": 58,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 2",
+      "case": "refusal handed off",
+      "family": "refusal",
+      "observations": [
+        "protected-surface"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 0,
+      "ms": 0,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 2",
+      "case": "refusal sensitive field",
+      "family": "refusal",
+      "observations": [
+        "sensitive"
+      ],
+      "outcome": "refused",
+      "conditions": "none",
+      "examined": 0,
+      "domNamed": 0,
+      "truncated": false,
+      "frames": 0,
+      "ms": 22,
+      "cut": false,
+      "problems": []
+    },
+    {
+      "cell": "headed ref -> headless DPR 2",
+      "case": "passing click",
+      "family": "passing",
+      "observations": [],
+      "frames": 0,
+      "cut": false,
+      "problems": []
+    }
+  ],
+  "criterion": {
+    "perCode": {
+      "target-identical-to-reference": "MET",
+      "other-examined-identical": "MET",
+      "target-not-in-dom": "MET",
+      "target-occluded": "MET",
+      "target-zero-size": "MET",
+      "target-offscreen": "MET",
+      "viewport-uniform": "NOT MET",
+      "scope": "MET",
+      "refusals": "MET",
+      "passing": "MET",
+      "structure": "MET"
+    },
+    "cost": {
+      "n": 224,
+      "median": 383,
+      "p95": 947,
+      "max": 1294,
+      "cut": 10,
+      "deadlineMs": 1000,
+      "met": true
+    },
+    "failures": {
+      "viewport-uniform": [
+        "headed DPR 1: geometry blank: missing viewport-uniform",
+        "headed DPR 1.25: geometry blank: missing viewport-uniform",
+        "headed DPR 2: geometry blank: missing viewport-uniform"
+      ]
+    }
+  },
+  "recall": {
+    "single": {
+      "hits": 27,
+      "of": 27
+    },
+    "group": {
+      "hits": 30,
+      "of": 36
+    }
+  }
+}

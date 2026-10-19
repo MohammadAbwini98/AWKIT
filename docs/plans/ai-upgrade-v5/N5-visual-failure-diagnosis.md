@@ -103,7 +103,49 @@ recommended, start N5"), recorded in DECISIONS 2026-10-19 (contract `awkit-vra-1
   - `verify:ai-error-analysis` 429/429, `verify:recovery-provenance` 46/0, `verify:visual-diagnosis-runtime` 49/0;
   - `verify:runner` 138/0, `verify:visual-isolation` 71/0 (the record module imports nothing);
   - `verify:verifier-classification` (340), `typecheck:scripts` and `npm run build` PASS.
-- **Next:** N5.6 `awkit-vra.14.6` calibration, then N5.5 (the drawer section, which needs N5.4 and N5.6).
+- **N5.6 `awkit-vra.14.6`: closed.** Contract `awkit-vra-14-6-n5-calibration-1019`. New informational
+  `benchmark:visual-diagnosis` (`scripts/benchmark-visual-diagnosis.mts`, never a release gate). It drives the real N5.3
+  adapter through the real `FlowExecutor` and `StepExecutor` over the fusion-lab failure states in nine cells:
+  - headed and headless at DPR 1, 1.25 and 2;
+  - a headed reference replayed headless at each DPR.
+
+  Each cell captures its reference in a fresh launch and diagnoses in another. No cell was BLOCKED. Evidence:
+  `evidence/N5.6-visual-diagnosis-calibration.json` (Windows 11 ARM64 in Parallels, the approved acceptance
+  environment; Node reports x64 emulation, 6 CPUs, `chromium-1228`).
+
+  **VD-10, per code:**
+
+  | Code / control | Verdict | Note |
+  |---|---|---|
+  | `target-identical-to-reference` | MET | zero false identity on swap, restyle and twins in every cell |
+  | `other-examined-identical` | MET | never counted beyond the cap or for the un-named contender |
+  | `target-not-in-dom`, `target-occluded`, `target-zero-size`, `target-offscreen` | MET | agree with fixture truth in every cell |
+  | `viewport-uniform` | **NOT MET** | missed on the blank fixture in all three headed cells; never reported falsely. Cause not established (a headed scrollbar on the 3200 px body is the hypothesis). **Pruned** |
+  | scope (`truncated`, cap, omitted contender) | MET | in every run that finished; see the deadline note below |
+  | refusals (protected, handed off, sensitive) | MET | zero frames, zero observations |
+  | passing run | MET | zero visual work |
+  | structure (allowlisted keys, no difference or absence under `unproven`, never `equal-proven`, no uniqueness wording) | MET | |
+  | cost | MET | median 383 ms, p95 947 ms, max 1294 ms over 224 framed diagnoses; 10 cut by the 1000 ms deadline |
+
+  **Pruning (as built):** `VISUAL_DIAGNOSIS_PRUNED_CODES = {viewport-uniform}` and
+  `exposedVisualDiagnosisObservations` in the zero-import record module. Records keep the raw code so a later run can
+  recalibrate it; anything that shows a diagnosis turns a pruned code into `inconclusive`, once.
+  `verify:visual-diagnosis-report` 63/0 pins this with a mutation (exposure without pruning) observed red.
+
+  **Deadline finding:** all 10 cut diagnoses are the 40-element over-cap fixture at DPR 1.25 and 2. Per-member DOM
+  probes on 32 members do not fit 1000 ms there, so `truncated` was confirmed only in the 8 of 18 over-cap runs that
+  finished. A cut run answers `budget-exhausted` and claims nothing, so this is a coverage gap, not a false claim.
+  Batching the member probes is a candidate follow-up; it is not needed for N5.5.
+
+  **Recall (informational, not a criterion):** single-target identity 27/27, including the headed reference replayed
+  headless, so on this machine the N4.5 headed-to-headless loss did not reproduce. Group identity 30/36; counts stay
+  lower bounds over the examined set, as the copy says.
+
+  **Gates:** the benchmark (VD-10 NOT MET overall on `viewport-uniform` only, every other code MET),
+  `verify:visual-diagnosis-report` 63/0, `verify:visual-isolation` 71/0, `typecheck:scripts` and `npm run build` PASS.
+- **Next:** N5.5 `awkit-vra.14.5`, the drawer section. It must show codes only through
+  `exposedVisualDiagnosisObservations`, after `sanitizeVisualDiagnosisRecords` on read. Geometry and identity codes are
+  calibrated; `viewport-uniform` is shown as `inconclusive`.
 
 *Before approval:* Contracts `awkit-vra-n5-plan-1019` (plan, `725b129c`) and `awkit-vra-n5-plan-review-1019` (the six
 review corrections below). No product source, schema, IPC, preload or UI changed. The review added one security
@@ -747,6 +789,9 @@ owner decisions. Each decision below is needed because N5 would otherwise silent
   *Conditional closure and tracking*.
 - **Alternatives:** (a) ship the vocabulary uncalibrated; (b) block N5 entirely on any failed code.
 - **Consequence:** the same fallback pattern N2, N3 and N4 used.
+- **Outcome (N5.6, 2026-10-19):** every identity, geometry, scope, refusal, passing and structure check MET; cost MET;
+  `viewport-uniform` NOT MET in the headed cells and pruned to `inconclusive` at exposure. N5.5 proceeds with the
+  calibrated codes (see *Status*).
 - **Why needed:** it fixes the acceptance rule before any measurement.
 
 ### VD-11 — Reference provenance envelope (new, unresolved)

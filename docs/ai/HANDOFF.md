@@ -1,6 +1,26 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-19, latest) — Phase N: N5.4 done; N5.6 next, then N5.5
+## HANDOFF (2026-10-19, latest) — Phase N: N5.6 done; N5.5 next
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** N5.6 `awkit-vra.14.6` (contract `awkit-vra-14-6-n5-calibration-1019`, lease released). VD-10 MET for
+  every code except `viewport-uniform`, which is pruned to `inconclusive` at exposure. Evidence:
+  `docs/plans/ai-upgrade-v5/evidence/N5.6-visual-diagnosis-calibration.json`.
+- **Next: N5.5 `awkit-vra.14.5`.** The text-only drawer section in `FailureEvidenceSection.tsx`. It must:
+  - call `sanitizeVisualDiagnosisRecords` on read (reports can be imported through `reports:create`);
+  - show codes only through `exposedVisualDiagnosisObservations`;
+  - add `verify:visual-diagnosis-gui` (real Electron) as the plan's verification matrix describes.
+- **Known gaps carried:**
+  - 10 over-cap diagnoses at DPR 1.25 and 2 are cut by the 1000 ms deadline (batching the probes is optional);
+  - recovery contenders are not examined;
+  - `verify:similar-rows-safety` exits on a Windows cleanup `EPERM`;
+  - `verify:failure-capture-overhead` has one L5a INCONCLUSIVE.
+- **Do not:** write the reference store, read B2 files, or relax `verify:b2-protected-capture` (`awkit-4b5y` open).
+- **Clean-machine** stays optional and non-blocking by owner policy; the ARM64 Parallels waiver stands.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-19) — Phase N: N5.4 done; N5.6 next, then N5.5
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
