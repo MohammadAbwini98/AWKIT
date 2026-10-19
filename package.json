@@ -331,6 +331,7 @@
     "verify:visual-agreement": "tsx scripts/verify-visual-agreement.mts",
     "verify:visual-diagnosis": "tsx scripts/verify-visual-diagnosis.mts",
     "verify:visual-diagnosis-runtime": "tsx scripts/verify-visual-diagnosis-runtime.mts",
+    "verify:visual-diagnosis-report": "node scripts/benchmark/run.mjs scripts/verify-visual-diagnosis-report.mts",
     "verify:visual-agreement-runtime": "tsx scripts/verify-visual-agreement-runtime.mts",
     "verify:visual-fusion": "tsx scripts/verify-visual-fusion.mts",
     "verify:visual-fusion-runtime": "tsx scripts/verify-visual-fusion-runtime.mts",

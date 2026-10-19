@@ -1,6 +1,27 @@
 # DECISIONS
 
-### 2026-10-19 (latest) — Phase N N5.3: runner visual-diagnosis adapter as built, within VD-0 to VD-11 (`awkit-vra.14.3`)
+### 2026-10-19 (latest) — Phase N N5.4: the visualDiagnosis report block as built, within VD-5 (`awkit-vra.14.4`)
+
+- **Placement (a deviation from the plan's `InstanceReport.diagnostics.visualDiagnosis` wording).** The block is
+  `InstanceReport.visualDiagnosis?`, beside the L5a `diagnostics` rather than inside them. `InstanceDiagnostics`
+  requires L5a's `schemaVersion`, `evidence` and `summary`, and is absent when `AWKIT_FAILURE_EVIDENCE=0`. Putting the
+  block inside would either make N5 depend on L5a or change L5a's persisted shape, and VD-4 keeps L5a unchanged.
+  Everything else in VD-5 holds:
+  - the block is optional, additive and codes only;
+  - it lives and dies with the report;
+  - it never reaches the FlowProfile, run history, the export, L5a or L5b.
+- **Sanitized on write.** `ExecutionEngine` writes only `sanitizeVisualDiagnosisRecords(records)`, from the zero-import
+  `visualDiagnosisRecord.ts`:
+  - a key allowlist;
+  - a code pattern, with `invalid` substituted;
+  - enum, version, count and flag checks that drop a malformed record;
+  - a step-id pattern;
+  - caps of 8 observations and 64 records.
+
+  The runner hands records to `onVisualDiagnosis` only. The N5.3 log line was removed.
+- **Read side (for N5.5).** `reports:create` imports whole reports, so the drawer must apply the same sanitizer on read.
+
+### 2026-10-19 — Phase N N5.3: runner visual-diagnosis adapter as built, within VD-0 to VD-11 (`awkit-vra.14.3`)
 
 - **Third edge in effect (VD-1).** `src/runner/visualDiagnosis/VisualFailureDiagnosis.ts -> src/visual/index` is the
   third and last allowed edge, loaded lazily through `PlaywrightRunner.createVisualDiagnosis`. `verify:visual-isolation`

@@ -1,6 +1,25 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-19, latest) — Phase N: N5.3 done; N5.4 next
+## HANDOFF (2026-10-19, latest) — Phase N: N5.4 done; N5.6 next, then N5.5
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** N5.4 `awkit-vra.14.4` (contract `awkit-vra-14-4-n5-report-record-1019`, lease released). The record is
+  stored, sanitized, as `InstanceReport.visualDiagnosis?` beside the L5a diagnostics. The sanitizer and shape are in
+  `src/runner/visualDiagnosis/visualDiagnosisRecord.ts`, which imports nothing.
+- **Next: N5.6 `awkit-vra.14.6`.** An informational `benchmark:visual-diagnosis` over the fusion-lab failure states,
+  headed and headless at DPR 1, 1.25 and 2 on fresh launches, applying the VD-10 per-code criterion and pruning
+  failing codes. Then N5.5: the text-only drawer section in `FailureEvidenceSection.tsx`, which must call
+  `sanitizeVisualDiagnosisRecords` on read (reports can be imported through `reports:create`).
+- **Known gaps carried:**
+  - recovery contenders are not examined;
+  - `verify:similar-rows-safety` exits on a Windows cleanup `EPERM`;
+  - `verify:failure-capture-overhead` has one L5a INCONCLUSIVE.
+- **Do not:** write the reference store, read B2 files, or relax `verify:b2-protected-capture` (`awkit-4b5y` open).
+- **Clean-machine** stays optional and non-blocking by owner policy; the ARM64 Parallels waiver stands.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-19) — Phase N: N5.3 done; N5.4 next
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

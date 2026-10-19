@@ -1,6 +1,7 @@
 import type { Page } from "playwright";
 import type { FlowStep } from "@src/profiles/FlowProfile";
 import type { ErrorClass } from "../runtime/ErrorClassifier";
+import type { VisualDiagnosisRecord } from "./visualDiagnosisRecord";
 
 /**
  * N5.3 (awkit-vra.14.3): the runner-side contract of Visual Failure Diagnosis. PURE TYPES AND CONSTANTS: it imports no
@@ -64,32 +65,13 @@ export interface VisualDiagnosisRequest {
 }
 
 /**
- * VD-5: what a diagnosis may say about a step: codes, small counts and a duration. No pixels, fingerprints, digests,
- * selectors, URLs, coordinates or page text. N5.3 sends it to a codes-only log sink; N5.4 stores a sanitized copy.
+ * VD-5: what a diagnosis may say about a step (codes, small counts and a duration), defined in the zero-import record
+ * module that the report types share. N5.4: the runner hands each record to `onVisualDiagnosis`, and the engine stores
+ * a sanitized copy on the instance report.
  */
-export interface VisualDiagnosisRecord {
-  version: 1;
-  stepId: string;
-  attempt: number;
-  failureKind: VisualDiagnosisFailureKind | "none";
-  outcome: "refused" | "observed";
-  conditions: "none" | "different" | "unproven" | "equal-proven";
-  observations: string[];
-  referenceSource: "runtime" | "recorded" | "none";
-  examined: number;
-  domNamed: number;
-  truncated: boolean;
-  identicalOthers?: "1" | "2+";
-  ms: number;
-}
+export type { VisualDiagnosisRecord } from "./visualDiagnosisRecord";
 
 /** The hook's view of the diagnosis. Settles at or before the deadline and never throws. */
 export interface VisualFailureDiagnoser {
   diagnoseFinalFailure(request: VisualDiagnosisRequest): Promise<VisualDiagnosisRecord | undefined>;
-}
-
-/** A codes-only one-line summary for the N5.3 log sink. Never page-derived text. */
-export function describeVisualDiagnosis(record: VisualDiagnosisRecord): string {
-  const scope = `examined ${record.examined} of ${record.domNamed}${record.truncated ? ", truncated" : ""}`;
-  return `Visual diagnosis (advisory, no effect): ${record.outcome} [${record.observations.join(", ")}] conditions ${record.conditions}, reference ${record.referenceSource}, ${scope}.`;
 }

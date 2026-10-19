@@ -1,6 +1,7 @@
 import type { OfflineRuntimeStatus } from "@src/offline/OfflineRuntimeValidator";
 import type { InstanceDiagnostics } from "@src/runner/evidence/FailureEvidenceCollector";
 import type { ScenarioExecutionResult } from "@src/runner/RunnerResult";
+import type { VisualDiagnosisRecord } from "@src/runner/visualDiagnosis/visualDiagnosisRecord";
 
 export interface InstanceReport {
   instanceId: string;
@@ -16,6 +17,13 @@ export interface InstanceReport {
    * on reports written before L5a, on clean passed runs, and when `AWKIT_FAILURE_EVIDENCE=0`.
    */
   diagnostics?: InstanceDiagnostics;
+  /**
+   * Phase N N5.4 (VD-5): the advisory, codes-only Visual Failure Diagnosis of each finally failed step, sanitized on
+   * write (`sanitizeVisualDiagnosisRecords`). Optional and additive: absent on reports written before N5, when
+   * `AWKIT_VISUAL_DIAGNOSIS` is off, and when no step was diagnosed. Kept apart from the L5a `diagnostics`, which it never
+   * changes, and never part of the report export.
+   */
+  visualDiagnosis?: VisualDiagnosisRecord[];
 }
 
 /** A T0 failure interpretation, as shown and as stored. Evidence ids name the analysed instance's own events. */

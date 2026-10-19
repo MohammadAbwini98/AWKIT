@@ -1,0 +1,200 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-14-4-n5-report-record-1019",
+    "title": "Phase N N5.4: the codes-only visualDiagnosis report block and sanitizer, replacing the N5.3 log sink",
+    "objective": "Implement N5.4 awkit-vra.14.4 under VD-5: a zero-import record module with the VisualDiagnosisRecord shape and a sanitizer (key allowlist, code pattern with invalid substitution, enum and count validation, step-id pattern, observation and per-instance caps), an optional additive visualDiagnosis array on the instance report written by ExecutionEngine from the runner's onVisualDiagnosis callback, the N5.3 log line removed, L5a diagnostics, L5b requests, run history, flow profiles and report export unchanged, and a new verify:visual-diagnosis-report proving the sanitizer with mutants and the real ExecutionEngine report end to end with the flag off and on.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "3801d7ac",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true,
+    "runner_change": true,
+    "persisted_shape_change": true
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "runtime",
+      "qa",
+      "qc",
+      "persistence",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "src/runner/visualDiagnosis/**",
+      "src/runner/PlaywrightRunner.ts",
+      "src/runner/ExecutionEngine.ts",
+      "src/reports/ExecutionReport.ts",
+      "scripts/verify-visual-diagnosis-report.mts",
+      "scripts/verify-visual-diagnosis-runtime.mts",
+      "scripts/verify-visual-isolation.mts",
+      "scripts/lib/verifier-classification.ts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "package.json",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/awkit-vra-14-4-n5-report-record-1019.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [
+      "persistence"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N5.4-RECORD",
+      "description": "The instance report carries an optional, additive, codes-only visualDiagnosis array, sanitized on write by a key allowlist, code pattern, enum and count validation and caps; the N5.3 log line is gone; old reports without the field load; L5a diagnostics, L5b requests, run history columns, flow profiles and report export are unchanged.",
+      "evidence_required": [
+        "verify:visual-diagnosis-report",
+        "verify:ai-error-analysis",
+        "verify:recovery-provenance",
+        "build"
+      ]
+    },
+    {
+      "id": "N5.4-STATE",
+      "description": "awkit-vra.14.4 is closed, the new verifier is classified, the dashboard reports Sources agree.",
+      "evidence_required": [
+        "verify:verifier-classification",
+        "verify:roadmap-dashboard"
+      ]
+    },
+    {
+      "id": "N5.4-GIT",
+      "description": "The work lands on main and is pushed without force; the L12.27 contract stays untracked and unchanged.",
+      "evidence_required": [
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:visual-diagnosis-report",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-diagnosis-report",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "58/0 on the final source: sanitizer table and 3000-input hostile property run with 8 in-script mutants red; real ExecutionEngine report flag off (no field) and on (one sanitized codes-only record), same step results and L5a keys and cause, no diagnosis log line, json and csv exports byte-identical with and without the block, flow unchanged, pins. Wiring mutations by temporary source edits: W1 block inside the L5a diagnostics 51/57; W2 a log path in the runner wiring first survived (console is not a report log), red 57/58 after a wiring pin was added."
+    },
+    {
+      "id": "verify:ai-error-analysis",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ai-error-analysis",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "429/429 (baseline still 14/17); L5b reads only the L5a diagnostics"
+    },
+    {
+      "id": "verify:recovery-provenance",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:recovery-provenance",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "46/0 through the real ExecutionEngine, RunHistoryRow fixed columns. Also verify:visual-diagnosis-runtime 49/0, verify:runner 138/0, verify:visual-isolation 71/0 (record module imports nothing), typecheck:scripts PASS."
+    },
+    {
+      "id": "verify:verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "all 340 verify:/validate: scripts classified (verify:visual-diagnosis-report as real-browser)"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "177/177 at 31 outstanding / 373 closed of 404 and 332 edges; Overview banner reads Sources agree"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "final state: embedded roadmap snapshot 575 records, tsc --noEmit clean, electron-vite build (ARM64 machine, x64 Node emulated). verify:clean-machine-policy 28/0."
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "runs after the commit that carries this contract; its outcome is reported in the session report"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-14-4-n5-report-record-1019:project-state:2026-10-19T09:44:38.034Z",
+        "task": "awkit-vra-14-4-n5-report-record-1019",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-19T09:44:38.034Z",
+        "acquired_at_commit": "3801d7aced549dd847299b98d6f6c723970e613f",
+        "released_at": "2026-10-19T09:44:52.436Z",
+        "released_reason": "N5.4 awkit-vra.14.4 closed and beads exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

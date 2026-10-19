@@ -1,6 +1,32 @@
 # CURRENT_STATE
 
-## Phase N: N5.3 runner visual-diagnosis adapter done (2026-10-19, latest)
+## Phase N: N5.4 codes-only visualDiagnosis report block done (2026-10-19, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed.
+
+- **N5.4 `awkit-vra.14.4` closed** (contract `awkit-vra-14-4-n5-report-record-1019`). With
+  `AWKIT_VISUAL_DIAGNOSIS=on`, each finally failed step's diagnosis is stored as the optional
+  `InstanceReport.visualDiagnosis`. It is sanitized on write by the zero-import `visualDiagnosisRecord.ts`: a key
+  allowlist, a code pattern, enum and count checks, and caps of 8 observations and 64 records. The N5.3 log line is
+  gone.
+- **Placement:** the block sits beside the L5a `diagnostics`, not inside them, so N5 does not depend on L5a and L5a's
+  shape is unchanged (DECISIONS 2026-10-19). The export allowlist, L5b and run history never see it.
+- **Gates (ARM64 machine, x64 Node emulated):**
+  - new `verify:visual-diagnosis-report` 58/0, with 8 sanitizer mutants and wiring mutations W1 and W2 observed red;
+  - `verify:ai-error-analysis` 429/429;
+  - `verify:recovery-provenance` 46/0;
+  - `verify:visual-diagnosis-runtime` 49/0;
+  - `verify:runner` 138/0;
+  - `verify:visual-isolation` 71/0;
+  - `verify:verifier-classification` (340), `typecheck:scripts` and `npm run build` PASS.
+- **Unchanged:** no IPC, preload or UI change; N3 shadow-only; the N4 recorded fallback is read-only; B2 defect
+  `awkit-4b5y` is open.
+- **Next:** N5.6 `awkit-vra.14.6` calibration, then N5.5, the drawer section, which must sanitize again on read
+  because reports can be imported.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## Phase N: N5.3 runner visual-diagnosis adapter done (2026-10-19)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed.

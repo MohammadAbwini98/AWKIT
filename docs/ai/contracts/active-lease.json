@@ -1,46 +1,40 @@
 {
-  "task": "awkit-vra-14-3-n5-runner-adapter-1019",
-  "contract_path": "docs/ai/contracts/awkit-vra-14-3-n5-runner-adapter-1019.json",
+  "task": "awkit-vra-14-4-n5-report-record-1019",
+  "contract_path": "docs/ai/contracts/awkit-vra-14-4-n5-report-record-1019.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-19T07:36:21.209Z",
-  "acquired_at_commit": "c8fc0c804a21a8e5a1feac40c0a262eb9abbfdfc",
+  "acquired_at": "2026-10-19T09:44:38.034Z",
+  "acquired_at_commit": "3801d7aced549dd847299b98d6f6c723970e613f",
   "baseline_dirty": [
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-vra-14-3-n5-runner-adapter-1019.json",
-    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
-    "mock-site/public/visual-intelligence-fusion.html",
+    "docs/ai/contracts/awkit-vra-14-4-n5-report-record-1019.json",
     "package.json",
     "scripts/lib/verifier-classification.ts",
-    "scripts/verify-mock-site.mjs",
+    "scripts/verify-visual-diagnosis-report.mts",
     "scripts/verify-visual-diagnosis-runtime.mts",
     "scripts/verify-visual-isolation.mts",
+    "src/reports/ExecutionReport.ts",
     "src/runner/ExecutionEngine.ts",
-    "src/runner/FlowExecutor.ts",
     "src/runner/PlaywrightRunner.ts",
-    "src/runner/StepExecutor.ts",
-    "src/runner/visualDiagnosis/",
-    "src/visual/index.ts"
+    "src/runner/visualDiagnosis/visualDiagnosisContract.ts",
+    "src/runner/visualDiagnosis/visualDiagnosisRecord.ts"
   ],
   "baseline_dirty_fingerprints": {
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-vra-14-3-n5-runner-adapter-1019.json": "cf97624bdc2d5947f2ee6b5570dec2cb8218a2897375014cd5713acd7fd6e567",
-    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json": "b7cdd20eb2e76d5f7c2188cbadb76f9114a468e1e2a1b85789fc5f70e54bf8f7",
-    "mock-site/public/visual-intelligence-fusion.html": "21ff85fbe53c1ebb7f2f2f24ee40eb4dafd39099e961ed93ef97dfcc6660da4f",
-    "package.json": "e78f8d3a8df746a5ccb6480a2afcf8e508e5b863e6d48b26b5139b47c1f9da82",
-    "scripts/lib/verifier-classification.ts": "2a48b58a54251faa824b60a15aa0df00181a1e75692ceab78a508812bc1ae818",
-    "scripts/verify-mock-site.mjs": "d147d5f0d2226d5db0100ddc9e80023111bf4972101cd9ae21bdacc62acac2e7",
-    "scripts/verify-visual-diagnosis-runtime.mts": "f50359aee8cbec6123b92576612a8bc05547bcce62d3e1f4ab8b82fc9640afb5",
-    "scripts/verify-visual-isolation.mts": "b0bb21d5a377fc6d1a68c99105573ebc4d4541edad33ad3779cd315a12255bb6",
-    "src/runner/ExecutionEngine.ts": "bf4b5fbc603ef8e10da9f239b19143aedcb822b6719063afdaae849e38b297b0",
-    "src/runner/FlowExecutor.ts": "b11976a0db191c1316051a157a091af6d03389228678252a10269a62455bab6e",
-    "src/runner/PlaywrightRunner.ts": "bd58da4139db649ecc94e52321b73606afd6519363cebadf6001f0629258e64b",
-    "src/runner/StepExecutor.ts": "f19ab31d5d3008accaf0e1c520245724e65610b77607451ea49993dc2c12032f",
-    "src/runner/visualDiagnosis/": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "src/visual/index.ts": "5cd8c5fc7ef3ca4b3f79daadac118d9f6c060e8ece5021043b813c41714fba22"
+    "docs/ai/contracts/awkit-vra-14-4-n5-report-record-1019.json": "9bd3eba7105cc2473ac76bed8c074bd37ea12e05ab8fffeaf5fda07459ff2608",
+    "package.json": "e09a0a0b523665f723c55ea1003a4d4239446d9c0f6f583cc23ebac1c7279757",
+    "scripts/lib/verifier-classification.ts": "623ea34a2f9f7905dcf849b4b1e43f5eab9122ffc288937e6c58b7a0dda901c2",
+    "scripts/verify-visual-diagnosis-report.mts": "8cabb3fbe21b01cb67baa4224364d1c9943ba2832ae3ff9a56d22e25c394811c",
+    "scripts/verify-visual-diagnosis-runtime.mts": "676039ed0b43be71eb1415b859c6387336e64c5404b4c8198b2e44cc29ee1d79",
+    "scripts/verify-visual-isolation.mts": "b040d8d23385576ef5df2dd8acf0160b4952b85fa7bac487d16c484b817620f8",
+    "src/reports/ExecutionReport.ts": "3ee865da30c8dd6c4b45369338cfc6e262e286f383156380c7d5ed680cb1e690",
+    "src/runner/ExecutionEngine.ts": "095d49ff6c7769faba499028fae9192e4fd14cdf5c4a86d4c584c30762c44eff",
+    "src/runner/PlaywrightRunner.ts": "6b75f5bf87de0eff090bc98203faca9f8a37dda3cbf96f4ae0965b04662a4dd3",
+    "src/runner/visualDiagnosis/visualDiagnosisContract.ts": "3bcef39b2868abc43984767c307f16536132a3bce3b68214a496a35317617d23",
+    "src/runner/visualDiagnosis/visualDiagnosisRecord.ts": "153c21e418ac1822a450d9a72e9576be845860866e0a1de291c11fd58832da85"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -55,7 +49,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-19T07:36:36.107Z",
-  "released_reason": "N5.3 awkit-vra.14.3 closed and beads exported",
-  "archived_at": "2026-10-19T07:36:36.109Z"
+  "released_at": "2026-10-19T09:44:52.436Z",
+  "released_reason": "N5.4 awkit-vra.14.4 closed and beads exported",
+  "archived_at": "2026-10-19T09:44:52.438Z"
 }

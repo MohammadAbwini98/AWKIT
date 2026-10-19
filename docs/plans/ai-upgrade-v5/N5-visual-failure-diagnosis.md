@@ -72,8 +72,38 @@ recommended, start N5"), recorded in DECISIONS 2026-10-19 (contract `awkit-vra-1
   The runtime verifier also found a real bug: a zero-size target would have been reported as offscreen. The adapter
   now records position and size as separate facts. A wrong fixture URL found during the runs was corrected in the
   verifier; it was not a product defect.
-- **Next: N5.4 `awkit-vra.14.4`**, the codes-only report block and sanitizer, replacing the log sink. N5.6 calibration
-  is also unblocked.
+- **N5.4 `awkit-vra.14.4`: closed.** Contract `awkit-vra-14-4-n5-report-record-1019`. Delivered:
+  - the zero-import `src/runner/visualDiagnosis/visualDiagnosisRecord.ts`, holding the `VisualDiagnosisRecord` shape
+    and `sanitizeVisualDiagnosisRecords`:
+    - a key allowlist;
+    - codes outside `^[a-z][a-z0-9-]{0,39}$` become `invalid`;
+    - malformed enums, versions, counts and flags drop the record;
+    - counts are clamped;
+    - a non-identifier step id becomes `invalid`;
+    - at most 8 observations per record and 64 records per instance;
+    - nothing that survives gives no field;
+  - `InstanceReport.visualDiagnosis?`, written by `ExecutionEngine` through the sanitizer from the runner's new
+    `onVisualDiagnosis` callback. The N5.3 log line is gone.
+
+  **As built, one placement deviation (DECISIONS 2026-10-19):** the block sits beside the L5a `diagnostics`, not
+  inside them. `InstanceDiagnostics` requires L5a's own fields and is absent when `AWKIT_FAILURE_EVIDENCE=0`, and VD-4
+  keeps L5a untouched. Consequences:
+  - the report export's instance allowlist already excludes the block;
+  - L5b reads only `diagnostics`;
+  - run history is fixed columns.
+
+  **For N5.5:** `reports:create` imports whole reports, so the drawer must sanitize the block again on read.
+
+  **Gates:**
+  - new `verify:visual-diagnosis-report` 58/0. It covers the sanitizer table and its hostile property run with 8
+    mutants red, and the real `ExecutionEngine` report with the flag off and on. The export is byte-identical with and
+    without the block, and the L5a keys and cause are unchanged;
+  - wiring mutations by temporary source edits: W1 (the block written inside the L5a diagnostics) 51/57, and W2 (a
+    log path in the runner wiring) 57/58, red after a verifier pin was added because it first survived;
+  - `verify:ai-error-analysis` 429/429, `verify:recovery-provenance` 46/0, `verify:visual-diagnosis-runtime` 49/0;
+  - `verify:runner` 138/0, `verify:visual-isolation` 71/0 (the record module imports nothing);
+  - `verify:verifier-classification` (340), `typecheck:scripts` and `npm run build` PASS.
+- **Next:** N5.6 `awkit-vra.14.6` calibration, then N5.5 (the drawer section, which needs N5.4 and N5.6).
 
 *Before approval:* Contracts `awkit-vra-n5-plan-1019` (plan, `725b129c`) and `awkit-vra-n5-plan-review-1019` (the six
 review corrections below). No product source, schema, IPC, preload or UI changed. The review added one security

@@ -1,5 +1,38 @@
 # TASK_LOG
 
+## 2026-10-19 — Phase N: N5.4 codes-only visualDiagnosis report block and sanitizer (Claude)
+
+- **Scope:** "Proceed with N5.4". Contract `awkit-vra-14-4-n5-report-record-1019`, Risk 2 (persisted shape).
+  CodeCraft: not used (`CODECRAFT_MODE=off` default).
+- **Built:**
+  - the zero-import `src/runner/visualDiagnosis/visualDiagnosisRecord.ts` (shape and sanitizer); the contract now
+    re-exports its type;
+  - the `PlaywrightRunner.onVisualDiagnosis` callback, replacing the log line;
+  - the `ExecutionEngine` per-instance buffer, sanitized onto `InstanceReport.visualDiagnosis?` (typed in
+    `src/reports/ExecutionReport.ts`);
+  - `verify:visual-isolation` pins for the record module;
+  - the runtime verifier's H check updated;
+  - the new `verify:visual-diagnosis-report`, classified real-browser.
+- **Mutations:** 8 sanitizer mutants in-script. W1 and W2 by temporary source edits. W2 first survived because a
+  console path is not a report log, and is red after a wiring pin was added.
+- **Files:** `src/runner/visualDiagnosis/{visualDiagnosisRecord,visualDiagnosisContract}.ts`,
+  `src/runner/{PlaywrightRunner,ExecutionEngine}.ts`, `src/reports/ExecutionReport.ts`,
+  `scripts/{verify-visual-diagnosis-report.mts,verify-visual-diagnosis-runtime.mts,verify-visual-isolation.mts,verify-roadmap-dashboard.mjs}`,
+  `scripts/lib/verifier-classification.ts`, `package.json`, `src/roadmap/ImplementationRoadmap.ts`,
+  `.beads/issues.jsonl`, `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,DECISIONS}.md`,
+  `docs/plans/ai-upgrade-v5/{N5-visual-failure-diagnosis,ROADMAP}.md`, the contract, `active-lease.json`.
+- **Checks (ARM64 machine, x64 Node emulated):**
+  - visual-diagnosis-report 58/0;
+  - ai-error-analysis 429/429;
+  - recovery-provenance 46/0;
+  - visual-diagnosis-runtime 49/0;
+  - runner 138/0;
+  - visual-isolation 71/0;
+  - verifier-classification PASS (340);
+  - typecheck:scripts PASS;
+  - build and roadmap dashboard: in the contract.
+- **Result:** N5.4 closed; N5.6 next. `docs/ai/contracts/awkit-l12-27-implementation-1006.json` preserved.
+
 ## 2026-10-19 — Phase N: N5.3 runner visual-diagnosis adapter, final-attempt hook and deadline (Claude)
 
 - **Scope:** "Proceed with N5.3". Contract `awkit-vra-14-3-n5-runner-adapter-1019`, Risk 2. CodeCraft: not used

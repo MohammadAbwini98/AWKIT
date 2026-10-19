@@ -136,6 +136,8 @@ const DIAGNOSIS_ADAPTER = "src/runner/visualDiagnosis/VisualFailureDiagnosis.ts"
 const DIAGNOSIS_EDGE = `${DIAGNOSIS_ADAPTER} -> src/visual`;
 /** Its contract, shared with FlowExecutor and PlaywrightRunner: it must not reach src/visual. */
 const DIAGNOSIS_CONTRACT = "src/runner/visualDiagnosis/visualDiagnosisContract.ts";
+/** N5.4: the persisted record and its sanitizer, shared with the report types; it imports nothing. */
+const DIAGNOSIS_RECORD = "src/runner/visualDiagnosis/visualDiagnosisRecord.ts";
 const APPROVED_EDGES = [ADAPTER_EDGE, RECORDER_EDGE, DIAGNOSIS_EDGE].sort();
 const sameEdges = (edges: readonly string[]): boolean => JSON.stringify([...edges].sort()) === JSON.stringify(APPROVED_EDGES);
 
@@ -290,7 +292,9 @@ console.log("\nMutation controls (each injected import must be caught):\n");
     ["src/runner/PlaywrightRunner.ts", "src/visual", "a fourth edge: the runner wiring importing the public index directly"],
     [DIAGNOSIS_ADAPTER, "src/visual/fingerprint", "the diagnosis adapter importing a src/visual internal"],
     [DIAGNOSIS_ADAPTER, "src/visual/internal/captureCore", "the diagnosis adapter importing the capture seam entry"],
-    [DIAGNOSIS_CONTRACT, "src/visual", "the diagnosis contract importing src/visual"]
+    [DIAGNOSIS_CONTRACT, "src/visual", "the diagnosis contract importing src/visual"],
+    [DIAGNOSIS_RECORD, "src/visual", "the diagnosis record module importing src/visual"],
+    ["src/reports/ExecutionReport.ts", "src/visual", "the report types importing src/visual"]
   ] as const) {
     const reached = execution.seen.has(importer);
     const mutated = await walk(executionSeeds, new Map([[importer, [specifier]]]), ALLOW);
@@ -411,10 +415,21 @@ console.log("\nThe diagnosis adapter observes and never acts or writes (N5.3, VD
   const contractText = await readFile(join(REPO, DIAGNOSIS_CONTRACT), "utf8");
   const contractImports = [...contractText.matchAll(/^\s*(?:import|export)\b[^;]*?\bfrom\s*["']([^"']+)["']/gm)].map((m) => m[1]).sort();
   check(
-    "the diagnosis contract imports only types from Playwright, the flow profile and the error classifier (no src/visual)",
-    JSON.stringify(contractImports) === JSON.stringify(["../runtime/ErrorClassifier", "@src/profiles/FlowProfile", "playwright"].sort()) && /^import type /m.test(contractText) && !/^import \{/m.test(contractText),
+    "the diagnosis contract imports only types from Playwright, the flow profile, the error classifier and the record module (no src/visual)",
+    JSON.stringify(contractImports) === JSON.stringify(["../runtime/ErrorClassifier", "./visualDiagnosisRecord", "./visualDiagnosisRecord", "@src/profiles/FlowProfile", "playwright"].sort()) &&
+      /^import type /m.test(contractText) &&
+      !/^import \{/m.test(contractText),
     contractImports.join(", ")
   );
+  // N5.4: the persisted record shape and its sanitizer are shared with the report types and the renderer.
+  const recordText = await readFile(join(REPO, DIAGNOSIS_RECORD), "utf8");
+  const importsIn = (text: string) => [...text.matchAll(/^\s*(?:import|export)\b[^;]*?\bfrom\s*["']([^"']+)["']/gm)].map((m) => m[1]);
+  check(
+    "the diagnosis record module was read and imports nothing (N5.4)",
+    recordText.includes("export function sanitizeVisualDiagnosisRecords") && importsIn(recordText).length === 0 && violations(recordText).length === 0,
+    importsIn(recordText).join(", ") || violations(recordText).join("; ")
+  );
+  check("MUTATION: an import planted in the diagnosis record module is caught", importsIn(`import type { Page } from "playwright";\n${recordText}`).length === 1, "not caught");
 }
 
 console.log("\nThe Recorder adapter captures and never acts (N4.2, RV-1):\n");

@@ -13,7 +13,7 @@ import { FileLocatorRecoveryStore, type LocatorRecoveryStore } from "./LocatorRe
 import { FileLocatorBlueprintStore, type LocatorBlueprintStore } from "./LocatorBlueprintStore";
 import type { VisualFusionStageOptions } from "./visualFusion/VisualFusionStage";
 import type { VisualFailureDiagnosisOptions } from "./visualDiagnosis/VisualFailureDiagnosis";
-import { describeVisualDiagnosis, type VisualFailureDiagnoser } from "./visualDiagnosis/visualDiagnosisContract";
+import type { VisualDiagnosisRecord, VisualFailureDiagnoser } from "./visualDiagnosis/visualDiagnosisContract";
 import type { DomIntelligenceRecoveryOptions } from "./domIntelligence/DomIntelligenceProvider";
 import { toRecoveryProvenance } from "./domIntelligence/recoveryProvenance";
 import { ManualHandoffController } from "./ManualHandoffController";
@@ -167,6 +167,11 @@ export interface PlaywrightRunnerOptions extends BrowserContextFactoryOptions {
    * diagnosis of a step's final failure. Absent (the default), the adapter and `src/visual` are never loaded for it.
    */
   visualDiagnosisRoot?: string;
+  /**
+   * N5.4 (VD-5): receives each settled visual diagnosis record. The engine stores a sanitized copy on the instance
+   * report; nothing else in the run reads it. Absent, records are dropped.
+   */
+  onVisualDiagnosis?: (record: VisualDiagnosisRecord) => void;
 }
 
 /**
@@ -812,7 +817,7 @@ export class PlaywrightRunner {
       this.options.progress,
       branchFactory,
       this.options.screenshotOnFailure,
-      this.createVisualDiagnosis(context, logger)
+      this.createVisualDiagnosis()
     );
     try {
       return await flowExecutor.executeFlow(flow, context);
@@ -882,17 +887,17 @@ export class PlaywrightRunner {
   }
 
   /**
-   * N5.3 (VD-7): the advisory visual failure diagnosis, only with `visualDiagnosisRoot`. Until N5.4 adds the report
-   * block, its settled record reaches the run only as one codes-only log line.
+   * N5.3 (VD-7): the advisory visual failure diagnosis, only with `visualDiagnosisRoot`. N5.4 (VD-5): its settled record
+   * goes only to `onVisualDiagnosis` (the engine's report block); it is not logged.
    */
-  private createVisualDiagnosis(context: InstanceExecutionContext, logger: MemoryRunnerLogger): VisualFailureDiagnoser | undefined {
+  private createVisualDiagnosis(): VisualFailureDiagnoser | undefined {
     if (!this.options.visualDiagnosisRoot) return undefined;
+    const sink = this.options.onVisualDiagnosis;
     return lazyVisualDiagnosis({
       folder: this.options.visualDiagnosisRoot,
       handedOff: (target) => this.pageHandedOff(target),
       ...(this.options.visualRecordedFallback === true ? { recordedFallback: true } : {}),
-      onRecord: (record) =>
-        logger.log({ level: "info", message: `[visual-diagnosis] ${describeVisualDiagnosis(record)}`, ...this.logMeta(context), stepId: record.stepId })
+      ...(sink ? { onRecord: (record: VisualDiagnosisRecord) => sink(record) } : {})
     });
   }
 

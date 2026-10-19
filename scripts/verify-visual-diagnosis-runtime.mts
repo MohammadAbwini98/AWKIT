@@ -51,7 +51,6 @@ import { VisualFailureDiagnosis, type VisualDiagnosisProbe } from "@src/runner/v
 import {
   VISUAL_DIAGNOSIS_DEADLINE_MS,
   VISUAL_DIAGNOSIS_SIGNATURE_CAP,
-  describeVisualDiagnosis,
   visualDiagnosisMode,
   type VisualDiagnosisRecord,
   type VisualFailureDiagnoser
@@ -545,8 +544,11 @@ async function main(): Promise<void> {
       const extra = records.flatMap((r) => Object.keys(r).filter((key) => !allowed.has(key)));
       check(`every record holds only the codes-only keys (${records.length} records)`, records.length >= 14 && records.length === allRecords.length && extra.length === 0, extra.join(","));
       check("no record ever carries a difference or an absence for a v1 reference", records.every((r) => hasNot(r, ...NO_IDENTITY_UNDER_V1) && r.conditions !== "equal-proven"));
-      const line = describeVisualDiagnosis(records[0]);
-      check("the log line is codes only (no URL, selector or test id)", !/https?:|vf-tool|data-testid|\[data-/.test(line) && line.includes("advisory, no effect"), line);
+      check(
+        "N5.4: the runner sends records only to onVisualDiagnosis and logs none",
+        /onRecord: \(record: VisualDiagnosisRecord\) => sink\(record\)/.test(runner) && !runner.includes("[visual-diagnosis]"),
+        "runner wiring"
+      );
     }
     console.log(`\n  (deadline-cut runs repeated: ${cutRuns})`);
   } finally {

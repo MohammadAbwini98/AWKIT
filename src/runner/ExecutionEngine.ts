@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { PlaywrightRunner } from "./PlaywrightRunner";
 import { visualDiagnosisMode } from "./visualDiagnosis/visualDiagnosisContract";
+import { VISUAL_DIAGNOSIS_MAX_RECORDS, sanitizeVisualDiagnosisRecords, type VisualDiagnosisRecord } from "./visualDiagnosis/visualDiagnosisRecord";
 import { ManualHandoffController } from "./ManualHandoffController";
 import {
   LIVE_PROGRESS_MAX_EVENTS,
@@ -1467,6 +1468,8 @@ export class ExecutionEngine {
     let runLogger: RunLogger | undefined;
     let passiveTrace: PassiveCdpTrace | undefined;
     let evidence: FailureEvidenceCollector | undefined;
+    /** N5.4: this instance's settled visual diagnosis records, bounded; sanitized onto its report below. */
+    const visualDiagnoses: VisualDiagnosisRecord[] = [];
     let runError: string | undefined;
     // AWKIT-RUN-006: hoisted so the finally can finalize the run even when SETUP threw.
     let runStartedAtIso = new Date().toISOString();
@@ -1639,6 +1642,10 @@ export class ExecutionEngine {
       // N5.3 (VD-7): the advisory visual failure diagnosis is off unless AWKIT_VISUAL_DIAGNOSIS=on, independent of
       // AWKIT_VISUAL_FUSION. It reads the same reference folder and never writes it.
       visualDiagnosisRoot: visualDiagnosisMode() === "on" ? join(dirs.root, "visual-references") : undefined,
+      // N5.4 (VD-5): collected for this instance's report block only; nothing in the run reads it back.
+      onVisualDiagnosis: (record) => {
+        if (visualDiagnoses.length < VISUAL_DIAGNOSIS_MAX_RECORDS) visualDiagnoses.push(record);
+      },
       // Accumulate only — no projection, no I/O, no emitter on the locator resolution path. The set
       // is read once when this instance finishes.
       onLocatorRemembered: (scopeKey) => {
@@ -1701,6 +1708,9 @@ export class ExecutionEngine {
       const cancelled = cancelSource.token.cancelled || current?.status === "cancelled";
       const diagnostics = evidence?.finish(cancelled ? "cancelled" : result.status);
       if (diagnostics) instanceReport.diagnostics = diagnostics;
+      // N5.4 (VD-5): the codes-only block, rebuilt from its allowlist on write; absent when nothing was diagnosed.
+      const visualDiagnosis = sanitizeVisualDiagnosisRecords(visualDiagnoses);
+      if (visualDiagnosis) instanceReport.visualDiagnosis = visualDiagnosis;
       const reports = this.runReports.get(instance.executionId);
       if (reports) reports.push(instanceReport);
 
