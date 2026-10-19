@@ -223,26 +223,30 @@ function mediaProblems(snap: Snapshot): string[] {
 }
 
 async function snapshot(drawer: Locator): Promise<Snapshot> {
+  // No named helper functions inside the page callback: tsx's esbuild transform wraps them in `__name(...)`, which does
+  // not exist in the page. Everything below is inline expressions and anonymous arrows.
   return drawer.evaluate((dialog) => {
     const section = dialog.querySelector('[data-testid="visual-diagnosis-section"]');
     if (!section) return { present: false, text: "", records: 0, lines: [], scope: [], basis: [], caveat: "", media: 0, unhiddenIcons: 0, icons: 0, focusables: 0, motion: [] };
-    const text = (el: Element) => (el.textContent ?? "").replace(/\s+/g, " ").trim();
     const icons = [...section.querySelectorAll("svg")];
     const motion: string[] = [];
     for (const el of [section, ...section.querySelectorAll("*")]) {
       const style = getComputedStyle(el);
-      const busy = (value: string) => value.split(",").some((part) => parseFloat(part) > 0);
-      if (style.animationName !== "none" && busy(style.animationDuration)) motion.push(`${el.tagName}:animation`);
-      if (busy(style.transitionDuration)) motion.push(`${el.tagName}:transition`);
+      if (style.animationName !== "none" && style.animationDuration.split(",").some((part) => parseFloat(part) > 0)) motion.push(`${el.tagName}:animation`);
+      if (style.transitionDuration.split(",").some((part) => parseFloat(part) > 0)) motion.push(`${el.tagName}:transition`);
     }
+    const caveatEl = section.querySelector('[data-testid="visual-diagnosis-caveat"]') ?? section;
     return {
       present: true,
-      text: text(section),
+      text: (section.textContent ?? "").replace(/\s+/g, " ").trim(),
       records: section.querySelectorAll('[data-testid="visual-diagnosis-record"]').length,
-      lines: [...section.querySelectorAll('[data-testid="visual-diagnosis-observation"]')].map((li) => ({ code: li.getAttribute("data-code"), text: text(li) })),
-      scope: [...section.querySelectorAll('[data-testid="visual-diagnosis-scope"]')].map(text),
-      basis: [...section.querySelectorAll('[data-testid="visual-diagnosis-basis"]')].map(text),
-      caveat: text(section.querySelector('[data-testid="visual-diagnosis-caveat"]') ?? section),
+      lines: [...section.querySelectorAll('[data-testid="visual-diagnosis-observation"]')].map((li) => ({
+        code: li.getAttribute("data-code"),
+        text: (li.textContent ?? "").replace(/\s+/g, " ").trim()
+      })),
+      scope: [...section.querySelectorAll('[data-testid="visual-diagnosis-scope"]')].map((el) => (el.textContent ?? "").replace(/\s+/g, " ").trim()),
+      basis: [...section.querySelectorAll('[data-testid="visual-diagnosis-basis"]')].map((el) => (el.textContent ?? "").replace(/\s+/g, " ").trim()),
+      caveat: (caveatEl.textContent ?? "").replace(/\s+/g, " ").trim(),
       media: section.querySelectorAll("img, canvas, picture, video, image").length,
       unhiddenIcons: icons.filter((icon) => icon.getAttribute("aria-hidden") !== "true").length,
       icons: icons.length,

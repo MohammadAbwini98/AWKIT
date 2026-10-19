@@ -1,24 +1,17 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-19, latest) — Phase N: N5.5 implemented, its GUI gate BLOCKED by the environment
+## HANDOFF (2026-10-19, latest) — Phase N: N5.5 done; N5.7 next
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
-- **Built, not closed:** N5.5 `awkit-vra.14.5` (contract `awkit-vra-14-5-n5-drawer-section-1019`, completion
-  pending). It adds `app/renderer/components/reports/VisualDiagnosisSection.tsx`, wired in
-  `FailureEvidenceSection.tsx` with read-side `sanitizeVisualDiagnosisRecords` and `exposedVisualDiagnosisObservations`.
-  It also adds `.visual-diagnosis-*` styles and the new `verify:visual-diagnosis-gui`.
-- **Blocked gate:** `verify:visual-diagnosis-gui` cannot run because Electron's GPU process fails at launch on this
-  machine (KNOWN_ISSUES 2026-10-19). The control `verify:accent-gui` fails the same way. A rerun after a VM restart
-  (18:01) failed identically. The first owner check is the OneDrive "keep on this device" setting.
-- **Next:**
-  1. Restore Electron launch.
-  2. Run `npm run build`, then `npm run verify:visual-diagnosis-gui`, and fix any finding.
-  3. Fill in the contract evidence, close `awkit-vra.14.5` under a project-state lease, and repin the dashboard to
-     29 outstanding / 375 closed.
-  4. N5.7 follows.
-- **Do not:** relax the GUI checks, add `--disable-gpu` to claim the gate, or relax `verify:b2-protected-capture`
-  (`awkit-4b5y` open).
+- **Done:** N5.5 `awkit-vra.14.5` (contract `awkit-vra-14-5-n5-drawer-section-1019`, lease released). The
+  *Visual diagnosis* drawer section is closed with `verify:visual-diagnosis-gui` 42/0.
+- **GUI verifiers on this machine:** Electron cannot launch its GPU child from the Parallels share `X:`. Run GUI
+  verifiers from the owner's terminal with `ELECTRON_OVERRIDE_DIST_PATH=C:\electron-dist` (KNOWN_ISSUES 2026-10-19,
+  workaround steps). The agent shell cannot open a Terminal tab on the share.
+- **Next: N5.7 `awkit-vra.14.7`.** State docs, ARCHITECTURE, the DECISIONS outcome, an independent QC
+  (fresh-context `awkit-qc-reviewer`), the security review and the dashboard repin, as the plan's N5.7 row describes.
+- **Do not:** relax `verify:b2-protected-capture` (`awkit-4b5y` open), or add `--disable-gpu` to claim a GUI gate.
 - **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
 
 ## HANDOFF (2026-10-19, latest) — Phase N: N5.6 done; N5.5 next

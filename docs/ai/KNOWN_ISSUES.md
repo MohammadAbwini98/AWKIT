@@ -1,6 +1,22 @@
 # KNOWN_ISSUES
 
-## Electron GUI verifiers cannot launch: GPU process fails with error_code=18 (2026-10-19, OPEN, environment)
+## Electron GUI verifiers cannot launch from the Parallels share: GPU process fails with error_code=18 (2026-10-19, WORKAROUND, environment)
+
+- **Cause (confirmed 2026-10-19).** `X:` is the Parallels shared folder `\\Mac\Samsung9100PRO`, a network share.
+  Electron relaunches `node_modules\electron\dist\electron.exe` as its sandboxed GPU process, and that launch fails
+  from the share. With the same Electron runtime copied to the local disk, the app launched and
+  `verify:visual-diagnosis-gui` passed 42/0. The VM restart, OneDrive "keep on this device" and Parallels 3D changed
+  nothing.
+- **Workaround (no product or check change).** In a PowerShell tab in the project folder:
+  1. `Copy-Item -Recurse -Force node_modules\electron\dist C:\electron-dist` (repeat after an Electron reinstall or
+     upgrade);
+  2. `$env:ELECTRON_OVERRIDE_DIST_PATH = 'C:\electron-dist'` (per window);
+  3. run the GUI verifier.
+
+  `npm.ps1` also needs a `CurrentUser` execution policy of `RemoteSigned`, which the owner set; `npm.cmd` works without
+  it. Agent shells cannot open a Terminal tab on the share, so the owner runs these and the agent reads the output.
+  The lasting fix is moving the project to a local disk.
+- **History, kept for reference:**
 
 - **What.** On the ARM64 Parallels machine, every Electron launch from a GUI verifier exits before its first window.
   The main process logs `GPU process launch failed: error_code=18` six times, then
@@ -18,8 +34,8 @@
   - mark the project folder "Always keep on this device" in OneDrive;
   - the Parallels 3D acceleration setting;
   - any security product that blocks child-process launch.
-- **Effect:** N5.5 `awkit-vra.14.5` stays open with `verify:visual-diagnosis-gui` BLOCKED. Rerun it once Electron
-  launches again; do not substitute a flag such as `--disable-gpu` to claim the gate.
+- **Effect, resolved:** N5.5 was held open until the workaround run passed. Do not substitute a flag such as
+  `--disable-gpu` to claim a GUI gate.
 
 ## B2 failure capture photographs and serializes protected-login pages (2026-10-19, OPEN, `awkit-4b5y`)
 

@@ -1,46 +1,22 @@
 {
-  "task": "awkit-vra-14-6-n5-calibration-1019",
-  "contract_path": "docs/ai/contracts/awkit-vra-14-6-n5-calibration-1019.json",
+  "task": "awkit-vra-14-5-n5-drawer-section-1019",
+  "contract_path": "docs/ai/contracts/awkit-vra-14-5-n5-drawer-section-1019.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-19T10:26:06.987Z",
-  "acquired_at_commit": "dd9458053504cf22d9a331e424f074d158501d05",
+  "acquired_at": "2026-10-19T17:25:28.069Z",
+  "acquired_at_commit": "b7a25d07201259bf1cf0f3d2815a554fbd624148",
   "baseline_dirty": [
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/DECISIONS.md",
-    "docs/ai/HANDOFF.md",
-    "docs/ai/TASK_LOG.md",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-vra-14-6-n5-calibration-1019.json",
-    "docs/plans/ai-upgrade-v5/N5-visual-failure-diagnosis.md",
-    "docs/plans/ai-upgrade-v5/ROADMAP.md",
-    "docs/plans/ai-upgrade-v5/evidence/N5.6-visual-diagnosis-calibration.json",
-    "package.json",
-    "scripts/benchmark-visual-diagnosis.mts",
-    "scripts/verify-roadmap-dashboard.mjs",
-    "scripts/verify-visual-diagnosis-report.mts",
-    "src/roadmap/ImplementationRoadmap.ts",
-    "src/runner/visualDiagnosis/visualDiagnosisRecord.ts"
+    "docs/ai/contracts/awkit-vra-14-5-n5-drawer-section-1019.json",
+    "scripts/verify-visual-diagnosis-gui.mts"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/CURRENT_STATE.md": "23a42972e1e21136b73d0862adf67d3398f89976425577f4dcd8a6f8c60dd5a1",
-    "docs/ai/DECISIONS.md": "d5f988edae2fcb205651548607cb37e165f15a1ff4ee585ffa8c6e94a058fa3d",
-    "docs/ai/HANDOFF.md": "2552a77be82e4f9844270d5524b06885e5443bc54d424e4e51018fcef2ff458b",
-    "docs/ai/TASK_LOG.md": "ae7ea5fa2d9de8ce40bcdb705450e0ca3f619e8dfac4aeb0eb22140bc5556114",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-vra-14-6-n5-calibration-1019.json": "b1900df1caa2e15b3f3bd346cf7e9f0be7b186b545b92cb34deab1f935bc39bf",
-    "docs/plans/ai-upgrade-v5/N5-visual-failure-diagnosis.md": "c7dd108863ec8e39a1b6c468743897dd311e8e32d565c38cb96e420f7028117c",
-    "docs/plans/ai-upgrade-v5/ROADMAP.md": "a25d65f30311a9dbc35f2c186df273906471b191471177b1fcfe17bf9b71297f",
-    "docs/plans/ai-upgrade-v5/evidence/N5.6-visual-diagnosis-calibration.json": "a3c80a31e36f37894b891b5e419bd40c339fc6ea1045c35a6c36049afa291f75",
-    "package.json": "e82d4e8b362bc66d182d796083726dc3e9d58c442630ebc0e9c93287ffcdebac",
-    "scripts/benchmark-visual-diagnosis.mts": "dd47f9433058ff2343daf52ca7ebac3f63c1360f45f06f0e873a68eba6014811",
-    "scripts/verify-roadmap-dashboard.mjs": "0d46ab8d1b692083cced16f4fd4cfd3aab0f80d02c22de15ee9f6b06f021b434",
-    "scripts/verify-visual-diagnosis-report.mts": "90e9babfd2b88f9ce2dffe7fca0ff373899ff84f3ef8f2296c0c3bf0bed35bca",
-    "src/roadmap/ImplementationRoadmap.ts": "b840088207be39437148dea39c4de4e695603657585c79235b54cc0e35e50c03",
-    "src/runner/visualDiagnosis/visualDiagnosisRecord.ts": "18f975675dcf46be5e9657b1790c2ccc9cc8dd29e100679edb82405d22036cc2"
+    "docs/ai/contracts/awkit-vra-14-5-n5-drawer-section-1019.json": "d374fd92c59995f7b04404ee425fd5536f7e4565e8227e994f3a058da9e01937",
+    "scripts/verify-visual-diagnosis-gui.mts": "8bdcab94f15bfba0cb6c4a3e91473d038dec313c6ebe1cf79fe9e7b5323f94ec"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -55,7 +31,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-19T10:26:43.770Z",
-  "released_reason": "N5.6 bead closed and beads exported",
-  "archived_at": "2026-10-19T10:26:43.774Z"
+  "released_at": "2026-10-19T17:25:46.976Z",
+  "released_reason": "N5.5 bead closed and beads exported",
+  "archived_at": "2026-10-19T17:25:46.979Z"
 }

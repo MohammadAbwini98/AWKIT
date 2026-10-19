@@ -1,10 +1,10 @@
 # CURRENT_STATE
 
-## Phase N: N5.5 Visual diagnosis drawer section implemented, GUI gate BLOCKED (2026-10-19, latest)
+## Phase N: N5.5 Visual diagnosis drawer section done (2026-10-19, latest)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
-- **Built (WIP; `awkit-vra.14.5` stays open):** a fourth, text-only *Visual diagnosis* section in the run-detail
+- **N5.5 `awkit-vra.14.5` closed** (contract `awkit-vra-14-5-n5-drawer-section-1019`): a fourth, text-only *Visual diagnosis* section in the run-detail
   drawer, after *Captured evidence* and before *AI analysis*. It shows only when the stored report carries the block,
   and it also shows without L5a evidence. It is read through the unchanged PAGE_REPORTS `reports:get`, sanitized again
   on read, and shown only through `exposedVisualDiagnosisObservations`, so `viewport-uniform` reads as `inconclusive`.
@@ -26,8 +26,10 @@ The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 
   | `verify:visual-isolation` | PASS, 71/0 |
   | `verify:ai-fallback` | PASS, 51/0 |
   | `verify:verifier-classification` | PASS, 341 |
-  | new `verify:visual-diagnosis-gui` | **BLOCKED**: Electron's GPU process fails at launch (KNOWN_ISSUES 2026-10-19); the control `verify:accent-gui` fails the same way |
+  | new `verify:visual-diagnosis-gui` | PASS, 42/0 with 11 snapshot mutants red; run from the owner's terminal with Electron's runtime on the local disk (KNOWN_ISSUES 2026-10-19: Electron cannot launch its GPU child from the Parallels share) |
+  | `verify:roadmap-dashboard` | PASS, Sources agree at 29/375 of 404 |
 - **Unchanged:** no IPC, preload, runner, persistence or report-shape change; B2 defect `awkit-4b5y` open.
+- **Next:** N5.7 `awkit-vra.14.7`, the state, docs, independent QC and security review closure.
 - **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
 
 ## Phase N: N5.6 over-cap deadline gap closed (2026-10-19, latest)

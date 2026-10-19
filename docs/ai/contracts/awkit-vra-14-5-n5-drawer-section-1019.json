@@ -32,6 +32,7 @@
       "manager",
       "uiux",
       "frontend",
+      "software",
       "qa",
       "release",
       "project-state"
@@ -105,8 +106,8 @@
       "required": true,
       "command": "npm run verify:visual-diagnosis-gui",
       "artifact": null,
-      "result": "BLOCKED",
-      "observed": "Electron exits before its first window: GPU process launch failed error_code=18, then FATAL GPU process isn't usable; the unchanged control verify:accent-gui fails the same way (KNOWN_ISSUES 2026-10-19); rerun after the owner restarted the VM (18:01) failed identically against a fresh build"
+      "result": "PASS",
+      "observed": "42 passed, 0 failed, including 11 snapshot mutants red; run by the owner in the Terminal panel and read by the agent, against the build made at 18:01 with only the verifier changed since (a page-callback __name fix), using ELECTRON_OVERRIDE_DIST_PATH=C:\\electron-dist because Electron cannot launch its GPU child from the Parallels network share (earlier BLOCKED runs: error_code=18, KNOWN_ISSUES 2026-10-19)"
     },
     {
       "id": "verify:visual-isolation",
@@ -123,8 +124,8 @@
       "required": true,
       "command": "npm run verify:roadmap-dashboard",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": "pending"
+      "result": "PASS",
+      "observed": "177/177, Sources agree, 29 outstanding / 375 closed of 404, 332 edges, after awkit-vra.14.5 was closed and exported"
     },
     {
       "id": "build",
@@ -154,8 +155,28 @@
     "push_evidence_id": "git-push"
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "pending",
+    "status": "implemented",
+    "qa_status": "PASS",
     "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-14-5-n5-drawer-section-1019:project-state:2026-10-19T17:25:28.069Z",
+        "task": "awkit-vra-14-5-n5-drawer-section-1019",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-19T17:25:28.069Z",
+        "acquired_at_commit": "b7a25d07201259bf1cf0f3d2815a554fbd624148",
+        "released_at": "2026-10-19T17:25:46.976Z",
+        "released_reason": "N5.5 bead closed and beads exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
   }
 }

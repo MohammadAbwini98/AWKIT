@@ -1,6 +1,6 @@
 # TASK_LOG
 
-## 2026-10-19 — Phase N: N5.5 Visual diagnosis drawer section (WIP, GUI gate BLOCKED) (Claude)
+## 2026-10-19 — Phase N: N5.5 Visual diagnosis drawer section (closed after the GUI gate passed) (Claude)
 
 - **Scope:** "Proceed with N5.5". Contract `awkit-vra-14-5-n5-drawer-section-1019`, Risk 1, renderer only.
   CodeCraft: not used (`CODECRAFT_MODE=off` default).
@@ -28,6 +28,11 @@
 - **Result:** N5.5 implemented, not closed; Beads and dashboard unchanged.
 - **Rerun after the owner's VM restart (18:01):** build PASS; `verify:visual-diagnosis-gui` still BLOCKED with the same
   GPU launch failure.
+- **Closure:** the cause is the Parallels network share `X:`. With Electron's dist copied to `C:\electron-dist` and
+  `ELECTRON_OVERRIDE_DIST_PATH` set in the owner's terminal, the app launched. A verifier bug then surfaced: tsx's
+  `__name` wrapper inside a page callback. It was fixed, and `verify:visual-diagnosis-gui` then passed 42/0.
+  `awkit-vra.14.5` was closed under a project-state lease and the dashboard repinned to 29/375 of 404. KNOWN_ISSUES
+  records the workaround.
 
 ## 2026-10-19 — Phase N: batch the N5.3 diagnosis member probes to fit the 1000 ms deadline (Claude)
 

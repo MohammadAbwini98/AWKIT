@@ -604,7 +604,8 @@ after an independent re-QC PASS at `222b04d3`; N2 (`awkit-vra.12`) and N3 (`awki
 2026-10-13; N4 (`awkit-vra.13`) closed 2026-10-19 after independent QC; N5 (`awkit-vra.14`) planned 2026-10-19, owner
 decisions VD-0 to VD-11 approved as recommended 2026-10-19 and N5 started: N5.1, N5.2 (the pure diagnosis policy) and
 N5.3 (the runner adapter, the third `src/visual` edge), N5.4 (the codes-only report block) and N5.6 (the
-calibration, `viewport-uniform` pruned) closed, N5.5 next.
+calibration, `viewport-uniform` pruned) and N5.5 (the text-only *Visual diagnosis* drawer section) closed, N5.7
+next.
 *Registered 2026-09-22 as NOT STARTED.* Beads epic
 `awkit-vra`. Phase N follows the Phase L release foundation, remains separate from Phase L and
 Phase M, and does not change either phase's status, acceptance criteria or dependencies. Phase M is
