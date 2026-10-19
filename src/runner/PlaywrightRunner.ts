@@ -13,7 +13,7 @@ import { FileLocatorRecoveryStore, type LocatorRecoveryStore } from "./LocatorRe
 import { FileLocatorBlueprintStore, type LocatorBlueprintStore } from "./LocatorBlueprintStore";
 import type { VisualFusionStageOptions } from "./visualFusion/VisualFusionStage";
 import type { VisualFailureDiagnosisOptions } from "./visualDiagnosis/VisualFailureDiagnosis";
-import type { VisualDiagnosisRecord, VisualFailureDiagnoser } from "./visualDiagnosis/visualDiagnosisContract";
+import { VISUAL_DIAGNOSIS_DEADLINE_MS, type VisualDiagnosisRecord, type VisualFailureDiagnoser } from "./visualDiagnosis/visualDiagnosisContract";
 import type { DomIntelligenceRecoveryOptions } from "./domIntelligence/DomIntelligenceProvider";
 import { toRecoveryProvenance } from "./domIntelligence/recoveryProvenance";
 import { ManualHandoffController } from "./ManualHandoffController";
@@ -177,11 +177,28 @@ export interface PlaywrightRunnerOptions extends BrowserContextFactoryOptions {
 /**
  * N5.3: the visual failure diagnosis behind a loader, so a runner without `visualDiagnosisRoot` never evaluates the
  * adapter or `src/visual`. The first final failure loads it once per flow run.
+ *
+ * N5.7 (QC finding 5): the load counts against the same deadline. A load that loses it gives no record for that failure
+ * (it keeps loading for the next one), and the adapter gets only what is left, so the hook never waits past the deadline.
  */
 function lazyVisualDiagnosis(options: VisualFailureDiagnosisOptions): VisualFailureDiagnoser {
-  let adapter: Promise<VisualFailureDiagnoser> | undefined;
-  const load = () => (adapter ??= import("./visualDiagnosis/VisualFailureDiagnosis").then(({ VisualFailureDiagnosis }) => new VisualFailureDiagnosis(options)));
-  return { diagnoseFinalFailure: async (request) => (await load()).diagnoseFinalFailure(request) };
+  let adapter: Promise<VisualFailureDiagnoser | undefined> | undefined;
+  const load = () =>
+    (adapter ??= import("./visualDiagnosis/VisualFailureDiagnosis").then(
+      ({ VisualFailureDiagnosis }) => new VisualFailureDiagnosis(options),
+      () => undefined
+    ));
+  return {
+    diagnoseFinalFailure: async (request) => {
+      const deadlineMs = options.deadlineMs ?? VISUAL_DIAGNOSIS_DEADLINE_MS;
+      const started = performance.now();
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const loaded = await Promise.race([load(), new Promise<undefined>((resolve) => (timer = setTimeout(() => resolve(undefined), deadlineMs)))]);
+      clearTimeout(timer);
+      if (!loaded) return undefined;
+      return loaded.diagnoseFinalFailure({ ...request, deadlineMs: Math.max(1, Math.round(deadlineMs - (performance.now() - started))) });
+    }
+  };
 }
 
 /**

@@ -202,6 +202,8 @@ interface Snapshot {
 const UNIQUENESS = /\b(only|unique|uniquely|sole)\b|\bthe element\b/i;
 const CAVEAT = "Advisory. This does not identify an element to use, and it does not change the run.";
 const NOT_COMPARED = "Elements the run did not examine were not compared.";
+// N5.7 (QC finding 7): `truncated` also covers unexamined alternative locators, so the sentence claims no count.
+const TRUNCATED = "The run did not examine every element the step could match.";
 
 function copyProblems(snap: Snapshot): string[] {
   const problems: string[] = [];
@@ -318,7 +320,7 @@ try {
     a.scope[0]?.startsWith("Of the 32 elements the run examined, 2 or more others are pixel-identical to the reference."),
     a.scope[0]
   );
-  check("...adds the truncation sentence", a.scope[0]?.includes("The run stopped after examining the first 32 of the elements it found."), a.scope[0]);
+  check("...adds the truncation sentence", a.scope[0]?.includes(TRUNCATED), a.scope[0]);
   check("...and ends with the not-compared sentence", a.scope[0]?.endsWith(NOT_COMPARED), a.scope[0]);
   check(
     "the refusal reads as not diagnosed, with no basis",
@@ -392,8 +394,8 @@ try {
     ["a transition in the section", (s) => ({ ...s, motion: ["LI:transition"] }), mediaProblems]
   ];
   // A's truncated record must carry its truncation sentence; dropping it must be seen.
-  const truncationProblems = (s: Snapshot) => (s.scope[0]?.includes("The run stopped after examining the first 32 of the elements it found.") ? [] : ["truncation sentence"]);
-  mutants.push(["the truncation sentence dropped", (s) => ({ ...s, scope: s.scope.map((x) => x.replace(/The run stopped after examining[^.]*\. /, "")) }), truncationProblems]);
+  const truncationProblems = (s: Snapshot) => (s.scope[0]?.includes(TRUNCATED) ? [] : ["truncation sentence"]);
+  mutants.push(["the truncation sentence dropped", (s) => ({ ...s, scope: s.scope.map((x) => x.replace(`${TRUNCATED} `, "")) }), truncationProblems]);
   check("the unmutated A snapshot passes the truncation check", truncationProblems(a).length === 0);
   for (const [name, mutate, problems] of mutants) check(`MUTATION: ${name} is caught`, problems(mutate(a)).length > 0);
 

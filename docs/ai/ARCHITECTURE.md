@@ -953,6 +953,51 @@ Invariants:
   `none`, is never refreshed or rewritten, and yields to the runtime reference. Both writer and reader resolve
   `visual-references/` under `getRuntimePaths().root` (`verify:recorded-visual-fallback`, N4.7 case 14).
 
+### Visual Failure Diagnosis (Phase N N5; advisory, codes only)
+
+```text
+src/visual/diagnosis/decideVisualDiagnosis.ts     Pure policy (N5.2): codes from reference presence, the three-state
+                                                  condition status (every v1 reference is `unproven`, so only byte-
+                                                  identity positives), examined-scope counts with `truncated`, DOM
+                                                  geometry facts and the viewport statistic. No index, locator,
+                                                  coordinate, effect or uniqueness field. Exported via src/visual/index.
+src/runner/visualDiagnosis/
+  visualDiagnosisContract.ts   Pure: request and record types, AWKIT_VISUAL_DIAGNOSIS (exactly "on"), the 1000 ms
+                               deadline (VD-8), the per-signature cap of 20, error class -> failure kind.
+  VisualFailureDiagnosis.ts    The THIRD and last runner edge into src/visual (VD-1), loaded lazily. Read only.
+  visualDiagnosisRecord.ts     Zero imports: the persisted shape, sanitizeVisualDiagnosisRecords (allowlist, code
+                               pattern, caps 8 observations / 64 records) and the N5.6 pruning helper
+                               exposedVisualDiagnosisObservations (viewport-uniform -> inconclusive).
+Wiring:
+  ExecutionEngine (AWKIT_VISUAL_DIAGNOSIS=on) -> visualDiagnosisRoot = <runtime root>/visual-references
+    -> PlaywrightRunner.createVisualDiagnosis -> lazyVisualDiagnosis (import raced against the deadline; the adapter
+       gets only what is left)
+  FlowExecutor.executeWithRetry: after retryPolicy.decide declines another attempt (final failure only)
+    -> diagnoseFinalFailure(request); its return value is discarded, the record leaves only through onRecord
+  Adapter: handoff / eligibility / sensitivity / coalescing refusals -> handedOff (fail closed) -> N0
+    checkProtectedSurface BEFORE any inspection -> reference get (runtime, then recorded under the N4 flag)
+    -> locator count, at most 64 element handles, masked check on those handles -> boxes, occlusion asked of each
+       target's own root at the centre of its visible part -> ONE N0 frame (protected re-check before and after),
+       target or not -> crops + viewport fingerprint -> recheck on the same handles -> decide -> record
+    Abort and settle: one signal, one deadline, a single-assignment slot; the limiter wait is bounded; frames and
+    handles are released in cleanups on every path, including after a deadline cut.
+  onRecord -> ExecutionEngine buffer -> InstanceReport.visualDiagnosis? (sanitized on write, beside L5a diagnostics)
+  reports:get [PAGE_REPORTS] -> FailureEvidenceSection -> sanitize again on read -> VisualDiagnosisSection
+    (text only, after Captured evidence, before AI analysis; shown only with the block, also without L5a evidence)
+```
+
+Invariants:
+
+- Advisory only (VD-0): never selects an element, changes a locator, retries, or alters status, error, retry
+  decision, L5a cause or evidence. Runtime A/B (`verify:visual-diagnosis-runtime` F) and report A/B
+  (`verify:visual-diagnosis-report`) prove the flag-off and flag-on runs are identical apart from the block.
+- Never on passing steps or non-final attempts. Protected, handed-off, handoff-step and sensitive cases refuse with
+  zero frames; a protected page is refused before anything inspects it.
+- Read only: the reference store is reached through `get` only; nothing clicks, focuses, hovers, scrolls or navigates.
+- Codes only: no pixels, digests, selectors, URLs, coordinates or page text in the record, the report, IPC, the
+  export, run history, L5a or L5b. `verify:visual-isolation` pins exactly three `src/visual` edges and a zero-import
+  record module.
+
 ## Semantic index (separate process boundary)
 
 ```text

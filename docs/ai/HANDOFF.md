@@ -1,6 +1,25 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-19, latest) — Phase N: N5.5 done; N5.7 next
+## HANDOFF (2026-10-19, latest) — Phase N: N5 Visual Failure Diagnosis closed
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** N5.7 `awkit-vra.14.7` and the N5 epic `awkit-vra.14` (contract `awkit-vra-14-7-n5-closure-1019`, lease
+  released). The independent QC went from CHANGES REQUIRED to APPROVED, and the security review was APPROVED. All
+  findings are fixed except security minor (a), which is accepted (DECISIONS 2026-10-19). Completion criteria 1-10
+  PASS.
+- **Using it:** set `AWKIT_VISUAL_DIAGNOSIS=on` to get the codes-only block and the drawer section. Off is the
+  default.
+- **GUI verifiers on this machine:** run them from the owner's terminal with
+  `ELECTRON_OVERRIDE_DIST_PATH=C:\electron-dist` (KNOWN_ISSUES 2026-10-19).
+- **Next for Phase N:** the owner's choice. Open items:
+  - the B2 protected-capture remediation `awkit-4b5y`;
+  - canonical N6 (Visual Assertions);
+  - VD-11 provenance, which stays deferred.
+- **Do not:** relax `verify:b2-protected-capture`, or add `--disable-gpu` to claim a GUI gate.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-19) — Phase N: N5.5 done; N5.7 next
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

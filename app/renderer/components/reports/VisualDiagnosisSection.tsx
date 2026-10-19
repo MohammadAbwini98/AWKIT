@@ -61,7 +61,9 @@ function scopeSentences(record: VisualDiagnosisRecord, codes: string[]): string[
     if (identity.includes("no-examined-identical")) parts.push("none is pixel-identical to the reference");
     sentences.push(`Of the ${record.examined} ${record.examined === 1 ? "element" : "elements"} the run examined, ${parts.join(", and ")}.`);
   }
-  if (record.truncated) sentences.push(`The run stopped after examining the first ${record.examined} of the elements it found.`);
+  // `truncated` means the examined set was cut at the cap OR the step's alternative locators were not examined (N5.7 QC
+  // finding 7), so the sentence states only what is true in both cases.
+  if (record.truncated) sentences.push("The run did not examine every element the step could match.");
   sentences.push("Elements the run did not examine were not compared.");
   return sentences;
 }

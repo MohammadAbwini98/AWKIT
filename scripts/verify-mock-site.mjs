@@ -810,7 +810,40 @@ try {
   await page.evaluate(() => window.__fusionLab.removeProtected());
   check("fusion removeProtected() removes it", (await page.locator(".vf-protected").count()) === 0);
   // N5.3 Visual Failure Diagnosis states (setFailure), each against its fixture truth.
-  check("failure states are listed and default to none", (await page.evaluate(() => window.__fusionLab.failures.join(","))) === "none,detach,overlay,zero,blank,many" && (await page.evaluate(() => window.__fusionLab.describe().failure)) === "none");
+  check("failure states are listed and default to none", (await page.evaluate(() => window.__fusionLab.failures.join(","))) === "none,detach,overlay,zero,blank,many,shadow,partial,hidden" && (await page.evaluate(() => window.__fusionLab.describe().failure)) === "none");
+  // N5.7 (QC findings 1 and 2): a target in an open shadow root, a partly visible target and a display:none target.
+  await page.evaluate(() => window.__fusionLab.setFailure("shadow"));
+  check(
+    "shadow: one button in an OPEN shadow root, reachable by its test id; the document sees the host at its centre, the shadow root sees the button",
+    (await page.getByTestId("vf-shadow-tool").count()) === 1 &&
+      (await page.evaluate(() => {
+        const host = document.querySelector("[data-testid='vf-shadow-host']");
+        const target = host?.shadowRoot?.querySelector("[data-testid='vf-shadow-tool']");
+        if (!host || !target || host.shadowRoot.mode !== "open") return false;
+        const r = target.getBoundingClientRect();
+        const x = r.left + r.width / 2;
+        const y = r.top + r.height / 2;
+        // The button's centre may land on its own icon, a descendant, so containment is the truth here.
+        const inner = host.shadowRoot.elementFromPoint(x, y);
+        return r.width === 48 && r.height === 40 && document.elementFromPoint(x, y) === host && !!inner && target.contains(inner);
+      }))
+  );
+  await page.evaluate(() => window.__fusionLab.setFailure("partial"));
+  check(
+    "partial: the button straddles the 600 px fold of the 800x600 viewport, its centre below it",
+    await page.evaluate(() => {
+      const r = document.querySelector("[data-testid='vf-partial-tool']")?.getBoundingClientRect();
+      return !!r && r.top === 584 && r.bottom === 624 && r.top + r.height / 2 > 600;
+    })
+  );
+  await page.evaluate(() => window.__fusionLab.setFailure("hidden"));
+  check(
+    "hidden: the target is display:none and has no box",
+    await page.evaluate(() => {
+      const target = document.querySelector("[data-testid='vf-tool-0']");
+      return !!target && getComputedStyle(target).display === "none" && target.getClientRects().length === 0;
+    })
+  );
   await page.evaluate(() => window.__fusionLab.setFailure("detach"));
   check("detach removes only the target button", (await page.getByTestId("vf-tool-0").count()) === 0 && (await page.locator('[data-testid^="vf-tool-"]').count()) === 3);
   await page.evaluate(() => window.__fusionLab.setFailure("overlay"));
@@ -839,7 +872,7 @@ try {
   );
   check("setFailure refuses an unknown kind", await page.evaluate(() => { try { window.__fusionLab.setFailure("melt"); return false; } catch { return true; } }));
   await page.evaluate(() => window.__fusionLab.setFailure("none"));
-  check("none restores the baseline toolbar with no overlay, grid or blank body", (await page.locator('[data-testid^="vf-tool-"]').count()) === 4 && (await page.locator(".vf-overlay").count()) === 0 && (await page.locator('[data-testid="vf-many-tool"]').count()) === 0 && (await page.evaluate(() => getComputedStyle(document.body).visibility)) === "visible");
+  check("none restores the baseline toolbar with no overlay, grid, shadow host, partial button or blank body", (await page.locator('[data-testid^="vf-tool-"]').count()) === 4 && (await page.locator(".vf-overlay").count()) === 0 && (await page.locator('[data-testid="vf-many-tool"]').count()) === 0 && (await page.locator('[data-testid="vf-shadow-host"], [data-testid="vf-partial-tool"]').count()) === 0 && (await page.evaluate(() => getComputedStyle(document.body).visibility)) === "visible" && (await page.getByTestId("vf-tool-0").isVisible()));
   const [fusionPopup] = await Promise.all([page.waitForEvent("popup"), page.getByTestId("vf-open-popup").click()]);
   await fusionPopup.waitForLoadState();
   check("the fusion popup holds the toolbar", (await fusionPopup.locator('[data-testid^="vf-tool-"]').count()) === 4);

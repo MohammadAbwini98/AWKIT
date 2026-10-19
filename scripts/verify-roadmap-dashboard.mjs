@@ -753,8 +753,10 @@ try {
   // Then 31/373 of 404 on 2026-10-19 (contract `awkit-vra-14-4-n5-report-record-1019`): N5.4 `awkit-vra.14.4` closed.
   // Then 30/374 of 404 on 2026-10-19 (contract `awkit-vra-14-6-n5-calibration-1019`): N5.6 `awkit-vra.14.6` closed.
   // Then 29/375 of 404 on 2026-10-19 (contract `awkit-vra-14-5-n5-drawer-section-1019`): N5.5 `awkit-vra.14.5` closed.
-    "29 outstanding / 375 closed",
-    beads.stats.outstanding === 29 && beads.stats.closed === 375,
+  // Then 27/377 of 404 on 2026-10-19 (contract `awkit-vra-14-7-n5-closure-1019`): N5.7 `awkit-vra.14.7` and the N5
+  // epic `awkit-vra.14` closed through bd after the independent QC and the security review were APPROVED.
+    "27 outstanding / 377 closed",
+    beads.stats.outstanding === 27 && beads.stats.closed === 377,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

@@ -1,6 +1,27 @@
 # CURRENT_STATE
 
-## Phase N: N5.5 Visual diagnosis drawer section done (2026-10-19, latest)
+## Phase N: N5 Visual Failure Diagnosis closed (2026-10-19, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed.
+
+- **N5 `awkit-vra.14` closed with N5.7 `awkit-vra.14.7`** (contract `awkit-vra-14-7-n5-closure-1019`).
+  - Advisory and codes-only diagnosis of a step's final failure, enabled only by `AWKIT_VISUAL_DIAGNOSIS=on`.
+  - Stored as the sanitized `InstanceReport.visualDiagnosis` block and shown in the text-only drawer section.
+  - ARCHITECTURE › *Visual Failure Diagnosis* describes the module map and invariants.
+- **Reviews:** the fresh-context QC went from CHANGES REQUIRED (one major, the false `target-occluded` for shadow-root
+  and partly visible targets) to APPROVED. The security review was APPROVED with five lows, all fixed. DECISIONS
+  2026-10-19 lists every finding.
+- **Gates (final state):**
+  - `verify:visual-diagnosis-runtime` 63/0, with mutations R7-R11 red;
+  - the criterion-8 suites green, including `ai-assist-gui` 182/0, `recorder-visual-gui` 55/0 and
+    `visual-diagnosis-gui` 42/0 (owner terminal, local Electron runtime);
+  - `verify:mock-site` 320/320;
+  - build PASS;
+  - `verify:roadmap-dashboard` Sources agree at 27/377 of 404.
+- **Still open:** B2 protected capture `awkit-4b5y`. VD-11 is deferred. No clean-machine PASS is claimed.
+
+## Phase N: N5.5 Visual diagnosis drawer section done (2026-10-19)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

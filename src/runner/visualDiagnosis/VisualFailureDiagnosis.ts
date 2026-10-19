@@ -4,6 +4,7 @@ import {
   VISUAL_EVIDENCE_VERSION,
   buildVisualEvidence,
   captureVisualFrame,
+  checkProtectedSurface,
   cropFromVisualFrame,
   decideVisualDiagnosis,
   fingerprintVisualImage,
@@ -89,7 +90,12 @@ export interface VisualDiagnosisReferenceReader {
 /** Verifier-only probes (`verify:visual-diagnosis-runtime`). Production passes none. */
 export interface VisualDiagnosisProbe {
   hold?: (stage: "before-frame" | "after-frame") => Promise<void>;
-  onFrame?: (event: "taken" | "released") => void;
+  /** `late-released`: a frame that arrived after the work gave up, released without ever being used (N5.7 QC nit). */
+  onFrame?: (event: "taken" | "released" | "late-released") => void;
+  /** N5.7: the page is about to be inspected (handles, boxes, the masked check); never before the protected checks. */
+  onInspect?: () => void;
+  /** N5.7: element handles resolved and disposed, so a verifier can prove every handle is released. */
+  onHandles?: (event: "resolved" | "disposed", count: number) => void;
 }
 
 export interface VisualFailureDiagnosisOptions {
@@ -146,6 +152,8 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
 
   async diagnoseFinalFailure(request: VisualDiagnosisRequest): Promise<VisualDiagnosisRecord | undefined> {
     const started = performance.now();
+    // N5.7: a caller that already spent part of the deadline (the lazy loader) passes what is left; never more than ours.
+    const deadlineMs = Math.min(this.deadlineMs, request.deadlineMs ?? this.deadlineMs);
     const controller = new AbortController();
     // The single-assignment slot: the first settlement wins and closes it.
     let slot: VisualDiagnosisRecord | undefined;
@@ -157,7 +165,7 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
     };
     this.inFlightCount += 1;
     const cleanups: Array<() => void> = [];
-    const work = this.run(request, controller.signal, started, (cleanup) => cleanups.push(cleanup))
+    const work = this.run(request, controller.signal, started, deadlineMs, (cleanup) => cleanups.push(cleanup))
       .catch(() => this.refusal(request, "capture-failed", started))
       .then(settle)
       .finally(() => {
@@ -169,7 +177,7 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
       timer = setTimeout(() => {
         settle(this.refusal(request, "budget-exhausted", started));
         resolve();
-      }, this.deadlineMs);
+      }, deadlineMs);
     });
     try {
       await Promise.race([work, deadline]);
@@ -193,6 +201,7 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
     request: VisualDiagnosisRequest,
     signal: AbortSignal,
     started: number,
+    deadlineMs: number,
     defer: (cleanup: () => void) => void
   ): Promise<VisualDiagnosisRecord> {
     const { step } = request;
@@ -219,6 +228,12 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
     const page = await bounded(request.page());
     if (!page || page.isClosed()) return this.refusal(request, "page-closed", started);
     if (this.handedOff(page)) return this.refusal(request, "protected-surface", started);
+    // N5.7 (security finding 1): N0's protected-surface scan runs before anything inspects the page, so a sign-in or
+    // one-time-code page the collector has not marked yet is refused with no handle, script or probe run inside it.
+    // N0 still re-checks before and after its screenshot.
+    if ((await bounded(checkProtectedSurface(page).catch(() => ({ protected: true as const })))).protected) {
+      return this.refusal(request, "protected-surface", started);
+    }
 
     const reference = await bounded(this.reference(request, step));
 
@@ -229,34 +244,53 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
       if (error instanceof DiagnosisAborted) throw error;
       return this.refusal(request, "not-eligible", started);
     }
-    // N5.7: the step locator is resolved ONCE into handles; each member's facts then come from its handle, dispatched
-    // together, with no per-member selector resolution. Boxes stay Playwright's `boundingBox()` (main-frame CSS space, the
-    // reference capture's own source) so crops match stored references. Every handle is released when the work unwinds.
-    const resolving = locator.elementHandles();
-    defer(() => void resolving.then((all) => Promise.all(all.map((handle) => handle.dispose().catch(() => undefined))), () => undefined));
+    this.options.probe?.onInspect?.();
+    // N5.7: the step locator is resolved into at most MAX_COUNT handles; each member's facts then come from its handle,
+    // dispatched together, with no per-member selector resolution. Boxes stay Playwright's `boundingBox()` (main-frame CSS
+    // space, the reference capture's own source) so crops match stored references. Every handle is released when the
+    // work unwinds, including after a deadline cut (security finding 3 / QC finding 4: never more handles than the cap).
+    const total = await bounded(locator.count());
+    const resolving: Promise<Array<ElementHandle | null>> =
+      total <= MAX_COUNT
+        ? locator.elementHandles()
+        : Promise.all(
+            Array.from({ length: MAX_COUNT }, (_, index) => locator.nth(index).elementHandle({ timeout: this.remaining(started, deadlineMs) }).catch(() => null))
+          );
+    defer(() => {
+      void resolving.then(
+        (all) => {
+          const held = all.filter((handle): handle is ElementHandle => handle !== null);
+          this.options.probe?.onHandles?.("resolved", held.length);
+          return Promise.all(held.map((handle) => handle.dispose().catch(() => undefined))).then(() => this.options.probe?.onHandles?.("disposed", held.length));
+        },
+        () => undefined
+      );
+    });
     const handles = (await bounded(resolving)).slice(0, MAX_COUNT);
     const matches = handles.length;
-    if (matches > 0 && (await bounded(this.masked(locator)))) return this.refusal(request, "sensitive", started);
+    if (matches > 0 && (await bounded(this.masked(handles)))) return this.refusal(request, "sensitive", started);
 
     const viewport = await bounded(page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight })));
     // Every counted match is measured, then the examined set is chosen in DOM order exactly as before.
-    const measured = await bounded(Promise.all(handles.map((handle) => handle.boundingBox().catch(() => null))));
+    const measured = await bounded(Promise.all(handles.map((handle) => (handle ? handle.boundingBox().catch(() => null) : Promise.resolve(null)))));
     const chosen: Array<{ index: number; box: MemberBox["box"] }> = [];
     let target: VisualDiagnosisInput["dom"]["target"];
     for (let index = 0; index < matches && chosen.length < VISUAL_DIAGNOSIS_MAX_EXAMINED; index += 1) {
       const box = measured[index];
-      // Position and size are separate facts: a zero-size element in the viewport is not offscreen.
+      // Position and size are separate facts: a zero-size element in the viewport is not offscreen. An element with no
+      // box at all (`display: none`) has no position, so it is reported as zero-size only, never offscreen (QC finding 2).
       const zeroSize = !box || box.width <= 0 || box.height <= 0;
       const inViewport =
-        !!box && box.x < viewport.width && box.y < viewport.height && box.x + Math.max(box.width, 1) > 0 && box.y + Math.max(box.height, 1) > 0;
+        !box || (box.x < viewport.width && box.y < viewport.height && box.x + Math.max(box.width, 1) > 0 && box.y + Math.max(box.height, 1) > 0);
       if (matches === 1) {
-        const occluded = inViewport && !zeroSize ? await bounded(this.occluded(handles[index])) : false;
+        const handle = handles[index];
+        const occluded = handle && inViewport && !zeroSize ? await bounded(this.occluded(handle)) : false;
         target = { inViewport, zeroSize, occluded };
       }
-      if (!inViewport || zeroSize) continue;
-      chosen.push({ index, box: box! });
+      if (!box || !inViewport || zeroSize) continue;
+      chosen.push({ index, box });
     }
-    const frames = await bounded(Promise.all(chosen.map((slot) => this.frameOf(handles[slot.index]))));
+    const frames = await bounded(Promise.all(chosen.map((slot) => this.frameOf(handles[slot.index]!))));
     const boxes: MemberBox[] = chosen.map((slot, at) => ({ ...slot, ...frames[at] }));
 
     await this.options.probe?.hold?.("before-frame");
@@ -264,9 +298,25 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
 
     const members: VisualDiagnosisMember[] = [];
     let viewportInput: VisualDiagnosisInput["viewport"] = null;
-    const shot = await request.limitScreenshot(() =>
-      captureVisualFrame(page, { timeoutMs: this.remaining(started), signal, stepType: step.type, handedOff: this.handedOff(page) })
+    // N5.7 (security finding 4): the wait for the screenshot slot is bounded by the deadline too. A slot granted after
+    // the cut takes no screenshot (N0 refuses an aborted signal at its first check, before the page is read), and a
+    // frame that still arrives after the work gave up is released, so no pixels outlive the call.
+    let kept = false;
+    const shooting = request.limitScreenshot(() =>
+      captureVisualFrame(page, { timeoutMs: this.remaining(started, deadlineMs), signal, stepType: step.type, handedOff: this.handedOff(page) })
     );
+    defer(() => {
+      void shooting.then(
+        (late) => {
+          if (kept || !late.ok) return;
+          releaseVisualFrame(late.value);
+          this.options.probe?.onFrame?.("late-released");
+        },
+        () => undefined
+      );
+    });
+    const shot = await bounded(shooting);
+    kept = true;
     if (!shot.ok) {
       viewportInput = { available: false, code: shot.code };
       for (const slot of boxes) members.push({ isTarget: matches === 1 && slot.index === 0, evidence: { available: false, code: shot.code } });
@@ -305,7 +355,7 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
         if (signal.aborted) throw new DiagnosisAborted();
         // A member that moved since it was measured is not compared.
         // The same handles are re-measured (the N2 fan-out's recheck): a replaced or detached member is stale too.
-        const rechecked = await bounded(Promise.all(boxes.map((slot) => handles[slot.index].boundingBox().catch(() => null))));
+        const rechecked = await bounded(Promise.all(boxes.map((slot) => handles[slot.index]!.boundingBox().catch(() => null))));
         for (let at = 0; at < boxes.length; at += 1) {
           const now = rechecked[at];
           const before = boxes[at].box;
@@ -350,31 +400,54 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
     return { evidence: null, source: "none" };
   }
 
-  /** Masked credential, one-time-code, PIN, card or secret fields among the matches (the N4.2 rule). */
-  private masked(locator: Locator): Promise<boolean> {
-    return locator
-      .evaluateAll((elements) =>
-        elements.some((element) => {
-          const control = element.tagName === "LABEL" ? ((element as HTMLLabelElement).control ?? element) : element;
-          if (control.tagName !== "INPUT" && control.tagName !== "TEXTAREA") return false;
-          const autocomplete = (control.getAttribute("autocomplete") ?? "").toLowerCase();
-          if ((control.getAttribute("type") ?? "").toLowerCase() === "password") return true;
-          if (/one-time-code|current-password|new-password|cc-number|cc-csc/.test(autocomplete)) return true;
-          const described = [control.getAttribute("name"), control.id, autocomplete, control.getAttribute("aria-label"), control.getAttribute("placeholder")].join(" ");
-          return /otp|one[-_ ]?time|passcode|\bpin\b|\bcvv\b|\bcvc\b|\bcsc\b|card[-_ ]?number|cardnumber|credit[-_ ]?card|\bssn\b|social[-_ ]?security|\bsecret\b|\btoken\b/i.test(described);
-        })
+  /**
+   * Masked credential, one-time-code, PIN, card or secret fields among the matches (the N4.2 rule). N5.7 (security
+   * finding 2): checked on the very handles that are measured and cropped, so a page change between two lookups cannot
+   * slip an unchecked field into the examined set. Any handle that cannot be read counts as masked (fail closed).
+   */
+  private async masked(handles: ReadonlyArray<ElementHandle | null>): Promise<boolean> {
+    const verdicts = await Promise.all(
+      handles.map((handle) =>
+        handle === null
+          ? Promise.resolve(false)
+          : handle
+              .evaluate((node) => {
+                const element = node as Element;
+                const control = element.tagName === "LABEL" ? ((element as HTMLLabelElement).control ?? element) : element;
+                if (control.tagName !== "INPUT" && control.tagName !== "TEXTAREA") return false;
+                const autocomplete = (control.getAttribute("autocomplete") ?? "").toLowerCase();
+                if ((control.getAttribute("type") ?? "").toLowerCase() === "password") return true;
+                if (/one-time-code|current-password|new-password|cc-number|cc-csc/.test(autocomplete)) return true;
+                const described = [control.getAttribute("name"), control.id, autocomplete, control.getAttribute("aria-label"), control.getAttribute("placeholder")].join(" ");
+                return /otp|one[-_ ]?time|passcode|\bpin\b|\bcvv\b|\bcvc\b|\bcsc\b|card[-_ ]?number|cardnumber|credit[-_ ]?card|\bssn\b|social[-_ ]?security|\bsecret\b|\btoken\b/i.test(described);
+              })
+              .catch(() => true)
       )
-      .catch(() => true);
+    );
+    return verdicts.some(Boolean);
   }
 
-  /** Whether another element is topmost at the member's centre, in its own document. Read only. */
+  /**
+   * Whether another element is topmost over the member, in its own document or shadow root. Read only. N5.7 (QC finding
+   * 1): the probe asks the member's own root, so a target inside an open shadow root is not "covered" by its host, and it
+   * probes the centre of the part inside the viewport, so a partly visible target is not "covered" by nothing. A member
+   * with no visible part is never called occluded.
+   */
   private occluded(member: MemberHandle): Promise<boolean> {
     return member
       .evaluate((node) => {
         const element = node as Element;
+        const view = element.ownerDocument.defaultView;
+        if (!view) return false;
         const rect = element.getBoundingClientRect();
-        const top = element.ownerDocument.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
-        return !(top && (top === element || element.contains(top)));
+        const left = Math.max(rect.left, 0);
+        const right = Math.min(rect.right, view.innerWidth);
+        const top = Math.max(rect.top, 0);
+        const bottom = Math.min(rect.bottom, view.innerHeight);
+        if (right <= left || bottom <= top) return false;
+        const root = element.getRootNode() as Document | ShadowRoot;
+        const hit = (typeof root.elementFromPoint === "function" ? root : element.ownerDocument).elementFromPoint((left + right) / 2, (top + bottom) / 2);
+        return !(hit && (hit === element || element.contains(hit)));
       })
       .catch(() => false);
   }
@@ -399,8 +472,8 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
     }
   }
 
-  private remaining(started: number): number {
-    return Math.max(1, Math.round(this.deadlineMs - (performance.now() - started)));
+  private remaining(started: number, deadlineMs: number): number {
+    return Math.max(1, Math.round(deadlineMs - (performance.now() - started)));
   }
 
   private refusal(request: VisualDiagnosisRequest, code: VisualDiagnosisRefusal, started: number): VisualDiagnosisRecord {

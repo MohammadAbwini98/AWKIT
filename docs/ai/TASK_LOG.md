@@ -1,5 +1,43 @@
 # TASK_LOG
 
+## 2026-10-19 — Phase N: N5.7 independent QC, security review and N5 closure (Claude)
+
+- **Scope:** "Proceed with N5.7". Contract `awkit-vra-14-7-n5-closure-1019`, Risk 2. The independent QC
+  (fresh-context `awkit-qc-reviewer`) and the security review (`awkit-security-engineer`) ran as read-only agents at
+  the owner's request. CodeCraft: not used (`CODECRAFT_MODE=off` default).
+- **Fixed from the reviews:**
+  - occlusion asked of the target's own root, at the centre of its visible part;
+  - a box-less target reported as zero size only;
+  - N0's protected scan before any inspection;
+  - at most 64 handles, with the masked check on the same handles;
+  - the limiter wait bounded, and a late frame released and observed;
+  - the first lazy load counted against the deadline;
+  - truncation copy without a count.
+- **Fixtures and verifiers:**
+  - fusion-lab states `shadow`, `partial` and `hidden`;
+  - runtime verifier 63/0, with mutations R7-R11 observed red by temporary edits and reverted;
+  - the benchmark aligned for the protected-first one-time-code refusal, plus a card-number masked-field case.
+- **Files:** `src/runner/visualDiagnosis/{VisualFailureDiagnosis,visualDiagnosisContract}.ts`,
+  `src/runner/PlaywrightRunner.ts`, `app/renderer/components/reports/VisualDiagnosisSection.tsx`,
+  `mock-site/public/visual-intelligence-fusion.html`, `mock-site/README.md`,
+  `scripts/{verify-visual-diagnosis-runtime.mts,verify-visual-diagnosis-gui.mts,verify-mock-site.mjs,benchmark-visual-diagnosis.mts,verify-roadmap-dashboard.mjs}`,
+  `src/roadmap/ImplementationRoadmap.ts`, `.beads/issues.jsonl`,
+  `docs/ai/{ARCHITECTURE,DECISIONS,CURRENT_STATE,HANDOFF,TASK_LOG}.md`,
+  `docs/plans/ai-upgrade-v5/{N5-visual-failure-diagnosis,ROADMAP}.md`, the evidence JSON, the contract,
+  `active-lease.json`.
+- **Checks:**
+
+  | Group | Results |
+  |---|---|
+  | N5 gates | visual-diagnosis-runtime 63/0; visual-diagnosis-report 63/0; visual-isolation 71/0 |
+  | N2 and N3 suites | visual-capture 274/0; fingerprint 58/0; fusion 271/0; fusion-runtime 146/0; agreement 258/0; agreement-runtime 81/0 |
+  | N4 and runner suites | recorded-visual-fallback 71/71; recorder-visual-capture 119/0; runner 138/0; locator-guard 38/0; recovery-provenance 46/0; twin-pool-safety 48/0; ai-error-analysis 429/429; mock-site 320/320 |
+  | GUI, owner terminal | visual-diagnosis-gui 42/0; ai-assist-gui 182/0; recorder-visual-gui 55/0 |
+  | Benchmark | VD-10 MET except the pruned `viewport-uniform` |
+  | Build and dashboard | typecheck:scripts and build PASS; roadmap dashboard Sources agree at 27/377 of 404 |
+- **Result:** N5 closed. `awkit-4b5y` stays open. `docs/ai/contracts/awkit-l12-27-implementation-1006.json`
+  preserved.
+
 ## 2026-10-19 — Phase N: N5.5 Visual diagnosis drawer section (closed after the GUI gate passed) (Claude)
 
 - **Scope:** "Proceed with N5.5". Contract `awkit-vra-14-5-n5-drawer-section-1019`, Risk 1, renderer only.

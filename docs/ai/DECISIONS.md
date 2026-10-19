@@ -1,5 +1,52 @@
 # DECISIONS
 
+### 2026-10-19 (latest) — Phase N N5 outcome: Visual Failure Diagnosis closed advisory-only, after independent QC and a security review (`awkit-vra.14.7`, `awkit-vra.14`)
+
+- **Outcome against VD-0 to VD-11.**
+  - Advisory only: the diagnosis runs once, after the retry policy declines another attempt. Its record leaves only
+    through `onRecord` into the codes-only `InstanceReport.visualDiagnosis` block. It is shown in a text-only drawer
+    section.
+  - The vocabulary is calibrated, with `viewport-uniform` pruned to `inconclusive` at exposure (N5.6).
+  - Exactly three `src/visual` edges.
+  - Off by default (`AWKIT_VISUAL_DIAGNOSIS=on` only).
+- **Independent QC (fresh context): CHANGES REQUIRED, then APPROVED.**
+  - **Major, fixed:** `target-occluded` was reported for a target inside an open shadow root, and for a partly
+    visible target whose centre was off screen. Occlusion is now asked of the target's own root, at the centre of
+    its visible part. New fusion-lab states `shadow`, `partial` and `hidden` cover it.
+  - **Minor, fixed:**
+    - `display:none` is reported as zero size only, with no position claim;
+    - handle disposal is now proven by a check;
+    - handles are capped through `count()`;
+    - the first lazy load counts against the deadline;
+    - the A/B proof compares attempts and includes a retry case;
+    - the truncation sentence claims no count;
+    - a frame returned after the cut is released and observed (R11).
+- **Security review: APPROVED, with all five low findings fixed.**
+  - N0's protected scan runs before any page inspection;
+  - the masked-field check runs on the same handles that are cropped;
+  - handles are capped;
+  - the screenshot-limiter wait is bounded by the deadline;
+  - new disposal and protected-before-frame checks.
+
+  One consequence, accepted as stricter: a one-time-code page now refuses as `protected-surface` before the
+  masked-field rule is reached.
+- **Accepted, not fixed (security minor a):** the page could grow past 64 matches between `count()` and
+  `elementHandles()`. Then `elementHandles()` returns more than 64 handles, all of them disposed. Keeping the
+  one-call path for up to 64 matches preserves the batching that fits the deadline.
+- **Mutations observed red for the fixes:**
+
+  | Mutation | Result |
+  |---|---|
+  | R7 document-level probe at the box centre | 59/2 |
+  | R8 no handle disposal | 58/3 |
+  | R9 early protected check removed | 58/3 |
+  | R10 a null box reported offscreen | 60/1 |
+  | R11 late frame never released | 62/1 |
+- **Cost varies with load on this VM:** two benchmark runs measured p95 389 ms then 774 ms (0, then 2 runs cut),
+  within the 1000 ms deadline.
+- **Not closed by N5:** B2 protected capture (`awkit-4b5y`) stays open for its own remediation. No clean-machine run
+  is claimed; the Windows 11 ARM64 Parallels waiver stands.
+
 ### 2026-10-19 (latest) — Phase N N5.6 follow-up: the over-cap deadline gap is closed by batching member probes
 
 - **Decision.** The N5.3 adapter resolves the step locator once (`elementHandles()`) and dispatches each member's

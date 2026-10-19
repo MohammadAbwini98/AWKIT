@@ -1,22 +1,48 @@
 {
-  "task": "awkit-vra-14-5-n5-drawer-section-1019",
-  "contract_path": "docs/ai/contracts/awkit-vra-14-5-n5-drawer-section-1019.json",
+  "task": "awkit-vra-14-7-n5-closure-1019",
+  "contract_path": "docs/ai/contracts/awkit-vra-14-7-n5-closure-1019.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-19T17:25:28.069Z",
-  "acquired_at_commit": "b7a25d07201259bf1cf0f3d2815a554fbd624148",
+  "acquired_at": "2026-10-19T20:48:31.402Z",
+  "acquired_at_commit": "715762711bc34bcb5fcc3bd77a0717efd61104d7",
   "baseline_dirty": [
+    "app/renderer/components/reports/VisualDiagnosisSection.tsx",
+    "docs/ai/ARCHITECTURE.md",
+    "docs/ai/DECISIONS.md",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-vra-14-5-n5-drawer-section-1019.json",
-    "scripts/verify-visual-diagnosis-gui.mts"
+    "docs/ai/contracts/awkit-vra-14-7-n5-closure-1019.json",
+    "docs/plans/ai-upgrade-v5/N5-visual-failure-diagnosis.md",
+    "docs/plans/ai-upgrade-v5/evidence/N5.6-visual-diagnosis-calibration.json",
+    "mock-site/README.md",
+    "mock-site/public/visual-intelligence-fusion.html",
+    "scripts/benchmark-visual-diagnosis.mts",
+    "scripts/verify-mock-site.mjs",
+    "scripts/verify-visual-diagnosis-gui.mts",
+    "scripts/verify-visual-diagnosis-runtime.mts",
+    "src/runner/PlaywrightRunner.ts",
+    "src/runner/visualDiagnosis/VisualFailureDiagnosis.ts",
+    "src/runner/visualDiagnosis/visualDiagnosisContract.ts"
   ],
   "baseline_dirty_fingerprints": {
+    "app/renderer/components/reports/VisualDiagnosisSection.tsx": "14627a6009ed564692096512f2a9ebd706ceb20857d4edee7b0d88aede214fc6",
+    "docs/ai/ARCHITECTURE.md": "0ea7b61db681df4cab2c6be263a5e7f5c00374815d3d035b0599d367a7127b8e",
+    "docs/ai/DECISIONS.md": "a2e013aeaea9d3706ff802dde65b3c85ed2db719675a402efa3d89d1b99f35d1",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-vra-14-5-n5-drawer-section-1019.json": "d374fd92c59995f7b04404ee425fd5536f7e4565e8227e994f3a058da9e01937",
-    "scripts/verify-visual-diagnosis-gui.mts": "8bdcab94f15bfba0cb6c4a3e91473d038dec313c6ebe1cf79fe9e7b5323f94ec"
+    "docs/ai/contracts/awkit-vra-14-7-n5-closure-1019.json": "e6a0d9efa0754aa382a1ccd7204e5b0b5658a4ca23b5ecc24beb066219cde870",
+    "docs/plans/ai-upgrade-v5/N5-visual-failure-diagnosis.md": "ff9fa07d526f90e9cf83bca70950ea5136f47ebf4707b21b1afc2f29b4a3c391",
+    "docs/plans/ai-upgrade-v5/evidence/N5.6-visual-diagnosis-calibration.json": "223d70159e2df2dc9a9a4ba644dc7fbf0553ddd917327c44aec7cc0c4041bb90",
+    "mock-site/README.md": "fb3a5fb0e18ea777cd33bae5f55979bee3b7ae8745e302cdaca0a6ec3389c829",
+    "mock-site/public/visual-intelligence-fusion.html": "69e7b2343932aa7d92c9d0540aabf26e74b639a2e774c169d2befce05bd8c760",
+    "scripts/benchmark-visual-diagnosis.mts": "5ff5179f2357301bd4660aab6e92c222394a6c9aaa6ffa46a043e68ae1afb5df",
+    "scripts/verify-mock-site.mjs": "5b0eea951297b0e760c413e66ec531997ddbc2186a027a4c1d82a32393a36401",
+    "scripts/verify-visual-diagnosis-gui.mts": "fdd2f65442bb7ae4816c4c43dcf46b4c3739421f2ebdd31a8389e2fee227d07f",
+    "scripts/verify-visual-diagnosis-runtime.mts": "aede03e71b162d949760817a17ed9142d6a1834cfbfc4f517cc8554cee2e810d",
+    "src/runner/PlaywrightRunner.ts": "ec5ceaa2008c458babf34c2cea5d8b0c283b5875a5579a59404408e2ed790009",
+    "src/runner/visualDiagnosis/VisualFailureDiagnosis.ts": "7d13e3b178726e30a0ccc0403258ded5bc237694bf01d215fa092322df28ff49",
+    "src/runner/visualDiagnosis/visualDiagnosisContract.ts": "4914bddcc457b4ba69e94ee64c36d5ed69620ba0ff450d26603593d15849c458"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -31,7 +57,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-19T17:25:46.976Z",
-  "released_reason": "N5.5 bead closed and beads exported",
-  "archived_at": "2026-10-19T17:25:46.979Z"
+  "released_at": "2026-10-19T20:49:05.284Z",
+  "released_reason": "N5.7 and the N5 epic closed and beads exported",
+  "archived_at": "2026-10-19T20:49:05.287Z"
 }

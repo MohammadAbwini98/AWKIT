@@ -1,0 +1,181 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-14-7-n5-closure-1019",
+    "title": "Phase N N5.7: state docs, ARCHITECTURE, DECISIONS outcome, independent QC, security review and N5 closure",
+    "objective": "Close N5.7 awkit-vra.14.7 and the N5 epic awkit-vra.14 against completion criteria 1-10 of the N5 plan: add the N5 section to ARCHITECTURE, record the N5 outcome in DECISIONS, rerun the criterion-8 regression suites against the final state, obtain a fresh-context independent QC and a security review, close their findings, close the beads under a project-state lease, repin the dashboard and report every criterion truthfully. No product behaviour change unless a review finding requires one.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "71576271",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "qa",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/ARCHITECTURE.md",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/contracts/awkit-vra-14-7-n5-closure-1019.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N5.7-REGRESSION",
+      "description": "The criterion-8 suites (N2, N3 and N4 verifiers, runner, locator-guard, recovery-provenance, twin-pool-safety, L5b, mock-site, build) pass against the final state, or each non-pass is recorded with its exact terminal state.",
+      "evidence_required": [
+        "criterion-8-suites",
+        "build"
+      ]
+    },
+    {
+      "id": "N5.7-REVIEW",
+      "description": "A fresh-context independent QC and a security review are APPROVED with their findings closed.",
+      "evidence_required": [
+        "independent-qc",
+        "security-review"
+      ]
+    },
+    {
+      "id": "N5.7-STATE",
+      "description": "ARCHITECTURE and DECISIONS record N5 as built, awkit-vra.14.7 and awkit-vra.14 are closed through bd and exported, and the dashboard reports Sources agree.",
+      "evidence_required": [
+        "verify:roadmap-dashboard"
+      ]
+    },
+    {
+      "id": "N5.7-GIT",
+      "description": "The work lands on main and is pushed without force; the L12.27 contract stays untracked and unchanged.",
+      "evidence_required": [
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "criterion-8-suites",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:<suite> for each criterion-8 suite",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "final state: visual-capture 274/0, visual-fingerprint 58/0, visual-fusion 271/0, visual-fusion-runtime 146/0, visual-agreement 258/0, visual-agreement-runtime 81/0, recorded-visual-fallback 71/71, recorder-visual-capture 119/0, runner 138/0, locator-guard 38/0, recovery-provenance 46/0, twin-pool-safety 48/0, ai-error-analysis 429/429, mock-site 320/320, visual-diagnosis-runtime 63/0 (R7-R11 red), visual-diagnosis-report 63/0, visual-isolation 71/0; GUI in the owner terminal with the local Electron runtime: visual-diagnosis-gui 42/0, ai-assist-gui 182/0, recorder-visual-gui 55/0"
+    },
+    {
+      "id": "independent-qc",
+      "type": "inspection",
+      "required": true,
+      "command": "fresh-context awkit-qc-reviewer",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "CHANGES REQUIRED (1 major: false target-occluded for open-shadow and partly visible targets; 5 minor; 1 nit) then APPROVED after the fixes; the re-review nit (late frame unobserved) fixed with R11 observed red"
+    },
+    {
+      "id": "security-review",
+      "type": "inspection",
+      "required": true,
+      "command": "awkit-security-engineer review",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "APPROVED with 5 lows, all fixed and confirmed closed on re-review; minor (a), the count-to-handles growth window, accepted in DECISIONS 2026-10-19"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "177/177, Sources agree, 27 outstanding / 377 closed of 404, 332 edges, after awkit-vra.14.7 and awkit-vra.14 were closed and exported"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc --noEmit and bundles PASS against the final source; typecheck:scripts PASS"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "runs after the commit that carries this contract; its outcome is reported in the session report"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "PASS"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-14-7-n5-closure-1019:project-state:2026-10-19T20:48:31.402Z",
+        "task": "awkit-vra-14-7-n5-closure-1019",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-19T20:48:31.402Z",
+        "acquired_at_commit": "715762711bc34bcb5fcc3bd77a0717efd61104d7",
+        "released_at": "2026-10-19T20:49:05.284Z",
+        "released_reason": "N5.7 and the N5 epic closed and beads exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

@@ -264,7 +264,20 @@ async function runCell(cell: Cell, root: string): Promise<CaseResult[]> {
     const refusals: Array<[string, () => Promise<Page>, FlowStep, boolean, string]> = [
       ["protected surface", async () => { const p = await openLab(context); await p.evaluate(() => (window as unknown as { __fusionLab: { injectProtected(k: string): void } }).__fusionLab.injectProtected("otp")); return p; }, fill("ref-protected", TOOL0), false, "protected-surface"],
       ["handed off", () => openLab(context), fill("ref-handoff", TOOL0), true, "protected-surface"],
-      ["sensitive field", async () => { const p = await openLab(context); await p.evaluate(() => (window as unknown as { __fusionLab: { injectProtected(k: string): void } }).__fusionLab.injectProtected("otp")); return p; }, click("ref-sensitive", { strategy: "css", value: '[data-testid="vf-protected-otp"] input' }, { type: "check" }), false, "sensitive"]
+      // N5.7: N0's protected scan now runs before any inspection, so a one-time-code field is refused as the protected
+      // surface it is; the masked-field rule is measured on an ordinary page with a card-number field.
+      ["one-time-code field", async () => { const p = await openLab(context); await p.evaluate(() => (window as unknown as { __fusionLab: { injectProtected(k: string): void } }).__fusionLab.injectProtected("otp")); return p; }, click("ref-otp", { strategy: "css", value: '[data-testid="vf-protected-otp"] input' }, { type: "check" }), false, "protected-surface"],
+      ["sensitive field", async () => {
+        const p = await openLab(context);
+        await p.evaluate(() => {
+          const field = document.createElement("input");
+          field.setAttribute("data-testid", "vf-card");
+          field.setAttribute("name", "cardnumber");
+          field.style.cssText = "position: absolute; left: 420px; top: 240px; width: 160px; height: 28px";
+          document.body.appendChild(field);
+        });
+        return p;
+      }, click("ref-sensitive", { strategy: "testId", value: "vf-card" }, { type: "check" }), false, "sensitive"]
     ];
     for (const [name, open, step, handedOff, code] of refusals) {
       const page = await open();

@@ -62,6 +62,11 @@ export interface VisualDiagnosisRequest {
   page: () => Promise<Page | null>;
   /** Runs one screenshot-class operation under the runner's screenshot limiter. */
   limitScreenshot: <T>(fn: () => Promise<T>) => Promise<T>;
+  /**
+   * N5.7 (QC finding 5): what is left of the deadline when the call starts (the lazy loader spends the rest on its first
+   * load). The adapter never uses more than its own deadline.
+   */
+  deadlineMs?: number;
 }
 
 /**

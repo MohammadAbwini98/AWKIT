@@ -27,6 +27,9 @@
  * R1 the hook diagnoses every failed attempt (before the retry decision); R2 the adapter ignores `handedOff`; R3 the
  * slot does not close, so late work re-settles; R4 the frame is not released; R5 the adapter refreshes the reference;
  * R6 the examined set ignores the cap.
+ * N5.7 review fixes (QC and security findings), also by temporary source edits: R7 occlusion asked of the document at
+ * the box centre again; R8 the handles are never disposed; R9 the early protected-surface check removed; R10 a null box
+ * reported offscreen again; R11 a frame handed back after the deadline is never released.
  *
  * Run: npm run verify:visual-diagnosis-runtime
  */
@@ -130,6 +133,9 @@ interface Harness {
   /** Each hook call and how long the hook waited for it. */
   calls: { attempt: number; ms: number }[];
   frames: { taken: number; released: number };
+  /** N5.7: element handles resolved and disposed, and how often the page was inspected. */
+  handles: { resolved: number; disposed: number };
+  inspected: { count: number };
   diagnosis: VisualFailureDiagnosis;
   run: (step: FlowStep) => Promise<StepExecutionResult>;
 }
@@ -161,6 +167,8 @@ function harness(page: Page, options: HarnessOptions = {}): Harness {
   const records: VisualDiagnosisRecord[] = [];
   const calls: { attempt: number; ms: number }[] = [];
   const frames = { taken: 0, released: 0 };
+  const handles = { resolved: 0, disposed: 0 };
+  const inspected = { count: 0 };
   const diagnosis = new VisualFailureDiagnosis({
     folder: STORE,
     handedOff: () => options.handedOff === true,
@@ -171,8 +179,14 @@ function harness(page: Page, options: HarnessOptions = {}): Harness {
       ...options.probe,
       onFrame: (event) => {
         if (event === "taken") frames.taken += 1;
-        else frames.released += 1;
+        else if (event === "released") frames.released += 1;
         options.probe?.onFrame?.(event);
+      },
+      onHandles: (event, count) => {
+        handles[event] += count;
+      },
+      onInspect: () => {
+        inspected.count += 1;
       }
     }
   });
@@ -194,6 +208,8 @@ function harness(page: Page, options: HarnessOptions = {}): Harness {
     records,
     calls,
     frames,
+    handles,
+    inspected,
     diagnosis,
     run: (step) => (flowExecutor as unknown as { executeWithRetry(s: FlowStep, c: InstanceExecutionContext): Promise<StepExecutionResult> }).executeWithRetry(step, context)
   };
@@ -311,6 +327,24 @@ async function main(): Promise<void> {
       check("a busy page is never viewport-uniform", hasNot(busy.record, "viewport-uniform"), show(busy.record));
       await b5.page.close();
       await busy.page.close();
+      // N5.7 (QC finding 1): occlusion is asked of the target's own root, at the centre of its visible part.
+      // A fill on a button fails, so these uncovered targets still reach a final failure to diagnose.
+      const b7 = await diagnose("b7", async () => ({ page: await freshLab("shadow"), step: fillStep("b7", { strategy: "testId", value: "vf-shadow-tool" }) }));
+      allRecords.push(b7.record!);
+      check("a target in an open shadow root, with nothing over it, is not target-occluded (its host is not a cover)", b7.record?.outcome === "observed" && hasNot(b7.record, "target-occluded", "target-offscreen", "target-not-in-dom") && b7.record?.examined === 1, show(b7.record));
+      await b7.page.close();
+      const b8 = await diagnose("b8", async () => ({ page: await freshLab("partial"), step: fillStep("b8", { strategy: "testId", value: "vf-partial-tool" }) }));
+      allRecords.push(b8.record!);
+      check("a target half below the fold, its centre off screen, is neither target-occluded nor target-offscreen", b8.record?.outcome === "observed" && hasNot(b8.record, "target-occluded", "target-offscreen") && b8.record?.examined === 1, show(b8.record));
+      await b8.page.close();
+      // N5.7 (QC finding 2): no box means no position, so display:none is a size fact only.
+      const b9 = await diagnose("b9", async () => ({ page: await freshLab("hidden"), step: clickStep("b9", tool(0)) }));
+      allRecords.push(b9.record!);
+      check("a display:none target is target-zero-size only, never offscreen, and not examined", has(b9.record, "target-zero-size") && hasNot(b9.record, "target-offscreen", "target-occluded") && b9.record?.examined === 0, show(b9.record));
+      await b9.page.close();
+      // Disposal runs after the work settles; give it a moment before counting.
+      await new Promise((r) => setTimeout(r, 300));
+      check("every diagnosis above released every element handle it resolved", [b7, b8, b9].every((d) => d.h.handles.resolved >= 1 && d.h.handles.disposed === d.h.handles.resolved), [b7, b8, b9].map((d) => JSON.stringify(d.h.handles)).join(" "));
     }
 
     // ── C. Examined scope ──────────────────────────────────────────────────────────────────────
@@ -364,6 +398,7 @@ async function main(): Promise<void> {
     {
       const d1 = await diagnose("d1", async () => ({ page: await freshLab("none", (p) => p.evaluate(() => (window as unknown as { __fusionLab: { injectProtected(k: string): void } }).__fusionLab.injectProtected("captcha"))), step: fillStep("d1", tool(0)) }));
       check("an injected protected surface refuses as protected-surface with no frame kept", d1.record?.outcome === "refused" && has(d1.record, "protected-surface") && d1.h.frames.taken === 0, `${show(d1.record)} ${JSON.stringify(d1.h.frames)}`);
+      check("N5.7: the protected page is refused before anything inspects it (no handle, no masked check, no box)", d1.h.inspected.count === 0 && d1.h.handles.resolved === 0, `inspected ${d1.h.inspected.count}, ${JSON.stringify(d1.h.handles)}`);
       await d1.page.close();
       const d2 = await diagnose("d2", async () => ({ page: await freshLab(), step: fillStep("d2", tool(0)), options: { handedOff: true } }));
       check("a handed-off page refuses as protected-surface with zero frames", has(d2.record, "protected-surface") && d2.h.frames.taken === 0, `${show(d2.record)} ${JSON.stringify(d2.h.frames)}`);
@@ -379,6 +414,29 @@ async function main(): Promise<void> {
         (await p3.page.getByTestId("protected-login-page").count()) === 1 && (await p3.page.locator('input[type="password"]').count()) === 1 && (await p3.page.locator('input[autocomplete="one-time-code"]').count()) === 1
       );
       check("B2 P3 path: a failure on the secure-login page refuses as protected-surface with zero frames", has(p3.record, "protected-surface") && p3.h.frames.taken === 0, `${show(p3.record)} ${JSON.stringify(p3.h.frames)}`);
+      check("N5.7: ...and nothing inspected the secure-login page", p3.h.inspected.count === 0, `inspected ${p3.h.inspected.count}`);
+      // N5.7 (security finding 5): a protected surface that appears after the inspection, just before the frame.
+      const d5 = await diagnose("d5", async () => {
+        const page = await freshLab();
+        return {
+          page,
+          step: fillStep("d5", tool(0)),
+          options: {
+            probe: {
+              hold: async (stage: "before-frame" | "after-frame") => {
+                if (stage === "before-frame") await page.evaluate(() => (window as unknown as { __fusionLab: { injectProtected(k: string): void } }).__fusionLab.injectProtected("otp"));
+              }
+            }
+          }
+        };
+      });
+      await new Promise((r) => setTimeout(r, 300));
+      check(
+        "a protected surface that appears just before the frame is refused as protected-surface, with no frame taken and every handle released",
+        has(d5.record, "protected-surface") && d5.h.frames.taken === 0 && d5.h.frames.released === 0 && d5.h.inspected.count === 1 && d5.h.handles.disposed === d5.h.handles.resolved,
+        `${show(d5.record)} ${JSON.stringify(d5.h.frames)} ${JSON.stringify(d5.h.handles)}`
+      );
+      await d5.page.close();
       await p3.page.close();
       {
         const page = await browser!.newPage({ viewport: { width: 800, height: 600 } });
@@ -400,8 +458,33 @@ async function main(): Promise<void> {
         page: await freshLab("none", (p) => p.evaluate(() => (window as unknown as { __fusionLab: { injectProtected(k: string): void } }).__fusionLab.injectProtected("otp"))),
         step: clickStep("d3", { strategy: "css", value: '[data-testid="vf-protected-otp"] input' }, { type: "check" })
       }));
-      check("a masked one-time-code field refuses as sensitive with zero frames", has(d3.record, "sensitive") && d3.h.frames.taken === 0, `${show(d3.record)} ${JSON.stringify(d3.h.frames)}`);
+      // N5.7: N0's protected scan now runs first, so a one-time-code page is refused as a protected surface before the
+      // masked-field check is reached, and nothing inspects it.
+      check(
+        "a one-time-code field refuses (protected-surface first since N5.7) with zero frames and no inspection",
+        d3.record?.outcome === "refused" && (has(d3.record, "protected-surface") || has(d3.record, "sensitive")) && d3.h.frames.taken === 0 && d3.h.inspected.count === 0,
+        `${show(d3.record)} ${JSON.stringify(d3.h.frames)} inspected ${d3.h.inspected.count}`
+      );
       await d3.page.close();
+      // The masked-field check on the measured handles, on a page N0 does not treat as protected.
+      const d6 = await diagnose("d6", async () => ({
+        page: await freshLab("none", (p) =>
+          p.evaluate(() => {
+            const field = document.createElement("input");
+            field.setAttribute("data-testid", "vf-card");
+            field.setAttribute("name", "cardnumber");
+            field.style.cssText = "position: absolute; left: 420px; top: 240px; width: 160px; height: 28px";
+            document.body.appendChild(field);
+          })
+        ),
+        step: clickStep("d6", { strategy: "testId", value: "vf-card" }, { type: "check" })
+      }));
+      check(
+        "a masked card-number field on an ordinary page refuses as sensitive, with zero frames and every handle released",
+        has(d6.record, "sensitive") && d6.h.frames.taken === 0 && d6.h.inspected.count === 1,
+        `${show(d6.record)} ${JSON.stringify(d6.h.frames)} inspected ${d6.h.inspected.count}`
+      );
+      await d6.page.close();
       const d4 = await diagnose("d4", async () => ({ page: await freshLab(), step: { id: "d4", name: "Wait", type: "assertVisible", timeoutMs: 500, locator: { strategy: "testId", value: "nope" } } as unknown as FlowStep }));
       check("a non-element step refuses as not-eligible with zero frames", has(d4.record, "not-eligible") && d4.h.frames.taken === 0, `${show(d4.record)} ${JSON.stringify(d4.h.frames)}`);
       await d4.page.close();
@@ -442,8 +525,9 @@ async function main(): Promise<void> {
     // ── F. A/B neutrality and the store ─────────────────────────────────────────────────────────
     console.log("F. A/B: off and on change nothing about the step, the page or the store");
     {
+      // N5.7 (QC finding 6): attempts are compared too, and one case retries before its final failure.
       const stable = (result: StepExecutionResult) =>
-        JSON.stringify({ status: result.status, error: result.error, next: result.nextStepId, outcome: result.outcome, kinds: (result.evidence ?? []).map((e) => `${e.kind}:${e.attempt}:${!!e.path}`) });
+        JSON.stringify({ status: result.status, error: result.error, next: result.nextStepId, outcome: result.outcome, attempts: result.attemptCount, kinds: (result.evidence ?? []).map((e) => `${e.kind}:${e.attempt}:${!!e.path}`) });
       const pageState = (page: Page) =>
         page.evaluate(() => ({
           dom: document.documentElement.outerHTML.length + ":" + document.documentElement.outerHTML.split("").reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 0),
@@ -453,7 +537,8 @@ async function main(): Promise<void> {
       const before = await storeDigest();
       for (const [label, failure, step] of [
         ["a failed fill", "none", fillStep("f1", tool(0))],
-        ["an occluded click", "overlay", clickStep("f2", tool(0))]
+        ["an occluded click", "overlay", clickStep("f2", tool(0))],
+        ["a click that fails twice under retry", "detach", clickStep("f3", tool(0), { timeoutMs: 400, retry: { count: 1, delayMs: 0 } })]
       ] as const) {
         const offPage = await freshLab(failure);
         const off = await harness(offPage, { enabled: false }).run(step);
@@ -505,6 +590,8 @@ async function main(): Promise<void> {
       check("held after the frame: budget-exhausted while the frame is still held", has(h2.records[0], "budget-exhausted") && h2.frames.taken === 1 && h2.frames.released === 0, `${show(h2.records[0])} ${JSON.stringify(h2.frames)}`);
       await new Promise((r) => setTimeout(r, 4500));
       check("the held frame is released once the late work unwinds, still one record, nothing in flight", h2.frames.released === 1 && h2.records.length === 1 && h2.diagnosis.inFlight() === 0, `${JSON.stringify(h2.frames)} records ${h2.records.length}`);
+      // N5.7 (QC finding 3 / security finding 5): the handles are released after a deadline cut as well.
+      check("after the cut, every element handle the late work resolved was disposed", h2.handles.resolved >= 1 && h2.handles.disposed === h2.handles.resolved, JSON.stringify(h2.handles));
       check("no page listener the frame attached is left behind", listenersAtStart !== "" && listeners(page2) === listenersAtStart, `${listeners(page2)} vs ${listenersAtStart}`);
       await page2.close();
 
@@ -517,6 +604,41 @@ async function main(): Promise<void> {
         threw = true;
       }
       check("a page closed mid-diagnosis settles as page-closed, takes no frame and throws nothing", !threw && has(h3.records[0], "page-closed") && h3.frames.taken === 0, `${show(h3.records[0])} threw ${threw}`);
+
+      // N5.7 (QC re-review nit): the screenshot limiter hands the frame back after the deadline. The work has given up,
+      // so the frame is never used, and it is still released.
+      const page4 = await freshLab();
+      const late = { taken: 0, released: 0, lateReleased: 0 };
+      const d4 = new VisualFailureDiagnosis({
+        folder: STORE,
+        handedOff: () => false,
+        deadlineMs: 600,
+        probe: {
+          onFrame: (event) => {
+            if (event === "taken") late.taken += 1;
+            else if (event === "released") late.released += 1;
+            else late.lateReleased += 1;
+          }
+        }
+      });
+      const lateRecord = await d4.diagnoseFinalFailure({
+        step: fillStep("g4", tool(0)),
+        attempt: 0,
+        errorClass: "locator",
+        executionId: "exec-g4",
+        scenarioId: SCENARIO_ID,
+        flowId: FLOW_ID,
+        page: async () => page4,
+        limitScreenshot: async (fn) => {
+          const result = await fn();
+          await new Promise((r) => setTimeout(r, 1200));
+          return result;
+        }
+      });
+      check("a frame handed back after the deadline: the diagnosis settles budget-exhausted without using it", has(lateRecord, "budget-exhausted") && late.taken === 0, `${show(lateRecord)} ${JSON.stringify(late)}`);
+      await new Promise((r) => setTimeout(r, 1500));
+      check("...and the late frame is released once it arrives, with nothing left in flight", late.lateReleased === 1 && late.released === 0 && d4.inFlight() === 0, `${JSON.stringify(late)} in flight ${d4.inFlight()}`);
+      await page4.close();
     }
 
     // ── H. Enablement, wiring and the record shape ──────────────────────────────────────────────
@@ -531,6 +653,10 @@ async function main(): Promise<void> {
       const hook = flow.indexOf("diagnoseFinalFailure(");
       check("the hook sits after the retry loop, never inside it", hook > flow.indexOf("const decision = this.retryPolicy.decide(") && hook > flow.indexOf("recordFailurePageContext?.(step)"), String(hook));
       check("the default deadline is the VD-8 provisional 1000 ms", VISUAL_DIAGNOSIS_DEADLINE_MS === 1000);
+      check(
+        "N5.7 (QC finding 5): the lazy loader races the first load against the deadline and hands the adapter only what is left",
+        /Promise\.race\(\[load\(\), new Promise<undefined>/.test(runner) && /deadlineMs: Math\.max\(1, Math\.round\(deadlineMs - \(performance\.now\(\) - started\)\)\)/.test(runner)
+      );
       const names = (await readdir(STORE)).sort();
       const changed = [];
       for (const name of names) if (seeded.get(name) !== sha(await readFile(join(STORE, name)))) changed.push(name);

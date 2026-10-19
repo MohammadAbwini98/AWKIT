@@ -8,7 +8,8 @@ legacy 2026-09-22 workstream `awkit-vra.5` ("Visual assertions and failure evide
 split between canonical N5 (this plan) and canonical N6 (Visual Assertions), and it keeps its original title as a
 planning record, as the N4 plan did for `awkit-vra.6` and `.8`.
 
-**Status (2026-10-19): IN PROGRESS. The owner approved VD-0 to VD-11 as recommended ("I approve VD-0 to VD-11 as
+**Status (2026-10-19): CLOSED (N5.1-N5.7 closed; advisory-only, codes-only, independent QC and security review
+APPROVED). The owner approved VD-0 to VD-11 as recommended ("I approve VD-0 to VD-11 as
 recommended, start N5"), recorded in DECISIONS 2026-10-19 (contract `awkit-vra-14-n5-start-1019`).**
 - **N5.1 `awkit-vra.14.1`: closed.** VD-1 (the third edge) takes effect when N5.3 lands the adapter. VD-11 is
   deferred.
@@ -165,9 +166,10 @@ recommended, start N5"), recorded in DECISIONS 2026-10-19 (contract `awkit-vra-1
   - `VisualDiagnosisSection.tsx` is wired in `FailureEvidenceSection.tsx` after *Captured evidence*. It is shown only
     when the block exists, also without L5a evidence, sanitized on read and exposed through the pruning helper.
   - **Wording deviation (stricter than *Accessibility and UI*):** the plan's truncation sentence ("examined only the
-    first n") and `unproven` note ("only exact matches") used "only". As built they read "The run stopped after
-    examining the first n of the elements it found." and "…so a difference is never reported here; exact pixel
-    matches still are." The verifier can then forbid "only" anywhere in the section.
+    first n") and `unproven` note ("only exact matches") used "only". As built they read "The run did not examine
+    every element the step could match." (N5.7: no count, since `truncated` also covers unexamined alternative
+    locators) and "…so a difference is never reported here; exact pixel matches still are." The verifier can then
+    forbid "only" anywhere in the section.
   - **Gates:**
     - `verify:visual-diagnosis-gui` 42/0 in real Electron, covering text, basis, scope, truncation, the caveat,
       absence, read-side sanitizing, Tab containment and reduced motion, with 11 snapshot mutants red;
@@ -176,7 +178,64 @@ recommended, start N5"), recorded in DECISIONS 2026-10-19 (contract `awkit-vra-1
     The GUI run used Electron's runtime on the local disk (`ELECTRON_OVERRIDE_DIST_PATH`), because Electron cannot
     launch its GPU child from the Parallels share that holds this checkout (KNOWN_ISSUES 2026-10-19). Earlier runs from
     the share were BLOCKED, not failed.
-- **Next:** N5.7 `awkit-vra.14.7` (state, docs, independent QC, security review, closure).
+- **N5.7 `awkit-vra.14.7`: closed, and with it N5 `awkit-vra.14`.** Contract `awkit-vra-14-7-n5-closure-1019`.
+  - **Reviews:** the independent QC (fresh context) returned CHANGES REQUIRED, with one major and five minor findings
+    and a nit, then APPROVED after the fixes. The security review returned APPROVED with five lows, all fixed.
+    DECISIONS 2026-10-19 lists every finding and fix.
+  - **Adapter fixes:**
+    - occlusion is asked of the target's own root, at the centre of its visible part;
+    - a box-less target is zero size only;
+    - N0's protected scan runs before any inspection;
+    - at most 64 handles, and the masked check runs on those handles;
+    - the limiter wait is bounded, and a late frame is released;
+    - the first load counts against the deadline.
+  - **Fixtures:** fusion-lab states `shadow`, `partial` and `hidden`.
+  - **Verifier changes:** `verify:visual-diagnosis-runtime` grew to 63/0, covering shadow, partial and hidden
+    targets, handle disposal, inspection order, a protected surface before the frame, the card-number masked field, a
+    retry A/B with attempts, the late frame and a loader pin. Mutations R7-R11 were each observed red.
+  - **Criterion 8 against the final state:**
+
+    | Suite | Result |
+    |---|---|
+    | `verify:visual-capture` | 274/0 |
+    | `verify:visual-fingerprint` | 58/0 |
+    | `verify:visual-fusion` | 271/0 |
+    | `verify:visual-fusion-runtime` | 146/0 |
+    | `verify:visual-agreement` | 258/0 |
+    | `verify:visual-agreement-runtime` | 81/0 |
+    | `verify:recorded-visual-fallback` | 71/71 |
+    | `verify:recorder-visual-capture` | 119/0 |
+    | `verify:runner` | 138/0 |
+    | `verify:locator-guard` | 38/0 |
+    | `verify:recovery-provenance` | 46/0 |
+    | `verify:twin-pool-safety` | 48/0 |
+    | `verify:ai-error-analysis` | 429/429 |
+    | `verify:mock-site` | 320/320 |
+    | `verify:visual-diagnosis-report` | 63/0 |
+    | `verify:visual-isolation` | 71/0 |
+    | `verify:visual-diagnosis-gui` | 42/0 |
+    | `verify:ai-assist-gui` | 182/0 |
+    | `verify:recorder-visual-gui` | 55/0 |
+
+    The three GUI gates ran in the owner's terminal with Electron's runtime on the local disk (KNOWN_ISSUES
+    2026-10-19).
+    | `typecheck:scripts`, build | PASS |
+  - **Benchmark rerun:** VD-10 MET for every code except the pruned `viewport-uniform`. Cost p95 389 ms, then
+    774 ms across two runs.
+  - **Completion criteria:**
+
+    | # | Status |
+    |---|---|
+    | 1 | PASS |
+    | 2 | PASS (71/0) |
+    | 3 | PASS (82/0 at N5.2, inputs unchanged) |
+    | 4 | PASS (63/0) |
+    | 5 | PASS |
+    | 6 | PASS |
+    | 7 | PASS (42/0) |
+    | 8 | PASS (the table above) |
+    | 9 | PASS (QC and security APPROVED, findings closed; security minor a accepted in DECISIONS) |
+    | 10 | PASS (`verify:roadmap-dashboard` Sources agree at 27/377 of 404) |
 
 *Before approval:* Contracts `awkit-vra-n5-plan-1019` (plan, `725b129c`) and `awkit-vra-n5-plan-review-1019` (the six
 review corrections below). No product source, schema, IPC, preload or UI changed. The review added one security
