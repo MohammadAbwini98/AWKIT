@@ -137,6 +137,24 @@ recommended, start N5"), recorded in DECISIONS 2026-10-19 (contract `awkit-vra-1
   finished. A cut run answers `budget-exhausted` and claims nothing, so this is a coverage gap, not a false claim.
   Batching the member probes is a candidate follow-up; it is not needed for N5.5.
 
+  **Deadline follow-up (as built, 2026-10-19): the gap is closed.** `VisualFailureDiagnosis.ts` now resolves the step
+  locator once with `elementHandles()`, which also gives the match count. Each member's facts come from its handle:
+  - the box is `boundingBox()`, the reference capture's own source, so crops still match stored references;
+  - the frame depth comes from `ownerFrame()`;
+  - the occlusion probe still runs only for a single match.
+  These calls are dispatched together. The post-frame recheck re-measures the same handles, as the N2 fan-out does, so
+  a replaced member is also `TARGET_STALE`. Every handle is disposed when the work unwinds, including after a deadline
+  cut. Before, each member cost its own `nth(i)` selector resolutions for the box, frame and recheck. Unchanged: the
+  examined set (primary-candidate matches in DOM order, in the viewport), the cap of 32, the count cap of 64,
+  `truncated`, every code, the 1000 ms deadline and the read-only, never-acts guarantees.
+  Rerun of `benchmark:visual-diagnosis`:
+  - nine cells, **0 cut** (was 10);
+  - all 18 over-cap runs finished with `truncated` and 32 of 40 examined; the slowest was 460 ms, at DPR 2;
+  - cost median 189 ms, p95 384 ms, max 546 ms over 225 framed diagnoses (was 383 / 947 / 1294 ms);
+  - single-target recall 27/27 and group recall 30/36, the same as before;
+  - `viewport-uniform` is still NOT MET in the headed cells (unchanged, still pruned).
+  The rerun overwrote `evidence/N5.6-visual-diagnosis-calibration.json`; the original N5.6 run is in commit `4856d2ee`.
+
   **Recall (informational, not a criterion):** single-target identity 27/27, including the headed reference replayed
   headless, so on this machine the N4.5 headed-to-headless loss did not reproduce. Group identity 30/36; counts stay
   lower bounds over the examined set, as the copy says.

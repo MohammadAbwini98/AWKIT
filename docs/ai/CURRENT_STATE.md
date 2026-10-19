@@ -1,6 +1,25 @@
 # CURRENT_STATE
 
-## Phase N: N5.6 visual-diagnosis calibration done (2026-10-19, latest)
+## Phase N: N5.6 over-cap deadline gap closed (2026-10-19, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Adapter change:** `src/runner/visualDiagnosis/VisualFailureDiagnosis.ts` resolves the step locator once
+  (`elementHandles()`). It dispatches every member's `boundingBox()`, `ownerFrame()` and post-frame recheck together;
+  before, each member ran its own `nth(i)` probes. Handles are disposed when the work unwinds. Unchanged: the examined
+  set, the cap of 32, `truncated`, the codes, the 1000 ms deadline, read-only/never-acts (DECISIONS 2026-10-19).
+- **Benchmark rerun:**
+  - **0 cut** (was 10);
+  - all 18 over-cap runs `truncated` with 32 of 40 examined;
+  - median 189 ms, p95 384 ms, max 546 ms;
+  - recall single 27/27, group 30/36;
+  - `viewport-uniform` still NOT MET in the headed cells and still pruned.
+- **Gates:** `verify:visual-diagnosis-runtime` 49/0, `verify:visual-isolation` 71/0,
+  `verify:visual-diagnosis-report` 63/0, `verify:runner` 138/0, `npm run build` PASS.
+- **Unchanged:** no IPC, preload, report-shape or UI change; `awkit-4b5y` and `verify:b2-protected-capture` untouched.
+  Next is still N5.5 `awkit-vra.14.5`.
+
+## Phase N: N5.6 visual-diagnosis calibration done (2026-10-19)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed.

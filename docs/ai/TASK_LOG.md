@@ -1,5 +1,31 @@
 # TASK_LOG
 
+## 2026-10-19 — Phase N: batch the N5.3 diagnosis member probes to fit the 1000 ms deadline (Claude)
+
+- **Scope:** a side-session task to close the N5.6 over-cap deadline gap. Risk 1, no contract or lease; Beads were not
+  changed. CodeCraft: not used (`CODECRAFT_MODE=off` default).
+- **Change:** `VisualFailureDiagnosis.ts` resolves the step locator once (`elementHandles()`, which also gives the
+  count) and dispatches each member's `boundingBox()`, `ownerFrame()` and recheck together.
+  - Before, each member ran its own `nth(i)` selector probes: a box, then `elementHandle` plus `ownerFrame` plus
+    `dispose`, then the recheck.
+  - Handles are disposed when the work unwinds.
+  - The examined set, cap, `truncated`, codes, deadline and the read-only guarantees are unchanged.
+- **Result:** `benchmark:visual-diagnosis` shows 0 cut (was 10), and every over-cap run is `truncated`. Cost: median
+  189, p95 384, max 546 ms (was 383 / 947 / 1294). `viewport-uniform` is still NOT MET in the headed cells and still
+  pruned.
+- **Files:** `src/runner/visualDiagnosis/VisualFailureDiagnosis.ts`,
+  `docs/plans/ai-upgrade-v5/N5-visual-failure-diagnosis.md`,
+  `docs/plans/ai-upgrade-v5/evidence/N5.6-visual-diagnosis-calibration.json` (regenerated; the original run is in
+  `4856d2ee`), `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,DECISIONS}.md`.
+- **Checks:**
+  - `verify:visual-diagnosis-runtime` 49/0;
+  - `verify:visual-isolation` 71/0;
+  - `verify:visual-diagnosis-report` 63/0;
+  - `verify:runner` 138/0;
+  - `npm run build` PASS;
+  - benchmark: informational, 0 cut.
+- **Not run:** `verify:roadmap-dashboard` (no roadmap source changed).
+
 ## 2026-10-19 — Phase N: N5.6 visual-diagnosis calibration and the VD-10 per-code criterion (Claude)
 
 - **Scope:** "Proceed with N5.6". Contract `awkit-vra-14-6-n5-calibration-1019`, Risk 1. CodeCraft: not used

@@ -15,7 +15,7 @@ import {
   type VisualDiagnosisVerdict,
   type VisualEvidence
 } from "@src/visual";
-import type { Locator, Page } from "playwright";
+import type { ElementHandle, Locator, Page } from "playwright";
 import { PROTECTED_LOGIN_STEP_TYPES, type FlowStep } from "@src/profiles/FlowProfile";
 import { hasPositionalIdentityGuard } from "@src/profiles/locatorApproval";
 import { LocatorFactory } from "../LocatorFactory";
@@ -59,8 +59,6 @@ const ELIGIBLE_STEPS: ReadonlySet<string> = new Set(["click", "dblclick", "conte
 const HANDOFF_STEPS: ReadonlySet<string> = new Set([...PROTECTED_LOGIN_STEP_TYPES, "manualHandoff"]);
 /** The most step-locator matches counted (the policy's own count cap). */
 const MAX_COUNT = 64;
-/** Bound for one read-only DOM probe; the deadline still governs the whole diagnosis. */
-const PROBE_TIMEOUT_MS = 500;
 /** Context crop padding, the N2 runtime capture option, so digests compare with stored references. */
 const CONTEXT_PADDING_CSS = 24;
 /** Bounds the per-signature cap table; the oldest signature is forgotten first. */
@@ -116,6 +114,8 @@ interface MemberBox {
   depth: number;
 }
 
+type MemberHandle = ElementHandle;
+
 class DiagnosisAborted extends Error {}
 
 export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
@@ -156,10 +156,12 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
       slot = record;
     };
     this.inFlightCount += 1;
-    const work = this.run(request, controller.signal, started)
+    const cleanups: Array<() => void> = [];
+    const work = this.run(request, controller.signal, started, (cleanup) => cleanups.push(cleanup))
       .catch(() => this.refusal(request, "capture-failed", started))
       .then(settle)
       .finally(() => {
+        for (const cleanup of cleanups) cleanup();
         this.inFlightCount -= 1;
       });
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -187,7 +189,12 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
     return record;
   }
 
-  private async run(request: VisualDiagnosisRequest, signal: AbortSignal, started: number): Promise<VisualDiagnosisRecord> {
+  private async run(
+    request: VisualDiagnosisRequest,
+    signal: AbortSignal,
+    started: number,
+    defer: (cleanup: () => void) => void
+  ): Promise<VisualDiagnosisRecord> {
     const { step } = request;
     // A handoff step is named as such first: its cancellation is also a non-diagnosable error class.
     if (HANDOFF_STEPS.has(step.type)) return this.refusal(request, "handoff-active", started);
@@ -222,27 +229,35 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
       if (error instanceof DiagnosisAborted) throw error;
       return this.refusal(request, "not-eligible", started);
     }
-    const matches = Math.min(await bounded(locator.count()), MAX_COUNT);
+    // N5.7: the step locator is resolved ONCE into handles; each member's facts then come from its handle, dispatched
+    // together, with no per-member selector resolution. Boxes stay Playwright's `boundingBox()` (main-frame CSS space, the
+    // reference capture's own source) so crops match stored references. Every handle is released when the work unwinds.
+    const resolving = locator.elementHandles();
+    defer(() => void resolving.then((all) => Promise.all(all.map((handle) => handle.dispose().catch(() => undefined))), () => undefined));
+    const handles = (await bounded(resolving)).slice(0, MAX_COUNT);
+    const matches = handles.length;
     if (matches > 0 && (await bounded(this.masked(locator)))) return this.refusal(request, "sensitive", started);
 
     const viewport = await bounded(page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight })));
-    const boxes: MemberBox[] = [];
+    // Every counted match is measured, then the examined set is chosen in DOM order exactly as before.
+    const measured = await bounded(Promise.all(handles.map((handle) => handle.boundingBox().catch(() => null))));
+    const chosen: Array<{ index: number; box: MemberBox["box"] }> = [];
     let target: VisualDiagnosisInput["dom"]["target"];
-    for (let index = 0; index < matches && boxes.length < VISUAL_DIAGNOSIS_MAX_EXAMINED; index += 1) {
-      const member = locator.nth(index);
-      const box = await bounded(member.boundingBox({ timeout: PROBE_TIMEOUT_MS }).catch(() => null));
+    for (let index = 0; index < matches && chosen.length < VISUAL_DIAGNOSIS_MAX_EXAMINED; index += 1) {
+      const box = measured[index];
       // Position and size are separate facts: a zero-size element in the viewport is not offscreen.
       const zeroSize = !box || box.width <= 0 || box.height <= 0;
       const inViewport =
         !!box && box.x < viewport.width && box.y < viewport.height && box.x + Math.max(box.width, 1) > 0 && box.y + Math.max(box.height, 1) > 0;
       if (matches === 1) {
-        const occluded = inViewport && !zeroSize ? await bounded(this.occluded(member)) : false;
+        const occluded = inViewport && !zeroSize ? await bounded(this.occluded(handles[index])) : false;
         target = { inViewport, zeroSize, occluded };
       }
       if (!inViewport || zeroSize) continue;
-      const frame = await bounded(this.frameOf(member));
-      boxes.push({ index, box: box!, ...frame });
+      chosen.push({ index, box: box! });
     }
+    const frames = await bounded(Promise.all(chosen.map((slot) => this.frameOf(handles[slot.index]))));
+    const boxes: MemberBox[] = chosen.map((slot, at) => ({ ...slot, ...frames[at] }));
 
     await this.options.probe?.hold?.("before-frame");
     if (signal.aborted) throw new DiagnosisAborted();
@@ -289,8 +304,10 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
         await this.options.probe?.hold?.("after-frame");
         if (signal.aborted) throw new DiagnosisAborted();
         // A member that moved since it was measured is not compared.
+        // The same handles are re-measured (the N2 fan-out's recheck): a replaced or detached member is stale too.
+        const rechecked = await bounded(Promise.all(boxes.map((slot) => handles[slot.index].boundingBox().catch(() => null))));
         for (let at = 0; at < boxes.length; at += 1) {
-          const now = await bounded(locator.nth(boxes[at].index).boundingBox({ timeout: PROBE_TIMEOUT_MS }).catch(() => null));
+          const now = rechecked[at];
           const before = boxes[at].box;
           if (!now || now.x !== before.x || now.y !== before.y || now.width !== before.width || now.height !== before.height) {
             members[at] = { ...members[at], evidence: { available: false, code: "TARGET_STALE" } };
@@ -351,30 +368,26 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
   }
 
   /** Whether another element is topmost at the member's centre, in its own document. Read only. */
-  private occluded(member: Locator): Promise<boolean> {
+  private occluded(member: MemberHandle): Promise<boolean> {
     return member
-      .evaluate((element) => {
+      .evaluate((node) => {
+        const element = node as Element;
         const rect = element.getBoundingClientRect();
         const top = element.ownerDocument.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
         return !(top && (top === element || element.contains(top)));
-      }, undefined, { timeout: PROBE_TIMEOUT_MS })
+      })
       .catch(() => false);
   }
 
   /** The member's frame depth (0 for the main frame). */
-  private async frameOf(member: Locator): Promise<{ isMainFrame: boolean; depth: number }> {
-    const handle = await member.elementHandle({ timeout: PROBE_TIMEOUT_MS }).catch(() => null);
-    try {
-      let frame = handle ? await handle.ownerFrame() : null;
-      let depth = 0;
-      while (frame?.parentFrame()) {
-        depth += 1;
-        frame = frame.parentFrame();
-      }
-      return { isMainFrame: depth === 0, depth };
-    } finally {
-      await handle?.dispose().catch(() => undefined);
+  private async frameOf(member: MemberHandle): Promise<{ isMainFrame: boolean; depth: number }> {
+    let frame = await member.ownerFrame().catch(() => null);
+    let depth = 0;
+    while (frame?.parentFrame()) {
+      depth += 1;
+      frame = frame.parentFrame();
     }
+    return { isMainFrame: depth === 0, depth };
   }
 
   /** I5, fail-closed: only an explicit `false` lets a capture run. */

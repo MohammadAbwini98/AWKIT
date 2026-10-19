@@ -12,7 +12,8 @@ The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 
   - show codes only through `exposedVisualDiagnosisObservations`;
   - add `verify:visual-diagnosis-gui` (real Electron) as the plan's verification matrix describes.
 - **Known gaps carried:**
-  - 10 over-cap diagnoses at DPR 1.25 and 2 are cut by the 1000 ms deadline (batching the probes is optional);
+  - ~~10 over-cap diagnoses cut by the deadline~~: closed. The adapter's member probes are batched, and the benchmark
+    rerun shows 0 cut, every over-cap run `truncated`, and p95 384 ms (CURRENT_STATE, latest);
   - recovery contenders are not examined;
   - `verify:similar-rows-safety` exits on a Windows cleanup `EPERM`;
   - `verify:failure-capture-overhead` has one L5a INCONCLUSIVE.

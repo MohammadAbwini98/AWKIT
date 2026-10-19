@@ -1,6 +1,20 @@
 # DECISIONS
 
-### 2026-10-19 (latest) — Phase N N5.6: VD-10 outcome and the `viewport-uniform` pruning (`awkit-vra.14.6`)
+### 2026-10-19 (latest) — Phase N N5.6 follow-up: the over-cap deadline gap is closed by batching member probes
+
+- **Decision.** The N5.3 adapter resolves the step locator once (`elementHandles()`) and dispatches each member's
+  `boundingBox()`, `ownerFrame()` and recheck together, instead of running `nth(i)` selector probes one at a time.
+  - Boxes stay Playwright `boundingBox()` and are not computed with an in-page `getBoundingClientRect` evaluate. The
+    reason: references are cropped from `boundingBox()` (`captureCore`), and a different geometry source could shift
+    the byte-identity crops.
+  - The recheck re-measures the same handles, as the N2 fan-out does.
+- **Unchanged.** The examined set, the cap of 32, `truncated`, the codes, VD-8's 1000 ms deadline, and VD-0/VD-1
+  (read only, never acts, no store write).
+- **Result.** `benchmark:visual-diagnosis`: 0 of 225 framed diagnoses cut (was 10). All 18 over-cap runs confirmed
+  `truncated`. p95 384 ms (was 947 ms). The N5.6 "accepted gap" below is resolved; the `viewport-uniform` pruning
+  stands.
+
+### 2026-10-19 — Phase N N5.6: VD-10 outcome and the `viewport-uniform` pruning (`awkit-vra.14.6`)
 
 - **Outcome.** `benchmark:visual-diagnosis` ran nine cells, none BLOCKED. The pre-agreed VD-10 criterion:
   - MET for `target-identical-to-reference`, `other-examined-identical`, the four geometry codes, scope, refusals,
