@@ -106,7 +106,7 @@
       "command": "npm run verify:visual-diagnosis-gui",
       "artifact": null,
       "result": "BLOCKED",
-      "observed": "Electron exits before its first window: GPU process launch failed error_code=18, then FATAL GPU process isn't usable; the unchanged control verify:accent-gui fails the same way (KNOWN_ISSUES 2026-10-19)"
+      "observed": "Electron exits before its first window: GPU process launch failed error_code=18, then FATAL GPU process isn't usable; the unchanged control verify:accent-gui fails the same way (KNOWN_ISSUES 2026-10-19); rerun after the owner restarted the VM (18:01) failed identically against a fresh build"
     },
     {
       "id": "verify:visual-isolation",

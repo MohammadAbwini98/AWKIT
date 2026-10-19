@@ -9,7 +9,8 @@ The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 
   `FailureEvidenceSection.tsx` with read-side `sanitizeVisualDiagnosisRecords` and `exposedVisualDiagnosisObservations`.
   It also adds `.visual-diagnosis-*` styles and the new `verify:visual-diagnosis-gui`.
 - **Blocked gate:** `verify:visual-diagnosis-gui` cannot run because Electron's GPU process fails at launch on this
-  machine (KNOWN_ISSUES 2026-10-19). The control `verify:accent-gui` fails the same way.
+  machine (KNOWN_ISSUES 2026-10-19). The control `verify:accent-gui` fails the same way. A rerun after a VM restart
+  (18:01) failed identically. The first owner check is the OneDrive "keep on this device" setting.
 - **Next:**
   1. Restore Electron launch.
   2. Run `npm run build`, then `npm run verify:visual-diagnosis-gui`, and fix any finding.

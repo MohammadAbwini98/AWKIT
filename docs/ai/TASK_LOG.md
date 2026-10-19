@@ -26,6 +26,8 @@
 - **Also committed this session:** the side session's staged probe batching (`4bfe004`). Its own commit had been
   refused by the guard.
 - **Result:** N5.5 implemented, not closed; Beads and dashboard unchanged.
+- **Rerun after the owner's VM restart (18:01):** build PASS; `verify:visual-diagnosis-gui` still BLOCKED with the same
+  GPU launch failure.
 
 ## 2026-10-19 — Phase N: batch the N5.3 diagnosis member probes to fit the 1000 ms deadline (Claude)
 

@@ -10,8 +10,14 @@
   while another session ran Chromium benchmarks and after that session was idle, so it is not contention. GUI
   verifiers launched on this machine as recently as N4.4 (2026-10-14).
 - **Not a product finding.** The current bundle builds, and the failure happens before any renderer code runs. Not
-  diagnosed further: the repository guard blocks process inspection from the agent. A VM restart, or the Parallels
-  3D acceleration setting, are the first things to check.
+  diagnosed further: the repository guard blocks process inspection from the agent.
+- **Persists after a VM restart** (rerun 2026-10-19 18:01, same errors). The same rebuild took about 36 minutes for
+  the renderer bundle. That points to slow or on-demand file access under the OneDrive-synced project path, which
+  can also stop Electron launching its GPU child from `node_modules/electron/dist`. Unconfirmed. Next checks, for the
+  owner:
+  - mark the project folder "Always keep on this device" in OneDrive;
+  - the Parallels 3D acceleration setting;
+  - any security product that blocks child-process launch.
 - **Effect:** N5.5 `awkit-vra.14.5` stays open with `verify:visual-diagnosis-gui` BLOCKED. Rerun it once Electron
   launches again; do not substitute a flag such as `--disable-gpu` to claim the gate.
 
