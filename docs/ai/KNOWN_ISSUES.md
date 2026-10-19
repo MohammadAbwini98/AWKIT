@@ -1,5 +1,20 @@
 # KNOWN_ISSUES
 
+## Electron GUI verifiers cannot launch: GPU process fails with error_code=18 (2026-10-19, OPEN, environment)
+
+- **What.** On the ARM64 Parallels machine, every Electron launch from a GUI verifier exits before its first window.
+  The main process logs `GPU process launch failed: error_code=18` six times, then
+  `FATAL: GPU process isn't usable. Goodbye.` (exit 2147483651). Node then reports an unsettled top-level await at
+  `resolveMainWindow` or `resolveSplashWindow`.
+- **Seen with:** the new `verify:visual-diagnosis-gui`, and the unchanged control `verify:accent-gui`. It happened both
+  while another session ran Chromium benchmarks and after that session was idle, so it is not contention. GUI
+  verifiers launched on this machine as recently as N4.4 (2026-10-14).
+- **Not a product finding.** The current bundle builds, and the failure happens before any renderer code runs. Not
+  diagnosed further: the repository guard blocks process inspection from the agent. A VM restart, or the Parallels
+  3D acceleration setting, are the first things to check.
+- **Effect:** N5.5 `awkit-vra.14.5` stays open with `verify:visual-diagnosis-gui` BLOCKED. Rerun it once Electron
+  launches again; do not substitute a flag such as `--disable-gpu` to claim the gate.
+
 ## B2 failure capture photographs and serializes protected-login pages (2026-10-19, OPEN, `awkit-4b5y`)
 
 - **What.** `StepExecutor.captureFailureEvidence` writes a full-page PNG, `page.content()` HTML, an aria snapshot and

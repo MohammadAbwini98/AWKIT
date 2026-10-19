@@ -161,7 +161,17 @@ recommended, start N5"), recorded in DECISIONS 2026-10-19 (contract `awkit-vra-1
 
   **Gates:** the benchmark (VD-10 NOT MET overall on `viewport-uniform` only, every other code MET),
   `verify:visual-diagnosis-report` 63/0, `verify:visual-isolation` 71/0, `typecheck:scripts` and `npm run build` PASS.
-- **Next:** N5.5 `awkit-vra.14.5`, the drawer section. It must show codes only through
+- **N5.5 `awkit-vra.14.5`: implemented, open.** Contract `awkit-vra-14-5-n5-drawer-section-1019`.
+  - `VisualDiagnosisSection.tsx` is wired in `FailureEvidenceSection.tsx` after *Captured evidence*. It is shown only
+    when the block exists, also without L5a evidence, sanitized on read and exposed through the pruning helper.
+  - **Wording deviation (stricter than *Accessibility and UI*):** the plan's truncation sentence ("examined only the
+    first n") and `unproven` note ("only exact matches") used "only". As built they read "The run stopped after
+    examining the first n of the elements it found." and "…so a difference is never reported here; exact pixel
+    matches still are." The verifier can then forbid "only" anywhere in the section.
+  - **Gate:** `verify:visual-diagnosis-gui` is **BLOCKED**, because Electron's GPU process fails at launch on this
+    machine (KNOWN_ISSUES 2026-10-19). Build, `verify:visual-isolation` 71/0 and `verify:ai-fallback` 51/0 PASS.
+- **Next:** rerun `verify:visual-diagnosis-gui` once Electron launches, then close N5.5. Original N5.5 requirement for
+  reference — the drawer section must show codes only through
   `exposedVisualDiagnosisObservations`, after `sanitizeVisualDiagnosisRecords` on read. Geometry and identity codes are
   calibrated; `viewport-uniform` is shown as `inconclusive`.
 

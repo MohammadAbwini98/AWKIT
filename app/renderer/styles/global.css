@@ -1856,6 +1856,48 @@ div.validation-issue-row {
   color: var(--awkit-info-text);
 }
 
+/* N5.5 Visual diagnosis: fixed text with aria-hidden icons, no media and no motion. */
+.visual-diagnosis-caveat,
+.visual-diagnosis-step {
+  font-size: var(--text-xs);
+  margin: 0 0 var(--space-1);
+}
+
+.visual-diagnosis-caveat {
+  color: var(--awkit-text-muted);
+}
+
+.visual-diagnosis-record + .visual-diagnosis-record {
+  margin-top: var(--space-2);
+}
+
+.visual-diagnosis-record > p {
+  font-size: var(--text-xs);
+  margin: 0 0 var(--space-1);
+}
+
+.visual-diagnosis-list {
+  display: grid;
+  gap: var(--space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.visual-diagnosis-list li {
+  align-items: baseline;
+  border-left: 2px solid var(--awkit-border);
+  display: flex;
+  font-size: var(--text-xs);
+  gap: var(--space-2);
+  overflow-wrap: anywhere;
+  padding: var(--space-1) var(--space-2);
+}
+
+.visual-diagnosis-list svg {
+  flex: none;
+}
+
 [data-testid="failure-ai-analysis"] .ai-assist-bar {
   border-bottom: none;
   padding: 0;

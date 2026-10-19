@@ -1,0 +1,161 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-14-5-n5-drawer-section-1019",
+    "title": "Phase N N5.5: the text-only Visual diagnosis drawer section and verify:visual-diagnosis-gui",
+    "objective": "Implement N5.5 awkit-vra.14.5 under VD-6 and VD-10: a fourth text-only Visual diagnosis section in the run-detail drawer, after Captured evidence and before AI analysis, shown only when the stored report carries the block, read through the unchanged PAGE_REPORTS reports:get, sanitized again on read with sanitizeVisualDiagnosisRecords and shown only through exposedVisualDiagnosisObservations so the pruned viewport-uniform reads as inconclusive; fixed sentences with aria-hidden icons, the basis, the unproven note, the examined-scope and truncation copy ending with the not-compared sentence, the advisory caveat, no uniqueness wording, no image, crop, digest, index or selector, Hologram tokens only. New real-Electron verify:visual-diagnosis-gui. No IPC, preload, runner, persistence or report-shape change.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "4856d2ee",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true,
+    "renderer_visual_change": true,
+    "accessibility_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "uiux",
+      "frontend",
+      "qa",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "app/renderer/components/reports/FailureEvidenceSection.tsx",
+      "app/renderer/components/reports/VisualDiagnosisSection.tsx",
+      "app/renderer/styles/global.css",
+      "scripts/verify-visual-diagnosis-gui.mts",
+      "scripts/lib/verifier-classification.ts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "package.json",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/awkit-vra-14-5-n5-drawer-section-1019.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [
+      "uiux"
+    ],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N5.5-GUI",
+      "description": "In the real Electron app the drawer shows the Visual diagnosis section only when the report carries the block, with its basis, the unproven note, the examined-scope and truncation copy, the not-compared sentence and the caveat, no uniqueness wording, no image or canvas, every icon aria-hidden, the pruned code shown as inconclusive, hostile keys and markup sanitized away on read, no focusable content and focus kept inside the dialog under real Tab, and no motion under reduced motion; mutants of the copy and media checks are observed red.",
+      "evidence_required": [
+        "verify:visual-diagnosis-gui"
+      ]
+    },
+    {
+      "id": "N5.5-UNCHANGED",
+      "description": "The L5 drawer sections are unchanged and the renderer reaches only the zero-import record module.",
+      "evidence_required": [
+        "verify:visual-isolation",
+        "build"
+      ]
+    },
+    {
+      "id": "N5.5-STATE",
+      "description": "awkit-vra.14.5 is closed through bd and exported, and the dashboard reports Sources agree.",
+      "evidence_required": [
+        "verify:roadmap-dashboard"
+      ]
+    },
+    {
+      "id": "N5.5-GIT",
+      "description": "The work lands on main and is pushed without force; the L12.27 contract stays untracked and unchanged.",
+      "evidence_required": [
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:visual-diagnosis-gui",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-diagnosis-gui",
+      "artifact": null,
+      "result": "BLOCKED",
+      "observed": "Electron exits before its first window: GPU process launch failed error_code=18, then FATAL GPU process isn't usable; the unchanged control verify:accent-gui fails the same way (KNOWN_ISSUES 2026-10-19)"
+    },
+    {
+      "id": "verify:visual-isolation",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-isolation",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "71/0, the renderer reaches only the zero-import record module; verify:ai-fallback 51/0 also PASS"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc --noEmit and bundles PASS; typecheck:scripts PASS"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "runs after the commit that carries this contract; its outcome is reported in the session report"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "NOT_REQUIRED"
+  }
+}

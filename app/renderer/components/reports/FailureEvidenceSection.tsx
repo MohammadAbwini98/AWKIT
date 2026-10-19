@@ -4,28 +4,40 @@ import { AlertTriangle, Sparkles, Trash2, X } from "lucide-react";
 import { storedFailureAnalysisFor, type FailureAnalysisView } from "@src/ai/contracts/AiApi";
 import type { ConcurrentRunReport, StoredFailureAnalysis } from "@src/reports/ExecutionReport";
 import type { InstanceDiagnostics } from "@src/runner/evidence/FailureEvidenceCollector";
+import { sanitizeVisualDiagnosisRecords, type VisualDiagnosisRecord } from "@src/runner/visualDiagnosis/visualDiagnosisRecord";
 
 import { AiJobProgress } from "../shared/AiJobProgress";
 import { aiUnavailableSentence, useAiAssistJob } from "../shared/useAiAssistJob";
+import { VisualDiagnosisSection } from "./VisualDiagnosisSection";
 
 const api = () => window.playwrightFlowStudio;
 
-/** The instance's L5a diagnostics and any saved L5b analysis covering it, from its stored run report. */
-async function loadRun(executionId: string, instanceId: string): Promise<{ diagnostics: InstanceDiagnostics | null; stored: StoredFailureAnalysis | null }> {
+/**
+ * The instance's L5a diagnostics, its N5 visual diagnosis and any saved L5b analysis covering it, from its stored run
+ * report. The visual block is sanitized again here: `reports:create` imports whole reports.
+ */
+async function loadRun(
+  executionId: string,
+  instanceId: string
+): Promise<{ diagnostics: InstanceDiagnostics | null; visual: VisualDiagnosisRecord[] | null; stored: StoredFailureAnalysis | null }> {
   const direct = (await api().reports.get(executionId)) as ConcurrentRunReport | null;
   const report =
     direct ?? ((await api().reports.list()) as ConcurrentRunReport[]).find((candidate) => candidate.executionId === executionId) ?? null;
+  const instance = report?.instances.find((candidate) => candidate.instanceId === instanceId);
   return {
-    diagnostics: report?.instances.find((instance) => instance.instanceId === instanceId)?.diagnostics ?? null,
+    diagnostics: instance?.diagnostics ?? null,
+    visual: sanitizeVisualDiagnosisRecords(instance?.visualDiagnosis) ?? null,
     stored: storedFailureAnalysisFor(report, instanceId)
   };
 }
 
 /**
- * L5 reports UX in the run-detail drawer: three separate sections, never merged.
+ * L5 reports UX in the run-detail drawer: separate sections, never merged.
  *
  *  - **Deterministic cause** — L5a's own conclusion. Always shown, needs no AI.
  *  - **Captured evidence** — the redacted, id-stripped events it rests on, exactly as persisted.
+ *  - **Visual diagnosis** (N5) — fixed text from the codes-only block, only when the report carries one. It does not
+ *    depend on L5a, so it also shows when no failure evidence was captured.
  *  - **AI analysis** — on demand, T0, labelled. It covers every failed instance in the run with the same
  *    signature (the count is shown) and cites evidence by id; cited rows are marked in the list above so a
  *    citation can be checked rather than believed. It changes nothing about the run. An answer is saved
@@ -33,6 +45,7 @@ async function loadRun(executionId: string, instanceId: string): Promise<{ diagn
  */
 export function FailureEvidenceSection({ executionId, instanceId }: { executionId: string; instanceId: string }) {
   const [diagnostics, setDiagnostics] = useState<InstanceDiagnostics | null | undefined>(undefined);
+  const [visual, setVisual] = useState<VisualDiagnosisRecord[] | null>(null);
   const [stored, setStored] = useState<StoredFailureAnalysis | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -45,6 +58,7 @@ export function FailureEvidenceSection({ executionId, instanceId }: { executionI
       .then((run) => {
         if (!live) return;
         setDiagnostics(run.diagnostics);
+        setVisual(run.visual);
         setStored(run.stored);
       })
       .catch(() => {
@@ -57,6 +71,7 @@ export function FailureEvidenceSection({ executionId, instanceId }: { executionI
 
   useEffect(() => {
     setDiagnostics(undefined);
+    setVisual(null);
     setStored(null);
     setNote(null);
     return reload();
@@ -90,12 +105,16 @@ export function FailureEvidenceSection({ executionId, instanceId }: { executionI
   };
 
   if (diagnostics === undefined) return null;
+  const visualSection = visual ? <VisualDiagnosisSection records={visual} /> : null;
   if (diagnostics === null || !diagnostics.cause) {
     return (
-      <section className="awkit-detail-section" data-testid="failure-evidence-section" data-evidence-state="none">
-        <h3>Failure evidence</h3>
-        <p className="awkit-muted">No failure evidence was captured for this run (an older report, a passing run, or capture turned off).</p>
-      </section>
+      <>
+        <section className="awkit-detail-section" data-testid="failure-evidence-section" data-evidence-state="none">
+          <h3>Failure evidence</h3>
+          <p className="awkit-muted">No failure evidence was captured for this run (an older report, a passing run, or capture turned off).</p>
+        </section>
+        {visualSection}
+      </>
     );
   }
 
@@ -163,6 +182,8 @@ export function FailureEvidenceSection({ executionId, instanceId }: { executionI
           ))}
         </ul>
       </section>
+
+      {visualSection}
 
       {job.visible ? (
         <section className="awkit-detail-section" data-testid="failure-ai-analysis" data-assist-state={state}>

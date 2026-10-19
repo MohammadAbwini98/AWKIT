@@ -1,5 +1,32 @@
 # TASK_LOG
 
+## 2026-10-19 — Phase N: N5.5 Visual diagnosis drawer section (WIP, GUI gate BLOCKED) (Claude)
+
+- **Scope:** "Proceed with N5.5". Contract `awkit-vra-14-5-n5-drawer-section-1019`, Risk 1, renderer only.
+  CodeCraft: not used (`CODECRAFT_MODE=off` default).
+- **Built:**
+  - `VisualDiagnosisSection.tsx`: fixed copy, the examined-scope paragraph, refusals and the caveat;
+  - `FailureEvidenceSection.tsx`: read-side sanitize and the section's placement, also when there is no L5a evidence;
+  - `.visual-diagnosis-*` styles;
+  - `verify:visual-diagnosis-gui`: three seeded instances (truncated plus hostile keys plus a refusal; pruned code
+    plus markup plus another version with no L5a; no block), Tab containment, reduced motion and 11 snapshot mutants.
+    It is registered real-browser.
+- **Files:** `app/renderer/components/reports/{VisualDiagnosisSection,FailureEvidenceSection}.tsx`,
+  `app/renderer/styles/global.css`, `scripts/verify-visual-diagnosis-gui.mts`, `scripts/lib/verifier-classification.ts`,
+  `package.json`, `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,KNOWN_ISSUES}.md`,
+  `docs/plans/ai-upgrade-v5/N5-visual-failure-diagnosis.md`, the contract.
+- **Checks:**
+  - build PASS;
+  - typecheck:scripts PASS;
+  - visual-isolation 71/0;
+  - ai-fallback 51/0;
+  - verifier-classification 341;
+  - visual-diagnosis-gui **BLOCKED**: an Electron GPU process launch failure, which also fails the control
+    `verify:accent-gui`.
+- **Also committed this session:** the side session's staged probe batching (`4bfe004`). Its own commit had been
+  refused by the guard.
+- **Result:** N5.5 implemented, not closed; Beads and dashboard unchanged.
+
 ## 2026-10-19 — Phase N: batch the N5.3 diagnosis member probes to fit the 1000 ms deadline (Claude)
 
 - **Scope:** a side-session task to close the N5.6 over-cap deadline gap. Risk 1, no contract or lease; Beads were not

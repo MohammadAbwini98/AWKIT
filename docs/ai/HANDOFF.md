@@ -1,5 +1,25 @@
 # Agent Handoff
 
+## HANDOFF (2026-10-19, latest) — Phase N: N5.5 implemented, its GUI gate BLOCKED by the environment
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Built, not closed:** N5.5 `awkit-vra.14.5` (contract `awkit-vra-14-5-n5-drawer-section-1019`, completion
+  pending). It adds `app/renderer/components/reports/VisualDiagnosisSection.tsx`, wired in
+  `FailureEvidenceSection.tsx` with read-side `sanitizeVisualDiagnosisRecords` and `exposedVisualDiagnosisObservations`.
+  It also adds `.visual-diagnosis-*` styles and the new `verify:visual-diagnosis-gui`.
+- **Blocked gate:** `verify:visual-diagnosis-gui` cannot run because Electron's GPU process fails at launch on this
+  machine (KNOWN_ISSUES 2026-10-19). The control `verify:accent-gui` fails the same way.
+- **Next:**
+  1. Restore Electron launch.
+  2. Run `npm run build`, then `npm run verify:visual-diagnosis-gui`, and fix any finding.
+  3. Fill in the contract evidence, close `awkit-vra.14.5` under a project-state lease, and repin the dashboard to
+     29 outstanding / 375 closed.
+  4. N5.7 follows.
+- **Do not:** relax the GUI checks, add `--disable-gpu` to claim the gate, or relax `verify:b2-protected-capture`
+  (`awkit-4b5y` open).
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
 ## HANDOFF (2026-10-19, latest) — Phase N: N5.6 done; N5.5 next
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.

@@ -1,5 +1,35 @@
 # CURRENT_STATE
 
+## Phase N: N5.5 Visual diagnosis drawer section implemented, GUI gate BLOCKED (2026-10-19, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Built (WIP; `awkit-vra.14.5` stays open):** a fourth, text-only *Visual diagnosis* section in the run-detail
+  drawer, after *Captured evidence* and before *AI analysis*. It shows only when the stored report carries the block,
+  and it also shows without L5a evidence. It is read through the unchanged PAGE_REPORTS `reports:get`, sanitized again
+  on read, and shown only through `exposedVisualDiagnosisObservations`, so `viewport-uniform` reads as `inconclusive`.
+- **What it says:**
+  - the basis;
+  - the `unproven` note;
+  - examined-scope copy and a truncation sentence, ending with "Elements the run did not examine were not compared.";
+  - refusal sentences;
+  - the advisory caveat.
+
+  It never says "only", "unique" or "the element". It has no image, crop, digest, index or selector, its icons are
+  `aria-hidden`, and its styles are Hologram tokens only.
+- **Gates:**
+
+  | Gate | Result |
+  |---|---|
+  | `npm run build` | PASS |
+  | `typecheck:scripts` | PASS |
+  | `verify:visual-isolation` | PASS, 71/0 |
+  | `verify:ai-fallback` | PASS, 51/0 |
+  | `verify:verifier-classification` | PASS, 341 |
+  | new `verify:visual-diagnosis-gui` | **BLOCKED**: Electron's GPU process fails at launch (KNOWN_ISSUES 2026-10-19); the control `verify:accent-gui` fails the same way |
+- **Unchanged:** no IPC, preload, runner, persistence or report-shape change; B2 defect `awkit-4b5y` open.
+- **Preserved, not absorbed:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
 ## Phase N: N5.6 over-cap deadline gap closed (2026-10-19, latest)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
