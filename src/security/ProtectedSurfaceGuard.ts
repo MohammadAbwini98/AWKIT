@@ -430,8 +430,22 @@ export async function watchProtectedWindow(page: Page, options: ProtectedWindowO
   // random name. In-process child frames share their parent's session, whose binding reaches their contexts too.
   const bindingName = options.strict ? undefined : `awkitProtected_${randomUUID().replace(/-/g, "")}`;
   const sessions = new Map<Frame, CDPSession>();
-  const bindFrame = async (frame: Frame): Promise<void> => {
-    if (!bindingName || sessions.has(frame) || finished) return;
+  // Third re-review L1: at most one bind in flight per frame. A frameattached rearm and a scan rearm racing for the same
+  // new frame share it, so no second session is opened and orphaned. A bind that ends without a session (an in-process
+  // frame, a failure) is forgotten so a later rearm can try again.
+  const binds = new Map<Frame, Promise<void>>();
+  const bindFrame = (frame: Frame): Promise<void> => {
+    if (!bindingName || sessions.has(frame) || finished) return Promise.resolve();
+    const pending = binds.get(frame);
+    if (pending) return pending;
+    const work = bindFrameOnce(frame).finally(() => {
+      if (!sessions.has(frame)) binds.delete(frame);
+    });
+    binds.set(frame, work);
+    return work;
+  };
+  const bindFrameOnce = async (frame: Frame): Promise<void> => {
+    if (!bindingName) return;
     const isMain = frame === page.mainFrame();
     let session: CDPSession;
     try {
@@ -490,9 +504,25 @@ export async function watchProtectedWindow(page: Page, options: ProtectedWindowO
     // Second re-review M2: a rearm still in flight when the watch finished must not arm sentinels nothing will read.
     if (finished) return;
     const args = { key, hub: SENTINEL_HUB_KEY, selector: PROTECTED_FIELD_SELECTOR, attributes: PROTECTED_FIELD_ATTRIBUTES, binding: bindingName };
-    const armed = await Promise.all(frames.map((frame) => boundedEvaluate<string | false>(frame.evaluate(armFrameSentinel, args), timeoutMs, false)));
+    const readArgs = { key, hub: SENTINEL_HUB_KEY };
+    const armed = await Promise.all(
+      frames.map((frame) => {
+        const raw = frame.evaluate(armFrameSentinel, args);
+        if (bindingName) {
+          // Third re-review L2: an evaluate that overran its budget still arms later. Judge it when it lands: a console-
+          // only sentinel fails closed, and one that lands after the watch finished is disarmed at once.
+          raw.then(
+            (mode) => {
+              if (finished) void frame.evaluate(readFrameSentinel, readArgs).catch(() => undefined);
+              else if (mode === "console") markSeen();
+            },
+            () => undefined
+          );
+        }
+        return boundedEvaluate<string | false>(raw, timeoutMs, false);
+      })
+    );
     if (finished) {
-      const readArgs = { key, hub: SENTINEL_HUB_KEY };
       await Promise.all(frames.map((frame) => boundedEvaluate(frame.evaluate(readFrameSentinel, readArgs), timeoutMs, "unreadable")));
       return;
     }

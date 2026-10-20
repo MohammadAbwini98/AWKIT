@@ -112,7 +112,7 @@
       "command": "npm run verify:trace-protected-capture",
       "artifact": null,
       "result": "PASS",
-      "observed": "72 passed, 0 failed after the second re-review round (M1/M2 baseline 69/3: T22, T23, U2); 65/0 after the re-review round (N1 baseline 64/1: T21); review round 63/0 from 61/2 (T18, T19; T20 green before the fix); first round 57/0 from a 54/3 baseline (T15, T16, T17)"
+      "observed": "79 passed, 0 failed after the third re-review follow-ups (L1/L2 baseline 77/2: U3, U4; T24 control green); 72/0 after the second re-review round (M1/M2 baseline 69/3: T22, T23, U2); 65/0 after the re-review round (N1 baseline 64/1: T21); review round 63/0 from 61/2 (T18, T19; T20 green before the fix); first round 57/0 from a 54/3 baseline (T15, T16, T17)"
     },
     {
       "id": "regression-suites",
@@ -322,6 +322,38 @@
         "acquired_at_commit": "5408a9672f877e0e1f7fdc5242000ca5a0cc67ff",
         "released_at": "2026-10-20T16:33:34.337Z",
         "released_reason": "awkit-3gtj M1 and M2 round recorded and beads exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-3gtj-capture-residuals-1020:security:2026-10-20T17:03:08.210Z",
+        "task": "awkit-3gtj-capture-residuals-1020",
+        "holder": "security",
+        "status": "released",
+        "allowed_paths": [
+          "src/security/ProtectedSurfaceGuard.ts"
+        ],
+        "acquired_at": "2026-10-20T17:03:08.210Z",
+        "acquired_at_commit": "9eb53f17569eb07f95edf856c474832684584f2d",
+        "released_at": "2026-10-20T17:03:32.177Z",
+        "released_reason": "L1 and L2 guard fixes for the awkit-3gtj third re-review written",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-3gtj-capture-residuals-1020:project-state:2026-10-20T17:07:53.586Z",
+        "task": "awkit-3gtj-capture-residuals-1020",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-20T17:07:53.586Z",
+        "acquired_at_commit": "9eb53f17569eb07f95edf856c474832684584f2d",
+        "released_at": "2026-10-20T17:08:07.908Z",
+        "released_reason": "awkit-3gtj L1 to L3 round recorded and beads exported",
         "amendments": [],
         "overrides": [],
         "violations": []

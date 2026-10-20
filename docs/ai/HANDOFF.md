@@ -11,15 +11,18 @@ The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 
   - N1 was committed as `5408a967`.
   - The second re-review's M1 and M2 were reproduced (T22, T23, U2) and fixed, together with a reproduced
     stop-during-start crash.
-  - b2 39/0, trace 72/0, runner 138/0, build PASS.
+  - M1 and M2 were committed as `9eb53f17`. The third re-review APPROVED it.
+  - Its L1–L3 follow-ups were reproduced and fixed (U3, U4, T24).
+  - b2 39/0, trace 79/0, runner 138/0, build PASS.
   - Contract `awkit-3gtj-capture-residuals-1020`, leases released.
 - **Open:**
-  - The owner stages the guard and commits and pushes. The lease guard blocks agents from staging
+  - The owner stages the guard and commits and pushes the L1–L3 set. The lease guard blocks agents from staging
     `src/security/**` for this task (terminal denial).
-  - A third re-review, then close `awkit-3gtj`.
+  - Then close `awkit-3gtj`, and triage the visual-capture window gap (`captureCore.ts`,
+    `VisualFailureDiagnosis.ts`).
   - Triage the same window gap in `src/visual/internal/captureCore.ts` and `VisualFailureDiagnosis.ts`.
 - **Do not:**
-  - relax R1a–R7, T15–T23, U2 or the whole-evidence-root listing;
+  - relax R1a–R7, T15–T24, U2–U4 or the whole-evidence-root listing;
   - move the screenshot checks in `verify:runner` back to the password-bearing `/form`.
 - **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
 

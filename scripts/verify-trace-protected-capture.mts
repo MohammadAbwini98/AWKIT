@@ -52,6 +52,12 @@
  *                  navigates away while that frame's binding is slow; nothing is kept.
  *   U2  M2: a non-strict watch finished while a rearm is still binding a late out-of-process frame leaves no CDP
  *       session open and no sentinel armed.
+ *   Third re-review follow-ups (L1–L3):
+ *   T24 [onFailure] L3 control: T23 WITHOUT the slow binding — the session starts and the frame's own binding (not the
+ *                  fail-closed path) refuses the trace.
+ *   U3  L1: two concurrent rearms binding the same new out-of-process frame leave no CDP session open after finish.
+ *   U4  L2: a page whose main thread is busy past both the bind and the arm budgets still fails closed when its
+ *       sentinel finally arms with only the console signal.
  *   U1  `markProtected` stops the open chunk's recording at once and the failed step keeps nothing; T2/T7 also
  *       assert the recording had stopped before the operator could act on the handoff.
  *   O1-O3 the passive CDP observation trace (on by default) writes no screenshot/DOM sample and no live view of a
@@ -796,6 +802,85 @@ async function main(): Promise<void> {
     }
 
     // U2 — M2: finish() while a rearm is still binding a late out-of-process frame.
+    // T24 — L3: the happy path of an out-of-process frame's binding (no slow seam).
+    console.log("\nT24 [onFailure] T23's page with working bindings (the frame's own binding refuses the trace):");
+    {
+      const h = await isolatedHarness("/oopif-parent");
+      const run = await runTraced(h, "t24", "onFailure", neverAppears("t24"), "none");
+      const left = h.page.frames().some((frame) => frame.url().endsWith("/landing"));
+      check("T24 precondition: a session started and the step failed after the child left", run.chunksOpened >= 1 && run.result.status === "failed" && left, `chunks=${run.chunksOpened} ${run.result.status} left=${left}`);
+      check("T24 security: no trace is retained and none is reported", run.traces.zips === 0 && !run.result.tracePath, describe(run.traces));
+      await h.context.close();
+    }
+
+    /** Hub sentinel states still registered in every frame of `page`. */
+    const armedSentinels = async (page: Page): Promise<number> =>
+      (
+        await Promise.all(
+          page.frames().map((frame) =>
+            frame
+              .evaluate(() => {
+                const host = window as unknown as Record<string, { states?: unknown[] } | undefined>;
+                let count = 0;
+                for (const name of Object.getOwnPropertyNames(window)) if (name.startsWith("awkit-protected-hub-")) count += host[name]?.states?.length ?? 0;
+                return count;
+              })
+              .catch(() => 0)
+          )
+        )
+      ).reduce((sum, value) => sum + value, 0);
+
+    // U3 — L1: a frameattached rearm and a scan rearm racing to bind the same new frame.
+    console.log("\nU3 two concurrent rearms binding the same new out-of-process frame leave nothing behind:");
+    {
+      const h = await isolatedHarness("/plain");
+      const tracked = slowBindings(h.context, 0, (target) => target !== h.page);
+      const watch = await watchProtectedWindow(h.page, { strict: false });
+      await h.page.evaluate((src) => {
+        const frame = document.createElement("iframe");
+        frame.src = src;
+        document.body.appendChild(frame);
+      }, `${origin.replace("127.0.0.1", "localhost")}/oopif-idle`);
+      await h.page.waitForFunction(() => document.querySelector("iframe")?.contentWindow !== null);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      await Promise.all([watch.rearm(), watch.rearm()]);
+      await watch.finish();
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      const open = tracked.open();
+      const armed = await armedSentinels(h.page);
+      tracked.restore();
+      check("U3 precondition: the late frame is in the page", h.page.frames().length === 2, `frames=${h.page.frames().length}`);
+      check("U3: no CDP session either rearm opened is left open after finish", open === 0, `open=${open}`);
+      check("U3: no sentinel is left armed after finish", armed === 0, `armed=${armed}`);
+      await h.context.close();
+    }
+
+    // U4 — L2: both budgets overrun on a busy main thread; the sentinel arms later with only the console signal.
+    console.log("\nU4 a sentinel that arms only after both budgets overran still fails closed:");
+    {
+      const h = await harness("/plain");
+      await h.page.evaluate(() => {
+        setTimeout(() => {
+          const end = Date.now() + 4_500;
+          while (Date.now() < end) {
+            // Busy main thread: no evaluate or binding can run until this ends.
+          }
+        }, 0);
+      });
+      let signalled = false;
+      const watch = await watchProtectedWindow(h.page, { strict: false, onProtected: () => (signalled = true) });
+      await new Promise((resolve) => setTimeout(resolve, 3_000));
+      const consoleOnly = await h.page.evaluate(() => {
+        const host = window as unknown as Record<string, { states?: Array<{ bound?: boolean }> } | undefined>;
+        for (const name of Object.getOwnPropertyNames(window)) if (name.startsWith("awkit-protected-hub-")) return (host[name]?.states ?? []).some((state) => state.bound === false);
+        return false;
+      });
+      const verdict = await watch.finish();
+      check("U4 precondition: the sentinel armed late, with only the console signal", consoleOnly, `consoleOnly=${consoleOnly}`);
+      check("U4 security: the watch fails closed (signalled and protected)", signalled && verdict.protected === true, `signalled=${signalled} ${verdict.reason ?? "clear"}`);
+      await h.context.close();
+    }
+
     console.log("\nU2 a watch finished while a rearm is still binding a late frame leaves nothing behind:");
     {
       const h = await isolatedHarness("/plain");

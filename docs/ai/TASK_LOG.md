@@ -46,6 +46,13 @@
   - `TraceService` no longer starts tracing once tainted, chains a stop after an in-flight start (a reproduced
     Playwright crash), and arms frames on attach.
   - Checks: trace 72/0, b2 39/0, failure-evidence-live 17/0, runner 138/0, build PASS.
+  - The owner committed `9eb53f17`.
+- **Third re-review round:**
+  - APPROVED, with non-blocking follow-ups.
+  - L1 and L2 were reproduced by U3 and U4 (trace 77/2) and fixed in the guard: a shared in-flight bind per frame,
+    and the late arm result is judged when it lands.
+  - L3 adds the T24 control.
+  - Checks: trace 79/0, b2 39/0, failure-evidence-live 17/0, runner 138/0, build PASS.
 
 ## 2026-10-20 — Security: independent B2 review and trace protected-surface remediation awkit-uoik (Claude)
 

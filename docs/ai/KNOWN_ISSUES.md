@@ -130,6 +130,16 @@
   - **F4(ii), seen once.** T20 went red in one run (zips=1). A frame created by script never navigates, so it was
     armed only by chance. Now `TraceService` re-arms the page as soon as a frame attaches.
   - **Result:** trace **72/0**, b2 39/0, failure-evidence-live 17/0, runner 138/0, build PASS.
+- **Third re-review of `9eb53f17`: APPROVED. Its non-blocking follow-ups were reproduced and fixed.** Baseline on
+  `9eb53f17`: trace **77/2**, with U3 and U4 red.
+  - **L1, U3.** Two concurrent rearms binding the same new out-of-process frame each opened a CDP session, and one
+    stayed open after `finish` (`open=1`). Now at most one bind runs per frame, and the others share it.
+  - **L2, U4.** A page busy past both the bind and the arm budgets armed its sentinel later on the console fallback,
+    and nothing noticed. The arm's raw evaluate result is now judged when it lands: a console-only sentinel fails
+    closed, and one that lands after `finish` is disarmed.
+  - **L3, T24.** The happy-path control: T23's page with working bindings. A session starts and the frame's own
+    binding refuses the trace. It was green before the fix too, so it is a control, not a reproduction.
+  - **Result:** trace **79/0**, b2 39/0, failure-evidence-live 17/0, runner 138/0, build PASS.
 - **Costs and residuals (accepted).**
   - Each traced step opens one CDP session per page (plus one per out-of-process frame) with `Runtime` enabled.
   - Strict capture windows (B2, screenshot) do not use the binding. Any navigation, attachment or detachment there
