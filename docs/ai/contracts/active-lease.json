@@ -1,42 +1,36 @@
 {
-  "task": "awkit-4b5y-b2-protected-capture-1020",
-  "contract_path": "docs/ai/contracts/awkit-4b5y-b2-protected-capture-1020.json",
-  "holder": "security",
+  "task": "awkit-trace-protected-1020",
+  "contract_path": "docs/ai/contracts/awkit-trace-protected-1020.json",
+  "holder": "project-state",
   "status": "released",
   "allowed_paths": [
-    "src/security/ProtectedSurfaceGuard.ts"
+    ".beads/**"
   ],
-  "acquired_at": "2026-10-19T21:43:10.452Z",
-  "acquired_at_commit": "72232783e64a51f54f1baef311e3998a156f50f1",
+  "acquired_at": "2026-10-20T08:33:15.527Z",
+  "acquired_at_commit": "f00143d7753be35da3cf7265c8d0070961e4b4ab",
   "baseline_dirty": [
-    ".beads/interactions.jsonl",
-    ".beads/issues.jsonl",
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/HANDOFF.md",
-    "docs/ai/KNOWN_ISSUES.md",
-    "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-4b5y-b2-protected-capture-1020.json",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "scripts/verify-roadmap-dashboard.mjs",
+    "docs/ai/contracts/awkit-trace-protected-1020.json",
+    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
+    "package.json",
+    "scripts/lib/verifier-classification.ts",
+    "scripts/verify-trace-protected-capture.mts",
     "src/runner/StepExecutor.ts",
-    "src/security/ProtectedSurfaceGuard.ts",
-    "src/visual/protectedGuard.ts"
+    "src/runner/artifacts/TraceService.ts",
+    "src/runner/observation/PassiveCdpTrace.ts",
+    "src/runner/protectedSurfaceScan.ts"
   ],
   "baseline_dirty_fingerprints": {
-    ".beads/interactions.jsonl": "8ed66baf8d70097a34392cd2fa0d323a6ffd791f90e8537c8b61a5188ab04194",
-    ".beads/issues.jsonl": "041b7ebc030ef3b05282493fec9254ba1be4831afece0083f8f1a3d221d8bb35",
-    "docs/ai/CURRENT_STATE.md": "00ec5461bc0d78b78f15a6646efb0070139a1494898524b1354b48a04d439bd2",
-    "docs/ai/HANDOFF.md": "aa70c2f0a42e6b2a6a9089c45b10780140b55b3fb0c0cc6e48f4f00e18de06d7",
-    "docs/ai/KNOWN_ISSUES.md": "0da44863ce976af6d9719565d0bd02d3103ba7bdbb40ad5c74d78e0cac53d7b5",
-    "docs/ai/TASK_LOG.md": "56268477077635b3e47c05fd5593658335dd6af4a9eb75c2d1660cd0728174cb",
-    "docs/ai/contracts/active-lease.json": "ecfde5d19bcdbba83b79fbb956ca7c3b4a355dcfa551b7c80ca9a1f61a307395",
-    "docs/ai/contracts/awkit-4b5y-b2-protected-capture-1020.json": "6e76b4700612e86eb1a511a6f711f983d08f1643705e11caf8243e3d5b540711",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "scripts/verify-roadmap-dashboard.mjs": "0d9057e3fc4caed22a844f01f01de8439cb093f85f527c400e225a6f314c9529",
-    "src/runner/StepExecutor.ts": "e55c279c305c98075a02e20c1168fb5adc21b0f00c0053c7d0cc54e49fb9b922",
-    "src/security/ProtectedSurfaceGuard.ts": "ae65401049fe4f5ed40023a6e234bedbf55606acd07bb3e8b13c97eddd925c9f",
-    "src/visual/protectedGuard.ts": "9f3b3658554c55bdb96840aaf0c323ebf19b9da0df2dba58f58b1636b82d2c7c"
+    "docs/ai/contracts/awkit-trace-protected-1020.json": "246f2ae5bee8841cd930ed66c1b5b2903b7b2b0139e0a620b322c2c5246fcc1c",
+    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json": "28b1f2a747157303ba01fef3e7e3270c8f39e460799a7761891f04682600125d",
+    "package.json": "13e148483a813e7e646ceee78a43e7eea70c2256753390af82e0923d546dc69b",
+    "scripts/lib/verifier-classification.ts": "739d0119597581d677856223cf06d5e3bc7d5743811825b721834dae8d13a818",
+    "scripts/verify-trace-protected-capture.mts": "416e4f19e18e73cb528fa2b7643151831d19ca9b1d63769e93ccd08721887512",
+    "src/runner/StepExecutor.ts": "97de09d80a52f76e2d5b4e32a5e9fa54016b28936e1326b2d4e5769701962c7b",
+    "src/runner/artifacts/TraceService.ts": "2ddca37ee59abcb56f66770b5c719d35601c2ef53bd5b6e75f339d2d23247bf5",
+    "src/runner/observation/PassiveCdpTrace.ts": "9bcdbce7dc7ce49cb977663dfff4525c2a1c90bf82776ae58a80fd0cbb439902",
+    "src/runner/protectedSurfaceScan.ts": "a92f25c5fb63c2c3d6b439ac41c8fb6d3e8799af4d1819ef99ae309d6ca7a7f6"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -51,7 +45,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-19T21:43:26.136Z",
-  "released_reason": "commit of the mixed staged set is blocked by the guard, handed to the owner",
-  "archived_at": "2026-10-19T21:43:26.138Z"
+  "released_at": "2026-10-20T08:34:12.533Z",
+  "released_reason": "awkit-uoik closed, awkit-3gtj filed, beads exported",
+  "archived_at": "2026-10-20T08:34:12.535Z"
 }

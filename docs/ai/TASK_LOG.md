@@ -1,5 +1,36 @@
 # TASK_LOG
 
+## 2026-10-20 — Security: independent B2 review and trace protected-surface remediation awkit-uoik (Claude)
+
+- **Scope:**
+  - Independent security review of `f00143d7`.
+  - Investigation of the Playwright failure trace and the observation trace.
+  - Contract `awkit-trace-protected-1020`, Risk 3. A project-state lease covered Beads.
+  - CodeCraft: not used (`CODECRAFT_MODE=off` default).
+- **Review:** B2 was CHANGES REQUIRED on static, unreproduced findings, filed as `awkit-3gtj`. The trace fix went
+  CHANGES REQUIRED → CHANGES REQUIRED → APPROVED in a fresh-context security review.
+- **Change:**
+  - `TraceService` refuses, stops or discards any chunk near a protected surface.
+  - `PassiveCdpTrace` gates every sample.
+  - New `src/runner/protectedSurfaceScan.ts`.
+  - The B2 refusal records per-capture B2.5 notes.
+- **Files:**
+  - Source: `src/runner/{artifacts/TraceService,observation/PassiveCdpTrace,protectedSurfaceScan,StepExecutor}.ts`.
+  - Scripts and config: `scripts/verify-trace-protected-capture.mts`, `scripts/lib/verifier-classification.ts`,
+    `scripts/verify-roadmap-dashboard.mjs`, `package.json`.
+  - Evidence and tracker: `docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json` (run 37),
+    `.beads/issues.jsonl`.
+  - Docs: `docs/ai/{KNOWN_ISSUES,SECURITY,CURRENT_STATE,HANDOFF,TASK_LOG}.md`, the contract.
+- **Checks:**
+  - Trace and capture: trace-protected-capture 50/0 (baseline 17/15, mutation 43/6), b2-protected-capture 14/0,
+    failure-evidence-live 17/0, artifacts 23/0.
+  - Regression: runner 138/0, visual-isolation 71/0, ai-fallback 51/0, failure-capture-overhead 18/0 (an earlier run
+    under concurrent load was 17/1 on leftover Chromium), mock-site 320/320.
+  - Registry: verifier-classification reconciled.
+  - Build: PASS.
+  - similar-rows-safety: INCONCLUSIVE (every assertion green, cleanup EPERM).
+- **Result:** `awkit-uoik` closed, `awkit-3gtj` open.
+
 ## 2026-10-20 — Security: B2 protected-capture remediation awkit-4b5y (Claude)
 
 - **Scope:** remediate `awkit-4b5y`. Contract `awkit-4b5y-b2-protected-capture-1020`, Risk 3. A security lease covered

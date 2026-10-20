@@ -1,6 +1,7 @@
 import { appendFile, mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { BrowserContext, CDPSession, Page } from "playwright";
+import { pageIsProtected } from "../protectedSurfaceScan";
 
 export const OBSERVATION_CDP_COMMANDS = Object.freeze([
   "Network.enable",
@@ -283,13 +284,32 @@ export class PassiveCdpTrace {
         const stamp = `${timestamp}-${safeName(entry.pageId)}`;
         const screenshotRelative = `screenshots/${stamp}.png`;
         const screenshotPath = join(this.options.root, screenshotRelative);
+        let navigated = false;
+        const onNavigated = (): void => {
+          navigated = true;
+        };
         try {
+          // awkit-trace-protected: a sign-in, CAPTCHA, MFA, OTP or passkey surface is never photographed or
+          // serialized. Prove the page clean, capture into memory, prove it again (and that no frame navigated
+          // meanwhile), and only then write a file or update the live view. Every scan fails closed.
+          if (await pageIsProtected(entry.page)) continue;
+          entry.page.on("framenavigated", onNavigated);
           const result = (await sendObservationCommand(entry.session, "Page.captureScreenshot", {
             format: "png",
             fromSurface: true,
             captureBeyondViewport: false
           })) as { data?: string };
           if (!result.data) continue;
+          let dom: string | undefined;
+          if (this.options.captureDom) {
+            const domResult = (await sendObservationCommand(entry.session, "Runtime.evaluate", {
+              expression:
+                "(() => { const root = document.documentElement.cloneNode(true); root.querySelectorAll('input,textarea').forEach((el) => { el.removeAttribute('value'); if (el.tagName === 'TEXTAREA') el.textContent = ''; }); return root.outerHTML; })()",
+              returnByValue: true
+            })) as { result?: { value?: string } };
+            if (typeof domResult.result?.value === "string") dom = domResult.result.value;
+          }
+          if (navigated || (await pageIsProtected(entry.page))) continue;
           await writeFile(screenshotPath, Buffer.from(result.data, "base64"));
           this.latestScreenshotDataUrl = `data:image/png;base64,${result.data}`;
           this.latestUrl = stripUrlSecrets(entry.page.url());
@@ -302,25 +322,20 @@ export class PassiveCdpTrace {
             generation: entry.generation
           };
           const sampleArtifacts = [screenshotPath];
-          if (this.options.captureDom) {
-            const domResult = (await sendObservationCommand(entry.session, "Runtime.evaluate", {
-              expression:
-                "(() => { const root = document.documentElement.cloneNode(true); root.querySelectorAll('input,textarea').forEach((el) => { el.removeAttribute('value'); if (el.tagName === 'TEXTAREA') el.textContent = ''; }); return root.outerHTML; })()",
-              returnByValue: true
-            })) as { result?: { value?: string } };
-            if (typeof domResult.result?.value === "string") {
-              const domRelative = `dom/${stamp}.html`;
-              const domPath = join(this.options.root, domRelative);
-              await writeFile(domPath, domResult.result.value, "utf8");
-              indexRecord.dom = domRelative;
-              sampleArtifacts.push(domPath);
-            }
+          if (dom !== undefined) {
+            const domRelative = `dom/${stamp}.html`;
+            const domPath = join(this.options.root, domRelative);
+            await writeFile(domPath, dom, "utf8");
+            indexRecord.dom = domRelative;
+            sampleArtifacts.push(domPath);
           }
           this.retainedSamples.push({ record: indexRecord, artifacts: sampleArtifacts });
           this.sampleCount += 1;
           await this.enforceSampleRetention();
         } catch (error) {
           this.degrade(`CDP sample failed for ${entry.pageId}: ${messageOf(error)}`);
+        } finally {
+          entry.page.off("framenavigated", onNavigated);
         }
       }
     } finally {

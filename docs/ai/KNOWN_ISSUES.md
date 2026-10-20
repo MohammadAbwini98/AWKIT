@@ -37,7 +37,60 @@
 - **Effect, resolved:** N5.5 was held open until the workaround run passed. Do not substitute a flag such as
   `--disable-gpu` to claim a GUI gate.
 
+## Playwright failure traces and passive CDP observation samples kept protected-login pages (2026-10-20, RESOLVED 2026-10-20, `awkit-uoik`; residuals `awkit-3gtj`)
+
+- **What.** `TraceService` traced every context with screenshots and DOM snapshots and saved a failed step's chunk
+  (default `onFailure`) or every chunk (`always`) with no protected-surface check. The default-on `PassiveCdpTrace`
+  wrote periodic screenshots, optional DOM samples and the Monitor live view of every page, including a sign-in page
+  held open during a handoff.
+- **Reproduced** with synthetic fixtures by `npm run verify:trace-protected-capture` against `f00143d7`:
+  **17 passed / 15 failed**. Retained ZIPs held the fixture's DOM snapshots, frames and HTML response body, and in
+  four cases a typed synthetic OTP. The cases were a cancelled handoff node, a cancelled title-first handoff, an
+  undetected protected page, a protected popup, a protected iframe, a transient protected page, a continued
+  `always` handoff and a passing `always` step. The observation sampler wrote 2 screenshots, 2 DOM samples and a live
+  view of the protected page (O1 red under the guard-removed mutant).
+- **Remediated.**
+  - **No chunk.** No chunk is opened for a protected-login or `manualHandoff` step, or while any page of the context
+    fails `checkProtectedSurface` (via `src/runner/protectedSurfaceScan.ts`, 5 s budget, fails closed).
+  - **Watch.** While a chunk is open, every frame navigation and every new page is scanned. Navigation to a known
+    identity-provider host taints the chunk at once.
+  - **Stop at once.** A protected verdict, or any protected-login handoff (`markProtected`), stops and discards the
+    chunk immediately, so recording stops before the operator acts.
+  - **Saving.** A save goes ahead only if the context still passes the guard. A late contradicting scan deletes the
+    ZIP. The wait for scans is bounded and fails closed.
+  - **Observation.** `PassiveCdpTrace` proves each page clean, captures into memory, re-proves it clean and
+    un-navigated, and only then writes or updates the live view.
+  - **Result.** `verify:trace-protected-capture` **50/0**. A mutation run turned T6, T11, T12, T13, O1 and O3 red
+    (43/6). The fresh-context security review was APPROVED.
+- **Costs and fail-closed losses (accepted).**
+  - Each traced step runs one context-wide guard scan before it starts. Saves run one or two more.
+  - The observation sampler runs two scans per sample.
+  - Pages that never stop navigating, pages with stalled frames, and pages that embed identity-provider iframes (for
+    example a sign-in widget) lose their failure trace.
+  - Values typed into ordinary fields still appear in ordinary traces (C1), which is Playwright's normal snapshot
+    behaviour.
+- **Residual (`awkit-3gtj`, not reproduced).**
+  - A protected field injected and then removed with no navigation, inside one chunk, can still be saved.
+  - Discarded chunks leave raw material in Playwright's temporary artifacts directory until the browser closes. This
+    is inferred, not verified.
+  - A refused ZIP survives a failed `unlink`.
+  - The user `screenshot` step and `ScreenshotService` are unguarded.
+- **Gate note.** `verify:similar-rows-safety` passes every assertion but exits 1 on an EPERM when it removes the
+  staged parser-only host's temp directory (`scripts/dom-intelligence/stagedHost.mts:49`). This happened twice on
+  2026-10-20 on this VM, so it is recorded as INCONCLUSIVE (environment, not product).
+
 ## B2 failure capture photographs and serializes protected-login pages (2026-10-19, RESOLVED 2026-10-20, `awkit-4b5y`)
+
+- **Independent security review 2026-10-20: CHANGES REQUIRED (static findings, not reproduced, so the defect stays
+  closed; tracked in `awkit-3gtj`).**
+  - The page can change between the pre-capture and post-capture checks.
+  - `page.screenshot({ path })` can finish late, after a timeout, and write an unreferenced PNG.
+  - A failed `unlink` is swallowed.
+  - Closed shadow roots are skipped.
+  - The verifier does not see orphan files.
+- **Regression found and fixed.** In `f00143d7` the refusal path recorded a single `meta` note. That broke B2.5:
+  `verify:failure-evidence-live` went 16/1 on a closed page. A refusal now records a no-path note for each of
+  screenshot, DOM and a11y, and the suite is 17/0.
 
 - **Remediated 2026-10-20.** `captureFailureEvidence` now refuses every page capture (screenshot, DOM, a11y and the
   meta file) and records only a note-only `meta` ref when the step is a protected-login type, its latest attempt
@@ -46,8 +99,8 @@
   protected. The guard moved verbatim to `src/security/ProtectedSurfaceGuard.ts` so the runner can use it without
   reaching `src/visual` (`src/visual/protectedGuard.ts` re-exports it). `verify:b2-protected-capture` **14/0**, not
   relaxed; ordinary capture is intact (C1, C2). Cost: one guard scan per failing attempt on ordinary pages.
-- **Left open:** the Playwright failure trace (`TraceService`, saved only on a failed step when a traces dir is
-  configured) is not gated by this guard; whether its snapshots can hold a protected page is unverified.
+- **Left open (now resolved):** the Playwright failure trace was confirmed to hold protected pages and was remediated
+  as `awkit-uoik` (entry above).
 
 - **What.** `StepExecutor.captureFailureEvidence` writes a full-page PNG, `page.content()` HTML, an aria snapshot and
   meta on every failing attempt. Its only production caller is `FlowExecutor.executeWithRetry` (`FlowExecutor.ts:534`),

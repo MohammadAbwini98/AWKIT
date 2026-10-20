@@ -1,6 +1,29 @@
 # CURRENT_STATE
 
-## Security: B2 protected-capture defect awkit-4b5y remediated (2026-10-20, latest)
+## Security: B2 independent review, and Playwright and observation traces no longer keep protected pages (2026-10-20, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed.
+
+- **B2 independent review (`f00143d7`): CHANGES REQUIRED.** The findings are static and none is reproduced, so
+  `awkit-4b5y` stays closed; they are tracked as `awkit-3gtj` (P2, open). One real B2 regression was found and fixed:
+  the B2.5 per-capture notes on a refusal (`verify:failure-evidence-live` 16/1 → 17/0).
+- **Trace exposure CONFIRMED and remediated (`awkit-uoik`, P1, closed).**
+  - `TraceService` failure and `always` traces held protected-page DOM, frames, HTML bodies and a typed synthetic OTP.
+  - The default-on `PassiveCdpTrace` sampled protected pages.
+  - Both now use the shared guard through `src/runner/protectedSurfaceScan.ts` (details in KNOWN_ISSUES).
+  - The fresh-context security review was APPROVED.
+- **Gates (final state):**
+  - `verify:trace-protected-capture` 50/0 (new; baseline 17/15; mutation run 43/6).
+  - Other verifiers: `verify:b2-protected-capture` 14/0, `verify:failure-evidence-live` 17/0, `verify:artifacts`
+    23/0, `verify:runner` 138/0, `verify:visual-isolation` 71/0, `verify:ai-fallback` 51/0,
+    `verify:failure-capture-overhead` 18/0, `verify:mock-site` 320/320, `verify:verifier-classification` 342 reconciled.
+  - Build: PASS.
+  - `verify:similar-rows-safety`: every assertion green, but INCONCLUSIVE because of a temp-dir EPERM during
+    cleanup.
+- **Contract:** `awkit-trace-protected-1020`.
+
+## Security: B2 protected-capture defect awkit-4b5y remediated (2026-10-20)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed.

@@ -1,6 +1,23 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-20, latest) — Security: B2 protected capture awkit-4b5y remediated
+## HANDOFF (2026-10-20, latest) — Security: B2 review and trace protected-surface remediation
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:**
+  - `awkit-uoik` filed and closed (contract `awkit-trace-protected-1020`, lease released).
+  - Playwright failure traces and the passive CDP observation samples no longer keep protected-login pages.
+  - `verify:trace-protected-capture` 50/0.
+  - The fresh-context security review was APPROVED.
+  - The B2 independent review is CHANGES REQUIRED on static findings only. `awkit-4b5y` stays closed.
+- **Open:** `awkit-3gtj` (P2). Each B2/trace hardening finding needs a reproduction before any fix (KNOWN_ISSUES).
+- **Next for Phase N:** the owner's choice. N6 (Visual Assertions) is not blocked by these residuals, or VD-11
+  provenance (still deferred).
+- **Do not:** relax `verify:b2-protected-capture` or `verify:trace-protected-capture`, or add `--disable-gpu` to
+  claim a GUI gate.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-20) — Security: B2 protected capture awkit-4b5y remediated
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

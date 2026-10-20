@@ -40,6 +40,12 @@
   tokens/success or transfers UI cookies into the automation browser. Detection/handoff surface only the
   URL/provider/reason — never cookies/tokens/localStorage/session contents. See
   `docs/PROTECTED_LOGIN_HANDOFF.md`.
+- **Protected surfaces are never captured into artifacts.** Everything that photographs or serializes a page refuses
+  a sign-in, CAPTCHA, MFA, OTP, passkey or device-approval surface through the shared, fail-closed
+  `src/security/ProtectedSurfaceGuard.ts`. This covers the B2 failure capture, N0/N5 visual capture, Playwright
+  failure traces (`TraceService`, `awkit-uoik`) and the passive CDP observation samples and live view
+  (`PassiveCdpTrace`). Gates: `verify:b2-protected-capture` and `verify:trace-protected-capture`. Known residuals
+  are tracked in `awkit-3gtj` (KNOWN_ISSUES).
 - **Closed-shadow bridge** (`src/runner/closedShadowBridge.ts`, epic `awkit-65g` C2): a runtime
   `addInitScript` wraps `attachShadow` (mode preserved, never forced open) and retains closed roots in a
   closure WeakMap behind a per-process token-gated resolver, so the runner can replay an interaction inside a

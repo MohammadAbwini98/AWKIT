@@ -407,8 +407,10 @@ export class StepExecutor {
     this.log("info", step, `Executing step ${step.name}`);
     this.emitProgress(step, "running", { message: `Running: ${step.name}`, timestamp: startedAt, sideEffectLevel: resolveStepSafety(step).sideEffectLevel });
     // Arm a per-step trace chunk (no-op unless the engine provided a traces dir). Saved only on
-    // failure; success discards it so passing runs write nothing.
-    const traceArmed = (await this.traceService?.beginStep()) ?? false;
+    // failure; success discards it so passing runs write nothing. Protected-login and manual-handoff
+    // steps never open one, and TraceService refuses or discards any chunk near a protected surface.
+    const protectedTraceStep = protectedCallerVerdict({ stepType: step.type }).protected || step.type === "manualHandoff";
+    const traceArmed = (await this.traceService?.beginStep({ protectedStep: protectedTraceStep })) ?? false;
 
     try {
       // Hard cancellation: never start (or continue past) a step after cancel was requested.
@@ -1747,8 +1749,13 @@ export class StepExecutor {
     // awkit-4b5y: never photograph or serialize a protected-login surface. The step's own handoff state and type refuse
     // without touching the page; otherwise N0's protected-surface scan must prove the page clean first. Fails closed.
     const refusal = await this.protectedCaptureRefusal(step, page);
+    // B2.5: every page-dependent capture still gets its secondary-diagnostic note, never a file.
+    const notePageCaptures = (what: string): void => {
+      for (const kind of ["screenshot", "dom", "a11y"] as const) record(kind, undefined, `${kind} capture ${what}`);
+    };
     if (refusal) {
       record("meta", undefined, `page captures skipped: protected surface (${refusal})`);
+      notePageCaptures(`skipped: protected surface (${refusal})`);
       return refs;
     }
 
@@ -1829,10 +1836,11 @@ export class StepExecutor {
     if (lateRefusal) {
       const written = refs.filter((ref) => ref.path && (ref.kind === "screenshot" || ref.kind === "dom" || ref.kind === "a11y"));
       await Promise.all(written.map((ref) => unlink(ref.path as string).catch(() => undefined)));
-      const kept = refs.filter((ref) => !written.includes(ref));
+      const kept = refs.filter((ref) => ref.kind !== "screenshot" && ref.kind !== "dom" && ref.kind !== "a11y");
       refs.length = 0;
       refs.push(...kept);
       record("meta", undefined, `page captures discarded: protected surface (${lateRefusal})`);
+      notePageCaptures(`discarded: protected surface (${lateRefusal})`);
       return refs;
     }
 
@@ -2605,7 +2613,10 @@ export class StepExecutor {
   /** Pause the live flow until the UI resolves the handoff. The browser remains open. */
   private async waitForHandoffAction(step: FlowStep, initialInfo: HandoffInfo): Promise<ManualHandoffResumeAction> {
     let info = initialInfo;
-    if (info.kind === "protectedLogin") this.protectedHandoffSteps.add(step.id);
+    if (info.kind === "protectedLogin") {
+      this.protectedHandoffSteps.add(step.id);
+      this.traceService?.markProtected();
+    }
     for (;;) {
       this.pauseForHandoff(step, info.message);
       this.emitProgress(step, "waitingForManualAction", { message: info.message, manualHandoff: info });
@@ -2649,6 +2660,7 @@ export class StepExecutor {
   ): Promise<boolean> {
     if (info.kind !== "protectedLogin") return false;
     this.protectedHandoffSteps.add(step.id);
+    this.traceService?.markProtected();
     if (!this.sessionService || !this.browserRestarter) return false;
 
     const configuredUrl = await this.resolveStepValue(step, step.url ?? step.value);
