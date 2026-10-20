@@ -413,7 +413,7 @@ async function main(): Promise<void> {
         return shot;
       });
       const root = await newRoot();
-      const run = await runStep(page, root, id, missing(id));
+      const run = await runStep(page, root, id, missing(id), false);
       const files = await listFiles(root);
       check(`${id} precondition: the step failed and the field was protected while shown`, run.result.status === "failed" && sawProtected, `${run.result.status} protected=${sawProtected}`);
       check(`${id} security: no screenshot, DOM or a11y file exists anywhere under the evidence root`, pageCaptureFiles(files).length === 0, `files: ${pageCaptureFiles(files).length}`);
