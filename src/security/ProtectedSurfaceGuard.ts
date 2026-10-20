@@ -268,10 +268,13 @@ const SENTINEL_HUB_KEY = `awkit-protected-hub-${randomUUID()}`;
  * — every root attached while armed, open or closed. The latch is what callers read; the console signal is only an
  * early warning a page can silence. Returns true when armed (or already armed under this key).
  */
-const armFrameSentinel = (args: { key: string; hub: string; selector: string; attributes: string[] }): boolean => {
+const armFrameSentinel = (args: { key: string; hub: string; selector: string; attributes: string[]; binding?: string }): boolean => {
   const host = window as unknown as Record<string, unknown>;
   if (host[args.key]) return true;
-  const signal = console.debug.bind(console);
+  // awkit-3gtj re-review N1: the CDP binding (random name, captured now) is a channel the page cannot silence;
+  // console.debug is only the fallback where no binding exists.
+  const bound = args.binding ? (host[args.binding] as ((payload: string) => void) | undefined) : undefined;
+  const signal = typeof bound === "function" ? bound : console.debug.bind(console);
   const options: MutationObserverInit = { subtree: true, childList: true, attributes: true, attributeFilter: args.attributes };
   const state = { seen: false, disarmed: false, options, observer: undefined as unknown as MutationObserver };
   state.observer = new MutationObserver((records) => {
@@ -366,9 +369,11 @@ export interface ProtectedWindowWatch {
 
 export interface ProtectedWindowOptions {
   /**
-   * Strict (a capture window: B2, a screenshot): any frame navigation or attachment, the page closing, or a frame that
-   * cannot be armed or read refuses — the window was not proven clean. Not strict (a trace chunk, whose own scans cover
-   * navigations): only a protected field seen by a sentinel refuses.
+   * Strict (a capture window: B2, a screenshot): any frame navigation, attachment or detachment, the page closing, or
+   * a frame that cannot be armed or read refuses — the window was not proven clean. Not strict (a trace session, whose
+   * own scans cover navigations): only a protected field seen by a sentinel refuses. A sentinel's document can be gone
+   * before its latch is read (it navigated or detached), so non-strict sentinels signal through a CDP binding the page
+   * cannot silence, and a page whose binding cannot be installed refuses.
    */
   strict: boolean;
   /** Called once, as soon as a sentinel signals a protected field (before `finish`). */
@@ -404,6 +409,12 @@ export async function watchProtectedWindow(page: Page, options: ProtectedWindowO
   let changed = false;
   let unwatchable = false;
   let finished = false;
+  let bindingFailed = false;
+  const markSeen = (): void => {
+    if (seen) return;
+    seen = true;
+    options.onProtected?.();
+  };
   const onConsole = (message: ConsoleMessage): void => {
     if (seen) return;
     try {
@@ -411,8 +422,33 @@ export async function watchProtectedWindow(page: Page, options: ProtectedWindowO
     } catch {
       return;
     }
-    seen = true;
-    options.onProtected?.();
+    markSeen();
+  };
+  // awkit-3gtj re-review N1: one CDP session per page and per out-of-process frame, each carrying a binding under a
+  // random name. In-process child frames share their parent's session, whose binding reaches their contexts too.
+  const bindingName = options.strict ? undefined : `awkitProtected_${randomUUID().replace(/-/g, "")}`;
+  const sessions = new Map<Frame, CDPSession>();
+  const bindFrame = async (frame: Frame): Promise<void> => {
+    if (!bindingName || sessions.has(frame) || finished) return;
+    const isMain = frame === page.mainFrame();
+    let session: CDPSession;
+    try {
+      session = await page.context().newCDPSession(isMain ? page : frame);
+    } catch (error) {
+      if (!isMain && error instanceof Error && IN_PROCESS_FRAME_SESSION.test(error.message)) return;
+      if (isMain) bindingFailed = true;
+      return;
+    }
+    sessions.set(frame, session);
+    session.on("Runtime.bindingCalled", (event: { name?: string; payload?: string }) => {
+      if (event.name === bindingName && event.payload === key) markSeen();
+    });
+    try {
+      await session.send("Runtime.enable");
+      await session.send("Runtime.addBinding", { name: bindingName });
+    } catch {
+      if (isMain) bindingFailed = true;
+    }
   };
   const onChange = (): void => {
     changed = true;
@@ -439,7 +475,12 @@ export async function watchProtectedWindow(page: Page, options: ProtectedWindowO
       unwatchable = true;
       return;
     }
-    const args = { key, hub: SENTINEL_HUB_KEY, selector: PROTECTED_FIELD_SELECTOR, attributes: PROTECTED_FIELD_ATTRIBUTES };
+    if (bindingName) {
+      await Promise.all(frames.map((frame) => boundedEvaluate(bindFrame(frame), timeoutMs, undefined)));
+      // Fail closed: without its binding a sentinel whose document goes away takes its latch with it.
+      if (bindingFailed) markSeen();
+    }
+    const args = { key, hub: SENTINEL_HUB_KEY, selector: PROTECTED_FIELD_SELECTOR, attributes: PROTECTED_FIELD_ATTRIBUTES, binding: bindingName };
     const armed = await Promise.all(frames.map((frame) => boundedEvaluate(frame.evaluate(armFrameSentinel, args), timeoutMs, false)));
     if (armed.some((ok) => ok !== true)) unwatchable = true;
   };
@@ -465,6 +506,21 @@ export async function watchProtectedWindow(page: Page, options: ProtectedWindowO
           // A closed page has no listeners left to remove.
         }
       }
+      // Remove the bindings and close their sessions; best-effort and bounded.
+      const opened = [...sessions.values()];
+      sessions.clear();
+      await Promise.all(
+        opened.map((session) =>
+          boundedEvaluate(
+            session
+              .send("Runtime.removeBinding", { name: bindingName as string })
+              .catch(() => undefined)
+              .then(() => session.detach()),
+            timeoutMs,
+            undefined
+          )
+        )
+      );
       if (seen || reads.includes("seen")) return { protected: true, reason: "protected-field" };
       if (options.strict) {
         if (changed) return { protected: true, reason: "window-changed" };

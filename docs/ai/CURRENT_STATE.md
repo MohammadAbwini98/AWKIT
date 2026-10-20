@@ -27,11 +27,16 @@ executed.
   - benign-only CDP session errors.
 
   F4(ii) and F4(iii) were not reproduced (KNOWN_ISSUES).
+- **Re-review of `8bf7233b`: CHANGES REQUIRED on N1.**
+  - N1: a console-silencing page showed a field, then navigated away, and the failing step kept its trace.
+  - Reproduced by T21 (trace 64/1). Fixed with a CDP `Runtime.addBinding` signal per page and out-of-process frame
+    in trace mode.
 - **Gates (final state):**
-  - b2-protected-capture 39/0, trace-protected-capture 63/0, failure-evidence-live 17/0.
-  - Regression: runner 138/0, visual-capture 274/0, visual-isolation 71/0 (first round, imports unchanged since).
+  - b2-protected-capture 39/0, trace-protected-capture 65/0, failure-evidence-live 17/0.
+  - Regression: runner 138/0. visual-capture 274/0 and visual-isolation 71/0 were not rerun: their code path and
+    imports are unchanged.
   - Build: PASS.
-  - Re-review after the fixes: NOT RUN.
+  - Second re-review: NOT RUN.
 - **Negative evidence:** the refused-ZIP `unlink` failure could not be induced on this platform (KNOWN_ISSUES).
 - **Contract:** `awkit-3gtj-capture-residuals-1020`. `awkit-3gtj` stays open until the fixes are re-reviewed.
 - **Commit:** BLOCKED for agents. The lease guard rejects one commit that mixes `src/security/**` with runner code, so

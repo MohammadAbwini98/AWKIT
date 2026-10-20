@@ -106,15 +106,24 @@
       effect is a short recording that is deleted, not kept.
   - **Results after the fix:** b2 **39/0**, trace **63/0**, failure-evidence-live 17/0, runner 138/0, visual-capture
     274/0, build PASS.
+- **Re-review of `8bf7233b`: CHANGES REQUIRED on N1, now fixed.** F1–F4(i) were confirmed fixed.
+  - **N1.** A failing traced step kept its ZIP when a page silenced `console.debug`, showed a one-time-code field and
+    then navigated away. Every later check saw only the new, clean document. T21 reproduced it (trace **64/1**).
+  - **Fix.** In trace (non-strict) mode, each page and each out-of-process frame gets a CDP session with
+    `Runtime.addBinding` under a random name. The sentinel captures that function when it arms, so the page can
+    neither predict nor silence it. `Runtime.bindingCalled` taints the session at once. The binding is removed and the
+    session detached on `finish`. If the main binding cannot be installed, the session is refused (fail closed).
+  - **Result:** trace **65/0**, b2 39/0, failure-evidence-live 17/0, runner 138/0, build PASS.
 - **Costs and residuals (accepted).**
-  - In trace mode, a field in a document that silences `console.debug` and then navigates or detaches before the step
-    ends loses its latch with the document. Scans at both ends still apply.
+  - Each traced step opens one CDP session per page (plus one per out-of-process frame) with `Runtime` enabled.
+  - Strict capture windows (B2, screenshot) do not use the binding. Any navigation, attachment or detachment there
+    already refuses the capture.
   - A closed shadow root created *before* arming cannot be observed. The CDP pass still checks its state at each scan.
   - The `attachShadow` hook stays patched in an armed document. A page that kept the original reference bypasses it.
   - Out of scope, tracked for triage: `src/visual/internal/captureCore.ts` and
     `src/runner/visualDiagnosis/VisualFailureDiagnosis.ts` still use only before/after checks, without a window watch.
   - A user `screenshot` step on any page with a password, OTP, CAPTCHA or passkey field now fails.
-  - B2 evidence is lost when any frame navigates or attaches during its short capture window.
+  - B2 evidence is lost when any frame navigates, attaches or detaches during its short capture window.
   - Every guard scan runs one extra pierced CDP document read. A huge DOM that overruns the 1.5 s frame budget is
     unscannable, so the capture is refused.
   - A passing traced step that navigated waits up to 5 s for its in-flight scans.

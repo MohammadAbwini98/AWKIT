@@ -1,15 +1,14 @@
 {
   "task": "awkit-3gtj-capture-residuals-1020",
   "contract_path": "docs/ai/contracts/awkit-3gtj-capture-residuals-1020.json",
-  "holder": "security",
+  "holder": "project-state",
   "status": "released",
   "allowed_paths": [
-    "src/security/ProtectedSurfaceGuard.ts"
+    ".beads/**"
   ],
-  "acquired_at": "2026-10-20T13:24:10.336Z",
-  "acquired_at_commit": "0bf6ada2085c6dfb7f2dfa0619485e1eee6925cb",
+  "acquired_at": "2026-10-20T15:19:23.919Z",
+  "acquired_at_commit": "8bf7233bef3e241c80f7aaa971d4794657f97067",
   "baseline_dirty": [
-    ".beads/issues.jsonl",
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/HANDOFF.md",
     "docs/ai/KNOWN_ISSUES.md",
@@ -17,30 +16,19 @@
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-3gtj-capture-residuals-1020.json",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "scripts/verify-b2-protected-capture.mts",
-    "scripts/verify-runner.mts",
     "scripts/verify-trace-protected-capture.mts",
-    "src/reports/ScreenshotService.ts",
-    "src/runner/StepExecutor.ts",
-    "src/runner/artifacts/TraceService.ts",
     "src/security/ProtectedSurfaceGuard.ts"
   ],
   "baseline_dirty_fingerprints": {
-    ".beads/issues.jsonl": "ac50a1d9845e104cb1777788b8c3a957dbca14fe1a394a305efd07bde24991f5",
-    "docs/ai/CURRENT_STATE.md": "5cfa00c8f005f3d00c0a4836901498f44d2777157be5e94cedc7d4846805fafb",
-    "docs/ai/HANDOFF.md": "aed289b008488e03732b4c0001752c1a47d508314b5b58ea8e2005dbbdc34947",
-    "docs/ai/KNOWN_ISSUES.md": "4433b9edf96c5c503c49a63abecb03f0a90a52479098e0eb6658edd99d7b5004",
-    "docs/ai/TASK_LOG.md": "0cceec970222b2ed5ea01e9bab8e2cf0b35ce653ea8045f0e02478dfedb437bc",
-    "docs/ai/contracts/active-lease.json": "d4d4677739dc2fd932647ad3a92fa09bc9550af66fe2a63f82474685741e211d",
-    "docs/ai/contracts/awkit-3gtj-capture-residuals-1020.json": "da752d4382939fc48a419836763338a627c2c8621b1d19c610753522b620fd34",
+    "docs/ai/CURRENT_STATE.md": "987a7e70926c2e7fbbe7228f844a520655d32256849730d4acce5fed87a8f313",
+    "docs/ai/HANDOFF.md": "847f07fc84a427f82dcd7dbae0c94a3729a096761ac22b91b3d0bd9b4907d926",
+    "docs/ai/KNOWN_ISSUES.md": "292548596b4c9c73e5715c5c3b364c68dbc27a2118a1dbb146885cc7e0b6eaba",
+    "docs/ai/TASK_LOG.md": "4d89a11e51ef88cfd0be6e9ca4d97315876dc5a176b40f671d5c3d827c796537",
+    "docs/ai/contracts/active-lease.json": "84de92cdb25f7d8bf80e33ca81a69e28b76a401e5b24a469cb0a676a70e315f8",
+    "docs/ai/contracts/awkit-3gtj-capture-residuals-1020.json": "fbbfcbf6cedbabd675e1c75c2dd2291ec48904a52781dae7ff4a549a9805ea78",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "scripts/verify-b2-protected-capture.mts": "2cf1f39788b7fff914dbab4c23e7de46423276b3f347e8038fb65a8dabe14f36",
-    "scripts/verify-runner.mts": "9f458e59a61861232b6c896fb80f6ba5b719de502453e784d1ea15b8d10b1cf7",
-    "scripts/verify-trace-protected-capture.mts": "0c623f8ac39bfb8d7d54c69e5ae8ce745d5410a5b8694c91217394d2166704f3",
-    "src/reports/ScreenshotService.ts": "0df889c248041bbc13c0dd0ac42a5cc7d3c13ac1b9cf64d068eb3bd6d910fd18",
-    "src/runner/StepExecutor.ts": "faa925aacebe11f0c24c5b0293581f96440de75efbdba441e3dd711ba86c6408",
-    "src/runner/artifacts/TraceService.ts": "1eee2ac34a2ca64381cfe7da98a433b01ea5cefa50126a16f1e3c028ac370874",
-    "src/security/ProtectedSurfaceGuard.ts": "90d0121f5081dce0d032470c720d45e33b06c267c67a83bd2d7943931820521e"
+    "scripts/verify-trace-protected-capture.mts": "a7089d50751d7923cd832b8a797dda39a8921ca1fbdf9e41dda8dec25e5a35a4",
+    "src/security/ProtectedSurfaceGuard.ts": "d0fc91a72d61a585930c03207c1ee5123fa0b6b02f0472bde56dcd008ceeee3d"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -55,7 +43,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-20T13:24:14.870Z",
-  "released_reason": "revised guard staged for the awkit-3gtj owner commit",
-  "archived_at": "2026-10-20T13:24:14.874Z"
+  "released_at": "2026-10-20T15:19:40.094Z",
+  "released_reason": "awkit-3gtj N1 round recorded and beads exported",
+  "archived_at": "2026-10-20T15:19:40.096Z"
 }

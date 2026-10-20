@@ -33,7 +33,13 @@
   - Fixed in the guard and `TraceService`: b2 39/0, trace 63/0, failure-evidence-live 17/0, runner 138/0,
     visual-capture 274/0, build PASS.
   - F4(ii) (T20 green before the fix) and F4(iii) were recorded with negative evidence.
-  - The commit is BLOCKED by the lease guard (mixed Risk-3 set) and handed to the owner.
+  - The commit is BLOCKED by the lease guard (mixed Risk-3 set) and handed to the owner, who committed `8bf7233b`.
+- **Re-review round:**
+  - The re-review was CHANGES REQUIRED on N1.
+  - T21 reproduced it (trace 64/1).
+  - Fixed with a CDP `Runtime.addBinding` sentinel signal in trace mode (`src/security/ProtectedSurfaceGuard.ts`).
+  - Checks: trace 65/0, b2 39/0, failure-evidence-live 17/0, runner 138/0, build PASS.
+  - The commit is again left to the owner.
 
 ## 2026-10-20 — Security: independent B2 review and trace protected-surface remediation awkit-uoik (Claude)
 

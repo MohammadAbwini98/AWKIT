@@ -42,6 +42,9 @@
  *                  into the raw trace): the purge of its discarded session must still delete its raw files.
  *   T20 [onFailure] a script-created about:blank child frame (no navigation event) shows a password field and empties
  *                  it again; the failing step keeps nothing.
+ *   T21 [onFailure] re-review N1: a page that silences `console.debug` shows a one-time-code field and then navigates
+ *                  to an ordinary page (the field's document and its sentinel latch are gone); the failing step keeps
+ *                  nothing.
  *   U1  `markProtected` stops the open chunk's recording at once and the failed step keeps nothing; T2/T7 also
  *       assert the recording had stopped before the operator could act on the handoff.
  *   O1-O3 the passive CDP observation trace (on by default) writes no screenshot/DOM sample and no live view of a
@@ -130,6 +133,11 @@ const T19_MARKER = `t19-sha1-${randomUUID()}`;
 const STUB_OTP_HTML = `<!doctype html><html><head><title>Quiet</title><script>console.debug = function () {};</script></head><body>
   <h1>Quiet</h1><p>${T18_MARKER}</p>
   <script>setTimeout(function () { var i = document.createElement("input"); i.setAttribute("autocomplete", "one-time-code"); document.body.appendChild(i); }, 1200);</script></body></html>`;
+/** Silences console.debug, shows a one-time-code field, then navigates to an ordinary page (T21). */
+const STUB_OTP_NAV_HTML = `<!doctype html><html><head><title>Quiet hop</title><script>console.debug = function () {};</script></head><body>
+  <h1>Quiet hop</h1>
+  <script>setTimeout(function () { var i = document.createElement("input"); i.setAttribute("autocomplete", "one-time-code"); i.id = "hop-otp"; document.body.appendChild(i); }, 1200);
+  setTimeout(function () { location.href = "/landing"; }, 1800);</script></body></html>`;
 /** A blank child frame created by script, which shows a password field and empties it again (T20). */
 const BLANK_FRAME_HTML = `<!doctype html><html><head><title>Blank frame</title></head><body><h1>Blank frame</h1>
   <script>window.__blankCycle = "none";
@@ -349,6 +357,7 @@ async function main(): Promise<void> {
     if (url.startsWith("/hash-churn")) return HASH_CHURN_HTML;
     if (url.startsWith("/inject-remove-otp")) return INJECT_REMOVE_OTP_HTML;
     if (url.startsWith("/protected-unique")) return protectedHtml.replace("</body>", `<p data-testid="${UNIQUE_MARKER}">${UNIQUE_MARKER}</p></body>`);
+    if (url.startsWith("/stub-otp-nav")) return STUB_OTP_NAV_HTML;
     if (url.startsWith("/stub-otp")) return STUB_OTP_HTML;
     if (url.startsWith("/protected-sha1")) return protectedHtml.replace("</body>", `<div sha1="..">${T19_MARKER}</div></body>`);
     if (url.startsWith("/blank-frame")) return BLANK_FRAME_HTML;
@@ -677,6 +686,17 @@ async function main(): Promise<void> {
       const cycle = await h.page.evaluate(() => (window as unknown as { __blankCycle?: string }).__blankCycle);
       check("T20 precondition: the step failed after the field was shown and emptied, with a session open", run.result.status === "failed" && cycle === "hidden" && run.chunksOpened >= 1, `${run.result.status} cycle=${cycle} chunks=${run.chunksOpened}`);
       check("T20 security: no trace is retained and none is reported", run.traces.zips === 0 && !run.result.tracePath, describe(run.traces));
+      await h.context.close();
+    }
+
+    // T21 — the field's document is replaced before any end-of-step check; only a signal the page cannot silence helps.
+    console.log("\nT21 [onFailure] a console-silencing page shows a one-time-code field, then navigates away:");
+    {
+      const h = await harness("/stub-otp-nav");
+      const run = await runTraced(h, "t21", "onFailure", neverAppears("t21"), "none");
+      const landed = h.page.url().endsWith("/landing");
+      check("T21 precondition: the step failed after the page left for an ordinary page, with a session open", run.result.status === "failed" && landed && run.chunksOpened >= 1, `${run.result.status} landed=${landed} chunks=${run.chunksOpened}`);
+      check("T21 security: no trace is retained and none is reported", run.traces.zips === 0 && !run.result.tracePath, describe(run.traces));
       await h.context.close();
     }
 
