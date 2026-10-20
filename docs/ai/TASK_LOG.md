@@ -1,5 +1,22 @@
 # TASK_LOG
 
+## 2026-10-20 — Security: B2 protected-capture remediation awkit-4b5y (Claude)
+
+- **Scope:** remediate `awkit-4b5y`. Contract `awkit-4b5y-b2-protected-capture-1020`, Risk 3. A security lease covered
+  the new guard file and a project-state lease covered Beads. CodeCraft: not used (`CODECRAFT_MODE=off` default).
+- **Change:** `captureFailureEvidence` checks before capture and again after. It refuses on a protected-login step
+  type, on a protected-login handoff in the latest attempt, or when N0's `checkProtectedSurface` overruns its 5 s
+  budget or does not prove the page clean. On a refusal it records a note-only `meta` ref and deletes any written
+  file. The N0 guard moved verbatim to `src/security/ProtectedSurfaceGuard.ts`, re-exported from
+  `src/visual/protectedGuard.ts`.
+- **Files:** `src/runner/StepExecutor.ts`, `src/security/ProtectedSurfaceGuard.ts`, `src/visual/protectedGuard.ts`,
+  `scripts/verify-roadmap-dashboard.mjs`, `.beads/issues.jsonl`,
+  `docs/ai/{KNOWN_ISSUES,CURRENT_STATE,HANDOFF,TASK_LOG}.md`, the contract, `active-lease.json`.
+- **Checks:** b2-protected-capture 14/0 (was 11/3); runner 138/0; visual-diagnosis-runtime 63/0; ai-error-analysis
+  429/429; mock-site 320/320; visual-isolation 71/0; visual-capture 274/0; build PASS; roadmap dashboard Sources
+  agree at 26/378 of 404.
+- **Result:** `awkit-4b5y` closed. No independent security review was run. The failure trace is not covered.
+
 ## 2026-10-19 — Phase N: N5.7 independent QC, security review and N5 closure (Claude)
 
 - **Scope:** "Proceed with N5.7". Contract `awkit-vra-14-7-n5-closure-1019`, Risk 2. The independent QC

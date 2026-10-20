@@ -1,6 +1,25 @@
 # CURRENT_STATE
 
-## Phase N: N5 Visual Failure Diagnosis closed (2026-10-19, latest)
+## Security: B2 protected-capture defect awkit-4b5y remediated (2026-10-20, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed.
+
+- **`awkit-4b5y` closed** (contract `awkit-4b5y-b2-protected-capture-1020`). `StepExecutor.captureFailureEvidence`
+  no longer writes a screenshot, DOM, a11y or meta file of a protected-login page. It refuses before capture on a
+  protected-login step type, on a protected-login handoff in the step's latest attempt, or when N0's
+  `checkProtectedSurface` does not prove the page clean within 5 s. It re-checks after capture and deletes any file
+  it wrote. Only a note-only `meta` ref is kept. Ordinary-page capture is unchanged.
+- **Guard location:** moved verbatim to `src/security/ProtectedSurfaceGuard.ts`. `src/visual/protectedGuard.ts`
+  re-exports it, so the runner shares the guard without reaching `src/visual`.
+- **Gates (final state):** `verify:b2-protected-capture` 14/0 (was 11/3, not relaxed); `verify:runner` 138/0;
+  `verify:visual-diagnosis-runtime` 63/0; `verify:ai-error-analysis` 429/429; `verify:mock-site` 320/320;
+  `verify:visual-isolation` 71/0; `verify:visual-capture` 274/0; build PASS; `verify:roadmap-dashboard` Sources
+  agree at 26/378 of 404.
+- **Not covered:** the Playwright failure trace (`TraceService`) is not gated by the guard (KNOWN_ISSUES). No
+  independent security review was run for this change.
+
+## Phase N: N5 Visual Failure Diagnosis closed (2026-10-19)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed.

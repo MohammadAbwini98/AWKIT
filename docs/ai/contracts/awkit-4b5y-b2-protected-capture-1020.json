@@ -1,0 +1,215 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-4b5y-b2-protected-capture-1020",
+    "title": "Security remediation awkit-4b5y: B2 failure capture must never photograph or serialize a protected-login surface",
+    "objective": "StepExecutor.captureFailureEvidence writes a full-page screenshot, page.content() HTML, an aria snapshot and meta on failing attempts even on protected-login pages. Gate it fail-closed on the step's protected-login handoff state, protected step types and the N0 protected-surface scan (moved verbatim to src/security/ProtectedSurfaceGuard.ts so the execution tree can share it without reaching src/visual; src/visual/protectedGuard.ts re-exports it), re-check after capture and discard written files, keep ordinary-page capture intact. verify:b2-protected-capture turns green only through the fix. Close awkit-4b5y under the project-state lease.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 3
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "72232783",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": true,
+    "protected_login_change": true,
+    "project_state_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "runtime",
+      "qa",
+      "qc",
+      "security",
+      "project-state"
+    ],
+    "expected_paths": [
+      "src/security/ProtectedSurfaceGuard.ts",
+      "src/visual/protectedGuard.ts",
+      "src/runner/StepExecutor.ts",
+      ".beads/**",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/contracts/awkit-4b5y-b2-protected-capture-1020.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "security",
+      "allowed_paths": [
+        "src/security/ProtectedSurfaceGuard.ts"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "4B5Y-FIX",
+      "description": "No screenshot, DOM or a11y file of a protected-login page is written by the B2 failure capture (P1 handoff cancelled, P2 auto-detect cancelled, P3 undetected protected page), while ordinary-page capture still writes all four files and does not serialize typed values (C1, C2).",
+      "evidence_required": [
+        "verify:b2-protected-capture"
+      ]
+    },
+    {
+      "id": "4B5Y-REGRESSION",
+      "description": "verify:runner, verify:visual-diagnosis-runtime, verify:ai-error-analysis, verify:mock-site and npm run build pass against the final state.",
+      "evidence_required": [
+        "regression-suites",
+        "build"
+      ]
+    },
+    {
+      "id": "4B5Y-STATE",
+      "description": "KNOWN_ISSUES and the state docs record the remediation, awkit-4b5y is closed through bd and exported, and the dashboard reports Sources agree.",
+      "evidence_required": [
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:b2-protected-capture",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:b2-protected-capture",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "14 passed, 0 failed (was 11/3); P1, P2 and P3 write no screenshot, DOM or a11y file; C1 and C2 green; verifier unchanged"
+    },
+    {
+      "id": "regression-suites",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:runner, verify:visual-diagnosis-runtime, verify:ai-error-analysis, verify:mock-site",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "runner 138/0, visual-diagnosis-runtime 63/0, ai-error-analysis 429/429, mock-site 320/320; also visual-isolation 71/0 and visual-capture 274/0 for the moved guard"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc --noEmit and electron-vite bundles PASS against the final source"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "177/177, Sources agree, 26 outstanding / 378 closed of 404, 332 edges, after awkit-4b5y was closed and exported"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "runs after the commit that carries this contract"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-4b5y-b2-protected-capture-1020:security:2026-10-19T21:17:01.175Z",
+        "task": "awkit-4b5y-b2-protected-capture-1020",
+        "holder": "security",
+        "status": "released",
+        "allowed_paths": [
+          "src/security/ProtectedSurfaceGuard.ts"
+        ],
+        "acquired_at": "2026-10-19T21:17:01.175Z",
+        "acquired_at_commit": "72232783e64a51f54f1baef311e3998a156f50f1",
+        "released_at": "2026-10-19T21:17:24.665Z",
+        "released_reason": "protected surface guard moved to src/security for awkit-4b5y",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-4b5y-b2-protected-capture-1020:project-state:2026-10-19T21:39:14.163Z",
+        "task": "awkit-4b5y-b2-protected-capture-1020",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-19T21:39:14.163Z",
+        "acquired_at_commit": "72232783e64a51f54f1baef311e3998a156f50f1",
+        "released_at": "2026-10-19T21:39:28.434Z",
+        "released_reason": "awkit-4b5y closed and beads exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-4b5y-b2-protected-capture-1020:security:2026-10-19T21:41:25.199Z",
+        "task": "awkit-4b5y-b2-protected-capture-1020",
+        "holder": "security",
+        "status": "released",
+        "allowed_paths": [
+          "src/security/ProtectedSurfaceGuard.ts"
+        ],
+        "acquired_at": "2026-10-19T21:41:25.199Z",
+        "acquired_at_commit": "72232783e64a51f54f1baef311e3998a156f50f1",
+        "released_at": "2026-10-19T21:41:33.941Z",
+        "released_reason": "guard file staged for awkit-4b5y commit",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-4b5y-b2-protected-capture-1020:security:2026-10-19T21:43:10.452Z",
+        "task": "awkit-4b5y-b2-protected-capture-1020",
+        "holder": "security",
+        "status": "released",
+        "allowed_paths": [
+          "src/security/ProtectedSurfaceGuard.ts"
+        ],
+        "acquired_at": "2026-10-19T21:43:10.452Z",
+        "acquired_at_commit": "72232783e64a51f54f1baef311e3998a156f50f1",
+        "released_at": "2026-10-19T21:43:26.136Z",
+        "released_reason": "commit of the mixed staged set is blocked by the guard, handed to the owner",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

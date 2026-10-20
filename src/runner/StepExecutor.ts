@@ -1,4 +1,4 @@
-import { access, mkdir, writeFile } from "node:fs/promises";
+import { access, mkdir, unlink, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import type { Locator, Page, Response } from "playwright";
 import { locatorFrameChain, type AsyncCompletionMode, type DialogExpectation, type FlowStep, type NodeConfig, type StepLocator, type WaitCondition } from "@src/profiles/FlowProfile";
@@ -32,6 +32,10 @@ import { safeMessageForCategory } from "@src/oracle/OracleErrors";
 import { OracleBridgeCallError } from "@src/oracle/OracleBridgeProtocol";
 import { armNetworkObservation, type ArmedNetworkObservation } from "./NetworkDiagnosticsObserver";
 import { createPageFingerprint, fingerprintsEqual, hashFingerprint } from "./locatorFingerprint";
+import { checkProtectedSurface, protectedCallerVerdict, type ProtectedGuardVerdict } from "@src/security/ProtectedSurfaceGuard";
+
+/** Upper bound for the protected-surface scan that gates each B2 failure capture (awkit-4b5y). */
+const PROTECTED_CAPTURE_SCAN_BUDGET_MS = 5_000;
 
 /** Step types after which the runner auto-checks for a protected-login page. */
 const PROTECTED_LOGIN_AUTODETECT_STEPS = new Set(["goto", "click", "routeChange", "wait"]);
@@ -140,6 +144,11 @@ export class StepExecutor {
   private readonly popupIdentity: PopupIdentityRegistry;
   /** Masks secrets out of captured failure evidence (DOM/a11y/meta) before it is written (FR-B2/FR-H1). */
   private readonly evidenceMasker = new SecretMasker();
+  /**
+   * awkit-4b5y: steps whose latest attempt handed off a protected login (handoff node, auto-detection or a popup).
+   * The B2 failure capture refuses every page capture for them. Cleared when the step starts its next attempt.
+   */
+  private readonly protectedHandoffSteps = new Set<string>();
 
   constructor(
     page: Page,
@@ -393,6 +402,7 @@ export class StepExecutor {
   async execute(step: FlowStep): Promise<StepExecutionResult> {
     const startedAt = new Date().toISOString();
     const outputs: Record<string, unknown> = {};
+    this.protectedHandoffSteps.delete(step.id);
 
     this.log("info", step, `Executing step ${step.name}`);
     this.emitProgress(step, "running", { message: `Running: ${step.name}`, timestamp: startedAt, sideEffectLevel: resolveStepSafety(step).sideEffectLevel });
@@ -1734,6 +1744,14 @@ export class StepExecutor {
 
     if (resolveDiagnostic) record("meta", undefined, resolveDiagnostic);
 
+    // awkit-4b5y: never photograph or serialize a protected-login surface. The step's own handoff state and type refuse
+    // without touching the page; otherwise N0's protected-surface scan must prove the page clean first. Fails closed.
+    const refusal = await this.protectedCaptureRefusal(step, page);
+    if (refusal) {
+      record("meta", undefined, `page captures skipped: protected surface (${refusal})`);
+      return refs;
+    }
+
     // Every path component is reduced to a single SAFE segment (no separators, no `..`, no reserved
     // names) so a hostile flowId / step id / alias can never escape the evidence root or name a device.
     const evidenceRoot = this.context.paths.screenshots;
@@ -1806,6 +1824,18 @@ export class StepExecutor {
       record("a11y", undefined, `a11y capture failed: ${noteFor(error)}`);
     }
 
+    // awkit-4b5y: re-check after capturing, so a protected field that appeared meanwhile still discards every file.
+    const lateRefusal = await this.protectedCaptureRefusal(step, page);
+    if (lateRefusal) {
+      const written = refs.filter((ref) => ref.path && (ref.kind === "screenshot" || ref.kind === "dom" || ref.kind === "a11y"));
+      await Promise.all(written.map((ref) => unlink(ref.path as string).catch(() => undefined)));
+      const kept = refs.filter((ref) => !written.includes(ref));
+      refs.length = 0;
+      refs.push(...kept);
+      record("meta", undefined, `page captures discarded: protected surface (${lateRefusal})`);
+      return refs;
+    }
+
     // Page meta (URL + title), secret-masked — URLs can carry tokens in query parameters.
     try {
       const path = confinedPath(`${base}.meta.json`);
@@ -1826,6 +1856,25 @@ export class StepExecutor {
     }
 
     return refs;
+  }
+
+  /**
+   * awkit-4b5y: why the B2 failure capture must not look at `page`, or undefined when it may. Protected-login step types
+   * and steps whose attempt handed off refuse first; then N0's `checkProtectedSurface` runs under a budget, and a scan
+   * that throws or overruns refuses (absence of a protected surface was not proven).
+   */
+  private async protectedCaptureRefusal(step: FlowStep, page: Page): Promise<string | undefined> {
+    const caller = protectedCallerVerdict({ stepType: step.type, handedOff: this.protectedHandoffSteps.has(step.id) });
+    if (caller.protected) return caller.reason;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const overrun = new Promise<ProtectedGuardVerdict>((resolve) => {
+      timer = setTimeout(() => resolve({ protected: true, reason: "frame-unscannable" }), PROTECTED_CAPTURE_SCAN_BUDGET_MS);
+    });
+    const verdict = await Promise.race([
+      checkProtectedSurface(page).catch((): ProtectedGuardVerdict => ({ protected: true, reason: "frame-unscannable" })),
+      overrun
+    ]).finally(() => clearTimeout(timer));
+    return verdict.protected ? (verdict.reason ?? "frame-unscannable") : undefined;
   }
 
   private async executeStep(
@@ -2556,6 +2605,7 @@ export class StepExecutor {
   /** Pause the live flow until the UI resolves the handoff. The browser remains open. */
   private async waitForHandoffAction(step: FlowStep, initialInfo: HandoffInfo): Promise<ManualHandoffResumeAction> {
     let info = initialInfo;
+    if (info.kind === "protectedLogin") this.protectedHandoffSteps.add(step.id);
     for (;;) {
       this.pauseForHandoff(step, info.message);
       this.emitProgress(step, "waitingForManualAction", { message: info.message, manualHandoff: info });
@@ -2598,6 +2648,7 @@ export class StepExecutor {
     outputs: Record<string, unknown>
   ): Promise<boolean> {
     if (info.kind !== "protectedLogin") return false;
+    this.protectedHandoffSteps.add(step.id);
     if (!this.sessionService || !this.browserRestarter) return false;
 
     const configuredUrl = await this.resolveStepValue(step, step.url ?? step.value);

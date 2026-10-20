@@ -755,8 +755,10 @@ try {
   // Then 29/375 of 404 on 2026-10-19 (contract `awkit-vra-14-5-n5-drawer-section-1019`): N5.5 `awkit-vra.14.5` closed.
   // Then 27/377 of 404 on 2026-10-19 (contract `awkit-vra-14-7-n5-closure-1019`): N5.7 `awkit-vra.14.7` and the N5
   // epic `awkit-vra.14` closed through bd after the independent QC and the security review were APPROVED.
-    "27 outstanding / 377 closed",
-    beads.stats.outstanding === 27 && beads.stats.closed === 377,
+  // Then 26/378 of 404 on 2026-10-20 (contract `awkit-4b5y-b2-protected-capture-1020`): the B2 protected-capture
+  // defect `awkit-4b5y` closed after its remediation turned `verify:b2-protected-capture` green.
+    "26 outstanding / 378 closed",
+    beads.stats.outstanding === 26 && beads.stats.closed === 378,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

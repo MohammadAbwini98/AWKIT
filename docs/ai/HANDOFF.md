@@ -1,6 +1,19 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-19, latest) — Phase N: N5 Visual Failure Diagnosis closed
+## HANDOFF (2026-10-20, latest) — Security: B2 protected capture awkit-4b5y remediated
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** `awkit-4b5y` closed (contract `awkit-4b5y-b2-protected-capture-1020`, leases released). The B2 failure
+  capture refuses every page capture on a protected-login surface and fails closed. `verify:b2-protected-capture`
+  14/0.
+- **Open:** an independent security review, if the owner asks. Whether the Playwright failure trace can hold a
+  protected page is unverified (KNOWN_ISSUES).
+- **Next for Phase N:** the owner's choice. Canonical N6 (Visual Assertions), or VD-11 provenance (still deferred).
+- **Do not:** relax `verify:b2-protected-capture`, or add `--disable-gpu` to claim a GUI gate.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-19) — Phase N: N5 Visual Failure Diagnosis closed
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

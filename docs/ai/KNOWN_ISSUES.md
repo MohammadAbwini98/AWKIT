@@ -37,7 +37,17 @@
 - **Effect, resolved:** N5.5 was held open until the workaround run passed. Do not substitute a flag such as
   `--disable-gpu` to claim a GUI gate.
 
-## B2 failure capture photographs and serializes protected-login pages (2026-10-19, OPEN, `awkit-4b5y`)
+## B2 failure capture photographs and serializes protected-login pages (2026-10-19, RESOLVED 2026-10-20, `awkit-4b5y`)
+
+- **Remediated 2026-10-20.** `captureFailureEvidence` now refuses every page capture (screenshot, DOM, a11y and the
+  meta file) and records only a note-only `meta` ref when the step is a protected-login type, its latest attempt
+  handed off a protected login (handoff node, auto-detection or popup), or N0's `checkProtectedSurface` does not
+  prove the page clean within 5 s. The scan runs again after capture and discards any written file if the page became
+  protected. The guard moved verbatim to `src/security/ProtectedSurfaceGuard.ts` so the runner can use it without
+  reaching `src/visual` (`src/visual/protectedGuard.ts` re-exports it). `verify:b2-protected-capture` **14/0**, not
+  relaxed; ordinary capture is intact (C1, C2). Cost: one guard scan per failing attempt on ordinary pages.
+- **Left open:** the Playwright failure trace (`TraceService`, saved only on a failed step when a traces dir is
+  configured) is not gated by this guard; whether its snapshots can hold a protected page is unverified.
 
 - **What.** `StepExecutor.captureFailureEvidence` writes a full-page PNG, `page.content()` HTML, an aria snapshot and
   meta on every failing attempt. Its only production caller is `FlowExecutor.executeWithRetry` (`FlowExecutor.ts:534`),
