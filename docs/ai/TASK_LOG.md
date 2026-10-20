@@ -53,6 +53,7 @@
     and the late arm result is judged when it lands.
   - L3 adds the T24 control.
   - Checks: trace 79/0, b2 39/0, failure-evidence-live 17/0, runner 138/0, build PASS.
+  - The owner committed `d99715b2`. `awkit-3gtj` was closed through `bd` under a project-state lease and exported.
 
 ## 2026-10-20 — Security: independent B2 review and trace protected-surface remediation awkit-uoik (Claude)
 

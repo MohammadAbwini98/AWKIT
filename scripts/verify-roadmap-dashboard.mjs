@@ -761,8 +761,10 @@ try {
   // defect `awkit-4b5y` closed after its remediation turned `verify:b2-protected-capture` green.
   // Then 27/379 of 406 on 2026-10-20 (contract `awkit-trace-protected-1020`): `awkit-uoik` filed and closed after its
   // remediation turned `verify:trace-protected-capture` green; `awkit-3gtj` filed open.
-    "27 outstanding / 379 closed",
-    beads.stats.outstanding === 27 && beads.stats.closed === 379,
+  // Then 26/380 of 406 on 2026-10-20 (contract `awkit-3gtj-capture-residuals-1020`): `awkit-3gtj` closed after three
+  // independent re-reviews, the last APPROVED, with every finding reproduced first.
+    "26 outstanding / 380 closed",
+    beads.stats.outstanding === 26 && beads.stats.closed === 380,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

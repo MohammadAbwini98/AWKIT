@@ -15,11 +15,9 @@ The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 
   - Its L1–L3 follow-ups were reproduced and fixed (U3, U4, T24).
   - b2 39/0, trace 79/0, runner 138/0, build PASS.
   - Contract `awkit-3gtj-capture-residuals-1020`, leases released.
-- **Open:**
-  - The owner stages the guard and commits and pushes the L1–L3 set. The lease guard blocks agents from staging
-    `src/security/**` for this task (terminal denial).
-  - Then close `awkit-3gtj`, and triage the visual-capture window gap (`captureCore.ts`,
-    `VisualFailureDiagnosis.ts`).
+  - The L1–L3 set was committed as `d99715b2`. **`awkit-3gtj` is closed.**
+- **Open:** triage the visual-capture window gap (`src/visual/internal/captureCore.ts`,
+  `src/runner/visualDiagnosis/VisualFailureDiagnosis.ts`). It has no Beads item yet.
   - Triage the same window gap in `src/visual/internal/captureCore.ts` and `VisualFailureDiagnosis.ts`.
 - **Do not:**
   - relax R1a–R7, T15–T24, U2–U4 or the whole-evidence-root listing;

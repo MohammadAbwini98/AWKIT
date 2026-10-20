@@ -47,7 +47,8 @@ executed.
   - Build: PASS.
   - Third re-review: APPROVED. The L1–L3 fixes were made after it and are not re-reviewed.
 - **Negative evidence:** the refused-ZIP `unlink` failure could not be induced on this platform (KNOWN_ISSUES).
-- **Contract:** `awkit-3gtj-capture-residuals-1020`. `awkit-3gtj` stays open until the fixes are re-reviewed.
+- **Contract:** `awkit-3gtj-capture-residuals-1020`, complete. **`awkit-3gtj` is CLOSED** (2026-10-20). The commits
+  are `8bf7233b`, `5408a967`, `9eb53f17` and `d99715b2`.
 - **Commit:** BLOCKED for agents. The lease guard rejects one commit that mixes `src/security/**` with runner code, so
   the owner commits it.
 

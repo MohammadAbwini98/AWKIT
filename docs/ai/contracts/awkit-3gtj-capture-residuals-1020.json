@@ -147,8 +147,8 @@
       "required": true,
       "command": "git push origin main",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": "runs after the commit that carries this contract"
+      "result": "PASS",
+      "observed": "the owner pushed 8bf7233b, 5408a967, 9eb53f17 and d99715b2 to origin/main (the lease guard blocks agents from mixed src/security commits)"
     }
   ],
   "git": {
@@ -160,9 +160,9 @@
     "push_evidence_id": "git-push"
   },
   "completion": {
-    "status": "implemented",
+    "status": "complete",
     "qa_status": "PASS",
-    "qc_status": "pending"
+    "qc_status": "PASS"
   },
   "write_lease": {
     "history": [
@@ -354,6 +354,22 @@
         "acquired_at_commit": "9eb53f17569eb07f95edf856c474832684584f2d",
         "released_at": "2026-10-20T17:08:07.908Z",
         "released_reason": "awkit-3gtj L1 to L3 round recorded and beads exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-3gtj-capture-residuals-1020:project-state:2026-10-20T18:08:35.872Z",
+        "task": "awkit-3gtj-capture-residuals-1020",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-20T18:08:35.872Z",
+        "acquired_at_commit": "d99715b222f6b798741603345b6d12a34c6dbde5",
+        "released_at": "2026-10-20T18:08:46.607Z",
+        "released_reason": "awkit-3gtj closed and beads exported",
         "amendments": [],
         "overrides": [],
         "violations": []
