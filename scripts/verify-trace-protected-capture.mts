@@ -988,6 +988,78 @@ async function main(): Promise<void> {
       check("O3 security: no sample is added once the page is protected", o.screenshots === o.firstScreenshots, `before=${o.firstScreenshots} after=${o.screenshots}`);
     }
 
+    // O4/O5 — awkit-2het V1: the element shown only inside the sampler's own CDP screenshot call (the R1b shape). The
+    // trace's session is wrapped so the element is added right before the real Page.captureScreenshot and removed right
+    // after it, with no navigation; both guard scans see an ordinary page.
+    const observeWindow = async (
+      makeElement: "password" | "benign" | "visit"
+    ): Promise<{ wrapped: number; shownProtected: boolean; gone: boolean; before: number; after: number; doms: number; domsBefore: number; liveChanged: boolean }> => {
+      const h = await harness("/plain");
+      const root = join(h.root, "observation");
+      const trace = new PassiveCdpTrace({ root, executionId: "exec-w", instanceId: "inst-w", scenarioId: "scenario-w", captureDom: true, sampleIntervalMs: 60_000 });
+      await trace.startGeneration({ context: h.context }, 1);
+      const before = (await readdir(join(root, "screenshots")).catch(() => [])).length;
+      const domsBefore = (await readdir(join(root, "dom")).catch(() => [])).length;
+      const liveBefore = trace.snapshot().screenshotDataUrl;
+      let wrapped = 0;
+      let shownProtected = false;
+      const sessions = (trace as unknown as { sessions: Map<string, { page: Page; session: { send: (method: string, params?: unknown) => Promise<unknown> } }> }).sessions;
+      for (const entry of sessions.values()) {
+        const send = entry.session.send.bind(entry.session);
+        entry.session.send = async (method: string, params?: unknown) => {
+          if (method !== "Page.captureScreenshot") return send(method, params);
+          wrapped += 1;
+          if (makeElement === "visit") {
+            // R1a shape: the page is on the protected route only while the real screenshot runs.
+            await entry.page.goto(`${origin}${PROTECTED_PATH}`, { waitUntil: "load" });
+            shownProtected = (await checkProtectedSurface(entry.page)).protected;
+            const shot = await send(method, params);
+            await entry.page.goto(`${origin}/plain`, { waitUntil: "load" });
+            return shot;
+          }
+          await entry.page.evaluate((kind) => {
+            const el = document.createElement(kind === "password" ? "input" : "div");
+            if (kind === "password") (el as HTMLInputElement).type = "password";
+            else el.textContent = "Benign banner";
+            el.id = "window-el";
+            document.body.appendChild(el);
+          }, makeElement);
+          shownProtected = (await checkProtectedSurface(entry.page)).protected;
+          const shot = await send(method, params);
+          await entry.page.evaluate(() => document.getElementById("window-el")?.remove());
+          return shot;
+        };
+      }
+      await trace.sampleNow();
+      const liveChanged = trace.snapshot().screenshotDataUrl !== liveBefore;
+      const gone = (await h.page.locator("#window-el").count()) === 0;
+      await trace.stop();
+      const after = (await readdir(join(root, "screenshots")).catch(() => [])).length;
+      const doms = (await readdir(join(root, "dom")).catch(() => [])).length;
+      await h.context.close();
+      return { wrapped, shownProtected, gone, before, after, doms, domsBefore, liveChanged };
+    };
+    console.log("\nO4 passive observation: a password field exists only inside the sample's own screenshot call (awkit-2het V1):");
+    {
+      const o = await observeWindow("password");
+      check("O4 precondition: the screenshot call was wrapped, the field was protected while shown and is gone afterwards", o.wrapped >= 1 && o.shownProtected && o.gone && o.before > 0, `wrapped=${o.wrapped} protected=${o.shownProtected} gone=${o.gone} before=${o.before}`);
+      check("O4 security: no screenshot or DOM sample is written for that window", o.after === o.before && o.doms === o.domsBefore, `screenshots ${o.before}->${o.after} doms ${o.domsBefore}->${o.doms}`);
+      check("O4 security: the Instance Monitor live view is not updated with that frame", !o.liveChanged);
+    }
+    console.log("\nO6 passive observation: the page visits the protected route and comes back inside the screenshot call (R1a shape):");
+    {
+      const o = await observeWindow("visit");
+      check("O6 precondition: the screenshot call was wrapped, the protected route was shown and the page is ordinary again", o.wrapped >= 1 && o.shownProtected && o.before > 0, `wrapped=${o.wrapped} protected=${o.shownProtected} before=${o.before}`);
+      check("O6 security: no screenshot or DOM sample is written for that window", o.after === o.before && o.doms === o.domsBefore, `screenshots ${o.before}->${o.after} doms ${o.domsBefore}->${o.doms}`);
+      check("O6 security: the Instance Monitor live view is not updated with that frame", !o.liveChanged);
+    }
+    console.log("\nO5 control, passive observation: a benign element shown only inside the screenshot call still samples:");
+    {
+      const o = await observeWindow("benign");
+      check("O5 precondition: the screenshot call was wrapped and the element was not protected", o.wrapped >= 1 && !o.shownProtected && o.gone, `wrapped=${o.wrapped} protected=${o.shownProtected} gone=${o.gone}`);
+      check("O5: the sample is still written and the live view updated", o.after === o.before + 1 && o.doms === o.domsBefore + 1 && o.liveChanged, `screenshots ${o.before}->${o.after} doms ${o.domsBefore}->${o.doms} live=${o.liveChanged}`);
+    }
+
     // C1
     console.log("\nC1 [onFailure] control, ordinary failing click:");
     {

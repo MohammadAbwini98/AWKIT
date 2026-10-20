@@ -44,8 +44,13 @@
   a sign-in, CAPTCHA, MFA, OTP, passkey or device-approval surface through the shared, fail-closed
   `src/security/ProtectedSurfaceGuard.ts`. This covers the B2 failure capture, N0/N5 visual capture, Playwright
   failure traces (`TraceService`, `awkit-uoik`) and the passive CDP observation samples and live view
-  (`PassiveCdpTrace`). Gates: `verify:b2-protected-capture` and `verify:trace-protected-capture`. Known residuals
-  are tracked in `awkit-3gtj` (KNOWN_ISSUES).
+  (`PassiveCdpTrace`). Gates: `verify:b2-protected-capture`, `verify:trace-protected-capture` and
+  `verify:visual-capture`. Every capture of pixels or DOM runs inside the strict `watchProtectedWindow` and writes
+  only after the window and a re-check prove the page clean (`awkit-3gtj`, `awkit-2het`, `awkit-rur1`).
+  - **Non-interference changed.** Arming the window installs a MutationObserver and a permanent `attachShadow`
+    hook in the page's own script context. The default-on passive observation trace therefore no longer only reads
+    the pages it samples. A page whose last sample was refused is re-checked and not re-armed while it stays
+    protected. Residuals are in KNOWN_ISSUES.
 - **Closed-shadow bridge** (`src/runner/closedShadowBridge.ts`, epic `awkit-65g` C2): a runtime
   `addInitScript` wraps `attachShadow` (mode preserved, never forced open) and retains closed roots in a
   closure WeakMap behind a per-process token-gated resolver, so the runner can replay an interaction inside a

@@ -1,30 +1,32 @@
 {
-  "task": "awkit-visual-capture-window-1020",
-  "contract_path": "docs/ai/contracts/awkit-visual-capture-window-1020.json",
+  "task": "awkit-2het-followups-1020",
+  "contract_path": "docs/ai/contracts/awkit-2het-followups-1020.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-20T18:35:39.162Z",
-  "acquired_at_commit": "3815960438a4f8fcf28570fbc01fdc5097a1501e",
+  "acquired_at": "2026-10-20T20:22:21.575Z",
+  "acquired_at_commit": "080d0e3867760023d7aab954af9039834b7b9a40",
   "baseline_dirty": [
+    "docs/ai/contracts/awkit-2het-followups-1020.json",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-visual-capture-window-1020.json",
-    "scripts/verify-visual-capture-fanout.mts",
+    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
+    "docs/plans/ai-upgrade-v5/evidence/N5.6-visual-diagnosis-calibration.json",
+    "scripts/verify-trace-protected-capture.mts",
     "scripts/verify-visual-capture.mts",
-    "scripts/verify-visual-diagnosis-runtime.mts",
-    "src/visual/internal/captureCore.ts",
-    "src/visual/protectedGuard.ts"
+    "src/runner/observation/PassiveCdpTrace.ts",
+    "src/visual/internal/captureCore.ts"
   ],
   "baseline_dirty_fingerprints": {
+    "docs/ai/contracts/awkit-2het-followups-1020.json": "3b7d44278bce743ccce55a1357030cd248a63b3c324fcc2e513cf339e554288d",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-visual-capture-window-1020.json": "c9a39f1a37afb22020a2d7c6b5ead996dc1a60ee47bdd84584c82cc9897d868f",
-    "scripts/verify-visual-capture-fanout.mts": "4940dfa4e179c690e6b434deae4117bfe83352e3e2da10ab6288f9cea0e75ac1",
-    "scripts/verify-visual-capture.mts": "2fe1219b4bd0a34d37b22538988b250102a1e4f28f18a753f8fbd8c0695e6f45",
-    "scripts/verify-visual-diagnosis-runtime.mts": "761bbaa07891b8ca3b908dc9f9bcb1112397d0607bd39e1b12b6e9c6c91a97a2",
-    "src/visual/internal/captureCore.ts": "83c1ef3daef68ea02a4b9f79a1c3a6a149c160a6b024b9ecb87b8e901296ce9c",
-    "src/visual/protectedGuard.ts": "1c79807b79297113917e5fa9a5fc03c58241555eddabe5df2463ddda4a4a1434"
+    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json": "13dd09c1064e70e8c34f383496c75dc5ecb6842c9ffbde14cdc9788508447f3e",
+    "docs/plans/ai-upgrade-v5/evidence/N5.6-visual-diagnosis-calibration.json": "71193a3a2d796f2fb8347fceccaeaaf404904ec265ec1fa4c982103292da80ba",
+    "scripts/verify-trace-protected-capture.mts": "12d2446e0d148577afcb3f7583bc9c5aec2b0da491573e511378260eb58ba28d",
+    "scripts/verify-visual-capture.mts": "4be04f4e101243113c493d31bf8e4df1f2bfef5f5422af8b24d5c540752798b6",
+    "src/runner/observation/PassiveCdpTrace.ts": "7e47d0e6afd325a726ee99d768fe6611cb78581ad94ce05d98abff74ae91f8a6",
+    "src/visual/internal/captureCore.ts": "fafa497741aa52e5b478194e4904e4c190a92fe12ef5a1d08b59a55d06750104"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -39,7 +41,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-20T18:36:10.552Z",
-  "released_reason": "awkit-2het filed and beads exported",
-  "archived_at": "2026-10-20T18:36:10.554Z"
+  "released_at": "2026-10-20T20:24:36.707Z",
+  "released_reason": "awkit-rur1 filed and closed, awkit-2het closed, beads exported",
+  "archived_at": "2026-10-20T20:24:36.720Z"
 }

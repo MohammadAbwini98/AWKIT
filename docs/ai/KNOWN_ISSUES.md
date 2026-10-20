@@ -160,6 +160,48 @@
     trace frame's navigation and its re-arm. The scans at both ends still apply.
   - A page sees one `console.debug` of a random key when a protected field appears.
 
+## Review follow-ups V1–V4 of `6ff6327`: observation samples skipped the capture window (2026-10-20, RESOLVED 2026-10-20, `awkit-rur1`, `awkit-2het` closed)
+
+- **Review.** The independent review of `6ff6327` was APPROVED with four follow-ups (`.temp/review-3gtj/REVIEW.md`).
+  All four are resolved under contract `awkit-2het-followups-1020`.
+- **V1 (Low-Medium, confirmed disclosure, `awkit-rur1`).** `PassiveCdpTrace.sampleNow` is on by default. It checked
+  each page before and after its CDP `Page.captureScreenshot`, but not in between.
+  - Reproduced on `080d0e38` (real Chromium, synthetic fixture). The verifier wraps the trace's own CDP session so a
+    password field exists only during the screenshot. That frame was written as a PNG and a DOM sample, and pushed
+    to the Instance Monitor live view: `verify:trace-protected-capture` O4 red, 82/2.
+  - **Fix.** The sampler opens the shared strict `watchProtectedWindow` before its first check and keeps the
+    screenshot and DOM in memory. It writes or updates the live view only after a clean window and a re-check.
+    The hand-rolled `framenavigated` flag is gone, because strict mode already refuses navigation, attach and detach.
+  - **Proof.** 87/0 on the final source. With the window verdict ignored, the run is 83/4, with exactly O4 and the
+    review's R1a-shape case O6 red. O5, a benign element in the same window, still samples.
+- **V2 (Low, misleading code).** A benign hash change, or an iframe added and removed inside the window, was
+  reported as `PROTECTED_SURFACE` by `captureViewport` and `captureElement`. The Recorder showed that as "a
+  protected sign-in surface". Reproduced 327/4; the frame entries already said `CAPTURE_STALE`.
+  - **Fix.** `assertWindowClean` now maps `window-changed` to `CAPTURE_STALE`. `protected-field` and
+    `frame-unscannable` stay `PROTECTED_SURFACE`. A seen field is reported before any change, so it still wins.
+  - **R1a change.** For viewport and element, R1a now refuses as `CAPTURE_STALE`, matching the frame entries. The
+    capture is still refused with no pixels, and the reviewer judged this a legitimate contract change.
+  - visual-capture 331/0.
+- **V3 (test).** Window-off R1b mutants were added for `captureElement`, `captureVisualFrame` and
+  `captureCandidates`. The candidates mutant must show that the candidate itself returned pixels.
+- **V4 (cost, accepted).** `benchmark:visual-diagnosis` was re-run after the window landed.
+  - 0 of 225 framed diagnoses were cut by the 1000 ms deadline. Median 376 ms, p95 759 ms, max 976 ms; at
+    `4bfe0044` it was median 189 ms, p95 384 ms.
+  - A slower host will give more fail-closed `BUDGET_EXHAUSTED` refusals.
+  - Cleanup can overrun a capture's deadline by up to about 1.5 s.
+- **Non-blocking review findings, applied before commit.**
+  - F1: the sampler injects its sentinel into the page. A page whose last sample was not written is re-checked first
+    and, while it stays protected, skipped without arming.
+  - F2: the O6 case.
+  - F3: the stricter candidates mutant.
+  - F4: a corrected comment (`finish()` is not idempotent; the sampler calls it once).
+- **Residuals.**
+  - Every armed page keeps the non-native `attachShadow` hook, and pages can observe it. This now includes ordinary
+    pages sampled by the passive trace. Artifacts Part D (non-interference) stays 23/0.
+  - The F1 skip has no dedicated verifier case.
+  - `verify:visual-capture-fanout` failed once, 191/2: one solo `captureElement` of 20 was refused at DPR 1, and the
+    verifier does not print the code. The rerun was 193/0. Recorded as an intermittent fail-closed refusal.
+
 ## Visual Intelligence captures checked protected surfaces only before and after the screenshot (2026-10-20, FIXED 2026-10-20, `awkit-2het`)
 
 - **What.** `src/visual/internal/captureCore.ts` (`captureViewport`, `captureElement`, `captureVisualFrame`,
@@ -187,9 +229,11 @@
   - The recheck mutation control switches the window off, so it still isolates the post-capture recheck.
 - **Residuals (accepted).** The same costs as the B2 strict window apply. Any frame navigation, attachment or
   detachment during a capture refuses it. A capture now carries one sentinel arm and one read per frame.
-- **Not run.** An independent security review.
-- **Pre-existing, unrelated.** `npm run typecheck:scripts` reports
-  `scripts/verify-b2-protected-capture.mts(416,25): TS2554`. This task did not touch that file.
+- **Independent review:** APPROVED, with follow-ups V1–V4, all resolved in the section above. Since V2, R1a on
+  `captureViewport` and `captureElement` refuses as `CAPTURE_STALE`, no longer `PROTECTED_SURFACE`. It is still
+  refused with no pixels.
+- **Pre-existing, fixed.** The `typecheck:scripts` TS2554 at `scripts/verify-b2-protected-capture.mts:416` was fixed
+  in `080d0e38`.
 
 ## Playwright failure traces and passive CDP observation samples kept protected-login pages (2026-10-20, RESOLVED 2026-10-20, `awkit-uoik`; residuals `awkit-3gtj`)
 

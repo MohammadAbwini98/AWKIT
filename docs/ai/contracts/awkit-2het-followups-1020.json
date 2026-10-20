@@ -1,0 +1,233 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-2het-followups-1020",
+    "title": "Resolve V1-V4 from the independent security review of 6ff6327 (awkit-2het), V1 first",
+    "objective": "V1: the default-on PassiveCdpTrace observation sampler checked a page before and after its CDP screenshot but not between, so a protected field shown only inside the screenshot call reached disk, the DOM sample and the Instance Monitor live view. Reproduce it in real Chromium with synthetic fixtures, fix it by opening the shared strict watchProtectedWindow before the first check and writing only after a clean window and re-check, and prove it with a mutation. V2: map the strict window's window-changed verdict to CAPTURE_STALE in captureCore so ordinary page churn is not reported as a protected sign-in surface. V3: add window-off R1b mutation controls for captureElement, captureVisualFrame and captureCandidates. V4: measure the window's diagnosis cost with benchmark:visual-diagnosis. File V1 as a linked security defect, close awkit-2het after a fresh-context independent review, keep awkit-3gtj closed.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 3
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "080d0e38",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": true,
+    "protected_login_change": true,
+    "project_state_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "runtime",
+      "qa",
+      "qc",
+      "security",
+      "project-state"
+    ],
+    "expected_paths": [
+      "src/runner/observation/PassiveCdpTrace.ts",
+      "src/visual/internal/captureCore.ts",
+      "scripts/verify-trace-protected-capture.mts",
+      "scripts/verify-visual-capture.mts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "docs/plans/ai-upgrade-v5/evidence/N5.6-visual-diagnosis-calibration.json",
+      "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
+      ".beads/**",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/SECURITY.md",
+      "docs/ai/contracts/awkit-2het-followups-1020.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [
+      "security"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "V1-REPRO",
+      "description": "On 080d0e38 a password field shown only inside the observation sampler's own Page.captureScreenshot call is written to disk, kept as a DOM sample and pushed to the live view (verify:trace-protected-capture O4 red, 82/2), while a benign element in the same window still samples (O5 green).",
+      "evidence_required": [
+        "verify:trace-protected-capture"
+      ]
+    },
+    {
+      "id": "V1-FIX",
+      "description": "After the fix O4 and O5 are green (84/0); ignoring the window verdict turns exactly O4 red again (82/2); verify:artifacts keeps the passive-observation non-interference checks green.",
+      "evidence_required": [
+        "verify:trace-protected-capture",
+        "verify:artifacts"
+      ]
+    },
+    {
+      "id": "V2-V3",
+      "description": "A benign hash change or iframe inside the window is refused CAPTURE_STALE with no pixels by every entry (baseline 327/4: captureViewport and captureElement said PROTECTED_SURFACE); R1b stays PROTECTED_SURFACE; window-off R1b mutants for captureElement, captureVisualFrame and captureCandidates each return pixels. verify:visual-capture 331/0.",
+      "evidence_required": [
+        "verify:visual-capture"
+      ]
+    },
+    {
+      "id": "V4-MEASURE",
+      "description": "benchmark:visual-diagnosis is re-run after the window landed and its cost and deadline cuts are recorded.",
+      "evidence_required": [
+        "benchmark:visual-diagnosis"
+      ]
+    },
+    {
+      "id": "REGRESSION",
+      "description": "The listed regression suites, typecheck:scripts, build, source-hygiene, verifier-classification and git diff --check pass against the final state.",
+      "evidence_required": [
+        "regression-suites",
+        "build"
+      ]
+    },
+    {
+      "id": "REVIEW-STATE",
+      "description": "A fresh-context independent security review of the final implementation; V1 filed as a linked Beads security defect; awkit-2het closed only after that review; state docs updated; dashboard Sources agree.",
+      "evidence_required": [
+        "security-review",
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:trace-protected-capture",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:trace-protected-capture",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "87 passed, 0 failed on the final source (V1 baseline 82/2 with O4 red; after the fix 84/0; mutation ignoring the window verdict 82/2 with exactly O4 red; with review case O6 added, the same mutation gives 83/4 with exactly O4 and O6 red)"
+    },
+    {
+      "id": "verify:artifacts",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:artifacts",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "23 passed, 0 failed on the final source, Part D passive second-client CDP trace non-interference included"
+    },
+    {
+      "id": "verify:visual-capture",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-capture",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "331 passed, 0 failed (baseline 327/4: V2 hash and iframe on captureViewport and captureElement)"
+    },
+    {
+      "id": "benchmark:visual-diagnosis",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run benchmark:visual-diagnosis",
+      "artifact": "docs/plans/ai-upgrade-v5/evidence/N5.6-visual-diagnosis-calibration.json",
+      "result": "PASS",
+      "observed": "0 cut by the 1000 ms deadline over 225 framed diagnoses, median 376 ms, p95 759 ms, max 976 ms; headed viewport-uniform NOT MET is the pre-existing VD-10 condition"
+    },
+    {
+      "id": "regression-suites",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-capture-fanout, verify:visual-diagnosis-runtime, verify:visual-isolation, verify:b2-protected-capture, verify:failure-evidence-live, verify:artifacts, verify:runner, verify:recorder-visual-capture, verify:visual-fusion-runtime, verify:visual-agreement-runtime, verify:recorded-visual-fallback, verify:ai-fallback, verify:failure-capture-overhead, verify:source-hygiene, verify:verifier-classification, typecheck:scripts, git diff --check",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "fanout 193/0 (first run 191/2, one solo capture refused with its code unprinted, rerun green), diagnosis-runtime 65/0, isolation 71/0, b2 39/0, failure-evidence-live 17/0, artifacts 23/0, runner 138/0, recorder-visual-capture 119/0, fusion-runtime 146/0, agreement-runtime 81/0, recorded-visual-fallback 71/71, ai-fallback 51/0, failure-capture-overhead 18/0 (rerun on the final source, run 39), source-hygiene 11/0, verifier-classification reconciled 342, typecheck:scripts PASS, git diff --check clean; visual-capture 331/0 on the final source"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc --noEmit and electron-vite bundles PASS against the final source"
+    },
+    {
+      "id": "security-review",
+      "type": "inspection",
+      "required": true,
+      "command": "fresh-context awkit-security-engineer review",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "fresh-context awkit-security-engineer review APPROVED: V1 resolved, V2 resolved and security-neutral (R1a expectation change judged a legitimate contract change), V3 mostly resolved, V4 resolved as an accepted cost. Non-blocking follow-ups applied before commit: F1 a page whose last sample was not written is re-checked and skipped without arming while still protected, F2 new trace case O6 (R1a shape) red under the window-off mutation, F3 the captureCandidates mutant now requires the candidate itself to return pixels, F4 the finish() comment corrected"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "177/177, Sources agree, 26 outstanding / 382 closed of 408, 336 edges, after awkit-rur1 was filed and closed and awkit-2het closed (round 1 failed only on the pinned counts, updated in round 2)"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "runs after the commit that carries this contract"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-2het-followups-1020:project-state:2026-10-20T20:22:21.575Z",
+        "task": "awkit-2het-followups-1020",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-20T20:22:21.575Z",
+        "acquired_at_commit": "080d0e3867760023d7aab954af9039834b7b9a40",
+        "released_at": "2026-10-20T20:24:36.707Z",
+        "released_reason": "awkit-rur1 filed and closed, awkit-2het closed, beads exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

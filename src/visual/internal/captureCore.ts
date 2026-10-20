@@ -231,10 +231,17 @@ async function openCaptureWindow(page: Page, budget: Budget, seams: VisualCaptur
   };
 }
 
-/** Close the window after the post-capture guard check; anything it saw refuses the capture. */
+/**
+ * Close the window after the post-capture guard check; anything it saw refuses the capture. awkit-2het V2: a frame
+ * navigation, attachment or detachment (`window-changed`) cannot be told apart from an ordinary page change, so it is
+ * refused as CAPTURE_STALE rather than reported as a protected sign-in surface; the pixels are dropped either way. A
+ * protected field the window saw (reported before any change) or an unreadable frame stays PROTECTED_SURFACE.
+ */
 async function assertWindowClean(captureWindow: CaptureWindow): Promise<void> {
   const verdict = await captureWindow.close();
-  if (verdict.protected) refuse("PROTECTED_SURFACE", `a protected surface or page change was seen during capture (${verdict.reason ?? "unknown"})`);
+  if (!verdict.protected) return;
+  if (verdict.reason === "window-changed") refuse("CAPTURE_STALE", "the page navigated, or a frame was attached or detached, during capture");
+  refuse("PROTECTED_SURFACE", `a protected surface was seen during capture (${verdict.reason ?? "unknown"})`);
 }
 
 interface ViewportMetrics {

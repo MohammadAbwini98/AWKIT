@@ -1,6 +1,28 @@
 # CURRENT_STATE
 
-## Security: Visual Intelligence captures use the strict protected capture window (2026-10-20, latest)
+## Security: awkit-2het review follow-ups V1–V4 resolved, observation samples inside the capture window (2026-10-20, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed.
+
+- **V1, confirmed disclosure, fixed (`awkit-rur1`).** The default-on passive CDP observation sampler wrote a frame
+  holding a password field that existed only during its screenshot. The frame reached disk, the DOM sample and the
+  live view (82/2). It now samples inside the strict `watchProtectedWindow` and writes only after a clean window and
+  a re-check. `verify:trace-protected-capture` 87/0. A window-off mutation is 83/4, with O4 and O6 red.
+- **V2 fixed.** Ordinary page churn during a visual capture is `CAPTURE_STALE`, not `PROTECTED_SURFACE` (331/0).
+- **V3.** Window-off mutants now exist for every capture entry.
+- **V4 measured.** Diagnosis median 376 ms, p95 759 ms, 0 deadline cuts.
+- **Review and tracking.** The fresh-context security review was APPROVED, and its F1–F4 were applied. `awkit-2het`
+  is closed, and `awkit-3gtj` stays closed.
+- **Gates (final state):**
+  - visual-capture 331/0, fanout 193/0 (one 191/2 run, rerun green), diagnosis-runtime 65/0, isolation 71/0.
+  - b2 39/0, failure-evidence-live 17/0, artifacts 23/0, runner 138/0.
+  - recorder-visual-capture 119/0, fusion-runtime 146/0, agreement-runtime 81/0, recorded-visual-fallback 71/71.
+  - ai-fallback 51/0, failure-capture-overhead 18/0, source-hygiene 11/0, verifier-classification 342 reconciled.
+  - typecheck:scripts PASS, build PASS.
+- **Contract:** `awkit-2het-followups-1020`.
+
+## Security: Visual Intelligence captures use the strict protected capture window (2026-10-20)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

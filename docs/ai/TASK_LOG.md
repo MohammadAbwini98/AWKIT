@@ -1,5 +1,39 @@
 # TASK_LOG
 
+## 2026-10-20 — Security: resolve the awkit-2het review follow-ups V1–V4 (Claude)
+
+- **Scope:**
+  - Follow-ups V1–V4 from the independent review of `6ff6327`, V1 first.
+  - Contract `awkit-2het-followups-1020`, Risk 3. A project-state lease covered Beads.
+  - CodeCraft: not used (`CODECRAFT_MODE=off` default).
+- **Reproduced first (real Chromium, synthetic fixtures):**
+  - V1: trace-protected-capture O4 red, 82/2.
+  - V2: visual-capture 327/4.
+- **Change:**
+  - `PassiveCdpTrace.sampleNow` runs inside the strict `watchProtectedWindow`. It writes or publishes only after a
+    clean window and a re-check, and skips re-arming a page that is still protected.
+  - `captureCore.assertWindowClean` maps `window-changed` to `CAPTURE_STALE`.
+  - New verifier cases O4, O5, O6, V2 hash and iframe, and V3 mutants.
+  - V4 benchmark rerun.
+- **Files:**
+  - Source: `src/runner/observation/PassiveCdpTrace.ts`, `src/visual/internal/captureCore.ts`.
+  - Verifiers: `scripts/verify-trace-protected-capture.mts`, `scripts/verify-visual-capture.mts`,
+    `scripts/verify-roadmap-dashboard.mjs`.
+  - Evidence: `docs/plans/ai-upgrade-v5/evidence/{N5.6-visual-diagnosis-calibration,L5a-overhead-gate}.json`.
+  - Tracker and docs: `.beads/issues.jsonl`, `docs/ai/{KNOWN_ISSUES,SECURITY,CURRENT_STATE,HANDOFF,TASK_LOG}.md`, the
+    contract, `active-lease.json`.
+- **Checks:**
+  - Security: trace-protected-capture 87/0 (mutation 83/4), visual-capture 331/0, b2 39/0.
+  - Visual: fanout 193/0 (once 191/2), diagnosis-runtime 65/0, isolation 71/0, fusion-runtime 146/0,
+    agreement-runtime 81/0, recorded-visual-fallback 71/71, recorder-visual-capture 119/0.
+  - Runtime: failure-evidence-live 17/0, artifacts 23/0, runner 138/0, ai-fallback 51/0, failure-capture-overhead
+    18/0.
+  - Build and housekeeping: source-hygiene 11/0, verifier-classification 342, typecheck:scripts PASS, build PASS,
+    git diff --check clean.
+  - benchmark:visual-diagnosis: 0 deadline cuts.
+- **Review:** the fresh-context security review was APPROVED, and its F1–F4 were applied.
+- **Result:** `awkit-rur1` filed and closed. `awkit-2het` closed.
+
 ## 2026-10-20 — Security: strict protected capture window for Visual Intelligence captures, awkit-2het (Claude)
 
 - **Scope:**

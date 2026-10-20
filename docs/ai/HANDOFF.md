@@ -1,6 +1,22 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-20, latest) — Security: Visual Intelligence capture window, awkit-2het
+## HANDOFF (2026-10-20, latest) — Security: awkit-2het closed, V1–V4 resolved
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:**
+  - The review follow-ups V1–V4 of `6ff6327` are resolved (contract `awkit-2het-followups-1020`).
+  - V1, a confirmed disclosure in the passive CDP observation sampler, was filed and closed as `awkit-rur1`.
+  - `awkit-2het` is closed after the fresh-context security review APPROVED. `awkit-3gtj` stays closed.
+- **Open:** none from this review. Residuals are in KNOWN_ISSUES: the `attachShadow` hook is now on passively
+  sampled pages too, the F1 skip has no dedicated case, and one fanout run failed once.
+- **Do not:**
+  - relax O4, O5 or O6 in `verify:trace-protected-capture`;
+  - relax the V2 or V3 cases in `verify:visual-capture`;
+  - relax the capture-window R1a/R1b cases or their window-off mutation controls.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-20) — Security: Visual Intelligence capture window, awkit-2het
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

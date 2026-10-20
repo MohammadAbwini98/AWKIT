@@ -680,13 +680,41 @@ try {
     const onFrame = (frame: VisualCaptureFrame): void => {
       held.push(frame);
     };
-    type Entry = { name: string; capture: (page: Page) => Promise<VisualResult<unknown>>; navigated: string };
-    // A navigation already makes a shared frame CAPTURE_STALE (its page watch), so the frame entries keep that code.
+    type Entry = {
+      name: string;
+      capture: (page: Page) => Promise<VisualResult<unknown>>;
+      /** The same capture with the window watch removed (awkit-2het V3 mutation control). */
+      withoutWindow: (page: Page) => Promise<VisualResult<unknown>>;
+      navigated: string;
+    };
+    // A navigation inside the window is refused CAPTURE_STALE by every entry: the frame entries through their page
+    // watch, the viewport and element entries through the window's `window-changed` verdict (awkit-2het V2). Either
+    // way the capture is refused and no pixels are returned.
     const entries: Entry[] = [
-      { name: "captureViewport", capture: (p) => captureViewportWithSeams(p), navigated: "PROTECTED_SURFACE" },
-      { name: "captureElement", capture: (p) => captureElementWithSeams(p, p.getByTestId("vi-cal-red")), navigated: "PROTECTED_SURFACE" },
-      { name: "captureVisualFrame", capture: (p) => captureVisualFrameWithSeams(p, {}, { onFrame }), navigated: "CAPTURE_STALE" },
-      { name: "captureCandidates", capture: (p) => captureCandidatesWithSeams(p, [{ id: "red", target: p.getByTestId("vi-cal-red") }], {}, { onFrame }), navigated: "CAPTURE_STALE" }
+      {
+        name: "captureViewport",
+        capture: (p) => captureViewportWithSeams(p),
+        withoutWindow: (p) => captureViewportWithSeams(p, {}, { watch: noWindow }),
+        navigated: "CAPTURE_STALE"
+      },
+      {
+        name: "captureElement",
+        capture: (p) => captureElementWithSeams(p, p.getByTestId("vi-cal-red")),
+        withoutWindow: (p) => captureElementWithSeams(p, p.getByTestId("vi-cal-red"), {}, { watch: noWindow }),
+        navigated: "CAPTURE_STALE"
+      },
+      {
+        name: "captureVisualFrame",
+        capture: (p) => captureVisualFrameWithSeams(p, {}, { onFrame }),
+        withoutWindow: (p) => captureVisualFrameWithSeams(p, {}, { onFrame, watch: noWindow }),
+        navigated: "CAPTURE_STALE"
+      },
+      {
+        name: "captureCandidates",
+        capture: (p) => captureCandidatesWithSeams(p, [{ id: "red", target: p.getByTestId("vi-cal-red") }], {}, { onFrame }),
+        withoutWindow: (p) => captureCandidatesWithSeams(p, [{ id: "red", target: p.getByTestId("vi-cal-red") }], {}, { onFrame, watch: noWindow }),
+        navigated: "CAPTURE_STALE"
+      }
     ];
     /** Every frame a case took is unusable afterwards: discarded by the capture, or released here once checked. */
     const framesReleased = (result: VisualResult<unknown>): boolean => {
@@ -781,6 +809,56 @@ try {
       const mutant = await captureViewportWithSeams(page, {}, { watch: noWindow });
       check(`MUTATION ${label}: without the capture window the viewport capture returns pixels (so the case discriminates)`, mutant.ok && spy.calls() === 1 && spy.saw(), outcome(mutant));
       await context.close();
+    }
+
+    // awkit-2het V3: the window-off mutation for R1b on the other three entries. R1b is the only case their own
+    // target/frame watches cannot refuse, so without the window each must return pixels again.
+    for (const entry of entries.filter((candidate) => candidate.name !== "captureViewport")) {
+      const context = await browser.newContext({ viewport: VIEWPORT });
+      const page = await openLab(context);
+      const spy = showPassword(page);
+      const mutant = await entry.withoutWindow(page);
+      // A fan-out is ok even when its candidate failed, so for captureCandidates the candidate itself must hold pixels.
+      const fanout = mutant.ok ? (mutant.value as { kind?: string; candidates?: Array<{ result: { ok: boolean } }> }) : null;
+      const returnedPixels = mutant.ok && (fanout?.kind !== "fanout" || ((fanout.candidates ?? []).length > 0 && (fanout.candidates ?? []).every((candidate) => candidate.result.ok)));
+      check(`MUTATION R1b ${entry.name}: without the capture window it returns pixels (so its R1b case discriminates)`, returnedPixels && spy.calls() === 1 && spy.saw(), outcome(mutant));
+      framesReleased(mutant);
+      await context.close();
+    }
+
+    // awkit-2het V2: an ordinary page change inside the window (a hash change, an iframe added and removed) is no
+    // protected surface. The capture must still be refused with no pixels, but as CAPTURE_STALE, never as
+    // PROTECTED_SURFACE, which the Recorder would show as "a protected sign-in surface is on the page".
+    const benignChange = (page: Page, kind: "hash" | "iframe"): { calls: () => number; clean: () => boolean } => {
+      let clean = false;
+      const spy = wrapScreenshot(page, async (shoot) => {
+        if (kind === "hash") await page.evaluate(() => (location.hash = `benign-${Date.now()}`));
+        else
+          await page.evaluate(() => {
+            const frame = document.createElement("iframe");
+            frame.id = "window-benign-frame";
+            frame.srcdoc = "<p>Chat widget</p>";
+            document.body.appendChild(frame);
+          });
+        if (kind === "iframe") await page.waitForFunction(() => document.getElementById("window-benign-frame") !== null);
+        clean = (await checkProtectedSurface(page)).protected === false;
+        const shot = await shoot();
+        if (kind === "iframe") await page.evaluate(() => document.getElementById("window-benign-frame")?.remove());
+        return shot;
+      });
+      return { calls: spy.calls, clean: () => clean };
+    };
+    for (const kind of ["hash", "iframe"] as const) {
+      for (const entry of entries) {
+        const context = await browser.newContext({ viewport: VIEWPORT });
+        const page = await openLab(context);
+        const spy = benignChange(page, kind);
+        const result = await entry.capture(page);
+        check(`V2 ${kind} ${entry.name} precondition: the window really changed and the page was never protected`, spy.calls() === 1 && spy.clean(), `calls=${spy.calls()} clean=${spy.clean()}`);
+        check(`V2 ${kind} ${entry.name}: refused CAPTURE_STALE with no pixels, not reported as a protected surface`, !result.ok && outcome(result) === "CAPTURE_STALE", outcome(result));
+        check(`V2 ${kind} ${entry.name}: no frame it took is left usable`, framesReleased(result));
+        await context.close();
+      }
     }
   }
 

@@ -1,6 +1,7 @@
 import { appendFile, mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { BrowserContext, CDPSession, Page } from "playwright";
+import { watchProtectedWindow, type ProtectedWindowWatch } from "../../security/ProtectedSurfaceGuard";
 import { pageIsProtected } from "../protectedSurfaceScan";
 
 export const OBSERVATION_CDP_COMMANDS = Object.freeze([
@@ -104,6 +105,8 @@ interface ActiveSession {
   generation: number;
   page: Page;
   session: CDPSession;
+  /** The last sample of this page was refused, skipped or failed (awkit-2het review F1). */
+  lastNotWritten?: boolean;
 }
 
 interface GenerationBinding {
@@ -284,16 +287,20 @@ export class PassiveCdpTrace {
         const stamp = `${timestamp}-${safeName(entry.pageId)}`;
         const screenshotRelative = `screenshots/${stamp}.png`;
         const screenshotPath = join(this.options.root, screenshotRelative);
-        let navigated = false;
-        const onNavigated = (): void => {
-          navigated = true;
-        };
+        let watch: ProtectedWindowWatch | undefined;
+        let written = false;
         try {
+          // awkit-2het review F1: arming injects a sentinel into the page's own script context. A page whose last
+          // sample was not written is re-checked first and, while it is still protected, skipped without arming, so a
+          // sign-in page held open during a handoff is not re-armed every interval. This only adds a skip.
+          if (entry.lastNotWritten && (await pageIsProtected(entry.page))) continue;
           // awkit-trace-protected: a sign-in, CAPTCHA, MFA, OTP or passkey surface is never photographed or
-          // serialized. Prove the page clean, capture into memory, prove it again (and that no frame navigated
-          // meanwhile), and only then write a file or update the live view. Every scan fails closed.
+          // serialized. awkit-2het V1: the strict protected window (the one B2, the screenshot step and Visual
+          // Intelligence use) opens BEFORE the first check, so a field shown and hidden again during the screenshot, or
+          // any frame navigation, attachment or detachment, refuses the sample. The image stays in memory until the
+          // window and a re-check prove the page clean; only then is a file written or the live view updated.
+          watch = await watchProtectedWindow(entry.page, { strict: true });
           if (await pageIsProtected(entry.page)) continue;
-          entry.page.on("framenavigated", onNavigated);
           const result = (await sendObservationCommand(entry.session, "Page.captureScreenshot", {
             format: "png",
             fromSurface: true,
@@ -309,7 +316,9 @@ export class PassiveCdpTrace {
             })) as { result?: { value?: string } };
             if (typeof domResult.result?.value === "string") dom = domResult.result.value;
           }
-          if (navigated || (await pageIsProtected(entry.page))) continue;
+          const windowVerdict = await watch.finish();
+          watch = undefined;
+          if (windowVerdict.protected || (await pageIsProtected(entry.page))) continue;
           await writeFile(screenshotPath, Buffer.from(result.data, "base64"));
           this.latestScreenshotDataUrl = `data:image/png;base64,${result.data}`;
           this.latestUrl = stripUrlSecrets(entry.page.url());
@@ -331,11 +340,16 @@ export class PassiveCdpTrace {
           }
           this.retainedSamples.push({ record: indexRecord, artifacts: sampleArtifacts });
           this.sampleCount += 1;
+          written = true;
           await this.enforceSampleRetention();
         } catch (error) {
           this.degrade(`CDP sample failed for ${entry.pageId}: ${messageOf(error)}`);
         } finally {
-          entry.page.off("framenavigated", onNavigated);
+          // A refusal, an error or a skipped sample still removes every sentinel. finish() never throws; it is called
+          // at most once per window here (`watch` is cleared after the main call), because a second call would re-read
+          // sentinels that are already gone.
+          await watch?.finish();
+          entry.lastNotWritten = !written;
         }
       }
     } finally {
