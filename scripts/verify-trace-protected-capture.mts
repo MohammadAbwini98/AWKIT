@@ -45,6 +45,13 @@
  *   T21 [onFailure] re-review N1: a page that silences `console.debug` shows a one-time-code field and then navigates
  *                  to an ordinary page (the field's document and its sentinel latch are gone); the failing step keeps
  *                  nothing.
+ *   Second re-review reproductions (M1, M2). A wrapped `context.newCDPSession` delays only `Runtime.addBinding`
+ *   (every other CDP call, the guard's pierce scan included, runs normally), standing in for a slow session under load:
+ *   T22 [onFailure] M1: T21's page while the page's binding takes longer than the bind budget; nothing is kept.
+ *   T23 [onFailure] M1: a console-silencing cross-origin (out-of-process) child frame shows a one-time-code field and
+ *                  navigates away while that frame's binding is slow; nothing is kept.
+ *   U2  M2: a non-strict watch finished while a rearm is still binding a late out-of-process frame leaves no CDP
+ *       session open and no sentinel armed.
  *   U1  `markProtected` stops the open chunk's recording at once and the failed step keeps nothing; T2/T7 also
  *       assert the recording had stopped before the operator could act on the handoff.
  *   O1-O3 the passive CDP observation trace (on by default) writes no screenshot/DOM sample and no live view of a
@@ -56,7 +63,7 @@
  *
  * Run: npx tsx scripts/verify-trace-protected-capture.mts
  */
-import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
+import { chromium, type Browser, type BrowserContext, type CDPSession, type Frame, type Page } from "playwright";
 import { createServer, type Server } from "node:http";
 import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -73,7 +80,35 @@ import { PassiveCdpTrace } from "@src/runner/observation/PassiveCdpTrace";
 import type { InstanceExecutionContext } from "@src/runner/InstanceExecutionContext";
 import type { StepExecutionResult } from "@src/runner/RunnerResult";
 import type { FlowStep } from "@src/profiles/FlowProfile";
-import { checkProtectedSurface } from "@src/security/ProtectedSurfaceGuard";
+import { checkProtectedSurface, watchProtectedWindow } from "@src/security/ProtectedSurfaceGuard";
+
+/**
+ * Wrap `context.newCDPSession` so `Runtime.addBinding` on sessions for targets `slow` selects is delayed by `ms`; every
+ * other call runs normally. Tracks each wrapped session and whether it was detached.
+ */
+function slowBindings(context: BrowserContext, ms: number, slow: (target: Page | Frame) => boolean): { open: () => number; restore: () => void } {
+  const ctx = context as unknown as { newCDPSession: (target: Page | Frame) => Promise<CDPSession> };
+  const original = ctx.newCDPSession.bind(ctx);
+  const tracked: Array<{ session: CDPSession; detached: boolean }> = [];
+  ctx.newCDPSession = async (target: Page | Frame) => {
+    const session = await original(target);
+    if (!slow(target)) return session;
+    const entry = { session, detached: false };
+    tracked.push(entry);
+    const send = session.send.bind(session) as (method: string, params?: unknown) => Promise<unknown>;
+    (session as unknown as { send: typeof send }).send = async (method: string, params?: unknown) => {
+      if (method === "Runtime.addBinding") await new Promise((resolve) => setTimeout(resolve, ms));
+      return send(method, params);
+    };
+    const detach = session.detach.bind(session);
+    session.detach = async () => {
+      entry.detached = true;
+      return detach();
+    };
+    return session;
+  };
+  return { open: () => tracked.filter((entry) => !entry.detached).length, restore: () => (ctx.newCDPSession = original) };
+}
 
 let passed = 0;
 let failed = 0;
@@ -137,6 +172,14 @@ const STUB_OTP_HTML = `<!doctype html><html><head><title>Quiet</title><script>co
 const STUB_OTP_NAV_HTML = `<!doctype html><html><head><title>Quiet hop</title><script>console.debug = function () {};</script></head><body>
   <h1>Quiet hop</h1>
   <script>setTimeout(function () { var i = document.createElement("input"); i.setAttribute("autocomplete", "one-time-code"); i.id = "hop-otp"; document.body.appendChild(i); }, 1200);
+  setTimeout(function () { location.href = "/landing"; }, 1800);</script></body></html>`;
+/** An ordinary parent whose child frame is cross-origin (localhost versus 127.0.0.1), so out-of-process (T23). */
+const OOPIF_PARENT_HTML = (crossOrigin: string): string =>
+  `<!doctype html><html><head><title>Parent</title></head><body><h1>Parent</h1><iframe id="child" src="${crossOrigin}/oopif-child" width="600" height="400"></iframe></body></html>`;
+/** The cross-origin child: silences console.debug, shows a one-time-code field, then navigates away (T23). */
+const OOPIF_CHILD_HTML = `<!doctype html><html><head><title>Child</title><script>console.debug = function () {};</script></head><body>
+  <p>child</p>
+  <script>setTimeout(function () { var i = document.createElement("input"); i.setAttribute("autocomplete", "one-time-code"); document.body.appendChild(i); }, 1200);
   setTimeout(function () { location.href = "/landing"; }, 1800);</script></body></html>`;
 /** A blank child frame created by script, which shows a password field and empties it again (T20). */
 const BLANK_FRAME_HTML = `<!doctype html><html><head><title>Blank frame</title></head><body><h1>Blank frame</h1>
@@ -358,6 +401,9 @@ async function main(): Promise<void> {
     if (url.startsWith("/inject-remove-otp")) return INJECT_REMOVE_OTP_HTML;
     if (url.startsWith("/protected-unique")) return protectedHtml.replace("</body>", `<p data-testid="${UNIQUE_MARKER}">${UNIQUE_MARKER}</p></body>`);
     if (url.startsWith("/stub-otp-nav")) return STUB_OTP_NAV_HTML;
+    if (url.startsWith("/oopif-parent")) return OOPIF_PARENT_HTML(origin.replace("127.0.0.1", "localhost"));
+    if (url.startsWith("/oopif-child")) return OOPIF_CHILD_HTML;
+    if (url.startsWith("/oopif-idle")) return PLAIN2_HTML;
     if (url.startsWith("/stub-otp")) return STUB_OTP_HTML;
     if (url.startsWith("/protected-sha1")) return protectedHtml.replace("</body>", `<div sha1="..">${T19_MARKER}</div></body>`);
     if (url.startsWith("/blank-frame")) return BLANK_FRAME_HTML;
@@ -699,6 +745,106 @@ async function main(): Promise<void> {
       check("T21 security: no trace is retained and none is reported", run.traces.zips === 0 && !run.result.tracePath, describe(run.traces));
       await h.context.close();
     }
+
+    // T22 — M1: the page's binding is slower than the bind budget, so its sentinel arms without it.
+    console.log("\nT22 [onFailure] T21's page while the page's CDP binding is slower than the bind budget:");
+    {
+      const h = await harness("/stub-otp-nav");
+      const slow = slowBindings(h.context, 2_500, (target) => target === h.page);
+      const run = await runTraced(h, "t22", "onFailure", neverAppears("t22"), "none");
+      slow.restore();
+      const landed = h.page.url().endsWith("/landing");
+      check("T22 precondition: the step failed after the page left for an ordinary page", run.result.status === "failed" && landed, `${run.result.status} landed=${landed}`);
+      check("T22 security: no trace is retained and none is reported", run.traces.zips === 0 && !run.result.tracePath, describe(run.traces));
+      await h.context.close();
+    }
+
+    // T23 — M1: the same for an out-of-process child frame whose own binding is slow.
+    // Playwright launches Chromium with site isolation off, so a cross-origin child shares its parent's session;
+    // T23 and U2 need a browser with --site-per-process for their child frames to be out-of-process.
+    const isolatedBrowser = await chromium.launch({ headless: true, args: ["--site-per-process"] });
+    const isolatedHarness = async (startPath: string): Promise<Harness> => {
+      const root = await mkdtemp(join(tmpdir(), "awkit-trace-"));
+      roots.push(root);
+      const context = await isolatedBrowser.newContext();
+      const page = await context.newPage();
+      await page.goto(`${origin}${startPath}`, { waitUntil: "load" });
+      return { context, page, root, traceDir: join(root, "traces") };
+    };
+    console.log("\nT23 [onFailure] a console-silencing out-of-process child frame shows a field and navigates away:");
+    {
+      const h = await isolatedHarness("/oopif-parent");
+      const child = h.page.frames().find((frame) => frame !== h.page.mainFrame());
+      const outOfProcess = child
+        ? await h.context.newCDPSession(child).then(
+            async (session) => {
+              await session.detach().catch(() => undefined);
+              return true;
+            },
+            () => false
+          )
+        : false;
+      const slow = slowBindings(h.context, 2_500, (target) => target !== h.page);
+      const run = await runTraced(h, "t23", "onFailure", neverAppears("t23"), "none");
+      slow.restore();
+      const left = h.page.frames().some((frame) => frame.url().endsWith("/landing"));
+      check("T23 precondition: the child frame is out-of-process and the step failed after the child left", outOfProcess && run.result.status === "failed" && left, `oopif=${outOfProcess} ${run.result.status} left=${left}`);
+      // Recorded fact: with the slow binding the session is refused before it starts (prevention), so 0 is expected.
+      console.log(`  · trace sessions started: ${run.chunksOpened}`);
+      check("T23 security: no trace is retained and none is reported", run.traces.zips === 0 && !run.result.tracePath, describe(run.traces));
+      await h.context.close();
+    }
+
+    // U2 — M2: finish() while a rearm is still binding a late out-of-process frame.
+    console.log("\nU2 a watch finished while a rearm is still binding a late frame leaves nothing behind:");
+    {
+      const h = await isolatedHarness("/plain");
+      const slow = slowBindings(h.context, 2_500, (target) => target !== h.page);
+      const watch = await watchProtectedWindow(h.page, { strict: false });
+      await h.page.evaluate((src) => {
+        const frame = document.createElement("iframe");
+        frame.src = src;
+        document.body.appendChild(frame);
+      }, `${origin.replace("127.0.0.1", "localhost")}/oopif-idle`);
+      await h.page.waitForFunction(() => document.querySelector("iframe")?.contentWindow !== null);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      const rearming = watch.rearm();
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      await watch.finish();
+      await rearming;
+      await new Promise((resolve) => setTimeout(resolve, 3_500));
+      const armed = (
+        await Promise.all(
+          h.page.frames().map((frame) =>
+            frame
+              .evaluate(() => {
+                const host = window as unknown as Record<string, { states?: unknown[] } | undefined>;
+                let count = 0;
+                for (const name of Object.getOwnPropertyNames(window)) if (name.startsWith("awkit-protected-hub-")) count += host[name]?.states?.length ?? 0;
+                return count;
+              })
+              .catch(() => 0)
+          )
+        )
+      ).reduce((sum, value) => sum + value, 0);
+      const open = slow.open();
+      slow.restore();
+      const lateFrame = h.page.frames().find((frame) => frame !== h.page.mainFrame());
+      const lateOutOfProcess = lateFrame
+        ? await h.context.newCDPSession(lateFrame).then(
+            async (session) => {
+              await session.detach().catch(() => undefined);
+              return true;
+            },
+            () => false
+          )
+        : false;
+      check("U2 precondition: the late frame is in the page and out-of-process", h.page.frames().length === 2 && lateOutOfProcess, `frames=${h.page.frames().length} oopif=${lateOutOfProcess}`);
+      check("U2: no CDP session the watch opened is left open after it finished", open === 0, `open=${open}`);
+      check("U2: no sentinel is left armed after the watch finished", armed === 0, `armed=${armed}`);
+      await h.context.close();
+    }
+    await isolatedBrowser.close();
 
     // U1 — markProtected on its own (as a handoff in another executor sharing the run's TraceService would call it).
     console.log("\nU1 [onFailure] markProtected stops the open chunk at once and nothing is kept:");

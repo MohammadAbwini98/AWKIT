@@ -8,15 +8,18 @@ The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 
   - Every `awkit-3gtj` finding was reproduced red, then fixed green or recorded with negative evidence (KNOWN_ISSUES).
   - The independent review's F1–F4 were reproduced and fixed, and committed as `8bf7233b`.
   - The re-review's N1 was reproduced by T21 and fixed with a CDP binding signal (KNOWN_ISSUES).
-  - b2 39/0, trace 65/0, runner 138/0, build PASS.
+  - N1 was committed as `5408a967`.
+  - The second re-review's M1 and M2 were reproduced (T22, T23, U2) and fixed, together with a reproduced
+    stop-during-start crash.
+  - b2 39/0, trace 72/0, runner 138/0, build PASS.
   - Contract `awkit-3gtj-capture-residuals-1020`, leases released.
 - **Open:**
-  - The owner commits and pushes the staged N1 set. The lease guard blocks agents from a commit that mixes
-    `src/security/**` with other paths.
-  - A second re-review of N1, then close `awkit-3gtj`.
+  - The owner stages the guard and commits and pushes. The lease guard blocks agents from staging
+    `src/security/**` for this task (terminal denial).
+  - A third re-review, then close `awkit-3gtj`.
   - Triage the same window gap in `src/visual/internal/captureCore.ts` and `VisualFailureDiagnosis.ts`.
 - **Do not:**
-  - relax R1a–R7, T15–T21 or the whole-evidence-root listing;
+  - relax R1a–R7, T15–T23, U2 or the whole-evidence-root listing;
   - move the screenshot checks in `verify:runner` back to the password-bearing `/form`.
 - **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
 

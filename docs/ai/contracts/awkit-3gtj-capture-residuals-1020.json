@@ -112,7 +112,7 @@
       "command": "npm run verify:trace-protected-capture",
       "artifact": null,
       "result": "PASS",
-      "observed": "65 passed, 0 failed after the re-review round (N1 baseline 64/1: T21); review round 63/0 from 61/2 (T18, T19; T20 green before the fix); first round 57/0 from a 54/3 baseline (T15, T16, T17)"
+      "observed": "72 passed, 0 failed after the second re-review round (M1/M2 baseline 69/3: T22, T23, U2); 65/0 after the re-review round (N1 baseline 64/1: T21); review round 63/0 from 61/2 (T18, T19; T20 green before the fix); first round 57/0 from a 54/3 baseline (T15, T16, T17)"
     },
     {
       "id": "regression-suites",
@@ -290,6 +290,38 @@
         "acquired_at_commit": "8bf7233bef3e241c80f7aaa971d4794657f97067",
         "released_at": "2026-10-20T15:19:40.094Z",
         "released_reason": "awkit-3gtj N1 round recorded and beads exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-3gtj-capture-residuals-1020:security:2026-10-20T16:26:05.356Z",
+        "task": "awkit-3gtj-capture-residuals-1020",
+        "holder": "security",
+        "status": "released",
+        "allowed_paths": [
+          "src/security/ProtectedSurfaceGuard.ts"
+        ],
+        "acquired_at": "2026-10-20T16:26:05.356Z",
+        "acquired_at_commit": "5408a9672f877e0e1f7fdc5242000ca5a0cc67ff",
+        "released_at": "2026-10-20T16:27:06.281Z",
+        "released_reason": "M1 and M2 guard fixes for the awkit-3gtj second re-review written",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-3gtj-capture-residuals-1020:project-state:2026-10-20T16:33:20.100Z",
+        "task": "awkit-3gtj-capture-residuals-1020",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-20T16:33:20.100Z",
+        "acquired_at_commit": "5408a9672f877e0e1f7fdc5242000ca5a0cc67ff",
+        "released_at": "2026-10-20T16:33:34.337Z",
+        "released_reason": "awkit-3gtj M1 and M2 round recorded and beads exported",
         "amendments": [],
         "overrides": [],
         "violations": []

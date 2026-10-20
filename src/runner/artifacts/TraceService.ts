@@ -52,6 +52,8 @@ interface ChunkWatch {
   traceName: string;
   tainted: boolean;
   stopped: boolean;
+  /** The session's `tracing.start` call while it is in flight; a stop must wait for it (see `taint`). */
+  starting?: Promise<void>;
   /** The one `tracing.stop` call of this session, once issued. */
   stopping?: Promise<void>;
   /** Set once a taint has scheduled the purge of this session's raw files. */
@@ -111,7 +113,16 @@ export class TraceService {
     this.watch = watch;
     try {
       await Promise.all(watch.sentinels.values());
-      await context.tracing.start({ name: watch.traceName, screenshots: true, snapshots: true });
+      // A sentinel can taint while it arms (a field already appearing, or one armed without its binding): then nothing
+      // is recorded at all.
+      if (watch.tainted) {
+        await watch.discard;
+        if (this.watch === watch) this.closeChunk();
+        return false;
+      }
+      watch.starting = context.tracing.start({ name: watch.traceName, screenshots: true, snapshots: true });
+      await watch.starting;
+      watch.starting = undefined;
       // A taint that raced the start may have stopped (and purged) nothing yet; stop and purge again.
       if (watch.tainted) {
         await watch.discard;
@@ -209,7 +220,12 @@ export class TraceService {
     watch.tainted = true;
     if (!watch.stopped) {
       watch.stopped = true;
-      watch.stopping = watch.context.tracing.stop();
+      // Never stop while `start` is still in flight: Playwright's screencast can then deliver a frame to a tracer whose
+      // state is already gone, and the TypeError it throws is uncaught (it ends the process).
+      const starting = watch.starting;
+      watch.stopping = starting
+        ? starting.catch(() => undefined).then(() => watch.context.tracing.stop())
+        : watch.context.tracing.stop();
     }
     if (watch.purged) return;
     watch.purged = true;
@@ -316,6 +332,12 @@ export class TraceService {
       };
       page.on("framenavigated", onNavigated);
       disposers.push(() => page.off("framenavigated", onNavigated));
+      // A frame created by script may never navigate (its initial blank document stays): arm it as soon as it exists.
+      const onAttached = (): void => {
+        void watch.sentinels.get(page)?.then((sentinel) => sentinel.rearm()).catch(() => undefined);
+      };
+      page.on("frameattached", onAttached);
+      disposers.push(() => page.off("frameattached", onAttached));
     };
     // A popup can finish its first load before this listener exists, so a new page is scanned once it has a document.
     const onPage = (page: Page): void => {

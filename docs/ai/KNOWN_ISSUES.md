@@ -114,6 +114,22 @@
     neither predict nor silence it. `Runtime.bindingCalled` taints the session at once. The binding is removed and the
     session detached on `finish`. If the main binding cannot be installed, the session is refused (fail closed).
   - **Result:** trace **65/0**, b2 39/0, failure-evidence-live 17/0, runner 138/0, build PASS.
+- **Second re-review of `5408a967`: CHANGES REQUIRED on M1 and M2, now fixed.** Baseline on `5408a967`: trace
+  **69/3**, with T22, T23 and U2 red. T23 and U2 run in a `--site-per-process` browser, because Playwright turns site
+  isolation off, so cross-origin frames there are out-of-process.
+  - **M1, T22 and T23.** A binding slower than the 1.5 s bind budget, or a failed out-of-process frame session, left
+    the sentinel on its console fallback, so N1 came back. Now `armFrameSentinel` reports `"bound"` or `"console"`. In
+    trace mode, any frame armed without its binding fails closed, so the session is refused before it starts.
+  - **M2, U2.** A rearm still in flight when the watch finished armed sentinels that nothing would ever read. Now
+    `bindFrame` detaches a session that opened after `finish`, and `arm` neither arms after `finish` nor leaves behind
+    a sentinel armed during it.
+  - **F4(iii), now reproduced, a crash.** While T22 was being fixed, a taint during `tracing.start()` made
+    `TraceService` call `tracing.stop()` at the same time. Playwright's screencast then threw an uncaught `TypeError`
+    (`_appendResource`, state undefined), which ends the process. Now no session starts once it is tainted, and a
+    stop issued during `start` waits for it.
+  - **F4(ii), seen once.** T20 went red in one run (zips=1). A frame created by script never navigates, so it was
+    armed only by chance. Now `TraceService` re-arms the page as soon as a frame attaches.
+  - **Result:** trace **72/0**, b2 39/0, failure-evidence-live 17/0, runner 138/0, build PASS.
 - **Costs and residuals (accepted).**
   - Each traced step opens one CDP session per page (plus one per out-of-process frame) with `Runtime` enabled.
   - Strict capture windows (B2, screenshot) do not use the binding. Any navigation, attachment or detachment there

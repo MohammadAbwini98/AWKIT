@@ -31,12 +31,17 @@ executed.
   - N1: a console-silencing page showed a field, then navigated away, and the failing step kept its trace.
   - Reproduced by T21 (trace 64/1). Fixed with a CDP `Runtime.addBinding` signal per page and out-of-process frame
     in trace mode.
+- **Second re-review of `5408a967`: CHANGES REQUIRED on M1 and M2.**
+  - Reproduced by T22, T23 and U2 (trace 69/3), then fixed: a sentinel armed without its binding fails closed, and the
+    finish/rearm race is closed.
+  - A Playwright crash when tracing is stopped during start (F4(iii)) was reproduced and fixed.
+  - The frame-attach arm fixes the intermittent T20.
 - **Gates (final state):**
-  - b2-protected-capture 39/0, trace-protected-capture 65/0, failure-evidence-live 17/0.
+  - b2-protected-capture 39/0, trace-protected-capture 72/0, failure-evidence-live 17/0.
   - Regression: runner 138/0. visual-capture 274/0 and visual-isolation 71/0 were not rerun: their code path and
     imports are unchanged.
   - Build: PASS.
-  - Second re-review: NOT RUN.
+  - Third re-review: NOT RUN.
 - **Negative evidence:** the refused-ZIP `unlink` failure could not be induced on this platform (KNOWN_ISSUES).
 - **Contract:** `awkit-3gtj-capture-residuals-1020`. `awkit-3gtj` stays open until the fixes are re-reviewed.
 - **Commit:** BLOCKED for agents. The lease guard rejects one commit that mixes `src/security/**` with runner code, so

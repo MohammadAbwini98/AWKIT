@@ -6,8 +6,8 @@
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-20T15:19:23.919Z",
-  "acquired_at_commit": "8bf7233bef3e241c80f7aaa971d4794657f97067",
+  "acquired_at": "2026-10-20T16:33:20.100Z",
+  "acquired_at_commit": "5408a9672f877e0e1f7fdc5242000ca5a0cc67ff",
   "baseline_dirty": [
     "docs/ai/CURRENT_STATE.md",
     "docs/ai/HANDOFF.md",
@@ -17,18 +17,20 @@
     "docs/ai/contracts/awkit-3gtj-capture-residuals-1020.json",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
     "scripts/verify-trace-protected-capture.mts",
+    "src/runner/artifacts/TraceService.ts",
     "src/security/ProtectedSurfaceGuard.ts"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/CURRENT_STATE.md": "987a7e70926c2e7fbbe7228f844a520655d32256849730d4acce5fed87a8f313",
-    "docs/ai/HANDOFF.md": "847f07fc84a427f82dcd7dbae0c94a3729a096761ac22b91b3d0bd9b4907d926",
-    "docs/ai/KNOWN_ISSUES.md": "292548596b4c9c73e5715c5c3b364c68dbc27a2118a1dbb146885cc7e0b6eaba",
-    "docs/ai/TASK_LOG.md": "4d89a11e51ef88cfd0be6e9ca4d97315876dc5a176b40f671d5c3d827c796537",
-    "docs/ai/contracts/active-lease.json": "84de92cdb25f7d8bf80e33ca81a69e28b76a401e5b24a469cb0a676a70e315f8",
-    "docs/ai/contracts/awkit-3gtj-capture-residuals-1020.json": "fbbfcbf6cedbabd675e1c75c2dd2291ec48904a52781dae7ff4a549a9805ea78",
+    "docs/ai/CURRENT_STATE.md": "4c318acedeac5cab107da32117bf7e7ed9711624ff48a6e8d90f4ac71f35bd44",
+    "docs/ai/HANDOFF.md": "5143136527732002ff2ec5f757bec81e73c0b8a2e72299b7b866cd53cfdb9bae",
+    "docs/ai/KNOWN_ISSUES.md": "7f28a460668e40458c7e0353d75d9da8ec91051a8c237479ec8a347233319a61",
+    "docs/ai/TASK_LOG.md": "ae471be1e2b4370ed29d8075baef40ecb5d4460c57a0c833e79c60b343896867",
+    "docs/ai/contracts/active-lease.json": "74b3e42bdbb2c5c54acec0cc564bca1910d6447a01a6b49dc5b01796aa8700a8",
+    "docs/ai/contracts/awkit-3gtj-capture-residuals-1020.json": "805b586eaf702833d36824b64ed7e16804cf0661f37dec064dfd59a603952d2e",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "scripts/verify-trace-protected-capture.mts": "a7089d50751d7923cd832b8a797dda39a8921ca1fbdf9e41dda8dec25e5a35a4",
-    "src/security/ProtectedSurfaceGuard.ts": "d0fc91a72d61a585930c03207c1ee5123fa0b6b02f0472bde56dcd008ceeee3d"
+    "scripts/verify-trace-protected-capture.mts": "f90d5e80229297e32db487b5fa49cfa2b3568c9d98a4d43bd55c7d08d7491112",
+    "src/runner/artifacts/TraceService.ts": "279b31bfbb004bd52e9f67f0d6c954f006d30534a4e1ad366d2385cf1a7700ab",
+    "src/security/ProtectedSurfaceGuard.ts": "45df6ba7e27486bdd57af2820c7fd42581b953bb210483e256504f8ca1e4212c"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -43,7 +45,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-20T15:19:40.094Z",
-  "released_reason": "awkit-3gtj N1 round recorded and beads exported",
-  "archived_at": "2026-10-20T15:19:40.096Z"
+  "released_at": "2026-10-20T16:33:34.337Z",
+  "released_reason": "awkit-3gtj M1 and M2 round recorded and beads exported",
+  "archived_at": "2026-10-20T16:33:34.339Z"
 }

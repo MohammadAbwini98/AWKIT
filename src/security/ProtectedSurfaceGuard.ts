@@ -266,17 +266,19 @@ const SENTINEL_HUB_KEY = `awkit-protected-hub-${randomUUID()}`;
  * the moment a protected field is added or an attribute turns an element into one. It observes every open shadow root
  * at any depth (at arm time and inside each added subtree), and — through one shared `attachShadow` hook per document
  * — every root attached while armed, open or closed. The latch is what callers read; the console signal is only an
- * early warning a page can silence. Returns true when armed (or already armed under this key).
+ * early warning a page can silence. Returns "bound" when armed (now or earlier under this key) with the CDP binding as
+ * its signal, "console" when armed with only the console fallback.
  */
-const armFrameSentinel = (args: { key: string; hub: string; selector: string; attributes: string[]; binding?: string }): boolean => {
+const armFrameSentinel = (args: { key: string; hub: string; selector: string; attributes: string[]; binding?: string }): "bound" | "console" => {
   const host = window as unknown as Record<string, unknown>;
-  if (host[args.key]) return true;
+  const existing = host[args.key] as { bound?: boolean } | undefined;
+  if (existing) return existing.bound === true ? "bound" : "console";
   // awkit-3gtj re-review N1: the CDP binding (random name, captured now) is a channel the page cannot silence;
   // console.debug is only the fallback where no binding exists.
-  const bound = args.binding ? (host[args.binding] as ((payload: string) => void) | undefined) : undefined;
-  const signal = typeof bound === "function" ? bound : console.debug.bind(console);
+  const binding = args.binding ? (host[args.binding] as ((payload: string) => void) | undefined) : undefined;
+  const signal = typeof binding === "function" ? binding : console.debug.bind(console);
   const options: MutationObserverInit = { subtree: true, childList: true, attributes: true, attributeFilter: args.attributes };
-  const state = { seen: false, disarmed: false, options, observer: undefined as unknown as MutationObserver };
+  const state = { seen: false, disarmed: false, bound: typeof binding === "function", options, observer: undefined as unknown as MutationObserver };
   state.observer = new MutationObserver((records) => {
     if (state.seen) return;
     for (let i = 0; i < records.length && !state.seen; i++) {
@@ -337,7 +339,7 @@ const armFrameSentinel = (args: { key: string; hub: string; selector: string; at
   }
   hub.states.push(state);
   Object.defineProperty(host, args.key, { value: state, configurable: true, enumerable: false });
-  return true;
+  return state.bound ? "bound" : "console";
 };
 
 /**
@@ -439,6 +441,11 @@ export async function watchProtectedWindow(page: Page, options: ProtectedWindowO
       if (isMain) bindingFailed = true;
       return;
     }
+    // Second re-review M2: the watch may have finished while the session was opening; never keep it then.
+    if (finished) {
+      await session.detach().catch(() => undefined);
+      return;
+    }
     sessions.set(frame, session);
     session.on("Runtime.bindingCalled", (event: { name?: string; payload?: string }) => {
       if (event.name === bindingName && event.payload === key) markSeen();
@@ -480,9 +487,19 @@ export async function watchProtectedWindow(page: Page, options: ProtectedWindowO
       // Fail closed: without its binding a sentinel whose document goes away takes its latch with it.
       if (bindingFailed) markSeen();
     }
+    // Second re-review M2: a rearm still in flight when the watch finished must not arm sentinels nothing will read.
+    if (finished) return;
     const args = { key, hub: SENTINEL_HUB_KEY, selector: PROTECTED_FIELD_SELECTOR, attributes: PROTECTED_FIELD_ATTRIBUTES, binding: bindingName };
-    const armed = await Promise.all(frames.map((frame) => boundedEvaluate(frame.evaluate(armFrameSentinel, args), timeoutMs, false)));
-    if (armed.some((ok) => ok !== true)) unwatchable = true;
+    const armed = await Promise.all(frames.map((frame) => boundedEvaluate<string | false>(frame.evaluate(armFrameSentinel, args), timeoutMs, false)));
+    if (finished) {
+      const readArgs = { key, hub: SENTINEL_HUB_KEY };
+      await Promise.all(frames.map((frame) => boundedEvaluate(frame.evaluate(readFrameSentinel, readArgs), timeoutMs, "unreadable")));
+      return;
+    }
+    if (armed.some((mode) => mode !== "bound" && mode !== "console")) unwatchable = true;
+    // Second re-review M1: in a trace session a sentinel armed without its binding (the bind timed out or failed for that
+    // frame) has only a signal the page can silence, so it fails closed exactly as a missing main binding does.
+    if (bindingName && armed.includes("console")) markSeen();
   };
   await arm();
   return {

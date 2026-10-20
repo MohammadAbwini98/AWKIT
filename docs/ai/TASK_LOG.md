@@ -39,7 +39,13 @@
   - T21 reproduced it (trace 64/1).
   - Fixed with a CDP `Runtime.addBinding` sentinel signal in trace mode (`src/security/ProtectedSurfaceGuard.ts`).
   - Checks: trace 65/0, b2 39/0, failure-evidence-live 17/0, runner 138/0, build PASS.
-  - The commit is again left to the owner.
+  - The commit is again left to the owner, who committed `5408a967`.
+- **Second re-review round:**
+  - CHANGES REQUIRED on M1 and M2. Reproduced by T22, T23 and U2 (trace 69/3).
+  - Fixed: the guard reports the binding state and fails closed without it, plus finish/rearm guards.
+  - `TraceService` no longer starts tracing once tainted, chains a stop after an in-flight start (a reproduced
+    Playwright crash), and arms frames on attach.
+  - Checks: trace 72/0, b2 39/0, failure-evidence-live 17/0, runner 138/0, build PASS.
 
 ## 2026-10-20 — Security: independent B2 review and trace protected-surface remediation awkit-uoik (Claude)
 
