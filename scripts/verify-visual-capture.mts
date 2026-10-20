@@ -16,6 +16,9 @@
  *     closed page, cancelled, budget exhausted);
  *   - protected refusal: the account route, an injected credential frame, OTP / MFA / CAPTCHA / passkey surfaces,
  *     protected step types and a handed-off session, and each surface appearing only AFTER the screenshot;
+ *   - the capture window (awkit-3gtj follow-up): through all four capture entries, R1a the page visits the protected
+ *     account route and comes back, and R1b a password field is added and removed, both inside the real screenshot call
+ *     (the B2 wrapScreenshot seam), so both guard checks see a clean page — each is refused and returns no pixels;
  *   - no side effects: no click, key, focus or scroll on the page, and no request leaves the local mock site;
  *   - a capture's JSON form omits image bytes; evidence holds no image at all.
  *
@@ -24,7 +27,9 @@
  *
  * Mutation controls (each must flip the check it guards):
  *   - DPR scaling removed: cropping the same screenshot with scale 1 at DPR 2 must FAIL the exact-pixel predicate;
- *   - post-capture recheck skipped: a guard that only checks once must let the late credential frame through.
+ *   - post-capture recheck skipped (and the capture window off): a guard that only checks once must let the late
+ *     credential frame through;
+ *   - capture window removed: R1a and R1b must leak viewport pixels again.
  *
  * Run: npm run verify:visual-capture
  */
@@ -37,11 +42,19 @@ import sharp from "sharp";
 
 import { captureElement, captureViewport, type VisualCrop } from "@src/visual/capture";
 // The seam-taking entry is verifier-only (N2.1): the public functions above take no seam.
-import { captureElementWithSeams, captureViewportWithSeams } from "@src/visual/internal/captureCore";
+import {
+  captureCandidatesWithSeams,
+  captureElementWithSeams,
+  captureViewportWithSeams,
+  captureVisualFrameWithSeams,
+  cropFromVisualFrame,
+  releaseVisualFrame,
+  VisualCaptureFrame
+} from "@src/visual/internal/captureCore";
 import type { VisualResult } from "@src/visual/errors";
 import { clampPixelRect, cssRectToPixelRect, scaleMatchesDevicePixelRatio, type CssRect } from "@src/visual/geometry";
 import { cropImage, decodePng, PngDecodeError, type VisualImage } from "@src/visual/png";
-import { checkProtectedSurface, type ProtectedGuardVerdict } from "@src/visual/protectedGuard";
+import { checkProtectedSurface, type ProtectedGuardVerdict, type ProtectedWindowWatch } from "@src/visual/protectedGuard";
 import { buildVisualEvidence } from "@src/visual/visualEvidence";
 
 const PORT = 4423;
@@ -387,6 +400,9 @@ async function interactions(page: Page): Promise<{ count: number; scrollY: numbe
   return page.evaluate("({ count: window.__visualLab.interactions, scrollY: window.scrollY })") as Promise<{ count: number; scrollY: number }>;
 }
 
+/** A capture window that never sees anything: the mutation that removes the strict window watch. */
+const noWindow = async (): Promise<ProtectedWindowWatch> => ({ rearm: async () => undefined, finish: async () => ({ protected: false }) });
+
 async function injectAccountFrame(page: Page): Promise<void> {
   await page.evaluate("window.__visualLab.injectAccountFrame()");
   await page.frameLocator('[data-testid="vi-account-frame"]').locator('input[type="password"]').waitFor();
@@ -639,11 +655,133 @@ try {
     await page.evaluate("window.__visualLab.removeAccountFrame()");
 
     // Mutation: a guard that only checks before the screenshot (the recheck skipped) must let the late frame through.
+    // The capture window would also see that frame attach, so it is switched off here to isolate the recheck.
     let calls = 0;
     const checkOnce = (p: Page): Promise<ProtectedGuardVerdict> => (calls++ === 0 ? checkProtectedSurface(p) : Promise.resolve({ protected: false }));
-    const mutant = await captureViewportWithSeams(page, {}, { ...late, guard: checkOnce });
+    const mutant = await captureViewportWithSeams(page, {}, { ...late, guard: checkOnce, watch: noWindow });
     check("MUTATION: skipping the post-capture recheck lets the late frame through (so the case discriminates)", mutant.ok && calls === 2, outcome(mutant));
     await context.close();
+  }
+
+  console.log("\nCapture window: a protected surface shown and hidden again between the two guard checks:\n");
+  {
+    section = "capture window";
+    /** Wrap the real screenshot so `around` runs inside the capture window; the capture itself stays real (the B2 seam). */
+    const wrapScreenshot = (page: Page, around: (shoot: () => Promise<Buffer>) => Promise<Buffer>): { calls: () => number } => {
+      const original = page.screenshot.bind(page);
+      let calls = 0;
+      page.screenshot = (async (options?: Parameters<Page["screenshot"]>[0]) => {
+        calls += 1;
+        return around(() => original(options));
+      }) as Page["screenshot"];
+      return { calls: () => calls };
+    };
+    const held: VisualCaptureFrame[] = [];
+    const onFrame = (frame: VisualCaptureFrame): void => {
+      held.push(frame);
+    };
+    type Entry = { name: string; capture: (page: Page) => Promise<VisualResult<unknown>>; navigated: string };
+    // A navigation already makes a shared frame CAPTURE_STALE (its page watch), so the frame entries keep that code.
+    const entries: Entry[] = [
+      { name: "captureViewport", capture: (p) => captureViewportWithSeams(p), navigated: "PROTECTED_SURFACE" },
+      { name: "captureElement", capture: (p) => captureElementWithSeams(p, p.getByTestId("vi-cal-red")), navigated: "PROTECTED_SURFACE" },
+      { name: "captureVisualFrame", capture: (p) => captureVisualFrameWithSeams(p, {}, { onFrame }), navigated: "CAPTURE_STALE" },
+      { name: "captureCandidates", capture: (p) => captureCandidatesWithSeams(p, [{ id: "red", target: p.getByTestId("vi-cal-red") }], {}, { onFrame }), navigated: "CAPTURE_STALE" }
+    ];
+    /** Every frame a case took is unusable afterwards: discarded by the capture, or released here once checked. */
+    const framesReleased = (result: VisualResult<unknown>): boolean => {
+      const unreleased = held.filter((frame) => cropFromVisualFrame(frame, { x: 20, y: 20, width: 10, height: 10 }).ok);
+      const owned = result.ok && result.value instanceof VisualCaptureFrame ? [result.value] : [];
+      const leaked = unreleased.filter((frame) => !owned.includes(frame));
+      for (const frame of held.splice(0)) releaseVisualFrame(frame);
+      return leaked.length === 0;
+    };
+
+    for (const entry of entries) {
+      const context = await browser.newContext({ viewport: VIEWPORT });
+      const page = await openLab(context);
+      wrapScreenshot(page, (shoot) => shoot());
+      const clean = await entry.capture(page);
+      check(`NEGATIVE CONTROL ${entry.name}: a clean window still captures`, clean.ok, outcome(clean));
+      framesReleased(clean);
+      await context.close();
+    }
+
+    /** R1a: the page visits the protected account route and comes back, all inside the real screenshot call. */
+    const visitProtected = (page: Page): { calls: () => number; saw: () => boolean } => {
+      let saw = false;
+      const spy = wrapScreenshot(page, async (shoot) => {
+        await page.goto(`${BASE}/visual-intelligence/account`, { waitUntil: "load" });
+        saw = (await checkProtectedSurface(page)).protected;
+        const shot = await shoot();
+        await page.goto(`${BASE}/visual-intelligence`, { waitUntil: "load" });
+        await page.getByTestId("vi-cal-red").waitFor();
+        return shot;
+      });
+      return { calls: spy.calls, saw: () => saw };
+    };
+    /** R1b: a password field is added before and removed after the real screenshot, with no navigation. */
+    const showPassword = (page: Page): { calls: () => number; saw: () => boolean } => {
+      let saw = false;
+      const spy = wrapScreenshot(page, async (shoot) => {
+        await page.evaluate(() => {
+          const field = document.createElement("input");
+          field.type = "password";
+          field.id = "window-pw";
+          document.body.appendChild(field);
+        });
+        saw = (await checkProtectedSurface(page)).protected;
+        const shot = await shoot();
+        await page.evaluate(() => document.getElementById("window-pw")?.remove());
+        return shot;
+      });
+      return { calls: spy.calls, saw: () => saw };
+    };
+
+    for (const entry of entries) {
+      const context = await browser.newContext({ viewport: VIEWPORT });
+      const page = await openLab(context);
+      const spy = visitProtected(page);
+      const result = await entry.capture(page);
+      const back = (await checkProtectedSurface(page)).protected === false;
+      check(
+        `R1a ${entry.name} precondition: the window really showed the protected page and the page is clean again`,
+        spy.calls() === 1 && spy.saw() && back,
+        `calls=${spy.calls()} protected=${spy.saw()} back=${back}`
+      );
+      check(`R1a ${entry.name}: the capture is refused ${entry.navigated} and returns no pixels`, !result.ok && outcome(result) === entry.navigated, outcome(result));
+      check(`R1a ${entry.name}: no frame it took is left usable`, framesReleased(result));
+      await context.close();
+    }
+
+    for (const entry of entries) {
+      const context = await browser.newContext({ viewport: VIEWPORT });
+      const page = await openLab(context);
+      const spy = showPassword(page);
+      const result = await entry.capture(page);
+      const gone = (await page.locator("#window-pw").count()) === 0 && (await checkProtectedSurface(page)).protected === false;
+      check(
+        `R1b ${entry.name} precondition: the field was protected while shown and is gone afterwards`,
+        spy.calls() === 1 && spy.saw() && gone,
+        `calls=${spy.calls()} protected=${spy.saw()} gone=${gone}`
+      );
+      check(`R1b ${entry.name}: the capture is refused PROTECTED_SURFACE and returns no pixels`, !result.ok && outcome(result) === "PROTECTED_SURFACE", outcome(result));
+      check(`R1b ${entry.name}: no frame it took is left usable`, framesReleased(result));
+      await context.close();
+    }
+
+    // Mutation: with the window watch removed, both cases leak pixels again (so the cases discriminate).
+    for (const [label, inject] of [
+      ["R1a", visitProtected],
+      ["R1b", showPassword]
+    ] as const) {
+      const context = await browser.newContext({ viewport: VIEWPORT });
+      const page = await openLab(context);
+      const spy = inject(page);
+      const mutant = await captureViewportWithSeams(page, {}, { watch: noWindow });
+      check(`MUTATION ${label}: without the capture window the viewport capture returns pixels (so the case discriminates)`, mutant.ok && spy.calls() === 1 && spy.saw(), outcome(mutant));
+      await context.close();
+    }
   }
 
   console.log("\nBrowser zoom / device-pixel-ratio disagreement:\n");

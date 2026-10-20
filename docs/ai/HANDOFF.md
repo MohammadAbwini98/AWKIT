@@ -1,6 +1,22 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-20, latest) — Security: awkit-3gtj capture residuals fixed, review pending
+## HANDOFF (2026-10-20, latest) — Security: Visual Intelligence capture window, awkit-2het
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:**
+  - The visual-capture window gap left open below was reproduced (R1a, R1b) and fixed in
+    `src/visual/internal/captureCore.ts`. The diagnosis adapter captures through it, so it needed no change.
+  - Contract `awkit-visual-capture-window-1020`. `awkit-2het` was filed under a project-state lease and the lease is
+    released.
+  - visual-capture 304/0, diagnosis-runtime 65/0, fanout 193/0, isolation 71/0, runner 138/0, build PASS.
+- **Open:**
+  - The independent security review of `awkit-2het` (it stays open until then).
+  - The pre-existing `typecheck:scripts` error at `scripts/verify-b2-protected-capture.mts:416`.
+- **Do not:** relax the capture-window R1a/R1b cases or their two window-off mutation controls.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-20) — Security: awkit-3gtj capture residuals fixed, review pending
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

@@ -170,7 +170,9 @@ try {
   // protected-capture defect `awkit-4b5y` (open).
   // Then 406 on 2026-10-20 (contract `awkit-trace-protected-1020`): the trace security defect `awkit-uoik` and its
   // hardening follow-up `awkit-3gtj` filed.
-  check("406 issues parse", beads.stats.total === 406, `got ${beads.stats.total}`);
+  // Then 407 on 2026-10-20 (contract `awkit-visual-capture-window-1020`): the visual capture-window defect
+  // `awkit-2het` filed.
+  check("407 issues parse", beads.stats.total === 407, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -763,8 +765,10 @@ try {
   // remediation turned `verify:trace-protected-capture` green; `awkit-3gtj` filed open.
   // Then 26/380 of 406 on 2026-10-20 (contract `awkit-3gtj-capture-residuals-1020`): `awkit-3gtj` closed after three
   // independent re-reviews, the last APPROVED, with every finding reproduced first.
-    "26 outstanding / 380 closed",
-    beads.stats.outstanding === 26 && beads.stats.closed === 380,
+  // Then 27/380 of 407 on 2026-10-20 (contract `awkit-visual-capture-window-1020`): `awkit-2het` filed open, fixed and
+  // awaiting an independent review.
+    "27 outstanding / 380 closed",
+    beads.stats.outstanding === 27 && beads.stats.closed === 380,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -893,9 +897,10 @@ try {
   // and two blocks edges, `.14.7` on `.14.4` and on `.14.6`, so a deferred `.14.5` keeps N5.7 gated. Measured.
   // Then 334 on 2026-10-20 (contract `awkit-trace-protected-1020`): `awkit-uoik` `discovered-from` `awkit-4b5y` and
   // `awkit-3gtj` `discovered-from` `awkit-uoik`. Measured.
+  // Then 335 on 2026-10-20 (contract `awkit-visual-capture-window-1020`): `awkit-2het` `discovered-from` `awkit-3gtj`.
   check(
-    "334 edges are present to classify",
-    beads.stats.edges === 334,
+    "335 edges are present to classify",
+    beads.stats.edges === 335,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(

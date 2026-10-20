@@ -1,6 +1,20 @@
 # CURRENT_STATE
 
-## Security: awkit-3gtj capture residuals reproduced and fixed (2026-10-20, latest)
+## Security: Visual Intelligence captures use the strict protected capture window (2026-10-20, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Reproduced first.** All four `captureCore` entries and the Visual Failure Diagnosis adapter checked protected
+  surfaces only before and after the screenshot (`awkit-2het`).
+  - R1a, a navigation to the protected page and back: `captureViewport` returned its pixels.
+  - R1b, a password field added and removed inside the screenshot call: reproduced on every entry.
+- **Fixed** with the same strict `watchProtectedWindow` that B2 and the screenshot paths use, opened before the first
+  check and closed after the second. Pixels stay in memory.
+- **Behaviour change:** a visual capture is refused when any frame navigates, attaches or detaches during it.
+- **Checks:** visual-capture 304/0, diagnosis-runtime 65/0, fanout 193/0, isolation 71/0, runner 138/0, build PASS.
+  The independent security review was NOT RUN. Details are in KNOWN_ISSUES.
+
+## Security: awkit-3gtj capture residuals reproduced and fixed (2026-10-20)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed.

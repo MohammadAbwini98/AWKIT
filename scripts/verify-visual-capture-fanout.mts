@@ -689,9 +689,14 @@ try {
     // Page is a Node EventEmitter at runtime; its public typings omit listenerCount.
     const emitter = page as unknown as { listenerCount(event: string): number };
     const listeners = (): number => emitter.listenerCount("framenavigated") + emitter.listenerCount("popup") + emitter.listenerCount("close");
+    // The strict protected capture window (awkit-3gtj follow-up) adds its own framenavigated and close listeners, plus
+    // frameattached, framedetached and console ones, for the length of the cycle.
+    const windowListeners = (): number => emitter.listenerCount("frameattached") + emitter.listenerCount("framedetached") + emitter.listenerCount("console");
     const baseline = listeners();
+    const windowBaseline = windowListeners();
     let frame: VisualCaptureFrame | undefined;
     let during = -1;
+    let windowDuring = -1;
     const result = await captureCandidatesWithSeams(page, labCandidates(page, LAB_IDS), {}, {
       onFrame: (f) => {
         frame = f;
@@ -699,10 +704,12 @@ try {
       },
       afterScreenshot: async () => {
         during = listeners();
+        windowDuring = windowListeners();
       }
     });
-    check("the cycle watched the page for invalidation while it ran", during === baseline + 3, `baseline ${baseline}, during ${during}`);
-    check("...and detached every listener when it ended", listeners() === baseline, `${listeners()}`);
+    check("the cycle watched the page for invalidation while it ran (3 frame-watch + 2 capture-window listeners)", during === baseline + 5, `baseline ${baseline}, during ${during}`);
+    check("...and the capture window watched frame attach, detach and its sentinel signal", windowDuring === windowBaseline + 3, `baseline ${windowBaseline}, during ${windowDuring}`);
+    check("...and detached every listener when it ended", listeners() === baseline && windowListeners() === windowBaseline, `${listeners()} / ${windowListeners()}`);
     check("the cycle's frame is released when it returns (crop is CAPTURE_STALE)", !!frame && outcome(cropFromVisualFrame(frame, { x: 20, y: 20, width: 100, height: 60 })) === "CAPTURE_STALE");
     if (result.ok && frame) {
       const f = result.value;

@@ -1,20 +1,30 @@
 {
-  "task": "awkit-3gtj-capture-residuals-1020",
-  "contract_path": "docs/ai/contracts/awkit-3gtj-capture-residuals-1020.json",
+  "task": "awkit-visual-capture-window-1020",
+  "contract_path": "docs/ai/contracts/awkit-visual-capture-window-1020.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-20T18:08:35.872Z",
-  "acquired_at_commit": "d99715b222f6b798741603345b6d12a34c6dbde5",
+  "acquired_at": "2026-10-20T18:35:39.162Z",
+  "acquired_at_commit": "3815960438a4f8fcf28570fbc01fdc5097a1501e",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-3gtj-capture-residuals-1020.json",
-    "docs/ai/contracts/awkit-l12-27-implementation-1006.json"
+    "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+    "docs/ai/contracts/awkit-visual-capture-window-1020.json",
+    "scripts/verify-visual-capture-fanout.mts",
+    "scripts/verify-visual-capture.mts",
+    "scripts/verify-visual-diagnosis-runtime.mts",
+    "src/visual/internal/captureCore.ts",
+    "src/visual/protectedGuard.ts"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-3gtj-capture-residuals-1020.json": "f1fd98fa82cd91160b1ba7ef1f7a34ec7505fe621a2a24a09f3ebe57ee570eaa",
-    "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+    "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
+    "docs/ai/contracts/awkit-visual-capture-window-1020.json": "c9a39f1a37afb22020a2d7c6b5ead996dc1a60ee47bdd84584c82cc9897d868f",
+    "scripts/verify-visual-capture-fanout.mts": "4940dfa4e179c690e6b434deae4117bfe83352e3e2da10ab6288f9cea0e75ac1",
+    "scripts/verify-visual-capture.mts": "2fe1219b4bd0a34d37b22538988b250102a1e4f28f18a753f8fbd8c0695e6f45",
+    "scripts/verify-visual-diagnosis-runtime.mts": "761bbaa07891b8ca3b908dc9f9bcb1112397d0607bd39e1b12b6e9c6c91a97a2",
+    "src/visual/internal/captureCore.ts": "83c1ef3daef68ea02a4b9f79a1c3a6a149c160a6b024b9ecb87b8e901296ce9c",
+    "src/visual/protectedGuard.ts": "1c79807b79297113917e5fa9a5fc03c58241555eddabe5df2463ddda4a4a1434"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -29,7 +39,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-20T18:08:46.607Z",
-  "released_reason": "awkit-3gtj closed and beads exported",
-  "archived_at": "2026-10-20T18:08:46.610Z"
+  "released_at": "2026-10-20T18:36:10.552Z",
+  "released_reason": "awkit-2het filed and beads exported",
+  "archived_at": "2026-10-20T18:36:10.554Z"
 }

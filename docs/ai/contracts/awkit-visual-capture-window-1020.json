@@ -1,0 +1,184 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-visual-capture-window-1020",
+    "title": "Security follow-up to awkit-3gtj: strict protected capture window for the Visual Intelligence capture paths",
+    "objective": "Reproduce in real Chromium, with synthetic fixtures only, the before/after-only window gap in src/visual/internal/captureCore.ts (captureViewport, captureElement, captureVisualFrame, captureCandidates) and in the Visual Failure Diagnosis adapter that captures through it: R1a the page visits a protected page and comes back inside the real screenshot call, R1b a password field is added and removed inside it. Fix by opening the strict watchProtectedWindow from the shared guard before the first check and closing it after the second, keeping the capture in memory. Record any case that cannot be reproduced with exact negative evidence in KNOWN_ISSUES.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 3
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "38159604",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "protected_login_change": true,
+    "project_state_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "qa",
+      "qc",
+      "security",
+      "project-state"
+    ],
+    "expected_paths": [
+      "src/visual/internal/captureCore.ts",
+      "src/visual/protectedGuard.ts",
+      "scripts/verify-visual-capture.mts",
+      "scripts/verify-visual-capture-fanout.mts",
+      "scripts/verify-visual-diagnosis-runtime.mts",
+      ".beads/**",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/contracts/awkit-visual-capture-window-1020.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [
+      "security"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "VCW-R1",
+      "description": "R1a and R1b through all four capture entries reproduce red before the fix and turn green only through it; a mutation that removes the window leaks pixels again; every earlier visual-capture case stays green.",
+      "evidence_required": [
+        "verify:visual-capture"
+      ]
+    },
+    {
+      "id": "VCW-DIAGNOSIS",
+      "description": "R1b through the real Visual Failure Diagnosis adapter reproduces red (a frame taken) before the fix and takes zero frames after it; every earlier diagnosis case stays green.",
+      "evidence_required": [
+        "verify:visual-diagnosis-runtime"
+      ]
+    },
+    {
+      "id": "VCW-REGRESSION",
+      "description": "verify:visual-capture-fanout, verify:visual-isolation, the visual runtime verifiers, verify:runner and npm run build pass against the final state.",
+      "evidence_required": [
+        "regression-suites",
+        "build"
+      ]
+    },
+    {
+      "id": "VCW-STATE",
+      "description": "KNOWN_ISSUES records each case as fixed or with exact negative evidence, and a Beads item is filed through bd under a project-state lease and exported.",
+      "evidence_required": [
+        "beads-update"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:visual-capture",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-capture",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "304 passed, 0 failed after the fix; baseline 296/6 with R1a captureViewport (pixels returned), R1a captureElement (refused only as TARGET_STALE) and R1b on all four entries red; R1a on captureVisualFrame and captureCandidates already refused CAPTURE_STALE by their navigation watch"
+    },
+    {
+      "id": "verify:visual-diagnosis-runtime",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-diagnosis-runtime",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "65 passed, 0 failed after the fix; baseline 64/1 with R1b red (taken 1, released 1)"
+    },
+    {
+      "id": "regression-suites",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-capture-fanout, verify:visual-isolation, verify:visual-fusion-runtime, verify:recorder-visual-capture, verify:recorded-visual-fallback, verify:visual-agreement-runtime, verify:runner",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "fanout 193/0 (its exact listener pin now counts the window's 2 extra framenavigated/close listeners and a new exact pin for its frameattached/framedetached/console ones), isolation 71/0, fusion-runtime 146/0, recorder-visual-capture 119/0, recorded-visual-fallback 71/71, agreement-runtime 81/0, runner 138/0"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc --noEmit and electron-vite bundles PASS against the final source"
+    },
+    {
+      "id": "beads-update",
+      "type": "inspection",
+      "required": true,
+      "command": "bd create",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "awkit-2het filed (P2 bug, discovered-from awkit-3gtj) under a project-state lease and exported (407 issues); it stays open for an independent security review; verify:roadmap-dashboard 177/177, Sources agree, after its tracker pins moved to 27/380 of 407 and 335 edges"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": false,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "commit to main only; push left to the owner"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": false
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-visual-capture-window-1020:project-state:2026-10-20T18:35:39.162Z",
+        "task": "awkit-visual-capture-window-1020",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-20T18:35:39.162Z",
+        "acquired_at_commit": "3815960438a4f8fcf28570fbc01fdc5097a1501e",
+        "released_at": "2026-10-20T18:36:10.552Z",
+        "released_reason": "awkit-2het filed and beads exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

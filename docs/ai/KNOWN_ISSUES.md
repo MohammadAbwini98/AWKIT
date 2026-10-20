@@ -146,8 +146,9 @@
     already refuses the capture.
   - A closed shadow root created *before* arming cannot be observed. The CDP pass still checks its state at each scan.
   - The `attachShadow` hook stays patched in an armed document. A page that kept the original reference bypasses it.
-  - Out of scope, tracked for triage: `src/visual/internal/captureCore.ts` and
-    `src/runner/visualDiagnosis/VisualFailureDiagnosis.ts` still use only before/after checks, without a window watch.
+  - ~~Out of scope, tracked for triage: `src/visual/internal/captureCore.ts` and
+    `src/runner/visualDiagnosis/VisualFailureDiagnosis.ts` still use only before/after checks, without a window watch.~~
+    Fixed 2026-10-20 in `awkit-2het`; see the section below.
   - A user `screenshot` step on any page with a password, OTP, CAPTCHA or passkey field now fails.
   - B2 evidence is lost when any frame navigates, attaches or detaches during its short capture window.
   - Every guard scan runs one extra pierced CDP document read. A huge DOM that overruns the 1.5 s frame budget is
@@ -158,6 +159,37 @@
   - The sentinel does not see changes inside a closed shadow root that existed before arming, or the moment between a
     trace frame's navigation and its re-arm. The scans at both ends still apply.
   - A page sees one `console.debug` of a random key when a protected field appears.
+
+## Visual Intelligence captures checked protected surfaces only before and after the screenshot (2026-10-20, FIXED 2026-10-20, `awkit-2het`)
+
+- **What.** `src/visual/internal/captureCore.ts` (`captureViewport`, `captureElement`, `captureVisualFrame`,
+  `captureCandidates`) ran `checkProtectedSurface` once before and once after its screenshot. The Visual Failure
+  Diagnosis adapter captures through `captureVisualFrame`, so it had the same gap. A protected surface shown and
+  hidden again between the two checks was invisible to both.
+- **Reproduced first, in real Chromium, synthetic fixtures only.** The B2 `wrapScreenshot` seam runs the change
+  inside the real `page.screenshot` call. Baseline: `verify:visual-capture` 296/6, `verify:visual-diagnosis-runtime`
+  64/1.
+  - **R1a** (the page visits `/visual-intelligence/account` and comes back). `captureViewport` returned the pixels:
+    reproduced. `captureElement` was refused, but only by accident as `TARGET_STALE`. **Not reproduced** on
+    `captureVisualFrame` and `captureCandidates`: their `framenavigated` page watch already refused `CAPTURE_STALE`.
+  - **R1b** (a password field added and removed, no navigation). Reproduced on all four entries, and through the
+    diagnosis adapter (one frame taken and used).
+- **Fix.** Each capture opens the strict `watchProtectedWindow` (re-exported by `src/visual/protectedGuard.ts`) before
+  its first check, and closes it after the second check. Pixels stay in memory and are dropped on refusal. No
+  `src/security` edit was needed. `captureElement` now runs its protected checks before re-measuring the target, so
+  R1a is refused as `PROTECTED_SURFACE`. On a shared frame, a window that saw only a navigation or close (no protected
+  field) is reported as the stale frame it is (`CAPTURE_STALE`).
+- **Result.** visual-capture **304/0**, including two mutation controls: with the window removed, R1a and R1b leak
+  viewport pixels again. diagnosis-runtime **65/0**, fanout 193/0, isolation 71/0, fusion-runtime 146/0,
+  recorder-visual-capture 119/0, recorded-visual-fallback 71/71, agreement-runtime 81/0, runner 138/0, build PASS.
+  - The fanout memory check pins listener counts exactly. It now counts the window's two extra
+    `framenavigated`/`close` listeners. A new exact pin covers its `frameattached`/`framedetached`/`console` listeners.
+  - The recheck mutation control switches the window off, so it still isolates the post-capture recheck.
+- **Residuals (accepted).** The same costs as the B2 strict window apply. Any frame navigation, attachment or
+  detachment during a capture refuses it. A capture now carries one sentinel arm and one read per frame.
+- **Not run.** An independent security review.
+- **Pre-existing, unrelated.** `npm run typecheck:scripts` reports
+  `scripts/verify-b2-protected-capture.mts(416,25): TS2554`. This task did not touch that file.
 
 ## Playwright failure traces and passive CDP observation samples kept protected-login pages (2026-10-20, RESOLVED 2026-10-20, `awkit-uoik`; residuals `awkit-3gtj`)
 

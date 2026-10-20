@@ -11,7 +11,8 @@
  *   C  examined scope: several matches with an identical other; over the cap (`truncated`, the identical element past
  *      the cap never counted, one inside it counted); an omitted contender never counted;
  *   D  refusals with ZERO frames: protected injection, a handed-off page, the secure-login fixture (the B2 P1 and P3
- *      paths), a sensitive field, a non-eligible step;
+ *      paths), a sensitive field, a non-eligible step; R1b, a password field shown and hidden again inside N0's real
+ *      screenshot call (both guard checks see a clean page), leaves zero frames (N0's strict capture window);
  *   E  when it runs: never on a passing step, once after the final of two attempts, and the per-signature cap;
  *   F  A/B neutrality: off and on give the same step result, error, attempts, B2 evidence kinds, page DOM, scroll and
  *      interaction count; the reference store's bytes never change;
@@ -58,7 +59,7 @@ import {
   type VisualDiagnosisRecord,
   type VisualFailureDiagnoser
 } from "@src/runner/visualDiagnosis/visualDiagnosisContract";
-import { buildVisualEvidence, captureElement, type VisualEvidence } from "@src/visual";
+import { buildVisualEvidence, captureElement, checkProtectedSurface, type VisualEvidence } from "@src/visual";
 
 let passed = 0;
 let failed = 0;
@@ -488,6 +489,43 @@ async function main(): Promise<void> {
       const d4 = await diagnose("d4", async () => ({ page: await freshLab(), step: { id: "d4", name: "Wait", type: "assertVisible", timeoutMs: 500, locator: { strategy: "testId", value: "nope" } } as unknown as FlowStep }));
       check("a non-element step refuses as not-eligible with zero frames", has(d4.record, "not-eligible") && d4.h.frames.taken === 0, `${show(d4.record)} ${JSON.stringify(d4.h.frames)}`);
       await d4.page.close();
+      // Capture window (R1b through the adapter): a password field is shown and hidden again inside N0's screenshot, so
+      // both of N0's guard checks see a clean page. The real screenshot is wrapped only once the diagnosis reaches its frame.
+      let windowShots = 0;
+      let windowShown = false;
+      const d7 = await diagnose("d7", async () => {
+        windowShots = 0;
+        windowShown = false;
+        const page = await freshLab();
+        const hold = async (stage: "before-frame" | "after-frame"): Promise<void> => {
+          if (stage !== "before-frame") return;
+          const original = page.screenshot.bind(page);
+          page.screenshot = (async (options?: Parameters<Page["screenshot"]>[0]) => {
+            windowShots += 1;
+            await page.evaluate(() => {
+              const field = document.createElement("input");
+              field.type = "password";
+              field.id = "window-pw";
+              document.body.appendChild(field);
+            });
+            windowShown = (await checkProtectedSurface(page)).protected;
+            try {
+              return await original(options);
+            } finally {
+              await page.evaluate(() => document.getElementById("window-pw")?.remove());
+            }
+          }) as Page["screenshot"];
+        };
+        return { page, step: fillStep("d7", tool(0)), options: { probe: { hold } } };
+      });
+      const d7Gone = (await d7.page.locator("#window-pw").count()) === 0;
+      check(
+        "R1b precondition: the diagnosis screenshot ran with a password field shown, which is gone afterwards",
+        windowShots === 1 && windowShown && d7Gone && !!d7.record && hasNot(d7.record, "budget-exhausted"),
+        `shots ${windowShots} protected ${windowShown} gone ${d7Gone} ${show(d7.record)}`
+      );
+      check("R1b: a protected field shown only inside the capture window leaves the diagnosis with zero frames", d7.h.frames.taken === 0, `${show(d7.record)} ${JSON.stringify(d7.h.frames)}`);
+      await d7.page.close();
     }
 
     // ── E. When it runs ────────────────────────────────────────────────────────────────────────

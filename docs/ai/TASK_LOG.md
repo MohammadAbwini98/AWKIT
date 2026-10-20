@@ -1,5 +1,31 @@
 # TASK_LOG
 
+## 2026-10-20 — Security: strict protected capture window for Visual Intelligence captures, awkit-2het (Claude)
+
+- **Scope:**
+  - The capture-window gap that `awkit-3gtj` left for triage, in `captureCore.ts` and the diagnosis adapter that
+    captures through it. Reproduced in real Chromium with synthetic fixtures before the fix.
+  - Contract `awkit-visual-capture-window-1020`, Risk 3. A project-state lease covered Beads. No `src/security` edit.
+  - CodeCraft: not used (`CODECRAFT_MODE=off` default).
+- **Change:** every `captureCore` entry opens the strict `watchProtectedWindow` before its first protected check and
+  closes it after the second, in memory. A `watch` verifier seam was added for the mutation controls.
+- **Files:**
+  - Source: `src/visual/internal/captureCore.ts`, `src/visual/protectedGuard.ts`.
+  - Scripts: `scripts/verify-{visual-capture,visual-capture-fanout,visual-diagnosis-runtime}.mts`.
+  - Docs and tracker: `docs/ai/{KNOWN_ISSUES,CURRENT_STATE,HANDOFF,TASK_LOG}.md`, the contract,
+    `.beads/issues.jsonl`.
+- **Checks:**
+  - Reproductions: visual-capture 296/6 → 304/0 (R1a on viewport and element, R1b on all four entries).
+    Diagnosis-runtime 64/1 → 65/0 (R1b).
+  - R1a on the two shared-frame entries was already refused `CAPTURE_STALE`. That is recorded as negative evidence.
+  - Regression: fanout 193/0 (exact listener pin updated for the window, plus a new pin), isolation 71/0,
+    fusion-runtime 146/0, recorder-visual-capture 119/0, recorded-visual-fallback 71/71, agreement-runtime 81/0,
+    runner 138/0.
+  - Build: PASS.
+  - `typecheck:scripts`: one pre-existing error in the untouched `verify-b2-protected-capture.mts`.
+  - Independent security review: NOT RUN.
+- **Result:** fixed. `awkit-2het` is filed and stays open for an independent review.
+
 ## 2026-10-20 — Security: awkit-3gtj capture residuals reproduced and fixed (Claude)
 
 - **Scope:**

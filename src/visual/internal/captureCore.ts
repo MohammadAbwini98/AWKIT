@@ -18,7 +18,15 @@ import {
   type PixelRect
 } from "../geometry";
 import { cropImage, decodePng, PngDecodeError, type VisualImage } from "../png";
-import { checkProtectedSurface, protectedCallerVerdict, type ProtectedCallerContext, type ProtectedGuardVerdict } from "../protectedGuard";
+import {
+  checkProtectedSurface,
+  protectedCallerVerdict,
+  watchProtectedWindow,
+  PROTECTED_FRAME_SCAN_TIMEOUT_MS,
+  type ProtectedCallerContext,
+  type ProtectedGuardVerdict,
+  type ProtectedWindowWatch
+} from "../protectedGuard";
 
 /**
  * Visual capture core (Phase N, N0; seams encapsulated in N2.1). INTERNAL: product code captures through
@@ -55,6 +63,8 @@ export interface VisualCaptureOptions extends ProtectedCallerContext {
 export interface VisualCaptureSeams {
   afterScreenshot?: (page: Page) => Promise<void>;
   guard?: (page: Page) => Promise<ProtectedGuardVerdict>;
+  /** Substitute the strict capture-window watch, so a mutation control can prove the watch is what refuses. */
+  watch?: (page: Page) => Promise<ProtectedWindowWatch>;
   /** N2.4: observe the shared frame of a candidate cycle, so `verify:visual-capture-fanout` can prove it is released. */
   onFrame?: (frame: VisualCaptureFrame) => void;
 }
@@ -192,6 +202,41 @@ async function assertNotProtected(page: Page, budget: Budget, seams: VisualCaptu
   if (verdict.protected) refuse("PROTECTED_SURFACE", `a protected surface is present ${when} (${verdict.reason ?? "unknown"})`);
 }
 
+/** One capture's strict protected window. `close` is idempotent: every later call returns the first verdict. */
+interface CaptureWindow {
+  close(): Promise<ProtectedGuardVerdict>;
+}
+
+/**
+ * Open the strict capture window (the awkit-3gtj watch B2 and the screenshot paths use) BEFORE the first guard check. A
+ * protected surface shown and hidden again between the two checks — a navigation away and back, a password field added
+ * and removed — is invisible to both; the window's mutation sentinel and frame-event watch catch it. Bounded by the
+ * scan timeout within the budget, and never throws: a page that cannot be watched closes the window protected.
+ */
+async function openCaptureWindow(page: Page, budget: Budget, seams: VisualCaptureSeams | undefined): Promise<CaptureWindow> {
+  const timeoutMs = Math.max(1, Math.min(PROTECTED_FRAME_SCAN_TIMEOUT_MS, budget.remaining()));
+  const open = seams?.watch ?? ((target: Page) => watchProtectedWindow(target, { strict: true, timeoutMs }));
+  let watch: ProtectedWindowWatch | null = null;
+  try {
+    watch = await open(page);
+  } catch {
+    watch = null;
+  }
+  let verdict: Promise<ProtectedGuardVerdict> | null = null;
+  return {
+    close: () =>
+      (verdict ??= watch
+        ? watch.finish().catch((): ProtectedGuardVerdict => ({ protected: true, reason: "frame-unscannable" }))
+        : Promise.resolve<ProtectedGuardVerdict>({ protected: true, reason: "frame-unscannable" }))
+  };
+}
+
+/** Close the window after the post-capture guard check; anything it saw refuses the capture. */
+async function assertWindowClean(captureWindow: CaptureWindow): Promise<void> {
+  const verdict = await captureWindow.close();
+  if (verdict.protected) refuse("PROTECTED_SURFACE", `a protected surface or page change was seen during capture (${verdict.reason ?? "unknown"})`);
+}
+
 interface ViewportMetrics {
   cssWidth: number;
   cssHeight: number;
@@ -282,13 +327,16 @@ export async function captureViewportWithSeams(
 ): Promise<VisualResult<VisualViewportCapture>> {
   const started = Date.now();
   const budget = new Budget(options.timeoutMs, options.signal);
+  let captureWindow: CaptureWindow | null = null;
   try {
     preflight(page, options);
+    captureWindow = await openCaptureWindow(page, budget, seams);
     await assertNotProtected(page, budget, seams, "before capture");
     const metrics = await measureViewport(page, budget);
     const { image, scale } = await screenshotViewport(page, budget, metrics);
     if (seams?.afterScreenshot) await budget.race(seams.afterScreenshot(page));
     await assertNotProtected(page, budget, seams, "after capture");
+    await assertWindowClean(captureWindow);
     budget.check();
     return visualSuccess({
       kind: "viewport",
@@ -299,6 +347,8 @@ export async function captureViewportWithSeams(
     });
   } catch (error) {
     return toFailure(error, page);
+  } finally {
+    if (captureWindow) await captureWindow.close();
   }
 }
 
@@ -336,8 +386,10 @@ export async function captureElementWithSeams(
   const started = Date.now();
   const budget = new Budget(options.timeoutMs, options.signal);
   let handle: ElementHandle | null = null;
+  let captureWindow: CaptureWindow | null = null;
   try {
     preflight(page, options);
+    captureWindow = await openCaptureWindow(page, budget, seams);
     await assertNotProtected(page, budget, seams, "before capture");
 
     const count = await budget.race(target.count());
@@ -357,10 +409,12 @@ export async function captureElementWithSeams(
 
     const { image, scale } = await screenshotViewport(page, budget, metrics);
     if (seams?.afterScreenshot) await budget.race(seams.afterScreenshot(page));
+    // Protection first: a page that left and came back inside the window must be refused as that, not as a stale target.
+    await assertNotProtected(page, budget, seams, "after capture");
+    await assertWindowClean(captureWindow);
 
     const after = await measureElement(handle, budget, !isMainFrame);
     if (cssRectsDiffer(before, after)) refuse("TARGET_STALE", "the target moved during capture");
-    await assertNotProtected(page, budget, seams, "after capture");
 
     const element = cropRegion(image, before, scale);
     if (!element) refuse("TARGET_OFFSCREEN", "the target is outside the viewport");
@@ -380,6 +434,7 @@ export async function captureElementWithSeams(
   } catch (error) {
     return toFailure(error, page);
   } finally {
+    if (captureWindow) await captureWindow.close();
     if (handle) await handle.dispose().catch(() => undefined);
   }
 }
@@ -591,24 +646,38 @@ async function assertFrameCurrent(frame: VisualCaptureFrame, budget: Budget): Pr
 }
 
 /**
- * The one post-screenshot check of a shared frame: the protected-surface guard, then `assertFrameCurrent`. A page
- * that closed after the screenshot cannot be scanned, so the guard fails closed; the frame is discarded either way,
- * and the cycle reports what happened — the capture is stale — rather than a protected surface it never saw.
+ * The one post-screenshot check of a shared frame: the protected-surface guard, the capture window, then
+ * `assertFrameCurrent`. A page that closed after the screenshot cannot be scanned, so the guard fails closed; the frame
+ * is discarded either way, and the cycle reports what happened — the capture is stale — rather than a protected surface
+ * it never saw. Likewise a window that only saw the page navigate or close (no protected field) reports the stale frame.
  */
-async function assertFrameAfterCapture(page: Page, frame: VisualCaptureFrame, budget: Budget, seams: VisualCaptureSeams | undefined): Promise<void> {
+async function assertFrameAfterCapture(
+  page: Page,
+  frame: VisualCaptureFrame,
+  budget: Budget,
+  seams: VisualCaptureSeams | undefined,
+  captureWindow: CaptureWindow
+): Promise<void> {
   try {
     await assertNotProtected(page, budget, seams, "after capture");
   } catch (error) {
     if (error instanceof VisualAbort && error.code === "PROTECTED_SURFACE" && page.isClosed()) refuse("CAPTURE_STALE", staleMessage("page-closed"));
     throw error;
   }
+  const seen = await captureWindow.close();
+  if (seen.protected) {
+    const stale = seen.reason === "window-changed" ? (page.isClosed() ? "page-closed" : staleReasonOf(frame)) : null;
+    if (stale) refuse("CAPTURE_STALE", staleMessage(stale));
+    await assertWindowClean(captureWindow);
+  }
   await assertFrameCurrent(frame, budget);
 }
 
 /**
  * Take ONE viewport screenshot of `page` as a shared frame, with optional verification seams. The protected-surface
- * guard runs once before and once after; a protected surface after the screenshot discards the frame. The caller owns
- * the frame and must `releaseVisualFrame` it when its decision cycle ends.
+ * guard runs once before and once after, inside one strict capture window; a protected surface after the screenshot, or
+ * one the window saw come and go, discards the frame. The caller owns the frame and must `releaseVisualFrame` it when
+ * its decision cycle ends.
  */
 export async function captureVisualFrameWithSeams(
   page: Page,
@@ -617,14 +686,16 @@ export async function captureVisualFrameWithSeams(
 ): Promise<VisualResult<VisualCaptureFrame>> {
   const budget = new Budget(options.timeoutMs, options.signal);
   let frame: VisualCaptureFrame | null = null;
+  let captureWindow: CaptureWindow | null = null;
   try {
     preflight(page, options);
+    captureWindow = await openCaptureWindow(page, budget, seams);
     await assertNotProtected(page, budget, seams, "before capture");
     const metrics = await measureViewport(page, budget);
     frame = (await shootFrame(page, budget, metrics, options)).frame;
     seams?.onFrame?.(frame);
     if (seams?.afterScreenshot) await budget.race(seams.afterScreenshot(page));
-    await assertFrameAfterCapture(page, frame, budget, seams);
+    await assertFrameAfterCapture(page, frame, budget, seams, captureWindow);
     budget.check();
     const owned = frame;
     frame = null;
@@ -633,6 +704,7 @@ export async function captureVisualFrameWithSeams(
     return toFailure(error, page);
   } finally {
     if (frame) releaseVisualFrame(frame);
+    if (captureWindow) await captureWindow.close();
   }
 }
 
@@ -785,8 +857,9 @@ function invalidCandidates(candidates: readonly VisualCandidateTarget[]): boolea
 
 /**
  * One visual decision cycle over `candidates` on `page`, with optional verification seams: resolve and measure every
- * candidate, take ONE viewport screenshot, guard it once before and once after, prove it still describes the page,
- * then re-measure and crop every candidate from that same frame. The frame is released before returning.
+ * candidate, take ONE viewport screenshot, guard it once before and once after inside one strict capture window, prove
+ * it still describes the page, then re-measure and crop every candidate from that same frame. The frame is released
+ * before returning.
  *
  * A candidate that cannot be resolved, measured or cropped fails on its own; the others are unaffected and nothing is
  * recaptured for it. A protected surface, a stale frame (navigation, popup, page close, viewport/DPR change), a closed
@@ -804,9 +877,11 @@ export async function captureCandidatesWithSeams(
   const padding = options.contextPaddingCss ?? DEFAULT_CONTEXT_PADDING_CSS;
   const resolved: ResolvedCandidate[] = [];
   let frame: VisualCaptureFrame | null = null;
+  let captureWindow: CaptureWindow | null = null;
   try {
     if (invalidCandidates(candidates)) refuse("CAPTURE_UNAVAILABLE", "the candidate list is empty-labelled, duplicated or too long");
     preflight(page, options);
+    captureWindow = await openCaptureWindow(page, budget, seams);
     await assertNotProtected(page, budget, seams, "before capture");
     const metrics = await measureViewport(page, budget);
 
@@ -848,7 +923,7 @@ export async function captureCandidatesWithSeams(
     timing.decodeMs = shot.decodeMs;
     seams?.onFrame?.(frame);
     if (seams?.afterScreenshot) await budget.race(seams.afterScreenshot(page));
-    await assertFrameAfterCapture(page, frame, budget, seams);
+    await assertFrameAfterCapture(page, frame, budget, seams, captureWindow);
 
     const viewport = { ...frame.viewport };
     for (const slot of resolved) {
@@ -915,6 +990,7 @@ export async function captureCandidatesWithSeams(
     return toFailure(error, page);
   } finally {
     if (frame) releaseVisualFrame(frame);
+    if (captureWindow) await captureWindow.close();
     await Promise.all(resolved.map((slot) => slot.handle.dispose().catch(() => undefined)));
   }
 }
