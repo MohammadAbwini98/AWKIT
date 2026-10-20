@@ -27,6 +27,21 @@
  *   T12 [onFailure] a protected popup opens and closes itself during the step (new-page watch alone).
  *   T13 [onFailure] a one-time-code field is added by script, no navigation (the scan before saving alone).
  *   T14 [onFailure] liveness: a page that never stops navigating still lets the failing step end (bounded wait).
+ *   T15 [onFailure] awkit-3gtj: a one-time-code field is added and removed again by script inside one chunk, with
+ *                  no navigation (it is gone before any scan runs).
+ *   T16 [onFailure] awkit-3gtj: a protected page loaded by an EARLIER step of the same context must not reach the
+ *                  trace a later ordinary failing step keeps (Playwright records network for the whole tracing
+ *                  session, not per chunk).
+ *   T17 [onFailure] awkit-3gtj: after a chunk is discarded for a protected surface, no raw trace file in Playwright's
+ *                  own temporary artifacts directory still holds the protected page (checked while the browser is
+ *                  still open — a pooled browser can stay open for many runs).
+ *   Independent-review reproductions (awkit-3gtj review F1, F2, F4):
+ *   T18 [onFailure] a PASSING step on a page that silences `console.debug` and adds a one-time-code field with no
+ *                  navigation: no raw file in Playwright's temp artifacts directory may still hold the page.
+ *   T19 [onFailure] a protected page whose markup carries a `sha1=".."` attribute (DOM attributes are serialized
+ *                  into the raw trace): the purge of its discarded session must still delete its raw files.
+ *   T20 [onFailure] a script-created about:blank child frame (no navigation event) shows a password field and empties
+ *                  it again; the failing step keeps nothing.
  *   U1  `markProtected` stops the open chunk's recording at once and the failed step keeps nothing; T2/T7 also
  *       assert the recording had stopped before the operator could act on the handoff.
  *   O1-O3 the passive CDP observation trace (on by default) writes no screenshot/DOM sample and no live view of a
@@ -43,6 +58,7 @@ import { createServer, type Server } from "node:http";
 import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { randomUUID } from "node:crypto";
 import { inflateRawSync } from "node:zlib";
 import { FlowExecutor } from "@src/runner/FlowExecutor";
 import { StepExecutor } from "@src/runner/StepExecutor";
@@ -100,6 +116,26 @@ const HASH_CHURN_HTML = `<!doctype html><html><head><title>Hash churn</title></h
 /** An ordinary page that adds a one-time-code field by script, with no navigation at all. */
 const INJECT_OTP_HTML = `<!doctype html><html><head><title>Late field</title></head><body><h1>Late field</h1>
   <script>setTimeout(function () { var i = document.createElement("input"); i.setAttribute("autocomplete", "one-time-code"); i.id = "late-otp"; document.body.appendChild(i); }, 500);</script></body></html>`;
+
+/** An ordinary page that adds a one-time-code field and removes it again, with no navigation (T15). */
+const INJECT_REMOVE_OTP_HTML = `<!doctype html><html><head><title>Blink field</title></head><body><h1>Blink field</h1>
+  <script>window.__otpCycle = "none";
+  setTimeout(function () { var i = document.createElement("input"); i.setAttribute("autocomplete", "one-time-code"); i.id = "blink-otp"; document.body.appendChild(i); window.__otpCycle = "added"; }, 1200);
+  setTimeout(function () { var i = document.getElementById("blink-otp"); if (i) i.remove(); window.__otpCycle = "removed"; }, 1800);</script></body></html>`;
+/** A marker unique to this run, so T17 cannot be confused by another process's Playwright artifacts. */
+const UNIQUE_MARKER = `t17-protected-${randomUUID()}`;
+const T18_MARKER = `t18-stub-${randomUUID()}`;
+const T19_MARKER = `t19-sha1-${randomUUID()}`;
+/** Silences console.debug, then adds a one-time-code field with no navigation (T18). */
+const STUB_OTP_HTML = `<!doctype html><html><head><title>Quiet</title><script>console.debug = function () {};</script></head><body>
+  <h1>Quiet</h1><p>${T18_MARKER}</p>
+  <script>setTimeout(function () { var i = document.createElement("input"); i.setAttribute("autocomplete", "one-time-code"); document.body.appendChild(i); }, 1200);</script></body></html>`;
+/** A blank child frame created by script, which shows a password field and empties it again (T20). */
+const BLANK_FRAME_HTML = `<!doctype html><html><head><title>Blank frame</title></head><body><h1>Blank frame</h1>
+  <script>window.__blankCycle = "none";
+  setTimeout(function () { var f = document.createElement("iframe"); f.id = "blank"; document.body.appendChild(f); window.__blankCycle = "frame"; }, 1000);
+  setTimeout(function () { var d = document.getElementById("blank").contentDocument; d.body.innerHTML = '<input type="password" id="blank-pw">'; window.__blankCycle = "shown"; }, 1400);
+  setTimeout(function () { var d = document.getElementById("blank").contentDocument; d.body.innerHTML = ""; window.__blankCycle = "hidden"; }, 1900);</script></body></html>`;
 
 function contextFor(root: string, id: string): InstanceExecutionContext {
   return {
@@ -186,25 +222,43 @@ interface Run {
   stopsAtHandoff: number;
 }
 
-/** Count `startChunk`/`stopChunk` calls made after this point on a context. */
+/**
+ * Count recording starts and stops made after this point on a context. `tracing.start` opens a chunk itself and
+ * `tracing.stop` stops the open one, so both are counted alongside `startChunk`/`stopChunk`.
+ */
 function spyChunks(context: BrowserContext): { starts: () => number; stops: () => number } {
   let starts = 0;
   let stops = 0;
-  const tracing = context.tracing as unknown as {
-    startChunk: (...args: unknown[]) => Promise<unknown>;
-    stopChunk: (...args: unknown[]) => Promise<unknown>;
-  };
-  const start = tracing.startChunk.bind(tracing);
-  const stop = tracing.stopChunk.bind(tracing);
-  tracing.startChunk = async (...args: unknown[]) => {
-    starts += 1;
-    return start(...args);
-  };
-  tracing.stopChunk = async (...args: unknown[]) => {
-    stops += 1;
-    return stop(...args);
-  };
+  const tracing = context.tracing as unknown as Record<"start" | "startChunk" | "stop" | "stopChunk", (...args: unknown[]) => Promise<unknown>>;
+  for (const name of ["start", "startChunk"] as const) {
+    const original = tracing[name].bind(tracing);
+    tracing[name] = async (...args: unknown[]) => {
+      starts += 1;
+      return original(...args);
+    };
+  }
+  for (const name of ["stop", "stopChunk"] as const) {
+    const original = tracing[name].bind(tracing);
+    tracing[name] = async (...args: unknown[]) => {
+      stops += 1;
+      return original(...args);
+    };
+  }
   return { starts: () => starts, stops: () => stops };
+}
+
+/** Every file under `root`, recursively. */
+async function listFiles(root: string): Promise<string[]> {
+  const out: string[] = [];
+  const walk = async (dir: string): Promise<void> => {
+    for (const entry of await readdir(dir, { withFileTypes: true }).catch(() => [])) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) await walk(full);
+      else out.push(full);
+    }
+  };
+  await walk(root);
+  return out;
 }
 
 interface Harness {
@@ -293,6 +347,11 @@ async function main(): Promise<void> {
     if (url.startsWith("/popup-blink")) return POPUP_BLINK_HTML;
     if (url.startsWith("/inject-otp")) return INJECT_OTP_HTML;
     if (url.startsWith("/hash-churn")) return HASH_CHURN_HTML;
+    if (url.startsWith("/inject-remove-otp")) return INJECT_REMOVE_OTP_HTML;
+    if (url.startsWith("/protected-unique")) return protectedHtml.replace("</body>", `<p data-testid="${UNIQUE_MARKER}">${UNIQUE_MARKER}</p></body>`);
+    if (url.startsWith("/stub-otp")) return STUB_OTP_HTML;
+    if (url.startsWith("/protected-sha1")) return protectedHtml.replace("</body>", `<div sha1="..">${T19_MARKER}</div></body>`);
+    if (url.startsWith("/blank-frame")) return BLANK_FRAME_HTML;
     return null;
   };
   const server: Server = createServer((req, res) => {
@@ -486,6 +545,138 @@ async function main(): Promise<void> {
       const run = await runTraced(h, "t14", "onFailure", neverAppears("t14"), "none");
       const elapsed = Date.now() - started;
       check("T14: the failing step still ends within its timeout plus the bounded scan wait", run.result.status === "failed" && elapsed < 3000 + 25_000, `${run.result.status} in ${elapsed} ms`);
+      await h.context.close();
+    }
+
+    // T15 — the field is gone again before the step ends, and no navigation happens: no end-of-step scan can see it.
+    console.log("\nT15 [onFailure] a one-time-code field is added and removed by script inside one chunk:");
+    {
+      const h = await harness("/inject-remove-otp");
+      const run = await runTraced(h, "t15", "onFailure", neverAppears("t15"), "none");
+      const cycle = await h.page.evaluate(() => (window as unknown as { __otpCycle?: string }).__otpCycle);
+      check("T15 precondition: the step failed after the field was added and removed again", run.result.status === "failed" && cycle === "removed" && run.chunksOpened >= 1, `${run.result.status} cycle=${cycle} chunks=${run.chunksOpened}`);
+      check("T15 security: no trace is retained and none is reported", run.traces.zips === 0 && !run.result.tracePath, describe(run.traces));
+      await h.context.close();
+    }
+
+    /** Run several steps through ONE executor and ONE TraceService on the harness context, as a real run does. */
+    const runSequence = async (h: Harness, id: string, steps: FlowStep[]): Promise<{ results: StepExecutionResult[]; starts: () => number }> => {
+      const context = contextFor(h.root, id);
+      const service = new TraceService(h.traceDir, "onFailure", () => undefined);
+      await service.attach(h.context);
+      const chunks = spyChunks(h.context);
+      const stepExecutor = new StepExecutor(h.page, new LocatorFactory(h.page), new ValueResolver(context), context, new ManualHandoffController(), undefined, undefined, undefined, undefined, undefined, undefined, service);
+      const flowExecutor = new FlowExecutor(stepExecutor) as unknown as { executeWithRetry(s: FlowStep, c: InstanceExecutionContext): Promise<StepExecutionResult> };
+      const results: StepExecutionResult[] = [];
+      for (const step of steps) results.push(await flowExecutor.executeWithRetry(step, context));
+      return { results, starts: chunks.starts };
+    };
+
+    // T16 — the protected page is only ever loaded by an earlier step; the later failing step is on an ordinary page.
+    console.log("\nT16 [onFailure] a protected page from an earlier step must not reach a later step's trace:");
+    {
+      const h = await harness("/plain");
+      const { results } = await runSequence(h, "t16", [
+        { id: "t16a", type: "goto", name: "Open login", url: `${origin}${PROTECTED_PATH}` } as unknown as FlowStep,
+        { id: "t16b", type: "goto", name: "Back", url: `${origin}/plain` } as unknown as FlowStep,
+        missingClick("t16c")
+      ]);
+      const traces = await inspectTraces(h.traceDir);
+      const statuses = results.map((r) => r.status).join(",");
+      check("T16 precondition: the two navigations passed, the ordinary click failed and kept its trace", statuses === "passed,passed,failed" && traces.zips === 1 && !!results[2].tracePath, `${statuses} ${describe(traces)}`);
+      check("T16 security: the kept ordinary trace holds nothing of the earlier protected page", !traces.protectedMarker, describe(traces));
+      await h.context.close();
+    }
+
+    // T17 — Playwright stages every chunk (trace events, network log, resources) in its own temp artifacts directory.
+    console.log("\nT17 [onFailure] Playwright's temporary trace files after a discarded protected chunk:");
+    {
+      const before = new Set((await readdir(tmpdir()).catch(() => [])).filter((name) => name.startsWith("playwright-artifacts-")));
+      const ownBrowser = await chromium.launch({ headless: true });
+      try {
+        const artifactDirs = (await readdir(tmpdir()).catch(() => [])).filter((name) => name.startsWith("playwright-artifacts-") && !before.has(name)).map((name) => join(tmpdir(), name));
+        const root = await mkdtemp(join(tmpdir(), "awkit-trace-"));
+        roots.push(root);
+        const context = await ownBrowser.newContext();
+        const page = await context.newPage();
+        await page.goto(`${origin}/plain`, { waitUntil: "load" });
+        const h: Harness = { context, page, root, traceDir: join(root, "traces") };
+        const { results, starts } = await runSequence(h, "t17", [{ id: "t17", type: "goto", name: "Open login", url: `${origin}/protected-unique` } as unknown as FlowStep]);
+        const files = (await Promise.all(artifactDirs.map((dir) => listFiles(dir)))).flat();
+        const holdingNames: string[] = [];
+        for (const file of files) if ((await readFile(file).catch(() => Buffer.alloc(0))).toString("latin1").includes(UNIQUE_MARKER)) holdingNames.push(file.slice(file.lastIndexOf("playwright-artifacts-")));
+        const holding = holdingNames.length;
+        const kept = await inspectTraces(h.traceDir);
+        check("T17 precondition: this browser's artifacts directory was found, a chunk was opened and the step passed", artifactDirs.length >= 1 && starts() >= 1 && results[0].status === "passed", `dirs=${artifactDirs.length} starts=${starts()} ${results[0].status}`);
+        check("T17 precondition: nothing was kept in the retained traces directory", kept.zips === 0, describe(kept));
+        check("T17 security: no raw file in Playwright's temp artifacts directory still holds the protected page", holding === 0, `files holding it: ${holding} of ${files.length} (${holdingNames.join(", ")})`);
+        await context.close();
+      } finally {
+        await ownBrowser.close().catch(() => undefined);
+      }
+    }
+
+    /** Run steps in a browser of their own, then count raw files in ITS Playwright artifacts directory holding `marker`. */
+    const inOwnBrowser = async (
+      id: string,
+      startPath: string,
+      steps: FlowStep[],
+      marker: string,
+      after?: (page: Page) => Promise<boolean>
+    ): Promise<{ statuses: string; starts: number; dirs: number; holding: string[]; files: number; kept: TraceFacts; afterOk: boolean }> => {
+      const before = new Set((await readdir(tmpdir()).catch(() => [])).filter((name) => name.startsWith("playwright-artifacts-")));
+      const ownBrowser = await chromium.launch({ headless: true });
+      try {
+        const artifactDirs = (await readdir(tmpdir()).catch(() => [])).filter((name) => name.startsWith("playwright-artifacts-") && !before.has(name)).map((name) => join(tmpdir(), name));
+        const root = await mkdtemp(join(tmpdir(), "awkit-trace-"));
+        roots.push(root);
+        const context = await ownBrowser.newContext();
+        const page = await context.newPage();
+        await page.goto(`${origin}${startPath}`, { waitUntil: "load" });
+        const h: Harness = { context, page, root, traceDir: join(root, "traces") };
+        const { results, starts } = await runSequence(h, id, steps);
+        const afterOk = after ? await after(page) : true;
+        const files = (await Promise.all(artifactDirs.map((dir) => listFiles(dir)))).flat();
+        const holding: string[] = [];
+        for (const file of files) if ((await readFile(file).catch(() => Buffer.alloc(0))).toString("latin1").includes(marker)) holding.push(file.slice(file.lastIndexOf("playwright-artifacts-")));
+        const kept = await inspectTraces(h.traceDir);
+        await context.close();
+        return { statuses: results.map((r) => r.status).join(","), starts: starts(), dirs: artifactDirs.length, holding, files: files.length, kept, afterOk };
+      } finally {
+        await ownBrowser.close().catch(() => undefined);
+      }
+    };
+
+    // T18 — the passing path: no save, no end scan before; the page silences the console signal.
+    console.log("\nT18 [onFailure] a passing step on a console-silencing page that adds a one-time-code field:");
+    {
+      const r = await inOwnBrowser(
+        "t18",
+        "/stub-otp",
+        [{ id: "t18", type: "wait", name: "Field", timeoutMs: 4000, locator: { strategy: "css", value: 'input[autocomplete="one-time-code"]' }, config: { waitType: "selector" } } as unknown as FlowStep],
+        T18_MARKER,
+        async (page) => (await page.locator('input[autocomplete="one-time-code"]').count()) === 1
+      );
+      check("T18 precondition: a session was started, the step passed and the field is present", r.dirs >= 1 && r.starts >= 1 && r.statuses === "passed" && r.afterOk, `dirs=${r.dirs} starts=${r.starts} ${r.statuses} field=${r.afterOk}`);
+      check("T18 security: no raw file in Playwright's temp artifacts directory still holds the page", r.holding.length === 0, `files holding it: ${r.holding.length} of ${r.files} (${r.holding.join(", ")})`);
+    }
+
+    // T19 — page markup must not be able to steer (or abort) the purge.
+    console.log("\nT19 [onFailure] a protected page whose markup carries a sha1 attribute:");
+    {
+      const r = await inOwnBrowser("t19", "/plain", [{ id: "t19", type: "goto", name: "Open login", url: `${origin}/protected-sha1` } as unknown as FlowStep], T19_MARKER);
+      check("T19 precondition: a session was started, the step passed and nothing was kept", r.dirs >= 1 && r.starts >= 1 && r.statuses === "passed" && r.kept.zips === 0, `dirs=${r.dirs} starts=${r.starts} ${r.statuses} ${describe(r.kept)}`);
+      check("T19 security: the discarded session's raw files are still purged", r.holding.length === 0, `files holding it: ${r.holding.length} of ${r.files} (${r.holding.join(", ")})`);
+    }
+
+    // T20 — a frame that never navigates is never scanned on navigation; only a sentinel armed in it can see the field.
+    console.log("\nT20 [onFailure] a script-created blank frame shows a password field and empties it again:");
+    {
+      const h = await harness("/blank-frame");
+      const run = await runTraced(h, "t20", "onFailure", neverAppears("t20"), "none");
+      const cycle = await h.page.evaluate(() => (window as unknown as { __blankCycle?: string }).__blankCycle);
+      check("T20 precondition: the step failed after the field was shown and emptied, with a session open", run.result.status === "failed" && cycle === "hidden" && run.chunksOpened >= 1, `${run.result.status} cycle=${cycle} chunks=${run.chunksOpened}`);
+      check("T20 security: no trace is retained and none is reported", run.traces.zips === 0 && !run.result.tracePath, describe(run.traces));
       await h.context.close();
     }
 

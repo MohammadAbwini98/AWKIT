@@ -37,6 +37,93 @@
 - **Effect, resolved:** N5.5 was held open until the workaround run passed. Do not substitute a flag such as
   `--disable-gpu` to claim a GUI gate.
 
+## Capture residuals near protected-login pages: B2 window, late screenshots, closed shadow roots, screenshot step, trace network and temp files (2026-10-20, RESOLVED 2026-10-20, `awkit-3gtj`)
+
+- **Reproduced first, in real Chromium with synthetic fixtures**, against `0bf6ada2`:
+  - `verify:b2-protected-capture` **22 passed / 8 failed**. R1a and R1b failed: the page visited the protected page
+    and came back, or a password field came and went, inside the capture window, and 3 page-capture files were kept.
+    R2 failed twice: a screenshot that overran the 5 s budget finished late and left an unreferenced PNG. R4 failed: a
+    password field in a closed shadow root left screenshot, DOM and a11y files. R5 failed three times: the user
+    `screenshot` step and `ScreenshotService.capture` wrote a PNG of the protected fixture and reported its path.
+  - `verify:trace-protected-capture` **54 passed / 3 failed**. T15 failed: a one-time-code field was added and removed
+    by script with no navigation, and the chunk was saved. T16 failed, a new finding: Playwright records network for
+    the whole tracing session rather than per chunk, so the protected page an EARLIER step loaded ended up inside
+    a later ordinary step's kept ZIP. T17 failed: after a discarded protected chunk, the session's `.trace` file
+    and the page's HTML body stayed in Playwright's `playwright-artifacts-*` temp dir while the browser was open.
+- **Remediated.**
+  - **B2, screenshot step, `ScreenshotService`.** Capture goes into memory inside a strict `watchProtectedWindow`:
+    - a mutation sentinel in every frame, plus a console signal;
+    - any frame navigation or attachment, or the page closing, refuses;
+    - files are written only after the window verdict and the re-check are clean.
+
+    A refused or late capture never reaches the disk, so B2 no longer deletes files. A refused user `screenshot` step
+    **fails** with `Screenshot refused: the page is a protected-login surface (...)`, and nothing is written.
+  - **Guard.** `checkProtectedSurface` adds a CDP `DOM.getDocument({ pierce: true })` pass over the page and each
+    out-of-process frame. Its attribute rules mirror the selector list, so it sees closed shadow roots.
+  - **Traces.**
+    - Each step runs in its own tracing session, so nothing (network included) is recorded between steps.
+    - Every page carries a sentinel, which taints the session the moment a protected field appears.
+    - A tainted session's raw files are deleted from the artifacts dir: its trace and network logs and every resource
+      they name. A taint that arrives after a passing step already stopped still purges.
+    - Discarded steps wait up to one scan budget for in-flight scans.
+  - **Result (first round).** b2 **30/0**, trace **57/0**, failure-evidence-live 17/0, runner 138/0,
+    visual-capture 274/0, visual-isolation 71/0, build PASS. The review round below supersedes these counts.
+  - **Runner fixture change.** `verify:runner` moved its two screenshot checks, assertions unchanged, from `/form` to
+    `/recorder-lab`. `/form` carries a real `type="password"` field, which the step now refuses.
+- **Not reproduced (exact negative evidence).**
+  - **B2 swallowed `unlink` (finding 3).** Moot: B2 has no `unlink` left, because nothing is written before the clean
+    re-check. R1a, R1b and R2 list the whole evidence root and find no page-capture or orphan file.
+  - **Refused trace ZIP surviving a failed `unlink` (finding 6c).** Could not be induced in a real run on this
+    platform. libuv opens files with `FILE_SHARE_DELETE` and clears the read-only bit before deleting, so neither an
+    open handle from this process nor the read-only attribute makes `unlink` fail. Denying delete through an ACL is a
+    security-setting change and was not done. The ESM `node:fs/promises` binding cannot be stubbed from the verifier.
+    The failure is not silent: `TraceService` warns `could not delete refused trace` and still reports no path. The
+    session's raw temp files are purged regardless. The residual is a refused ZIP left in the traces dir if the delete
+    really fails.
+- **Independent security review (fresh context, 2026-10-20): CHANGES REQUIRED. Each finding was reproduced, then
+  fixed.**
+  - **Baselines:** b2 **35/4**, with R6a, R6b, R6c and R7 red. Trace **61/2**, with T18 and T19 red.
+  - **F1, T18.** A *passing* traced step dropped its sentinel latch. A page that silenced `console.debug` and added a
+    one-time-code field with no navigation left the session's `.trace` in the temp artifacts dir. The passing path now
+    reads every latch before it disposes, and taints and purges on a hit. The window watch also reads latches
+    *before* it stops listening.
+  - **F2, T19.** The purge regex ran over raw trace text, so a page attribute `sha1=".."` aborted it with EISDIR and
+    the session's own files stayed. The purge now parses JSON lines and collects only Playwright's own resource
+    fields. Names must match `<40-hex>[.ext]` or `page@<guid>-<ms>.jpeg`. Deletes run through `allSettled`, and the
+    session's own files are always deleted.
+  - **F3, R6a, R6b, R6c.** Sentinel blind spots, now fixed:
+    - shadow roots nested inside open shadow roots are now walked recursively, at arm time and in added subtrees;
+    - `attachShadow` during the window is caught by one shared hook per document, which also covers closed roots;
+    - in strict mode, removing a frame is now a window change.
+  - **F4(i), R7.** Any CDP frame-session failure other than Playwright's "does not have a separate CDP session"
+    now makes the page unscannable.
+  - **Not reproduced (negative evidence).**
+    - **F4(ii), T20.** The reviewer's case was a frame that is never armed. A script-created blank frame that shows
+      a password field and empties it again was still caught, so T20 was green before the fix and nothing was
+      changed for it.
+    - **F4(iii).** `beginStep` starts tracing after the sentinels armed even if one tainted in between. This could
+      not be timed deterministically. The code already stops and purges such a session right after `start`, so the
+      effect is a short recording that is deleted, not kept.
+  - **Results after the fix:** b2 **39/0**, trace **63/0**, failure-evidence-live 17/0, runner 138/0, visual-capture
+    274/0, build PASS.
+- **Costs and residuals (accepted).**
+  - In trace mode, a field in a document that silences `console.debug` and then navigates or detaches before the step
+    ends loses its latch with the document. Scans at both ends still apply.
+  - A closed shadow root created *before* arming cannot be observed. The CDP pass still checks its state at each scan.
+  - The `attachShadow` hook stays patched in an armed document. A page that kept the original reference bypasses it.
+  - Out of scope, tracked for triage: `src/visual/internal/captureCore.ts` and
+    `src/runner/visualDiagnosis/VisualFailureDiagnosis.ts` still use only before/after checks, without a window watch.
+  - A user `screenshot` step on any page with a password, OTP, CAPTCHA or passkey field now fails.
+  - B2 evidence is lost when any frame navigates or attaches during its short capture window.
+  - Every guard scan runs one extra pierced CDP document read. A huge DOM that overruns the 1.5 s frame budget is
+    unscannable, so the capture is refused.
+  - A passing traced step that navigated waits up to 5 s for its in-flight scans.
+  - A later trace that shares a purged resource (CSS or an image) with a tainted session renders without it.
+  - The purge only finds Playwright's default artifacts dir. The runner sets no `tracesDir`.
+  - The sentinel does not see changes inside a closed shadow root that existed before arming, or the moment between a
+    trace frame's navigation and its re-arm. The scans at both ends still apply.
+  - A page sees one `console.debug` of a random key when a protected field appears.
+
 ## Playwright failure traces and passive CDP observation samples kept protected-login pages (2026-10-20, RESOLVED 2026-10-20, `awkit-uoik`; residuals `awkit-3gtj`)
 
 - **What.** `TraceService` traced every context with screenshots and DOM snapshots and saved a failed step's chunk
@@ -69,12 +156,9 @@
     example a sign-in widget) lose their failure trace.
   - Values typed into ordinary fields still appear in ordinary traces (C1), which is Playwright's normal snapshot
     behaviour.
-- **Residual (`awkit-3gtj`, not reproduced).**
-  - A protected field injected and then removed with no navigation, inside one chunk, can still be saved.
-  - Discarded chunks leave raw material in Playwright's temporary artifacts directory until the browser closes. This
-    is inferred, not verified.
-  - A refused ZIP survives a failed `unlink`.
-  - The user `screenshot` step and `ScreenshotService` are unguarded.
+- **Residuals (`awkit-3gtj`).** Reproduced and fixed on 2026-10-20: the inject-then-remove field (T15), the temp
+  artifacts residue (T17), the unguarded screenshot step and `ScreenshotService`, and the new cross-step network leak
+  (T16). The ZIP left by a failed `unlink` is recorded with negative evidence. See the `awkit-3gtj` section above.
 - **Gate note.** `verify:similar-rows-safety` passes every assertion but exits 1 on an EPERM when it removes the
   staged parser-only host's temp directory (`scripts/dom-intelligence/stagedHost.mts:49`). This happened twice on
   2026-10-20 on this VM, so it is recorded as INCONCLUSIVE (environment, not product).
@@ -88,6 +172,10 @@
   - A failed `unlink` is swallowed.
   - Closed shadow roots are skipped.
   - The verifier does not see orphan files.
+  - **2026-10-20 (`awkit-3gtj`):** the window change, the late PNG, the closed shadow root and the orphan blind spot
+    were reproduced (R1a, R1b, R2, R4) and fixed. The swallowed `unlink` is moot because B2 no longer writes before
+    its re-check. `awkit-4b5y` was not reopened: these were separate residuals, now tracked and closed under
+    `awkit-3gtj`.
 - **Regression found and fixed.** In `f00143d7` the refusal path recorded a single `meta` note. That broke B2.5:
   `verify:failure-evidence-live` went 16/1 on a closed page. A refusal now records a no-path note for each of
   screenshot, DOM and a11y, and the suite is 17/0.

@@ -1,4 +1,4 @@
-import { access, mkdir, unlink, writeFile } from "node:fs/promises";
+import { access, mkdir, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import type { Locator, Page, Response } from "playwright";
 import { locatorFrameChain, type AsyncCompletionMode, type DialogExpectation, type FlowStep, type NodeConfig, type StepLocator, type WaitCondition } from "@src/profiles/FlowProfile";
@@ -32,7 +32,7 @@ import { safeMessageForCategory } from "@src/oracle/OracleErrors";
 import { OracleBridgeCallError } from "@src/oracle/OracleBridgeProtocol";
 import { armNetworkObservation, type ArmedNetworkObservation } from "./NetworkDiagnosticsObserver";
 import { createPageFingerprint, fingerprintsEqual, hashFingerprint } from "./locatorFingerprint";
-import { checkProtectedSurface, protectedCallerVerdict, type ProtectedGuardVerdict } from "@src/security/ProtectedSurfaceGuard";
+import { checkProtectedSurface, protectedCallerVerdict, watchProtectedWindow, type ProtectedGuardVerdict } from "@src/security/ProtectedSurfaceGuard";
 
 /** Upper bound for the protected-surface scan that gates each B2 failure capture (awkit-4b5y). */
 const PROTECTED_CAPTURE_SCAN_BUDGET_MS = 5_000;
@@ -1748,12 +1748,17 @@ export class StepExecutor {
 
     // awkit-4b5y: never photograph or serialize a protected-login surface. The step's own handoff state and type refuse
     // without touching the page; otherwise N0's protected-surface scan must prove the page clean first. Fails closed.
-    const refusal = await this.protectedCaptureRefusal(step, page);
+    // awkit-3gtj: the window between that check and the re-check below is watched (strict), so a protected field that
+    // comes and goes inside it, or any frame navigation, still refuses.
+    const callerRefusal = this.protectedCallerRefusal(step);
+    const watch = callerRefusal ? undefined : await watchProtectedWindow(page, { strict: true });
+    const refusal = callerRefusal ?? (await this.protectedCaptureRefusal(step, page));
     // B2.5: every page-dependent capture still gets its secondary-diagnostic note, never a file.
     const notePageCaptures = (what: string): void => {
       for (const kind of ["screenshot", "dom", "a11y"] as const) record(kind, undefined, `${kind} capture ${what}`);
     };
-    if (refusal) {
+    if (refusal || !watch) {
+      await watch?.finish();
       record("meta", undefined, `page captures skipped: protected surface (${refusal})`);
       notePageCaptures(`skipped: protected surface (${refusal})`);
       return refs;
@@ -1773,10 +1778,10 @@ export class StepExecutor {
     // Defence in depth: even after sanitizing, confirm the directory resolves inside the evidence root
     // before writing anything. If it somehow escapes, skip all captures with a secondary diagnostic.
     if (!isPathInside(evidenceRoot, dir)) {
+      await watch.finish();
       record("meta", undefined, `evidence directory escaped the evidence root; captures skipped`);
       return refs;
     }
-    await mkdir(dir, { recursive: true }).catch(() => undefined);
 
     // Bound each individual capture so a hung page cannot block the failure path indefinitely (B2.6).
     // The timer is always cleared once the race settles so it never fires late as an unhandled rejection.
@@ -1795,53 +1800,57 @@ export class StepExecutor {
       return isPathInside(dir, path) ? path : undefined;
     };
 
+    // awkit-3gtj: every page capture is taken into MEMORY first and written only after the window and the re-check
+    // below prove it clean — a refused capture, or one that completes after its budget, never reaches the disk.
+    type PageCapture = { kind: "screenshot" | "dom" | "a11y"; name: string; body?: Buffer | string; note?: string };
+    const captures: PageCapture[] = [];
+    const take = async (kind: PageCapture["kind"], name: string, work: () => Promise<Buffer | string>): Promise<void> => {
+      try {
+        if (!confinedPath(name)) throw new Error(`${kind} path escaped the evidence root`);
+        captures.push({ kind, name, body: await bounded(work()) });
+      } catch (error) {
+        captures.push({ kind, name, note: `${kind} capture failed: ${noteFor(error)}` });
+      }
+    };
+
     // Screenshot — staggered across instances by the screenshot operation limiter (A6).
-    try {
-      const path = confinedPath(`${base}.png`);
-      if (!path) throw new Error("screenshot path escaped the evidence root");
-      await bounded(this.limitOp("screenshot", () => page.screenshot({ path, fullPage: true })));
-      record("screenshot", path);
-    } catch (error) {
-      record("screenshot", undefined, `screenshot capture failed: ${noteFor(error)}`);
-    }
+    await take("screenshot", `${base}.png`, () => this.limitOp("screenshot", () => page.screenshot({ fullPage: true })));
 
     // DOM HTML snapshot (secret-masked).
-    try {
-      const path = confinedPath(`${base}.html`);
-      if (!path) throw new Error("dom path escaped the evidence root");
-      const html = await bounded(page.content());
-      await writeFile(path, this.evidenceMasker.maskText(html), "utf8");
-      record("dom", path);
-    } catch (error) {
-      record("dom", undefined, `dom capture failed: ${noteFor(error)}`);
-    }
+    await take("dom", `${base}.html`, async () => this.evidenceMasker.maskText(await page.content()));
 
     // Accessibility (aria) snapshot (secret-masked). Accessed defensively so a Playwright API change
     // degrades to a secondary diagnostic rather than a build/runtime break.
-    try {
-      const path = confinedPath(`${base}.a11y.yaml`);
-      if (!path) throw new Error("a11y path escaped the evidence root");
+    await take("a11y", `${base}.a11y.yaml`, async () => {
       const bodyLocator = page.locator("body");
       const ariaSnapshot = (bodyLocator as unknown as { ariaSnapshot?: () => Promise<string> }).ariaSnapshot;
       if (typeof ariaSnapshot !== "function") throw new Error("ariaSnapshot unavailable in this Playwright build");
-      const snapshot = await bounded(ariaSnapshot.call(bodyLocator));
-      await writeFile(path, this.evidenceMasker.maskText(snapshot ?? ""), "utf8");
-      record("a11y", path);
-    } catch (error) {
-      record("a11y", undefined, `a11y capture failed: ${noteFor(error)}`);
-    }
+      return this.evidenceMasker.maskText((await ariaSnapshot.call(bodyLocator)) ?? "");
+    });
 
-    // awkit-4b5y: re-check after capturing, so a protected field that appeared meanwhile still discards every file.
-    const lateRefusal = await this.protectedCaptureRefusal(step, page);
+    // awkit-4b5y: re-check after capturing, so a protected field that appeared meanwhile still discards every capture.
+    // awkit-3gtj: the window verdict comes first — a field that has already gone again is only visible to it.
+    const windowVerdict = await watch.finish();
+    const lateRefusal = windowVerdict.protected ? (windowVerdict.reason ?? "frame-unscannable") : await this.protectedCaptureRefusal(step, page);
     if (lateRefusal) {
-      const written = refs.filter((ref) => ref.path && (ref.kind === "screenshot" || ref.kind === "dom" || ref.kind === "a11y"));
-      await Promise.all(written.map((ref) => unlink(ref.path as string).catch(() => undefined)));
-      const kept = refs.filter((ref) => ref.kind !== "screenshot" && ref.kind !== "dom" && ref.kind !== "a11y");
-      refs.length = 0;
-      refs.push(...kept);
       record("meta", undefined, `page captures discarded: protected surface (${lateRefusal})`);
       notePageCaptures(`discarded: protected surface (${lateRefusal})`);
       return refs;
+    }
+
+    await mkdir(dir, { recursive: true }).catch(() => undefined);
+    for (const capture of captures) {
+      const path = confinedPath(capture.name);
+      if (capture.body === undefined || !path) {
+        record(capture.kind, undefined, capture.note ?? `${capture.kind} capture failed: path escaped the evidence root`);
+        continue;
+      }
+      try {
+        await writeFile(path, capture.body, typeof capture.body === "string" ? "utf8" : undefined);
+        record(capture.kind, path);
+      } catch (error) {
+        record(capture.kind, undefined, `${capture.kind} capture failed: ${noteFor(error)}`);
+      }
     }
 
     // Page meta (URL + title), secret-masked — URLs can carry tokens in query parameters.
@@ -1872,8 +1881,8 @@ export class StepExecutor {
    * that throws or overruns refuses (absence of a protected surface was not proven).
    */
   private async protectedCaptureRefusal(step: FlowStep, page: Page): Promise<string | undefined> {
-    const caller = protectedCallerVerdict({ stepType: step.type, handedOff: this.protectedHandoffSteps.has(step.id) });
-    if (caller.protected) return caller.reason;
+    const caller = this.protectedCallerRefusal(step);
+    if (caller) return caller;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const overrun = new Promise<ProtectedGuardVerdict>((resolve) => {
       timer = setTimeout(() => resolve({ protected: true, reason: "frame-unscannable" }), PROTECTED_CAPTURE_SCAN_BUDGET_MS);
@@ -1883,6 +1892,12 @@ export class StepExecutor {
       overrun
     ]).finally(() => clearTimeout(timer));
     return verdict.protected ? (verdict.reason ?? "frame-unscannable") : undefined;
+  }
+
+  /** The refusals that need no page at all: a protected-login step type, or a step whose attempt handed off. */
+  private protectedCallerRefusal(step: FlowStep): string | undefined {
+    const caller = protectedCallerVerdict({ stepType: step.type, handedOff: this.protectedHandoffSteps.has(step.id) });
+    return caller.protected ? (caller.reason ?? "protected-step") : undefined;
   }
 
   private async executeStep(
@@ -2998,14 +3013,31 @@ export class StepExecutor {
   private async takeScreenshot(step: FlowStep, suffix: string, options?: { fullPage?: boolean; element?: Locator }): Promise<string> {
     const flowId = this.context.flowId ?? "flow";
     const screenshotDir = join(this.context.paths.screenshots, this.context.executionId, this.context.instanceId, flowId);
-    await mkdir(screenshotDir, { recursive: true });
     const screenshotPath = join(screenshotDir, `${step.id}-${suffix}.png`);
-    if (options?.element) {
-      const element = options.element;
-      await this.limitOp("screenshot", () => element.screenshot({ path: screenshotPath }));
-    } else {
-      await this.limitOp("screenshot", () => this.activePage.screenshot({ path: screenshotPath, fullPage: options?.fullPage ?? true }));
+    // awkit-3gtj: the same guard as the B2 failure capture. The image is taken into memory inside a watched window and
+    // written only once the window and a re-check prove the page clean; a refusal fails the step and writes nothing.
+    const element = options?.element;
+    const page = element ? element.page() : this.activePage;
+    const refused = (reason: string): Error => new Error(`Screenshot refused: the page is a protected-login surface (${reason}). Nothing was written.`);
+    const callerRefusal = this.protectedCallerRefusal(step);
+    if (callerRefusal) throw refused(callerRefusal);
+    const watch = await watchProtectedWindow(page, { strict: true });
+    let image: Buffer;
+    try {
+      const refusal = await this.protectedCaptureRefusal(step, page);
+      if (refusal) throw refused(refusal);
+      image = element
+        ? await this.limitOp("screenshot", () => element.screenshot())
+        : await this.limitOp("screenshot", () => page.screenshot({ fullPage: options?.fullPage ?? true }));
+    } catch (error) {
+      await watch.finish();
+      throw error;
     }
+    const verdict = await watch.finish();
+    const lateRefusal = verdict.protected ? (verdict.reason ?? "frame-unscannable") : await this.protectedCaptureRefusal(step, page);
+    if (lateRefusal) throw refused(lateRefusal);
+    await mkdir(screenshotDir, { recursive: true });
+    await writeFile(screenshotPath, image);
     return screenshotPath;
   }
 

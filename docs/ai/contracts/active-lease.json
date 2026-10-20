@@ -1,36 +1,46 @@
 {
-  "task": "awkit-trace-protected-1020",
-  "contract_path": "docs/ai/contracts/awkit-trace-protected-1020.json",
-  "holder": "project-state",
+  "task": "awkit-3gtj-capture-residuals-1020",
+  "contract_path": "docs/ai/contracts/awkit-3gtj-capture-residuals-1020.json",
+  "holder": "security",
   "status": "released",
   "allowed_paths": [
-    ".beads/**"
+    "src/security/ProtectedSurfaceGuard.ts"
   ],
-  "acquired_at": "2026-10-20T08:33:15.527Z",
-  "acquired_at_commit": "f00143d7753be35da3cf7265c8d0070961e4b4ab",
+  "acquired_at": "2026-10-20T13:24:10.336Z",
+  "acquired_at_commit": "0bf6ada2085c6dfb7f2dfa0619485e1eee6925cb",
   "baseline_dirty": [
+    ".beads/issues.jsonl",
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/HANDOFF.md",
+    "docs/ai/KNOWN_ISSUES.md",
+    "docs/ai/TASK_LOG.md",
+    "docs/ai/contracts/active-lease.json",
+    "docs/ai/contracts/awkit-3gtj-capture-residuals-1020.json",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-trace-protected-1020.json",
-    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
-    "package.json",
-    "scripts/lib/verifier-classification.ts",
+    "scripts/verify-b2-protected-capture.mts",
+    "scripts/verify-runner.mts",
     "scripts/verify-trace-protected-capture.mts",
+    "src/reports/ScreenshotService.ts",
     "src/runner/StepExecutor.ts",
     "src/runner/artifacts/TraceService.ts",
-    "src/runner/observation/PassiveCdpTrace.ts",
-    "src/runner/protectedSurfaceScan.ts"
+    "src/security/ProtectedSurfaceGuard.ts"
   ],
   "baseline_dirty_fingerprints": {
+    ".beads/issues.jsonl": "ac50a1d9845e104cb1777788b8c3a957dbca14fe1a394a305efd07bde24991f5",
+    "docs/ai/CURRENT_STATE.md": "5cfa00c8f005f3d00c0a4836901498f44d2777157be5e94cedc7d4846805fafb",
+    "docs/ai/HANDOFF.md": "aed289b008488e03732b4c0001752c1a47d508314b5b58ea8e2005dbbdc34947",
+    "docs/ai/KNOWN_ISSUES.md": "4433b9edf96c5c503c49a63abecb03f0a90a52479098e0eb6658edd99d7b5004",
+    "docs/ai/TASK_LOG.md": "0cceec970222b2ed5ea01e9bab8e2cf0b35ce653ea8045f0e02478dfedb437bc",
+    "docs/ai/contracts/active-lease.json": "d4d4677739dc2fd932647ad3a92fa09bc9550af66fe2a63f82474685741e211d",
+    "docs/ai/contracts/awkit-3gtj-capture-residuals-1020.json": "da752d4382939fc48a419836763338a627c2c8621b1d19c610753522b620fd34",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-trace-protected-1020.json": "246f2ae5bee8841cd930ed66c1b5b2903b7b2b0139e0a620b322c2c5246fcc1c",
-    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json": "28b1f2a747157303ba01fef3e7e3270c8f39e460799a7761891f04682600125d",
-    "package.json": "13e148483a813e7e646ceee78a43e7eea70c2256753390af82e0923d546dc69b",
-    "scripts/lib/verifier-classification.ts": "739d0119597581d677856223cf06d5e3bc7d5743811825b721834dae8d13a818",
-    "scripts/verify-trace-protected-capture.mts": "416e4f19e18e73cb528fa2b7643151831d19ca9b1d63769e93ccd08721887512",
-    "src/runner/StepExecutor.ts": "97de09d80a52f76e2d5b4e32a5e9fa54016b28936e1326b2d4e5769701962c7b",
-    "src/runner/artifacts/TraceService.ts": "2ddca37ee59abcb56f66770b5c719d35601c2ef53bd5b6e75f339d2d23247bf5",
-    "src/runner/observation/PassiveCdpTrace.ts": "9bcdbce7dc7ce49cb977663dfff4525c2a1c90bf82776ae58a80fd0cbb439902",
-    "src/runner/protectedSurfaceScan.ts": "a92f25c5fb63c2c3d6b439ac41c8fb6d3e8799af4d1819ef99ae309d6ca7a7f6"
+    "scripts/verify-b2-protected-capture.mts": "2cf1f39788b7fff914dbab4c23e7de46423276b3f347e8038fb65a8dabe14f36",
+    "scripts/verify-runner.mts": "9f458e59a61861232b6c896fb80f6ba5b719de502453e784d1ea15b8d10b1cf7",
+    "scripts/verify-trace-protected-capture.mts": "0c623f8ac39bfb8d7d54c69e5ae8ce745d5410a5b8694c91217394d2166704f3",
+    "src/reports/ScreenshotService.ts": "0df889c248041bbc13c0dd0ac42a5cc7d3c13ac1b9cf64d068eb3bd6d910fd18",
+    "src/runner/StepExecutor.ts": "faa925aacebe11f0c24c5b0293581f96440de75efbdba441e3dd711ba86c6408",
+    "src/runner/artifacts/TraceService.ts": "1eee2ac34a2ca64381cfe7da98a433b01ea5cefa50126a16f1e3c028ac370874",
+    "src/security/ProtectedSurfaceGuard.ts": "90d0121f5081dce0d032470c720d45e33b06c267c67a83bd2d7943931820521e"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -45,7 +55,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-20T08:34:12.533Z",
-  "released_reason": "awkit-uoik closed, awkit-3gtj filed, beads exported",
-  "archived_at": "2026-10-20T08:34:12.535Z"
+  "released_at": "2026-10-20T13:24:14.870Z",
+  "released_reason": "revised guard staged for the awkit-3gtj owner commit",
+  "archived_at": "2026-10-20T13:24:14.874Z"
 }

@@ -1,6 +1,43 @@
 # CURRENT_STATE
 
-## Security: B2 independent review, and Playwright and observation traces no longer keep protected pages (2026-10-20, latest)
+## Security: awkit-3gtj capture residuals reproduced and fixed (2026-10-20, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed.
+
+- **Reproduced first in real Chromium, then fixed.**
+  - B2 capture-window changes, late screenshots, closed shadow roots, and the unguarded user `screenshot` step and
+    `ScreenshotService` (b2 baseline 22/8).
+  - A field injected and removed inside a trace chunk, and raw trace files left in Playwright's temp artifacts dir
+    (trace baseline 54/3).
+  - A new finding: Playwright's network recorder spans the whole tracing session, so a protected page from an earlier
+    step reached a later step's kept ZIP (T16).
+- **How.**
+  - B2, the screenshot step and `ScreenshotService` capture into memory inside a strict `watchProtectedWindow` (new in
+    `src/security/ProtectedSurfaceGuard.ts`, with a CDP closed-shadow pass) and write only after a clean re-check.
+  - `TraceService` runs one tracing session per step, adds a sentinel per page, and purges a tainted session's raw
+    files.
+- **Behaviour change:** a user `screenshot` step on a page with a password, OTP, CAPTCHA or passkey field now fails
+  with "Screenshot refused". `verify:runner` takes its screenshots on `/recorder-lab`.
+- **Independent security review: CHANGES REQUIRED.** F1–F4 were reproduced (b2 35/4, trace 61/2) and fixed:
+  - the passing-path latch read;
+  - the JSON-field purge with `allSettled`;
+  - the recursive shadow walk and `attachShadow` hook;
+  - strict `framedetached`;
+  - benign-only CDP session errors.
+
+  F4(ii) and F4(iii) were not reproduced (KNOWN_ISSUES).
+- **Gates (final state):**
+  - b2-protected-capture 39/0, trace-protected-capture 63/0, failure-evidence-live 17/0.
+  - Regression: runner 138/0, visual-capture 274/0, visual-isolation 71/0 (first round, imports unchanged since).
+  - Build: PASS.
+  - Re-review after the fixes: NOT RUN.
+- **Negative evidence:** the refused-ZIP `unlink` failure could not be induced on this platform (KNOWN_ISSUES).
+- **Contract:** `awkit-3gtj-capture-residuals-1020`. `awkit-3gtj` stays open until the fixes are re-reviewed.
+- **Commit:** BLOCKED for agents. The lease guard rejects one commit that mixes `src/security/**` with runner code, so
+  the owner commits it.
+
+## Security: B2 independent review, and Playwright and observation traces no longer keep protected pages (2026-10-20)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed.

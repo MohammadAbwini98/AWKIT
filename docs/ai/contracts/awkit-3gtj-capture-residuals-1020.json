@@ -1,0 +1,267 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-3gtj-capture-residuals-1020",
+    "title": "Security remediation awkit-3gtj: B2, screenshot and trace capture residuals near protected-login surfaces",
+    "objective": "Reproduce each awkit-3gtj finding in real Chromium before fixing it. B2 failure capture, the user screenshot step and ScreenshotService capture into memory inside a watched window (frame navigations, frame attachments and a mutation sentinel) and write only after a clean re-check, so a late or contradicted capture never leaves a file. The shared guard also scans closed shadow roots through a CDP pierce pass. TraceService records network only inside a watched step, watches each page with the sentinel, and purges a tainted session's raw files from Playwright's temporary artifacts directory. Findings that cannot be reproduced are recorded with exact negative evidence in KNOWN_ISSUES.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 3
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "0bf6ada2",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": true,
+    "protected_login_change": true,
+    "project_state_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "runtime",
+      "qa",
+      "qc",
+      "security",
+      "project-state"
+    ],
+    "expected_paths": [
+      "src/security/ProtectedSurfaceGuard.ts",
+      "src/runner/StepExecutor.ts",
+      "src/runner/artifacts/TraceService.ts",
+      "src/reports/ScreenshotService.ts",
+      "scripts/verify-b2-protected-capture.mts",
+      "scripts/verify-trace-protected-capture.mts",
+      ".beads/**",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/contracts/awkit-3gtj-capture-residuals-1020.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "security",
+      "allowed_paths": [
+        "src/security/ProtectedSurfaceGuard.ts"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "3GTJ-B2",
+      "description": "R1a, R1b, R2, R4 and R5 reproduce red before the fix and turn green only through it; P1-P3, C1-C3 stay green; the whole evidence root holds no orphan or page-capture file of a protected window.",
+      "evidence_required": [
+        "verify:b2-protected-capture"
+      ]
+    },
+    {
+      "id": "3GTJ-TRACE",
+      "description": "T15, T16 and T17 reproduce red before the fix and turn green only through it; every earlier T, U, O and C case stays green.",
+      "evidence_required": [
+        "verify:trace-protected-capture"
+      ]
+    },
+    {
+      "id": "3GTJ-REGRESSION",
+      "description": "verify:failure-evidence-live, verify:runner and npm run build pass against the final state.",
+      "evidence_required": [
+        "regression-suites",
+        "build"
+      ]
+    },
+    {
+      "id": "3GTJ-STATE",
+      "description": "KNOWN_ISSUES records each finding as fixed or with exact negative evidence, awkit-3gtj is updated through bd under a project-state lease and exported.",
+      "evidence_required": [
+        "beads-update"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:b2-protected-capture",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:b2-protected-capture",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "39 passed, 0 failed after the review round (review baseline 35/4: R6a, R6b, R6c, R7); first round 30/0 from a 22/8 baseline (R1a, R1b, R2 x2, R4, R5 x3)"
+    },
+    {
+      "id": "verify:trace-protected-capture",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:trace-protected-capture",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "63 passed, 0 failed after the review round (review baseline 61/2: T18, T19; T20 green before the fix); first round 57/0 from a 54/3 baseline (T15, T16, T17)"
+    },
+    {
+      "id": "regression-suites",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:failure-evidence-live, verify:runner",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "final state: failure-evidence-live 17/0, runner 138/0, visual-capture 274/0; runner was 135/3 in the first round until its two screenshot checks moved from the password-bearing /form to /recorder-lab, assertions unchanged; visual-isolation 71/0 in the first round, imports unchanged since"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc --noEmit and electron-vite bundles PASS against the final source"
+    },
+    {
+      "id": "beads-update",
+      "type": "inspection",
+      "required": true,
+      "command": "bd update awkit-3gtj",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "notes recorded under a project-state lease and exported (406 issues); awkit-3gtj stays open for a fresh-context independent security review"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "runs after the commit that carries this contract"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-3gtj-capture-residuals-1020:security:2026-10-20T09:42:15.007Z",
+        "task": "awkit-3gtj-capture-residuals-1020",
+        "holder": "security",
+        "status": "released",
+        "allowed_paths": [
+          "src/security/ProtectedSurfaceGuard.ts"
+        ],
+        "acquired_at": "2026-10-20T09:42:15.007Z",
+        "acquired_at_commit": "0bf6ada2085c6dfb7f2dfa0619485e1eee6925cb",
+        "released_at": "2026-10-20T09:44:29.640Z",
+        "released_reason": "guard edits for awkit-3gtj written and runner edits are ordinary direct work",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-3gtj-capture-residuals-1020:project-state:2026-10-20T09:58:16.782Z",
+        "task": "awkit-3gtj-capture-residuals-1020",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-20T09:58:16.782Z",
+        "acquired_at_commit": "0bf6ada2085c6dfb7f2dfa0619485e1eee6925cb",
+        "released_at": "2026-10-20T09:58:39.676Z",
+        "released_reason": "awkit-3gtj notes recorded and beads exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-3gtj-capture-residuals-1020:security:2026-10-20T09:59:34.729Z",
+        "task": "awkit-3gtj-capture-residuals-1020",
+        "holder": "security",
+        "status": "released",
+        "allowed_paths": [
+          "src/security/ProtectedSurfaceGuard.ts"
+        ],
+        "acquired_at": "2026-10-20T09:59:34.729Z",
+        "acquired_at_commit": "0bf6ada2085c6dfb7f2dfa0619485e1eee6925cb",
+        "released_at": "2026-10-20T09:59:47.071Z",
+        "released_reason": "guard file staged for the awkit-3gtj commit",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-3gtj-capture-residuals-1020:security:2026-10-20T13:15:40.937Z",
+        "task": "awkit-3gtj-capture-residuals-1020",
+        "holder": "security",
+        "status": "released",
+        "allowed_paths": [
+          "src/security/ProtectedSurfaceGuard.ts"
+        ],
+        "acquired_at": "2026-10-20T13:15:40.937Z",
+        "acquired_at_commit": "0bf6ada2085c6dfb7f2dfa0619485e1eee6925cb",
+        "released_at": "2026-10-20T13:16:50.271Z",
+        "released_reason": "guard fixes for the awkit-3gtj review findings written",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-3gtj-capture-residuals-1020:project-state:2026-10-20T13:23:41.963Z",
+        "task": "awkit-3gtj-capture-residuals-1020",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-20T13:23:41.963Z",
+        "acquired_at_commit": "0bf6ada2085c6dfb7f2dfa0619485e1eee6925cb",
+        "released_at": "2026-10-20T13:24:01.014Z",
+        "released_reason": "awkit-3gtj review round recorded and beads exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-3gtj-capture-residuals-1020:security:2026-10-20T13:24:10.336Z",
+        "task": "awkit-3gtj-capture-residuals-1020",
+        "holder": "security",
+        "status": "released",
+        "allowed_paths": [
+          "src/security/ProtectedSurfaceGuard.ts"
+        ],
+        "acquired_at": "2026-10-20T13:24:10.336Z",
+        "acquired_at_commit": "0bf6ada2085c6dfb7f2dfa0619485e1eee6925cb",
+        "released_at": "2026-10-20T13:24:14.870Z",
+        "released_reason": "revised guard staged for the awkit-3gtj owner commit",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

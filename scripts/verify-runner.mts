@@ -179,14 +179,16 @@ async function main() {
       ok("a step after a context menu still runs", await gestureExec.execute({ id: "pr", type: "click", name: "pr", locator: { strategy: "testId", value: "pointer-reset" } }));
       const afterReset = await gesturePage.getByTestId("pointer-dbl-result").textContent();
       check("the step after a context menu actually took effect", afterReset?.trim() === "none", String(afterReset));
+
+      // Screenshot steps run on this ordinary page: /form carries a password field, and since awkit-3gtj the screenshot
+      // step refuses a protected surface (verify:b2-protected-capture R5 proves that refusal).
+      const elShot = await gestureExec.execute({ id: "shotEl", type: "screenshot", name: "shotEl", locator: { strategy: "testId", value: "pointer-dbl-target" }, config: { screenshotName: "submit" } });
+      ok("screenshot(element)", elShot);
+      check("element screenshot file exists", elShot.screenshotPath && existsSync(elShot.screenshotPath), elShot.screenshotPath);
+      const fullShot = await gestureExec.execute({ id: "shotFull", type: "screenshot", name: "shotFull", config: { fullPage: true, screenshotName: "form" } });
+      check("full-page screenshot file exists", fullShot.screenshotPath && existsSync(fullShot.screenshotPath), fullShot.screenshotPath);
       await gesturePage.close();
     }
-
-    const elShot = await exec.execute({ id: "shotEl", type: "screenshot", name: "shotEl", locator: { strategy: "id", value: "submitButton" }, config: { screenshotName: "submit" } });
-    ok("screenshot(element)", elShot);
-    check("element screenshot file exists", elShot.screenshotPath && existsSync(elShot.screenshotPath), elShot.screenshotPath);
-    const fullShot = await exec.execute({ id: "shotFull", type: "screenshot", name: "shotFull", config: { fullPage: true, screenshotName: "form" } });
-    check("full-page screenshot file exists", fullShot.screenshotPath && existsSync(fullShot.screenshotPath), fullShot.screenshotPath);
 
     ok("click submit", await exec.execute({ id: "submit", type: "click", name: "submit", locator: { strategy: "id", value: "submitButton" } }));
     await page.waitForURL("**/success*");

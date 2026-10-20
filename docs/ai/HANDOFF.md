@@ -1,6 +1,25 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-20, latest) — Security: B2 review and trace protected-surface remediation
+## HANDOFF (2026-10-20, latest) — Security: awkit-3gtj capture residuals fixed, review pending
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:**
+  - Every `awkit-3gtj` finding was reproduced red, then fixed green or recorded with negative evidence (KNOWN_ISSUES).
+  - The independent review's F1–F4 were reproduced and fixed (KNOWN_ISSUES).
+  - b2 39/0, trace 63/0, runner 138/0, build PASS.
+  - Contract `awkit-3gtj-capture-residuals-1020`, leases released.
+- **Open:**
+  - The owner commits and pushes the staged set. The lease guard blocks agents from a commit that mixes
+    `src/security/**` with runner code.
+  - Re-review of the review-round fixes, then close `awkit-3gtj`.
+  - Triage the same window gap in `src/visual/internal/captureCore.ts` and `VisualFailureDiagnosis.ts`.
+- **Do not:**
+  - relax R1a–R7, T15–T20 or the whole-evidence-root listing;
+  - move the screenshot checks in `verify:runner` back to the password-bearing `/form`.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-20) — Security: B2 review and trace protected-surface remediation
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

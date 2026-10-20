@@ -1,5 +1,40 @@
 # TASK_LOG
 
+## 2026-10-20 — Security: awkit-3gtj capture residuals reproduced and fixed (Claude)
+
+- **Scope:**
+  - Every `awkit-3gtj` finding was reproduced in real Chromium with synthetic fixtures before any fix.
+  - Contract `awkit-3gtj-capture-residuals-1020`, Risk 3. A security lease covered the guard and a project-state
+    lease covered Beads.
+  - CodeCraft: not used (`CODECRAFT_MODE=off` default).
+- **Change:**
+  - New `watchProtectedWindow` (a mutation sentinel, plus a strict frame-change watch) and a CDP closed-shadow pass in
+    the guard.
+  - B2, the user `screenshot` step and `ScreenshotService` capture in memory and write only after a clean re-check.
+  - `TraceService` runs one tracing session per step, adds a sentinel per page, and purges a tainted session's
+    Playwright temp files.
+- **Files:**
+  - Source: `src/security/ProtectedSurfaceGuard.ts`, `src/runner/StepExecutor.ts`,
+    `src/runner/artifacts/TraceService.ts`, `src/reports/ScreenshotService.ts`.
+  - Scripts: `scripts/verify-{b2-protected-capture,trace-protected-capture,runner}.mts`.
+  - Docs and tracker: `docs/ai/{KNOWN_ISSUES,CURRENT_STATE,HANDOFF,TASK_LOG}.md`, the contract,
+    `.beads/issues.jsonl`.
+- **Checks:**
+  - Reproductions: b2-protected-capture 22/8 → 30/0, trace-protected-capture 54/3 → 57/0.
+  - Regression: failure-evidence-live 17/0, runner 135/3 → 138/0 (the screenshot checks moved off the
+    password-bearing `/form`), visual-capture 274/0, visual-isolation 71/0.
+  - Build: PASS.
+  - Independent security review: NOT RUN.
+- **Result:** findings 1, 2, 4, 5, 6a and 6b, plus the new T16, are fixed. Finding 3 is moot. Finding 6c is recorded
+  with negative evidence. `awkit-3gtj` is updated and stays open for an independent review.
+- **Review round (same day):**
+  - The fresh-context review was CHANGES REQUIRED with F1–F4.
+  - Reproduced: b2 35/4 (R6a, R6b, R6c, R7) and trace 61/2 (T18, T19).
+  - Fixed in the guard and `TraceService`: b2 39/0, trace 63/0, failure-evidence-live 17/0, runner 138/0,
+    visual-capture 274/0, build PASS.
+  - F4(ii) (T20 green before the fix) and F4(iii) were recorded with negative evidence.
+  - The commit is BLOCKED by the lease guard (mixed Risk-3 set) and handed to the owner.
+
 ## 2026-10-20 — Security: independent B2 review and trace protected-surface remediation awkit-uoik (Claude)
 
 - **Scope:**
