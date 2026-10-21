@@ -203,6 +203,14 @@
     verifier did not print the code then. The rerun was 193/0. Recorded as an intermittent fail-closed refusal. Since
     2026-10-21 the "20 solo captures" check prints each refused id with its code and fixed refusal text (the guard's
     reason, never page content), so a recurrence names its cause.
+  - 2026-10-21: the first repeated run failed a different check, `(held) a fresh frame crops`. That is a test race,
+    not a product defect.
+    - **Cause.** The expiry case used `maxFrameAgeMs: 50`. The frame's clock starts at decode, and the capture's
+      post-checks, the strict window's final read and the test's own `boundingBox()` all run inside those 50 ms. On
+      this VM they can exceed it, so the frame was correctly expired before the crop.
+    - **Fix (test only).** The box is now measured before the capture, the age is 1000 ms with a 1200 ms wait, and
+      both checks print the crop's code. Product code is unchanged.
+    - **Result.** 20 consecutive runs at 193/0. The one-off solo-capture refusal did not recur.
 
 ## Visual Intelligence captures checked protected surfaces only before and after the screenshot (2026-10-20, FIXED 2026-10-20, `awkit-2het`)
 

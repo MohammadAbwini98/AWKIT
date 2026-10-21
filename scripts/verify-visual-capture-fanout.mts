@@ -529,14 +529,19 @@ try {
       check("...with no recapture", shots.count === 1, `${shots.count}`);
     }
 
-    // Expiry.
+    // Expiry. The frame's age counts from its decode, and the capture's post-checks and protected window run inside it,
+    // so the box is measured before the capture and the age leaves room for a slow host; the fresh crop must still
+    // land well inside it.
     {
       const page = await openLab(context);
-      const held = await captureVisualFrame(page, { maxFrameAgeMs: 50 });
       const box = (await page.getByTestId("vi-cal-red").boundingBox())!;
-      check("(held) a fresh frame crops", held.ok && cropFromVisualFrame(held.value, box).ok);
-      await sleep(120);
-      check("(held) a frame older than maxFrameAgeMs is CAPTURE_STALE", held.ok && outcome(cropFromVisualFrame(held.value, box)) === "CAPTURE_STALE");
+      const maxFrameAgeMs = 1000;
+      const held = await captureVisualFrame(page, { maxFrameAgeMs });
+      const fresh = held.ok ? cropFromVisualFrame(held.value, box) : held;
+      check("(held) a fresh frame crops", held.ok && fresh.ok, fresh.ok ? "ok" : `${fresh.code} (${fresh.message})`);
+      await sleep(maxFrameAgeMs + 200);
+      const expired = held.ok ? cropFromVisualFrame(held.value, box) : held;
+      check("(held) a frame older than maxFrameAgeMs is CAPTURE_STALE", held.ok && outcome(expired) === "CAPTURE_STALE", outcome(expired));
       if (held.ok) releaseVisualFrame(held.value);
       await page.close();
     }
