@@ -1,6 +1,28 @@
 # CURRENT_STATE
 
-## Phase N: N6.1 final owner amendments applied; ratification gated on final QC (2026-10-21, latest)
+## Phase N: N6.1 ratified, N6.2 pure visual assertion policy implemented (2026-10-22, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases; no ledger case covers N6.2.
+
+- **N6.1 ratified and closed** (`awkit-vra.15.1`, contract `awkit-vra-15-n6-start-1022`).
+  - The owner accepted C1–C5 and ratified VA-0 to VA-16 as amended, as design decisions, not verified
+    implementation.
+  - The 2026-10-21 closure review stays CHANGES REQUIRED, and N6.8 implementation and security QC is mandatory.
+- **VA-9 clarified.** Flag, step mode and build availability are independent.
+  - A packaged enforce step always fails `visual-unverified/enforce-unavailable-in-production` and is never run as a
+    passing observe step.
+- **N6.3 cross-process gate (mandatory).** The folder lane is process-local, while both builds share flow storage
+  and epoch tokens.
+  - N6.3 must prove cross-process coordination or a single-writer rule with two-process cases X1–X8.
+- **N6.2 done** (`awkit-vra.15.2`).
+  - `src/visual/assertion/decideVisualAssertion.ts` is pure and exported through `src/visual/index.ts`. It adds no
+    `src/visual` edge and never sees a key, digest or image.
+  - It returns `passed` only on equal conditions, geometry, state and exact commitments, and `failed` only on a
+    proven size or commitment difference. Everything else is `inconclusive`.
+  - New verifier `verify:visual-assertion` (unit).
+- **Epic:** `awkit-vra.15` is in progress. N6.3 and N6.9 are dependency-ready. `awkit-vra.16` stays open.
+
+## Phase N: N6.1 final owner amendments applied; ratification gated on final QC (2026-10-21)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No product code changed.
 

@@ -1,5 +1,27 @@
 # TASK_LOG
 
+## 2026-10-22 — Phase N: N6.1 ratification and N6.2 pure visual assertion policy (Claude)
+
+- **Scope:** contract `awkit-vra-15-n6-start-1022` (Risk 1). A project-state lease covered Beads.
+  CodeCraft: not used (`CODECRAFT_MODE=off` default).
+- **Ratification:** the owner accepted C1–C5 and ratified VA-0 to VA-16 as amended.
+  - Recorded in DECISIONS and the plan as design decisions only. The closure QC stays CHANGES REQUIRED, and N6.8 QC
+    is mandatory.
+  - `awkit-vra.15.1` is closed, and `awkit-vra.16` stays open.
+- **VA-9 clarified:** flag, step mode and build availability are independent. A packaged enforce step always fails
+  `visual-unverified/enforce-unavailable-in-production`.
+- **N6.3 gate:** a mandatory cross-process requirement was added, with two-process cases X1–X8 and mutants.
+  `folderWriteCoordinator` is process-local. `DurableLockStore` is noted as the first candidate, with no
+  live-holder takeover allowed.
+- **N6.2:** new `src/visual/assertion/decideVisualAssertion.ts`, exported through `src/visual/index.ts`, plus the new
+  `verify:visual-assertion`, registered as unit and documented in COMMANDS.
+  - The first run was 212/81. It found a real policy defect: `fingerprintVersion` is the string `awkit-vfp-1`, not
+    an integer. The fix was in the policy, and no test was weakened.
+  - The final run is 293/0 with 18 mutants observed red.
+- **Tracking:** `awkit-vra.15.2` closed, epic `awkit-vra.15` in progress, N6.3 notes record the gate. Dashboard pins
+  moved to 35/384 of 419; edges unchanged at 362.
+- **Checks:** see the commit. No runner, recorder, IPC, persistence, report or UI change.
+
 ## 2026-10-21 — Phase N: N6.1 final owner amendments and the bounded closure review (Claude)
 
 - **Scope:** planning only, contract `awkit-vra-n6-final-1021` (Risk 2). Project-state leases covered Beads.

@@ -1,0 +1,226 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-15-n6-start-1022",
+    "title": "Start canonical Phase N6: record the owner ratification of VA-0 to VA-16 with C1-C5 (N6.1), clarify VA-9 packaged enforcement, add the N6.3 cross-process gate and implement the first slice N6.2 pure visual assertion policy",
+    "objective": "Record the owner's explicit acceptance of C1-C5 and ratification of VA-0 to VA-16 as amended (design decisions, not verified implementation; the historical closure QC stays CHANGES REQUIRED; independent implementation and security QC stays mandatory under N6.8), close awkit-vra.15.1, clarify the flag versus step mode versus build availability distinction in VA-0, VA-8, VA-9 and VA-16 (packaged enforce always fails visual-unverified enforce-unavailable-in-production, never becomes a passing observe step), record a mandatory N6.3 cross-process safety gate (folderWriteCoordinator is process-local; packaged and non-packaged builds share flow storage and epoch tokens) with deterministic two-process verification, and implement N6.2 awkit-vra.15.2: the pure src/visual/assertion/decideVisualAssertion.ts with the ratified passed, failed and inconclusive verdicts and fixed reason codes over caller-supplied facts (refusals, N0 capture codes, baseline status, both conditions envelopes, geometry, clipping, hover and focus, precomputed commitments) with no key, HMAC, I/O, clock or randomness, exported through src/visual/index.ts, plus a new verify:visual-assertion with an observed-red mutation contract. No runner, recorder, IPC, persistence, report or UI change and no new src/visual import edge.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "181c13e2",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "project_state_change": true,
+    "general_engineering_change": true
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "qa",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "src/visual/assertion/**",
+      "src/visual/index.ts",
+      "scripts/verify-visual-assertion.mts",
+      "scripts/lib/verifier-classification.ts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "package.json",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/COMMANDS.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/awkit-vra-15-n6-start-1022.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N6-RATIFICATION",
+      "description": "DECISIONS records the owner's acceptance of C1-C5 and ratification of VA-0 to VA-16 as design decisions, keeps the closure QC as CHANGES REQUIRED and N6.8 independent QC mandatory, the plan reads RATIFIED / IMPLEMENTATION AUTHORIZED with the VA-9 clarification and the N6.3 cross-process gate, awkit-vra.15.1 is closed through bd and exported, dependencies preserved and awkit-vra.16 open.",
+      "evidence_required": [
+        "beads-export"
+      ]
+    },
+    {
+      "id": "N6.2-POLICY",
+      "description": "The pure decideVisualAssertion exists with no I/O, key, clock, randomness or import outside src/visual, is exported only through src/visual/index.ts, passes only on validated equal conditions, geometry, state and exact commitment equality, fails only on a proven size or commitment difference under equal conditions, maps every other input (including unknown codes, unsupported versions and malformed input) to inconclusive, and verify:visual-assertion passes with every listed mutation observed red; visual isolation is unchanged at three edges.",
+      "evidence_required": [
+        "verify:visual-assertion",
+        "verify:visual-isolation",
+        "verify:visual-capture",
+        "typecheck:scripts",
+        "build"
+      ]
+    },
+    {
+      "id": "N6-STATE",
+      "description": "awkit-vra.15.2 is closed, the epic is in progress, the new verifier is classified and documented, the dashboard pins match the measured counts and report Sources agree, source hygiene and git diff --check pass.",
+      "evidence_required": [
+        "verify:verifier-classification",
+        "verify:roadmap-dashboard",
+        "verify:source-hygiene"
+      ]
+    },
+    {
+      "id": "N6-GIT",
+      "description": "The work lands on main and is pushed without force; the L12.27 contract stays untracked and unchanged.",
+      "evidence_required": [
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:visual-assertion",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-assertion",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "293/0 on the final state with 18 mutants observed red (first run 212/81: every valid capture was rejected because fingerprintVersion is the string awkit-vfp-1, fixed in the policy type, no assertion weakened)"
+    },
+    {
+      "id": "verify:visual-isolation",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-isolation",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "71/0, still exactly the three approved edges; the src/visual purity scan covers the new assertion module"
+    },
+    {
+      "id": "verify:visual-capture",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-capture",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "331/0 unchanged (real Chromium, DPR 1 to 2, protected surfaces and capture-window mutants); verify:visual-diagnosis also 82/0 unchanged"
+    },
+    {
+      "id": "typecheck:scripts",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run typecheck:scripts",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc -p tsconfig.scripts.json clean"
+    },
+    {
+      "id": "beads-export",
+      "type": "inspection",
+      "required": true,
+      "command": "bd export -o .beads/issues.jsonl",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "awkit-vra.15.1 and awkit-vra.15.2 closed, awkit-vra.15 in_progress, N6.3 cross-process gate in its notes, through bd under the project-state lease, 419 issues exported, lease released"
+    },
+    {
+      "id": "verify:verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "all 343 verify:/validate: scripts classified (verify:visual-assertion added as unit, 81 in that class)"
+    },
+    {
+      "id": "verify:source-hygiene",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:source-hygiene",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "11/0 over 960 TypeScript and 203 Markdown files; git diff --check clean"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "177/177 after the repin to 35 outstanding / 384 closed of 419 with 362 edges; Overview banner reads Sources agree"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "embedded roadmap snapshot 590 records, tsc --noEmit clean, electron-vite build; main.js size unchanged"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "runs after the commit that carries this contract; its outcome is reported in the session report"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-15-n6-start-1022:project-state:2026-10-21T21:30:15.915Z",
+        "task": "awkit-vra-15-n6-start-1022",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-21T21:30:15.915Z",
+        "acquired_at_commit": "181c13e2a6f09720ccff0c64cffb508d439a167a",
+        "released_at": "2026-10-21T21:30:48.883Z",
+        "released_reason": "N6.1 ratified and closed, N6.2 closed with verifier evidence, epic in progress, N6.3 cross-process gate noted, exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

@@ -71,3 +71,18 @@ export {
   type VisualDiagnosisRefusal,
   type VisualDiagnosisVerdict
 } from "./diagnosis/decideVisualDiagnosis";
+export {
+  VISUAL_ASSERTION_INPUT_VERSION,
+  VISUAL_ASSERTION_POLICY_VERSION,
+  decideVisualAssertion,
+  type VisualAssertionBaseline,
+  type VisualAssertionCapture,
+  type VisualAssertionCode,
+  type VisualAssertionConditions,
+  type VisualAssertionDecision,
+  type VisualAssertionGeometry,
+  type VisualAssertionInput,
+  type VisualAssertionObservation,
+  type VisualAssertionRefusal,
+  type VisualAssertionVerdictKind
+} from "./assertion/decideVisualAssertion";

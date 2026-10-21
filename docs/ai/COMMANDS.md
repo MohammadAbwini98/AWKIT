@@ -728,6 +728,10 @@ npm run verify:failure-capture-overhead # L5a gate (owner-approved C+D+E): 21 ro
 npm run verify:failure-capture-gate-stats # L5a gate rules, in-process (interval vs exact binomial, verdict boundaries, p95 eligibility, configurations, evidence appends, re-derived recorded verdicts)
 npm run benchmark:failure-capture-saturated # L5a informational saturated run (3 per workload); never decides the gate
 
+# ── Visual Assertions (Phase N, N6) — pure, no browser, no model ─────────────────────────────────
+npm run verify:visual-assertion       # N6.2 pure decideVisualAssertion: decision table, independent-oracle property run,
+                                      # plan pins, purity scan and 18 mutants that must fail the suite (293)
+
 # ── Semantic index / Zvec native host ──────────────────────────────────────────────────────────
 # Reachable from NO product surface yet. `prepare:zvec-host` MUST run before any live verifier:
 # they refuse a host tree that is not byte-identical to native-hosts/zvec/zvec-host.cjs, because a

@@ -1,6 +1,22 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-21, latest) — Phase N: N6.1 final owner amendments applied, stopped at the N6.1 gate
+## HANDOFF (2026-10-22, latest) — Phase N: N6.1 ratified, N6.2 done; next N6.3 (with its cross-process gate) or N6.9
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:**
+  - N6.1 ratified and closed. VA-9 clarified.
+  - Mandatory N6.3 cross-process gate recorded in the plan, DECISIONS and the N6.3 notes.
+  - N6.2 pure `decideVisualAssertion` with `verify:visual-assertion` (contract `awkit-vra-15-n6-start-1022`).
+- **Next:** N6.3 `VisualBaselineStore`. It must include the cross-process gate (X1–X8) before it can close. N6.9
+  import authorization is independent and also ready.
+- **Do not:**
+  - start N6.4 before N6.3 is done;
+  - treat the ratification as verified implementation;
+  - claim the 2026-10-21 closure review as APPROVED.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-21) — Phase N: N6.1 final owner amendments applied, stopped at the N6.1 gate
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

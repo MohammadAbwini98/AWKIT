@@ -1,36 +1,36 @@
 {
-  "task": "awkit-vra-n6-final-1021",
-  "contract_path": "docs/ai/contracts/awkit-vra-n6-final-1021.json",
+  "task": "awkit-vra-15-n6-start-1022",
+  "contract_path": "docs/ai/contracts/awkit-vra-15-n6-start-1022.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-21T17:50:55.574Z",
-  "acquired_at_commit": "0e1908bb028e4d921ec361f64143744eb74a6b42",
+  "acquired_at": "2026-10-21T21:30:15.915Z",
+  "acquired_at_commit": "181c13e2a6f09720ccff0c64cffb508d439a167a",
   "baseline_dirty": [
-    ".beads/issues.jsonl",
-    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/COMMANDS.md",
     "docs/ai/DECISIONS.md",
-    "docs/ai/HANDOFF.md",
-    "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-vra-n6-final-1021.json",
+    "docs/ai/contracts/awkit-vra-15-n6-start-1022.json",
     "docs/plans/ai-upgrade-v5/N6-visual-assertions.md",
-    "docs/plans/ai-upgrade-v5/ROADMAP.md",
-    "scripts/verify-roadmap-dashboard.mjs"
+    "package.json",
+    "scripts/lib/verifier-classification.ts",
+    "scripts/verify-visual-assertion.mts",
+    "src/visual/assertion/",
+    "src/visual/index.ts"
   ],
   "baseline_dirty_fingerprints": {
-    ".beads/issues.jsonl": "85430b063ef41a7bd5ee3a9b674dd472bdad9ec50076e239d35e150e59a1be6b",
-    "docs/ai/CURRENT_STATE.md": "c64b81671382388fc3e46ca5801a6c860c0ae6b835a5939220608c4aa63c5e70",
-    "docs/ai/DECISIONS.md": "cc6e7da4b19b13df9ad9c84964667aee0cf3cda74af6774bb253df3e209fa646",
-    "docs/ai/HANDOFF.md": "649cb635607d1ae55f24c38b4b1f7492a93fa7326d9b83dc11a25283a49e2ce3",
-    "docs/ai/contracts/active-lease.json": "c0ec5afd190b501d70607f22320d61751a33860d324e64d6f4152c19e0c8f809",
+    "docs/ai/COMMANDS.md": "4123325e15e8f84a5c135aabc0568b820a3ef19c0faa9e26d7325c789928bd89",
+    "docs/ai/DECISIONS.md": "b0c4ca15d89d94abf41f6e50b457e4072edb1f4b7d96444d6443d3ea6a5b7e7f",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-vra-n6-final-1021.json": "af1fa5b51408c3f77ec5e20c70d7d172a6494271e08029d8c2498f7b17cf1e8e",
-    "docs/plans/ai-upgrade-v5/N6-visual-assertions.md": "92cff0ccc0e08d59c02bd4d7d9381af8c36cf5bed91425a4af4d9e6453370b7d",
-    "docs/plans/ai-upgrade-v5/ROADMAP.md": "0506ff94eaef8966309841b09cb7fea0532956273b984c1d0d834f6ec6a4d694",
-    "scripts/verify-roadmap-dashboard.mjs": "daa43fb1ae3ab349ef358a34b3d71302680d5cb170d51bb0408c98ac92299c7c"
+    "docs/ai/contracts/awkit-vra-15-n6-start-1022.json": "0d20666c5cc909657a304ab93444751e1c8753ffee50e19a6a3a887546d921b2",
+    "docs/plans/ai-upgrade-v5/N6-visual-assertions.md": "61bf1508947ec4afc689f3f7fca59b0f0e3a79453ffd7651a1474169b279be8c",
+    "package.json": "d478ca28d74bde24c44c5962daa66328460f6be2e39ea401ea42a73f73095e89",
+    "scripts/lib/verifier-classification.ts": "9297933c7a3d3ca3062840944e88eed6d8b3c59a227bf667d894202f53fb6182",
+    "scripts/verify-visual-assertion.mts": "aa12c1b82bcdaacac845defbe3a078f636ac4eb15cc62fe016eb285495f4429a",
+    "src/visual/assertion/": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "src/visual/index.ts": "1561dbda9547b7a2fef916989eeba376a99568b7fcea881b0d136e9eebc94cdb"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -45,7 +45,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-21T17:51:20.042Z",
-  "released_reason": "N6.3 description aligned with closure-review fixes C1-C3, exported 419",
-  "archived_at": "2026-10-21T17:51:20.045Z"
+  "released_at": "2026-10-21T21:30:48.883Z",
+  "released_reason": "N6.1 ratified and closed, N6.2 closed with verifier evidence, epic in progress, N6.3 cross-process gate noted, exported",
+  "archived_at": "2026-10-21T21:30:48.885Z"
 }

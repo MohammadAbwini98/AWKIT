@@ -1,6 +1,47 @@
 # DECISIONS
 
-### 2026-10-21 (latest) — Phase N N6.1 final owner amendments; ratification gated on final QC (`awkit-vra.15.1`)
+### 2026-10-22 (latest) — Phase N N6.1 RATIFIED: VA-0 to VA-16 as amended, C1–C5 accepted; N6.2 implemented (`awkit-vra.15.1`, `.15.2`)
+
+- **Owner decision** (verbatim): "ACCEPT C1–C5. RATIFY VA-0 THROUGH VA-16 AS AMENDED." (contract
+  `awkit-vra-15-n6-start-1022`)
+  - **C1:** the N6 master key lives in a private, DPAPI-protected N6 key file, unreachable through the general
+    secrets subsystem.
+  - **C2:** flow epoch tokens are shared by the packaged and non-packaged builds.
+  - **C3:** tokens are keyed by the resolved flows folder and the flow id. A missing token is created safely before
+    a candidate binds it.
+  - **C4:** the packaged Designer may convert an existing enforce step to observe, never offer enforce.
+  - **C5:** quarantining a corrupt flow during import happens only after a successful overwrite authorization.
+- **What this ratifies.** These are design decisions, **not verified implementation**.
+  - The 2026-10-21 closure review stays on record as **CHANGES REQUIRED**, not APPROVED.
+  - The independent implementation and security QC under N6.8 remains mandatory.
+  - `awkit-vra.16` (production qualification and enforcement) stays open.
+- **VA-9 clarified.** Feature flag, step mode and build availability are independent inputs, and none rewrites
+  another.
+  - In packaged production, every authored enforce step (saved, imported or hand-edited) fails as
+    `visual-unverified/enforce-unavailable-in-production`. It is never silently run as a passing observe step.
+  - Experimental grants are never read there.
+  - In the non-packaged acceptance build, an enforce step passes only with flag `enforce`, a valid grant and proven
+    equality. A proven mismatch fails as `visual-mismatch`, and everything else as `visual-unverified`.
+  - `onFailure` routing is unchanged. VA-0, VA-8, VA-9 and VA-16 were aligned where needed.
+- **N6.3 cross-process gate (new, mandatory).** `folderWriteCoordinator.ts` is process-local, while both builds
+  share the flows folder and the epoch tokens.
+  - N6.3 must adopt, document and prove either cross-process coordination (first candidate: the existing
+    `DurableLockStore`, keyed by the resolved flows folder) or a verified single-writer rule.
+  - It must cover flow writes, token creation and invalidation, approval and candidate validation, concurrent
+    packaged and dev operation, crash recovery, orphaned state and flows-path changes.
+  - Rules: no sleeps, no taking a live holder's lock, no silent retries, no new persistence architecture.
+  - Proof: deterministic two-process cases X1–X8 in `verify:visual-baseline-cross-process`.
+- **N6.2 implementation choices.**
+  - `decideVisualAssertion` returns only `version`, `verdict` and `code`, and is exported through
+    `src/visual/index.ts`. It adds no new `src/visual` import edge.
+  - It never sees a key, digest or image, and compares the caller's precomputed commitments exactly, in constant
+    time.
+  - A clipped current target outranks every baseline fact. A clipped baseline record is `baseline-unreadable`.
+  - `fingerprintVersion` is the N1 string identifier `awkit-vfp-1`. Unsupported current versions are
+    `capture-unavailable`; unsupported baseline versions are `baseline-unreadable`.
+  - Malformed, unknown or throwing input is `inconclusive/capture-unavailable`.
+
+### 2026-10-21 — Phase N N6.1 final owner amendments; ratification gated on final QC (`awkit-vra.15.1`)
 
 - **Owner decisions** (contract `awkit-vra-n6-final-1021`). All other VA decisions keep the amended proposals of
   `0e1908bb`, subject to final QC.
