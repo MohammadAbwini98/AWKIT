@@ -200,7 +200,9 @@
     pages sampled by the passive trace. Artifacts Part D (non-interference) stays 23/0.
   - The F1 skip has no dedicated verifier case.
   - `verify:visual-capture-fanout` failed once, 191/2: one solo `captureElement` of 20 was refused at DPR 1, and the
-    verifier does not print the code. The rerun was 193/0. Recorded as an intermittent fail-closed refusal.
+    verifier did not print the code then. The rerun was 193/0. Recorded as an intermittent fail-closed refusal. Since
+    2026-10-21 the "20 solo captures" check prints each refused id with its code and fixed refusal text (the guard's
+    reason, never page content), so a recurrence names its cause.
 
 ## Visual Intelligence captures checked protected surfaces only before and after the screenshot (2026-10-20, FIXED 2026-10-20, `awkit-2het`)
 

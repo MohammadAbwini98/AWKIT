@@ -276,6 +276,8 @@ try {
     check("cardinality: 20 element crops to compare", fanned.size === 20, `${fanned.size}`);
 
     const soloDigests = new Map<string, { element: string; context: string | null; bounds: string }>();
+    // A solo capture that is refused names its id, code and fixed refusal text (the guard's reason, never page content).
+    const soloRefusals: string[] = [];
     for (const id of LAB_IDS) {
       const solo = await captureElement(page, page.getByTestId(id));
       if (solo.ok) {
@@ -284,9 +286,11 @@ try {
           context: solo.value.context ? digest(solo.value.context.image) : null,
           bounds: JSON.stringify(solo.value.element.actualBounds)
         });
+      } else {
+        soloRefusals.push(`${id}: ${outcome(solo)} (${solo.message})`);
       }
     }
-    check("cardinality: 20 solo captures", soloDigests.size === 20, `${soloDigests.size}`);
+    check("cardinality: 20 solo captures", soloDigests.size === 20, `${soloDigests.size}${soloRefusals.length ? `; refused ${soloRefusals.join("; ")}` : ""}`);
     const mismatched = LAB_IDS.filter((id) => {
       const shared = fanned.get(id);
       const solo = soloDigests.get(id);
