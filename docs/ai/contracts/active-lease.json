@@ -1,32 +1,22 @@
 {
-  "task": "awkit-2het-followups-1020",
-  "contract_path": "docs/ai/contracts/awkit-2het-followups-1020.json",
+  "task": "awkit-vra-n6-plan-1021",
+  "contract_path": "docs/ai/contracts/awkit-vra-n6-plan-1021.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-20T20:22:21.575Z",
-  "acquired_at_commit": "080d0e3867760023d7aab954af9039834b7b9a40",
+  "acquired_at": "2026-10-21T12:03:26.991Z",
+  "acquired_at_commit": "d04275c8c28c50a7db69d285299865ff5c57ce26",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-2het-followups-1020.json",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json",
-    "docs/plans/ai-upgrade-v5/evidence/N5.6-visual-diagnosis-calibration.json",
-    "scripts/verify-trace-protected-capture.mts",
-    "scripts/verify-visual-capture.mts",
-    "src/runner/observation/PassiveCdpTrace.ts",
-    "src/visual/internal/captureCore.ts"
+    "docs/ai/contracts/awkit-vra-n6-plan-1021.json",
+    "docs/plans/ai-upgrade-v5/N6-visual-assertions.md"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-2het-followups-1020.json": "3b7d44278bce743ccce55a1357030cd248a63b3c324fcc2e513cf339e554288d",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/plans/ai-upgrade-v5/evidence/L5a-overhead-gate.json": "13dd09c1064e70e8c34f383496c75dc5ecb6842c9ffbde14cdc9788508447f3e",
-    "docs/plans/ai-upgrade-v5/evidence/N5.6-visual-diagnosis-calibration.json": "71193a3a2d796f2fb8347fceccaeaaf404904ec265ec1fa4c982103292da80ba",
-    "scripts/verify-trace-protected-capture.mts": "12d2446e0d148577afcb3f7583bc9c5aec2b0da491573e511378260eb58ba28d",
-    "scripts/verify-visual-capture.mts": "4be04f4e101243113c493d31bf8e4df1f2bfef5f5422af8b24d5c540752798b6",
-    "src/runner/observation/PassiveCdpTrace.ts": "7e47d0e6afd325a726ee99d768fe6611cb78581ad94ce05d98abff74ae91f8a6",
-    "src/visual/internal/captureCore.ts": "fafa497741aa52e5b478194e4904e4c190a92fe12ef5a1d08b59a55d06750104"
+    "docs/ai/contracts/awkit-vra-n6-plan-1021.json": "5b0becb1463fcfafc092a9babc33c80fbcd8501d62b72406f017048c1c36af50",
+    "docs/plans/ai-upgrade-v5/N6-visual-assertions.md": "fb280da560a1437d5d05d3d9b768a2f7ad31311ed6a10e540d4ec28511aa6c22"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -41,7 +31,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-20T20:24:36.707Z",
-  "released_reason": "awkit-rur1 filed and closed, awkit-2het closed, beads exported",
-  "archived_at": "2026-10-20T20:24:36.720Z"
+  "released_at": "2026-10-21T12:05:00.995Z",
+  "released_reason": "N6 epic awkit-vra.15 and N6.1-N6.8 filed with blocks edges, exported",
+  "archived_at": "2026-10-21T12:05:00.997Z"
 }

@@ -1,5 +1,23 @@
 # TASK_LOG
 
+## 2026-10-21 — Phase N: plan canonical N6 Visual Assertions (Claude)
+
+- **Scope:** planning only, contract `awkit-vra-n6-plan-1021` (Risk 2). A project-state lease covered Beads.
+  CodeCraft: not used (`CODECRAFT_MODE=off` default).
+- **Plan:** `docs/plans/ai-upgrade-v5/N6-visual-assertions.md`. It is grounded in the as-built stack at `d04275c8`:
+  - N0 guarded capture, the N1 advisory compare with no threshold, and the existing assertion and unknown-type paths;
+  - the measured limits from N2.3, N3.2 and N4.5;
+  - the N5 provenance audit.
+- **Decisions:** VA-0 to VA-12 proposed, not ratified (DECISIONS 2026-10-21).
+- **Tracking:** `awkit-vra.15` with N6.1–N6.8 (`.15.1`–`.15.8`) and ten `blocks` edges in plan order.
+- **Files:**
+  - Plans: `docs/plans/ai-upgrade-v5/{N6-visual-assertions,ROADMAP}.md`.
+  - Docs: `docs/ai/{DECISIONS,CURRENT_STATE,HANDOFF,TASK_LOG}.md`.
+  - Tracker and verifier: `.beads/issues.jsonl`, `scripts/verify-roadmap-dashboard.mjs`.
+  - The contract and `active-lease.json`.
+- **Checks:** see the commit. No product code changed. The independent plan review was NOT RUN; it is recommended
+  before approval.
+
 ## 2026-10-20 — Security: resolve the awkit-2het review follow-ups V1–V4 (Claude)
 
 - **Scope:**

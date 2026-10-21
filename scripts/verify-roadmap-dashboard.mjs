@@ -173,7 +173,8 @@ try {
   // Then 407 on 2026-10-20 (contract `awkit-visual-capture-window-1020`): the visual capture-window defect
   // `awkit-2het` filed.
   // Then 408 on 2026-10-20 (contract `awkit-2het-followups-1020`): the review follow-up V1 defect `awkit-rur1` filed.
-  check("408 issues parse", beads.stats.total === 408, `got ${beads.stats.total}`);
+  // Then 417 on 2026-10-21 (contract `awkit-vra-n6-plan-1021`): the N6 epic `awkit-vra.15` and N6.1-N6.8 filed.
+  check("417 issues parse", beads.stats.total === 417, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -770,8 +771,9 @@ try {
   // awaiting an independent review.
   // Then 26/382 of 408 on 2026-10-20 (contract `awkit-2het-followups-1020`): `awkit-rur1` filed and closed, and
   // `awkit-2het` closed after its review follow-ups V1-V4 were resolved and a fresh review approved.
-    "26 outstanding / 382 closed",
-    beads.stats.outstanding === 26 && beads.stats.closed === 382,
+  // Then 35/382 of 417 on 2026-10-21 (contract `awkit-vra-n6-plan-1021`): the N6 epic and its eight children filed open.
+    "35 outstanding / 382 closed",
+    beads.stats.outstanding === 35 && beads.stats.closed === 382,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -902,9 +904,11 @@ try {
   // `awkit-3gtj` `discovered-from` `awkit-uoik`. Measured.
   // Then 335 on 2026-10-20 (contract `awkit-visual-capture-window-1020`): `awkit-2het` `discovered-from` `awkit-3gtj`.
   // Then 336 on 2026-10-20 (contract `awkit-2het-followups-1020`): `awkit-rur1` `discovered-from` `awkit-2het`. Measured.
+  // Then 355 on 2026-10-21 (contract `awkit-vra-n6-plan-1021`): nine parent-child links for `awkit-vra.15` and its
+  // children, and ten blocks edges in plan order (.2 and .3 on .1, .4 on .2 and .3, .5 .6 .7 on .4, .8 on .5 .6 .7). Measured.
   check(
-    "336 edges are present to classify",
-    beads.stats.edges === 336,
+    "355 edges are present to classify",
+    beads.stats.edges === 355,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(

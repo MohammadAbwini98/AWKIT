@@ -1,6 +1,28 @@
 # DECISIONS
 
-### 2026-10-19 (latest) — Phase N N5 outcome: Visual Failure Diagnosis closed advisory-only, after independent QC and a security review (`awkit-vra.14.7`, `awkit-vra.14`)
+### 2026-10-21 (latest) — Phase N N6 Visual Assertions planned; VA-0 to VA-12 proposed, not ratified (`awkit-vra.15`)
+
+- **Status.** Planning only (contract `awkit-vra-n6-plan-1021`). Plan: `docs/plans/ai-upgrade-v5/N6-visual-assertions.md`.
+  Nothing is implemented, and no decision below is approved.
+- **Proposed decisions.**
+  - **Authority (VA-0):** an authored `assertVisual` step may fail a run. That would add a second
+    execution-affecting visual result beside VR-0's `agreed`. It applies only to `failed` under proven-equal
+    conditions in `enforce` mode, after calibration. Observe mode never changes an outcome.
+  - **Isolation (VA-1):** a fourth allow-listed `src/visual` edge.
+  - **Step shape and scope (VA-2, VA-3):** a new `assertVisual` step type, not a new `assertionType`. Older builds
+    then fail closed, whereas an unknown `assertionType` falls through to a text comparison. Element-only scope.
+  - **Conditions and storage (VA-4 to VA-6):** a conditions envelope and key per baseline, in a new image-free
+    `visual-baselines/` store. The N2/N4 reference store is untouched, and VD-11 stays deferred for it.
+  - **Pass and inconclusive rules (VA-7, VA-8):** only byte identity passes in v1. `onInconclusive` defaults to `pass`.
+  - **Enablement, approval and export (VA-9 to VA-11):** `AWKIT_VISUAL_ASSERTIONS=off|observe|enforce`, default
+    off, with a 2000 ms deadline. Baselines are approved by a person with a permission and audited. They are not
+    exported in N6.
+  - **Calibration gate (VA-12):** zero `failed` on unchanged fixtures across 20 fresh launches per cell, headed and
+    headless at DPR 1, 1.25 and 2. Otherwise N6 closes observe-only.
+- **Why now.** N5 named N6 as the authored, outcome-changing counterpart to its advisory diagnosis. The measured
+  facts (N2.3, N3.2, N4.5) rule out a threshold or cross-mode comparison without calibration.
+
+### 2026-10-19 — Phase N N5 outcome: Visual Failure Diagnosis closed advisory-only, after independent QC and a security review (`awkit-vra.14.7`, `awkit-vra.14`)
 
 - **Outcome against VD-0 to VD-11.**
   - Advisory only: the diagnosis runs once, after the retry policy declines another attempt. Its record leaves only

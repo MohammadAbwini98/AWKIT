@@ -1,6 +1,22 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-20, latest) — Security: awkit-2het closed, V1–V4 resolved
+## HANDOFF (2026-10-21, latest) — Phase N: N6 Visual Assertions planned, owner decisions pending
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:**
+  - The N6 plan, `docs/plans/ai-upgrade-v5/N6-visual-assertions.md` (planning only).
+  - The epic `awkit-vra.15` and N6.1–N6.8 filed with `blocks` edges.
+  - VA-0 to VA-12 recorded in DECISIONS as proposed, not ratified.
+- **Next:**
+  - Recommended first: an independent review of the plan.
+  - Then the owner approves, amends or rejects VA-0 to VA-12 (N6.1). After that, N6.2 (pure policy) and N6.3
+    (baseline store) can start in parallel.
+- **Do not:** implement any N6 item, add the fourth `src/visual` edge, or add the `assertVisual` step type before
+  N6.1 is approved.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-20) — Security: awkit-2het closed, V1–V4 resolved
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

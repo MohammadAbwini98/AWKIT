@@ -1,6 +1,21 @@
 # CURRENT_STATE
 
-## Security: awkit-2het review follow-ups V1–V4 resolved, observation samples inside the capture window (2026-10-20, latest)
+## Phase N: N6 Visual Assertions planned, decisions pending (2026-10-21, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
+executed, and no product code changed.
+
+- **Plan:** `docs/plans/ai-upgrade-v5/N6-visual-assertions.md` (contract `awkit-vra-n6-plan-1021`).
+  - An authored, element-scoped `assertVisual` step compares a guarded N0 capture with an author-approved,
+    image-free baseline, recorded with a conditions envelope in a new `visual-baselines/` store.
+  - It passes only on byte identity under proven-equal conditions and fails only on a proven difference in
+    `enforce` mode. Anything else is `inconclusive`.
+  - It stays observe-only until a calibration gate is met.
+- **Tracking:** epic `awkit-vra.15` with N6.1–N6.8 (`.15.1`–`.15.8`), chained by `blocks` edges. N6.1, the owner
+  decisions VA-0 to VA-12, gates everything else.
+- **Decisions:** VA-0 to VA-12 are proposed and **not ratified**, so nothing may be implemented yet.
+
+## Security: awkit-2het review follow-ups V1–V4 resolved, observation samples inside the capture window (2026-10-20)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed.

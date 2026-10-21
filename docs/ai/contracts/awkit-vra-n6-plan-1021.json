@@ -1,0 +1,154 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-n6-plan-1021",
+    "title": "Phase N N6 Visual Assertions: plan, owner decisions VA-0 to VA-12 proposed, Beads filing",
+    "objective": "Write the canonical N6 Visual Assertions plan (planning only, zero implementation) from the as-built Phase N stack at d04275c8: an authored, element-scoped assertVisual step comparing a guarded N0 capture with an author-approved, image-free baseline recorded with a provenance envelope in a new visual-baselines store, passed only on byte identity under equal-proven conditions, observe-only until a calibration gate is met. Propose owner decisions VA-0 to VA-12 without ratifying them. File the N6 epic under awkit-vra with N6.1-N6.8 and their blocks edges, update the roadmap row, DECISIONS, state docs and the dashboard pins.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "d04275c8",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "qa",
+      "project-state"
+    ],
+    "expected_paths": [
+      "docs/plans/ai-upgrade-v5/N6-visual-assertions.md",
+      "docs/plans/ai-upgrade-v5/ROADMAP.md",
+      "docs/ai/DECISIONS.md",
+      ".beads/**",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/awkit-vra-n6-plan-1021.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N6-PLAN",
+      "description": "docs/plans/ai-upgrade-v5/N6-visual-assertions.md exists, grounded in as-built facts with file references, states zero implementation, and proposes VA-0 to VA-12 without ratifying them.",
+      "evidence_required": [
+        "plan-review"
+      ]
+    },
+    {
+      "id": "N6-FILED",
+      "description": "The N6 epic and N6.1-N6.8 are filed under awkit-vra with blocks edges in plan order, exported, and the roadmap row names them.",
+      "evidence_required": [
+        "verify:roadmap-dashboard"
+      ]
+    },
+    {
+      "id": "N6-STATE",
+      "description": "DECISIONS records VA-0 to VA-12 as proposed and not ratified; CURRENT_STATE, HANDOFF and TASK_LOG updated; build passes; the dashboard reads Sources agree.",
+      "evidence_required": [
+        "build",
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "plan-review",
+      "type": "inspection",
+      "required": true,
+      "command": "self-review of the plan against the cited source lines",
+      "artifact": "docs/plans/ai-upgrade-v5/N6-visual-assertions.md",
+      "result": "PASS",
+      "observed": "every as-built claim cites a file or a recorded measurement (N2.3, N3.2, N4.5, N5 plan, benchmark after 6ff6327); independent plan review NOT RUN and recommended before approval"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc --noEmit and electron-vite bundles PASS, embedded roadmap snapshot 588 records from 14 sources; verify:source-hygiene 11/0"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "177/177, Sources agree, 35 outstanding / 382 closed of 417, 355 edges, after awkit-vra.15 and N6.1-N6.8 were filed with ten blocks edges (round 1 failed only on the pinned counts, updated in round 2)"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "runs after the commit that carries this contract"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-n6-plan-1021:project-state:2026-10-21T12:03:26.991Z",
+        "task": "awkit-vra-n6-plan-1021",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-21T12:03:26.991Z",
+        "acquired_at_commit": "d04275c8c28c50a7db69d285299865ff5c57ce26",
+        "released_at": "2026-10-21T12:05:00.995Z",
+        "released_reason": "N6 epic awkit-vra.15 and N6.1-N6.8 filed with blocks edges, exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}
