@@ -1,6 +1,30 @@
 # CURRENT_STATE
 
-## Phase N: N6 Visual Assertions planned, decisions pending (2026-10-21, latest)
+## Phase N: N6.1 owner decision AMEND applied; N6.1 not approved (2026-10-21, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No product code changed.
+
+- **Owner decision:** AMEND. Accepted: VA-1, VA-2, VA-3, VA-7, VA-10 and VA-15. Amended: VA-0, VA-4, VA-5, VA-6,
+  VA-8, VA-9, VA-11, VA-12, VA-13 and VA-14.
+- **Amended plan** (contract `awkit-vra-n6-amend-1021`):
+  - fail-closed enforcement, with separate `visual-mismatch` and `visual-unverified` failure classes;
+  - signed, environment-bound, 30-day per-cell grants, under a 300-launch criterion;
+  - a baseline lifecycle verified against the real flow store, with invalidate-first, keyless hooks inside the flow
+    folder lane on every create, clone, import, Recorder save, quarantine, delete, rename, update and `updateWith`;
+  - a length-prefixed keyed equality commitment instead of grids, dHash or the raw digest;
+  - bound, single-use candidates that need fresh re-authentication;
+  - defined integrity failure modes, with the same-user, rollback and clock limits stated.
+- **Focused reviews of the amendments:** three rounds, each CHANGES REQUIRED (13, then 6, then 6 findings), all
+  verified and applied. Packaged and dev builds now keep separate stores, keys and grants. The round-3 fixes were not
+  re-reviewed (see TASK_LOG).
+- **Owner attention:** VA-2's accepted text changed (A1 removes `onInconclusive`) and needs reconfirmation. New
+  VA-16 proposes that grants come only from the calibration harness, so enforcement is lab-only in N6.
+- **Tracking:** the Beads titles of N6.1 and N6.3 to N6.6 are updated. The N6.3 description predates the review
+  rounds: its update was BLOCKED by a terminal hook denial, so the plan is authoritative. Dependencies are
+  unchanged.
+- **Gate:** N6.2 and N6.3 must not begin until the amended VA-0 to VA-16 are explicitly ratified.
+
+## Phase N: N6 Visual Assertions planned, decisions pending (2026-10-21)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No validation case was
 executed, and no product code changed.

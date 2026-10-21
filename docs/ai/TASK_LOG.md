@@ -1,5 +1,30 @@
 # TASK_LOG
 
+## 2026-10-21 — Phase N: apply the owner's N6.1 AMEND and review the amendments (Claude)
+
+- **Scope:** planning only, contract `awkit-vra-n6-amend-1021` (Risk 2). Project-state leases covered Beads.
+  CodeCraft: not used (`CODECRAFT_MODE=off` default). No product code changed. N6.1 is **not** approved.
+- **Plan:** `docs/plans/ai-upgrade-v5/N6-visual-assertions.md` applies A1–A6, each re-checked against the source.
+  It adds per-amendment acceptance criteria with deterministic verifiers and required mutants, and a VA-0 to VA-16
+  table with owner status. VA-1, VA-3, VA-7, VA-10 and VA-15 are accepted. VA-2 is accepted but its text changed
+  under A1 and needs reconfirmation. VA-16 (lab-only grant issuance) is new.
+- **Reviews:** three fresh-context `awkit-qc-reviewer` rounds, all read-only, every finding verified before it was
+  applied:
+  1. CHANGES REQUIRED, 13 findings (3 High, 6 Medium, 4 Low).
+  2. CHANGES REQUIRED, six new findings (1 High, 5 Medium) in keyless invalidation and grant issuance.
+  3. CHANGES REQUIRED, six new findings (1 High, 1 Medium, 4 Low): build-mode separation of store, key and grants,
+     quarantine and delete call points, a start-up sweep, a key-state marker, tokens for existing flows.
+
+  The round-3 fixes were **not re-reviewed** (NOT RUN).
+- **Tracking:** Beads N6.1 and N6.3 to N6.7 descriptions updated, and N6.1, N6.3, N6.4, N6.5 and N6.6 retitled.
+  Dependencies and counts are unchanged. The final N6.3 description update was BLOCKED: a terminal lease-hook denial
+  (angle brackets in the text). It was not retried, so the plan is the authoritative N6.3 scope.
+- **Files:** `docs/plans/ai-upgrade-v5/{N6-visual-assertions,ROADMAP}.md`,
+  `docs/ai/{DECISIONS,CURRENT_STATE,HANDOFF,TASK_LOG}.md`, `.beads/issues.jsonl`,
+  `docs/ai/contracts/{awkit-vra-n6-amend-1021,active-lease}.json`.
+- **Checks:** build PASS, verify:source-hygiene 11/0, verify:verifier-classification reconciled,
+  verify:roadmap-dashboard 177/177 Sources agree.
+
 ## 2026-10-21 — Phase N: independent review of the N6 plan and its corrections (Claude)
 
 - **Scope:** planning only, contract `awkit-vra-n6-plan-review-1021`. A project-state lease covered Beads.

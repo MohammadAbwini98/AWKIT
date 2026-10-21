@@ -1,6 +1,86 @@
 # DECISIONS
 
-### 2026-10-21 (latest) — Phase N N6 plan revised for an independent review; VA-0 to VA-15 proposed, not ratified (`awkit-vra.15`)
+### 2026-10-21 (latest) — Phase N N6.1 owner decision: AMEND; N6.1 not approved (`awkit-vra.15.1`)
+
+- **Owner decision.** AMEND VA-0 to VA-15. N6.1 is **not** approved, and nothing may be implemented.
+  - **Accepted without amendment:** VA-1, VA-2, VA-3, VA-7, VA-10 and VA-15.
+  - **Amended:** VA-0, VA-4, VA-5, VA-6, VA-8, VA-9, VA-11, VA-12, VA-13 and VA-14.
+- **Focused reviews of the amendments.** A fresh-context QC review returned CHANGES REQUIRED with 13 findings
+  (3 High, 6 Medium, 4 Low). A re-review of those fixes returned CHANGES REQUIRED with six new findings (1 High,
+  5 Medium) in the invalidation and grant design. A narrow third review returned CHANGES REQUIRED with six more
+  (1 High, 1 Medium, 4 Low): build-mode separation, quarantine and delete call points, a start-up sweep, a key-state
+  marker and tokens for existing flows. Every finding was checked against the source and applied. The text below is
+  the revised proposal.
+- **Needs the owner's attention before ratification:**
+  - **VA-2 reconfirmation.** A1 removes the `onInconclusive` option that was part of the accepted VA-2 text.
+  - **New VA-16, grant issuance.** Grants are signed with a key held through Electron `safeStorage`, so only the
+    app's own main process can issue them. In N6 the calibration harness runs in the main process of a non-packaged
+    acceptance build on the owner's machine, so enforcement is lab-only. Both builds share one runtime root, so the
+    store, the key and every grant are separated by app mode, and the packaged gate never reads grants. Its
+    enforce-mode steps fail `visual-unverified`. An in-app qualification action needs its own decision.
+- **Amended proposals** (contract `awkit-vra-n6-amend-1021`), awaiting explicit ratification:
+  - **A1, fail-closed enforcement (VA-0, VA-8, VA-9).**
+    - Two failure classes, `visual-mismatch` and `visual-unverified`. The `onInconclusive` option is removed.
+    - An enforce-mode step fails as `visual-unverified` when the flag is not `enforce`, when the cell is not
+      qualified or its grant is invalid or expired, and on any inconclusive verdict.
+    - Existing `onFailure` routing is unchanged.
+  - **A2, environment-bound grants (VA-4, VA-12).**
+    - Per-cell grants are signed and bound to browser, app and OS versions, capture and assertion policy, and
+      fingerprint and suite versions. They expire after 30 days and are issued only by a qualifying calibration.
+    - The criterion, per cell: at least 300 trials (one fresh launch each, one designated primary fixture) over at
+      least three sessions, with at least 300 `passed` and zero `failed`. That bounds the per-launch false-mismatch
+      rate below 1 % at 95 % confidence, assuming independent launches, for the calibration fixtures on that machine
+      only. An all-inconclusive cell cannot qualify.
+    - Grants are also bound to the key generation, so a reset invalidates them.
+    - Unqualified cells are observe-only, and enforce fails closed in them.
+  - **A3, lifecycle (VA-5, VA-11).** Verified against the real flow store:
+    - create refuses an existing id; clone goes through create with a new id and unchanged step ids;
+    - import keeps the id and overwrites, needing only `WORKFLOW_CREATE`;
+    - delete is `rm`; a corrupt file is quarantined by rename;
+    - restore exists in-app: `undoMigration` writes through `update`, and AI revert through `updateWith`;
+    - Recorder ids are positional.
+
+    `JsonProfileStore` has no hook, and its lane is not re-entrant, so N6.3 adds optional callbacks to the shared
+    store, set only by `createFlowProfileStore`. None of them takes the lane. *Before write* runs inside the lane
+    after any existence check; *before delete* runs before `deleteUnlocked` (delete, and the rename half of update);
+    *on quarantine* runs wherever a corrupt file is renamed aside, inside or outside the lane. Every create, clone,
+    import, Recorder save, delete, id rename, quarantine and update over a missing file **invalidates the flow**: it
+    writes a new unsigned random epoch token, then deletes the flow's indexes and records. Update and `updateWith`
+    delete the index and records of removed or changed `assertVisual` steps. None of this needs the key, so it still
+    works with the keystore down. A crash can only lose approvals; leftover files of an old epoch are ignored and
+    removed by a start-up sweep. Every existing flow gets a token at N6's first start. Approvals take the same lane,
+    so one can never land after an update that made it stale.
+  - **A4, keyed commitment (VA-6).** Records store `HMAC(K_commit, …)` over a length-prefixed encoding of the key
+    parts, the epoch, the size and `contentDigest`, instead of grids, dHash or the raw digest. Equality stays exact
+    pixel equality, and no `VisualEvidence` is persisted, so FD-4 stands. `mode` is not part of the step content
+    digest, so promoting a step from observe to enforce keeps its approval.
+  - **A5, candidates (VA-13).**
+    - Each candidate is bound immutably to run, instance, flow, step, flow epoch token (every flow has one, and any
+      invalidation, even an identical re-import, changes it), app mode, step content digest, conditions, key
+      generation and the user who started the run.
+    - Candidates are also produced for an unreadable baseline. Approving one audits the failure and replaces it, so a
+      damaged step never needs a global reset.
+    - It is single-use, expires after 30 minutes and lives in memory only. Flag `off` produces none.
+    - `WORKFLOW_EDIT` plus fresh re-authentication is required before preview and before approval. Any such user may
+      approve, and both the approver and the run user are recorded.
+    - Expired, consumed and stale candidates are rejected, including any from before a reset.
+  - **A6, integrity (VA-14).**
+    - A DPAPI-held master key via the existing `secretStore` and `SecretStorageCapability`, created at the first
+      approval or grant, with HKDF-derived keys and a key generation incremented by every reset.
+    - An unsigned per-flow epoch token, signed per-step indexes with a generation, and signed records and grants.
+      A missing, changed or corrupt token makes approvals unreachable (`no-baseline`).
+    - First use and key loss are told apart by an unsigned key-state marker holding the key generation, which only
+      Reset rewrites, not by which files remain. A record listed in an index but missing is `baseline-unreadable`.
+    - Defined behavior for an unavailable keystore, key loss, a missing, corrupt or changed epoch token, a corrupt
+      index, tampered, moved or restored records, and an explicit reset. No plaintext key, and no silent
+      regeneration.
+    - Stated limits: a local HMAC does not stop same-user forgery, replay or rollback. That includes restoring an old
+      token before the sweep removes leftovers, deleting the key-state marker, a consistent restore of the whole
+      folder, and setting the clock back past a grant's expiry.
+  - **Residual.** A user holding only `WORKFLOW_CREATE` can import over an existing flow, which also invalidates its
+    approvals. The import-overwrite authorization gap is pre-existing and recommended for separate tracking.
+
+### 2026-10-21 — Phase N N6 plan revised for an independent review; VA-0 to VA-15 proposed, not ratified (`awkit-vra.15`)
 
 - **Review.** A fresh-context QC review returned CHANGES REQUIRED, with 15 findings: 3 High, 7 Medium and 5 Low,
   including four factual errors. Each finding was checked against the source and applied (contract

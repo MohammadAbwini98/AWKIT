@@ -1,22 +1,34 @@
 {
-  "task": "awkit-vra-n6-plan-review-1021",
-  "contract_path": "docs/ai/contracts/awkit-vra-n6-plan-review-1021.json",
+  "task": "awkit-vra-n6-amend-1021",
+  "contract_path": "docs/ai/contracts/awkit-vra-n6-amend-1021.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-21T15:31:29.744Z",
-  "acquired_at_commit": "8121991d10bfea486cefec6c9708120c12ef3e81",
+  "acquired_at": "2026-10-21T17:11:19.565Z",
+  "acquired_at_commit": "594f5ea7edd21b364a2897a91fdaa07f24926c56",
   "baseline_dirty": [
+    ".beads/issues.jsonl",
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/DECISIONS.md",
+    "docs/ai/HANDOFF.md",
+    "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-vra-n6-plan-review-1021.json",
-    "docs/plans/ai-upgrade-v5/N6-visual-assertions.md"
+    "docs/ai/contracts/awkit-vra-n6-amend-1021.json",
+    "docs/plans/ai-upgrade-v5/N6-visual-assertions.md",
+    "docs/plans/ai-upgrade-v5/ROADMAP.md"
   ],
   "baseline_dirty_fingerprints": {
+    ".beads/issues.jsonl": "6b3660f134857d873f3a8a450632972f1e35ca1fde52f6646c149376ad345c7c",
+    "docs/ai/CURRENT_STATE.md": "f04dd53ee28ee4d08910fdc00a0288080e741ec951f05a4862f39bb2f912d82b",
+    "docs/ai/DECISIONS.md": "ee9c85740e9f93f2685c1ade41d82c741e0c0bf358584a223e192123527edc68",
+    "docs/ai/HANDOFF.md": "852a84b1ec6c96b0ac3499f7a27c9d5360fc710583e71bb8dcd904e53d521c08",
+    "docs/ai/contracts/active-lease.json": "7cd441c877750589336bbd1ce19c5078ce57864a05601b0d63cc0cb2ed7dc868",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-vra-n6-plan-review-1021.json": "94f30b5b4f7a9fce6e308189d472474b54017f8685ffe3472833b2b03db026fb",
-    "docs/plans/ai-upgrade-v5/N6-visual-assertions.md": "932224b2112e647832c810d602497b30a2ec0890d18fedb5bd74e609c4c66666"
+    "docs/ai/contracts/awkit-vra-n6-amend-1021.json": "faf01a79fa21ccd34cf8fd6ff4e17336b07c1cfce0ecc6f5673340c4c0e4bdff",
+    "docs/plans/ai-upgrade-v5/N6-visual-assertions.md": "fcb295f98a2c042c13542a48906dfdc474a0d576c0b0d56131b1f2452ac4e6be",
+    "docs/plans/ai-upgrade-v5/ROADMAP.md": "8687677f735aea37eb136c45edab7985be41f12baaed1bdd65fe26b11d11334a"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -31,7 +43,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-21T15:31:52.237Z",
-  "released_reason": "N6.1 scope updated, N6.5 and N6.7 also blocked by N6.6, epic note, exported",
-  "archived_at": "2026-10-21T15:31:52.240Z"
+  "released_at": "2026-10-21T17:11:34.398Z",
+  "released_reason": "N6.3 description update BLOCKED by terminal hook denial, no Beads change made in this round",
+  "archived_at": "2026-10-21T17:11:34.402Z"
 }

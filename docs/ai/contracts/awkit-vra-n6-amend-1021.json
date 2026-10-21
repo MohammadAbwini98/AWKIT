@@ -1,0 +1,179 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-n6-amend-1021",
+    "title": "Phase N N6.1 owner AMEND: revise VA-0, VA-4, VA-5, VA-6, VA-8, VA-9, VA-11, VA-12, VA-13, VA-14; N6.1 not approved",
+    "objective": "Apply the owner's N6.1 AMEND decision to docs/plans/ai-upgrade-v5/N6-visual-assertions.md without implementing anything: fail-closed enforcement with separate mismatch and unverified failure classes and unchanged onFailure (A1); environment-bound, signed, expiring per-cell enforcement grants with a 300-launch confidence criterion and explicitly observe-only unqualified cells (A2); a baseline lifecycle verified against the real flow store (clone keeps step ids, import keeps the id and overwrites, delete is rm, rename, external restore, locator edits, positional Recorder ids) with flow-store hooks and run-time content checks (A3); a keyed HMAC equality commitment instead of grids, dHash and raw digest, keeping exact pixel equality (A4); immutably bound, single-use, expiring candidates with permission and fresh re-auth before preview and approval (A5); keystore, key-loss, corrupt-index, restore, replay and integrity-failure modes with stated same-user and rollback limits (A6). Record VA-1, VA-2, VA-3, VA-7, VA-10, VA-15 as accepted and the rest as amended proposals, add acceptance criteria and deterministic verification, keep Beads consistent, obtain a focused fresh-context QC review, stop at the N6.1 gate.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "594f5ea7",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "qa",
+      "project-state"
+    ],
+    "expected_paths": [
+      "docs/plans/ai-upgrade-v5/N6-visual-assertions.md",
+      "docs/plans/ai-upgrade-v5/ROADMAP.md",
+      "docs/ai/DECISIONS.md",
+      ".beads/**",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/awkit-vra-n6-amend-1021.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "AMEND-PLAN",
+      "description": "The plan applies A1 to A6, each re-checked against the cited source, states that N6.1 is not approved, and gives a VA-0 to VA-15 table with owner status and amended proposals plus per-amendment acceptance criteria and deterministic verification.",
+      "evidence_required": [
+        "amend-review"
+      ]
+    },
+    {
+      "id": "AMEND-STATE",
+      "description": "DECISIONS records the AMEND without claiming approval, Beads descriptions match the amended scope with unchanged dependencies, state docs updated, build, source-hygiene, verifier-classification and the roadmap dashboard pass.",
+      "evidence_required": [
+        "build",
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "amend-review",
+      "type": "inspection",
+      "required": true,
+      "command": "focused fresh-context awkit-qc-reviewer review of the amended areas",
+      "artifact": "docs/plans/ai-upgrade-v5/N6-visual-assertions.md",
+      "result": "FAIL",
+      "observed": "three read-only rounds, each CHANGES REQUIRED (13, 6 and 6 findings), every finding verified against the source and applied in the plan and DECISIONS; the round-3 fixes were not re-reviewed, so no APPROVED verdict exists and qc_status stays pending"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc --noEmit and electron-vite build passed; verify:source-hygiene 11/0 and verify:verifier-classification reconciled (342 scripts) also passed"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "177/177, Sources agree, 417 issues, 35 outstanding / 382 closed, 357 edges, pins unchanged"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "runs after the commit that carries this contract"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-n6-amend-1021:project-state:2026-10-21T16:51:31.262Z",
+        "task": "awkit-vra-n6-amend-1021",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-21T16:51:31.262Z",
+        "acquired_at_commit": "594f5ea7edd21b364a2897a91fdaa07f24926c56",
+        "released_at": "2026-10-21T16:52:13.951Z",
+        "released_reason": "N6.1, N6.3 to N6.7 descriptions updated for the owner AMEND, dependencies unchanged, exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-vra-n6-amend-1021:project-state:2026-10-21T16:59:50.714Z",
+        "task": "awkit-vra-n6-amend-1021",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-21T16:59:50.714Z",
+        "acquired_at_commit": "594f5ea7edd21b364a2897a91fdaa07f24926c56",
+        "released_at": "2026-10-21T17:00:43.166Z",
+        "released_reason": "N6 AMEND focused-review Beads title updates exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-vra-n6-amend-1021:project-state:2026-10-21T17:11:19.565Z",
+        "task": "awkit-vra-n6-amend-1021",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-21T17:11:19.565Z",
+        "acquired_at_commit": "594f5ea7edd21b364a2897a91fdaa07f24926c56",
+        "released_at": "2026-10-21T17:11:34.398Z",
+        "released_reason": "N6.3 description update BLOCKED by terminal hook denial, no Beads change made in this round",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

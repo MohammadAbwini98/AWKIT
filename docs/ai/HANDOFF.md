@@ -1,6 +1,24 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-21, latest) — Phase N: N6 Visual Assertions planned, owner decisions pending
+## HANDOFF (2026-10-21, latest) — Phase N: N6.1 AMEND applied, awaiting ratification
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:**
+  - The owner's N6.1 AMEND is applied to `docs/plans/ai-upgrade-v5/N6-visual-assertions.md` (A1 to A6), with each
+    amendment re-checked against the source (contract `awkit-vra-n6-amend-1021`).
+  - DECISIONS, ROADMAP and the Beads titles and descriptions are updated.
+  - Three focused fresh-context QC rounds of the amended areas each returned CHANGES REQUIRED (13, then 6, then 6
+    findings), all applied. The round-3 fixes were not re-reviewed (see TASK_LOG).
+  - The N6.3 Beads description is stale: its update was BLOCKED by a terminal hook denial, and the plan is
+    authoritative. Refresh it in the next project-state round, using text without angle brackets.
+- **Next:** the owner ratifies, or further amends, VA-0 to VA-16 as listed in the plan's decision table, including
+  reconfirming VA-2 (its `onInconclusive` option is removed by A1) and deciding the new VA-16 (lab-only grants).
+- **Do not:** begin N6.2 or N6.3, add the `assertVisual` step type, the fourth `src/visual` edge or the
+  `visual-baselines/` store before ratification is recorded.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-21) — Phase N: N6 Visual Assertions planned, owner decisions pending
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
