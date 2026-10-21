@@ -1,6 +1,48 @@
 # DECISIONS
 
-### 2026-10-21 (latest) — Phase N N6.1 owner decision: AMEND; N6.1 not approved (`awkit-vra.15.1`)
+### 2026-10-21 (latest) — Phase N N6.1 final owner amendments; ratification gated on final QC (`awkit-vra.15.1`)
+
+- **Owner decisions** (contract `awkit-vra-n6-final-1021`). All other VA decisions keep the amended proposals of
+  `0e1908bb`, subject to final QC.
+  - **VA-2 reconfirmed.** A dedicated, non-retryable `assertVisual` with `observe` and `enforce` modes and no
+    `onInconclusive`. Existing failure routing is preserved.
+  - **VA-16 amended: staged scope.**
+    - N6 delivers observe-only visual assertions in packaged production.
+    - Enforcement stays experimental, in the non-packaged acceptance build only, with grants from the harness in that
+      build.
+    - The packaged Designer does not offer enforce.
+    - A saved or imported enforce request in the packaged build fails closed as
+      `visual-unverified/enforce-unavailable-in-production`.
+    - Offline operation, AI independence and the protected-authentication boundary are unchanged.
+    - Production qualification and enforcement are the separate future milestone `awkit-vra.16`, which N6 neither
+      implements nor closes.
+    - VA-0, VA-9, VA-12, the objective, the outcome matrix (one table per build), the acceptance tests and the
+      completion criteria are updated to match.
+  - **VA-11 amended: import authorization.**
+    - Importing over an existing flow requires `WORKFLOW_EDIT` before any write, quarantine or baseline
+      invalidation. A new id keeps its create authorization.
+    - Today `flows:import` checks only `WORKFLOW_CREATE` (`flow.ipc.ts:49-50`), and the store overwrites without
+      checking whether the id exists (`ProfileStore.ts:119-123`).
+    - The decision is made inside the folder lane: a `stat`-based existence check, then an authorizer that
+      re-evaluates `WORKFLOW_EDIT`, never takes the lane, and treats a timeout as a denial. A refusal is typed and
+      audited.
+    - Filed as N6.9 (`awkit-vra.15.9`) with regression cases I1–I9. It is a security dependency of `awkit-vra.16` and
+      of N6 closure.
+- **Final closure review.** One bounded fresh-context review returned **CHANGES REQUIRED**. The import authorization
+  and the packaged outcome matrix were sound. Its five findings were verified against the code and applied, but not
+  re-reviewed:
+  - **C1 (High).** The master key moves out of the general secret store, which flows (`ExecutionEngine.ts:608-616`)
+    and `secrets:*` (`secrets.ipc.ts:17-29`) can reach, into a private N6 key file encrypted with `safeStorage`.
+  - **C2 (Medium).** Epoch tokens are shared by both builds, which use one flows folder, so either build's
+    invalidation reaches both. Signed files, key, marker and grants stay per mode.
+  - **C3 (Low).** Tokens are keyed by the resolved flows folder. A missing token is created inside the lane at
+    capture.
+  - **C4 (Low).** The packaged Designer allows enforce → observe, never the reverse.
+  - **C5 (Low).** Quarantine after an authorized import overwrite is stated as allowed.
+- **Status.** N6.1 is **not** ratified. It needs the owner to accept C1–C5 as applied, or one focused re-review.
+  No code changed.
+
+### 2026-10-21 — Phase N N6.1 owner decision: AMEND; N6.1 not approved (`awkit-vra.15.1`)
 
 - **Owner decision.** AMEND VA-0 to VA-15. N6.1 is **not** approved, and nothing may be implemented.
   - **Accepted without amendment:** VA-1, VA-2, VA-3, VA-7, VA-10 and VA-15.

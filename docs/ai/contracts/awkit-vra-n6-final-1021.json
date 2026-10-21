@@ -1,0 +1,163 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-n6-final-1021",
+    "title": "Phase N N6.1 final owner amendments (VA-2 reconfirmed, VA-16 and VA-11 amended) and one bounded QC closure review; N6.1 gated on QC",
+    "objective": "Apply the owner's final N6.1 decisions to docs/plans/ai-upgrade-v5/N6-visual-assertions.md without implementing anything: VA-2 reconfirmed (non-retryable assertVisual with observe and enforce, no onInconclusive, failure routing preserved); VA-16 amended to a staged scope (observe-only visual assertions in packaged production, experimental enforcement only in the non-packaged acceptance environment, enforce hidden from the packaged Designer, saved or imported enforce requests fail closed with visual-unverified and an explicit reason, production qualification and enforcement a separate future milestone not closed by N6), with VA-0, VA-9, VA-12, the objective, outcome matrix, acceptance tests and completion criteria updated; VA-11 amended so importing over an existing flow requires WORKFLOW_EDIT before any modification or baseline invalidation, race-safe, with regression cases, recorded as a security dependency before production enforcement. Reconcile DECISIONS, Beads (correct the stale N6.3 description, file the import-authorization item and the future production-enforcement milestone with blocks edges), the roadmap and state docs. Obtain one bounded fresh-context read-only QC review, resolve actionable code-supported findings, never claim APPROVED unless the reviewer returns it, stop at the N6.1 gate.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "0e1908bb",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "qa",
+      "project-state"
+    ],
+    "expected_paths": [
+      "docs/plans/ai-upgrade-v5/N6-visual-assertions.md",
+      "docs/plans/ai-upgrade-v5/ROADMAP.md",
+      "docs/ai/DECISIONS.md",
+      ".beads/**",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/awkit-vra-n6-final-1021.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "FINAL-PLAN",
+      "description": "The plan records VA-2 reconfirmed, VA-16 staged scope and VA-11 import authorization, updates VA-0, VA-9, VA-12, the objective, outcome matrix, acceptance tests and completion criteria, separates production from experimental capabilities, and does not claim N6.1 approval or QC approval without an APPROVED verdict.",
+      "evidence_required": [
+        "final-review"
+      ]
+    },
+    {
+      "id": "FINAL-STATE",
+      "description": "DECISIONS, Beads (N6.3 description corrected or BLOCKED recorded, import-authorization item and future production-enforcement milestone filed with blocks edges), roadmap and state docs reconciled, dashboard pins updated with provenance, build, source-hygiene, verifier-classification and the roadmap dashboard pass.",
+      "evidence_required": [
+        "build",
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "final-review",
+      "type": "inspection",
+      "required": true,
+      "command": "one bounded fresh-context read-only awkit-qc-reviewer review of the third-round fixes, VA-16 separation, packaged outcome matrix, import authorization and baseline epoch, signing, candidate and recovery semantics",
+      "artifact": "docs/plans/ai-upgrade-v5/N6-visual-assertions.md",
+      "result": "FAIL",
+      "observed": "one bounded closure round returned CHANGES REQUIRED with C1 High (master key in the general secret store), C2 Medium (epoch tokens split by mode over a shared flows folder), C3-C5 Low, scope items 3 and 4 sound; all five verified against the code and applied in the plan and DECISIONS but not re-reviewed per the owner's no-loop instruction, so qc_status stays pending"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc --noEmit and electron-vite build passed on the final docs state; verify:source-hygiene 11/0 and verify:verifier-classification reconciled (342 scripts) also passed"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "177/177, Sources agree, 419 issues, 37 outstanding / 382 closed, 362 edges after the pins moved with provenance"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "runs after the commit that carries this contract"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-n6-final-1021:project-state:2026-10-21T17:42:00.688Z",
+        "task": "awkit-vra-n6-final-1021",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-21T17:42:00.688Z",
+        "acquired_at_commit": "0e1908bb028e4d921ec361f64143744eb74a6b42",
+        "released_at": "2026-10-21T17:43:49.474Z",
+        "released_reason": "N6.1 final amendments: N6.9 and awkit-vra.16 filed with blocks edges, N6.1 N6.3-N6.6 N6.8 descriptions or notes updated, exported 419",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-vra-n6-final-1021:project-state:2026-10-21T17:50:55.574Z",
+        "task": "awkit-vra-n6-final-1021",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-21T17:50:55.574Z",
+        "acquired_at_commit": "0e1908bb028e4d921ec361f64143744eb74a6b42",
+        "released_at": "2026-10-21T17:51:20.042Z",
+        "released_reason": "N6.3 description aligned with closure-review fixes C1-C3, exported 419",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

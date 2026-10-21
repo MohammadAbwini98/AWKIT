@@ -174,7 +174,9 @@ try {
   // `awkit-2het` filed.
   // Then 408 on 2026-10-20 (contract `awkit-2het-followups-1020`): the review follow-up V1 defect `awkit-rur1` filed.
   // Then 417 on 2026-10-21 (contract `awkit-vra-n6-plan-1021`): the N6 epic `awkit-vra.15` and N6.1-N6.8 filed.
-  check("417 issues parse", beads.stats.total === 417, `got ${beads.stats.total}`);
+  // Then 419 later on 2026-10-21 (contract `awkit-vra-n6-final-1021`): N6.9 import authorization `awkit-vra.15.9`
+  // and the future production-enforcement milestone `awkit-vra.16` filed.
+  check("419 issues parse", beads.stats.total === 419, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -772,8 +774,10 @@ try {
   // Then 26/382 of 408 on 2026-10-20 (contract `awkit-2het-followups-1020`): `awkit-rur1` filed and closed, and
   // `awkit-2het` closed after its review follow-ups V1-V4 were resolved and a fresh review approved.
   // Then 35/382 of 417 on 2026-10-21 (contract `awkit-vra-n6-plan-1021`): the N6 epic and its eight children filed open.
-    "35 outstanding / 382 closed",
-    beads.stats.outstanding === 35 && beads.stats.closed === 382,
+  // Then 37/382 of 419 later on 2026-10-21 (contract `awkit-vra-n6-final-1021`): `awkit-vra.15.9` and `awkit-vra.16`
+  // filed open (two in). Measured after the export.
+    "37 outstanding / 382 closed",
+    beads.stats.outstanding === 37 && beads.stats.closed === 382,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -908,9 +912,12 @@ try {
   // children, and ten blocks edges in plan order (.2 and .3 on .1, .4 on .2 and .3, .5 .6 .7 on .4, .8 on .5 .6 .7). Measured.
   // Then 357 on 2026-10-21 (contract `awkit-vra-n6-plan-review-1021`): after the plan review, N6.5 and N6.7 are also
   // blocked by the N6.6 calibration. Measured.
+  // Then 362 later on 2026-10-21 (contract `awkit-vra-n6-final-1021`): parent-child links for `awkit-vra.15.9` and
+  // `awkit-vra.16`, and three blocks edges (.15.9 on .15.1, .15.8 on .15.9, `awkit-vra.16` on the N6 epic, since bd
+  // lets only an epic block an epic). Measured.
   check(
-    "357 edges are present to classify",
-    beads.stats.edges === 357,
+    "362 edges are present to classify",
+    beads.stats.edges === 362,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(

@@ -1,6 +1,28 @@
 # CURRENT_STATE
 
-## Phase N: N6.1 owner decision AMEND applied; N6.1 not approved (2026-10-21, latest)
+## Phase N: N6.1 final owner amendments applied; ratification gated on final QC (2026-10-21, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No product code changed.
+
+- **Owner decisions** (contract `awkit-vra-n6-final-1021`):
+  - VA-2 reconfirmed.
+  - VA-16 amended to a staged scope. N6 ships observe-only visual assertions in packaged production. Enforcement is
+    experimental and exists only in the non-packaged acceptance build. The packaged Designer offers no enforce
+    option, and a packaged enforce request fails closed as `visual-unverified/enforce-unavailable-in-production`.
+  - VA-11 amended: importing over an existing flow needs `WORKFLOW_EDIT`, decided race-safely inside the folder lane
+    before any write or invalidation.
+- **Tracking:**
+  - N6.9 `awkit-vra.15.9` (import authorization) is filed; it is blocked by N6.1 and blocks N6.8.
+  - The future milestone `awkit-vra.16` (production qualification and enforcement, not N6) is filed and blocked by
+    the N6 epic.
+  - The stale N6.3 description is corrected, and the N6.4, N6.5, N6.6 and N6.8 text matches the staged scope.
+- **Final QC:** one bounded closure review returned CHANGES REQUIRED (C1 High, C2 Medium, C3–C5 Low). All five were
+  applied: a private N6 key file, epoch tokens shared across builds and keyed by the flows folder, and others. They
+  were not re-reviewed, so N6.1 is **not** ratified.
+- **Gate:** N6.2, N6.3 and N6.9 must not begin before the owner accepts C1–C5 as applied or orders one focused
+  re-review.
+
+## Phase N: N6.1 owner decision AMEND applied; N6.1 not approved (2026-10-21)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. No product code changed.
 

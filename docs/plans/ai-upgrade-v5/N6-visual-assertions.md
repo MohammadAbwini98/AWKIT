@@ -1,14 +1,14 @@
 # N6 — Visual Assertions
 
-Status: **PLANNED, planning only; revised for an independent review, for the owner's N6.1 AMEND decision, and for
-three focused review rounds of those amendments (2026-10-21).** Contracts `awkit-vra-n6-plan-1021` (plan),
-`awkit-vra-n6-plan-review-1021` (first review) and `awkit-vra-n6-amend-1021` (owner amendments and their focused
-review). The owner accepted VA-1, VA-2, VA-3, VA-7, VA-10 and VA-15 and amended the rest; **N6.1 is not approved**.
-VA-0 to VA-16 below are amended proposals awaiting explicit ratification; VA-2's text changed as a consequence of A1
-and VA-16 is new, so both need the owner's confirmation. Nothing here authorizes implementation, a schema change, a
+Status: **PLANNED, planning only; owner decisions final, N6.1 ratification gated on the final QC (2026-10-21).**
+Contracts `awkit-vra-n6-plan-1021` (plan), `awkit-vra-n6-plan-review-1021` (first review),
+`awkit-vra-n6-amend-1021` (owner AMEND and three focused reviews) and `awkit-vra-n6-final-1021` (final owner
+amendments and the closure review). The owner accepted VA-1, VA-3, VA-7, VA-10 and VA-15, **reconfirmed VA-2**,
+amended VA-11 and VA-16 again, and kept the amended proposals of `0e1908bb` for the rest, subject to final QC.
+**N6.1 is not approved** until that QC returns APPROVED. Nothing here authorizes implementation, a schema change, a
 new `src/visual` edge, a dependency, a UI component or any runtime behavior.
 
-Baseline: `main` at `594f5ea7` (2026-10-21). Acceptance environment: the owner-approved Windows 11 ARM64 Parallels
+Baseline: `main` at `0e1908bb` (2026-10-21). Acceptance environment: the owner-approved Windows 11 ARM64 Parallels
 machine (DECISIONS 2026-10-19); that is a waiver of a separate clean-VM or x64 run, not a claim that one was executed.
 
 ## Owner amendments (N6.1 AMEND, 2026-10-21)
@@ -21,6 +21,14 @@ machine (DECISIONS 2026-10-19); that is a waiver of a separate clean-VM or x64 r
 | A4 | Keyed equality commitment instead of grids, dHash, raw digest; exact equality; precise residuals | VA-6, *Persistence* | `sha256Digest` hashes width, height and RGBA (`fingerprint.ts:124-129`) |
 | A5 | Candidates immutably bound; permission and fresh re-auth before preview and approval; expired, consumed, stale rejected | VA-13, *Pending candidates* | `requireFreshReauth` (`sessionContext.ts:91`), `WORKFLOW_EDIT` (`Permissions.ts:30`) |
 | A6 | Keystore, key loss, corrupt index, restore, replay, failed checks; fail closed; local-HMAC limits stated | VA-14, *Integrity and failure modes* | `SecretStorageCapability` (`app/main/secretStorageCapability.ts`), `secretStore.ts` |
+
+## Final owner amendments (2026-10-21)
+
+| # | Owner decision | Applied in | Source re-checked |
+|---|---|---|---|
+| F1 | **VA-2 reconfirmed:** dedicated non-retryable `assertVisual`, `observe` and `enforce`, no `onInconclusive`, existing failure routing preserved | VA-2, *Step outcome matrix* | `FlowExecutor.ts:607-631` |
+| F2 | **VA-16 amended, staged scope:** observe-only in packaged production; experimental enforcement only in the non-packaged acceptance environment; enforce not offered by the packaged Designer; a saved or imported enforce request fails closed as `visual-unverified` with an explicit reason; offline, AI-independent, protected-auth boundary unchanged; production qualification and enforcement a separate future milestone | Objective, *Production and experimental capabilities*, VA-0, VA-9, VA-12, VA-16, outcome matrix, acceptance, completion | `getAppMode()` (`appPaths.ts:50-56`); one runtime root for both builds (`appPaths.ts:9-11`) |
+| F3 | **VA-11 amended:** importing over an existing flow requires `WORKFLOW_EDIT` before any modification or baseline invalidation; creating a new flow keeps its create authorization; race-safe; a security dependency before production enforcement | VA-11, *Import authorization*, *Baseline lifecycle*, N6.9 | `flows:import` checks only `WORKFLOW_CREATE` (`flow.ipc.ts:49-50`); `import` overwrites without a lane-held check (`ProfileStore.ts:119-123, 203-205`); `assertSenderPermission` (`sessionContext.ts:64`) |
 
 ## Review history
 
@@ -69,6 +77,18 @@ machine (DECISIONS 2026-10-19); that is a waiver of a separate clean-VM or x64 r
 | S5 | Low | A first approval made every other "none"-bound candidate stale | Tokens created for all existing flows at N6's first start; no "none" |
 | S6 | Low | DECISIONS wording | Aligned |
 
+- **Final closure review** (contract `awkit-vra-n6-final-1021`; one bounded round as the owner required; CHANGES
+  REQUIRED; scope items 3 and 4 sound, 1, 2 and 5 with issues). All five findings were verified against the code
+  and applied. **They were not re-reviewed**, so no APPROVED verdict exists:
+
+| # | Sev. | Finding | Change |
+|---|---|---|---|
+| C1 | High | A master key in the general secret store could be read by a flow that names it (`ExecutionEngine.ts:608-616`), listed, overwritten or deleted through `secrets:*` with app permissions (`secrets.ipc.ts:17-29`) | The key lives in a **private** N6 key file encrypted with the same `safeStorage` backend, never in the general store; A6 cases and mutants |
+| C2 | Medium | Epoch tokens split by mode while both builds share one flows folder (`appPaths.ts:9-11`, `storagePaths.ts:58`): a flow replaced in one build left the other build's approvals alive | Epoch tokens are **shared by both modes**, written by both builds; signed files, key, marker and grants stay per mode; A3 case |
+| C3 | Low | A flow copied in, or a changed flows path, could lack a token or inherit one; a missing token at capture was undefined | Tokens keyed by the resolved flows folder as well as the flow id; a missing token is created inside the lane at capture, before a candidate binds it |
+| C4 | Low | The packaged Designer made an enforce step's mode read-only, yet authors were told to switch it to observe | Packaged: enforce → observe allowed, observe → enforce never offered |
+| C5 | Low | Quarantine after an authorized overwrite was ambiguous against I6 | Stated: allowed only after authorization |
+
 ## Objective
 
 Let a flow author add a **visual assertion** step: "this element should still look the way I approved it". On each run
@@ -78,6 +98,27 @@ recorded under **proven, equal conditions**.
 Rules: a visual assertion may only report a **mismatch** when the difference is proven; an **enforced** assertion
 passes only when equality is proven in a qualified, currently valid environment; every other enforced outcome
 **fails closed** as *unverified*. Observe mode never changes a step outcome.
+
+**Staged scope (VA-16).** N6 delivers **observe-only** visual assertions in the packaged production app. Enforcement
+exists in N6 only as an **experimental** capability of the non-packaged acceptance build. In the packaged app an
+enforce request, however it arrived, never passes: it fails `visual-unverified/enforce-unavailable-in-production`.
+Production qualification and enforcement are the separate future milestone `awkit-vra.16`, which N6 neither
+implements nor closes.
+
+## Production and experimental capabilities
+
+| Capability | Packaged production (N6) | Non-packaged acceptance build (N6, experimental) | Future milestone `awkit-vra.16` |
+|---|---|---|---|
+| `assertVisual` in observe mode | **Delivered**: capture, verdict, report, candidates, approval | Same | — |
+| Designer mode choice | Observe only; enforce never offered; an existing enforce step shown as unavailable in production, with the reason, and switchable to observe | Observe and enforce, enforce labelled experimental | Enforce offered once qualified |
+| Feature flag | `off` (default) / `observe`; an `enforce` value is treated as `observe` | `off` / `observe` / `enforce` | — |
+| Enforce-mode step (saved, imported or hand-edited) | **Fails `visual-unverified/enforce-unavailable-in-production`**, never passes | Outcome matrix with grants | Outcome matrix with production grants |
+| Grants | None issued, none read | Issued by the N6.6 harness in this build only, dev-mode | In-app qualification (separate decision) |
+| Baselines and key | Packaged-mode folder and key | Dev-mode folder and key | — |
+| Prerequisite | — | — | N6 closed, including N6.9 import authorization |
+
+All of it runs offline, needs no AI model, and keeps the protected-authentication boundary: protected-login steps,
+handed-off pages and sensitive targets are refused before capture in every build.
 
 ## Distinct from N5, N7, N9 and N10
 
@@ -113,11 +154,14 @@ calibrated similarity threshold (N2.3).
 **Scope:** one non-retryable `assertVisual` step (observe, enforce); a pure verdict policy; a keyed-commitment store
 with per-flow epoch tokens, per-step signed indexes and integrity; a flow-only pre-write option on the shared
 `JsonProfileStore` for invalidate-first lifecycle hooks;
-run-produced pending candidates approved by a person; environment-bound grants issued by the calibration harness; a
-fourth `src/visual` edge; a codes-only report block and drawer section; a Designer node; calibration and verifiers.
+run-produced pending candidates approved by a person; experimental environment-bound grants issued by the
+calibration harness in the acceptance build; the packaged enforce-unavailable rule; import-over-existing
+authorization (N6.9); a fourth `src/visual` edge; a codes-only report block and drawer section; a Designer node;
+calibration and verifiers.
 
-**Non-goals:** viewport, page or region assertions; masks; diff images; tolerance passes; auto-updated baselines;
-persisted image bytes, grids, dHash or raw digests; baseline export; an in-app machine qualification (VA-16); OCR,
+**Non-goals:** production enforcement and in-app machine qualification (future milestone `awkit-vra.16`); viewport,
+page or region assertions; masks; diff images; tolerance passes; auto-updated baselines;
+persisted image bytes, grids, dHash or raw digests; baseline export; OCR,
 state labels, models; any change to locators, recovery, other steps' retries, fusion, agreement, diagnosis or the
 N2/N4 store.
 
@@ -132,15 +176,17 @@ Run (flag observe or enforce): StepExecutor dispatch ──► VisualAssertionSt
    5. conditions key, step content digest
    6. baseline read: epoch token → step index → record (integrity, epoch, generation, key generation)
    7. decideVisualAssertion(...) ── pure ──► verdict + code   (equality: constant-time commitment compare)
-   8. enforcement gate (step mode, flag, cell grant valid for this environment) → step status (outcome matrix)
+   8. enforcement gate (app mode, step mode, flag, cell grant valid for this environment) → step status
+      (outcome matrix; packaged: enforce steps fail enforce-unavailable-in-production, grants never read)
    9. eligible no-baseline / binding-changed / other-conditions → pending candidate (memory only)
   10. codes-only record ──► InstanceReport.visualAssertions (sanitized) ──► drawer section
-Flag off: no capture, no candidate; observe steps inert, enforce steps fail unverified/disabled.
+Flag off: no capture, no candidate; observe steps inert, enforce steps fail unverified (disabled, or
+   enforce-unavailable-in-production in the packaged build).
 Flow store, new flow-only pre-write option, inside the flow folder lane, BEFORE the flow write (no key needed):
    invalidate the flow = new random epoch token + delete its indexes and records (create, clone, import, Recorder
    save, delete, id rename, update over a missing file), or delete the index and records of removed/changed
-   assertVisual steps (update, updateWith). Quarantine invalidates without taking the lane. Store, key and grants
-   are separated by app mode (packaged / dev).
+   assertVisual steps (update, updateWith). Quarantine invalidates without taking the lane. Signed files, key and
+   grants are separated by app mode (packaged / dev); epoch tokens are shared, so both builds invalidate both.
 Approve (WORKFLOW_EDIT + fresh re-auth, audited, single-use), inside the same flow folder lane ──► signed index + record.
 ```
 
@@ -165,15 +211,18 @@ equal → `failed/size-differs-from-baseline`; `wasClipped` → `inconclusive/ta
 - **Issued only by** the N6.6 calibration harness after the cell met every criterion below, never by hand, by a run
   or by the renderer. Grants are signed with `K_mac`, whose master key is held through Electron `safeStorage`
   (`secretStore.ts:21-25`), so only code in the app's own main process with the same runtime root can issue grants
-  that the assertions accept. **VA-16:** in N6 the harness runs inside the main process of a **non-packaged
-  acceptance build** on the owner's machine, and enforcement is reachable only in that build (lab-only). The
-  packaged app ships no harness, and its enforcement gate **never reads grants**, so its enforce-mode steps fail
-  `visual-unverified/cell-not-qualified`. An in-app *Qualify this machine* action is out of scope and needs its own
-  decision.
-- **Build-mode separation.** Packaged and non-packaged builds share one runtime root (`appPaths.ts:9-11`) and one
-  `secrets.json` (`secretStore.ts:30`). N6 therefore keys its folder (`visual-baselines/<mode>/`), its master-key
-  secret and every grant by `getAppMode()` (`appPaths.ts:50-56`), and a grant binds the mode. Neither build reads
-  the other's files or key, so neither sees the other's key as lost, and approvals do not carry between builds.
+  that the assertions accept. **VA-16 (staged scope):** in N6 the harness runs inside the main process of a
+  **non-packaged acceptance build** on the owner's machine, and enforcement is an experimental capability of that
+  build only. The packaged app ships no harness, and its enforcement gate **never reads grants**: every enforce-mode
+  step there fails `visual-unverified/enforce-unavailable-in-production`. Production qualification is the future
+  milestone `awkit-vra.16`.
+- **Build-mode separation.** Packaged and non-packaged builds share one runtime root (`appPaths.ts:9-11`) and,
+  through the shared settings, one flows folder (`storagePaths.ts:58`). N6 therefore keys its **signed** files
+  (`visual-baselines/<mode>/`), its private master-key file, its key-state marker and every grant by `getAppMode()`
+  (`appPaths.ts:50-56`), and a grant binds the mode. Neither build reads the other's signed files or key, so neither
+  sees the other's key as lost, and approvals do not carry between builds. The **epoch tokens are shared** by both
+  modes (`visual-baselines/epochs/`) and written by both builds, so a flow replaced, deleted or quarantined in
+  either build invalidates the approvals of both.
 - **Invalid when** any bound field changed, the grant expired, the grant is missing, unreadable or integrity-failed,
   or the key generation changed (a reset). Invalid ⇒ the cell is **not qualified**.
 - **Unqualified cells are observe-only.** An enforce-mode step in an unqualified cell **fails**
@@ -216,8 +265,10 @@ equal → `failed/size-differs-from-baseline`; `wasClipped` → `inconclusive/ta
 | `inconclusive` | `protected-surface` / `handoff-active` / `sensitive-step` | Refused before capture |
 | `inconclusive` | `capture-stale` / `capture-unavailable` / `budget-exhausted` / `cancelled` / `page-closed` | N0 refusals |
 
-**Enforcement status codes** (set by the gate, not by the policy): `disabled` (flag `off`), `enforce-not-enabled`
-(flag `observe`), `cell-not-qualified`, `grant-invalidated`, `grant-expired`.
+**Enforcement status codes** (set by the gate, not by the policy): `enforce-unavailable-in-production` (packaged
+build, any flag; takes precedence over the others), `disabled` (flag `off`), `enforce-not-enabled` (flag
+`observe`), `cell-not-qualified`, `grant-invalidated`, `grant-expired`. Each code carries a fixed plain-text reason
+shown in the step result and the drawer.
 
 **N0 mapping** (`errors.ts:9-40`): `TARGET_STALE`, `CAPTURE_STALE` → `capture-stale`; `TARGET_NOT_UNIQUE` →
 `target-not-unique`; `TARGET_OFFSCREEN` → `target-offscreen`; `INVALID_BOUNDS` → `target-hidden`;
@@ -225,10 +276,22 @@ equal → `failed/size-differs-from-baseline`; `wasClipped` → `inconclusive/ta
 `capture-unavailable`; `UNSUPPORTED_FINGERPRINT_VERSION` → `baseline-unreadable`; `PAGE_CLOSED` → `page-closed`;
 `BUDGET_EXHAUSTED` → `budget-exhausted`; `CANCELLED` → `cancelled`; `PROTECTED_SURFACE` → `protected-surface`.
 
-## Step outcome matrix (VA-0, VA-8, VA-9; owner amendment A1)
+## Step outcome matrix (VA-0, VA-8, VA-9, VA-16; owner amendments A1, F2)
 
 Two failure classes, recorded separately in the step result, the report and the run summary: **`visual-mismatch`**
 (a proven difference) and **`visual-unverified`** (enforcement requested but equality not proven).
+
+**Packaged production build** (`getAppMode() === "packaged"`; the flag accepts `off`/`observe`, and a stored
+`enforce` value is treated as `observe`; grants are never read):
+
+| Step mode | Flag | Capture and verdict | Step status |
+|---|---|---|---|
+| observe | `off` | none (no capture, no candidate) | passed (inert, reported `disabled`) |
+| observe | `observe` | evaluated and recorded | **passed** |
+| enforce (saved, imported or hand-edited) | `off` | none | **failed — `visual-unverified/enforce-unavailable-in-production`** |
+| enforce (saved, imported or hand-edited) | `observe` | evaluated and recorded for diagnosis | **failed — `visual-unverified/enforce-unavailable-in-production`** |
+
+**Non-packaged acceptance build** (experimental enforcement):
 
 | Step mode | Flag | Cell grant | Capture and verdict | Step status |
 |---|---|---|---|---|
@@ -240,6 +303,9 @@ Two failure classes, recorded separately in the step result, the report and the 
 | enforce | `enforce` | valid | `passed` | passed |
 | enforce | `enforce` | valid | `failed` | **failed — `visual-mismatch`** |
 | enforce | `enforce` | valid | `inconclusive` | **failed — `visual-unverified/<verdict code>`** |
+
+- The validator accepts `mode: "enforce"` in every build, so a flow saved or imported with enforce stays loadable and
+  editable. In the packaged build it is flagged as unavailable in production, and it fails closed when run.
 
 - No `onInconclusive` option: nothing enforced can be configured to pass without proof.
 - A failed step follows its existing `onFailure` action unchanged; routing reads the action only
@@ -255,8 +321,11 @@ New folder `visual-baselines/` under the runtime root. No `VisualEvidence` is pe
   import and rewritten with a fresh random value by every invalidation, which also deletes the flow's indexes and
   records. It needs no key, so invalidation works with the keystore down. It is unsigned on purpose: every signed
   index and record includes the epoch, so a changed, missing or corrupt token makes approvals unreachable. A random
-  value never returns to a previous one, and the records of an old epoch are deleted with it. At N6's first start,
-  inside the flow folder lane, every existing flow gets a token, so no flow is ever without one.
+  value never returns to a previous one, and the records of an old epoch are deleted with it. Tokens are shared by
+  both app modes and keyed by **the resolved flows folder and the flow id**, so changing the Settings flows path never
+  lets same-id flows in another folder inherit tokens or approvals. At N6's first start every existing flow gets a
+  token inside the flow folder lane. A flow copied in from outside the app, or any other flow found without a
+  token, gets one **inside the lane at capture, before a candidate binds it**; a run never binds a missing token.
 - **Key-state marker** (one per app mode): unsigned, holding the key generation and the fact that a key was created.
   Written when the key is created, rewritten only by *Reset visual baselines*, never deleted by invalidation.
 - **Step index** (one per `(flowId, stepId)`): the flow epoch it belongs to, a monotonically increasing
@@ -300,7 +369,7 @@ delete that step's index and records. Neither needs the key.
 |---|---|---|
 | `create` (`flows:create` `WORKFLOW_CREATE`; Recorder save `recorder.ipc.ts:247`) | Refuses an existing id inside the lane (`ProfileStore.ts:63-73`) | After the existence check: **invalidate the flow** (a flow deleted outside the app and recreated never inherits). A refused duplicate-id create changes nothing |
 | Clone (`flows:clone`) | New id, **step ids unchanged** (`ProfileStore.ts:111-117`, `profileStores.ts:29-33`) | Through `create` ⇒ invalidate the new id |
-| Import (`flows:import`, `WORKFLOW_CREATE`) | **Keeps the id, overwrites** an existing flow (`ProfileStore.ts:119-123`) | Invalidate the flow, even for a re-import of identical content |
+| Import (`flows:import`, `WORKFLOW_CREATE`; overwrite also `WORKFLOW_EDIT` per N6.9) | **Keeps the id, overwrites** an existing flow (`ProfileStore.ts:119-123`) | New id: as create. Existing id: only after the in-lane overwrite authorization passes (*Import authorization*), invalidate the flow, even for a re-import of identical content. A refused import changes nothing |
 | Update (`flows:update`, validation repair `flowValidationService.ts:323`, `undoMigration` restore `:352-363`) | Write, then delete the old id on rename (`ProfileStore.ts:75-88`) | Id rename: invalidate both ids. Previous file missing or unreadable: invalidate the flow. Otherwise purge every `assertVisual` step removed or whose step content digest changed (the option reads the previous file inside the lane) |
 | `updateWith` (AI revert `aiRuntime.ts:588`, locator upgrade `locatorUpgradeService.ts:123`, fragment instantiate `fragment.ipc.ts:117`) | Read-modify-write in the lane (`ProfileStore.ts:96-105`) | Same as update |
 | Delete (`flows:delete`, `WORKFLOW_DELETE`) | `rm` (`ProfileStore.ts:107-109`) | Invalidate the flow |
@@ -323,10 +392,50 @@ never keep stale ones. An id rename invalidates the new id before writing it and
 **Approval ordering.** An approval acquires the same flow folder lane, re-reads the current flow and re-checks
 staleness inside it, so it can never land after an update that removed or changed its step.
 
-**Authorization residual.** Import needs only `WORKFLOW_CREATE` (`flow.ipc.ts:50`), so a user who may create but not
-edit can import over an existing flow; under N6 that also invalidates its approvals and makes its enforced
-assertions fail `unverified`. That import can overwrite a flow without `WORKFLOW_EDIT` is a **pre-existing**
-authorization gap, recommended for separate tracking.
+## Import authorization (VA-11; owner amendment F3; N6.9)
+
+**Today.** `flows:import` checks only `WORKFLOW_CREATE` (`flow.ipc.ts:49-50`), and `JsonProfileStore.import` takes
+the lane and writes without checking whether the id exists (`ProfileStore.ts:119-123, 203-205`). So a user who may
+create but not edit can overwrite any flow. `flow.ipc.ts:55` is the only caller of the flow store's `import`.
+
+**Required (N6.9, before production enforcement):**
+
+1. The `WORKFLOW_CREATE` entry gate stays. A new id imports exactly as today (a create).
+2. Overwriting an existing id additionally requires `WORKFLOW_EDIT`.
+3. **Race-safe decision.** The flow store's `import` gains a flow-only overwrite authorizer. Inside the folder lane
+   it (a) checks existence by `stat` of the target path, so an unparseable file counts as existing and is **not**
+   read or quarantined, and (b) if the file exists, calls the authorizer. The authorizer re-evaluates `WORKFLOW_EDIT`
+   for the same sender at that moment, never takes the lane and has a bounded deadline, and a timeout counts as a
+   denial. Only then do the before-write callback (N6 invalidation) and the write run. A create racing the import
+   therefore cannot slip in between the check and the write. After an **authorized** overwrite, the callback's own
+   read of an unparseable previous file may quarantine it; I6 and the mutants forbid quarantine only before
+   authorization.
+4. **Refusal** is a typed, audited `FLOW_IMPORT_OVERWRITE_FORBIDDEN` with a plain-text message. It happens before any
+   write, quarantine or baseline invalidation, so the existing file, its epoch token, indexes and records are
+   byte-identical afterwards.
+5. The flow store's `import` refuses to overwrite when no authorizer is supplied (fail closed). Other stores'
+   `import` is unchanged.
+
+**Regression cases** (`verify:flow-import-authorization`, real `JsonProfileStore` and the IPC handler):
+
+| # | Case | Expected |
+|---|---|---|
+| I1 | `WORKFLOW_CREATE` only, new id | Imported; epoch token created |
+| I2 | `WORKFLOW_CREATE` only, existing id | Refused; file, token, indexes and records unchanged; one audit entry |
+| I3 | `WORKFLOW_CREATE` + `WORKFLOW_EDIT`, existing id | Overwritten; flow invalidated |
+| I4 | `WORKFLOW_EDIT` without `WORKFLOW_CREATE` | Refused at the entry gate (unchanged) |
+| I5 | `WORKFLOW_CREATE` only, new id, racing a `flows:create` of the same id (both orders, held lane) | Never an overwrite: whichever lands second is refused |
+| I6 | `WORKFLOW_CREATE` only, an unparseable file at the target path | Refused; the file is not quarantined |
+| I7 | `WORKFLOW_EDIT` revoked while the import waits for the lane | Refused (decided inside the lane) |
+| I8 | Authorizer timeout | Refused |
+| I9 | Store `import` without an authorizer, existing id | Refused |
+
+Mutants that must turn red: check existence outside the lane; read the file with `get()` instead of `stat`; invalidate
+before authorizing; skip the authorizer when the file is unparseable; treat an authorizer timeout as allow; check the
+permission only at handler entry.
+
+**Residual.** A user holding `WORKFLOW_CREATE` and `WORKFLOW_EDIT` can still replace a flow, and with it its
+approvals, by import. That is the intended authority.
 
 ## Pending candidates (VA-13; owner amendment A5)
 
@@ -353,9 +462,13 @@ authorization gap, recommended for separate tracking.
 
 ## Integrity and failure modes (VA-14; owner amendment A6)
 
-**Key:** one 256-bit master key per Windows user, created at the first approval or the first grant issuance,
-whichever comes first, stored through the existing
-DPAPI-backed `secretStore` behind `getSecretStorageCapability()`; `K_mac` and `K_commit` derived with HKDF; a key
+**Key:** one 256-bit master key per Windows user and app mode, created at the first approval or the first grant
+issuance, whichever comes first. It is held in a **private N6 key file** (`visual-baselines/<mode>/master-key`),
+encrypted with the same `safeStorage` backend as the general store (`secretStore.ts:21-25`), and **never** placed
+in the general secret store. The general store is reachable by any flow that names a secret (`ExecutionEngine.ts:608-616`)
+and by `secrets:list`/`set`/`delete` (`secrets.ipc.ts:17-29`), and none of those paths can reach the private file.
+Availability is still decided by the existing `getSecretStorageCapability()`. `K_mac` and `K_commit` are derived with
+HKDF; a key
 generation counter incremented by every reset. No plaintext fallback, environment override or setting.
 
 | Failure | Behavior |
@@ -367,7 +480,9 @@ generation counter incremented by every reset. No plaintext fallback, environmen
 | Key lost | Same as unavailable; a key is **never** regenerated silently. Only *Reset visual baselines* (permission, fresh re-auth, audited) purges all files and grants, creates a new key and increments the key generation |
 | Epoch token missing, unreadable or changed | `no-baseline` for the flow; signed files of another epoch are ignored and deleted by the next approval |
 | Epoch token restored alone | Nothing matches once the old epoch's files are deleted (at invalidation, or by the sweep after a crash); restoring it inside that window is the same-user residual |
-| Packaged build meets non-packaged files, key or grants | Never read: folder, key and grants are separated by app mode, and the packaged gate reads no grants |
+| Packaged build meets non-packaged files, key or grants | Never read: signed files, key and grants are separated by app mode, and the packaged gate reads no grants; only the unsigned epoch tokens are shared, so either build's invalidation reaches both |
+| A flow names the key, or `secrets:list`/`set`/`delete` targets it | Unreachable: the key is not in the general secret store under any name |
+| Private key file deleted or replaced by hand | Key lost (marker present): `integrity-unavailable`, approvals unreachable, only Reset recovers. Same-user action (stated limit) |
 | Corrupt or integrity-failed index | `baseline-unreadable` for that step; no rebuild from records; an approved candidate replaces it |
 | Index lists an approval whose record is missing | `baseline-unreadable` (not `no-baseline`) |
 | Integrity-failed record | `baseline-unreadable/integrity-failed`, audited once per record per run, never auto-deleted; only an approved candidate or a reset replaces it |
@@ -394,13 +509,13 @@ selector, URL or page text.
 | Area | N6 behavior |
 |---|---|
 | Storage | Per Windows user, per machine (`%LOCALAPPDATA%`) |
-| Export / import | Not exported; import invalidates |
+| Export / import | Not exported; import of a new id is a create; import over an existing id needs `WORKFLOW_EDIT` (N6.9) and invalidates; an imported enforce step fails closed in the packaged build |
 | Recorder | Does not record `assertVisual`; its save invalidates (create) |
 | Workflow builder | No change |
 | Random generator (`src/testing/random`) | Never generates `assertVisual` |
 | Fragments | `assertVisual` rejected in fragments |
 | Older builds | Validator refuses the unknown type; dispatch throws |
-| Machine qualification in the packaged app | Out of scope (VA-16) |
+| Machine qualification and enforcement in the packaged app | Out of scope; future milestone `awkit-vra.16` (VA-16) |
 
 ## Performance budgets (VA-9)
 
@@ -408,42 +523,47 @@ One capture per assertion per run (non-retryable), 2000 ms deadline, one read-on
 
 ## Accessibility and UI
 
-Text-only results distinguishing *mismatch* from *unverified*; the cell's grant status in the Designer; a live region
+Text-only results distinguishing *mismatch* from *unverified*, each with its plain-text reason. In the packaged
+Designer the mode control never offers enforce; an existing enforce step shows "Enforce is not available in this
+production build" as text (not color alone), and the author may switch it to observe (approval kept) but never back. In the acceptance build, enforce is labelled
+experimental and the cell's grant status is shown. A live region
 for approval; focus management; reduced motion; Hologram tokens; the preview has a text alternative and states it is
 not stored.
 
-## Owner decisions (amended proposals; N6.1 not approved)
+## Owner decisions (final owner positions; N6.1 ratification gated on final QC)
 
-| ID | Decision | Owner status | Amended proposal |
+| ID | Decision | Owner status | Proposal |
 |---|---|---|---|
-| VA-0 | Authority | **Amended (A1)** | Only enforce mode can change an outcome: passes only on proven equality in a qualified, valid cell; proven difference fails `visual-mismatch`; every other enforce outcome fails `visual-unverified`. Observe never changes an outcome. Amends VR-0 by one execution-affecting result. |
+| VA-0 | Authority | **Amended (A1, F2)** | Only enforce mode can change an outcome, and in N6 only in the non-packaged acceptance build (experimental): passes only on proven equality in a qualified, valid cell; proven difference fails `visual-mismatch`; every other enforce outcome fails `visual-unverified`. In packaged production an enforce step never passes and fails `visual-unverified/enforce-unavailable-in-production`. Observe never changes an outcome. Amends VR-0 by one execution-affecting result. |
 | VA-1 | Isolation | Accepted | Fourth allow-listed edge, lazy, public index only; four-edge isolation verifier. |
-| VA-2 | Step shape | **Accepted; text changed by A1 — reconfirm** | New non-retryable `assertVisual` step type with `mode`; the `onInconclusive` option the owner accepted is removed by A1. |
+| VA-2 | Step shape | **Reconfirmed (F1)** | Dedicated non-retryable `assertVisual` step type with `mode` `observe` or `enforce`, no `onInconclusive`, existing failure routing preserved. |
 | VA-3 | Scope | Accepted | One element resolved to exactly one visible element. |
 | VA-4 | Conditions | **Amended (A2)** | Conditions key and geometry/state rules; the environment fields also bind grants. |
-| VA-5 | Store | **Amended (A3, A4)** | Separate store: per-flow unsigned random epoch tokens, signed per-step indexes, commitment records; FD-4 stands; a flow-only pre-write option on the shared store invalidates first, without the key, inside the flow folder lane on every writer (quarantine outside it). |
+| VA-5 | Store | **Amended (A3, A4)** | Separate store: per-flow unsigned random epoch tokens (shared by both app modes, keyed by the resolved flows folder), signed per-step indexes, commitment records; FD-4 stands; a flow-only pre-write option on the shared store invalidates first, without the key, inside the flow folder lane on every writer (quarantine outside it). |
 | VA-6 | Retention and privacy | **Amended (A4)** | Length-prefixed keyed equality commitment only; residuals as stated. |
 | VA-7 | Pass rule | Accepted | Exact pixel equality only. |
 | VA-8 | Outcomes | **Amended (A1)** | Outcome matrix; two failure classes; `onFailure` unchanged; no `onInconclusive`. |
-| VA-9 | Enablement | **Amended (A1)** | Flag `off` (default, no capture) / `observe` / `enforce`; enforce steps fail `visual-unverified` unless the flag is `enforce` and the cell is qualified; 2000 ms. |
+| VA-9 | Enablement | **Amended (A1, F2)** | Packaged: flag `off` (default, no capture) / `observe`, a stored `enforce` treated as `observe`, enforce steps always fail `enforce-unavailable-in-production`. Acceptance build: `off` / `observe` / `enforce`, enforce steps fail `visual-unverified` unless the flag is `enforce` and the cell is qualified. 2000 ms. |
 | VA-10 | Approval permission | Accepted | `WORKFLOW_EDIT` + `requireFreshReauth`, audited. |
-| VA-11 | Export | **Amended (A3)** | Not exported; create, import, clone, quarantine, delete and id rename invalidate. |
-| VA-12 | Calibration and grants | **Amended (A2)** | Per-cell signed grants bound to the environment and key generation, 30-day expiry, issued only after ≥ 300 passed and zero failed trials over three sessions; independence an assumption; unqualified cells observe-only, enforce fails closed. |
+| VA-11 | Export and import | **Amended (A3, F3)** | Not exported; create, import, clone, quarantine, delete and id rename invalidate. Importing over an existing flow requires `WORKFLOW_EDIT`, decided race-safely inside the folder lane before any write or invalidation (N6.9); a new id keeps the create authorization. A security dependency before production enforcement. |
+| VA-12 | Calibration and grants | **Amended (A2, F2)** | Experimental only: per-cell signed grants bound to the environment, app mode and key generation, 30-day expiry, issued only by the harness in the non-packaged acceptance build after ≥ 300 passed and zero failed trials over three sessions; independence an assumption; unqualified cells observe-only, enforce fails closed. No production grants in N6. |
 | VA-13 | Baseline source | **Amended (A5)** | Bound (incl. epoch and key generation), single-use, 30-minute, memory-only candidates; permission and fresh re-auth before preview and approval; any authorized approver, both users recorded. |
-| VA-14 | Integrity | **Amended (A6)** | DPAPI-held master key created at the first approval or grant, HKDF keys, key generation in an unsigned key-state marker cleared only by reset, signed index/record/grant, unsigned epoch token with a start-up sweep, store, key and grants separated by app mode, the failure table, explicit reset, stated limits. |
+| VA-14 | Integrity | **Amended (A6)** | Master key in a private N6 key file encrypted with `safeStorage` (never in the general secret store), created at the first approval or grant, HKDF keys, key generation in an unsigned key-state marker cleared only by reset, signed index/record/grant, unsigned shared epoch token with a start-up sweep, signed files, key and grants separated by app mode, the failure table, explicit reset, stated limits. |
 | VA-15 | Capture policy | Accepted | `animations: "disabled"`, `caret: "hide"`, `contextPaddingCss: 0`, no pointer or focus change. |
-| VA-16 | Grant issuance | **New — needs decision** | In N6 grants come only from the calibration harness running inside the main process of a non-packaged acceptance build on the owner's machine (lab-only enforce); store, key and grants are separated by app mode and the packaged gate never reads grants, so packaged enforce steps fail `visual-unverified` and observe is the only useful mode there; an in-app qualification action needs its own decision. Alternative: ship an in-app, permission-gated, re-authenticated qualification (about 300 launches per cell). |
+| VA-16 | Staged scope and grant issuance | **Amended (F2)** | N6 delivers observe-only visual assertions in packaged production. Enforcement is experimental and exists only in the non-packaged acceptance build, with grants from the harness in that build. The packaged Designer never offers enforce. A saved or imported enforce request in the packaged build fails `visual-unverified/enforce-unavailable-in-production`. Store, key and grants are separated by app mode. Offline, AI-independent, and the protected-auth boundary is unchanged. Production qualification and enforcement are the separate future milestone `awkit-vra.16`, not implemented or closed by N6. |
 
 ## Acceptance criteria and deterministic verification
 
 | Area | Acceptance criterion | Deterministic verification (fixed inputs, injected clock, mutants required red) |
 |---|---|---|
-| A1 | Each outcome-matrix row gives exactly the listed status and class; no enforce path passes without a valid grant and proven equality; flag `off` captures nothing; `onFailure` routing unchanged | `verify:visual-assertion-runtime` table-driven per row and per `onFailure` action; mutants: drop the grant check, map `inconclusive` to pass, merge the classes, capture with flag `off` |
+| A1 | Each outcome-matrix row of both build tables gives exactly the listed status and class; no enforce path passes without a valid grant and proven equality; flag `off` captures nothing; `onFailure` routing unchanged | `verify:visual-assertion-runtime` table-driven per row and per `onFailure` action; mutants: drop the grant check, map `inconclusive` to pass, merge the classes, capture with flag `off` |
+| F2 staged scope | Packaged mode: every enforce step (saved, imported, hand-edited JSON, flag `off`/`observe`/stored `enforce`) fails `visual-unverified/enforce-unavailable-in-production` and never passes, even with a valid dev-mode grant and identical pixels present; grants are never read; observe works; the packaged Designer offers no enforce option and shows an existing enforce step as unavailable; protected-login, handoff and sensitive fixtures produce no capture in both modes; no network or AI call | `verify:visual-assertion-runtime` with the app mode injected (packaged and dev) and a request recorder for network and AI; `verify:visual-assertion-gui` for the Designer in packaged mode; mutants: let packaged read grants, let packaged honour the `enforce` flag, offer enforce in the packaged Designer, report packaged enforce as `disabled` instead of the explicit reason |
+| F3 import | Cases I1–I9 of *Import authorization* | `verify:flow-import-authorization` (new, N6.9) with a held lane and an injected authorizer delay; mutants as listed there |
 | A2 | Grants bind every listed field and the key generation, expire at 30 days, come only from a qualifying harness run; invalid grant fails closed | `verify:visual-assertion-grants`: each bound field changed, expiry, tamper, hand-written grant, non-qualifying evidence (incl. all-`inconclusive` trials), key-generation change, no issuance path in the packaged build, a dev-mode grant presented to the packaged gate and a packaged-mode file presented to the dev store (both refused); mutants: read grants in packaged mode, drop the mode from the grant or the folder, skip a field, ignore expiry, accept unsigned, count `inconclusive` as passed |
-| A3 | No approval survives create, clone, import (incl. identical re-import), quarantine, delete, id rename, step removal, step-content change, undoMigration restore, AI revert, locator upgrade, fragment instantiate; update over a missing file, a corrupt file met during `create`, `updateWith` or `list()`; a refused duplicate-id create leaves approvals intact; no callback deadlocks; promotion observe→enforce keeps the approval; an approval racing an update never lands stale; a crash between invalidation and write, or part-way through the deletions, never keeps or revives a stale approval; keystore-down import, update and `updateWith` still invalidate or purge; other stores are unaffected by the option | `verify:visual-baseline-lifecycle` on a real `JsonProfileStore` and IPC handlers with injected crash points and a held lane; mutants: remove each hook, run the hook after the write, run the create hook before the existence check, drop the before-delete call on the rename half of `update`, acquire the lane from the on-quarantine callback, run the approval outside the lane, require the key to invalidate or purge, delete records before writing the token, include `mode` in the digest |
+| A3 | No approval survives create, clone, import (incl. identical re-import), quarantine, delete, id rename, step removal, step-content change, undoMigration restore, AI revert, locator upgrade, fragment instantiate; update over a missing file, a corrupt file met during `create`, `updateWith` or `list()`; a refused duplicate-id create leaves approvals intact; no callback deadlocks; promotion observe→enforce keeps the approval; an approval racing an update never lands stale; a crash between invalidation and write, or part-way through the deletions, never keeps or revives a stale approval; keystore-down import, update and `updateWith` still invalidate or purge; a flow deleted, recreated, imported or quarantined in one build leaves no approval alive in the other build; changing the flows path makes no same-id flow inherit a token or approval; a missing token at capture is created inside the lane before the candidate binds; other stores are unaffected by the option | `verify:visual-baseline-lifecycle` on a real `JsonProfileStore` and IPC handlers with injected crash points and a held lane; mutants: remove each hook, run the hook after the write, run the create hook before the existence check, drop the before-delete call on the rename half of `update`, acquire the lane from the on-quarantine callback, run the approval outside the lane, require the key to invalidate or purge, delete records before writing the token, include `mode` in the digest, key tokens by app mode, drop the flows folder from the token key, bind a candidate to a missing token |
 | A4 | Files hold no grid, dHash, raw digest or image; equality exact; commitments unlinkable; encoding unambiguous | `verify:visual-baseline-store`: byte scan, one-pixel-change fixture, identical images on two steps, ambiguous-id pair (`ab`+`c` vs `a`+`bc`); mutants: store the raw digest, drop a key part, concatenate without lengths |
 | A5 | Preview and approval need permission and fresh re-auth; expired, consumed, stale (epoch token, content, key generation, deleted flow or step) rejected, including a never-approved flow re-imported with identical content between run and approval; a candidate from before a reset rejected; never persisted | `verify:visual-assertion-candidates` with an injected clock; mutants: skip re-auth, skip consumption, skip each staleness field, skip the key-generation check, treat a missing token as matching any token |
-| A6 | Each row of the failure table behaves as listed; no plaintext or regenerated key | `verify:visual-baseline-integrity` with the injected unavailable `SecretStorageCapability` (non-packaged root): unavailable keystore, first use vs key lost (incl. key lost after every signed file was invalidated), marker deleted by hand, first grant before any approval, missing/corrupt/changed/restored epoch token, leftovers after a crash removed by the start-up sweep, tokens created for pre-existing flows at first start, corrupt index, missing record, tampered, moved, older restored record, unreadable baseline replaced by an approved candidate, reset; mutants: regenerate the key when the marker exists, decide first use from remaining files, skip the sweep, treat missing record as `no-baseline`, rebuild the index, accept records of another epoch |
+| A6 | Each row of the failure table behaves as listed; no plaintext or regenerated key | `verify:visual-baseline-integrity` with the injected unavailable `SecretStorageCapability` (non-packaged root): unavailable keystore, first use vs key lost (incl. key lost after every signed file was invalidated), marker deleted by hand, first grant before any approval, missing/corrupt/changed/restored epoch token, leftovers after a crash removed by the start-up sweep, tokens created for pre-existing flows at first start, corrupt index, missing record, tampered, moved, older restored record, unreadable baseline replaced by an approved candidate, reset, a flow naming the key's file or any guessed secret name resolves nothing from it, `secrets:list`/`set`/`delete` neither show nor touch it; mutants: store the key in the general secret store, regenerate the key when the marker exists, decide first use from remaining files, skip the sweep, treat missing record as `no-baseline`, rebuild the index, accept records of another epoch |
 | Calibration | Every criterion reported per cell | `benchmark:visual-assertion` (a measurement gate, not a deterministic test) writes per-cell trials, passes, failures, the bound and observe usefulness |
 
 ## Work breakdown
@@ -453,32 +573,39 @@ not stored.
 | N6.1 | Owner ratification of VA-0 to VA-16 (as amended) | — |
 | N6.2 | Pure `decideVisualAssertion`: verdicts, conditions, geometry, commitment compare; `verify:visual-assertion` | N6.1 |
 | N6.3 | `VisualBaselineStore`: epoch tokens, signed indexes, commitment records, key and failure modes; the flow-only pre-write option on `JsonProfileStore` and the invalidate-first hooks; `verify:visual-baseline-store`, `verify:visual-baseline-integrity`, `verify:visual-baseline-lifecycle` | N6.1 |
-| N6.4 | `assertVisual` step, validator, VA-15 capture option, runner adapter (fourth edge), outcome matrix and classes, grant gate, candidates, random-generator exclusion, fixtures; `verify:visual-assertion-runtime`, `verify:visual-assertion-grants`, `verify:visual-isolation` | N6.2, N6.3 |
-| N6.6 | Calibration harness in the main process of a non-packaged acceptance build, and grant issuance (lab-only per VA-16); `benchmark:visual-assertion` | N6.4 |
-| N6.5 | Candidate preview and approval, reset action, Designer node; `verify:visual-assertion-candidates`, `verify:visual-assertion-gui` | N6.4, N6.6 |
-| N6.7 | Report block with both classes, sanitizer, drawer section; `verify:visual-assertion-report` | N6.4, N6.6 |
-| N6.8 | Independent QC and security review, closure | N6.5, N6.6, N6.7 |
+| N6.4 | `assertVisual` step, validator, VA-15 capture option, runner adapter (fourth edge), both outcome matrices and classes, the packaged enforce-unavailable rule, grant gate, candidates, random-generator exclusion, fixtures; `verify:visual-assertion-runtime`, `verify:visual-assertion-grants`, `verify:visual-isolation` | N6.2, N6.3 |
+| N6.6 | Calibration harness in the main process of the non-packaged acceptance build, and experimental grant issuance (VA-16); `benchmark:visual-assertion` | N6.4 |
+| N6.5 | Candidate preview and approval, reset action, Designer node (observe only in packaged mode); `verify:visual-assertion-candidates`, `verify:visual-assertion-gui` | N6.4, N6.6 |
+| N6.7 | Report block with both classes and reasons, sanitizer, drawer section; `verify:visual-assertion-report` | N6.4, N6.6 |
+| N6.9 | Import over an existing flow requires `WORKFLOW_EDIT`, race-safe (VA-11); `verify:flow-import-authorization` | N6.1 |
+| N6.8 | Independent QC and security review, closure | N6.5, N6.6, N6.7, N6.9 |
+| `awkit-vra.16` | **Not N6:** future milestone, production qualification and enforcement; needs its own owner decision | The N6 epic (closure includes N6.9) |
 
 ## Completion criteria
 
 1. VA-0 to VA-16, as amended, explicitly ratified and recorded in DECISIONS.
-2. N6.2 to N6.7 closed with every gate in the acceptance table green and its mutants red.
-3. Grants issued only for cells meeting VA-12; unqualified cells documented observe-only; VA-16 scope respected.
-4. Flows without the step are byte-identical in outcome and report.
-5. Independent QC and security review APPROVED.
-6. State docs updated and the dashboard reads "Sources agree".
+2. N6.2 to N6.7 and N6.9 closed with every gate in the acceptance table green and its mutants red.
+3. Packaged production delivers **observe-only** visual assertions. Every packaged enforce request fails closed
+   with the explicit reason, and the packaged Designer offers no enforce option.
+4. Enforcement exists only as an experimental capability of the non-packaged acceptance build. Grants are issued
+   only for cells meeting VA-12, and unqualified cells are documented observe-only.
+5. N6's closure does not claim production enforcement. `awkit-vra.16` stays open.
+6. Flows without the step are byte-identical in outcome and report.
+7. Independent QC and security review APPROVED.
+8. State docs updated and the dashboard reads "Sources agree".
 
 ## Rollback and disable
 
-Flag `off`: no capture; observe steps inert; enforce steps **fail** `visual-unverified/disabled`, so disabling is
-visible. Authors who want to run without enforcement switch steps to observe (their approvals are kept, since `mode`
+Flag `off`: no capture; observe steps inert; enforce steps **fail** `visual-unverified/disabled` (in the packaged build
+`enforce-unavailable-in-production`), so disabling is visible. Authors who want to run without enforcement switch steps to observe (their approvals are kept, since `mode`
 is not in the digest). *Reset visual baselines* purges everything, rotates the key and increments the key generation.
 
 ## Risks (remaining)
 
 | Risk | Status |
 |---|---|
-| Enforcement only reachable in a non-packaged acceptance build on the owner's machine in N6 (VA-16) | Intended; the packaged app stays observe-only until a separate decision |
+| Enforcement only reachable in a non-packaged acceptance build on the owner's machine in N6 (VA-16) | Intended staged scope; production enforcement is the future milestone `awkit-vra.16` |
+| Flows authored with enforce in the acceptance build fail when run in the packaged app | Intended fail-closed behavior, explicit reason; authors switch the step to observe (approval kept) |
 | N6.3 changes the shared `JsonProfileStore` (a new optional pre-write option) | Flow-only; other stores unaffected and covered by the lifecycle verifier |
 | Quarantine invalidation never takes the folder lane (it is reached both inside and outside it) | Fail-safe: the flow is absent until a create, import or update, each of which invalidates |
 | Approvals made in a dev build do not carry to the packaged build, or back | Intended (build-mode separation) |
@@ -488,11 +615,13 @@ is not in the digest). *Reset visual baselines* purges everything, rotates the k
 | Same-user forgery, replay or rollback; consistent folder restore; clock rollback | Accepted and stated |
 | Guessed byte-exact rendering confirmed by a same-user attacker | Stated |
 | CSS box, conditions and approval metadata stored in clear | Accepted, low sensitivity |
-| A `WORKFLOW_CREATE`-only user can import over a flow and invalidate its approvals | Stated; the underlying import-overwrite gap is pre-existing and recommended for separate tracking |
+| A `WORKFLOW_CREATE`-only user can import over a flow today (pre-existing) | Closed by N6.9 before N6 closure; a security dependency of `awkit-vra.16` |
 | Enforce-mode flows fail where the feature is off or the cell is unqualified | Intended fail-closed behavior |
 | Approval preview exposes page pixels to an authorized user | Permission, fresh re-auth, audit, memory only, 30 minutes |
 
 ## Exact next task
 
-**Stop at the N6.1 owner-approval gate.** The owner ratifies, or further amends, VA-0 to VA-16, including the
-reconfirmation of VA-2's changed text and the new VA-16. N6.2 and N6.3 must not begin until ratification is recorded.
+**Stop at the N6.1 gate.** The owner positions are final. The one bounded closure review returned CHANGES REQUIRED.
+Its five findings (C1–C5) are applied but not re-reviewed, so N6.1 is **not** ratified. The owner either accepts
+C1–C5 as applied, or asks for one focused re-review of them. N6.2, N6.3 and N6.9 must not begin before ratification
+is recorded.

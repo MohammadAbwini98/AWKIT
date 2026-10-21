@@ -1,5 +1,37 @@
 # TASK_LOG
 
+## 2026-10-21 — Phase N: N6.1 final owner amendments and the bounded closure review (Claude)
+
+- **Scope:** planning only, contract `awkit-vra-n6-final-1021` (Risk 2). Project-state leases covered Beads.
+  CodeCraft: not used (`CODECRAFT_MODE=off` default). No product code changed.
+- **Owner decisions applied:**
+  - VA-2 reconfirmed.
+  - VA-16 staged scope:
+    - observe-only in packaged production;
+    - experimental enforcement only in the non-packaged acceptance build;
+    - no enforce option in the packaged Designer;
+    - a packaged enforce request fails `visual-unverified/enforce-unavailable-in-production`;
+    - production enforcement is the future milestone `awkit-vra.16`.
+  - VA-11: importing over an existing flow needs `WORKFLOW_EDIT`, decided race-safely inside the lane, with cases
+    I1–I9 (N6.9).
+  - Updated to match: VA-0, VA-9, VA-12, the objective, one outcome matrix per build, the acceptance rows and the
+    completion criteria.
+- **Tracking:**
+  - Filed `awkit-vra.15.9` (N6.9) and `awkit-vra.16` (future milestone, epic).
+  - Edges: N6.9 is blocked by N6.1, N6.8 by N6.9, and `awkit-vra.16` by the N6 epic. bd allows only an epic to block
+    an epic, so the edges from N6.8 and N6.9 to `.16` were refused and replaced by that one.
+  - The stale N6.3 description is corrected, and the N6.4, N6.5, N6.6 and N6.8 text matches the staged scope.
+  - Dashboard pins moved to 419 issues, 37/382 and 362 edges.
+- **Closure review:** one bounded fresh-context `awkit-qc-reviewer` round returned **CHANGES REQUIRED**:
+  - C1 (High): the master key was planned for the general secret store, which flows and `secrets:*` can reach.
+  - C2 (Medium): epoch tokens were split by mode while both builds share one flows folder.
+  - C3–C5 (Low): token keying and missing-token capture, the packaged Designer switching enforce back to observe,
+    and quarantine after an authorized import.
+
+  All five were verified against the code and applied. Per the owner's instruction there was no further loop, so
+  they were **not re-reviewed** and no APPROVED verdict exists. N6.1 is not ratified.
+- **Checks:** see the commit.
+
 ## 2026-10-21 — Phase N: apply the owner's N6.1 AMEND and review the amendments (Claude)
 
 - **Scope:** planning only, contract `awkit-vra-n6-amend-1021` (Risk 2). Project-state leases covered Beads.

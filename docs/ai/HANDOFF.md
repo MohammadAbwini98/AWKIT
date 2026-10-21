@@ -1,6 +1,22 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-21, latest) — Phase N: N6.1 AMEND applied, awaiting ratification
+## HANDOFF (2026-10-21, latest) — Phase N: N6.1 final owner amendments applied, stopped at the N6.1 gate
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:**
+  - The plan, DECISIONS, ROADMAP and Beads match the final owner decisions (contract `awkit-vra-n6-final-1021`):
+    VA-2 reconfirmed, VA-16 staged scope, VA-11 import authorization.
+  - N6.9 `awkit-vra.15.9` and the future milestone `awkit-vra.16` are filed.
+  - The N6.3 description is corrected.
+  - One bounded closure QC review returned CHANGES REQUIRED. Its five findings C1–C5 were applied but not
+    re-reviewed (see TASK_LOG).
+- **Next:** the owner accepts C1–C5 as applied (N6.1 is then ratified), or orders one focused re-review of them.
+- **Do not:** begin N6.2, N6.3 or N6.9 before N6.1 is ratified. Do not treat experimental enforcement as a production
+  feature.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-21) — Phase N: N6.1 AMEND applied, awaiting ratification
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
