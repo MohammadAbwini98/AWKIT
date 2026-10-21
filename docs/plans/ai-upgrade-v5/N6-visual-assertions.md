@@ -1,11 +1,35 @@
 # N6 — Visual Assertions
 
-Status: **PLANNED 2026-10-21, planning only.** Contract `awkit-vra-n6-plan-1021`. Owner decisions VA-0 to VA-12
-below are **proposed and not ratified**. Nothing in this document authorizes implementation, a schema change, a new
-`src/visual` edge, a dependency, a UI component or any runtime behavior until the owner approves the decisions.
+Status: **PLANNED 2026-10-21, planning only; revised the same day for an independent review.** Contracts
+`awkit-vra-n6-plan-1021` (plan) and `awkit-vra-n6-plan-review-1021` (review corrections). Owner decisions VA-0 to
+VA-15 below are **proposed and not ratified**. Nothing in this document authorizes implementation, a schema change, a
+new `src/visual` edge, a dependency, a UI component or any runtime behavior until the owner approves the decisions.
 
-Baseline: `main` at `d04275c8` (2026-10-21). Acceptance environment: the owner-approved Windows 11 ARM64 Parallels
+Baseline: `main` at `8121991d` (2026-10-21). Acceptance environment: the owner-approved Windows 11 ARM64 Parallels
 machine (DECISIONS 2026-10-19); that is a waiver of a separate clean-VM or x64 run, not a claim that one was executed.
+
+## Review corrections (2026-10-21)
+
+An independent, fresh-context QC review returned **CHANGES REQUIRED** with 15 findings. Every one is accepted and
+applied here; each was re-checked against the source before applying.
+
+| # | Severity | Finding | Change |
+|---|---|---|---|
+| 1 | Medium | An unknown `assertionType` is already rejected by the validator (`AssertionStepContract.ts:154`, severity error); only the executor falls back to text | *Today's baseline* and VA-2 restated |
+| 2 | Medium | There is no `FLOW_EDIT`; the permission is `WORKFLOW_EDIT` (`Permissions.ts:30`) | VA-10 names `WORKFLOW_EDIT` plus the existing `requireFreshReauth` (`app/main/security/sessionContext.ts:91`) |
+| 3 | Low | N0 records only `isMainFrame` and `depth`, not the frame origin | *Frames* corrected |
+| 4 | Low | N3.2's cross-launch losses are all headless DPR 1 (6/12 baseline, 5/12 drift); every other cell is 12/12 | *Measured facts* restated |
+| 5 | Low | A new store breaks FD-4 ("evidence persisted in one place", `visualEvidence.ts:9`) | VA-5 now amends FD-4 explicitly |
+| 6 | High | Approval had no way to get a live page in the production conditions | New **VA-13**, approval from an observe run's pending candidate |
+| 7 | High | Position, sub-pixel offset, clipping, hover/focus, animation, browser build, OS build, locale and timezone were missing from the conditions | Envelope extended, new codes, new **VA-15** capture policy, residuals stated |
+| 8 | High | Enforce with `onInconclusive: pass` is silently bypassed by deleting baselines or a browser update; records had no integrity | Enforce defaults to `fail`; run-level *unverified* count; new **VA-14** integrity |
+| 9 | Medium | Observe vs `onInconclusive: fail` and flag-off outcomes contradicted each other; `disabled` was missing | *Step outcome matrix* added; `disabled` added |
+| 10 | Medium | An all-cells calibration criterion would deny enforce everywhere because of headless DPR 1 | VA-12 grants enforce **per cell**; N6.5 and N6.7 now follow N6.6; observe-usefulness metric added |
+| 11 | Medium | Retries, `onFailure`, loops, branches and child flows were unspecified | `assertVisual` is non-retryable; *Execution semantics* added |
+| 12 | Medium | Keying on the binding digest orphans baselines; copy, rename and id reuse were unspecified | Per-step index, orphan and retention policy |
+| 13 | Medium | The default 24 px context crop and the 16x16 grids store surrounding content; the grid is a thumbnail; the digest confirms guesses | No context crop; grid stated as a thumbnail; displayed-value exclusion in VA-6 |
+| 14 | Low | Several N0 codes had no mapping | Full mapping table |
+| 15 | Low | Per-user storage and the Recorder, workflow builder, random generator and fragments were not addressed | *Compatibility and out of scope* added |
 
 ## Objective
 
@@ -15,89 +39,86 @@ recorded under **proven, equal conditions**, and produces a step result.
 
 N6 is the first Phase N feature whose output is meant to change a run, so its central rule is that a visual assertion
 may only fail a step when the difference is **proven**. Everything it cannot prove is `inconclusive`, never a silent
-pass and never a guessed failure.
+pass and never a guessed failure, and an enforced assertion never turns an unproven state into a pass by default.
 
 ## User-visible purpose
 
-- A Flow Designer node, *Visual assertion*, on an element step target, with a baseline status
-  (`none`, `approved`, `approved for other conditions`) and an *Approve current appearance* action.
+- A Flow Designer node, *Visual assertion*, on an element target, with a baseline status per conditions
+  (`none`, `pending candidate`, `approved`, `approved for other conditions`).
+- An *Approve* action on a pending candidate from an observe run (VA-13).
 - A run result per assertion: `passed`, `failed` or `inconclusive`, with a fixed, image-free reason code, in the step
-  row and the report drawer.
-- Regression detection for stable UI: a logo, a status badge, a rendered chart frame, a button that must not restyle.
+  row and the report drawer, and a run-level count of *unverified* enforced assertions.
 
 ## Distinct from N5, N7, N9 and N10
 
 | Question | N5 Visual Failure Diagnosis | N6 Visual Assertions | N7 OCR | N9 Screenshot State | N10 Vision model |
 |---|---|---|---|---|---|
 | When does it run? | After a step finally fails | As an authored step, every run | On demand | Its own | Only with an approved model |
-| Can it change a run? | Never | **Yes, when enforced and proven** | Its own decision | Its own decision | Never without approval |
+| Can it change a run? | Never | **Yes, when enforced and proven, per calibrated cell** | Its own decision | Its own decision | Never without approval |
 | Output | Observation codes | A step result | Text | A state label | Model claims |
-| Reference | Runtime/recorded N2/N4 store, read-only | **Its own author-approved baseline** | — | — | — |
+| Reference | N2/N4 store, read-only | **Its own approved baseline** | — | — | — |
 | Needs a model? | No | No | No | No | Yes |
 
 N6 never reads text from pixels (N7), never classifies a screen state (N9), never uses a model (N10), and never
 writes to, reads from or reinterprets the N2/N4 reference store.
 
-## Today's baseline (as built, `d04275c8`)
+## Today's baseline (as built, `8121991d`)
 
 | Capability | Where | What N6 can rely on |
 |---|---|---|
-| Guarded element capture | `captureElement` (`src/visual/internal/captureCore.ts`) | Strict protected window, in-memory pixels, fixed refusal codes (`awkit-3gtj`, `awkit-2het`) |
-| Fingerprint | `fingerprintVisualImage` (`src/visual/fingerprint.ts`, `awkit-vfp-1`) | Size, luma and edge grids, dHash, `contentDigest` |
+| Guarded element capture | `captureElement` (`src/visual/internal/captureCore.ts`) | Strict protected window, in-memory pixels, fixed refusal codes (`awkit-3gtj`, `awkit-2het`); a default 24 px context crop (`:120`, `:428`); partly visible targets cropped with `wasClipped`, never scrolled (`:383-385`); `page.screenshot` without `animations` or `caret` options |
+| Fingerprint | `fingerprintVisualImage` (`awkit-vfp-1`) | Size, a **16x16** luma grid and edge grid (`VISUAL_FINGERPRINT_GRID = 16`), dHash, `contentDigest` |
 | Comparison | `compareVisualFingerprints` (`src/visual/compare.ts`) | `identical` (byte equality), distances, an **advisory** score with **no threshold and no decision** |
-| Evidence | `buildVisualEvidence` (v1, ≤ 4096 bytes, image-free) | Viewport, frame, bounds, fingerprint |
-| Reference store | `VisualReferenceStore` (`visual-references/`) | Atomic writes, corruption reads, rate limit; **N6 does not use it** (see VA-5) |
-| Assertions | `assertText` / `assertVisible` steps, `executeAssertion` (`StepExecutor.ts:2863`) | Text, value, count, url, attribute, storage |
-| Unknown step type | `executeStep` default (`StepExecutor.ts:2297`) | Throws `Unsupported step type`: an older build fails closed |
-| Unknown `assertionType` | `executeAssertion` (`StepExecutor.ts:2871`) | **Falls through to a text comparison**: an older build would run the wrong check |
+| Evidence | `buildVisualEvidence` (v1, ≤ 4096 bytes, image-free) | Persisted in one place since FD-4 (`visualEvidence.ts:9`) |
+| Frame info | `VisualFrameInfo` | `isMainFrame` and `depth` only |
+| Assertions | `assertText` / `assertVisible`, `executeAssertion` (`StepExecutor.ts:2863`) | Text, value, count, url, attribute, storage |
+| Unknown `assertionType` | Validator: `AssertionStepContract.ts:154` (error). Executor: falls back to text (`StepExecutor.ts:2900`) | Refused by the validator; an executor path that skips validation would run the wrong check |
+| Unknown step type | Validator error (`FlowValidator.ts:573`); executor throws `Unsupported step type` (`StepExecutor.ts:2297`) | Fails closed at both layers |
+| Permissions and re-auth | `WORKFLOW_EDIT` (`Permissions.ts:30`); `requireFreshReauth` via `sensitive` (`sessionContext.ts:91`) | Existing primitives for approval |
 
 **Measured facts that constrain N6.**
 
-- **Headed versus headless is never byte-identical.** N4.5: a headed reference never matched a headless crop.
-- **Headless bytes depend on position.** N3.2: headless Chromium rendered identical icons with position-dependent
-  bytes, so byte identity is not stable even within one mode when layout shifts.
-- **Cross-launch identity is not guaranteed in one mode.** N3.2 cross-launch recall was 66/72 on the unchanged
-  baseline and 65/72 under drift.
-- **No similarity threshold is calibrated.** N2.3 found no separation between look-alikes and real contradictions, so
-  the N1 score has no threshold and N2 ships shadow-only.
-- **Stored conditions are partly unprovable.** The N2/N4 records cannot prove render mode, browser build, colour scheme
-  or zoom separately from DPR (N5 plan, *Reference-condition provenance*). The envelope that would (VD-11) was deferred.
+- **Headed versus headless is never byte-identical.** N4.5: headless recall of a headed reference 0/9.
+- **Headless DPR 1 re-renders across launches.** N3.2: cross-launch, every miss was headless DPR 1 (6 of 12 lost on
+  baseline, 5 of 12 under drift); every other cell 12/12; same-launch 72/72. Approval and runs are always different
+  launches.
+- **Headless bytes depend on position.** N3.2: identical icons rendered with position-dependent bytes.
+- **No similarity threshold is calibrated.** N2.3 found no separation between look-alikes and real contradictions.
+- **Stored N2/N4 conditions are partly unprovable** (N5 provenance audit); VD-11 stays deferred for that store.
 
-**Consequence.** A naive "fail when the fingerprint differs" assertion would fail on every headed/headless switch, on a
-browser update, after a font change and on roughly one fresh launch in twelve. N6 must therefore (1) record its own
-baselines with a provenance envelope, (2) compare only under proven-equal conditions, (3) ship observe-only first and
-(4) unlock enforcement only through a calibration gate, the pattern N2, N3 and N5 used.
+**Consequence.** Byte identity is a usable pass rule in some cells (headed, headless DPR > 1) and not in others
+(headless DPR 1). N6 therefore keys baselines by conditions, grants enforcement **per cell** after calibration, and
+stays observe-only where calibration fails.
 
 ## Scope
 
 - One new step type, an element-scoped visual assertion, observe and enforce modes.
-- A pure verdict policy over two fingerprints and two condition envelopes.
-- A new, separate baseline store with an additive provenance envelope.
-- Baseline approval by a person, never by a run.
-- A runner adapter (a fourth, allow-listed `src/visual` edge), a codes-only report block and a text-only drawer
-  section, a Designer node, a calibration lab and its verifiers.
+- A pure verdict policy over two fingerprints, two condition envelopes and two geometry records.
+- A new, separate, integrity-protected baseline store with a per-step index.
+- Baselines approved by a person from a pending candidate an observe run produced in the production conditions.
+- A runner adapter (a fourth allow-listed `src/visual` edge), a codes-only report block, a text-only drawer section,
+  a Designer node, a calibration lab and its verifiers.
 
 ## Non-goals
 
-- Viewport or full-page assertions (VA-3): dynamic regions need masking, which the fingerprint cannot express.
-- Ignore regions, masks, per-pixel diffs or diff images.
-- Tolerance-based passes in v1 (VA-7): only byte identity passes until calibration proves a threshold.
-- Auto-updating baselines from runs ("self-healing"), or approving a baseline from a failed run without a person.
-- Persisting screenshots or image bytes for baselines (VA-6).
-- Any change to locator resolution, recovery, retries, fusion, agreement, diagnosis or the N2/N4 store.
-- OCR, state labels or model calls.
+- Viewport or full-page assertions, regions, masks, diff images.
+- Tolerance-based passes (VA-7); only byte identity passes until a separate decision after N6.6.
+- Auto-updating baselines from runs, or approving without a person.
+- Persisting any image bytes (VA-6); the approval preview is transient (VA-13).
+- Any change to locator resolution, recovery, retries of other steps, fusion, agreement, diagnosis or the N2/N4 store.
+- OCR, state labels, model calls.
 
 ## Owners
 
 | Area | Owner | Files (expected) |
 |---|---|---|
 | Pure verdict policy and vocabulary | software, with qa | new `src/visual/assertion/decideVisualAssertion.ts`, exported through `src/visual/index.ts` |
-| Baseline store and provenance envelope | data-persistence | new `src/runner/visualAssertion/VisualBaselineStore.ts` (`visual-baselines/`) |
-| Step type, validator, runner adapter, budget | backend | `src/profiles/FlowProfile.ts`, `src/validation/FlowValidator.ts`, `src/runner/StepExecutor.ts` (dispatch only), new `src/runner/visualAssertion/VisualAssertionStep.ts` |
-| Baseline approval channel, permission, audit | backend, security (review) | an IPC handler beside `recorder.ipc.ts`/`execution.ipc.ts`, preload entry |
-| Designer node and drawer section | frontend, with ui-designer authority | Flow Designer node config, `FailureEvidenceSection.tsx` sibling, `global.css` tokens |
+| Baseline store, index, integrity | data-persistence, security (review) | new `src/runner/visualAssertion/VisualBaselineStore.ts` (`visual-baselines/`) |
+| Capture policy option (VA-15) | software, with qa | `src/visual/internal/captureCore.ts` (an option used only by N6) |
+| Step type, validator, runner adapter, budget | backend | `src/profiles/FlowProfile.ts`, `src/validation/FlowValidator.ts`, `StepExecutor.ts` (dispatch only), new `src/runner/visualAssertion/VisualAssertionStep.ts` |
+| Pending candidates and approval channel | backend, security (review) | an IPC handler, preload entry, main-process candidate holder |
+| Designer node and drawer section | frontend, with ui-designer authority | Flow Designer node config, report drawer, `global.css` tokens |
 | Report record and sanitizer | data-persistence | `src/reports/ExecutionReport.ts`, a sanitizer beside `visualDiagnosisRecord.ts` |
-| Protected boundary, privacy | security (review) | — |
 | Mock-site, verifiers, mutations, calibration | qa, recorder-playwright | `mock-site/`, `scripts/verify-visual-assertion*.mts`, `scripts/benchmark-visual-assertion.mts` |
 | Independent review | qc, security | — |
 | Beads, state docs, dashboard | project-state | `.beads/`, `docs/ai/`, `scripts/verify-roadmap-dashboard.mjs` |
@@ -105,262 +126,328 @@ baselines with a provenance envelope, (2) compare only under proven-equal condit
 ## Architecture and data flow
 
 ```
-Designer: author picks an element step target ──► VisualAssertion node (config only, no image)
-                                                   │
-Approve (person, permission-gated, audited) ──────►│ capture via N0 captureElement (strict window)
-                                                   │ fingerprint (N1) + provenance envelope ──► visual-baselines/
-Run: StepExecutor dispatch ──► VisualAssertionStep (fourth src/visual edge, lazy)
-   1. eligibility (step type, protected/handoff/sensitive, flag)          → refusal codes
-   2. resolve the step's locator to exactly one visible element (DOM)     → target codes
-   3. captureElement (guarded, budgeted)                                  → capture refusal codes
-   4. current envelope (render mode, browser major, DPR, viewport, colour scheme, forced colours, fingerprint version)
-   5. baseline read (read-only) for flow + step + binding digest + conditions key
-   6. decideVisualAssertion(current, baseline)  ── pure ──►  passed | failed | inconclusive + code
-   7. mode: observe → step outcome unchanged, verdict recorded; enforce → failed fails the step
-   8. codes-only record ──► InstanceReport.visualAssertions (sanitized) ──► drawer section
+Run (observe or enforce): StepExecutor dispatch ──► VisualAssertionStep (fourth src/visual edge, lazy)
+   1. eligibility (step type, protected/handoff/sensitive, flag, cell)      → refusal codes, no capture
+   2. resolve the locator to exactly one visible element (DOM, read-only)   → target codes
+   3. read-only state: :hover / :focus on the target, element CSS box        → geometry and state facts
+   4. captureElement (guarded, VA-15 policy, no context crop, 2000 ms)       → capture refusal codes
+   5. current envelope (below)
+   6. baseline read (index, then record; integrity-checked)                  → baseline facts
+   7. decideVisualAssertion(...)  ── pure ──► passed | failed | inconclusive + code
+   8. step status from the outcome matrix
+   9. on no-baseline / baseline-other-conditions in an eligible run: keep a pending candidate (VA-13)
+  10. codes-only record ──► InstanceReport.visualAssertions (sanitized) ──► drawer section
+Approve (person, WORKFLOW_EDIT + fresh re-auth, audited) ──► pending candidate ──► signed baseline record
 ```
 
-No pixels leave step 3. The record carries codes, versions and the conditions comparison, never an image, crop,
-digest, selector, URL or page text.
+No pixels leave step 4 except the transient approval preview (VA-13). The record carries codes, versions and the
+conditions comparison, never an image, crop, digest, selector, URL or page text.
+
+## Conditions envelope and geometry (VA-4)
+
+**Conditions key fields** (a baseline answers only for its own key):
+
+| Field | Source |
+|---|---|
+| `renderMode` | the runner's launch options |
+| `browserVersion` (full) | `browser.version()` |
+| `appVersion` | the application version |
+| `osBuild` | `os.release()` |
+| `devicePixelRatio`, `cssWidth`, `cssHeight` | N0 viewport metrics |
+| `colorScheme`, `forcedColors`, `reducedMotion` | `matchMedia` in the target's frame |
+| `locale`, `timeZone` | the browser context options |
+| `frameDepth`, `isMainFrame` | N0 frame info |
+| `capturePolicy` | the VA-15 policy version |
+| `fingerprintVersion`, `evidenceVersion` | constants |
+
+**Geometry and state facts** (compared, not keyed):
+
+| Fact | Rule |
+|---|---|
+| Target CSS box `x`, `y`, `width`, `height` (exact, including fractions) | `x`/`y` differ → `inconclusive/position-changed`; size differs with position equal → `failed/size-differs-from-baseline` |
+| `wasClipped` on either side | `inconclusive/target-clipped` |
+| `:hover` or `:focus` on the target | differs from the baseline → `inconclusive/interaction-state-changed` |
+
+**Unprovable residuals, stated.** Installed fonts, the GPU or software raster path and driver updates on the same
+machine are not keyed and cannot be proven. A change there under otherwise equal conditions can produce a false
+`failed`. Baselines are per machine and per Windows user (they live under `%LOCALAPPDATA%`), which bounds this, and the
+calibration measures it per cell but cannot rule it out.
 
 ## Verdict vocabulary (proposed; fixed in N6.2, pruned by N6.6)
 
 | Verdict | Code | When |
 |---|---|---|
-| `passed` | `identical-to-baseline` | Conditions `equal-proven` and `contentDigest` equal |
-| `failed` | `differs-from-baseline` | Conditions `equal-proven`, digests differ, and the difference is outside the calibrated envelope (v1: any difference, VA-7) |
-| `failed` | `size-differs-from-baseline` | Conditions `equal-proven` and the element's CSS size differs |
-| `inconclusive` | `no-baseline` | No approved baseline for this step and binding |
-| `inconclusive` | `baseline-other-conditions` | A baseline exists, but not for the current conditions key |
-| `inconclusive` | `conditions-unproven` | A required envelope field is missing on either side |
-| `inconclusive` | `binding-changed` | The step's locator binding digest no longer matches the baseline's |
-| `inconclusive` | `baseline-unreadable` | Corrupt, version-mismatched or oversized record |
+| `passed` | `identical-to-baseline` | Conditions `equal-proven`, geometry and state equal, digests equal |
+| `failed` | `differs-from-baseline` | `equal-proven`, geometry and state equal, digests differ |
+| `failed` | `size-differs-from-baseline` | `equal-proven`, position equal, CSS size differs |
+| `inconclusive` | `disabled` | `AWKIT_VISUAL_ASSERTIONS=off` |
+| `inconclusive` | `enforce-unavailable` | Enforce requested in a cell N6.6 did not grant; evaluated as observe |
+| `inconclusive` | `no-baseline` | No approved baseline for this step |
+| `inconclusive` | `baseline-other-conditions` | Baselines exist, none for the current conditions key |
+| `inconclusive` | `binding-changed` | The index holds baselines only for another binding digest |
+| `inconclusive` | `baseline-unreadable` | Corrupt, version-mismatched, oversized or **integrity-failed** record |
+| `inconclusive` | `position-changed` / `target-clipped` / `interaction-state-changed` | Geometry and state rules above |
 | `inconclusive` | `target-not-found` / `target-not-unique` / `target-hidden` / `target-offscreen` | DOM resolution facts |
 | `inconclusive` | `protected-surface` / `handoff-active` / `sensitive-step` | Refused before any capture |
-| `inconclusive` | `capture-stale` / `capture-unavailable` / `budget-exhausted` | N0 refusals and the deadline |
+| `inconclusive` | `capture-stale` / `capture-unavailable` / `budget-exhausted` / `cancelled` / `page-closed` | N0 refusals (mapping below) |
 
-`failed` is only reachable under `equal-proven`. No code claims uniqueness, identity of anything other than the
-step's own target, or the cause of a difference.
+**N0 code mapping** (every member of `VisualErrorCode`, `src/visual/errors.ts:9-40`): `TARGET_STALE` (the target
+moved, resized or vanished during capture) and `CAPTURE_STALE` → `capture-stale`; `TARGET_NOT_UNIQUE` →
+`target-not-unique`; `TARGET_OFFSCREEN` → `target-offscreen`; `INVALID_BOUNDS` → `target-hidden`;
+`FRAME_MAPPING_FAILED`, `CAPTURE_UNAVAILABLE`, `FINGERPRINT_FAILED`, `IMAGE_DECODE_FAILED` and any unknown code →
+`capture-unavailable`; `UNSUPPORTED_FINGERPRINT_VERSION` (a baseline from another fingerprint version) →
+`baseline-unreadable`; `PAGE_CLOSED` → `page-closed`; `BUDGET_EXHAUSTED` → `budget-exhausted`; `CANCELLED` →
+`cancelled`; `PROTECTED_SURFACE` → `protected-surface`.
 
-## Conditions envelope (VA-4)
+`failed` is only reachable under `equal-proven` with equal geometry and state. No code claims uniqueness, identity of
+anything other than the step's own target, or the cause of a difference.
 
-Recorded with every baseline and computed for every run:
+## Step outcome matrix (VA-8)
 
-| Field | Source | Proven by |
-|---|---|---|
-| `renderMode` | the runner's launch options (`headless` true/false) | the runner itself, at both ends |
-| `browserMajor` | `browser.version()` major | the runner |
-| `devicePixelRatio`, `cssWidth`, `cssHeight` | N0 viewport metrics | N0 |
-| `colorScheme`, `forcedColors`, `reducedMotion` | `matchMedia` read in the target frame | a read-only evaluate |
-| `frameDepth`, `isMainFrame` | N0 frame info | N0 |
-| `fingerprintVersion`, `evidenceVersion` | constants | N1 |
+| Flag | Mode (effective) | Verdict | Step status |
+|---|---|---|---|
+| `off` | any | `inconclusive/disabled` | **passed** (the step is inert; reported as disabled). Runs without the step are byte-identical; runs with it differ only by the disabled record |
+| `observe` | observe | any | **passed**, always; the verdict is recorded |
+| `enforce` | enforce (granted cell) | `passed` | passed |
+| `enforce` | enforce (granted cell) | `failed` | **failed** (normal `onFailure` handling) |
+| `enforce` | enforce (granted cell) | `inconclusive` | `onInconclusive`: default **fail**; `pass` must be chosen per step |
+| `enforce` | not granted → observe | `inconclusive/enforce-unavailable` | passed, and counted *unverified* |
 
-The **conditions key** is a digest over every field except the element geometry. A baseline answers only for its own
-key. Several baselines per step (one per key) are allowed, each approved separately. Older N2/N4 records are never
-read, so the N5 `unproven` status does not apply here; N6 records are envelope-complete by construction.
+`onInconclusive` exists only in enforce. Every enforced assertion that did not pass (failed, or inconclusive under
+`pass`) adds to a run-level *unverified enforced assertions* count shown in the report header.
 
-## Persistence (VA-5, VA-6)
+## Execution semantics (finding 11)
 
-- A new folder `visual-baselines/` under the runtime root, beside `visual-references/`, one sidecar per
-  `sha256(flowId, stepId, bindingDigest, conditionsKey)`, written atomically with the same EPERM/EBUSY retry the
-  reference store uses.
-- Record: `version`, the key parts, the envelope, `VisualEvidence` v1 (image-free, ≤ 4096 bytes), `approvedAt`,
-  `approvedBy` (local user id), and the approving app version.
-- **Never** inside the FlowProfile or its export; the flow stays byte-identical. Moving a flow to another machine
-  yields `no-baseline` until a person approves there (VA-11 covers export).
-- No image bytes, crops or screenshots are stored (VA-6). The person sees the existing, guarded B2 failure screenshot
-  for context on a `failed` step.
-- Runs never write baselines. Approval is the only writer.
+- `assertVisual` is **non-retryable**: the validator rejects a `retry` on it, and the retry loop never re-runs it. A
+  failure cannot be retried into a coincidental match.
+- `onFailure` (`stop`, `continue`, `goToFailureEdge`, `manualHandoff`) applies unchanged to a `failed` step.
+- Loops: every iteration evaluates against the same step's baseline; a target whose content changes per iteration
+  will not pass, and authors are told so in the node help.
+- Parallel branches assert on their own page. Child flows: the baseline key uses the child flow's own id and step id.
+- Popups: the step asserts on the page its `pageAlias` names.
+
+## Persistence (VA-5, VA-6, VA-14)
+
+- A new folder `visual-baselines/` under the runtime root, **amending FD-4** (evidence in one place) to two places,
+  each with one writer: the N2/N4 store (runtime refresh and Recorder save) and this store (approval only).
+- **Index:** one file per `sha256(flowId, stepId)` listing the `(bindingDigest, conditionsKey)` pairs that have
+  baselines. It is what makes `binding-changed` and `baseline-other-conditions` reachable.
+- **Record:** one sidecar per `sha256(flowId, stepId, bindingDigest, conditionsKey)`: version, key parts, envelope,
+  geometry and state facts, `VisualEvidence` v1 **without a context fingerprint**, approval metadata, and an
+  integrity tag (VA-14). Atomic writes with the existing EPERM/EBUSY retry.
+- **Lifecycle:** a flow copy gets a new `flowId` → `no-baseline`. A locator edit changes the binding digest →
+  `binding-changed` until re-approved. A reused step id after delete → `binding-changed`. Deleting a flow or step
+  removes its index and records. Old bindings' records are kept for 30 days then purged by a bounded maintenance pass.
+- Never inside the FlowProfile or its export; the flow stays byte-identical.
+- No image bytes persisted. The fingerprint's 16x16 luma and edge grids **are a coarse thumbnail** of the element, and
+  the `contentDigest` lets someone confirm a guessed rendering; both are stated as accepted residuals in VA-6.
 
 ## Step shape (VA-2)
 
-A new step type `assertVisual`, not a new `assertionType` on `assertText`: an older build that meets the new type
-throws `Unsupported step type` and fails closed, while an unknown `assertionType` would silently run a text check.
-Config: the element locator (the existing `StepLocator`), `mode` (`observe` | `enforce`, default `observe`) and
-`onInconclusive` (`pass` | `fail`, default `pass` in observe and enforce alike, VA-8). The validator requires an
-element locator, refuses a protected-login or value-bearing target, and rejects the step inside a fragment the audit
-marks sensitive.
+A new step type `assertVisual`. Both an unknown step type and an unknown `assertionType` are refused by today's
+validator; the new type is still preferred because the executor's assertion path falls back to text for an unknown
+kind (`StepExecutor.ts:2900`), while an unknown step type throws at dispatch as well (`:2297`), so any path that skips
+validation still fails closed. Config: the element locator, `mode` (`observe` | `enforce`), `onInconclusive`
+(enforce only, default `fail`). The validator requires an element locator, rejects `retry`, refuses protected-login,
+value-bearing and sensitive targets, and rejects the step in fragments (see *Compatibility*).
 
 ## Security, privacy and the protected-auth boundary
 
-- The capture is N0's `captureElement` only, inside the strict protected window; any protected refusal is
-  `inconclusive/protected-surface` and is never retried into a pass.
-- Protected-login step types, handed-off pages and value-bearing or masked targets are refused before any capture
-  (the same eligibility as N4/N5).
-- Baselines are image-free. Approval is permission-gated (VA-10) and audited; a renderer can name a step, never send
-  evidence, a digest or a key.
-- The report block is codes-only and passes a sanitizer with a key allowlist, as N5.4 did.
+- Capture through N0's `captureElement` only, inside the strict window, with `contextPaddingCss: 0`. Any protected
+  refusal is `inconclusive/protected-surface`, never retried into a pass, and never a candidate.
+- Protected-login step types, handed-off pages, value-bearing and masked targets, and sensitive steps are refused
+  before capture, as in N4/N5.
+- Baselines are integrity-tagged (VA-14); a record that fails its check is `baseline-unreadable`, so tampering cannot
+  force a pass, and in enforce it fails by default.
+- Approval needs `WORKFLOW_EDIT` and fresh re-authentication, is audited (flow, step, conditions key, user, time) and
+  the renderer can only name a candidate id, never send evidence, a digest or a key.
+- The approval preview is a transient, guarded PNG held in main-process memory only (VA-13).
+- The report block is codes-only and passes a key-allowlist sanitizer.
 
 ## Headed and headless
 
-Baselines are keyed per render mode. A headless run against a headed-only baseline is
-`inconclusive/baseline-other-conditions`. The calibration (N6.6) runs both modes and a cross-mode replay.
+Baselines are keyed per render mode, so headless runs need a headless candidate; VA-13's observe-run candidate is
+taken in the run's own mode. Enforcement is granted per cell by N6.6; headless DPR 1 is expected to stay observe-only
+given N3.2.
 
 ## Frames, popups and shadow roots
 
-The target may be in a frame (N0 maps depth and origin) or an open shadow root (the locator resolves it). A target in
-a popup is asserted on the popup page the step names. Closed shadow roots stay out of scope, as in N0.
+The target may be in a frame (N0 records depth and the main-frame flag) or an open shadow root (the locator resolves
+it). A popup target is asserted on its own page. Closed shadow roots stay out of scope, as in N0.
+
+## Compatibility and out of scope (finding 15)
+
+| Area | N6 behavior |
+|---|---|
+| Storage location | Per Windows user, per machine (`%LOCALAPPDATA%`); other users and machines see `no-baseline` |
+| Export / import | Not exported (VA-11); imported flows report `no-baseline` |
+| Recorder | Does not record `assertVisual` in N6; authors add it in the Designer |
+| Workflow builder | No change; it references flows, not steps |
+| Random configuration generator (`src/testing/random`) | Must never generate `assertVisual`; an exclusion and a check are part of N6.4 |
+| Fragments | `assertVisual` is rejected in fragments in N6, because instantiation creates new step ids with no baseline |
+| Older builds | The validator refuses the unknown step type; dispatch throws if validation is skipped |
 
 ## Offline and AI independence
 
-No network, model, service or new dependency. The verdict is a pure function of two fingerprints and two envelopes.
-With the flag off, `assertVisual` steps are `inconclusive/disabled`. Flows without the step are untouched.
+No network, model, service or new dependency. The verdict is a pure function. Flows without the step are untouched.
 
 ## Performance budgets (VA-9)
 
-One element capture per assertion per attempt, bounded by a 2000 ms deadline inside the step timeout. The capture
-already pays the strict-window cost (`benchmark:visual-diagnosis` p95 759 ms for a framed diagnosis after
-`6ff6327`). A deadline cut is `inconclusive/budget-exhausted`, never a pass. No visual work happens for flows without
-the step.
+One element capture per assertion per run (non-retryable), bounded by 2000 ms inside the step timeout, plus one
+read-only state read. The strict window already costs about p95 759 ms for a framed diagnosis (after `6ff6327`).
+A deadline cut is `inconclusive/budget-exhausted`.
 
 ## Accessibility and UI
 
-Text-only result, no image, no colour-only status, a live region for the approval result, focus returns to the
-trigger, reduced motion respected, Hologram tokens only. Proven by a GUI verifier in real Electron, run from the
-owner terminal per KNOWN_ISSUES 2026-10-19.
+Text-only results, no colour-only status, a live region for approval, focus returns to the trigger, reduced motion,
+Hologram tokens only. The approval preview has a text alternative stating what it shows and that it is not stored.
+Proven by a GUI verifier in real Electron from the owner terminal.
 
 ## Owner decisions before implementation (proposed, not ratified)
 
 ### VA-0 — Authority boundary
-
-- **Decision:** may a visual result fail a step?
-- **Recommended:** yes, but only `failed` under `equal-proven` conditions in `enforce` mode after the N6.6 calibration
-  gate is MET; observe mode never changes a step outcome. This amends the 2026-10-13 directive (VR-0), under which
-  `agreed` is the only execution-affecting visual result, by adding exactly one more: an authored assertion's
-  `failed`. Visual evidence still never drives a click, fill, selector, retry or recovery.
-- **Alternatives:** (a) observe-only forever; (b) let the advisory score fail steps.
-- **Why needed:** without it N6 is report-only, and it is the widest authority Phase N has asked for.
+- **Recommended:** a visual result may fail a step only as `failed` (proven, equal conditions, equal geometry and
+  state) in enforce mode, in a cell N6.6 granted. Observe never changes a step outcome. This amends VR-0 by adding one
+  execution-affecting result. Visual evidence still never drives a click, fill, selector, retry or recovery.
+- **Alternatives:** observe-only forever; let the advisory score fail steps.
+- **Consequence:** the widest authority Phase N has asked for, bounded per cell.
 
 ### VA-1 — Isolation amendment
-
-- **Decision:** a fourth allow-listed edge into `src/visual`, the runner's `VisualAssertionStep`, loaded lazily,
-  through the public index only.
-- **Recommended:** approve, with `verify:visual-isolation` pinning exactly four edges and the adapter's own
-  no-act/no-write scan (writes only through the baseline store's approval path, never at run time).
+- **Recommended:** a fourth allow-listed edge (`VisualAssertionStep`), lazy, public index only;
+  `verify:visual-isolation` pins four edges plus a no-act and no-write scan of the adapter.
 
 ### VA-2 — Step shape
-
-- **Recommended:** a new `assertVisual` step type (fails closed on older builds), element-scoped, with `mode` and
-  `onInconclusive`. **Alternative:** `assertionType: "visual"` on `assertText`, rejected because older builds would run
-  a text comparison.
+- **Recommended:** a new non-retryable `assertVisual` step type with `mode` and enforce-only `onInconclusive`.
+- **Alternative:** `assertionType: "visual"` on `assertText`, rejected because the executor falls back to text.
 
 ### VA-3 — Target scope
-
-- **Recommended:** a single element resolved by the step's own locator to exactly one visible element. No viewport,
-  full page or region assertions in N6.
+- **Recommended:** one element, resolved to exactly one visible element. No viewport, page or region assertions.
 
 ### VA-4 — Conditions envelope and comparison rule
+- **Recommended:** the key fields, geometry and state rules above; only `equal-proven` with equal geometry and state
+  can pass or fail; fonts, raster path and drivers are stated residuals.
 
-- **Recommended:** the envelope above, a conditions key per baseline, three statuses (`different`, `unproven`,
-  `equal-proven`); only `equal-proven` can yield `passed` or `failed`.
+### VA-5 — Baseline store and FD-4
+- **Recommended:** a new `visual-baselines/` store with an index, amending FD-4 to two stores with one writer each.
+  The N2/N4 store is untouched; VD-11 stays deferred for it.
 
-### VA-5 — Baseline store
+### VA-6 — Image retention and displayed values
+- **Recommended:** no image bytes persisted, no context crop; the 16x16 grids and digest accepted as a coarse
+  thumbnail and a guess-confirmer; targets the step-safety policy marks sensitive are refused.
+- **Alternative:** store baseline PNGs, a privacy expansion needing its own retention and export policy.
 
-- **Recommended:** a new `visual-baselines/` store with the envelope. The N2/N4 store is not read, written, migrated or
-  extended. **Alternative:** VD-11's envelope inside the N2/N4 store, rejected because it changes two existing writers.
-- **Note:** this resolves N5's VD-11 for N6's own data only; VD-11 for the N2/N4 store stays deferred.
+### VA-7 — Pass rule
+- **Recommended:** byte identity only; a tolerance needs its own decision after N6.6.
 
-### VA-6 — Image retention
-
-- **Recommended:** image-free baselines and results; no diff images. **Alternative:** store baseline PNGs for visual
-  review, which is a privacy expansion needing its own retention, redaction and export policy.
-
-### VA-7 — Pass rule and tolerance
-
-- **Recommended:** v1 passes only on byte identity. A tolerance envelope (dHash, grid and edge distances) may be
-  proposed after N6.6 with its own decision; until then near-identical results under `equal-proven` are `failed` in
-  enforce and recorded in observe. **Alternative:** ship an uncalibrated threshold, rejected by N2.3's evidence.
-
-### VA-8 — Inconclusive handling
-
-- **Recommended:** `onInconclusive: pass` by default (the run is not blocked by missing baselines or condition
-  changes), with the verdict visible; authors may choose `fail` per step.
+### VA-8 — Outcome matrix and inconclusive handling
+- **Recommended:** the matrix above: observe always passes the step; enforce defaults `onInconclusive` to `fail`;
+  a run-level *unverified* count.
+- **Alternative:** `onInconclusive: pass` by default, rejected because it silently bypasses enforcement.
 
 ### VA-9 — Enablement and budget
+- **Recommended:** `AWKIT_VISUAL_ASSERTIONS` = `off` (default) | `observe` | `enforce`; enforce acts only in granted
+  cells; 2000 ms per assertion.
 
-- **Recommended:** `AWKIT_VISUAL_ASSERTIONS` = `off` (default) | `observe` | `enforce`; `enforce` is accepted only
-  after N6.6 is MET and is otherwise downgraded to `observe` with a logged code. Deadline 2000 ms per assertion.
+### VA-10 — Approval permission
+- **Recommended:** `WORKFLOW_EDIT` plus `requireFreshReauth`, audited. **Alternative:** a new dedicated permission.
 
-### VA-10 — Baseline approval
+### VA-11 — Export
+- **Recommended:** not exported in N6; a signed bundle may follow with its own decision.
 
-- **Recommended:** a person approves from the Designer (or a run result) with a dedicated permission
-  (`FLOW_EDIT` plus re-authentication is the alternative), audited with flow, step, conditions key and user. Approval
-  captures fresh at approval time; it never promotes a stored run result.
-
-### VA-11 — Export and import
-
-- **Recommended:** baselines are not exported with flows in N6. An imported flow reports `no-baseline` until approved.
-  A later decision may add a signed baseline bundle.
-
-### VA-12 — Calibration gate
-
-- **Recommended:** N6.6 runs headed and headless at DPR 1, 1.25 and 2 on fresh launches over mock-site fixtures
-  (unchanged, restyle, swap, text change, size change, twins, protected, sensitive), with a criterion fixed before
-  measuring:
-  - **zero** `failed` on unchanged fixtures under `equal-proven`, across at least 20 fresh launches per cell;
-  - **every** restyle, swap, text and size change `failed` or `size-differs` under `equal-proven`;
+### VA-12 — Calibration gate, per cell
+- **Recommended:** N6.6 measures each cell (headed and headless × DPR 1, 1.25, 2) separately over mock-site fixtures
+  (unchanged, restyle, swap, text, size, moved, clipped, hovered/focused, animated, twins, protected, sensitive) with
+  at least 20 fresh launches against a baseline from a separate launch. A cell is **granted enforce** only with:
+  - **zero** `failed` on unchanged fixtures;
+  - **every** restyle, swap, text and size change `failed`;
+  - moved, clipped and state-changed fixtures `inconclusive`, never `failed` or `passed`;
   - **zero** captures on protected, handoff and sensitive fixtures;
-  - cross-mode always `baseline-other-conditions`;
-  - p95 within the VA-9 deadline.
+  - p95 within the deadline.
 
-  If the unchanged criterion fails (N3.2's 66/72 suggests it may), `enforce` stays unavailable and N6 closes
-  **observe-only**, tracked like N2 and N3.
+  Every cell also reports the observe usefulness rate (share of unchanged runs that pass). Expected: headless DPR 1
+  not granted (N3.2). If no cell is granted, N6 closes observe-only.
+
+### VA-13 — Baseline source (new)
+- **Recommended:** a baseline comes from a **pending candidate** that an observe or enforce run produced for a
+  `no-baseline`, `binding-changed` or `baseline-other-conditions` verdict, in that run's own conditions. The
+  candidate holds the image-free evidence, envelope and geometry, plus a transient guarded PNG preview in
+  main-process memory only (never written, at most 20 candidates, discarded after 30 minutes or at app exit). A person
+  approves from the run report while the preview exists; after it is gone, the candidate must be re-produced by
+  another run.
+- **Alternatives:** (a) a dedicated approval run that pauses at the step, which also executes the earlier steps' side
+  effects; (b) headed-only live approval, which cannot serve headless keys.
+
+### VA-14 — Baseline integrity (new)
+- **Recommended:** each record and index carries an HMAC over its canonical bytes with a per-user key protected by
+  Electron `safeStorage` (Windows DPAPI). A failed check is `baseline-unreadable`. **Alternative:** record tampering
+  as an accepted risk.
+
+### VA-15 — Capture policy for assertions (new)
+- **Recommended:** an N0 option used only by N6: `animations: "disabled"` and `caret: "hide"` on the screenshot, and
+  `contextPaddingCss: 0`; no pointer movement or focus change by N6. Hover and focus left by earlier steps are read
+  and compared (`interaction-state-changed`), not cleared.
+- **Alternative:** a two-capture stability check, which doubles cost.
 
 ## Work breakdown
 
 | Item | Title | Depends on |
 |---|---|---|
-| N6.1 | Owner decisions VA-0 to VA-12 | — |
-| N6.2 | Pure `decideVisualAssertion` policy, vocabulary and conditions rule; `verify:visual-assertion` with mutants | N6.1 |
-| N6.3 | `VisualBaselineStore` with the envelope; `verify:visual-baseline-store` (atomic, corruption, versions, concurrency) | N6.1 |
-| N6.4 | `assertVisual` step type, validator, runner adapter (fourth edge), observe mode, mock-site fixtures; `verify:visual-assertion-runtime`, `verify:visual-isolation` at four edges | N6.2, N6.3 |
-| N6.5 | Baseline approval channel, permission, audit and Designer node; `verify:visual-assertion-gui` | N6.4 |
-| N6.6 | Calibration lab and the enforce gate; `benchmark:visual-assertion` | N6.4 |
-| N6.7 | Codes-only report block, sanitizer and drawer section; `verify:visual-assertion-report` | N6.4 |
+| N6.1 | Owner decisions VA-0 to VA-15 | — |
+| N6.2 | Pure `decideVisualAssertion` policy, vocabulary, conditions, geometry and mapping; `verify:visual-assertion` with mutants | N6.1 |
+| N6.3 | `VisualBaselineStore` with index, integrity and lifecycle; `verify:visual-baseline-store` | N6.1 |
+| N6.4 | `assertVisual` step type, validator, VA-15 capture option, runner adapter (fourth edge), outcome matrix, pending candidates, random-generator exclusion, mock-site fixtures; `verify:visual-assertion-runtime`, `verify:visual-isolation` at four edges | N6.2, N6.3 |
+| N6.6 | Calibration lab and the per-cell enforce gate; `benchmark:visual-assertion` | N6.4 |
+| N6.5 | Approval channel, preview, permission, audit and Designer node; `verify:visual-assertion-gui` | N6.4, N6.6 |
+| N6.7 | Codes-only report block, *unverified* count, sanitizer and drawer section; `verify:visual-assertion-report` | N6.4, N6.6 |
 | N6.8 | Independent QC and security review, closure | N6.5, N6.6, N6.7 |
+
+N6.5 and N6.7 follow N6.6 so the UI and report are built for the measured scope (finding 10).
 
 ## Verification and independent QC matrix
 
 | Claim | Gate |
 |---|---|
-| Verdicts follow the table and `failed` needs `equal-proven` | `verify:visual-assertion` (pure), mutants per rule |
-| Baselines are atomic, versioned, corruption-safe and image-free | `verify:visual-baseline-store` |
-| Observe never changes a step outcome; enforce fails only on `failed` | `verify:visual-assertion-runtime` A/B against the flag off |
-| No capture on protected, handoff or sensitive targets | runtime cases plus `verify:b2-protected-capture` unchanged |
+| Verdicts, geometry, mapping; `failed` needs `equal-proven` and equal geometry and state | `verify:visual-assertion`, mutants per rule |
+| Baselines atomic, versioned, indexed, integrity-checked, image-free, no context fingerprint | `verify:visual-baseline-store`, tamper cases |
+| Outcome matrix in every cell; observe never changes status; non-retryable | `verify:visual-assertion-runtime` A/B against flag off |
+| No capture on protected, handoff or sensitive targets | runtime cases, `verify:b2-protected-capture` unchanged |
 | Exactly four `src/visual` edges | `verify:visual-isolation` |
-| Older builds fail closed on the step | runtime case against the unknown-type path |
-| Report block is codes-only | `verify:visual-assertion-report` with sanitizer mutants |
-| UI is accessible and text-only | `verify:visual-assertion-gui` |
-| Enforcement is earned | `benchmark:visual-assertion` against VA-12 |
-| Regression | `verify:runner`, `verify:visual-capture`, `verify:visual-diagnosis-runtime`, `verify:recorder-visual-capture`, `verify:mock-site`, build |
+| Older-build and skipped-validation paths fail closed; random generator never emits the step | runtime and validator cases |
+| Report block codes-only; *unverified* count correct | `verify:visual-assertion-report` with sanitizer mutants |
+| Approval requires permission and fresh re-auth; preview never written | `verify:visual-assertion-gui`, IPC contract, file-system check |
+| Enforcement earned per cell | `benchmark:visual-assertion` against VA-12 |
+| Regression | `verify:runner`, `verify:visual-capture`, `verify:visual-capture-fanout`, `verify:visual-diagnosis-runtime`, `verify:recorder-visual-capture`, `verify:mock-site`, build |
 
 ## Completion criteria
 
-1. VA-0 to VA-12 approved (or amended) and recorded in DECISIONS.
+1. VA-0 to VA-15 approved (or amended) and recorded in DECISIONS.
 2. N6.2 to N6.7 closed with their gates green and mutants red.
-3. N6.6 measured against VA-12; enforce available only if MET, otherwise observe-only recorded.
-4. Flows without the step, and every run with the flag off, are byte-identical in outcome and report.
+3. N6.6 measured per cell against VA-12; enforce granted only in cells that met it; observe-only recorded otherwise.
+4. Flows without the step are byte-identical in outcome and report; with the flag off, steps are inert and reported
+   `disabled`.
 5. Independent QC and security review APPROVED.
 6. State docs updated and the dashboard reads "Sources agree".
 
 ## Rollback and disable
 
-`AWKIT_VISUAL_ASSERTIONS=off` makes every `assertVisual` step `inconclusive/disabled` with `onInconclusive` applied.
-Deleting `visual-baselines/` loses only baselines; flows are unaffected.
+`AWKIT_VISUAL_ASSERTIONS=off` makes every `assertVisual` step inert (`inconclusive/disabled`, step passed). Deleting
+`visual-baselines/` makes enforced assertions `no-baseline`, which fail by default in enforce, so the deletion is
+visible rather than silent.
 
 ## Risks
 
 | Risk | Mitigation |
 |---|---|
-| False failures from rendering noise | Byte-identity pass only under `equal-proven`; observe first; VA-12 gate |
-| Authors read `inconclusive` as passing | Visible verdict and code; `onInconclusive: fail` option |
-| Baseline sprawl across conditions | One baseline per key, shown in the Designer; approval is explicit |
-| Privacy | Image-free store and report; guarded capture; approval permission |
-| Performance on long flows | One capture per assertion, deadline, no work without the step |
-| Scope creep into masks and tolerance | Non-goals; separate decisions after N6.6 |
+| False failures from rendering noise | Byte identity only under `equal-proven`; geometry and state rules; per-cell VA-12 gate |
+| Unkeyed font, raster or driver changes | Per-machine baselines; stated residual; re-approval path |
+| Enforcement silently bypassed | Enforce defaults `onInconclusive: fail`; *unverified* count; integrity tag |
+| Authors read `inconclusive` as passing | Visible verdict, code and count |
+| Privacy of grids and digest | No context crop, sensitive targets refused, stated residual |
+| Approval preview exposure | Guarded capture, memory only, capped, time-limited, permission and re-auth |
+| Baseline sprawl and orphans | Index, lifecycle and 30-day purge |
+| Performance on long flows | One capture per assertion, non-retryable, deadline |
 
 ## Exact next task (pending owner approval)
 
-N6.1: the owner reviews VA-0 to VA-12. On approval, N6.2 (the pure policy) and N6.3 (the baseline store) can start in
-parallel; nothing else may start before them. Recommended before approval: an independent review of this plan, as N5
-had.
+N6.1: the owner reviews VA-0 to VA-15. On approval, N6.2 (pure policy) and N6.3 (baseline store) can start in
+parallel; nothing else may start before them.

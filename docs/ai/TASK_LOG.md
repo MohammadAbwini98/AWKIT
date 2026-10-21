@@ -1,5 +1,20 @@
 # TASK_LOG
 
+## 2026-10-21 — Phase N: independent review of the N6 plan and its corrections (Claude)
+
+- **Scope:** planning only, contract `awkit-vra-n6-plan-review-1021`. A project-state lease covered Beads.
+  CodeCraft: not used.
+- **Review:** a fresh-context `awkit-qc-reviewer` returned CHANGES REQUIRED with 15 findings (3 High, 7 Medium,
+  5 Low). Each was checked against the source before being applied. The two items it left NOT VERIFIED were
+  resolved: `requireFreshReauth` exists, and the grid is 16x16. The mapping also gained
+  `UNSUPPORTED_FINGERPRINT_VERSION`.
+- **Plan:** revised with a *Review corrections* table and new decisions VA-13, VA-14 and VA-15. VA-0 to VA-15 are
+  not ratified.
+- **Tracking:** N6.1 retitled for VA-0 to VA-15. N6.5 and N6.7 are also blocked by N6.6 (two new edges). The epic
+  note was refused by the lease hook (semicolons in its text) and not retried; the revision is recorded in the plan
+  and DECISIONS.
+- **Checks:** see the commit. No product code changed. A re-review of the revised plan was NOT RUN.
+
 ## 2026-10-21 — Phase N: plan canonical N6 Visual Assertions (Claude)
 
 - **Scope:** planning only, contract `awkit-vra-n6-plan-1021` (Risk 2). A project-state lease covered Beads.

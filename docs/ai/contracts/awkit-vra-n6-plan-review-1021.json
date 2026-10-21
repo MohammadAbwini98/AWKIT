@@ -1,0 +1,154 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-n6-plan-review-1021",
+    "title": "Phase N N6 plan: independent review and corrections; VA-0 to VA-15 proposed, not ratified",
+    "objective": "Run a fresh-context independent QC review of docs/plans/ai-upgrade-v5/N6-visual-assertions.md, verify each finding against the source, and revise the plan for every accepted finding: restated validator and permission facts, an extended conditions envelope with geometry and interaction-state rules, a step outcome matrix, enforce defaulting onInconclusive to fail, per-cell calibration, non-retryable execution semantics, an indexed integrity-tagged baseline store without a context crop, a full N0 code mapping, compatibility rows, and new decisions VA-13 (baseline source), VA-14 (integrity) and VA-15 (capture policy). Update Beads (N6.1 scope, N6.5 and N6.7 also blocked by N6.6), DECISIONS, state docs and the dashboard pins. Planning only; no product code.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "8121991d",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "qa",
+      "project-state"
+    ],
+    "expected_paths": [
+      "docs/plans/ai-upgrade-v5/N6-visual-assertions.md",
+      "docs/plans/ai-upgrade-v5/ROADMAP.md",
+      "docs/ai/DECISIONS.md",
+      ".beads/**",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/awkit-vra-n6-plan-review-1021.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N6-REVIEW",
+      "description": "A fresh-context independent QC review of the N6 plan ran and its verdict and findings are recorded.",
+      "evidence_required": [
+        "plan-review"
+      ]
+    },
+    {
+      "id": "N6-REVISED",
+      "description": "Every accepted finding is applied to the plan, each verified against the source first, with a Review corrections table; VA-0 to VA-15 stay proposed and not ratified.",
+      "evidence_required": [
+        "plan-review"
+      ]
+    },
+    {
+      "id": "N6-STATE",
+      "description": "Beads reflect the revised scope and order, DECISIONS and state docs are updated, build passes and the dashboard reads Sources agree.",
+      "evidence_required": [
+        "build",
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "plan-review",
+      "type": "inspection",
+      "required": true,
+      "command": "fresh-context awkit-qc-reviewer review of the N6 plan",
+      "artifact": "docs/plans/ai-upgrade-v5/N6-visual-assertions.md",
+      "result": "PASS",
+      "observed": "review verdict CHANGES REQUIRED with 15 findings (3 High, 7 Medium, 5 Low incl. factual errors); every finding verified against the source and applied; the two NOT VERIFIED items resolved (requireFreshReauth exists at app/main/security/sessionContext.ts:91, the fingerprint grid is 16x16); a re-review of the revised plan was NOT RUN"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc --noEmit and electron-vite bundles PASS, embedded roadmap snapshot 588 records; verify:source-hygiene 11/0"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "177/177, Sources agree, 35 outstanding / 382 closed of 417, 357 edges after N6.5 and N6.7 were also blocked by N6.6 (round 1 failed only on the edge pin, updated in round 2)"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "runs after the commit that carries this contract"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-n6-plan-review-1021:project-state:2026-10-21T15:31:29.744Z",
+        "task": "awkit-vra-n6-plan-review-1021",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-21T15:31:29.744Z",
+        "acquired_at_commit": "8121991d10bfea486cefec6c9708120c12ef3e81",
+        "released_at": "2026-10-21T15:31:52.237Z",
+        "released_reason": "N6.1 scope updated, N6.5 and N6.7 also blocked by N6.6, epic note, exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

@@ -1,6 +1,33 @@
 # DECISIONS
 
-### 2026-10-21 (latest) — Phase N N6 Visual Assertions planned; VA-0 to VA-12 proposed, not ratified (`awkit-vra.15`)
+### 2026-10-21 (latest) — Phase N N6 plan revised for an independent review; VA-0 to VA-15 proposed, not ratified (`awkit-vra.15`)
+
+- **Review.** A fresh-context QC review returned CHANGES REQUIRED, with 15 findings: 3 High, 7 Medium and 5 Low,
+  including four factual errors. Each finding was checked against the source and applied (contract
+  `awkit-vra-n6-plan-review-1021`). Nothing is implemented, and no decision is approved.
+- **Corrected facts.**
+  - The validator already rejects an unknown `assertionType`.
+  - The permission is `WORKFLOW_EDIT`, and `requireFreshReauth` exists.
+  - N0 records no frame origin.
+  - N3.2's cross-launch losses are all in headless DPR 1.
+  - A second store amends FD-4.
+- **Changed proposals.**
+  - **Conditions:** the envelope now keys the full browser version, app version, OS build, locale, timezone and
+    capture policy. A changed position, a clipped target, or changed hover/focus state is `inconclusive`, never
+    `failed`.
+  - **Outcomes:** a step outcome matrix. Enforce defaults `onInconclusive` to `fail`, and the run shows an
+    *unverified* count.
+  - **Calibration:** enforcement is granted per cell (VA-12). Headless DPR 1 is expected to stay observe-only.
+  - **Execution:** `assertVisual` is non-retryable.
+  - **Storage:** a per-step index and lifecycle, no context crop, and the 16x16 grids stated as a thumbnail.
+  - **Order:** N6.5 and N6.7 now follow the N6.6 calibration.
+- **New proposals.**
+  - **VA-13:** baselines come from a pending candidate produced by a run, with a transient, memory-only preview
+    that a person approves.
+  - **VA-14:** an HMAC integrity tag keyed through `safeStorage`/DPAPI.
+  - **VA-15:** `animations: "disabled"`, `caret: "hide"`, and no pointer or focus changes.
+
+### 2026-10-21 — Phase N N6 Visual Assertions planned; VA-0 to VA-12 proposed, not ratified (`awkit-vra.15`)
 
 - **Status.** Planning only (contract `awkit-vra-n6-plan-1021`). Plan: `docs/plans/ai-upgrade-v5/N6-visual-assertions.md`.
   Nothing is implemented, and no decision below is approved.

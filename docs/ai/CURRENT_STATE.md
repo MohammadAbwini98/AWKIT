@@ -13,7 +13,9 @@ executed, and no product code changed.
   - It stays observe-only until a calibration gate is met.
 - **Tracking:** epic `awkit-vra.15` with N6.1–N6.8 (`.15.1`–`.15.8`), chained by `blocks` edges. N6.1, the owner
   decisions VA-0 to VA-12, gates everything else.
-- **Decisions:** VA-0 to VA-12 are proposed and **not ratified**, so nothing may be implemented yet.
+- **Decisions:** VA-0 to VA-15 are proposed and **not ratified**, so nothing may be implemented yet. The plan was
+  revised the same day for an independent review (CHANGES REQUIRED, 15 findings, all applied; DECISIONS 2026-10-21).
+  N6.5 and N6.7 now also wait on the N6.6 calibration.
 
 ## Security: awkit-2het review follow-ups V1–V4 resolved, observation samples inside the capture window (2026-10-20)
 

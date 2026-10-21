@@ -906,9 +906,11 @@ try {
   // Then 336 on 2026-10-20 (contract `awkit-2het-followups-1020`): `awkit-rur1` `discovered-from` `awkit-2het`. Measured.
   // Then 355 on 2026-10-21 (contract `awkit-vra-n6-plan-1021`): nine parent-child links for `awkit-vra.15` and its
   // children, and ten blocks edges in plan order (.2 and .3 on .1, .4 on .2 and .3, .5 .6 .7 on .4, .8 on .5 .6 .7). Measured.
+  // Then 357 on 2026-10-21 (contract `awkit-vra-n6-plan-review-1021`): after the plan review, N6.5 and N6.7 are also
+  // blocked by the N6.6 calibration. Measured.
   check(
-    "355 edges are present to classify",
-    beads.stats.edges === 355,
+    "357 edges are present to classify",
+    beads.stats.edges === 357,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(

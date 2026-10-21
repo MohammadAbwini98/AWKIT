@@ -1,22 +1,22 @@
 {
-  "task": "awkit-vra-n6-plan-1021",
-  "contract_path": "docs/ai/contracts/awkit-vra-n6-plan-1021.json",
+  "task": "awkit-vra-n6-plan-review-1021",
+  "contract_path": "docs/ai/contracts/awkit-vra-n6-plan-review-1021.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-21T12:03:26.991Z",
-  "acquired_at_commit": "d04275c8c28c50a7db69d285299865ff5c57ce26",
+  "acquired_at": "2026-10-21T15:31:29.744Z",
+  "acquired_at_commit": "8121991d10bfea486cefec6c9708120c12ef3e81",
   "baseline_dirty": [
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-vra-n6-plan-1021.json",
+    "docs/ai/contracts/awkit-vra-n6-plan-review-1021.json",
     "docs/plans/ai-upgrade-v5/N6-visual-assertions.md"
   ],
   "baseline_dirty_fingerprints": {
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-vra-n6-plan-1021.json": "5b0becb1463fcfafc092a9babc33c80fbcd8501d62b72406f017048c1c36af50",
-    "docs/plans/ai-upgrade-v5/N6-visual-assertions.md": "fb280da560a1437d5d05d3d9b768a2f7ad31311ed6a10e540d4ec28511aa6c22"
+    "docs/ai/contracts/awkit-vra-n6-plan-review-1021.json": "94f30b5b4f7a9fce6e308189d472474b54017f8685ffe3472833b2b03db026fb",
+    "docs/plans/ai-upgrade-v5/N6-visual-assertions.md": "932224b2112e647832c810d602497b30a2ec0890d18fedb5bd74e609c4c66666"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -31,7 +31,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-21T12:05:00.995Z",
-  "released_reason": "N6 epic awkit-vra.15 and N6.1-N6.8 filed with blocks edges, exported",
-  "archived_at": "2026-10-21T12:05:00.997Z"
+  "released_at": "2026-10-21T15:31:52.237Z",
+  "released_reason": "N6.1 scope updated, N6.5 and N6.7 also blocked by N6.6, epic note, exported",
+  "archived_at": "2026-10-21T15:31:52.240Z"
 }
