@@ -1,5 +1,33 @@
 # TASK_LOG
 
+## 2026-10-22 — Phase N: N6.3 VisualBaselineStore, lifecycle and cross-process flow lock (Claude)
+
+- **Scope:** contract `awkit-vra-15-3-n6-store-1022` (Risk 2). A project-state lease covered Beads.
+  CodeCraft: not used (`CODECRAFT_MODE=off` default).
+- **New modules:**
+  - `src/storage/crossProcessLock.ts`;
+  - `src/runner/visualAssertion/{visualBaselineLayout,flowBaselineLifecycle,VisualBaselineStore,stepContentDigest}.ts`;
+  - `app/main/visualAssertion/visualBaselineKeyProtector.ts`.
+- **Changed modules:** `src/storage/ProfileStore.ts` (optional hooks) and `app/main/profileStores.ts` (the flow
+  store installs them).
+- **Defects found and fixed during verification:**
+  - libuv's watcher aborts the process on an 8.3 short path, so the lock now watches the native real path;
+  - a junction spelling split the lock (X7), so the lock and token paths now come from the folder's real path;
+  - a transient negative hard-link probe could pin a process into an uncoordinated fallback that skipped
+    invalidation, so negative results are not cached and the fallback still invalidates;
+  - two empty-directory and test-seam issues.
+
+  No assertion was weakened. One weak check (the step id inside the commitment) was strengthened.
+- **Gates:**
+  - store 36/0, integrity 46/0, lifecycle 36/0, cross-process 26/0, with 26 mutants red;
+  - visual-assertion 293/0, visual-isolation 71/0, runner 138/0, profile-store 74/74, write-queue 78/78,
+    legacy-compat 152/0, storage-assertions 32/0, durable-locks 17/0;
+  - build PASS, typecheck:scripts PASS;
+  - secret-storage-seam: static part PASS, Electron GUI part BLOCKED (environment);
+  - live `safeStorage` check NOT RUN.
+- **Tracking:** `awkit-vra.15.3` closed. `awkit-3zxw` filed (`discovered-from`). Pins moved to 35/385 of 420 with
+  363 edges.
+
 ## 2026-10-22 — Phase N: N6.1 ratification and N6.2 pure visual assertion policy (Claude)
 
 - **Scope:** contract `awkit-vra-15-n6-start-1022` (Risk 1). A project-state lease covered Beads.

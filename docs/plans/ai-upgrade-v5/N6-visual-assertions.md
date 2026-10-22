@@ -4,7 +4,8 @@ Status: **RATIFIED / IMPLEMENTATION AUTHORIZED (2026-10-22).** The owner accepte
 as amended (DECISIONS 2026-10-22, contract `awkit-vra-15-n6-start-1022`). These are ratified **design decisions,
 not verified implementation**. The final closure review stays on record as **CHANGES REQUIRED**, not APPROVED, and
 the independent implementation and security QC under N6.8 remains mandatory. N6.1 is closed. **N6.2 is implemented**
-(`src/visual/assertion/decideVisualAssertion.ts`, `verify:visual-assertion`); N6.3 to N6.9 are not started.
+(`src/visual/assertion/decideVisualAssertion.ts`, `verify:visual-assertion`). **N6.3 is implemented** (2026-10-22,
+contract `awkit-vra-15-3-n6-store-1022`; see *As implemented (N6.3)*); N6.4 to N6.9 are not started.
 Earlier contracts: `awkit-vra-n6-plan-1021` (plan), `awkit-vra-n6-plan-review-1021` (first review),
 `awkit-vra-n6-amend-1021` (owner AMEND and three focused reviews), `awkit-vra-n6-final-1021` (final owner amendments
 and the closure review).
@@ -439,6 +440,40 @@ never keep stale ones. An id rename invalidates the new id before writing it and
 **Approval ordering.** An approval acquires the same flow folder lane, re-reads the current flow and re-checks
 staleness inside it, so it can never land after an update that removed or changed its step.
 
+## As implemented (N6.3, 2026-10-22)
+
+**Mechanism chosen: a corrected cross-process exclusive lock**, `src/storage/crossProcessLock.ts`, taken inside the
+existing in-process folder lane (lane first, then lock). It is not `DurableLockStore`, whose defects are recorded in
+`awkit-3zxw` (TTL takeover of a live holder, an empty-file window, a check-then-rename recovery race, wall-clock
+fencing).
+
+- **Publishing a lock:** a temporary file is hard-linked to the lock path, so a lock appears only complete.
+- **Takeover:** there is no TTL. A holder is replaced only when its process is provably dead.
+- **Recovery:** one recoverer per dead owner, through `link`-claimed claim files.
+- **Release and fencing:** release checks the owner first, and `assertHeld()` runs before every protected write.
+- **Waiting:** watch-driven waits on the lock file, bounded by a deadline and an attempt cap. There are no sleeps.
+  The watch is on the native real path, because libuv aborts on 8.3 short names.
+- **Errors:** typed (`lock-timeout`, `lock-lost`, `lock-reentrant`, `lock-corrupt`, `lock-recovery-exhausted`,
+  `lock-unsupported`).
+
+Deviations from the text above, all in the direction of safety:
+
+- **Location of tokens and lock.** Epoch tokens and the lock live in `<flows>/.awkit-visual/` (not
+  `visual-baselines/epochs/`), at the flows folder's **native real path**. One folder reached through a junction, a
+  symlink, another case or a trailing separator is then one lock and one token set (X7). C2 and C3 hold by
+  construction.
+- **Folders without hard links.** In such a folder (probed; only positive results cached), flow writes keep their
+  in-process behavior and still invalidate (keyless, fail-safe). Every N6 operation is refused there
+  (`coordination-unavailable`).
+- **Key file.** The master key is one encrypted file per mode, `visual-baselines/<mode>/keys/master-key.json`.
+  - A missing key-state marker beside a valid key is repaired, not treated as first use.
+  - A corrupt marker is `marker-unreadable`, which fails closed.
+- **Step digest.** It excludes `mode`, `name`, `description` and the canvas `position`. Every other field is covered.
+
+**Verification:** `verify:visual-baseline-store` 36/0, `-integrity` 46/0, `-lifecycle` 36/0 and `-cross-process`
+26/0 (X1–X8, real processes), with 26 mutants red in total. Not run: the live Electron `safeStorage` check, which
+N6.4 and N6.5 must do. X3's import-authorization half belongs to N6.9.
+
 ## Cross-process safety (mandatory N6.3 implementation gate, 2026-10-22)
 
 **Why.** `folderWriteCoordinator.ts` serializes writes per resolved folder **inside one process** only: its lanes
@@ -675,7 +710,7 @@ Every row below is **ratified** as written. The status column records how each r
 |---|---|---|
 | N6.1 | Owner ratification of VA-0 to VA-16 (as amended) | — |
 | N6.2 | **Done 2026-10-22.** Pure `decideVisualAssertion`: verdicts, conditions, geometry, commitment compare; `verify:visual-assertion` | N6.1 |
-| N6.3 | `VisualBaselineStore`: epoch tokens, signed indexes, commitment records, key and failure modes; the flow-only pre-write option on `JsonProfileStore` and the invalidate-first hooks; **the mandatory cross-process gate**; `verify:visual-baseline-store`, `verify:visual-baseline-integrity`, `verify:visual-baseline-lifecycle`, `verify:visual-baseline-cross-process` | N6.1 |
+| N6.3 | **Done 2026-10-22.** `VisualBaselineStore`: epoch tokens, signed indexes, commitment records, key and failure modes; the flow-only pre-write option on `JsonProfileStore` and the invalidate-first hooks; **the mandatory cross-process gate**; `verify:visual-baseline-store`, `verify:visual-baseline-integrity`, `verify:visual-baseline-lifecycle`, `verify:visual-baseline-cross-process` | N6.1 |
 | N6.4 | `assertVisual` step, validator, VA-15 capture option, runner adapter (fourth edge), both outcome matrices and classes, the packaged enforce-unavailable rule, grant gate, candidates, random-generator exclusion, fixtures; `verify:visual-assertion-runtime`, `verify:visual-assertion-grants`, `verify:visual-isolation` | N6.2, N6.3 |
 | N6.6 | Calibration harness in the main process of the non-packaged acceptance build, and experimental grant issuance (VA-16); `benchmark:visual-assertion` | N6.4 |
 | N6.5 | Candidate preview and approval, reset action, Designer node (observe only in packaged mode); `verify:visual-assertion-candidates`, `verify:visual-assertion-gui` | N6.4, N6.6 |
@@ -725,10 +760,11 @@ is not in the digest). *Reset visual baselines* purges everything, rotates the k
 
 ## Exact next task
 
-N6.1 is ratified and closed, and N6.2 is done (2026-10-22). Two items are now dependency-ready:
+N6.1, N6.2 and N6.3 are done (2026-10-22). Two items are now dependency-ready:
 
-- **N6.3** `VisualBaselineStore`, including the mandatory cross-process gate. It is the critical path, because N6.4
-  needs both N6.2 and N6.3.
-- **N6.9** import authorization. It is independent, and N6.8 needs it.
+- **N6.4** `assertVisual` step and runner adapter. It is the critical path; it must also exercise the `safeStorage`
+  key protector live.
+- **N6.9** import authorization. It inserts its authorizer before the previous-file read in
+  `JsonProfileStore.import`.
 
-N6.4 to N6.8 stay blocked by their dependencies. `awkit-vra.16` stays open.
+N6.5 to N6.8 stay blocked by their dependencies. `awkit-vra.16` stays open.

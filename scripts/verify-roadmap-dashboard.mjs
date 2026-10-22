@@ -176,7 +176,8 @@ try {
   // Then 417 on 2026-10-21 (contract `awkit-vra-n6-plan-1021`): the N6 epic `awkit-vra.15` and N6.1-N6.8 filed.
   // Then 419 later on 2026-10-21 (contract `awkit-vra-n6-final-1021`): N6.9 import authorization `awkit-vra.15.9`
   // and the future production-enforcement milestone `awkit-vra.16` filed.
-  check("419 issues parse", beads.stats.total === 419, `got ${beads.stats.total}`);
+  // Then 420 on 2026-10-22 (contract `awkit-vra-15-3-n6-store-1022`): the DurableLockStore defect `awkit-3zxw` filed.
+  check("420 issues parse", beads.stats.total === 420, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -778,8 +779,10 @@ try {
   // filed open (two in). Measured after the export.
   // Then 35/384 of 419 on 2026-10-22 (contract `awkit-vra-15-n6-start-1022`): N6.1 `awkit-vra.15.1` closed on the
   // owner's ratification and N6.2 `awkit-vra.15.2` closed with verify:visual-assertion (two closed). Measured after the export.
-    "35 outstanding / 384 closed",
-    beads.stats.outstanding === 35 && beads.stats.closed === 384,
+  // Then 35/385 of 420 later on 2026-10-22 (contract `awkit-vra-15-3-n6-store-1022`): N6.3 `awkit-vra.15.3` closed and
+  // `awkit-3zxw` filed open (one out, one in, one closed). Measured after the export.
+    "35 outstanding / 385 closed",
+    beads.stats.outstanding === 35 && beads.stats.closed === 385,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -917,9 +920,10 @@ try {
   // Then 362 later on 2026-10-21 (contract `awkit-vra-n6-final-1021`): parent-child links for `awkit-vra.15.9` and
   // `awkit-vra.16`, and three blocks edges (.15.9 on .15.1, .15.8 on .15.9, `awkit-vra.16` on the N6 epic, since bd
   // lets only an epic block an epic). Measured.
+  // Then 363 on 2026-10-22 (contract `awkit-vra-15-3-n6-store-1022`): `awkit-3zxw` `discovered-from` `awkit-vra.15.3`. Measured.
   check(
-    "362 edges are present to classify",
-    beads.stats.edges === 362,
+    "363 edges are present to classify",
+    beads.stats.edges === 363,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(

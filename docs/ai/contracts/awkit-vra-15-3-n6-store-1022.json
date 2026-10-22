@@ -1,0 +1,220 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-15-3-n6-store-1022",
+    "title": "Phase N N6.3: VisualBaselineStore with private keys, signed indexes and records, keyless invalidate-first lifecycle hooks and a corrected cross-process flows-folder lock",
+    "objective": "Implement awkit-vra.15.3 per the ratified N6 plan: a corrected cross-process exclusive lock (src/storage/crossProcessLock.ts: hard-link publish, no TTL, per-dead-owner claims, owner-verified release and fencing, event-driven bounded waits, typed errors, no re-entrancy) because DurableLockStore is unsafe for shared flow storage; optional flow-only JsonProfileStore hooks; the keyless lifecycle (tokens and lock in the flows folder's private subfolder keyed by its native real path, invalidate-first on every writer, purge of changed or removed steps, quarantine coordination, fail-safe fallback without hard links); VisualBaselineStore with a private safeStorage-protected master key per app mode, HKDF keys, key-state marker, signed indexes and records holding only length-prefixed HMAC commitments, coordinated approval with staleness re-checks, bounded sweep and unchecked reset; the production safeStorage protector (not wired to IPC); and the four verifiers store, integrity, lifecycle and the two-process cross-process gate X1-X8 with mutation controls. No runner execution, IPC, UI, grants, report or import authorization (N6.4-N6.9).",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "7e8830b5",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "runtime",
+      "qa",
+      "persistence",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "src/storage/crossProcessLock.ts",
+      "src/storage/ProfileStore.ts",
+      "src/runner/visualAssertion/**",
+      "app/main/profileStores.ts",
+      "app/main/visualAssertion/**",
+      "scripts/verify-visual-baseline-store.mts",
+      "scripts/verify-visual-baseline-integrity.mts",
+      "scripts/verify-visual-baseline-lifecycle.mts",
+      "scripts/verify-visual-baseline-cross-process.mts",
+      "scripts/lib/visualBaselineKit.mts",
+      "scripts/lib/visualBaselineChild.mts",
+      "scripts/lib/verifier-classification.ts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "package.json",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/ARCHITECTURE.md",
+      "docs/ai/COMMANDS.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/awkit-vra-15-3-n6-store-1022.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N6.3-STORE",
+      "description": "The store implements VA-5, VA-6 and VA-14: signed indexes and records with only length-prefixed HMAC commitments, private per-mode keys never in the general secret store, defined key and integrity failure modes, verified by verify:visual-baseline-store and verify:visual-baseline-integrity with every mutant red.",
+      "evidence_required": [
+        "verify:visual-baseline-store",
+        "verify:visual-baseline-integrity"
+      ]
+    },
+    {
+      "id": "N6.3-LIFECYCLE",
+      "description": "Every flow writer invalidates or purges before its write without the key, approvals cannot race stale, crashes never revive approvals, other stores and non-visual flows are unaffected, verified by verify:visual-baseline-lifecycle with every mutant red and by the existing profile-store, write-queue, legacy-compat, storage-assertions and runner verifiers.",
+      "evidence_required": [
+        "verify:visual-baseline-lifecycle",
+        "verify:runner"
+      ]
+    },
+    {
+      "id": "N6.3-CROSS-PROCESS",
+      "description": "Two real processes on one flows folder pass X1-X8 and each cross-process mutant fails its scenario.",
+      "evidence_required": [
+        "verify:visual-baseline-cross-process"
+      ]
+    },
+    {
+      "id": "N6.3-STATE",
+      "description": "Build and typecheck pass, visual isolation unchanged at three edges, verifiers classified, awkit-vra.15.3 closed, dashboard pins updated and Sources agree, work pushed to main.",
+      "evidence_required": [
+        "build",
+        "verify:roadmap-dashboard",
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:visual-baseline-store",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-baseline-store",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "36/0 with 5 mutants red (raw digest kept, step id, epoch, conditions or length prefixes dropped from the commitment); the first run exposed a weak step-id check, strengthened, no assertion weakened"
+    },
+    {
+      "id": "verify:visual-baseline-integrity",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-baseline-integrity",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "46/0 with 6 mutants red"
+    },
+    {
+      "id": "verify:visual-baseline-lifecycle",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-baseline-lifecycle",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "36/0 with 10 mutants red"
+    },
+    {
+      "id": "verify:visual-baseline-cross-process",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-baseline-cross-process",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "26/0, X1-X8 with real Node processes, junctions and SIGKILL on the Windows 11 ARM64 acceptance machine, 5 mutants red; the first full run caught a junction-spelling split (lock directory not resolved to the real path), fixed"
+    },
+    {
+      "id": "verify:runner",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:runner",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "138/0"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc --noEmit and electron-vite build; typecheck:scripts PASS"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "177/177 Sources agree at 35 outstanding / 385 closed of 420 with 363 edges after the repin; verifier-classification 347 reconciled, source-hygiene 11/0"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "runs after the commit that carries this contract"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-15-3-n6-store-1022:project-state:2026-10-22T10:15:06.963Z",
+        "task": "awkit-vra-15-3-n6-store-1022",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-22T10:15:06.963Z",
+        "acquired_at_commit": "7e8830b5734bcf9e300f2599b8240f8e434d89ab",
+        "released_at": "2026-10-22T10:15:35.198Z",
+        "released_reason": "N6.3 awkit-vra.15.3 closed with verifier evidence, awkit-3zxw filed discovered-from it, exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

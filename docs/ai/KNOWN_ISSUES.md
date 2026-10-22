@@ -1,5 +1,36 @@
 # KNOWN_ISSUES
 
+## N6.3 visual-baseline store and cross-process flow lock: residuals (2026-10-22, OPEN residuals, `awkit-vra.15.3` closed; `awkit-3zxw`)
+
+- **`DurableLockStore` is unsafe for shared storage (`awkit-3zxw`).** The runner's lock was left unchanged, and N6
+  uses the new `src/storage/crossProcessLock.ts` instead. Found in `src/runner/store/DurableLockStore.ts`:
+  - an expired TTL marks a live holder stale (`:64`, `:249`);
+  - the holder file is created empty with `wx` and filled afterwards, so a competitor can quarantine a live lock
+    (`:87`, `:101-104`);
+  - recovery is check-then-rename, so two recoverers can move a successor's lock (`:106-108`, `:256-268`);
+  - fencing versions come from the wall clock (`:52-55`);
+  - a lock left by the current process is never treated as stale (`:251`);
+  - contention sleeps 5 ms and retries (`:96`).
+
+  `verify:durable-locks` Part C asserts the TTL behavior today.
+- **Every flow write now takes a cross-process lock**, with a 5 s deadline. While another process (the other build)
+  holds the flows folder's lock, a save waits for it. Past the deadline, the save fails with the typed
+  `lock-timeout` instead of interleaving.
+- **PID reuse.** A dead holder whose pid was reused by a live process looks alive, so its lock is not recovered until
+  that process exits. Saves then fail with `lock-timeout`: fail closed, never unsafe.
+- **No hard links (FAT/exFAT, some network shares).** The flows folder keeps in-process writes and still
+  invalidates. Visual-baseline approval, token creation, sweep and reset there fail closed (`lock-unsupported` /
+  `coordination-unavailable`), and a one-time console warning is logged.
+- **Live Electron `safeStorage` check NOT RUN.** `app/main/visualAssertion/visualBaselineKeyProtector.ts` is pinned
+  statically; the store's key logic is verified with a tamper-evident AES-GCM stand-in. The adapter is first used
+  by N6.4 and N6.5, which must exercise it live.
+- **Same-user limits (VA-14, unchanged).** Code running as the same Windows user can forge, replay or roll back.
+  That includes restoring an index and its record together (asserted as a residual by
+  `verify:visual-baseline-integrity`), restoring an old token before the sweep, deleting the key-state marker, or
+  moving the clock.
+- **Libuv watcher on 8.3 short names.** `fs.watch` on a path spelled with an 8.3 short name (e.g. `MOHAMM~1`)
+  aborts the process on Windows. The lock therefore watches the directory's native real path.
+
 ## Electron GUI verifiers cannot launch from the Parallels share: GPU process fails with error_code=18 (2026-10-19, WORKAROUND, environment)
 
 - **Cause (confirmed 2026-10-19).** `X:` is the Parallels shared folder `\\Mac\Samsung9100PRO`, a network share.

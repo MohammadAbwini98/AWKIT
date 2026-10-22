@@ -15,6 +15,38 @@ export interface ProfileStore<TProfile extends { id: string }> {
   export(id: string): Promise<TProfile>;
 }
 
+/** What a write is about to replace, as read inside the lane immediately before the write. */
+export type ProfilePreviousState = "present" | "missing" | "unreadable";
+
+export interface ProfileWriteContext<TProfile> {
+  id: string;
+  operation: "create" | "update" | "updateWith" | "import" | "rename-target";
+  previous: TProfile | null;
+  previousState: ProfilePreviousState;
+  next: TProfile;
+}
+
+export interface ProfileDeleteContext {
+  id: string;
+  operation: "delete" | "rename-source";
+}
+
+/**
+ * Optional write hooks (Phase N, N6.3). Only the flow store sets them; every other store passes none
+ * and behaves exactly as before. None of them may enter this folder's lane: they already run inside it
+ * (or, for `onQuarantine`, may), and re-entering would self-deadlock.
+ */
+export interface ProfileStoreHooks<TProfile> {
+  /** Wraps every critical section inside the in-process lane, e.g. with a cross-process lock. */
+  exclusive?<R>(task: () => Promise<R>): Promise<R>;
+  /** Inside the critical section, after any existence check, immediately before the profile write. */
+  beforeWrite?(context: ProfileWriteContext<TProfile>): Promise<void>;
+  /** Inside the critical section, immediately before a profile file is deleted (delete, and the rename half of update). */
+  beforeDelete?(context: ProfileDeleteContext): Promise<void>;
+  /** After a corrupt file was renamed aside. May run inside or outside the critical section. Errors are logged, never thrown into a read. */
+  onQuarantine?(id: string): Promise<void>;
+}
+
 export interface JsonProfileStoreOptions<TProfile extends { id: string }> {
   folder: string;
   seedFolder?: string;
@@ -26,6 +58,8 @@ export interface JsonProfileStoreOptions<TProfile extends { id: string }> {
    * rename failures deterministically, instead of trying to provoke a real EPERM from the OS.
    */
   atomicReplace?: AtomicReplaceOptions;
+  /** Flow store only (N6.3): visual-baseline lifecycle and cross-process coordination. */
+  hooks?: ProfileStoreHooks<TProfile>;
 }
 
 export class JsonProfileStore<TProfile extends { id: string }> implements ProfileStore<TProfile> {
@@ -41,7 +75,8 @@ export class JsonProfileStore<TProfile extends { id: string }> implements Profil
   // FIFO; a failed task rejects for its caller but never blocks the ones queued behind it (that
   // guarantee now lives in the coordinator, which settles the lane tail on both branches).
   private serialize<T>(task: () => Promise<T>): Promise<T> {
-    return runExclusive(this.options.folder, task);
+    const exclusive = this.options.hooks?.exclusive;
+    return runExclusive(this.options.folder, exclusive ? () => exclusive(task) : task);
   }
 
   async list(): Promise<TProfile[]> {
@@ -67,6 +102,7 @@ export class JsonProfileStore<TProfile extends { id: string }> implements Profil
     await this.serialize(async () => {
       const existing = await this.get(profile.id);
       if (existing) throw new Error(`Profile already exists: ${profile.id}`);
+      await this.options.hooks?.beforeWrite?.({ id: profile.id, operation: "create", previous: null, previousState: "missing", next: profile });
       await this.writeProfileUnlocked(profile);
     });
     return profile;
@@ -79,8 +115,14 @@ export class JsonProfileStore<TProfile extends { id: string }> implements Profil
     // Both halves run in ONE critical section so no other writer to this folder can observe (or
     // write into) the window between them.
     await this.serialize(async () => {
+      const hooks = this.options.hooks;
+      if (hooks?.beforeWrite) {
+        const previous = await this.readPreviousUnlocked(profile.id);
+        await hooks.beforeWrite({ id: profile.id, operation: id === profile.id ? "update" : "rename-target", ...previous, next: profile });
+      }
       await this.writeProfileUnlocked(profile);
       if (id !== profile.id) {
+        await hooks?.beforeDelete?.({ id, operation: "rename-source" });
         await this.deleteUnlocked(id);
       }
     });
@@ -96,16 +138,22 @@ export class JsonProfileStore<TProfile extends { id: string }> implements Profil
   async updateWith(id: string, change: (current: TProfile | null) => TProfile | undefined): Promise<TProfile | undefined> {
     await this.ensureStoreFolder();
     return this.serialize(async () => {
-      const next = change(await this.readProfileFile(this.pathForId(id)));
+      const hooks = this.options.hooks;
+      const previous = hooks?.beforeWrite ? await this.readPreviousUnlocked(id) : null;
+      const next = change(previous ? previous.previous : await this.readProfileFile(this.pathForId(id)));
       if (next === undefined) return undefined;
       if (next.id !== id) throw new Error(`updateWith cannot change a profile id (${id} -> ${next.id})`);
+      if (hooks?.beforeWrite && previous) await hooks.beforeWrite({ id, operation: "updateWith", ...previous, next });
       await this.writeProfileUnlocked(next);
       return next;
     });
   }
 
   async delete(id: string): Promise<void> {
-    await this.serialize(() => this.deleteUnlocked(id));
+    await this.serialize(async () => {
+      await this.options.hooks?.beforeDelete?.({ id, operation: "delete" });
+      await this.deleteUnlocked(id);
+    });
   }
 
   async clone(id: string, nextId = `${id}-copy`): Promise<TProfile> {
@@ -118,7 +166,18 @@ export class JsonProfileStore<TProfile extends { id: string }> implements Profil
 
   async import(profile: TProfile): Promise<TProfile> {
     await this.ensureStoreFolder();
-    await this.writeProfile(profile);
+    const beforeWrite = this.options.hooks?.beforeWrite;
+    if (!beforeWrite) {
+      await this.writeProfile(profile);
+      return profile;
+    }
+    // N6.9 inserts its overwrite authorization here, before the previous file is read (and so before
+    // any quarantine) and before any invalidation. Nothing below may move ahead of that check.
+    await this.serialize(async () => {
+      const previous = await this.readPreviousUnlocked(profile.id);
+      await beforeWrite({ id: profile.id, operation: "import", ...previous, next: profile });
+      await this.writeProfileUnlocked(profile);
+    });
     return profile;
   }
 
@@ -192,11 +251,35 @@ export class JsonProfileStore<TProfile extends { id: string }> implements Profil
         `[profile-store] ${path} is not valid JSON; preserved as ${target} so it is not lost. ` +
           `Parse error: ${(error as Error).message}`
       );
+      const onQuarantine = this.options.hooks?.onQuarantine;
+      if (onQuarantine) {
+        await onQuarantine(basename(path, this.extension)).catch((hookError: unknown) => {
+          console.error(`[profile-store] quarantine hook failed for ${path}: ${(hookError as Error).message}`);
+        });
+      }
     } catch (renameError) {
       console.error(
         `[profile-store] ${path} is not valid JSON and could not be quarantined ` +
           `(${(renameError as Error).message}); left in place. Parse error: ${(error as Error).message}`
       );
+    }
+  }
+
+  /** The file a write is about to replace, for `beforeWrite`. A corrupt file is quarantined (and reported) here. */
+  private async readPreviousUnlocked(id: string): Promise<{ previous: TProfile | null; previousState: ProfilePreviousState }> {
+    const path = this.pathForId(id);
+    let raw: string;
+    try {
+      raw = await readFile(path, "utf8");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return { previous: null, previousState: "missing" };
+      return { previous: null, previousState: "unreadable" };
+    }
+    try {
+      return { previous: JSON.parse(raw) as TProfile, previousState: "present" };
+    } catch (error) {
+      await this.quarantineCorrupt(path, error);
+      return { previous: null, previousState: "unreadable" };
     }
   }
 

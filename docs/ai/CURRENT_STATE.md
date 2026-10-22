@@ -1,5 +1,27 @@
 # CURRENT_STATE
 
+## Phase N: N6.3 VisualBaselineStore and cross-process flow lock implemented (2026-10-22, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases; no ledger case covers N6.3.
+
+- **N6.3 closed** (`awkit-vra.15.3`, contract `awkit-vra-15-3-n6-store-1022`).
+- **Every flow write is coordinated across processes.** It runs in the in-process lane and then under the flows
+  folder's cross-process lock (`src/storage/crossProcessLock.ts`), so packaged and dev builds never interleave.
+- **Lifecycle.** Before each write, the hooks invalidate or purge visual-baseline approvals, without a key.
+- **Store.** `VisualBaselineStore` (`src/runner/visualAssertion/`):
+  - a private `safeStorage`-protected key per mode, never in `secrets.json`;
+  - signed indexes and records holding only keyed commitments;
+  - coordinated approval with staleness re-checks;
+  - sweep and reset.
+- **Not wired yet.** The store has no IPC channel, runner step or UI (N6.4 and N6.5).
+- **Gates.** store 36/0, integrity 46/0, lifecycle 36/0 and cross-process 26/0 (X1–X8 with real processes), with
+  26 mutants red. runner 138/0; profile-store, write-queue, legacy-compat, storage-assertions and durable-locks
+  unchanged and green.
+- **Not run:** the live Electron `safeStorage` check. `verify:secret-storage-seam` passed its static part and is
+  BLOCKED at its Electron GUI part (known environment issue).
+- **Filed:** `awkit-3zxw`, the `DurableLockStore` defects (runner lock, unchanged).
+- **Next:** N6.4 and N6.9 are dependency-ready.
+
 ## Phase N: N6.1 ratified, N6.2 pure visual assertion policy implemented (2026-10-22, latest)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases; no ledger case covers N6.2.

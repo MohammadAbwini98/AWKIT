@@ -1,5 +1,25 @@
 # Agent Handoff
 
+## HANDOFF (2026-10-22, latest) — Phase N: N6.3 done; next N6.4 or N6.9
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** N6.3 (contract `awkit-vra-15-3-n6-store-1022`):
+  - the cross-process lock;
+  - the flow-store hooks;
+  - the keyless lifecycle;
+  - `VisualBaselineStore`;
+  - the four verifiers, including the two-process X1–X8 gate.
+- **Next:**
+  - **N6.4:** the runner step and the fourth `src/visual` edge. Construct the store with
+    `safeStorageVisualKeyProtector` and verify it live in Electron. Bind candidates through `ensureToken`,
+    `keyGeneration` and `visualStepContentDigest`.
+  - **N6.9:** insert the import authorizer before `readPreviousUnlocked` in `JsonProfileStore.import`.
+- **Do not:**
+  - expose `approveUnchecked` or `resetUnchecked` without N6.5's permission, fresh re-authentication and audit;
+  - reuse `DurableLockStore` for shared storage (`awkit-3zxw`).
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
 ## HANDOFF (2026-10-22, latest) — Phase N: N6.1 ratified, N6.2 done; next N6.3 (with its cross-process gate) or N6.9
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.

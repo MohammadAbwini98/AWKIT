@@ -270,6 +270,19 @@ failure boundary under `src/testing/failures/`:
   sidebar and opened from the Data Source Manager (target id via `selections.lastSelectedDataSourceId`).
 - **Storage:** JSON files via `JsonProfileStore` (`src/storage`) under the runtime data root;
   seed samples from `resources/sample-*`. No database.
+- **Flow writes and visual baselines (N6.3).** `createFlowProfileStore` installs optional, flow-only
+  `ProfileStoreHooks` (`src/runner/visualAssertion/flowBaselineLifecycle.ts`). Every other store passes none and
+  behaves exactly as before.
+  - Every flow write runs in the in-process folder lane and then under the flows folder's cross-process lock
+    (`src/storage/crossProcessLock.ts`), so packaged and dev builds sharing one flows folder never interleave.
+  - Before the write, the hooks invalidate approvals (create, clone, import, Recorder save, delete, rename,
+    quarantine) or purge those of changed steps (update, `updateWith`). They need no key.
+  - The lock and the unsigned epoch tokens live in `<flows>/.awkit-visual/`, at the folder's native real path.
+  - Signed indexes and records, keys and the key-state marker live per app mode under
+    `<runtime>/visual-baselines/<mode>/`.
+  - `VisualBaselineStore` holds a private, `safeStorage`-protected master key, never in `secrets.json`. It is not
+    reachable from any IPC channel yet (N6.4 and N6.5).
+  - A flows folder without hard links keeps in-process writes and still invalidates, but refuses every N6 operation.
 - **Workflow structural sentinels:** new Workflow Builder documents may persist `start`/`end`
   `WorkflowSentinelNode`s around real `flowRef` nodes. They are canvas-only structure:
   `workflowToScenarioProfile()` filters them and their boundary edges before orchestration. Existing

@@ -1,6 +1,35 @@
 # DECISIONS
 
-### 2026-10-22 (latest) — Phase N N6.1 RATIFIED: VA-0 to VA-16 as amended, C1–C5 accepted; N6.2 implemented (`awkit-vra.15.1`, `.15.2`)
+### 2026-10-22 (latest) — Phase N N6.3 implementation decisions: corrected cross-process lock, tokens in the flows folder (`awkit-vra.15.3`)
+
+- **Cross-process mechanism.** A new corrected exclusive lock, `src/storage/crossProcessLock.ts`, taken inside the
+  existing folder lane.
+  - `DurableLockStore` is not reused: it allows TTL takeover of a live holder, has an empty-file window, a
+    check-then-rename recovery race and wall-clock fencing. It stays the runner's lock, unchanged; filed as
+    `awkit-3zxw`.
+  - The new lock: hard-link publish, no TTL, per-dead-owner claims, owner-verified release, `assertHeld()` fencing,
+    watch-driven bounded waits and typed errors.
+- **Flow writes.** Every flow write now takes this lock, through optional flow-only `JsonProfileStore` hooks
+  installed by `createFlowProfileStore`. Other stores are unchanged.
+- **Tokens and lock location.** Both live in `<flows>/.awkit-visual/`, at the folder's native real path, instead of
+  `visual-baselines/epochs/`. One physical folder is then one lock and one token set, whatever spelling reaches it.
+- **Folders without hard links.** Flow writes there keep in-process behavior and still invalidate, without a key.
+  Every N6 operation is refused there.
+- **Keys.**
+  - One `safeStorage`-protected master key per mode, in `visual-baselines/<mode>/keys/master-key.json`, never in
+    `secrets.json`.
+  - HKDF derives the MAC and commitment keys.
+  - The key-state marker holds the generation. A missing marker beside a valid key is repaired; a missing key with a
+    marker present is "key lost" and is never regenerated.
+  - `resetUnchecked` and `approveUnchecked` enforce no permission. N6.5 must add permission, fresh re-authentication
+    and audit.
+- **Verification.**
+  - Gates: `verify:visual-baseline-store` 36/0, `-integrity` 46/0, `-lifecycle` 36/0 and the two-process
+    `-cross-process` 26/0 (X1–X8), with 26 mutants red.
+  - Not run: the live Electron `safeStorage` check (N6.4 and N6.5).
+  - Still required: the N6.8 independent implementation and security QC.
+
+### 2026-10-22 — Phase N N6.1 RATIFIED: VA-0 to VA-16 as amended, C1–C5 accepted; N6.2 implemented (`awkit-vra.15.1`, `.15.2`)
 
 - **Owner decision** (verbatim): "ACCEPT C1–C5. RATIFY VA-0 THROUGH VA-16 AS AMENDED." (contract
   `awkit-vra-15-n6-start-1022`)

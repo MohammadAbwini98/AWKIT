@@ -8,6 +8,7 @@ import type { RuntimeInputDefinition } from "@src/data/RuntimeInputDefinition";
 import type { FlowProfile } from "@src/profiles/FlowProfile";
 import type { WorkflowProfile } from "@src/profiles/WorkflowProfile";
 import type { ConcurrentRunReport } from "@src/reports/ExecutionReport";
+import { createFlowBaselineHooks } from "@src/runner/visualAssertion/flowBaselineLifecycle";
 import { JsonProfileStore } from "@src/storage/ProfileStore";
 
 export interface RuntimeInputProfile {
@@ -23,14 +24,21 @@ export interface InstanceProfile {
   headless: boolean;
 }
 
+/**
+ * Every flow writer goes through this factory, so every flow write (Recorder save, validation repair
+ * and restore, AI revert, locator upgrade, fragment instantiation, the flows IPC) carries the N6.3
+ * visual-baseline lifecycle hooks and the flows folder's cross-process lock.
+ */
 export function createFlowProfileStore(): JsonProfileStore<FlowProfile> {
+  const folder = getConfiguredPaths().flows;
   return new JsonProfileStore<FlowProfile>({
-    folder: getConfiguredPaths().flows,
+    folder,
     createClone: (profile, nextId) => ({
       ...profile,
       id: nextId,
       name: `${profile.name} Copy`
-    })
+    }),
+    hooks: createFlowBaselineHooks({ flowsFolder: folder, runtimeRoot: getRuntimePaths().root })
   });
 }
 

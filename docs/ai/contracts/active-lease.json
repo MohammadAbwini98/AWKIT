@@ -1,36 +1,46 @@
 {
-  "task": "awkit-vra-15-n6-start-1022",
-  "contract_path": "docs/ai/contracts/awkit-vra-15-n6-start-1022.json",
+  "task": "awkit-vra-15-3-n6-store-1022",
+  "contract_path": "docs/ai/contracts/awkit-vra-15-3-n6-store-1022.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-21T21:30:15.915Z",
-  "acquired_at_commit": "181c13e2a6f09720ccff0c64cffb508d439a167a",
+  "acquired_at": "2026-10-22T10:15:06.963Z",
+  "acquired_at_commit": "7e8830b5734bcf9e300f2599b8240f8e434d89ab",
   "baseline_dirty": [
-    "docs/ai/COMMANDS.md",
-    "docs/ai/DECISIONS.md",
+    "app/main/profileStores.ts",
+    "app/main/visualAssertion/",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-vra-15-n6-start-1022.json",
-    "docs/plans/ai-upgrade-v5/N6-visual-assertions.md",
+    "docs/ai/contracts/awkit-vra-15-3-n6-store-1022.json",
     "package.json",
     "scripts/lib/verifier-classification.ts",
-    "scripts/verify-visual-assertion.mts",
-    "src/visual/assertion/",
-    "src/visual/index.ts"
+    "scripts/lib/visualBaselineChild.mts",
+    "scripts/lib/visualBaselineKit.mts",
+    "scripts/verify-visual-baseline-cross-process.mts",
+    "scripts/verify-visual-baseline-integrity.mts",
+    "scripts/verify-visual-baseline-lifecycle.mts",
+    "scripts/verify-visual-baseline-store.mts",
+    "src/runner/visualAssertion/",
+    "src/storage/ProfileStore.ts",
+    "src/storage/crossProcessLock.ts"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/COMMANDS.md": "4123325e15e8f84a5c135aabc0568b820a3ef19c0faa9e26d7325c789928bd89",
-    "docs/ai/DECISIONS.md": "b0c4ca15d89d94abf41f6e50b457e4072edb1f4b7d96444d6443d3ea6a5b7e7f",
+    "app/main/profileStores.ts": "fc581dc913892ba615eea6e2d453713186558d4f0bdf81bc76f78719af5bfb72",
+    "app/main/visualAssertion/": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-vra-15-n6-start-1022.json": "0d20666c5cc909657a304ab93444751e1c8753ffee50e19a6a3a887546d921b2",
-    "docs/plans/ai-upgrade-v5/N6-visual-assertions.md": "61bf1508947ec4afc689f3f7fca59b0f0e3a79453ffd7651a1474169b279be8c",
-    "package.json": "d478ca28d74bde24c44c5962daa66328460f6be2e39ea401ea42a73f73095e89",
-    "scripts/lib/verifier-classification.ts": "9297933c7a3d3ca3062840944e88eed6d8b3c59a227bf667d894202f53fb6182",
-    "scripts/verify-visual-assertion.mts": "aa12c1b82bcdaacac845defbe3a078f636ac4eb15cc62fe016eb285495f4429a",
-    "src/visual/assertion/": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "src/visual/index.ts": "1561dbda9547b7a2fef916989eeba376a99568b7fcea881b0d136e9eebc94cdb"
+    "docs/ai/contracts/awkit-vra-15-3-n6-store-1022.json": "96d9d7c7b5164ff577a4760c510af6a02a7de26c84cf81b408212e5bbfdc1932",
+    "package.json": "f18023d0420277e4bf629358ccb82e2c666b3a217e0c1d3607b7f173585a6244",
+    "scripts/lib/verifier-classification.ts": "1ed373b30de09bd71633586a2350c6214fc2cbd1aab1fed658fe993f5e55fc3b",
+    "scripts/lib/visualBaselineChild.mts": "fb228d109feafff215e074c66bd7d946460c473548b1b6e0eff7ce2fe7fb8186",
+    "scripts/lib/visualBaselineKit.mts": "ac2103b12ffdc986207c13c6433aaf58d5073c05ed95dcf90e12002a75afaeea",
+    "scripts/verify-visual-baseline-cross-process.mts": "0eb23d4e27aec9f14db7643173fd1b870272fe21f15330f883b15dbd61c88bce",
+    "scripts/verify-visual-baseline-integrity.mts": "26b7cf1291f27000d9168602480133ba0266c1fd72ffd5fd2d61d421df0cd685",
+    "scripts/verify-visual-baseline-lifecycle.mts": "582040a00f81173ec207c7d909e384f02ba7bc91a722a7793423706f3de5b39a",
+    "scripts/verify-visual-baseline-store.mts": "4885325a4672f1ad5dd6d2aad87d9adb017d85bdc8988454605f73bec52b6afc",
+    "src/runner/visualAssertion/": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "src/storage/ProfileStore.ts": "9048112dbd67d1447a735e5adbe89a096e81798cf6768881249a878ec563200c",
+    "src/storage/crossProcessLock.ts": "7a804f25a76aa166c4b90387a2b757cf867c9bc025644c8e9f0b1eba8f55a9d9"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -45,7 +55,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-21T21:30:48.883Z",
-  "released_reason": "N6.1 ratified and closed, N6.2 closed with verifier evidence, epic in progress, N6.3 cross-process gate noted, exported",
-  "archived_at": "2026-10-21T21:30:48.885Z"
+  "released_at": "2026-10-22T10:15:35.198Z",
+  "released_reason": "N6.3 awkit-vra.15.3 closed with verifier evidence, awkit-3zxw filed discovered-from it, exported",
+  "archived_at": "2026-10-22T10:15:35.200Z"
 }
