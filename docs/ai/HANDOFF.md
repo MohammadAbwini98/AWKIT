@@ -1,5 +1,15 @@
 # Agent Handoff
 
+## HANDOFF (2026-10-24, latest) — Phase N: N6.9 done; next N6.4
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** N6.9 import authorization (contract `awkit-vra-15-9-n6-import-1024`), using
+  `app/main/ipc/flowImport.ts` and `JsonProfileStore` `importOverwrite: "authorize"`.
+- **Next:** N6.4. Build the `assertVisual` step, the runner adapter (fourth `src/visual` edge) and the grant gate.
+  Verify the `safeStorage` protector live in Electron.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
 ## HANDOFF (2026-10-22, latest) — Phase N: N6.3 done; next N6.4 or N6.9
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.

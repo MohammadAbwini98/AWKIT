@@ -38,7 +38,9 @@ export function createFlowProfileStore(): JsonProfileStore<FlowProfile> {
       id: nextId,
       name: `${profile.name} Copy`
     }),
-    hooks: createFlowBaselineHooks({ flowsFolder: folder, runtimeRoot: getRuntimePaths().root })
+    hooks: createFlowBaselineHooks({ flowsFolder: folder, runtimeRoot: getRuntimePaths().root }),
+    // N6.9 (VA-11): importing over an existing flow needs the caller's edit authority, decided in the lane.
+    importOverwrite: "authorize"
   });
 }
 

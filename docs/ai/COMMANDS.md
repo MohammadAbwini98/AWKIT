@@ -731,6 +731,7 @@ npm run benchmark:failure-capture-saturated # L5a informational saturated run (3
 # ── Visual Assertions (Phase N, N6) — pure, no browser, no model ─────────────────────────────────
 npm run verify:visual-assertion       # N6.2 pure decideVisualAssertion: decision table, independent-oracle property run,
                                       # plan pins, purity scan and 18 mutants that must fail the suite (293)
+npm run verify:flow-import-authorization # N6.9 import over an existing flow needs WORKFLOW_EDIT, in-lane, I1-I9 (24, 6 mutants)
 npm run verify:visual-baseline-store  # N6.3 store contents and keyed commitments, through the N6.2 policy (36, 5 mutants)
 npm run verify:visual-baseline-integrity # N6.3 keys, tamper, replay, restore, cross-mode, sweep, reset, secrets isolation (46, 6 mutants)
 npm run verify:visual-baseline-lifecycle # N6.3 invalidate-first lifecycle on the real flow store, races, crashes, fallback (36, 10 mutants)

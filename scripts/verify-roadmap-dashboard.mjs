@@ -781,8 +781,9 @@ try {
   // owner's ratification and N6.2 `awkit-vra.15.2` closed with verify:visual-assertion (two closed). Measured after the export.
   // Then 35/385 of 420 later on 2026-10-22 (contract `awkit-vra-15-3-n6-store-1022`): N6.3 `awkit-vra.15.3` closed and
   // `awkit-3zxw` filed open (one out, one in, one closed). Measured after the export.
-    "35 outstanding / 385 closed",
-    beads.stats.outstanding === 35 && beads.stats.closed === 385,
+  // Then 34/386 of 420 on 2026-10-24 (contract `awkit-vra-15-9-n6-import-1024`): N6.9 `awkit-vra.15.9` closed. Measured.
+    "34 outstanding / 386 closed",
+    beads.stats.outstanding === 34 && beads.stats.closed === 386,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

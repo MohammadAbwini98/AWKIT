@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 
 import { replaceFileAtomically, type AtomicReplaceOptions } from "./atomicReplace";
@@ -60,6 +60,33 @@ export interface JsonProfileStoreOptions<TProfile extends { id: string }> {
   atomicReplace?: AtomicReplaceOptions;
   /** Flow store only (N6.3): visual-baseline lifecycle and cross-process coordination. */
   hooks?: ProfileStoreHooks<TProfile>;
+  /**
+   * Flow store only (N6.9, VA-11): `"authorize"` makes `import` over an EXISTING id require the caller's
+   * `authorizeOverwrite`, decided inside the critical section before anything is read, quarantined,
+   * invalidated or written. Unset keeps the historical overwrite-always import for every other store.
+   */
+  importOverwrite?: "authorize";
+  /** Deadline for the overwrite authorizer (default 5000 ms). A timeout is a denial. */
+  importAuthorizationTimeoutMs?: number;
+}
+
+export interface ProfileImportRequest {
+  /** Re-evaluates the caller's edit authority at the moment of decision. Never takes the folder lane. */
+  authorizeOverwrite?: () => Promise<boolean>;
+}
+
+export type ProfileImportRefusal = "no-authorizer" | "denied" | "timeout";
+
+/** A refused import over an existing profile (N6.9). Nothing was read, quarantined, invalidated or written. */
+export class ProfileImportOverwriteError extends Error {
+  readonly code = "FLOW_IMPORT_OVERWRITE_FORBIDDEN";
+  readonly refusal: ProfileImportRefusal;
+
+  constructor(refusal: ProfileImportRefusal) {
+    super(`Importing over an existing flow requires edit permission (${refusal}).`);
+    this.name = "ProfileImportOverwriteError";
+    this.refusal = refusal;
+  }
 }
 
 export class JsonProfileStore<TProfile extends { id: string }> implements ProfileStore<TProfile> {
@@ -164,21 +191,51 @@ export class JsonProfileStore<TProfile extends { id: string }> implements Profil
     return this.create(clone);
   }
 
-  async import(profile: TProfile): Promise<TProfile> {
+  async import(profile: TProfile, request: ProfileImportRequest = {}): Promise<TProfile> {
     await this.ensureStoreFolder();
     const beforeWrite = this.options.hooks?.beforeWrite;
-    if (!beforeWrite) {
+    const guarded = this.options.importOverwrite === "authorize";
+    if (!beforeWrite && !guarded) {
       await this.writeProfile(profile);
       return profile;
     }
-    // N6.9 inserts its overwrite authorization here, before the previous file is read (and so before
-    // any quarantine) and before any invalidation. Nothing below may move ahead of that check.
     await this.serialize(async () => {
-      const previous = await this.readPreviousUnlocked(profile.id);
-      await beforeWrite({ id: profile.id, operation: "import", ...previous, next: profile });
+      // N6.9: the overwrite authorization comes first, before the previous file is read (and so before
+      // any quarantine) and before any invalidation. Nothing below may move ahead of it.
+      if (guarded) await this.authorizeImportUnlocked(profile.id, request.authorizeOverwrite);
+      if (beforeWrite) {
+        const previous = await this.readPreviousUnlocked(profile.id);
+        await beforeWrite({ id: profile.id, operation: "import", ...previous, next: profile });
+      }
       await this.writeProfileUnlocked(profile);
     });
     return profile;
+  }
+
+  /**
+   * Inside the critical section: an import over an existing id needs the authorizer's yes, within the
+   * deadline. Existence is a `stat`, so an unparseable file counts as existing and is never read or
+   * quarantined here; any error other than "not found" also counts as existing (fail closed).
+   */
+  protected async authorizeImportUnlocked(id: string, authorizer: (() => Promise<boolean>) | undefined): Promise<void> {
+    try {
+      await stat(this.pathForId(id));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+    }
+    if (!authorizer) throw new ProfileImportOverwriteError("no-authorizer");
+    const timeoutMs = this.options.importAuthorizationTimeoutMs ?? 5000;
+    let timer: NodeJS.Timeout | undefined;
+    const outcome = await Promise.race([
+      authorizer().then(
+        (allowed) => (allowed === true ? ("allowed" as const) : ("denied" as const)),
+        () => "denied" as const
+      ),
+      new Promise<"timeout">((resolve) => {
+        timer = setTimeout(() => resolve("timeout"), timeoutMs);
+      })
+    ]).finally(() => clearTimeout(timer));
+    if (outcome !== "allowed") throw new ProfileImportOverwriteError(outcome);
   }
 
   async export(id: string): Promise<TProfile> {

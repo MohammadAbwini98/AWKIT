@@ -333,6 +333,7 @@
     "verify:visual-agreement": "tsx scripts/verify-visual-agreement.mts",
     "verify:visual-diagnosis": "tsx scripts/verify-visual-diagnosis.mts",
     "verify:visual-assertion": "tsx scripts/verify-visual-assertion.mts",
+    "verify:flow-import-authorization": "tsx scripts/verify-flow-import-authorization.mts",
     "verify:visual-baseline-store": "tsx scripts/verify-visual-baseline-store.mts",
     "verify:visual-baseline-integrity": "tsx scripts/verify-visual-baseline-integrity.mts",
     "verify:visual-baseline-lifecycle": "tsx scripts/verify-visual-baseline-lifecycle.mts",

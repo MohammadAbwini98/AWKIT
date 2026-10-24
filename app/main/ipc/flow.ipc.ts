@@ -4,6 +4,7 @@ import { executionBlockingErrorsOf, errorsOf, validateFlowDefinition, warningsOf
 import { createFlowProfileStore } from "../profileStores";
 import { assertSenderPermission } from "../security/sessionContext";
 import { Permission } from "@src/security/authz/Permissions";
+import { importFlowAuthorized } from "./flowImport";
 
 /** Import-time validation summary (Stage 2b). Plain arrays/counts so it survives IPC cleanly. */
 export interface FlowImportValidation {
@@ -47,12 +48,17 @@ export function registerFlowIpc(): void {
     return store.export(id);
   });
   ipcMain.handle("flows:import", async (event, profile: FlowProfile) => {
-    await assertSenderPermission(event, Permission.WORKFLOW_CREATE);
     // Stage 2b: a parseable flow ALWAYS imports (as a Draft when invalid) — validation informs, it
     // does not gate. Unparseable/corrupt JSON still fails inside `store.import` as before, which is
     // a document failure, not a flow-validation failure. Nothing is auto-fixed and the stored
     // document is exactly what the caller supplied.
-    const imported = await store.import(profile);
+    // N6.9 (VA-11): WORKFLOW_CREATE at entry; overwriting an existing flow also needs WORKFLOW_EDIT,
+    // re-checked inside the store's critical section.
+    const imported = await importFlowAuthorized(store, profile, {
+      assertCreate: () => assertSenderPermission(event, Permission.WORKFLOW_CREATE),
+      assertEdit: () =>
+        assertSenderPermission(event, Permission.WORKFLOW_EDIT, { audit: { eventType: "FLOW_IMPORT_OVERWRITE_DENIED", channel: "flows:import" } })
+    });
     const library = await store.list();
     const report = validateFlowDefinition(imported, { referenceableFlowIds: new Set(library.map((flow) => flow.id)) });
     const validation: FlowImportValidation = {

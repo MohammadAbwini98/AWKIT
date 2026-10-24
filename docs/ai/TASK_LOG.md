@@ -1,5 +1,18 @@
 # TASK_LOG
 
+## 2026-10-24 — Phase N: N6.9 import authorization (Claude)
+
+- **Scope:** contract `awkit-vra-15-9-n6-import-1024` (Risk 2). CodeCraft: not used.
+- **Changed:**
+  - `src/storage/ProfileStore.ts`: `importOverwrite: "authorize"`, `ProfileImportOverwriteError`,
+    `authorizeImportUnlocked`;
+  - `app/main/profileStores.ts`;
+  - `app/main/ipc/flow.ipc.ts`, plus the new `app/main/ipc/flowImport.ts`;
+  - the new `verify:flow-import-authorization`.
+- **Checks:** 24/0 with 6 mutants red. An I7 that revoked the grant too early let the entry-only mutant pass; the
+  test was corrected. ipc-contract 10/10, lifecycle 36/0, profile-store 74/74, build and typecheck:scripts PASS.
+- **Tracking:** `awkit-vra.15.9` closed; pins 34/386 of 420.
+
 ## 2026-10-22 — Phase N: N6.3 VisualBaselineStore, lifecycle and cross-process flow lock (Claude)
 
 - **Scope:** contract `awkit-vra-15-3-n6-store-1022` (Risk 2). A project-state lease covered Beads.

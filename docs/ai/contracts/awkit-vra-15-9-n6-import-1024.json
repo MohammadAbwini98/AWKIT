@@ -1,0 +1,171 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-15-9-n6-import-1024",
+    "title": "Phase N N6.9: importing over an existing flow requires WORKFLOW_EDIT, decided race-safely inside the flow store's critical section (VA-11)",
+    "objective": "Implement awkit-vra.15.9: keep WORKFLOW_CREATE at the flows:import entry; the flow store (importOverwrite authorize) checks existence by stat inside the folder lane and cross-process lock and, for an existing target (including an unparseable one, never read or quarantined first), requires an authorizer that re-evaluates WORKFLOW_EDIT at the moment of decision with a deadline (timeout is a denial), before any quarantine, visual-baseline invalidation or write; a refusal is the typed audited ProfileImportOverwriteError (FLOW_IMPORT_OVERWRITE_FORBIDDEN) and leaves the flow, epoch token, index and records unchanged; other stores keep their import semantics. Add verify:flow-import-authorization covering I1-I9 and six mutations.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "6be2aad4",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "runtime",
+      "qa",
+      "persistence",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "src/storage/ProfileStore.ts",
+      "app/main/profileStores.ts",
+      "app/main/ipc/flow.ipc.ts",
+      "app/main/ipc/flowImport.ts",
+      "scripts/verify-flow-import-authorization.mts",
+      "scripts/lib/verifier-classification.ts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "package.json",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/COMMANDS.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/awkit-vra-15-9-n6-import-1024.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N6.9-AUTHZ",
+      "description": "Cases I1-I9 pass on a real flow store configured like production with real approvals, each of the six mutations is observed red, the handler and factory wiring are pinned, other stores keep their import, and the IPC contract, profile-store and lifecycle regressions stay green.",
+      "evidence_required": [
+        "verify:flow-import-authorization",
+        "verify:ipc-contract",
+        "build"
+      ]
+    },
+    {
+      "id": "N6.9-STATE",
+      "description": "awkit-vra.15.9 closed, the verifier classified, dashboard pins updated and Sources agree, pushed to main.",
+      "evidence_required": [
+        "verify:roadmap-dashboard",
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:flow-import-authorization",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:flow-import-authorization",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "24/0 with 6 mutants red (existence check outside the lane, get() instead of stat, invalidation before authorization, unparseable target skipping the authorizer, timeout as allow, entry-only permission); an earlier I7 that revoked before the entry gate let the entry-only mutant pass and was corrected"
+    },
+    {
+      "id": "verify:ipc-contract",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ipc-contract",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "10/10; verify:visual-baseline-lifecycle 36/0 and verify:profile-store 74/74 also re-run green"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc --noEmit and electron-vite build; typecheck:scripts PASS"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "177/177 Sources agree at 34 outstanding / 386 closed of 420 with 363 edges; verifier-classification 348 reconciled; source-hygiene 11/0; git diff --check clean"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "runs after the commit that carries this contract"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-15-9-n6-import-1024:project-state:2026-10-24T15:54:28.608Z",
+        "task": "awkit-vra-15-9-n6-import-1024",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-24T15:54:28.608Z",
+        "acquired_at_commit": "6be2aad4454eb71494a1a4cd9cfd275dd3576221",
+        "released_at": "2026-10-24T15:54:58.631Z",
+        "released_reason": "N6.9 awkit-vra.15.9 closed with verifier evidence, exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

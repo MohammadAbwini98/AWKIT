@@ -715,7 +715,7 @@ Every row below is **ratified** as written. The status column records how each r
 | N6.6 | Calibration harness in the main process of the non-packaged acceptance build, and experimental grant issuance (VA-16); `benchmark:visual-assertion` | N6.4 |
 | N6.5 | Candidate preview and approval, reset action, Designer node (observe only in packaged mode); `verify:visual-assertion-candidates`, `verify:visual-assertion-gui` | N6.4, N6.6 |
 | N6.7 | Report block with both classes and reasons, sanitizer, drawer section; `verify:visual-assertion-report` | N6.4, N6.6 |
-| N6.9 | Import over an existing flow requires `WORKFLOW_EDIT`, race-safe (VA-11); `verify:flow-import-authorization` | N6.1 |
+| N6.9 | **Done 2026-10-24.** Import over an existing flow requires `WORKFLOW_EDIT`, race-safe (VA-11); `verify:flow-import-authorization` 24/0. I1 deviation: a newly imported flow gets no epoch token until its first capture (N6.3 creates tokens lazily), and it inherits nothing. | N6.1 |
 | N6.8 | Independent QC and security review, closure | N6.5, N6.6, N6.7, N6.9 |
 | `awkit-vra.16` | **Not N6:** future milestone, production qualification and enforcement; needs its own owner decision | The N6 epic (closure includes N6.9) |
 

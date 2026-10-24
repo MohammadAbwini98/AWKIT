@@ -1,5 +1,18 @@
 # CURRENT_STATE
 
+## Phase N: N6.9 import authorization implemented (2026-10-24, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **N6.9 closed** (`awkit-vra.15.9`, contract `awkit-vra-15-9-n6-import-1024`).
+  - `flows:import` keeps `WORKFLOW_CREATE` at entry.
+  - Overwriting an existing flow, even an unparseable file, needs `WORKFLOW_EDIT`. The check is made inside the
+    flow store's lane and cross-process lock, before any quarantine, invalidation or write. A denial is audited as
+    `FLOW_IMPORT_OVERWRITE_DENIED`, and a timeout is a denial.
+  - A refusal is `FLOW_IMPORT_OVERWRITE_FORBIDDEN` and changes nothing. Other stores are unchanged.
+- **Gates:** `verify:flow-import-authorization` 24/0 (I1–I9, 6 mutants red); `verify:ipc-contract` 10/10.
+- **Next:** N6.4 runtime visual assertions (critical path).
+
 ## Phase N: N6.3 VisualBaselineStore and cross-process flow lock implemented (2026-10-22, latest)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases; no ledger case covers N6.3.
