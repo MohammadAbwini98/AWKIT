@@ -33,6 +33,15 @@ import { OracleBridgeCallError } from "@src/oracle/OracleBridgeProtocol";
 import { armNetworkObservation, type ArmedNetworkObservation } from "./NetworkDiagnosticsObserver";
 import { createPageFingerprint, fingerprintsEqual, hashFingerprint } from "./locatorFingerprint";
 import { checkProtectedSurface, protectedCallerVerdict, watchProtectedWindow, type ProtectedGuardVerdict } from "@src/security/ProtectedSurfaceGuard";
+import {
+  VISUAL_ASSERTION_DEADLINE_MS,
+  VisualAssertionFailure,
+  decideVisualAssertionStepStatus,
+  planVisualAssertion,
+  visualAssertionStepMode,
+  type VisualAssertionAssessment,
+  type VisualAssertionRuntime
+} from "./visualAssertion/visualAssertionContract";
 
 /** Upper bound for the protected-surface scan that gates each B2 failure capture (awkit-4b5y). */
 const PROTECTED_CAPTURE_SCAN_BUDGET_MS = 5_000;
@@ -149,6 +158,8 @@ export class StepExecutor {
    * The B2 failure capture refuses every page capture for them. Cleared when the step starts its next attempt.
    */
   private readonly protectedHandoffSteps = new Set<string>();
+  /** N6.4: runtime visual assertions. Absent, an `assertVisual` step is decided as flag off. */
+  private visualAssertion?: VisualAssertionRuntime;
 
   constructor(
     page: Page,
@@ -192,6 +203,94 @@ export class StepExecutor {
   /** Run an expensive Playwright op under its operation limiter (A6), or directly when none is wired. */
   private limitOp<T>(kind: OperationKind, fn: () => Promise<T>): Promise<T> {
     return this.operationLimiters ? this.operationLimiters.run(kind, fn) : fn();
+  }
+
+  /** N6.4: wire runtime visual assertions (the runner sets it on every executor of a run). */
+  setVisualAssertion(runtime: VisualAssertionRuntime | undefined): void {
+    this.visualAssertion = runtime;
+  }
+
+  /**
+   * N6.4: one `assertVisual` step. The flag, the authored mode and the build decide independently (VA-9); with the flag
+   * off nothing is captured and the adapter is never loaded. A failure throws `VisualAssertionFailure`, which the retry
+   * policy never retries (VA-2) and `onFailure` routes like any step error.
+   */
+  private async executeVisualAssertion(step: FlowStep): Promise<void> {
+    const runtime = this.visualAssertion;
+    const appMode = runtime?.appMode ?? "packaged";
+    const flag = runtime?.flag ?? "off";
+    const stepMode = visualAssertionStepMode(step);
+    const plan = planVisualAssertion(appMode, flag, stepMode);
+    let assessment: VisualAssertionAssessment | undefined;
+    if (runtime && plan.evaluate && this.context.flowId) {
+      const started = performance.now();
+      // The adapter's first load counts against the same deadline; a load that loses it evaluates nothing this time.
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const assessor = await Promise.race([
+        runtime.assessor().catch(() => undefined),
+        new Promise<undefined>((resolve) => (timer = setTimeout(() => resolve(undefined), VISUAL_ASSERTION_DEADLINE_MS)))
+      ]);
+      clearTimeout(timer);
+      const page = await this.resolveStepPage(step);
+      const controller = new AbortController();
+      const unsubscribe = this.cancellation?.onCancel(() => controller.abort());
+      if (this.cancellation?.cancelled) controller.abort();
+      try {
+        assessment = await assessor?.assess({
+          step,
+          flowId: this.context.flowId,
+          executionId: this.context.executionId,
+          instanceId: this.context.instanceId,
+          page,
+          // The step's own primary locator on the step's own page, read only: no recovery, healing or winner memory,
+          // so the assertion never compares a different element than the one authored (N6 non-goal: locators).
+          target: () => {
+            const spec = step.locator;
+            if (!spec) return Promise.reject(new Error("assertVisual needs a locator."));
+            return new LocatorFactory(page).locateCandidate({ strategy: spec.strategy, value: spec.value, name: spec.name, exact: spec.exact }, spec.context);
+          },
+          handedOff: (() => {
+            try {
+              return runtime.handedOff(page) !== false;
+            } catch {
+              return true;
+            }
+          })(),
+          renderMode: runtime.renderMode,
+          readGrant: plan.readGrant,
+          deadlineMs: Math.max(1, Math.round(VISUAL_ASSERTION_DEADLINE_MS - (performance.now() - started))),
+          limitScreenshot: (work) => this.limitScreenshot(work),
+          signal: controller.signal
+        });
+      } finally {
+        unsubscribe?.();
+      }
+    }
+    const status = decideVisualAssertionStepStatus({
+      appMode,
+      flag,
+      stepMode,
+      ...(assessment ? { verdict: { verdict: assessment.verdict, code: assessment.code } } : {}),
+      ...(assessment?.grant ? { grant: assessment.grant } : {})
+    });
+    try {
+      runtime?.onRecord?.({
+        stepId: step.id,
+        flowId: this.context.flowId ?? "",
+        mode: stepMode,
+        flag,
+        appMode,
+        status: status.status,
+        ...(status.failureClass ? { failureClass: status.failureClass } : {}),
+        code: status.code,
+        ...(assessment ? { verdict: assessment.verdict, verdictCode: assessment.code } : {}),
+        candidate: assessment?.candidateId !== undefined,
+        durationMs: assessment?.durationMs ?? 0
+      });
+    } catch {
+      // A sink is a recorder, not a participant.
+    }
+    if (status.status === "failed") throw new VisualAssertionFailure(status.failureClass ?? "visual-unverified", status.code);
   }
 
   /** N5.3: run one screenshot-class operation of the visual failure diagnosis under the screenshot limiter. */
@@ -2211,6 +2310,12 @@ export class StepExecutor {
         } catch {
           throw new Error(`Element for step ${step.id} is not visible.`);
         }
+        this.mapOutputs(step, outputs, { assertionResult: true });
+        return { status: "passed" };
+      }
+
+      case "assertVisual": {
+        await this.executeVisualAssertion(step);
         this.mapOutputs(step, outputs, { assertionResult: true });
         return { status: "passed" };
       }

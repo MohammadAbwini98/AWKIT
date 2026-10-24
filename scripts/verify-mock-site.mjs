@@ -766,6 +766,33 @@ try {
   await page.evaluate(() => window.__visualLab.removeProtected());
   check("removeProtected() removes it", (await page.locator(".vi-protected").count()) === 0);
 
+  // Phase N, N6.4 Visual Assertion Lab: the target card's variants and every refusal fixture serve. The verdicts are
+  // proven by npm run verify:visual-assertion-runtime.
+  console.log("Visual Assertion Lab (/visual-intelligence/assertion):");
+  await page.goto(`${BASE}/`);
+  check("index lists the Visual Assertion Lab scenario", (await page.getByTestId("scenario-visual-assertion").count()) === 1);
+  await page.goto(`${BASE}/visual-intelligence/assertion`);
+  check("the assertion lab serves its title", (await page.title()) === "Visual Assertion Lab");
+  check("the assertion lab carries no credential field until injectProtected", (await page.locator('input[type="password"], input[autocomplete="one-time-code"]').count()) === 0);
+  const assertionCardBox = async () => page.getByTestId("va-card").boundingBox();
+  const assertionBaselineBox = await assertionCardBox();
+  check("the target card sits inside the viewport", !!assertionBaselineBox && assertionBaselineBox.x + assertionBaselineBox.width <= 800 && assertionBaselineBox.y + assertionBaselineBox.height <= 600);
+  await page.evaluate(() => window.__assertionLab.setVariant("size"));
+  check("size widens the card at the same position", ((await assertionCardBox())?.width ?? 0) > (assertionBaselineBox?.width ?? 0) && (await assertionCardBox())?.x === assertionBaselineBox?.x);
+  await page.evaluate(() => window.__assertionLab.setVariant("move"));
+  check("move shifts the card, same size", (await assertionCardBox())?.x !== assertionBaselineBox?.x && (await assertionCardBox())?.width === assertionBaselineBox?.width);
+  await page.evaluate(() => window.__assertionLab.setVariant("swap"));
+  check("swap shows the neighbour's content in the target card", (await page.getByTestId("va-card").innerText()).includes("Delivery"));
+  await page.evaluate(() => window.__assertionLab.setVariant("baseline"));
+  check("baseline restores the approved card", (await page.getByTestId("va-card").getAttribute("data-variant")) === "baseline" && (await assertionCardBox())?.x === assertionBaselineBox?.x);
+  check("setVariant refuses an unknown variant", await page.evaluate(() => { try { window.__assertionLab.setVariant("nope"); return false; } catch { return true; } }));
+  check("the duplicate cards share one test id", (await page.getByTestId("va-dupe").count()) === 2);
+  check("the hidden card is present and hidden", (await page.getByTestId("va-hidden").count()) === 1 && (await page.getByTestId("va-hidden").isHidden()));
+  check("the clipped card crosses the fold and the offscreen card is below it", ((await page.getByTestId("va-clipped").boundingBox())?.y ?? 0) < 600 && ((await page.getByTestId("va-clipped").boundingBox())?.y ?? 0) + 80 > 600 && ((await page.getByTestId("va-offscreen").boundingBox())?.y ?? 0) > 1000);
+  check("the card-number field is a cc-number input", (await page.getByTestId("va-card-number").getAttribute("autocomplete")) === "cc-number");
+  await page.evaluate(() => window.__assertionLab.injectProtected());
+  check("injectProtected adds exactly one password field", (await page.locator('#va-protected input[type="password"]').count()) === 1);
+
   // Phase N, N2.3 Visual Fusion Calibration Lab: the toolbar, its scenarios and the F5-F7 fixtures serve.
   // The score distributions and the Ctrl+zoom check are measured by npm run benchmark:visual-fusion.
   console.log("Visual Fusion Calibration Lab (/visual-intelligence/fusion):");

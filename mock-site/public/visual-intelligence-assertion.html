@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Visual Assertion Lab</title>
+    <!--
+      Phase N, N6.4 (awkit-vra.15.4) Visual Assertion Lab. The fixtures an `assertVisual` step is checked against, sized for
+      an 800x600 viewport. window.__assertionLab.setVariant(name) redraws the target card va-card deterministically:
+        baseline   the approved look
+        restyle    only the card's colours change (same box, same text)            -> failed/differs-from-baseline
+        text       one word of the card's text changes (same box)                  -> failed/differs-from-baseline
+        size       the card is 24 px wider at the same position                    -> failed/size-differs-from-baseline
+        move       the card moves 20 px right, same size and look                  -> inconclusive/position-changed
+        swap       the card shows the content of its neighbour va-card-b           -> failed/differs-from-baseline
+      Other fixtures, each addressed by its data-testid:
+        va-button      a focusable, hover-styled button (hover or focus it from the harness: interaction-state-changed)
+        va-animated    a card holding an infinite CSS animation; VA-15 (`animations: "disabled"`) makes captures stable
+        va-clipped     a card crossing the 600 px fold                                 -> inconclusive/target-clipped
+        va-offscreen   a card far below the fold                                       -> inconclusive/target-offscreen
+        va-dupe        two cards sharing one test id                                   -> inconclusive/target-not-unique
+        va-hidden      a display:none card                                             -> inconclusive/target-hidden
+        va-card-number a card-number input (autocomplete cc-number)                    -> inconclusive/sensitive-step
+      injectProtected() adds a password sign-in form (the protected-surface refusal; the page carries no credential
+      field otherwise). Nothing is random or time-dependent apart from the animation. Served by npm run verify:mock-site;
+      exercised by npm run verify:visual-assertion-runtime.
+    -->
+    <style>
+      html, body { margin: 0; padding: 0; background: #ffffff; }
+      body { font-family: Arial, Helvetica, sans-serif; font-size: 14px; color: #111111; width: 800px; height: 2000px; position: relative; overflow-x: hidden; }
+      h1 { position: absolute; left: 100px; top: 20px; margin: 0; font-size: 18px; line-height: 24px; }
+      .va-card { position: absolute; box-sizing: border-box; width: 240px; height: 80px; padding: 12px 16px; border: 1px solid #1d4ed8; border-radius: 8px; background: #dbeafe; color: #1e3a8a; }
+      .va-card h2 { margin: 0 0 6px; font-size: 15px; line-height: 20px; }
+      .va-card p { margin: 0; font-size: 13px; line-height: 18px; }
+      #va-card { left: 100px; top: 80px; }
+      #va-card.restyle { background: #fde68a; border-color: #b45309; color: #78350f; }
+      #va-card.size { width: 264px; }
+      #va-card.move { left: 120px; }
+      #va-card-b { left: 420px; top: 80px; background: #dcfce7; border-color: #15803d; color: #14532d; }
+      #va-card.swap { background: #dcfce7; border-color: #15803d; color: #14532d; }
+      .va-button { position: absolute; left: 100px; top: 200px; width: 140px; height: 40px; border: 1px solid #334155; border-radius: 6px; background: #f8fafc; color: #0f172a; font-size: 14px; }
+      .va-button:hover { background: #e2e8f0; }
+      .va-button:focus { outline: 3px solid #f59e0b; outline-offset: 2px; }
+      #va-animated { left: 420px; top: 200px; }
+      .va-spinner { position: absolute; right: 16px; top: 24px; width: 28px; height: 28px; border-radius: 50%; border: 4px solid #93c5fd; border-top-color: #1d4ed8; box-sizing: border-box; animation: va-spin 0.8s linear infinite; }
+      @keyframes va-spin { to { transform: rotate(360deg); } }
+      #va-dupe-1 { left: 100px; top: 300px; }
+      #va-dupe-2 { left: 420px; top: 300px; }
+      .va-hidden { display: none; left: 100px; top: 420px; }
+      #va-input-card { left: 420px; top: 420px; }
+      #va-input-card input { width: 180px; height: 24px; }
+      #va-clipped { left: 100px; top: 560px; }
+      #va-offscreen { left: 100px; top: 1500px; }
+      #va-protected { position: absolute; left: 420px; top: 520px; }
+    </style>
+  </head>
+  <body>
+    <h1>Visual Assertion Lab</h1>
+    <div id="va-card" class="va-card" data-testid="va-card" role="region" aria-label="Order summary">
+      <h2 id="va-card-title">Order summary</h2>
+      <p id="va-card-text">3 items, ready to ship</p>
+    </div>
+    <div id="va-card-b" class="va-card" data-testid="va-card-b" role="region" aria-label="Delivery">
+      <h2>Delivery</h2>
+      <p>Arrives on Tuesday</p>
+    </div>
+    <button class="va-button" data-testid="va-button" type="button">Continue</button>
+    <div id="va-animated" class="va-card" data-testid="va-animated">
+      <h2>Loading</h2>
+      <p>Please wait</p>
+      <span class="va-spinner" aria-hidden="true"></span>
+    </div>
+    <div id="va-dupe-1" class="va-card" data-testid="va-dupe"><h2>Duplicate</h2><p>First copy</p></div>
+    <div id="va-dupe-2" class="va-card" data-testid="va-dupe"><h2>Duplicate</h2><p>Second copy</p></div>
+    <div class="va-card va-hidden" data-testid="va-hidden"><h2>Hidden</h2><p>Not displayed</p></div>
+    <div id="va-input-card" class="va-card">
+      <label for="va-card-number">Card</label>
+      <input id="va-card-number" data-testid="va-card-number" autocomplete="cc-number" inputmode="numeric" />
+    </div>
+    <div id="va-clipped" class="va-card" data-testid="va-clipped"><h2>Across the fold</h2><p>Half visible</p></div>
+    <div id="va-offscreen" class="va-card" data-testid="va-offscreen"><h2>Far below</h2><p>Not in the viewport</p></div>
+    <script>
+      (function () {
+        var card = document.getElementById("va-card");
+        var title = document.getElementById("va-card-title");
+        var text = document.getElementById("va-card-text");
+        var VARIANTS = ["baseline", "restyle", "text", "size", "move", "swap"];
+        function setVariant(name) {
+          if (VARIANTS.indexOf(name) < 0) throw new Error("unknown variant " + name);
+          card.className = "va-card" + (name === "baseline" || name === "text" ? "" : " " + name);
+          title.textContent = name === "swap" ? "Delivery" : "Order summary";
+          text.textContent = name === "swap" ? "Arrives on Tuesday" : name === "text" ? "3 items, ready to pack" : "3 items, ready to ship";
+          card.setAttribute("data-variant", name);
+        }
+        function injectProtected() {
+          if (document.getElementById("va-protected")) return;
+          var form = document.createElement("form");
+          form.id = "va-protected";
+          form.innerHTML = '<h2>Sign in</h2><label>Password <input type="password" name="password" autocomplete="current-password" /></label>';
+          document.body.appendChild(form);
+        }
+        setVariant("baseline");
+        window.__assertionLab = { setVariant: setVariant, injectProtected: injectProtected, variants: VARIANTS.slice() };
+      })();
+    </script>
+  </body>
+</html>

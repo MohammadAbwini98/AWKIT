@@ -323,7 +323,7 @@ export function actionNodeWeights(
     const override = constraints.nodeTypeWeights[spec.type];
     const base = override ?? spec.weight;
     if (base <= 0) continue;
-    if (spec.gate === "requiresHuman") continue;
+    if (spec.gate === "requiresHuman" || spec.gate === "neverGenerated") continue;
     if (spec.gate && !constraints.allowedGates.includes(spec.gate)) continue;
     result.push({ value: spec.type, weight: base });
   }
@@ -342,7 +342,7 @@ export function blockedNodeTypes(
   const blocked: Array<{ type: StepType; reason: string }> = [];
   for (const spec of Object.values(NODE_CATALOG)) {
     if (!spec.gate) continue;
-    if (spec.gate !== "requiresHuman" && constraints.allowedGates.includes(spec.gate)) continue;
+    if (spec.gate !== "requiresHuman" && spec.gate !== "neverGenerated" && constraints.allowedGates.includes(spec.gate)) continue;
     blocked.push({
       type: spec.type,
       reason: spec.note ? `${spec.gate}: ${spec.note}` : spec.gate

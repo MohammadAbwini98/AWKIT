@@ -624,6 +624,16 @@ function validateSteps(profile: FlowProfile, nodes: readonly FlowStep[], collect
     }
     // AWKIT-FLO-001: the executor throws without a popup alias, so validation refuses the same
     // shape instead of admitting an authorable-but-guaranteed-to-throw node.
+    // N6.4: an assertVisual step's mode is observe (the default when absent) or enforce; anything else is refused
+    // rather than guessed, because an unknown mode could silently become an enforced or an inert assertion.
+    if (step.type === "assertVisual" && step.mode !== undefined && step.mode !== "observe" && step.mode !== "enforce") {
+      collect.node(
+        "unsupportedConfiguration",
+        step.id,
+        `Step ${labelFor(step, ambiguousNames)} (assertVisual) has an unknown mode "${String(step.mode)}"; use observe or enforce.`
+      );
+    }
+
     if (step.type === "closePopup" && !hasClosePopupTarget(step)) {
       collect.node(
         "missingRequiredValue",

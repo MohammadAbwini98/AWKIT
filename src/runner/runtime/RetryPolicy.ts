@@ -49,6 +49,12 @@ export class RetryPolicy {
       return { retry: false, delayMs: 0, errorClass, reason: `retries exhausted (${attempt}/${configuredRetries})` };
     }
 
+    // N6 (VA-2): a visual assertion is never retried, whatever its retry or safety configuration says. A second
+    // capture could only turn an honest inconclusive or mismatch into a lucky pass.
+    if (step.type === "assertVisual") {
+      return { retry: false, delayMs: 0, errorClass, reason: "assertVisual is non-retryable (VA-2)" };
+    }
+
     // Infra-terminal failures beat everything: the browser/session is gone or a human is needed.
     if (INFRA_TERMINAL_ERROR_CLASSES.has(errorClass)) {
       return { retry: false, delayMs: 0, errorClass, reason: `error class "${errorClass}" is not auto-retryable` };

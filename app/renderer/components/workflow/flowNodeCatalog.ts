@@ -25,6 +25,7 @@ import {
   Play,
   Radio,
   Repeat,
+  ScanEye,
   ScrollText,
   ShieldAlert,
   ShieldCheck,
@@ -68,6 +69,8 @@ export const flowNodeCatalog: FlowNodeCatalogItem[] = [
   { type: "readText", label: "Read Text", description: "Read element text", icon: Type, requiresLocator: true },
   { type: "assertText", label: "Assert Text", description: "Assert text content", icon: CircleDot, requiresLocator: true, requiresValue: true },
   { type: "assertVisible", label: "Assert Visible", description: "Assert element visibility", icon: Eye, requiresLocator: true },
+  // N6.4: observe by default; the enforce mode and baseline approval arrive in the Designer with N6.5.
+  { type: "assertVisual", label: "Assert Visual", description: "Compare an element with its approved look", icon: ScanEye, requiresLocator: true },
   { type: "screenshot", label: "Take Screenshot", description: "Capture page image", icon: Camera },
   { type: "manualHandoff", label: "Manual Handoff", description: "Pause for human action", icon: Hand },
   { type: "condition", label: "Condition", description: "Branch by expression", icon: GitBranch, requiresValue: true },

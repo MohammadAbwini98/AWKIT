@@ -46,7 +46,9 @@ export type GenerationGate =
   /** Needs a popup to have been opened first — only valid in a generated popup sequence. */
   | "requiresPopupContext"
   /** Needs a fixture the local mock site does not serve yet. */
-  | "missingLocalFixture";
+  | "missingLocalFixture"
+  /** Never generated, not even when a campaign allows gated types (like `requiresHuman`). */
+  | "neverGenerated";
 
 export interface NodeGenerationSpec {
   readonly type: StepType;
@@ -170,6 +172,15 @@ export const NODE_CATALOG: Record<StepType, NodeGenerationSpec> = {
     requiresLocator: true,
     requiresValue: false,
     weight: 8
+  },
+  assertVisual: {
+    type: "assertVisual",
+    role: "action",
+    requiresLocator: true,
+    requiresValue: false,
+    gate: "neverGenerated",
+    weight: 0,
+    note: "N6: a visual assertion needs a person-approved, keyed baseline; generated blind it could only be inconclusive, and enforce would only fail closed."
   },
 
   // ---- control ----

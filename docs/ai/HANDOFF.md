@@ -1,6 +1,30 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-24, latest) — Phase N: N6.9 done; next N6.4
+## HANDOFF (2026-10-24, latest) — Phase N: N6.4 done; next N6.6, N6.5, N6.7
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** N6.4 runtime visual assertions (contract `awkit-vra-15-4-n6-runtime-1024`).
+- **Owner action (BLOCKED in the agent shell):** run the live `safeStorage` check. In a PowerShell tab in the project
+  folder, after `npm run build`:
+
+  ```
+  npm run verify:visual-key-protector-live -- --electron-dist C:\electron-dist
+  ```
+
+  `C:\electron-dist` already holds Electron 33.4.11, the installed version.
+- **Next:**
+  - **N6.6:** the calibration harness and `benchmark:visual-assertion` on the Visual Assertion Lab. Issue grants
+    only through `issueGrantUnchecked` in the dev build.
+  - **N6.5:** candidate IPC (`WORKFLOW_EDIT` plus fresh re-auth plus audit) over `visualAssertionCandidates`, reset,
+    and the Designer mode editor. Its GUI verifier must also cover a real key file written through `safeStorage`.
+  - **N6.7:** the report block from the codes-only `VisualAssertionRecord`. The engine does not collect records yet.
+- **Gaps to keep visible:**
+  - The run user is `unattributed` because the engine has no run identity.
+  - `assertVisual` resolves its target without locator recovery, on purpose.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-24) — Phase N: N6.9 done; next N6.4
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

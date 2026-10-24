@@ -146,6 +146,8 @@ const META: Record<StepType, RegistryMeta> = {
     }
   },
   assertVisible: { category: "assertion", sections: ["locator", "assertion", "execution"], executable: true },
+  // N6.4: observe by default (the safe mode); the mode selector and candidate approval arrive with N6.5.
+  assertVisual: { category: "assertion", sections: ["locator", "execution"], executable: true },
   screenshot: { category: "capture", sections: ["screenshot", "execution"], executable: true },
   manualHandoff: { category: "control", sections: ["execution"], executable: true },
   condition: {

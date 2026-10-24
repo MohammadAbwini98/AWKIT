@@ -59,6 +59,8 @@ export type FragmentAuditCode =
   | "edgeEndpointMissing"
   | "terminalStepIncluded"
   | "protectedLoginStep"
+  /** N6: an `assertVisual` approval is bound to its flow and step; a reusable copy could never be approved. */
+  | "visualAssertionStep"
   | "resolvedSecretValue"
   | "undeclaredInput"
   | "duplicateInputKey"
@@ -99,6 +101,7 @@ export interface FragmentAuditContext {
 }
 
 const BLOCKING_CODES: ReadonlySet<FragmentAuditCode> = new Set<FragmentAuditCode>([
+  "visualAssertionStep",
   "fragmentShapeInvalid",
   "fragmentEmpty",
   "duplicateNodeId",
@@ -330,6 +333,17 @@ export function auditFragment(candidate: unknown, context: FragmentAuditContext 
     if (PROTECTED_LOGIN_STEP_TYPES.has(node.type)) {
       findings.push(
         finding("protectedLoginStep", `A ${node.type} step is a protected-login surface and cannot be made reusable.`, {
+          nodeId: node.id
+        })
+      );
+    }
+  }
+
+  // ── 3b. A visual assertion is bound to its own flow and step (N6) ──────────────────────────
+  for (const node of nodes) {
+    if (node.type === "assertVisual") {
+      findings.push(
+        finding("visualAssertionStep", "A visual assertion step is bound to its own flow's approved baseline and cannot be made reusable.", {
           nodeId: node.id
         })
       );

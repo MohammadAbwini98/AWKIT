@@ -69,6 +69,8 @@ export const STEP_REQUIREMENTS: Record<StepType, StepRequirement> = {
   // ---- assertion ----
   assertText: { requiresLocator: true, requiresValue: true },
   assertVisible: { requiresLocator: true, requiresValue: false },
+  /** N6.4: one element against an approved visual baseline; `mode` is validated by `FlowValidator`. */
+  assertVisual: { requiresLocator: true, requiresValue: false },
 
   // ---- control ----
   wait: { requiresLocator: false, requiresValue: true },

@@ -36,6 +36,7 @@ import { join } from "node:path";
 
 import type { FlowProfile } from "../../profiles/FlowProfile";
 import { CrossProcessLockError } from "../../storage/crossProcessLock";
+import type { VisualGrantStatus } from "./visualAssertionContract";
 import { canonicalJson, visualStepContentDigest } from "./stepContentDigest";
 import { VisualBaselineLayout, createExclusive, listDirectory, sha256Hex, writeAtomically, type VisualBaselineAppMode } from "./visualBaselineLayout";
 
@@ -135,6 +136,29 @@ export type VisualBaselineApprovalRefusal =
 export type VisualBaselineApprovalResult =
   | { ok: true; approvalId: string; generation: number; keyGeneration: number; replacedUnreadable: boolean }
   | { ok: false; refusal: VisualBaselineApprovalRefusal };
+
+/** VA-12: a grant binds this calibration suite; a new suite version invalidates every grant. */
+export const VISUAL_CALIBRATION_SUITE_VERSION = "awkit-n6-calibration-v1";
+export const VISUAL_GRANT_VALIDITY_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** One qualification cell (VA-12): render mode by device pixel ratio. */
+export interface VisualGrantCell {
+  renderMode: "headed" | "headless";
+  devicePixelRatio: number;
+}
+
+/** The environment a grant is bound to; any change invalidates it. */
+export interface VisualGrantEnvironment {
+  browserVersion: string;
+  appVersion: string;
+  osBuild: string;
+  capturePolicy: string;
+  fingerprintVersion: string;
+  assertionPolicyVersion: number;
+  calibrationSuiteVersion: string;
+}
+
+export type { VisualGrantStatus } from "./visualAssertionContract";
 
 export interface VisualBaselineStoreOptions {
   layout: VisualBaselineLayout;
@@ -734,6 +758,115 @@ export class VisualBaselineStore {
       }
       return { deleted };
     });
+  }
+
+  // ── Experimental enforcement grants (VA-12, VA-16; non-packaged acceptance build only) ────────
+
+  private grantPath(cell: VisualGrantCell): string {
+    return join(this.layout.modeRoot(this.appMode), "grants", `${sha256Hex(`awkit-n6-cell-v1\u0000${cell.renderMode}\u0000${cell.devicePixelRatio}`)}.json`);
+  }
+
+  protected grantMacFields(grant: { mode: string; cell: VisualGrantCell; environment: VisualGrantEnvironment; evidenceDigest: string; issuedAt: string; expiresAt: string; keyGeneration: number }): (string | number)[] {
+    return [
+      "awkit-n6-grant-v1",
+      grant.mode,
+      grant.cell.renderMode,
+      grant.cell.devicePixelRatio,
+      canonicalJson(grant.environment),
+      grant.evidenceDigest,
+      grant.issuedAt,
+      grant.expiresAt,
+      grant.keyGeneration
+    ];
+  }
+
+  /**
+   * Issue a signed grant for one qualified cell. Only the N6.6 calibration harness calls this, inside the
+   * non-packaged acceptance build, after the cell met every VA-12 criterion; it never checks those criteria itself.
+   * The packaged build issues nothing.
+   */
+  issueGrantUnchecked(issue: { cell: VisualGrantCell; environment: VisualGrantEnvironment; evidenceDigest: string; issuedAt: Date }): Promise<{ ok: true; expiresAt: string } | { ok: false; reason: string }> {
+    if (this.appMode !== "dev") return Promise.resolve({ ok: false, reason: "packaged-build" });
+    if (!HEX64.test(issue.evidenceDigest) || !(issue.issuedAt instanceof Date) || !Number.isFinite(issue.issuedAt.getTime())) {
+      return Promise.resolve({ ok: false, reason: "invalid-request" });
+    }
+    return this.layout.coordinate(async () => {
+      let loaded = await this.loadKeys();
+      if (loaded.state === "first-use") {
+        await this.createKey(1);
+        loaded = await this.loadKeys();
+      }
+      if (loaded.state !== "available") return { ok: false as const, reason: "integrity-unavailable" };
+      const unsigned = {
+        version: 1,
+        kind: "grant",
+        mode: this.appMode,
+        cell: { ...issue.cell },
+        environment: { ...issue.environment },
+        evidenceDigest: issue.evidenceDigest,
+        issuedAt: issue.issuedAt.toISOString(),
+        expiresAt: new Date(issue.issuedAt.getTime() + VISUAL_GRANT_VALIDITY_MS).toISOString(),
+        keyGeneration: loaded.keys.generation
+      };
+      const path = this.grantPath(issue.cell);
+      await mkdir(join(this.layout.modeRoot(this.appMode), "grants"), { recursive: true });
+      await this.layout.assertHeld();
+      await writeAtomically(path, JSON.stringify({ ...unsigned, mac: this.mac(loaded.keys, this.grantMacFields(unsigned)) }));
+      return { ok: true as const, expiresAt: unsigned.expiresAt };
+    });
+  }
+
+  /**
+   * The cell's grant for THIS environment. The packaged build never reads a grant (VA-16): it answers `missing`
+   * without touching the disk. Unreadable, tampered, rebound or key-rotated grants are `invalidated`; a clock set
+   * before the issue time is `invalidated` too.
+   */
+  async grantStatus(cell: VisualGrantCell, environment: VisualGrantEnvironment, now: Date = this.now()): Promise<VisualGrantStatus> {
+    if (this.appMode !== "dev") return "missing";
+    const read = await readJson(this.grantPath(cell));
+    if (read.kind === "missing") return "missing";
+    if (read.kind === "corrupt") return "invalidated";
+    const loaded = await this.loadKeys();
+    if (loaded.state !== "available") return "invalidated";
+    const grant = read.value as { version?: unknown; kind?: unknown; mode?: unknown; cell?: VisualGrantCell; environment?: VisualGrantEnvironment; evidenceDigest?: unknown; issuedAt?: unknown; expiresAt?: unknown; keyGeneration?: unknown; mac?: unknown };
+    if (
+      grant.version !== 1 ||
+      grant.kind !== "grant" ||
+      typeof grant.mac !== "string" ||
+      typeof grant.issuedAt !== "string" ||
+      typeof grant.expiresAt !== "string" ||
+      typeof grant.evidenceDigest !== "string" ||
+      !validCount(grant.keyGeneration) ||
+      !grant.cell ||
+      !grant.environment
+    ) {
+      return "invalidated";
+    }
+    const unsigned = {
+      mode: String(grant.mode),
+      cell: grant.cell,
+      environment: grant.environment,
+      evidenceDigest: grant.evidenceDigest,
+      issuedAt: grant.issuedAt,
+      expiresAt: grant.expiresAt,
+      keyGeneration: grant.keyGeneration
+    };
+    if (!sameHex(this.mac(loaded.keys, this.grantMacFields(unsigned)), grant.mac)) return "invalidated";
+    if (
+      grant.mode !== this.appMode ||
+      grant.keyGeneration !== loaded.keys.generation ||
+      grant.cell.renderMode !== cell.renderMode ||
+      grant.cell.devicePixelRatio !== cell.devicePixelRatio ||
+      canonicalJson(grant.environment) !== canonicalJson(environment)
+    ) {
+      return "invalidated";
+    }
+    const issued = Date.parse(grant.issuedAt);
+    const expires = Date.parse(grant.expiresAt);
+    if (!Number.isFinite(issued) || !Number.isFinite(expires) || expires - issued !== VISUAL_GRANT_VALIDITY_MS) return "invalidated";
+    if (now.getTime() < issued) return "invalidated";
+    if (now.getTime() >= expires) return "expired";
+    return "valid";
   }
 
   /**

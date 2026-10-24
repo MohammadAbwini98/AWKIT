@@ -9,6 +9,7 @@ import { assertSenderPermission, assertSenderSuperUser } from "../security/sessi
 import { Permission } from "@src/security/authz/Permissions";
 import { getSecretStore } from "../secretStore";
 import { getOracleNodeRunner } from "../oracleService";
+import { visualAssertionServices } from "../visualAssertion/visualAssertionServices";
 import { domIntelligenceRecoveryOptions, prewarmDomIntelligence } from "../domIntelligence/domIntelligenceRuntime";
 import { localAiEnabled } from "../ai/aiRuntime";
 import { indexCompletedRun } from "../semantic/semanticService";
@@ -48,6 +49,8 @@ export function registerExecutionIpc(): void {
   // Let the runner resolve `type:"secret"` value sources from the encrypted secret store at run time
   // (audit §15). Values live only in the main process; they never enter workflow JSON or the renderer.
   executionEngine.setSecretResolver((name) => getSecretStore().get(name));
+  // N6.4: build mode, app version and the safeStorage-protected visual baseline store for assertVisual steps.
+  executionEngine.setVisualAssertionServices(visualAssertionServices());
 
   // Oracle query nodes run through the main-process OracleQueryService (owns the JDBC bridge).
   executionEngine.setOracleNodeRunner(getOracleNodeRunner());

@@ -138,7 +138,15 @@ const DIAGNOSIS_EDGE = `${DIAGNOSIS_ADAPTER} -> src/visual`;
 const DIAGNOSIS_CONTRACT = "src/runner/visualDiagnosis/visualDiagnosisContract.ts";
 /** N5.4: the persisted record and its sanitizer, shared with the report types; it imports nothing. */
 const DIAGNOSIS_RECORD = "src/runner/visualDiagnosis/visualDiagnosisRecord.ts";
-const APPROVED_EDGES = [ADAPTER_EDGE, RECORDER_EDGE, DIAGNOSIS_EDGE].sort();
+/** N6.4 (awkit-vra.15.4): the runtime visual assertion adapter, the fourth edge. */
+const ASSERTION_ADAPTER = "src/runner/visualAssertion/VisualAssertionStep.ts";
+const ASSERTION_EDGE = `${ASSERTION_ADAPTER} -> src/visual`;
+/** Its contract, shared with StepExecutor, PlaywrightRunner and ExecutionEngine: it must not reach src/visual. */
+const ASSERTION_CONTRACT = "src/runner/visualAssertion/visualAssertionContract.ts";
+/** The N6.3 store and the N6.4 candidate registry: keyed storage, never src/visual. */
+const ASSERTION_STORE = "src/runner/visualAssertion/VisualBaselineStore.ts";
+const ASSERTION_CANDIDATES = "src/runner/visualAssertion/visualAssertionCandidates.ts";
+const APPROVED_EDGES = [ADAPTER_EDGE, RECORDER_EDGE, DIAGNOSIS_EDGE, ASSERTION_EDGE].sort();
 const sameEdges = (edges: readonly string[]): boolean => JSON.stringify([...edges].sort()) === JSON.stringify(APPROVED_EDGES);
 
 /**
@@ -216,24 +224,25 @@ check(
   `${execution.seen.size} modules from ${execution.files} files`
 );
 check(
-  "no module the execution tree can reach, at any depth, imports src/visual except the three approved adapters",
+  "no module the execution tree can reach, at any depth, imports src/visual except the four approved adapters",
   execution.offenders.length === 0,
   execution.offenders.join("; ")
 );
 check(
-  "all three adapters are seeds and their public-index imports are exactly the three allowed edges (N2.5, N4.2 RV-1, N5.3 VD-1)",
+  "all four adapters are seeds and their public-index imports are exactly the four allowed edges (N2.5, N4.2 RV-1, N5.3 VD-1, N6.4)",
   executionSeeds.includes(ADAPTER) &&
     executionSeeds.includes(RECORDER_ADAPTER) &&
     executionSeeds.includes(DIAGNOSIS_ADAPTER) &&
-    execution.allowed.length === 3 &&
+    executionSeeds.includes(ASSERTION_ADAPTER) &&
+    execution.allowed.length === 4 &&
     sameEdges(execution.allowed),
   execution.allowed.join("; ") || "no allowed edge met"
 );
 {
   const unallowed = (await walk(executionSeeds)).offenders.map((o) => o.split(" -> ").slice(-2).join(" -> "));
   check(
-    "without the allow-list the same walk flags exactly those three edges (all three imports are real, not missed)",
-    unallowed.length === 3 && sameEdges(unallowed),
+    "without the allow-list the same walk flags exactly those four edges (all four imports are real, not missed)",
+    unallowed.length === 4 && sameEdges(unallowed),
     unallowed.join("; ") || "nothing flagged"
   );
 }
@@ -241,7 +250,7 @@ check(
 console.log("\nThe renderer cannot reach src/visual:\n");
 const rendererSeeds = (await sourceFiles(join(REPO, "app/renderer"))).map(toRepo);
 // The renderer's closure reaches the main process through the preload typings, so it may meet an adapter's edge too;
-// the allow-list is the same three edges, and anything else is an offender.
+// the allow-list is the same four edges, and anything else is an offender.
 const renderer = await walk(rendererSeeds, new Map(), ALLOW);
 check("the renderer was actually scanned", renderer.files >= 50, String(renderer.files));
 check("no module the renderer can reach imports src/visual except through an approved adapter's edge", renderer.offenders.length === 0, renderer.offenders.join("; "));
@@ -279,7 +288,7 @@ console.log("\nMutation controls (each injected import must be caught):\n");
     );
   }
 
-  // N2.5, N4.2 (RV-1) and N5.3 (VD-1): the allow-list is three exact edges, not a module or a directory.
+  // N2.5, N4.2 (RV-1), N5.3 (VD-1) and N6.4: the allow-list is four exact edges, not a module or a directory.
   for (const [importer, specifier, label] of [
     ["src/runner/LocatorFactory.ts", "src/visual", "a second runner importer of the same public index"],
     [ADAPTER, "src/visual/fingerprint", "the adapter importing a src/visual internal"],
@@ -288,13 +297,21 @@ console.log("\nMutation controls (each injected import must be caught):\n");
     [RECORDER_ADAPTER, "src/visual/fingerprint", "the Recorder adapter importing a src/visual internal"],
     [RECORDER_ADAPTER, "src/visual/internal/captureCore", "the Recorder adapter importing the capture seam entry"],
     [RECORDER_CODES, "src/visual", "the Recorder's pure code contract importing src/visual"],
-    ["src/runner/FlowExecutor.ts", "src/visual", "a fourth edge: the FlowExecutor hook importing the public index directly"],
-    ["src/runner/PlaywrightRunner.ts", "src/visual", "a fourth edge: the runner wiring importing the public index directly"],
+    ["src/runner/FlowExecutor.ts", "src/visual", "a fifth edge: the FlowExecutor hook importing the public index directly"],
+    ["src/runner/PlaywrightRunner.ts", "src/visual", "a fifth edge: the runner wiring importing the public index directly"],
     [DIAGNOSIS_ADAPTER, "src/visual/fingerprint", "the diagnosis adapter importing a src/visual internal"],
     [DIAGNOSIS_ADAPTER, "src/visual/internal/captureCore", "the diagnosis adapter importing the capture seam entry"],
     [DIAGNOSIS_CONTRACT, "src/visual", "the diagnosis contract importing src/visual"],
     [DIAGNOSIS_RECORD, "src/visual", "the diagnosis record module importing src/visual"],
-    ["src/reports/ExecutionReport.ts", "src/visual", "the report types importing src/visual"]
+    ["src/reports/ExecutionReport.ts", "src/visual", "the report types importing src/visual"],
+    ["src/runner/StepExecutor.ts", "src/visual", "a fifth edge: the StepExecutor dispatch importing the public index directly"],
+    ["src/runner/ExecutionEngine.ts", "src/visual", "a fifth edge: the engine wiring importing the public index directly"],
+    [ASSERTION_ADAPTER, "src/visual/fingerprint", "the assertion adapter importing a src/visual internal"],
+    [ASSERTION_ADAPTER, "src/visual/internal/captureCore", "the assertion adapter importing the capture seam entry"],
+    [ASSERTION_ADAPTER, "src/visual/assertion/decideVisualAssertion", "the assertion adapter importing the policy module directly"],
+    [ASSERTION_CONTRACT, "src/visual", "the assertion contract importing src/visual"],
+    [ASSERTION_STORE, "src/visual", "the baseline store importing src/visual"],
+    [ASSERTION_CANDIDATES, "src/visual", "the candidate registry importing src/visual"]
   ] as const) {
     const reached = execution.seen.has(importer);
     const mutated = await walk(executionSeeds, new Map([[importer, [specifier]]]), ALLOW);
@@ -382,6 +399,51 @@ console.log("\nThe shadow adapter observes and never acts (N2.5):\n");
     const planted = `${adapterText}\n${code}\n`;
     check(`MUTATION: ${label} planted in the adapter is caught`, violations(planted).length > 0, "not caught");
   }
+}
+
+console.log("\nThe assertion adapter observes and never acts (N6.4):\n");
+{
+  // It reads the page, takes one guarded element capture and reads the baseline store; it never clicks, scrolls,
+  // focuses, logs or approves. Its only store calls are reads, the epoch token and the commitment.
+  const assertionText = await readFile(join(REPO, ASSERTION_ADAPTER), "utf8");
+  check(
+    "the assertion adapter was actually read",
+    assertionText.includes("class VisualAssertionStep") && assertionText.includes('from "@src/visual"')
+  );
+  const problems = violations(assertionText);
+  check("no network, filesystem, process, console, interaction or navigation API in the assertion adapter", problems.length === 0, problems.join("; "));
+  const storeCalls = [...new Set([...assertionText.matchAll(/\bstore(?:\.layout)?\s*\.\s*(\w+)\s*\(/g)].map((m) => m[1]))].sort();
+  const allowedCalls = ["commitmentFor", "ensureToken", "grantStatus", "keyGeneration", "lookup", "readToken"];
+  check(
+    "the assertion adapter makes no approval, reset, sweep or grant issue: every store call is a read, the token or the commitment",
+    storeCalls.length >= 5 && storeCalls.every((name) => allowedCalls.includes(name)) && !/(?:approveUnchecked|resetUnchecked|issueGrantUnchecked|sweep)\s*\(/.test(assertionText),
+    `store calls: ${storeCalls.join(", ") || "none"}`
+  );
+  check(
+    "the capture is the N0 guarded element capture with the VA-15 policy and no context crop",
+    /captureElement\(page, target, \{[^}]*contextPaddingCss: 0,[^}]*stillness: true,[^}]*handedOff: request\.handedOff/s.test(assertionText)
+  );
+  for (const [label, code] of [
+    ["a click", "await target.click();"],
+    ["a focus", "await handle.focus();"],
+    ["a scroll", "await handle.scrollIntoViewIfNeeded();"],
+    ["mouse input", "await page.mouse.move(1, 2);"],
+    ["a filesystem import", 'import { writeFile } from "node:fs/promises";']
+  ] as const) {
+    check(`MUTATION: ${label} planted in the assertion adapter is caught`, violations(`${assertionText}\n${code}\n`).length > 0, "not caught");
+  }
+  check(
+    "MUTATION: an approval planted in the assertion adapter is caught",
+    /approveUnchecked\s*\(/.test(`${assertionText}\nawait store.approveUnchecked(request);\n`),
+    "not caught"
+  );
+  const contractText = await readFile(join(REPO, ASSERTION_CONTRACT), "utf8");
+  const contractImports = [...contractText.matchAll(/^\s*(?:import|export)\b[^;]*?\bfrom\s*["']([^"']+)["']/gm)].map((m) => m[1]).sort();
+  check(
+    "the assertion contract imports only node:os and types from Playwright and the flow profile (no src/visual)",
+    JSON.stringify(contractImports) === JSON.stringify(["../../profiles/FlowProfile", "node:os", "playwright"].sort()),
+    contractImports.join(", ")
+  );
 }
 
 console.log("\nThe diagnosis adapter observes and never acts or writes (N5.3, VD-1):\n");

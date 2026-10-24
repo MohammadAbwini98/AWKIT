@@ -14,6 +14,14 @@ import { FileLocatorBlueprintStore, type LocatorBlueprintStore } from "./Locator
 import type { VisualFusionStageOptions } from "./visualFusion/VisualFusionStage";
 import type { VisualFailureDiagnosisOptions } from "./visualDiagnosis/VisualFailureDiagnosis";
 import { VISUAL_DIAGNOSIS_DEADLINE_MS, type VisualDiagnosisRecord, type VisualFailureDiagnoser } from "./visualDiagnosis/visualDiagnosisContract";
+import type { VisualAssertionStepOptions } from "./visualAssertion/VisualAssertionStep";
+import type {
+  VisualAssertionAppMode,
+  VisualAssertionAssessor,
+  VisualAssertionFlag,
+  VisualAssertionRecord,
+  VisualAssertionRuntime
+} from "./visualAssertion/visualAssertionContract";
 import type { DomIntelligenceRecoveryOptions } from "./domIntelligence/DomIntelligenceProvider";
 import { toRecoveryProvenance } from "./domIntelligence/recoveryProvenance";
 import { ManualHandoffController } from "./ManualHandoffController";
@@ -38,6 +46,8 @@ interface BrowserHolder {
   page: Page;
   generation: number;
   swapInProgress: boolean;
+  /** N6.4: the instance's browser mode (Playwright launches headless unless `headless` is false). */
+  renderMode: "headed" | "headless";
   /** The StepExecutor currently driving the active flow (re-pointed after a restart). */
   activeExecutor?: StepExecutor;
   /**
@@ -172,6 +182,35 @@ export interface PlaywrightRunnerOptions extends BrowserContextFactoryOptions {
    * report; nothing else in the run reads it. Absent, records are dropped.
    */
   onVisualDiagnosis?: (record: VisualDiagnosisRecord) => void;
+  /**
+   * N6.4 (VA-9): runtime visual assertions. Absent, every `assertVisual` step is decided as flag off in the packaged
+   * build (observe steps pass `disabled`, enforce steps fail `enforce-unavailable-in-production`). With flag `off` the
+   * adapter and `src/visual` are never loaded.
+   */
+  visualAssertions?: {
+    appMode: VisualAssertionAppMode;
+    flag: VisualAssertionFlag;
+    /** The adapter's dependencies, built on first use; undefined when unavailable (nothing is evaluated). */
+    adapter: () => VisualAssertionStepOptions | undefined;
+    /** Receives each assertion's codes-only record (the report block, N6.7). */
+    onRecord?: (record: VisualAssertionRecord) => void;
+  };
+}
+
+/**
+ * N6.4: the runtime visual assertion adapter behind a loader, so a run with the flag off never evaluates the adapter or
+ * `src/visual`. The first evaluated `assertVisual` step loads it once per runner.
+ */
+function lazyVisualAssertion(options: () => VisualAssertionStepOptions | undefined): () => Promise<VisualAssertionAssessor | undefined> {
+  let adapter: Promise<VisualAssertionAssessor | undefined> | undefined;
+  return () =>
+    (adapter ??= import("./visualAssertion/VisualAssertionStep").then(
+      ({ VisualAssertionStep }) => {
+        const resolved = options();
+        return resolved ? new VisualAssertionStep(resolved) : undefined;
+      },
+      () => undefined
+    ));
 }
 
 /**
@@ -274,6 +313,7 @@ export class PlaywrightRunner {
       page: rootPage,
       generation: browserGeneration,
       swapInProgress: false,
+      renderMode: instanceConfig.headless === false ? "headed" : "headless",
       popupIdentity: new PopupIdentityRegistry(rootPage),
       detachPageObserver: () => undefined
     };
@@ -776,6 +816,8 @@ export class PlaywrightRunner {
       this.options.operationLimiters,
       this.options.oracleNodeRunner,
       holder.popupIdentity, this.options.pauseGate);
+    const visualAssertion = this.createVisualAssertion(holder);
+    stepExecutor.setVisualAssertion(visualAssertion);
 
     // ── Popup identity wiring (FR-C1.1) ─────────────────────────────────────
     // NOTE: no `"page"` observer is installed here. `runFlowWithChildren` is RECURSIVE (every
@@ -821,6 +863,7 @@ export class PlaywrightRunner {
         this.options.operationLimiters,
         this.options.oracleNodeRunner,
         holder.popupIdentity, this.options.pauseGate);
+      branchExecutor.setVisualAssertion(visualAssertion);
       return { execute: (step: FlowStep) => branchExecutor.execute(step), close: () => branchPage.close() };
     };
 
@@ -916,6 +959,24 @@ export class PlaywrightRunner {
       ...(this.options.visualRecordedFallback === true ? { recordedFallback: true } : {}),
       ...(sink ? { onRecord: (record: VisualDiagnosisRecord) => sink(record) } : {})
     });
+  }
+
+  private visualAssertionLoader?: () => Promise<VisualAssertionAssessor | undefined>;
+
+  /** N6.4: the runtime every executor of a run gets; absent options mean flag off in the packaged build. */
+  private createVisualAssertion(holder: BrowserHolder): VisualAssertionRuntime | undefined {
+    const options = this.options.visualAssertions;
+    if (!options) return undefined;
+    const sink = options.onRecord;
+    return {
+      appMode: options.appMode,
+      flag: options.flag,
+      renderMode: holder.renderMode,
+      // Never called when the plan evaluates nothing (flag off), so the flag-off path never loads the adapter.
+      assessor: () => (this.visualAssertionLoader ??= lazyVisualAssertion(options.adapter))(),
+      handedOff: (target) => this.pageHandedOff(target),
+      ...(sink ? { onRecord: (record: VisualAssertionRecord) => sink(record) } : {})
+    };
   }
 
   /** N2 I5, fail-closed: without a reporter that knows the handoff state, every page counts as handed off. */

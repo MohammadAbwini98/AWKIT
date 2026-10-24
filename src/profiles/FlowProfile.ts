@@ -27,6 +27,8 @@ export type StepType =
   | "readText"
   | "assertText"
   | "assertVisible"
+  /** N6.4: element visual assertion against an approved, keyed baseline. Non-retryable. */
+  | "assertVisual"
   | "screenshot"
   | "manualHandoff"
   | "condition"
@@ -794,6 +796,11 @@ export interface FlowStep {
   name: string;
   description?: string;
   position?: { x: number; y: number };
+  /**
+   * N6 `assertVisual` only: `observe` (default; never changes the step outcome) or `enforce`. Outside the step's
+   * content digest, so promoting a step keeps its approval. Packaged production never enforces (VA-16).
+   */
+  mode?: "observe" | "enforce";
   locator?: StepLocator;
   /**
    * Drop target for a `drag` step. The `locator` is the drag SOURCE; `targetLocator` is where it is

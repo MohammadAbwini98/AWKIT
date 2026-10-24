@@ -104,6 +104,18 @@
             <dd><code>/visual-intelligence/fusion</code> (frame copy <code>?embed=1</code>, popup <code>?popup=1</code>)</dd>
           </dl>
         </article>
+        <article data-testid="scenario-visual-assertion">
+          <h2><a href="/visual-intelligence/assertion">Visual Assertion Lab</a></h2>
+          <p>A target card redrawn deterministically as its approved look, a restyle, a text change, a wider box, a move or its neighbour's content, plus a hover and focus button, an animated card, a card across the fold, one far below it, duplicates, a hidden card, a card-number field and an on-demand sign-in form.</p>
+          <dl class="scenario-meta">
+            <dt>Expected</dt>
+            <dd>An approved card passes identical; restyle, text and swap fail differs-from-baseline; a wider card fails size-differs; a move, hover or focus, clipping, offscreen, duplicates, hiding, the card-number field and the sign-in form are inconclusive, and the refusals capture nothing.</dd>
+            <dt>Related feature</dt>
+            <dd>Runtime visual assertions, the <code>assertVisual</code> step (Phase N, N6.4).</dd>
+            <dt>Stable URL</dt>
+            <dd><code>/visual-intelligence/assertion</code></dd>
+          </dl>
+        </article>
         <article data-testid="scenario-dom-context">
           <h2><a href="/dom-context-lab">DOM Context Lab</a></h2>
           <p>Frame, popup, SPA-route, virtualized-list and delayed-render contexts, each with a look-alike control where a step must not recover from.</p>

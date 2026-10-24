@@ -1,0 +1,222 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-15-4-n6-runtime-1024",
+    "title": "Phase N N6.4: the assertVisual step, runtime visual assertions through the fourth src/visual edge, the enforcement gate and experimental grants",
+    "objective": "Implement awkit-vra.15.4: a non-retryable assertVisual step (schema, StepRequirements, validator mode check, fragment refusal, random Test Lab exclusion, Designer catalog entry defaulting to observe), the VA-15 stillness capture option, the lazily loaded VisualAssertionStep adapter as the fourth approved src/visual edge (handoff, protected-surface and sensitive refusals before resolution, exact-one visible target, read-only hover and focus, guarded element capture with no context crop, conditions, epoch token, baseline lookup and keyed commitment, the N6.2 policy, the grant read only when asked, memory-only candidates, one 2000 ms deadline), the flag x step mode x build gate in a contract module that never loads src/visual, separate visual-mismatch and visual-unverified classes with onFailure unchanged, packaged enforce steps always failing enforce-unavailable-in-production without reading grants, dev-only signed 30-day grants in VisualBaselineStore, runner and engine wiring with main-process services backed by the safeStorage protector, a mock-site Visual Assertion Lab, and verify:visual-assertion-runtime, verify:visual-assertion-grants, verify:visual-key-protector-live and the updated verify:visual-isolation.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "8e920906",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": true,
+    "protected_login_change": false,
+    "project_state_change": true,
+    "persisted_shape_change": true
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "frontend",
+      "software",
+      "runtime",
+      "qa",
+      "qc",
+      "persistence",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "src/profiles/FlowProfile.ts",
+      "src/validation/StepRequirements.ts",
+      "src/validation/FlowValidator.ts",
+      "src/fragments/FlowFragment.ts",
+      "src/testing/random/NodeCatalog.ts",
+      "src/testing/random/GenerationConstraints.ts",
+      "src/runner/runtime/RetryPolicy.ts",
+      "src/runner/StepExecutor.ts",
+      "src/runner/PlaywrightRunner.ts",
+      "src/runner/ExecutionEngine.ts",
+      "src/runner/visualAssertion/**",
+      "src/visual/internal/captureCore.ts",
+      "app/main/visualAssertion/visualAssertionServices.ts",
+      "app/main/ipc/execution.ipc.ts",
+      "app/renderer/components/workflow/flowNodeCatalog.ts",
+      "app/renderer/components/workflow/flowNodeRegistry.ts",
+      "mock-site/**",
+      "scripts/verify-visual-assertion-runtime.mts",
+      "scripts/verify-visual-assertion-grants.mts",
+      "scripts/verify-visual-key-protector-live.mts",
+      "scripts/verify-visual-isolation.mts",
+      "scripts/verify-flow-fragments.mts",
+      "scripts/verify-mock-site.mjs",
+      "scripts/lib/verifier-classification.ts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "package.json",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/COMMANDS.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/awkit-vra-15-4-n6-runtime-1024.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N6.4-RUNTIME",
+      "description": "The flag x step mode x build matrix through the real executor, baselines, refusals with zero captures, interaction state, VA-15, deadline, cancellation, neutrality, memory-only candidates and enablement pass in real Chromium; the five runtime mutations are observed red.",
+      "evidence_required": [
+        "verify:visual-assertion-runtime",
+        "verify:visual-isolation",
+        "build"
+      ]
+    },
+    {
+      "id": "N6.4-GRANTS",
+      "description": "The 240-cell outcome matrix matches the plan, the packaged build never reads or issues a grant, every bound field, expiry, tampering, keystore loss and reset invalidate, and eight gate mutants are caught.",
+      "evidence_required": [
+        "verify:visual-assertion-grants"
+      ]
+    },
+    {
+      "id": "N6.4-LIVE",
+      "description": "The production safeStorage protector is exercised in the real Electron main process, or the live part is reported BLOCKED.",
+      "evidence_required": [
+        "verify:visual-key-protector-live"
+      ]
+    },
+    {
+      "id": "N6.4-STATE",
+      "description": "awkit-vra.15.4 closed, verifiers classified, dashboard pins updated and Sources agree, pushed to main.",
+      "evidence_required": [
+        "verify:roadmap-dashboard",
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:visual-assertion-runtime",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-assertion-runtime",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "67/0 in real Chromium; mutants R1 (handoff ignored), R2 (no stillness), R3b (late work unbounded and unguarded), R4 (VA-2 retry rule removed, once the safety is explicitly retryable) and R5 (evaluation with the flag off) observed red and reverted; R3 alone is equivalent while every await is bounded; the first duplicate-target run exposed that locator recovery reported target-not-found, so the target is now the raw primary locator with no recovery"
+    },
+    {
+      "id": "verify:visual-assertion-grants",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-assertion-grants",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "43/0: 240-cell matrix, 12 plan cases, grant store lifecycle, 8 gate mutants caught"
+    },
+    {
+      "id": "verify:visual-isolation",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-isolation",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "90/0 (was 71) with exactly four approved edges and 8 new import mutations plus 6 adapter-scan mutations caught"
+    },
+    {
+      "id": "verify:visual-key-protector-live",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-key-protector-live -- --electron-dist C:\\electron-dist",
+      "artifact": null,
+      "result": "BLOCKED",
+      "observed": "the agent shell's command hook refused npm arguments (terminal denial 3 of 3) and Electron cannot launch from the Parallels share without the local runtime copy; the owner runs the command above"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc --noEmit and electron-vite build with the adapter in its own lazy chunk; typecheck:scripts PASS; regressions verify:runner 138/0, verify:validation 163/0, verify:flow-fragments 105/0, verify:flow-node-catalog-parity 45/0, verify:visual-capture 331/0, verify:visual-baseline-store 36/0, -integrity 46/0, -lifecycle 36/0, verify:mock-site 334/334"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "177/177 Sources agree at 33 outstanding / 387 closed of 420 with 363 edges; verifier-classification 351 reconciled; source-hygiene 11/0; verify:b2-protected-capture 39/0"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "runs after the commit that carries this contract"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "implemented",
+    "qa_status": "PASS",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-15-4-n6-runtime-1024:project-state:2026-10-24T16:44:25.272Z",
+        "task": "awkit-vra-15-4-n6-runtime-1024",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-24T16:44:25.272Z",
+        "acquired_at_commit": "8e9209060193d5045603bc34096702412257b1a5",
+        "released_at": "2026-10-24T16:45:37.224Z",
+        "released_reason": "N6.4 awkit-vra.15.4 closed with verifier evidence, exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

@@ -109,6 +109,7 @@ const EXPECTED_SEVERITY: Record<FragmentAuditCode, FragmentAuditSeverity> = {
   edgeEndpointMissing: "blocking",
   terminalStepIncluded: "blocking",
   protectedLoginStep: "blocking",
+  visualAssertionStep: "blocking",
   resolvedSecretValue: "blocking",
   undeclaredInput: "blocking",
   duplicateInputKey: "blocking",
@@ -246,6 +247,15 @@ check("the canonical protected-login set is not empty", PROTECTED_LOGIN_STEP_TYP
 check(
   "an ordinary step is NOT treated as protected login",
   !has(audit(cleanFragment({ nodes: [step("p", "click")], edges: [], inputs: [] })), "protectedLoginStep")
+);
+// N6.4: an approved visual baseline is bound to one flow's step, so a fragment may not carry an assertVisual step.
+check(
+  "an assertVisual step is refused (visualAssertionStep)",
+  has(audit(cleanFragment({ nodes: [step("v", "assertVisual", { locator: { strategy: "testId", value: "card" } } as Partial<FlowStep>)], edges: [], inputs: [] })), "visualAssertionStep")
+);
+check(
+  "an ordinary assertion is NOT treated as a visual assertion",
+  !has(audit(cleanFragment({ nodes: [step("v", "assertVisible", { locator: { strategy: "testId", value: "card" } } as Partial<FlowStep>)], edges: [], inputs: [] })), "visualAssertionStep")
 );
 
 /* ── 4. Secrets — the name travels, a resolved value never does ───────────────────────────────── */

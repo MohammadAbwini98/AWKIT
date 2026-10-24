@@ -53,6 +53,11 @@ export interface VisualCaptureOptions extends ProtectedCallerContext {
   signal?: AbortSignal;
   /** Context crop padding around the element, in CSS px (default 24). 0 omits the context crop. */
   contextPaddingCss?: number;
+  /**
+   * N6 VA-15 capture policy: the one screenshot runs with `animations: "disabled"` and `caret: "hide"`. Off by
+   * default, so every existing caller keeps its bytes. It changes no pointer, focus or scroll.
+   */
+  stillness?: boolean;
 }
 
 /**
@@ -276,9 +281,16 @@ interface ViewportScreenshot {
   decodeMs: number;
 }
 
-async function screenshotViewport(page: Page, budget: Budget, metrics: ViewportMetrics): Promise<ViewportScreenshot> {
+async function screenshotViewport(page: Page, budget: Budget, metrics: ViewportMetrics, stillness = false): Promise<ViewportScreenshot> {
   const shotStarted = performance.now();
-  const bytes = await budget.race(page.screenshot({ type: "png", scale: "device", timeout: Math.max(1, budget.remaining()) }));
+  const bytes = await budget.race(
+    page.screenshot({
+      type: "png",
+      scale: "device",
+      timeout: Math.max(1, budget.remaining()),
+      ...(stillness ? { animations: "disabled" as const, caret: "hide" as const } : {})
+    })
+  );
   const decodeStarted = performance.now();
   const image = decodePng(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
   const decodeMs = performance.now() - decodeStarted;
@@ -414,7 +426,7 @@ export async function captureElementWithSeams(
     const before = await measureElement(handle, budget, !isMainFrame);
     if (isOutsideViewport(before, metrics.cssWidth, metrics.cssHeight)) refuse("TARGET_OFFSCREEN", "the target is outside the viewport");
 
-    const { image, scale } = await screenshotViewport(page, budget, metrics);
+    const { image, scale } = await screenshotViewport(page, budget, metrics, options.stillness === true);
     if (seams?.afterScreenshot) await budget.race(seams.afterScreenshot(page));
     // Protection first: a page that left and came back inside the window must be refused as that, not as a stale target.
     await assertNotProtected(page, budget, seams, "after capture");

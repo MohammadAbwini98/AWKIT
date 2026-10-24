@@ -1,7 +1,18 @@
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import { PlaywrightRunner } from "./PlaywrightRunner";
+import { PlaywrightRunner, type PlaywrightRunnerOptions } from "./PlaywrightRunner";
 import { visualDiagnosisMode } from "./visualDiagnosis/visualDiagnosisContract";
+import { visualAssertionFlag, type VisualAssertionAppMode } from "./visualAssertion/visualAssertionContract";
+import { visualAssertionCandidates } from "./visualAssertion/visualAssertionCandidates";
+import type { VisualBaselineStore } from "./visualAssertion/VisualBaselineStore";
+
+/** N6.4: what the main process provides for runtime visual assertions. */
+export interface VisualAssertionServices {
+  appMode: VisualAssertionAppMode;
+  appVersion: string;
+  /** The store for the current flows folder; undefined when it cannot be built (nothing is then evaluated). */
+  store: () => VisualBaselineStore | undefined;
+}
 import { VISUAL_DIAGNOSIS_MAX_RECORDS, sanitizeVisualDiagnosisRecords, type VisualDiagnosisRecord } from "./visualDiagnosis/visualDiagnosisRecord";
 import { ManualHandoffController } from "./ManualHandoffController";
 import {
@@ -565,6 +576,29 @@ export class ExecutionEngine {
 
   public setSecretResolver(resolver: (name: string) => string | undefined): void {
     this.secretResolver = resolver;
+  }
+
+  /**
+   * N6.4: injected by the main process, which owns the build mode, the app version and the `safeStorage`-protected
+   * visual baseline store. Without it (tsx verifiers) every `assertVisual` step is decided as the packaged build with
+   * nothing evaluated: observe steps pass, enforce steps fail `enforce-unavailable-in-production`.
+   */
+  private visualAssertionServices?: VisualAssertionServices;
+
+  public setVisualAssertionServices(services: VisualAssertionServices): void {
+    this.visualAssertionServices = services;
+  }
+
+  private visualAssertionOptions(): PlaywrightRunnerOptions["visualAssertions"] {
+    const services = this.visualAssertionServices;
+    return {
+      appMode: services?.appMode ?? "packaged",
+      flag: visualAssertionFlag(),
+      adapter: () => {
+        const store = services?.store();
+        return store && services ? { store, appVersion: services.appVersion, candidates: visualAssertionCandidates } : undefined;
+      }
+    };
   }
 
   /**
@@ -1642,6 +1676,9 @@ export class ExecutionEngine {
       // N5.3 (VD-7): the advisory visual failure diagnosis is off unless AWKIT_VISUAL_DIAGNOSIS=on, independent of
       // AWKIT_VISUAL_FUSION. It reads the same reference folder and never writes it.
       visualDiagnosisRoot: visualDiagnosisMode() === "on" ? join(dirs.root, "visual-references") : undefined,
+      // N6.4 (VA-9): AWKIT_VISUAL_ASSERTIONS=off|observe|enforce (default off), the authored step mode and the build
+      // decide each assertVisual step independently; the packaged build never enforces and never reads a grant.
+      visualAssertions: this.visualAssertionOptions(),
       // N5.4 (VD-5): collected for this instance's report block only; nothing in the run reads it back.
       onVisualDiagnosis: (record) => {
         if (visualDiagnoses.length < VISUAL_DIAGNOSIS_MAX_RECORDS) visualDiagnoses.push(record);

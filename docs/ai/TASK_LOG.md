@@ -1,5 +1,39 @@
 # TASK_LOG
 
+## 2026-10-24 — Phase N: N6.4 runtime visual assertions (Claude)
+
+- **Scope:** contract `awkit-vra-15-4-n6-runtime-1024` (Risk 2). CodeCraft: not used.
+- **Changed:**
+  - the step, in `FlowProfile`, `StepRequirements`, `FlowValidator` (mode check), `FlowFragment` (refusal),
+    `NodeCatalog` and `GenerationConstraints` (`neverGenerated`), `RetryPolicy` (VA-2), and the renderer catalog and
+    registry;
+  - the `captureCore` `stillness` option;
+  - the new modules in `src/runner/visualAssertion/`: `visualAssertionContract.ts`, `visualAssertionCandidates.ts`
+    and `VisualAssertionStep.ts`;
+  - grants in `VisualBaselineStore`;
+  - the wiring in `StepExecutor`, `PlaywrightRunner` and `ExecutionEngine`, plus
+    `app/main/visualAssertion/visualAssertionServices.ts` and `execution.ipc.ts`;
+  - the mock-site `/visual-intelligence/assertion` page;
+  - three new verifiers, and updates to `verify:visual-isolation`, `verify:flow-fragments` and `verify:mock-site`.
+- **Found and fixed while verifying:**
+  - Resolving through `LocatorFactory.resolve` reported duplicate targets as `target-not-found`, and it would let
+    locator recovery choose another element. The target is now the raw primary locator, read only.
+  - The `node:os` import moved out of the adapter, which the isolation scan forbids it.
+- **Mutation evidence (temporary edits, each reverted):**
+  - R1, R2, R4 and R5 were caught.
+  - R3, which removes only the late-candidate guard, is equivalent while every await is bounded, so R3b removes the
+    abort race as well; R3b was caught.
+  - R4 was first masked by the conservative safety default; the step under test now declares retryable safety.
+- **Checks:**
+  - runtime 67/0, grants 43/0, isolation 90/0;
+  - runner 138/0, validation 163/0, fragments 105/0, catalog parity 45/0, capture 331/0;
+  - baseline store 36/0, integrity 46/0, lifecycle 36/0;
+  - mock-site 334/334, b2-protected-capture 39/0;
+  - build and typecheck:scripts PASS, classification 351.
+- **BLOCKED:** the live `safeStorage` check. The command hook refused npm arguments (terminal denial) and Electron
+  needs the local runtime copy.
+- **Tracking:** `awkit-vra.15.4` closed; pins 33/387 of 420.
+
 ## 2026-10-24 — Phase N: N6.9 import authorization (Claude)
 
 - **Scope:** contract `awkit-vra-15-9-n6-import-1024` (Risk 2). CodeCraft: not used.
