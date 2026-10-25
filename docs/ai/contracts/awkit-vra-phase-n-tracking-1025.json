@@ -1,0 +1,150 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-phase-n-tracking-1025",
+    "title": "Phase N tracking: register AWKIT-SEC-007 and AWKIT-SEC-008, add canonical N3 edges to N8 and N9, file N10, record N7 decisions for ratification and N8-N10 planning",
+    "objective": "Under a project-state lease: register the two security defects in Beads with their evidence; add awkit-vra.10 and awkit-vra.11 blocks-on canonical N3 awkit-vra.4 as already done for N7 (legacy awkit-vra.3 edges cannot be removed by the agent: no dep-removal verb); file N10 Optional Local Vision Model as a planned item; keep N0-N6 closed, Phase N in progress and awkit-vra.16 open; reconcile the dashboard pins and confirm Sources agree.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "f6de34c",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "qa",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/DECISIONS.md",
+      "docs/testing/comprehensive-validation/DEFECTS.md",
+      "docs/ai/contracts/awkit-vra-phase-n-tracking-1025.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "PHASE-N-TRACKING",
+      "description": "Security defects registered, canonical N3 edges present for N7-N9, N10 filed as planned, N0-N6 unchanged, Phase N in progress, awkit-vra.16 open, Sources agree.",
+      "evidence_required": [
+        "bd-tracking",
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "bd-tracking",
+      "type": "inspection",
+      "required": true,
+      "command": "bd create and bd dep add under the project-state lease",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "awkit-npwf (SEC-007) and awkit-1l08 (SEC-008) created and closed, awkit-vra.10 and .11 blocks-on awkit-vra.4 added, awkit-vra.17 N10 filed with edges to .12 and .4, notes appended to .9 .10 .11; legacy awkit-vra.3 edges not removable (no guard verb, owner action)"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-phase-n-tracking-1025:project-state:2026-10-25T17:57:40.158Z",
+        "task": "awkit-vra-phase-n-tracking-1025",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-25T17:57:40.158Z",
+        "acquired_at_commit": "f6de34cc2754816027a7f15e7d08c07c79a93f7f",
+        "released_at": "2026-10-25T17:58:51.898Z",
+        "released_reason": "SEC-007 awkit-npwf and SEC-008 awkit-1l08 registered and closed, canonical N3 edges for N8 and N9, N10 filed as awkit-vra.17 with N2 and N3 edges, notes appended, legacy awkit-vra.3 edges not removable by the agent",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-vra-phase-n-tracking-1025:project-state:2026-10-25T18:02:31.709Z",
+        "task": "awkit-vra-phase-n-tracking-1025",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-25T18:02:31.709Z",
+        "acquired_at_commit": "cc0ff5101d6f98c5414efd698e4694003d828bd4",
+        "released_at": "2026-10-25T18:02:38.880Z",
+        "released_reason": "Beads exported after the Phase N tracking changes",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

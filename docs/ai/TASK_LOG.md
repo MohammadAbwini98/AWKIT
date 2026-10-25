@@ -1,5 +1,27 @@
 # TASK_LOG
 
+## 2026-10-25 — Phase N: SEC-007 remediation, packaging attempt, tracker reconciliation, N7-N10 planning (Claude)
+
+- **Packaging:**
+  - The release lease permits `npm run package:portable` (guard `isReleaseCommand`).
+  - The run passed the offline preflight, the memory preflight, the build and the Zvec staging, then FAILED in
+    `prepare-ai-native-host`: no Visual Studio for the app-local MSVC runtime (`awkit-i6ot`). Environment BLOCKED.
+  - No artifact or manifest was written; 0.1.53 is preserved.
+  - The packaged gates are NOT RUN.
+- **AWKIT-SEC-007** (`cc0ff51`, under a security lease and contract):
+  - sink digest, migration v6 backfill, `auditSessionRef.ts`;
+  - `verify:audit-session-digest` 21/0 (mutants red), `verify:auth` 79/0, `verify:security` 61/0, build PASS;
+  - SECURITY.md section added.
+- **`verify:auth-gui`:** the stale dark-token assertion was corrected to compare against
+  `deriveAccentTokensFor(DEFAULT_ACCENT_SETTINGS, "dark")` plus the documented constant loop green. The runner moved
+  to tsx; 33/33.
+- **Beads** (project-state lease, contract `awkit-vra-phase-n-tracking-1025`):
+  - SEC-007 `awkit-npwf` and SEC-008 `awkit-1l08` created and closed;
+  - edges `.10` and `.11` to `.4` added;
+  - N10 filed as `awkit-vra.17`, with edges to `.12` and `.4`;
+  - notes appended to `.9`, `.10` and `.11`.
+- **Plans:** N7 OC-1 and OC-2 amended, and the feasibility proof N7.1a added; new `N8-N10-planning.md`.
+
 ## 2026-10-25 — Phase N: N6 finalized, sign-out security fix, N7 plan (Claude)
 
 - **Reconciled:** `50f197a`, `2ef692f` and `e5cd7c4` are on `origin/main`. The L12.27 contract is preserved

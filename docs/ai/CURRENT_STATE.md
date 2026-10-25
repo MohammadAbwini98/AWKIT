@@ -1,6 +1,35 @@
 # CURRENT_STATE
 
-## Phase N: N6 closed in the tracker, sign-out fix, N7 plan proposed (2026-10-25, latest)
+## Phase N: AWKIT-SEC-007 fixed, N6 packaging blocked by the environment, N7 ready for ratification (2026-10-25, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N stays IN PROGRESS.**
+N0–N6 are closed, and `awkit-vra.16` is open.
+
+- **N6 release acceptance: NOT accepted.**
+  - Packaging is BLOCKED by the environment. The authorized route works: a release lease (contract
+    `awkit-vra-15-n6-release-1025`) permits `npm run package:portable`.
+  - The pipeline then stops at `prepare-ai-native-host`. The owner's `awkit-i6ot` remedy needs the Visual Studio
+    2022 MSVC v143 redistributable for app-local DLLs, and this host has no Visual Studio (`vswhere` absent).
+  - No 0.1.54 artifact or manifest was produced, and 0.1.53 is untouched.
+  - Every packaged gate is NOT RUN against N6 code: `verify:visual-assertion-packaged`,
+    `verify:packaged-walkthrough`, `verify:packaged-licensing` and `verify:packaged-runtime`.
+  - The governed `release-portable.ps1` also refuses any untracked file (`--untracked-files=all`), which the
+    preserved L12.27 contract triggers.
+- **AWKIT-SEC-007 resolved** in `cc0ff51` (Beads `awkit-npwf`): audit rows hold the `sref1` one-way digest, and
+  migration v6 rewrote older rows. `verify:audit-session-digest` 21/0 with 4 mutants red; `verify:auth` 79/0;
+  `verify:security` 61/0; SECURITY.md updated.
+- **AWKIT-SEC-008:** registered and closed as `awkit-1l08`. `verify:auth-gui` 33/33 after its stale dark-token
+  assertion was corrected to the canonical accent model (`src/theme/accentColor.ts`).
+- **Tracker:**
+  - N8 `awkit-vra.10` and N9 `awkit-vra.11` gained the canonical N3 `awkit-vra.4` edge.
+  - N10 was filed as `awkit-vra.17` (blocked by `.12` and `.4`).
+  - The legacy `awkit-vra.3` edges on `.9`, `.10` and `.11` stay: the guard has no removal verb, so their removal
+    is an owner action.
+- **Plans:**
+  - N7 OC-1 and OC-2 were amended as recommended, and OC-0 to OC-12 are ready for ratification (not ratified).
+  - New `N8-N10-planning.md` (NR, NS and NV decisions proposed). Planning only.
+
+## Phase N: N6 closed in the tracker, sign-out fix, N7 plan proposed (2026-10-25)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N stays IN PROGRESS:
 N7 to N10 remain.** `awkit-vra.16` (production visual enforcement) stays open.

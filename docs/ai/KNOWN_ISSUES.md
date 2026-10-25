@@ -15,17 +15,17 @@
   in a packaged build is NOT RUN until a packaged smoke test exists.
 - **A second login outlived the UI's Sign out: RESOLVED in `cc91e45` (AWKIT-SEC-008).** Sign out now clears the
   window binding and ends a second session bound from that window.
-- **Audit records carry the raw `sessionRef` (AWKIT-SEC-007, OPEN, production-release gate).** `listAudit` does not
-  return it, so the exposure is at rest. The fix is in `src/security` (Risk-3); see DEFECTS.md.
-- **`verify:auth-gui` has a stale dark-token assertion (pre-existing, unrelated to N6).** It expects fixed blues for
-  `--awkit-edge`, `--awkit-edge-strong`, `--awkit-connector-default` and `--awkit-connector-selected`, and blue for
-  `--awkit-connector-loop`. The tokens are now accent-derived, and the loop connector is the documented constant green
-  `#34d399`. 32/33 on 2026-10-25. Update the assertion from the accent design, not from the current values.
-- **Agent packaging and release are BLOCKED by the lease guard.**
-  - `npm run package:portable` is an `unsupported-command` terminal denial for unleased work.
-  - `release-portable.ps1` requires a clean tree, which the preserved untracked L12.27 contract prevents.
-  - Shell file copies (to preserve a `dist` artifact) are refused.
-  - The owner packages.
+- **Audit records carry the raw `sessionRef`: RESOLVED in `cc0ff51` (AWKIT-SEC-007).**
+- **`verify:auth-gui` dark-token assertion: RESOLVED 2026-10-25.** It now compares against the canonical accent
+  model's derivation; 33/33.
+- **Packaging on this host is BLOCKED by the environment (OPEN).**
+  - `npm run package:portable` runs under a release lease (unleased work is refused by the guard).
+  - The run stops in `prepare-ai-native-host` because no Visual Studio 2022 MSVC v143 redistributable exists for
+    the app-local runtime DLLs (`awkit-i6ot`).
+  - `release-portable.ps1` also refuses any untracked file. A local `.git/info/exclude` entry for the L12.27 contract
+    lets it pass without touching the file.
+  - Shell copies are refused by the guard; a version bump is the non-destructive way to avoid overwriting an
+    artifact.
 - **The shared GUI harness now picks `C:\electron-dist` automatically** when it matches the installed Electron
   version (`scripts/lib/gui-verify-harness.mjs`). The packaged executable in `dist\win-unpacked` on the Parallels
   share may still hit the GPU error_code=18 launch failure.

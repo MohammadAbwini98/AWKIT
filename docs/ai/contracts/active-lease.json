@@ -1,24 +1,60 @@
 {
-  "task": "awkit-vra-15-n6-closure-1025",
-  "contract_path": "docs/ai/contracts/awkit-vra-15-n6-closure-1025.json",
+  "task": "awkit-vra-phase-n-tracking-1025",
+  "contract_path": "docs/ai/contracts/awkit-vra-phase-n-tracking-1025.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-25T16:47:17.218Z",
-  "acquired_at_commit": "cc91e45200b9999054878e884bbc6c303741c644",
+  "acquired_at": "2026-10-25T18:02:31.709Z",
+  "acquired_at_commit": "cc0ff5101d6f98c5414efd698e4694003d828bd4",
   "baseline_dirty": [
     ".beads/interactions.jsonl",
     ".beads/issues.jsonl",
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/DECISIONS.md",
+    "docs/ai/HANDOFF.md",
+    "docs/ai/KNOWN_ISSUES.md",
+    "docs/ai/SECURITY.md",
+    "docs/ai/TASK_LOG.md",
+    "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-vra-15-n6-closure-1025.json"
+    "docs/ai/contracts/awkit-sec-007-audit-session-digest-1025.json",
+    "docs/ai/contracts/awkit-vra-15-n6-release-1025.json",
+    "docs/ai/contracts/awkit-vra-phase-n-tracking-1025.json",
+    "docs/plans/ai-upgrade-v5/N7-ocr-text-in-image.md",
+    "docs/plans/ai-upgrade-v5/N8-N10-planning.md",
+    "docs/plans/ai-upgrade-v5/ROADMAP.md",
+    "docs/testing/comprehensive-validation/DEFECTS.md",
+    "package.json",
+    "scripts/lib/verifier-classification.ts",
+    "scripts/verify-audit-session-digest.mts",
+    "scripts/verify-auth-gui.mjs",
+    "src/roadmap/ImplementationRoadmap.ts"
   ],
   "baseline_dirty_fingerprints": {
-    ".beads/interactions.jsonl": "8546241c2d6bc0681962db7c53713ba2b14b7ed180fbeb4b253ab9eadce62708",
-    ".beads/issues.jsonl": "6b6631995d4727913b739285a399d7b4c54609282b4f226bea237db195c41a63",
+    ".beads/interactions.jsonl": "08c6fa7eb92d2ef52de49eb47cf7b77f98334e63dc2f24323f389e1a7c7cb02c",
+    ".beads/issues.jsonl": "851ee2945536c8ca5f01bfd33ad1a928211f5f7643b2e81228d9d42d77fe990b",
+    "docs/ai/CURRENT_STATE.md": "0ba194c64279ae65d9e3baa14936cb8d1dc67e542e61aeb38254a705ab2038dd",
+    "docs/ai/DECISIONS.md": "10257535f90c28f157385e8ca7ce891d40fd94dc7c110a326a23d4278473465b",
+    "docs/ai/HANDOFF.md": "27a3022a34a6845923681d992bd90712dde593215b54dad2540ee73fe84bb2a5",
+    "docs/ai/KNOWN_ISSUES.md": "187fd2854b4e591f73ba72fd6252be8e858c42cd81a217a76f3956122b04f5c8",
+    "docs/ai/SECURITY.md": "a48ee2b4cc228b4a13e8453976b7bf4e496247e6ba671c83096a468afaabae43",
+    "docs/ai/TASK_LOG.md": "d3f37913ac979c2624e02df03f72c586b9efbb8383902d5674efbad536028b9a",
+    "docs/ai/contracts/active-lease.json": "3afa0f6c7989032407d4124f1f3e51abaa1cfb321ea56ff73fdc3dcf28514580",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-vra-15-n6-closure-1025.json": "ca2422584af3458e0d6407d31440ce308da2b0aaa4053b84d693dd13d3ae6e83"
+    "docs/ai/contracts/awkit-sec-007-audit-session-digest-1025.json": "c5bda4ec16efec4bb498dd0289321e401884840ecef09c55f859f63786ec16d6",
+    "docs/ai/contracts/awkit-vra-15-n6-release-1025.json": "6d22492ef8dc9618f7a2d746fe7dedd278baa9bc32353b13c22154dc1fddef54",
+    "docs/ai/contracts/awkit-vra-phase-n-tracking-1025.json": "0ea5056150001ce6e0b364fe7d131c03b75f43a749d1e06ce14f691a698c5773",
+    "docs/plans/ai-upgrade-v5/N7-ocr-text-in-image.md": "143b510df69e4c5274f25d62bb2892a6d2c5fa2e87cbe2ad55ae375583097290",
+    "docs/plans/ai-upgrade-v5/N8-N10-planning.md": "1e79ba0b1a3bb93868e749f4088321f8cd24b9d919ce57e83870e5d31ef42ec9",
+    "docs/plans/ai-upgrade-v5/ROADMAP.md": "61a396e25b103583700b7efd61b949c1f1ec88f4146b4be9a9e5b6c7ed0c17f1",
+    "docs/testing/comprehensive-validation/DEFECTS.md": "8b704710cc91f020ea529d751870b49c6430c6ea2c98c6e359b1d1fd1e477c71",
+    "package.json": "bc65f76651333cf0d8d8da07241bea0ee595829220e955bc69a1cfb8061aba07",
+    "scripts/lib/verifier-classification.ts": "937e8df3297645291b7f9444c366133bce66647e09a1736995312561affc0f80",
+    "scripts/verify-audit-session-digest.mts": "8220e9a0d8af37a0a392cadf2de116bc0cd913ca879960969edba30c4cecc982",
+    "scripts/verify-auth-gui.mjs": "189ef245a710c49beaea00723da84b128512d11aaf1df4b88fcb802e9131eefa",
+    "src/roadmap/ImplementationRoadmap.ts": "5c90dcbabf5b820ef50424fea2325f15f75bcd5dd3609d92e1774079701a251f"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -28,12 +64,12 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.59|manifest.json:1785274864439.5393",
-    "build": "dir(9):command-authorization-build.log:1791655824280.519|command-authorization-graphify.log:1791656102774.0833|command-authorization-roadmap.log:1791655956531.24|command-authorization-routing.log:1791655726727.7021|command-authorization-task-gate.json:1791655978836.031|lease-status-build.log:1791656486702.492|lease-status-roadmap.log:1791656634670.6675|lease-status-routing.log:1791656586249.2314|native-hosts:1791906584967.718"
+    "build": "dir(9):command-authorization-build.log:1791655824280.519|command-authorization-graphify.log:1791656102774.0833|command-authorization-roadmap.log:1791655956531.24|command-authorization-routing.log:1791655726727.7021|command-authorization-task-gate.json:1791655978836.031|lease-status-build.log:1791656486702.492|lease-status-roadmap.log:1791656634670.6675|lease-status-routing.log:1791656586249.2314|native-hosts:1792950540185.39"
   },
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-25T16:49:03.088Z",
-  "released_reason": "N6 closed: awkit-vra.15.5 15.7 and epic 15 closed (15.8 already closed), N7 dep on awkit-vra.4 added, legacy dep removal and notes refused by the guard",
-  "archived_at": "2026-10-25T16:49:03.092Z"
+  "released_at": "2026-10-25T18:02:38.880Z",
+  "released_reason": "Beads exported after the Phase N tracking changes",
+  "archived_at": "2026-10-25T18:02:38.883Z"
 }

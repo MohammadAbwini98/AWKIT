@@ -1,7 +1,15 @@
 # N7 — Offline OCR / Text-in-Image (technical plan)
 
-- **Status:** PLANNED, 2026-10-25. Decisions OC-0 to OC-12 are **proposed, not ratified**. No implementation is
-  authorized until the owner ratifies them (N7.1).
+- **Status:** PLANNED, 2026-10-25. Decisions OC-0 to OC-12 are **proposed, not ratified**. OC-1 and OC-2 were
+  amended the same day as the owner recommended: a feasibility proof before the engine is fixed, and
+  `eng.traineddata` classified as an optional, fixed-function trained recognition model. The set is ready for
+  ratification. No implementation, dependency or asset is authorized until the owner ratifies it (N7.1).
+- **Retained constraints:**
+  - DOM-first targeting; observe-only evidence with no action selection;
+  - strict protected and sensitive refusal; no captured or recognized text persisted;
+  - fail-closed ambiguity; English-only first qualification;
+  - no cloud, CDN, runtime download or NVIDIA requirement; CPU on the bundled Windows x64 runtime;
+  - honest, measured accuracy and performance.
 - **Beads:** `awkit-vra.9` (P3, open).
   - Its dependency on the canonical N3 `awkit-vra.4` (closed) was added on 2026-10-25.
   - The legacy edge to `awkit-vra.3` is still present. Its removal was refused by the agent lease guard and is an owner
@@ -203,8 +211,8 @@ Runner (main process) — StepExecutor
 | ID | Decision | Recommendation |
 |---|---|---|
 | OC-0 | N7 scope: an observe-only `assertImageText` plus shadow N2/N5 signals; no enforcement, no text-based targeting, no full-page OCR | Accept |
-| OC-1 | Engine: Tesseract 5 WASM (`tesseract.js-core`, pinned) in a utility-process host | Accept option A |
-| OC-2 | The bundled Tesseract LSTM recognition data is engine data, not a "model" under the no-model rule; it is optional, offline, pinned and checksummed | Accept (owner judgement required) |
+| OC-1 (amended 2026-10-25) | Engine family: offline Tesseract 5. The integration is selected only after the N7.1a feasibility proof (§ Feasibility proof) shows four things: compatible pinned versions; an isolated runtime (utility process); local language assets with zero network requests; and cancellation and package compatibility. The proof compares the supported `tesseract.js` wrapper with direct `tesseract.js-core` integration, and the winner, with its measured evidence, is recorded before N7.4 | Accept as amended |
+| OC-2 (amended 2026-10-25) | `eng.traineddata` is correctly a **trained OCR recognition model** (Tesseract's LSTM weights). It is an optional, fixed-function, offline inference dependency: pinned, checksummed and bundled, never downloaded, never generative, and never required. The automation platform runs unchanged when it is absent or disabled. This is NOT the "mandatory AI model" the Phase N rules forbid | Accept as amended |
 | OC-3 | Languages: English only at first; adding more needs a new decision and its own calibration | Accept |
 | OC-4 | A fifth `src/visual` edge (`src/runner/ocr/OcrStep.ts`), lazily loaded, and the isolation verifier moved to five | Accept |
 | OC-5 | New step type `assertImageText` (an unknown step type fails closed; an existing assertion type would fall through to a text check) | Accept |
@@ -216,11 +224,30 @@ Runner (main process) — StepExecutor
 | OC-11 | Enforcing OCR assertions are a separate future milestone (like `awkit-vra.16`) | Accept |
 | OC-12 | Packaging: assets in `resources/ocr/` in the signed manifest; `validate:offline` and the packaged verifier must prove no network and no download | Accept |
 
+## Feasibility proof (N7.1a, required by amended OC-1)
+
+A small spike kept in `scripts/` as reproducible evidence (no product wiring, no flag, nothing shipped) that answers,
+with measured evidence:
+
+| Question | Pass condition |
+|---|---|
+| Pinned versions | One `tesseract.js` (wrapper) and one `tesseract.js-core` version run on Node in an Electron 33 `utilityProcess`, x64, with integrity hashes recorded |
+| Isolated runtime | Recognition runs in the utility process only; a crash or hang there leaves the main process serving IPC |
+| Local assets | Core WASM, worker script and `eng.traineddata` load from a local folder; the wrapper's remote language URL and IndexedDB cache are disabled; a request interceptor and an offline host see **zero** network requests, including first use |
+| Cancellation | An abort mid-recognition ends the job; no result arrives after the abort; the next job succeeds |
+| Package compatibility | The assets survive `electron-builder` ASAR/unpack rules and the signed dependency manifest; size within the OC-9 budget |
+| Wrapper vs core | Compare API surface, worker model, cancellation support and network defaults; pick the one that meets every row with the least code |
+| CPU only | Runs on CPU with no GPU or NVIDIA requirement; WASM SIMD flavor fixed and recorded |
+
+**Outcome:** a recorded choice (wrapper or core) with its evidence, or a recorded failure that returns OC-1 to the
+owner. Nothing in the product changes in N7.1a.
+
 ## Work breakdown (filed after ratification)
 
 | Item | Content | Gate |
 |---|---|---|
-| N7.1 | Ratify OC-0 to OC-12 | Owner decision recorded in DECISIONS |
+| N7.1 | Ratify OC-0 to OC-12 (OC-1 and OC-2 as amended 2026-10-25) | Owner decision recorded in DECISIONS |
+| N7.1a | Feasibility proof (§ above): wrapper vs core, pinned versions, isolation, zero network, cancellation, packaging | Recorded engine choice with evidence |
 | N7.2 | Pure `decideTextAssertion` (normalize, compare, confidence and look-alike gates) and preprocessing, in `src/visual/ocr` with no I/O | `verify:ocr-decision` with mutants |
 | N7.3 | Packaging: pinned `tesseract.js-core` and `eng` data in `resources/ocr/`, manifest entries, offline validation, a dependency review | `validate:offline -Strict`, `verify:ocr-assets` |
 | N7.4 | OCR utility host and `OcrUtilityHostManager` (lazy spawn, deadline, cancel, idle shutdown, restarts, heap cap, no network) | `verify:ocr-host` (crash, hang, abort, memory, no-network) |

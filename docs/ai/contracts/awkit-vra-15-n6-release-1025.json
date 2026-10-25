@@ -1,0 +1,129 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-15-n6-release-1025",
+    "title": "N6 release acceptance: package portable 0.1.54 through the governed pipeline and verify the packaged payload",
+    "objective": "Produce dist/SpecterStudio 0.1.54.exe with npm run package:portable under a release lease (the version bump 32d2f18 is already committed, so the 0.1.53 artifact is preserved), commit only the signed dependency-manifest pair as release-portable.ps1 does, then run the packaged N6, walkthrough, runtime, licensing and offline gates against the exact payload, recording BLOCKED for license-dependent gates without an authorized issuer key.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "f6de34c",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      "resources/dependency-manifest.json",
+      "resources/dependency-manifest.sig",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/contracts/awkit-vra-15-n6-release-1025.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "release",
+      "allowed_paths": [
+        "resources/dependency-manifest.json",
+        "resources/dependency-manifest.sig"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N6-RELEASE",
+      "description": "The 0.1.54 portable package is built by the governed pipeline without overwriting 0.1.53, and the packaged N6 gates run against it; license-dependent gates are BLOCKED, never passed, without an authorized issuer key.",
+      "evidence_required": [
+        "package:portable",
+        "verify:visual-assertion-packaged"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "package:portable",
+      "type": "build",
+      "required": true,
+      "command": "npm run package:portable",
+      "artifact": "dist/SpecterStudio 0.1.54.exe",
+      "result": "BLOCKED",
+      "observed": "ran under the release lease: offline preflight, memory preflight, build and Zvec staging passed, then prepare-ai-native-host failed because no Visual Studio 2022 MSVC v143 redistributable exists for the app-local runtime DLLs (vswhere absent, awkit-i6ot remedy); no artifact or manifest written, 0.1.53 untouched"
+    },
+    {
+      "id": "verify:visual-assertion-packaged",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-assertion-packaged",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "no current packaged payload: packaging BLOCKED by the environment; the existing dist/win-unpacked is from 2026-10-13 and the verifier refuses it as stale"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-15-n6-release-1025:release:2026-10-25T17:47:26.001Z",
+        "task": "awkit-vra-15-n6-release-1025",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig"
+        ],
+        "acquired_at": "2026-10-25T17:47:26.001Z",
+        "acquired_at_commit": "f6de34cc2754816027a7f15e7d08c07c79a93f7f",
+        "released_at": "2026-10-25T17:49:16.873Z",
+        "released_reason": "package:portable BLOCKED by environment: prepare-ai-native-host needs Visual Studio 2022 MSVC v143 redist for app-local DLLs, vswhere absent (awkit-i6ot remedy), no manifest written",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

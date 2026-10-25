@@ -1,6 +1,27 @@
 # DECISIONS
 
-### 2026-10-25 (latest) — N6 closed observe-only; Sign out ends window authority; N7 decisions proposed
+### 2026-10-25 (latest) — Audit session digest; canonical accent assertion; N7 amendments proposed; N10 filed
+
+- **AWKIT-SEC-007.** Audit rows hold `sref1:` plus 32 hex of SHA-256 over the session reference. It correlates and
+  cannot be reversed: the reference is 256 random bits.
+  - It is applied at the single sink, and migration v6 rewrites older rows.
+  - The migration framework gains one closed, named backfill step (`backfill: "audit-session-digest"`) rather than a
+    general callback.
+  - Purging the column was rejected because it would lose session correlation in historical audits.
+- **GUI token assertions follow the canonical accent model.** A GUI verifier asserting accent-derived tokens
+  computes its expectation from `src/theme/accentColor.ts` (default accent). The constant semantic loop green
+  (`#34d399` dark) stays a literal, as FEATURES documents. Stylesheet fallbacks are never the expectation for tokens
+  the model overrides.
+- **Packaging route.** Agent packaging runs `npm run package:portable` under a release lease, after a separate
+  version-bump commit, so an existing artifact is never overwritten. The signed manifest pair is committed under the
+  same lease, mirroring `release-portable.ps1`.
+- **Phase N tracking.** N8 and N9 depend on the canonical N3 `awkit-vra.4`, as N7 does. N10 is filed as
+  `awkit-vra.17`, blocked by N2 and N3. The legacy `awkit-vra.3` edges await an owner removal.
+- **N7 OC-1 and OC-2 amended as the owner recommended.** OC-1 requires a feasibility proof (wrapper vs core) before
+  the engine is fixed. OC-2 classifies `eng.traineddata` as an optional, fixed-function trained recognition model.
+  Both are still PROPOSED until the owner ratifies the set.
+
+### 2026-10-25 — N6 closed observe-only; Sign out ends window authority; N7 decisions proposed
 
 - **N6 closure.** N6 is closed in the tracker with observe-only visual assertions in packaged production and
   experimental enforcement only in the non-packaged acceptance build. Production qualification and enforcement stay

@@ -1,6 +1,34 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-25, latest) — Phase N: N6 closed in the tracker; owner packaging gate; N7 awaits ratification
+## HANDOFF (2026-10-25, latest) — Phase N: SEC-007 fixed; packaging blocked by Visual Studio; N7 ready to ratify
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Owner actions:**
+  1. **Packaging prerequisite.** Install a licensed Visual Studio 2022 (Community, Professional or Enterprise) with
+     "MSVC v143 build tools" and the "C++ 2022 Redistributable Update" (`awkit-i6ot`). Then, under a release lease
+     (the contract `awkit-vra-15-n6-release-1025` is reusable), run `npm run package:portable`, then:
+
+     ```
+     npm run verify:visual-assertion-packaged
+     ```
+
+     Also run `verify:packaged-walkthrough`, `verify:packaged-licensing` and `verify:packaged-runtime`, with
+     `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` set for the licensed runs.
+  2. **Legacy edges.** Remove them (the guard has no removal verb):
+
+     ```
+     bd dep remove awkit-vra.9 awkit-vra.3
+     ```
+
+     Do the same for `awkit-vra.10` and `awkit-vra.11`.
+  3. **N7 ratification.** Ratify, amend or reject OC-0 to OC-12 (OC-1 and OC-2 as amended).
+- **Optional:** add the L12.27 contract path to `.git/info/exclude` locally, so `release-portable.ps1` accepts the
+  tree without touching the file.
+- **Next after ratification:** N7.1a, the feasibility proof.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-25) — Phase N: N6 closed in the tracker; owner packaging gate; N7 awaits ratification
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
