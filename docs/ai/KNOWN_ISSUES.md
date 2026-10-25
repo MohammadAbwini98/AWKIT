@@ -26,6 +26,19 @@
     lets it pass without touching the file.
   - Shell copies are refused by the guard; a version bump is the non-destructive way to avoid overwriting an
     artifact.
+  - **Diagnose first:**
+
+    ```
+    npm run verify:packaging-host
+    ```
+
+    It is read-only and reports each prerequisite with its remedy. On this host:
+    - H4 and H5 are BLOCKED: no Visual Studio 2022, so no app-local MSVC runtime.
+    - The host is native ARM64 running x64 Node under emulation, and no recorded release has been packaged on ARM64.
+    - Its H6 drift guard fails if `scripts/lib/msvc-redist-requirements.mjs` stops matching
+      `prepare-ai-native-host.mjs`.
+  - The clearer failure text inside `prepare-ai-native-host.mjs` itself is BLOCKED: the path is protected and the
+    edit was a terminal lease denial.
 - **The shared GUI harness now picks `C:\electron-dist` automatically** when it matches the installed Electron
   version (`scripts/lib/gui-verify-harness.mjs`). The packaged executable in `dist\win-unpacked` on the Parallels
   share may still hit the GPU error_code=18 launch failure.

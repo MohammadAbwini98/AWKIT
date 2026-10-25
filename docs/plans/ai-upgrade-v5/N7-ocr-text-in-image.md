@@ -1,9 +1,16 @@
 # N7 — Offline OCR / Text-in-Image (technical plan)
 
-- **Status:** PLANNED, 2026-10-25. Decisions OC-0 to OC-12 are **proposed, not ratified**. OC-1 and OC-2 were
-  amended the same day as the owner recommended: a feasibility proof before the engine is fixed, and
-  `eng.traineddata` classified as an optional, fixed-function trained recognition model. The set is ready for
-  ratification. No implementation, dependency or asset is authorized until the owner ratifies it (N7.1).
+- **Status:** PLANNED, 2026-10-25. Decisions OC-0 to OC-12 are **proposed, not ratified**.
+  - **OC-1 and OC-2** were amended as the owner recommended: a feasibility proof before the engine is fixed, and
+    `eng.traineddata` classified as an optional, fixed-function trained recognition model.
+  - **Final corrections, later the same day:**
+    - N7.3 packages the engine N7.1a selects;
+    - OC-8 covers resolved sensitive inputs and data-source fields;
+    - N7.1a (source/runtime) is split from N7.1b (packaged, BLOCKED until the release environment exists);
+    - every figure is a target until measured;
+    - OC-4 is kept as proposed.
+  - The final matrix is in § Owner decisions. No implementation, dependency or asset is authorized until the owner
+    ratifies it (N7.1).
 - **Retained constraints:**
   - DOM-first targeting; observe-only evidence with no action selection;
   - strict protected and sensitive refusal; no captured or recognized text persisted;
@@ -12,8 +19,8 @@
   - honest, measured accuracy and performance.
 - **Beads:** `awkit-vra.9` (P3, open).
   - Its dependency on the canonical N3 `awkit-vra.4` (closed) was added on 2026-10-25.
-  - The legacy edge to `awkit-vra.3` is still present. Its removal was refused by the agent lease guard and is an owner
-    action.
+  - The legacy edge to `awkit-vra.3` is no longer present. The live database and the 2026-10-25 re-export show `.4` as
+    its only blocker. It was removed outside the agent, and the agent made no removal attempt.
 - **Builds on:** N0 capture and protected window, N1 PNG and fingerprints, N2 shadow-only evidence policy, N5
   codes-only diagnosis blocks, and N6 (sensitive-container rule, report sanitizer, calibration method, lazily loaded
   adapter edge).
@@ -77,8 +84,9 @@ its own, inside the same protected boundaries as N0–N6.
 | D. PaddleOCR / ONNX through onnxruntime-node | Yes | ~15–30 MB, plus a native runtime | Stable per build | Host | Apache-2.0 | Higher accuracy, but a heavier neural model, a native runtime and a second ML stack (conflicts with "no mandatory model") |
 | E. The bundled CPython DOM-intelligence runtime plus pytesseract | No: needs B anyway | — | — | — | — | Rejected: the runtime is parser-only by decision (L11) |
 
-**Recommendation: A.**
-- Pin one `tesseract.js-core` build and one SIMD flavor, recorded in the conditions envelope.
+**Recommendation: the A family (Tesseract 5 compiled to WASM).** Whether N7 uses the supported `tesseract.js`
+wrapper or direct `tesseract.js-core` is decided by the N7.1a proof, not here (amended OC-1).
+- Pin one build of whichever integration N7.1a selects and one SIMD flavor, recorded in the conditions envelope.
 - Bundle only English "fast" data at first (OC-3).
 - Load everything from `resources/ocr/`, never a CDN. The library's default remote language-data URL and its
   IndexedDB cache are disabled, and a verifier asserts no network request (§ Acceptance).
@@ -96,7 +104,7 @@ Runner (main process) — StepExecutor
          preprocess (pure, src/visual/ocr/preprocess.ts): grayscale, scale so x-height >= 20 px, no binarize by default
          -> OcrServices.recognize(crop, {lang, psm, deadlineMs, signal})   (injected by main)
                app/main/ocr/OcrUtilityHostManager.ts  (utilityProcess, lazy, idle shutdown, bounded restarts)
-                  host: tesseract.js-core WASM + resources/ocr/eng.traineddata (checksummed)
+                  host: the N7.1a-selected Tesseract 5 WASM integration + resources/ocr/eng.traineddata (checksummed)
          -> pure decision src/visual/ocr/decideTextAssertion.ts: normalize, compare, confidence and ambiguity gates
     -> codes-only record -> InstanceReport.ocrAssertions (sanitized like N6.7)
 ```
@@ -144,8 +152,19 @@ Runner (main process) — StepExecutor
 - **Memory:** crops and text live in memory only, and buffers are released after the decision. The host has no
   filesystem write paths and no network: the utility process is launched without network access, and a verifier
   enforces it.
-- **Secrets:** the expected text may reference a runtime input but never a secret. The validator refuses `${secret.*}`
-  in `assertImageText` (OC-8).
+- **Sensitive expected values (OC-8, amended proposal 2026-10-25).** An OCR comparison against a secret is itself
+  an oracle: it reveals whether the secret is on screen. A literal `${secret.*}` check is therefore not enough. The
+  expected text may be a literal or an ordinary runtime input or data-source field, and it is refused when any of
+  these holds:
+  - it references the secret store (`${secret.*}`) or a credential, OTP or password-typed runtime input;
+  - it references a data-source field or runtime input whose name or label matches the N6.8 sensitive rule
+    (password, OTP, PIN, CVV, card number, SSN, IBAN, account number, token, secret; word-split);
+  - its resolved value matches a sensitive-value detector: a Luhn-valid card number, IBAN, SSN pattern, or a 4–8
+    digit code in an OTP/PIN context.
+
+  Refusal is static in the validator when the source is known at design time, and at run time (`sensitive-input`,
+  inconclusive, zero captures, zero host calls) when a value resolves sensitive. The resolved value is never logged,
+  audited or reported.
 - **Licensing and packaging:** the engine and data are listed in the signed dependency manifest. A tampered or
   missing asset makes OCR `unavailable` (fail closed), never a download.
 
@@ -166,7 +185,8 @@ Runner (main process) — StepExecutor
 
 - **Flow step (additive):** `assertImageText { expectedText, match, caseSensitive?, mode: "observe" }`.
   - The expected text counts in the step content digest.
-  - The validator refuses an empty or over-long text (256 characters at most) and any secret reference.
+  - The validator refuses an empty or over-long text (256 characters at most), and any sensitive source per OC-8.
+    The runtime refuses a value that resolves sensitive.
 - **Report:** the optional `InstanceReport.ocrAssertions[]` (max 64), rebuilt from an allowlist on write and read,
   N6.7-style:
   - fields: `{version, stepId, flowId, mode, status, verdict, code, distanceBucket, confidenceBucket, charCount,
@@ -200,34 +220,53 @@ Runner (main process) — StepExecutor
     and look-alike fixtures, a false `matched` rate of **0**; on unsupported fixtures, `inconclusive` 100 %; p95 within
     the deadline.
   - A cell that fails stays observe-only and unlabeled; there is no tuning against the fixtures after the fact.
+- **Targets, not results (amended proposal 2026-10-25).** Every accuracy, error-rate, latency, memory and size figure
+  in this plan is a pre-agreed TARGET or acceptance criterion. None is a measured claim. A figure becomes a claim
+  only when `benchmark:ocr` (and the N7.1a/N7.1b proofs for the budgets) has executed and recorded it. Until then
+  every report says "target", and a missed target is reported as missed, never re-stated.
 - **Fail-closed rules in the pure decision:**
   - any word below the confidence threshold, or a look-alike glyph in the compared span below a higher threshold,
     gives `inconclusive`;
   - edit distance 1 from the expected text gives `inconclusive`, never `matched`;
   - more than one region match for `contains` gives `inconclusive`.
 
-## Owner decisions to ratify (proposed)
+## Owner decisions to ratify — final matrix (proposed, NOT ratified)
 
-| ID | Decision | Recommendation |
-|---|---|---|
-| OC-0 | N7 scope: an observe-only `assertImageText` plus shadow N2/N5 signals; no enforcement, no text-based targeting, no full-page OCR | Accept |
-| OC-1 (amended 2026-10-25) | Engine family: offline Tesseract 5. The integration is selected only after the N7.1a feasibility proof (§ Feasibility proof) shows four things: compatible pinned versions; an isolated runtime (utility process); local language assets with zero network requests; and cancellation and package compatibility. The proof compares the supported `tesseract.js` wrapper with direct `tesseract.js-core` integration, and the winner, with its measured evidence, is recorded before N7.4 | Accept as amended |
-| OC-2 (amended 2026-10-25) | `eng.traineddata` is correctly a **trained OCR recognition model** (Tesseract's LSTM weights). It is an optional, fixed-function, offline inference dependency: pinned, checksummed and bundled, never downloaded, never generative, and never required. The automation platform runs unchanged when it is absent or disabled. This is NOT the "mandatory AI model" the Phase N rules forbid | Accept as amended |
-| OC-3 | Languages: English only at first; adding more needs a new decision and its own calibration | Accept |
-| OC-4 | A fifth `src/visual` edge (`src/runner/ocr/OcrStep.ts`), lazily loaded, and the isolation verifier moved to five | Accept |
-| OC-5 | New step type `assertImageText` (an unknown step type fails closed; an existing assertion type would fall through to a text check) | Accept |
-| OC-6 | Flag `AWKIT_VISUAL_OCR=off\|observe` (default off); the packaged build is observe only | Accept |
-| OC-7 | Recognized text never leaves the main process or persists; an author-facing transient text preview is OUT of N7 (or, if wanted, needs WORKFLOW_EDIT, fresh re-auth and audit, as N6.5 does) | Out of N7 |
-| OC-8 | Expected text may not reference secrets; runtime inputs are allowed | Accept |
-| OC-9 | The resource budget in this plan, as measured gates | Accept |
-| OC-10 | Calibration criteria and cells as written; a failing cell keeps observe-only with no relabelling | Accept |
-| OC-11 | Enforcing OCR assertions are a separate future milestone (like `awkit-vra.16`) | Accept |
-| OC-12 | Packaging: assets in `resources/ocr/` in the signed manifest; `validate:offline` and the packaged verifier must prove no network and no download | Accept |
+Status key:
+- **Original:** as first proposed on 2026-10-25.
+- **Amended (owner recommendation):** changed on the owner's 2026-10-25 instruction (OC-1, OC-2).
+- **Amended (correction):** changed by the final corrections later that day (OC-8, OC-9, OC-10, OC-12; OC-1 also
+  carries the N7.1a/N7.1b split).
 
-## Feasibility proof (N7.1a, required by amended OC-1)
+None is ratified, and no row authorizes implementation until the owner records N7.1.
 
-A small spike kept in `scripts/` as reproducible evidence (no product wiring, no flag, nothing shipped) that answers,
-with measured evidence:
+| ID | Status | Exact recommended wording | Recommendation |
+|---|---|---|---|
+| OC-0 | Original | "N7 delivers an observe-only `assertImageText` step and shadow-only N2/N5 text signals (effect `none`). It delivers no enforcement, no text-based target selection or locator generation, no recorder suggestion and no full-page OCR." | Ratify |
+| OC-1 | Amended (owner recommendation, then correction) | "The engine family is offline Tesseract 5 compiled to WASM, run in an Electron utility process. The integration (the supported `tesseract.js` wrapper or direct `tesseract.js-core`) is chosen by the N7.1a source/runtime feasibility proof. The proof requires compatible pinned versions, an isolated runtime, locally bundled language assets with zero network requests, cancellation and CPU-only operation. Real packaged compatibility is proven separately by N7.1b on an approved release environment. The chosen integration and its evidence are recorded before N7.3 and N7.4 begin." | Ratify as amended |
+| OC-2 | Amended (owner recommendation) | "`eng.traineddata` is a trained OCR recognition model (Tesseract's LSTM weights). It is an optional, fixed-function, offline inference dependency: pinned, checksummed, bundled, never downloaded, never generative and never required. The SpecterStudio automation platform operates independently and unchanged when it is absent, disabled or failing. It is not a mandatory AI model under the Phase N rules." | Ratify as amended |
+| OC-3 | Original | "English only for the first qualification. Each further language needs its own owner decision and its own calibration." | Ratify |
+| OC-4 | Original, kept as proposed | "A fifth approved `src/visual` edge, `src/runner/ocr/OcrStep.ts`, lazily loaded. `verify:visual-isolation` is moved to exactly five edges, and the OCR host stays outside `src/visual`." | Ratify (stays proposed until then) |
+| OC-5 | Original | "A new step type `assertImageText`: an unknown step type fails closed, whereas an existing assertion type would fall through to a text check." | Ratify |
+| OC-6 | Original | "Flag `AWKIT_VISUAL_OCR=off\|observe`, default off. The packaged build is observe only. Off means the adapter is never loaded and the host never spawned." | Ratify |
+| OC-7 | Original | "Recognized text never leaves the main process and is never persisted, logged, audited, exported or sent to the renderer. An author-facing transient text preview is out of N7. If wanted later, it needs WORKFLOW_EDIT, fresh re-authentication and audit, as the N6.5 preview does." | Ratify |
+| OC-8 | Amended (correction) | "`assertImageText` refuses any expected value that is or may be sensitive: a `${secret.*}` reference; a credential, OTP or password-typed runtime input; a runtime input or data-source field whose name or label matches the N6.8 sensitive rule (password, OTP, PIN, CVV, card number, SSN, IBAN, account number, token, secret; word-split); or a resolved value matching a sensitive-value detector (Luhn-valid card number, IBAN, SSN pattern, or a 4–8 digit code in an OTP/PIN context). Known sources are refused statically by the validator. Values that resolve sensitive are refused at run time as `sensitive-input` (inconclusive, zero captures, zero host calls). A resolved value is never logged, audited or reported." | Ratify as amended |
+| OC-9 | Amended (correction) | "The resource budget in this plan is a set of TARGET gates. Each becomes a measured claim only after N7.1a, N7.1b or N7.6 has executed and recorded it. A missed target is reported as missed." | Ratify as amended |
+| OC-10 | Amended (correction) | "Calibration cells and criteria as written: headed and headless × DPR 1, 1.25 and 2; at least 3 sessions and 300 launches per cell; exact-match ≥ 98 % and CER ≤ 1 % on supported fixtures; 0 false `matched` on near-miss and look-alike fixtures; 100 % `inconclusive` on unsupported fixtures; p95 within the deadline. These are acceptance criteria, not results. A failing cell stays observe-only with no relabelling and no tuning against the fixtures." | Ratify as amended |
+| OC-11 | Original | "Enforcing OCR assertions are a separate future milestone, gated like `awkit-vra.16`, and are not part of N7." | Ratify |
+| OC-12 | Amended (correction) | "N7.3 packages exactly the engine N7.1a selected, with its `eng` data in `resources/ocr/` and in the signed dependency manifest. `validate:offline -Strict`, N7.1b and `verify:ocr-packaged` must prove no network and no download. Packaged gates stay BLOCKED until the approved release environment exists (`verify:packaging-host` READY)." | Ratify as amended |
+
+## Feasibility proofs (N7.1a source/runtime, N7.1b packaged; required by amended OC-1)
+
+**N7.1a, source and runtime feasibility.** It runs on the development host now. A small spike kept in `scripts/` as
+reproducible evidence (no product wiring, no flag, nothing shipped) answers every row below EXCEPT package
+compatibility, with measured evidence.
+
+**N7.1b, real packaged compatibility.** The "Package compatibility" row is a separate proof on a real packaged build:
+the chosen engine's assets inside the 0.1.x package (ASAR and unpack rules, signed manifest, strict offline
+validation), loaded by the packaged app with zero network. It stays **BLOCKED** until the approved release
+environment is available (`npm run verify:packaging-host` READY; currently BLOCKED by the Visual Studio 2022 MSVC
+prerequisite). N7.1a never claims it.
 
 | Question | Pass condition |
 |---|---|
@@ -235,21 +274,23 @@ with measured evidence:
 | Isolated runtime | Recognition runs in the utility process only; a crash or hang there leaves the main process serving IPC |
 | Local assets | Core WASM, worker script and `eng.traineddata` load from a local folder; the wrapper's remote language URL and IndexedDB cache are disabled; a request interceptor and an offline host see **zero** network requests, including first use |
 | Cancellation | An abort mid-recognition ends the job; no result arrives after the abort; the next job succeeds |
-| Package compatibility | The assets survive `electron-builder` ASAR/unpack rules and the signed dependency manifest; size within the OC-9 budget |
+| Package compatibility (N7.1b only) | On a real packaged build: the assets survive `electron-builder` ASAR/unpack rules and the signed dependency manifest; size within the OC-9 budget; the packaged app loads them with zero network |
 | Wrapper vs core | Compare API surface, worker model, cancellation support and network defaults; pick the one that meets every row with the least code |
 | CPU only | Runs on CPU with no GPU or NVIDIA requirement; WASM SIMD flavor fixed and recorded |
 
-**Outcome:** a recorded choice (wrapper or core) with its evidence, or a recorded failure that returns OC-1 to the
-owner. Nothing in the product changes in N7.1a.
+**Outcome of N7.1a:** a recorded choice (wrapper or core) with its source/runtime evidence, or a recorded failure
+that returns OC-1 to the owner. N7.1b then confirms or refutes that choice in a real package. Nothing in the product
+changes in either proof.
 
 ## Work breakdown (filed after ratification)
 
 | Item | Content | Gate |
 |---|---|---|
 | N7.1 | Ratify OC-0 to OC-12 (OC-1 and OC-2 as amended 2026-10-25) | Owner decision recorded in DECISIONS |
-| N7.1a | Feasibility proof (§ above): wrapper vs core, pinned versions, isolation, zero network, cancellation, packaging | Recorded engine choice with evidence |
+| N7.1a | Source/runtime feasibility proof (§ above): wrapper vs core, pinned versions, isolation, local assets, zero network, cancellation, CPU only | Recorded engine choice with evidence |
+| N7.1b | Real packaged compatibility of the N7.1a choice | BLOCKED until `verify:packaging-host` is READY; then a packaged proof with zero network |
 | N7.2 | Pure `decideTextAssertion` (normalize, compare, confidence and look-alike gates) and preprocessing, in `src/visual/ocr` with no I/O | `verify:ocr-decision` with mutants |
-| N7.3 | Packaging: pinned `tesseract.js-core` and `eng` data in `resources/ocr/`, manifest entries, offline validation, a dependency review | `validate:offline -Strict`, `verify:ocr-assets` |
+| N7.3 | Packaging of the engine N7.1a selected (the `tesseract.js` wrapper or `tesseract.js-core`, pinned) and the `eng` data in `resources/ocr/`, manifest entries, offline validation, a dependency review | `validate:offline -Strict`, `verify:ocr-assets`; packaged load proven by N7.1b |
 | N7.4 | OCR utility host and `OcrUtilityHostManager` (lazy spawn, deadline, cancel, idle shutdown, restarts, heap cap, no network) | `verify:ocr-host` (crash, hang, abort, memory, no-network) |
 | N7.5 | `assertImageText` step, validator, adapter (fifth edge), refusals, record and report block, Designer and drawer sections | `verify:ocr-runtime`, `verify:ocr-report`, `verify:visual-isolation` at 5, `verify:ocr-gui` |
 | N7.6 | OCR Lab and calibration benchmark | `benchmark:ocr`, `verify:ocr-calibration` |

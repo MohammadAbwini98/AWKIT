@@ -934,9 +934,11 @@ try {
   // `awkit-vra.4` added; removing its legacy edge to `awkit-vra.3` was refused by the lease guard. Measured.
   // Then 368 on 2026-10-25 (contract `awkit-vra-phase-n-tracking-1025`): N8 `.10` and N9 `.11` blocks-on canonical N3
   // `.4`, and N10 `.17` blocks-on N2 `.12` and N3 `.4`. Measured.
+  // Then 366 on 2026-10-25: the legacy `awkit-vra.3` blocks edges on N8 `.10` and N9 `.11` were removed outside the
+  // agent; the live DB and `bd export` agree, and N7 `.9` already lacked it. Measured.
   check(
-    "368 edges are present to classify",
-    beads.stats.edges === 368,
+    "366 edges are present to classify",
+    beads.stats.edges === 366,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(

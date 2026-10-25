@@ -95,6 +95,22 @@ None.
   - `docs/ai/SECURITY.md` classifies `sessionRef` as a bearer secret.
 - **Evidence after fix:** `verify:audit-session-digest` 21/0 with 4 mutants red; `verify:auth` 79/0;
   `verify:security` 61/0; `verify:auth-gui` 33/33; build PASS.
+- **Closure re-confirmed 2026-10-25 against `cbc5700`, by source inspection.**
+  - `src/security/**` is unchanged since `cc0ff51`, so `verify:audit-session-digest` was not rerun: its inputs are
+    unchanged and the result stands at 21/0.
+  - **The sink persists no raw ref.** `SecurityStore.appendAudit` (`SecurityStore.ts:524-536`) holds the only
+    `INSERT INTO security_audit` in `src/`, and it binds `auditSessionDigest(event.sessionId)`.
+  - **The migration is idempotent.** `backfillAuditSessionDigests` skips any row that `isAuditSessionDigest` already
+    accepts, and `auditSessionDigest` returns a digest unchanged. So a re-run, or a row written by the new sink, is
+    never re-hashed.
+  - **Correlation still works.** The digest is deterministic per session, so every row of one session shares one
+    value. The verifier proves this.
+- **Residual exposure, outside the fix:** a copy of `security.db` made before migration v6 ran (backups, copied
+  profiles, support bundles) still holds raw references.
+  - Such a reference works only while that session is live. Sessions expire, and Sign out ends them.
+  - The migration rewrote rows in place in the live database only. SQLite may keep old page contents in free pages
+    until they are reused or `VACUUM` runs.
+  - There is **no secure-erasure claim** for copies, or for freed pages. This is documented in `docs/ai/SECURITY.md`.
 
 ### AWKIT-SEC-008 — A second login from the same window kept the window authorized after a visible Sign out
 

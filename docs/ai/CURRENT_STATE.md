@@ -1,6 +1,43 @@
 # CURRENT_STATE
 
-## Phase N: AWKIT-SEC-007 fixed, N6 packaging blocked by the environment, N7 ready for ratification (2026-10-25, latest)
+## Phase N: packaging host diagnosis, Beads reconciled, N7 final decision matrix (2026-10-25, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N stays IN PROGRESS.**
+N7–N10 are planned only; nothing is implemented.
+
+- **Packaging: still BLOCKED by the environment.**
+  - New read-only `npm run verify:packaging-host` (`scripts/verify-packaging-host.mjs`, with the requirements in
+    `scripts/lib/msvc-redist-requirements.mjs`) reports each `awkit-i6ot` prerequisite as PASS, BLOCKED or INFO.
+    It installs, copies and changes nothing.
+  - On this host it reports **2 BLOCKED**:
+    - H1 PASS: Windows on native ARM64; the process is x64 under emulation.
+    - H2 PASS: Node v24.20.0 x64.
+    - H3a PASS: Electron 33.4.11 as pinned. H3b INFO: the win32-x64 archive is not cached.
+    - **H4 BLOCKED:** no Visual Studio; `vswhere` is absent.
+    - **H5 BLOCKED:** the app-local MSVC runtime cannot be checked without H4.
+    - H6 PASS: the shared requirements match `prepare-ai-native-host.mjs`.
+    - I1 INFO: the tree is not clean for `release-portable.ps1`.
+    - I2 INFO: no issuer key, so the licensed gates would report BLOCKED.
+  - The improved failure text inside `prepare-ai-native-host.mjs` is BLOCKED: a protected path, with a terminal
+    lease denial. The file is unchanged.
+  - No 0.1.54 artifact exists, and 0.1.53 is untouched.
+  - Packaged gates stay NOT RUN.
+- **Beads:** the live DB and the re-export agree.
+  - `.9`, `.10` and `.11` depend only on the canonical N3 `awkit-vra.4`. Their legacy `awkit-vra.3` edges are already
+    absent (removed outside the agent), so no removal is pending.
+  - `.17` depends on `.12` and `.4`.
+  - Correction notes were appended to `.9`, `.10` and `.11`.
+- **N7:** the final OC-0..OC-12 matrix (`N7-ocr-text-in-image.md`) marks the amendments:
+  - OC-1 and OC-2 per the owner's recommendation;
+  - OC-8, OC-9, OC-10 and OC-12 as final corrections;
+  - OC-4 stays proposed.
+  - N7.1a (source/runtime feasibility) is split from N7.1b (packaged compatibility, BLOCKED).
+  - None of it is ratified.
+- **SEC-007:** confirmed closed with evidence (DEFECTS.md). Database copies made before migration v6 (backups,
+  copied profiles) may still hold raw references. That exposure is documented separately in SECURITY.md, with no
+  secure-erasure claim.
+
+## Phase N: AWKIT-SEC-007 fixed, N6 packaging blocked by the environment, N7 ready for ratification (2026-10-25)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N stays IN PROGRESS.**
 N0–N6 are closed, and `awkit-vra.16` is open.

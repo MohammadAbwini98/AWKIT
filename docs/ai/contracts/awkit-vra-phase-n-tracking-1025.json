@@ -144,6 +144,22 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-vra-phase-n-tracking-1025:project-state:2026-10-25T18:23:19.220Z",
+        "task": "awkit-vra-phase-n-tracking-1025",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-25T18:23:19.220Z",
+        "acquired_at_commit": "cbc5700de9403484d93cd2e3686fb058241eecb1",
+        "released_at": "2026-10-25T18:23:39.103Z",
+        "released_reason": "Live Beads reconciled: .9 .10 .11 depend only on canonical awkit-vra.4 (legacy .3 edges removed outside the agent), correction notes appended, exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }

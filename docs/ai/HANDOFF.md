@@ -1,6 +1,33 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-25, latest) — Phase N: SEC-007 fixed; packaging blocked by Visual Studio; N7 ready to ratify
+## HANDOFF (2026-10-25, latest) — Packaging host diagnosis; N7 final matrix awaits ratification
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Owner actions:**
+  1. **Release host.** Use one of:
+     - this ARM64 VM, after adding "MSVC v143 - VS 2022 C++ x64/x86 build tools (Latest)" and "C++ 2022
+       Redistributable Update" to a licensed Visual Studio 2022 Community, Professional or Enterprise. Build Tools
+       is not accepted, because the Distributable Code list excludes it.
+     - a Windows x64 release host that has them.
+
+     Then run:
+
+     ```
+     npm run verify:packaging-host
+     ```
+
+     It must report READY. Then, under a release lease (contract `awkit-vra-15-n6-release-1025`), run
+     `npm run package:portable` (0.1.54; 0.1.53 is preserved). Then run `verify:visual-assertion-packaged`,
+     `verify:packaged-walkthrough`, `verify:packaged-licensing` and `verify:packaged-runtime`, with
+     `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` set for the licensed runs.
+  2. **N7 ratification.** Ratify, amend or reject the final OC-0 to OC-12 matrix in `N7-ocr-text-in-image.md`.
+- **Next after ratification:** record N7.1, then N7.1a, the source/runtime feasibility proof. N7.1b stays BLOCKED
+  until the release host is ready.
+- **No longer an owner action:** the legacy `awkit-vra.3` edges. They are already absent from `.9`, `.10` and `.11`.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-25) — Phase N: SEC-007 fixed; packaging blocked by Visual Studio; N7 ready to ratify
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

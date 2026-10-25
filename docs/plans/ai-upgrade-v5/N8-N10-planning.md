@@ -27,14 +27,17 @@
 
 | Milestone | Beads | Canonical prerequisites | Tracker edges | Notes |
 |---|---|---|---|---|
-| N7 OCR | `awkit-vra.9` | N0, N1, N3 (`awkit-vra.4`) | `.4` (added) + legacy `.3` | The owner removes the legacy `.3` edge (no agent removal verb) |
-| N8 Row/Grid | `awkit-vra.10` | N0, N1, N2, N3 (`.4`); **optionally N7** for row text cues | `.4` (added) + legacy `.3` | The N7 edge is decided in NR-1, not assumed |
-| N9 Screenshot state | `awkit-vra.11` | N0, N1, N2, N3 (`.4`); N5 diagnosis; **optionally N7** for state text | `.4` (added) + legacy `.3` | As N8 |
+| N7 OCR | `awkit-vra.9` | N0, N1, N3 (`awkit-vra.4`) | `.4` | Legacy `.3` edge already absent |
+| N8 Row/Grid | `awkit-vra.10` | N0, N1, N2, N3 (`.4`); **optionally N7** for row text cues | `.4` | Legacy `.3` edge already absent. The N7 edge is decided in NR-1, not assumed |
+| N9 Screenshot state | `awkit-vra.11` | N0, N1, N2, N3 (`.4`); N5 diagnosis; **optionally N7** for state text | `.4` | As N8 |
 | N10 Local vision model | `awkit-vra.17` (filed 2026-10-25) | N2 (`awkit-vra.12`), N3 (`.4`); the L7 local-AI runtime and GPU backend pack (Phase L, existing) | `.12`, `.4` | Never a prerequisite of N0–N9 or of core automation |
 
 The legacy `awkit-vra.3` ("Deterministic image recognition") is an open pre-canonical planning record. Its scope was
 split into canonical N1 (fingerprints, closed) and N3 (`awkit-vra.4`, closed), and the owner already removed its
-edge from `awkit-vra.4`. The same removal for `.9`, `.10` and `.11` is recommended (NR-0) and is an owner action.
+edge from `awkit-vra.4`.
+
+Reconciled 2026-10-25: the live database and the re-exported `.beads/issues.jsonl` show no `.3` edge on `.9`, `.10`
+or `.11`. They were removed outside the agent, so NR-0 and NS-0 are already satisfied, and no removal is pending.
 
 ## N8 — Visual Row/Grid Intelligence (`awkit-vra.10`)
 
@@ -57,7 +60,7 @@ edge from `awkit-vra.4`. The same removal for `.9`, `.10` and `.11` is recommend
   - `verify:visual-isolation` updated if a new edge is ratified;
   - independent QC and security review.
 - **Owner decisions:**
-  - **NR-0:** remove the legacy `.3` edges.
+  - **NR-0:** remove the legacy `.3` edges. Already satisfied: the edges are absent.
   - **NR-1:** whether N8 consumes N7 text, which makes N7 a hard prerequisite.
   - **NR-2:** a new `src/visual` edge, or reuse of the N5 adapter.
   - **NR-3:** where results surface (N2 shadow and N5 codes only, or also an observe-only assertion).
@@ -84,7 +87,7 @@ edge from `awkit-vra.4`. The same removal for `.9`, `.10` and `.11` is recommend
   - disabled overhead zero;
   - independent QC and security review.
 - **Owner decisions:**
-  - **NS-0:** remove the legacy `.3` edge.
+  - **NS-0:** remove the legacy `.3` edge. Already satisfied: the edge is absent.
   - **NS-1:** a deterministic-only classifier versus an optional N10 assist.
   - **NS-2:** where state evidence surfaces (N5 diagnosis, an observe-only `assertVisualState` step, or a Smart Wait
     advisory trace).

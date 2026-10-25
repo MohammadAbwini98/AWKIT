@@ -123,6 +123,13 @@
   - `listAudit` never returns the column at all.
   - `verify:audit-session-digest` proves every writer, the migration, the single insert path, and the mutants.
   - Never add a second `INSERT INTO security_audit`, and never put a reference in an audit `detail`.
+- **Historical copies (separate from the fix; no secure-erasure claim).** Migration v6 rewrites the live
+  database's rows in place, and nothing more. Raw references can survive in two places:
+  - any copy of the security database made before v6 ran: backups, copied profiles, support bundles;
+  - SQLite free pages, until they are reused or the database is vacuumed.
+
+  A surviving reference is usable only while its session is live. Treat a pre-v6 copy as containing bearer secrets
+  until its sessions have expired. AWKIT does not claim to erase copies or freed pages.
 - **Sign out ends the window's authority.** `security:logout` clears the window's sender binding whatever it holds,
   and ends a different session that window held (`signOutWindow`, `verify:session-context`). Sensitive channels
   re-validate the bound session and require fresh re-authentication on every call.

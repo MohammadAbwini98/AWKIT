@@ -1,5 +1,35 @@
 # TASK_LOG
 
+## 2026-10-25 — Phase N: packaging host diagnosis, Beads reconciliation, N7 final matrix, SEC-007 confirmation (Claude)
+
+- **Packaging (Task A):**
+  - New read-only `verify:packaging-host` (`scripts/verify-packaging-host.mjs`) and the shared requirements module
+    `scripts/lib/msvc-redist-requirements.mjs`.
+  - It is registered as `packaged-application` in `verifier-classification.ts`, and `typecheck:scripts` PASS.
+  - This host reports 2 BLOCKED:
+    - H4: no Visual Studio 2022;
+    - H5: the app-local MSVC runtime, which needs H4.
+  - Everything else is PASS or INFO: H1 native ARM64 with an x64 process; H2 Node v24.20.0 x64; H3a Electron 33.4.11;
+    H6 no drift.
+  - The `prepare-ai-native-host.mjs` failure-text edit is BLOCKED: protected path, terminal denial; the file is
+    unchanged.
+  - Packaging is BLOCKED and the packaged gates are NOT RUN.
+- **Beads (Task B):**
+  - The live DB was re-exported: 423 issues.
+  - The legacy `awkit-vra.3` edges on `.9`, `.10` and `.11` were already absent, so nothing was removed. The stale
+    owner-action statements were corrected in ROADMAP.md, the N7 and N8-N10 plans, ImplementationRoadmap.ts,
+    CURRENT_STATE and HANDOFF.
+- **N7 (Task C):** the final OC-0..OC-12 matrix. Amendments are marked: OC-1 and OC-2 per the owner; OC-8, OC-9, OC-10
+  and OC-12 as corrections; OC-4 stays proposed. Also:
+  - N7.1a (source/runtime) is split from N7.1b (packaged, BLOCKED);
+  - N7.3 packages the engine N7.1a selects;
+  - the figures are targets.
+  - Not ratified.
+- **SEC-007 (Task D):** re-confirmed closed by source inspection: there is one insert path with the digest, the
+  backfill is idempotent, and correlation is deterministic. The verifier was not rerun because its inputs are
+  unchanged. The historical copy and free-page exposure is documented in SECURITY.md and DEFECTS.md, with no
+  secure-erasure claim. SEC-008 is unchanged and closed.
+
 ## 2026-10-25 — Phase N: SEC-007 remediation, packaging attempt, tracker reconciliation, N7-N10 planning (Claude)
 
 - **Packaging:**
