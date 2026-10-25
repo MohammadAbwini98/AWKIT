@@ -342,6 +342,7 @@
     "verify:visual-assertion-report": "tsx scripts/verify-visual-assertion-report.mts",
     "verify:visual-assertion-packaged": "tsx scripts/verify-visual-assertion-packaged.mts",
     "verify:audit-session-digest": "tsx scripts/verify-audit-session-digest.mts",
+    "verify:packaging-host": "node scripts/verify-packaging-host.mjs",
     "verify:visual-calibration": "tsx scripts/verify-visual-calibration.mts",
     "verify:visual-calibration-evidence": "tsx scripts/verify-visual-calibration-evidence.mts",
     "verify:visual-calibration-grants-live": "npm run build:calibration && tsx scripts/benchmark-visual-assertion.mts --audit",
