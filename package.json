@@ -340,6 +340,7 @@
     "verify:visual-assertion-candidates": "tsx scripts/verify-visual-assertion-candidates.mts",
     "verify:visual-assertion-gui": "tsx scripts/verify-visual-assertion-gui.mts",
     "verify:visual-assertion-report": "tsx scripts/verify-visual-assertion-report.mts",
+    "verify:visual-assertion-packaged": "tsx scripts/verify-visual-assertion-packaged.mts",
     "verify:visual-calibration": "tsx scripts/verify-visual-calibration.mts",
     "verify:visual-calibration-evidence": "tsx scripts/verify-visual-calibration-evidence.mts",
     "verify:visual-calibration-grants-live": "npm run build:calibration && tsx scripts/benchmark-visual-assertion.mts --audit",

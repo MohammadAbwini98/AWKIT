@@ -17,6 +17,7 @@ import {
   unbindSession,
   unbindByWebContentsId,
   boundSessionRef,
+  signOutWindow,
   assertSenderPermission
 } from "../app/main/security/sessionContext";
 import { Permission } from "../src/security/authz/Permissions";
@@ -119,6 +120,27 @@ async function main(): Promise<void> {
   );
   check("the bound window keeps its ref", boundSessionRef(w1.event) === "sess-1");
   unbindSession(w1.event);
+
+  // 9 — Sign out leaves the window with no authority, whatever it held (N6.8 security follow-up)
+  const r = mockEvent(505);
+  const shared = mockEvent(606);
+  bindSession(r.event, "sess-R3");
+  check("signing out the bound ref clears the window and leaves nothing else to end", signOutWindow(r.event, "sess-R3") === undefined && boundSessionRef(r.event) === undefined);
+  bindSession(r.event, "sess-UI");
+  bindSession(r.event, "sess-SECOND");
+  check(
+    "signing out the UI's ref from a window rebound to a second session clears the window and returns the second session",
+    signOutWindow(r.event, "sess-UI") === "sess-SECOND" && boundSessionRef(r.event) === undefined
+  );
+  await assertDenied(
+    "after that Sign out the window is denied (NOT_AUTHORIZED)",
+    () => assertSenderPermission(r.event, Permission.WORKFLOW_EDIT),
+    AuthReason.NOT_AUTHORIZED
+  );
+  bindSession(r.event, "sess-X");
+  bindSession(shared.event, "sess-X");
+  check("a leftover session another window still holds is not returned at Sign out", signOutWindow(r.event, "sess-UI") === undefined && boundSessionRef(shared.event) === "sess-X");
+  unbindSession(shared.event);
 
   console.log(`\nsession-context: ${passed}/${passed + failed} checks passed`);
   process.exit(failed > 0 ? 1 : 0);

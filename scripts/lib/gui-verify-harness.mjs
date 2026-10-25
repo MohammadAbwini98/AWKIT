@@ -11,9 +11,31 @@
 // clean-machine first-run against an ISOLATED, empty %LOCALAPPDATA% (so it is always first-run and
 // never touches the developer's real profile). Reference implementation proven in
 // scripts/verify-reports-gui.mjs.
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+// KNOWN_ISSUES (2026-10-19): on the Parallels share Electron cannot start its GPU process from
+// node_modules, so every GUI verifier exits before its first window. When the documented local copy
+// exists and matches the installed Electron version, point the `electron` package at it, exactly as
+// the documented manual workaround does. An explicit ELECTRON_OVERRIDE_DIST_PATH always wins; a
+// mismatched copy is ignored (a stale runtime must never stand in for the installed one).
+{
+  const KNOWN_LOCAL_DIST = "C:\\electron-dist";
+  const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+  const installedVersionFile = path.join(repoRoot, "node_modules", "electron", "dist", "version");
+  if (
+    !process.env.ELECTRON_OVERRIDE_DIST_PATH &&
+    process.platform === "win32" &&
+    existsSync(path.join(KNOWN_LOCAL_DIST, "electron.exe")) &&
+    existsSync(path.join(KNOWN_LOCAL_DIST, "version")) &&
+    existsSync(installedVersionFile) &&
+    readFileSync(path.join(KNOWN_LOCAL_DIST, "version"), "utf8").trim() === readFileSync(installedVersionFile, "utf8").trim()
+  ) {
+    process.env.ELECTRON_OVERRIDE_DIST_PATH = KNOWN_LOCAL_DIST;
+  }
+}
 
 /**
  * Default first-run credentials. The password satisfies the policy (>=12 chars, 3 of 4 classes).

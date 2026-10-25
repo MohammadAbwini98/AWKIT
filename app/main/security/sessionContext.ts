@@ -32,6 +32,24 @@ export function bindSession(event: IpcMainInvokeEvent, sessionRef: string): void
 }
 
 /**
+ * Sign out from a window: clear its binding WHATEVER it holds, so a visible Sign out leaves the window
+ * with no authority. Returns the window's bound session when it differs from the one being logged out
+ * (a second login from the same window rebound it) and no other window holds it, so the caller ends that
+ * one too. The logged-out session itself is ended by the caller (N6.8 security follow-up).
+ */
+export function signOutWindow(event: IpcMainInvokeEvent, loggedOutRef: string): string | undefined {
+  const id = event.sender.id;
+  const bound = boundSessions.get(id);
+  boundSessions.delete(id);
+  return bound !== undefined && bound !== loggedOutRef && !heldByAnotherWindow(bound, id) ? bound : undefined;
+}
+
+function heldByAnotherWindow(sessionRef: string, exceptId: number): boolean {
+  for (const [id, ref] of boundSessions) if (id !== exceptId && ref === sessionRef) return true;
+  return false;
+}
+
+/**
  * Clear the window's binding. When `sessionRef` is supplied the binding is cleared only if it matches
  * the currently-bound ref, so logging out session B never unbinds a window still bound to session A.
  * In normal use (one session per window) this is equivalent to an unconditional clear.

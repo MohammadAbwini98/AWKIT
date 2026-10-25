@@ -541,9 +541,13 @@ try {
   const audit = await win.evaluate(async ([username, password]) => {
     const api = window.playwrightFlowStudio;
     const login = await api.security.login({ providerId: "local", username, password });
-    if (!login.ok) return { ok: false, rows: [] as { eventType: string; result: string; detail?: unknown }[] };
+    if (!login.ok) return { ok: false, second: "", rows: [] as { eventType: string; result: string; detail?: unknown }[] };
     const listed = await api.security.admin.listAudit({ sessionRef: login.principal.sessionRef, limit: 500 });
-    return { ok: listed.ok as boolean, rows: ((listed.value ?? []) as { eventType: string; result: string; detail?: unknown }[]).filter((r) => r.eventType.startsWith("VISUAL_")) };
+    return {
+      ok: listed.ok as boolean,
+      second: login.principal.sessionRef as string,
+      rows: ((listed.value ?? []) as { eventType: string; result: string; detail?: unknown }[]).filter((r) => r.eventType.startsWith("VISUAL_"))
+    };
   }, [DEFAULT_CREDS.username, PASSWORD] as const);
   const events = new Set(audit.rows.map((r) => `${r.eventType}:${r.result}`));
   check(
@@ -554,6 +558,27 @@ try {
   );
   check("no audit row carries a digest, token, commitment or key field", !audit.rows.some((r) => SECRET_KEYS.test(JSON.stringify(r.detail ?? {}).replace(/"keyGeneration"/g, '"gen"').replace(/"conditionsKey"/g, '"ck"'))));
   check("the signed-out refusals were audited as visual assertion denials", events.has("VISUAL_ASSERTION_DENIED:failure"), [...events].join(", "));
+
+  // Security follow-up: the audit read above logged in a SECOND session from this window (the renderer-side
+  // `security.login`). A visible Sign out must still leave the window with no authority and end that session.
+  await win.locator(".awkit-account-trigger").click();
+  await win.getByRole("menuitem", { name: "Sign out" }).click();
+  await win.waitForSelector("#awkit-login-username", { timeout: 15_000 });
+  const afterSecond = await win.evaluate(async () => {
+    const api = window.playwrightFlowStudio.visualAssertions;
+    const settled = await Promise.allSettled([api.listCandidates({}), api.previewCandidate("0".repeat(32)), api.approveCandidate("0".repeat(32)), api.resetBaselines()]);
+    return settled.map((s) =>
+      s.status === "rejected" ? "rejected" : s.value && typeof s.value === "object" && "code" in s.value ? String((s.value as { code: string }).code) : "answered"
+    );
+  });
+  check(
+    "after a second login from the same window, Sign out still refuses listing, preview, approval and reset",
+    afterSecond.every((code) => ["NOT_AUTHORIZED", "REAUTH_REQUIRED", "rejected"].includes(code)),
+    JSON.stringify(afterSecond)
+  );
+  check("...and the reset rotated nothing", markerGeneration() === 4);
+  const secondAlive = await win.evaluate(async (ref) => (await window.playwrightFlowStudio.security.validateSession(ref)).valid, audit.second);
+  check("...and the second session was ended by the Sign out (it no longer validates)", audit.second.length > 0 && secondAlive === false);
   await close();
 
   check("visual baselines never store pixels: no image file under visual-baselines", !baselineFiles().some((f) => /\.(png|jpe?g|webp|bmp)$/i.test(f)));

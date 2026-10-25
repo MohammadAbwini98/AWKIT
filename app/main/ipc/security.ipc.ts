@@ -9,7 +9,7 @@
 import { ipcMain } from "electron";
 import { assertTrustedSender } from "./senderGuard";
 import { getSecurityKernel, isSecureStorageAvailable } from "../security/securityKernel";
-import { bindSession, unbindSession } from "../security/sessionContext";
+import { bindSession, signOutWindow, unbindSession } from "../security/sessionContext";
 import { AuthReason, SecurityError } from "@src/security/errors/ReasonCodes";
 import {
   parseBootstrap,
@@ -55,6 +55,19 @@ async function adminCall(
     return await fn(actor, kernel);
   } catch (error) {
     return { ok: false, reason: error instanceof SecurityError ? error.reason : AuthReason.UNKNOWN };
+  }
+}
+
+/**
+ * End the session a window still held at Sign out besides the one logged out. Best effort: the window's binding is
+ * already cleared, so a failure here can never leave the window authorized.
+ */
+async function endReplacedSession(kernel: SecurityKernel, sessionRef: string | undefined): Promise<void> {
+  if (!sessionRef) return;
+  try {
+    await kernel.auth.logout(sessionRef);
+  } catch {
+    // Already expired or revoked: nothing left to end.
   }
 }
 
@@ -149,7 +162,9 @@ export function registerSecurityIpc(): void {
       const ref = parseSessionRef(sessionRef);
       const kernel = await getSecurityKernel();
       await kernel.auth.logout(ref);
-      unbindSession(event, ref);
+      // A visible Sign out leaves this window with no authority: its binding is cleared whatever it held, and a
+      // different session this window still held (a second login from the same window) is ended too.
+      await endReplacedSession(kernel, signOutWindow(event, ref));
     } catch {
       /* logout is best-effort; never surface internals */
     }
