@@ -16,6 +16,7 @@ import { dirname } from "node:path";
 import type { Database, SqlValue } from "sql.js";
 import { loadSqlJs } from "@src/runner/store/SqlJsLoader";
 import type { ColumnCrypto } from "@src/security/crypto/ColumnCrypto";
+import { auditSessionDigest, isAuditSessionDigest } from "@src/security/audit/auditSessionRef";
 import {
   SECURITY_STORE_MIGRATIONS,
   type AuditEvent,
@@ -102,11 +103,22 @@ export class SecurityStore {
     for (const migration of SECURITY_STORE_MIGRATIONS) {
       if (applied.has(migration.version)) continue;
       for (const statement of migration.statements) this.db.run(statement);
+      if (migration.backfill === "audit-session-digest") this.backfillAuditSessionDigests();
       this.db.run("INSERT INTO security_migrations (version, name, appliedAt) VALUES (?, ?, ?)", [
         migration.version,
         migration.name,
         new Date().toISOString()
       ]);
+    }
+  }
+
+  /** AWKIT-SEC-007 migration step: every stored raw session reference becomes its one-way digest (idempotent). */
+  private backfillAuditSessionDigests(): void {
+    const result = this.db.exec("SELECT seq, sessionId FROM security_audit WHERE sessionId IS NOT NULL");
+    if (!result.length) return;
+    for (const [seq, sessionId] of result[0].values) {
+      if (isAuditSessionDigest(sessionId)) continue;
+      this.db.run("UPDATE security_audit SET sessionId = ? WHERE seq = ?", [auditSessionDigest(String(sessionId)), Number(seq)]);
     }
   }
 
@@ -520,7 +532,8 @@ export class SecurityStore {
         event.targetId ?? null,
         event.result,
         event.reasonCode ?? null,
-        event.sessionId ?? null,
+        // AWKIT-SEC-007: a one-way correlation digest, never the live session reference, whatever the writer passed.
+        auditSessionDigest(event.sessionId),
         event.detail ? JSON.stringify(event.detail) : null
       ]
     );

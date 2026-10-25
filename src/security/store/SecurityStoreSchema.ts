@@ -14,6 +14,11 @@ export interface SecurityStoreMigration {
   version: number;
   name: string;
   statements: string[];
+  /**
+   * A named data step the store runs after the statements, inside the same in-memory pass and before the migration is
+   * recorded and persisted, for a rewrite SQL cannot express (sql.js has no hash function). Closed set on purpose.
+   */
+  backfill?: "audit-session-digest";
 }
 
 export const SECURITY_STORE_MIGRATIONS: SecurityStoreMigration[] = [
@@ -133,6 +138,15 @@ export const SECURITY_STORE_MIGRATIONS: SecurityStoreMigration[] = [
       `ALTER TABLE security_sessions ADD COLUMN authProvider TEXT NOT NULL DEFAULT 'local'
          CHECK (authProvider IN ('local', 'activeDirectory'))`
     ]
+  },
+  {
+    // AWKIT-SEC-007: audit rows written before this version hold the raw session reference (a live bearer id while
+    // the session lasts). Rewrite each to its one-way correlation digest; the column, every other field and the row
+    // count are unchanged, so listAudit and audit consumers see no difference.
+    version: 6,
+    name: "audit-session-reference-digest",
+    statements: [],
+    backfill: "audit-session-digest"
   }
 ];
 

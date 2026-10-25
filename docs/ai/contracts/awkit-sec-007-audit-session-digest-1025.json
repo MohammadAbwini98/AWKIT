@@ -1,0 +1,162 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-sec-007-audit-session-digest-1025",
+    "title": "AWKIT-SEC-007: store a non-reversible correlation digest of the session reference in security audit records",
+    "objective": "At the single audit sink SecurityStore.appendAudit, replace the raw session reference (a live 256-bit bearer id) with a non-reversible correlation digest; backfill existing rows through a versioned store migration; keep listAudit, the audit schema and every audit writer working; prove no audit writer persists a raw live session id; add a deterministic verifier with mutants and update SECURITY.md.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 3
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "f6de34c",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": true,
+    "persisted_shape_change": true,
+    "migration_required": true,
+    "authorization_change": true
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "architect",
+      "qa",
+      "qc",
+      "security",
+      "persistence",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      "src/security/store/SecurityStore.ts",
+      "src/security/store/SecurityStoreSchema.ts",
+      "src/security/audit/auditSessionRef.ts",
+      "scripts/verify-audit-session-digest.mts",
+      "scripts/lib/verifier-classification.ts",
+      "package.json",
+      ".beads/**",
+      "docs/ai/SECURITY.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/DECISIONS.md",
+      "docs/testing/comprehensive-validation/DEFECTS.md",
+      "docs/ai/contracts/awkit-sec-007-audit-session-digest-1025.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [
+      "architect",
+      "persistence"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "security",
+      "allowed_paths": [
+        "src/security/store/SecurityStore.ts",
+        "src/security/store/SecurityStoreSchema.ts",
+        "src/security/audit/auditSessionRef.ts"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "SEC-007-DIGEST",
+      "description": "Every audit row written by every audit writer holds a non-reversible digest (or null) in sessionId, never a raw live session id; existing rows are backfilled by a versioned migration; listAudit and audit counts are unchanged; mutants red.",
+      "evidence_required": [
+        "verify:audit-session-digest",
+        "verify:auth",
+        "build"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:audit-session-digest",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:audit-session-digest",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "verify:auth",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:auth",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-sec-007-audit-session-digest-1025:security:2026-10-25T17:50:29.605Z",
+        "task": "awkit-sec-007-audit-session-digest-1025",
+        "holder": "security",
+        "status": "released",
+        "allowed_paths": [
+          "src/security/audit/auditSessionRef.ts",
+          "src/security/store/SecurityStore.ts",
+          "src/security/store/SecurityStoreSchema.ts"
+        ],
+        "acquired_at": "2026-10-25T17:50:29.605Z",
+        "acquired_at_commit": "f6de34cc2754816027a7f15e7d08c07c79a93f7f",
+        "released_at": "2026-10-25T17:52:37.438Z",
+        "released_reason": "AWKIT-SEC-007 sink digest, migration v6 backfill and auditSessionRef written",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}
