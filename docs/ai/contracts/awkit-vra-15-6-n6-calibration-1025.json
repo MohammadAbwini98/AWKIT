@@ -192,6 +192,22 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-vra-15-6-n6-calibration-1025:release:2026-10-25T13:34:33.395Z",
+        "task": "awkit-vra-15-6-n6-calibration-1025",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "electron.vite.calibration.config.ts"
+        ],
+        "acquired_at": "2026-10-25T13:34:33.395Z",
+        "acquired_at_commit": "50f197a9b6de6de0b1bb32947d6b87373fec0e52",
+        "released_at": "2026-10-25T13:34:49.964Z",
+        "released_reason": "N6.6 calibration config committed in 2ef692f",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }
