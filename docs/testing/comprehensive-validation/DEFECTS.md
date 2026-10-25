@@ -20,29 +20,7 @@ double-count NOT RUN as FAIL; offline SHA-256 uses a module-independent .NET hel
 
 ## Open product defects
 
-### AWKIT-SEC-007 — Audit records store the raw `sessionRef` (the live session id) instead of a one-way digest
-
-- **Classification:** Security hardening (credential-equivalent value at rest)
-- **Severity:** S3 / Every audit sink writes the session id into `security_audit.sessionId`:
-  `AuthenticationService` (LOGIN_SUCCESS, LOGOUT, REAUTH, PASSWORD_CHANGE), `sessionContext.recordDenial`, the admin
-  services and the N6 `visualAssertion.ipc.ts` audit. `listAudit` does not project the column, so no IPC returns it,
-  and exposure is limited to the per-user security database at rest and any copy of it. There, a still-live session
-  id works as a bearer value on the explicit-ref `security:admin:*` channels.
-- **Priority recommendation:** P2
-- **Status:** **Open — production release gate.** It must be fixed, or explicitly accepted by the owner, before the
-  next production release.
-- **Detected by:** N6.8 security review (2026-10-25, rounds 1 and 2)
-- **Owner routing:** Security kernel (`src/security/**`, Risk-3: needs a security contract and lease)
-- **Affected area:** `src/security/store/SecurityStore.ts` `appendAudit`, and its callers listed above
-- **Fix direction:**
-  - store a one-way digest of the ref at the single sink;
-  - migrate or purge existing rows;
-  - classify `sessionRef` as a bearer secret in `docs/ai/SECURITY.md`;
-  - add a regression in `verify:auth` that no audit row holds a live session id.
-- **Note:** filing it in Beads (`bd create`) was refused by the agent lease guard on 2026-10-25, so this register is
-  the tracking record until the owner files it.
-
----
+None.
 
 ## Open test and harness findings
 
@@ -100,6 +78,24 @@ None.
   reports-settings-a11y **14 PASS / 0 FAIL / 1 NOT RUN** (its documented strict third state, unchanged).
 
 ## Resolved comprehensive-campaign defects
+### AWKIT-SEC-007 — Audit records stored the raw `sessionRef` (the live session id) instead of a one-way digest
+
+- **Classification:** Security hardening (credential-equivalent value at rest)
+- **Severity:** S3 / Every audit writer passed the session id into `security_audit.sessionId` through the single sink
+  `SecurityStore.appendAudit`. `listAudit` never projected the column, so the exposure was at rest in the per-user
+  security database, where a still-live id works as a bearer value on the explicit-ref `security:admin:*` channels.
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-10-25 in cc0ff51** (contract `awkit-sec-007-audit-session-digest-1025`); Beads
+  `awkit-npwf`. It was a production-release gate; the gate is lifted.
+- **Detected by:** N6.8 security review (2026-10-25)
+- **Owner routing:** Security kernel (`src/security/**`)
+- **Fix:**
+  - the sink stores `sref1:` plus 32 hex of SHA-256 over the reference (`src/security/audit/auditSessionRef.ts`);
+  - store migration v6 rewrites older rows with every other column and the row count unchanged;
+  - `docs/ai/SECURITY.md` classifies `sessionRef` as a bearer secret.
+- **Evidence after fix:** `verify:audit-session-digest` 21/0 with 4 mutants red; `verify:auth` 79/0;
+  `verify:security` 61/0; `verify:auth-gui` 33/33; build PASS.
+
 ### AWKIT-SEC-008 — A second login from the same window kept the window authorized after a visible Sign out
 
 - **Classification:** Security defect (authorization outlives the user-visible session)
@@ -108,7 +104,7 @@ None.
   session while the window stayed bound to the second one: N6 listing and reset still answered, and the reset rotated
   the key. Credentials are needed to reach this state.
 - **Priority recommendation:** P2
-- **Status:** **Resolved 2026-10-25 in cc91e45**
+- **Status:** **Resolved 2026-10-25 in cc91e45**; Beads `awkit-1l08`
 - **Detected by:** `verify:visual-assertion-gui` during the N6.5 acceptance (red 46/5, 2026-10-25); confirmed by the
   N6.8 security review
 - **Owner routing:** Security kernel (`app/main/security/sessionContext.ts`, `app/main/ipc/security.ipc.ts`)
@@ -118,8 +114,8 @@ None.
   - `verify:session-context` 15/15;
   - `verify:visual-assertion-gui` 60/0 in real Electron: after a second login, Sign out refuses listing, preview,
     approval and reset, the reset rotates nothing, and the second session no longer validates;
-  - `verify:auth-gui` sign-out, re-login and idle-lock checks pass. Its one failure is the stale dark-token
-    assertion, which is unrelated (KNOWN_ISSUES).
+  - `verify:auth-gui` 33/33 after its stale dark-token assertion was corrected to the canonical accent model
+    (2026-10-25).
 
 ### AWKIT-REC-042 — User scroll is never captured, so scroll-dependent recordings replay against unscrolled pages
 

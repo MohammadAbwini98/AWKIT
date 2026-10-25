@@ -93,8 +93,8 @@
       "required": true,
       "command": "npm run verify:audit-session-digest",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": "pending"
+      "result": "PASS",
+      "observed": "21/0: every writer digests, migration v6 backfill idempotent with other columns unchanged, single insert path, four row mutants caught"
     },
     {
       "id": "verify:auth",
@@ -102,8 +102,8 @@
       "required": true,
       "command": "npm run verify:auth",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": "pending"
+      "result": "PASS",
+      "observed": "79/0; verify:security 61/0; verify:auth-gui 33/33"
     },
     {
       "id": "build",
@@ -111,8 +111,8 @@
       "required": true,
       "command": "npm run build",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": "pending"
+      "result": "PASS",
+      "observed": "tsc --noEmit and electron-vite build"
     },
     {
       "id": "git-push",
@@ -153,6 +153,24 @@
         "acquired_at_commit": "f6de34cc2754816027a7f15e7d08c07c79a93f7f",
         "released_at": "2026-10-25T17:52:37.438Z",
         "released_reason": "AWKIT-SEC-007 sink digest, migration v6 backfill and auditSessionRef written",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-sec-007-audit-session-digest-1025:security:2026-10-25T18:00:18.751Z",
+        "task": "awkit-sec-007-audit-session-digest-1025",
+        "holder": "security",
+        "status": "released",
+        "allowed_paths": [
+          "src/security/audit/auditSessionRef.ts",
+          "src/security/store/SecurityStore.ts",
+          "src/security/store/SecurityStoreSchema.ts"
+        ],
+        "acquired_at": "2026-10-25T18:00:18.751Z",
+        "acquired_at_commit": "f6de34cc2754816027a7f15e7d08c07c79a93f7f",
+        "released_at": "2026-10-25T18:00:41.464Z",
+        "released_reason": "AWKIT-SEC-007 fix committed in cc0ff51",
         "amendments": [],
         "overrides": [],
         "violations": []

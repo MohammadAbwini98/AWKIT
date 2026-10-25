@@ -17,6 +17,9 @@ import { fileURLToPath } from "node:url";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { isolatedLaunchEnv } from "./lib/gui-verify-harness.mjs";
+// The canonical accent model: the dark canvas edge and connector tokens are DERIVED from the active accent and
+// applied inline over the stylesheet (app/renderer/state/accentTheme.ts), so the expected values come from it.
+import { DEFAULT_ACCENT_SETTINGS, deriveAccentTokensFor } from "../src/theme/accentColor.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -196,14 +199,20 @@ try {
       ])
     )
   );
+  // Expected: exactly what the accent model derives for the default (Specter blue) accent in dark mode, and the
+  // constant semantic loop green the model deliberately leaves to the stylesheet (FEATURES: #34d399 dark).
+  const expectedDarkAccent = deriveAccentTokensFor(DEFAULT_ACCENT_SETTINGS, "dark");
+  const expectedDarkCanvas = {
+    "--awkit-edge": expectedDarkAccent["--awkit-edge"].toLowerCase(),
+    "--awkit-edge-strong": expectedDarkAccent["--awkit-edge-strong"].toLowerCase(),
+    "--awkit-connector-default": expectedDarkAccent["--awkit-connector-default"].toLowerCase(),
+    "--awkit-connector-selected": expectedDarkAccent["--awkit-connector-selected"].toLowerCase(),
+    "--awkit-connector-loop": "#34d399"
+  };
   check(
-    "dark-mode canvas edge and connector tokens are blue-derived",
-    darkCanvasAccentTokens["--awkit-edge"] === "#1d4ed8" &&
-      darkCanvasAccentTokens["--awkit-edge-strong"] === "#3b82f6" &&
-      darkCanvasAccentTokens["--awkit-connector-default"] === "#3b82f6" &&
-      darkCanvasAccentTokens["--awkit-connector-selected"] === "#60a5fa" &&
-      darkCanvasAccentTokens["--awkit-connector-loop"] === "#3b82f6",
-    JSON.stringify(darkCanvasAccentTokens)
+    "dark-mode canvas edge and connector tokens are the accent model's default-accent derivation, with the constant green loop",
+    Object.entries(expectedDarkCanvas).every(([name, value]) => darkCanvasAccentTokens[name] === value),
+    `${JSON.stringify(darkCanvasAccentTokens)} vs ${JSON.stringify(expectedDarkCanvas)}`
   );
   const defaultPreviewAtStart = await win.locator(".awkit-login-run-panel").evaluate((panel) => ({
     motion: panel.getAttribute("data-motion"),

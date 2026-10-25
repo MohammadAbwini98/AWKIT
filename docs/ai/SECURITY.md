@@ -107,6 +107,26 @@
 - There is no online activation service. A license for another offline machine must still be transferred
   back and imported there; silently adding a network transport would change the offline/security model.
 
+## Session references and the audit trail (AWKIT-SEC-007, AWKIT-SEC-008)
+- **Classification:** a session reference (`sessionRef`) is the session id, 256 random bits from
+  `SessionManager.create`. While the session is live it is a **bearer secret**: the explicit-ref
+  `security:admin:*` channels accept it. Treat it like a password.
+  - It may live only in the security store's session table, in the trusted main process, and in the signed-in
+    renderer's own session state.
+  - Never log, export or persist it anywhere else.
+- **Audit records hold a correlation digest, never the reference.**
+  - `SecurityStore.appendAudit`, the single sink every audit writer uses, stores `sref1:` plus 32 hex characters of
+    SHA-256 over the reference (`src/security/audit/auditSessionRef.ts`). The digest cannot be reversed or guessed,
+    and it still correlates every row of one session.
+  - Store migration v6 (`audit-session-reference-digest`) rewrote rows written before it. Every other column and the
+    row count are unchanged.
+  - `listAudit` never returns the column at all.
+  - `verify:audit-session-digest` proves every writer, the migration, the single insert path, and the mutants.
+  - Never add a second `INSERT INTO security_audit`, and never put a reference in an audit `detail`.
+- **Sign out ends the window's authority.** `security:logout` clears the window's sender binding whatever it holds,
+  and ends a different session that window held (`signOutWindow`, `verify:session-context`). Sensitive channels
+  re-validate the bound session and require fresh re-authentication on every call.
+
 ## Unknown / Needs Verification
 - Whether any sample data under `resources/sample-*` contains realistic-but-fake credentials —
   review before distributing; ensure they are clearly non-production.
