@@ -9,13 +9,15 @@ import { assertSenderPermission, assertSenderSuperUser } from "../security/sessi
 import { Permission } from "@src/security/authz/Permissions";
 import { getSecretStore } from "../secretStore";
 import { getOracleNodeRunner } from "../oracleService";
-import { visualAssertionServices } from "../visualAssertion/visualAssertionServices";
+import { issueStartupEpochTokens, visualAssertionServices } from "../visualAssertion/visualAssertionServices";
 import { domIntelligenceRecoveryOptions, prewarmDomIntelligence } from "../domIntelligence/domIntelligenceRuntime";
 import { localAiEnabled } from "../ai/aiRuntime";
 import { indexCompletedRun } from "../semantic/semanticService";
 import { applyRunGateEnforcement, licenseDispatchGate, parkedResumeBlocker } from "../licensing/licenseEnforcementService";
 import { ExecutionApplicationService } from "../execution/ExecutionApplicationService";
 import type { ExecutionRunRequest, RunBrowserLaunchSnapshot } from "../execution/ExecutionApplicationService";
+import type { AuthorizedActor } from "@src/security/authz/AuthorizationService";
+import type { VisualAssertionRunInitiator } from "@src/runner/visualAssertion/visualAssertionContract";
 
 /**
  * The `execution:runWorkflow` wire contract, as imported by `preload.ts`. It is exactly the
@@ -25,6 +27,11 @@ import type { ExecutionRunRequest, RunBrowserLaunchSnapshot } from "../execution
  * graph keeps its single runtime direction (IPC -> service, never back).
  */
 export interface RunWorkflowRequest extends ExecutionRunRequest {}
+
+/** The run initiator is the authorized actor's own id and username, resolved from the sender-bound session. */
+export function runInitiatorOf(actor: AuthorizedActor): VisualAssertionRunInitiator {
+  return { userId: actor.user.id, username: actor.user.username };
+}
 
 export function registerExecutionIpc(): void {
   // Application-level run preparation. Authorization stays in the handlers below and completes
@@ -51,6 +58,7 @@ export function registerExecutionIpc(): void {
   executionEngine.setSecretResolver((name) => getSecretStore().get(name));
   // N6.4: build mode, app version and the safeStorage-protected visual baseline store for assertVisual steps.
   executionEngine.setVisualAssertionServices(visualAssertionServices());
+  void issueStartupEpochTokens();
 
   // Oracle query nodes run through the main-process OracleQueryService (owns the JDBC bridge).
   executionEngine.setOracleNodeRunner(getOracleNodeRunner());
@@ -80,23 +88,25 @@ export function registerExecutionIpc(): void {
     // predicates must stay exact complements: changing EITHER one alone is a security change, not a
     // refactor. Both halves and that ordering are pinned by scripts/verify-r0-characterization.mts.
     let browserLaunchSnapshot: RunBrowserLaunchSnapshot | undefined;
+    let initiator: VisualAssertionRunInitiator | undefined;
     if (request.dryRun === false) {
       const settings = await getUiSettings();
       // Snapshot both authorization-relevant mode and launch-relevant executable path from the same
       // Settings observation. The service receives this exact frozen value, so a concurrent Settings
       // save cannot authorize one browser distribution and launch another.
       browserLaunchSnapshot = Object.freeze({ ...settings.superUser.chrome });
-      if (browserLaunchSnapshot.mode === "installedChrome") {
-        await assertSenderSuperUser(event, Permission.WORKFLOW_EXECUTE, {
-          audit: { eventType: "INSTALLED_CHROME_EXECUTION_DENIED", channel: "execution:runWorkflow" }
-        });
-      } else {
-        await assertSenderPermission(event, Permission.WORKFLOW_EXECUTE);
-      }
+      const actor =
+        browserLaunchSnapshot.mode === "installedChrome"
+          ? await assertSenderSuperUser(event, Permission.WORKFLOW_EXECUTE, {
+              audit: { eventType: "INSTALLED_CHROME_EXECUTION_DENIED", channel: "execution:runWorkflow" }
+            })
+          : await assertSenderPermission(event, Permission.WORKFLOW_EXECUTE);
+      // N6.4 / VA-13: the run is attributed to the actor this boundary just authorized, from the sender-bound session.
+      initiator = runInitiatorOf(actor);
       // L12.1: an authorized real run starts the DOM-intelligence host in the background (never awaited).
       prewarmDomIntelligence();
     }
-    return applicationService.runWorkflow(request, browserLaunchSnapshot);
+    return applicationService.runWorkflow(request, browserLaunchSnapshot, initiator);
   });
   ipcMain.handle("execution:pauseInstance", async (event, instanceId: string) => {
     await assertSenderPermission(event, Permission.WORKFLOW_STOP);
@@ -150,7 +160,8 @@ export function registerExecutionIpc(): void {
     }
   });
   ipcMain.handle("execution:repeatInstance", async (event, instanceId: string) => {
-    await assertSenderPermission(event, Permission.WORKFLOW_EXECUTE);
+    // VA-13: a repeat is attributed to the user who repeats it.
+    const repeater = await assertSenderPermission(event, Permission.WORKFLOW_EXECUTE);
     // AWKIT-SYAA: Repeat relaunches a browser, so it must carry the same installed-Chrome Super User
     // requirement as `execution:runWorkflow` — otherwise an execute-permitted non-Super-User could
     // repeat an installed-Chrome run only a Super User was allowed to start. The decision comes from
@@ -170,7 +181,7 @@ export function registerExecutionIpc(): void {
     try {
       const gate = applyRunGateEnforcement("run-request").decision;
       if (!gate.allowed) return { success: false, error: gate.status.userAction };
-      executionEngine.repeatInstance(instanceId);
+      executionEngine.repeatInstance(instanceId, runInitiatorOf(repeater));
       return { success: true };
     } catch (e: any) {
       return { success: false, error: e.message };

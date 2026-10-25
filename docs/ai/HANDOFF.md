@@ -1,6 +1,56 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-24, latest) — Phase N: N6.4 done; next N6.6, N6.5, N6.7
+## HANDOFF (2026-10-25, latest) — Phase N: N6.5 and N6.7 done, N6.8 reviews APPROVED; owner closes and commits
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done (uncommitted):**
+  - **N6.5:** the approval IPC, the service and the Designer section.
+  - **N6.7:** the report block and the drawer section.
+  - **N6.8:** both reviews returned APPROVED after fixes (QC round 2; security round 3), and Phase N continues with
+    N7 to N10.
+- **Owner actions (BLOCKED in the agent shell):**
+  1. `git restore --staged electron.vite.calibration.config.ts` lets the agent commit everything else unleased. The
+     other way is to stage everything except the untracked L12.27 contract and commit and push yourself.
+  2. Close the Beads items. `bd close` is a terminal lease denial for the agent, so run these yourself:
+
+     ```
+     bd close awkit-vra.15.5
+     bd close awkit-vra.15.7
+     bd close awkit-vra.15.8
+     ```
+
+     Evidence for each is in TASK_LOG, 2026-10-25. Then update the N6 phase status in `ImplementationRoadmap.ts`
+     and run `npm run verify:roadmap-dashboard`.
+  3. Package gate: `npm run package:portable` is NOT RUN, because it would overwrite `dist\SpecterStudio 0.1.53.exe`
+     from an uncommitted tree. After committing, build the package and confirm `out/calibration-main` is absent from
+     it.
+- **Follow-ups filed in KNOWN_ISSUES (Low):**
+  - the security kernel's second session after Sign out;
+  - the raw `sessionRef` in audit records;
+  - the N6 sensitive-target residuals;
+  - three test-coverage gaps from QC round 2.
+- **Next:** Phase N N7.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-25) — Phase N: N6.4 follow-up and N6.6 done; next N6.5, N6.7
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Owner action (commit BLOCKED in the agent shell):** stage everything except the untracked L12.27 contract, then
+  commit and push from a PowerShell tab in the project folder.
+- **Done:** the N6.4 review follow-up and N6.6 calibration. All six cells are qualified, with six dev grants that
+  expire 30 days after issue.
+- **Calibration again:** close the app and run `npm run benchmark:visual-assertion` (one about 8-minute session) until
+  the cells qualify. Rerun it after any Chromium, app-version or OS-build change, and before the grants expire.
+- **Next:**
+  - **N6.5:** approval IPC over `visualAssertionCandidates`, with `WORKFLOW_EDIT`, fresh re-auth and audit, binding
+    the candidate's `initiator`. It also covers reset, the Designer mode editor and the plan's *N6.5 Electron key
+    acceptance* (first key, restart, key loss, tamper, run user).
+  - **N6.7:** the report block from `VisualAssertionRecord`, including `candidateWithheld`.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-24) — Phase N: N6.4 done; next N6.6, N6.5, N6.7
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

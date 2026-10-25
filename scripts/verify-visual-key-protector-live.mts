@@ -48,8 +48,20 @@ check("protect is safeStorage.encryptString of the key's base64", /protect: \(pl
 check("unprotect is the base64 of safeStorage.decryptString", /unprotect: \(cipher\) => Buffer\.from\(safeStorage\.decryptString\(cipher\), "base64"\)/.test(source));
 check("no fallback, override, environment or plaintext branch", !/process\.env|\?\?|\|\||if \(|catch/.test(source.replace(/import[^;]+;/g, "")));
 
+// The KNOWN_ISSUES workaround's local copy of the same Electron runtime is used when it exists, so the check runs as a
+// plain `npm run` on the Parallels share; `--electron-dist` or ELECTRON_OVERRIDE_DIST_PATH still take precedence.
+const KNOWN_LOCAL_DIST = "C:\\electron-dist";
 const distArg = process.argv.indexOf("--electron-dist");
-const dist = distArg >= 0 ? process.argv[distArg + 1] : process.env.ELECTRON_OVERRIDE_DIST_PATH;
+const dist =
+  distArg >= 0
+    ? process.argv[distArg + 1]
+    : process.env.ELECTRON_OVERRIDE_DIST_PATH ?? (process.platform === "win32" && existsSync(path.join(KNOWN_LOCAL_DIST, "electron.exe")) ? KNOWN_LOCAL_DIST : undefined);
+const installedVersion = readFileSync(path.join(root, "node_modules/electron/dist/version"), "utf8").trim();
+const localVersion = dist && existsSync(path.join(dist, "version")) ? readFileSync(path.join(dist, "version"), "utf8").trim() : installedVersion;
+if (localVersion !== installedVersion) {
+  console.error(`BLOCKED: the local Electron copy at ${dist} is ${localVersion}, not the installed ${installedVersion}; refresh it (KNOWN_ISSUES).`);
+  process.exit(2);
+}
 const executablePath = dist ? path.join(dist, "electron.exe") : undefined;
 console.log(`\nThe real app's main process (${executablePath ?? "default Electron"}):\n`);
 if (executablePath && !existsSync(executablePath)) {
@@ -72,22 +84,21 @@ try {
       blocked = "the main window never became ready";
     } else {
       await signInFirstRun(win);
+      // No named helpers inside the evaluated callback: tsx wraps them in `__name(...)`, which does not exist there.
       const result = await app.evaluate(({ safeStorage }) => {
         const available = safeStorage.isEncryptionAvailable();
         if (!available) return { available, ok: false };
         const key = Buffer.alloc(32);
         for (let i = 0; i < 32; i += 1) key[i] = Math.floor(Math.random() * 256);
         // The production protector's transformation, verbatim (pinned against its source above).
-        const protect = (plain: Buffer): Buffer => safeStorage.encryptString(plain.toString("base64"));
-        const unprotect = (cipher: Buffer): Buffer => Buffer.from(safeStorage.decryptString(cipher), "base64");
-        const sealed = protect(key);
-        const again = protect(key);
-        const opened = unprotect(sealed);
+        const sealed = safeStorage.encryptString(key.toString("base64"));
+        const again = safeStorage.encryptString(key.toString("base64"));
+        const opened = Buffer.from(safeStorage.decryptString(sealed), "base64");
         const tampered = Buffer.from(sealed);
         tampered[tampered.length - 1] ^= 0xff;
         let tamperedOpens = false;
         try {
-          tamperedOpens = unprotect(tampered).equals(key);
+          tamperedOpens = Buffer.from(safeStorage.decryptString(tampered), "base64").equals(key);
         } catch {
           tamperedOpens = false;
         }

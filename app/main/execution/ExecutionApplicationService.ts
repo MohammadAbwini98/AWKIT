@@ -17,6 +17,7 @@ import { isReadableDataSourceFile } from "@src/utils/pathSafety";
 import { getConfiguredPaths } from "../storagePaths";
 import { getUiSettings, type UiSettings } from "../uiSettings";
 import { executionEngine } from "@src/runner/ExecutionEngine";
+import type { VisualAssertionRunInitiator } from "@src/runner/visualAssertion/visualAssertionContract";
 import type { ConcurrentRunProfile } from "@src/instances/ConcurrentRunProfile";
 import type { SessionCaptureService } from "@src/session/SessionCaptureService";
 import { runOracleDataSourceQuery } from "../oracleService";
@@ -110,7 +111,12 @@ export class ExecutionApplicationService {
     return validateWorkflow(workflowId);
   }
 
-  public async runWorkflow(request: ExecutionRunRequest, browserLaunchSnapshot?: RunBrowserLaunchSnapshot) {
+  public async runWorkflow(
+    request: ExecutionRunRequest,
+    browserLaunchSnapshot?: RunBrowserLaunchSnapshot,
+    /** The actor the IPC boundary authorized for this real run; never part of the renderer's request. */
+    initiator?: VisualAssertionRunInitiator
+  ) {
     const validation = await validateWorkflow(request.workflowId);
     if (!validation.workflow || !validation.scenario || !validation.plan) {
       return { status: "failed", validation, error: `Workflow not found: ${request.workflowId}` };
@@ -269,7 +275,8 @@ export class ExecutionApplicationService {
       validation.scenario,
       flows,
       workflowDataSource,
-      dataSources
+      dataSources,
+      initiator
     );
 
     return {

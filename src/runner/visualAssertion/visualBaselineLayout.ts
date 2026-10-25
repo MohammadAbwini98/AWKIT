@@ -250,14 +250,36 @@ export class VisualBaselineLayout {
   // ── Keyless invalidation and purge ─────────────────────────────────────────────────────────
 
   /**
-   * Invalidate every approval of a flow: a new random token when one exists (written first), then
-   * delete the flow's signed files in every mode. A flow with no token has nothing a candidate could
-   * have bound, so it gets none (it is created on first capture).
+   * Invalidate every approval of a flow: a new random token (written first), then delete the flow's signed
+   * files in every mode.
+   *
+   * `issueToken` is set by every write that leaves the flow present (create, clone, import, Recorder save, the
+   * new id of a rename, an update over a missing file), because the plan writes the token at the flow's first
+   * create or import (VA-5, VA-13). It is NOT equivalent to creating the token at first capture: a run that read no
+   * token, then an identical re-import, then a token created at capture would let a candidate captured before
+   * the re-import bind a post-import epoch and survive it. Delete and quarantine only rotate an existing token.
    */
-  async invalidateFlowUnlocked(flowId: string): Promise<void> {
+  async invalidateFlowUnlocked(flowId: string, options: { issueToken?: boolean } = {}): Promise<void> {
     await this.assertHeld();
-    if (await this.tokenFileExists(flowId)) await this.writeToken(flowId);
+    if (options.issueToken === true || (await this.tokenFileExists(flowId))) await this.writeToken(flowId);
     await this.deleteSignedFiles(flowId);
+  }
+
+  /**
+   * N6's start-up pass (VA-5): every listed flow without a token gets one, in ONE coordinated critical section, so
+   * flows saved before N6 behave like flows created after it. Flows that already have a token are left alone.
+   * Returns how many tokens were issued.
+   */
+  ensureTokensForFlows(flowIds: readonly string[]): Promise<number> {
+    return this.coordinate(async () => {
+      let issued = 0;
+      for (const flowId of flowIds) {
+        if (await this.readToken(flowId)) continue;
+        await this.ensureTokenUnlocked(flowId);
+        issued += 1;
+      }
+      return issued;
+    });
   }
 
   /** Delete the signed index and records of these steps in every mode. */

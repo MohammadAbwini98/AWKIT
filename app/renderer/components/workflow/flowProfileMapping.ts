@@ -147,8 +147,18 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
   // is always persisted.
   const omit = (field: (typeof OPTIONAL_STEP_FIELDS)[number], atDefault: boolean): boolean => wasAbsent(field) && atDefault;
 
+  // N6.5: `mode` belongs to assertVisual only, so a node whose type changed away from it drops a stale saved mode.
+  const { mode: savedMode, ...savedStep } = data.originalStep ?? {};
   const step: FlowStep = {
-    ...(data.originalStep ?? {}),
+    ...savedStep,
+    // The edited mode of an assertVisual step; otherwise the saved step's own value survives untouched.
+    ...(data.stepType === "assertVisual"
+      ? data.visualAssertionMode
+        ? { mode: data.visualAssertionMode }
+        : savedMode !== undefined
+          ? { mode: savedMode }
+          : {}
+      : {}),
     id: node.id,
     type: data.stepType,
     name: data.name,
@@ -447,6 +457,8 @@ export function fromFlowStep(step: FlowStep): FlowDesignerNodeData {
     expectedValue: step.config?.expectedValue ?? "",
     attributeName: step.config?.attributeName ?? "",
     holdMs: step.config?.holdMs ?? 1000,
+    // N6.5: only a recognised mode is editable; any other value stays in `originalStep` (the validator refuses it).
+    visualAssertionMode: step.type === "assertVisual" && (step.mode === "observe" || step.mode === "enforce") ? step.mode : undefined,
     storageArea: step.config?.storageArea ?? "local",
     storageKey: step.config?.storageKey ?? "",
     screenshotName: step.config?.screenshotName ?? "",

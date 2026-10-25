@@ -1,6 +1,72 @@
 # DECISIONS
 
-### 2026-10-22 (latest) — Phase N N6.3 implementation decisions: corrected cross-process lock, tokens in the flows folder (`awkit-vra.15.3`)
+### 2026-10-25 (latest) — Phase N N6.5 approval surface, N6.7 report block, and N6.8 round-1 review fixes (`awkit-vra.15.5`, `.15.7`)
+
+- **Approval surface (N6.5).**
+  - Six `visualAssertion:*` channels: capabilities (signed in, returns the build mode only), list (WORKFLOW_EDIT),
+    and preview, approve, reject and reset (WORKFLOW_EDIT plus fresh re-authentication). Denials are audited and
+    answered as codes.
+  - The service is Electron-free (`visualAssertionApproval.ts`). Approval consumes the candidate before the store
+    write, so a refused approval is still used up. The approver is the acting user; the run user is the candidate's
+    authenticated initiator.
+  - The preview is an in-memory PNG of the element crop, capped at 4 MP, and never written to disk.
+- **Designer (C4).** The packaged build never offers observe → enforce. An enforce step that arrives there is shown
+  unavailable with its reason and may only be switched to observe. The plan's "read-only" wording was superseded by
+  C4.
+- **Report block (N6.7).** `InstanceReport.visualAssertions` is optional and holds codes only. It is rebuilt from an
+  allowlist on write and again on read, and never strengthens a result:
+  - `visual-mismatch` survives only with a failed verdict;
+  - any other failure reads `visual-unverified`;
+  - a passed record carries no failure class;
+  - a passed enforce record without a passed verdict is dropped.
+
+  Run totals are derived at read time and are not persisted.
+- **Review fixes (N6.8 round 1).**
+  - A visual target is refused as `sensitive-step` when any input or textarea inside it, open shadow roots included,
+    matches the sensitive rule. The walk is bounded at 2,000 nodes and fails closed.
+  - `getAppMode()` answers "packaged" when reading `app.isPackaged` throws.
+  - A reset never yields key generation 1, which stays reserved for the first key.
+  - The deadline timer aborts before it settles, so no late candidate can appear.
+  - Replacing an unreadable baseline is audited as `replacedUnreadable`.
+  - Not changed in N6: the audit `sessionId` is the session reference, as the kernel's `recordDenial` already does
+    (kernel-wide follow-up, if confirmed).
+- **Review fixes (N6.8 round 2).**
+  - Any embedded document (`iframe`, `frame`, `object`, `embed`) that is the target or inside it makes the step
+    `sensitive-step`. Its contents cannot be inspected, and its pixels would be in the capture.
+  - A field's own label text (`<label>`, `aria-labelledby`) counts toward the sensitive rule. Names are split on
+    camelCase and non-letters before matching, so `card_cvv2` and `pinCode` match; "security code" is added.
+  - The reset order is crash-safe: the marker with the new generation first, then removal of everything else (the old
+    key included), then the new key. A crash leaves key-mismatch or key-lost (fail closed), never first use.
+  - The marker write during approval is fenced by `assertHeld()`.
+  - The renderer drops a stale `mode` when a node's type changes away from `assertVisual`.
+  - The Designer's latest result is the last record of the newest run that recorded the step.
+  - The Lab's iframe fixture is added on demand (`injectFrameField()`), so the Lab page stays static for VA-15 and
+    calibration.
+  - Static sensitive fixtures were added to the Lab after the N6.6 calibration. Grants bind the environment, not
+    page content, and the calibration fixtures are unchanged.
+
+### 2026-10-25 — Phase N N6.6 calibration outcome: all six cells qualified, experimental grants issued (`awkit-vra.15.6`)
+
+- **Outcome (measured, `benchmark:visual-assertion`).** 21 sessions and 2,138 real launches in the non-packaged
+  acceptance build on the owner's Windows 11 ARM64 Parallels machine (Electron 33.4.11, Playwright's default
+  Chromium). All six render-mode x DPR cells (headless and headed at DPR 1, 1.25 and 2) met every VA-12 criterion:
+  325–387 passing primary launches each over 20–21 sessions, zero failed, every restyle, swap, text and size change
+  failed in at least 30 launches and never passed, moved, clipped, hovered and focused always inconclusive, zero
+  captures on protected, handoff and sensitive fixtures, primary p95 989–1342 ms. One-sided 95 % upper bound on the
+  per-launch false-mismatch probability: 0.77–0.92 %. Observe usefulness: 99.0–99.9 %. The plan expected headless
+  DPR 1 to stay observe-only (N3.2's position-dependent bytes); for one fixed-position element it did not.
+- **Grants.** Six dev-mode grants signed with the dev master key through `safeStorage`, each bound to this browser,
+  app version, OS build, capture policy, fingerprint, policy and suite versions and expiring 30 days after its issue.
+  The packaged build never reads them (VA-16). Experimental only; production qualification stays `awkit-vra.16`.
+- **What the bound does not cover.** The calibration fixtures on this machine and environment only, not authors'
+  pages; independence of launches is assumed, not proven; the GPU raster path, drivers and the Browser Resource
+  Optimization switches of a run are not bound.
+- **Method decisions.** One fresh browser launch per trial, counted once; fixtures on every fifth launch; launches run
+  serially after one three-lane session pushed the DPR 2 cells' p95 just past 2000 ms (its evidence stays counted);
+  the calibration root shares the app's userData so the dev app can unwrap the key; evidence is decided only over
+  launches of the same bound environment.
+
+### 2026-10-22 — Phase N N6.3 implementation decisions: corrected cross-process lock, tokens in the flows folder (`awkit-vra.15.3`)
 
 - **Cross-process mechanism.** A new corrected exclusive lock, `src/storage/crossProcessLock.ts`, taken inside the
   existing folder lane.

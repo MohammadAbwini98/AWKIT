@@ -33,6 +33,21 @@ export function currentVisualBaselineStore(): VisualBaselineStore {
   return cached.store;
 }
 
+/**
+ * VA-5: at start-up every saved flow without an epoch token gets one, in one coordinated critical section, so flows
+ * saved before N6 bind candidates exactly like flows written since (every write issues a token). Best effort: a
+ * folder without cross-process coordination cannot hold baselines at all, and a capture still issues a missing token
+ * inside the lane before any candidate binds it.
+ */
+export async function issueStartupEpochTokens(): Promise<number> {
+  try {
+    const flows = await createFlowProfileStore().list();
+    return await currentVisualBaselineStore().layout.ensureTokensForFlows(flows.map((flow) => flow.id));
+  } catch {
+    return 0;
+  }
+}
+
 export function visualAssertionServices(): VisualAssertionServices {
   return {
     appMode: getAppMode(),

@@ -40,8 +40,35 @@ import {
   planVisualAssertion,
   visualAssertionStepMode,
   type VisualAssertionAssessment,
+  type VisualAssertionAssessor,
   type VisualAssertionRuntime
 } from "./visualAssertion/visualAssertionContract";
+
+/** The adapter settles itself at the deadline; this margin only lets that settlement arrive before the outer bound. */
+const VISUAL_ASSERTION_SETTLE_MARGIN_MS = 150;
+
+/**
+ * N6.4: bound one stage of a visual assertion by what is left of its deadline. `late` when the deadline won, `error`
+ * when the work rejected. Never throws, so no stage can turn a visual assertion into a non-visual step error.
+ */
+async function withinVisualDeadline<T>(work: Promise<T>, remainingMs: number): Promise<{ state: "ok"; value: T } | { state: "late" } | { state: "error" }> {
+  if (remainingMs <= 0) {
+    work.catch(() => undefined);
+    return { state: "late" };
+  }
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      work.then(
+        (value) => ({ state: "ok" as const, value }),
+        () => ({ state: "error" as const })
+      ),
+      new Promise<{ state: "late" }>((resolve) => (timer = setTimeout(() => resolve({ state: "late" }), remainingMs)))
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 /** Upper bound for the protected-surface scan that gates each B2 failure capture (awkit-4b5y). */
 const PROTECTED_CAPTURE_SCAN_BUDGET_MS = 5_000;
@@ -160,6 +187,8 @@ export class StepExecutor {
   private readonly protectedHandoffSteps = new Set<string>();
   /** N6.4: runtime visual assertions. Absent, an `assertVisual` step is decided as flag off. */
   private visualAssertion?: VisualAssertionRuntime;
+  /** N6.4: the current assertVisual step's page, resolved inside its deadline by `runStepWithWaits`, and the time spent. */
+  private visualAssertionPage?: { page: Page; spentMs: number };
 
   constructor(
     page: Page,
@@ -215,30 +244,85 @@ export class StepExecutor {
    * off nothing is captured and the adapter is never loaded. A failure throws `VisualAssertionFailure`, which the retry
    * policy never retries (VA-2) and `onFailure` routes like any step error.
    */
-  private async executeVisualAssertion(step: FlowStep): Promise<void> {
+  private async executeVisualAssertion(
+    step: FlowStep,
+    pagePhase: { page?: Page; spentMs: number; unresolved?: "budget-exhausted" | "capture-unavailable" }
+  ): Promise<void> {
     const runtime = this.visualAssertion;
     const appMode = runtime?.appMode ?? "packaged";
     const flag = runtime?.flag ?? "off";
     const stepMode = visualAssertionStepMode(step);
     const plan = planVisualAssertion(appMode, flag, stepMode);
     let assessment: VisualAssertionAssessment | undefined;
-    if (runtime && plan.evaluate && this.context.flowId) {
-      const started = performance.now();
-      // The adapter's first load counts against the same deadline; a load that loses it evaluates nothing this time.
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      const assessor = await Promise.race([
-        runtime.assessor().catch(() => undefined),
-        new Promise<undefined>((resolve) => (timer = setTimeout(() => resolve(undefined), VISUAL_ASSERTION_DEADLINE_MS)))
-      ]);
-      clearTimeout(timer);
-      const page = await this.resolveStepPage(step);
-      const controller = new AbortController();
-      const unsubscribe = this.cancellation?.onCancel(() => controller.abort());
-      if (this.cancellation?.cancelled) controller.abort();
-      try {
-        assessment = await assessor?.assess({
+    const flowId = this.context.flowId;
+    if (runtime && plan.evaluate && flowId) {
+      // VA-9: ONE deadline for the whole assertion — the step's page (resolved first, by `runStepWithWaits`; a popup
+      // alias may wait on popup identity), the adapter's first load and the assessment. Whatever loses it is
+      // inconclusive `budget-exhausted`; a page that cannot be resolved is `capture-unavailable`. Neither ever throws a
+      // non-visual error, so an observe step still passes and an enforce step fails `visual-unverified`, never retried
+      // (VA-2), routed by `onFailure` as before. The author's before-waits are the step's own, outside this clock.
+      const started = performance.now() - pagePhase.spentMs;
+      const remaining = () => VISUAL_ASSERTION_DEADLINE_MS - (performance.now() - started);
+      const inconclusive = (code: string): VisualAssertionAssessment => ({ verdict: "inconclusive", code, durationMs: Math.round(performance.now() - started) });
+      if (pagePhase.unresolved || !pagePhase.page) {
+        assessment = inconclusive(pagePhase.unresolved ?? "capture-unavailable");
+      } else {
+        const assessor = await withinVisualDeadline(runtime.assessor(), remaining());
+        if (assessor.state === "late") assessment = inconclusive("budget-exhausted");
+        else if (assessor.state === "ok" && assessor.value) {
+          assessment = await this.assessVisual(step, flowId, runtime, plan.readGrant, pagePhase.page, assessor.value, remaining, inconclusive);
+        }
+      }
+    }
+    const status = decideVisualAssertionStepStatus({
+      appMode,
+      flag,
+      stepMode,
+      ...(assessment ? { verdict: { verdict: assessment.verdict, code: assessment.code } } : {}),
+      ...(assessment?.grant ? { grant: assessment.grant } : {})
+    });
+    try {
+      runtime?.onRecord?.({
+        stepId: step.id,
+        flowId: flowId ?? "",
+        mode: stepMode,
+        flag,
+        appMode,
+        status: status.status,
+        ...(status.failureClass ? { failureClass: status.failureClass } : {}),
+        code: status.code,
+        ...(assessment ? { verdict: assessment.verdict, verdictCode: assessment.code } : {}),
+        candidate: assessment?.candidateId !== undefined,
+        ...(assessment?.candidateWithheld ? { candidateWithheld: assessment.candidateWithheld } : {}),
+        durationMs: assessment?.durationMs ?? 0
+      });
+    } catch {
+      // A sink is a recorder, not a participant.
+    }
+    if (status.status === "failed") throw new VisualAssertionFailure(status.failureClass ?? "visual-unverified", status.code);
+  }
+
+  /** The adapter's assessment on the resolved page, still inside the step's one deadline. */
+  private async assessVisual(
+    step: FlowStep,
+    flowId: string,
+    runtime: VisualAssertionRuntime,
+    readGrant: boolean,
+    page: Page,
+    adapter: VisualAssertionAssessor,
+    remaining: () => number,
+    inconclusive: (code: string) => VisualAssertionAssessment
+  ): Promise<VisualAssertionAssessment> {
+    const controller = new AbortController();
+    const unsubscribe = this.cancellation?.onCancel(() => controller.abort());
+    if (this.cancellation?.cancelled) controller.abort();
+    try {
+      // The adapter settles at its own deadline; the outer bound (with a small margin for that settlement) only
+      // guarantees an adapter defect can never hold the step past it.
+      const assessed = await withinVisualDeadline(
+        adapter.assess({
           step,
-          flowId: this.context.flowId,
+          flowId,
           executionId: this.context.executionId,
           instanceId: this.context.instanceId,
           page,
@@ -257,40 +341,20 @@ export class StepExecutor {
             }
           })(),
           renderMode: runtime.renderMode,
-          readGrant: plan.readGrant,
-          deadlineMs: Math.max(1, Math.round(VISUAL_ASSERTION_DEADLINE_MS - (performance.now() - started))),
+          readGrant,
+          deadlineMs: Math.max(1, Math.round(remaining())),
           limitScreenshot: (work) => this.limitScreenshot(work),
           signal: controller.signal
-        });
-      } finally {
-        unsubscribe?.();
-      }
+        }),
+        remaining() + VISUAL_ASSERTION_SETTLE_MARGIN_MS
+      );
+      if (assessed.state === "ok") return assessed.value;
+      // A defect that outlived the deadline: stop its work, it can no longer settle the step.
+      controller.abort();
+      return inconclusive(assessed.state === "late" ? "budget-exhausted" : "capture-unavailable");
+    } finally {
+      unsubscribe?.();
     }
-    const status = decideVisualAssertionStepStatus({
-      appMode,
-      flag,
-      stepMode,
-      ...(assessment ? { verdict: { verdict: assessment.verdict, code: assessment.code } } : {}),
-      ...(assessment?.grant ? { grant: assessment.grant } : {})
-    });
-    try {
-      runtime?.onRecord?.({
-        stepId: step.id,
-        flowId: this.context.flowId ?? "",
-        mode: stepMode,
-        flag,
-        appMode,
-        status: status.status,
-        ...(status.failureClass ? { failureClass: status.failureClass } : {}),
-        code: status.code,
-        ...(assessment ? { verdict: assessment.verdict, verdictCode: assessment.code } : {}),
-        candidate: assessment?.candidateId !== undefined,
-        durationMs: assessment?.durationMs ?? 0
-      });
-    } catch {
-      // A sink is a recorder, not a participant.
-    }
-    if (status.status === "failed") throw new VisualAssertionFailure(status.failureClass ?? "visual-unverified", status.code);
   }
 
   /** N5.3: run one screenshot-class operation of the visual failure diagnosis under the screenshot limiter. */
@@ -874,7 +938,23 @@ export class StepExecutor {
 
   private async runStepWithWaits(step: FlowStep, outputs: Record<string, unknown>) {
     const originalActivePage = this.activePage;
-    const stepPage = await this.resolveStepPage(step);
+    let stepPage: Page;
+    if (step.type === "assertVisual") {
+      // N6.4 (VA-9): an assertVisual step's page (a popup alias may wait on popup identity) is resolved inside the
+      // assertion's ONE deadline, and a page that is late or cannot be resolved is a visual outcome, never a page error:
+      // an observe step still passes and an enforce step fails visual-unverified, with onFailure and VA-2 unchanged.
+      const pageStarted = performance.now();
+      const resolved = await withinVisualDeadline(this.resolveStepPage(step), VISUAL_ASSERTION_DEADLINE_MS);
+      if (resolved.state !== "ok") {
+        await this.executeVisualAssertion(step, { spentMs: performance.now() - pageStarted, unresolved: resolved.state === "late" ? "budget-exhausted" : "capture-unavailable" });
+        this.mapOutputs(step, outputs, { assertionResult: true });
+        return { status: "passed" as const };
+      }
+      stepPage = resolved.value;
+      this.visualAssertionPage = { page: stepPage, spentMs: performance.now() - pageStarted };
+    } else {
+      stepPage = await this.resolveStepPage(step);
+    }
 
     // Temporarily bind execution to the target page for this step
     this.activePage = stepPage;
@@ -2315,7 +2395,9 @@ export class StepExecutor {
       }
 
       case "assertVisual": {
-        await this.executeVisualAssertion(step);
+        const resolved = this.visualAssertionPage;
+        this.visualAssertionPage = undefined;
+        await this.executeVisualAssertion(step, resolved ?? { spentMs: 0 });
         this.mapOutputs(step, outputs, { assertionResult: true });
         return { status: "passed" };
       }

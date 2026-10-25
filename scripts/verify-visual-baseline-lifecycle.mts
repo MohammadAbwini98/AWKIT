@@ -316,7 +316,35 @@ async function lifecycleSuite(variant: Variant): Promise<Outcome[]> {
       "[compat] a flow without visual assertions is saved byte-identically with and without the hooks",
       readFileSync(join(hooked.flowsFolder, "N.json"), "utf8") === readFileSync(join(root, "workflows", "N.json"), "utf8")
     );
-    add("[compat] saving such a flow creates no epoch token", !existsSync(join(hooked.flowsFolder, ".awkit-visual", "epochs")));
+    // VA-5 / I1: the token lives beside the flows in the private subfolder, never in the flow file; it is issued at create.
+    const epochs = join(hooked.flowsFolder, ".awkit-visual", "epochs");
+    add(
+      "[compat] saving such a flow issues exactly one epoch token, outside the flow file",
+      existsSync(epochs) && readdirSync(epochs).filter((f) => f.endsWith(".token")).length === 1 && readdirSync(hooked.flowsFolder).filter((f) => f.endsWith(".json")).length === 1
+    );
+  }
+  // I1 / VA-5: every write that leaves a flow present issues a token even when it had none; delete never creates one.
+  {
+    const env = makeEnv({ Lifecycle: BaseLifecycle, Layout: BaseLayout, Store: variant.Store });
+    await env.flows.create(flow("C"));
+    const created = await env.layout.readToken("C");
+    await env.flows.import(flow("I"));
+    const imported = await env.layout.readToken("I");
+    await env.flows.clone("C", "K").catch(() => undefined);
+    const cloned = await env.layout.readToken("K");
+    add("[token] create, import and clone each issue the flow's epoch token at the write", !!created && !!imported && !!cloned, `${created} ${imported} ${cloned}`);
+    await env.flows.import(flow("I"));
+    const reimported = await env.layout.readToken("I");
+    add("[token] an identical re-import replaces the token", !!reimported && reimported !== imported);
+    await env.flows.delete("C");
+    await env.flows.delete("C").catch(() => undefined);
+    add("[token] delete rotates an existing token and never creates one for a missing flow", (await env.layout.readToken("C")) !== created && (await env.layout.readToken("never-existed")) === null);
+    const issued = await env.layout.ensureTokensForFlows(["pre-n6-a", "pre-n6-b", "I"]);
+    add(
+      "[token] the start-up pass issues tokens only to flows without one, and keeps existing tokens",
+      issued === 2 && !!(await env.layout.readToken("pre-n6-a")) && (await env.layout.readToken("I")) === reimported,
+      String(issued)
+    );
   }
   return out;
 }
@@ -382,11 +410,17 @@ class TrustsCandidateContent extends VisualBaselineStore {
   }
 }
 class DeleteBeforeToken extends VisualBaselineLayout {
-  override async invalidateFlowUnlocked(flowId: string): Promise<void> {
+  override async invalidateFlowUnlocked(flowId: string, options: { issueToken?: boolean } = {}): Promise<void> {
     await this.assertHeld();
-    const hadToken = await this.tokenFileExists(flowId);
+    const hadToken = options.issueToken === true || (await this.tokenFileExists(flowId));
     await this.deleteSignedFiles(flowId);
     if (hadToken) await this.writeToken(flowId);
+  }
+}
+/** The pre-review N6.9 behavior: a flow without a token gets none at the write (only at capture). */
+class LazyToken extends VisualBaselineLayout {
+  override async invalidateFlowUnlocked(flowId: string): Promise<void> {
+    return super.invalidateFlowUnlocked(flowId, {});
   }
 }
 
@@ -405,7 +439,8 @@ const mutants: Array<[string, Variant, string]> = [
   ["invalidation needs the key", { Lifecycle: InvalidationNeedsKey }, "[keystore] with the keystore down"],
   ["the uncoordinated fallback skips invalidation", { Lifecycle: FallbackSkipsInvalidation }, "[fallback] a write without cross-process coordination"],
   ["approval trusts the candidate's content instead of re-reading the flow", { Store: TrustsCandidateContent }, "[race] an approval queued behind an update"],
-  ["signed files are deleted before the new token is written", { Layout: DeleteBeforeToken }, "[crash] files left by a crash mid-deletion are never revived"]
+  ["signed files are deleted before the new token is written", { Layout: DeleteBeforeToken }, "[crash] files left by a crash mid-deletion are never revived"],
+  ["a written flow gets its token only at first capture (the pre-review I1 behavior)", { Layout: LazyToken }, "[token] create, import and clone each issue"]
 ];
 for (const [name, variant, mustFail] of mutants) {
   const failing = (await lifecycleSuite(variant)).filter((o) => !o.ok).map((o) => o.label);

@@ -2455,6 +2455,36 @@ div.validation-issue-row {
   font-weight: var(--weight-semibold);
 }
 
+/* N6.5 Designer visual assertion pending baselines (text first; the preview is the element crop only). */
+.visual-candidate-list {
+  display: grid;
+  gap: var(--space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.visual-candidate-list > li {
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-2);
+}
+
+.visual-candidate-preview {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+.visual-candidate-preview img {
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-sm);
+  height: auto;
+  max-width: 100%;
+}
+
 .smart-wait-list {
   display: grid;
   gap: 8px;

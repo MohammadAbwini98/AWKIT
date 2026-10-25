@@ -6,7 +6,7 @@
  * never on disk, at most `max` (20) at once, for `ttlMs` (30 minutes), and is dropped at app exit.
  *
  * IMMUTABLY BOUND (frozen) to the run, the flow, the step, the flow's epoch token at capture, the step content digest,
- * the conditions, the step mode, the key generation and the run's user. Approval (N6.5) re-checks the current epoch,
+ * the conditions, the step mode, the key generation and the run's authenticated initiator. Approval (N6.5) re-checks the current epoch,
  * content, key generation and existence inside the flows folder's critical section, and consumes the candidate
  * atomically: `take` removes it in the same synchronous turn that returns it, so it can be used once.
  *
@@ -17,6 +17,7 @@
 import { randomBytes } from "node:crypto";
 
 import type { VisualBaselineConditions, VisualBaselineGeometry } from "./VisualBaselineStore";
+import type { VisualAssertionRunInitiator } from "./visualAssertionContract";
 
 export const VISUAL_CANDIDATE_MAX = 20;
 export const VISUAL_CANDIDATE_TTL_MS = 30 * 60 * 1000;
@@ -38,8 +39,8 @@ export interface VisualAssertionCandidate {
   readonly geometry: Readonly<VisualBaselineGeometry>;
   /** The key generation at capture; 0 before the first key exists. */
   readonly keyGeneration: number;
-  /** Who started the run. `unattributed` when the engine has no run identity (the approver is always recorded). */
-  readonly runUser: string;
+  /** The authenticated user who started or repeated the run (main-process resolved, never renderer-supplied). */
+  readonly initiator: Readonly<VisualAssertionRunInitiator>;
   readonly createdAt: number;
   readonly expiresAt: number;
   /** Main process only: the N1 content digest and the image size in device pixels. */
@@ -87,6 +88,7 @@ export class VisualAssertionCandidates {
       ...input,
       conditions: Object.freeze({ ...input.conditions }),
       geometry: Object.freeze({ ...input.geometry }),
+      initiator: Object.freeze({ userId: input.initiator.userId, username: input.initiator.username }),
       preview: Object.freeze({ width: input.preview.width, height: input.preview.height, rgba: input.preview.rgba }),
       candidateId: randomBytes(16).toString("hex"),
       createdAt,

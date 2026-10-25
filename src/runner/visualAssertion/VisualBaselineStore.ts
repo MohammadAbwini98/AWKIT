@@ -31,7 +31,7 @@
  */
 
 import { createHmac, hkdfSync, randomBytes, timingSafeEqual } from "node:crypto";
-import { mkdir, readFile, rm } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { FlowProfile } from "../../profiles/FlowProfile";
@@ -594,11 +594,17 @@ export class VisualBaselineStore {
       await this.createKey(1);
       loaded = await this.loadKeys();
       if (loaded.state !== "available") return { ok: false, refusal: "integrity-unavailable" };
-    } else if (request.boundKeyGeneration !== loaded.keys.generation) {
+    } else if (request.boundKeyGeneration !== loaded.keys.generation && !(request.boundKeyGeneration === 0 && loaded.keys.generation === 1)) {
+      // A candidate captured before any key existed (generation 0) stays valid when another approval or grant made the
+      // FIRST key (generation 1): creating the first key invalidates nothing. Any later generation is a reset after
+      // the capture, which makes it stale.
       return { ok: false, refusal: "stale-key-generation" };
     }
     const keys = loaded.keys;
-    if (!loaded.markerPresent) await writeAtomically(this.markerPath(), JSON.stringify({ version: 1, mode: this.appMode, generation: keys.generation }));
+    if (!loaded.markerPresent) {
+      await this.layout.assertHeld();
+      await writeAtomically(this.markerPath(), JSON.stringify({ version: 1, mode: this.appMode, generation: keys.generation }));
+    }
 
     const token = await this.layout.readToken(request.flowId);
     if (!token || !sameHex(token, request.boundEpoch)) return { ok: false, refusal: "stale-epoch" };
@@ -883,9 +889,22 @@ export class VisualBaselineStore {
         const value = read.kind === "value" ? (read.value as { generation?: unknown }).generation : undefined;
         return validCount(value) ? value : 0;
       };
-      const generation = Math.max(generationOf(marker), generationOf(key)) + 1;
+      // At least 2: generation 1 is reserved for the FIRST key, which a capture bound to 0 may still use. A reset is
+      // never that first key, so a pre-reset capture (bound to 0) is stale after it in every process (N6.8 QC finding 2).
+      const generation = Math.max(generationOf(marker), generationOf(key), 1) + 1;
+      // Crash-safe order (N6.8 security round 2, N3): the marker records the new generation FIRST, then everything
+      // else in the mode (the old key included) goes, then the new key. A crash between the steps leaves key-mismatch
+      // or key-lost (fail closed, recovered by another reset), never a first-use state that would mint generation 1.
       await this.layout.assertHeld();
-      await rm(this.layout.modeRoot(this.appMode), { recursive: true, force: true });
+      await mkdir(this.keysDirectory(), { recursive: true });
+      await writeAtomically(this.markerPath(), JSON.stringify({ version: 1, mode: this.appMode, generation }));
+      const modeRoot = this.layout.modeRoot(this.appMode);
+      for (const entry of await readdir(modeRoot)) {
+        if (entry !== "keys") await rm(join(modeRoot, entry), { recursive: true, force: true });
+      }
+      for (const entry of await readdir(this.keysDirectory())) {
+        if (join(this.keysDirectory(), entry) !== this.markerPath()) await rm(join(this.keysDirectory(), entry), { recursive: true, force: true });
+      }
       await this.createKey(generation);
       return { generation };
     });

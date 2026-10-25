@@ -2,8 +2,9 @@ import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { PlaywrightRunner, type PlaywrightRunnerOptions } from "./PlaywrightRunner";
 import { visualDiagnosisMode } from "./visualDiagnosis/visualDiagnosisContract";
-import { visualAssertionFlag, type VisualAssertionAppMode } from "./visualAssertion/visualAssertionContract";
+import { visualAssertionFlag, type VisualAssertionAppMode, type VisualAssertionRunInitiator } from "./visualAssertion/visualAssertionContract";
 import { visualAssertionCandidates } from "./visualAssertion/visualAssertionCandidates";
+import { VISUAL_ASSERTION_REPORT_MAX_RECORDS, sanitizeVisualAssertionReportRecords } from "./visualAssertion/visualAssertionReport";
 import type { VisualBaselineStore } from "./visualAssertion/VisualBaselineStore";
 
 /** N6.4: what the main process provides for runtime visual assertions. */
@@ -182,6 +183,11 @@ export class ExecutionEngine {
   private readonly manualHandoffController = new ManualHandoffController();
   // Kept beyond the run lifetime so "Repeat" can re-run a finished instance.
   private readonly runContexts = new Map<string, RunContext>();
+  /**
+   * N6.4 / VA-13: the authenticated user who started each instance (a Repeat rebinds it to the repeating user).
+   * Resolved by the main process from the sender-bound session; absent for runs started without one.
+   */
+  private readonly instanceInitiators = new Map<string, VisualAssertionRunInitiator>();
   /** Live and recently-completed passive CDP traces, keyed by instance id for the Monitor. */
   private readonly observationTraces = new Map<string, PassiveCdpTrace>();
 
@@ -589,14 +595,20 @@ export class ExecutionEngine {
     this.visualAssertionServices = services;
   }
 
-  private visualAssertionOptions(): PlaywrightRunnerOptions["visualAssertions"] {
+  private visualAssertionOptions(
+    initiator: VisualAssertionRunInitiator | undefined,
+    onRecord: NonNullable<PlaywrightRunnerOptions["visualAssertions"]>["onRecord"]
+  ): PlaywrightRunnerOptions["visualAssertions"] {
     const services = this.visualAssertionServices;
     return {
       appMode: services?.appMode ?? "packaged",
       flag: visualAssertionFlag(),
+      onRecord,
       adapter: () => {
         const store = services?.store();
-        return store && services ? { store, appVersion: services.appVersion, candidates: visualAssertionCandidates } : undefined;
+        return store && services
+          ? { store, appVersion: services.appVersion, candidates: visualAssertionCandidates, ...(initiator ? { initiator } : {}) }
+          : undefined;
       }
     };
   }
@@ -1068,6 +1080,7 @@ export class ExecutionEngine {
     }
     this.pool.remove(instanceId);
     this.observationTraces.delete(instanceId);
+    this.instanceInitiators.delete(instanceId);
   }
 
   public getObservationSnapshot(instanceId: string): CdpObservationSnapshot | undefined {
@@ -1098,13 +1111,16 @@ export class ExecutionEngine {
     scenario: ScenarioProfile,
     flows: FlowProfile[],
     workflowDataSource?: ResolvedDataSource,
-    dataSources: Record<string, ResolvedDataSource> = {}
+    dataSources: Record<string, ResolvedDataSource> = {},
+    /** The authenticated run initiator (main-process resolved); omitted only by callers with no session. */
+    initiator?: VisualAssertionRunInitiator
   ): Promise<void> {
     const instances = this.manager.createInstancesForRun(profile, rows, dirs, runtimeInputs);
     const alignedInstances = instances.map((inst) => ({ ...inst, executionId }));
 
     for (const inst of alignedInstances) {
       this.pool.add(inst);
+      if (initiator) this.instanceInitiators.set(inst.instanceId, { userId: initiator.userId, username: initiator.username });
     }
 
     this.runReports.set(executionId, []);
@@ -1504,6 +1520,8 @@ export class ExecutionEngine {
     let evidence: FailureEvidenceCollector | undefined;
     /** N5.4: this instance's settled visual diagnosis records, bounded; sanitized onto its report below. */
     const visualDiagnoses: VisualDiagnosisRecord[] = [];
+    /** N6.7: this instance's visual assertion records, bounded; sanitized onto its report below. */
+    const visualAssertionRecords: unknown[] = [];
     let runError: string | undefined;
     // AWKIT-RUN-006: hoisted so the finally can finalize the run even when SETUP threw.
     let runStartedAtIso = new Date().toISOString();
@@ -1678,7 +1696,10 @@ export class ExecutionEngine {
       visualDiagnosisRoot: visualDiagnosisMode() === "on" ? join(dirs.root, "visual-references") : undefined,
       // N6.4 (VA-9): AWKIT_VISUAL_ASSERTIONS=off|observe|enforce (default off), the authored step mode and the build
       // decide each assertVisual step independently; the packaged build never enforces and never reads a grant.
-      visualAssertions: this.visualAssertionOptions(),
+      // N6.7: each decision's codes-only record is collected for this instance's report block only.
+      visualAssertions: this.visualAssertionOptions(this.instanceInitiators.get(instance.instanceId), (record) => {
+        if (visualAssertionRecords.length < VISUAL_ASSERTION_REPORT_MAX_RECORDS) visualAssertionRecords.push({ version: 1, ...record });
+      }),
       // N5.4 (VD-5): collected for this instance's report block only; nothing in the run reads it back.
       onVisualDiagnosis: (record) => {
         if (visualDiagnoses.length < VISUAL_DIAGNOSIS_MAX_RECORDS) visualDiagnoses.push(record);
@@ -1748,6 +1769,9 @@ export class ExecutionEngine {
       // N5.4 (VD-5): the codes-only block, rebuilt from its allowlist on write; absent when nothing was diagnosed.
       const visualDiagnosis = sanitizeVisualDiagnosisRecords(visualDiagnoses);
       if (visualDiagnosis) instanceReport.visualDiagnosis = visualDiagnosis;
+      // N6.7: the codes-only assertion block, rebuilt from its allowlist on write; absent when no assertVisual step ran.
+      const visualAssertions = sanitizeVisualAssertionReportRecords(visualAssertionRecords);
+      if (visualAssertions) instanceReport.visualAssertions = visualAssertions;
       const reports = this.runReports.get(instance.executionId);
       if (reports) reports.push(instanceReport);
 
@@ -2237,7 +2261,7 @@ export class ExecutionEngine {
   }
 
   /** Re-run a single finished instance using its original run context. */
-  public repeatInstance(instanceId: string): void {
+  public repeatInstance(instanceId: string, initiator?: VisualAssertionRunInitiator): void {
     const instance = this.pool.get(instanceId);
     if (!instance) throw new Error(`Instance ${instanceId} not found.`);
     if (["starting", "running", "paused", "pending", "queued"].includes(instance.status)) {
@@ -2251,6 +2275,10 @@ export class ExecutionEngine {
     if (!context) {
       throw new Error(`Run context for instance ${instanceId} is no longer available (re-run the workflow).`);
     }
+
+    // VA-13: the repeat is attributed to whoever repeated it, never inherited from the original start.
+    if (initiator) this.instanceInitiators.set(instanceId, { userId: initiator.userId, username: initiator.username });
+    else this.instanceInitiators.delete(instanceId);
 
     // Reset terminal state and re-execute just this instance (bypassing the queue).
     this.watchdog.clearInstance(instanceId);

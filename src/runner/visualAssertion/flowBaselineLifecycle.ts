@@ -7,7 +7,7 @@
  * and development builds sharing one flows folder never interleave. Inside it, BEFORE the write:
  *
  *  - create, clone, import (even an identical re-import), the new id of a rename, and an update over a
- *    missing or unreadable file invalidate the whole flow;
+ *    missing or unreadable file invalidate the whole flow and issue it a fresh epoch token;
  *  - update and updateWith delete the approvals of every step removed or whose content digest changed;
  *  - delete and the old id of a rename invalidate the flow;
  *  - a quarantined corrupt file invalidates the flow, coordinated even when the read that found it was not.
@@ -50,7 +50,8 @@ export class FlowBaselineLifecycle {
     if (sameIdUpdate && context.previousState === "present" && context.previous) {
       await this.layout.purgeStepsUnlocked(context.id, changedStepIds(context.previous, context.next));
     } else {
-      await this.layout.invalidateFlowUnlocked(context.id);
+      // The flow is present after this write, so it gets a fresh token even if it had none (VA-5, I1).
+      await this.layout.invalidateFlowUnlocked(context.id, { issueToken: true });
     }
   }
 

@@ -65,6 +65,8 @@ function oracle(input: VisualAssertionDecisionInput): VisualAssertionStepStatus 
   if (appMode === "packaged") return unverified("enforce-unavailable-in-production");
   if (flag === "off") return unverified("disabled");
   if (flag === "observe") return unverified("enforce-not-enabled");
+  // Never read (the evaluation stopped first): its own reason, or the cell unproven for a reached verdict.
+  if (grant === undefined) return unverified(!verdict ? "evaluation-unavailable" : verdict.verdict === "inconclusive" ? verdict.code : "cell-not-qualified");
   if (grant === "invalidated") return unverified("grant-invalidated");
   if (grant === "expired") return unverified("grant-expired");
   if (grant !== "valid") return unverified("cell-not-qualified");
@@ -229,7 +231,9 @@ console.log("\nC. Mutation controls (each planted gate defect must disagree with
   const mutants: Array<[string, (input: VisualAssertionDecisionInput) => VisualAssertionStepStatus]> = [
     ["the packaged build honours a valid grant", (i) => (i.appMode === "packaged" && i.flag === "enforce" && i.grant === "valid" ? decideVisualAssertionStepStatus({ ...i, appMode: "dev" }) : decideVisualAssertionStepStatus(i))],
     ["flag observe lets an enforce step enforce", (i) => decideVisualAssertionStepStatus(i.flag === "observe" ? { ...i, flag: "enforce" } : i)],
-    ["a missing grant is treated as valid", (i) => decideVisualAssertionStepStatus(i.grant === undefined || i.grant === "missing" ? { ...i, grant: "valid" } : i)],
+    ["a missing grant is treated as valid", (i) => decideVisualAssertionStepStatus(i.grant === "missing" ? { ...i, grant: "valid" } : i)],
+    ["an unread grant (evaluation stopped first) is treated as valid", (i) => decideVisualAssertionStepStatus(i.grant === undefined ? { ...i, grant: "valid" } : i)],
+    ["an unread grant reports cell-not-qualified instead of the evaluation's own reason", (i) => decideVisualAssertionStepStatus(i.grant === undefined ? { ...i, grant: "missing" } : i)],
     ["an expired grant is treated as valid", (i) => decideVisualAssertionStepStatus(i.grant === "expired" ? { ...i, grant: "valid" } : i)],
     [
       "an inconclusive verdict fails as a mismatch",

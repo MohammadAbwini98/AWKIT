@@ -284,8 +284,21 @@ async function integritySuite(variant: Variant): Promise<Outcome[]> {
     const b = makeEnv({ ...variant, root, flowsFolder: join(root, "flows-b") });
     await a.flows.create(flow("F"));
     await b.flows.create(flow("F"));
-    const [ra, rb] = await Promise.all([a.store.approveUnchecked(await approvalFor(a, "F", "s1")), b.store.approveUnchecked(await approvalFor(b, "F", "s1"))]);
-    add("[keys] two concurrent first approvals in two flows folders share one key", ra.ok && rb.ok && (await look(a)).status === "present" && (await look(b)).status === "present", describe({ ra, rb }));
+    // Both candidates are bound during first use (generation 0) BEFORE either approval starts, so the race is the
+    // real one: whichever approval creates the first key, the other must still be accepted.
+    const [qa, qb] = [await approvalFor(a, "F", "s1"), await approvalFor(b, "F", "s1")];
+    const [ra, rb] = await Promise.all([a.store.approveUnchecked(qa), b.store.approveUnchecked(qb)]);
+    add(
+      "[keys] two concurrent first approvals in two flows folders share one key",
+      qa.boundKeyGeneration === 0 && qb.boundKeyGeneration === 0 && ra.ok && rb.ok && (await look(a)).status === "present" && (await look(b)).status === "present",
+      describe({ ra, rb })
+    );
+    // A first-use candidate is stale once a reset (generation 2 or later) happened after its capture.
+    await a.flows.create(flow("G"));
+    const firstUse = { ...(await approvalFor(a, "G", "s1")), boundKeyGeneration: 0 };
+    await a.store.resetUnchecked();
+    const afterReset = await a.store.approveUnchecked({ ...firstUse, epoch: await a.store.ensureToken("G"), boundEpoch: await a.store.ensureToken("G") });
+    add("[keys] a candidate bound before the first key is refused after a reset", !afterReset.ok && afterReset.refusal === "stale-key-generation", describe(afterReset));
   }
   return out;
 }

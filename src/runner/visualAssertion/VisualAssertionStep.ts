@@ -26,6 +26,8 @@ import {
   type VisualAssertionAssessRequest,
   type VisualAssertionAssessor,
   type VisualAssertionCell,
+  type VisualAssertionRunInitiator,
+  type VisualCandidateWithheld,
   type VisualGrantStatus
 } from "./visualAssertionContract";
 
@@ -77,8 +79,11 @@ export interface VisualAssertionStepOptions {
   appVersion: string;
   /** The main process's candidate registry (memory only). */
   candidates: VisualAssertionCandidates;
-  /** Who started the run; `unattributed` when the engine has no run identity. */
-  runUser?: string;
+  /**
+   * The run's authenticated initiator (VA-13). Absent, an eligible run makes NO candidate (`run-unattributed`): an
+   * approval must never bind a run user that was not authenticated.
+   */
+  initiator?: VisualAssertionRunInitiator;
   probe?: VisualAssertionProbe;
 }
 
@@ -122,6 +127,9 @@ export class VisualAssertionStep implements VisualAssertionAssessor {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const deadline = new Promise<void>((resolve) => {
       timer = setTimeout(() => {
+        // Abort FIRST, in the timer's own turn: work already queued behind a settling await then sees the signal and can
+        // never add a candidate for a step that reports budget-exhausted (N6.8 QC finding 1).
+        controller.abort();
         settle(this.finish(started, { refusalCode: "budget-exhausted" }));
         resolve();
       }, deadlineMs);
@@ -175,6 +183,15 @@ export class VisualAssertionStep implements VisualAssertionAssessor {
       if (!environment) return this.finish(started, { refusalCode: "capture-unavailable" });
       const cell: VisualAssertionCell = { renderMode: request.renderMode, devicePixelRatio: environment.devicePixelRatio };
       const grant = request.readGrant ? await bounded(this.grantFor(cell, environment)) : undefined;
+      // C3 / VA-13: the epoch is read BEFORE the capture, so any invalidation after this point (an identical re-import
+      // included) makes the candidate stale. Every written flow has a token (VA-5); a flow copied in from outside the
+      // app gets one inside the lane here, still before the capture. Unavailable, no candidate can bind one.
+      const epoch = await bounded(
+        this.options.store.layout
+          .readToken(request.flowId)
+          .then((token) => token ?? this.options.store.ensureToken(request.flowId))
+          .catch(() => null)
+      );
 
       await this.options.probe?.hold?.("before-capture");
       if (signal.aborted) throw new AssertionAborted();
@@ -229,14 +246,6 @@ export class VisualAssertionStep implements VisualAssertionAssessor {
       const image = capture.element.image;
       const stepContentDigest = visualStepContentDigest(step as unknown as { id: string } & Record<string, unknown>);
       const store = this.options.store;
-
-      // C3: every flow has an epoch token before a candidate can bind one; read first, created inside the lane only when missing.
-      const epoch = await bounded(
-        store.layout
-          .readToken(request.flowId)
-          .then((token) => token ?? store.ensureToken(request.flowId))
-          .catch(() => null)
-      );
       const keyGeneration = await bounded(store.keyGeneration().catch(() => null));
       const lookup = await bounded(store.lookup({ flowId: request.flowId, stepId: step.id, stepContentDigest, conditions }));
       let baseline: VisualAssertionBaseline;
@@ -274,8 +283,13 @@ export class VisualAssertionStep implements VisualAssertionAssessor {
 
       // VA-13: a pending candidate only after a successful, unclipped capture, while the key is usable, bound to the epoch.
       let candidateId: string | undefined;
+      let candidateWithheld: VisualCandidateWithheld | undefined;
       const reason = CANDIDATE_CODES[decision.code];
-      if (reason && epoch !== null && keyGeneration !== null && !geometry.clipped && !signal.aborted) {
+      const initiator = this.options.initiator;
+      const eligible = reason !== undefined && epoch !== null && keyGeneration !== null && !geometry.clipped && !signal.aborted;
+      if (eligible && !initiator) {
+        candidateWithheld = "run-unattributed";
+      } else if (eligible && initiator) {
         candidateId = this.options.candidates.add({
           executionId: request.executionId,
           instanceId: request.instanceId,
@@ -288,14 +302,14 @@ export class VisualAssertionStep implements VisualAssertionAssessor {
           conditions,
           geometry,
           keyGeneration,
-          runUser: this.options.runUser ?? "unattributed",
+          initiator,
           contentDigest: fingerprint.value.contentDigest,
           width: image.width,
           height: image.height,
           preview: { width: image.width, height: image.height, rgba: image.data }
         });
       }
-      return this.finish(started, { decision, grant, cell, candidateId });
+      return this.finish(started, { decision, grant, cell, candidateId, candidateWithheld });
     } finally {
       if (handle) void handle.dispose().catch(() => undefined);
     }
@@ -303,21 +317,19 @@ export class VisualAssertionStep implements VisualAssertionAssessor {
 
   /** The cell's grant for this environment. Read only when the gate asked (non-packaged, enforce flag and step). */
   private grantFor(cell: VisualAssertionCell, environment: Environment): Promise<VisualGrantStatus> {
-    const binding: VisualGrantEnvironment = {
-      browserVersion: environment.browserVersion,
-      appVersion: this.options.appVersion,
-      osBuild: osBuild(),
-      capturePolicy: VISUAL_ASSERTION_CAPTURE_POLICY,
-      fingerprintVersion: VISUAL_FINGERPRINT_VERSION,
-      assertionPolicyVersion: VISUAL_ASSERTION_POLICY_VERSION,
-      calibrationSuiteVersion: VISUAL_CALIBRATION_SUITE_VERSION
-    };
-    return this.options.store.grantStatus(cell, binding).catch((): VisualGrantStatus => "invalidated");
+    return this.options.store.grantStatus(cell, visualAssertionGrantEnvironment(environment.browserVersion, this.options.appVersion)).catch((): VisualGrantStatus => "invalidated");
   }
 
   private finish(
     started: number,
-    result: { decision?: VisualAssertionDecision; refusalCode?: string; grant?: VisualGrantStatus; cell?: VisualAssertionCell; candidateId?: string }
+    result: {
+      decision?: VisualAssertionDecision;
+      refusalCode?: string;
+      grant?: VisualGrantStatus;
+      cell?: VisualAssertionCell;
+      candidateId?: string;
+      candidateWithheld?: VisualCandidateWithheld;
+    }
   ): VisualAssertionAssessment {
     const decision = result.decision ?? { verdict: "inconclusive" as const, code: result.refusalCode ?? "capture-unavailable" };
     return {
@@ -326,9 +338,26 @@ export class VisualAssertionStep implements VisualAssertionAssessor {
       ...(result.grant ? { grant: result.grant } : {}),
       ...(result.cell ? { cell: result.cell } : {}),
       ...(result.candidateId ? { candidateId: result.candidateId } : {}),
+      ...(result.candidateWithheld ? { candidateWithheld: result.candidateWithheld } : {}),
       durationMs: Math.round(performance.now() - started)
     };
   }
+}
+
+/**
+ * The environment a grant binds besides its cell (VA-12). The ONE definition: the runtime gate reads grants with it and
+ * the N6.6 calibration root records evidence and issues grants with it, so the two can never drift apart.
+ */
+export function visualAssertionGrantEnvironment(browserVersion: string, appVersion: string): VisualGrantEnvironment {
+  return {
+    browserVersion,
+    appVersion,
+    osBuild: osBuild(),
+    capturePolicy: VISUAL_ASSERTION_CAPTURE_POLICY,
+    fingerprintVersion: VISUAL_FINGERPRINT_VERSION,
+    assertionPolicyVersion: VISUAL_ASSERTION_POLICY_VERSION,
+    calibrationSuiteVersion: VISUAL_CALIBRATION_SUITE_VERSION
+  };
 }
 
 function captureFailure(code: VisualErrorCode): VisualAssertionDecision {
@@ -347,21 +376,63 @@ function remaining(started: number, deadlineMs: number): number {
   return Math.max(1, Math.round(deadlineMs - (performance.now() - started)));
 }
 
-/** The same sensitive-input rule as the N5 diagnosis: password, one-time code, card and similar fields are refused. */
+/** At most this many elements are walked inside a target; a bigger target is refused as sensitive (fail closed). */
+const SENSITIVE_WALK_LIMIT = 2000;
+
+/**
+ * The sensitive-input rule, applied to the target AND every input or textarea inside it, open shadow roots included
+ * (N6.8 security finding 1): a wrapper around a CVV, PIN, OTP, card or SSN field is refused like the field itself, so
+ * its typed value can never reach a candidate's preview pixels. Password, one-time code and card autocomplete, and a
+ * name, id, label or placeholder that names such a field, all count. A walk past the limit, or any error, is
+ * sensitive. Inline expressions only: this runs in the page.
+ */
 function sensitive(handle: ElementHandle): Promise<boolean> {
   return handle
-    .evaluate((node) => {
-      const element = node as Element;
-      const control = element.tagName === "LABEL" ? ((element as HTMLLabelElement).control ?? element) : element;
-      const inside = control.querySelector?.("input[type=password], input[autocomplete~='one-time-code'], input[autocomplete~='cc-number'], input[autocomplete~='cc-csc']");
-      if (inside) return true;
-      if (control.tagName !== "INPUT" && control.tagName !== "TEXTAREA") return false;
-      const autocomplete = (control.getAttribute("autocomplete") ?? "").toLowerCase();
-      if ((control.getAttribute("type") ?? "").toLowerCase() === "password") return true;
-      if (/one-time-code|current-password|new-password|cc-number|cc-csc/.test(autocomplete)) return true;
-      const described = [control.getAttribute("name"), control.id, autocomplete, control.getAttribute("aria-label"), control.getAttribute("placeholder")].join(" ");
-      return /otp|one[-_ ]?time|passcode|\bpin\b|\bcvv\b|\bcvc\b|\bcsc\b|card[-_ ]?number|cardnumber|credit[-_ ]?card|\bssn\b|social[-_ ]?security|\bsecret\b|\btoken\b/i.test(described);
-    })
+    .evaluate(
+      (node, limit) => {
+        const element = node as Element;
+        // A label target is walked itself AND through its control, which may sit outside it (N6.8 security round 3, N5).
+        const control = element.tagName === "LABEL" ? (element as HTMLLabelElement).control : null;
+        const fields: Element[] = [];
+        const stack: (Element | ShadowRoot)[] = control && !element.contains(control) ? [element, control] : [element];
+        let walked = 0;
+        while (stack.length > 0) {
+          const current = stack.pop() as Element | ShadowRoot;
+          walked += 1;
+          if (walked > limit) return true;
+          if (current instanceof Element) {
+            // An embedded document (a hosted payment field, an embedded login) cannot be inspected from here, and its
+            // pixels are part of the capture: refuse (N6.8 security round 2, N1).
+            if (["IFRAME", "FRAME", "OBJECT", "EMBED"].includes(current.tagName)) return true;
+            if (current.tagName === "INPUT" || current.tagName === "TEXTAREA") fields.push(current);
+            if (current.shadowRoot) stack.push(current.shadowRoot);
+          }
+          for (const child of Array.from(current.children)) stack.push(child);
+        }
+        return fields.some((control) => {
+          const autocomplete = (control.getAttribute("autocomplete") ?? "").toLowerCase();
+          if ((control.getAttribute("type") ?? "").toLowerCase() === "password") return true;
+          if (/one-time-code|current-password|new-password|cc-number|cc-csc|cc-exp/.test(autocomplete)) return true;
+          // Its label text counts too: `<label for>` / wrapping labels and aria-labelledby targets (N6.8 QC round 2).
+          const labelText = Array.from((control as HTMLInputElement).labels ?? [])
+            .map((label) => label.textContent ?? "")
+            .concat(
+              (control.getAttribute("aria-labelledby") ?? "")
+                .split(/\s+/)
+                .filter((id) => id.length > 0)
+                .map((id) => control.ownerDocument.getElementById(id)?.textContent ?? "")
+            )
+            .join(" ");
+          // Split into words first (camelCase, snake_case, digits), so card_cvv, pinCode and cvv2 match like cvv and pin.
+          const described = [control.getAttribute("name"), control.id, autocomplete, control.getAttribute("aria-label"), control.getAttribute("placeholder"), labelText]
+            .join(" ")
+            .replace(/([a-z])([A-Z])/g, "$1 $2")
+            .replace(/[^A-Za-z]+/g, " ");
+          return /otp|one ?time|passcode|\bpin\b|\bcvv\b|\bcvc\b|\bcsc\b|card ?number|credit ?card|security ?code|\bssn\b|social ?security|\bsecret\b|\btoken\b/i.test(described);
+        });
+      },
+      SENSITIVE_WALK_LIMIT
+    )
     .catch(() => true);
 }
 

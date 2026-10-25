@@ -711,13 +711,34 @@ Every row below is **ratified** as written. The status column records how each r
 | N6.1 | Owner ratification of VA-0 to VA-16 (as amended) | — |
 | N6.2 | **Done 2026-10-22.** Pure `decideVisualAssertion`: verdicts, conditions, geometry, commitment compare; `verify:visual-assertion` | N6.1 |
 | N6.3 | **Done 2026-10-22.** `VisualBaselineStore`: epoch tokens, signed indexes, commitment records, key and failure modes; the flow-only pre-write option on `JsonProfileStore` and the invalidate-first hooks; **the mandatory cross-process gate**; `verify:visual-baseline-store`, `verify:visual-baseline-integrity`, `verify:visual-baseline-lifecycle`, `verify:visual-baseline-cross-process` | N6.1 |
-| N6.4 | **Done 2026-10-24.** `assertVisual` step, validator, VA-15 capture option, runner adapter (fourth edge), both outcome matrices and classes, the packaged enforce-unavailable rule, grant gate, candidates, random-generator exclusion, fixtures (`/visual-intelligence/assertion`); `verify:visual-assertion-runtime` 67/0, `verify:visual-assertion-grants` 43/0, `verify:visual-isolation` 90/0. As built: the target is the step's raw primary locator with no recovery; candidates record the run user as `unattributed` because the engine has no run identity; when there is no `present` record the observation carries an uncompared all-zero commitment, which the policy never compares; the catalog parity gate needed a Designer catalog entry, which defaults to observe (the mode editor stays N6.5). The live `safeStorage` check (`verify:visual-key-protector-live`) is BLOCKED in the agent shell. | N6.2, N6.3 |
-| N6.6 | Calibration harness in the main process of the non-packaged acceptance build, and experimental grant issuance (VA-16); `benchmark:visual-assertion` | N6.4 |
-| N6.5 | Candidate preview and approval, reset action, Designer node (observe only in packaged mode); `verify:visual-assertion-candidates`, `verify:visual-assertion-gui` | N6.4, N6.6 |
+| N6.4 | **Done 2026-10-24.** `assertVisual` step, validator, VA-15 capture option, runner adapter (fourth edge), both outcome matrices and classes, the packaged enforce-unavailable rule, grant gate, candidates, random-generator exclusion, fixtures (`/visual-intelligence/assertion`); `verify:visual-assertion-runtime` 67/0, `verify:visual-assertion-grants` 43/0, `verify:visual-isolation` 90/0. As built: the target is the step's raw primary locator with no recovery; when there is no `present` record the observation carries an uncompared all-zero commitment, which the policy never compares; the catalog parity gate needed a Designer catalog entry, which defaults to observe (the mode editor stays N6.5). **Review follow-up 2026-10-24:** the step's page is resolved inside the one 2000 ms deadline (late is `budget-exhausted`, unresolvable is `capture-unavailable`, never a page error), an enforce step whose evaluation stopped before the grant read reports its own reason instead of `cell-not-qualified`, candidates bind the run's authenticated initiator (run and repeat channels; none without one, `run-unattributed`), the epoch token is read before the capture, and `verify:visual-key-protector-live` PASSES 10/0 against the local Electron runtime copy. | N6.2, N6.3 |
+| N6.6 | **Done 2026-10-25.** Calibration harness in the main process of the non-packaged acceptance build, and experimental grant issuance (VA-16); `benchmark:visual-assertion`. As built: `app/main/calibration/visualCalibrationRoot.ts` built by `electron.vite.calibration.config.ts` to `out/calibration-main/` (excluded from packaging, refuses a packaged app), the pure criterion `visualCalibrationCriteria.ts`, `verify:visual-calibration` 43/0. Measured: 21 sessions, 2,138 launches, **all six cells qualified** (bound 0.77–0.92 %, p95 989–1342 ms), six grants issued; see DECISIONS 2026-10-25 | N6.4 |
+| N6.5 | Candidate preview and approval, reset action, Designer node (observe only in packaged mode); `verify:visual-assertion-candidates`, `verify:visual-assertion-gui`. **Added 2026-10-24 (review follow-up), mandatory:** a real key-file round trip through `VisualBaselineStore` with the production `safeStorageVisualKeyProtector` inside the launched Electron app (see *N6.5 Electron key acceptance*); approvals bind the candidate's authenticated `initiator` (never a placeholder) and refuse a candidate without one | N6.4, N6.6 |
 | N6.7 | Report block with both classes and reasons, sanitizer, drawer section; `verify:visual-assertion-report` | N6.4, N6.6 |
-| N6.9 | **Done 2026-10-24.** Import over an existing flow requires `WORKFLOW_EDIT`, race-safe (VA-11); `verify:flow-import-authorization` 24/0. I1 deviation: a newly imported flow gets no epoch token until its first capture (N6.3 creates tokens lazily), and it inherits nothing. | N6.1 |
+| N6.9 | **Done 2026-10-24.** Import over an existing flow requires `WORKFLOW_EDIT`, race-safe (VA-11); `verify:flow-import-authorization` 24/0. **I1 reconciled 2026-10-24:** the lazy token (created only at first capture) was found NOT equivalent (a run that read no token, then an identical re-import, then a capture-time token let a pre-import candidate survive the re-import), so every write that leaves a flow present now issues its token and a start-up pass tokenizes older flows, as ratified; I1 now asserts the import itself issued the token (25/0), and the lifecycle suite carries the lazy behavior as a mutant. | N6.1 |
 | N6.8 | Independent QC and security review, closure | N6.5, N6.6, N6.7, N6.9 |
 | `awkit-vra.16` | **Not N6:** future milestone, production qualification and enforcement; needs its own owner decision | The N6 epic (closure includes N6.9) |
+
+## N6.5 Electron key acceptance (added 2026-10-24)
+
+`verify:visual-key-protector-live` (N6.4) proves only the protector's transformation against real DPAPI in the app's
+main process; no key file exists in N6.4. N6.5 must add, in the launched app (production entry, isolated profile, the
+local Electron runtime copy on the Parallels share), through the real approval IPC with `WORKFLOW_EDIT`, fresh
+re-authentication and audit:
+
+1. **First key:** the first approval writes `visual-baselines/<mode>/keys/master-key.json` and the key-state marker;
+   the file holds a DPAPI blob, never the raw key or its base64, and the approved baseline is then found
+   (`identical-to-baseline`).
+2. **Restart:** after quitting and relaunching the app with the same profile, the same key is unwrapped and the
+   baseline is still found; a reset after restart moves to generation 2 and earlier candidates are refused.
+3. **Key loss:** with the key file deleted and the marker kept, lookups are `integrity-unavailable`, approvals are
+   refused and no new key is created silently; only the reset action makes one.
+4. **Tamper:** a modified protected key is `key-unreadable`, a modified key check is `key-mismatch`, and a modified
+   signed record or index is `baseline-unreadable`; none of them passes an assertion.
+5. **Run user:** the approved record carries the candidate's authenticated initiator and the approver; an unattributed
+   run offers no candidate.
+
+A launch that fails is BLOCKED, never a pass.
 
 ## Completion criteria
 

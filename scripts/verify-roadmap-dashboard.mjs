@@ -783,8 +783,9 @@ try {
   // `awkit-3zxw` filed open (one out, one in, one closed). Measured after the export.
   // Then 34/386 of 420 on 2026-10-24 (contract `awkit-vra-15-9-n6-import-1024`): N6.9 `awkit-vra.15.9` closed. Measured.
   // Then 33/387 of 420 later on 2026-10-24 (contract `awkit-vra-15-4-n6-runtime-1024`): N6.4 `awkit-vra.15.4` closed. Measured.
-    "33 outstanding / 387 closed",
-    beads.stats.outstanding === 33 && beads.stats.closed === 387,
+  // Then 32/388 of 420 on 2026-10-25 (contract `awkit-vra-15-6-n6-calibration-1025`): N6.6 `awkit-vra.15.6` closed. Measured.
+    "32 outstanding / 388 closed",
+    beads.stats.outstanding === 32 && beads.stats.closed === 388,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

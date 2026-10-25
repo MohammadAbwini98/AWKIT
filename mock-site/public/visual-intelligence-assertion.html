@@ -20,6 +20,11 @@
         va-dupe        two cards sharing one test id                                   -> inconclusive/target-not-unique
         va-hidden      a display:none card                                             -> inconclusive/target-hidden
         va-card-number a card-number input (autocomplete cc-number)                    -> inconclusive/sensitive-step
+        va-payment     a wrapper around a name="cvv" input with no autocomplete        -> inconclusive/sensitive-step
+        va-otp-host    a wrapper whose open shadow root holds an id="otp" input        -> inconclusive/sensitive-step
+        va-labelled    a wrapper whose input is named only by its <label> text "CVV"   -> inconclusive/sensitive-step
+        va-frame-host  injectFrameField(): a wrapper around an iframe (a card field)   -> inconclusive/sensitive-step
+        va-camel       a wrapper whose input is named only card_cvv2                  -> inconclusive/sensitive-step
       injectProtected() adds a password sign-in form (the protected-surface refusal; the page carries no credential
       field otherwise). Nothing is random or time-dependent apart from the animation. Served by npm run verify:mock-site;
       exercised by npm run verify:visual-assertion-runtime.
@@ -76,6 +81,18 @@
       <label for="va-card-number">Card</label>
       <input id="va-card-number" data-testid="va-card-number" autocomplete="cc-number" inputmode="numeric" />
     </div>
+    <div id="va-payment" class="va-card" data-testid="va-payment" style="left: 100px; top: 440px; width: 150px">
+      <h2>Payment</h2>
+      <input name="cvv" value="123" aria-label="Security code" style="width: 60px" />
+    </div>
+    <div id="va-otp-host" class="va-card" data-testid="va-otp-host" style="left: 260px; top: 440px; width: 150px"></div>
+    <div id="va-labelled" class="va-card" data-testid="va-labelled" style="left: 680px; top: 300px; width: 110px; padding: 8px">
+      <label for="va-sc">CVV</label>
+      <input id="va-sc" value="456" style="width: 40px" />
+    </div>
+    <div id="va-camel" class="va-card" data-testid="va-camel" style="left: 680px; top: 400px; width: 110px; padding: 8px">
+      <input name="card_cvv2" value="321" aria-label="Code" style="width: 60px" />
+    </div>
     <div id="va-clipped" class="va-card" data-testid="va-clipped"><h2>Across the fold</h2><p>Half visible</p></div>
     <div id="va-offscreen" class="va-card" data-testid="va-offscreen"><h2>Far below</h2><p>Not in the viewport</p></div>
     <script>
@@ -84,12 +101,27 @@
         var title = document.getElementById("va-card-title");
         var text = document.getElementById("va-card-text");
         var VARIANTS = ["baseline", "restyle", "text", "size", "move", "swap"];
+        // va-otp-host: a one-time-code field inside an OPEN shadow root (N6.8 security finding 1).
+        var otpRoot = document.getElementById("va-otp-host").attachShadow({ mode: "open" });
+        otpRoot.innerHTML = '<h2 style="margin:0;font-size:15px">Verify</h2><input id="otp" value="482913" style="width:60px" />';
         function setVariant(name) {
           if (VARIANTS.indexOf(name) < 0) throw new Error("unknown variant " + name);
           card.className = "va-card" + (name === "baseline" || name === "text" ? "" : " " + name);
           title.textContent = name === "swap" ? "Delivery" : "Order summary";
           text.textContent = name === "swap" ? "Arrives on Tuesday" : name === "text" ? "3 items, ready to pack" : "3 items, ready to ship";
           card.setAttribute("data-variant", name);
+        }
+        // On demand, so the page stays static for calibration and the VA-15 checks: a wrapper around an embedded card
+        // field, as hosted payment fields are (N6.8 security round 2, N1).
+        function injectFrameField() {
+          if (document.getElementById("va-frame-host")) return;
+          var host = document.createElement("div");
+          host.id = "va-frame-host";
+          host.className = "va-card";
+          host.setAttribute("data-testid", "va-frame-host");
+          host.style.cssText = "left: 680px; top: 200px; width: 110px; padding: 4px";
+          host.innerHTML = '<iframe title="Card field" style="width: 96px; height: 64px; border: 0" srcdoc="<input name=\'cvc\' value=\'789\' style=\'width:60px\'>"></iframe>';
+          document.body.appendChild(host);
         }
         function injectProtected() {
           if (document.getElementById("va-protected")) return;
@@ -99,7 +131,7 @@
           document.body.appendChild(form);
         }
         setVariant("baseline");
-        window.__assertionLab = { setVariant: setVariant, injectProtected: injectProtected, variants: VARIANTS.slice() };
+        window.__assertionLab = { setVariant: setVariant, injectProtected: injectProtected, injectFrameField: injectFrameField, variants: VARIANTS.slice() };
       })();
     </script>
   </body>

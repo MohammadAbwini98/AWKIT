@@ -790,6 +790,26 @@ try {
   check("the hidden card is present and hidden", (await page.getByTestId("va-hidden").count()) === 1 && (await page.getByTestId("va-hidden").isHidden()));
   check("the clipped card crosses the fold and the offscreen card is below it", ((await page.getByTestId("va-clipped").boundingBox())?.y ?? 0) < 600 && ((await page.getByTestId("va-clipped").boundingBox())?.y ?? 0) + 80 > 600 && ((await page.getByTestId("va-offscreen").boundingBox())?.y ?? 0) > 1000);
   check("the card-number field is a cc-number input", (await page.getByTestId("va-card-number").getAttribute("autocomplete")) === "cc-number");
+  check(
+    "the payment wrapper holds a name=cvv input with no autocomplete (N6.8)",
+    (await page.getByTestId("va-payment").locator('input[name="cvv"]').count()) === 1 && (await page.getByTestId("va-payment").locator("input[autocomplete]").count()) === 0
+  );
+  check(
+    "the OTP host holds an id=otp input inside an open shadow root (N6.8)",
+    await page.getByTestId("va-otp-host").evaluate((host) => Boolean(host.shadowRoot?.querySelector("input#otp")) && host.querySelector("input") === null)
+  );
+  check(
+    "the labelled wrapper's input is named only by its label text CVV (N6.8)",
+    (await page.getByTestId("va-labelled").getByLabel("CVV").count()) === 1 && (await page.locator("#va-sc").getAttribute("name")) === null
+  );
+  check("the frame host is absent until injectFrameField (the page stays static)", (await page.getByTestId("va-frame-host").count()) === 0);
+  await page.evaluate(() => window.__assertionLab.injectFrameField());
+  check(
+    "injectFrameField adds a wrapper around an iframe holding a cvc field, and the camel wrapper's field is named card_cvv2 (N6.8)",
+    (await page.getByTestId("va-frame-host").locator("iframe").count()) === 1 &&
+      (await page.getByTestId("va-frame-host").frameLocator("iframe").locator('input[name="cvc"]').count()) === 1 &&
+      (await page.getByTestId("va-camel").locator('input[name="card_cvv2"]').count()) === 1
+  );
   await page.evaluate(() => window.__assertionLab.injectProtected());
   check("injectProtected adds exactly one password field", (await page.locator('#va-protected input[type="password"]').count()) === 1);
 

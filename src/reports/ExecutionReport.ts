@@ -1,6 +1,7 @@
 import type { OfflineRuntimeStatus } from "@src/offline/OfflineRuntimeValidator";
 import type { InstanceDiagnostics } from "@src/runner/evidence/FailureEvidenceCollector";
 import type { ScenarioExecutionResult } from "@src/runner/RunnerResult";
+import type { VisualAssertionReportRecord } from "@src/runner/visualAssertion/visualAssertionReport";
 import type { VisualDiagnosisRecord } from "@src/runner/visualDiagnosis/visualDiagnosisRecord";
 
 export interface InstanceReport {
@@ -24,6 +25,12 @@ export interface InstanceReport {
    * changes, and never part of the report export.
    */
   visualDiagnosis?: VisualDiagnosisRecord[];
+  /**
+   * Phase N N6.7 (awkit-vra.15.7): the codes-only decision of each `assertVisual` step the instance ran, sanitized on
+   * write and on read (`sanitizeVisualAssertionReportRecords`). Optional and additive: absent on reports written before
+   * N6 and when no assertVisual step ran. Never an image, digest, commitment, token, selector or URL.
+   */
+  visualAssertions?: VisualAssertionReportRecord[];
 }
 
 /** A T0 failure interpretation, as shown and as stored. Evidence ids name the analysed instance's own events. */

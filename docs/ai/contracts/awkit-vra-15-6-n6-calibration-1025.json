@@ -1,0 +1,198 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-15-6-n6-calibration-1025",
+    "title": "Phase N N6.6: visual-assertion calibration harness in the non-packaged acceptance build and benchmark:visual-assertion",
+    "objective": "Implement awkit-vra.15.6 per VA-12 and VA-16: a calibration root that runs only in the main process of the non-packaged acceptance build (built to out/calibration-main, excluded from packaging, refusing a packaged app), real headed and headless Chromium per render-mode x DPR cell through the real VisualAssertionStep adapter on the mock-site Visual Assertion Lab, one fresh launch per trial, every launch's trials persisted per session, the pure VA-12 criterion (>= 300 passed primary trials over >= 3 sessions, zero failed, every negative failed in >= 30 launches, moved/clipped/interaction always inconclusive, zero captures on refusals, p95 within 2000 ms) decided over all sessions of the same environment, and issueGrantUnchecked only for a cell meeting every criterion; benchmark:visual-assertion launches it; verify:visual-calibration proves the criterion, the packaging exclusion and that no production entry, IPC, setting or run reaches grant issuance.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "ff027bb1",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": true,
+    "persisted_shape_change": true
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "runtime",
+      "qa",
+      "qc",
+      "persistence",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "electron.vite.calibration.config.ts",
+      "electron-builder.json",
+      "app/main/calibration/**",
+      "src/runner/visualAssertion/**",
+      "scripts/benchmark-visual-assertion.mts",
+      "scripts/write-calibration-root-manifest.mjs",
+      "scripts/verify-visual-calibration.mts",
+      "scripts/lib/verifier-classification.ts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "package.json",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/COMMANDS.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/awkit-vra-15-6-n6-calibration-1025.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [
+      "persistence"
+    ],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "release",
+      "allowed_paths": [
+        "electron.vite.calibration.config.ts"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N6.6-HARNESS",
+      "description": "The calibration root refuses a packaged app, is excluded from packaging and unreachable from the production entry and IPC; the VA-12 criterion decision table and its mutants pass; grants are issued only for a cell whose recorded evidence meets every criterion.",
+      "evidence_required": [
+        "verify:visual-calibration",
+        "build"
+      ]
+    },
+    {
+      "id": "N6.6-MEASURE",
+      "description": "benchmark:visual-assertion sessions run real launches and record per-cell evidence; each cell is reported qualified or unqualified with its unmet criteria.",
+      "evidence_required": [
+        "benchmark:visual-assertion"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:visual-calibration",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-calibration",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "43/0 with mutants C1 (failed primary ignored) and C2 (environment filter ignored) red and reverted; runtime 86/0, grants 45/0, isolation 90/0, classification 352"
+    },
+    {
+      "id": "build",
+      "type": "build",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "tsc --noEmit and electron-vite build; build:calibration emits out/calibration-main (excluded from packaging)"
+    },
+    {
+      "id": "benchmark:visual-assertion",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run benchmark:visual-assertion",
+      "artifact": "%LOCALAPPDATA%/SpecterStudio/visual-baselines/dev/calibration/report.json",
+      "result": "PASS",
+      "observed": "21 sessions, 2138 real launches, all six cells qualified (primary passed 325-387, failed 0, bound 0.77-0.92 percent, p95 989-1342 ms), six dev grants issued; one hung three-lane session stopped, its launches kept"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-15-6-n6-calibration-1025:release:2026-10-25T06:14:40.603Z",
+        "task": "awkit-vra-15-6-n6-calibration-1025",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "electron-builder.json",
+          "electron.vite.calibration.config.ts"
+        ],
+        "acquired_at": "2026-10-25T06:14:40.603Z",
+        "acquired_at_commit": "ff027bb11a789279c3423680e80b2bc8729737ff",
+        "released_at": "2026-10-25T06:15:48.953Z",
+        "released_reason": "N6.6 calibration build config and packaging exclusion written",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-vra-15-6-n6-calibration-1025:project-state:2026-10-25T09:04:40.397Z",
+        "task": "awkit-vra-15-6-n6-calibration-1025",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-25T09:04:40.397Z",
+        "acquired_at_commit": "ff027bb11a789279c3423680e80b2bc8729737ff",
+        "released_at": "2026-10-25T09:05:05.508Z",
+        "released_reason": "N6.6 awkit-vra.15.6 closed with calibration evidence, exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-vra-15-6-n6-calibration-1025:release:2026-10-25T12:11:28.869Z",
+        "task": "awkit-vra-15-6-n6-calibration-1025",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "electron.vite.calibration.config.ts"
+        ],
+        "acquired_at": "2026-10-25T12:11:28.869Z",
+        "acquired_at_commit": "ff027bb11a789279c3423680e80b2bc8729737ff",
+        "released_at": "2026-10-25T12:11:49.449Z",
+        "released_reason": "commit split impossible for the agent: no unstage or delete verb, protected config staged with other owners paths, owner action recorded",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

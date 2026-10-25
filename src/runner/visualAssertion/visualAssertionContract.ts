@@ -26,6 +26,19 @@ export type VisualAssertionVerdict = "passed" | "failed" | "inconclusive";
 export type VisualAssertionFailureClass = "visual-mismatch" | "visual-unverified";
 export type VisualGrantStatus = "valid" | "missing" | "invalidated" | "expired";
 
+/**
+ * The authenticated user who started (or repeated) a run, resolved in the main process from the sender-bound session
+ * (`assertSenderPermission`), never from renderer-supplied data. VA-13 binds it into every candidate; a run without
+ * one (verifiers, the random Test Lab) produces no candidate, so no approval can ever claim an invented run user.
+ */
+export interface VisualAssertionRunInitiator {
+  userId: string;
+  username: string;
+}
+
+/** Why an eligible run made no candidate. */
+export type VisualCandidateWithheld = "run-unattributed";
+
 /** VA-9: the whole-assertion deadline. */
 export const VISUAL_ASSERTION_DEADLINE_MS = 2000;
 
@@ -96,7 +109,13 @@ export function decideVisualAssertionStepStatus(input: VisualAssertionDecisionIn
   if (flag === "off") return unverified("disabled");
   if (flag === "observe") return unverified("enforce-not-enabled");
   // Non-packaged, flag enforce: the grant first, then the verdict.
-  const grant = input.grant ?? "missing";
+  const grant = input.grant;
+  if (grant === undefined) {
+    // The evaluation stopped before the grant was read (deadline, page, refusal): its own reason is the honest one. A
+    // verdict that was reached without a grant read can never pass or be a mismatch: the cell is unproven.
+    if (!verdict) return unverified("evaluation-unavailable");
+    return unverified(verdict.verdict === "inconclusive" ? verdict.code : "cell-not-qualified");
+  }
   if (grant !== "valid") return unverified(GRANT_CODES[grant]);
   if (!verdict) return unverified("evaluation-unavailable");
   if (verdict.verdict === "passed") return { status: "passed", code: verdict.code };
@@ -153,6 +172,8 @@ export interface VisualAssertionAssessment {
   cell?: VisualAssertionCell;
   /** A pending, memory-only candidate was created for approval (N6.5). */
   candidateId?: string;
+  /** An eligible candidate that was not created, and why. */
+  candidateWithheld?: VisualCandidateWithheld;
   durationMs: number;
 }
 
@@ -174,6 +195,7 @@ export interface VisualAssertionRecord {
   verdict?: VisualAssertionVerdict;
   verdictCode?: string;
   candidate: boolean;
+  candidateWithheld?: VisualCandidateWithheld;
   durationMs: number;
 }
 

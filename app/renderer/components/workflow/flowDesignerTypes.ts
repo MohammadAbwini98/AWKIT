@@ -143,6 +143,11 @@ export interface FlowDesignerNodeData extends Record<string, unknown> {
   attributeName: string;
   /** How long a `clickAndHold` step keeps the button down, in milliseconds. */
   holdMs: number;
+  /**
+   * N6.5: an `assertVisual` step's authored mode. Undefined keeps whatever the saved step carries (observe when
+   * absent); the packaged build's editor never offers enforce.
+   */
+  visualAssertionMode?: "observe" | "enforce";
   /** Browser storage area read by a `storage` assertion. */
   storageArea: "local" | "session";
   /** Storage key read by a `storage` assertion. Empty for other types. */

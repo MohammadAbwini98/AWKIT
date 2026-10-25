@@ -1,5 +1,37 @@
 # KNOWN_ISSUES
 
+## N6.5 / N6.7 acceptance notes (2026-10-25, OPEN items noted, environment)
+
+- **GUI verifiers that run a real workflow need the installed Playwright browsers.** `isolatedLaunchEnv` points
+  `LOCALAPPDATA` at a temp profile, which also hides `%LOCALAPPDATA%\ms-playwright`. The run then fails in "Starting
+  browser context" with `browserType.launch: Executable doesn't exist`, which reads like a product failure.
+  `verify:visual-assertion-gui` passes `PLAYWRIGHT_BROWSERS_PATH` for the real install; other suites that run
+  workflows need the same.
+- **A stored run report is written when the run starts, with `instances: []`.** A verifier must wait on the live
+  instance list (`executions.list`), not on a report file appearing.
+- **The packaged observe-only Designer cannot be exercised from source.** The packaged mode offers observe only, and
+  an imported enforce step shows its unavailable state. Both are pinned statically
+  (`verify:visual-assertion-candidates`); the run-time refusal is pinned by `verify:visual-assertion-runtime`. The GUI
+  in a packaged build is NOT RUN until a packaged smoke test exists.
+- **A renderer-initiated second login outlives the UI's Sign out (security kernel, Low, OPEN, not N6).**
+  - `security:login` rebinds the window to the new session, and `unbindSession` clears the binding only on a matching
+    reference. A window can therefore stay authorized after a visible Sign out.
+  - Not exploitable without credentials; N6 channels still re-validate and need fresh re-authentication.
+  - Fix in the kernel: on login, revoke or refuse a second session for a bound window; on logout, unbind the window.
+- **Audit records carry the raw `sessionRef` (security kernel, Low, OPEN, not N6).** It behaves like a bearer value,
+  bounded by sender binding. Hash it in every audit record, kernel-wide, and classify it in SECURITY.md.
+- **N6 sensitive-target residuals (accepted at N6.8).** None of these block observe-only use. Candidates stay in
+  memory, previews need re-authentication, and only HMAC commitments reach disk.
+  - Closed shadow roots cannot be walked.
+  - `contenteditable`, `select` and custom widgets are not inspected as fields.
+  - Overlays painted over the target's box are not detected.
+  - An acronym followed by a capital (`CVVCode`) is not split.
+  - A sensitive attribute on the wrapper itself, rather than on a field inside it, is not checked.
+- **N6.8 Low follow-ups (QC round 2, not done).**
+  - No packaged-state component test for the Designer: a renderer test would need a stub for `capabilities`.
+  - No GUI check of the mode round trip (enforce → save → reload).
+  - No dedicated report mutant for the passed-enforce drop; A16 covers it.
+
 ## N6.3 visual-baseline store and cross-process flow lock: residuals (2026-10-22, OPEN residuals, `awkit-vra.15.3` closed; `awkit-3zxw`)
 
 - **`DurableLockStore` is unsafe for shared storage (`awkit-3zxw`).** The runner's lock was left unchanged, and N6
@@ -21,9 +53,18 @@
 - **No hard links (FAT/exFAT, some network shares).** The flows folder keeps in-process writes and still
   invalidates. Visual-baseline approval, token creation, sweep and reset there fail closed (`lock-unsupported` /
   `coordination-unavailable`), and a one-time console warning is logged.
-- **Live Electron `safeStorage` check NOT RUN.** `app/main/visualAssertion/visualBaselineKeyProtector.ts` is pinned
-  statically; the store's key logic is verified with a tamper-evident AES-GCM stand-in. The adapter is first used
-  by N6.4 and N6.5, which must exercise it live.
+- **Live Electron `safeStorage` check PASS (2026-10-24), key file still open.** `verify:visual-key-protector-live`
+  10/0 against real DPAPI in the launched app (local Electron copy `C:\electron-dist`, auto-detected). No key FILE
+  round trip exists until N6.5's approval surface; the plan's *N6.5 Electron key acceptance* makes it mandatory.
+- **N6.6 calibration grants are experimental and environment-bound (2026-10-25).** Six dev grants exist in
+  `%LOCALAPPDATA%\SpecterStudio\visual-baselines\dev\grants`; any change of Chromium, app version or OS build
+  invalidates them (rerun `npm run benchmark:visual-assertion` until the cells qualify again), and they expire 30 days
+  after issue. Close the SpecterStudio app while calibrating (both share the profile). An interrupted session (the
+  first three-lane one, 2026-10-25T06-30) may have left an orphaned Electron, Chromium or mock-server process the
+  agent shell could not inspect; a reboot clears it.
+- **electron-vite ESM shim trap.** In main-process source, never write a word `import` preceded by whitespace and
+  followed by a quote, even in a comment: the shim's import regex splices code into the next string literal
+  (seen 2026-10-24 in `visualBaselineLayout.ts`; same trap noted in `src/ai/AiBackendPack.ts`).
 - **Same-user limits (VA-14, unchanged).** Code running as the same Windows user can forge, replay or roll back.
   That includes restoring an index and its record together (asserted as a residual by
   `verify:visual-baseline-integrity`), restoring an old token before the sweep, deleting the key-state marker, or

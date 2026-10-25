@@ -29,6 +29,9 @@
  * is EQUIVALENT while every await is bounded by the abort race, so R3b also drops that race (E late work red); R4 the
  * VA-2 retry rule removed (B attempts=3 red, once the step's safety is explicitly retryable); R5 the executor evaluates
  * with the flag off (M red).
+ * Review follow-up (2026-10-24), also by temporary source edits, each red and reverted: J1 the assertVisual page resolved
+ * outside the step deadline again (J page-delay and alias cases red, 6 checks); K1 a placeholder run user when no
+ * initiator is bound (K red, 3 checks); E1 the epoch token read after the capture point (K stale-epoch case red).
  *
  * Run: npm run verify:visual-assertion-runtime
  */
@@ -52,8 +55,10 @@ import {
   visualAssertionFlag,
   visualAssertionOsBuild,
   type VisualAssertionAppMode,
+  type VisualAssertionAssessor,
   type VisualAssertionFlag,
-  type VisualAssertionRecord
+  type VisualAssertionRecord,
+  type VisualAssertionRunInitiator
 } from "@src/runner/visualAssertion/visualAssertionContract";
 import { VISUAL_CALIBRATION_SUITE_VERSION, VisualBaselineStore, type VisualGrantCell, type VisualGrantEnvironment } from "@src/runner/visualAssertion/VisualBaselineStore";
 import { RetryPolicy } from "@src/runner/runtime/RetryPolicy";
@@ -107,7 +112,12 @@ const STEPS = {
   dupe: card("s-dupe", { locator: at("va-dupe") }),
   hidden: card("s-hidden", { locator: at("va-hidden") }),
   missing: card("s-missing", { locator: at("va-nowhere") }),
-  sensitive: card("s-sensitive", { locator: at("va-card-number") })
+  sensitive: card("s-sensitive", { locator: at("va-card-number") }),
+  sensitiveWrapper: card("s-sensitive-wrapper", { locator: at("va-payment") }),
+  sensitiveShadow: card("s-sensitive-shadow", { locator: at("va-otp-host") }),
+  sensitiveLabel: card("s-sensitive-label", { locator: at("va-labelled") }),
+  sensitiveFrame: card("s-sensitive-frame", { locator: at("va-frame-host") }),
+  sensitiveSnake: card("s-sensitive-snake", { locator: at("va-camel") })
 };
 
 interface World {
@@ -147,7 +157,15 @@ interface HarnessOptions {
   probe?: VisualAssertionProbe;
   /** No runtime wired at all (the executor's own default). */
   unwired?: boolean;
+  /** Replace the adapter loader (J: a slow or hanging load, or a hanging assessment). */
+  assessor?: () => Promise<VisualAssertionAssessor | undefined>;
+  /** Delay the step's page resolution (J: a popup alias that waits on popup identity). */
+  pageDelayMs?: number;
+  /** The run's authenticated initiator; `null` runs unattributed (K). */
+  initiator?: VisualAssertionRunInitiator | null;
 }
+
+const RUNNER: VisualAssertionRunInitiator = { userId: "user-runner-1", username: "runner.one" };
 
 function harness(page: Page, w: World, options: HarnessOptions = {}): Harness {
   const context: InstanceExecutionContext = {
@@ -165,10 +183,12 @@ function harness(page: Page, w: World, options: HarnessOptions = {}): Harness {
   const records: VisualAssertionRecord[] = [];
   const loads = { count: 0 };
   const captures = { count: 0 };
+  const initiator = options.initiator === undefined ? RUNNER : options.initiator;
   const adapter = new VisualAssertionStep({
     store: w.store,
     appVersion: APP_VERSION,
     candidates: w.candidates,
+    ...(initiator ? { initiator } : {}),
     probe: {
       ...options.probe,
       onCapture: () => {
@@ -185,11 +205,20 @@ function harness(page: Page, w: World, options: HarnessOptions = {}): Harness {
       renderMode: "headless",
       assessor: async () => {
         loads.count += 1;
-        return adapter;
+        return options.assessor ? options.assessor() : adapter;
       },
       handedOff: () => options.handedOff === true,
       onRecord: (record) => records.push(record)
     });
+  }
+  if (options.pageDelayMs !== undefined) {
+    // The executor's own page resolution, held: it stands in for a popup alias waiting on popup identity.
+    const executor = stepExecutor as unknown as { resolveStepPage(step: FlowStep): Promise<Page> };
+    const original = executor.resolveStepPage.bind(executor);
+    executor.resolveStepPage = async (step) => {
+      await new Promise((r) => setTimeout(r, options.pageDelayMs));
+      return original(step);
+    };
   }
   const flowExecutor = new FlowExecutor(stepExecutor, undefined, undefined, undefined, false);
   return {
@@ -199,6 +228,8 @@ function harness(page: Page, w: World, options: HarnessOptions = {}): Harness {
     run: (step) => (flowExecutor as unknown as { executeWithRetry(s: FlowStep, c: InstanceExecutionContext): Promise<StepExecutionResult> }).executeWithRetry(step, context)
   };
 }
+
+const harnessAdapter = (w: World): VisualAssertionAssessor => new VisualAssertionStep({ store: w.store, appVersion: APP_VERSION, candidates: w.candidates, initiator: RUNNER });
 
 /** Run one step on a fresh lab page; returns its result and single record. */
 async function assertOnce(
@@ -233,7 +264,7 @@ async function approveLatest(w: World, stepId: string): Promise<boolean> {
     boundEpoch: c.epoch,
     boundKeyGeneration: c.keyGeneration,
     approver: "author-1",
-    runUser: c.runUser,
+    runUser: c.initiator.userId,
     runId: c.executionId,
     appVersion: APP_VERSION
   });
@@ -434,6 +465,17 @@ async function main(): Promise<void> {
           { setup: (page) => page.evaluate(() => (window as unknown as { __assertionLab: { injectProtected(): void } }).__assertionLab.injectProtected()) }
         ],
         ["a card-number field", STEPS.sensitive, "sensitive-step", {}],
+        // N6.8 security finding 1: a container is refused when any field inside it is sensitive by name, id or label.
+        ["a wrapper around a name=cvv field with no autocomplete", STEPS.sensitiveWrapper, "sensitive-step", {}],
+        ["a wrapper whose open shadow root holds an id=otp field", STEPS.sensitiveShadow, "sensitive-step", {}],
+        ["a wrapper whose field is named only by its label text (CVV)", STEPS.sensitiveLabel, "sensitive-step", {}],
+        [
+          "a wrapper around an embedded frame (a hosted card field)",
+          STEPS.sensitiveFrame,
+          "sensitive-step",
+          { setup: (page) => page.evaluate(() => (window as unknown as { __assertionLab: { injectFrameField(): void } }).__assertionLab.injectFrameField()) }
+        ],
+        ["a wrapper whose field is named only card_cvv2", STEPS.sensitiveSnake, "sensitive-step", {}],
         ["two matches", STEPS.dupe, "target-not-unique", {}],
         ["no match", STEPS.missing, "target-not-found", {}],
         ["a hidden target", STEPS.hidden, "target-hidden", {}]
@@ -562,6 +604,75 @@ async function main(): Promise<void> {
       check("a page closed before the capture is inconclusive/page-closed with no candidate", closed.code === "page-closed" && !closed.candidateId, JSON.stringify(closed));
     }
 
+    // ── J. One deadline for the whole step ─────────────────────────────────────────────────────
+    console.log("\nJ. The executor's whole-step deadline, an unresolvable page and the failure class");
+    {
+      const jw = await world("dev");
+      const timed = async (step: FlowStep, options: Parameters<typeof assertOnce>[2]) => {
+        const started = Date.now();
+        const o = await assertOnce(jw, step, options);
+        return { ...o, ms: Date.now() - started };
+      };
+      const BOUND = VISUAL_ASSERTION_DEADLINE_MS + 400;
+      const never = () => new Promise<never>(() => undefined);
+      const slowLoad = () => new Promise<VisualAssertionAssessor | undefined>((resolve) => setTimeout(() => resolve(undefined), VISUAL_ASSERTION_DEADLINE_MS + 1500));
+      const hangingAssess = async (): Promise<VisualAssertionAssessor> => ({ assess: never });
+      const cases: Array<[string, HarnessOptions]> = [
+        ["an adapter load that outlives the deadline", { assessor: slowLoad }],
+        ["a page resolution that outlives the deadline", { pageDelayMs: VISUAL_ASSERTION_DEADLINE_MS + 1500 }],
+        ["a load and a page resolution that together outlive it", { assessor: () => new Promise((r) => setTimeout(() => r(undefined as never), 1200)).then(() => harnessAdapter(jw)), pageDelayMs: 1200 }],
+        ["an assessment that never settles", { assessor: hangingAssess }]
+      ];
+      for (const [label, options] of cases) {
+        const o = await timed(STEPS.observe, options);
+        check(
+          `observe, ${label}: passes inconclusive/budget-exhausted within the step deadline`,
+          o.result.status === "passed" && o.record?.verdictCode === "budget-exhausted" && o.ms <= BOUND + 600,
+          `${describe(o.result, o.record)} wall=${o.ms}ms`
+        );
+        const e = await timed(STEPS.enforce, { ...options, flag: "enforce" });
+        check(
+          `enforce, ${label}: fails visual-unverified/budget-exhausted (not cell-not-qualified), attempted once despite retries`,
+          e.result.status === "failed" &&
+            e.record?.failureClass === "visual-unverified" &&
+            e.record.code === "budget-exhausted" &&
+            e.result.attemptCount === 1 &&
+            (e.result.error ?? "").startsWith("Visual assertion unverified (visual-unverified/budget-exhausted)"),
+          `${describe(e.result, e.record)} wall=${e.ms}ms`
+        );
+      }
+      const alias = { pageAlias: "popup-that-never-opened" };
+      const observeAlias = await timed({ ...STEPS.observe, ...alias } as FlowStep, {});
+      check(
+        "observe, an unresolvable page alias: passes inconclusive/capture-unavailable instead of failing with a page error",
+        observeAlias.result.status === "passed" && observeAlias.record?.verdictCode === "capture-unavailable" && observeAlias.h.captures.count === 0,
+        describe(observeAlias.result, observeAlias.record)
+      );
+      const enforceAlias = await timed({ ...STEPS.enforce, ...alias, onFailure: { action: "continue", screenshot: false } } as FlowStep, { flag: "enforce" });
+      check(
+        "enforce, an unresolvable page alias: fails visual-unverified/capture-unavailable, once, with its onFailure policy kept",
+        enforceAlias.result.status === "failed" &&
+          enforceAlias.record?.failureClass === "visual-unverified" &&
+          enforceAlias.record.code === "capture-unavailable" &&
+          enforceAlias.result.attemptCount === 1 &&
+          enforceAlias.result.failurePolicy === "continue" &&
+          !(enforceAlias.result.error ?? "").includes("popup-that-never-opened"),
+        describe(enforceAlias.result, enforceAlias.record)
+      );
+      const failingLoad = await timed(STEPS.enforce, { flag: "enforce", assessor: () => Promise.reject(new Error("load failed")) });
+      check(
+        "enforce, an adapter that fails to load: fails visual-unverified/evaluation-unavailable, once",
+        failingLoad.result.status === "failed" && failingLoad.record?.code === "evaluation-unavailable" && failingLoad.result.attemptCount === 1,
+        describe(failingLoad.result, failingLoad.record)
+      );
+      const mismatchPolicy = await timed({ ...STEPS.enforce, onFailure: { action: "goToFailureEdge", screenshot: false } } as FlowStep, { flag: "enforce" });
+      check(
+        "the step's own onFailure action is reported unchanged on a visual failure",
+        mismatchPolicy.result.status === "failed" && mismatchPolicy.result.failurePolicy === "goToFailureEdge",
+        describe(mismatchPolicy.result, mismatchPolicy.record)
+      );
+    }
+
     // ── F. Neutrality ──────────────────────────────────────────────────────────────────────────
     console.log("\nF. Flows without assertVisual are unchanged");
     {
@@ -593,12 +704,74 @@ async function main(): Promise<void> {
       const [summary] = gw.candidates.summaries();
       check("a candidate exists and its renderer view has exactly the safe fields", !!summary && JSON.stringify(Object.keys(summary).sort()) === JSON.stringify(["candidateId", "createdAt", "expiresAt", "flowId", "mode", "reason", "stepId"]));
       const full = summary ? gw.candidates.peek(summary.candidateId) : undefined;
-      check("the candidate is frozen and bound (epoch, step digest, key generation 0 before the first key, unattributed run user)", !!full && Object.isFrozen(full) && /^[0-9a-f]{32}$/.test(full.epoch) && /^[0-9a-f]{64}$/.test(full.stepContentDigest) && full.keyGeneration === 0 && full.runUser === "unattributed");
+      check(
+        "the candidate is frozen and bound (epoch, step digest, key generation 0 before the first key, the run's authenticated initiator)",
+        !!full &&
+          Object.isFrozen(full) &&
+          Object.isFrozen(full.initiator) &&
+          /^[0-9a-f]{32}$/.test(full.epoch) &&
+          /^[0-9a-f]{64}$/.test(full.stepContentDigest) &&
+          full.keyGeneration === 0 &&
+          full.initiator.userId === RUNNER.userId &&
+          full.initiator.username === RUNNER.username
+      );
       const digestHex = full?.contentDigest.replace(/^sha256:/, "") ?? "missing";
       const leaked = filesUnder(gw.env.root).filter((file) => readFileSync(file).includes(digestHex) || readFileSync(file).includes(full?.stepContentDigest ?? "missing"));
       check("no file on disk holds the candidate's content digest or step digest (memory only)", leaked.length === 0, leaked.join(", "));
       const taken = summary ? gw.candidates.take(summary.candidateId) : undefined;
       check("take consumes it once: a second take finds nothing", !!taken && (summary ? gw.candidates.take(summary.candidateId) : 1) === undefined);
+    }
+
+    // ── K. Run-user provenance ─────────────────────────────────────────────────────────────────
+    console.log("\nK. A candidate needs the run's authenticated initiator");
+    {
+      const kw = await world("dev");
+      const unattributed = await assertOnce(kw, STEPS.observe, { initiator: null });
+      check(
+        "a run with no authenticated initiator makes no candidate and says why (run-unattributed), the step still observes",
+        unattributed.result.status === "passed" &&
+          unattributed.record?.verdictCode === "no-baseline" &&
+          unattributed.record.candidate === false &&
+          unattributed.record.candidateWithheld === "run-unattributed" &&
+          kw.candidates.size() === 0,
+        describe(unattributed.result, unattributed.record)
+      );
+      const attributed = await assertOnce(kw, STEPS.observe);
+      check(
+        "the same run with an initiator makes one candidate and no withheld reason",
+        attributed.record?.candidate === true && attributed.record.candidateWithheld === undefined && kw.candidates.size() === 1
+      );
+      const refused = await assertOnce(kw, STEPS.dupe, { initiator: null });
+      check("an ineligible refusal reports no withheld candidate (nothing was eligible)", refused.record?.candidateWithheld === undefined);
+      // VA-13 / I1: the epoch is bound before the capture, so an identical re-import while the capture runs makes the
+      // candidate stale: it can never be approved against the re-imported flow.
+      const rw = await world("dev");
+      let reimported = false;
+      await assertOnce(rw, STEPS.observe, {
+        probe: {
+          hold: async (at) => {
+            if (at !== "before-capture" || reimported) return;
+            reimported = true;
+            const current = await rw.env.flows.get(FLOW_ID);
+            if (current) await rw.env.flows.import(current);
+          }
+        }
+      });
+      const staleOk = await approveLatest(rw, STEPS.observe.id);
+      check("a candidate whose capture overlapped an identical re-import is refused (stale epoch)", reimported && !staleOk);
+      await assertOnce(rw, STEPS.observe);
+      check("CONTROL: a capture after the re-import is approved", await approveLatest(rw, STEPS.observe.id));
+      const sources = ["src/runner/visualAssertion/VisualAssertionStep.ts", "src/runner/visualAssertion/visualAssertionCandidates.ts", "src/runner/ExecutionEngine.ts"].map((f) => readFileSync(f, "utf8"));
+      check("no runtime source substitutes an unattributed or placeholder run user", sources.every((text) => !/"unattributed"/.test(text)));
+      const ipc = readFileSync("app/main/ipc/execution.ipc.ts", "utf8");
+      check(
+        "the run and repeat channels bind the initiator from the actor their own permission check returned",
+        /initiator = runInitiatorOf\(actor\)/.test(ipc) &&
+          /runWorkflow\(request, browserLaunchSnapshot, initiator\)/.test(ipc) &&
+          /const repeater = await assertSenderPermission\(event, Permission\.WORKFLOW_EXECUTE\)/.test(ipc) &&
+          /repeatInstance\(instanceId, runInitiatorOf\(repeater\)\)/.test(ipc) &&
+          !/request\.(initiator|runUser|userId)/.test(ipc)
+      );
     }
 
     // ── H. Enablement pins ─────────────────────────────────────────────────────────────────────
@@ -637,7 +810,7 @@ async function main(): Promise<void> {
     const runnerText = readFileSync("src/runner/PlaywrightRunner.ts", "utf8");
     check("the runner loads the adapter lazily, only through a dynamic import", /import\("\.\/visualAssertion\/VisualAssertionStep"\)/.test(runnerText) && !/^import \{[^}]*VisualAssertionStep\b[^}]*\} from/m.test(runnerText));
     const engineText = readFileSync("src/runner/ExecutionEngine.ts", "utf8");
-    check("the engine wires every run's visual assertions from the flag and the injected services", /visualAssertions: this\.visualAssertionOptions\(\)/.test(engineText) && /flag: visualAssertionFlag\(\)/.test(engineText));
+    check("the engine wires every run's visual assertions from the flag and the injected services", /visualAssertions: this\.visualAssertionOptions\(this\.instanceInitiators\.get\(instance\.instanceId\), \(record\) =>/.test(engineText) && /flag: visualAssertionFlag\(\)/.test(engineText));
     const ipcText = readFileSync("app/main/ipc/execution.ipc.ts", "utf8");
     check("the main process injects the safeStorage-backed services", /setVisualAssertionServices\(visualAssertionServices\(\)\)/.test(ipcText) && readFileSync("app/main/visualAssertion/visualAssertionServices.ts", "utf8").includes("safeStorageVisualKeyProtector"));
   } finally {

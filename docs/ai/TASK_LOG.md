@@ -1,5 +1,71 @@
 # TASK_LOG
 
+## 2026-10-25 — Phase N: N6.6 reconciled, N6.5 and N6.7 implemented, N6.8 reviews APPROVED (Claude)
+
+- **N6.6 reconciliation:**
+  - `verify:visual-calibration-evidence` (new) audited the 2,138 recorded launches, 99/0. Every cell still qualifies:
+    no duplicates, the interrupted session classified, and grant digests matching.
+  - The live grant audit: 6 of 6 grants valid.
+  - Launch ids and fresh-browser proof are now recorded for future sessions.
+- **N6.5 (`awkit-vra.15.5`):**
+  - Files: `visualAssertionApproval.ts`, `candidatePreviewPng.ts`, `app/main/ipc/visualAssertion.ipc.ts`, preload
+    `visualAssertions`, `VisualAssertionSection.tsx`, the FlowNodePropertiesPanel wiring, the `visualAssertionMode`
+    mapping and the `global.css` list and preview classes.
+  - Checks: `verify:visual-assertion-candidates` 64/0 (4 mutants red); `verify:visual-assertion-gui` 57/0 in real
+    Electron with the real `safeStorage` (first key, restart, key loss, tampered record and key, replay, stale, reset,
+    signed-out refusal, audit, N6.7 report and drawer).
+- **N6.7 (`awkit-vra.15.7`):**
+  - Files: `visualAssertionReport.ts`, the `ExecutionReport.visualAssertions` field, the ExecutionEngine collection,
+    `VisualAssertionReportSection.tsx` and the RunDetailDrawer wiring.
+  - Check: `verify:visual-assertion-report` 37/0 (4 sanitizer mutants red).
+- **N6.8 (`awkit-vra.15.8`):**
+  - Fresh-context QC: CHANGES REQUIRED, then APPROVED.
+  - Security review: CHANGES REQUIRED, CHANGES REQUIRED, then APPROVED.
+  - Fixes:
+    - sensitive containers (fields inside, open shadow roots, label text, embedded frames, word splitting);
+    - `getAppMode` fails to packaged;
+    - a crash-safe reset that never yields generation 1;
+    - the deadline aborts before settling;
+    - the `replacedUnreadable` audit;
+    - the sanitizer drops a passed enforce record without a passed verdict;
+    - stale `mode` dropped on a type change.
+  - Lab fixtures added: `va-payment`, `va-otp-host`, `va-labelled`, `va-camel`, and `injectFrameField()`.
+- **Final checks:** build PASS; runtime 91/0; runner 138/0; isolation 90/0; integrity 47/0; grants 45/0; mock site
+  339/339; ipc-contract 10/10; typecheck:scripts PASS.
+- **NOT RUN:** packaging and a packaged-build GUI.
+- **BLOCKED:**
+  - The commit (the mixed staged set includes the Risk-3 `electron.vite.calibration.config.ts`).
+  - `bd close` (a terminal `unsupported-command` lease denial).
+
+## 2026-10-24 — Phase N: N6.4 review follow-up (Claude)
+
+- **Fixed:** an `assertVisual` step's page is resolved inside the one 2000 ms deadline (late `budget-exhausted`,
+  unresolvable `capture-unavailable`, never a page error); an unread grant reports the evaluation's own reason;
+  candidates bind the authenticated run initiator from `execution:runWorkflow` / `execution:repeatInstance`
+  (`run-unattributed`, no candidate, otherwise); the epoch token is read before the capture; every flow write issues
+  a token and a start-up pass tokenizes older flows (I1 lazy behavior proved NOT equivalent); a first-use candidate
+  survives creation of the first key (generation 1) but not a reset.
+- **Checks:** runtime 86/0 (mutants J1, K1, E1 red), grants 45/0, lifecycle 41/0 (LazyToken mutant red),
+  integrity 47/0, store 36/0, cross-process 26/0, import-authorization 25/0, isolation 90/0, ipc-contract 10/10,
+  runner 138/0, live key protector 10/0, build PASS.
+- **Commit:** staged, not committed: the agent shell's commit gate was a terminal hook denial; the owner commits.
+
+## 2026-10-25 — Phase N: N6.6 calibration harness and measurement (Claude)
+
+- **Scope:** contract `awkit-vra-15-6-n6-calibration-1025` (Risk 2; release lease for `electron.vite.calibration.config.ts`
+  and `electron-builder.json`). CodeCraft: not used.
+- **Changed:** `src/runner/visualAssertion/calibration/` (criterion, harness), `app/main/calibration/visualCalibrationRoot.ts`,
+  the calibration build config and manifest writer, `!out/calibration-main/**` in electron-builder, the shared
+  `visualAssertionGrantEnvironment`, `benchmark:visual-assertion`, `build:calibration`, new `verify:visual-calibration`.
+- **Found while measuring:** a stuck `browser.close` hung one session (stopped; its 145 launches stay recorded), so every
+  close and launch is now bounded and the session has a hard drain limit; a mock server orphaned by that stop held the
+  fixed port, so each run now takes a free port; a three-lane session pushed DPR 2 p95 past 2000 ms, so sessions run
+  serially.
+- **Measured:** 21 sessions, 2,138 launches, all six cells qualified, six dev grants issued (DECISIONS 2026-10-25).
+- **Checks:** verify:visual-calibration 43/0 (C1, C2 red), runtime 86/0, grants 45/0, isolation 90/0,
+  classification 352, build PASS.
+- **Tracking:** `awkit-vra.15.6` closed; pins 32/388 of 420.
+
 ## 2026-10-24 — Phase N: N6.4 runtime visual assertions (Claude)
 
 - **Scope:** contract `awkit-vra-15-4-n6-runtime-1024` (Risk 2). CodeCraft: not used.

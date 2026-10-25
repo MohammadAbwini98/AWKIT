@@ -734,7 +734,9 @@ npm run verify:visual-assertion       # N6.2 pure decideVisualAssertion: decisio
 npm run verify:flow-import-authorization # N6.9 import over an existing flow needs WORKFLOW_EDIT, in-lane, I1-I9 (24, 6 mutants)
 npm run verify:visual-assertion-runtime  # N6.4 assertVisual in real Chromium: matrix, baselines, refusals, VA-15, deadline (67)
 npm run verify:visual-assertion-grants   # N6.4 the 240-cell gate matrix and the dev-only grant store (43, 8 mutants)
-npm run verify:visual-key-protector-live -- --electron-dist C:\electron-dist  # N6.4 live safeStorage protector in the real app; BLOCKED without a launchable Electron
+npm run verify:visual-key-protector-live  # N6.4 live safeStorage protector in the real app (auto-detects C:\electron-dist) (10)
+npm run verify:visual-calibration        # N6.6 the VA-12 criterion and the grant issuer's packaging boundary (43, 2 mutants)
+npm run benchmark:visual-assertion       # N6.6 ONE real calibration session (~8 min); repeat until cells qualify; issues dev grants
 npm run verify:visual-baseline-store  # N6.3 store contents and keyed commitments, through the N6.2 policy (36, 5 mutants)
 npm run verify:visual-baseline-integrity # N6.3 keys, tamper, replay, restore, cross-mode, sweep, reset, secrets isolation (46, 6 mutants)
 npm run verify:visual-baseline-lifecycle # N6.3 invalidate-first lifecycle on the real flow store, races, crashes, fallback (36, 10 mutants)

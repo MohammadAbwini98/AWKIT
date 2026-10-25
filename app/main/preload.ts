@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from "electron";
 import { toDisplayableIpcError } from "./ipcErrorMessage";
 import type { JsonArrayDataSourceProfile } from "@src/data/DataSourceProfile";
 import type { FlowProfile } from "@src/profiles/FlowProfile";
+import type { VisualApprovalResponse, VisualCandidateView } from "@src/runner/visualAssertion/visualAssertionApproval";
 import type { FlowFragment, FragmentAuditFinding } from "@src/fragments/FlowFragment";
 import type { CaptureFragmentInput, FragmentOperationResult } from "./ipc/fragment.ipc";
 import type { WorkflowProfile } from "@src/profiles/WorkflowProfile";
@@ -437,6 +438,21 @@ const api = {
    * action on the Element Spy's live page. Requests name ids only; main loads the step itself, and a
    * diagnosis never changes a locator (applying a suggestion is the user's explicit edit).
    */
+  /**
+   * N6.5 visual assertion candidates. The main process authorizes every call (WORKFLOW_EDIT; preview, approve, reject
+   * and reset also need a fresh re-authentication) and answers codes; no digest, key, commitment or token crosses.
+   */
+  visualAssertions: {
+    capabilities: () => invoke("visualAssertion:capabilities") as Promise<{ appMode: "dev" | "packaged"; enforceAvailable: boolean }>,
+    listCandidates: (filter: { flowId?: string; stepId?: string }) =>
+      invoke("visualAssertion:listCandidates", filter) as Promise<{ ok: boolean; code: string; candidates: VisualCandidateView[] }>,
+    previewCandidate: (candidateId: string) =>
+      invoke("visualAssertion:previewCandidate", candidateId) as Promise<VisualApprovalResponse<{ width: number; height: number; pngBase64: string }>>,
+    approveCandidate: (candidateId: string) =>
+      invoke("visualAssertion:approveCandidate", candidateId) as Promise<VisualApprovalResponse<{ generation: number }>>,
+    rejectCandidate: (candidateId: string) => invoke("visualAssertion:rejectCandidate", candidateId) as Promise<VisualApprovalResponse>,
+    resetBaselines: () => invoke("visualAssertion:resetBaselines") as Promise<VisualApprovalResponse<{ generation: number }>>
+  },
   domIntelligence: {
     getStatus: () => invoke("domIntelligence:getStatus") as Promise<DomIntelligenceStatusView>,
     diagnoseStep: (request: DomDiagnosisRequest) => invoke("domIntelligence:diagnoseStep", request) as Promise<DomDiagnosisResponse>,

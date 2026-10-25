@@ -143,6 +143,9 @@ async function importSuite(variant: Variant): Promise<Outcome[]> {
     const w = makeWorld(variant);
     w.grants.edit = false;
     const r = await attempt(w, renamed("N", "new import"));
+    // Read before anything below creates one: the import itself must have issued the epoch token (VA-5, I1).
+    const token = await w.layout.readToken("N");
+    add("[I1] ...and the import itself issued the new flow's epoch token (no capture-time creation needed)", r.ok && typeof token === "string" && /^[0-9a-f]{32}$/.test(token), String(token));
     const lookup = await w.store.lookup({ flowId: "N", stepId: "s1", stepContentDigest: "0".repeat(64), conditions: (await approvalFor(w, "N", "s1")).conditions });
     add("[I1] WORKFLOW_CREATE alone imports a new id as a create, with no approval inherited", r.ok && (await w.flows.get("N"))?.name === "new import" && lookup.status === "absent" && w.audits === 0, JSON.stringify(r));
   }

@@ -43,15 +43,15 @@ export async function ensureRuntimeFolders(paths = getRuntimePaths()): Promise<R
 }
 
 /**
- * "dev" | "packaged" for runtime diagnostics. Guarded so callers loaded outside a real
- * Electron process (tsx verify scripts import the engine, where `app` is undefined)
- * safely report "dev" instead of throwing.
+ * "dev" | "packaged". Callers loaded outside a real Electron process (tsx verify scripts import the engine, where
+ * `app` is undefined) report "dev". A read that THROWS reports "packaged", the restricted mode: N6 enforcement and
+ * grant reads (VA-16) depend on this answer, so an error must never unlock them (N6.8 security finding 2).
  */
 export function getAppMode(): "dev" | "packaged" {
   try {
     return app?.isPackaged ? "packaged" : "dev";
   } catch {
-    return "dev";
+    return "packaged";
   }
 }
 

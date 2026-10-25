@@ -16,6 +16,7 @@ import {
 } from "@src/profiles/interactionPrerequisiteDecision";
 import { LocatorUpgradeSection } from "./LocatorUpgradeSection";
 import { LocatorDiagnosisSection } from "./LocatorDiagnosisSection";
+import { VisualAssertionSection } from "./VisualAssertionSection";
 import { DriftCheckSection } from "./DriftCheckSection";
 import { confirmDirectActionPatch, interactionReviewForNode, type DesignerValidationFinding } from "./flowValidationPresentation";
 import { useNavigation } from "../../state/navigation";
@@ -1098,6 +1099,16 @@ export function FlowNodePropertiesPanel({
                 ) : null}
               </section>
             </details>
+          ) : null}
+
+          {stepType === "assertVisual" && selectedNode ? (
+            <VisualAssertionSection
+              flowId={flowId}
+              stepId={selectedNode.id}
+              mode={data.visualAssertionMode}
+              editorDirty={editorDirty}
+              onModeChange={(visualAssertionMode) => set({ visualAssertionMode })}
+            />
           ) : null}
 
           {has("wait") ? (

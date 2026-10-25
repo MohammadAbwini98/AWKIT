@@ -1,6 +1,63 @@
 # CURRENT_STATE
 
-## Phase N: N6.4 runtime visual assertions implemented (2026-10-24, latest)
+## Phase N: N6.5 and N6.7 implemented, N6.8 reviews APPROVED (2026-10-25, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N is not complete:
+N7 to N10 remain.**
+
+- **N6.5, approval surface:**
+  - six `visualAssertion:*` channels (`app/main/ipc/visualAssertion.ipc.ts`) over the Electron-free
+    `visualAssertionApproval.ts`;
+  - preview, approve, reject and reset need WORKFLOW_EDIT plus fresh re-authentication, and are audited;
+  - the Designer's *Visual assertion* section: a mode editor (the packaged build offers observe only, per C4), pending
+    baselines with preview, approve and reject, reset behind a confirmation, and the latest recorded result;
+  - `verify:visual-assertion-candidates` 64/0;
+  - `verify:visual-assertion-gui` 57/0 in the real app with real `safeStorage`, over five launches.
+- **N6.7, report block:**
+  - the optional codes-only `InstanceReport.visualAssertions`, sanitized on write and on read;
+  - a text-only *Visual assertions* section in the run-detail drawer, with instance and run totals that keep visual
+    mismatch apart from visual unverified;
+  - `verify:visual-assertion-report` 37/0.
+- **N6.6 recheck:** `verify:visual-calibration-evidence` 99/0. Recomputed independently, all six cells still qualify
+  (2,138 launches; bound 0.77–0.92 %).
+- **N6.8 independent review:**
+  - Implementation QC: CHANGES REQUIRED (4 Low), then APPROVED.
+  - Security: CHANGES REQUIRED (1 Medium, 2 Low), then a further Medium (embedded frames) and 3 Low, then APPROVED.
+  - Every finding is fixed with a regression case. The Visual Assertion Lab gained sensitive container fixtures.
+  - The remaining Lows and accepted residuals are in KNOWN_ISSUES.
+- **Gates on the final tree:**
+  - PASS: build; runtime 91/0; runner 138/0; isolation 90/0; integrity 47/0; grants 45/0; mock site 339/339;
+    ipc-contract 10/10; typecheck:scripts.
+  - NOT RUN: packaging (it would overwrite the owner's `dist` from an uncommitted tree); a packaged-build GUI.
+- **BLOCKED (terminal lease denials):**
+  - Commit and push: `electron.vite.calibration.config.ts` is staged with everything else.
+  - `bd close` for 15.5, 15.7 and 15.8. The roadmap phase status is therefore left unchanged (HANDOFF).
+
+## Phase N: N6.4 review follow-up and N6.6 calibration complete (2026-10-25)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **N6.4 review follow-up** (no new Beads item):
+  - an `assertVisual` page is resolved inside the one 2000 ms deadline;
+  - an unread grant reports its own reason;
+  - candidates bind the authenticated run initiator, and there is no candidate without one;
+  - the epoch token is read before the capture;
+  - every flow write issues a token, and a start-up pass covers older flows. The N6.9 I1 lazy token was proved
+    not equivalent;
+  - a first-use candidate survives the first key but not a reset;
+  - `verify:visual-key-protector-live` passes 10/0 in the real app.
+- **N6.6 closed** (`awkit-vra.15.6`, contract `awkit-vra-15-6-n6-calibration-1025`):
+  - the calibration root runs only in the non-packaged build's main process and is excluded from packaging;
+  - 21 sessions and 2,138 real launches;
+  - **all six render-mode x DPR cells qualified** (bound 0.77–0.92 %, p95 989–1342 ms), with six experimental dev
+    grants issued (DECISIONS 2026-10-25);
+  - `verify:visual-calibration` 43/0.
+- **Commit state:** the N6.4 follow-up is staged; the N6.6 work is unstaged. The agent shell's commit gate is a
+  terminal hook denial, so the owner commits (HANDOFF).
+- **Next:** N6.5 (candidate IPC, re-auth, Designer mode editor, the Electron key acceptance) and N6.7 (report block)
+  are dependency-ready. N6.8 waits for both.
+
+## Phase N: N6.4 runtime visual assertions implemented (2026-10-24)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
