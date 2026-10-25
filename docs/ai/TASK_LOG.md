@@ -1,5 +1,40 @@
 # TASK_LOG
 
+## 2026-10-25 — Phase N: N6 finalized, sign-out security fix, N7 plan (Claude)
+
+- **Reconciled:** `50f197a`, `2ef692f` and `e5cd7c4` are on `origin/main`. The L12.27 contract is preserved
+  untracked.
+- **Packaging:**
+  - The governed `release-portable.ps1` refuses a dirty tree, and the untracked contract must stay. A shell copy to
+    preserve the 0.1.53 EXE was refused by the guard.
+  - The version was bumped to 0.1.54 alone (`32d2f18`), so the next package cannot overwrite 0.1.53.
+  - `npm run package:portable` is BLOCKED by a terminal lease denial.
+  - New `verify:visual-assertion-packaged` covers the ASAR contents (no `out/calibration-main`, no calibration entry
+    or grant-issuer call), the packaged Designer (observe only, imported enforce unavailable), and licensed runs
+    (enforce fails closed with the flag set and unset; an ordinary workflow passes on the bundled Chromium). It is NOT
+    RUN: the payload predates N6.
+- **Security:**
+  - **AWKIT-SEC-008, fixed in `cc91e45`.** `signOutWindow` clears the window binding at Sign out and ends a second
+    session that window held. Red: `verify:visual-assertion-gui` 46/5 earlier the same day. Green:
+    `verify:session-context` 15/15 and `verify:visual-assertion-gui` 60/0.
+  - **AWKIT-SEC-007, assessed.** `listAudit` never projects `sessionId`, so exposure is at rest only. It is kept
+    open in DEFECTS.md as a production-release gate.
+- **Regressions:** `verify:visual-diagnosis-gui` 42/0; `verify:auth-gui` 32/33 (a pre-existing stale dark-token
+  assertion). The GUI harness auto-uses the local Electron copy.
+- **Tracker** (contract `awkit-vra-15-n6-closure-1025`, project-state lease):
+  - closed `.15.5`, `.15.7` and the epic `.15`; `.15.8` had already been closed outside the agent;
+  - added the edge `awkit-vra.9` → `awkit-vra.4`;
+  - refused by the guard: `bd dep remove awkit-vra.9 awkit-vra.3`, `bd update --append-notes` and `bd create`.
+  - Note for `awkit-vra.9`: "2026-10-25: legacy edge to awkit-vra.3 replaced by the canonical N3 awkit-vra.4 (closed
+    2026-10-13), matching the owner's earlier removal from awkit-vra.4; awkit-vra.3 unchanged; plan
+    N7-ocr-text-in-image.md, OC-0 to OC-12 proposed."
+  - Dashboard pins moved to 28/392 of 420 with 364 edges; 177/177, Sources agree.
+- **Roadmap:** the N6 row in `ROADMAP.md` and the Phase N note in `ImplementationRoadmap.ts` record N6 closed. Phase
+  N stays in progress.
+- **N7:** `docs/plans/ai-upgrade-v5/N7-ocr-text-in-image.md` recommends Tesseract 5 WASM in a utility-process host,
+  an observe-only `assertImageText`, a fifth `src/visual` edge and fail-closed ambiguity. OC-0 to OC-12 are proposed;
+  nothing is implemented.
+
 ## 2026-10-25 — Phase N: N6.6 reconciled, N6.5 and N6.7 implemented, N6.8 reviews APPROVED (Claude)
 
 - **N6.6 reconciliation:**

@@ -1,6 +1,41 @@
 # CURRENT_STATE
 
-## Phase N: N6.5 and N6.7 implemented, N6.8 reviews APPROVED (2026-10-25, latest)
+## Phase N: N6 closed in the tracker, sign-out fix, N7 plan proposed (2026-10-25, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N stays IN PROGRESS:
+N7 to N10 remain.** `awkit-vra.16` (production visual enforcement) stays open.
+
+- **Synchronized commits:** `50f197a` (N6 work), `2ef692f` (calibration config, release lease), `e5cd7c4` (lease
+  bookkeeping), `32d2f18` (version 0.1.54), `cc91e45` (sign-out fix and verifiers), plus this closure commit.
+- **N6 tracker closed** under a project-state lease (contract `awkit-vra-15-n6-closure-1025`):
+  - `.15.5`, `.15.7` and the epic `awkit-vra.15` are closed;
+  - `.15.8` had already been closed outside the agent with the generic reason "Closed" before its dependencies, and
+    its criteria are met (both reviews APPROVED);
+  - dashboard 177/177, Sources agree, at 28 outstanding / 392 closed of 420 with 364 edges.
+- **Security:**
+  - **AWKIT-SEC-008, resolved in `cc91e45`.** A visible Sign out now leaves the window with no authority and ends a
+    second session bound from the same window. `verify:session-context` 15/15; `verify:visual-assertion-gui` 60/0
+    with a second-session regression. N6 preview, approval and reset are refused after logout.
+  - **AWKIT-SEC-007, OPEN, production-release gate.** Audit rows hold the raw `sessionRef` at rest. No IPC returns
+    it, and the fix sits in `src/security` (Risk-3). Filing it in Beads was refused by the lease guard; it is tracked
+    in DEFECTS.md.
+- **Packaging: BLOCKED for the agent.**
+  - `npm run package:portable` is a terminal lease denial.
+  - The governed `release-portable.ps1` requires a clean tree, and the untracked L12.27 contract must be preserved.
+  - The version is bumped to 0.1.54 (`32d2f18`), so the owner's packaging writes a new artifact and does not
+    overwrite 0.1.53.
+  - `verify:visual-assertion-packaged` (new) is NOT RUN: the payload is from 2026-10-13 and predates N6.
+- **GUI regressions:**
+  - `verify:visual-diagnosis-gui` 42/0 (the drawer section was modified).
+  - `verify:auth-gui` 32/33. Its one failure is a pre-existing stale dark-token assertion (KNOWN_ISSUES).
+  - The shared GUI harness now uses the version-checked local Electron copy on the Parallels share.
+- **N7 OCR:**
+  - Plan `docs/plans/ai-upgrade-v5/N7-ocr-text-in-image.md` proposes OC-0 to OC-12; none are ratified and nothing is
+    implemented.
+  - `awkit-vra.9` now depends on the canonical N3 `awkit-vra.4`. Removing its legacy edge to `awkit-vra.3` was
+    refused by the guard and is an owner action.
+
+## Phase N: N6.5 and N6.7 implemented, N6.8 reviews APPROVED (2026-10-25)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N is not complete:
 N7 to N10 remain.**

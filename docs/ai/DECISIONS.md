@@ -1,6 +1,21 @@
 # DECISIONS
 
-### 2026-10-25 (latest) — Phase N N6.5 approval surface, N6.7 report block, and N6.8 round-1 review fixes (`awkit-vra.15.5`, `.15.7`)
+### 2026-10-25 (latest) — N6 closed observe-only; Sign out ends window authority; N7 decisions proposed
+
+- **N6 closure.** N6 is closed in the tracker with observe-only visual assertions in packaged production and
+  experimental enforcement only in the non-packaged acceptance build. Production qualification and enforcement stay
+  `awkit-vra.16`, and Phase N stays in progress. Packaging and the packaged acceptance remain an owner gate.
+- **Sign out (AWKIT-SEC-008).** A visible Sign out clears the window's session binding whatever it holds, and ends a
+  different session that window held. A re-bind does NOT end the replaced session: the UI may still hold it for its
+  own explicit-ref calls, and Sign out ends it.
+- **Audit `sessionRef` (AWKIT-SEC-007).** It stays open as a production-release gate rather than an N6 change: the
+  fix belongs to the security kernel's single audit sink and needs a migration decision for existing rows.
+- **N7 tracker.** `awkit-vra.9` depends on the canonical N3 `awkit-vra.4`. Its legacy `awkit-vra.3` history is
+  preserved.
+- **N7 decisions.** OC-0 to OC-12 are PROPOSED in `N7-ocr-text-in-image.md` and are not decisions until the owner
+  ratifies them.
+
+### 2026-10-25 — Phase N N6.5 approval surface, N6.7 report block, and N6.8 round-1 review fixes (`awkit-vra.15.5`, `.15.7`)
 
 - **Approval surface (N6.5).**
   - Six `visualAssertion:*` channels: capabilities (signed in, returns the build mode only), list (WORKFLOW_EDIT),

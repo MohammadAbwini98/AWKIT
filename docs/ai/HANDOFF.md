@@ -1,6 +1,37 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-25, latest) — Phase N: N6.5 and N6.7 done, N6.8 reviews APPROVED; owner closes and commits
+## HANDOFF (2026-10-25, latest) — Phase N: N6 closed in the tracker; owner packaging gate; N7 awaits ratification
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done and pushed:** `50f197a`, `2ef692f`, `e5cd7c4`, `32d2f18`, `cc91e45` and the closure commit.
+  - N6 is closed: `.15.5`, `.15.7` and the epic `.15`; `.15.8` was already closed.
+  - Phase N and `awkit-vra.16` stay open.
+- **Owner actions (BLOCKED for the agent, terminal lease denials):**
+  1. **Package.** Run `npm run package:portable`, which writes `dist\SpecterStudio 0.1.54.exe`. Then:
+
+     ```
+     npm run verify:visual-assertion-packaged
+     ```
+
+     With `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` set, the licensed runs execute; without it they report BLOCKED. On the
+     Parallels share the packaged executable may hit the GPU error_code=18 launch failure (KNOWN_ISSUES). Also run
+     `npm run verify:packaged-walkthrough`.
+  2. **Tracker:**
+
+     ```
+     bd dep remove awkit-vra.9 awkit-vra.3
+     ```
+
+     Then append the reconciliation note to `awkit-vra.9` (text in TASK_LOG 2026-10-25) and file AWKIT-SEC-007 in
+     Beads with the `release-gate` label.
+- **Release gate:** AWKIT-SEC-007 (raw `sessionRef` in audit rows) must be fixed or accepted before the next
+  production release. The fix is in `src/security` and needs a security contract and lease.
+- **Next:** ratify, amend or reject N7 OC-0 to OC-12 (`docs/plans/ai-upgrade-v5/N7-ocr-text-in-image.md`). No N7
+  implementation is authorized before that.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-25) — Phase N: N6.5 and N6.7 done, N6.8 reviews APPROVED; owner closes and commits
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

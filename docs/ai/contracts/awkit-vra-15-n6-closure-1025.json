@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-15-n6-closure-1025",
+    "title": "Phase N N6 closure: reconcile and close awkit-vra.15.5, .15.7, .15.8 and the N6 epic awkit-vra.15; record the N6 milestone; keep Phase N in progress and awkit-vra.16 open",
+    "objective": "Close the N6 tracker items in dependency order through bd under a project-state lease, only with sufficient acceptance evidence (N6.5 candidates and real-Electron acceptance, N6.7 report verifier, N6.8 fresh-context QC and security reviews APPROVED); export; update the N6 milestone record in ROADMAP.md and ImplementationRoadmap.ts without marking Phase N complete; keep awkit-vra.16 (production visual enforcement) open; reconcile the dashboard pins and confirm Sources agree.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "cc91e45",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "qa",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/contracts/awkit-vra-15-n6-closure-1025.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N6-CLOSE",
+      "description": "awkit-vra.15.5, .15.7 and .15.8 closed with their evidence, then the epic awkit-vra.15; awkit-vra.16 and Phase N stay open; the dashboard reports Sources agree.",
+      "evidence_required": [
+        "bd-close",
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "bd-close",
+      "type": "inspection",
+      "required": true,
+      "command": "bd close awkit-vra.15.5 awkit-vra.15.7 awkit-vra.15.8 awkit-vra.15",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "closed awkit-vra.15.5, awkit-vra.15.7 and the epic awkit-vra.15 under the project-state lease; awkit-vra.15.8 had already been closed outside the agent; edge awkit-vra.9 -> awkit-vra.4 added; bd dep remove, bd update --append-notes and bd create refused by the guard (owner actions)"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "177/177, Sources agree, 28 outstanding / 392 closed of 420 with 364 edges"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-15-n6-closure-1025:project-state:2026-10-25T16:47:17.218Z",
+        "task": "awkit-vra-15-n6-closure-1025",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-25T16:47:17.218Z",
+        "acquired_at_commit": "cc91e45200b9999054878e884bbc6c303741c644",
+        "released_at": "2026-10-25T16:49:03.088Z",
+        "released_reason": "N6 closed: awkit-vra.15.5 15.7 and epic 15 closed (15.8 already closed), N7 dep on awkit-vra.4 added, legacy dep removal and notes refused by the guard",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

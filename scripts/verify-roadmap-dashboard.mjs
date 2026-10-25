@@ -784,8 +784,10 @@ try {
   // Then 34/386 of 420 on 2026-10-24 (contract `awkit-vra-15-9-n6-import-1024`): N6.9 `awkit-vra.15.9` closed. Measured.
   // Then 33/387 of 420 later on 2026-10-24 (contract `awkit-vra-15-4-n6-runtime-1024`): N6.4 `awkit-vra.15.4` closed. Measured.
   // Then 32/388 of 420 on 2026-10-25 (contract `awkit-vra-15-6-n6-calibration-1025`): N6.6 `awkit-vra.15.6` closed. Measured.
-    "32 outstanding / 388 closed",
-    beads.stats.outstanding === 32 && beads.stats.closed === 388,
+  // Then 28/392 of 420 on 2026-10-25 (contract `awkit-vra-15-n6-closure-1025`): N6.5 `.15.5`, N6.7 `.15.7` and the N6
+  // epic `awkit-vra.15` closed, and N6.8 `.15.8` was closed outside the agent before them; four in all. Measured.
+    "28 outstanding / 392 closed",
+    beads.stats.outstanding === 28 && beads.stats.closed === 392,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -924,9 +926,11 @@ try {
   // `awkit-vra.16`, and three blocks edges (.15.9 on .15.1, .15.8 on .15.9, `awkit-vra.16` on the N6 epic, since bd
   // lets only an epic block an epic). Measured.
   // Then 363 on 2026-10-22 (contract `awkit-vra-15-3-n6-store-1022`): `awkit-3zxw` `discovered-from` `awkit-vra.15.3`. Measured.
+  // Then 364 on 2026-10-25 (contract `awkit-vra-15-n6-closure-1025`): N7 `awkit-vra.9` blocks-on canonical N3
+  // `awkit-vra.4` added; removing its legacy edge to `awkit-vra.3` was refused by the lease guard. Measured.
   check(
-    "363 edges are present to classify",
-    beads.stats.edges === 363,
+    "364 edges are present to classify",
+    beads.stats.edges === 364,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(

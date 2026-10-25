@@ -13,13 +13,22 @@
   an imported enforce step shows its unavailable state. Both are pinned statically
   (`verify:visual-assertion-candidates`); the run-time refusal is pinned by `verify:visual-assertion-runtime`. The GUI
   in a packaged build is NOT RUN until a packaged smoke test exists.
-- **A renderer-initiated second login outlives the UI's Sign out (security kernel, Low, OPEN, not N6).**
-  - `security:login` rebinds the window to the new session, and `unbindSession` clears the binding only on a matching
-    reference. A window can therefore stay authorized after a visible Sign out.
-  - Not exploitable without credentials; N6 channels still re-validate and need fresh re-authentication.
-  - Fix in the kernel: on login, revoke or refuse a second session for a bound window; on logout, unbind the window.
-- **Audit records carry the raw `sessionRef` (security kernel, Low, OPEN, not N6).** It behaves like a bearer value,
-  bounded by sender binding. Hash it in every audit record, kernel-wide, and classify it in SECURITY.md.
+- **A second login outlived the UI's Sign out: RESOLVED in `cc91e45` (AWKIT-SEC-008).** Sign out now clears the
+  window binding and ends a second session bound from that window.
+- **Audit records carry the raw `sessionRef` (AWKIT-SEC-007, OPEN, production-release gate).** `listAudit` does not
+  return it, so the exposure is at rest. The fix is in `src/security` (Risk-3); see DEFECTS.md.
+- **`verify:auth-gui` has a stale dark-token assertion (pre-existing, unrelated to N6).** It expects fixed blues for
+  `--awkit-edge`, `--awkit-edge-strong`, `--awkit-connector-default` and `--awkit-connector-selected`, and blue for
+  `--awkit-connector-loop`. The tokens are now accent-derived, and the loop connector is the documented constant green
+  `#34d399`. 32/33 on 2026-10-25. Update the assertion from the accent design, not from the current values.
+- **Agent packaging and release are BLOCKED by the lease guard.**
+  - `npm run package:portable` is an `unsupported-command` terminal denial for unleased work.
+  - `release-portable.ps1` requires a clean tree, which the preserved untracked L12.27 contract prevents.
+  - Shell file copies (to preserve a `dist` artifact) are refused.
+  - The owner packages.
+- **The shared GUI harness now picks `C:\electron-dist` automatically** when it matches the installed Electron
+  version (`scripts/lib/gui-verify-harness.mjs`). The packaged executable in `dist\win-unpacked` on the Parallels
+  share may still hit the GPU error_code=18 launch failure.
 - **N6 sensitive-target residuals (accepted at N6.8).** None of these block observe-only use. Candidates stay in
   memory, previews need re-authentication, and only HMAC commitments reach disk.
   - Closed shadow roots cannot be walked.

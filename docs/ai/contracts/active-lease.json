@@ -1,20 +1,24 @@
 {
-  "task": "awkit-vra-15-6-n6-calibration-1025",
-  "contract_path": "docs/ai/contracts/awkit-vra-15-6-n6-calibration-1025.json",
-  "holder": "release",
+  "task": "awkit-vra-15-n6-closure-1025",
+  "contract_path": "docs/ai/contracts/awkit-vra-15-n6-closure-1025.json",
+  "holder": "project-state",
   "status": "released",
   "allowed_paths": [
-    "electron.vite.calibration.config.ts"
+    ".beads/**"
   ],
-  "acquired_at": "2026-10-25T13:34:33.395Z",
-  "acquired_at_commit": "50f197a9b6de6de0b1bb32947d6b87373fec0e52",
+  "acquired_at": "2026-10-25T16:47:17.218Z",
+  "acquired_at_commit": "cc91e45200b9999054878e884bbc6c303741c644",
   "baseline_dirty": [
+    ".beads/interactions.jsonl",
+    ".beads/issues.jsonl",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "electron.vite.calibration.config.ts"
+    "docs/ai/contracts/awkit-vra-15-n6-closure-1025.json"
   ],
   "baseline_dirty_fingerprints": {
+    ".beads/interactions.jsonl": "8546241c2d6bc0681962db7c53713ba2b14b7ed180fbeb4b253ab9eadce62708",
+    ".beads/issues.jsonl": "6b6631995d4727913b739285a399d7b4c54609282b4f226bea237db195c41a63",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "electron.vite.calibration.config.ts": "4dfbb9004b9c51b7b70d6c1e23e2a63902d082654fc2813cbce4bb194ea2ad13"
+    "docs/ai/contracts/awkit-vra-15-n6-closure-1025.json": "ca2422584af3458e0d6407d31440ce308da2b0aaa4053b84d693dd13d3ae6e83"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -29,7 +33,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-25T13:34:49.964Z",
-  "released_reason": "N6.6 calibration config committed in 2ef692f",
-  "archived_at": "2026-10-25T13:34:49.967Z"
+  "released_at": "2026-10-25T16:49:03.088Z",
+  "released_reason": "N6 closed: awkit-vra.15.5 15.7 and epic 15 closed (15.8 already closed), N7 dep on awkit-vra.4 added, legacy dep removal and notes refused by the guard",
+  "archived_at": "2026-10-25T16:49:03.092Z"
 }
