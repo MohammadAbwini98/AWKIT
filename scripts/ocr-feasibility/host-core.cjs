@@ -11,6 +11,7 @@ const zlib = require("node:zlib");
 const common = require("./host-common.cjs");
 
 common.installTripwire();
+common.installFileProbe();
 
 const spikeDir = process.env.AWKIT_OCR_SPIKE_DIR;
 const dataFile = process.env.AWKIT_OCR_SPIKE_DATA;

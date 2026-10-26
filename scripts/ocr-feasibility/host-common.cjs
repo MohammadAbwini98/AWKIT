@@ -7,10 +7,22 @@
  * the attempt count is evidence. Worker threads have their own module instances, so the shim installs the same
  * tripwire inside each worker and reports attempts over a BroadcastChannel.
  *
+ * FILE PROVENANCE. Every module resolution and every fs read of an engine file (core JS/WASM, traineddata) is recorded
+ * with its absolute path, on the host thread and, through the shim, in worker threads, so the harness can prove which
+ * core flavor and which language data were loaded and that each came from the spike's own folder.
+ *
+ * LIMITS. This is API interception inside the Node environments the candidate runs in. It does not observe raw
+ * syscalls from native code, other processes, or the OS network stack; it is not an OS-level offline proof.
+ *
  * PROTOCOL. main -> host: { type, id, ... }; host -> main: { type: "reply", id, ok, ... } and one { type: "ready" }.
  */
 const CHANNEL = "awkit-ocr-spike-network";
+const FILES_CHANNEL = "awkit-ocr-spike-files";
+/** Engine files, plus the self-test's worker target so the probe can prove the mechanism across threads. */
+const ENGINE_FILE = /tesseract|traineddata|\.wasm$|probe-worker-target/i;
 const attempts = [];
+const filesLoaded = [];
+let shimLoaded = false;
 
 function describe(target) {
   if (typeof target === "string") return target.slice(0, 200);
@@ -47,14 +59,61 @@ function installTripwire({ broadcast = false } = {}) {
   for (const name of ["lookup", "resolve", "resolve4", "resolve6"]) dns.promises[name] = async (host) => trip(`dns.promises.${name}`, host);
   globalThis.fetch = async (input) => trip("fetch", typeof input === "string" ? input : input && input.url);
   if (typeof globalThis.WebSocket === "function") globalThis.WebSocket = function WebSocket(url) { trip("WebSocket", url); };
+  // Electron's own network module is reachable from a utility process (not from a worker thread).
+  try {
+    const { net } = require("electron");
+    for (const name of ["request", "fetch"]) if (net && typeof net[name] === "function") net[name] = (target) => trip(`electron.net.${name}`, target);
+  } catch {
+    // Not an Electron process, or net is not writable: the Node entry points above still apply.
+  }
 }
 
-/** Collect attempts reported by worker threads (host side). */
+/** Record engine files resolved by require or read through fs on this thread. */
+function installFileProbe({ broadcast = false } = {}) {
+  const channel = broadcast && typeof BroadcastChannel === "function" ? new BroadcastChannel(FILES_CHANNEL) : null;
+  if (channel && typeof channel.unref === "function") channel.unref();
+  const record = (file) => {
+    const value = typeof file === "string" ? file : file instanceof URL ? file.pathname : null;
+    if (!value || !ENGINE_FILE.test(value)) return;
+    const entry = { file: value, thread: broadcast ? "worker" : "host" };
+    filesLoaded.push(entry);
+    if (channel) channel.postMessage(entry);
+  };
+  const Module = require("node:module");
+  const resolve = Module._resolveFilename;
+  Module._resolveFilename = function resolveFilename(...args) {
+    const resolved = resolve.apply(this, args);
+    record(resolved);
+    return resolved;
+  };
+  const fs = require("node:fs");
+  for (const name of ["readFileSync", "readFile", "createReadStream"]) {
+    const original = fs[name];
+    fs[name] = function patched(file, ...rest) {
+      record(file);
+      return original.call(this, file, ...rest);
+    };
+  }
+  const readPromise = fs.promises.readFile;
+  fs.promises.readFile = function patched(file, ...rest) {
+    record(file);
+    return readPromise.call(this, file, ...rest);
+  };
+  if (channel) channel.postMessage({ shim: true });
+}
+
+/** Collect network attempts and loaded files reported by worker threads (host side). */
 function listenForWorkerAttempts() {
   if (typeof BroadcastChannel !== "function") return;
   const channel = new BroadcastChannel(CHANNEL);
   if (typeof channel.unref === "function") channel.unref();
   channel.onmessage = (event) => attempts.push(event.data);
+  const files = new BroadcastChannel(FILES_CHANNEL);
+  if (typeof files.unref === "function") files.unref();
+  files.onmessage = (event) => {
+    if (event.data && event.data.shim) shimLoaded = true;
+    else filesLoaded.push(event.data);
+  };
 }
 
 function memory() {
@@ -70,7 +129,7 @@ function serve(handlers, ready = {}) {
   const port = process.parentPort;
   const reply = (id, ok, body) => port.postMessage({ type: "reply", id, ok, ...body });
   const builtins = {
-    stats: async () => ({ memory: memory(), networkAttempts: attempts.slice() }),
+    stats: async () => ({ memory: memory(), networkAttempts: attempts.slice(), filesLoaded: filesLoaded.slice(), shimLoaded }),
     crash: async () => process.abort(),
     hang: async () => {
       for (;;) {
@@ -90,4 +149,4 @@ function serve(handlers, ready = {}) {
   port.postMessage({ type: "ready", pid: process.pid, arch: process.arch, platform: process.platform, node: process.versions.node, electron: process.versions.electron });
 }
 
-module.exports = { CHANNEL, attempts, installTripwire, listenForWorkerAttempts, memory, serve };
+module.exports = { CHANNEL, attempts, filesLoaded, installFileProbe, installTripwire, listenForWorkerAttempts, memory, serve };

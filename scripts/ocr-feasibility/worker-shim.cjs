@@ -4,7 +4,9 @@
  * not reach it: install the same tripwire here (attempts are broadcast to the host), then load the real worker
  * script named by AWKIT_OCR_SPIKE_WORKER_TARGET.
  */
-require("./host-common.cjs").installTripwire({ broadcast: true });
+const common = require("./host-common.cjs");
+common.installTripwire({ broadcast: true });
+common.installFileProbe({ broadcast: true });
 const target = process.env.AWKIT_OCR_SPIKE_WORKER_TARGET;
 if (!target) throw new Error("AWKIT_OCR_SPIKE_WORKER_TARGET is not set");
 require(target);

@@ -8,6 +8,7 @@ const path = require("node:path");
 const common = require("./host-common.cjs");
 
 common.installTripwire();
+common.installFileProbe();
 common.listenForWorkerAttempts();
 
 const spikeDir = process.env.AWKIT_OCR_SPIKE_DIR;

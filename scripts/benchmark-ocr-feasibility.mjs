@@ -52,7 +52,11 @@ const THRESHOLDS = {
   repeat: 10
 };
 const LICENSE_ALLOWLIST = new Set(["Apache-2.0", "MIT", "ISC", "BSD-2-Clause", "BSD-3-Clause", "0BSD", "CC0-1.0", "BlueOak-1.0.0"]);
-const GATED_ROWS = ["runtime", "init", "recognition", "memory", "cancellation", "crashIsolation", "hangIsolation", "network", "cleanup"];
+/**
+ * localAssets was added on 2026-10-26 (integrity review), before any candidate had run: it requires the core JS/WASM and the traineddata
+ * a candidate actually loaded to come from this spike's folder (and, for the wrapper, the worker shim to have loaded).
+ */
+const GATED_ROWS = ["runtime", "init", "recognition", "memory", "cancellation", "crashIsolation", "hangIsolation", "network", "localAssets", "cleanup"];
 
 const pinned = readJson(path.join(spikeDir, "package.json")).dependencies;
 const lock = fs.existsSync(path.join(spikeDir, "package-lock.json")) ? readJson(path.join(spikeDir, "package-lock.json")) : null;
@@ -103,6 +107,21 @@ function codeLines(file) {
     .filter((line) => line.trim() && !line.trim().startsWith("//")).length;
 }
 
+/**
+ * INFO, not a gate: the remote URLs written into a package's sources (for the wrapper, its CDN defaults for core and
+ * language data). Each one the candidate could reach must be overridden by a local path; the network row proves it.
+ */
+function remoteDefaults(dir, only = /\.(c|m)?js$/) {
+  if (!fs.existsSync(dir)) return [];
+  const urls = new Set();
+  for (const entry of fs.readdirSync(dir, { recursive: true }).map(String).filter((f) => only.test(f))) {
+    const text = fs.readFileSync(path.join(dir, entry), "utf8");
+    if (text.length > 4_000_000) continue;
+    for (const match of text.matchAll(/https?:\/\/[A-Za-z0-9.-]+(?:\/[^\s'"`)<>]*)?/g)) urls.add(match[0].slice(0, 160));
+  }
+  return [...urls].sort().slice(0, 40);
+}
+
 const wrapper = installed("tesseract.js");
 const core = installed("tesseract.js-core");
 const data = installed("@tesseract.js-data/eng");
@@ -115,14 +134,17 @@ const inventory = {
     ? {
         packages: [wrapper, core, data],
         files: [path.join(modules, "tesseract.js", "package.json"), path.join(modules, "tesseract.js", "src", "worker-script", "node", "index.js"), ...coreFiles.map((f) => path.join(coreDir, f)), dataFile].filter((f) => fs.existsSync(f)).map((f) => ({ file: relative(f), sha256: sha256(f) })),
-        integrationLines: codeLines(path.join(spikeDir, "host-wrapper.cjs")) + codeLines(path.join(spikeDir, "worker-shim.cjs"))
+        // The worker shim is measurement instrumentation, not integration, so it is not counted (nor is host-common).
+        integrationLines: codeLines(path.join(spikeDir, "host-wrapper.cjs")),
+        remoteDefaults: remoteDefaults(path.join(modules, "tesseract.js", "src"))
       }
     : null,
   core: core && data && dataFile
     ? {
         packages: [core, data],
         files: [...coreFiles.map((f) => path.join(coreDir, f)), dataFile].map((f) => ({ file: relative(f), sha256: sha256(f) })),
-        integrationLines: codeLines(path.join(spikeDir, "host-core.cjs"))
+        integrationLines: codeLines(path.join(spikeDir, "host-core.cjs")),
+        remoteDefaults: remoteDefaults(coreDir, /\.js$/)
       }
     : null
 };
@@ -185,6 +207,17 @@ const result = {
   host: { platform: process.platform, release: os.release(), nativeCpu: nativeArm64 ? "ARM64" : os.arch(), nodeArch: process.arch },
   thresholds: THRESHOLDS,
   harness: { selfTest: selfTestPass ? "PASS" : "FAIL", probe, fixtures: raw.harness?.fixtures ?? null, chromiumRequests: raw.harness?.chromiumRequests ?? null, error: raw.error ?? null },
+  // Both candidates are evaluated by the same Electron run, against the same rendered fixtures and these thresholds.
+  comparison: {
+    complete: notRun.length === 0 && Boolean(raw.harness?.fixtures),
+    sameInputs: raw.harness?.fixtures ? raw.harness.fixtures.map((f) => `${f.id}:${f.sha256}`) : null,
+    gatedRows: [...GATED_ROWS, "integrity", "licensing"]
+  },
+  limits: [
+    "Network evidence is API interception (Node fetch, http, https, http2, net, tls, dns, WebSocket and Electron net) on the host and worker threads plus Chromium request blocking; it is not an OS-level offline proof.",
+    "The probe host's self-test proves the harness checks; it is never engine evidence.",
+    "Packaged compatibility is N7.1b and is not measured here."
+  ],
   evaluation,
   selection
 };

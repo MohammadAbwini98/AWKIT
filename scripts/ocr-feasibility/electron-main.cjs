@@ -173,6 +173,8 @@ async function collectAttempts(host) {
   try {
     const stats = await call(host, { type: "stats" }, 3000);
     host.attempts = stats.networkAttempts || [];
+    host.filesLoaded = stats.filesLoaded || [];
+    host.shimLoaded = stats.shimLoaded === true;
   } catch {
     // Unresponsive host: its attempts so far are lost, which the network row reports as unverified.
     host.attemptsUnverified = true;
@@ -354,7 +356,27 @@ async function evaluate(kind, fixtures, win) {
   if (isProbe) {
     row("network", attempts.length >= 3 && attempts.some((a) => a.thread === "worker") && attempts.some((a) => a.thread === "host"), { tripwireSelfTest: true, attempts, unverifiedHosts: unverified });
   } else {
-    row("network", attempts.length === 0 && unverified === 0, { attempts, unverifiedHosts: unverified });
+    row("network", attempts.length === 0 && unverified === 0, { attempts, unverifiedHosts: unverified, limits: "Node and Electron network API interception on the host and worker threads; not an OS-level offline proof" });
+  }
+
+  // File provenance: which engine files were loaded, by which thread, and from where.
+  const spikeRoot = path.resolve(config.spikeDir).toLowerCase();
+  const loaded = [...new Map(hosts.flatMap((h) => h.filesLoaded || []).map((f) => [`${f.thread}:${path.resolve(f.file)}`, { thread: f.thread, file: path.resolve(f.file) }])).values()];
+  const outside = loaded.filter((f) => !f.file.toLowerCase().startsWith(spikeRoot + path.sep));
+  const relative = (file) => path.relative(config.spikeDir, file).replace(/\\/g, "/");
+  if (isProbe) {
+    row("fileProvenance", hosts.some((h) => h.shimLoaded) && loaded.some((f) => f.thread === "worker" && /probe-worker-target/.test(f.file)), { selfTest: true, workerShimReported: hosts.some((h) => h.shimLoaded), files: loaded.map((f) => ({ thread: f.thread, file: relative(f.file) })) });
+  } else {
+    const coreFiles = loaded.filter((f) => /tesseract-core[^\\/]*\.(js|wasm)$/i.test(f.file));
+    const dataFiles = loaded.filter((f) => /traineddata/i.test(f.file));
+    const shimRequired = kind === "wrapper";
+    row("localAssets", outside.length === 0 && coreFiles.length > 0 && dataFiles.length > 0 && (!shimRequired || hosts.some((h) => h.shimLoaded)), {
+      coreFlavors: [...new Set(coreFiles.map((f) => path.basename(f.file)))],
+      dataFiles: [...new Set(dataFiles.map((f) => relative(f.file)))],
+      workerShimReported: shimRequired ? hosts.some((h) => h.shimLoaded) : null,
+      outsideSpike: outside.map((f) => f.file),
+      files: loaded.map((f) => ({ thread: f.thread, file: relative(f.file) }))
+    });
   }
   return finish(kind, rows);
 }

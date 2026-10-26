@@ -9,6 +9,7 @@ const { Worker } = require("node:worker_threads");
 const common = require("./host-common.cjs");
 
 common.installTripwire();
+common.installFileProbe();
 common.listenForWorkerAttempts();
 
 const timers = new Map();
