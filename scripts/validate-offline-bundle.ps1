@@ -699,6 +699,80 @@ if ($null -eq $dom -or $dom.enabled -ne $true) {
   Write-Host "DOM-intelligence runtime: $domChecked/$($domAssetPaths.Count) assets checksum-verified (CPython $($dom.python), Scrapling $($dom.scrapling) parser-only)."
 }
 
+# === Offline OCR engine assets (Phase N, N7.3) ===
+# build/ocr is staged by scripts/prepare-ocr-assets.mjs from the inputs pinned in src/offline/ocr-runtime.json (the
+# N7.1a-qualified tesseract.js-core SIMD LSTM build and the English best_int data, DECISIONS 2026-10-26) and shipped to
+# resources/ocr via extraResources. OCR is optional and off by default; a release must carry it (OC-12). The signed copy
+# must agree with the pin, list every pinned file with its pinned SHA-256, stay within the OC-9 size target, and list
+# exactly the staged files with matching checksums.
+$ocrPinPath = Join-Path $root "src\offline\ocr-runtime.json"
+$ocr = if (Test-Property $manifestJson "ocrRuntime") { $manifestJson.ocrRuntime } else { $null }
+if ($null -eq $ocr -or $ocr.enabled -ne $true) {
+  Add-Problem "Offline OCR assets are not included in this build; N7 (OC-12) requires the release to carry them. Run 'npm run prepare:ocr-assets' before generating the manifest. OCR stays optional and off by default; AWKIT runs normally without it." $Strict
+} elseif (-not (Test-Path -LiteralPath $ocrPinPath -PathType Leaf)) {
+  $failures.Add("Offline OCR assets are included but src/offline/ocr-runtime.json is missing.")
+} else {
+  Write-Host "Validating the offline OCR assets..."
+  $ocrPin = Get-Content -Raw -LiteralPath $ocrPinPath | ConvertFrom-Json
+  $ocrPrefix = "ocr/"
+  if ($ocr.requiredForAppStartup -ne $false) { $failures.Add("Offline OCR assets must declare requiredForAppStartup=false (OCR is optional).") }
+  if ([string]$ocr.engine.package -cne [string]$ocrPin.engine.package -or [string]$ocr.engine.version -cne [string]$ocrPin.engine.version -or [string]$ocr.engine.flavor -cne [string]$ocrPin.engine.flavor) {
+    $failures.Add("Offline OCR engine $($ocr.engine.package) $($ocr.engine.version) ($($ocr.engine.flavor)) is not the pinned $($ocrPin.engine.package) $($ocrPin.engine.version) ($($ocrPin.engine.flavor)).")
+  }
+  if ([string]$ocr.data.package -cne [string]$ocrPin.data.package -or [string]$ocr.data.version -cne [string]$ocrPin.data.version -or [string]$ocr.data.variant -cne [string]$ocrPin.data.variant) {
+    $failures.Add("Offline OCR language data $($ocr.data.package) $($ocr.data.version) $($ocr.data.variant) is not the pinned data.")
+  }
+  $ocrAssetPaths = @($ocr.assets | ForEach-Object { [string]$_.relativePath })
+  foreach ($file in @($ocrPin.files)) {
+    $pinned = @($ocr.assets | Where-Object { [string]$_.relativePath -ceq ($ocrPrefix + [string]$file.target) }) | Select-Object -First 1
+    if ($null -eq $pinned -or ([string]$pinned.sha256).ToLower() -ne ([string]$file.sha256).ToLower()) {
+      $failures.Add("Offline OCR assets do not list the pinned $ocrPrefix$($file.target) with its pinned SHA-256 (restage it).")
+    }
+  }
+  if (@($ocrPin.files).Count -ne 3) { $failures.Add("src/offline/ocr-runtime.json must pin exactly the three qualified files.") }
+  if ([int64]$ocr.totalBytes -gt [int64]$ocrPin.budget.maxTotalBytes) {
+    $failures.Add("Offline OCR assets total $($ocr.totalBytes) bytes, above the pinned OC-9 target of $($ocrPin.budget.maxTotalBytes) (maxTotalBytes).")
+  }
+
+  $ocrStagedRoot = Join-Path $root "build\ocr"
+  if (-not (Test-Path (Join-Path $ocrStagedRoot "ocr-asset-manifest.json"))) {
+    $failures.Add("Offline OCR assets are declared included but the staged manifest is missing: build/ocr/ocr-asset-manifest.json (run 'npm run prepare:ocr-assets').")
+  } else {
+    $ocrListed = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($path in $ocrAssetPaths) {
+      if (-not $path.StartsWith($ocrPrefix, [System.StringComparison]::Ordinal) -or $path -match '(^|/)\.\.?(/|$)' -or $path.Contains('\')) {
+        $failures.Add("Offline OCR manifest lists a path outside ocr/: $path")
+      } elseif (-not $ocrListed.Add($path)) {
+        $failures.Add("Offline OCR manifest lists a path more than once (compared case-insensitively): $path")
+      }
+    }
+    $ocrStagedFull = (Resolve-Path -LiteralPath $ocrStagedRoot).ProviderPath.TrimEnd('\') + '\'
+    foreach ($link in @(Get-ChildItem -LiteralPath $ocrStagedRoot -Recurse -Force | Where-Object { $_.Attributes -band [System.IO.FileAttributes]::ReparsePoint })) {
+      $failures.Add("OCR staged tree contains a link, which is never staged: $($link.FullName.Substring($ocrStagedFull.Length).Replace('\', '/'))")
+    }
+    $ocrOnDisk = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($file in Get-ChildItem -LiteralPath $ocrStagedRoot -Recurse -File -Force) {
+      $relative = $file.FullName.Substring($ocrStagedFull.Length).Replace('\', '/')
+      if ($relative -ne "ocr-asset-manifest.json") { [void]$ocrOnDisk.Add($ocrPrefix + $relative) }
+    }
+    $ocrUnlisted = @($ocrOnDisk | Where-Object { -not $ocrListed.Contains($_) } | Sort-Object)
+    $ocrUnstaged = @($ocrListed | Where-Object { -not $ocrOnDisk.Contains($_) } | Sort-Object)
+    if ($ocrUnlisted.Count -gt 0) { $failures.Add("OCR staged tree holds $($ocrUnlisted.Count) file(s) the signed manifest does not list, which would ship unverified: $(($ocrUnlisted | Select-Object -First 5) -join ', ')") }
+    if ($ocrUnstaged.Count -gt 0) { $failures.Add("OCR signed manifest lists $($ocrUnstaged.Count) file(s) the staged tree does not hold: $(($ocrUnstaged | Select-Object -First 5) -join ', ')") }
+    if ($ocrOnDisk.Count -eq 0) { $failures.Add("OCR staged tree holds no files, so nothing was compared.") }
+  }
+
+  $ocrChecked = 0
+  foreach ($asset in $ocr.assets) {
+    $abs = Join-Path $root ("build\" + ($asset.relativePath -replace '/', '\'))
+    if (-not (Test-Path -LiteralPath $abs)) { $failures.Add("OCR asset is missing from the staged tree: $($asset.relativePath)"); continue }
+    if ((Get-Item -LiteralPath $abs).Length -ne $asset.size) { $failures.Add("OCR asset size mismatch for $($asset.relativePath)."); continue }
+    if ((Get-AwkitFileSha256 -LiteralPath $abs) -ne ([string]$asset.sha256).ToLower()) { $failures.Add("OCR asset checksum mismatch for $($asset.relativePath) (corrupted or tampered)."); continue }
+    $ocrChecked++
+  }
+  Write-Host "Offline OCR assets: $ocrChecked/$($ocrAssetPaths.Count) checksum-verified ($($ocr.engine.package) $($ocr.engine.version) $($ocr.engine.flavor), $($ocr.data.package) $($ocr.data.version) $($ocr.data.variant))."
+}
+
 # === Local-AI GPU backend manifest (Phase L, L8a.1) ===
 # Nothing GPU ships in the installer (E3). src/offline/ai-backend-manifest.json pins, for the pinned runtime
 # build, every file of each GPU backend pack a user may supply. It must be well formed and agree with
