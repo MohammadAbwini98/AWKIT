@@ -1,7 +1,7 @@
 {
   "spike": "awkit-n7.1a-ocr-feasibility",
   "version": 1,
-  "ranAt": "2026-10-26T10:46:34.533Z",
+  "ranAt": "2026-10-26T13:40:28.051Z",
   "host": {
     "platform": "win32",
     "release": "10.0.26300",
@@ -70,20 +70,20 @@
           "pass": true,
           "afterInit": {
             "type": "Utility",
-            "workingSetMB": 83,
-            "peakWorkingSetMB": 83
+            "workingSetMB": 80,
+            "peakWorkingSetMB": 80
           },
           "afterRepeat": {
             "type": "Utility",
-            "workingSetMB": 83,
-            "peakWorkingSetMB": 83
+            "workingSetMB": 80,
+            "peakWorkingSetMB": 80
           },
           "growthMB": 0,
-          "peakMB": 83,
+          "peakMB": 80,
           "repeat": 10,
           "hostMemory": {
-            "rss": 87281664,
-            "heapUsed": 3661424,
+            "rss": 84115456,
+            "heapUsed": 3664116,
             "external": 2694498,
             "arrayBuffers": 0
           },
@@ -107,11 +107,11 @@
             "pass": true
           },
           "byKill": {
-            "exitMs": 42,
+            "exitMs": 10,
             "lateResults": 0,
             "finishedBeforeAbort": false,
             "nextJobOk": true,
-            "recoveryMs": 442,
+            "recoveryMs": 366,
             "pass": true
           }
         },
@@ -120,7 +120,7 @@
           "exitCode": 134,
           "mainResponsive": {
             "ok": true,
-            "roundTripMs": 6
+            "roundTripMs": 5
           },
           "recovered": true
         },
@@ -147,6 +147,7 @@
         "network": {
           "pass": true,
           "tripwireSelfTest": true,
+          "pushChannel": "attempts delivered by push from the host and worker threads",
           "attempts": [
             {
               "kind": "fetch",
@@ -164,7 +165,8 @@
               "thread": "worker"
             }
           ],
-          "unverifiedHosts": 0
+          "inconsistentHosts": 0,
+          "pullFailures": 0
         },
         "fileProvenance": {
           "pass": true,
@@ -225,7 +227,7 @@
     "error": null
   },
   "comparison": {
-    "complete": false,
+    "complete": true,
     "sameInputs": [
       "label:76a6a24bf21a45c50003a55c34e3ac3169839b1cfc1b83893e85dd7819465692",
       "invoice:f709fe80c356e029c02f2f199dd42be38779b8f55fe732f11ff9ee4e2bbeb03a",
@@ -254,16 +256,736 @@
   ],
   "evaluation": {
     "wrapper": {
-      "status": "NOT RUN",
-      "reason": "dependencies not installed: owner runs npm install --prefix scripts/ocr-feasibility --ignore-scripts --no-audit --no-fund"
+      "status": "PASS",
+      "failedRows": [],
+      "rows": {
+        "runtime": {
+          "pass": true,
+          "arch": "x64",
+          "platform": "win32",
+          "node": "20.18.3",
+          "electron": "33.4.11"
+        },
+        "init": {
+          "pass": true,
+          "initMs": 799,
+          "integration": "tesseract.js createWorker (worker thread)",
+          "flavor": null,
+          "simd": null
+        },
+        "recognition": {
+          "pass": true,
+          "fixtures": [
+            {
+              "id": "label",
+              "matched": true,
+              "recognizeMs": 384,
+              "confidence": 89,
+              "characters": 14
+            },
+            {
+              "id": "invoice",
+              "matched": true,
+              "recognizeMs": 208,
+              "confidence": 95,
+              "characters": 27
+            },
+            {
+              "id": "date",
+              "matched": true,
+              "recognizeMs": 115,
+              "confidence": 96,
+              "characters": 25
+            }
+          ]
+        },
+        "memory": {
+          "pass": true,
+          "afterInit": {
+            "type": "Utility",
+            "workingSetMB": 162,
+            "peakWorkingSetMB": 178
+          },
+          "afterRepeat": {
+            "type": "Utility",
+            "workingSetMB": 165,
+            "peakWorkingSetMB": 209
+          },
+          "growthMB": 3,
+          "peakMB": 209,
+          "repeat": 10,
+          "hostMemory": {
+            "rss": 173121536,
+            "heapUsed": 4164416,
+            "external": 2846376,
+            "arrayBuffers": 0
+          },
+          "engine": {
+            "flavor": null,
+            "heapBytes": null
+          }
+        },
+        "cancellation": {
+          "pass": true,
+          "mode": "cooperative",
+          "cooperative": {
+            "ackMs": 3,
+            "mode": "worker.terminate",
+            "killed": false,
+            "lateResults": 0,
+            "engineSettledAfterCancel": 0,
+            "finishedBeforeCancel": false,
+            "nextJobOk": true,
+            "recoveryMs": 1157,
+            "pass": true
+          },
+          "byKill": {
+            "exitMs": 34,
+            "lateResults": 0,
+            "finishedBeforeAbort": false,
+            "nextJobOk": true,
+            "recoveryMs": 1537,
+            "pass": true
+          }
+        },
+        "crashIsolation": {
+          "pass": true,
+          "exitCode": 134,
+          "mainResponsive": {
+            "ok": true,
+            "roundTripMs": 4
+          },
+          "recovered": true
+        },
+        "hangIsolation": {
+          "pass": true,
+          "hungHostAnswered": false,
+          "exitMs": 9,
+          "mainResponsive": {
+            "ok": true,
+            "roundTripMs": 6
+          },
+          "recovered": true
+        },
+        "cleanup": {
+          "pass": true,
+          "exitCode": 0,
+          "processGone": true,
+          "leftovers": []
+        },
+        "network": {
+          "pass": true,
+          "attempts": [],
+          "inconsistentHosts": 0,
+          "pullFailures": 0,
+          "limits": "Node and Electron network API interception on the host and worker threads, pushed as they occur; not an OS-level offline proof"
+        },
+        "localAssets": {
+          "pass": true,
+          "coreFlavors": [
+            "tesseract-core-simd.js",
+            "tesseract-core-simd.wasm"
+          ],
+          "dataFiles": [
+            "node_modules/@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz"
+          ],
+          "workerShimReported": true,
+          "outsideSpike": [],
+          "files": [
+            {
+              "thread": "host",
+              "file": "node_modules/tesseract.js/src/index.js"
+            },
+            {
+              "thread": "host",
+              "file": "node_modules/tesseract.js/src/createScheduler.js"
+            },
+            {
+              "thread": "host",
+              "file": "node_modules/tesseract.js/src/createJob.js"
+            },
+            {
+              "thread": "host",
+              "file": "node_modules/tesseract.js/src/utils/getId.js"
+            },
+            {
+              "thread": "host",
+              "file": "node_modules/tesseract.js/src/utils/log.js"
+            },
+            {
+              "thread": "host",
+              "file": "node_modules/tesseract.js/src/createWorker.js"
+            },
+            {
+              "thread": "host",
+              "file": "node_modules/tesseract.js/src/utils/resolvePaths.js"
+            },
+            {
+              "thread": "host",
+              "file": "node_modules/tesseract.js/src/utils/getEnvironment.js"
+            },
+            {
+              "thread": "host",
+              "file": "node_modules/tesseract.js/src/constants/OEM.js"
+            },
+            {
+              "thread": "host",
+              "file": "node_modules/tesseract.js/src/worker/node/index.js"
+            },
+            {
+              "thread": "host",
+              "file": "node_modules/tesseract.js/src/worker/node/defaultOptions.js"
+            },
+            {
+              "thread": "host",
+              "file": "node_modules/tesseract.js/src/constants/defaultOptions.js"
+            },
+            {
+              "thread": "host",
+              "file": "node_modules/tesseract.js/src/worker/node/spawnWorker.js"
+            },
+            {
+              "thread": "host",
+              "file": "node_modules/tesseract.js/src/worker/node/terminateWorker.js"
+            },
+            {
+              "thread": "host",
+              "file": "node_modules/tesseract.js/src/worker/node/onMessage.js"
+            },
+            {
+              "thread": "host",
+              "file": "node_modules/tesseract.js/src/worker/node/send.js"
+            },
+            {
+              "thread": "host",
+              "file": "node_modules/tesseract.js/src/worker/node/loadImage.js"
+            },
+            {
+              "thread": "host",
+              "file": "node_modules/tesseract.js/src/Tesseract.js"
+            },
+            {
+              "thread": "host",
+              "file": "node_modules/tesseract.js/src/constants/languages.js"
+            },
+            {
+              "thread": "host",
+              "file": "node_modules/tesseract.js/src/constants/PSM.js"
+            },
+            {
+              "thread": "worker",
+              "file": "node_modules/tesseract.js/src/worker-script/node/index.js"
+            },
+            {
+              "thread": "worker",
+              "file": "node_modules/tesseract.js/src/worker-script/index.js"
+            },
+            {
+              "thread": "worker",
+              "file": "node_modules/tesseract.js/src/worker-script/utils/dump.js"
+            },
+            {
+              "thread": "worker",
+              "file": "node_modules/tesseract.js/src/worker-script/utils/arrayBufferToBase64.js"
+            },
+            {
+              "thread": "worker",
+              "file": "node_modules/tesseract.js/src/constants/imageType.js"
+            },
+            {
+              "thread": "worker",
+              "file": "node_modules/tesseract.js/src/utils/getEnvironment.js"
+            },
+            {
+              "thread": "worker",
+              "file": "node_modules/tesseract.js/src/worker-script/utils/setImage.js"
+            },
+            {
+              "thread": "worker",
+              "file": "node_modules/tesseract.js/src/worker-script/constants/defaultOutput.js"
+            },
+            {
+              "thread": "worker",
+              "file": "node_modules/tesseract.js/src/utils/log.js"
+            },
+            {
+              "thread": "worker",
+              "file": "node_modules/tesseract.js/src/constants/PSM.js"
+            },
+            {
+              "thread": "worker",
+              "file": "node_modules/tesseract.js/src/worker-script/node/getCore.js"
+            },
+            {
+              "thread": "worker",
+              "file": "node_modules/tesseract.js/src/constants/OEM.js"
+            },
+            {
+              "thread": "worker",
+              "file": "node_modules/tesseract.js/src/worker-script/node/gunzip.js"
+            },
+            {
+              "thread": "worker",
+              "file": "node_modules/tesseract.js/src/worker-script/node/cache.js"
+            },
+            {
+              "thread": "worker",
+              "file": "node_modules/tesseract.js-core/tesseract-core-simd.js"
+            },
+            {
+              "thread": "worker",
+              "file": "node_modules/tesseract.js-core/tesseract-core-simd.wasm"
+            },
+            {
+              "thread": "worker",
+              "file": "node_modules/@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz"
+            }
+          ]
+        },
+        "integrity": {
+          "pass": true,
+          "packages": [
+            {
+              "name": "tesseract.js",
+              "version": "6.0.1",
+              "pinned": "6.0.1",
+              "license": "Apache-2.0",
+              "integrity": "sha512-/sPvMvrCtgxnNRCjbTYbr7BRu0yfWDsMZQ2a/T5aN/L1t8wUQN6tTWv6p6FwzpoEBA0jrN2UD2SX4QQFRdoDbA=="
+            },
+            {
+              "name": "tesseract.js-core",
+              "version": "6.0.0",
+              "pinned": "6.0.0",
+              "license": "Apache-2.0",
+              "integrity": "sha512-1Qncm/9oKM7xgrQXZXNB+NRh19qiXGhxlrR8EwFbK5SaUbPZnS5OMtP/ghtqfd23hsr1ZvZbZjeuAGcMxd/ooA=="
+            },
+            {
+              "name": "@tesseract.js-data/eng",
+              "version": "1.0.0",
+              "pinned": "1.0.0",
+              "license": "MIT",
+              "integrity": "sha512-mbTumm6KQPUHyzTPQaF3ObXYnx0SqqfV2nabqFVQBwD6Kl7PhGSLSzOlfFTWy0P3BjghaSKA2W9GB19Jk+ZcTg=="
+            }
+          ],
+          "files": [
+            {
+              "file": "scripts/ocr-feasibility/node_modules/tesseract.js/package.json",
+              "sha256": "b5c3e647996bca7619fa248ed36b85492ef8b6e9342dd46c824f811173e92b85"
+            },
+            {
+              "file": "scripts/ocr-feasibility/node_modules/tesseract.js/src/worker-script/node/index.js",
+              "sha256": "a973c23ce067bc752c0bf602297eac843098e531ac03f3ea34cdf694326a6d02"
+            },
+            {
+              "file": "scripts/ocr-feasibility/node_modules/tesseract.js-core/tesseract-core-lstm.js",
+              "sha256": "48a3ee8e00924cb8c7f0cc0d099b1318fea120af56b3ee8fb3a70dd2311806c2"
+            },
+            {
+              "file": "scripts/ocr-feasibility/node_modules/tesseract.js-core/tesseract-core-lstm.wasm",
+              "sha256": "220e2e87551edccb85519796a170469f8ab2a8055216789e3b8b1ada18b7bc2b"
+            },
+            {
+              "file": "scripts/ocr-feasibility/node_modules/tesseract.js-core/tesseract-core-lstm.wasm.js",
+              "sha256": "775a35df6f2ae100e02609443e6bd5cafcd07983dd6175454ca4a432a7730687"
+            },
+            {
+              "file": "scripts/ocr-feasibility/node_modules/tesseract.js-core/tesseract-core-simd-lstm.js",
+              "sha256": "be3504705d7111d1d1f3f7f9dff326c26d334031ede36e31c4d3cf883027e982"
+            },
+            {
+              "file": "scripts/ocr-feasibility/node_modules/tesseract.js-core/tesseract-core-simd-lstm.wasm",
+              "sha256": "187d76742dfc0d8929f0b49a619f145bb6370730776c7bd0d3e20c6b2098808d"
+            },
+            {
+              "file": "scripts/ocr-feasibility/node_modules/tesseract.js-core/tesseract-core-simd-lstm.wasm.js",
+              "sha256": "9d7c43fb206dc9f48475228b46bf35f888fa9e6259da2e67d5a75c77049f2dc7"
+            },
+            {
+              "file": "scripts/ocr-feasibility/node_modules/tesseract.js-core/tesseract-core-simd.js",
+              "sha256": "85762abcc52bc6f4762b1429e2986c8ea963db76632770970c0485fb6d6aa820"
+            },
+            {
+              "file": "scripts/ocr-feasibility/node_modules/tesseract.js-core/tesseract-core-simd.wasm",
+              "sha256": "ca11ee92a02023e4f5083eefd0966fb83b297416da54e997b9f6ce445f719c9b"
+            },
+            {
+              "file": "scripts/ocr-feasibility/node_modules/tesseract.js-core/tesseract-core-simd.wasm.js",
+              "sha256": "3b0678c47a8dea6abb931b214171c08b742a5b9a9fcbbb1a028a08d5de6e9d4c"
+            },
+            {
+              "file": "scripts/ocr-feasibility/node_modules/tesseract.js-core/tesseract-core.js",
+              "sha256": "8d7d9776c8552951f8d3bb903dafb22d4e2e065564d7e1b3d523383670a94ecd"
+            },
+            {
+              "file": "scripts/ocr-feasibility/node_modules/tesseract.js-core/tesseract-core.wasm",
+              "sha256": "740f7e466a2f026e1f1e54a2e0d9957e386d8166110d1290224abd3d08986106"
+            },
+            {
+              "file": "scripts/ocr-feasibility/node_modules/tesseract.js-core/tesseract-core.wasm.js",
+              "sha256": "e66872f6a76f5ad414d73d21512245df0de3060ad4871a97c47efceaab27b955"
+            },
+            {
+              "file": "scripts/ocr-feasibility/node_modules/@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz",
+              "sha256": "45b4cb346724ac1774f1c36f42f182b887bcdb28ebe63e6fff90ac41f3fcff91"
+            }
+          ]
+        },
+        "licensing": {
+          "pass": true,
+          "packages": [
+            {
+              "name": "node-fetch",
+              "version": "2.7.0",
+              "license": "MIT",
+              "allowed": true
+            },
+            {
+              "name": "regenerator-runtime",
+              "version": "0.13.11",
+              "license": "MIT",
+              "allowed": true
+            },
+            {
+              "name": "tesseract.js",
+              "version": "6.0.1",
+              "license": "Apache-2.0",
+              "allowed": true
+            },
+            {
+              "name": "whatwg-url",
+              "version": "5.0.0",
+              "license": "MIT",
+              "allowed": true
+            },
+            {
+              "name": "webidl-conversions",
+              "version": "3.0.1",
+              "license": "BSD-2-Clause",
+              "allowed": true
+            },
+            {
+              "name": "is-url",
+              "version": "1.2.4",
+              "license": "MIT",
+              "allowed": true
+            },
+            {
+              "name": "@tesseract.js-data/eng",
+              "version": "1.0.0",
+              "license": "MIT",
+              "allowed": true
+            },
+            {
+              "name": "wasm-feature-detect",
+              "version": "1.9.0",
+              "license": "Apache-2.0",
+              "allowed": true
+            },
+            {
+              "name": "bmp-js",
+              "version": "0.1.0",
+              "license": "MIT",
+              "allowed": true
+            },
+            {
+              "name": "tesseract.js-core",
+              "version": "6.0.0",
+              "license": "Apache-2.0",
+              "allowed": true
+            },
+            {
+              "name": "tr46",
+              "version": "0.0.3",
+              "license": "MIT",
+              "allowed": true
+            },
+            {
+              "name": "zlibjs",
+              "version": "0.3.1",
+              "license": "MIT",
+              "allowed": true
+            },
+            {
+              "name": "opencollective-postinstall",
+              "version": "2.0.3",
+              "license": "MIT",
+              "allowed": true
+            },
+            {
+              "name": "idb-keyval",
+              "version": "6.3.0",
+              "license": "Apache-2.0",
+              "allowed": true
+            }
+          ]
+        },
+        "complexity": {
+          "pass": true,
+          "integrationLines": 76,
+          "remoteDefaultsInPackageSources": [
+            "https://cdn.jsdelivr.net/npm/@tesseract.js-data/${lang}/4.0.0",
+            "https://cdn.jsdelivr.net/npm/@tesseract.js-data/${lang}/4.0.0_best_int",
+            "https://cdn.jsdelivr.net/npm/tesseract.js-core@v${coreVersion.substring(1",
+            "https://cdn.jsdelivr.net/npm/tesseract.js@v${version}/dist/worker.min.js",
+            "https://gist.github.com/jonleighton/958841",
+            "https://github.com/DanBloomberg/leptonica/issues/607#issuecomment-1068802516",
+            "https://tesseract-ocr.github.io/tessdoc/Data-Files#data-files-for-version-400-november-29-2016"
+          ]
+        }
+      }
     },
     "core": {
-      "status": "NOT RUN",
-      "reason": "dependencies not installed: owner runs npm install --prefix scripts/ocr-feasibility --ignore-scripts --no-audit --no-fund"
+      "status": "PASS",
+      "failedRows": [],
+      "rows": {
+        "runtime": {
+          "pass": true,
+          "arch": "x64",
+          "platform": "win32",
+          "node": "20.18.3",
+          "electron": "33.4.11"
+        },
+        "init": {
+          "pass": true,
+          "initMs": 307,
+          "integration": "tesseract.js-core embind TessBaseAPI (host thread)",
+          "flavor": "tesseract-core-simd-lstm.js",
+          "simd": true
+        },
+        "recognition": {
+          "pass": true,
+          "fixtures": [
+            {
+              "id": "label",
+              "matched": true,
+              "recognizeMs": 345,
+              "confidence": 89,
+              "characters": 14
+            },
+            {
+              "id": "invoice",
+              "matched": true,
+              "recognizeMs": 186,
+              "confidence": 95,
+              "characters": 27
+            },
+            {
+              "id": "date",
+              "matched": true,
+              "recognizeMs": 107,
+              "confidence": 96,
+              "characters": 25
+            }
+          ]
+        },
+        "memory": {
+          "pass": true,
+          "afterInit": {
+            "type": "Utility",
+            "workingSetMB": 139,
+            "peakWorkingSetMB": 155
+          },
+          "afterRepeat": {
+            "type": "Utility",
+            "workingSetMB": 187,
+            "peakWorkingSetMB": 194
+          },
+          "growthMB": 48,
+          "peakMB": 194,
+          "repeat": 10,
+          "hostMemory": {
+            "rss": 196546560,
+            "heapUsed": 4635700,
+            "external": 28139762,
+            "arrayBuffers": 0
+          },
+          "engine": {
+            "flavor": "tesseract-core-simd-lstm.js",
+            "heapBytes": 20185088
+          }
+        },
+        "cancellation": {
+          "pass": true,
+          "mode": "abort-by-kill",
+          "cooperative": {
+            "ackMs": null,
+            "mode": "no ack: killed",
+            "killed": true,
+            "lateResults": 0,
+            "engineSettledAfterCancel": null,
+            "finishedBeforeCancel": false,
+            "nextJobOk": true,
+            "recoveryMs": 1168,
+            "pass": false
+          },
+          "byKill": {
+            "exitMs": 14,
+            "lateResults": 0,
+            "finishedBeforeAbort": false,
+            "nextJobOk": true,
+            "recoveryMs": 1315,
+            "pass": true
+          }
+        },
+        "crashIsolation": {
+          "pass": true,
+          "exitCode": 134,
+          "mainResponsive": {
+            "ok": true,
+            "roundTripMs": 5
+          },
+          "recovered": true
+        },
+        "hangIsolation": {
+          "pass": true,
+          "hungHostAnswered": false,
+          "exitMs": 682,
+          "mainResponsive": {
+            "ok": true,
+            "roundTripMs": 25
+          },
+          "recovered": true
+        },
+        "cleanup": {
+          "pass": true,
+          "exitCode": 0,
+          "processGone": true,
+          "leftovers": []
+        },
+        "network": {
+          "pass": true,
+          "attempts": [],
+          "inconsistentHosts": 0,
+          "pullFailures": 2,
+          "limits": "Node and Electron network API interception on the host and worker threads, pushed as they occur; not an OS-level offline proof"
+        },
+        "localAssets": {
+          "pass": true,
+          "coreFlavors": [
+            "tesseract-core-simd-lstm.js",
+            "tesseract-core-simd-lstm.wasm"
+          ],
+          "dataFiles": [
+            "node_modules/@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz"
+          ],
+          "workerShimReported": null,
+          "outsideSpike": [],
+          "files": [
+            {
+              "thread": "host",
+              "file": "node_modules/tesseract.js-core/tesseract-core-simd-lstm.js"
+            },
+            {
+              "thread": "host",
+              "file": "node_modules/tesseract.js-core/tesseract-core-simd-lstm.wasm"
+            },
+            {
+              "thread": "host",
+              "file": "node_modules/@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz"
+            }
+          ]
+        },
+        "integrity": {
+          "pass": true,
+          "packages": [
+            {
+              "name": "tesseract.js-core",
+              "version": "6.0.0",
+              "pinned": "6.0.0",
+              "license": "Apache-2.0",
+              "integrity": "sha512-1Qncm/9oKM7xgrQXZXNB+NRh19qiXGhxlrR8EwFbK5SaUbPZnS5OMtP/ghtqfd23hsr1ZvZbZjeuAGcMxd/ooA=="
+            },
+            {
+              "name": "@tesseract.js-data/eng",
+              "version": "1.0.0",
+              "pinned": "1.0.0",
+              "license": "MIT",
+              "integrity": "sha512-mbTumm6KQPUHyzTPQaF3ObXYnx0SqqfV2nabqFVQBwD6Kl7PhGSLSzOlfFTWy0P3BjghaSKA2W9GB19Jk+ZcTg=="
+            }
+          ],
+          "files": [
+            {
+              "file": "scripts/ocr-feasibility/node_modules/tesseract.js-core/tesseract-core-lstm.js",
+              "sha256": "48a3ee8e00924cb8c7f0cc0d099b1318fea120af56b3ee8fb3a70dd2311806c2"
+            },
+            {
+              "file": "scripts/ocr-feasibility/node_modules/tesseract.js-core/tesseract-core-lstm.wasm",
+              "sha256": "220e2e87551edccb85519796a170469f8ab2a8055216789e3b8b1ada18b7bc2b"
+            },
+            {
+              "file": "scripts/ocr-feasibility/node_modules/tesseract.js-core/tesseract-core-lstm.wasm.js",
+              "sha256": "775a35df6f2ae100e02609443e6bd5cafcd07983dd6175454ca4a432a7730687"
+            },
+            {
+              "file": "scripts/ocr-feasibility/node_modules/tesseract.js-core/tesseract-core-simd-lstm.js",
+              "sha256": "be3504705d7111d1d1f3f7f9dff326c26d334031ede36e31c4d3cf883027e982"
+            },
+            {
+              "file": "scripts/ocr-feasibility/node_modules/tesseract.js-core/tesseract-core-simd-lstm.wasm",
+              "sha256": "187d76742dfc0d8929f0b49a619f145bb6370730776c7bd0d3e20c6b2098808d"
+            },
+            {
+              "file": "scripts/ocr-feasibility/node_modules/tesseract.js-core/tesseract-core-simd-lstm.wasm.js",
+              "sha256": "9d7c43fb206dc9f48475228b46bf35f888fa9e6259da2e67d5a75c77049f2dc7"
+            },
+            {
+              "file": "scripts/ocr-feasibility/node_modules/tesseract.js-core/tesseract-core-simd.js",
+              "sha256": "85762abcc52bc6f4762b1429e2986c8ea963db76632770970c0485fb6d6aa820"
+            },
+            {
+              "file": "scripts/ocr-feasibility/node_modules/tesseract.js-core/tesseract-core-simd.wasm",
+              "sha256": "ca11ee92a02023e4f5083eefd0966fb83b297416da54e997b9f6ce445f719c9b"
+            },
+            {
+              "file": "scripts/ocr-feasibility/node_modules/tesseract.js-core/tesseract-core-simd.wasm.js",
+              "sha256": "3b0678c47a8dea6abb931b214171c08b742a5b9a9fcbbb1a028a08d5de6e9d4c"
+            },
+            {
+              "file": "scripts/ocr-feasibility/node_modules/tesseract.js-core/tesseract-core.js",
+              "sha256": "8d7d9776c8552951f8d3bb903dafb22d4e2e065564d7e1b3d523383670a94ecd"
+            },
+            {
+              "file": "scripts/ocr-feasibility/node_modules/tesseract.js-core/tesseract-core.wasm",
+              "sha256": "740f7e466a2f026e1f1e54a2e0d9957e386d8166110d1290224abd3d08986106"
+            },
+            {
+              "file": "scripts/ocr-feasibility/node_modules/tesseract.js-core/tesseract-core.wasm.js",
+              "sha256": "e66872f6a76f5ad414d73d21512245df0de3060ad4871a97c47efceaab27b955"
+            },
+            {
+              "file": "scripts/ocr-feasibility/node_modules/@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz",
+              "sha256": "45b4cb346724ac1774f1c36f42f182b887bcdb28ebe63e6fff90ac41f3fcff91"
+            }
+          ]
+        },
+        "licensing": {
+          "pass": true,
+          "packages": [
+            {
+              "name": "@tesseract.js-data/eng",
+              "version": "1.0.0",
+              "license": "MIT",
+              "allowed": true
+            },
+            {
+              "name": "tesseract.js-core",
+              "version": "6.0.0",
+              "license": "Apache-2.0",
+              "allowed": true
+            }
+          ]
+        },
+        "complexity": {
+          "pass": true,
+          "integrationLines": 71,
+          "remoteDefaultsInPackageSources": []
+        }
+      }
     }
   },
   "selection": {
-    "status": "NOT RUN",
-    "reason": "wrapper and core not evaluated"
+    "status": "GO",
+    "selected": "core",
+    "rule": "of the candidates that pass every row, the one with the least integration code (plan, Wrapper vs core)"
   }
 }

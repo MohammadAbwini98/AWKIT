@@ -30,6 +30,15 @@ function describe(target) {
   return String(target).slice(0, 200);
 }
 
+/**
+ * Push an attempt to the main process the moment it is recorded. A host that recognizes synchronously on its own
+ * thread cannot answer a stats request until the job returns, so pulling alone would leave a host killed mid-job
+ * unverified (N7.1a core run, 2026-10-26); the push is sent from the thread that tripped, before it can be killed.
+ */
+function pushToMain(entry) {
+  if (process.parentPort && typeof process.parentPort.postMessage === "function") process.parentPort.postMessage({ type: "net", entry });
+}
+
 function installTripwire({ broadcast = false } = {}) {
   const channel = broadcast && typeof BroadcastChannel === "function" ? new BroadcastChannel(CHANNEL) : null;
   if (channel && typeof channel.unref === "function") channel.unref();
@@ -37,6 +46,7 @@ function installTripwire({ broadcast = false } = {}) {
     const entry = { kind, target: describe(target), thread: broadcast ? "worker" : "host" };
     attempts.push(entry);
     if (channel) channel.postMessage(entry);
+    else pushToMain(entry);
     const error = new Error(`network disabled by the AWKIT N7.1a spike (${kind})`);
     error.code = "AWKIT_NETWORK_DISABLED";
     throw error;
@@ -107,7 +117,10 @@ function listenForWorkerAttempts() {
   if (typeof BroadcastChannel !== "function") return;
   const channel = new BroadcastChannel(CHANNEL);
   if (typeof channel.unref === "function") channel.unref();
-  channel.onmessage = (event) => attempts.push(event.data);
+  channel.onmessage = (event) => {
+    attempts.push(event.data);
+    pushToMain(event.data);
+  };
   const files = new BroadcastChannel(FILES_CHANNEL);
   if (typeof files.unref === "function") files.unref();
   files.onmessage = (event) => {

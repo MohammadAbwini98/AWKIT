@@ -103,7 +103,7 @@ function spawnHost(kind) {
   for (const [key, value] of Object.entries(process.env)) if (key !== "ELECTRON_RUN_AS_NODE" && typeof value === "string") env[key] = value;
   Object.assign(env, { AWKIT_OCR_SPIKE_DIR: config.spikeDir, AWKIT_OCR_SPIKE_DATA: config.dataFile || "", AWKIT_OCR_SPIKE_CACHE: cache });
   const child = utilityProcess.fork(path.join(__dirname, `host-${kind}.cjs`), [], { stdio: "pipe", serviceName: `awkit-ocr-spike-${kind}`, cwd, env });
-  const host = { kind, child, cwd, cache, pid: null, ready: null, exited: null, pending: new Map(), cancelled: new Set(), late: [], output: "", nextId: 1, attempts: [] };
+  const host = { kind, child, cwd, cache, pid: null, ready: null, exited: null, pending: new Map(), cancelled: new Set(), late: [], output: "", nextId: 1, attempts: [], pushed: [], pullFailures: 0 };
   host.readyPromise = new Promise((resolve) => (host.onReady = resolve));
   host.exitPromise = new Promise((resolve) =>
     child.once("exit", (code) => {
@@ -121,6 +121,10 @@ function spawnHost(kind) {
   child.stderr && child.stderr.on("data", keep);
   child.on("message", (message) => {
     if (!message) return;
+    if (message.type === "net") {
+      host.pushed.push(message.entry);
+      return;
+    }
     if (message.type === "ready") {
       host.ready = message;
       host.pid = message.pid;
@@ -176,8 +180,8 @@ async function collectAttempts(host) {
     host.filesLoaded = stats.filesLoaded || [];
     host.shimLoaded = stats.shimLoaded === true;
   } catch {
-    // Unresponsive host: its attempts so far are lost, which the network row reports as unverified.
-    host.attemptsUnverified = true;
+    // Unresponsive host (a synchronous job or a hang): attempts still arrive by push; the pull is only a cross-check.
+    host.pullFailures += 1;
   }
 }
 
@@ -351,12 +355,14 @@ async function evaluate(kind, fixtures, win) {
   row("cleanup", !shutdown.error && shutdownCode === 0 && processMetric(lastPid) === null && leftovers.length === 0, { exitCode: shutdownCode, processGone: processMetric(lastPid) === null, leftovers });
 
   const hosts = allHosts.filter((x) => x.kind === kind);
-  const attempts = hosts.flatMap((h) => h.attempts);
-  const unverified = hosts.filter((h) => h.attemptsUnverified).length;
+  // Attempts are counted from the push channel; every successful pull must be covered by what was pushed.
+  const attempts = hosts.flatMap((h) => h.pushed);
+  const inconsistent = hosts.filter((h) => h.attempts.length > h.pushed.length).length;
+  const pullFailures = hosts.reduce((sum, h) => sum + h.pullFailures, 0);
   if (isProbe) {
-    row("network", attempts.length >= 3 && attempts.some((a) => a.thread === "worker") && attempts.some((a) => a.thread === "host"), { tripwireSelfTest: true, attempts, unverifiedHosts: unverified });
+    row("network", attempts.length >= 3 && attempts.some((a) => a.thread === "worker") && attempts.some((a) => a.thread === "host") && inconsistent === 0, { tripwireSelfTest: true, pushChannel: "attempts delivered by push from the host and worker threads", attempts, inconsistentHosts: inconsistent, pullFailures });
   } else {
-    row("network", attempts.length === 0 && unverified === 0, { attempts, unverifiedHosts: unverified, limits: "Node and Electron network API interception on the host and worker threads; not an OS-level offline proof" });
+    row("network", attempts.length === 0 && inconsistent === 0, { attempts, inconsistentHosts: inconsistent, pullFailures, limits: "Node and Electron network API interception on the host and worker threads, pushed as they occur; not an OS-level offline proof" });
   }
 
   // File provenance: which engine files were loaded, by which thread, and from where.

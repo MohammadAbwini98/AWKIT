@@ -182,7 +182,7 @@ for (const kind of ["wrapper", "core"]) {
   const names = new Set(inv.packages.map((p) => p.name));
   const relevant = licenseList.filter((l) => names.has(l.name) || kind === "wrapper");
   rows.licensing = { pass: relevant.length > 0 && relevant.every((l) => l.allowed), packages: relevant };
-  rows.complexity = { pass: true, integrationLines: inv.integrationLines };
+  rows.complexity = { pass: true, integrationLines: inv.integrationLines, remoteDefaultsInPackageSources: inv.remoteDefaults };
   const failed = [...GATED_ROWS, "integrity", "licensing"].filter((name) => !rows[name]?.pass);
   evaluation[kind] = { status: failed.length ? "FAIL" : "PASS", failedRows: failed, rows };
 }
