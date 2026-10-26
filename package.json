@@ -335,6 +335,7 @@
     "verify:visual-agreement": "tsx scripts/verify-visual-agreement.mts",
     "verify:visual-diagnosis": "tsx scripts/verify-visual-diagnosis.mts",
     "verify:visual-assertion": "tsx scripts/verify-visual-assertion.mts",
+    "verify:ocr-decision": "tsx scripts/verify-ocr-decision.mts",
     "verify:flow-import-authorization": "tsx scripts/verify-flow-import-authorization.mts",
     "verify:visual-assertion-runtime": "tsx scripts/verify-visual-assertion-runtime.mts",
     "verify:visual-assertion-grants": "tsx scripts/verify-visual-assertion-grants.mts",

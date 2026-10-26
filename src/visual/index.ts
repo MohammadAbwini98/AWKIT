@@ -86,3 +86,20 @@ export {
   type VisualAssertionRefusal,
   type VisualAssertionVerdictKind
 } from "./assertion/decideVisualAssertion";
+export {
+  TEXT_ASSERTION_INPUT_VERSION,
+  TEXT_ASSERTION_POLICY_VERSION,
+  UNCALIBRATED_TEXT_ASSERTION_POLICY,
+  decideTextAssertion,
+  type OcrWord,
+  type TextAssertionCode,
+  type TextAssertionDecision,
+  type TextAssertionInput,
+  type TextAssertionMatchMode,
+  type TextAssertionOcr,
+  type TextAssertionPolicy,
+  type TextAssertionRefusal,
+  type TextAssertionVerdictKind
+} from "./ocr/decideTextAssertion";
+export { OCR_PREPROCESS_VERSION, preprocessForOcr, type OcrPreprocessInput, type OcrPreprocessResult } from "./ocr/preprocess";
+export { detectSensitiveValue, isSensitiveSourceName, type SensitiveValueCode } from "./ocr/sensitiveExpected";
