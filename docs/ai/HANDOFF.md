@@ -1,6 +1,28 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-26, latest) — N7.1a still BLOCKED: the dependency install remains an owner action
+## HANDOFF (2026-10-26, latest) — N7.1a GO; N7.3 and N7.4 done; next N7.5
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done and pushed:**
+  - N7.1a GO for direct `tesseract.js-core` 6.0.0, SIMD LSTM only (DECISIONS 2026-10-26);
+  - N7.3, the pinned assets staged to `resources/ocr` (`verify:ocr-assets` 46/0);
+  - N7.4, the utility host and manager (`verify:ocr-host` 49/0, real engine).
+- **Development use:** run `npm run prepare:ocr-assets` once to stage `build/ocr`, then set `AWKIT_VISUAL_OCR=observe`.
+  Nothing consumes OCR until N7.5.
+- **Next dependency-ready task: N7.5,** the observe-only `assertImageText` step:
+  - the validator with the OC-8 refusals (`isSensitiveSourceName` for sources, `detectSensitiveValue` at run time);
+  - the fifth `src/visual` edge `src/runner/ocr/OcrStep.ts`, with `verify:visual-isolation` moved to five;
+  - the guarded N0 capture, then `preprocessForOcr`, then `getOcrHostManager().recognize`, then
+    `decideTextAssertion`;
+  - the codes-only `InstanceReport.ocrAssertions`;
+  - the Designer and drawer sections.
+- **Owner action (unchanged):** a release host with Visual Studio 2022 MSVC v143, until `verify:packaging-host` is
+  READY. Then package and run the N6 packaged gates, N7.1b (which includes strict `validate:offline` with OCR) and
+  later N7.8.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-26) — N7.1a still BLOCKED: the dependency install remains an owner action
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

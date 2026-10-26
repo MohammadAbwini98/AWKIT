@@ -142,6 +142,27 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-vra-9-11-n7-3-ocr-assets-1026:release:2026-10-26T15:03:05.432Z",
+        "task": "awkit-vra-9-11-n7-3-ocr-assets-1026",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "electron-builder.json",
+          "resources/THIRD_PARTY_NOTICES.md",
+          "scripts/generate-dependency-manifest.ps1",
+          "scripts/package-per-user-installer.ps1",
+          "scripts/package-portable.ps1",
+          "src/offline/ocr-runtime.json"
+        ],
+        "acquired_at": "2026-10-26T15:03:05.432Z",
+        "acquired_at_commit": "00572f378a997081cde03a489bda6a539d325137",
+        "released_at": "2026-10-26T15:03:34.704Z",
+        "released_reason": "N7.3 protected files committed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }

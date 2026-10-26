@@ -797,8 +797,9 @@ try {
   // Then 38/396 of 434 on 2026-10-26 (contract `awkit-vra-9-n7-filing-1026`): N7.2 `awkit-vra.9.4` closed on
   // verify:ocr-decision 203/0; N7.1a `.9.2` set blocked (dependency installation is an owner action). Measured.
   // Then 37/397 of 434 on 2026-10-26: N7.1a `.9.2` closed on the real benchmark GO (direct tesseract.js-core). Measured.
-    "37 outstanding / 397 closed",
-    beads.stats.outstanding === 37 && beads.stats.closed === 397,
+  // Then 35/399 of 434 on 2026-10-26: N7.3 `.9.11` and N7.4 `.9.5` closed on their executed source gates. Measured.
+    "35 outstanding / 399 closed",
+    beads.stats.outstanding === 35 && beads.stats.closed === 399,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

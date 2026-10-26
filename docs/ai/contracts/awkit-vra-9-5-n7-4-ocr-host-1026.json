@@ -130,6 +130,22 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-vra-9-5-n7-4-ocr-host-1026:runtime:2026-10-26T15:32:31.591Z",
+        "task": "awkit-vra-9-5-n7-4-ocr-host-1026",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "native-hosts/ocr/ocr-host.cjs"
+        ],
+        "acquired_at": "2026-10-26T15:32:31.591Z",
+        "acquired_at_commit": "d4b986a03ad270e4c6d651942958b843e7fe1814",
+        "released_at": "2026-10-26T15:32:44.157Z",
+        "released_reason": "N7.4 OCR host committed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }

@@ -1,28 +1,26 @@
 {
-  "task": "awkit-vra-9-5-n7-4-ocr-host-1026",
-  "contract_path": "docs/ai/contracts/awkit-vra-9-5-n7-4-ocr-host-1026.json",
-  "holder": "runtime",
-  "status": "active",
+  "task": "awkit-vra-9-n7-filing-1026",
+  "contract_path": "docs/ai/contracts/awkit-vra-9-n7-filing-1026.json",
+  "holder": "project-state",
+  "status": "released",
   "allowed_paths": [
-    "native-hosts/ocr/ocr-host.cjs"
+    ".beads/**"
   ],
-  "acquired_at": "2026-10-26T15:32:31.591Z",
-  "acquired_at_commit": "d4b986a03ad270e4c6d651942958b843e7fe1814",
+  "acquired_at": "2026-10-26T15:32:51.987Z",
+  "acquired_at_commit": "3cf9abb4df65d1ea8226cc2b641cd9862959275b",
   "baseline_dirty": [
     ".beads/interactions.jsonl",
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
     "docs/ai/contracts/awkit-vra-9-11-n7-3-ocr-assets-1026.json",
-    "docs/ai/contracts/awkit-vra-9-5-n7-4-ocr-host-1026.json",
-    "native-hosts/ocr/"
+    "docs/ai/contracts/awkit-vra-9-5-n7-4-ocr-host-1026.json"
   ],
   "baseline_dirty_fingerprints": {
     ".beads/interactions.jsonl": "ffc7e0fbcfbcee7baaebd5d8e19b11ee5fa6550b5d20cd530b6324f0b91ee9f5",
-    "docs/ai/contracts/active-lease.json": "cfb3ddb591978613f3e02b23dbf786a2225eee8ff3320e4e8837641b0e2619b1",
+    "docs/ai/contracts/active-lease.json": "9e66f61cdc918a60284d047aa4971529bfac4fd45449e900b2aa948b701b9e81",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
     "docs/ai/contracts/awkit-vra-9-11-n7-3-ocr-assets-1026.json": "56b2c9e2926ce5f447fc618d713b764e2820438c6c989bccd52412d5e99b97ba",
-    "docs/ai/contracts/awkit-vra-9-5-n7-4-ocr-host-1026.json": "f2e1787c7e03426dcf6a0eda0b9f7e7f16b4721ba5c0ff44e3e142c59fab26cc",
-    "native-hosts/ocr/": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    "docs/ai/contracts/awkit-vra-9-5-n7-4-ocr-host-1026.json": "b50bff80c499f061ae1975a5909bd5ada02b01e35e5a5b30510cfe2dcdf53b48"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -36,5 +34,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-10-26T15:33:14.111Z",
+  "released_reason": "N7.3 awkit-vra.9.11 and N7.4 awkit-vra.9.5 closed on their executed gates, exported",
+  "archived_at": "2026-10-26T15:33:14.114Z"
 }

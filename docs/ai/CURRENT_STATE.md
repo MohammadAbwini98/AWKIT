@@ -1,6 +1,37 @@
 # CURRENT_STATE
 
-## Phase N: N7.1a still BLOCKED, feasibility harness hardened (2026-10-26, latest)
+## Phase N: N7.1a GO (direct tesseract.js-core), N7.3 and N7.4 done (2026-10-26, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N and N7 stay IN
+PROGRESS.**
+
+- **N7.1a GO** (`cfee499`, DECISIONS 2026-10-26).
+  - Both candidates ran on the owner-installed pinned packages; the lockfile was reviewed and committed.
+  - Wrapper `tesseract.js` 6.0.1: PASS 13/13. Direct `tesseract.js-core` 6.0.0: PASS 13/13.
+  - The core was selected by the pre-declared least-code rule, 71 lines vs 76.
+  - Only the SIMD LSTM flavor ships, with the English best_int data.
+  - The first run exposed a harness defect in network-log collection, fixed with the criteria unchanged.
+- **N7.3 done** (`00572f3`, `4f29564`, release lease):
+  - the `src/offline/ocr-runtime.json` pin;
+  - `prepare-ocr-assets.mjs` stages `build/ocr`, which ships to `resources/ocr`;
+  - `ocrRuntime` is folded into the signed manifest generator and checked by the offline validator;
+  - the third-party notice.
+
+  `verify:ocr-assets` 46/0; staged 5,968,312 bytes against the 8 MB target; `validate:offline` non-strict PASS.
+- **N7.4 done** (`d4b986a`, `3cf9abb`, runtime lease):
+  - `native-hosts/ocr/ocr-host.cjs`, with network blocked, pinned-hash asset checks, the SIMD refusal, no writes and
+    no logs;
+  - `OcrUtilityHostManager`, with lazy start, kill-based deadlines and aborts, late results dropped, the queue bound,
+    the restart circuit, idle shutdown and the resident-set recycle;
+  - `ocrRuntime`: off unless `AWKIT_VISUAL_OCR=observe`.
+
+  `verify:ocr-host` 49/0 with the real engine; its first run found a real stale-host dispatch defect, which is fixed.
+  Nothing is wired into runs yet, and the main bundle is unchanged.
+- **Next: N7.5.**
+- **Still BLOCKED by the packaging host:** N7.1b, N7.8 and the N6 packaged gates. A source PASS is not packaged
+  acceptance.
+
+## Phase N: N7.1a still BLOCKED, feasibility harness hardened (2026-10-26)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N and N7 stay IN
 PROGRESS.**

@@ -1,5 +1,26 @@
 # TASK_LOG
 
+## 2026-10-26 — Phase N: N7.1a real benchmark GO, N7.3 assets, N7.4 host (Claude)
+
+- **Inputs:** the owner installed the spike's pinned packages. Versions matched the pins, every lockfile entry
+  carries a sha512 from registry.npmjs.org, and every licence is on the allowlist.
+- **N7.1a** (`cfee499`, `9d8faca`):
+  - Run 1: wrapper PASS; core FAIL on the network row, with 0 attempts but 2 unverified pulls from a host blocked
+    in synchronous recognition. This was a harness defect, fixed by push delivery with the criteria unchanged.
+  - Run 2: both PASS 13/13; GO for the core (71 vs 76 lines). Closed under a project-state lease.
+- **N7.3** (`00572f3`, `4f29564`, release lease): pin, staging script, packaging and manifest wiring, validator,
+  notices.
+  - `verify:ocr-assets` 45/0, then 46/0 once the host is staged;
+  - `validate:offline` non-strict PASS;
+  - `verify:offline-supply-chain` 25/0;
+  - `verify:portable-fresh-state` 10/10.
+  - Strict real-release validation is carried by N7.1b (BLOCKED).
+- **N7.4** (`d4b986a`, `3cf9abb`, runtime lease): host, manager, protocol and runtime resolver.
+  - `verify:ocr-host`: 48/1 on the first run (a stale-host dispatch after an abort kill, fixed with per-host state),
+    then 49/0.
+  - `verify:visual-isolation` 90/0; build PASS; `typecheck:scripts` PASS.
+- **Not started:** N7.5. **BLOCKED:** N7.1b, N7.8 and the N6 packaged gates (packaging host).
+
 ## 2026-10-26 — Phase N: N7.1a qualification attempt, still BLOCKED; feasibility harness hardened (Claude)
 
 - **Repository state:** remote main at `3fa60de`, in sync. The only untracked file is the preserved L12.27 contract.

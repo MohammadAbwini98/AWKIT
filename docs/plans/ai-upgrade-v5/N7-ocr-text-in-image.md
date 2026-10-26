@@ -290,7 +290,16 @@ prerequisite). N7.1a never claims it.
 that returns OC-1 to the owner. N7.1b then confirms or refutes that choice in a real package. Nothing in the product
 changes in either proof.
 
-**N7.1a status (2026-10-26): BLOCKED on dependency acquisition, an owner action. No engine result exists.**
+**N7.1a result (2026-10-26, later): GO, direct `tesseract.js-core` 6.0.0** (DECISIONS 2026-10-26, evidence
+`scripts/ocr-feasibility/results/latest.json` at `cfee499`).
+- The owner installed the pinned dependencies, and the lockfile is committed.
+- Wrapper PASS 13/13 and core PASS 13/13.
+- The core was selected under the least-integration-code rule, 71 lines vs 76.
+- The first real run exposed a harness defect: the network log was pulled from a host blocked in synchronous
+  recognition. It was fixed before the deciding run, with the criteria unchanged.
+- The history below records the earlier blocked state.
+
+**Earlier N7.1a status (2026-10-26): BLOCKED on dependency acquisition, an owner action.**
 
 - **Spike** (commit `a805ca7`): `scripts/ocr-feasibility/` has its own `package.json` with exact pins. It is never
   bundled: electron-builder packages only `out/**` and the listed root files. Pins:
@@ -373,8 +382,8 @@ changes in either proof.
 | N7.1a | Source/runtime feasibility proof (§ above): wrapper vs core, pinned versions, isolation, local assets, zero network, cancellation, CPU only | Recorded engine choice with evidence (`benchmark:ocr-feasibility`, spike in `scripts/ocr-feasibility/`) |
 | N7.1b | Real packaged compatibility of the N7.1a choice, after N7.3 and N7.4 | BLOCKED until `verify:packaging-host` is READY; then a packaged proof with zero network |
 | N7.2 | Pure `decideTextAssertion` (normalize, compare, confidence and look-alike gates) and preprocessing, in `src/visual/ocr` with no I/O | DONE 2026-10-26 (`a0039e2`): `verify:ocr-decision` 203/0 with 23 mutants red. The 80/92 thresholds are uncalibrated until N7.6 |
-| N7.3 | Packaging of the engine N7.1a selected (the `tesseract.js` wrapper or `tesseract.js-core`, pinned) and the `eng` data in `resources/ocr/`, manifest entries, offline validation, a dependency review | `validate:offline -Strict`, `verify:ocr-assets`; packaged load proven by N7.1b |
-| N7.4 | OCR utility host and `OcrUtilityHostManager` (lazy spawn, deadline, cancel, idle shutdown, restarts, heap cap, no network) | `verify:ocr-host` (crash, hang, abort, memory, no-network) |
+| N7.3 | Packaging of the engine N7.1a selected (the `tesseract.js` wrapper or `tesseract.js-core`, pinned) and the `eng` data in `resources/ocr/`, manifest entries, offline validation, a dependency review | DONE 2026-10-26 (`00572f3`, `4f29564`): `verify:ocr-assets` 46/0; staged 5,968,312 bytes; `validate:offline` non-strict PASS. Strict validation of a real release moves with the packaged load to N7.1b (BLOCKED) |
+| N7.4 | OCR utility host and `OcrUtilityHostManager` (lazy spawn, deadline, cancel, idle shutdown, restarts, heap cap, no network) | DONE 2026-10-26 (`d4b986a`, `3cf9abb`): `verify:ocr-host` 49/0 with the real engine in real utility processes |
 | N7.5 | `assertImageText` step, validator, adapter (fifth edge), refusals, record and report block, Designer and drawer sections | `verify:ocr-runtime`, `verify:ocr-report`, `verify:visual-isolation` at 5, `verify:ocr-gui` |
 | N7.6 | OCR Lab and calibration benchmark | `benchmark:ocr`, `verify:ocr-calibration` |
 | N7.7 | Shadow N2 and N5 signals, effect `none` | `verify:visual-fusion-runtime` and `verify:visual-diagnosis-runtime` extended |
@@ -418,9 +427,15 @@ changes in either proof.
 
 ## Exact next task
 
-N7.1 (ratified) and N7.2 (pure decision) are done.
-- **Next dependency-ready task: N7.1a.** The owner installs the spike's pinned dependencies (command in § Feasibility
-  proofs), then the agent runs `npm run benchmark:ocr-feasibility` and records GO with the selected integration, or
-  NO-GO.
-- N7.3 onward waits for that choice.
-- N7.1b and N7.8 also wait for the approved packaging host.
+Done:
+- N7.1 (ratified);
+- N7.1a (GO: direct tesseract.js-core);
+- N7.2 (pure decision);
+- N7.3 (assets);
+- N7.4 (host and manager).
+
+Remaining:
+- **Next dependency-ready task: N7.5.** Its dependencies, N7.2 and N7.4, are closed. It covers the observe-only
+  `assertImageText` step, the validator with the OC-8 refusals, the fifth `src/visual` edge
+  `src/runner/ocr/OcrStep.ts`, the codes-only report block and the Designer and drawer sections.
+- N7.1b and N7.8 stay BLOCKED until the approved packaging host exists.
