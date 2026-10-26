@@ -290,6 +290,51 @@ prerequisite). N7.1a never claims it.
 that returns OC-1 to the owner. N7.1b then confirms or refutes that choice in a real package. Nothing in the product
 changes in either proof.
 
+**N7.1a status (2026-10-26): BLOCKED on dependency acquisition, an owner action. No engine result exists.**
+
+- **Spike** (commit `a805ca7`): `scripts/ocr-feasibility/` has its own `package.json` with exact pins. It is never
+  bundled: electron-builder packages only `out/**` and the listed root files. Pins:
+  - `tesseract.js` 6.0.1;
+  - `tesseract.js-core` 6.0.0;
+  - `@tesseract.js-data/eng` 1.0.0.
+
+  The spike is run by `npm run benchmark:ocr-feasibility`.
+- **Gates**, declared in the launcher before any candidate ran. Each candidate runs in an Electron 33
+  `utilityProcess`:
+  - runtime: Windows x64;
+  - cold first-run init with empty cwd and cache folders, local data, and cache off;
+  - recognition of three rendered fixtures;
+  - memory: peak working set ≤ 400 MB, and growth ≤ 64 MB over 10 recognitions;
+  - cancellation: either a cooperative cancel acknowledged within 1500 ms, or an abort by kill, with no late result
+    and the next job succeeding;
+  - crash and hang isolation, with the main process staying responsive;
+  - network: zero attempts, enforced by a tripwire on the host thread and in worker threads, plus zero Chromium
+    requests;
+  - cleanup, integrity (pinned version and lockfile integrity, SHA-256 of the loaded files), and licensing
+    (allowlist).
+- **Selection rule:** of the candidates that pass every row, the one with the least integration code. If none
+  passes, the result is NO-GO and the engine choice returns to the owner.
+- **Executed:** the harness self-test, on a probe host with a fake engine, passed 10/10. It covered:
+  - init, cooperative cancel, abort by kill;
+  - crash detection (exit 134) and hang detection and kill;
+  - late-result detection;
+  - memory metrics;
+  - cleanup;
+  - the tripwire, which caught two host-thread attempts and one worker-thread attempt.
+
+  Evidence: `scripts/ocr-feasibility/results/latest.json`.
+- **NOT RUN:** both candidates. Their packages are not installed, and the agent's command grammar has no install
+  verb. The owner runs:
+
+  ```
+  npm install --prefix scripts/ocr-feasibility --ignore-scripts --no-audit --no-fund
+  ```
+
+  then `npm run benchmark:ocr-feasibility`, and the result file records GO (with the selection) or NO-GO.
+- **Unproven:** the candidate hosts (`host-wrapper.cjs`, `host-core.cjs`) are syntax-checked only. The direct-core
+  host uses the embind calls the wrapper's own worker makes (`SetImageFile`, `Recognize`, `GetUTF8Text`). A mismatch
+  with the installed build is reported as that candidate's failure, with the available methods listed.
+
 ## Work breakdown (filed after ratification)
 
 **Dependency order (ratified 2026-10-26):**
@@ -312,7 +357,7 @@ changes in either proof.
 | N7.1 | Ratify OC-0 to OC-12 (OC-1 and OC-2 as amended 2026-10-25) | DONE 2026-10-26: owner decision recorded in DECISIONS |
 | N7.1a | Source/runtime feasibility proof (§ above): wrapper vs core, pinned versions, isolation, local assets, zero network, cancellation, CPU only | Recorded engine choice with evidence (`benchmark:ocr-feasibility`, spike in `scripts/ocr-feasibility/`) |
 | N7.1b | Real packaged compatibility of the N7.1a choice, after N7.3 and N7.4 | BLOCKED until `verify:packaging-host` is READY; then a packaged proof with zero network |
-| N7.2 | Pure `decideTextAssertion` (normalize, compare, confidence and look-alike gates) and preprocessing, in `src/visual/ocr` with no I/O | `verify:ocr-decision` with mutants |
+| N7.2 | Pure `decideTextAssertion` (normalize, compare, confidence and look-alike gates) and preprocessing, in `src/visual/ocr` with no I/O | DONE 2026-10-26 (`a0039e2`): `verify:ocr-decision` 203/0 with 23 mutants red. The 80/92 thresholds are uncalibrated until N7.6 |
 | N7.3 | Packaging of the engine N7.1a selected (the `tesseract.js` wrapper or `tesseract.js-core`, pinned) and the `eng` data in `resources/ocr/`, manifest entries, offline validation, a dependency review | `validate:offline -Strict`, `verify:ocr-assets`; packaged load proven by N7.1b |
 | N7.4 | OCR utility host and `OcrUtilityHostManager` (lazy spawn, deadline, cancel, idle shutdown, restarts, heap cap, no network) | `verify:ocr-host` (crash, hang, abort, memory, no-network) |
 | N7.5 | `assertImageText` step, validator, adapter (fifth edge), refusals, record and report block, Designer and drawer sections | `verify:ocr-runtime`, `verify:ocr-report`, `verify:visual-isolation` at 5, `verify:ocr-gui` |
@@ -358,8 +403,9 @@ changes in either proof.
 
 ## Exact next task
 
-N7.1 is done (ratified 2026-10-26). Next:
-- N7.1a, the feasibility proof;
-- N7.2, the pure decision, which needs only N7.1.
-
-N7.3 onward waits for the N7.1a engine choice.
+N7.1 (ratified) and N7.2 (pure decision) are done.
+- **Next dependency-ready task: N7.1a.** The owner installs the spike's pinned dependencies (command in § Feasibility
+  proofs), then the agent runs `npm run benchmark:ocr-feasibility` and records GO with the selected integration, or
+  NO-GO.
+- N7.3 onward waits for that choice.
+- N7.1b and N7.8 also wait for the approved packaging host.

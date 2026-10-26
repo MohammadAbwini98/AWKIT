@@ -1,6 +1,45 @@
 # CURRENT_STATE
 
-## Phase N: packaging host diagnosis, Beads reconciled, N7 final decision matrix (2026-10-25, latest)
+## Phase N: N7 ratified and in progress, N7.2 done, N7.1a blocked on dependency installation (2026-10-26, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N stays IN PROGRESS.**
+N7 is not closed.
+
+- **N7.1 ratified.** The owner ratified OC-0 to OC-12 (DECISIONS 2026-10-26).
+  - N7.1b, packaged compatibility, follows N7.3 and N7.4 and is not a prerequisite for N7.2–N7.5.
+  - N7.8 needs final packaged acceptance.
+  - N7.9 cannot close N7 while mandatory packaged evidence is BLOCKED or NOT RUN.
+- **Tracker:** the breakdown is filed as `awkit-vra.9.1` to `.9.11`, with 17 blocks edges in that order.
+  - N7.1 and N7.2 are closed.
+  - The N7 epic `awkit-vra.9` is in progress.
+  - N7.1a `.9.2` is blocked.
+- **N7.2 done** (`a0039e2`), in `src/visual/ocr`:
+  - pure `decideTextAssertion` (exact, normalized and contains; fail closed);
+  - `preprocessForOcr` (grayscale over white, x-height upscale, 1 MP and clipping refusals);
+  - the OC-8 rules `detectSensitiveValue` and `isSensitiveSourceName`.
+
+  It has no engine and adds no new `src/visual` edge. Source PASS:
+  - `verify:ocr-decision` 203/0, with 23 mutants red;
+  - `verify:visual-isolation` 90/0, still at four edges;
+  - `verify:visual-assertion` 293/0;
+  - build PASS.
+
+  The 80/92 confidence thresholds are uncalibrated targets.
+- **N7.1a BLOCKED.**
+  - The reproducible spike is committed (`a805ca7`): `scripts/ocr-feasibility/`, with its own pinned
+    `package.json`, never bundled, run by `npm run benchmark:ocr-feasibility`.
+  - The harness self-test passed 10/10.
+  - Both candidates are NOT RUN: their dependencies are not installed, and the agent's command grammar has no
+    install verb.
+  - No engine is selected and no engine result is claimed.
+- **Packaging: still BLOCKED by the environment** (H4/H5, no Visual Studio 2022). The N6 packaged gates, N7.1b and
+  N7.8 are NOT RUN. A source PASS is not packaged acceptance.
+- **`verify:packaging-host` H6** now compares the packaging step's parsed declarations with the shared module, and 8
+  of 8 source mutations are caught. It is labelled declaration-level, not behavioral equivalence.
+  - One shared module was rejected because `verify:ai-packaged-runtime` runs the step alone in a scratch repository.
+  - `prepare-ai-native-host.mjs` is unchanged.
+
+## Phase N: packaging host diagnosis, Beads reconciled, N7 final decision matrix (2026-10-25)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N stays IN PROGRESS.**
 N7–N10 are planned only; nothing is implemented.

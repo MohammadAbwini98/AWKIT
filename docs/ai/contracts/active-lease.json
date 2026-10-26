@@ -6,19 +6,15 @@
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-26T09:17:11.514Z",
-  "acquired_at_commit": "f6fd16a0ef7a0d4bdd167edb03b44f15150e343b",
+  "acquired_at": "2026-10-26T09:46:48.551Z",
+  "acquired_at_commit": "c358deaed75c7a0146bc4d37c7337845e0cbcd22",
   "baseline_dirty": [
-    "docs/ai/DECISIONS.md",
-    "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-vra-9-n7-filing-1026.json",
-    "docs/plans/ai-upgrade-v5/N7-ocr-text-in-image.md"
+    ".beads/interactions.jsonl",
+    "docs/ai/contracts/awkit-l12-27-implementation-1006.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/DECISIONS.md": "de1a5fd097c0d9ebff1f2318ab318e2f32bf762d36118e0211a8c6a7539ed135",
-    "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-vra-9-n7-filing-1026.json": "62339987bb339f749796910c3bcabbee6c88d42df54d165f9cbff22b109bd5e6",
-    "docs/plans/ai-upgrade-v5/N7-ocr-text-in-image.md": "de9c045d843c1ab0c6b05a48bdfa1ac5b17b062eca39bde28f0ec6d6d0deed36"
+    ".beads/interactions.jsonl": "579471eb56c009b52521b9641e344aab1b7f5b218af6c406bfc1136cf626b086",
+    "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -33,7 +29,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-26T09:20:41.795Z",
-  "released_reason": "N7.1 to N7.9 filed under awkit-vra.9 with the ratified dependency order, N7.1 closed, N7 epic N7.1a and N7.2 in progress, exported",
-  "archived_at": "2026-10-26T09:20:41.800Z"
+  "released_at": "2026-10-26T09:47:11.480Z",
+  "released_reason": "N7.2 awkit-vra.9.4 closed on verify:ocr-decision 203/0, N7.1a awkit-vra.9.2 blocked on dependency installation (owner action), exported",
+  "archived_at": "2026-10-26T09:47:11.483Z"
 }

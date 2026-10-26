@@ -1,5 +1,18 @@
 # KNOWN_ISSUES
 
+## N7 notes (2026-10-26, OPEN items noted)
+
+- **The agent cannot install dependencies (OPEN, owner action).** No lease grammar admits `npm install`, so N7.1a's
+  candidates stay NOT RUN until the owner installs `scripts/ocr-feasibility`'s pinned packages (HANDOFF 2026-10-26).
+  A harness that passes its self-test is not engine evidence.
+- **The staging script cannot import shared modules.** `verify:ai-packaged-runtime` runs a byte-identical copy of
+  `prepare-ai-native-host.mjs` alone in a scratch repository, so any import of `./lib/...` would fail module
+  resolution before its real refusals. Values the staging script enforces are therefore duplicated, and they are
+  guarded by `verify:packaging-host` H6 at declaration level.
+- **Look-alike folding must follow the case mode.** After case folding, `b` may have been `B` (8) and `g` may have been
+  `G` (6). The folded classes in `decideTextAssertion` are the lowercase closure of the cased ones. The property run
+  caught the first version, which missed this.
+
 ## N6.5 / N6.7 acceptance notes (2026-10-25, OPEN items noted, environment)
 
 - **GUI verifiers that run a real workflow need the installed Playwright browsers.** `isolatedLaunchEnv` points

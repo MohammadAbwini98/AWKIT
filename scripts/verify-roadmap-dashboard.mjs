@@ -794,8 +794,10 @@ try {
   // closed, N10 `awkit-vra.17` filed open. Measured.
   // Then 39/395 of 434 on 2026-10-26 (contract `awkit-vra-9-n7-filing-1026`): eleven N7 items filed and N7.1
   // `awkit-vra.9.1` closed on the recorded ratification. Measured.
-    "39 outstanding / 395 closed",
-    beads.stats.outstanding === 39 && beads.stats.closed === 395,
+  // Then 38/396 of 434 on 2026-10-26 (contract `awkit-vra-9-n7-filing-1026`): N7.2 `awkit-vra.9.4` closed on
+  // verify:ocr-decision 203/0; N7.1a `.9.2` set blocked (dependency installation is an owner action). Measured.
+    "38 outstanding / 396 closed",
+    beads.stats.outstanding === 38 && beads.stats.closed === 396,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -1148,10 +1150,14 @@ try {
   // `.4.6` is therefore externally blocked too, so five ids sit out of the layers until that edge is removed.
   // Then 4 later on 2026-10-13 (contract `awkit-vra-4-3-runner-shadow-1013`): that edge is gone from the export
   // (see the edge pin), so N3.6 `.4.6` is schedulable again and only the four declared-blocked ids sit out.
+  // Then 5 declared and 13 out of the layers on 2026-10-26 (contract `awkit-vra-9-n7-filing-1026`): N7.1a
+  // `awkit-vra.9.2` is declared blocked because its candidates need an owner-run dependency install that no `blocks`
+  // edge can express, and its eight transitive dependents (N7.3 `.9.11`, N7.4 `.9.5`, N7.5 `.9.6`, N7.1b `.9.3`,
+  // N7.6 `.9.7`, N7.7 `.9.8`, N7.8 `.9.9`, N7.9 `.9.10`) sit out with it. Measured.
   check(
     "every declared-blocked issue is present and out of the layers",
-    order.stats.declaredBlocked === 4 &&
-      order.externallyBlocked.length === 4 &&
+    order.stats.declaredBlocked === 5 &&
+      order.externallyBlocked.length === 13 &&
       order.externallyBlocked.every((id) => order.ordered.find((o) => o.id === id)?.layer === null),
     `declaredBlocked ${order.stats.declaredBlocked}, externallyBlocked ${order.externallyBlocked.length}`
   );

@@ -85,7 +85,7 @@
       "command": "npm run verify:roadmap-dashboard",
       "artifact": null,
       "result": "PASS",
-      "observed": "177/177, Sources agree, 39 outstanding / 395 closed of 434 with 394 edges"
+      "observed": "177/177, Sources agree, 39 outstanding / 395 closed of 434 with 394 edges after filing; after N7.2 closed and N7.1a set blocked, 38 outstanding / 396 closed of 434 with 394 edges"
     },
     {
       "id": "git-push",
@@ -93,8 +93,8 @@
       "required": true,
       "command": "git push origin main",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": "pending"
+      "result": "PASS",
+      "observed": "filing pushed in 1779196; later updates pushed with the session's docs commit"
     }
   ],
   "git": {
@@ -124,6 +124,22 @@
         "acquired_at_commit": "f6fd16a0ef7a0d4bdd167edb03b44f15150e343b",
         "released_at": "2026-10-26T09:20:41.795Z",
         "released_reason": "N7.1 to N7.9 filed under awkit-vra.9 with the ratified dependency order, N7.1 closed, N7 epic N7.1a and N7.2 in progress, exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-vra-9-n7-filing-1026:project-state:2026-10-26T09:46:48.551Z",
+        "task": "awkit-vra-9-n7-filing-1026",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-26T09:46:48.551Z",
+        "acquired_at_commit": "c358deaed75c7a0146bc4d37c7337845e0cbcd22",
+        "released_at": "2026-10-26T09:47:11.480Z",
+        "released_reason": "N7.2 awkit-vra.9.4 closed on verify:ocr-decision 203/0, N7.1a awkit-vra.9.2 blocked on dependency installation (owner action), exported",
         "amendments": [],
         "overrides": [],
         "violations": []

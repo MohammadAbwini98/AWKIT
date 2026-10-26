@@ -1,6 +1,31 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-25, latest) — Packaging host diagnosis; N7 final matrix awaits ratification
+## HANDOFF (2026-10-26, latest) — N7 ratified; N7.2 done; N7.1a waits on the owner's dependency install
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done and pushed:**
+  - N7.1, the ratification record and the tracker filing (`awkit-vra.9.1` to `.9.11`);
+  - the N7.1a spike, with its harness self-test at 10/10;
+  - N7.2, the pure decision (`verify:ocr-decision` 203/0);
+  - the `verify:packaging-host` H6 declaration-level drift guard.
+- **Owner actions:**
+  1. **N7.1a dependencies** (authorized by OC-1; isolated; never bundled):
+
+     ```
+     npm install --prefix scripts/ocr-feasibility --ignore-scripts --no-audit --no-fund
+     ```
+
+     Commit the resulting `scripts/ocr-feasibility/package-lock.json`. The agent then runs
+     `npm run benchmark:ocr-feasibility` and records GO with the selected integration, or NO-GO.
+  2. **Release host** (unchanged): Visual Studio 2022 with the MSVC v143 tools and redist, or a Windows x64 release
+     host, until `npm run verify:packaging-host` is READY. Then package 0.1.54 and run the N6 packaged gates and
+     N7.1b.
+- **Next dependency-ready task:** N7.1a, as soon as the dependencies exist. N7.3, N7.4 and N7.5 follow its engine
+  choice.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-25) — Packaging host diagnosis; N7 final matrix awaits ratification
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

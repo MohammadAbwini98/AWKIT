@@ -1,5 +1,30 @@
 # TASK_LOG
 
+## 2026-10-26 — Phase N: N7 ratified, breakdown filed, N7.2 done, N7.1a spike blocked on dependencies, H6 hardened (Claude)
+
+- **Ratification (`1779196`):**
+  - DECISIONS 2026-10-26 records OC-0 to OC-12 with the sequencing clarification;
+  - the plan is marked ratified with a dependency table;
+  - Beads `awkit-vra.9.1` to `.9.11` filed under contract `awkit-vra-9-n7-filing-1026` with 17 blocks edges, and
+    N7.1 closed.
+  - One `bd create` was refused because my description contained a forbidden `;`. I removed it and retried once,
+    and it was accepted.
+- **N7.1a (`a805ca7`):**
+  - Spike `scripts/ocr-feasibility/` with pinned dependencies in its own `package.json`, plus
+    `benchmark:ocr-feasibility`.
+  - Harness self-test PASS 10/10 on a probe host.
+  - Both candidates NOT RUN: not installed, and there is no install verb in the agent grammar. `.9.2` set blocked.
+- **N7.2 (`a0039e2`):** `src/visual/ocr` decision, preprocessing and OC-8 rules.
+  - `verify:ocr-decision` 203/0 with 23 mutants red;
+  - `verify:visual-isolation` 90/0;
+  - `verify:visual-assertion` 293/0;
+  - build PASS, `typecheck:scripts` PASS, source-hygiene 11/0.
+  - `.9.4` closed.
+- **H6 (`c358dea`):** declaration-level comparison with 8/8 mutations caught.
+  - One shared module was rejected, because `verify:ai-packaged-runtime` copies the staging script alone.
+  - `prepare-ai-native-host.mjs` is unchanged.
+- **Packaging:** still BLOCKED. N6 packaged gates, N7.1b and N7.8 are NOT RUN.
+
 ## 2026-10-25 — Phase N: packaging host diagnosis, Beads reconciliation, N7 final matrix, SEC-007 confirmation (Claude)
 
 - **Packaging (Task A):**

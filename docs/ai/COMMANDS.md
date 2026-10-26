@@ -728,6 +728,15 @@ npm run verify:failure-capture-overhead # L5a gate (owner-approved C+D+E): 21 ro
 npm run verify:failure-capture-gate-stats # L5a gate rules, in-process (interval vs exact binomial, verdict boundaries, p95 eligibility, configurations, evidence appends, re-derived recorded verdicts)
 npm run benchmark:failure-capture-saturated # L5a informational saturated run (3 per workload); never decides the gate
 
+# ── OCR / Text-in-Image (Phase N, N7) ───────────────────────────────────────────────────────────
+npm run verify:ocr-decision           # N7.2 pure decideTextAssertion, preprocessForOcr and OC-8 rules: table, seeded
+                                      # property run, purity, 23 mutants that must fail (203)
+npm run benchmark:ocr-feasibility     # N7.1a wrapper vs core in an Electron 33 utilityProcess (spike in
+                                      # scripts/ocr-feasibility, never bundled); needs the owner's one-time
+                                      # npm install --prefix scripts/ocr-feasibility --ignore-scripts --no-audit --no-fund
+                                      # without it: harness self-test only, candidates NOT RUN, exit 1
+npm run verify:packaging-host         # read-only packaging host diagnosis (awkit-i6ot); exit 1 while any item is BLOCKED
+
 # ── Visual Assertions (Phase N, N6) — pure, no browser, no model ─────────────────────────────────
 npm run verify:visual-assertion       # N6.2 pure decideVisualAssertion: decision table, independent-oracle property run,
                                       # plan pins, purity scan and 18 mutants that must fail the suite (293)
