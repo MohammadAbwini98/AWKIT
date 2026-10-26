@@ -1,23 +1,25 @@
 # N7 — Offline OCR / Text-in-Image (technical plan)
 
-- **Status:** PLANNED, 2026-10-25. Decisions OC-0 to OC-12 are **proposed, not ratified**.
-  - **OC-1 and OC-2** were amended as the owner recommended: a feasibility proof before the engine is fixed, and
-    `eng.traineddata` classified as an optional, fixed-function trained recognition model.
-  - **Final corrections, later the same day:**
-    - N7.3 packages the engine N7.1a selects;
-    - OC-8 covers resolved sensitive inputs and data-source fields;
-    - N7.1a (source/runtime) is split from N7.1b (packaged, BLOCKED until the release environment exists);
-    - every figure is a target until measured;
-    - OC-4 is kept as proposed.
-  - The final matrix is in § Owner decisions. No implementation, dependency or asset is authorized until the owner
-    ratifies it (N7.1).
+- **Status:** IN PROGRESS. OC-0 to OC-12 were **RATIFIED on 2026-10-26** (N7.1, DECISIONS 2026-10-26) in the
+  final amended wording of § Owner decisions, with the sequencing clarification in § Work breakdown.
+  - **N7.1b**, packaged compatibility, follows N7.3 and N7.4. It does not gate N7.2–N7.5, and it stays BLOCKED until
+    the approved packaging host exists.
+  - **N7.8** needs final packaged acceptance.
+  - **N7.9** cannot close N7 while mandatory packaged evidence is BLOCKED or NOT RUN.
+  - History: planned and amended on 2026-10-25 (OC-1 and OC-2 as the owner recommended; the final corrections to
+    OC-8, OC-9, OC-10 and OC-12 and the N7.1a/N7.1b split).
 - **Retained constraints:**
   - DOM-first targeting; observe-only evidence with no action selection;
   - strict protected and sensitive refusal; no captured or recognized text persisted;
   - fail-closed ambiguity; English-only first qualification;
   - no cloud, CDN, runtime download or NVIDIA requirement; CPU on the bundled Windows x64 runtime;
   - honest, measured accuracy and performance.
-- **Beads:** `awkit-vra.9` (P3, open).
+- **Beads:** `awkit-vra.9` (P3, in progress since 2026-10-26).
+  - The ratified breakdown is filed as children:
+    - N7.1 `.9.1` (closed);
+    - N7.1a `.9.2`, N7.1b `.9.3`, N7.2 `.9.4`, N7.3 `.9.11`, N7.4 `.9.5`;
+    - N7.5 `.9.6`, N7.6 `.9.7`, N7.7 `.9.8`, N7.8 `.9.9`, N7.9 `.9.10`.
+  - They carry the dependency order in § Work breakdown.
   - Its dependency on the canonical N3 `awkit-vra.4` (closed) was added on 2026-10-25.
   - The legacy edge to `awkit-vra.3` is no longer present. The live database and the 2026-10-25 re-export show `.4` as
     its only blocker. It was removed outside the agent, and the agent made no removal attempt.
@@ -230,7 +232,7 @@ Runner (main process) — StepExecutor
   - edit distance 1 from the expected text gives `inconclusive`, never `matched`;
   - more than one region match for `contains` gives `inconclusive`.
 
-## Owner decisions to ratify — final matrix (proposed, NOT ratified)
+## Owner decisions — final matrix (RATIFIED 2026-10-26, N7.1; DECISIONS 2026-10-26)
 
 Status key:
 - **Original:** as first proposed on 2026-10-25.
@@ -238,7 +240,13 @@ Status key:
 - **Amended (correction):** changed by the final corrections later that day (OC-8, OC-9, OC-10, OC-12; OC-1 also
   carries the N7.1a/N7.1b split).
 
-None is ratified, and no row authorizes implementation until the owner records N7.1.
+**All thirteen rows were ratified by the owner on 2026-10-26 in the wording below (N7.1).** The ratification also
+fixed the sequencing in § Work breakdown. It authorizes only the bounded N7 implementation described here. It does
+not authorize:
+- production OCR enforcement;
+- image-based target selection;
+- cloud services or runtime downloads;
+- a general-purpose AI model.
 
 | ID | Status | Exact recommended wording | Recommendation |
 |---|---|---|---|
@@ -284,11 +292,26 @@ changes in either proof.
 
 ## Work breakdown (filed after ratification)
 
+**Dependency order (ratified 2026-10-26):**
+
+| Item | Depends on |
+|---|---|
+| N7.1a | N7.1 |
+| N7.2 | N7.1 only. It is pure and engine-independent; no `tesseract` type or API appears in it |
+| N7.3 | N7.1a (the selected engine) |
+| N7.4 | N7.1a and N7.3 |
+| N7.5 | N7.2 and N7.4 |
+| N7.1b | N7.3 and N7.4, plus the approved packaging host. It is not a prerequisite for N7.2–N7.5 |
+| N7.6 | N7.5 |
+| N7.7 | N7.5 |
+| N7.8 | N7.1b, N7.5 and N7.6. Final packaged OCR acceptance is mandatory |
+| N7.9 | N7.6, N7.7 and N7.8. It cannot close N7 while any mandatory packaged evidence is BLOCKED or NOT RUN |
+
 | Item | Content | Gate |
 |---|---|---|
-| N7.1 | Ratify OC-0 to OC-12 (OC-1 and OC-2 as amended 2026-10-25) | Owner decision recorded in DECISIONS |
-| N7.1a | Source/runtime feasibility proof (§ above): wrapper vs core, pinned versions, isolation, local assets, zero network, cancellation, CPU only | Recorded engine choice with evidence |
-| N7.1b | Real packaged compatibility of the N7.1a choice | BLOCKED until `verify:packaging-host` is READY; then a packaged proof with zero network |
+| N7.1 | Ratify OC-0 to OC-12 (OC-1 and OC-2 as amended 2026-10-25) | DONE 2026-10-26: owner decision recorded in DECISIONS |
+| N7.1a | Source/runtime feasibility proof (§ above): wrapper vs core, pinned versions, isolation, local assets, zero network, cancellation, CPU only | Recorded engine choice with evidence (`benchmark:ocr-feasibility`, spike in `scripts/ocr-feasibility/`) |
+| N7.1b | Real packaged compatibility of the N7.1a choice, after N7.3 and N7.4 | BLOCKED until `verify:packaging-host` is READY; then a packaged proof with zero network |
 | N7.2 | Pure `decideTextAssertion` (normalize, compare, confidence and look-alike gates) and preprocessing, in `src/visual/ocr` with no I/O | `verify:ocr-decision` with mutants |
 | N7.3 | Packaging of the engine N7.1a selected (the `tesseract.js` wrapper or `tesseract.js-core`, pinned) and the `eng` data in `resources/ocr/`, manifest entries, offline validation, a dependency review | `validate:offline -Strict`, `verify:ocr-assets`; packaged load proven by N7.1b |
 | N7.4 | OCR utility host and `OcrUtilityHostManager` (lazy spawn, deadline, cancel, idle shutdown, restarts, heap cap, no network) | `verify:ocr-host` (crash, hang, abort, memory, no-network) |
@@ -335,5 +358,8 @@ changes in either proof.
 
 ## Exact next task
 
-The owner ratifies, amends or rejects OC-0 to OC-12 (N7.1). Until then, no N7 implementation, dependency, asset or
-schema change is authorized.
+N7.1 is done (ratified 2026-10-26). Next:
+- N7.1a, the feasibility proof;
+- N7.2, the pure decision, which needs only N7.1.
+
+N7.3 onward waits for the N7.1a engine choice.

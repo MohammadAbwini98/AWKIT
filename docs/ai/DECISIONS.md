@@ -1,6 +1,29 @@
 # DECISIONS
 
-### 2026-10-25 (latest) — Audit session digest; canonical accent assertion; N7 amendments proposed; N10 filed
+### 2026-10-26 (latest) — N7 OC-0 to OC-12 RATIFIED by the owner (N7.1), with a sequencing clarification
+
+- **Ratified:** the owner ratified OC-0 to OC-12 in the final amended wording of
+  `docs/plans/ai-upgrade-v5/N7-ocr-text-in-image.md` (verified baseline `f6fd16a0`):
+  - OC-1 and OC-2 as amended on the owner's recommendation;
+  - OC-8, OC-9, OC-10 and OC-12 as corrected;
+  - OC-4, the fifth `src/visual` edge `src/runner/ocr/OcrStep.ts`, as written.
+- **Sequencing clarification:**
+  - **N7.1a** is the source/runtime feasibility gate. It decides between the supported `tesseract.js` wrapper and
+    direct `tesseract.js-core` against the approved requirements.
+  - **N7.1b** is the real packaged compatibility gate. It follows the asset-packaging (N7.3) and runtime-integration
+    (N7.4) work, and it is **not** a prerequisite for N7.2–N7.5. It stays BLOCKED while the approved Windows
+    packaging environment is unavailable (`verify:packaging-host` not READY).
+  - **N7.8** requires final packaged OCR acceptance.
+  - **N7.9** cannot close N7 while any mandatory packaged evidence is BLOCKED or NOT RUN.
+- **Authorized:** the bounded N7 implementation described by OC-0 to OC-12.
+- **Not authorized:** production OCR enforcement, image-based target selection, cloud services, runtime downloads,
+  or bundling a general-purpose AI model.
+- **Constraints:**
+  - All N7 capability is default-off and optional.
+  - Existing automation stays operational without OCR, without a generative model and without NVIDIA hardware.
+  - N6 is not reopened, and its observe-only production boundary is unchanged.
+
+### 2026-10-25 — Audit session digest; canonical accent assertion; N7 amendments proposed; N10 filed
 
 - **AWKIT-SEC-007.** Audit rows hold `sref1:` plus 32 hex of SHA-256 over the session reference. It correlates and
   cannot be reversed: the reference is 256 random bits.

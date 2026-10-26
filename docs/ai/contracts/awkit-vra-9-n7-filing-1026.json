@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-9-n7-filing-1026",
+    "title": "N7 tracker: record the OC-0 to OC-12 ratification (N7.1) and file the ratified N7 work breakdown with its dependency order",
+    "objective": "Under a project-state lease: file N7.1, N7.1a, N7.1b and N7.2 to N7.9 as children of awkit-vra.9 with the ratified dependency order (N7.1b after N7.3 and N7.4 and not a prerequisite of N7.2 to N7.5; N7.8 needs N7.1b; N7.9 needs N7.6 to N7.8), close N7.1 on the recorded owner decision, export, keep N0 to N6 closed, Phase N in progress and awkit-vra.16 open, reconcile the dashboard pins and confirm Sources agree.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "f6fd16a",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "qa",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/contracts/awkit-vra-9-n7-filing-1026.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N7-FILING",
+      "description": "N7.1 to N7.9 filed under awkit-vra.9 with the ratified dependency order, N7.1 closed on the recorded owner decision, N0 to N6 unchanged, Phase N in progress, awkit-vra.16 open, Sources agree.",
+      "evidence_required": [
+        "bd-filing",
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "bd-filing",
+      "type": "inspection",
+      "required": true,
+      "command": "bd create, bd dep add and bd close under the project-state lease",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "awkit-vra.9.1 to .9.11 filed (N7.1 .9.1, N7.1a .9.2, N7.1b .9.3, N7.2 .9.4, N7.3 .9.11, N7.4 .9.5, N7.5 .9.6, N7.6 .9.7, N7.7 .9.8, N7.8 .9.9, N7.9 .9.10), 17 blocks edges in the ratified order, N7.1 closed on the DECISIONS 2026-10-26 record, awkit-vra.9, .9.2 and .9.4 in progress, exported 434 issues"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "177/177, Sources agree, 39 outstanding / 395 closed of 434 with 394 edges"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-9-n7-filing-1026:project-state:2026-10-26T09:17:11.514Z",
+        "task": "awkit-vra-9-n7-filing-1026",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-26T09:17:11.514Z",
+        "acquired_at_commit": "f6fd16a0ef7a0d4bdd167edb03b44f15150e343b",
+        "released_at": "2026-10-26T09:20:41.795Z",
+        "released_reason": "N7.1 to N7.9 filed under awkit-vra.9 with the ratified dependency order, N7.1 closed, N7 epic N7.1a and N7.2 in progress, exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

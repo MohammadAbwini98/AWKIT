@@ -179,7 +179,9 @@ try {
   // Then 420 on 2026-10-22 (contract `awkit-vra-15-3-n6-store-1022`): the DurableLockStore defect `awkit-3zxw` filed.
   // Then 423 on 2026-10-25 (contract `awkit-vra-phase-n-tracking-1025`): AWKIT-SEC-007 `awkit-npwf` and AWKIT-SEC-008
   // `awkit-1l08` registered (both closed) and N10 filed as `awkit-vra.17`. Measured after `bd export`.
-  check("423 issues parse", beads.stats.total === 423, `got ${beads.stats.total}`);
+  // Then 434 on 2026-10-26 (contract `awkit-vra-9-n7-filing-1026`): the ratified N7 breakdown filed as
+  // `awkit-vra.9.1`-`.9.11` (N7.1, N7.1a, N7.1b, N7.2-N7.9). Measured after `bd export`.
+  check("434 issues parse", beads.stats.total === 434, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -790,8 +792,10 @@ try {
   // epic `awkit-vra.15` closed, and N6.8 `.15.8` was closed outside the agent before them; four in all. Measured.
   // Then 29/394 of 423 on 2026-10-25 (contract `awkit-vra-phase-n-tracking-1025`): two security defects filed and
   // closed, N10 `awkit-vra.17` filed open. Measured.
-    "29 outstanding / 394 closed",
-    beads.stats.outstanding === 29 && beads.stats.closed === 394,
+  // Then 39/395 of 434 on 2026-10-26 (contract `awkit-vra-9-n7-filing-1026`): eleven N7 items filed and N7.1
+  // `awkit-vra.9.1` closed on the recorded ratification. Measured.
+    "39 outstanding / 395 closed",
+    beads.stats.outstanding === 39 && beads.stats.closed === 395,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -936,9 +940,11 @@ try {
   // `.4`, and N10 `.17` blocks-on N2 `.12` and N3 `.4`. Measured.
   // Then 366 on 2026-10-25: the legacy `awkit-vra.3` blocks edges on N8 `.10` and N9 `.11` were removed outside the
   // agent; the live DB and `bd export` agree, and N7 `.9` already lacked it. Measured.
+  // Then 394 on 2026-10-26 (contract `awkit-vra-9-n7-filing-1026`): eleven N7 parent-child edges and the seventeen
+  // ratified N7 blocks edges (N7.1b after N7.3 and N7.4, never before N7.2-N7.5). Measured.
   check(
-    "366 edges are present to classify",
-    beads.stats.edges === 366,
+    "394 edges are present to classify",
+    beads.stats.edges === 394,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(

@@ -1,26 +1,24 @@
 {
-  "task": "awkit-vra-phase-n-tracking-1025",
-  "contract_path": "docs/ai/contracts/awkit-vra-phase-n-tracking-1025.json",
+  "task": "awkit-vra-9-n7-filing-1026",
+  "contract_path": "docs/ai/contracts/awkit-vra-9-n7-filing-1026.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-25T18:23:19.220Z",
-  "acquired_at_commit": "cbc5700de9403484d93cd2e3686fb058241eecb1",
+  "acquired_at": "2026-10-26T09:17:11.514Z",
+  "acquired_at_commit": "f6fd16a0ef7a0d4bdd167edb03b44f15150e343b",
   "baseline_dirty": [
+    "docs/ai/DECISIONS.md",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "package.json",
-    "scripts/lib/msvc-redist-requirements.mjs",
-    "scripts/lib/verifier-classification.ts",
-    "scripts/verify-packaging-host.mjs"
+    "docs/ai/contracts/awkit-vra-9-n7-filing-1026.json",
+    "docs/plans/ai-upgrade-v5/N7-ocr-text-in-image.md"
   ],
   "baseline_dirty_fingerprints": {
+    "docs/ai/DECISIONS.md": "de1a5fd097c0d9ebff1f2318ab318e2f32bf762d36118e0211a8c6a7539ed135",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "package.json": "00616623099fb9ccaf4c5d18fea7e50c8ca5c5df7dd2e793936e104668ea26d0",
-    "scripts/lib/msvc-redist-requirements.mjs": "ec0be61f71eb56cd4460a96eb2e6b916e917797a2668bc23bf8e4fbabbccfada",
-    "scripts/lib/verifier-classification.ts": "ff063cbcb37d1ab636ba746bb52e56e8ea939eb7bf08aa6812d8fe9fff84985b",
-    "scripts/verify-packaging-host.mjs": "083b0841d91b3f5fbbf920e0556447b30f54af29039c1c0726ea2e2ec2c2a032"
+    "docs/ai/contracts/awkit-vra-9-n7-filing-1026.json": "62339987bb339f749796910c3bcabbee6c88d42df54d165f9cbff22b109bd5e6",
+    "docs/plans/ai-upgrade-v5/N7-ocr-text-in-image.md": "de9c045d843c1ab0c6b05a48bdfa1ac5b17b062eca39bde28f0ec6d6d0deed36"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -35,7 +33,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-25T18:23:39.103Z",
-  "released_reason": "Live Beads reconciled: .9 .10 .11 depend only on canonical awkit-vra.4 (legacy .3 edges removed outside the agent), correction notes appended, exported",
-  "archived_at": "2026-10-25T18:23:39.105Z"
+  "released_at": "2026-10-26T09:20:41.795Z",
+  "released_reason": "N7.1 to N7.9 filed under awkit-vra.9 with the ratified dependency order, N7.1 closed, N7 epic N7.1a and N7.2 in progress, exported",
+  "archived_at": "2026-10-26T09:20:41.800Z"
 }
