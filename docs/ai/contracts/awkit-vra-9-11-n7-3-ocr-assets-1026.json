@@ -1,0 +1,148 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-9-11-n7-3-ocr-assets-1026",
+    "title": "N7.3: package the N7.1a-selected OCR engine and English data with a pinned local asset manifest",
+    "objective": "Pin exactly the qualified direct tesseract.js-core 6.0.0 SIMD LSTM files and the @tesseract.js-data/eng 1.0.0 best_int data in src/offline/ocr-runtime.json, stage them with prepare-ocr-assets.mjs into build/ocr (shipped to resources/ocr by electron-builder), fold the staged manifest into the signed dependency manifest, validate it against the pin in validate-offline-bundle.ps1, stage it in both packaging scripts inside the existing progress step, and add the third-party notice. Nothing is downloaded, no product dependency is added, OCR stays optional and default-off, and the packaged load (N7.1b) and strict release validation stay BLOCKED until a packaging run on the approved host.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "9d8faca",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "qa",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      "src/offline/ocr-runtime.json",
+      "electron-builder.json",
+      "scripts/generate-dependency-manifest.ps1",
+      "scripts/validate-offline-bundle.ps1",
+      "scripts/package-portable.ps1",
+      "scripts/package-per-user-installer.ps1",
+      "resources/THIRD_PARTY_NOTICES.md",
+      "scripts/prepare-ocr-assets.mjs",
+      "scripts/verify-ocr-assets.mjs",
+      "scripts/lib/verifier-classification.ts",
+      "package.json",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/contracts/awkit-vra-9-11-n7-3-ocr-assets-1026.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "release",
+      "allowed_paths": [
+        "src/offline/ocr-runtime.json",
+        "electron-builder.json",
+        "scripts/generate-dependency-manifest.ps1",
+        "scripts/package-portable.ps1",
+        "scripts/package-per-user-installer.ps1",
+        "resources/THIRD_PARTY_NOTICES.md"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N7-3-ASSETS",
+      "description": "The pin equals the N7.1a decision, staging reproduces exactly the qualified bytes within the OC-9 size target and refuses tampered or missing inputs, and the packaging scripts, manifest generator, offline validator and notices carry the OCR assets; packaged evidence stays BLOCKED until a real packaging run.",
+      "evidence_required": [
+        "verify:ocr-assets",
+        "validate:offline"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:ocr-assets",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ocr-assets",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "45/0: pin equals the N7.1a GO and the qualifying run's hashes and lockfile integrity, staging byte-identical and deterministic at 5961021 bytes within the 8000000 target, tampered, missing, wrong-version, occupied and in-repo outputs refused, wiring in electron-builder, both packaging scripts, the manifest generator and the validator, four PowerShell scripts parse, notices present"
+    },
+    {
+      "id": "validate:offline",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run validate:offline",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "non-strict run passed; the new OCR section warns that the committed signed manifest does not carry ocrRuntime yet, as expected before a packaging run. Strict validation of a real release is carried by N7.1b and is BLOCKED (no approved packaging host)"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-9-11-n7-3-ocr-assets-1026:release:2026-10-26T13:50:01.455Z",
+        "task": "awkit-vra-9-11-n7-3-ocr-assets-1026",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "electron-builder.json",
+          "resources/THIRD_PARTY_NOTICES.md",
+          "scripts/generate-dependency-manifest.ps1",
+          "scripts/package-per-user-installer.ps1",
+          "scripts/package-portable.ps1",
+          "src/offline/ocr-runtime.json"
+        ],
+        "acquired_at": "2026-10-26T13:50:01.455Z",
+        "acquired_at_commit": "9d8faca8e201dd356b024237802d197224378d1e",
+        "released_at": "2026-10-26T13:50:53.856Z",
+        "released_reason": "N7.3 protected wiring written: OCR pin, electron-builder extraResources build/ocr to resources/ocr, OCR staging in both packaging scripts, ocrRuntime in the manifest generator, third-party notice",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

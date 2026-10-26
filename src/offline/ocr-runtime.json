@@ -1,0 +1,54 @@
+{
+  "schema": { "name": "awkit-ocr-runtime-pin", "version": 1 },
+  "decision": "DECISIONS 2026-10-26: N7.1a GO, direct tesseract.js-core (awkit-vra.9.2)",
+  "qualification": {
+    "benchmark": "npm run benchmark:ocr-feasibility",
+    "commit": "cfee499",
+    "result": "scripts/ocr-feasibility/results/latest.json"
+  },
+  "engine": {
+    "package": "tesseract.js-core",
+    "version": "6.0.0",
+    "integrity": "sha512-1Qncm/9oKM7xgrQXZXNB+NRh19qiXGhxlrR8EwFbK5SaUbPZnS5OMtP/ghtqfd23hsr1ZvZbZjeuAGcMxd/ooA==",
+    "license": "Apache-2.0",
+    "flavor": "simd-lstm",
+    "requiresWasmSimd": true
+  },
+  "data": {
+    "package": "@tesseract.js-data/eng",
+    "version": "1.0.0",
+    "integrity": "sha512-mbTumm6KQPUHyzTPQaF3ObXYnx0SqqfV2nabqFVQBwD6Kl7PhGSLSzOlfFTWy0P3BjghaSKA2W9GB19Jk+ZcTg==",
+    "packageLicense": "MIT",
+    "variant": "4.0.0_best_int",
+    "language": "eng"
+  },
+  "files": [
+    {
+      "role": "engine-js",
+      "source": "tesseract.js-core/tesseract-core-simd-lstm.js",
+      "target": "tesseract-core-simd-lstm.js",
+      "sha256": "be3504705d7111d1d1f3f7f9dff326c26d334031ede36e31c4d3cf883027e982"
+    },
+    {
+      "role": "engine-wasm",
+      "source": "tesseract.js-core/tesseract-core-simd-lstm.wasm",
+      "target": "tesseract-core-simd-lstm.wasm",
+      "sha256": "187d76742dfc0d8929f0b49a619f145bb6370730776c7bd0d3e20c6b2098808d"
+    },
+    {
+      "role": "language-data",
+      "source": "@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz",
+      "target": "eng.traineddata.gz",
+      "sha256": "45b4cb346724ac1774f1c36f42f182b887bcdb28ebe63e6fff90ac41f3fcff91"
+    }
+  ],
+  "license": {
+    "source": "tesseract.js-core/LICENSE",
+    "target": "LICENSE.tesseract.js-core.txt",
+    "mustContain": "Apache License"
+  },
+  "budget": {
+    "maxTotalBytes": 8000000,
+    "basis": "OC-9 package-size target: at most 8 MB added for English only"
+  }
+}

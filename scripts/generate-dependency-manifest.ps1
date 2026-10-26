@@ -172,6 +172,39 @@ if (Test-Path $domHostManifestPath) {
   }
 }
 
+# === Offline OCR engine assets (Phase N, N7.3) ===
+# build/ocr is produced by scripts/prepare-ocr-assets.mjs from the inputs pinned in src/offline/ocr-runtime.json (the
+# N7.1a-qualified tesseract.js-core SIMD LSTM build and English data) and shipped to resources/ocr via extraResources.
+# Its per-file manifest is folded in verbatim so release validation can checksum every OCR file.
+$ocrManifestPath = Join-Path $root "build\ocr\ocr-asset-manifest.json"
+if (Test-Path $ocrManifestPath) {
+  $ocrManifest = Get-Content -Raw $ocrManifestPath | ConvertFrom-Json
+  $ocrRuntime = [ordered]@{
+    enabled = $true
+    # Optional and off by default: missing or broken assets make OCR unavailable and change nothing else.
+    requiredForAppStartup = $false
+    engine = $ocrManifest.engine
+    data = $ocrManifest.data
+    qualification = $ocrManifest.qualification
+    stagedRoot = "resources/ocr"
+    fileCount = $ocrManifest.fileCount
+    totalBytes = $ocrManifest.totalBytes
+    assets = @($ocrManifest.assets | ForEach-Object {
+      [ordered]@{
+        relativePath = "ocr/$($_.relativePath)"
+        size = $_.size
+        sha256 = $_.sha256
+      }
+    })
+  }
+} else {
+  $ocrRuntime = [ordered]@{
+    enabled = $false
+    requiredForAppStartup = $false
+    assets = @()
+  }
+}
+
 # === Local-AI GPU backend manifest (Phase L, L8a.1) ===
 # Nothing GPU ships in the installer (E3). The release-owned backend manifest pins, by path, size and
 # SHA-256, every file of each GPU backend pack a user may supply for the pinned runtime build. It is folded
@@ -374,6 +407,7 @@ $manifest = [ordered]@{
   aiRuntime = $aiRuntime
   aiGpuBackends = $aiGpuBackends
   domIntelligenceRuntime = $domIntelligenceRuntime
+  ocrRuntime = $ocrRuntime
 }
 
 New-Item -ItemType Directory -Force -Path $resourcesRoot | Out-Null

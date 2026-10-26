@@ -359,6 +359,23 @@ copyright belongs to the authors of `pnpm/reflink`. The MIT terms they declare:
     `lxml-6.1.3-cp312-cp312-win_amd64.whl`, uploaded on 2026-09-02. At that date, the newest
     libxml2-win-binaries release was 2026.05.17.
 
+## Offline OCR engine and English data (Phase N, N7)
+
+- Product: `tesseract.js-core` 6.0.0, Tesseract OCR compiled to WebAssembly. Only the `simd-lstm` build ships:
+  `tesseract-core-simd-lstm.js` and `tesseract-core-simd-lstm.wasm`.
+- License: Apache License 2.0. The full text ships beside the files as `LICENSE.tesseract.js-core.txt`.
+- Language data: `@tesseract.js-data/eng` 1.0.0, file `4.0.0_best_int/eng.traineddata.gz`. These are Tesseract's
+  trained English LSTM recognition data. The npm package declares the MIT licence.
+  - The data derives from the Tesseract project's published trained data, which that project distributes under
+    Apache License 2.0. This is an engineering review, not legal advice; the release owner confirms the data's terms
+    before external distribution.
+- Upstream: <https://github.com/naptha/tesseract.js-core>, <https://github.com/naptha/tesseract.js> and
+  <https://github.com/tesseract-ocr/tesseract>.
+- Identity pinned in `src/offline/ocr-runtime.json` by SHA-256 and npm integrity. Staged by
+  `scripts/prepare-ocr-assets.mjs` into `resources/ocr`, listed in the signed dependency manifest as `ocrRuntime`.
+- **Use.** It is optional and off by default (`AWKIT_VISUAL_OCR`). It is never downloaded, never generative, and
+  never required by the rest of the application (OC-2). It was qualified by N7.1a (DECISIONS 2026-10-26).
+
 ## Local AI model pack (Qwen3.5-4B GGUF)
 
 - Product: `Qwen3.5-4B-Q4_K_M.gguf`, from `lmstudio-community/Qwen3.5-4B-GGUF`
