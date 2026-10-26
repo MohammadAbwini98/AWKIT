@@ -1,5 +1,27 @@
 # TASK_LOG
 
+## 2026-10-26 — Phase N: N7.1a qualification attempt, still BLOCKED; feasibility harness hardened (Claude)
+
+- **Repository state:** remote main at `3fa60de`, in sync. The only untracked file is the preserved L12.27 contract.
+- **Dependencies:**
+  - `scripts/ocr-feasibility/node_modules` and its lockfile are absent.
+  - The owner install command was refused by the guard (`unsupported-command`).
+  - `command-recovery.mjs` authorizes only Edit/Write and `git add`, so the install was not retried or bypassed.
+  - N7.1a stays BLOCKED.
+- **Integrity review fixes** (spike only; no gate relaxed; added before any candidate ran):
+  - a new mandatory `localAssets` gate, backed by file provenance via `Module._resolveFilename` and fs reads on host
+    and worker threads, plus proof that the shim loaded;
+  - the Electron `net` tripwire;
+  - recorded limits;
+  - the shim excluded from the wrapper's code count;
+  - remote URL defaults listed;
+  - the same-input comparison recorded.
+- **Checks:**
+  - `benchmark:ocr-feasibility`: harness self-test 11/11, candidates NOT RUN, exit 1 as designed;
+  - `node --check` on both candidate hosts;
+  - `typecheck:scripts` PASS.
+- **Not started:** N7.3 and N7.4, which depend on N7.1a.
+
 ## 2026-10-26 — Phase N: N7 ratified, breakdown filed, N7.2 done, N7.1a spike blocked on dependencies, H6 hardened (Claude)
 
 - **Ratification (`1779196`):**

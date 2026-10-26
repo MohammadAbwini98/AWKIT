@@ -1,6 +1,26 @@
 # CURRENT_STATE
 
-## Phase N: N7 ratified and in progress, N7.2 done, N7.1a blocked on dependency installation (2026-10-26, latest)
+## Phase N: N7.1a still BLOCKED, feasibility harness hardened (2026-10-26, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N and N7 stay IN
+PROGRESS.**
+
+- **N7.1a `awkit-vra.9.2`: BLOCKED.**
+  - The spike's pinned dependencies are still not installed, and no lockfile exists.
+  - The owner install command was refused by the lease guard, and command recovery cannot authorize an install.
+- **Harness hardening:**
+  - a new mandatory `localAssets` gate (core and traineddata file provenance, proof that the worker shim loaded);
+  - Electron `net` tripwire;
+  - recorded network-evidence limits;
+  - shim excluded from the wrapper's code count;
+  - remote-default URLs listed;
+  - same-input comparison recorded.
+
+  Self-test 11/11. Both candidates NOT RUN; no GO, NO-GO or selection exists.
+- **N7.3 and N7.4 not started:** they depend on N7.1a.
+- **Packaging still BLOCKED:** N6 packaged gates, N7.1b and N7.8 NOT RUN.
+
+## Phase N: N7 ratified and in progress, N7.2 done, N7.1a blocked on dependency installation (2026-10-26)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N stays IN PROGRESS.**
 N7 is not closed.

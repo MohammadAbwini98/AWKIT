@@ -331,6 +331,21 @@ changes in either proof.
   ```
 
   then `npm run benchmark:ocr-feasibility`, and the result file records GO (with the selection) or NO-GO.
+- **Integrity review (2026-10-26, second session; still no install).** The owner command was refused by the lease
+  guard, and the recovery adapter authorizes only Edit/Write targets and `git add` paths, so the status is still
+  BLOCKED. The harness was hardened; no gate was relaxed, and no candidate has run under either version.
+  - **New mandatory `localAssets` gate.** Every module resolution and fs read of a core JS/WASM or traineddata file is
+    recorded on the host thread and, through the worker shim, in worker threads. The candidate must have loaded a
+    core file and a traineddata file, all from the spike folder. For the wrapper, the shim must also report that it
+    loaded, which proves the worker-thread tripwire was really in place. The core flavor loaded is recorded.
+  - The tripwire now also covers Electron's `net` module in the utility process.
+  - **Its limit is recorded in the result:** the evidence is API interception plus Chromium request blocking, not an
+    OS-level offline proof.
+  - The wrapper's integration count no longer includes the measurement-only shim.
+  - Each package's remote URL defaults are listed (INFO).
+  - The result records that both candidates share the same fixture hashes and gated rows.
+  - Harness self-test: 11/11, including the new `fileProvenance` row, which caught a worker-thread load through the
+    shim.
 - **Unproven:** the candidate hosts (`host-wrapper.cjs`, `host-core.cjs`) are syntax-checked only. The direct-core
   host uses the embind calls the wrapper's own worker makes (`SetImageFile`, `Recognize`, `GetUTF8Text`). A mismatch
   with the installed build is reported as that candidate's failure, with the available methods listed.

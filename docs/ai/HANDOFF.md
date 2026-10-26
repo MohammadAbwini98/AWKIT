@@ -1,6 +1,28 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-26, latest) — N7 ratified; N7.2 done; N7.1a waits on the owner's dependency install
+## HANDOFF (2026-10-26, latest) — N7.1a still BLOCKED: the dependency install remains an owner action
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Attempted:**
+  - `npm install --prefix scripts/ocr-feasibility --ignore-scripts --no-audit --no-fund` was refused by the lease
+    guard (`unsupported-command`).
+  - `tools/agents/command-recovery.mjs` cannot authorize it: it grants only Edit/Write targets and `git add` paths.
+  - Not retried and not bypassed.
+- **Done:** the feasibility harness was hardened.
+  - New mandatory `localAssets` gate: file provenance of the core JS/WASM and traineddata, and proof that the worker
+    shim loaded.
+  - The tripwire now covers Electron `net`, and its limits are recorded.
+  - The measurement shim no longer counts toward the wrapper's integration size.
+  - Harness self-test: 11/11.
+  - No candidate has run, and nothing is selected.
+- **Owner action (unchanged):** run the install command above, then commit `scripts/ocr-feasibility/package-lock.json`.
+  The agent then runs `npm run benchmark:ocr-feasibility`, reviews every gate, and records GO, NO-GO or INCONCLUSIVE.
+- **Not started:** N7.3 and N7.4. They depend on the N7.1a engine choice.
+- **Still BLOCKED:** packaging (no Visual Studio 2022). The N6 packaged gates, N7.1b and N7.8 are NOT RUN.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-26) — N7 ratified; N7.2 done; N7.1a waits on the owner's dependency install
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
