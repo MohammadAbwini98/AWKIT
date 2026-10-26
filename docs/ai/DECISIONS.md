@@ -1,6 +1,42 @@
 # DECISIONS
 
-### 2026-10-26 (latest) — N7 OC-0 to OC-12 RATIFIED by the owner (N7.1), with a sequencing clarification
+### 2026-10-26 (latest) — N7.1a GO: the OCR integration is direct `tesseract.js-core` 6.0.0
+
+- **Evidence:** `npm run benchmark:ocr-feasibility` at commit `cfee499`; results in
+  `scripts/ocr-feasibility/results/latest.json`.
+  - Both candidates were evaluated in an Electron 33 `utilityProcess` (x64; ARM64 host under emulation) on the
+    owner-installed pinned packages, against the same three rendered fixtures and gates declared before any run.
+  - Wrapper (`tesseract.js` 6.0.1) PASS 13/13; direct core PASS 13/13.
+  - Selection by the pre-declared rule (least integration code among qualified candidates): **core**, 71 lines vs
+    76. The margin is small, and the rule, not judgement, decided it.
+- **Harness defect found by the real run** (fixed before the deciding run; criteria unchanged): the network log was
+  pulled from a host blocked in synchronous recognition just before it was killed, which made two snapshots
+  "unverified" although zero attempts occurred. Attempts are now pushed to the main process as they happen.
+- **Pinned for N7.3:**
+  - `tesseract.js-core` 6.0.0, lockfile integrity
+    `sha512-1Qncm/9oKM7xgrQXZXNB+NRh19qiXGhxlrR8EwFbK5SaUbPZnS5OMtP/ghtqfd23hsr1ZvZbZjeuAGcMxd/ooA==`;
+  - `tesseract-core-simd-lstm.js` SHA-256 `be3504705d7111d1d1f3f7f9dff326c26d334031ede36e31c4d3cf883027e982`;
+  - `tesseract-core-simd-lstm.wasm` SHA-256 `187d76742dfc0d8929f0b49a619f145bb6370730776c7bd0d3e20c6b2098808d`;
+  - `@tesseract.js-data/eng` 1.0.0 (integrity
+    `sha512-mbTumm6KQPUHyzTPQaF3ObXYnx0SqqfV2nabqFVQBwD6Kl7PhGSLSzOlfFTWy0P3BjghaSKA2W9GB19Jk+ZcTg==`), file
+    `4.0.0_best_int/eng.traineddata.gz`, SHA-256 `45b4cb346724ac1774f1c36f42f182b887bcdb28ebe63e6fff90ac41f3fcff91`.
+  - The qualified data is the LSTM `best_int` variant, not tessdata "fast". It is the one that was measured.
+- **Consequences, binding on N7.3 and N7.4:**
+  - **Only the SIMD LSTM flavor ships.** The non-SIMD fallback was not qualified, so a CPU without WebAssembly SIMD
+    gets `ocr-unavailable` (fail closed).
+  - **Recognition is synchronous on the host thread,** so cancellation and deadlines are enforced by killing the
+    utility process. Measured: exit 5–14 ms, no late result, next job ready after a ~0.9–1.3 s cold restart.
+  - **The integration calls tesseract.js-core's own embind surface** (`TessBaseAPI.Init`, `SetImageFile`,
+    `Recognize`, `GetUTF8Text`, `MeanTextConf`). Any version change must rerun N7.1a.
+- **Measured** (one run, x64 under ARM64 emulation; targets elsewhere stay targets):
+  - init 307 ms;
+  - the three fixtures in 345, 186 and 107 ms, mean confidence 89, 95 and 96;
+  - utility working set 139 MB after init, 187 MB after 10 recognitions, peak 194 MB;
+  - Emscripten heap 20.2 MB.
+- **Network evidence is API interception, not an OS-level offline proof.** Packaged compatibility is N7.1b and stays
+  BLOCKED.
+
+### 2026-10-26 — N7 OC-0 to OC-12 RATIFIED by the owner (N7.1), with a sequencing clarification
 
 - **Ratified:** the owner ratified OC-0 to OC-12 in the final amended wording of
   `docs/plans/ai-upgrade-v5/N7-ocr-text-in-image.md` (verified baseline `f6fd16a0`):

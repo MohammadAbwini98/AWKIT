@@ -6,37 +6,15 @@
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-26T10:48:34.376Z",
-  "acquired_at_commit": "3fa60deef442c65d9d22720f8d44ee2c6314ec11",
+  "acquired_at": "2026-10-26T13:43:52.540Z",
+  "acquired_at_commit": "cfee49976b4464125ebc8714fcbcfcb897effaea",
   "baseline_dirty": [
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/HANDOFF.md",
-    "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/plans/ai-upgrade-v5/N7-ocr-text-in-image.md",
-    "scripts/benchmark-ocr-feasibility.mjs",
-    "scripts/ocr-feasibility/electron-main.cjs",
-    "scripts/ocr-feasibility/host-common.cjs",
-    "scripts/ocr-feasibility/host-core.cjs",
-    "scripts/ocr-feasibility/host-probe.cjs",
-    "scripts/ocr-feasibility/host-wrapper.cjs",
-    "scripts/ocr-feasibility/results/latest.json",
-    "scripts/ocr-feasibility/worker-shim.cjs"
+    "docs/ai/DECISIONS.md",
+    "docs/ai/contracts/awkit-l12-27-implementation-1006.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/CURRENT_STATE.md": "aed6b6ee6cbc272c0b7454546d1bb13a5dad3a52b60f241e1a4dede9411ad82a",
-    "docs/ai/HANDOFF.md": "86a0944b3e198c7da009b724fc8689bfd311a49dd5511c526c7630e39ebebf60",
-    "docs/ai/TASK_LOG.md": "c4cb7f46d55384bd61c67f2e4eb867fcca10dc9067354eeb960ddc0c989a61db",
-    "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/plans/ai-upgrade-v5/N7-ocr-text-in-image.md": "2a433762c62e916063a4f86929d7482cb5a4b6c3d2940381abdaebbf65f5bb05",
-    "scripts/benchmark-ocr-feasibility.mjs": "12617d2c6880497701cf6dab8022dcbe2beeb62a047ff437badbc1a8812a61d9",
-    "scripts/ocr-feasibility/electron-main.cjs": "0ac9393c284a2b3b4a5997f92aaa9bd69865380dd61658f0ca9981d7d4ff7399",
-    "scripts/ocr-feasibility/host-common.cjs": "73718d02560205e980598b1cda47ce2feb3d3a74482a6499ad0f538daaec2d89",
-    "scripts/ocr-feasibility/host-core.cjs": "b08a041ae9164ad7a6a1f60fb0074e3e09a60d5ccd351e9cc766d1ecc648c4b3",
-    "scripts/ocr-feasibility/host-probe.cjs": "2c6c89a949a22cfc2b55a172a8e9a4bb535155baf015eea76ae41e2b428e4017",
-    "scripts/ocr-feasibility/host-wrapper.cjs": "eec269dcabebf4aa107947c6fba53174311f423ca4dbb172b5039f5d6650bd56",
-    "scripts/ocr-feasibility/results/latest.json": "2b77e394805e55c6777fe4516a9beeb3586f1d98801a899844c93ce89aa4ba8b",
-    "scripts/ocr-feasibility/worker-shim.cjs": "18b6b625b5db4333653688c0bb33c584b494eea0a1cb7544a1765a5f2bbac433"
+    "docs/ai/DECISIONS.md": "f0e0224349d06a348e0d865525b0c1e1c49daadf77d1f1cdfd198d8fde9d00a5",
+    "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -51,7 +29,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-26T10:48:56.928Z",
-  "released_reason": "N7.1a awkit-vra.9.2 note appended: still blocked on dependency installation, harness hardened, exported",
-  "archived_at": "2026-10-26T10:48:56.930Z"
+  "released_at": "2026-10-26T13:44:19.731Z",
+  "released_reason": "N7.1a awkit-vra.9.2 closed on the real benchmark GO for direct tesseract.js-core, N7.3 awkit-vra.9.11 in progress, exported",
+  "archived_at": "2026-10-26T13:44:19.735Z"
 }

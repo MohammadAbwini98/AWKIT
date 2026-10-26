@@ -159,6 +159,22 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-vra-9-n7-filing-1026:project-state:2026-10-26T13:43:52.540Z",
+        "task": "awkit-vra-9-n7-filing-1026",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-26T13:43:52.540Z",
+        "acquired_at_commit": "cfee49976b4464125ebc8714fcbcfcb897effaea",
+        "released_at": "2026-10-26T13:44:19.731Z",
+        "released_reason": "N7.1a awkit-vra.9.2 closed on the real benchmark GO for direct tesseract.js-core, N7.3 awkit-vra.9.11 in progress, exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }

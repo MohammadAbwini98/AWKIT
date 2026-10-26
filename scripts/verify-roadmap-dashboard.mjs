@@ -796,8 +796,9 @@ try {
   // `awkit-vra.9.1` closed on the recorded ratification. Measured.
   // Then 38/396 of 434 on 2026-10-26 (contract `awkit-vra-9-n7-filing-1026`): N7.2 `awkit-vra.9.4` closed on
   // verify:ocr-decision 203/0; N7.1a `.9.2` set blocked (dependency installation is an owner action). Measured.
-    "38 outstanding / 396 closed",
-    beads.stats.outstanding === 38 && beads.stats.closed === 396,
+  // Then 37/397 of 434 on 2026-10-26: N7.1a `.9.2` closed on the real benchmark GO (direct tesseract.js-core). Measured.
+    "37 outstanding / 397 closed",
+    beads.stats.outstanding === 37 && beads.stats.closed === 397,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -1154,10 +1155,11 @@ try {
   // `awkit-vra.9.2` is declared blocked because its candidates need an owner-run dependency install that no `blocks`
   // edge can express, and its eight transitive dependents (N7.3 `.9.11`, N7.4 `.9.5`, N7.5 `.9.6`, N7.1b `.9.3`,
   // N7.6 `.9.7`, N7.7 `.9.8`, N7.8 `.9.9`, N7.9 `.9.10`) sit out with it. Measured.
+  // Then 4 and 4 again later on 2026-10-26: N7.1a closed on the real benchmark GO, so its dependents rejoin the layers.
   check(
     "every declared-blocked issue is present and out of the layers",
-    order.stats.declaredBlocked === 5 &&
-      order.externallyBlocked.length === 13 &&
+    order.stats.declaredBlocked === 4 &&
+      order.externallyBlocked.length === 4 &&
       order.externallyBlocked.every((id) => order.ordered.find((o) => o.id === id)?.layer === null),
     `declaredBlocked ${order.stats.declaredBlocked}, externallyBlocked ${order.externallyBlocked.length}`
   );
