@@ -79,7 +79,8 @@ try {
   const onDisk = fs.existsSync(out) ? fs.readdirSync(out, { recursive: true }).map(String).filter((f) => f !== "ocr-asset-manifest.json").sort() : [];
   const listed = (manifest?.assets ?? []).map((a) => a.relativePath).sort();
   check("the staged folder holds exactly the listed files", JSON.stringify(onDisk) === JSON.stringify(listed), `${onDisk.join(", ")} vs ${listed.join(", ")}`);
-  check("exactly the three pinned files, the licence and the notice are staged", JSON.stringify(listed) === JSON.stringify([...pin.files.map((f) => f.target), pin.license.target, "OCR-NOTICE.txt"].sort()), listed.join(", "));
+  check("exactly the three pinned files, the licence, the N7.4 host and the notice are staged", JSON.stringify(listed) === JSON.stringify([...pin.files.map((f) => f.target), pin.license.target, "ocr-host.cjs", "OCR-NOTICE.txt"].sort()), listed.join(", "));
+  check("the staged host is byte-identical to native-hosts/ocr/ocr-host.cjs", fs.existsSync(path.join(out, "ocr-host.cjs")) && sha256(path.join(out, "ocr-host.cjs")) === sha256(path.join(root, "native-hosts", "ocr", "ocr-host.cjs")));
   for (const file of pin.files) {
     const staged = path.join(out, file.target);
     check(`${file.target} is staged byte-identical to the pin`, fs.existsSync(staged) && sha256(staged) === file.sha256);
@@ -151,7 +152,7 @@ check("package-portable keeps its 8 progress steps (OCR staged inside the existi
 const generator = read("scripts/generate-dependency-manifest.ps1");
 check("the manifest generator folds build/ocr/ocr-asset-manifest.json in as ocrRuntime", /build\\ocr\\ocr-asset-manifest\.json/.test(generator) && /ocrRuntime = \$ocrRuntime/.test(generator) && /relativePath = "ocr\/\$\(\$_\.relativePath\)"/.test(generator));
 const validator = read("scripts/validate-offline-bundle.ps1");
-check("the offline validator checks ocrRuntime against the pin, every checksum and the staged set", /Test-Property \$manifestJson "ocrRuntime"/.test(validator) && /src\\offline\\ocr-runtime\.json/.test(validator) && /OCR asset checksum mismatch/.test(validator) && /OCR staged tree holds/.test(validator) && /maxTotalBytes/.test(validator));
+check("the offline validator checks ocrRuntime against the pin, every checksum, the staged set and the host bytes", /Test-Property \$manifestJson "ocrRuntime"/.test(validator) && /src\\offline\\ocr-runtime\.json/.test(validator) && /OCR asset checksum mismatch/.test(validator) && /OCR staged tree holds/.test(validator) && /maxTotalBytes/.test(validator) && /native-hosts\\ocr\\ocr-host\.cjs/.test(validator));
 for (const script of ["scripts/generate-dependency-manifest.ps1", "scripts/validate-offline-bundle.ps1", "scripts/package-portable.ps1", "scripts/package-per-user-installer.ps1"]) {
   const parse = spawnSync("powershell", ["-NoProfile", "-NonInteractive", "-Command", `$errors = $null; [void][System.Management.Automation.Language.Parser]::ParseFile('${path.join(root, script).replace(/'/g, "''")}', [ref]$null, [ref]$errors); $errors.Count`], { encoding: "utf8", windowsHide: true, timeout: 60_000 });
   check(`${script} parses without errors`, parse.status === 0 && parse.stdout.trim() === "0", `${parse.stdout.trim()} ${parse.stderr.trim().slice(0, 200)}`);

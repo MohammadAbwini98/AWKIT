@@ -730,6 +730,13 @@ if ($null -eq $ocr -or $ocr.enabled -ne $true) {
     }
   }
   if (@($ocrPin.files).Count -ne 3) { $failures.Add("src/offline/ocr-runtime.json must pin exactly the three qualified files.") }
+  $ocrHostAsset = @($ocr.assets | Where-Object { [string]$_.relativePath -ceq ($ocrPrefix + "ocr-host.cjs") }) | Select-Object -First 1
+  $ocrHostSource = Join-Path $root "native-hosts\ocr\ocr-host.cjs"
+  if ($null -eq $ocrHostAsset) {
+    $failures.Add("Offline OCR assets do not list the utility host ocr/ocr-host.cjs.")
+  } elseif ((Get-AwkitFileSha256 -LiteralPath $ocrHostSource) -ne ([string]$ocrHostAsset.sha256).ToLower()) {
+    $failures.Add("Offline OCR host is not byte-identical to native-hosts/ocr/ocr-host.cjs (restage it).")
+  }
   if ([int64]$ocr.totalBytes -gt [int64]$ocrPin.budget.maxTotalBytes) {
     $failures.Add("Offline OCR assets total $($ocr.totalBytes) bytes, above the pinned OC-9 target of $($ocrPin.budget.maxTotalBytes) (maxTotalBytes).")
   }

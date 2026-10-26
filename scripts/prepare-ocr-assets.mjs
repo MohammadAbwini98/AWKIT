@@ -7,7 +7,8 @@
  * install the N7.1a benchmark qualified (scripts/ocr-feasibility/node_modules) or a folder passed with --inputs, and
  * every file must match its pinned SHA-256 and package version before anything is written.
  *
- * Output: the three engine and data files, the Tesseract licence text, a generated notice, and
+ * Output: the three engine and data files, the Tesseract licence text, the N7.4 host (native-hosts/ocr/ocr-host.cjs,
+ * byte for byte), a generated notice, and
  * ocr-asset-manifest.json listing every staged file with its size and SHA-256 (folded into the signed dependency
  * manifest by generate-dependency-manifest.ps1 and re-checked by validate-offline-bundle.ps1). The total must stay
  * within the pinned OC-9 size target. Any mismatch fails before the output is replaced, leaving an earlier staging
@@ -24,6 +25,9 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PIN_PATH = path.join(ROOT, "src", "offline", "ocr-runtime.json");
+/** The N7.4 utility host, staged byte for byte beside the assets it loads. */
+const HOST_SOURCE = path.join(ROOT, "native-hosts", "ocr", "ocr-host.cjs");
+const HOST_NAME = "ocr-host.cjs";
 const DEFAULT_INPUTS = path.join(ROOT, "scripts", "ocr-feasibility", "node_modules");
 const DEFAULT_OUT = path.join(ROOT, "build", "ocr");
 const MANIFEST_NAME = "ocr-asset-manifest.json";
@@ -89,6 +93,7 @@ const sources = PIN.files.map((file) => {
 const licenseSource = path.join(INPUTS, ...PIN.license.source.split("/"));
 if (!fs.existsSync(licenseSource)) fail(`${PIN.license.source} is missing under ${INPUTS}.`);
 if (!fs.readFileSync(licenseSource, "utf8").includes(PIN.license.mustContain ?? "Apache License")) fail(`${PIN.license.source} is not the expected licence text.`);
+if (!fs.existsSync(HOST_SOURCE)) fail("Missing host source native-hosts/ocr/ocr-host.cjs.");
 
 // ── Stage beside the output, then swap ───────────────────────────────────────────────────────────────────────────
 const staging = `${OUT_DIR}.staging-${process.pid}`;
@@ -102,6 +107,7 @@ const add = (name, role, write) => {
 };
 for (const file of sources) add(file.target, file.role, (target) => fs.copyFileSync(file.source, target));
 add(PIN.license.target, "license", (target) => fs.copyFileSync(licenseSource, target));
+add(HOST_NAME, "host", (target) => fs.copyFileSync(HOST_SOURCE, target));
 const notice = [
   "Offline OCR assets shipped with SpecterStudio (Phase N, N7). Optional and off by default.",
   "",
