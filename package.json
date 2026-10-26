@@ -209,6 +209,7 @@
     "benchmark:shared-pool": "tsx scripts/benchmark-shared-pool.mts",
     "benchmark:browser-resource": "tsx scripts/benchmark-browser-resource.mts",
     "benchmark:occlusion": "tsx scripts/benchmark-occlusion.mts",
+    "benchmark:ocr-feasibility": "node scripts/benchmark-ocr-feasibility.mjs",
     "benchmark:ablation": "tsx scripts/benchmark-ablation.mts",
     "benchmark:workloads": "tsx scripts/benchmark-workloads.mts",
     "benchmark:engine": "node scripts/benchmark/run.mjs scripts/benchmark-engine-abcd.mts",

@@ -1,0 +1,12 @@
+{
+  "name": "awkit-ocr-feasibility-spike",
+  "private": true,
+  "version": "0.0.0",
+  "description": "N7.1a (awkit-vra.9.2) OCR engine feasibility spike. Isolated from the product: its own pinned dependencies, never bundled (electron-builder packages only out/** and listed root files). Install with the command in scripts/benchmark-ocr-feasibility.mjs.",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "tesseract.js": "6.0.1",
+    "tesseract.js-core": "6.0.0",
+    "@tesseract.js-data/eng": "1.0.0"
+  }
+}

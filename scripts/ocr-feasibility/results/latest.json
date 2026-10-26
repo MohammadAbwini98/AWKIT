@@ -1,0 +1,230 @@
+{
+  "spike": "awkit-n7.1a-ocr-feasibility",
+  "version": 1,
+  "ranAt": "2026-10-26T09:28:11.126Z",
+  "host": {
+    "platform": "win32",
+    "release": "10.0.26300",
+    "nativeCpu": "ARM64",
+    "nodeArch": "x64"
+  },
+  "thresholds": {
+    "initMs": 120000,
+    "recognizeMs": 60000,
+    "cancelAfterMs": 150,
+    "cancelDeadlineMs": 1500,
+    "killDeadlineMs": 5000,
+    "lateGraceMs": 3000,
+    "peakWorkingSetMB": 400,
+    "growthMB": 64,
+    "repeat": 10
+  },
+  "harness": {
+    "selfTest": "PASS",
+    "probe": {
+      "kind": "probe",
+      "status": "RAN",
+      "pass": true,
+      "rows": {
+        "runtime": {
+          "pass": true,
+          "arch": "x64",
+          "platform": "win32",
+          "node": "20.18.3",
+          "electron": "33.4.11"
+        },
+        "init": {
+          "pass": true,
+          "initMs": 0,
+          "integration": "probe (no engine)",
+          "flavor": null,
+          "simd": null
+        },
+        "recognition": {
+          "pass": true,
+          "fixtures": [
+            {
+              "id": "label",
+              "matched": null,
+              "recognizeMs": 10,
+              "confidence": 0,
+              "characters": 5
+            },
+            {
+              "id": "invoice",
+              "matched": null,
+              "recognizeMs": 10,
+              "confidence": 0,
+              "characters": 5
+            },
+            {
+              "id": "date",
+              "matched": null,
+              "recognizeMs": 10,
+              "confidence": 0,
+              "characters": 5
+            }
+          ]
+        },
+        "memory": {
+          "pass": true,
+          "afterInit": {
+            "type": "Utility",
+            "workingSetMB": 85,
+            "peakWorkingSetMB": 85
+          },
+          "afterRepeat": {
+            "type": "Utility",
+            "workingSetMB": 85,
+            "peakWorkingSetMB": 85
+          },
+          "growthMB": 0,
+          "peakMB": 85,
+          "repeat": 10,
+          "hostMemory": {
+            "rss": 89587712,
+            "heapUsed": 3609636,
+            "external": 2694498,
+            "arrayBuffers": 0
+          },
+          "engine": {
+            "flavor": null,
+            "heapBytes": null
+          }
+        },
+        "cancellation": {
+          "pass": true,
+          "mode": "cooperative",
+          "cooperative": {
+            "ackMs": 2,
+            "mode": "clearTimeout",
+            "killed": false,
+            "lateResults": 0,
+            "engineSettledAfterCancel": null,
+            "finishedBeforeCancel": false,
+            "nextJobOk": true,
+            "recoveryMs": 13,
+            "pass": true
+          },
+          "byKill": {
+            "exitMs": 26,
+            "lateResults": 0,
+            "finishedBeforeAbort": false,
+            "nextJobOk": true,
+            "recoveryMs": 294,
+            "pass": true
+          }
+        },
+        "crashIsolation": {
+          "pass": true,
+          "exitCode": 134,
+          "mainResponsive": {
+            "ok": true,
+            "roundTripMs": 4
+          },
+          "recovered": true
+        },
+        "hangIsolation": {
+          "pass": true,
+          "hungHostAnswered": false,
+          "exitMs": 4,
+          "mainResponsive": {
+            "ok": true,
+            "roundTripMs": 4
+          },
+          "recovered": true
+        },
+        "lateResultDetection": {
+          "pass": true,
+          "selfTest": true
+        },
+        "cleanup": {
+          "pass": true,
+          "exitCode": 0,
+          "processGone": true,
+          "leftovers": []
+        },
+        "network": {
+          "pass": true,
+          "tripwireSelfTest": true,
+          "attempts": [
+            {
+              "kind": "fetch",
+              "target": "https://example.invalid/eng.traineddata",
+              "thread": "host"
+            },
+            {
+              "kind": "https.get",
+              "target": "https://example.invalid/",
+              "thread": "host"
+            },
+            {
+              "kind": "fetch",
+              "target": "https://example.invalid/probe",
+              "thread": "worker"
+            }
+          ],
+          "unverifiedHosts": 0
+        }
+      }
+    },
+    "fixtures": [
+      {
+        "id": "label",
+        "width": 480,
+        "height": 80,
+        "fontPx": 40,
+        "font": "Arial",
+        "lines": 1,
+        "bytes": 5688,
+        "sha256": "76a6a24bf21a45c50003a55c34e3ac3169839b1cfc1b83893e85dd7819465692"
+      },
+      {
+        "id": "invoice",
+        "width": 720,
+        "height": 72,
+        "fontPx": 32,
+        "font": "Arial",
+        "lines": 1,
+        "bytes": 6524,
+        "sha256": "f709fe80c356e029c02f2f199dd42be38779b8f55fe732f11ff9ee4e2bbeb03a"
+      },
+      {
+        "id": "date",
+        "width": 640,
+        "height": 72,
+        "fontPx": 32,
+        "font": "Arial",
+        "lines": 1,
+        "bytes": 6847,
+        "sha256": "dfed6d6cc24b1d3e127852fa166364522cafe439e3c6c7483d66467bb933f7ed"
+      },
+      {
+        "id": "page",
+        "width": 1400,
+        "height": 1140,
+        "fontPx": 22,
+        "font": "Arial",
+        "lines": 40,
+        "bytes": 355603,
+        "sha256": "87c93f3577412c275e45fcdd98accd39dc65ba2e8e638c0c6f8a0b56c69a7f7d"
+      }
+    ],
+    "chromiumRequests": [],
+    "error": null
+  },
+  "evaluation": {
+    "wrapper": {
+      "status": "NOT RUN",
+      "reason": "dependencies not installed: owner runs npm install --prefix scripts/ocr-feasibility --ignore-scripts --no-audit --no-fund"
+    },
+    "core": {
+      "status": "NOT RUN",
+      "reason": "dependencies not installed: owner runs npm install --prefix scripts/ocr-feasibility --ignore-scripts --no-audit --no-fund"
+    }
+  },
+  "selection": {
+    "status": "NOT RUN",
+    "reason": "wrapper and core not evaluated"
+  }
+}
