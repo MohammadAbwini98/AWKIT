@@ -5,14 +5,17 @@
  * requests are correlated; every pending call settles on exit; restarts are bounded by `ZvecHostRestartPolicy`
  * (OCR_HOST_RESTART_POLICY); nothing here throws into a caller, blocks startup or quit, or touches a run.
  *
- * The N7.1a engine recognizes synchronously on the host thread, so a deadline or an abort is enforced by KILLING the
- * host: an intentional exit (no restart strike), after which the next request forks a fresh host. A result that still
+ * The N7.1a engine recognizes synchronously on the host thread, so an abort is enforced by KILLING the host: an
+ * intentional exit (no restart strike), after which a fresh host is forked. A deadline answers the caller at once; the
+ * host may finish that recognition within `overrunGraceMs` and is killed only past it (N7.5). A result that still
  * arrives for an abandoned job is dropped and counted, never delivered. One job runs at a time; at most
  * `queueBound` wait (more are `ocr-busy`). An idle host is shut down; a host whose resident set passed the ceiling is
  * recycled. Missing or altered assets and a CPU without WebAssembly SIMD are permanent for the session.
  *
- * The host is never forked before the first `recognize`, so disabled or unused OCR costs nothing. Callers receive
- * words or a stable reason; recognized text is never logged.
+ * The host is never forked before the first `prepare` or `recognize`, so disabled or unused OCR costs nothing. The
+ * N7.5 adapter prepares once an assertion has passed every refusal, so start-up overlaps its capture; after a
+ * deadline kill the replacement is prepared at once. Callers receive words or a stable reason; recognized text is
+ * never logged.
  */
 
 import { utilityProcess, type UtilityProcess } from "electron";
@@ -67,6 +70,8 @@ interface Job {
   onAbort?: () => void;
   /** The host the job was posted to; only that host's exit can settle it. */
   host?: Host;
+  /** N7.5: a timed-out running job's overrun grace; the host is killed when it expires. */
+  graceTimer?: NodeJS.Timeout;
 }
 
 /**
@@ -141,18 +146,49 @@ export class OcrUtilityHostManager {
     job.resolve(outcome);
   }
 
-  /** A deadline or an abort. A waiting job is simply dropped; the running one cannot be interrupted, so its host dies. */
+  /**
+   * A deadline or an abort. A waiting job is simply dropped. The running one cannot be interrupted: an abort kills its
+   * host at once; a deadline answers at once and lets the host finish within `overrunGraceMs` (its result dropped and
+   * counted), killing it only past the grace, so a short overrun does not cost the warm engine (N7.5).
+   */
   private abandon(job: Job, reason: OcrHostReason): void {
     if (job.settled) return;
     const waiting = this.queue.indexOf(job);
     if (waiting >= 0) this.queue.splice(waiting, 1);
     this.settle(job, failure(reason));
+    if (this.running === job && reason === "budget-exhausted" && job.host && this.limits.overrunGraceMs > 0) {
+      const host = job.host;
+      job.graceTimer = setTimeout(() => {
+        if (this.running !== job) return;
+        this.running = undefined;
+        this.log("info", "ocr host killed: a timed-out recognition outran its grace");
+        this.kill(host);
+        if (this.queue.length > 0) void this.pump();
+        else this.prepare();
+      }, this.limits.overrunGraceMs);
+      return;
+    }
     if (this.running === job) {
       this.running = undefined;
       this.log("info", `ocr host killed: a ${reason === "cancelled" ? "cancelled" : "timed-out"} recognition was still running`);
       if (job.host) this.kill(job.host);
       if (this.queue.length > 0) void this.pump();
+      // N7.5: OCR is in use, so the replacement starts now. Left to the next request, its start-up would fall inside
+      // that assertion's deadline too, and every later assertion would time out and kill its host in turn.
+      else if (reason === "budget-exhausted") this.prepare();
     }
+  }
+
+  /**
+   * Start a host ahead of the first request (nothing is posted), so start-up overlaps the caller's own work. A started
+   * host with nothing to do shuts down after the idle period. Never throws; does nothing when disabled, failed, open,
+   * already running or starting.
+   */
+  prepare(): void {
+    if (this.disposed || this.permanentReason || this.restartPolicy.isCircuitOpen() || this.live || this.starting) return;
+    void this.ensureStarted().then((host) => {
+      if (host && !this.running && this.queue.length === 0) this.scheduleIdle();
+    });
   }
 
   private async pump(): Promise<void> {
@@ -230,6 +266,9 @@ export class OcrUtilityHostManager {
             this.state = "failedOpen";
             this.log("warn", `ocr unavailable for this session: ${message.reason}`);
             resolve(null);
+          } else {
+            // A start-up failure that a later start may not repeat; the exit that follows is a strike.
+            this.log("warn", `ocr host failed to start: ${message.reason}`);
           }
           return;
         }
@@ -242,6 +281,9 @@ export class OcrUtilityHostManager {
         }
         this.running = undefined;
         this.state = "ready";
+        clearTimeout(job.graceTimer);
+        // A job already answered (its deadline passed during the grace): the result is dropped, never delivered.
+        if (job.settled) this.lateResultsDropped += 1;
         this.settle(job, message.ok ? { ok: true, words: message.words, recognizeMs: message.recognizeMs } : failure(message.reason));
         if (message.rss > this.limits.rssCeilingBytes) {
           this.recycles += 1;
@@ -267,6 +309,7 @@ export class OcrUtilityHostManager {
     const job = this.running;
     if (job && job.host === host) {
       this.running = undefined;
+      clearTimeout(job.graceTimer);
       this.settle(job, failure("ocr-unavailable"));
     }
     if (this.permanentReason) return;
@@ -340,7 +383,10 @@ export class OcrUtilityHostManager {
     if (this.disposed) return;
     this.disposed = true;
     for (const job of this.queue.splice(0)) this.settle(job, failure("ocr-unavailable"));
-    if (this.running) this.settle(this.running, failure("ocr-unavailable"));
+    if (this.running) {
+      clearTimeout(this.running.graceTimer);
+      this.settle(this.running, failure("ocr-unavailable"));
+    }
     this.running = undefined;
     await this.stopHost();
     this.state = "disposed";

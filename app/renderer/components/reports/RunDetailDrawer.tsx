@@ -6,6 +6,7 @@ import { SkeletonCard } from "../shared/SkeletonCard";
 import { EmptyState } from "../shared/EmptyState";
 import { FailureEvidenceSection } from "./FailureEvidenceSection";
 import { VisualAssertionReportSection } from "./VisualAssertionReportSection";
+import { ImageTextReportSection } from "./ImageTextReportSection";
 import { useTelemetryQuery } from "./useTelemetryQuery";
 import { formatDurationMs, formatWhen, statusToTone } from "./statusTone";
 
@@ -178,6 +179,8 @@ export function RunDetailDrawer({ instanceId, onClose }: RunDetailDrawerProps) {
             <FailureEvidenceSection executionId={data.run.executionId} instanceId={instanceId} />
 
             <VisualAssertionReportSection executionId={data.run.executionId} instanceId={instanceId} />
+
+            <ImageTextReportSection executionId={data.run.executionId} instanceId={instanceId} />
 
             <section className="awkit-detail-section">
               <h3>Node attempts ({data.attempts.length})</h3>

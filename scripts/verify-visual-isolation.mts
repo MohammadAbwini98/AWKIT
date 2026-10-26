@@ -146,7 +146,16 @@ const ASSERTION_CONTRACT = "src/runner/visualAssertion/visualAssertionContract.t
 /** The N6.3 store and the N6.4 candidate registry: keyed storage, never src/visual. */
 const ASSERTION_STORE = "src/runner/visualAssertion/VisualBaselineStore.ts";
 const ASSERTION_CANDIDATES = "src/runner/visualAssertion/visualAssertionCandidates.ts";
-const APPROVED_EDGES = [ADAPTER_EDGE, RECORDER_EDGE, DIAGNOSIS_EDGE, ASSERTION_EDGE].sort();
+/** N7.5 (awkit-vra.9.6): the observe-only OCR assertion adapter, the fifth and last edge. */
+const OCR_ADAPTER = "src/runner/ocr/OcrStep.ts";
+const OCR_EDGE = `${OCR_ADAPTER} -> src/visual`;
+/** Its contract (StepExecutor, PlaywrightRunner, ExecutionEngine, main), the report sanitizer and the shared OC-8 rules. */
+const OCR_CONTRACT = "src/runner/ocr/ocrAssertionContract.ts";
+const OCR_REPORT = "src/runner/ocr/ocrAssertionReport.ts";
+const OCR_EXPECTED = "src/ocr/ocrExpectedText.ts";
+const OCR_IMAGE_TEXT_CONTRACT = "src/validation/ImageTextAssertionContract.ts";
+const SENSITIVE_TARGET = "src/runner/visualAssertion/sensitiveTarget.ts";
+const APPROVED_EDGES = [ADAPTER_EDGE, RECORDER_EDGE, DIAGNOSIS_EDGE, ASSERTION_EDGE, OCR_EDGE].sort();
 const sameEdges = (edges: readonly string[]): boolean => JSON.stringify([...edges].sort()) === JSON.stringify(APPROVED_EDGES);
 
 /**
@@ -224,25 +233,27 @@ check(
   `${execution.seen.size} modules from ${execution.files} files`
 );
 check(
-  "no module the execution tree can reach, at any depth, imports src/visual except the four approved adapters",
+  "no module the execution tree can reach, at any depth, imports src/visual except the five approved adapters",
   execution.offenders.length === 0,
   execution.offenders.join("; ")
 );
 check(
-  "all four adapters are seeds and their public-index imports are exactly the four allowed edges (N2.5, N4.2 RV-1, N5.3 VD-1, N6.4)",
+  "all five adapters are seeds and their public-index imports are exactly the five allowed edges (N2.5, N4.2 RV-1, N5.3 VD-1, N6.4, N7.5)",
   executionSeeds.includes(ADAPTER) &&
     executionSeeds.includes(RECORDER_ADAPTER) &&
     executionSeeds.includes(DIAGNOSIS_ADAPTER) &&
     executionSeeds.includes(ASSERTION_ADAPTER) &&
-    execution.allowed.length === 4 &&
+    executionSeeds.includes(OCR_ADAPTER) &&
+    APPROVED_EDGES.length === 5 &&
+    execution.allowed.length === 5 &&
     sameEdges(execution.allowed),
   execution.allowed.join("; ") || "no allowed edge met"
 );
 {
   const unallowed = (await walk(executionSeeds)).offenders.map((o) => o.split(" -> ").slice(-2).join(" -> "));
   check(
-    "without the allow-list the same walk flags exactly those four edges (all four imports are real, not missed)",
-    unallowed.length === 4 && sameEdges(unallowed),
+    "without the allow-list the same walk flags exactly those five edges (all five imports are real, not missed)",
+    unallowed.length === 5 && sameEdges(unallowed),
     unallowed.join("; ") || "nothing flagged"
   );
 }
@@ -250,7 +261,7 @@ check(
 console.log("\nThe renderer cannot reach src/visual:\n");
 const rendererSeeds = (await sourceFiles(join(REPO, "app/renderer"))).map(toRepo);
 // The renderer's closure reaches the main process through the preload typings, so it may meet an adapter's edge too;
-// the allow-list is the same four edges, and anything else is an offender.
+// the allow-list is the same five edges, and anything else is an offender.
 const renderer = await walk(rendererSeeds, new Map(), ALLOW);
 check("the renderer was actually scanned", renderer.files >= 50, String(renderer.files));
 check("no module the renderer can reach imports src/visual except through an approved adapter's edge", renderer.offenders.length === 0, renderer.offenders.join("; "));
@@ -288,7 +299,7 @@ console.log("\nMutation controls (each injected import must be caught):\n");
     );
   }
 
-  // N2.5, N4.2 (RV-1), N5.3 (VD-1) and N6.4: the allow-list is four exact edges, not a module or a directory.
+  // N2.5, N4.2 (RV-1), N5.3 (VD-1), N6.4 and N7.5: the allow-list is five exact edges, not a module or a directory.
   for (const [importer, specifier, label] of [
     ["src/runner/LocatorFactory.ts", "src/visual", "a second runner importer of the same public index"],
     [ADAPTER, "src/visual/fingerprint", "the adapter importing a src/visual internal"],
@@ -311,7 +322,17 @@ console.log("\nMutation controls (each injected import must be caught):\n");
     [ASSERTION_ADAPTER, "src/visual/assertion/decideVisualAssertion", "the assertion adapter importing the policy module directly"],
     [ASSERTION_CONTRACT, "src/visual", "the assertion contract importing src/visual"],
     [ASSERTION_STORE, "src/visual", "the baseline store importing src/visual"],
-    [ASSERTION_CANDIDATES, "src/visual", "the candidate registry importing src/visual"]
+    [ASSERTION_CANDIDATES, "src/visual", "the candidate registry importing src/visual"],
+    [OCR_ADAPTER, "src/visual/fingerprint", "the OCR adapter importing a src/visual internal"],
+    [OCR_ADAPTER, "src/visual/internal/captureCore", "the OCR adapter importing the capture seam entry"],
+    [OCR_ADAPTER, "src/visual/ocr/decideTextAssertion", "the OCR adapter importing the decision module directly"],
+    [OCR_CONTRACT, "src/visual", "the OCR assertion contract importing src/visual"],
+    [OCR_REPORT, "src/visual", "the OCR report sanitizer importing src/visual"],
+    [OCR_EXPECTED, "src/visual", "the shared OC-8 rules importing src/visual"],
+    [OCR_IMAGE_TEXT_CONTRACT, "src/visual", "the image text authoring contract importing src/visual"],
+    [SENSITIVE_TARGET, "src/visual", "the shared sensitive-container walk importing src/visual"],
+    ["src/validation/FlowValidator.ts", "src/visual", "a sixth edge: the flow validator importing the public index directly"],
+    ["app/main/ocr/ocrRuntime.ts", "src/visual", "a sixth edge: the OCR runtime in main importing the public index directly"]
   ] as const) {
     const reached = execution.seen.has(importer);
     const mutated = await walk(executionSeeds, new Map([[importer, [specifier]]]), ALLOW);
@@ -443,6 +464,73 @@ console.log("\nThe assertion adapter observes and never acts (N6.4):\n");
     "the assertion contract imports only node:os and types from Playwright and the flow profile (no src/visual)",
     JSON.stringify(contractImports) === JSON.stringify(["../../profiles/FlowProfile", "node:os", "playwright"].sort()),
     contractImports.join(", ")
+  );
+}
+
+console.log("\nThe OCR assertion adapter observes and never acts (N7.5):\n");
+{
+  // It reads the page, takes one guarded element capture, preprocesses it in memory and asks the injected recognizer;
+  // it never clicks, focuses, scrolls, logs, writes or forks anything itself (the host belongs to main).
+  const ocrText = await readFile(join(REPO, OCR_ADAPTER), "utf8");
+  check("the OCR adapter was actually read", ocrText.includes("class OcrStep") && ocrText.includes('from "@src/visual"'));
+  const problems = violations(ocrText);
+  check("no network, filesystem, process, console, interaction or navigation API in the OCR adapter", problems.length === 0, problems.join("; "));
+  const ocrImports = [...ocrText.matchAll(/^\s*(?:import|export)\b[^;]*?\bfrom\s*["']([^"']+)["']/gm)].map((m) => m[1]).sort();
+  check(
+    "the OCR adapter imports only the public index, Playwright types, the shared sensitive-container walk and its contract",
+    JSON.stringify(ocrImports) === JSON.stringify(["../visualAssertion/sensitiveTarget", "./ocrAssertionContract", "@src/visual", "playwright"].sort()),
+    ocrImports.join(", ")
+  );
+  check(
+    "the capture is the N0 guarded element capture with the stillness policy and no context crop",
+    /captureElement\(page, target, \{[^}]*contextPaddingCss: 0,[^}]*stillness: true,[^}]*handedOff/s.test(ocrText)
+  );
+  check(
+    "the OC-8 value check, the handoff and the protected-surface refusal come before the capture (zero capture when refused)",
+    (() => {
+      const capture = ocrText.indexOf("captureElement(page");
+      return capture > 0 && ["detectSensitiveValue(", "handoff-active", "checkProtectedSurface(", "sensitiveTarget("].every((needle) => {
+        const at = ocrText.indexOf(needle);
+        return at > 0 && at < capture;
+      });
+    })()
+  );
+  check(
+    "the adapter forks, spawns and requires nothing (the host belongs to the main process)",
+    !/\b(?:fork|spawn|execFile|utilityProcess|require)\s*\(/.test(ocrText)
+  );
+  for (const [label, code] of [
+    ["a click", "await target.click();"],
+    ["a focus", "await handle.focus();"],
+    ["a scroll", "await handle.scrollIntoViewIfNeeded();"],
+    ["keyboard input", "await page.keyboard.type(expected);"],
+    ["a console log", "console.log(words);"],
+    ["a filesystem import", 'import { writeFile } from "node:fs/promises";'],
+    ["a child process import", 'import { fork } from "node:child_process";']
+  ] as const) {
+    check(`MUTATION: ${label} planted in the OCR adapter is caught`, violations(`${ocrText}\n${code}\n`).length > 0, "not caught");
+  }
+  check(
+    "MUTATION: a fork planted in the OCR adapter is caught",
+    /\b(?:fork|spawn|execFile|utilityProcess|require)\s*\(/.test(`${ocrText}\nconst host = fork(hostPath);\n`),
+    "not caught"
+  );
+  const contractText = await readFile(join(REPO, OCR_CONTRACT), "utf8");
+  const contractImports = [...contractText.matchAll(/^\s*(?:import|export)\b[^;]*?\bfrom\s*["']([^"']+)["']/gm)].map((m) => m[1]).sort();
+  check(
+    "the OCR contract imports only types from Playwright, the flow profile, the OC-8 rules and the host protocol (no src/visual)",
+    JSON.stringify(contractImports) === JSON.stringify(["../../ocr/OcrHostProtocol", "../../ocr/ocrExpectedText", "../../profiles/FlowProfile", "playwright"].sort()) &&
+      [...contractText.matchAll(/^\s*import\b(?!\s+type\b)/gm)].length === 0,
+    contractImports.join(", ")
+  );
+  const reportText = await readFile(join(REPO, OCR_REPORT), "utf8");
+  check("the OCR report sanitizer imports nothing", !/^\s*(?:import|export)\b[^;]*?\bfrom\s*["']/m.test(reportText) && !/\brequire\s*\(/.test(reportText));
+  const expectedText = await readFile(join(REPO, OCR_EXPECTED), "utf8");
+  const expectedImports = [...expectedText.matchAll(/^\s*(?:import|export)\b[^;]*?\bfrom\s*["']([^"']+)["']/gm)].map((m) => m[1]);
+  check(
+    "the shared OC-8 rules import only a type from the flow profile",
+    JSON.stringify(expectedImports) === JSON.stringify(["../profiles/FlowProfile"]) && /^import type \{ ValueSource \} from "\.\.\/profiles\/FlowProfile";$/m.test(expectedText),
+    expectedImports.join(", ")
   );
 }
 

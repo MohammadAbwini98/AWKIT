@@ -43,6 +43,9 @@ import {
   type VisualAssertionAssessor,
   type VisualAssertionRuntime
 } from "./visualAssertion/visualAssertionContract";
+import { OCR_ASSERTION_DEADLINE_MS, type OcrAssertionAssessment, type OcrAssertionRuntime } from "./ocr/ocrAssertionContract";
+import { detectSensitiveValue, ocrExpectedTextProblem, ocrOtpOrPinContext, ocrSourceRefusal } from "@src/ocr/ocrExpectedText";
+import { imageTextAssertionProblems, imageTextMatch } from "@src/validation/ImageTextAssertionContract";
 
 /** The adapter settles itself at the deadline; this margin only lets that settlement arrive before the outer bound. */
 const VISUAL_ASSERTION_SETTLE_MARGIN_MS = 150;
@@ -189,6 +192,10 @@ export class StepExecutor {
   private visualAssertion?: VisualAssertionRuntime;
   /** N6.4: the current assertVisual step's page, resolved inside its deadline by `runStepWithWaits`, and the time spent. */
   private visualAssertionPage?: { page: Page; spentMs: number };
+  /** N7.5: observe-only OCR assertions. Absent, an `assertImageText` step records `disabled`. */
+  private ocrAssertion?: OcrAssertionRuntime;
+  /** N7.5: the current assertImageText step's page, resolved inside its deadline by `runStepWithWaits`. */
+  private ocrAssertionPage?: { page: Page; spentMs: number };
 
   constructor(
     page: Page,
@@ -350,6 +357,125 @@ export class StepExecutor {
       );
       if (assessed.state === "ok") return assessed.value;
       // A defect that outlived the deadline: stop its work, it can no longer settle the step.
+      controller.abort();
+      return inconclusive(assessed.state === "late" ? "budget-exhausted" : "capture-unavailable");
+    } finally {
+      unsubscribe?.();
+    }
+  }
+
+  /** N7.5: wire observe-only OCR assertions (the runner sets it on every executor of a run). */
+  setOcrAssertion(runtime: OcrAssertionRuntime | undefined): void {
+    this.ocrAssertion = runtime;
+  }
+
+  /**
+   * N7.5: one observe-only `assertImageText` step. It NEVER fails the step and never acts: every outcome, including a
+   * refusal, a deadline, a closed page, missing assets, an unsupported CPU, a host crash or a cancellation, is a
+   * codes-only record. With OCR off nothing is resolved or captured and the adapter is never loaded. The expectation is
+   * judged by OC-8 before it is resolved (a secret is never read to find out) and again once resolved, so a refused
+   * step makes zero captures and zero recognition requests. The resolved text is held for the decision only.
+   */
+  private async executeImageTextAssertion(
+    step: FlowStep,
+    pagePhase: { page?: Page; spentMs: number; unresolved?: "budget-exhausted" | "capture-unavailable" }
+  ): Promise<void> {
+    const runtime = this.ocrAssertion;
+    const mode = runtime?.mode ?? "off";
+    const flowId = this.context.flowId ?? "";
+    const started = performance.now() - pagePhase.spentMs;
+    const remaining = () => OCR_ASSERTION_DEADLINE_MS - (performance.now() - started);
+    const elapsed = () => Math.round(performance.now() - started);
+    const inconclusive = (code: string): OcrAssertionAssessment => ({ verdict: "inconclusive", code, durationMs: elapsed() });
+    let assessment: OcrAssertionAssessment | undefined;
+    if (runtime && mode === "observe") assessment = await this.assessImageText(step, runtime, pagePhase, remaining, inconclusive);
+    try {
+      runtime?.onRecord?.({
+        stepId: step.id,
+        flowId,
+        mode: "observe",
+        status: "passed",
+        ...(assessment
+          ? {
+              verdict: assessment.verdict,
+              code: assessment.code,
+              ...(assessment.distanceBucket ? { distanceBucket: assessment.distanceBucket } : {}),
+              ...(assessment.confidenceBucket ? { confidenceBucket: assessment.confidenceBucket } : {}),
+              ...(assessment.charCount !== undefined ? { charCount: assessment.charCount } : {})
+            }
+          : { code: "disabled" }),
+        durationMs: assessment?.durationMs ?? 0
+      });
+    } catch {
+      // A sink is a recorder, not a participant.
+    }
+  }
+
+  private async assessImageText(
+    step: FlowStep,
+    runtime: OcrAssertionRuntime,
+    pagePhase: { page?: Page; spentMs: number; unresolved?: "budget-exhausted" | "capture-unavailable" },
+    remaining: () => number,
+    inconclusive: (code: string) => OcrAssertionAssessment
+  ): Promise<OcrAssertionAssessment> {
+    // 1. The authored configuration (the validator refuses the same shapes before a run).
+    const problems = imageTextAssertionProblems(step);
+    const match = imageTextMatch(step);
+    if (ocrSourceRefusal(step) !== null || problems.some((problem) => problem.code === "sensitive" || problem.code === "unverified-source")) {
+      return inconclusive("sensitive-input");
+    }
+    if (problems.length > 0 || match === null) return inconclusive("expected-invalid");
+    // 2. Resolve the expectation inside the deadline, then judge the resolved value (OC-8 at run time).
+    const resolved = await withinVisualDeadline(this.resolveStepValue(step, step.value), remaining());
+    if (resolved.state === "late") return inconclusive("budget-exhausted");
+    if (resolved.state === "error") return inconclusive("expected-unavailable");
+    const otpOrPinContext = ocrOtpOrPinContext(step);
+    if (detectSensitiveValue(resolved.value, { otpOrPinContext }) !== null) return inconclusive("sensitive-input");
+    const textProblem = ocrExpectedTextProblem(resolved.value, match);
+    if (textProblem) return inconclusive(textProblem === "unsupported-characters" ? "unsupported-text" : "expected-invalid");
+    // 3. The page, resolved inside the same deadline by `runStepWithWaits`.
+    if (pagePhase.unresolved || !pagePhase.page) return inconclusive(pagePhase.unresolved ?? "capture-unavailable");
+    const page = pagePhase.page;
+    // 4. The adapter, loaded on first use only.
+    const assessor = await withinVisualDeadline(runtime.assessor(), remaining());
+    if (assessor.state === "late") return inconclusive("budget-exhausted");
+    if (assessor.state !== "ok" || !assessor.value) return inconclusive("ocr-unavailable");
+    const controller = new AbortController();
+    const unsubscribe = this.cancellation?.onCancel(() => controller.abort());
+    if (this.cancellation?.cancelled) controller.abort();
+    try {
+      const assessed = await withinVisualDeadline(
+        assessor.value.assess({
+          step,
+          page,
+          // The step's own primary locator on the step's own page, read only: no recovery, healing or winner memory,
+          // so OCR never reads a different element than the one authored (OC-0: no text-based targeting).
+          target: () => {
+            const spec = step.locator;
+            if (!spec) return Promise.reject(new Error("assertImageText needs a locator."));
+            return new LocatorFactory(page).locateCandidate({ strategy: spec.strategy, value: spec.value, name: spec.name, exact: spec.exact }, spec.context);
+          },
+          handedOff: (() => {
+            try {
+              return runtime.handedOff(page) !== false;
+            } catch {
+              return true;
+            }
+          })(),
+          expected: {
+            text: resolved.value,
+            match,
+            ...(step.config?.ocrCaseSensitive !== undefined ? { caseSensitive: step.config.ocrCaseSensitive } : {}),
+            otpOrPinContext
+          },
+          deadlineMs: Math.max(1, Math.round(remaining())),
+          limitScreenshot: (work) => this.limitScreenshot(work),
+          signal: controller.signal
+        }),
+        remaining() + VISUAL_ASSERTION_SETTLE_MARGIN_MS
+      );
+      if (assessed.state === "ok") return assessed.value;
+      // A defect that outlived the deadline: stop its work (the recognizer kills its host); it can no longer settle.
       controller.abort();
       return inconclusive(assessed.state === "late" ? "budget-exhausted" : "capture-unavailable");
     } finally {
@@ -583,9 +709,14 @@ export class StepExecutor {
       await this.pauseGate?.waitWhilePaused(() => this.cancellation?.cancelled ?? false);
       await this.assertBrowserRuntimeAlive?.(`before step ${step.name}`);
       await this.assertActivePageAlive(`before step ${step.name}`);
-      this.guardInteractionPrerequisiteDecision(step);
-      this.guardLocatorQuality(step);
-      const pendingReplay = await this.observePendingUpgrade(step);
+      // N7.5: an observe-only OCR assertion acts on nothing, so the ACTION guards (an interaction prerequisite, a
+      // recorded non-unique or stale-fallback locator) do not apply; ambiguity is its own inconclusive observation
+      // (target-not-unique) and can never fail the step.
+      if (step.type !== "assertImageText") {
+        this.guardInteractionPrerequisiteDecision(step);
+        this.guardLocatorQuality(step);
+      }
+      const pendingReplay = step.type === "assertImageText" ? undefined : await this.observePendingUpgrade(step);
       const result = await this.runStepWithWaits(step, outputs);
       if (pendingReplay) {
         await recordPendingReplay(pendingReplay, result.status === "passed").catch(() => undefined);
@@ -952,6 +1083,18 @@ export class StepExecutor {
       }
       stepPage = resolved.value;
       this.visualAssertionPage = { page: stepPage, spentMs: performance.now() - pageStarted };
+    } else if (step.type === "assertImageText") {
+      // N7.5: the same rule under the OCR assertion's own deadline. A late or unresolvable page is an inconclusive
+      // observation, never a page error: the step passes either way (observe only).
+      const pageStarted = performance.now();
+      const resolved = await withinVisualDeadline(this.resolveStepPage(step), OCR_ASSERTION_DEADLINE_MS);
+      if (resolved.state !== "ok") {
+        await this.executeImageTextAssertion(step, { spentMs: performance.now() - pageStarted, unresolved: resolved.state === "late" ? "budget-exhausted" : "capture-unavailable" });
+        this.mapOutputs(step, outputs, { assertionResult: true });
+        return { status: "passed" as const };
+      }
+      stepPage = resolved.value;
+      this.ocrAssertionPage = { page: stepPage, spentMs: performance.now() - pageStarted };
     } else {
       stepPage = await this.resolveStepPage(step);
     }
@@ -2398,6 +2541,14 @@ export class StepExecutor {
         const resolved = this.visualAssertionPage;
         this.visualAssertionPage = undefined;
         await this.executeVisualAssertion(step, resolved ?? { spentMs: 0 });
+        this.mapOutputs(step, outputs, { assertionResult: true });
+        return { status: "passed" };
+      }
+
+      case "assertImageText": {
+        const resolved = this.ocrAssertionPage;
+        this.ocrAssertionPage = undefined;
+        await this.executeImageTextAssertion(step, resolved ?? { spentMs: 0 });
         this.mapOutputs(step, outputs, { assertionResult: true });
         return { status: "passed" };
       }

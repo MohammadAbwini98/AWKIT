@@ -17,6 +17,12 @@ export const OCR_HOST_LIMITS = Object.freeze({
   deadlineMs: 1500,
   /** A host that has not finished starting and loading the engine by then is killed. */
   spawnAndReadyMs: 15_000,
+  /**
+   * N7.5: a recognition whose request passed its deadline (already answered `budget-exhausted`, its result dropped)
+   * may finish within this grace, so a short overrun does not cost the warm engine; past it, the host is killed.
+   * Cancellation never waits: it kills at once.
+   */
+  overrunGraceMs: 1_000,
   /** Requests waiting behind the running one; more are refused as `ocr-busy`. */
   queueBound: 4,
   /** Idle hosts are shut down after this long. */

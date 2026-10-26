@@ -57,6 +57,7 @@ import { incompleteBranchPairs } from "./BranchPairs";
 import { hasClosePopupTarget, isKnownStepType, stepRequirement } from "./StepRequirements";
 import { hasWaitStepDuration, invalidLiteralWaitDuration, waitStepContract } from "./WaitStepContract";
 import { assertionConfigDefects, assertionStepContract, hasAssertionExpectedValue } from "./AssertionStepContract";
+import { imageTextAssertionProblems } from "./ImageTextAssertionContract";
 import { hasScrollDistance, scrollConfigDefects, scrollStepContract } from "./ScrollStepContract";
 import { hasLoopIterationSource, loopConfigDefects, loopStepContract, resolveLoopChildFlowId } from "./LoopStepContract";
 import {
@@ -398,6 +399,9 @@ function hasRequiredValue(step: FlowStep): boolean {
   // `step.value`/`valueSource` reported an ordinary, fully configured Assert Text node as missing a
   // value it plainly had.
   if (step.type === "assertText") return hasAssertionExpectedValue(step);
+  // N7.5: an image text assertion reads its expected text from `valueSource`, else `value` (StepExecutor), never from
+  // `config.expectedValue`; a bound source counts as present and is judged by `imageTextAssertionProblems`.
+  if (step.type === "assertImageText") return step.valueSource !== undefined || isNonEmptyString(step.value);
   // A scroll states its distance in `config.scrollAmount` (the panel's "Amount" box) and a loop
   // states its iteration SOURCE in `config` — neither node's panel even shows a value field, so the
   // generic `step.value` demand was unsatisfiable from the designer.
@@ -632,6 +636,13 @@ function validateSteps(profile: FlowProfile, nodes: readonly FlowStep[], collect
         step.id,
         `Step ${labelFor(step, ambiguousNames)} (assertVisual) has an unknown mode "${String(step.mode)}"; use observe or enforce.`
       );
+    }
+    // N7.5: an image text assertion is observe only, with a known match mode, a comparable expected text and an
+    // expectation OC-8 does not refuse. A refused one is never handed to another assertion type.
+    if (step.type === "assertImageText") {
+      for (const problem of imageTextAssertionProblems(step)) {
+        collect.node("unsupportedConfiguration", step.id, `Step ${labelFor(step, ambiguousNames)} (assertImageText) ${problem.message}.`);
+      }
     }
 
     if (step.type === "closePopup" && !hasClosePopupTarget(step)) {

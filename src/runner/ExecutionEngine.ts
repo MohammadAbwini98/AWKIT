@@ -5,6 +5,8 @@ import { visualDiagnosisMode } from "./visualDiagnosis/visualDiagnosisContract";
 import { visualAssertionFlag, type VisualAssertionAppMode, type VisualAssertionRunInitiator } from "./visualAssertion/visualAssertionContract";
 import { visualAssertionCandidates } from "./visualAssertion/visualAssertionCandidates";
 import { VISUAL_ASSERTION_REPORT_MAX_RECORDS, sanitizeVisualAssertionReportRecords } from "./visualAssertion/visualAssertionReport";
+import { ocrAssertionMode, type OcrRecognizer } from "./ocr/ocrAssertionContract";
+import { OCR_ASSERTION_REPORT_MAX_RECORDS, sanitizeOcrAssertionReportRecords } from "./ocr/ocrAssertionReport";
 import type { VisualBaselineStore } from "./visualAssertion/VisualBaselineStore";
 
 /** N6.4: what the main process provides for runtime visual assertions. */
@@ -609,6 +611,29 @@ export class ExecutionEngine {
         return store && services
           ? { store, appVersion: services.appVersion, candidates: visualAssertionCandidates, ...(initiator ? { initiator } : {}) }
           : undefined;
+      }
+    };
+  }
+
+  /**
+   * N7.5: injected by the main process, which owns the optional OCR utility host (N7.4). The mode is read from
+   * `AWKIT_VISUAL_OCR` when a run starts (OC-6, default off). Without services (tsx verifiers) an evaluated step is
+   * `ocr-unavailable`; with OCR off nothing is ever asked of them.
+   */
+  private ocrAssertionServices?: { recognizer: () => OcrRecognizer | undefined };
+
+  public setOcrAssertionServices(services: { recognizer: () => OcrRecognizer | undefined } | undefined): void {
+    this.ocrAssertionServices = services;
+  }
+
+  private ocrAssertionOptions(onRecord: NonNullable<PlaywrightRunnerOptions["ocrAssertions"]>["onRecord"]): PlaywrightRunnerOptions["ocrAssertions"] {
+    const services = this.ocrAssertionServices;
+    return {
+      mode: ocrAssertionMode(),
+      onRecord,
+      adapter: () => {
+        const recognizer = services?.recognizer();
+        return recognizer ? { recognizer } : undefined;
       }
     };
   }
@@ -1522,6 +1547,8 @@ export class ExecutionEngine {
     const visualDiagnoses: VisualDiagnosisRecord[] = [];
     /** N6.7: this instance's visual assertion records, bounded; sanitized onto its report below. */
     const visualAssertionRecords: unknown[] = [];
+    /** N7.5: this instance's OCR assertion records, bounded; sanitized onto its report below. */
+    const ocrAssertionRecords: unknown[] = [];
     let runError: string | undefined;
     // AWKIT-RUN-006: hoisted so the finally can finalize the run even when SETUP threw.
     let runStartedAtIso = new Date().toISOString();
@@ -1700,6 +1727,10 @@ export class ExecutionEngine {
       visualAssertions: this.visualAssertionOptions(this.instanceInitiators.get(instance.instanceId), (record) => {
         if (visualAssertionRecords.length < VISUAL_ASSERTION_REPORT_MAX_RECORDS) visualAssertionRecords.push({ version: 1, ...record });
       }),
+      // N7.5: observe-only OCR assertions; codes only, collected for this instance's report block.
+      ocrAssertions: this.ocrAssertionOptions((record) => {
+        if (ocrAssertionRecords.length < OCR_ASSERTION_REPORT_MAX_RECORDS) ocrAssertionRecords.push({ version: 1, ...record });
+      }),
       // N5.4 (VD-5): collected for this instance's report block only; nothing in the run reads it back.
       onVisualDiagnosis: (record) => {
         if (visualDiagnoses.length < VISUAL_DIAGNOSIS_MAX_RECORDS) visualDiagnoses.push(record);
@@ -1772,6 +1803,9 @@ export class ExecutionEngine {
       // N6.7: the codes-only assertion block, rebuilt from its allowlist on write; absent when no assertVisual step ran.
       const visualAssertions = sanitizeVisualAssertionReportRecords(visualAssertionRecords);
       if (visualAssertions) instanceReport.visualAssertions = visualAssertions;
+      // N7.5: the codes-only OCR block, rebuilt from its allowlist on write; absent when no assertImageText step ran.
+      const ocrAssertions = sanitizeOcrAssertionReportRecords(ocrAssertionRecords);
+      if (ocrAssertions) instanceReport.ocrAssertions = ocrAssertions;
       const reports = this.runReports.get(instance.executionId);
       if (reports) reports.push(instanceReport);
 

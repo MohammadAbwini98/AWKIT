@@ -148,6 +148,10 @@ export interface FlowDesignerNodeData extends Record<string, unknown> {
    * absent); the packaged build's editor never offers enforce.
    */
   visualAssertionMode?: "observe" | "enforce";
+  /** N7.5: an `assertImageText` step's match mode. Undefined = absent on the step (the runner uses normalized). */
+  ocrMatch?: "exact" | "contains" | "normalized";
+  /** N7.5: an `assertImageText` step's case sensitivity. Undefined = absent (case-insensitive). */
+  ocrCaseSensitive?: boolean;
   /** Browser storage area read by a `storage` assertion. */
   storageArea: "local" | "session";
   /** Storage key read by a `storage` assertion. Empty for other types. */

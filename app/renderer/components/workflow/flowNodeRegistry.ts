@@ -5,6 +5,7 @@ import { flowNodeCatalog, getFlowNodeCatalogItem, type FlowNodeCatalogItem } fro
 import { isUsableWaitDuration, waitStepContractFor } from "@src/validation/WaitStepContract";
 import { ASSERTION_CONTRACTS } from "@src/validation/AssertionStepContract";
 import { LOOP_ACTIONS_NEEDING_A_TARGET } from "@src/validation/LoopStepContract";
+import { imageTextDesignerMessages } from "./imageTextDesigner";
 
 /**
  * Whether a wait node states the input its subtype needs, in designer terms.
@@ -148,6 +149,14 @@ const META: Record<StepType, RegistryMeta> = {
   assertVisible: { category: "assertion", sections: ["locator", "assertion", "execution"], executable: true },
   // N6.4: observe by default (the safe mode); the mode selector and candidate approval arrive with N6.5.
   assertVisual: { category: "assertion", sections: ["locator", "execution"], executable: true },
+  // N7.5: observe only. The expected text uses the shared value section (static or dynamic); match mode, case and the
+  // OC-8 messages come from the Image text section, judged by the engine's ImageTextAssertionContract.
+  assertImageText: {
+    category: "assertion",
+    sections: ["locator", "value", "execution"],
+    executable: true,
+    validate: (d) => imageTextDesignerMessages(d)
+  },
   screenshot: { category: "capture", sections: ["screenshot", "execution"], executable: true },
   manualHandoff: { category: "control", sections: ["execution"], executable: true },
   condition: {

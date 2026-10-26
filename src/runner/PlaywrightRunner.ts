@@ -22,6 +22,8 @@ import type {
   VisualAssertionRecord,
   VisualAssertionRuntime
 } from "./visualAssertion/visualAssertionContract";
+import type { OcrStepOptions } from "./ocr/OcrStep";
+import type { OcrAssertionAssessor, OcrAssertionMode, OcrAssertionRecord, OcrAssertionRuntime } from "./ocr/ocrAssertionContract";
 import type { DomIntelligenceRecoveryOptions } from "./domIntelligence/DomIntelligenceProvider";
 import { toRecoveryProvenance } from "./domIntelligence/recoveryProvenance";
 import { ManualHandoffController } from "./ManualHandoffController";
@@ -195,6 +197,33 @@ export interface PlaywrightRunnerOptions extends BrowserContextFactoryOptions {
     /** Receives each assertion's codes-only record (the report block, N6.7). */
     onRecord?: (record: VisualAssertionRecord) => void;
   };
+  /**
+   * N7.5: observe-only OCR assertions. Absent or `off`, every `assertImageText` step records `disabled`, and the adapter,
+   * `src/visual` and the OCR host are never loaded.
+   */
+  ocrAssertions?: {
+    mode: OcrAssertionMode;
+    /** The adapter's dependencies (the injected recognizer), built on first use; undefined when OCR is unavailable. */
+    adapter: () => OcrStepOptions | undefined;
+    /** Receives each assertion's codes-only record (the report block). */
+    onRecord?: (record: OcrAssertionRecord) => void;
+  };
+}
+
+/**
+ * N7.5: the OCR assertion adapter behind a loader, so a run with OCR off (or a refused expectation) never evaluates the
+ * adapter or `src/visual`. The first evaluated `assertImageText` step loads it once per runner.
+ */
+function lazyOcrAssertion(options: () => OcrStepOptions | undefined): () => Promise<OcrAssertionAssessor | undefined> {
+  let adapter: Promise<OcrAssertionAssessor | undefined> | undefined;
+  return () =>
+    (adapter ??= import("./ocr/OcrStep").then(
+      ({ OcrStep }) => {
+        const resolved = options();
+        return resolved ? new OcrStep(resolved) : undefined;
+      },
+      () => undefined
+    ));
 }
 
 /**
@@ -818,6 +847,8 @@ export class PlaywrightRunner {
       holder.popupIdentity, this.options.pauseGate);
     const visualAssertion = this.createVisualAssertion(holder);
     stepExecutor.setVisualAssertion(visualAssertion);
+    const ocrAssertion = this.createOcrAssertion();
+    stepExecutor.setOcrAssertion(ocrAssertion);
 
     // ── Popup identity wiring (FR-C1.1) ─────────────────────────────────────
     // NOTE: no `"page"` observer is installed here. `runFlowWithChildren` is RECURSIVE (every
@@ -864,6 +895,7 @@ export class PlaywrightRunner {
         this.options.oracleNodeRunner,
         holder.popupIdentity, this.options.pauseGate);
       branchExecutor.setVisualAssertion(visualAssertion);
+      branchExecutor.setOcrAssertion(ocrAssertion);
       return { execute: (step: FlowStep) => branchExecutor.execute(step), close: () => branchPage.close() };
     };
 
@@ -976,6 +1008,22 @@ export class PlaywrightRunner {
       assessor: () => (this.visualAssertionLoader ??= lazyVisualAssertion(options.adapter))(),
       handedOff: (target) => this.pageHandedOff(target),
       ...(sink ? { onRecord: (record: VisualAssertionRecord) => sink(record) } : {})
+    };
+  }
+
+  private ocrAssertionLoader?: () => Promise<OcrAssertionAssessor | undefined>;
+
+  /** N7.5: the runtime every executor of a run gets; absent options mean OCR off. */
+  private createOcrAssertion(): OcrAssertionRuntime | undefined {
+    const options = this.options.ocrAssertions;
+    if (!options) return undefined;
+    const sink = options.onRecord;
+    return {
+      mode: options.mode,
+      // Never called with OCR off or a refused expectation, so those paths never load the adapter.
+      assessor: () => (this.ocrAssertionLoader ??= lazyOcrAssertion(options.adapter))(),
+      handedOff: (target) => this.pageHandedOff(target),
+      ...(sink ? { onRecord: (record: OcrAssertionRecord) => sink(record) } : {})
     };
   }
 

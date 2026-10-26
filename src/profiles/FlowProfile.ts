@@ -29,6 +29,11 @@ export type StepType =
   | "assertVisible"
   /** N6.4: element visual assertion against an approved, keyed baseline. Non-retryable. */
   | "assertVisual"
+  /**
+   * N7.5: observe-only OCR assertion of one DOM-located element's rendered text against the authored expected text
+   * (`valueSource`, else `value`; OC-8 refused when sensitive). Records codes only and never fails the step.
+   */
+  | "assertImageText"
   | "screenshot"
   | "manualHandoff"
   | "condition"
@@ -799,6 +804,7 @@ export interface FlowStep {
   /**
    * N6 `assertVisual` only: `observe` (default; never changes the step outcome) or `enforce`. Outside the step's
    * content digest, so promoting a step keeps its approval. Packaged production never enforces (VA-16).
+   * N7.5 `assertImageText` accepts only `observe` (or absence): N7 has no enforcing OCR assertion (OC-11).
    */
   mode?: "observe" | "enforce";
   locator?: StepLocator;
@@ -925,6 +931,13 @@ export interface NodeConfig {
    * distance is the gesture. Nothing is being waited FOR.
    */
   holdMs?: number;
+  /**
+   * N7.5 `assertImageText` only: how the recognized text is compared with the expected text. Absent = `normalized`.
+   * `exact` is case-sensitive by default; `contains` and `normalized` are not.
+   */
+  ocrMatch?: "exact" | "contains" | "normalized";
+  /** N7.5 `assertImageText` only: overrides the match mode's default case sensitivity. */
+  ocrCaseSensitive?: boolean;
   screenshotName?: string;
   fullPage?: boolean;
   scrollTarget?: "page" | "element";

@@ -54,6 +54,11 @@ export class RetryPolicy {
     if (step.type === "assertVisual") {
       return { retry: false, delayMs: 0, errorClass, reason: "assertVisual is non-retryable (VA-2)" };
     }
+    // N7.5: an observe-only OCR assertion never fails, and nothing in it is ever retried: a second recognition could
+    // only turn an honest inconclusive into a lucky match.
+    if (step.type === "assertImageText") {
+      return { retry: false, delayMs: 0, errorClass, reason: "assertImageText is non-retryable (observe only)" };
+    }
 
     // Infra-terminal failures beat everything: the browser/session is gone or a human is needed.
     if (INFRA_TERMINAL_ERROR_CLASSES.has(errorClass)) {

@@ -158,7 +158,11 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
         : savedMode !== undefined
           ? { mode: savedMode }
           : {}
-      : {}),
+      : // N7.5: an image text step keeps whatever mode it was saved with, so an unsupported one stays refused by the
+        // validator instead of being silently dropped into observe.
+        data.stepType === "assertImageText" && savedMode !== undefined
+        ? { mode: savedMode }
+        : {}),
     id: node.id,
     type: data.stepType,
     name: data.name,
@@ -269,6 +273,11 @@ export function toNodeConfig(data: FlowDesignerNodeData): NodeConfig | undefined
     // Only an `attribute` assertion carries an attribute name; other types must not persist one.
     attributeName: inSection("assertion") && data.assertionType === "attribute" ? data.attributeName || undefined : undefined,
     holdMs: shouldPersistHoldMs ? data.holdMs : undefined,
+    // N7.5: an unrecognised saved value loads as undefined (not editable); it is written back verbatim until the
+    // author picks a supported one, so the validator keeps refusing it instead of it turning into the default.
+    ocrMatch: type === "assertImageText" ? data.ocrMatch ?? (originalConfig?.ocrMatch as NodeConfig["ocrMatch"]) : undefined,
+    ocrCaseSensitive:
+      type === "assertImageText" ? data.ocrCaseSensitive ?? (originalConfig?.ocrCaseSensitive as NodeConfig["ocrCaseSensitive"]) : undefined,
     storageArea: inSection("assertion") && data.assertionType === "storage" ? data.storageArea : undefined,
     storageKey: inSection("assertion") && data.assertionType === "storage" ? data.storageKey || undefined : undefined,
     screenshotName: inSection("screenshot") ? data.screenshotName || undefined : undefined,
@@ -459,6 +468,12 @@ export function fromFlowStep(step: FlowStep): FlowDesignerNodeData {
     holdMs: step.config?.holdMs ?? 1000,
     // N6.5: only a recognised mode is editable; any other value stays in `originalStep` (the validator refuses it).
     visualAssertionMode: step.type === "assertVisual" && (step.mode === "observe" || step.mode === "enforce") ? step.mode : undefined,
+    // N7.5: only recognised values are editable; anything else stays in `configOriginal` (the validator refuses it).
+    ocrMatch:
+      step.type === "assertImageText" && (step.config?.ocrMatch === "exact" || step.config?.ocrMatch === "contains" || step.config?.ocrMatch === "normalized")
+        ? step.config.ocrMatch
+        : undefined,
+    ocrCaseSensitive: step.type === "assertImageText" && typeof step.config?.ocrCaseSensitive === "boolean" ? step.config.ocrCaseSensitive : undefined,
     storageArea: step.config?.storageArea ?? "local",
     storageKey: step.config?.storageKey ?? "",
     screenshotName: step.config?.screenshotName ?? "",

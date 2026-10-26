@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Image Text Assertion Lab</title>
+    <!--
+      Phase N, N7.5 (awkit-vra.9.6) Image Text Assertion Lab. The fixtures an observe-only `assertImageText` step is
+      checked against, sized for an 800x600 viewport. Plain black-on-white Arial so the offline OCR engine reads the
+      label reliably. window.__ocrLab.setVariant(name) redraws the label oc-label deterministically:
+        baseline   "Order 4521 shipped"                         expected "Order 4521 shipped" -> matched/text-matched
+        near       one digit differs: "Order 4527 shipped"        expected "Order 4521 shipped" -> inconclusive/near-miss
+        different  "Payment declined today"                       expected "Order 4521 shipped" -> differs/text-differs
+      Other fixtures, each addressed by its data-testid:
+        oc-dupe        two labels sharing one test id                          -> inconclusive/target-not-unique
+        oc-hidden      a display:none label                                     -> inconclusive/target-hidden
+        oc-clipped     a label crossing the 600 px fold                         -> inconclusive (clipped or offscreen)
+        oc-oversized   a 480x300 panel of 14 px text: upscaled 3x for the x-height floor it exceeds the 1 MP OCR ceiling
+                                                                                -> inconclusive/region-too-large
+        oc-tiny        6 px text, too small to read reliably                    -> inconclusive/region-too-small
+        oc-card-text   a label that shows a test card number as plain text; an expectation of that number is refused
+                       before anything is captured                              -> inconclusive/sensitive-input
+        oc-payment     a wrapper around a name="cvv" input                      -> inconclusive/sensitive-step
+        oc-otp         a wrapper whose open shadow root holds an id="otp" input -> inconclusive/sensitive-step
+      injectProtected() adds a password sign-in form (the protected-surface refusal; the page carries no credential
+      field otherwise). Nothing is random, animated or time-dependent. The card number is the public 4111 test number.
+      Served by npm run verify:mock-site; exercised by npm run verify:ocr-runtime and verify:ocr-gui.
+    -->
+    <style>
+      html, body { margin: 0; padding: 0; background: #ffffff; }
+      body { font-family: Arial, Helvetica, sans-serif; color: #000000; width: 800px; height: 2000px; position: relative; overflow-x: hidden; }
+      h1 { position: absolute; left: 20px; top: 8px; margin: 0; font-size: 16px; line-height: 20px; }
+      .oc-label { position: absolute; box-sizing: border-box; margin: 0; padding: 8px 12px; background: #ffffff; color: #000000; font-size: 24px; line-height: 32px; white-space: nowrap; }
+      #oc-label { left: 20px; top: 40px; }
+      #oc-dupe-1 { left: 20px; top: 110px; }
+      #oc-dupe-2 { left: 420px; top: 110px; }
+      #oc-hidden { display: none; left: 20px; top: 170px; }
+      #oc-card-text { left: 20px; top: 170px; }
+      .oc-wrap { position: absolute; box-sizing: border-box; padding: 8px; border: 1px solid #000000; font-size: 16px; }
+      #oc-payment { left: 20px; top: 240px; width: 200px; }
+      #oc-otp { left: 240px; top: 240px; width: 220px; }
+      #oc-tiny { position: absolute; left: 480px; top: 250px; margin: 0; font-size: 6px; line-height: 8px; }
+      #oc-oversized { position: absolute; box-sizing: border-box; left: 20px; top: 290px; width: 480px; height: 300px; padding: 8px; border: 1px solid #000000; font-size: 14px; line-height: 18px; overflow: hidden; }
+      #oc-clipped { left: 540px; top: 570px; }
+      #oc-protected { position: absolute; left: 540px; top: 320px; }
+    </style>
+  </head>
+  <body>
+    <h1>Image Text Assertion Lab</h1>
+    <p id="oc-label" class="oc-label" data-testid="oc-label">Order 4521 shipped</p>
+    <p id="oc-dupe-1" class="oc-label" data-testid="oc-dupe">Duplicate label</p>
+    <p id="oc-dupe-2" class="oc-label" data-testid="oc-dupe">Duplicate label</p>
+    <p id="oc-hidden" class="oc-label" data-testid="oc-hidden">Hidden label</p>
+    <p id="oc-card-text" class="oc-label" data-testid="oc-card-text">4111 1111 1111 1111</p>
+    <div id="oc-payment" class="oc-wrap" data-testid="oc-payment">
+      Security code <input name="cvv" value="123" aria-label="Security code" style="width: 50px" />
+    </div>
+    <div id="oc-otp" class="oc-wrap" data-testid="oc-otp"></div>
+    <p id="oc-tiny" data-testid="oc-tiny">Fine print</p>
+    <div id="oc-oversized" data-testid="oc-oversized">
+      Terms of delivery. Parcels ship from the central warehouse on working days. Delivery takes two to four days.
+      Orders placed before noon ship the same day. A tracking number is sent once the parcel leaves the warehouse.
+      Returns are accepted within thirty days. Items must be unused and in their original packaging. Refunds are
+      issued to the original payment method within five working days of the return arriving at the warehouse.
+    </div>
+    <p id="oc-clipped" class="oc-label" data-testid="oc-clipped">Across the fold</p>
+    <script>
+      (function () {
+        var label = document.getElementById("oc-label");
+        // oc-otp: a one-time-code field inside an OPEN shadow root, as in the N6.8 lab (the page itself stays free of a
+        // credential field, so only this wrapper is refused, never the whole page).
+        document.getElementById("oc-otp").attachShadow({ mode: "open" }).innerHTML =
+          '<span>Code</span> <input id="otp" value="482913" style="width:80px" />';
+        var TEXT = { baseline: "Order 4521 shipped", near: "Order 4527 shipped", different: "Payment declined today" };
+        function setVariant(name) {
+          if (!Object.prototype.hasOwnProperty.call(TEXT, name)) throw new Error("unknown variant " + name);
+          label.textContent = TEXT[name];
+          label.setAttribute("data-variant", name);
+        }
+        function injectProtected() {
+          if (document.getElementById("oc-protected")) return;
+          var form = document.createElement("form");
+          form.id = "oc-protected";
+          form.innerHTML = '<h2>Sign in</h2><label>Password <input type="password" name="password" autocomplete="current-password" /></label>';
+          document.body.appendChild(form);
+        }
+        setVariant("baseline");
+        window.__ocrLab = { setVariant: setVariant, injectProtected: injectProtected, variants: Object.keys(TEXT) };
+      })();
+    </script>
+  </body>
+</html>

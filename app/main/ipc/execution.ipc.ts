@@ -10,6 +10,7 @@ import { Permission } from "@src/security/authz/Permissions";
 import { getSecretStore } from "../secretStore";
 import { getOracleNodeRunner } from "../oracleService";
 import { issueStartupEpochTokens, visualAssertionServices } from "../visualAssertion/visualAssertionServices";
+import { getOcrHostManager } from "../ocr/ocrRuntime";
 import { domIntelligenceRecoveryOptions, prewarmDomIntelligence } from "../domIntelligence/domIntelligenceRuntime";
 import { localAiEnabled } from "../ai/aiRuntime";
 import { indexCompletedRun } from "../semantic/semanticService";
@@ -59,6 +60,9 @@ export function registerExecutionIpc(): void {
   // N6.4: build mode, app version and the safeStorage-protected visual baseline store for assertVisual steps.
   executionEngine.setVisualAssertionServices(visualAssertionServices());
   void issueStartupEpochTokens();
+  // N7.5: the optional offline OCR host for observe-only assertImageText steps. Null (never constructed, never forked)
+  // unless AWKIT_VISUAL_OCR=observe and the assets are included in this build.
+  executionEngine.setOcrAssertionServices({ recognizer: () => getOcrHostManager() ?? undefined });
 
   // Oracle query nodes run through the main-process OracleQueryService (owns the JDBC bridge).
   executionEngine.setOracleNodeRunner(getOracleNodeRunner());

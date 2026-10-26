@@ -17,6 +17,7 @@ import {
 import { LocatorUpgradeSection } from "./LocatorUpgradeSection";
 import { LocatorDiagnosisSection } from "./LocatorDiagnosisSection";
 import { VisualAssertionSection } from "./VisualAssertionSection";
+import { ImageTextAssertionSection } from "./ImageTextAssertionSection";
 import { DriftCheckSection } from "./DriftCheckSection";
 import { confirmDirectActionPatch, interactionReviewForNode, type DesignerValidationFinding } from "./flowValidationPresentation";
 import { useNavigation } from "../../state/navigation";
@@ -1109,6 +1110,10 @@ export function FlowNodePropertiesPanel({
               editorDirty={editorDirty}
               onModeChange={(visualAssertionMode) => set({ visualAssertionMode })}
             />
+          ) : null}
+
+          {stepType === "assertImageText" && selectedNode ? (
+            <ImageTextAssertionSection flowId={flowId} stepId={selectedNode.id} data={data} onChange={(patch) => set(patch)} />
           ) : null}
 
           {has("wait") ? (

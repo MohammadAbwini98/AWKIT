@@ -5,6 +5,7 @@ import { getConfiguredPaths } from "../storagePaths";
 import { assertSenderPermission } from "../security/sessionContext";
 import { Permission } from "@src/security/authz/Permissions";
 import { ReportExportService, type ReportExportFormat } from "@src/reports/ReportExportService";
+import { withSanitizedOcrAssertions } from "@src/runner/ocr/ocrAssertionReport";
 
 type StoredReport = ConcurrentRunReport & { id: string };
 
@@ -67,6 +68,9 @@ export function registerReportIpc(): void {
 function toStoredReport(report: ConcurrentRunReport): StoredReport {
   return {
     ...report,
+    // N7.5: an imported report's OCR blocks are rebuilt from the allowlist (malformed or extra-keyed records dropped)
+    // before they are stored; every other field is stored as before.
+    ...(Array.isArray(report.instances) ? { instances: report.instances.map((instance) => withSanitizedOcrAssertions(instance)) } : {}),
     id: report.executionId
   };
 }

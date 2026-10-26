@@ -71,6 +71,8 @@ export const flowNodeCatalog: FlowNodeCatalogItem[] = [
   { type: "assertVisible", label: "Assert Visible", description: "Assert element visibility", icon: Eye, requiresLocator: true },
   // N6.4: observe by default; the enforce mode and baseline approval arrive in the Designer with N6.5.
   { type: "assertVisual", label: "Assert Visual", description: "Compare an element with its approved look", icon: ScanEye, requiresLocator: true },
+  // N7.5: observe only - reads one element's rendered text offline and records a verdict, never fails a run.
+  { type: "assertImageText", label: "Assert Image Text", description: "Observe the text drawn inside an element", icon: Type, requiresLocator: true, requiresValue: true },
   { type: "screenshot", label: "Take Screenshot", description: "Capture page image", icon: Camera },
   { type: "manualHandoff", label: "Manual Handoff", description: "Pause for human action", icon: Hand },
   { type: "condition", label: "Condition", description: "Branch by expression", icon: GitBranch, requiresValue: true },

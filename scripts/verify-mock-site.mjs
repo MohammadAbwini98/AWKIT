@@ -813,6 +813,41 @@ try {
   await page.evaluate(() => window.__assertionLab.injectProtected());
   check("injectProtected adds exactly one password field", (await page.locator('#va-protected input[type="password"]').count()) === 1);
 
+  // Phase N, N7.5 Image Text Assertion Lab: the label's variants and every refusal fixture serve. The observations are
+  // proven by npm run verify:ocr-runtime (injected reader) and npm run verify:ocr-gui (the real offline engine).
+  console.log("Image Text Assertion Lab (/visual-intelligence/ocr):");
+  await page.goto(`${BASE}/`);
+  check("index lists the Image Text Assertion Lab scenario", (await page.getByTestId("scenario-image-text").count()) === 1);
+  await page.goto(`${BASE}/visual-intelligence/ocr`);
+  check("the image text lab serves its title", (await page.title()) === "Image Text Assertion Lab");
+  check("the image text lab carries no credential field until injectProtected", (await page.locator('input[type="password"], input[autocomplete="one-time-code"]').count()) === 0);
+  const ocrLabel = page.getByTestId("oc-label");
+  const ocrLabelBox = await ocrLabel.boundingBox();
+  check("the label sits inside the viewport and reads its expected text", !!ocrLabelBox && ocrLabelBox.y + ocrLabelBox.height <= 600 && (await ocrLabel.innerText()) === "Order 4521 shipped");
+  await page.evaluate(() => window.__ocrLab.setVariant("near"));
+  check("near changes exactly one digit", (await ocrLabel.innerText()) === "Order 4527 shipped");
+  await page.evaluate(() => window.__ocrLab.setVariant("different"));
+  check("different shows other text", (await ocrLabel.innerText()) === "Payment declined today");
+  await page.evaluate(() => window.__ocrLab.setVariant("baseline"));
+  check("baseline restores the expected text", (await ocrLabel.getAttribute("data-variant")) === "baseline" && (await ocrLabel.innerText()) === "Order 4521 shipped");
+  check("setVariant refuses an unknown variant", await page.evaluate(() => { try { window.__ocrLab.setVariant("nope"); return false; } catch { return true; } }));
+  check("the duplicate labels share one test id and the hidden label is hidden", (await page.getByTestId("oc-dupe").count()) === 2 && (await page.getByTestId("oc-hidden").isHidden()));
+  const ocrClippedBox = await page.getByTestId("oc-clipped").boundingBox();
+  check("the clipped label crosses the fold", !!ocrClippedBox && ocrClippedBox.y < 600 && ocrClippedBox.y + ocrClippedBox.height > 600);
+  const ocrOversizedBox = await page.getByTestId("oc-oversized").boundingBox();
+  check("the oversized panel is 480x300 with 14 px text inside the viewport and the tiny label uses 6 px text",
+    !!ocrOversizedBox && Math.round(ocrOversizedBox.width) === 480 && Math.round(ocrOversizedBox.height) === 300 && ocrOversizedBox.y + ocrOversizedBox.height <= 600 &&
+      (await page.getByTestId("oc-oversized").evaluate((el) => getComputedStyle(el).fontSize)) === "14px" &&
+      (await page.getByTestId("oc-tiny").evaluate((el) => getComputedStyle(el).fontSize)) === "6px");
+  check("the card label shows the public 4111 test number as plain text", (await page.getByTestId("oc-card-text").innerText()) === "4111 1111 1111 1111");
+  check(
+    "the payment wrapper holds a name=cvv input and the OTP wrapper's open shadow root holds an id=otp input",
+    (await page.getByTestId("oc-payment").locator('input[name="cvv"]').count()) === 1 &&
+      (await page.getByTestId("oc-otp").evaluate((host) => Boolean(host.shadowRoot?.querySelector("input#otp")) && host.querySelector("input") === null))
+  );
+  await page.evaluate(() => window.__ocrLab.injectProtected());
+  check("injectProtected adds exactly one password field", (await page.locator('#oc-protected input[type="password"]').count()) === 1);
+
   // Phase N, N2.3 Visual Fusion Calibration Lab: the toolbar, its scenarios and the F5-F7 fixtures serve.
   // The score distributions and the Ctrl+zoom check are measured by npm run benchmark:visual-fusion.
   console.log("Visual Fusion Calibration Lab (/visual-intelligence/fusion):");

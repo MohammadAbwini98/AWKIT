@@ -227,6 +227,8 @@ const server = createServer(async (req, res) => {
   if (req.method === "GET" && path === "/visual-intelligence/fusion") return serveStatic(res, "visual-intelligence-fusion.html");
   // Phase N, N6.4 Visual Assertion Lab: the assertVisual fixtures (variants, refusals, VA-15 animation).
   if (req.method === "GET" && path === "/visual-intelligence/assertion") return serveStatic(res, "visual-intelligence-assertion.html");
+  // Phase N, N7.5: the Image Text Assertion Lab (observe-only OCR assertions).
+  if (req.method === "GET" && path === "/visual-intelligence/ocr") return serveStatic(res, "visual-intelligence-ocr.html");
   // L11.F DOM Context Lab: its SPA routes serve the lab itself, so a reload stays on the same view.
   if (req.method === "GET" && path === "/dom-context-lab/frame") return serveStatic(res, "dom-context-lab-frame.html");
   if (req.method === "GET" && path === "/dom-context-lab/popup") return serveStatic(res, "dom-context-lab-popup.html");

@@ -116,6 +116,18 @@
             <dd><code>/visual-intelligence/assertion</code></dd>
           </dl>
         </article>
+        <article data-testid="scenario-image-text">
+          <h2><a href="/visual-intelligence/ocr">Image Text Assertion Lab</a></h2>
+          <p>A plain black-on-white label redrawn as its expected text, a one-digit near miss or different text, plus duplicate, hidden, clipped, oversized and tiny labels, a label showing a test card number, a payment and a one-time-code wrapper, and an on-demand sign-in form.</p>
+          <dl class="scenario-meta">
+            <dt>Expected</dt>
+            <dd>With the offline reader on, the expected label matches, the different label differs and the near miss is inconclusive; every other fixture is inconclusive with its own code, and the card number, the sensitive wrappers and the sign-in form are refused before anything is captured or read. Observe never fails a step.</dd>
+            <dt>Related feature</dt>
+            <dd>Observe-only OCR assertions, the <code>assertImageText</code> step (Phase N, N7.5).</dd>
+            <dt>Stable URL</dt>
+            <dd><code>/visual-intelligence/ocr</code></dd>
+          </dl>
+        </article>
         <article data-testid="scenario-dom-context">
           <h2><a href="/dom-context-lab">DOM Context Lab</a></h2>
           <p>Frame, popup, SPA-route, virtualized-list and delayed-render contexts, each with a look-alike control where a step must not recover from.</p>

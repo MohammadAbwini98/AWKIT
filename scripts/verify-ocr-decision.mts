@@ -478,12 +478,22 @@ const strip = (text: string): string => text.replace(/\/\*[\s\S]*?\*\//g, "").re
 const sources = {
   decision: readFileSync(join(process.cwd(), "src", "visual", "ocr", "decideTextAssertion.ts"), "utf8"),
   preprocess: readFileSync(join(process.cwd(), "src", "visual", "ocr", "preprocess.ts"), "utf8"),
-  sensitive: readFileSync(join(process.cwd(), "src", "visual", "ocr", "sensitiveExpected.ts"), "utf8")
+  // N7.5 moved the OC-8 implementation outside src/visual (src/ocr/ocrExpectedText.ts) so the validator, the step
+  // executor and the Designer share it without reaching Visual Intelligence; the src/visual module only re-exports it.
+  sensitive: readFileSync(join(process.cwd(), "src", "ocr", "ocrExpectedText.ts"), "utf8")
 };
 const importsOf = (text: string): string[] => [...text.matchAll(/from\s+"([^"]+)"/g)].map((m) => m[1]);
 check("purity: the decision imports only ./sensitiveExpected", importsOf(sources.decision).join(",") === "./sensitiveExpected", importsOf(sources.decision).join(", "));
 check("purity: preprocessing imports only a type from ../png", importsOf(sources.preprocess).join(",") === "../png" && /import type \{ VisualImage \} from "\.\.\/png"/.test(sources.preprocess));
-check("purity: the OC-8 rules import nothing", importsOf(sources.sensitive).length === 0);
+check("purity: the OC-8 rules import only a type from the flow profile", importsOf(sources.sensitive).join(",") === "../profiles/FlowProfile" && /import type \{ ValueSource \} from "\.\.\/profiles\/FlowProfile"/.test(sources.sensitive));
+{
+  const reexport = readFileSync(join(process.cwd(), "src", "visual", "ocr", "sensitiveExpected.ts"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").trim();
+  check(
+    "purity: src/visual/ocr/sensitiveExpected.ts only re-exports the one OC-8 implementation",
+    reexport === 'export { detectSensitiveValue, isSensitiveSourceName, type SensitiveValueCode } from "../../ocr/ocrExpectedText";',
+    reexport.slice(0, 200)
+  );
+}
 for (const [name, text] of Object.entries(sources)) {
   const code = strip(text);
   check(`purity: ${name} uses no I/O, clock, randomness or dynamic import`, !/\b(node:|require\(|import\(|Date\.|new Date|Math\.random|performance\.|process\.|setTimeout|fetch\(|readFile|writeFile|console\.)/.test(code));

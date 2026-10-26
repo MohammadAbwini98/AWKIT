@@ -101,7 +101,7 @@ try {
   else {
     for (const s of result.steps) check(`${s.label} (${s.durationMs} ms)`, s.ok, s.error ?? JSON.stringify(s.detail ?? "").slice(0, 300));
     check("the harness ran to completion", result.complete === true, `${timedOut ? "timed out" : "exited"} during: ${result.inFlight}; ${stderr.trim().slice(-300)}`);
-    check("the harness ran every step", result.steps.length >= 24, `${result.steps.length} steps`);
+    check("the harness ran every step", result.steps.length >= 29, `${result.steps.length} steps`);
     const details = JSON.stringify(result.steps.map((s: { detail?: unknown }) => s.detail ?? null));
     check("the report holds no recognized text", !/specterstudio|invoice|quick brown/i.test(details));
   }

@@ -9,7 +9,7 @@
  * The report (JSON at AWKIT_HARNESS_REPORT) holds codes, counts and timings, never recognized text.
  */
 
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, utilityProcess } from "electron";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
@@ -141,8 +141,56 @@ async function run(): Promise<void> {
   }));
   await step("OCR off: no manager is constructed and no host is forked", async () => ({ ok: getOcrHostManager({}) === null }));
 
-  const manager = make();
+  // A short overrun grace, so the deadline step below reaches the kill past it (the default grace is proven separately).
+  const manager = make({ overrunGraceMs: 50 });
   await step("constructing the manager forks nothing", async () => ({ ok: manager.status().state === "stopped" && manager.status().pid === null }));
+
+  // N7.5: a deadline answers at once; a recognition that finishes within the grace keeps its warm host.
+  await step("N7.5: a short overrun answers budget-exhausted at once, the host finishes within the grace, its result is dropped and the warm host is reused", async () => {
+    const graced = make();
+    try {
+      const warmUp = await graced.recognize(label, { deadlineMs: 15_000 });
+      const pid = graced.status().pid;
+      const started = Date.now();
+      const late = await graced.recognize(invoice, { deadlineMs: 5 });
+      const answeredMs = Date.now() - started;
+      const dropped = await until(() => graced.status().lateResultsDropped === 1, 3_000);
+      const next = await graced.recognize(label, { deadlineMs: 5_000 });
+      const status = graced.status();
+      return {
+        ok: warmUp.ok && !late.ok && late.reason === "budget-exhausted" && answeredMs < 200 && dropped && next.ok && joined(next).includes("specterstudio") && status.pid === pid && alive(pid) && status.unexpectedExits === 0,
+        detail: { answeredMs, dropped, samePid: status.pid === pid, unexpectedExits: status.unexpectedExits }
+      };
+    } finally {
+      await graced.dispose();
+    }
+  });
+
+  // N7.5: prepare() starts the engine without a job, so an assertion's start-up overlaps its capture.
+  await step("N7.5: prepare() starts a host with no job, the next recognition runs on it, and an idle prepared host shuts down", async () => {
+    const warm = make({ idleShutdownMs: 1_500 });
+    try {
+      warm.prepare();
+      warm.prepare();
+      const ready = await until(() => warm.status().state === "ready" && warm.status().pid !== null, 15_000);
+      const pid = warm.status().pid;
+      const started = Date.now();
+      const outcome = await warm.recognize(label, { deadlineMs: 5_000 });
+      const elapsed = Date.now() - started;
+      const samePid = warm.status().pid === pid;
+      const idled = await until(() => warm.status().state === "stopped" && !alive(pid), 6_000);
+      return { ok: ready && outcome.ok && joined(outcome).includes("specterstudio") && samePid && elapsed < 1_000 && idled, detail: { elapsedMs: elapsed, samePid, idled } };
+    } finally {
+      await warm.dispose();
+    }
+  });
+  await step("N7.5: prepare() on a disposed manager forks nothing", async () => {
+    const gone = make();
+    await gone.dispose();
+    gone.prepare();
+    await sleep(300);
+    return { ok: gone.status().pid === null && gone.status().state === "disposed" };
+  });
 
   let firstPid: number | null = null;
   await step("first recognition starts the host lazily and reads the label (real engine)", async () => {
@@ -159,8 +207,10 @@ async function run(): Promise<void> {
     return { ok: outcome.ok && outcome.words.length > 0 && outcome.words.every((w) => w.confidence >= 0 && w.confidence <= 100) };
   });
 
-  await step("a deadline mid-recognition answers budget-exhausted and kills the host", async () => {
+  let deadlinePid: number | null = null;
+  await step("a deadline mid-recognition answers budget-exhausted at once and, past the overrun grace, kills the host", async () => {
     const pid = manager.status().pid;
+    deadlinePid = pid;
     const started = Date.now();
     const outcome = await manager.recognize(page, { deadlineMs: 40 });
     const elapsed = Date.now() - started;
@@ -171,6 +221,11 @@ async function run(): Promise<void> {
     await sleep(1_500);
     const status = manager.status();
     return { ok: status.unexpectedExits === 0 && !status.circuitOpen, detail: status };
+  });
+  // N7.5: the timed-out host's replacement starts at once, so the next assertion does not pay start-up in its deadline.
+  await step("N7.5: after a deadline kill the replacement host is started at once, with no request", async () => {
+    const replaced = await until(() => manager.status().state === "ready" && manager.status().pid !== null && manager.status().pid !== deadlinePid, 15_000);
+    return { ok: replaced && alive(manager.status().pid) && manager.status().unexpectedExits === 0, detail: manager.status() };
   });
   await step("the next request forks a fresh host and succeeds", async () => {
     const outcome = await manager.recognize(label, { deadlineMs: 15_000 });
@@ -202,6 +257,77 @@ async function run(): Promise<void> {
   await step("an invalid image is refused without reaching the host", async () => {
     const outcome = await manager.recognize({ width: 10, height: 10, gray: new Uint8Array(5) });
     return { ok: !outcome.ok && outcome.reason === "image-invalid" };
+  });
+
+  // N7.5 host cleanup regression: the host's own early returns (malformed requests the manager would never send) and
+  // degenerate blank images must leave it able to recognize, on the same process, with no growth from left-over state.
+  await step("N7.5: repeated malformed requests sent straight to one host, then blank images, then a real recognition on the same process", async () => {
+    const child = utilityProcess.fork(HOST_PATH, [], {
+      stdio: "pipe",
+      serviceName: "SpecterStudio OCR regression",
+      env: { ...process.env, AWKIT_OCR_ASSET_DIR: ASSET_DIR, AWKIT_OCR_EXPECTED: JSON.stringify(expected) }
+    });
+    const replies = new Map<string, (message: Record<string, unknown>) => void>();
+    let ready: (pid: number) => void = () => undefined;
+    const readyAt = new Promise<number>((resolve) => (ready = resolve));
+    child.on("message", (message: Record<string, unknown>) => {
+      if (message?.type === "ready") ready(Number(message.pid));
+      else if (message?.type === "result" && typeof message.id === "string") replies.get(message.id)?.(message);
+    });
+    let sequence = 0;
+    const ask = (request: Record<string, unknown>, ms = 15_000) =>
+      new Promise<Record<string, unknown> | null>((resolve) => {
+        const id = `r${++sequence}`;
+        const timer = setTimeout(() => resolve(null), ms);
+        replies.set(id, (message) => {
+          clearTimeout(timer);
+          resolve(message);
+        });
+        child.postMessage({ version: 1, type: "recognize", id, ...request });
+      });
+    try {
+      const pid = await Promise.race([readyAt, sleep(20_000).then(() => 0)]);
+      if (!pid) return { ok: false, detail: "the host never became ready" };
+      const malformed: Array<Record<string, unknown>> = [
+        { width: -4, height: 4, gray: new Uint8Array(16), psm: 6 },
+        { width: 4.5, height: 4, gray: new Uint8Array(18), psm: 6 },
+        { width: 4, height: 4, gray: new Uint8Array(15), psm: 6 },
+        { width: 4, height: 4, gray: Array.from({ length: 16 }, () => 255), psm: 6 },
+        { width: 4, height: 4, gray: new Uint8Array(16), psm: 3 },
+        { width: 2000, height: 2000, gray: new Uint8Array(4), psm: 6 },
+        { height: 4, gray: new Uint8Array(16), psm: 6 }
+      ];
+      const reasons: string[] = [];
+      for (let round = 0; round < 3; round += 1) for (const request of malformed) reasons.push(String((await ask(request))?.reason ?? "no-reply"));
+      const rssAfterMalformed = Number((await ask(malformed[0]))?.rss ?? 0);
+      const blanks: string[] = [];
+      for (const [w, h] of [[1, 1], [8, 8], [64, 16]] as const) {
+        for (let round = 0; round < 2; round += 1) {
+          const reply = await ask({ width: w, height: h, gray: new Uint8Array(w * h).fill(255), psm: 7 });
+          blanks.push(reply?.ok === true ? `ok:${(reply.words as unknown[]).length}` : String(reply?.reason ?? "no-reply"));
+        }
+      }
+      const first = await ask({ ...label });
+      const firstText = first?.ok === true ? normalize((first.words as Array<{ text: string }>).map((w) => w.text).join(" ")) : "";
+      for (let round = 0; round < 3; round += 1) await ask(malformed[round]);
+      const second = await ask({ ...invoice });
+      const secondText = second?.ok === true ? normalize((second.words as Array<{ text: string }>).map((w) => w.text).join(" ")) : "";
+      const sameProcess = alive(pid) && child.pid === pid;
+      return {
+        ok:
+          reasons.length === 21 &&
+          reasons.every((reason) => reason === "image-invalid") &&
+          // Whichever path a degenerate image takes (no words, a refused image or the exception path), the host answers
+          // it and the recognitions below must still succeed on this same process.
+          blanks.every((outcome) => outcome !== "no-reply") &&
+          firstText.includes("specterstudio") &&
+          secondText.includes("invoice 4471 total 1284.50") &&
+          sameProcess,
+        detail: { reasons: [...new Set(reasons)], blanks, sameProcess, rssAfterMalformedMb: Math.round(rssAfterMalformed / 1048576), rssAfterRecognitionMb: Math.round(Number(second?.rss ?? 0) / 1048576) }
+      };
+    } finally {
+      child.kill();
+    }
   });
 
   await step("a host killed while idle is detected and replaced (one strike)", async () => {

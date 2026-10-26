@@ -182,6 +182,15 @@ export const NODE_CATALOG: Record<StepType, NodeGenerationSpec> = {
     weight: 0,
     note: "N6: a visual assertion needs a person-approved, keyed baseline; generated blind it could only be inconclusive, and enforce would only fail closed."
   },
+  assertImageText: {
+    type: "assertImageText",
+    role: "action",
+    requiresLocator: true,
+    requiresValue: true,
+    gate: "neverGenerated",
+    weight: 0,
+    note: "N7.5: an observe-only OCR assertion needs an author-written expected text for one rendered element and the optional offline OCR host; generated blind it could only be inconclusive, and it never changes a run."
+  },
 
   // ---- control ----
   wait: { type: "wait", role: "action", requiresLocator: false, requiresValue: true, weight: 6 },
