@@ -1,41 +1,28 @@
 {
-  "task": "awkit-vra-9-11-n7-3-ocr-assets-1026",
-  "contract_path": "docs/ai/contracts/awkit-vra-9-11-n7-3-ocr-assets-1026.json",
-  "holder": "release",
+  "task": "awkit-vra-9-5-n7-4-ocr-host-1026",
+  "contract_path": "docs/ai/contracts/awkit-vra-9-5-n7-4-ocr-host-1026.json",
+  "holder": "runtime",
   "status": "active",
   "allowed_paths": [
-    "electron-builder.json",
-    "resources/THIRD_PARTY_NOTICES.md",
-    "scripts/generate-dependency-manifest.ps1",
-    "scripts/package-per-user-installer.ps1",
-    "scripts/package-portable.ps1",
-    "src/offline/ocr-runtime.json"
+    "native-hosts/ocr/ocr-host.cjs"
   ],
-  "acquired_at": "2026-10-26T15:03:05.432Z",
-  "acquired_at_commit": "00572f378a997081cde03a489bda6a539d325137",
+  "acquired_at": "2026-10-26T15:32:31.591Z",
+  "acquired_at_commit": "d4b986a03ad270e4c6d651942958b843e7fe1814",
   "baseline_dirty": [
     ".beads/interactions.jsonl",
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
     "docs/ai/contracts/awkit-vra-9-11-n7-3-ocr-assets-1026.json",
-    "electron-builder.json",
-    "resources/THIRD_PARTY_NOTICES.md",
-    "scripts/generate-dependency-manifest.ps1",
-    "scripts/package-per-user-installer.ps1",
-    "scripts/package-portable.ps1",
-    "src/offline/ocr-runtime.json"
+    "docs/ai/contracts/awkit-vra-9-5-n7-4-ocr-host-1026.json",
+    "native-hosts/ocr/"
   ],
   "baseline_dirty_fingerprints": {
     ".beads/interactions.jsonl": "ffc7e0fbcfbcee7baaebd5d8e19b11ee5fa6550b5d20cd530b6324f0b91ee9f5",
-    "docs/ai/contracts/active-lease.json": "325081663e75c863a94ae51684e4e91edf26bb79c9afb92345d7882a3e49b38b",
+    "docs/ai/contracts/active-lease.json": "cfb3ddb591978613f3e02b23dbf786a2225eee8ff3320e4e8837641b0e2619b1",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-vra-9-11-n7-3-ocr-assets-1026.json": "17bf1c1e36d334deda6bf5c03953a00d0b410b8855a298a826c6b561ada575c8",
-    "electron-builder.json": "2e3f123e257312ea2908d5c7b9a72b65de85faa806321ddfb2650f1da31fd536",
-    "resources/THIRD_PARTY_NOTICES.md": "2d8bf250a86714440f404462479f71cfe087410113b675d017024196fb442e17",
-    "scripts/generate-dependency-manifest.ps1": "d596ff36a225b2d12e9edc60a51c48bdd434a160253ed46377b594df3ef078fd",
-    "scripts/package-per-user-installer.ps1": "49f60ca2b29dec2ec5616942949f1b5c3d8efdb8b54a444477f3c452399eb07d",
-    "scripts/package-portable.ps1": "e593291124b018cef1fda364c61d767b5a22940e25f8d1e69fabd785e08d9373",
-    "src/offline/ocr-runtime.json": "4573bb9fe4c89b198acef106acb99d088019d67e00adab5262a7646b12689bac"
+    "docs/ai/contracts/awkit-vra-9-11-n7-3-ocr-assets-1026.json": "56b2c9e2926ce5f447fc618d713b764e2820438c6c989bccd52412d5e99b97ba",
+    "docs/ai/contracts/awkit-vra-9-5-n7-4-ocr-host-1026.json": "f2e1787c7e03426dcf6a0eda0b9f7e7f16b4721ba5c0ff44e3e142c59fab26cc",
+    "native-hosts/ocr/": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   },
   "baseline_watched_ignored": {
     ".env": "absent",

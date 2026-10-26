@@ -1,0 +1,136 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-9-5-n7-4-ocr-host-1026",
+    "title": "N7.4: optional isolated OCR utility host with bounded requests and cancellation",
+    "objective": "Add native-hosts/ocr/ocr-host.cjs, the Electron utility host for the N7.1a-selected direct tesseract.js-core SIMD LSTM engine: network blocked before the engine loads, every asset verified against the pinned SHA-256, CPUs without WebAssembly SIMD refused, words and confidences only, no file writes, no logging. Its manager (app/main/ocr) enforces deadlines and aborts by killing the host, drops late results, bounds the queue, recycles on the resident-set ceiling, shuts down when idle, bounds restarts and stays off unless AWKIT_VISUAL_OCR=observe. Nothing is wired into runs (N7.5).",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "4f29564",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "runtime",
+      "qa",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      "native-hosts/ocr/ocr-host.cjs",
+      "app/main/ocr/OcrUtilityHostManager.ts",
+      "app/main/ocr/ocrRuntime.ts",
+      "src/ocr/OcrHostProtocol.ts",
+      "scripts/ocr-harness/harnessMain.ts",
+      "scripts/verify-ocr-host.mts",
+      "scripts/prepare-ocr-assets.mjs",
+      "scripts/verify-ocr-assets.mjs",
+      "scripts/validate-offline-bundle.ps1",
+      "scripts/lib/verifier-classification.ts",
+      "package.json",
+      "docs/ai/contracts/awkit-vra-9-5-n7-4-ocr-host-1026.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "runtime",
+      "allowed_paths": [
+        "native-hosts/ocr/ocr-host.cjs"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N7-4-HOST",
+      "description": "The host and manager pass verify:ocr-host against the real engine and assets (crash, hang, abort, deadline, memory, no-network, refusals), OCR stays default-off and never forks before a request, and the visual isolation stays at four edges.",
+      "evidence_required": [
+        "verify:ocr-host",
+        "verify:visual-isolation"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:ocr-host",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ocr-host",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "49/0 with the real engine and assets in real utility processes (first run 48/1 found a real manager defect: a job could be posted to a host already killed by an abort; fixed with per-host state)"
+    },
+    {
+      "id": "verify:visual-isolation",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-isolation",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "90/0, four approved edges, the OCR host, manager and protocol outside src/visual"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-9-5-n7-4-ocr-host-1026:runtime:2026-10-26T15:16:14.648Z",
+        "task": "awkit-vra-9-5-n7-4-ocr-host-1026",
+        "holder": "runtime",
+        "status": "released",
+        "allowed_paths": [
+          "native-hosts/ocr/ocr-host.cjs"
+        ],
+        "acquired_at": "2026-10-26T15:16:14.648Z",
+        "acquired_at_commit": "4f2956457de580ee20cc3a9de32e7c9b8d62a75d",
+        "released_at": "2026-10-26T15:16:45.546Z",
+        "released_reason": "N7.4 OCR utility host written",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}
