@@ -1,6 +1,86 @@
 # CURRENT_STATE
 
-## Phase N: N7.1a GO (direct tesseract.js-core), N7.3 and N7.4 done (2026-10-26, latest)
+## Phase N: N7.5 observe-only OCR assertions DONE; next N7.6 (2026-10-27, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N and N7 stay IN
+PROGRESS.**
+
+- **Delivery.** N7.5 (`awkit-vra.9.6`) is closed on its executed source gates, delivered in `4a47d9e` (implementation)
+  and `9a488ab` (deadline fix and classification correction), both on `origin/main`. Dashboard: 34 outstanding /
+  400 closed of 434, 394 edges, "Sources agree".
+- **Delivery recovery.** The 2026-10-26 commit refusal was that session's accumulated `unsupported-command` count. No
+  staged path was Risk-3. A short, grammar-conforming `git commit -m` succeeded in a new session.
+- **Closeout defect (fixed in `9a488ab`): a verdict could be recorded after the 1500 ms deadline.**
+  - Evidence: one GUI record read `differs` at 1525 ms. When synchronous main-thread work held the deadline timer, a
+    host reply landing meanwhile settled first.
+  - Fix: lateness is now judged by the wall clock where the outcome lands, in the adapter and the executor.
+  - `durationMs` now covers the whole assertion. Adapter-produced records had omitted page and expectation
+    resolution.
+  - Proven: mutants D1 and D2 turn `verify:ocr-runtime` red (a `matched` at 1634 ms; a 251 ms record for a 674 ms
+    operation).
+- **Classification correction (fixed in `9a488ab`).**
+  - The guard removal on `verify:visual-assertion-packaged` was correct. It reads only the shipped ASAR, and its three
+    files stay guarded by source-reading verifiers.
+  - `verify:packaging-host` was misclassed as `packaged-application`: it inspects the build host and parses source.
+    It is now `static-source-validation`, with guards restored for exactly the files it reads:
+    `msvc-redist-requirements.mjs`, `prepare-ai-native-host.mjs` and `package.json`.
+- **Final gates (2026-10-27).**
+  - `verify:ocr-runtime` 84/0, `verify:ocr-gui` 44/0 (no verdict after the deadline), `verify:visual-assertion-gui`
+    60/0 (now run), `verify:visual-assertion-runtime` 91/0, `verify:runner` 138/0.
+  - `verify:visual-isolation` 117/0, `verify:verifier-classification` PASS (20 static / 24 packaged).
+  - Build and `typecheck:scripts` PASS, `verify:roadmap-dashboard` 177/177.
+  - Unchanged since 2026-10-26 and retained: `verify:ocr-report` 51/0, `verify:ocr-host` 54/0, `verify:ocr-decision`
+    204/0, `verify:ocr-assets` 46/0, `verify:mock-site` 353/353, N6 `-report` 37/0 and `-candidates` 64/0,
+    `verify:flow-step-mapping` 194/0, `verify:flow-node-catalog-parity` 45/0, `verify:source-hygiene` 11/0,
+    `validate:offline` non-strict PASS.
+- **Not yet qualified (N7.6).** The OC-9 latency target and the OC-10 accuracy criteria. Measured in the ARM64 VM
+  source build: p95 1510 ms, p50 1283 ms, 3 of 12 observations `budget-exhausted`.
+
+The 2026-10-26 implementation notes follow (their verification figures are superseded by the gates above).
+
+- **Behaviour.**
+  - New step `assertImageText`: an expected text (literal or binding), match `exact | contains | normalized`
+    (default normalized), optional case sensitivity, observe only, at most 256 characters.
+  - One contract, `src/validation/ImageTextAssertionContract.ts`, is used by the validator, the executor and the
+    Designer.
+  - OC-8 refusals before any capture or engine start: secret, environment and unknown sources; sensitive key names;
+    card, IBAN, SSN and OTP-context values (also when sensitive only once resolved); handoff; protected surface; the
+    N6.8 sensitive container (now shared as `src/runner/visualAssertion/sensitiveTarget.ts`); ambiguous, missing and
+    hidden targets.
+  - `src/runner/ocr/OcrStep.ts` is the fifth `src/visual` edge, loaded lazily: N0 capture, then `preprocessForOcr`,
+    then the injected recognizer, then `decideTextAssertion`.
+  - One 1500 ms deadline. Every outcome is a codes-only record; the step always passes and is never retried.
+  - `InstanceReport.ocrAssertions[]` (64 max) is sanitized on write, on import (`reports:create`) and on read, and is
+    never exported.
+  - The Designer Image text section and a text-only run-detail drawer section.
+  - Mock-site lab: `/visual-intelligence/ocr`.
+- **Defects found and fixed.**
+  - The deadline killed the host even when it had just started, so every later assertion started cold and timed out.
+    Now the manager answers `budget-exhausted` at once, lets a short overrun finish within `overrunGraceMs` (1 s), and
+    starts a replacement at once.
+  - `prepare()` starts the engine in parallel with the capture, only after every refusal.
+  - Host start failures were never logged (now `[ocr]` fixed messages).
+  - A pre-existing `verify:verifier-classification` failure on two packaged-application entries. See the correction
+    above.
+  - The host-cleanup regression (malformed requests straight to the host) found no defect, so the host is unchanged.
+- **Environment.** The engine cannot initialise from this checkout's Parallels share. The development-only
+  `AWKIT_OCR_DEV_ASSET_DIR` points a source build at a local staging; packaged builds ignore it.
+- **Verification (source build).**
+  - New verifiers: `verify:ocr-runtime` 81/0 (with mutants M1–M6), `verify:ocr-report` 51/0 (5 mutants),
+    `verify:ocr-gui` 43/0 (real Electron, real engine).
+  - Existing verifiers: `verify:ocr-host` 54/0, `verify:visual-isolation` 117/0 (exactly five edges),
+    `verify:ocr-decision` 204/0, `verify:ocr-assets` 46/0, `verify:mock-site` 353/353, `verify:runner` 138/0.
+  - N6 verifiers: `verify:visual-assertion` 293/0, `-runtime` 91/0, `-report` 37/0, `-candidates` 64/0.
+  - Designer and catalog: `verify:flow-step-mapping` 194/0, `verify:flow-node-catalog-parity` 45/0.
+  - Hygiene, types and offline: `verify:source-hygiene` 11/0, `verify:verifier-classification` PASS, build and
+    `typecheck:scripts` PASS, `validate:offline` non-strict PASS (expected OCR warning).
+- **OC-9 latency MISSED in this VM** (measured, N7.6 owns the gate): warm assertions run 0.9–1.5 s, dominated by the
+  N0 full-viewport capture (0.65–1.0 s at 1365x768); the cold first assertion is `budget-exhausted`. In one
+  `verify:ocr-gui` run, 8 of 12 real-engine observations reached a verdict, with p50 1348 ms and p95 1591 ms against
+  the target p95 of 1000 ms. No wrong verdict was observed.
+- **Packaged behaviour was not tested.** N7.1b, N7.8 and the N6 packaged gates stay BLOCKED on the packaging host.
+
+## Phase N: N7.1a GO (direct tesseract.js-core), N7.3 and N7.4 done (2026-10-26)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N and N7 stay IN
 PROGRESS.**

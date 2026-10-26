@@ -798,8 +798,9 @@ try {
   // verify:ocr-decision 203/0; N7.1a `.9.2` set blocked (dependency installation is an owner action). Measured.
   // Then 37/397 of 434 on 2026-10-26: N7.1a `.9.2` closed on the real benchmark GO (direct tesseract.js-core). Measured.
   // Then 35/399 of 434 on 2026-10-26: N7.3 `.9.11` and N7.4 `.9.5` closed on their executed source gates. Measured.
-    "35 outstanding / 399 closed",
-    beads.stats.outstanding === 35 && beads.stats.closed === 399,
+  // Then 34/400 of 434 on 2026-10-27: N7.5 `.9.6` closed on its executed source gates (4a47d9e, 9a488ab). Measured.
+    "34 outstanding / 400 closed",
+    beads.stats.outstanding === 34 && beads.stats.closed === 400,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

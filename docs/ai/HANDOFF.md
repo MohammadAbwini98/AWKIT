@@ -1,6 +1,57 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-26, latest) — N7.1a GO; N7.3 and N7.4 done; next N7.5
+## HANDOFF (2026-10-27, latest) — N7.5 closed; next N7.6 OCR Lab and calibration (awkit-vra.9.7)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done and pushed.**
+  - N7.5 `awkit-vra.9.6` is closed, in `4a47d9e` (implementation) and `9a488ab` (no verdict after the deadline,
+    whole-operation durations, the `verify:packaging-host` reclassification).
+  - Dashboard 177/177, "Sources agree", 34/400 of 434.
+  - See CURRENT_STATE for the gates.
+- **Development use of OCR:**
+  - stage the assets to a LOCAL folder: `node scripts/prepare-ocr-assets.mjs --out <local dir>`;
+  - set `AWKIT_OCR_DEV_ASSET_DIR` to it and `AWKIT_VISUAL_OCR=observe`.
+  - `build/ocr` on the Parallels share fails engine init (`host-failed`; see KNOWN_ISSUES).
+  - Run `npm run build` before `verify:ocr-gui`.
+- **N7.6 can start now.** Its only dependency, N7.5, is closed, and it needs no packaging host. Nothing is qualified
+  yet.
+- **N7.6 targets: ratified OC-10, unchanged and NOT YET QUALIFIED.**
+  - Cells: headed and headless × DPR 1, 1.25 and 2. At least 3 sessions and 300 launches per cell.
+  - Supported fixtures: exact match ≥ 98 % and CER ≤ 1 %.
+  - Near-miss and look-alike fixtures: 0 false `matched`.
+  - Unsupported fixtures: 100 % `inconclusive`.
+  - p95 within the 1500 ms deadline.
+  - A failing cell stays observe-only and unlabeled: no threshold tuning (80/92 fixed), no sample cuts, no
+    relabelling. OC-9's x64 p95 target of 1000 ms is a separate target.
+- **N7.6 work, in order:**
+  1. **Lab.** Extend `/visual-intelligence/ocr` to the plan's fixture set with fonts bundled with the mock site. The
+     N7.5 lab uses system Arial, which OC-10 does not allow for calibration.
+  2. **Instrument before optimizing.** Per-phase timings with no text:
+     - page resolution;
+     - pre-capture checks;
+     - N0 screenshot, PNG decode and crop;
+     - preprocessing;
+     - host queue, start-up and recognition;
+     - scheduling lateness.
+
+     The N7.5 closeout probe measured 0.65–1.0 s for N0 capture at the default 1365x768 viewport (full-viewport
+     screenshot and synchronous JS PNG decode), 0.15–0.45 s for checks, 60–150 ms for warm recognition and about
+     1.2 s for a cold host in the app.
+  3. **Benchmark.** `benchmark:ocr` and `verify:ocr-calibration`, N6.6-style, recording every cell as measured,
+     including failures.
+  4. **Optimization proposals** come only from the measured bottleneck and need owner approval when they touch N0 or
+     OC-9. Candidates: a capture clip instead of a full-viewport decode, decode off the main thread, and prewarming the
+     host when a run contains OCR steps.
+- **Scope of the evidence.** This ARM64 Parallels VM is the measurement environment. Its results do not generalize to
+  Windows x64 or to packaged production.
+- **N7.7 `.9.8`** is also dependency-ready. It is a separate advisory workstream with effect none, and OCR never
+  selects an action.
+- **Owner action (unchanged):** a release host with Visual Studio 2022 MSVC v143 (`verify:packaging-host` READY).
+  Then N6 packaged, N7.1b and N7.8.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-26) — N7.1a GO; N7.3 and N7.4 done; next N7.5
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

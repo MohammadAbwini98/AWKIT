@@ -191,6 +191,22 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-vra-9-n7-filing-1026:project-state:2026-10-26T21:05:28.438Z",
+        "task": "awkit-vra-9-n7-filing-1026",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-26T21:05:28.438Z",
+        "acquired_at_commit": "9a488abbcd9204ec37b968e8313d9e882a0062a6",
+        "released_at": "2026-10-26T21:06:02.067Z",
+        "released_reason": "N7.5 awkit-vra.9.6 closed on executed source gates and exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }

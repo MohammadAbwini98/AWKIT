@@ -1,5 +1,40 @@
 # KNOWN_ISSUES
 
+## N7.5 notes (2026-10-26, OPEN items noted, environment)
+
+- **The OCR engine cannot initialise from the Parallels share (WORKAROUND, environment).**
+  - With the assets in `build/ocr` on the `X:` share, `native-hosts/ocr/ocr-host.cjs` reports `host-failed` while
+    loading the engine. The manager logs `[ocr] ocr host failed to start`; after the strikes the circuit opens and
+    assertions are `ocr-unavailable`. This fails closed, correctly.
+  - The same assets staged on a local disk work.
+  - Workaround for development: stage with `node scripts/prepare-ocr-assets.mjs --out <local dir>` and set
+    `AWKIT_OCR_DEV_ASSET_DIR` (source builds only). `verify:ocr-host` and `verify:ocr-gui` stage locally.
+  - **Unverified:** an installation on a network drive.
+- **OC-9 latency target missed in this VM (OPEN, N7.6).**
+  - In the source app an observe assertion takes 0.9–1.5 s.
+  - The N0 guarded capture is 0.65–1.0 s at the default 1365x768 viewport, because it screenshots and decodes the full
+    viewport on the main thread.
+  - The checks take 0.15–0.45 s and a warm recognition 60–150 ms.
+  - The first assertion on a cold host is `budget-exhausted`. Roughly a third of warm assertions also exceed the
+    1.5 s deadline and are honestly `budget-exhausted`.
+  - Measured in `verify:ocr-gui`: p50 1348 ms, p95 1591 ms on 2026-10-26 (adapter-relative durations then). After the
+    whole-operation fix on 2026-10-27: p50 1283 ms, p95 1510 ms, 3 of 12 `budget-exhausted`. Both miss OC-9's x64
+    target of 1000 ms and OC-10's "p95 within the deadline". NOT YET QUALIFIED.
+  - Under main-thread load the deadline timer itself fired up to about 280 ms late once.
+  - N7.6 owns the budget, including prewarm at run start, a capture-cost change in N0 or a revised deadline.
+- **Commit gate (2026-10-26, RESOLVED 2026-10-27).** The N7.5 commit was refused as a TERMINAL `unsupported-command`
+  denial: that session had accumulated five, mostly from piped and multi-step shell commands. No staged path was
+  Risk-3. In a new session a short `git commit -m "..."` without `;&|><`$%!^` characters succeeded (`4a47d9e`).
+  Lesson: keep commit messages to one plain line, and avoid piped or chained shell commands, which count toward the
+  terminal threshold.
+- **Deadline semantics (FIXED 2026-10-27, `9a488ab`).**
+  - A host reply that landed while synchronous main-thread work held the deadline timer could still settle as a
+    verdict (observed: `differs` at 1525 ms). Lateness is now judged by the wall clock, so no verdict is recorded after
+    1500 ms.
+  - A `budget-exhausted` record can still settle a little after 1500 ms (settle margin 150 ms) or later under
+    main-thread load. Measured maximum in `verify:ocr-gui`: 1510 ms.
+  - Records now report the whole operation's duration.
+
 ## N7 notes (2026-10-26, OPEN items noted)
 
 - **The agent cannot install dependencies (OPEN, owner action).** No lease grammar admits `npm install`, so N7.1a's

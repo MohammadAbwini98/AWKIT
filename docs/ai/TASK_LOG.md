@@ -1,5 +1,53 @@
 # TASK_LOG
 
+## 2026-10-27 — Phase N: N7.5 delivery closeout and N7.6 readiness (Claude)
+
+- **Task:** recover the uncommitted N7.5 delivery, close the verification gaps and close `awkit-vra.9.6`.
+- **Delivery:** `4a47d9e` (the staged implementation, unchanged) and `9a488ab` (the fixes below), pushed
+  `6a0e834..9a488ab`. The earlier refusal was that session's accumulated `unsupported-command` count. Every staged path
+  was outside Risk-3, and one grammar-conforming commit succeeded.
+- **Defects found and fixed:**
+  - **A verdict could be recorded after the 1500 ms deadline** (a GUI record read `differs` at 1525 ms). Lateness is
+    now judged by the wall clock where the outcome lands.
+  - **Adapter-relative durations.** Records now measure the whole assertion.
+  - Mutants D1 and D2 were observed red.
+- **Classification:**
+  - The guard removal on `verify:visual-assertion-packaged` was confirmed correct.
+  - `verify:packaging-host` was reclassified to `static-source-validation`, with its three source guards restored (it
+    parses source).
+- **Tests:**
+  - `verify:ocr-runtime` 84/0, `verify:ocr-gui` 44/0, `verify:visual-assertion-gui` 60/0,
+    `verify:visual-assertion-runtime` 91/0, `verify:runner` 138/0.
+  - `verify:visual-isolation` 117/0, `verify:verifier-classification` PASS, build and `typecheck:scripts` PASS.
+  - `verify:roadmap-dashboard` 177/177, Sources agree.
+- **Tracker:** `.9.6` closed under the project-state lease (contract `awkit-vra-9-n7-filing-1026`) and exported.
+  34/400 of 434.
+- **Result:** N7.5 DONE (source build). N7 IN PROGRESS. N7.6 `.9.7` is dependency-ready. OC-9 and OC-10 are NOT YET
+  QUALIFIED. N7.1b and N7.8 are BLOCKED (packaging host).
+
+## 2026-10-26 — Phase N: N7.5 observe-only OCR assertions (Claude)
+
+- **Task:** implement N7.5 (`awkit-vra.9.6`) on baseline `6a0e834`.
+- **What was built:**
+  - the `assertImageText` step and the shared `ImageTextAssertionContract`;
+  - the OC-8 rules moved to `src/ocr/ocrExpectedText.ts`, with `src/visual` re-exporting them;
+  - the `OcrStep` adapter (fifth edge);
+  - the executor, runner and engine wiring;
+  - the report block and its sanitizer;
+  - the Designer and drawer sections;
+  - the mock-site lab;
+  - three new verifiers, plus `verify:visual-isolation` moved to five edges and the N7.4 harness extended.
+- **Defects found:**
+  - **Deadline kill cascade** (fixed: overrun grace, `prepare()`, immediate replacement).
+  - **Silent host start failures** (fixed: `[ocr]` logging).
+  - **Classification category error,** pre-existing (fixed).
+- **Environment finding:** the engine fails to start from the Parallels share. Fixed with the development-only
+  `AWKIT_OCR_DEV_ASSET_DIR`.
+- **Tests:** all listed gates PASS. OC-9 latency was measured as MISSED in this VM. `verify:visual-assertion-gui` was
+  NOT RUN that day (it ran 60/0 on 2026-10-27).
+- **Result:** verified. The commit was refused by the lease guard that session; it was delivered on 2026-10-27 (see
+  above).
+
 ## 2026-10-26 — Phase N: N7.1a real benchmark GO, N7.3 assets, N7.4 host (Claude)
 
 - **Inputs:** the owner installed the spike's pinned packages. Versions matched the pins, every lockfile entry

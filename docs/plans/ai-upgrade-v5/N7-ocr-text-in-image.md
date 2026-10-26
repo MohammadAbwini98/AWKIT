@@ -432,10 +432,29 @@ Done:
 - N7.1a (GO: direct tesseract.js-core);
 - N7.2 (pure decision);
 - N7.3 (assets);
-- N7.4 (host and manager).
+- N7.4 (host and manager);
+- N7.5 (`4a47d9e`, `9a488ab`, 2026-10-27; source build only).
+
+N7.5 implementation decisions, recorded against OC-9 (no ratified figure changed):
+- **Deadline contract.**
+  - One 1500 ms deadline from the step's start.
+  - An outcome that lands after it is `budget-exhausted`, judged by the wall clock, so a verdict is never recorded
+    late.
+  - The step settles within the deadline plus a 150 ms margin, unless synchronous main-thread work holds the timers.
+  - `durationMs` is the whole operation.
+- **Host start-up.**
+  - The engine is prepared once every pre-capture refusal has passed, so a refused assertion never starts a host.
+  - A deadline overrun answers at once and lets the host finish within a 1 s grace; past the grace the host is killed.
+  - After a kill the replacement starts at once. Cancellation still kills immediately.
+- **Development assets.** The development-only `AWKIT_OCR_DEV_ASSET_DIR` serves a local staging (not the Parallels
+  share). Packaged builds ignore it.
 
 Remaining:
-- **Next dependency-ready task: N7.5.** Its dependencies, N7.2 and N7.4, are closed. It covers the observe-only
-  `assertImageText` step, the validator with the OC-8 refusals, the fifth `src/visual` edge
-  `src/runner/ocr/OcrStep.ts`, the codes-only report block and the Designer and drawer sections.
+- **Next dependency-ready task: N7.6 (`awkit-vra.9.7`), OCR Lab and calibration.** Its only dependency, N7.5, is
+  closed.
+  - The OC-9 latency target and the OC-10 accuracy criteria are NOT YET QUALIFIED. N7.5 measured in the ARM64 VM
+    source build: p95 1510 ms, p50 1283 ms, 3 of 12 real-engine observations `budget-exhausted`, no wrong verdict.
+  - The capture dominates: 0.65–1.0 s for N0's full-viewport screenshot and PNG decode at 1365x768.
+- N7.7 (`.9.8`) is also dependency-ready. It is a separate advisory workstream with effect none, and OCR must never
+  select an action.
 - N7.1b and N7.8 stay BLOCKED until the approved packaging host exists.
