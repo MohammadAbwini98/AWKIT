@@ -556,6 +556,12 @@ try {
   }
 }
 
+// The deadline contract (N7.5): a verdict is never recorded after 1500 ms, whatever the latency target says.
+check(
+  "no real-engine verdict was recorded after the 1500 ms deadline",
+  measured.length > 0 && measured.every((r) => (r.verdict !== "matched" && r.verdict !== "differs") || r.durationMs <= 1_500),
+  measured.filter((r) => r.verdict === "matched" || r.verdict === "differs").map((r) => `${r.stepId}:${r.durationMs}`).join(" ")
+);
 if (measured.length > 0) {
   const durations = measured.map((r) => r.durationMs).sort((a, b) => a - b);
   const at = (q: number) => durations[Math.min(durations.length - 1, Math.ceil(q * durations.length) - 1)];

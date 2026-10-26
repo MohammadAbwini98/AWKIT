@@ -27,7 +27,10 @@
  * refused, but one capture was taken); M2 the executor skips the OC-8 check of the resolved value (D card red: the
  * adapter loaded; its own re-check still refused the value); M3 the executor evaluates with OCR off (A red, 2 checks);
  * M5 the sensitive-container walk ignored (C cvv and otp wrappers red: captured and read); M6 the retry rule removed
- * (J retry red).
+ * (J retry red). N7.5 closeout (same day): D1 the adapter's slot takes whichever callback runs first and D2 the executor
+ * records the adapter's own duration without the late check — 81 passed / 3 failed (a matched verdict recorded at
+ * 1634 ms behind a held main thread, a 251 ms duration for a 674 ms operation, the no-late-verdict invariant), then
+ * 84/0 again.
  *
  * Run: npm run verify:ocr-runtime
  */
@@ -112,9 +115,20 @@ const hangsUntilAbort = async (options: { signal?: AbortSignal }): Promise<OcrHo
 
 class CountingResolver extends ValueResolver {
   resolves = 0;
+  /** A slow data source: resolution takes this long (the duration must still cover it). */
+  delayMs = 0;
   override async resolve(valueSource?: ValueSource): Promise<string> {
     this.resolves += 1;
+    if (this.delayMs > 0) await sleep(this.delayMs);
     return super.resolve(valueSource);
+  }
+}
+
+/** Holds the thread synchronously, as decoding a large screenshot on the main thread does. */
+function holdMainThread(ms: number): void {
+  const until = performance.now() + ms;
+  while (performance.now() < until) {
+    // Busy: no timer or I/O callback can run meanwhile.
   }
 }
 
@@ -126,6 +140,8 @@ interface HarnessOptions {
   noAdapter?: boolean;
   /** Runs inside the adapter's capture probe, right before the guarded capture. */
   onCapture?: (page: Page) => void;
+  /** Expectation resolution delay (a slow data source). */
+  resolveDelayMs?: number;
   handedOff?: boolean;
   runtimeInputs?: Record<string, string>;
 }
@@ -158,6 +174,7 @@ function harness(page: Page, options: HarnessOptions = {}): Harness {
   const captures = { count: 0 };
   const reader = options.reader ?? new FakeReader(reads(EXPECTED));
   const resolver = new CountingResolver(context);
+  resolver.delayMs = options.resolveDelayMs ?? 0;
   const cancel = new CancellationTokenSource();
   const adapter = new OcrStep({
     recognizer: reader,
@@ -462,9 +479,33 @@ async function main(): Promise<void> {
         deadBefore.result.status === deadClick.result.status && deadBefore.h.records.length === 0 && deadBefore.h.loads.count === 0 && zeroTouch(deadBefore),
         `${describe(deadBefore)} | click ${deadClick.result.status}`
       );
+      // A reply that lands while the main thread is held past the deadline (the timer cannot fire meanwhile) must be
+      // late, never a verdict: lateness is judged by the clock when it lands, not by which callback runs first.
+      const blocking = new FakeReader(async (options) => {
+        await new Promise((resolve) => setTimeout(resolve, Math.max(1, options.deadlineMs - 40)));
+        holdMainThread(160);
+        return { ok: true, words: EXPECTED.split(" ").map((text) => ({ text, confidence: 99 })), recognizeMs: 5 };
+      });
+      const blocked = track(await observe(label("g-blocked"), { reader: blocking }));
+      check(
+        "a matching reply that lands while the main thread is held past the deadline is budget-exhausted, never matched",
+        blocked.result.status === "passed" && blocked.record?.verdict === "inconclusive" && blocked.record.code === "budget-exhausted" && blocking.calls === 1,
+        describe(blocked)
+      );
+      const slowSource = track(await observe(label("g-slow-source", { value: undefined, valueSource: { type: "runtimeInput", key: "expectedLabel" } }), { runtimeInputs: { expectedLabel: EXPECTED }, resolveDelayMs: 400 }));
+      check(
+        "the recorded duration covers the whole assertion: a 400 ms expectation resolution is inside it",
+        slowSource.record?.verdict === "matched" && slowSource.record.durationMs >= 400 && slowSource.record.durationMs <= slowSource.elapsedMs + 5,
+        `${describe(slowSource)} elapsed=${slowSource.elapsedMs}ms`
+      );
       const after = track(await observe(label("g-after")));
       check("a valid run afterwards is matched", after.record?.verdict === "matched", describe(after));
       check("every observation stayed within its deadline: no record above 1.5 s plus the margin", allRecords.every((r) => r.durationMs <= OCR_ASSERTION_DEADLINE_MS + 600), allRecords.map((r) => `${r.stepId}:${r.durationMs}`).join(" "));
+      check(
+        "no verdict is ever recorded after the 1500 ms deadline (matched and differs only within it)",
+        allRecords.every((r) => (r.verdict !== "matched" && r.verdict !== "differs") || r.durationMs <= OCR_ASSERTION_DEADLINE_MS),
+        allRecords.filter((r) => r.verdict === "matched" || r.verdict === "differs").map((r) => `${r.stepId}:${r.durationMs}`).join(" ")
+      );
     }
 
     // ── J. Neutrality, malformed configurations, the validator and the gates ───────────────────

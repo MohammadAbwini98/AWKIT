@@ -389,6 +389,12 @@ export class StepExecutor {
     const inconclusive = (code: string): OcrAssertionAssessment => ({ verdict: "inconclusive", code, durationMs: elapsed() });
     let assessment: OcrAssertionAssessment | undefined;
     if (runtime && mode === "observe") assessment = await this.assessImageText(step, runtime, pagePhase, remaining, inconclusive);
+    // The deadline covers the whole assertion from the step's start: an outcome observed here after it is late, never a
+    // verdict, and every record reports the whole operation's duration (not the adapter's own part of it).
+    if (assessment) {
+      const late = elapsed() > OCR_ASSERTION_DEADLINE_MS && assessment.code !== "budget-exhausted" && assessment.code !== "cancelled";
+      assessment = late ? inconclusive("budget-exhausted") : { ...assessment, durationMs: elapsed() };
+    }
     try {
       runtime?.onRecord?.({
         stepId: step.id,

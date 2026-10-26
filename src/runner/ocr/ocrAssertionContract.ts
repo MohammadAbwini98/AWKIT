@@ -7,7 +7,10 @@
  *
  *  - The FLAG (`AWKIT_VISUAL_OCR` = off | observe; default off, OC-6). There is no enforcing mode (OC-11).
  *  - ONE DEADLINE (1500 ms, OC-9) for the whole assertion: page resolution, checks, capture, preprocessing, the host's
- *    queue, start-up and recognition. Whatever loses it is inconclusive `budget-exhausted`.
+ *    queue, start-up and recognition. Whatever loses it is inconclusive `budget-exhausted`, judged by the wall clock
+ *    when the outcome lands (a verdict is never recorded after the deadline). The step settles within the deadline
+ *    plus a 150 ms margin unless synchronous main-thread work holds the timers back; the record's `durationMs` is the
+ *    whole operation, measured from the step's start.
  *  - OBSERVE ONLY: the step always passes. The verdict is a codes-only record, never a step status, a locator, an
  *    action, a branch or a retry.
  */

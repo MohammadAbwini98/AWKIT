@@ -83,8 +83,11 @@ export class OcrStep implements OcrAssertionAssessor {
     else external?.addEventListener("abort", onExternalAbort, { once: true });
 
     let slot: OcrAssertionAssessment | undefined;
+    // Late is judged by the wall clock when the result lands, not by which callback runs first: synchronous work on the
+    // main thread can hold the deadline timer back, and a reply that arrives meanwhile must not become a verdict.
     const settle = (value: OcrAssertionAssessment): void => {
-      slot ??= value;
+      if (slot) return;
+      slot = performance.now() - started > deadlineMs && value.code !== "budget-exhausted" && value.code !== "cancelled" ? this.inconclusive(started, "budget-exhausted") : value;
     };
     const work = this.run(request, controller.signal, cancellation.signal, started, deadlineMs)
       .catch((error: unknown) => {
