@@ -11,7 +11,9 @@
  *  H4 Visual Studio 2022 Community, Professional or Enterprise with the two MSVC components (awkit-i6ot)
  *  H5 The app-local MSVC runtime: the three x64 DLLs from that installation's redist folder, Microsoft-signed, at least
  *     the 14.40 floor (the packaging step also raises it to the newest linker of a staged binary)
- *  H6 Drift guard: the shared requirements module still matches the values the packaging step enforces
+ *  H6 Declaration-level drift guard: the packaging step's own declarations (runtime DLLs, floor, vswhere components,
+ *     products and version range) equal the shared module's, with source mutations that must each be caught. It does
+ *     not prove behavioral equivalence.
  *  I1 Release-tree cleanliness for scripts/release-portable.ps1 (untracked files make it refuse)
  *  I2 License issuer key for the licensed packaged gates (presence only; the value is never read or printed)
  *
@@ -128,10 +130,61 @@ if (!install) {
   }
 }
 
-// H6 Drift guard against the packaging step's own source.
+// H6 Declaration-level drift guard against the packaging step's own source.
+// The packaging step keeps its own definitions: verify:ai-packaged-runtime runs a byte-identical copy of
+// prepare-ai-native-host.mjs alone in a scratch repository, so it cannot import a shared module. H6 therefore parses
+// the step's actual declarations (comments stripped, each declaration exactly once) and compares them value by value
+// with the shared module. It proves the declared values agree; it is NOT a proof of behavioral equivalence. A set of
+// in-memory mutations of the step's source must each be reported as drift, so the comparison cannot pass vacuously.
+const stringArray = (literal) => {
+  const items = [...literal.matchAll(/"([^"\\]*)"/g)].map((m) => m[1]);
+  return literal.replace(/"[^"\\]*"/g, "").replace(/[\s,[\]]/g, "") === "" ? items : null;
+};
+const single = (code, pattern) => {
+  const all = [...code.matchAll(pattern)];
+  return all.length === 1 ? all[0] : null;
+};
+function requirementDrift(source) {
+  const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const runtime = single(code, /const MSVC_RUNTIME = (\[[^\]]*\]);/g);
+  const floor = single(code, /const MSVC_RUNTIME_FLOOR = \[(\d+), (\d+)\];/g);
+  const components = single(code, /const components = (\[[^\]]*\]);/g);
+  const products = single(code, /const products = (\[[^\]]*\]);/g);
+  const query = single(code, /"-version", "([^"]*)", "-products", \.\.\.products, "-requires", \.\.\.components,/g);
+  const declared = {
+    "MSVC_RUNTIME": runtime && stringArray(runtime[1]),
+    "MSVC_RUNTIME_FLOOR": floor && [Number(floor[1]), Number(floor[2])],
+    "the vswhere components": components && stringArray(components[1]),
+    "the vswhere products": products && stringArray(products[1]),
+    "the vswhere version range": query && query[1]
+  };
+  const shared = { "MSVC_RUNTIME": MSVC_RUNTIME, "MSVC_RUNTIME_FLOOR": MSVC_RUNTIME_FLOOR, "the vswhere components": VS_COMPONENTS, "the vswhere products": VS_PRODUCTS, "the vswhere version range": VS_VERSION_RANGE };
+  return Object.keys(shared).filter((name) => JSON.stringify(declared[name]) !== JSON.stringify(shared[name]));
+}
 const prepare = fs.readFileSync(path.join(root, "scripts", "prepare-ai-native-host.mjs"), "utf8");
-const enforced = [...MSVC_RUNTIME, ...VS_COMPONENTS, ...VS_PRODUCTS, VS_VERSION_RANGE, `[${MSVC_RUNTIME_FLOOR.join(", ")}]`].every((value) => prepare.includes(value));
-report("H6", enforced ? "PASS" : "BLOCKED", "Requirements match the packaging step", enforced ? "every shared value appears in prepare-ai-native-host.mjs" : "scripts/lib/msvc-redist-requirements.mjs no longer matches prepare-ai-native-host.mjs; reconcile them before trusting this diagnosis");
+const mutate = (from, to) => (prepare.includes(from) ? prepare.replace(from, to) : null);
+const mutations = {
+  "a runtime DLL dropped": mutate('"vcruntime140.dll", "vcruntime140_1.dll"]', '"vcruntime140.dll"]'),
+  "the floor lowered": mutate("const MSVC_RUNTIME_FLOOR = [14, 40];", "const MSVC_RUNTIME_FLOOR = [14, 39];"),
+  "Build Tools added to the products": mutate("const products = [", 'const products = ["Microsoft.VisualStudio.Product.BuildTools", '),
+  "the redist component dropped": mutate(', "Microsoft.VisualStudio.Component.VC.Redist.14.Latest"]', "]"),
+  "the version range widened": mutate('"[17.0,18.0)"', '"[17.0,19.0)"'),
+  "the products no longer passed to vswhere": mutate('"-products", ...products', '"-products", "*"'),
+  "a second runtime declaration": `${prepare}\nconst MSVC_RUNTIME = ["msvcp140.dll"];\n`,
+  "the floor left only in a comment": mutate("const MSVC_RUNTIME_FLOOR = [14, 40];", "// const MSVC_RUNTIME_FLOOR = [14, 40];\nconst MSVC_RUNTIME_FLOOR = [14, 0];")
+};
+const drift = requirementDrift(prepare);
+const missed = Object.entries(mutations).filter(([, text]) => text === null || requirementDrift(text).length === 0).map(([name]) => name);
+report(
+  "H6",
+  drift.length === 0 && missed.length === 0 ? "PASS" : "BLOCKED",
+  "Shared requirement values equal the packaging step's declarations (declaration-level, not behavioral equivalence)",
+  drift.length
+    ? `drift in ${drift.join(", ")}: scripts/lib/msvc-redist-requirements.mjs no longer matches prepare-ai-native-host.mjs; reconcile them before trusting this diagnosis`
+    : missed.length
+      ? `the drift guard missed ${missed.length} of ${Object.keys(mutations).length} mutations (${missed.join("; ")}); it cannot be trusted`
+      : `5 declarations equal, ${Object.keys(mutations).length} of ${Object.keys(mutations).length} source mutations reported as drift`
+);
 
 // I1 Release-tree cleanliness (informational).
 const status = spawnSync("git", ["status", "--porcelain", "--untracked-files=all"], { cwd: root, encoding: "utf8", windowsHide: true, timeout: 30_000 });

@@ -1,7 +1,8 @@
 /**
- * The app-local Microsoft Visual C++ runtime requirements of the local-AI packaging step (awkit-i6ot), shared by
- * `scripts/prepare-ai-native-host.mjs` (which enforces them while staging) and `scripts/verify-packaging-host.mjs`
- * (which only reports whether a host meets them). One source, so the diagnostic can never drift from the gate.
+ * The app-local Microsoft Visual C++ runtime requirements of the local-AI packaging step (awkit-i6ot), as
+ * `scripts/verify-packaging-host.mjs` reports them. `scripts/prepare-ai-native-host.mjs` keeps its own declarations,
+ * because verify:ai-packaged-runtime runs a byte-identical copy of it alone in a scratch repository where no shared
+ * module exists. The H6 check compares this module with those declarations value by value and fails on drift.
  *
  * Owner decision 2026-09-25: the runtime DLLs ship app-locally beside the native binaries, taken only from the
  * Visual Studio 2022 redist folder. Microsoft's Distributable Code list for Visual Studio 2022
