@@ -34,12 +34,17 @@ import { OCR_ASSERTION_DEADLINE_MS, type OcrAssertionAssessment, type OcrAsserti
  * late result); only the run's cancellation aborts it. A late result never changes the step or its record.
  */
 
-/** Verifier-only probes (`verify:ocr-runtime`). Production passes none. */
+/** A measured point of one assessment (N7.6 `benchmark:ocr`): names only, never text, pixels or selectors. */
+export type OcrAssertionPhase = "protected-checked" | "target-checked" | "captured" | "preprocessed" | "recognized";
+
+/** Verifier and benchmark probes (`verify:ocr-runtime`, `benchmark:ocr`). Production passes none. */
 export interface OcrAssertionProbe {
   /** Called right before the one guarded capture is requested. */
   onCapture?: () => void;
   /** Called right before the recognizer is asked. */
   onRecognize?: () => void;
+  /** Called as each phase completes, for the N7.6 timing breakdown. Never changes the order or the outcome. */
+  onPhase?: (phase: OcrAssertionPhase) => void;
 }
 
 export interface OcrStepOptions {
@@ -134,6 +139,7 @@ export class OcrStep implements OcrAssertionAssessor {
     // I5, fail-closed: only an explicit `false` lets anything touch the page.
     if (request.handedOff !== false) return refuse("handoff-active");
     if ((await bounded(checkProtectedSurface(page).catch(() => ({ protected: true as const })))).protected) return refuse("protected-surface");
+    this.options.probe?.onPhase?.("protected-checked");
 
     let target: Locator;
     try {
@@ -154,6 +160,7 @@ export class OcrStep implements OcrAssertionAssessor {
       const [sensitive, visible, fontSizeCssPx] = await bounded(Promise.all([sensitiveTarget(element), element.isVisible(), smallestTextSize(element)]));
       if (sensitive) return refuse("sensitive-step");
       if (!visible) return refuse("target-hidden");
+      this.options.probe?.onPhase?.("target-checked");
 
       if (signal.aborted) throw new AssertionAborted();
       // Every pre-capture refusal has passed: start a cold engine now, so its start-up runs alongside the capture.
@@ -175,6 +182,7 @@ export class OcrStep implements OcrAssertionAssessor {
           })
         )
       );
+      this.options.probe?.onPhase?.("captured");
       if (!shot.ok) return this.inconclusive(started, CAPTURE_CODES[shot.code] ?? "capture-unavailable");
       const capture = shot.value;
       const prepared = preprocessForOcr({
@@ -183,6 +191,7 @@ export class OcrStep implements OcrAssertionAssessor {
         devicePixelRatio: capture.viewport.devicePixelRatio,
         clipped: capture.element.wasClipped
       });
+      this.options.probe?.onPhase?.("preprocessed");
       if (!prepared.ok) return prepared.code === "input-invalid" ? this.inconclusive(started, "capture-unavailable") : refuse(prepared.code);
 
       if (signal.aborted) throw new AssertionAborted();
@@ -190,6 +199,7 @@ export class OcrStep implements OcrAssertionAssessor {
       const outcome = await bounded(
         this.options.recognizer.recognize({ width: prepared.width, height: prepared.height, gray: prepared.gray, psm: 6 }, { deadlineMs: remaining(started, deadlineMs), signal: cancelled })
       );
+      this.options.probe?.onPhase?.("recognized");
       if (!outcome.ok && UNAVAILABLE_REASONS.has(outcome.reason)) return this.inconclusive(started, outcome.reason);
       const ocr: TextAssertionOcr = outcome.ok
         ? { ok: true, words: outcome.words }

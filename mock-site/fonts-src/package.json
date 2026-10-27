@@ -1,0 +1,10 @@
+{
+  "name": "awkit-ocr-lab-fonts",
+  "private": true,
+  "version": "0.0.0",
+  "description": "N7.6 (awkit-vra.9.7) OCR Lab font source. Never bundled into the app: scripts/prepare-ocr-lab-fonts.mjs copies the pinned Noto Sans faces (SIL Open Font License 1.1) into mock-site/public/fonts with their licence and SHA-256 manifest. Installed by the owner only: npm install --prefix mock-site/fonts-src --ignore-scripts --no-audit --no-fund",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@fontsource/noto-sans": "5.3.0"
+  }
+}

@@ -42,10 +42,19 @@
       #oc-oversized { position: absolute; box-sizing: border-box; left: 20px; top: 290px; width: 480px; height: 300px; padding: 8px; border: 1px solid #000000; font-size: 14px; line-height: 18px; overflow: hidden; }
       #oc-clipped { left: 540px; top: 570px; }
       #oc-protected { position: absolute; left: 540px; top: 320px; }
+      /* N7.6 calibration mode (?calibration=1): only the stage, one fixture at a time, in the bundled font. */
+      body.oc-calibration #oc-n75 { display: none; }
+      #ocf-stage { display: none; }
+      body.oc-calibration #ocf-stage { display: inline-block; position: absolute; left: 20px; top: 60px; box-sizing: border-box; margin: 0; padding: 10px 14px;
+        font-family: AwkitOcrLab; font-weight: 400; font-style: normal; line-height: 1.35; white-space: pre; color: #000000; background: #ffffff;
+        font-kerning: normal; font-variant-ligatures: none; transform-origin: 0 0; }
+      #ocf-protected { position: absolute; left: 420px; top: 400px; font-family: AwkitOcrLab; }
     </style>
   </head>
   <body>
     <h1>Image Text Assertion Lab</h1>
+    <div id="ocf-stage" data-testid="ocf-stage" data-shown=""></div>
+    <div id="oc-n75">
     <p id="oc-label" class="oc-label" data-testid="oc-label">Order 4521 shipped</p>
     <p id="oc-dupe-1" class="oc-label" data-testid="oc-dupe">Duplicate label</p>
     <p id="oc-dupe-2" class="oc-label" data-testid="oc-dupe">Duplicate label</p>
@@ -63,6 +72,7 @@
       issued to the original payment method within five working days of the return arriving at the warehouse.
     </div>
     <p id="oc-clipped" class="oc-label" data-testid="oc-clipped">Across the fold</p>
+    </div>
     <script>
       (function () {
         var label = document.getElementById("oc-label");
@@ -85,6 +95,84 @@
         }
         setVariant("baseline");
         window.__ocrLab = { setVariant: setVariant, injectProtected: injectProtected, variants: Object.keys(TEXT) };
+      })();
+
+      // ── N7.6 calibration stage (?calibration=1) ──────────────────────────────────────────────────────────────────
+      // Fixtures come from /visual-intelligence/ocr-fixtures.json (the table benchmark:ocr reads). The font is the bundled
+      // AwkitOcrLab (Noto Sans, OFL-1.1) loaded with the FontFace API from /fonts; nothing is fetched from elsewhere.
+      // body[data-fonts] is "ready" only when every bundled face loaded, otherwise "missing" (the lab then renders in a
+      // fallback font and calibration refuses to count it). show(id) resolves once #ocf-stage[data-shown] is id, after
+      // fonts and two animation frames, so a harness waits on observable state, never on a sleep.
+      (function () {
+        var calibration = /[?&]calibration=1(?:&|$)/.test(location.search);
+        if (calibration) document.body.classList.add("oc-calibration");
+        var stage = document.getElementById("ocf-stage");
+        var FACES = [
+          { file: "noto-sans-latin-400-normal.woff2", range: "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212, U+2215, U+FEFF, U+FFFD" },
+          { file: "noto-sans-greek-400-normal.woff2", range: "U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF" },
+          { file: "noto-sans-cyrillic-400-normal.woff2", range: "U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116" }
+        ];
+        var fontsReady = Promise.all(
+          FACES.map(function (f) {
+            var face = new FontFace("AwkitOcrLab", "url(/fonts/" + f.file + ")", { unicodeRange: f.range, weight: "400", style: "normal" });
+            return face.load().then(
+              function (loaded) { document.fonts.add(loaded); return true; },
+              function () { return false; }
+            );
+          })
+        ).then(function (results) {
+          var ok = results.every(Boolean);
+          document.body.setAttribute("data-fonts", ok ? "ready" : "missing");
+          document.body.setAttribute("data-fonts-loaded", String(results.filter(Boolean).length));
+          return ok;
+        });
+        var fixtures = fetch("/visual-intelligence/ocr-fixtures.json").then(function (r) { return r.json(); }).then(function (table) {
+          var byId = {};
+          table.fixtures.forEach(function (f) { byId[f.id] = f; });
+          document.body.setAttribute("data-fixtures", String(table.fixtures.length));
+          return byId;
+        });
+        function frames() {
+          return new Promise(function (resolve) { requestAnimationFrame(function () { requestAnimationFrame(resolve); }); });
+        }
+        function removeProtected() {
+          var form = document.getElementById("ocf-protected");
+          if (form) form.remove();
+        }
+        function show(id) {
+          stage.setAttribute("data-shown", "");
+          return Promise.all([fixtures, fontsReady]).then(function (all) {
+            var f = all[0][id];
+            if (!f) throw new Error("unknown fixture " + id);
+            var s = f.style || {};
+            removeProtected();
+            stage.textContent = f.text;
+            if (f.markup === "cvv") {
+              var input = document.createElement("input");
+              input.name = "cvv";
+              input.value = "123";
+              input.setAttribute("aria-label", "Security code");
+              input.style.cssText = "width: 50px; margin-left: 8px; font-family: AwkitOcrLab";
+              stage.appendChild(input);
+            }
+            if (f.markup === "protected") {
+              var form = document.createElement("form");
+              form.id = "ocf-protected";
+              form.innerHTML = '<h2>Sign in</h2><label>Password <input type="password" name="password" autocomplete="current-password" /></label>';
+              document.body.appendChild(form);
+            }
+            stage.style.fontSize = (s.fontSize || 22) + "px";
+            stage.style.color = s.color || "#000000";
+            stage.style.background = s.background || "#ffffff";
+            stage.style.transform = s.transform || "none";
+            stage.style.writingMode = s.writingMode || "horizontal-tb";
+            return frames().then(function () {
+              stage.setAttribute("data-shown", id);
+              return id;
+            });
+          });
+        }
+        window.__ocrCalibration = { show: show, removeProtected: removeProtected, fontsReady: fontsReady, fixtures: fixtures };
       })();
     </script>
   </body>

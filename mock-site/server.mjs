@@ -43,7 +43,9 @@ const mime = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
-  ".json": "application/json; charset=utf-8"
+  ".json": "application/json; charset=utf-8",
+  ".woff2": "font/woff2",
+  ".txt": "text/plain; charset=utf-8"
 };
 
 const escapeHtml = (value) =>
@@ -229,6 +231,9 @@ const server = createServer(async (req, res) => {
   if (req.method === "GET" && path === "/visual-intelligence/assertion") return serveStatic(res, "visual-intelligence-assertion.html");
   // Phase N, N7.5: the Image Text Assertion Lab (observe-only OCR assertions).
   if (req.method === "GET" && path === "/visual-intelligence/ocr") return serveStatic(res, "visual-intelligence-ocr.html");
+  // Phase N, N7.6: the calibration fixture table and the bundled OCR Lab fonts (staged by prepare-ocr-lab-fonts.mjs).
+  if (req.method === "GET" && path === "/visual-intelligence/ocr-fixtures.json") return serveStatic(res, "ocr-fixtures.json");
+  if (req.method === "GET" && /^\/fonts\/[a-z0-9-]+\.(?:woff2|txt|json)$/.test(path)) return serveStatic(res, path.slice(1));
   // L11.F DOM Context Lab: its SPA routes serve the lab itself, so a reload stays on the same view.
   if (req.method === "GET" && path === "/dom-context-lab/frame") return serveStatic(res, "dom-context-lab-frame.html");
   if (req.method === "GET" && path === "/dom-context-lab/popup") return serveStatic(res, "dom-context-lab-popup.html");

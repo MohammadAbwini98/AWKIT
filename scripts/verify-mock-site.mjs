@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import { rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -847,6 +848,33 @@ try {
   );
   await page.evaluate(() => window.__ocrLab.injectProtected());
   check("injectProtected adds exactly one password field", (await page.locator('#oc-protected input[type="password"]').count()) === 1);
+
+  // Phase N, N7.6 calibration mode (?calibration=1): the stage, the fixture table and the bundled-font gate. The
+  // measurements are benchmark:ocr's; this proves the lab serves them deterministically.
+  console.log("Image Text Assertion Lab, N7.6 calibration mode (/visual-intelligence/ocr?calibration=1):");
+  const fixtureTable = await (await fetch(`${BASE}/visual-intelligence/ocr-fixtures.json`)).json();
+  check("the fixture table is served with 28 fixtures in four classes", fixtureTable.fixtures.length === 28 && new Set(fixtureTable.fixtures.map((f) => f.class)).size === 4);
+  await page.goto(`${BASE}/visual-intelligence/ocr?calibration=1`);
+  await page.waitForSelector("body[data-fonts][data-fixtures]");
+  check("calibration mode hides every N7.5 fixture and shows only the stage", (await page.getByTestId("oc-label").isHidden()) && (await page.getByTestId("ocf-stage").isVisible()));
+  const fontsStaged = existsSync(join(process.cwd(), "mock-site", "public", "fonts", "fonts-manifest.json"));
+  check(`the font state is truthful: ${fontsStaged ? "ready with the bundled faces" : "missing (the bundled font is not staged yet)"}`, (await page.getAttribute("body", "data-fonts")) === (fontsStaged ? "ready" : "missing"));
+  await page.evaluate(() => window.__ocrCalibration.show("plain-label"));
+  await page.waitForSelector('#ocf-stage[data-shown="plain-label"]');
+  check("show(id) renders the fixture and reports it as data-shown", (await page.getByTestId("ocf-stage").innerText()) === "Order 4521 shipped");
+  await page.evaluate(() => window.__ocrCalibration.show("rotated-15"));
+  await page.waitForSelector('#ocf-stage[data-shown="rotated-15"]');
+  check("a styled fixture applies its declared style (15 degree rotation)", /matrix\(0\.96/.test(await page.getByTestId("ocf-stage").evaluate((el) => getComputedStyle(el).transform)));
+  await page.evaluate(() => window.__ocrCalibration.show("protected-page"));
+  await page.waitForSelector('#ocf-stage[data-shown="protected-page"]');
+  check("the protected fixture adds exactly one password form, and the next fixture removes it", (await page.locator('#ocf-protected input[type="password"]').count()) === 1);
+  await page.evaluate(() => window.__ocrCalibration.show("number"));
+  await page.waitForSelector('#ocf-stage[data-shown="number"]');
+  check("...removed", (await page.locator("#ocf-protected").count()) === 0);
+  check("show() refuses an unknown fixture", await page.evaluate(() => window.__ocrCalibration.show("nope").then(() => false, () => true)));
+  const traversal = await fetch(`${BASE}/fonts/..%2Fserver.mjs`).then((r) => r.status);
+  const wrongType = await fetch(`${BASE}/fonts/evil.exe`).then((r) => r.status);
+  check("the font route serves only allowlisted file names (no traversal, no other types)", traversal === 404 && wrongType === 404, `${traversal} ${wrongType}`);
 
   // Phase N, N2.3 Visual Fusion Calibration Lab: the toolbar, its scenarios and the F5-F7 fixtures serve.
   // The score distributions and the Ctrl+zoom check are measured by npm run benchmark:visual-fusion.
