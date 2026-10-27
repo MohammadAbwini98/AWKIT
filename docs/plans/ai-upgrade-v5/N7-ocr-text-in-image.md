@@ -605,6 +605,71 @@ is UNQUALIFIED.
   - Event-loop lag reaches a p95 of 158–192 ms in headed DPR 1 and the DPR 2 cells.
   - Emulation isolation is still INCONCLUSIVE: Electron and Node are both x64 under emulation.
 
+**Ambiguity feasibility probe (2026-10-27, DIAGNOSTIC ONLY, owner-approved).** Probe committed before measurement in
+`a7c2b64`: `benchmark:ocr-ambiguity` and `verify:ocr-ambiguity` 55/0. It changes no verdict, threshold, deadline, engine,
+data, N0 or host policy, and nothing in `app/`, `src/` or `native-hosts/` reaches it.
+- **Reproduction.** The qualifying session was read-only, with its SHA-256 identical before and after. It confirms
+  `lookalike-l1` `text-matched` 8 of 11 (DPR 1 and 1.25), `multiline` 0 of 13, and cold-host budget-exhausted 4 of 5.
+- **Pinned-engine API (tesseract.js-core 6.0.0 SIMD LSTM, as staged).**
+  - Exposed: `ChoiceIterator(ResultIterator)` with `Next`, `GetUTF8Text` and `Confidence`; `WordChoiceIterator`; and
+    the `lstm_choice_mode`, `lstm_choice_iterations` and `lstm_rating_coefficient` parameters (`SetVariable` true, an
+    unknown name false).
+  - Not exposed: `ResultIterator.GetChoiceIterator`, `GetBestLSTMSymbolChoices` and raw timesteps.
+  - At mode 0 (production) every symbol has exactly 1 choice. At mode 2 every symbol has 6, with no recompile.
+  - Mode 2 gave the same text and word confidences as production in 204 of 204 trials, with 0 verdict changes.
+  - **API feasibility: GO.**
+- **Run.** One run, `2026-10-27T19-47-45-092Z-bb9be8bb.json` in `%LOCALAPPDATA%/SpecterStudio/ocr-calibration/ambiguity`.
+  - 6 launches of 7 in 488 s: one `headed-dpr1.25` launch failed to load the lab, and the 8-minute budget stopped new
+    launches after a slow first launch of 148 s. Only `headed-dpr1` got a second repetition.
+  - 204 trials measured. 12 were refused: `small-9` region-too-small 3 at DPR 1, and capture budget-exhausted 9 in
+    the slow launch.
+  - Every trial ran through the production N0 `captureElement` and `preprocessForOcr`, then in rotated order the
+    production pass (mode 0, word walk), a mode 0 symbol walk and a mode 2 symbol walk; `multiline` also ran PSM 4.
+- **Separability: NOT SEPARABLE, so INCONCLUSIVE for any safe threshold.** A floor is chosen on development only
+  (the calibration fixtures with l, I or 1) and judged on the pre-declared confirmation set.
+
+  | Trial minimum over l/1/I glyphs | Development false (n 4) | Development legitimate (n 51) | Confirmation false (n 14) | Confirmation legitimate (n 70) |
+  |---|---|---|---|---|
+  | Class margin (choice scale) | 87.2–95.1 | 42.0–95.1 (p50 92.8) | 52.1–75.2 (p50 65.3) | 35.2–95.2 (p50 91.9) |
+  | Symbol confidence | 99.52–99.53 | 98.93–99.57 | 99.08–99.46 | 98.87–99.57 |
+  | Word confidence | 95.4–95.9 | 92.3–96.9 | 93.6–96.2 | 92.1–96.8 |
+
+  - Every false value lies inside the legitimate range on all four metrics, in both sets. The any-alternative margin
+    equals the class margin: the runner-up is a class mate.
+  - Per glyph: misread l/1 glyphs have a class-margin p50 of 87.2 (development, n 6) and 52.1 (confirmation, n 29).
+    Correct glyphs have 94.1 (n 156) and 93.1 (n 265), with a minimum of 2.9. That is a tendency, not a separation.
+  - Removing all 18 observed false matches needs a class-margin floor above 95.1. That demotes nearly every
+    legitimate match holding 1, l or I: legitimate values top out at 95.2, and the supported match rate in this
+    probe, 121 of 135, would collapse. **No candidate rule meets criteria 1 and 2 together.**
+- **The false match is systematic, not one fixture.**
+  - It occurs when a rendered `l` leads or sits inside a digit run: `cf-neg-item` 5 of 6, `cf-neg-batch-mid` 5 of 6,
+    `cf-neg-lot` 3 of 6, `cf-neg-tag-small` 1 of 5, `lookalike-l1` 4 of 6.
+  - It does not occur with `I` in a digit run, which reads as near-miss or low-confidence (`lookalike-I1`,
+    `cf-neg-seat-cap`, `cf-neg-room-cap`), or with a trailing `l` (`cf-neg-unit-end`, near-miss 6 of 6).
+  - Every measured cell had at least one false match, including DPR 2 in the confirmation set: 14 of 39 negatives.
+- **Legitimate supported matches.** Positives holding 1, l or I matched 121 of 135.
+  - The existing N7.2 look-alike gate already costs some: `cf-pos-level` 3 of 6, `cf-pos-office` 3 of 6 and
+    `cf-pos-login` 2 of 5 are `lookalike-uncertain`, and dev `multiline` is 0 of 6.
+- **Multiline root cause: OCR confidence on a line that starts with a lone digit. It is not segmentation, word
+  boundaries, newline normalization or preprocessing.**
+  - The read was exact in 6 of 6 trials, with 2 lines, 5 words and the word count right. PSM 4 gave the same codes.
+  - The first two words of line 2 share one confidence per trial: 47.8 (low-confidence, 3) or 85.7–86.8 (3). The
+    folded look-alike gate then needs ≥ 92 on the second word, so those 3 are `lookalike-uncertain`.
+  - Controls: the same text on one line matched 6 of 6, and line 1 alone 6 of 6. Line 2 alone failed exactly like the
+    fixture. The look-alike gate contributes to half the misses. Nothing in production was changed.
+- **Overhead, probe host only, x64 Node under emulation.**
+  - Recognize with mode 2: p50 33.1 / p95 101.6 ms, against 30.7 / 105.2 ms for production. That is about +2 ms at
+    p50 and none measurable at p95.
+  - The symbol walk with choices is p50 0.14 / p95 1.6 ms, against 0.08 / 0.5 ms for the word walk.
+  - RSS p50 138 MiB in both, maximum 148 against 143. The WASM heap stays at 19 MiB.
+  - Production is untouched, so it has zero overhead when the probe is off.
+- **Smallest production correction supported: none.** A per-symbol margin gate is not supported by this evidence, and
+  `lstm_choice_mode` should not be adopted in production. The owner decides scope. Options, none implemented:
+  1. Keep N7 observe-only, with no calibrated cell claiming l/1 safety.
+  2. Declare digit runs that hold `1` unsupported. This is a blanket l/1 rule, NOT APPROVED, and it costs most of the
+     supported numeric fixtures.
+  3. Approve a separate engine or data feasibility spike, outside this authorization.
+
 **Proposed optimisations, ranked by measured share.** None are implemented, and each needs a root cause and owner
 approval (§7).
 1. Clip the N0 element capture to the target region instead of the full viewport, and move the PNG decode off the main
@@ -618,7 +683,8 @@ approval (§7).
 Remaining:
 - **N7.6 stays open, and the qualification campaign is STOPPED.** OC-10's zero-false-matched rule is already
   violated in the bundled font, so further sessions cannot qualify those cells.
-  - Next: an owner decision on the per-symbol margin probe and gate above, or on scope.
+  - Next: an owner scope decision. The probe (above) found the API feasible but no separating margin, so a
+    per-symbol gate is not supported.
   - The other blockers, the `multiline` miss and the cold-start deadline overruns, are recorded for that decision.
   - A cell that misses stays observe-only.
 - N7.7 (`.9.8`) is also dependency-ready. It is a separate advisory workstream with effect none, and OCR must never

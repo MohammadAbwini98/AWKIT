@@ -1,5 +1,43 @@
 # TASK_LOG
 
+## 2026-10-27 — Phase N: N7.6 OCR l/1 ambiguity feasibility probe, diagnostic only (Claude)
+
+- **Task:** an owner-approved, bounded, diagnostic-only investigation of l/1/I ambiguity with the pinned engine. No
+  production verdict, threshold, deadline, engine, N0 or host change.
+- **Files:**
+  - Probe, committed before measuring in `a7c2b64`: `scripts/ocr-ambiguity/probe-host.cjs`,
+    `scripts/ocr-ambiguity/probe-fixtures.json`, `scripts/lib/ocr-ambiguity-analysis.mts`,
+    `scripts/benchmark-ocr-ambiguity.mts`, `scripts/verify-ocr-ambiguity.mts`.
+  - Registration: `package.json` and `scripts/lib/verifier-classification.ts`.
+  - Docs: the N7 plan § N7.6, CURRENT_STATE, HANDOFF, KNOWN_ISSUES, COMMANDS.
+- **Result:**
+  - API GO: `ChoiceIterator` and `lstm_choice_mode` 2 give 6 alternatives per glyph, with no behaviour change in
+    204 of 204 trials, at about +2 ms.
+  - Margins NOT separable in development or confirmation: INCONCLUSIVE, and no gate is supported.
+  - The l-in-digit-run false match generalises: 14 of 39 new negatives.
+  - `multiline` is a line-initial-digit confidence miss.
+- **Tests:**
+
+  | Gate | Result |
+  |---|---|
+  | `verify:ocr-ambiguity` | 55/0 |
+  | `build`, `typecheck:scripts` | PASS |
+  | `verify:ocr-calibration` | 67/0 |
+  | `verify:ocr-decision` | 204/0 |
+  | `verify:ocr-report` | 51/0 |
+  | `verify:ocr-assets` | 46/0 |
+  | `verify:visual-isolation` | 117/0 |
+  | `verify:verifier-classification` | PASS |
+  | `verify:ocr-host` | FAIL 53/1, environment timing |
+  | `verify:ocr-runtime` | FAIL 83/1, environment timing |
+  | `verify:packaging-host` | H4/H5 BLOCKED, unchanged |
+
+- **Not run:**
+  - `verify:ocr-gui` (production inputs unchanged).
+  - The fresh-checkout font byte check (`git ls-files --eol` is refused by the lease guard).
+  - Further campaign sessions, which stay stopped.
+- **Next:** an owner scope decision (plan options 1–3) and the `.gitattributes` owner action.
+
 ## 2026-10-27 — Phase N: N7.6 bundled-font verification and first qualifying session (Claude)
 
 - **Task:** verify and commit the owner-staged font, run one qualifying `benchmark:ocr` session, and apply the early

@@ -1,6 +1,46 @@
 # CURRENT_STATE
 
-## Phase N: N7.6 first qualifying session — OC-10 zero-false-matched VIOLATED, campaign stopped (2026-10-27, latest)
+## Phase N: N7.6 l/1 ambiguity probe — API GO, margins NOT separable, no gate supported (2026-10-27, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N, N7 and N7.6
+(`awkit-vra.9.7`, in progress) stay OPEN.** No cell is qualified, and the calibration campaign stays STOPPED. Full
+tables are in the N7 plan § N7.6, "Ambiguity feasibility probe".
+- **What changed.** A diagnostic-only probe, committed before measuring in `a7c2b64`:
+  - `scripts/ocr-ambiguity/probe-host.cjs`, `probe-fixtures.json`, `scripts/lib/ocr-ambiguity-analysis.mts`;
+  - `benchmark:ocr-ambiguity` and `verify:ocr-ambiguity`.
+
+  No production file changed: verdicts, 80/92, 1500 ms, PSM 6, N0, the engine and data, and host start-up are all as
+  they were.
+- **Findings.**
+  - The pinned build exposes `ChoiceIterator` and `lstm_choice_mode`. Mode 2 yields 6 alternatives per glyph, against
+    1 at mode 0, with identical text and confidences in 204 of 204 trials and about +2 ms. API: GO.
+  - False and legitimate matches overlap on class margin, symbol confidence and word confidence, in both the
+    development and the confirmation sets. No floor separates them: INCONCLUSIVE, and no gate is supported.
+  - The l-in-digit-run false match is systematic: 14 of 39 confirmation negatives, in every measured cell.
+  - `multiline` is an engine confidence miss on a line that starts with a lone digit. The read is exact, and
+    segmentation and preprocessing are not the cause.
+- **Gates.**
+
+  | Gate | Result |
+  |---|---|
+  | `build`, `typecheck:scripts` | PASS |
+  | `verify:ocr-ambiguity` | 55/0, 10 mutants and 10 mutated-source controls killed |
+  | `verify:ocr-calibration` | 67/0 |
+  | `verify:ocr-decision` | 204/0 |
+  | `verify:ocr-report` | 51/0 |
+  | `verify:ocr-assets` | 46/0 |
+  | `verify:visual-isolation` | 117/0 |
+  | `verify:verifier-classification` | PASS, 368 classified |
+  | `verify:ocr-host` | **FAIL 53/1** |
+  | `verify:ocr-runtime` | **FAIL 83/1** |
+  | `verify:packaging-host` | H6 PASS, H4/H5 BLOCKED (no Visual Studio 2022, unchanged) |
+
+  The two FAILs are wall-clock bounds on an unchanged production path. Warm recognition took 1866 ms against a 1000 ms
+  bound. A late reply was not observed within a 1200 ms wait, though its safety assertion held. Both failed in a
+  concurrent run and again run alone. Classified as environment timing (KNOWN_ISSUES), not rerun again.
+- **Owner decisions.** Scope for l/1 in digit runs: plan options 1–3. The `.gitattributes` font rule is still absent.
+
+## Phase N: N7.6 first qualifying session — OC-10 zero-false-matched VIOLATED, campaign stopped (2026-10-27)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N, N7 and N7.6
 (`awkit-vra.9.7`, in progress) stay OPEN.** No cell is qualified.

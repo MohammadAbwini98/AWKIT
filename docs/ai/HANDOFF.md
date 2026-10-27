@@ -1,6 +1,34 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-27, latest) — N7.6 stopped on a reproduced l/1 false match; owner decision needed (awkit-vra.9.7 open)
+## HANDOFF (2026-10-27, latest) — N7.6 ambiguity probe done: no separating margin; owner scope decision needed (awkit-vra.9.7 open)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done.**
+  - The diagnostic-only probe (`a7c2b64`): `benchmark:ocr-ambiguity` and `verify:ocr-ambiguity` 55/0.
+  - One run, aggregate only:
+    `%LOCALAPPDATA%/SpecterStudio/ocr-calibration/ambiguity/2026-10-27T19-47-45-092Z-bb9be8bb.json`.
+  - The qualifying session was read only and is unchanged.
+- **Result** (N7 plan § N7.6, "Ambiguity feasibility probe"):
+  - API GO: `ChoiceIterator` and `lstm_choice_mode` 2, with no behaviour change.
+  - Margins are NOT separable: no per-symbol gate is supported.
+  - The l-in-digit-run false match generalises across fixtures and cells.
+  - `multiline` is a line-initial-digit confidence miss.
+- **Do not:**
+  - resume `benchmark:ocr` toward 300 launches;
+  - adopt `lstm_choice_mode` in production;
+  - add a verdict rule without owner approval.
+- **Owner decisions:**
+  1. l/1 scope: plan options 1–3.
+  2. The `.gitattributes` font rule: absent, protected path.
+- **Open:**
+  - `verify:ocr-host` 53/1 and `verify:ocr-runtime` 83/1 fail timing bounds on this VM with production unchanged
+    (KNOWN_ISSUES).
+  - `headed-dpr1.25` was not measured by the probe (one launch failed to load the lab).
+  - The fresh-checkout font byte check was NOT RUN: `git ls-files --eol` is refused by the lease guard.
+- **Preserved untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-27) — N7.6 stopped on a reproduced l/1 false match; owner decision needed (awkit-vra.9.7 open)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

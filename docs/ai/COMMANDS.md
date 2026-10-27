@@ -736,6 +736,11 @@ npm run benchmark:ocr-feasibility     # N7.1a wrapper vs core in an Electron 33 
                                       # npm install --prefix scripts/ocr-feasibility --ignore-scripts --no-audit --no-fund
                                       # without it: harness self-test only, candidates NOT RUN, exit 1
 npm run verify:packaging-host         # read-only packaging host diagnosis (awkit-i6ot); exit 1 while any item is BLOCKED
+npm run verify:ocr-ambiguity          # N7.6 DIAGNOSTIC l/1/I probe: analysis, 10 mutants, fixtures, isolation with
+                                      # mutated-source controls, and the real probe host on staged copies (55)
+npm run benchmark:ocr-ambiguity       # N7.6 DIAGNOSTIC ONLY (never counts): ChoiceIterator margins at lstm_choice_mode 2
+                                      # vs production, in 6 cells, codes and numbers only, to
+                                      # %LOCALAPPDATA%/SpecterStudio/ocr-calibration/ambiguity; exit 2 without the font
 
 # ── Visual Assertions (Phase N, N6) — pure, no browser, no model ─────────────────────────────────
 npm run verify:visual-assertion       # N6.2 pure decideVisualAssertion: decision table, independent-oracle property run,

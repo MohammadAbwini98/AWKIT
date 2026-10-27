@@ -10,8 +10,26 @@
   - OC-10's zero-false-matched rule is violated in 4 of 6 cells.
   - The fix needs a per-symbol signal from the engine (proposed in the N7 plan § N7.6) and owner approval. The
     thresholds must not be tuned to hide it.
+  - **Probe result (2026-10-27):** the per-symbol signal exists (`lstm_choice_mode` 2) but does not separate. False
+    matches have class margins of 52–95, inside the legitimate 35–95 range. It also generalises: an `l` leading or
+    inside a digit run was false matched 14 of 39 times on new fixtures, in every measured cell. A margin gate is not
+    supported; this is an owner scope decision.
 - **`multiline` fails in the bundled font (OPEN, accuracy).** It was 0 of 13 (lookalike-uncertain 8, low-confidence
   5). In the fallback font it was 39 of 39.
+  - Probe diagnosis: the read is exact. The engine gives the first two words of the line that starts with "3" one
+    shared low confidence (47.8, or about 86).
+  - The same text on one line matches. Line 2 alone fails the same way.
+  - Not segmentation, word boundaries or preprocessing. The folded look-alike gate turns the 86 cases inconclusive.
+- **The OCR engine glue loads as ESM inside the repository (environment, scripts only).** The root `package.json` is
+  `"type": "module"`, so a Node `require` of `build/ocr/tesseract-core-simd-lstm.js` returns no factory. Load the
+  engine from a staged copy outside the repository, as `benchmark:ocr`, `benchmark:ocr-ambiguity` and
+  `verify:ocr-ambiguity` do. Packaged `resources/ocr` is unaffected.
+- **Two OCR verifiers miss wall-clock bounds on this VM (OPEN, environment timing, 2026-10-27).** Production was
+  unchanged, and both failed concurrently and again alone:
+  - `verify:ocr-host`: "prepare() ... the next recognition runs on it" took 1866–2145 ms against a 1000 ms bound.
+  - `verify:ocr-runtime`: "a reader that ignores the abort and answers late" did not see the late reply within its
+    1200 ms wait. Its safety assertion held: one record, budget-exhausted, never matched.
+  - `npm run build` took over 20 minutes in the same session, so the host was heavily loaded.
 - **`ofl.txt` can be rewritten to CRLF on checkout (OPEN, owner action).** `.gitattributes` has no rule for the font
   folder, and that path is protected from agents. A fresh Windows checkout with autocrlf makes the manifest hash
   mismatch, so `benchmark:ocr` refuses (fail closed). Add `*.woff2 binary` and
