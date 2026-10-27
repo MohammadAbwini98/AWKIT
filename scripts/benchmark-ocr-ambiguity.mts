@@ -143,7 +143,7 @@ function reproduceSession(): Record<string, unknown> {
     available: true,
     unchanged: before === after,
     launches: session.launches.length,
-    complete: session.launches.filter((l) => l.complete).length,
+    completedLaunches: session.launches.filter((l) => l.complete).length,
     coldProbeLaunches: session.launches.filter((l) => l.coldProbe).length,
     lookalikeL1: byFixture("lookalike-l1"),
     multiline: byFixture("multiline"),
@@ -432,7 +432,7 @@ function aggregate(trials: TrialRecord[]): Record<string, unknown> {
     })
   );
   return {
-    trials: { total: trials.length, measured: measured.length, refused: trials.filter((t) => t.refusal !== null).length, refusals: trials.filter((t) => t.refusal).reduce<Record<string, number>>((acc, t) => ({ ...acc, [t.refusal as string]: (acc[t.refusal as string] ?? 0) + 1 }), {}) },
+    trials: { all: trials.length, measured: measured.length, refused: trials.filter((t) => t.refusal !== null).length, refusals: trials.filter((t) => t.refusal).reduce<Record<string, number>>((acc, t) => ({ ...acc, [t.refusal as string]: (acc[t.refusal as string] ?? 0) + 1 }), {}) },
     modeTwo: {
       accepted: measured.filter((t) => t.modeAccepted === true).length,
       sameTextAsProduction: measured.filter((t) => t.sameTextAC).length,
@@ -498,7 +498,7 @@ try {
   });
   const lab = `http://127.0.0.1:${port}/visual-intelligence/ocr`;
   server = spawn(process.execPath, ["mock-site/server.mjs"], { cwd: root, env: { ...process.env, MOCK_SITE_PORT: String(port) }, stdio: ["ignore", "ignore", "inherit"], windowsHide: true });
-  for (let attempt = 0; attempt < 100 && !(await fetch(lab).then((r) => r.ok, () => false)); attempt += 1) await new Promise((r) => setTimeout(r, 100));
+  for (let attempt = 0; attempt < 300 && !(await fetch(lab).then((r) => r.ok, () => false)); attempt += 1) await new Promise((r) => setTimeout(r, 100));
 
   const trials: TrialRecord[] = [];
   let launches = 0;
@@ -511,15 +511,17 @@ try {
         browser = await chromium.launch({ headless: cell.renderMode === "headless", args: buildChromiumHardeningArgs(process.env) });
         const context = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: cell.devicePixelRatio });
         const page = await context.newPage();
-        await page.goto(`${lab}?calibration=1`);
+        await page.goto(`${lab}?calibration=1`, { timeout: 60_000 });
         await page.waitForSelector("body[data-fonts][data-fixtures]");
         if ((await page.getAttribute("body", "data-fonts")) !== "ready") {
           console.error("BLOCKED: the bundled font did not load in the lab.");
           exitCode = 2;
           throw new Error("blocked");
         }
+        const launchStarted = performance.now();
         for (const [index, item] of items.entries()) trials.push(await runTrial(page, host, item, cellIdOf(cell), rep, index + rep));
         launches += 1;
+        console.log(`  launch ${launches}: ${cellIdOf(cell)} rep ${rep + 1}, ${items.length} fixtures, ${Math.round((performance.now() - launchStarted) / 1000)} s`);
       } catch (error) {
         if (exitCode === 2) throw error;
         launchErrors += 1;
@@ -559,6 +561,8 @@ try {
     ...Object.keys(TEXT_ASSERTION_CODES),
     ...trials.map((t) => t.refusal).filter((r): r is string => typeof r === "string"),
     "ocr-ambiguity-diagnostic", "unmeasured", "separable", "overlapping", "insufficient", "win32", "x64", "arm64", "ARM64", "AMD64",
+    // Binding names from the probe host's API facts.
+    "Next", "GetUTF8Text", "Confidence", "Begin", "IsAtBeginningOf", "Empty",
     process.platform, process.arch, report.environment.hostArch, report.generated, report.environment.probeFixtures, report.environment.calibrationFixtures,
     ...report.environment.engineAssets
   ]);
