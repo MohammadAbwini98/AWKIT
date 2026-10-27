@@ -1,6 +1,49 @@
 # CURRENT_STATE
 
-## Phase N: N7.5 observe-only OCR assertions DONE; next N7.6 (2026-10-27, latest)
+## Phase N: N7.6 OCR calibration IMPLEMENTED, qualification BLOCKED on the bundled font (2026-10-27, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N, N7 and N7.6
+(`awkit-vra.9.7`, now in progress) stay OPEN.** No calibration result, latency target or packaged acceptance is
+claimed. The N7 plan's § N7.6 has the full tables.
+
+- **New.**
+  - Lab: the calibration mode `/visual-intelligence/ocr?calibration=1` with 28 fixtures in `mock-site/public/ocr-fixtures.json`.
+  - Bundled font: `AwkitOcrLab`, `@fontsource/noto-sans` 5.3.0, OFL-1.1, pinned in `mock-site/fonts-src/` and staged
+    by `npm run prepare:ocr-lab-fonts`.
+  - Criteria: the pure `scripts/lib/ocr-calibration-criteria.mts`.
+  - Harness: `benchmark:ocr`, with the variants `-diagnostic`, `-smoke` and `-report`.
+  - Verifier: `verify:ocr-calibration`, registered as static-source-validation.
+  - OcrStep has an optional phase probe; production passes none.
+- **Gates this task (final state):**
+
+  | Gate | Result |
+  |---|---|
+  | `build` | PASS |
+  | `typecheck:scripts` | PASS |
+  | `verify:ocr-calibration` | 62/0 |
+  | `verify:ocr-runtime` | 84/0 |
+  | `verify:ocr-gui` | 44/0 |
+  | `verify:visual-isolation` | 117/0 |
+  | `verify:mock-site` | 362/362 |
+  | `verify:source-hygiene` | 11/0 |
+  | `verify:verifier-classification` | reconciled |
+  | `benchmark:ocr` (qualifying) | **BLOCKED**: font not staged, 0 qualifying launches in every cell |
+
+- **Diagnostic evidence only** (system-font fallback; ARM64 VM with x64 runtimes under emulation):
+  - 2 sessions, 175 launches, 0 errors.
+  - Exact match 74–93 % and CER 0–1.6 % per cell.
+  - 3–4 false `matched` per cell, all on `lookalike-l1`, which the engine reads as 1 at ≥ 92 confidence.
+  - Unsupported fixtures were 100 % inconclusive and refusals 100 % correct.
+  - Warm whole-operation p95 723–898 ms. The cold host reached p95 2232 ms, with 3 of 14 budget-exhausted.
+- **Dominant stage:** the N0 guarded capture, 359–471 ms p50. Screenshot plus decode is only 100–210 ms of it.
+  - Checks take about 140–245 ms and warm recognition 47–61 ms.
+  - Emulation isolation is INCONCLUSIVE: there is no native ARM64 runtime to compare against.
+- **Optimisations proposed, not implemented,** all needing owner approval:
+  - clip the N0 capture and decode it off the main thread;
+  - prewarm the host;
+  - merge the checks.
+
+## Phase N: N7.5 observe-only OCR assertions DONE; next N7.6 (2026-10-27)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N and N7 stay IN
 PROGRESS.**

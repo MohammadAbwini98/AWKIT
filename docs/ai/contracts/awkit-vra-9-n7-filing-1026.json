@@ -207,6 +207,22 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-vra-9-n7-filing-1026:project-state:2026-10-27T09:13:29.182Z",
+        "task": "awkit-vra-9-n7-filing-1026",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-27T09:13:29.182Z",
+        "acquired_at_commit": "db126ac757e1cfd33f8b251402760e4a28c767a8",
+        "released_at": "2026-10-27T09:14:37.290Z",
+        "released_reason": "N7.6 tracker status set to in_progress and exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }

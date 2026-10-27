@@ -1,6 +1,42 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-27, latest) — N7.5 closed; next N7.6 OCR Lab and calibration (awkit-vra.9.7)
+## HANDOFF (2026-10-27, latest) — N7.6 implemented; qualification BLOCKED on the owner font install (awkit-vra.9.7 open)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **State.**
+  - The lab, criteria, harness, instrumentation and `verify:ocr-calibration` (62/0) are on `main`.
+  - `awkit-vra.9.7` is in progress and NOT closed.
+  - Nothing is qualified, because 0 qualifying launches were executed.
+  - Diagnostic findings and the proposed optimisations are in the N7 plan § N7.6.
+- **Owner action 1, the font.** This fetches one npm package, pinned and verified by the prepare script:
+
+  ```
+  npm install --prefix mock-site/fonts-src --ignore-scripts --no-audit --no-fund
+  npm run prepare:ocr-lab-fonts
+  ```
+
+  Then commit `mock-site/public/fonts/` (the faces, `ofl.txt` and `fonts-manifest.json`).
+- **Then calibrate.**
+  - Run `npm run benchmark:ocr` about 22 times. Each run is one resumable 7-minute session of about 85 launches.
+    Evidence is appended under `%LOCALAPPDATA%/SpecterStudio/ocr-calibration/sessions`.
+  - The target is ≥ 300 launches per cell and ≥ 3 sessions, about 1,800 in total. Keep every session in one
+    environment; any source or asset change resets the fingerprint.
+  - `npm run benchmark:ocr-report` decides each cell. A failing cell stays observe-only.
+  - Do not tune 80/92 or exclude trials.
+- **Expected risks.**
+  - `lookalike-l1` is matched in the fallback font (l read as 1 at ≥ 92 confidence) and will fail 0-false-matched
+    unless Noto Sans separates the glyphs.
+  - The `mixed-case` exact fixture is lookalike-uncertain.
+  - The cold host start can exceed 1500 ms.
+- **Approval boundary (§7):** no N0, host-policy, deadline, limit or threshold change was made. These need owner
+  approval first:
+  - N0 capture clipping and off-thread decode;
+  - host prewarm;
+  - check merging.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-27) — N7.5 closed; next N7.6 OCR Lab and calibration (awkit-vra.9.7)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

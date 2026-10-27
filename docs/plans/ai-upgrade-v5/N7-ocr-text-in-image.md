@@ -385,7 +385,7 @@ changes in either proof.
 | N7.3 | Packaging of the engine N7.1a selected (the `tesseract.js` wrapper or `tesseract.js-core`, pinned) and the `eng` data in `resources/ocr/`, manifest entries, offline validation, a dependency review | DONE 2026-10-26 (`00572f3`, `4f29564`): `verify:ocr-assets` 46/0; staged 5,968,312 bytes; `validate:offline` non-strict PASS. Strict validation of a real release moves with the packaged load to N7.1b (BLOCKED) |
 | N7.4 | OCR utility host and `OcrUtilityHostManager` (lazy spawn, deadline, cancel, idle shutdown, restarts, heap cap, no network) | DONE 2026-10-26 (`d4b986a`, `3cf9abb`): `verify:ocr-host` 49/0 with the real engine in real utility processes |
 | N7.5 | `assertImageText` step, validator, adapter (fifth edge), refusals, record and report block, Designer and drawer sections | `verify:ocr-runtime`, `verify:ocr-report`, `verify:visual-isolation` at 5, `verify:ocr-gui` |
-| N7.6 | OCR Lab and calibration benchmark | `benchmark:ocr`, `verify:ocr-calibration` |
+| N7.6 | OCR Lab and calibration benchmark | IMPLEMENTED 2026-10-27, NOT QUALIFIED: `verify:ocr-calibration` 62/0; `benchmark:ocr` BLOCKED (bundled font not staged), 0 qualifying launches in every cell; diagnostic evidence only (see § N7.6 below) |
 | N7.7 | Shadow N2 and N5 signals, effect `none` | `verify:visual-fusion-runtime` and `verify:visual-diagnosis-runtime` extended |
 | N7.8 | Packaged acceptance: observe only, no network, no download, disabled mode identical | `verify:ocr-packaged` |
 | N7.9 | Independent QC and security review, then closure | APPROVED from both |
@@ -449,12 +449,112 @@ N7.5 implementation decisions, recorded against OC-9 (no ratified figure changed
 - **Development assets.** The development-only `AWKIT_OCR_DEV_ASSET_DIR` serves a local staging (not the Parallels
   share). Packaged builds ignore it.
 
+### N7.6 (`awkit-vra.9.7`), 2026-10-27: IMPLEMENTED, NOT QUALIFIED, stays open
+
+**What exists.**
+- **Lab.** `/visual-intelligence/ocr?calibration=1` (the N7.5 lab, extended) renders 28 pre-declared fixtures from
+  `mock-site/public/ocr-fixtures.json` in four classes: 13 supported, 8 confusable, 4 unsupported, 3 refusal. It uses
+  the bundled `AwkitOcrLab` font only (`@fontsource/noto-sans` 5.3.0, OFL-1.1, integrity-pinned). Fixture identity,
+  checksum and provenance are in `mock-site/README.md`.
+- **Criteria.** `scripts/lib/ocr-calibration-criteria.mts` is pure and was fixed before measuring:
+  - exact match = matched / all supported trials, budget-exhausted and refusals included;
+  - CER = Σ edits / Σ expected characters, with an unread trial counting every character;
+  - zero false `matched` among confusable trials;
+  - 100 % unsupported inconclusive;
+  - refusals return the expected code with zero captures;
+  - the p95 is taken over the supported and confusable trials;
+  - ≥ 300 complete launches over ≥ 3 sessions of one identical environment;
+  - no exclusions.
+
+  Diagnostic, cold-probe, failed, duplicated and other-environment launches never qualify.
+- **Harness.** `benchmark:ocr` (`scripts/benchmark-ocr.mts`, Electron main `scripts/ocr-calibration/calibrationMain.ts`)
+  follows the N6.6 pattern:
+  - resumable 7-minute sessions with round-robin over the six cells and a fresh Chromium per launch;
+  - each trial goes through the real FlowExecutor, StepExecutor, OcrStep and N0 capture, then the production
+    `OcrUtilityHostManager` and the real Tesseract host;
+  - an environment fingerprint binds the fonts, fixtures, lab, pipeline sources, staged assets, policy and runtime;
+  - the recognized text never leaves memory: only edit counts are stored.
+- **Instrumentation.** OcrStep has an optional probe with phase marks; production passes none. The probe covers
+  pre-assess, protected, target and sensitive checks, the N0 capture, preprocessing, the recognize call (engine time
+  apart from queue and IPC), settlement, event-loop lag, cold and warm host, and an out-of-clock N0 screenshot and
+  decode replay.
+
+**Qualification: BLOCKED.** `npm run benchmark:ocr` refuses with exit 2 because the bundled font is not staged. The
+qualifying launch count is 0 in every cell. Owner action:
+`npm install --prefix mock-site/fonts-src --ignore-scripts --no-audit --no-fund`, then
+`npm run prepare:ocr-lab-fonts`. After that, about 22 sessions of `npm run benchmark:ocr` are needed (about 85
+launches each, 1,800 in total); `npm run benchmark:ocr-report` decides.
+
+**Diagnostic evidence.** This is the system-font fallback, so it never qualifies.
+- Two 7-minute sessions at the current fixture hash: 175 launches, 0 errors. Of these, 164 count toward the cells and
+  11 are cold-host probes, reported apart.
+- One earlier 8-launch smoke session ran under the previous fixture hash and is not merged.
+- Environment: ARM64 Windows VM, with x64 Electron and Node under emulation.
+
+| Cell | Launches | Exact match | CER | False matched | p50 / p95 / p99 ms |
+|---|---|---|---|---|---|
+| headed DPR 1 | 30 | 74.4 % | 1.17 % | 3/30 | 603 / 806 / 1401 |
+| headed DPR 1.25 | 29 | 85.1 % | 1.59 % | 3/29 | 606 / 806 / 1283 |
+| headed DPR 2 | 23 | 92.8 % | 0 % | 3/23 | 669 / 881 / 1109 |
+| headless DPR 1 | 29 | 73.6 % | 0.47 % | 4/29 | 585 / 735 / 1146 |
+| headless DPR 1.25 | 29 | 83.9 % | 0 % | 4/29 | 578 / 723 / 774 |
+| headless DPR 2 | 24 | 93.1 % | 0 % | 3/24 | 669 / 898 / 959 |
+
+In every cell, unsupported fixtures were 100 % inconclusive and refusals 100 % correct with zero captures.
+
+**Accuracy findings.** All must be re-measured in the bundled font.
+- `lookalike-l1` ("Batch l42" against an expected "Batch 142") was matched 22 of 22 times. The engine reads l as 1 at
+  ≥ 92 confidence, so the look-alike gate cannot see it.
+- `mixed-case` (exact) was `lookalike-uncertain` 38 of 39 times.
+- `small-11` matched 12 of 42 and `small-10` 26 of 42.
+- The thresholds were not tuned.
+
+**Timing diagnosis.** p50 / p95 ms, warm host.
+
+| Stage | p50 / p95 ms |
+|---|---|
+| Pre-assess | 8–10 / 16–22 |
+| Protected check | 51–59 / 84–98 |
+| Target and sensitive checks | 83–91 / 125–146 |
+| **N0 guarded capture (dominant)** | **359–471 / 435–617** |
+| Preprocessing | ≈ 1 / 2–5 |
+| Recognize call | 47–61 / 105–187 |
+| Engine alone | 45–57 |
+| Queue and IPC | 2–3 |
+| Settlement | 1–2 / 3–5 |
+| Whole operation | 577–683 / 716–881 |
+
+- The out-of-clock replay of N0's screenshot plus PNG decode costs 100–210 ms: decode is 22–24 ms at DPR 1, 35–38 ms
+  at DPR 1.25 and 91–97 ms at DPR 2. That leaves about 250–300 ms of N0 guard, geometry and stillness work inside the
+  capture.
+- Event-loop lag reaches 88–144 ms at DPR 2.
+- **Cold host** (n = 14): recognize-call p50 622 / p95 1450 ms, whole operation p50 1346 / p95 2232 ms, 3 of 14
+  budget-exhausted. One trial had a 504 ms event-loop stall during the host fork. No late verdict was recorded.
+- **Warm host** (n = 762): whole operation 610 / 811 ms.
+- The prior figures, treated as hypotheses, came out as follows:
+  - capture 650–1000 ms becomes about 360–620 ms in the harness;
+  - checks 150–450 ms are confirmed at about 140–245 ms;
+  - warm recognition 60–150 ms is confirmed;
+  - cold start of about 1200 ms is confirmed (1346 ms p50);
+  - the in-app p95 of 1510 ms is not reproduced standalone, which points to about 500 ms of app main-thread
+    contention (`verify:ocr-gui` this run: p95 1664 ms, 3 of 12 budget-exhausted).
+- **Emulation isolation: INCONCLUSIVE.** Both runtimes are x64 under emulation, and no native ARM64 runtime is
+  available to compare. The x64 1000 ms OC-9 objective is unmeasured.
+
+**Proposed optimisations, ranked by measured share.** None are implemented, and each needs a root cause and owner
+approval (§7).
+1. Clip the N0 element capture to the target region instead of the full viewport, and move the PNG decode off the main
+   thread. This targets 250–450 ms, but changes N0 capture geometry and decoding.
+2. Prewarm the OCR host when a run contains `assertImageText`, and fork it outside the step. This targets the cold
+   600–1300 ms and the fork stall, but changes host start-up policy.
+3. Merge the protected and target checks into one page evaluation. This targets about 50–90 ms, but touches the N7.5
+   refusal sequence.
+4. Reduce DPR 2 decode and event-loop lag, which follows from 1.
+
 Remaining:
-- **Next dependency-ready task: N7.6 (`awkit-vra.9.7`), OCR Lab and calibration.** Its only dependency, N7.5, is
-  closed.
-  - The OC-9 latency target and the OC-10 accuracy criteria are NOT YET QUALIFIED. N7.5 measured in the ARM64 VM
-    source build: p95 1510 ms, p50 1283 ms, 3 of 12 real-engine observations `budget-exhausted`, no wrong verdict.
-  - The capture dominates: 0.65–1.0 s for N0's full-viewport screenshot and PNG decode at 1365x768.
+- **N7.6 stays open.** Next: the owner stages the font, then run the qualifying sessions and decide each cell. A cell
+  that misses stays observe-only. Expect the l/1 look-alike to fail the zero-false-matched criterion unless the bundled
+  font separates the glyphs.
 - N7.7 (`.9.8`) is also dependency-ready. It is a separate advisory workstream with effect none, and OCR must never
   select an action.
 - N7.1b and N7.8 stay BLOCKED until the approved packaging host exists.

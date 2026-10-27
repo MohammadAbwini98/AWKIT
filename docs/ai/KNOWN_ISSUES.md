@@ -1,5 +1,24 @@
 # KNOWN_ISSUES
 
+## N7.6 calibration notes (2026-10-27, OPEN, diagnostic evidence)
+
+- **l/1 look-alike is a confident false match (OPEN, accuracy).** In the system-font fallback, the engine read
+  "Batch l42" as "Batch 142" at ≥ 92 confidence in 22 of 22 trials. The N7.2 look-alike gate only fires on uncertain
+  reads, so the decision returns `matched` against the expectation "Batch 142". This would fail OC-10's zero-false-matched
+  criterion. Re-measure in the bundled font; thresholds must not be tuned to hide it.
+- **Exact mixed-case text is lookalike-uncertain (OPEN, accuracy).** "SpecterStudio Release Notes" with `exact` match
+  was inconclusive 38 of 39 times. Small 10–11 px text matched only 29–62 % of the time.
+- **Cold OCR host start exceeds the deadline (OPEN, performance).** The first recognition costs 343–464 ms in the
+  engine. With a cold fork overlapping the capture, the whole operation reached p50 1346 / p95 2232 ms and 3 of 14
+  trials were budget-exhausted. One trial had a 504 ms main-thread stall. The verdicts stayed correct and none was late.
+- **N0 capture dominates warm latency (OPEN, performance).** It costs 359–471 ms p50, of which screenshot plus decode
+  is only 100–210 ms. Any fix touches N0 semantics and needs owner approval.
+- **Emulation cost not isolable (INCONCLUSIVE, environment).** Electron and Node are both x64 under emulation on this
+  ARM64 VM, and no native ARM64 runtime is available, so OC-9's x64 1000 ms objective is unmeasured here.
+- **The benchmark refuses without the bundled font (by design).** `benchmark:ocr` exits 2 (BLOCKED) until
+  `npm run prepare:ocr-lab-fonts` has staged `mock-site/public/fonts/`. Diagnostic runs use the fallback font and
+  never qualify.
+
 ## N7.5 notes (2026-10-26, OPEN items noted, environment)
 
 - **The OCR engine cannot initialise from the Parallels share (WORKAROUND, environment).**

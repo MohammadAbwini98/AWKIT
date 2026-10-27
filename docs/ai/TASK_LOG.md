@@ -1,5 +1,44 @@
 # TASK_LOG
 
+## 2026-10-27 — Phase N: N7.6 OCR Lab, performance profiling and calibration harness (Claude)
+
+- **Task:** implement and run the N7.6 calibration program (`awkit-vra.9.7`).
+- **Built:**
+  - the calibration mode of `/visual-intelligence/ocr`, with 28 fixtures and the bundled Noto Sans font, pinned and
+    gated;
+  - the pure criteria module, fixed before measuring;
+  - `benchmark:ocr`, an N6.6-style resumable harness over the real executor, N0, host and Tesseract;
+  - the optional OcrStep phase probe;
+  - `verify:ocr-calibration`.
+- **Files:**
+  - `src/runner/ocr/OcrStep.ts`;
+  - `mock-site/{public/visual-intelligence-ocr.html, public/ocr-fixtures.json, server.mjs, fonts-src/package.json, README.md}`;
+  - `scripts/{benchmark-ocr.mts, verify-ocr-calibration.mts, prepare-ocr-lab-fonts.mjs, verify-mock-site.mjs}`;
+  - `scripts/lib/{ocr-calibration-criteria.mts, ocr-emulation-probe.mts, verifier-classification.ts}`;
+  - `scripts/ocr-calibration/calibrationMain.ts`;
+  - `package.json`;
+  - the N7 plan and state docs.
+- **Tests:**
+
+  | Gate | Result |
+  |---|---|
+  | `build` and `typecheck:scripts` | PASS |
+  | `verify:ocr-calibration` | 62/0 |
+  | `verify:ocr-runtime` | 84/0 |
+  | `verify:ocr-gui` | 44/0 (measured p95 1664 ms) |
+  | `verify:visual-isolation` | 117/0 |
+  | `verify:mock-site` | 362/362 |
+  | `verify:source-hygiene` | 11/0 |
+  | `verify:verifier-classification` | PASS |
+  | `benchmark:ocr` (qualifying) | **BLOCKED** (font not staged) |
+  | `benchmark:ocr-diagnostic` | 2 sessions, 175 launches, 0 errors |
+
+- **Result:** N7.6 IMPLEMENTED, NOT QUALIFIED; it stays open.
+  - 0 qualifying launches per cell.
+  - Diagnostic dominant stage: the N0 capture, 359–471 ms p50.
+  - `lookalike-l1` false matches.
+  - Optimisations are proposed only, pending approval.
+
 ## 2026-10-27 — Phase N: N7.5 delivery closeout and N7.6 readiness (Claude)
 
 - **Task:** recover the uncommitted N7.5 delivery, close the verification gaps and close `awkit-vra.9.6`.
