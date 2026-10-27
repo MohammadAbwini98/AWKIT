@@ -346,6 +346,8 @@
     "benchmark:ocr-diagnostic": "tsx scripts/benchmark-ocr.mts --diagnostic",
     "benchmark:ocr-smoke": "tsx scripts/benchmark-ocr.mts --diagnostic --budget-sec 45",
     "benchmark:ocr-report": "tsx scripts/benchmark-ocr.mts --report",
+    "benchmark:ocr-ambiguity": "tsx scripts/benchmark-ocr-ambiguity.mts",
+    "verify:ocr-ambiguity": "tsx scripts/verify-ocr-ambiguity.mts",
     "prepare:ocr-lab-fonts": "node scripts/prepare-ocr-lab-fonts.mjs",
     "verify:ocr-host":"tsx scripts/verify-ocr-host.mts",
     "verify:flow-import-authorization": "tsx scripts/verify-flow-import-authorization.mts",

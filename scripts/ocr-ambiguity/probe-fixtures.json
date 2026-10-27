@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "description": "N7.6 (awkit-vra.9.7) DIAGNOSTIC-ONLY fixtures for benchmark:ocr-ambiguity, declared before any measurement and never tuned against results. They are rendered on the OCR Lab stage (/visual-intelligence/ocr?calibration=1) in the bundled AwkitOcrLab font with the stage's own styling, but they are NOT calibration fixtures: they are never read by benchmark:ocr and never counted toward OC-10. The development set is the calibration table's own fixtures (mock-site/public/ocr-fixtures.json) that hold l, I or 1, plus multiline; any candidate floor is chosen on development only and judged on the confirmation set below. Roles: negative = the rendered text holds l or I where the expected text holds the digit 1 (a matched verdict is a FALSE match); positive = the rendered text equals the expected text and holds l, I or 1 (a matched verdict is legitimate). Multiline controls isolate the multiline fixture's lines.",
+  "confirmation": [
+    { "id": "cf-neg-lot", "role": "negative", "text": "Lot l87", "expected": "Lot 187", "fontSize": 22 },
+    { "id": "cf-neg-item", "role": "negative", "text": "Item l05", "expected": "Item 105", "fontSize": 20 },
+    { "id": "cf-neg-batch-mid", "role": "negative", "text": "Batch 7l2", "expected": "Batch 712", "fontSize": 22 },
+    { "id": "cf-neg-unit-end", "role": "negative", "text": "Unit 3l", "expected": "Unit 31", "fontSize": 22 },
+    { "id": "cf-neg-seat-cap", "role": "negative", "text": "Seat I4", "expected": "Seat 14", "fontSize": 22 },
+    { "id": "cf-neg-room-cap", "role": "negative", "text": "Room 2I0", "expected": "Room 210", "fontSize": 18 },
+    { "id": "cf-neg-tag-small", "role": "negative", "text": "Tag l64", "expected": "Tag 164", "fontSize": 16 },
+    { "id": "cf-pos-lot", "role": "positive", "text": "Lot 187", "expected": "Lot 187", "fontSize": 22 },
+    { "id": "cf-pos-item", "role": "positive", "text": "Item 105", "expected": "Item 105", "fontSize": 20 },
+    { "id": "cf-pos-batch-mid", "role": "positive", "text": "Batch 712", "expected": "Batch 712", "fontSize": 22 },
+    { "id": "cf-pos-unit-end", "role": "positive", "text": "Unit 31", "expected": "Unit 31", "fontSize": 22 },
+    { "id": "cf-pos-seat", "role": "positive", "text": "Seat 14", "expected": "Seat 14", "fontSize": 22 },
+    { "id": "cf-pos-room", "role": "positive", "text": "Room 210", "expected": "Room 210", "fontSize": 18 },
+    { "id": "cf-pos-tag-small", "role": "positive", "text": "Tag 164", "expected": "Tag 164", "fontSize": 16 },
+    { "id": "cf-pos-showing", "role": "positive", "text": "Showing 1 to 10 of 41 items", "expected": "Showing 1 to 10 of 41 items", "fontSize": 16 },
+    { "id": "cf-pos-login", "role": "positive", "text": "Last login 11 April", "expected": "Last login 11 April", "fontSize": 18 },
+    { "id": "cf-pos-install", "role": "positive", "text": "Install 1 update", "expected": "Install 1 update", "fontSize": 18 },
+    { "id": "cf-pos-level", "role": "positive", "text": "Level 12 lift lobby", "expected": "Level 12 lift lobby", "fontSize": 18 },
+    { "id": "cf-pos-file", "role": "positive", "text": "File list", "expected": "File list", "fontSize": 20 },
+    { "id": "cf-pos-inbox", "role": "positive", "text": "Inbox 11 unread", "expected": "Inbox 11 unread", "fontSize": 18 },
+    { "id": "cf-pos-office", "role": "positive", "text": "Illinois Office 1", "expected": "Illinois Office 1", "fontSize": 20 }
+  ],
+  "multilineControls": [
+    { "id": "ml-one-line", "role": "positive", "text": "Order summary 3 items ready", "expected": "Order summary 3 items ready", "fontSize": 18 },
+    { "id": "ml-line-1", "role": "positive", "text": "Order summary", "expected": "Order summary", "fontSize": 18 },
+    { "id": "ml-line-2", "role": "positive", "text": "3 items ready", "expected": "3 items ready", "fontSize": 18 }
+  ]
+}
