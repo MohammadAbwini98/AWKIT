@@ -2,10 +2,20 @@
 
 ## N7.6 calibration notes (2026-10-27, OPEN, diagnostic evidence)
 
-- **l/1 look-alike is a confident false match (OPEN, accuracy).** In the system-font fallback, the engine read
-  "Batch l42" as "Batch 142" at ≥ 92 confidence in 22 of 22 trials. The N7.2 look-alike gate only fires on uncertain
-  reads, so the decision returns `matched` against the expectation "Batch 142". This would fail OC-10's zero-false-matched
-  criterion. Re-measure in the bundled font; thresholds must not be tuned to hide it.
+- **l/1 look-alike is a confident false match (OPEN, accuracy, CONFIRMED in the bundled font).**
+  - The engine reads "Batch l42" as "Batch 142" at ≥ 92 confidence: 22 of 22 trials in the fallback font, and 8 of 11
+    in the bundled Noto Sans (qualifying session `2026-10-27T17-21-44-341Z-e52a5a5f`).
+  - The read equals the expected text, so the decision returns `matched`. The N7.2 look-alike gate only fires on
+    uncertain reads.
+  - OC-10's zero-false-matched rule is violated in 4 of 6 cells.
+  - The fix needs a per-symbol signal from the engine (proposed in the N7 plan § N7.6) and owner approval. The
+    thresholds must not be tuned to hide it.
+- **`multiline` fails in the bundled font (OPEN, accuracy).** It was 0 of 13 (lookalike-uncertain 8, low-confidence
+  5). In the fallback font it was 39 of 39.
+- **`ofl.txt` can be rewritten to CRLF on checkout (OPEN, owner action).** `.gitattributes` has no rule for the font
+  folder, and that path is protected from agents. A fresh Windows checkout with autocrlf makes the manifest hash
+  mismatch, so `benchmark:ocr` refuses (fail closed). Add `*.woff2 binary` and
+  `mock-site/public/fonts/ofl.txt text eol=lf`.
 - **Exact mixed-case text is lookalike-uncertain (OPEN, accuracy).** "SpecterStudio Release Notes" with `exact` match
   was inconclusive 38 of 39 times. Small 10–11 px text matched only 29–62 % of the time.
 - **Cold OCR host start exceeds the deadline (OPEN, performance).** The first recognition costs 343–464 ms in the

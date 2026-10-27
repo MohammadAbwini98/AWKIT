@@ -1,5 +1,31 @@
 # TASK_LOG
 
+## 2026-10-27 — Phase N: N7.6 bundled-font verification and first qualifying session (Claude)
+
+- **Task:** verify and commit the owner-staged font, run one qualifying `benchmark:ocr` session, and apply the early
+  accuracy decision.
+- **Font:** the manifest equals the lockfile pin (5.3.0, OFL-1.1, integrity), and each face is byte-identical to the
+  installed package. Committed in `d9b5af9` with five new provenance checks in `verify:ocr-calibration`.
+- **Qualifying session:** 69 launches, 0 errors.
+  - The OC-10 zero-false-matched rule is VIOLATED: `lookalike-l1` was matched 8 of 11 times. The engine read the
+    rendered "l42" as "142" at ≥ 92 confidence.
+  - Root cause: recognition. The decision gates cannot see a confident exact misread.
+  - The campaign was stopped.
+  - `multiline` was 0 of 13. Cold start was budget-exhausted in 4 of 5 trials.
+- **Tests:**
+
+  | Gate | Result |
+  |---|---|
+  | `build`, `typecheck:scripts` | PASS |
+  | `verify:mock-site` | 362/362 |
+  | `verify:ocr-calibration` | 67/0 |
+  | `verify:roadmap-dashboard` | at final state |
+
+  `verify:ocr-runtime` and `verify:ocr-gui` were not rerun: their inputs are unchanged.
+- **Blocked:** the `.gitattributes` binary and eol rules for the font folder. That path is protected from agents, so
+  it is an owner action.
+- **Result:** N7.6 stays in progress and UNQUALIFIED. A per-symbol gate is proposed and awaits owner approval.
+
 ## 2026-10-27 — Phase N: N7.6 font qualification and early accuracy gate, BLOCKED at font staging (Claude)
 
 - **Task:** verify the owner-provisioned bundled font, stage it, then run the smoke and an early qualifying session.

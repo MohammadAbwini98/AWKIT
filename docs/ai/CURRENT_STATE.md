@@ -1,5 +1,38 @@
 # CURRENT_STATE
 
+## Phase N: N7.6 first qualifying session — OC-10 zero-false-matched VIOLATED, campaign stopped (2026-10-27, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N, N7 and N7.6
+(`awkit-vra.9.7`, in progress) stay OPEN.** No cell is qualified.
+
+- **Font.** The owner-staged Noto Sans 5.3.0 / OFL-1.1 was verified against the lockfile pin and byte-identical to the
+  installed package, and committed in `d9b5af9`. `verify:ocr-calibration` gained five provenance checks and is now 67/0.
+- **Qualifying session.** One session of 69 launches, 0 errors. Every cell is UNQUALIFIED.
+  - Exact match 86–94 % per cell; CER 0 %, except headed DPR 1 at 4.96 %.
+  - **False matched: 2 in each of 4 cells, all `lookalike-l1`**, 8 of 11 trials.
+  - Unsupported fixtures were 100 % inconclusive and refusals 100 % correct.
+  - p95 803–1231 ms, except headed DPR 1 at 1510 ms.
+  - Cold host: 4 of 5 trials budget-exhausted, with no late verdict.
+- **Root cause.** The engine reads the rendered "l42" as "142" at ≥ 92 confidence, so the read equals the expected
+  text. Neither the confidence gate nor the look-alike gate can see a confident exact misread.
+- **Also found:**
+  - `multiline` failed 0 of 13, a genuine supported miss.
+  - `mixed-case` and `small-9`, `small-10` and `small-11` now all match.
+- **Gates:**
+
+  | Gate | Result |
+  |---|---|
+  | `build`, `typecheck:scripts` | PASS |
+  | `verify:mock-site` | 362/362, fonts ready |
+  | `verify:ocr-calibration` | 67/0 |
+
+  `verify:ocr-runtime` and `verify:ocr-gui` were not rerun: their inputs are unchanged since `50ba112`.
+- **Owner decision needed.** See the N7 plan § N7.6: a diagnostic per-symbol margin probe, then a fail-closed
+  per-symbol gate, or a scope decision. Thresholds, fixtures and criteria are unchanged.
+- **Owner action.** Add `*.woff2 binary` and `mock-site/public/fonts/ofl.txt text eol=lf` to `.gitattributes`. That
+  path is protected from agents, and without the rule a fresh Windows checkout rewrites `ofl.txt` to CRLF, so the
+  benchmark refuses, failing closed.
+
 ## Phase N: N7.6 OCR calibration IMPLEMENTED, qualification BLOCKED on the bundled font (2026-10-27, latest)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N, N7 and N7.6

@@ -1,5 +1,30 @@
 # Agent Handoff
 
+## HANDOFF (2026-10-27, latest) — N7.6 stopped on a reproduced l/1 false match; owner decision needed (awkit-vra.9.7 open)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done.**
+  - The fonts are verified and committed (`d9b5af9`).
+  - One qualifying `benchmark:ocr` session ran: 69 launches, 0 errors. Its evidence is kept at
+    `%LOCALAPPDATA%/SpecterStudio/ocr-calibration/sessions/2026-10-27T17-21-44-341Z-e52a5a5f.json`.
+- **Stopped.** `lookalike-l1` was false matched 8 of 11 times, in headed and headless DPR 1 and 1.25.
+  - OC-10's zero-false-matched rule is violated, so more sessions cannot qualify those cells.
+  - Do not resume `benchmark:ocr` toward 300 launches until the owner decides.
+- **Decision for the owner** (N7 plan § N7.6):
+  1. Approve a diagnostic-only probe. The host would return per-symbol confidence and second-choice margins for
+     look-alike-class glyphs, codes only, and no verdict would change.
+  2. If a separating floor exists, ratify a per-symbol `lookalike-uncertain` gate and measure its cost on the supported
+     fixtures that contain 1, l or I.
+  3. If no floor exists, make a scope decision.
+
+  There must be no blanket l/1/I refusal and no threshold, fixture or criteria change.
+- **Also open:**
+  - `multiline` is 0 of 13 in the bundled font (a supported miss).
+  - Cold-start overruns: 4 of 5 cold trials budget-exhausted, with no late verdict.
+  - The `.gitattributes` owner action, recorded in CURRENT_STATE.
+- **Preserved unchanged/untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
 ## HANDOFF (2026-10-27, latest) — N7.6 implemented; qualification BLOCKED on the owner font install (awkit-vra.9.7 open)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.

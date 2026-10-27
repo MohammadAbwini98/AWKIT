@@ -385,7 +385,7 @@ changes in either proof.
 | N7.3 | Packaging of the engine N7.1a selected (the `tesseract.js` wrapper or `tesseract.js-core`, pinned) and the `eng` data in `resources/ocr/`, manifest entries, offline validation, a dependency review | DONE 2026-10-26 (`00572f3`, `4f29564`): `verify:ocr-assets` 46/0; staged 5,968,312 bytes; `validate:offline` non-strict PASS. Strict validation of a real release moves with the packaged load to N7.1b (BLOCKED) |
 | N7.4 | OCR utility host and `OcrUtilityHostManager` (lazy spawn, deadline, cancel, idle shutdown, restarts, heap cap, no network) | DONE 2026-10-26 (`d4b986a`, `3cf9abb`): `verify:ocr-host` 49/0 with the real engine in real utility processes |
 | N7.5 | `assertImageText` step, validator, adapter (fifth edge), refusals, record and report block, Designer and drawer sections | `verify:ocr-runtime`, `verify:ocr-report`, `verify:visual-isolation` at 5, `verify:ocr-gui` |
-| N7.6 | OCR Lab and calibration benchmark | IMPLEMENTED 2026-10-27, NOT QUALIFIED: `verify:ocr-calibration` 62/0; `benchmark:ocr` BLOCKED (bundled font not staged), 0 qualifying launches in every cell; diagnostic evidence only (see § N7.6 below) |
+| N7.6 | OCR Lab and calibration benchmark | IMPLEMENTED 2026-10-27, NOT QUALIFIED: `verify:ocr-calibration` 67/0. One qualifying session (69 launches) ran in the bundled font. **OC-10 zero-false-matched is VIOLATED** in 4 cells (`lookalike-l1` 8 of 11 trials). The campaign is stopped pending an owner decision (see § N7.6 below) |
 | N7.7 | Shadow N2 and N5 signals, effect `none` | `verify:visual-fusion-runtime` and `verify:visual-diagnosis-runtime` extended |
 | N7.8 | Packaged acceptance: observe only, no network, no download, disabled mode identical | `verify:ocr-packaged` |
 | N7.9 | Independent QC and security review, then closure | APPROVED from both |
@@ -541,6 +541,70 @@ In every cell, unsupported fixtures were 100 % inconclusive and refusals 100 % c
 - **Emulation isolation: INCONCLUSIVE.** Both runtimes are x64 under emulation, and no native ARM64 runtime is
   available to compare. The x64 1000 ms OC-9 objective is unmeasured.
 
+**First qualifying session in the bundled font (2026-10-27).**
+- Font and session:
+  - The font was staged by the owner in `d9b5af9`: Noto Sans 5.3.0, OFL-1.1. Latin sha256 `09aee806…7937d6`, Greek
+    `c7c42b4b…95d0d6`, Cyrillic `05af9e70…f126ba`, `ofl.txt` `54ec7b5a…3009e1`. It is verified against the lockfile
+    pin and is byte-identical to the installed package.
+  - Session `2026-10-27T17-21-44-341Z-e52a5a5f`: 69 launches, 0 errors, 0 failed. Fewer launches than the diagnostic
+    sessions (85–90).
+
+| Cell | Launches | Exact match | CER | False matched | p50 / p95 / p99 ms |
+|---|---|---|---|---|---|
+| headed DPR 1 | 12 | 86.1 % (31/36) | 4.96 % | **2/12** | 632 / 1510 / 1519 |
+| headed DPR 1.25 | 12 | 94.4 % (34/36) | 0 % | **2/12** | 662 / 978 / 1321 |
+| headed DPR 2 | 10 | 93.3 % (28/30) | 0 % | 0/10 | 809 / 1231 / 1448 |
+| headless DPR 1 | 11 | 93.9 % (31/33) | 0 % | **2/11** | 622 / 814 / 1352 |
+| headless DPR 1.25 | 11 | 93.9 % (31/33) | 0 % | **2/11** | 602 / 803 / 884 |
+| headless DPR 2 | 9 | 92.6 % (25/27) | 0 % | 0/9 | 741 / 1112 / 1348 |
+
+In every cell, unsupported fixtures were 100 % inconclusive and refusals 100 % correct with zero captures. Every cell
+is UNQUALIFIED.
+
+- **Per fixture, codes only:**
+  - `lookalike-l1`: **matched 8 of 11** (text-matched), lookalike-uncertain 3. Every other confusable fixture was
+    inconclusive in every trial:
+    - O0: near-miss 12/12;
+    - I1: near-miss 9, budget-exhausted 1;
+    - rnm: lookalike-only-difference 8/8;
+    - 5S: near-miss 6/6;
+    - the three near misses: near-miss throughout.
+  - `mixed-case`: 13/13 matched, so the fallback-font failure was the font.
+  - `small-9` (DPR ≥ 1.25): 10/10. At DPR 1 it is region-too-small 6/6, as declared.
+  - `small-10`: 16/16. `small-11`: 16/16.
+  - **`multiline`: 0/13** (lookalike-uncertain 8, low-confidence 5). This is a genuine supported miss in this font.
+  - `plain-label` and `antialiased`: 1 budget-exhausted each.
+- **Root cause of the l/1 false match: recognition, not rendering, normalisation or the decision policy.**
+  - The trials are `text-matched`, so the engine returned exactly the expected text "Batch 142" for the rendered
+    "Batch l42" (distance 0). With distance 0, `decideTextAssertion` has only the confidence gates left. The
+    look-alike gate requires ≥ 92 on a word holding a `1/l/I` class glyph. The engine reported ≥ 92 in 8 trials, and
+    below 92 in the 3 that were caught.
+  - Rendering is not the cause: Noto Sans `l` is a plain stem and `1` carries a top flag.
+  - Normalisation is not the cause: NFKC plus whitespace never maps `l` to `1`, and the look-alike fold is only
+    consulted when distance > 1.
+  - The engine's word confidence does not express the l/1 ambiguity inside a digit run. No threshold the gate can
+    hold separates a confident misread from a confident correct read: both are exact strings at ≥ 92.
+  - More sessions cannot fix this; repetitions only accumulate the violation.
+- **Proposed fail-closed correction.** This needs owner approval, because it adds a verdict rule under OC-3/OC-10.
+  - Add a per-symbol gate. The host returns, codes only and never text, the per-symbol confidence and the
+    second-choice margin for each glyph in a look-alike class. The decision demotes `text-matched` to
+    `lookalike-uncertain` when any such glyph's margin over a class-mate is below a pre-declared floor.
+  - This is not a blanket l/1/I refusal: a glyph that the engine separates confidently still matches.
+  - Effect on legitimate assertions: supported fixtures that contain `1`, `l` or `I` (`plain-label`, `amount`,
+    `date`, `number`, `long`, `small-10` and `small-11`) may lose matches. That must be measured before the floor is
+    ratified.
+  - The first step is a diagnostic-only probe, which changes no verdict: record the per-symbol margins for
+    `lookalike-l1` and the supported fixtures, and check whether a separating floor exists. If none exists,
+    OC-10's zero-false-matched rule cannot be met with this engine and data, and the owner decision is about scope.
+    Options: declare digit runs adjacent to `l/1/I` unsupported, or accept observe-only N7 without calibrated cells.
+- **The deadline defect reproduces on cold start.** 4 of 5 cold-host trials were budget-exhausted, with the whole
+  operation at p50 1506 / p95 1524 ms. The verdicts stayed correct and none was late. The headed DPR 1 p95 of 1510 ms
+  is that cell's natural cold first trial.
+  - Warm host, n = 286: recognize call 62 / 173 ms, whole operation 652 / 1083 ms.
+  - The N0 capture is still dominant at 357–539 ms p50.
+  - Event-loop lag reaches a p95 of 158–192 ms in headed DPR 1 and the DPR 2 cells.
+  - Emulation isolation is still INCONCLUSIVE: Electron and Node are both x64 under emulation.
+
 **Proposed optimisations, ranked by measured share.** None are implemented, and each needs a root cause and owner
 approval (§7).
 1. Clip the N0 element capture to the target region instead of the full viewport, and move the PNG decode off the main
@@ -552,9 +616,11 @@ approval (§7).
 4. Reduce DPR 2 decode and event-loop lag, which follows from 1.
 
 Remaining:
-- **N7.6 stays open.** Next: the owner stages the font, then run the qualifying sessions and decide each cell. A cell
-  that misses stays observe-only. Expect the l/1 look-alike to fail the zero-false-matched criterion unless the bundled
-  font separates the glyphs.
+- **N7.6 stays open, and the qualification campaign is STOPPED.** OC-10's zero-false-matched rule is already
+  violated in the bundled font, so further sessions cannot qualify those cells.
+  - Next: an owner decision on the per-symbol margin probe and gate above, or on scope.
+  - The other blockers, the `multiline` miss and the cold-start deadline overruns, are recorded for that decision.
+  - A cell that misses stays observe-only.
 - N7.7 (`.9.8`) is also dependency-ready. It is a separate advisory workstream with effect none, and OCR must never
   select an action.
 - N7.1b and N7.8 stay BLOCKED until the approved packaging host exists.
