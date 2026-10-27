@@ -189,6 +189,51 @@ const table = JSON.parse(tableBytes.toString("utf8")) as {
   check("the server serves the fixture table and only allowlisted font file names", server.includes('"/visual-intelligence/ocr-fixtures.json"') && server.includes("/^\\/fonts\\/[a-z0-9-]+\\.(?:woff2|txt|json)$/"));
 }
 
+// The staged bundled font, when present: independent of prepare-ocr-lab-fonts, the manifest names exactly the pinned
+// source, every staged byte hashes to the manifest, and each face is the installed package's own file.
+{
+  const fontDir = path.join(root, "mock-site", "public", "fonts");
+  const manifestPath = path.join(fontDir, "fonts-manifest.json");
+  if (!existsSync(manifestPath)) {
+    console.log("  (the bundled font is not staged: its provenance checks are NOT RUN)");
+  } else {
+    const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
+      family: string;
+      source: { package: string; version: string; integrity: string; license: string };
+      files: Array<{ file: string; bytes: number; sha256: string }>;
+    };
+    const lock = JSON.parse(readFileSync(path.join(root, "mock-site", "fonts-src", "package-lock.json"), "utf8")) as {
+      packages: Record<string, { version: string; integrity: string; license: string }>;
+    };
+    const locked = lock.packages["node_modules/@fontsource/noto-sans"];
+    check(
+      "the font manifest names the committed lockfile's package, version, integrity and OFL-1.1 licence",
+      manifest.family === table.font.family && manifest.source.package === "@fontsource/noto-sans" && manifest.source.version === "5.3.0" &&
+        manifest.source.version === locked?.version && manifest.source.integrity === locked?.integrity && manifest.source.license === "OFL-1.1" && locked?.license === "OFL-1.1"
+    );
+    check(
+      "the manifest lists exactly the lab's three faces and the licence",
+      JSON.stringify(manifest.files.map((f) => f.file).sort()) === JSON.stringify([...table.font.files, "ofl.txt"].sort())
+    );
+    const staged = manifest.files.map((f) => ({ ...f, bytesOnDisk: existsSync(path.join(fontDir, f.file)) ? readFileSync(path.join(fontDir, f.file)) : null }));
+    check(
+      "every staged file exists with the manifest's size and SHA-256",
+      staged.every((f) => f.bytesOnDisk !== null && f.bytesOnDisk.length === f.bytes && sha(f.bytesOnDisk) === f.sha256)
+    );
+    check("the staged licence is the SIL Open Font License 1.1 text", /SIL OPEN FONT LICENSE Version 1\.1/.test(readFileSync(path.join(fontDir, "ofl.txt"), "utf8")));
+    const pkgFiles = path.join(root, "mock-site", "fonts-src", "node_modules", "@fontsource", "noto-sans", "files");
+    if (existsSync(pkgFiles)) {
+      check(
+        "each staged face is byte-identical to the installed package's face",
+        table.font.files.every((face) => existsSync(path.join(pkgFiles, face)) && sha(readFileSync(path.join(pkgFiles, face))) === sha(readFileSync(path.join(fontDir, face))))
+      );
+    } else {
+      console.log("  (the font package is not installed here: the byte comparison with its faces is NOT RUN)");
+    }
+  }
+}
+
 console.log("\nD. The harness and the benchmark use the real path");
 {
   const harness = readFileSync(path.join(root, "scripts", "ocr-calibration", "calibrationMain.ts"), "utf8");

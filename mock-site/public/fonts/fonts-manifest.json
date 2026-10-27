@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "family": "AwkitOcrLab",
+  "source": {
+    "package": "@fontsource/noto-sans",
+    "version": "5.3.0",
+    "integrity": "sha512-fBCog2PY7DiVVTEEqtI/Qdinx/knobHYfoGpjFXdfBX5RoJaBp1Prw2G75p0OIsdlMZg3cLo0c+YbIUYOxnQJw==",
+    "license": "OFL-1.1"
+  },
+  "files": [
+    {
+      "file": "noto-sans-latin-400-normal.woff2",
+      "bytes": 13120,
+      "sha256": "09aee8065d25508f23a4c3d92cd777ac869c52d93fd868a88f025d888a7937d6"
+    },
+    {
+      "file": "noto-sans-greek-400-normal.woff2",
+      "bytes": 7888,
+      "sha256": "c7c42b4b60ab0553cabd0a22b12d7ac595ae1fb90f4dff814e1a42e4eb95d0d6"
+    },
+    {
+      "file": "noto-sans-cyrillic-400-normal.woff2",
+      "bytes": 7096,
+      "sha256": "05af9e705d3b63aedba67197d19fb448b97353e1386930716c7e835b08f126ba"
+    },
+    {
+      "file": "ofl.txt",
+      "bytes": 4518,
+      "sha256": "54ec7b5a35310ad66f9f3091426f7028484cbf9ae1ab5da30122ee412a3009e1"
+    }
+  ]
+}
