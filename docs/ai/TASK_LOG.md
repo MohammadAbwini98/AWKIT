@@ -1,5 +1,23 @@
 # TASK_LOG
 
+## 2026-10-27 — Phase N: N7.6 font qualification and early accuracy gate, BLOCKED at font staging (Claude)
+
+- **Task:** verify the owner-provisioned bundled font, stage it, then run the smoke and an early qualifying session.
+- **Verified:** the owner install.
+  - `mock-site/fonts-src/package-lock.json`: `@fontsource/noto-sans` 5.3.0 from registry.npmjs.org, integrity equal to
+    the pin, OFL-1.1.
+  - Installed package: 5.3.0, OFL-1.1, with the latin, greek and cyrillic 400 faces.
+- **BLOCKED:** `npm run prepare:ocr-lab-fonts` is refused by the lease guard's command grammar (unsupported-command),
+  so `mock-site/public/fonts/` and its manifest do not exist. This stays an owner action and the guard was not
+  bypassed.
+- **Not run, as a consequence:**
+  - the smoke and the first qualifying `benchmark:ocr` session;
+  - the per-cell bundled-font evidence.
+
+  `build` and the OCR verifiers were not rerun: their inputs are unchanged since `50ba112`, where they passed.
+- **Files:** `mock-site/fonts-src/package-lock.json` (committed after review), HANDOFF and this log.
+- **Result:** N7.6 stays in progress and NOT QUALIFIED. There are 0 qualifying launches.
+
 ## 2026-10-27 — Phase N: N7.6 OCR Lab, performance profiling and calibration harness (Claude)
 
 - **Task:** implement and run the N7.6 calibration program (`awkit-vra.9.7`).

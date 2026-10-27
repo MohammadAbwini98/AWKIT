@@ -9,14 +9,25 @@ The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 
   - `awkit-vra.9.7` is in progress and NOT closed.
   - Nothing is qualified, because 0 qualifying launches were executed.
   - Diagnostic findings and the proposed optimisations are in the N7 plan § N7.6.
-- **Owner action 1, the font.** This fetches one npm package, pinned and verified by the prepare script:
+- **Owner action 1, the font.**
+  - **Install: DONE** (verified 2026-10-27).
+    - `mock-site/fonts-src/package-lock.json` resolves `@fontsource/noto-sans` 5.3.0 from registry.npmjs.org, with
+      integrity `sha512-fBCog2PY…xnQJw==`, which equals the pin, and licence OFL-1.1.
+    - The installed package is 5.3.0 / OFL-1.1, and its three faces are present.
+    - The lockfile is committed.
+  - **Staging: still the owner's** (BLOCKED for agents).
+    - The lease guard refuses `npm run prepare:ocr-lab-fonts`, because its command grammar admits only build,
+      typecheck and `verify:`/`validate:`/`benchmark:` scripts. The script was not renamed to evade the guard.
+    - Owner, from the repository root:
 
-  ```
-  npm install --prefix mock-site/fonts-src --ignore-scripts --no-audit --no-fund
-  npm run prepare:ocr-lab-fonts
-  ```
+      ```
+      npm run prepare:ocr-lab-fonts
+      ```
 
-  Then commit `mock-site/public/fonts/` (the faces, `ofl.txt` and `fonts-manifest.json`).
+    - It refuses unless the version, licence, lockfile integrity and faces all verify. It writes
+      `mock-site/public/fonts/` (three faces, `ofl.txt` and `fonts-manifest.json` with SHA-256 values).
+    - An agent can then review the manifest, commit the staged files, and run the smoke and the first qualifying
+      session.
 - **Then calibrate.**
   - Run `npm run benchmark:ocr` about 22 times. Each run is one resumable 7-minute session of about 85 launches.
     Evidence is appended under `%LOCALAPPDATA%/SpecterStudio/ocr-calibration/sessions`.
