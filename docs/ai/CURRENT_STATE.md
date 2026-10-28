@@ -1,6 +1,22 @@
 # CURRENT_STATE
 
-## Phase N: N7.6 OCR engine/data spike — every candidate NO-GO; observe-only scope amendment proposed (2026-10-28, latest)
+## Phase N: N7 scope amendment A1 prepared — PROPOSED, NOT RATIFIED (2026-10-28, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N, N7 and N7.6
+(`awkit-vra.9.7`, in progress) stay OPEN.** No tracker item, edge, cell or policy changed.
+- **Delivered and synchronized.** The engine/data spike is committed as `ce59b39`, committed and pushed by the owner.
+  `origin/main` equals local `main` after `git fetch origin`. The earlier "Git: BLOCKED" note below is resolved.
+- **Prepared, for ratification only:** amendment A1 in the N7 plan § N7.6.
+  - Observe-only, no claim, OC-10 unchanged and recorded NOT MET, all eight candidates NO-GO.
+  - "Unverified OCR evidence" copy, which is not yet changed.
+  - The current-versus-proposed closure matrix: N7.6 closes as a completed NO-GO investigation, a new N7.10 holds the
+    unmet qualification, and no existing edge changes.
+  - N7.1b and N7.8 stay mandatory.
+  - The timing-verifier classification and the proposed late-reply fix (not applied).
+- **Still absent:** the `.gitattributes` font rules (`*.woff2 binary`, `mock-site/public/fonts/ofl.txt text eol=lf`),
+  an owner action on a protected path.
+
+## Phase N: N7.6 OCR engine/data spike — every candidate NO-GO; observe-only scope amendment proposed (2026-10-28)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N, N7 and N7.6
 (`awkit-vra.9.7`, in progress) stay OPEN.** No cell is qualified, the campaign stays STOPPED, and production is
@@ -44,6 +60,7 @@ spike".
 - **Git: BLOCKED.** The commit of the staged spike was refused, and the lease guard marked the gate TERMINAL. The
   message held a `;`; it was the session's third refused shell operation. Everything is staged or modified locally,
   and the owner commits (HANDOFF).
+  - **Resolved 2026-10-28:** the owner committed and pushed `ce59b39`.
 - **Owner decision.** Ratify or amend the proposed observe-only, no-claim scope (plan § N7.6).
 
 ## Phase N: N7.6 l/1 ambiguity probe — API GO, margins NOT separable, no gate supported (2026-10-27)

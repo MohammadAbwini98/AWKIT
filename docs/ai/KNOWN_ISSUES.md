@@ -37,6 +37,11 @@
     `prepare()` is p50 290 / p95 496 ms quiet.
   - `verify:ocr-runtime`: the late-reply check sleeps a fixed 1200 ms, so it needs `recognize-start` ≤ about 510 ms.
     The real pipeline's p50 is 600 ms. Fix proposed (a bounded wait for delivery), not applied.
+    - The proposal keeps the assertion's detection power: a bounded wait on the delivery signal, then a macrotask
+      drain, then the same assertion. It must carry a late-record mutant to be accepted (N7 plan § A5). It awaits
+      the owner's go-ahead.
+- **N7 report copy states an OCR match as fact (OPEN, pending A1 ratification).** "Observed: the element shows the
+  expected text." Proposed amendment A1.9 requires "unverified OCR evidence" wording. No copy changed yet.
   - Original record: production was unchanged, and both failed concurrently and again alone:
   - `verify:ocr-host`: "prepare() ... the next recognition runs on it" took 1866–2145 ms against a 1000 ms bound.
   - `verify:ocr-runtime`: "a reader that ignores the abort and answers late" did not see the late reply within its

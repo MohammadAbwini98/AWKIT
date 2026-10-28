@@ -1,5 +1,15 @@
 # TASK_LOG
 
+## 2026-10-28 — Phase N: N7 scope amendment A1 prepared for ratification (Claude)
+
+- **Task:** reconcile the delivered state and prepare the exact N7 scope amendment and closure matrix. Not ratified,
+  and nothing closed.
+- **Facts:** `ce59b39` is on `origin/main` (owner commit). The `.gitattributes` font rules are still absent. The
+  tracker was read with `bd show` and is unchanged.
+- **Files:** the N7 plan § N7.6 (A1 to A6), CURRENT_STATE, HANDOFF, TASK_LOG, KNOWN_ISSUES.
+- **Tests:** build, `typecheck:scripts`, `verify:source-hygiene`, `verify:verifier-classification` and
+  `verify:roadmap-dashboard`. Results are in the final report.
+
 ## 2026-10-28 — Phase N: N7.6 OCR engine and recognition-data spike, diagnostic only (Claude)
 
 - **Task:** an owner-approved, bounded comparison of alternative engines and data, plus a classification of the two
@@ -28,6 +38,7 @@
   `build` NOT RUN: no app source changed.
 - **Git: BLOCKED.** The commit was refused and the gate went TERMINAL (a `;` in the message, the third refused shell
   operation). The owner commands are in HANDOFF.
+  - Resolved the same day: the owner committed and pushed `ce59b39`.
 
 ## 2026-10-27 — Phase N: N7.6 OCR l/1 ambiguity feasibility probe, diagnostic only (Claude)
 

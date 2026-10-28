@@ -729,22 +729,108 @@ data, N0 or host policy, and nothing in `app/`, `src/` or `native-hosts/` reache
       one record, budget-exhausted, never matched.
     - Proposed fix, not applied: wait for the late delivery with a bound instead of a fixed sleep. Nothing about the
       assertion is relaxed.
-- **Recommendation: no candidate qualifies, so no production change is requested.** Keep the pinned engine. The
-  formal scope amendment below goes to owner review.
+- **Recommendation: no candidate qualifies, so no production change is requested.** Keep the pinned engine. Scope
+  amendment A1 below goes to owner review.
 
-**Proposed scope amendment for owner review (NOT RATIFIED; N7.6 stays open).**
-1. N7 ships **observe-only, default-off, with no accuracy claim.**
-   - No cell is calibrated and `calibrated` stays `false`.
-   - The UI and reports keep saying observations never fail a step and are not verified accuracy.
-   - OC-10 is unchanged as the bar any future qualification must meet. It is recorded as **not met** by the pinned
-     engine, for a reason more data cannot change: confident l/1 and O/0 misreads inside digit runs.
-2. **The full N7.6 campaign stays stopped** until a future candidate passes this spike's early gate. Zero false
-   matched and ≥ 98 % supported are both required, on development, confirmation and a fresh holdout.
-3. **Rerun the spike** when a candidate becomes available offline within the budget (a different engine or data under
-   a new N7.1a-style feasibility approval), or if the owner amends OC-9's 8 MB budget. The criteria file is the
-   contract.
-4. Which N7 items close (N7.6, N7.8, Phase N) under an observe-only scope is the owner's decision. Until it is made,
-   the roadmap shows N7.6 in progress and unqualified.
+### N7 scope amendment A1 — PROPOSED — NOT RATIFIED (prepared 2026-10-28, owner chose "Amend it first")
+
+Nothing below is applied. The tracker, its edges, the cell states and `calibrated: false` are unchanged until the
+owner approves this exact wording. Approval is recorded as a DECISIONS entry, quoting the owner.
+
+**A1. Revised operational scope (proposed wording).**
+1. N7 is strictly optional, default-off (`AWKIT_VISUAL_OCR` unset) and observe-only.
+2. An OCR observation never determines a workflow's success or failure, a retry, an action, a branch or a locator
+   choice. Observe never fails a step, and there is no enforce mode.
+3. No OCR cell is calibrated and no accuracy qualification is claimed. The policy stays `calibrated: false` with the
+   uncalibrated 80 / 92 thresholds.
+4. OC-10 is unchanged: ≥ 300 launches over ≥ 3 sessions per cell, ≥ 98 % supported exact match, CER ≤ 1 %, zero false
+   `matched` on confusable fixtures, 100 % unsupported inconclusive and refusals with zero captures. It is recorded as
+   **NOT MET**, never passed, lowered or reinterpreted.
+5. All eight evaluated offline candidates are NO-GO within their tested constraints (the 2026-10-28 spike above):
+   the pinned engine, the standard 4.0.0 data, the legacy and combined engines, Windows.Media.Ocr and three
+   consensus composites.
+6. The pinned engine stays unchanged (DECISIONS 2026-10-26, `src/offline/ocr-runtime.json`).
+7. The full calibration campaign (`benchmark:ocr` toward 300 launches) stays stopped. It resumes only after an
+   independently evaluated candidate passes this spike's early gate on development, confirmation and a fresh holdout,
+   with zero false matched and ≥ 98 % supported.
+8. Every existing privacy, offline, isolation, protected-capture, deadline (1500 ms) and compatibility rule (OC-0 to
+   OC-12, N0) stays mandatory.
+9. User-facing observations are identified as **unverified OCR evidence**, never confirmed text truth. This is a
+   post-ratification change to existing copy, not yet made: the report currently says "Observed: the element shows
+   the expected text." N7.9 checks the final wording.
+
+**A2. Completed feasibility versus failed qualification.**
+- **Completed (feasibility):** the N7.6 deliverables all exist and ran. The lab, the 28 fixtures, the pure OC-10
+  criteria, `benchmark:ocr` and its evidence hygiene, one qualifying session, the ambiguity probe and the engine/data
+  spike are committed.
+- **Failed (qualification):** OC-10 is NOT MET in every cell. The zero-false-matched rule is violated by confident
+  l/1 and O/0 misreads in digit runs, and supported accuracy is 93.6 %. That obligation is not discharged. A1
+  proposes moving it to its own tracked item, so closing N7.6 can never be read as passing it.
+
+**A3. Milestone and dependency matrix (current, then proposed).** `blocks` edges are written "X → Y" (X depends on Y).
+
+| Item | Current state | Current edges | Proposed disposition | Proposed edges |
+|---|---|---|---|---|
+| N7.6 `awkit-vra.9.7` | in progress | → `.9.6` ✓; blocks `.9.9`, `.9.10` | Retitle to "OCR Lab, calibration harness and engine/data feasibility". Close as a **completed NO-GO investigation**; the close note states "qualification NOT MET, transferred to N7.10" | unchanged |
+| N7.10 (new, accuracy qualification) | does not exist | — | **Create, open**, P3: "OC-10 OCR accuracy qualification, NOT MET, no qualifying candidate". It carries OC-10 unchanged and the early-gate rule from A1.7 | none into N7 or Phase N closure (options below) |
+| N7.7 `awkit-vra.9.8` | open | → `.9.6` ✓; blocks `.9.10` | Unchanged, mandatory. Effect none; its signals are labelled unverified like A1.9 | unchanged |
+| N7.1b `awkit-vra.9.3` | open, BLOCKED (packaging host) | → `.9.5` ✓, `.9.11` ✓; blocks `.9.9` | Unchanged, **mandatory** | unchanged |
+| N7.8 `awkit-vra.9.9` | open, BLOCKED by N7.1b | → `.9.3`, `.9.6` ✓, `.9.7`; blocks `.9.10` | Unchanged, **mandatory**. Its `.9.7` edge is satisfied by the NO-GO closure; its evidence makes no accuracy claim | unchanged |
+| N7.9 `awkit-vra.9.10` | open | → `.9.9`, `.9.7`, `.9.8` | Unchanged, mandatory. Fresh QC and security review, both APPROVED, which also confirms the A1.9 wording | unchanged |
+| N7 `awkit-vra.9` | in progress | → `awkit-vra.4` ✓; children `.9.1`–`.9.11` | Closes when N7.1b, N7.6 (closed NO-GO), N7.7, N7.8 and N7.9 are closed. N7.10 open does not block it | unchanged |
+| Phase N `awkit-vra` | open | its children | Closes when every milestone, N7 included, is closed. Under option 1, N7.10 does not block it | unchanged |
+
+- **Placement of N7.10.**
+  1. **Recommended:** tracked open outside both closure paths. No parent; labels `ocr`, `phase-n-followup`. Any future
+     item that would enforce, claim or calibrate OCR must take a `blocks` edge on N7.10.
+  2. **Alternative:** a child of Phase N `awkit-vra`. Phase N then stays open until OCR accuracy is met, which may be
+     never with this engine.
+- **Why the safety obligations are preserved.**
+  - No existing edge is removed or rewired: N7.1b → N7.8 → N7.9 → N7 is intact, so packaged evidence is still
+    required before N7 closes.
+  - Only two things change: N7.6's contract (feasibility, not qualification) and one new item that holds the unmet
+    obligation in the open.
+  - Under A1 nothing consumes OCR accuracy: no verdict is enforced, no claim is made and no cell is calibrated. So
+    leaving N7.10 open is truthful and cannot hide a failure.
+- **Tracker operations, applied only after ratification under a project-state lease:**
+  - `bd update awkit-vra.9.7` (title and notes), then `bd close awkit-vra.9.7` with the NO-GO note;
+  - `bd create` N7.10;
+  - `bd export -o .beads/issues.jsonl`;
+  - `ImplementationRoadmap.ts` N7 note;
+  - `verify:roadmap-dashboard`.
+
+**A4. Packaged acceptance stays mandatory.** N7.1b and N7.8 must still produce real evidence on the approved Windows
+release host. That needs `verify:packaging-host` READY, which today is BLOCKED at H4/H5: Visual Studio 2022 with
+"MSVC v143 - VS 2022 C++ x64/x86 build tools (Latest)" and the C++ 2022 Redistributable.
+- **N7.1b:**
+  - the assets survive ASAR and unpack rules and the signed dependency manifest;
+  - the bundled engine and data checksums equal the pin;
+  - the size is within the 8 MB OC-9 target;
+  - the packaged app loads the engine with zero network.
+- **N7.8:**
+  - `validate:offline -- -Strict` PASS on the real package;
+  - no runtime download and no network use;
+  - disabled mode identical to a build without OCR;
+  - observe-only execution: no verdict ever fails, retries or changes a step;
+  - codes-only reports.
+
+**A5. Timing verifiers.** The 2026-10-27 FAILs stay recorded as FAIL. Quiet-host reruns on 2026-10-28 PASSed:
+`verify:ocr-host` 54/0 and `verify:ocr-runtime` 84/0.
+- `verify:ocr-host` is classified as environment load, with no remediation in scope.
+- `verify:ocr-runtime` "late reply" has a fixed-wait assumption. The proposed fix:
+  - replace the 1200 ms sleep with a bounded wait on the fake reader's own delivery signal (FAIL if it does not
+    arrive within a bound);
+  - then drain one macrotask, so any record a defective step chains onto the late promise has run;
+  - then assert exactly as today: delivered, one record, `budget-exhausted`, passed.
+
+  This keeps the assertion's detection power, and strengthens it: today a reply landing in the last milliseconds
+  before the check leaves no drain. It adds no retry or relaxation. To be accepted, the fix must carry a mutant (an
+  OcrStep that records a late result) that the check catches. It is outside this governance task, not applied, and
+  needs the owner's go-ahead.
+
+**A6. Spike follow-up rule.** Rerun `benchmark:ocr-engine-spike`, whose criteria file is the contract, when a new
+offline candidate within budget is approved under an N7.1a-style feasibility approval, or when the owner amends
+OC-9's 8 MB budget.
 
 **Proposed optimisations, ranked by measured share.** None are implemented, and each needs a root cause and owner
 approval (§7).
@@ -760,7 +846,8 @@ Remaining:
 - **N7.6 stays open, and the qualification campaign is STOPPED.** OC-10's zero-false-matched rule is already
   violated in the bundled font, so further sessions cannot qualify those cells.
   - Next: an owner scope decision. The probe found the API feasible but no separating margin, and the engine/data
-    spike found every candidate NO-GO. The proposed observe-only, no-claim amendment is above.
+    spike found every candidate NO-GO. Amendment A1 and its closure matrix (above) are PROPOSED, NOT RATIFIED; nothing
+    in the tracker changes before the owner approves them.
   - The other blockers, the `multiline` miss and the cold-start deadline overruns, are recorded for that decision.
   - A cell that misses stays observe-only.
 - N7.7 (`.9.8`) is also dependency-ready. It is a separate advisory workstream with effect none, and OCR must never

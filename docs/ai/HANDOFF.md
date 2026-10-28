@@ -1,6 +1,28 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-28, latest) — N7.6 engine/data spike: every candidate NO-GO; scope amendment awaits the owner; commit BLOCKED (awkit-vra.9.7 open)
+## HANDOFF (2026-10-28, latest) — N7 scope amendment A1 PROPOSED, NOT RATIFIED; awaiting one owner approval (awkit-vra.9.7 open)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Synchronized.** `ce59b39` (the spike) is on `origin/main`, committed by the owner.
+- **Prepared:** amendment A1 and the closure matrix in the N7 plan § N7.6. Nothing is applied: no `bd` change, no edge
+  change, no closure.
+- **After ratification**, the next agent, under a project-state lease:
+  1. Record DECISIONS, quoting the owner.
+  2. `bd update`/`bd close awkit-vra.9.7` as a NO-GO investigation.
+  3. `bd create` N7.10, placed per the owner's choice.
+  4. `bd export`, the `ImplementationRoadmap.ts` note and `verify:roadmap-dashboard`.
+  5. A separate, approved task for the "unverified OCR evidence" copy, which N7.9 checks.
+- **Owner actions:**
+  - Ratify or amend A1, and choose the N7.10 placement.
+  - The `.gitattributes` font rules (still absent).
+  - Approve or decline the `verify:ocr-runtime` late-reply fix.
+  - The packaging host: Visual Studio 2022, MSVC v143.
+- **Preserved untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-28) — N7.6 engine/data spike: every candidate NO-GO; scope amendment awaits the owner; commit BLOCKED, since resolved (awkit-vra.9.7 open)
+
+- **Resolved 2026-10-28:** the owner ran the commands below, giving `ce59b39`, pushed to `origin/main`.
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
