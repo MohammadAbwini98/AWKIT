@@ -1,6 +1,33 @@
 # DECISIONS
 
-### 2026-10-26 (latest) — N7.1a GO: the OCR integration is direct `tesseract.js-core` 6.0.0
+### 2026-10-28 (latest) — N7 scope amendment A1 RATIFIED by the owner, with Option 1 for N7.10
+
+- **Owner decision, verbatim:** "I approve amendment A1 exactly as worded in the N7 plan (§ N7.6, A1–A6), with
+  **Option 1** for N7.10."
+  - "N7.10 must remain an independently tracked, open accuracy-qualification obligation outside both N7 and Phase N
+    closure paths."
+  - "Preserve all existing OC-10 acceptance criteria, security boundaries, offline requirements, and mandatory
+    packaged verification gates. Do not claim OCR accuracy qualification or production readiness."
+- **What is ratified:** the N7 plan § N7.6, "N7 scope amendment A1", sections A1 to A6, as worded at the time of
+  approval.
+  - N7 is optional, default-off and observe-only. It makes no accuracy claim, and no cell is calibrated.
+  - OC-10 is unchanged and recorded NOT MET. All eight offline candidates are NO-GO. The pinned engine is unchanged.
+  - The full calibration campaign stays stopped until a candidate passes the early gate.
+  - Every privacy, offline, isolation, protected-capture, deadline and compatibility rule stays mandatory.
+  - User-facing observations are to be identified as unverified OCR evidence.
+- **Tracker consequence (A3):**
+  - N7.6 `awkit-vra.9.7` closes as a completed NO-GO feasibility investigation: qualification NOT MET, transferred
+    to N7.10.
+  - N7.10 is created open and independent, with no parent and no blocking edge into N7 or Phase N. Any future item
+    that would enforce, claim or calibrate OCR must depend on it.
+  - No existing edge changes: N7.1b → N7.8 → N7.9 → N7 stays mandatory.
+- **Not changed:** OC-0 to OC-12 thresholds and criteria, the 80/92 policy and `calibrated: false`, the 1500 ms
+  deadline, the pin, N0, host start-up, and the packaged gates N7.1b and N7.8 (BLOCKED on the Visual Studio 2022
+  MSVC v143 release host).
+- **Still to do, not ratified as done:** the "unverified OCR evidence" copy change (checked by N7.9), and the proposed
+  `verify:ocr-runtime` late-reply fix (awaits a separate go-ahead).
+
+### 2026-10-26 — N7.1a GO: the OCR integration is direct `tesseract.js-core` 6.0.0
 
 - **Evidence:** `npm run benchmark:ocr-feasibility` at commit `cfee499`; results in
   `scripts/ocr-feasibility/results/latest.json`.

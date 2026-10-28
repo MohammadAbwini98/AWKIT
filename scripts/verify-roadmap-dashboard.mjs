@@ -181,7 +181,9 @@ try {
   // `awkit-1l08` registered (both closed) and N10 filed as `awkit-vra.17`. Measured after `bd export`.
   // Then 434 on 2026-10-26 (contract `awkit-vra-9-n7-filing-1026`): the ratified N7 breakdown filed as
   // `awkit-vra.9.1`-`.9.11` (N7.1, N7.1a, N7.1b, N7.2-N7.9). Measured after `bd export`.
-  check("434 issues parse", beads.stats.total === 434, `got ${beads.stats.total}`);
+  // Then 435 on 2026-10-28 (contract `awkit-vra-9-n7-filing-1026`, ratified N7 amendment A1): N7.10 filed as the
+  // independent open accuracy-qualification item `awkit-2shc`. Measured after `bd export`.
+  check("435 issues parse", beads.stats.total === 435, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -799,8 +801,10 @@ try {
   // Then 37/397 of 434 on 2026-10-26: N7.1a `.9.2` closed on the real benchmark GO (direct tesseract.js-core). Measured.
   // Then 35/399 of 434 on 2026-10-26: N7.3 `.9.11` and N7.4 `.9.5` closed on their executed source gates. Measured.
   // Then 34/400 of 434 on 2026-10-27: N7.5 `.9.6` closed on its executed source gates (4a47d9e, 9a488ab). Measured.
-    "34 outstanding / 400 closed",
-    beads.stats.outstanding === 34 && beads.stats.closed === 400,
+  // Then 34/401 of 435 on 2026-10-28 (ratified A1): N7.6 `.9.7` closed as a completed NO-GO investigation (qualification
+  // NOT MET) and N7.10 `awkit-2shc` filed open. Measured.
+    "34 outstanding / 401 closed",
+    beads.stats.outstanding === 34 && beads.stats.closed === 401,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

@@ -1,6 +1,31 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-28, latest) — N7 scope amendment A1 PROPOSED, NOT RATIFIED; awaiting one owner approval (awkit-vra.9.7 open)
+## HANDOFF (2026-10-28, latest) — N7 amendment A1 RATIFIED and applied; N7.6 closed NO-GO; N7.10 awkit-2shc open
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:**
+  - DECISIONS 2026-10-28 records the ratification, quoting the owner.
+  - The tracker was updated under a released project-state lease. N7.6 is closed NO-GO, qualification NOT MET.
+    N7.10 `awkit-2shc` is open and independent. No edges changed.
+  - `ImplementationRoadmap.ts`, ROADMAP and the N7 plan are updated.
+- **Next N7 work, in order:**
+  1. The A1.9 "unverified OCR evidence" copy in the report and Designer (needs approval as a product change).
+  2. N7.7 shadow signals, effect none.
+  3. N7.1b and N7.8 on the packaging host (Visual Studio 2022, MSVC v143).
+  4. N7.9 review.
+- **Never:**
+  - claim OCR accuracy or production readiness;
+  - resume `benchmark:ocr`;
+  - close N7.10 without an independently qualifying candidate.
+- **Owner actions:**
+  - The `.gitattributes` font rules.
+  - The `verify:ocr-runtime` late-reply fix.
+  - The packaging host.
+  - If this session's commit is blocked, the commit itself (CURRENT_STATE).
+- **Preserved untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-28) — N7 scope amendment A1 PROPOSED, NOT RATIFIED; later ratified the same day (awkit-vra.9.7)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

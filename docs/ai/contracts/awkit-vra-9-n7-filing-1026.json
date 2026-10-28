@@ -95,6 +95,15 @@
       "artifact": null,
       "result": "PASS",
       "observed": "filing pushed in 1779196; later updates pushed with the session's docs commit"
+    },
+    {
+      "id": "bd-a1-amendment",
+      "type": "inspection",
+      "required": false,
+      "command": "bd update, bd create, bd close and bd export under the project-state lease",
+      "artifact": ".beads/issues.jsonl",
+      "result": "PASS",
+      "observed": "2026-10-28 owner-ratified N7 scope amendment A1 (DECISIONS 2026-10-28, Option 1): awkit-vra.9.7 retitled and closed as a completed NO-GO feasibility investigation with qualification NOT MET, N7.10 created as awkit-2shc open with no parent and no edges, no existing edge changed, exported 435 issues"
     }
   ],
   "git": {
@@ -220,6 +229,22 @@
         "acquired_at_commit": "db126ac757e1cfd33f8b251402760e4a28c767a8",
         "released_at": "2026-10-27T09:14:37.290Z",
         "released_reason": "N7.6 tracker status set to in_progress and exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-vra-9-n7-filing-1026:project-state:2026-10-28T17:58:48.461Z",
+        "task": "awkit-vra-9-n7-filing-1026",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-28T17:58:48.461Z",
+        "acquired_at_commit": "f08b186724dca9fc2f691262c509ff290e03ec0a",
+        "released_at": "2026-10-28T17:59:59.124Z",
+        "released_reason": "N7.6 awkit-vra.9.7 closed as a completed NO-GO investigation under ratified amendment A1, N7.10 awkit-2shc created open and independent, exported 435 issues",
         "amendments": [],
         "overrides": [],
         "violations": []

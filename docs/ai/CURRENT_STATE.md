@@ -1,6 +1,23 @@
 # CURRENT_STATE
 
-## Phase N: N7 scope amendment A1 prepared — PROPOSED, NOT RATIFIED (2026-10-28, latest)
+## Phase N: N7 scope amendment A1 RATIFIED and applied; N7.6 closed NO-GO, N7.10 open (2026-10-28, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N and N7 stay OPEN.**
+N7 is observe-only and default-off, with no OCR accuracy qualification and no production-readiness claim.
+- **Ratified:** A1 to A6 exactly as worded, Option 1 (DECISIONS 2026-10-28, owner quoted).
+- **Applied** under a project-state lease (contract `awkit-vra-9-n7-filing-1026`, released):
+  - N7.6 `awkit-vra.9.7` is closed as a completed NO-GO feasibility investigation, qualification NOT MET.
+  - N7.10 `awkit-2shc` is created open and independent: no parent, no edges, OC-10 unchanged.
+  - No existing edge changed. Exported 435 issues.
+- **Still open and mandatory:**
+  - N7.7 `.9.8`.
+  - N7.1b `.9.3` and N7.8 `.9.9`: BLOCKED on the Visual Studio 2022 MSVC v143 packaging host.
+  - N7.9 `.9.10`.
+  - The A1.9 "unverified OCR evidence" copy change (not made yet).
+- **Unchanged:** OC-0 to OC-12, 80/92 with `calibrated: false`, 1500 ms, the pin and N0. The calibration campaign
+  stays stopped.
+
+## Phase N: N7 scope amendment A1 prepared — PROPOSED, NOT RATIFIED (2026-10-28, later ratified)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N, N7 and N7.6
 (`awkit-vra.9.7`, in progress) stay OPEN.** No tracker item, edge, cell or policy changed.

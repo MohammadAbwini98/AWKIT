@@ -1,5 +1,18 @@
 # TASK_LOG
 
+## 2026-10-28 — Phase N: N7 scope amendment A1 ratified and applied (Claude)
+
+- **Task:** apply the owner-ratified A1 (Option 1).
+- **Tracker** (project-state lease, contract `awkit-vra-9-n7-filing-1026`, released):
+  - `awkit-vra.9.7` retitled and closed as a NO-GO investigation;
+  - `awkit-2shc` (N7.10) created open, no parent, no edges;
+  - exported 435 issues.
+- **Files:** DECISIONS, the N7 plan, ROADMAP, `src/roadmap/ImplementationRoadmap.ts`, the contract evidence,
+  CURRENT_STATE, HANDOFF, TASK_LOG, KNOWN_ISSUES, `.beads/issues.jsonl`.
+- **Tests:** build, `typecheck:scripts`, `verify:source-hygiene`, `verify:verifier-classification` and
+  `verify:roadmap-dashboard`. Results are in the final report.
+- **Result:** N7.6 closed NO-GO and N7.10 open. No accuracy claim. N7, Phase N and the packaged gates stay open.
+
 ## 2026-10-28 — Phase N: N7 scope amendment A1 prepared for ratification (Claude)
 
 - **Task:** reconcile the delivered state and prepare the exact N7 scope amendment and closure matrix. Not ratified,

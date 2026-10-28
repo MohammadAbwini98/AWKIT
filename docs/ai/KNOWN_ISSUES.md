@@ -40,7 +40,7 @@
     - The proposal keeps the assertion's detection power: a bounded wait on the delivery signal, then a macrotask
       drain, then the same assertion. It must carry a late-record mutant to be accepted (N7 plan § A5). It awaits
       the owner's go-ahead.
-- **N7 report copy states an OCR match as fact (OPEN, pending A1 ratification).** "Observed: the element shows the
+- **N7 report copy states an OCR match as fact (OPEN; A1 ratified 2026-10-28, copy change not made yet).** "Observed: the element shows the
   expected text." Proposed amendment A1.9 requires "unverified OCR evidence" wording. No copy changed yet.
   - Original record: production was unchanged, and both failed concurrently and again alone:
   - `verify:ocr-host`: "prepare() ... the next recognition runs on it" took 1866–2145 ms against a 1000 ms bound.
