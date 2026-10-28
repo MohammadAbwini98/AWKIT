@@ -670,6 +670,82 @@ data, N0 or host policy, and nothing in `app/`, `src/` or `native-hosts/` reache
      supported numeric fixtures.
   3. Approve a separate engine or data feasibility spike, outside this authorization.
 
+**Engine and recognition-data spike (2026-10-28, DIAGNOSTIC ONLY, owner-approved): every candidate NO-GO.**
+- **Method.**
+  - Criteria are pure in `scripts/lib/ocr-engine-spike-criteria.mts`, written before measurement. `verify:ocr-engine-spike`
+    is 54/0 with 10 mutants killed.
+  - The holdout set (`scripts/ocr-engine-spike/holdout-fixtures.json`, 6 negatives and 10 positives) is new and was never
+    tuned. The run records the SHA-256 of every declared input.
+  - Every trial goes through the production N0 capture and `preprocessForOcr`, and every candidate's words through the
+    unchanged `decideTextAssertion` (80/92).
+  - Nothing was downloaded. The Tesseract files come from the lockfile-pinned `scripts/ocr-feasibility` install and are
+    hash-verified by the spike host. The control equals the production pin byte for byte.
+- **Run.** `%LOCALAPPDATA%/SpecterStudio/ocr-calibration/engine-spike/2026-10-27T22-15-44-449Z-ea622037.json`.
+  12 of 12 launches: every cell twice, on a quiet host, 744 trials. Fresh hosts per launch, so 12 cold starts per
+  Tesseract candidate.
+
+| Candidate | False matched (of 252) | Supported (of 440) | Unsupported matched (of 52) | Warm p50 / p95 ms | Est. whole p95 ms | Shipped bytes | Verdict, failed gates |
+|---|---|---|---|---|---|---|---|
+| c0 production (simd-lstm, best_int, LSTM) | 54 | 93.6 % | 0 | 26 / 84 | 1132 | 5,949,002 | NO-GO: false matched, accuracy |
+| c1 simd-lstm, standard 4.0.0 data, LSTM | 54 | 93.6 % | 0 | 26 / 85 | 1132 | 13,919,189 | NO-GO: false matched, accuracy, budget |
+| c2 simd, standard data, legacy only | 4 | 25.0 % | 0 | 13 / 83 | 1131 | 14,516,573 | NO-GO: false matched, accuracy, budget |
+| c3 simd, standard data, legacy + LSTM | 32 | 33.2 % | 0 | 25 / 96 | 1144 | 14,516,573 | NO-GO: false matched, accuracy, budget |
+| c4 Windows.Media.Ocr (built in, en-US, no confidence) | 180 | 100 % (raw read) | 12 | 2 / 5 | 1053 | 0 (OS component) | NO-GO: false matched, unsupported, not pinned, no confidence |
+| k1 c0 + legacy must agree | 12 | 92.7 % | 0 | 39 / 155 | 1203 | 20,465,575 | NO-GO: false matched, accuracy, budget |
+| k2 c0 + Windows must agree | 54 | 93.6 % | 0 | 28 / 88 | 1136 | 5,949,002 | NO-GO: false matched, accuracy, not pinned |
+| k3 c0 + standard LSTM must agree | 54 | 93.6 % | 0 | 52 / 170 | 1218 | 16,872,062 | NO-GO: false matched, accuracy, budget |
+
+- **Findings.**
+  - The standard data's LSTM model reproduces the pinned model exactly, in every trial, at 2.3× the size. No data
+    alternative is available offline.
+  - The legacy engine rarely confuses l and 1, but its confidences keep nearly every supported word below the
+    look-alike threshold (25 %). Combined mode inherits both problems.
+  - Windows OCR is fast and reads every supported fixture, but it "reads" the expected digit for almost every look-alike:
+    180 of 252, in every class. It reads 12 of 52 unsupported fixtures, reports no confidence, and is an unpinned OS
+    component. As a second reader it confirmed every one of c0's false matches, so it adds no independent check.
+  - The best composite, k1, still false matches `ho-neg-box` ("Box 2O5" read as "Box 205") 12 of 12. It is also
+    20.5 MB, 2.6× the budget.
+  - The holdout widens the defect from l/1 to O/0: `ho-neg-box` was false matched 12 of 12 by c0, and `ho-neg-bay` 8,
+    `ho-neg-pack` 4.
+  - c0's supported misses are `multiline` 12, `cf-pos-office` 8, `cf-pos-login` 4 and `cf-pos-level` 4, all from the
+    N7.2 gates. 98 % is unreachable for the baseline, with or without a second engine.
+  - Latency is not the obstacle: every Tesseract candidate's estimate is within 1500 ms.
+- **Timing-verifier failures (2026-10-27), independently reproduced and classified. They stay recorded as FAIL for that
+  run; neither is counted as a PASS.**
+  - **Rerun alone on a quiet host (2026-10-28):** `verify:ocr-host` 54/0 and `verify:ocr-runtime` 84/0. The same
+    `verify:ocr-host` steps ran 4.2–4.8× slower on 10-27 (circuit 17,319 against 3,791 ms; queue 5,603 against 1,179 ms;
+    idle kill 5,110 against 1,224 ms).
+  - `verify:ocr-host` "prepare() … next recognition": a host that is ready has never recognized. The spike measured
+    c0's first recognition at p50 290 / p95 496 ms, against warm p50 26 ms; at the measured 4.2–4.8× slowdown that is
+    1.2–2.4 s against the 1000 ms bound. **Classification: environment load, product code unchanged.**
+    - It also exposes a real latency fact: `prepare()` warms the host process, not the engine's first recognition.
+      This bears on optimisation 2 below.
+  - `verify:ocr-runtime` "late reply": the fake reader answers 2200 ms after it is called, and the check waits 1200 ms
+    after the step settles (about 1510 ms). The reply is therefore seen only if the reader was called within about
+    510 ms of the step start.
+    - In the qualifying session the real pipeline reached `recognize-start` at p50 600 ms, and above 500 ms in 213 of
+      259 warm trials.
+    - **Classification: harness timing assumption (a fixed sleep), environment-triggered.** The safety assertion held:
+      one record, budget-exhausted, never matched.
+    - Proposed fix, not applied: wait for the late delivery with a bound instead of a fixed sleep. Nothing about the
+      assertion is relaxed.
+- **Recommendation: no candidate qualifies, so no production change is requested.** Keep the pinned engine. The
+  formal scope amendment below goes to owner review.
+
+**Proposed scope amendment for owner review (NOT RATIFIED; N7.6 stays open).**
+1. N7 ships **observe-only, default-off, with no accuracy claim.**
+   - No cell is calibrated and `calibrated` stays `false`.
+   - The UI and reports keep saying observations never fail a step and are not verified accuracy.
+   - OC-10 is unchanged as the bar any future qualification must meet. It is recorded as **not met** by the pinned
+     engine, for a reason more data cannot change: confident l/1 and O/0 misreads inside digit runs.
+2. **The full N7.6 campaign stays stopped** until a future candidate passes this spike's early gate. Zero false
+   matched and ≥ 98 % supported are both required, on development, confirmation and a fresh holdout.
+3. **Rerun the spike** when a candidate becomes available offline within the budget (a different engine or data under
+   a new N7.1a-style feasibility approval), or if the owner amends OC-9's 8 MB budget. The criteria file is the
+   contract.
+4. Which N7 items close (N7.6, N7.8, Phase N) under an observe-only scope is the owner's decision. Until it is made,
+   the roadmap shows N7.6 in progress and unqualified.
+
 **Proposed optimisations, ranked by measured share.** None are implemented, and each needs a root cause and owner
 approval (§7).
 1. Clip the N0 element capture to the target region instead of the full viewport, and move the PNG decode off the main
@@ -683,8 +759,8 @@ approval (§7).
 Remaining:
 - **N7.6 stays open, and the qualification campaign is STOPPED.** OC-10's zero-false-matched rule is already
   violated in the bundled font, so further sessions cannot qualify those cells.
-  - Next: an owner scope decision. The probe (above) found the API feasible but no separating margin, so a
-    per-symbol gate is not supported.
+  - Next: an owner scope decision. The probe found the API feasible but no separating margin, and the engine/data
+    spike found every candidate NO-GO. The proposed observe-only, no-claim amendment is above.
   - The other blockers, the `multiline` miss and the cold-start deadline overruns, are recorded for that decision.
   - A cell that misses stays observe-only.
 - N7.7 (`.9.8`) is also dependency-ready. It is a separate advisory workstream with effect none, and OCR must never

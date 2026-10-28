@@ -24,8 +24,20 @@
   `"type": "module"`, so a Node `require` of `build/ocr/tesseract-core-simd-lstm.js` returns no factory. Load the
   engine from a staged copy outside the repository, as `benchmark:ocr`, `benchmark:ocr-ambiguity` and
   `verify:ocr-ambiguity` do. Packaged `resources/ocr` is unaffected.
-- **Two OCR verifiers miss wall-clock bounds on this VM (OPEN, environment timing, 2026-10-27).** Production was
-  unchanged, and both failed concurrently and again alone:
+- **No offline engine or data candidate meets OC-10 (OPEN, 2026-10-28 spike).** The pinned engine, the standard
+  4.0.0 data, the legacy and combined engines, Windows.Media.Ocr and three consensus composites are all NO-GO (N7 plan
+  § N7.6). The defect also covers O/0 in digit runs (`ho-neg-box` "Box 2O5" matched 12 of 12). Windows OCR confirms
+  look-alikes as digits, so it cannot serve as a second reader.
+- **Lease guard: refused shell operations count toward one terminal limit per session (process).** A `;`, `%`, `|`,
+  `<` or `>` anywhere in a command, including a commit message, is refused as unsafe syntax. The third refusal of any
+  shell operation in a session made the commit gate TERMINAL (2026-10-28). Write commit messages with commas and
+  dashes only.
+- **Two OCR verifiers miss wall-clock bounds on this VM (CLASSIFIED 2026-10-28; both PASS alone on a quiet host).**
+  - `verify:ocr-host`: environment load. The 10-27 steps ran 4.2–4.8× slower, and the first recognition after
+    `prepare()` is p50 290 / p95 496 ms quiet.
+  - `verify:ocr-runtime`: the late-reply check sleeps a fixed 1200 ms, so it needs `recognize-start` ≤ about 510 ms.
+    The real pipeline's p50 is 600 ms. Fix proposed (a bounded wait for delivery), not applied.
+  - Original record: production was unchanged, and both failed concurrently and again alone:
   - `verify:ocr-host`: "prepare() ... the next recognition runs on it" took 1866–2145 ms against a 1000 ms bound.
   - `verify:ocr-runtime`: "a reader that ignores the abort and answers late" did not see the late reply within its
     1200 ms wait. Its safety assertion held: one record, budget-exhausted, never matched.

@@ -741,6 +741,10 @@ npm run verify:ocr-ambiguity          # N7.6 DIAGNOSTIC l/1/I probe: analysis, 1
 npm run benchmark:ocr-ambiguity       # N7.6 DIAGNOSTIC ONLY (never counts): ChoiceIterator margins at lstm_choice_mode 2
                                       # vs production, in 6 cells, codes and numbers only, to
                                       # %LOCALAPPDATA%/SpecterStudio/ocr-calibration/ambiguity; exit 2 without the font
+npm run verify:ocr-engine-spike       # N7.6 DIAGNOSTIC engine/data spike: GO/NO-GO criteria, 10 mutants, holdout, isolation
+                                      # with mutated-source controls, all candidates on blank images, Windows OCR (54)
+npm run benchmark:ocr-engine-spike    # N7.6 DIAGNOSTIC ONLY (never counts): 8 offline candidates in 6 cells x 2, codes and
+                                      # numbers only, to %LOCALAPPDATA%/SpecterStudio/ocr-calibration/engine-spike (~7 min)
 
 # ── Visual Assertions (Phase N, N6) — pure, no browser, no model ─────────────────────────────────
 npm run verify:visual-assertion       # N6.2 pure decideVisualAssertion: decision table, independent-oracle property run,

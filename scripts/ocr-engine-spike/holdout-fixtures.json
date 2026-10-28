@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "description": "N7.6 (awkit-vra.9.7) engine and data spike HOLDOUT fixtures, declared before any candidate was measured and never tuned. Rendered on the OCR Lab stage in the bundled AwkitOcrLab font like scripts/ocr-ambiguity/probe-fixtures.json; never read by benchmark:ocr and never counted toward OC-10. Roles: negative = the rendered text holds a look-alike (l, I, O or S) where the expected text holds a digit, so a matched verdict is a FALSE match; positive = the rendered text equals the expected text.",
+  "holdout": [
+    { "id": "ho-neg-bay", "role": "negative", "text": "Bay l29", "expected": "Bay 129", "fontSize": 22 },
+    { "id": "ho-neg-pack", "role": "negative", "text": "Pack 4l8", "expected": "Pack 418", "fontSize": 20 },
+    { "id": "ho-neg-sector", "role": "negative", "text": "Sector l7", "expected": "Sector 17", "fontSize": 22 },
+    { "id": "ho-neg-zone", "role": "negative", "text": "Zone 6l1", "expected": "Zone 611", "fontSize": 18 },
+    { "id": "ho-neg-box", "role": "negative", "text": "Box 2O5", "expected": "Box 205", "fontSize": 22 },
+    { "id": "ho-neg-row", "role": "negative", "text": "Row S8", "expected": "Row 58", "fontSize": 22 },
+    { "id": "ho-pos-bay", "role": "positive", "text": "Bay 129", "expected": "Bay 129", "fontSize": 22 },
+    { "id": "ho-pos-pack", "role": "positive", "text": "Pack 418", "expected": "Pack 418", "fontSize": 20 },
+    { "id": "ho-pos-sector", "role": "positive", "text": "Sector 17", "expected": "Sector 17", "fontSize": 22 },
+    { "id": "ho-pos-zone", "role": "positive", "text": "Zone 611", "expected": "Zone 611", "fontSize": 18 },
+    { "id": "ho-pos-box", "role": "positive", "text": "Box 205", "expected": "Box 205", "fontSize": 22 },
+    { "id": "ho-pos-row", "role": "positive", "text": "Row 58", "expected": "Row 58", "fontSize": 22 },
+    { "id": "ho-pos-billing", "role": "positive", "text": "Billing cycle 12", "expected": "Billing cycle 12", "fontSize": 18 },
+    { "id": "ho-pos-filter", "role": "positive", "text": "Filter list", "expected": "Filter list", "fontSize": 20 },
+    { "id": "ho-pos-delivered", "role": "positive", "text": "Delivered 14 parcels", "expected": "Delivered 14 parcels", "fontSize": 18 },
+    { "id": "ho-pos-invoice", "role": "positive", "text": "Invoice 19 issued", "expected": "Invoice 19 issued", "fontSize": 18 }
+  ]
+}

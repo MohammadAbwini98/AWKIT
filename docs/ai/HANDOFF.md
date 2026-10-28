@@ -1,6 +1,44 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-27, latest) — N7.6 ambiguity probe done: no separating margin; owner scope decision needed (awkit-vra.9.7 open)
+## HANDOFF (2026-10-28, latest) — N7.6 engine/data spike: every candidate NO-GO; scope amendment awaits the owner; commit BLOCKED (awkit-vra.9.7 open)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done.**
+  - The engine and recognition-data spike, diagnostic only (N7 plan § N7.6).
+  - One complete run:
+    `%LOCALAPPDATA%/SpecterStudio/ocr-calibration/engine-spike/2026-10-27T22-15-44-449Z-ea622037.json`.
+  - Both 10-27 timing failures were reproduced alone (PASS on a quiet host) and classified.
+- **Result.**
+  - No candidate qualifies, so no production change is requested.
+  - The proposed observe-only, no-claim scope amendment is in the plan, NOT RATIFIED.
+- **Commit BLOCKED (owner action).** The lease guard made the commit gate TERMINAL for that session. Run:
+
+  ```bash
+  git add -- scripts/benchmark-ocr-engine-spike.mts docs/ai/CURRENT_STATE.md docs/ai/HANDOFF.md docs/ai/TASK_LOG.md docs/ai/KNOWN_ISSUES.md docs/ai/COMMANDS.md docs/plans/ai-upgrade-v5/N7-ocr-text-in-image.md
+  ```
+
+  ```bash
+  git commit -m "test(n7.6): OCR engine and recognition-data spike, diagnostic only, every candidate NO-GO, observe-only scope amendment proposed (awkit-vra.9.7)"
+  ```
+
+  ```bash
+  git push origin main
+  ```
+
+  The other spike files are already staged: criteria, holdout, spike host, Windows bridge, verifier, `package.json` and
+  the verifier registry.
+- **Do not:**
+  - resume `benchmark:ocr`;
+  - change the pin, thresholds or deadline;
+  - claim accuracy.
+- **Open:**
+  - The scope decision.
+  - The proposed `verify:ocr-runtime` late-reply wait fix (not applied).
+  - The `.gitattributes` font rule.
+- **Preserved untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-27) — N7.6 ambiguity probe done: no separating margin; owner scope decision needed (awkit-vra.9.7 open)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

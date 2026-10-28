@@ -1,5 +1,34 @@
 # TASK_LOG
 
+## 2026-10-28 — Phase N: N7.6 OCR engine and recognition-data spike, diagnostic only (Claude)
+
+- **Task:** an owner-approved, bounded comparison of alternative engines and data, plus a classification of the two
+  timing-verifier failures. No production change.
+- **Files:**
+  - `scripts/lib/ocr-engine-spike-criteria.mts`, `scripts/ocr-engine-spike/{holdout-fixtures.json, spike-host.cjs,
+    winocr-bridge.ps1}`, `scripts/benchmark-ocr-engine-spike.mts`, `scripts/verify-ocr-engine-spike.mts`.
+  - Registration: `package.json` and `scripts/lib/verifier-classification.ts`.
+  - Docs: the N7 plan § N7.6, CURRENT_STATE, HANDOFF, KNOWN_ISSUES, COMMANDS.
+- **Result:** all 8 candidates NO-GO (12 of 12 launches, 744 trials). Production is 54 of 252 false and 93.6 %
+  supported. The O/0 false match is new (`ho-neg-box`). The scope amendment is proposed.
+- **Timing failures:**
+  - `verify:ocr-host` 54/0 on a quiet rerun: environment load, 4.2–4.8×.
+  - `verify:ocr-runtime` 84/0 on a quiet rerun: a fixed-sleep harness assumption, environment-triggered.
+  - The 10-27 FAILs stay recorded.
+- **Tests:**
+
+  | Gate | Result |
+  |---|---|
+  | `verify:ocr-engine-spike` | 54/0 |
+  | `typecheck:scripts` | PASS |
+  | `verify:verifier-classification` | PASS |
+  | `verify:ocr-host` | 54/0 |
+  | `verify:ocr-runtime` | 84/0 |
+
+  `build` NOT RUN: no app source changed.
+- **Git: BLOCKED.** The commit was refused and the gate went TERMINAL (a `;` in the message, the third refused shell
+  operation). The owner commands are in HANDOFF.
+
 ## 2026-10-27 — Phase N: N7.6 OCR l/1 ambiguity feasibility probe, diagnostic only (Claude)
 
 - **Task:** an owner-approved, bounded, diagnostic-only investigation of l/1/I ambiguity with the pinned engine. No

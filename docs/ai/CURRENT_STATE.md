@@ -1,6 +1,52 @@
 # CURRENT_STATE
 
-## Phase N: N7.6 l/1 ambiguity probe — API GO, margins NOT separable, no gate supported (2026-10-27, latest)
+## Phase N: N7.6 OCR engine/data spike — every candidate NO-GO; observe-only scope amendment proposed (2026-10-28, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N, N7 and N7.6
+(`awkit-vra.9.7`, in progress) stay OPEN.** No cell is qualified, the campaign stays STOPPED, and production is
+unchanged: pin, verdicts, 80/92, 1500 ms and default-off. Full table: N7 plan § N7.6, "Engine and recognition-data
+spike".
+- **Spike.**
+  - Tooling: `benchmark:ocr-engine-spike` and `verify:ocr-engine-spike` (54/0), with criteria and holdout declared
+    first.
+  - Candidates, all offline and already on disk:
+    - the production pin;
+    - the standard 4.0.0 LSTM data;
+    - the legacy and combined engines;
+    - Windows.Media.Ocr;
+    - three demote-only consensus composites.
+  - 12 of 12 launches, 744 trials.
+- **Result.** No candidate meets zero false matched and ≥ 98 % supported.
+  - Production: 54 of 252 false, 93.6 %.
+  - Standard data: identical to production, at 13.9 MB.
+  - Legacy: 4 false, but 25 %.
+  - Windows: 180 false and no confidence.
+  - Best composite: 12 false and 92.7 %, at 20.5 MB.
+  - The holdout adds an O/0 false match (`ho-neg-box` 12 of 12).
+- **Timing failures of 10-27, classified.** Both pass alone on a quiet host: `verify:ocr-host` 54/0 and
+  `verify:ocr-runtime` 84/0.
+  - `verify:ocr-host`: environment load, 4.2–4.8× slower that day. The first recognition after `prepare()` is
+    p50 290 / p95 496 ms quiet.
+  - `verify:ocr-runtime`: a fixed-sleep harness assumption. It needs `recognize-start` ≤ about 510 ms, while the real
+    pipeline's p50 is 600 ms. The fix is proposed, not applied.
+- **Gates.**
+
+  | Gate | Result |
+  |---|---|
+  | `verify:ocr-engine-spike` | 54/0 |
+  | `typecheck:scripts` | PASS |
+  | `verify:verifier-classification` | PASS, 369 |
+  | `verify:ocr-host` | 54/0, quiet rerun |
+  | `verify:ocr-runtime` | 84/0, quiet rerun |
+  | `verify:roadmap-dashboard` | final state |
+  | `build` | NOT RUN: no app source changed |
+
+- **Git: BLOCKED.** The commit of the staged spike was refused, and the lease guard marked the gate TERMINAL. The
+  message held a `;`; it was the session's third refused shell operation. Everything is staged or modified locally,
+  and the owner commits (HANDOFF).
+- **Owner decision.** Ratify or amend the proposed observe-only, no-claim scope (plan § N7.6).
+
+## Phase N: N7.6 l/1 ambiguity probe — API GO, margins NOT separable, no gate supported (2026-10-27)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N, N7 and N7.6
 (`awkit-vra.9.7`, in progress) stay OPEN.** No cell is qualified, and the calibration campaign stays STOPPED. Full
