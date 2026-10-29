@@ -25,7 +25,7 @@ import { join } from "node:path";
 
 import { readAssignments } from "../tools/roadmap/lib/agents.mjs";
 import { buildSnapshot } from "../tools/roadmap/lib/model.mjs";
-import { deriveAreaWeighted, normalizeBeadStatus, normalizePhases } from "../tools/roadmap/lib/normalize.mjs";
+import { deriveAreaWeighted, normalizeBeads, normalizeBeadStatus, normalizePhases } from "../tools/roadmap/lib/normalize.mjs";
 import { computeOrder } from "../tools/roadmap/lib/order.mjs";
 import { KNOWN_EDGE_TYPES, KNOWN_STATUSES, parseBeads } from "../tools/roadmap/lib/parse-beads.mjs";
 import { LEDGER_STATUSES, parseLedger } from "../tools/roadmap/lib/parse-ledger.mjs";
@@ -1353,6 +1353,30 @@ try {
     snapshot.items.filter((i) => i.nativeId.startsWith("awkit-wza.")).every((i) => i.area.value === "Test Lab"),
     "they were scattered across Reports, Licensing and Security by body keywords"
   );
+
+  // A NO-GO closure is an outcome, not a delivery (2026-10-29): it is flagged from the declared close reason only.
+  {
+    const bead = (status, closeReason) => ({ id: "x-1", title: "T", status, priority: 2, issueType: "task", description: "", edges: [], lineNumber: 1, updatedAt: null, closeReason });
+    const outcome = (status, reason) => normalizeBeads([bead(status, reason)])[0].flags.closedOutcome ?? null;
+    check("a closed issue whose close reason says NO-GO is flagged as a NO-GO investigation", outcome("closed", "Closed as NO-GO on the owner decision") === "no-go");
+    check("an ordinary closure is not flagged NO-GO", outcome("closed", "Done, all gates PASS") === null && outcome("closed", null) === null);
+    check("an open issue is never flagged NO-GO, whatever its text", outcome("open", "NO-GO so far") === null);
+    check("NO-GO must be a whole word (GO, NOGO and no-go-ahead do not count)", outcome("closed", "GO, NOGO and no-go-ahead") === null);
+    const flagged = (id) => snapshot.items.find((i) => i.nativeId === id)?.flags.closedOutcome ?? null;
+    check(
+      "the real NO-GO closures are flagged (N7.6 awkit-vra.9.7, L10 awkit-djnl.18) and a delivered milestone is not (N7.5 awkit-vra.9.6)",
+      flagged("awkit-vra.9.7") === "no-go" && flagged("awkit-djnl.18") === "no-go" && flagged("awkit-vra.9.6") === null,
+      `${flagged("awkit-vra.9.7")} ${flagged("awkit-djnl.18")} ${flagged("awkit-vra.9.6")}`
+    );
+    check(
+      "the open OCR accuracy obligation N7.10 awkit-2shc stays visible as outstanding with no blocking edge",
+      snapshot.items.some((i) => i.nativeId === "awkit-2shc" && i.status !== "done" && i.dependsOn.length === 0)
+    );
+    check(
+      "the Beads issues view shows the NO-GO outcome beside the closed badge",
+      readFileSync(join(ROADMAP_ROOT, "public", "views.js"), "utf8").includes('item.flags.closedOutcome === "no-go"')
+    );
+  }
   check(
     "the consistency banner checked something",
     snapshot.consistency.checked >= 2,

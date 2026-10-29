@@ -597,6 +597,13 @@ function issuesTab(ctx) {
                     class: `rm-badge rm-badge-${item.status === "done" ? "done" : "open"}`,
                     text: item.rawStatus
                   }),
+                  item.flags.closedOutcome === "no-go"
+                    ? el("span", {
+                        class: "rm-chip",
+                        text: "NO-GO investigation",
+                        title: "Closed as NO-GO by its declared close reason: an investigation outcome, not a delivered feature"
+                      })
+                    : null,
                   item.type ? el("span", { class: "rm-chip", text: item.type }) : null,
                   areaChip(item.area),
                   item.dependsOn.length > 0

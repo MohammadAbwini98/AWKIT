@@ -1,6 +1,23 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-28, latest) — N7 amendment A1 RATIFIED and applied; N7.6 closed NO-GO; N7.10 awkit-2shc open
+## HANDOFF (2026-10-29, latest) — Roadmap reconciled A to N; dashboard marks NO-GO closures; Sources agree
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:**
+  - Phases A to N audited against the tracker and the roadmap module. Statuses were already correct.
+  - Dated correction notes appended to the epics `awkit-vra` and `awkit-vra.9`.
+  - The issues view shows a "NO-GO investigation" chip for closed NO-GO issues.
+  - `verify:roadmap-dashboard` 184/184.
+- **Next verified task:** the A1.9 "unverified OCR evidence" copy change (needs product approval), then N7.7. The
+  packaged gates N7.1b and N7.8 wait for the Visual Studio 2022 MSVC v143 host.
+- **Owner actions (unchanged):**
+  - The `.gitattributes` font rules.
+  - The `verify:ocr-runtime` late-reply fix.
+  - The packaging host.
+- **Preserved untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-28) — N7 amendment A1 RATIFIED and applied; N7.6 closed NO-GO; N7.10 awkit-2shc open
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

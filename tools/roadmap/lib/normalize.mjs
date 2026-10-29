@@ -224,6 +224,10 @@ export function normalizeBeads(beads) {
       });
     }
 
+    // A closure is an outcome as well as a status. A NO-GO investigation closes like any other issue but delivered
+    // no feature, and only its declared close reason says so; the title never decides it.
+    const closedNoGo = b.status === "closed" && /\bNO-GO\b/.test(b.closeReason ?? "");
+
     return {
       id: `bead:${b.id}`,
       nativeId: b.id,
@@ -242,7 +246,7 @@ export function normalizeBeads(beads) {
       source: { file: ".beads/issues.jsonl", line: b.lineNumber, sourceId: "beads" },
       updatedAt: b.updatedAt,
       body: b.description,
-      flags: {}
+      flags: closedNoGo ? { closedOutcome: "no-go" } : {}
     };
   });
 }

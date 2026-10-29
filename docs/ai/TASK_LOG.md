@@ -1,5 +1,21 @@
 # TASK_LOG
 
+## 2026-10-29 — Roadmap audit and reconciliation, phases A to N (Claude)
+
+- **Task:** audit the roadmap against the tracker, the code and the evidence, correct stale sources, and launch the
+  dashboard.
+- **Findings:**
+  - The phase statuses (A to L complete, M pending, N in progress) match the tracker.
+  - Stale tracker notes on `awkit-vra` and `awkit-vra.9` (corrected by appended notes).
+  - NO-GO closures were indistinguishable from delivered work on the dashboard (fixed).
+- **Files:**
+  - `tools/roadmap/lib/normalize.mjs`: a `closedOutcome` flag derived from the close reason.
+  - `tools/roadmap/public/views.js`: the NO-GO chip.
+  - `scripts/verify-roadmap-dashboard.mjs`: 7 checks.
+  - `.beads/issues.jsonl`, the contract lease history, CURRENT_STATE, HANDOFF, TASK_LOG.
+- **Tests:** `verify:roadmap-dashboard` 184/184. build, `verify:verifier-classification`, `verify:source-hygiene` and
+  `git diff --check` results are in the final report.
+
 ## 2026-10-28 — Phase N: N7 scope amendment A1 ratified and applied (Claude)
 
 - **Task:** apply the owner-ratified A1 (Option 1).

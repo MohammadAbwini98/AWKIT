@@ -1,6 +1,30 @@
 # CURRENT_STATE
 
-## Phase N: N7 scope amendment A1 RATIFIED and applied; N7.6 closed NO-GO, N7.10 open (2026-10-28, latest)
+## Roadmap reconciliation A to N (2026-10-29, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. Phase statuses are unchanged
+and match the tracker: A to L complete, M pending, N in progress.
+- **Phase L:** complete for its approved scope. The epic `awkit-djnl` stays open only as the container of E2
+  `awkit-djnl.20` (P4, PENDING / BLOCKED).
+- **Phase M:** postponed by the owner (2026-10-12). Epic `awkit-akb` and M1 to M7 are deferred, with nothing
+  implemented.
+- **Phase N:**
+  - Closed: N0, N1, N2, N3 (N3.4 and N3.5 blocked), N4, N5 and N6 (observe-only).
+  - N6P `awkit-vra.16`: open, a separate future milestone.
+  - N7: in progress. N7.1 to N7.6 are closed, N7.6 as NO-GO.
+  - N7.1b and N7.8: open and BLOCKED on the packaging host.
+  - N7.7 and N7.9: open.
+  - N7.10 `awkit-2shc`: open, independent.
+  - N8, N9 and N10: planning only.
+- **Corrected:**
+  - Stale notes on the epics `awkit-vra` (N4, N5, N6, N10 status) and `awkit-vra.9` (OC-0 to OC-12 "not
+    ratified"): dated correction notes appended under a project-state lease. No status or edge changed.
+  - The dashboard showed NO-GO closures exactly like delivered work. The Beads issues view now marks a closed issue
+    whose declared close reason says NO-GO as a "NO-GO investigation" (N7.6, L10). `verify:roadmap-dashboard` is
+    184/184, with 7 new checks.
+- **Unchanged:** every owner decision, every validation result and every phase status.
+
+## Phase N: N7 scope amendment A1 RATIFIED and applied; N7.6 closed NO-GO, N7.10 open (2026-10-28)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N and N7 stay OPEN.**
 N7 is observe-only and default-off, with no OCR accuracy qualification and no production-readiness claim.

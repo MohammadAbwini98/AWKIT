@@ -6,17 +6,19 @@
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-28T17:58:48.461Z",
-  "acquired_at_commit": "f08b186724dca9fc2f691262c509ff290e03ec0a",
+  "acquired_at": "2026-10-29T06:29:43.015Z",
+  "acquired_at_commit": "649e489601b6418619da043efe196ef2d2fd1e8a",
   "baseline_dirty": [
-    "docs/ai/DECISIONS.md",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/plans/ai-upgrade-v5/N7-ocr-text-in-image.md"
+    "scripts/verify-roadmap-dashboard.mjs",
+    "tools/roadmap/lib/normalize.mjs",
+    "tools/roadmap/public/views.js"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/DECISIONS.md": "4fb92351bc575fe314d308ce003fc14f24fb70473ea5eb68bcb87a4cfc7d8914",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/plans/ai-upgrade-v5/N7-ocr-text-in-image.md": "afb88b061b25d9f245ffd62a41f77d2b539d5a36a83754e127d9e0324921a00f"
+    "scripts/verify-roadmap-dashboard.mjs": "b0f857fd81e068048be11a32f7d4a872b39d3911ce3e17ac62b606129e395f99",
+    "tools/roadmap/lib/normalize.mjs": "f00cd81743bb622d5b5021aa74c9ce38c8d14b4a98d2c463c4a4ac417ae9cfdf",
+    "tools/roadmap/public/views.js": "44771233add057607daf3037bf450184d4e5c3e8b3450cec036de3c65d055948"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -31,7 +33,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-28T17:59:59.124Z",
-  "released_reason": "N7.6 awkit-vra.9.7 closed as a completed NO-GO investigation under ratified amendment A1, N7.10 awkit-2shc created open and independent, exported 435 issues",
-  "archived_at": "2026-10-28T17:59:59.126Z"
+  "released_at": "2026-10-29T06:30:01.457Z",
+  "released_reason": "Roadmap reconciliation 2026-10-29, dated correction notes appended to awkit-vra and awkit-vra.9, no status or edge changed, exported 435 issues",
+  "archived_at": "2026-10-29T06:30:01.460Z"
 }
