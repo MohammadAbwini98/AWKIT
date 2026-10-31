@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-phase-n-tracker-1101",
+    "title": "Phase N tracker reconciliation: legacy awkit-vra.2, .3, .5 to .8 dispositions, N6P and N10 transfer notes, N8 and N9 qualification records",
+    "objective": "Tracker-only work under a project-state lease, separate from the implementation contract awkit-vra-phase-n-completion-1031 (whose QC and security reviewers stay unchanged): close the legacy awkit-vra.2, .3, .5, .6, .7 and .8 as superseded with the coverage matrix of docs/plans/ai-upgrade-v5/N8-N10-planning.md, record the transferred obligations on awkit-vra.16, awkit-vra.17 and awkit-vra.9.9, record the N8 awkit-vra.10 and N9 awkit-vra.11 qualification evidence, close N8 and N9 only when their fresh independent QC and security reviews are APPROVED, keep N3.4, N3.5, N7.1b, N7.8, N7.9 and N7.10 open, export, and reconcile the dashboard.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "8bc11df",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/DECISIONS.md",
+      "docs/ai/contracts/awkit-vra-phase-n-tracker-1101.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "PHASE-N-TRACKER",
+      "description": "Legacy records closed as superseded with canonical references, transfers recorded, N8 and N9 recorded truthfully and closed only after APPROVED independent QC and security review, blocked N7 packaged gates and independent follow-ups kept open, Sources agree.",
+      "evidence_required": [
+        "bd-reconciliation",
+        "verify:roadmap-dashboard"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "bd-reconciliation",
+      "type": "inspection",
+      "required": true,
+      "command": "bd update, bd close and bd export under the project-state lease",
+      "artifact": ".beads/issues.jsonl",
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-phase-n-tracker-1101:project-state:2026-10-31T17:55:37.470Z",
+        "task": "awkit-vra-phase-n-tracker-1101",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-31T17:55:37.470Z",
+        "acquired_at_commit": "8bc11df9c40719b774f9038705034da66e8a7405",
+        "released_at": "2026-10-31T17:59:20.213Z",
+        "released_reason": "Legacy awkit-vra.2 .3 .5 .6 .7 .8 closed as superseded with the coverage matrix, N10 .17 and N6P .16 unparented outside Phase N closure with requirements kept, legacy .8 obligation recorded on N7.8 .9.9, N8 .10 and N9 .11 qualification recorded and left in progress because the fresh reviews were not unconditional, exported",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-vra-phase-n-tracker-1101:project-state:2026-10-31T18:01:58.893Z",
+        "task": "awkit-vra-phase-n-tracker-1101",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-31T18:01:58.893Z",
+        "acquired_at_commit": "8bc11df9c40719b774f9038705034da66e8a7405",
+        "released_at": "2026-10-31T18:02:17.039Z",
+        "released_reason": "Explicit bd export of the 2026-11-01 Phase N tracker reconciliation, 435 issues",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

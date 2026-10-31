@@ -1,5 +1,35 @@
 # TASK_LOG
 
+## 2026-11-01 — Phase N: QC remediation, N5 deadline fix, joint N8+N9 qualification (Claude)
+
+- **Commits:**
+  - `9184fee`: recovered N8 QC fixes;
+  - `6ee59af`: N5 A/B harness ignores Playwright call-log timing;
+  - `f5860d1`: deadline fix and N9 S-5 correction;
+  - `32ffca2`: joint harness, declared before any trial;
+  - `5438706`: campaign 1 evidence and the sync-cost diagnostic;
+  - `bfd09ef`: cost-scaled reserve and harness fix;
+  - `8bc11df`: campaign 2 PASS;
+  - then the review dispositions, Beads and docs.
+- **Tests:**
+  - `verify:visual-diagnosis-deadline` 23/0;
+  - `verify:visual-diagnosis-runtime` 65/0;
+  - `verify:visual-diagnosis-report` 63/0;
+  - `verify:visual-rows` 48/0;
+  - `verify:visual-state` 48/0;
+  - `verify:visual-state-runtime` 26/0;
+  - `verify:visual-isolation` 117/0;
+  - typecheck and `typecheck:scripts` PASS;
+  - build PASS.
+  - `verify:mock-site` was not re-run: its inputs are unchanged since its 378/378 pass.
+- **Benchmarks:**
+  - joint campaign 1: NOT MET in the headed cells;
+  - joint campaign 2: PASS in all six cells, with 0 strict overruns.
+- **Reviews:** security CHANGES REQUIRED; QC APPROVED WITH FINDINGS. Their product fixes are BLOCKED by a terminal
+  lease-scope denial.
+- **Beads:** legacy `.2`, `.3` and `.5` to `.8` closed; `.16` and `.17` unparented; N8 and N9 left in progress.
+- **Result:** Phase N is NOT complete.
+
 ## 2026-10-31 — Phase N: decision ratification, N9 implemented and qualified, N8 implemented (Claude)
 
 - **Task:** the owner prompt "Phase N Decision Ratification and Completion". Contract

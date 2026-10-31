@@ -804,8 +804,10 @@ try {
   // Then 34/401 of 435 on 2026-10-28 (ratified A1): N7.6 `.9.7` closed as a completed NO-GO investigation (qualification
   // NOT MET) and N7.10 `awkit-2shc` filed open. Measured.
   // Then 33/402 of 435 on 2026-10-31: N7.7 `.9.8` closed on its executed gates (verify:ocr-text-signal 49/0). Measured.
-    "33 outstanding / 402 closed",
-    beads.stats.outstanding === 33 && beads.stats.closed === 402,
+  // Then 27/408 of 435 on 2026-11-01 (contract `awkit-vra-phase-n-tracker-1101`): the six legacy records `awkit-vra.2`,
+  // `.3`, `.5`, `.6`, `.7` and `.8` closed as superseded under the owner-ratified coverage matrix. Measured after export.
+    "27 outstanding / 408 closed",
+    beads.stats.outstanding === 27 && beads.stats.closed === 408,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -952,9 +954,11 @@ try {
   // agent; the live DB and `bd export` agree, and N7 `.9` already lacked it. Measured.
   // Then 394 on 2026-10-26 (contract `awkit-vra-9-n7-filing-1026`): eleven N7 parent-child edges and the seventeen
   // ratified N7 blocks edges (N7.1b after N7.3 and N7.4, never before N7.2-N7.5). Measured.
+  // Then 392 on 2026-11-01 (contract `awkit-vra-phase-n-tracker-1101`): N6P `awkit-vra.16` and N10 `awkit-vra.17` lost
+  // their parent-child edge to `awkit-vra` when the owner transferred them outside Phase N closure. Measured.
   check(
-    "394 edges are present to classify",
-    beads.stats.edges === 394,
+    "392 edges are present to classify",
+    beads.stats.edges === 392,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(

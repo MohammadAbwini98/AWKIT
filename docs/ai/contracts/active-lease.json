@@ -1,42 +1,38 @@
 {
-  "task": "awkit-vra-9-n7-filing-1026",
-  "contract_path": "docs/ai/contracts/awkit-vra-9-n7-filing-1026.json",
+  "task": "awkit-vra-phase-n-tracker-1101",
+  "contract_path": "docs/ai/contracts/awkit-vra-phase-n-tracker-1101.json",
   "holder": "project-state",
   "status": "released",
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-31T12:52:07.217Z",
-  "acquired_at_commit": "8357bab0a467a9f0cd58d3f76e0e6b9e88d687ce",
+  "acquired_at": "2026-10-31T18:01:58.893Z",
+  "acquired_at_commit": "8bc11df9c40719b774f9038705034da66e8a7405",
   "baseline_dirty": [
-    "app/main/ocr/OcrUtilityHostManager.ts",
-    "app/renderer/components/reports/VisualDiagnosisSection.tsx",
+    ".beads/interactions.jsonl",
+    ".beads/issues.jsonl",
+    "docs/ai/CURRENT_STATE.md",
+    "docs/ai/HANDOFF.md",
+    "docs/ai/TASK_LOG.md",
+    "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "package.json",
-    "scripts/lib/verifier-classification.ts",
-    "scripts/verify-ocr-text-signal.mts",
-    "src/runner/LocatorFactory.ts",
-    "src/runner/PlaywrightRunner.ts",
-    "src/runner/domIntelligence/recoveryProvenance.ts",
-    "src/runner/ocr/OcrStep.ts",
-    "src/runner/ocr/ocrAssertionContract.ts",
-    "src/runner/visualDiagnosis/VisualFailureDiagnosis.ts",
-    "src/runner/visualFusion/VisualFusionStage.ts"
+    "docs/ai/contracts/awkit-vra-phase-n-tracker-1101.json",
+    "docs/plans/ai-upgrade-v5/N8-row-grid-intelligence.md",
+    "docs/plans/ai-upgrade-v5/evidence/joint/c2/N8N9-joint-summary.json",
+    "scripts/benchmark-visual-joint.mts"
   ],
   "baseline_dirty_fingerprints": {
-    "app/main/ocr/OcrUtilityHostManager.ts": "f72cb3fd44591a3142adcad8805d92a2f8060b6a2f7331c27aad1085787f2b9e",
-    "app/renderer/components/reports/VisualDiagnosisSection.tsx": "fe067030b2cec2fd135c449182a2e7cc117fdef8dce35dee094586f3ab4fdcb8",
+    ".beads/interactions.jsonl": "c4c0b87aa601f15bee1cf4439ca317e3cb6aae8621670b7658823177678a1186",
+    ".beads/issues.jsonl": "e0e360de0e1adac6f2b77dd2527879ccbdbae8a14225ad03c746b20692a7f6f4",
+    "docs/ai/CURRENT_STATE.md": "e4e2891af6722704e6c01218c2dbcc3955ce2f02f3b3576642805ba80b0cfb7b",
+    "docs/ai/HANDOFF.md": "794e2cb21991fa5b8e226b68f288468af804ef13405dbdeb227c15dcff32301b",
+    "docs/ai/TASK_LOG.md": "b7c019a417bcc192d634eb117b21abbcaa01597fb252bf9454928d125eeb9037",
+    "docs/ai/contracts/active-lease.json": "e37d41083583c144d70922e22e135d0148ee0f548c20f3dfe0df8a150a4dea57",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "package.json": "ad0bbda35501172b86611352925c0bf4640f2a144d93a9ea5b582d4af7058511",
-    "scripts/lib/verifier-classification.ts": "894c55f4e16232b03b7e629198c8d6e681913478fc54f367ceb7ac2b217b9387",
-    "scripts/verify-ocr-text-signal.mts": "849f005be2afdce46a94ebfc12af29f0e2f41dbf41b6a898d46462844a572d50",
-    "src/runner/LocatorFactory.ts": "d12872b5ca2977d6d86a71fdcf9f633c0af7449b501afd5fab9db92de5340f7c",
-    "src/runner/PlaywrightRunner.ts": "bc3a63ec86cc2f3b9798784357209836767004bfed9d168dbd4e8c3bddde55d2",
-    "src/runner/domIntelligence/recoveryProvenance.ts": "2f68a02afb044e26bbeff2567b40f6f85b185aa1158532cb0dd443015b2de740",
-    "src/runner/ocr/OcrStep.ts": "792b9dab5b4b4a381aa8174fa0c59e188dc7e5e025df0d4dfd9097d016710172",
-    "src/runner/ocr/ocrAssertionContract.ts": "04d2bfe9611d0b65635cb6dcba7506d9e452f9795cec43e004914b2a4f498931",
-    "src/runner/visualDiagnosis/VisualFailureDiagnosis.ts": "db6762dd0f5ee06ab137ec4f908d286afd81c87008cf1eb0b4f09943072fe396",
-    "src/runner/visualFusion/VisualFusionStage.ts": "42decf820de0998b4a09a28eb97901169c7a49641edc175df1f1e56c66b973f1"
+    "docs/ai/contracts/awkit-vra-phase-n-tracker-1101.json": "7d853dddc518bde39da025b1c05792ad635bd03ae8c143a65c94a4d24fb568c2",
+    "docs/plans/ai-upgrade-v5/N8-row-grid-intelligence.md": "ca80437b4b8975e29ed87db9cefa2fcbc44a9901acb32067c950913dede3add0",
+    "docs/plans/ai-upgrade-v5/evidence/joint/c2/N8N9-joint-summary.json": "680cdd0138a1df363aa4ed97ea7dbc85aa571584f51c2707e39359fd83a0e91f",
+    "scripts/benchmark-visual-joint.mts": "d12994c0c9418007cbf80428fe3abe80870b3c4d943287197592b8f3680df719"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -51,7 +47,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-31T12:52:28.387Z",
-  "released_reason": "N7.7 awkit-vra.9.8 closed on executed gates, exported 435 issues",
-  "archived_at": "2026-10-31T12:52:28.400Z"
+  "released_at": "2026-10-31T18:02:17.039Z",
+  "released_reason": "Explicit bd export of the 2026-11-01 Phase N tracker reconciliation, 435 issues",
+  "archived_at": "2026-10-31T18:02:17.042Z"
 }

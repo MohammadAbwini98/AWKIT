@@ -1,5 +1,37 @@
 # CURRENT_STATE
 
+## Phase N: N5 deadline fixed; N8+N9 joint qualification PASS; reviews not unconditional; Phase N NOT complete (2026-11-01, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Recovered:** the staged N8 QC fixes were committed as `9184fee`. The earlier refusal came from a `;` in the
+  commit message.
+- **N9 record corrected:** campaign 2's S-5 is NOT MET in headless@2 (1602 ms against 1600; the 50 ms grace was never
+  declared).
+- **N5 deadline fixed** (`f5860d1`, `bfd09ef`; `verify:visual-diagnosis-deadline` 23/0, which reproduces the
+  original defect):
+  - the adapter settles at a work budget before the hard deadline;
+  - publishing is gated on the monotonic clock;
+  - synchronous phases start behind checkpoints with a measured per-pixel reserve;
+  - the N9 code keeps a slot under the observation cap.
+- **Joint N8+N9 qualification** (strict accounting, both features on):
+  - Campaign 1: NOT MET in the headed cells (background-tab throttling in the harness, and one 62.7 ms control
+    overrun).
+  - **Campaign 2: PASS in all six cells.** 0 overruns in 1,620 trials, 0 false `ready`, 0 false `error`, and 0
+    adversarial row claims. It still passes when re-scored under the QC's stricter F3/F5 accounting.
+- **Fresh reviews at `8bc11df`:**
+  - Security: CHANGES REQUIRED (S1: a refused record still carries advisory codes).
+  - QC: APPROVED WITH FINDINGS (F1 per-member reserve, F2 large-viewport coverage NOT MEASURED, F4, F6).
+  - The product fixes are BLOCKED this session: edits to `VisualFailureDiagnosis.ts` were terminal-denied while a
+    `.beads/**` lease was held.
+  - N8 `awkit-vra.10` and N9 `awkit-vra.11` stay IN PROGRESS. Dispositions: N8 plan § 9.
+- **Beads** (separate tracker contract `awkit-vra-phase-n-tracker-1101`; the implementation contract's security
+  reviewer is unchanged):
+  - legacy `.2`, `.3`, `.5`, `.6`, `.7` and `.8` closed as superseded;
+  - N10 `.17` and N6P `.16` unparented outside Phase N closure;
+  - `.8`'s packaged obligation recorded on N7.8 `.9.9`.
+- **Still BLOCKED:** N7.1b, N7.8 and N7.9 (`verify:packaging-host` H4/H5). N7.10 `awkit-2shc` stays open.
+
 ## Phase N: decisions ratified; N9 qualified; N8 implemented with one NOT MET cell; Phase N NOT complete (2026-10-31, latest)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N stays IN

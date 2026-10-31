@@ -56,6 +56,8 @@ interface Trial {
   stateMs: number | null;
   rowMs: number | null;
   recordMs: number;
+  /** F5: the unrounded duration (campaigns after 2 only). */
+  recordMsRaw?: number;
   overrunMs: number;
   frames: number;
   refused: boolean;
@@ -161,7 +163,8 @@ async function runCell(cell: string): Promise<void> {
           stateMs: d.stateMs,
           rowMs: d.rowMs,
           recordMs: Math.round(d.recordMs * 10) / 10,
-          overrunMs: Math.max(0, Math.round((d.recordMs - deadline) * 10) / 10),
+          recordMsRaw: d.recordMs,
+          overrunMs: d.recordMs > deadline ? Math.max(0.1, Math.round((d.recordMs - deadline) * 10) / 10) : 0,
           frames: d.frames,
           refused: ["protected-surface", "sensitive", "handoff-active"].includes(d.obs[0] ?? ""),
           cut: d.obs[0] === "budget-exhausted",
@@ -231,8 +234,11 @@ function stateTrials(trials: Trial[]): StateTrial[] {
         truth: t.truth as StateTrial["truth"],
         adversarial: t.adversarial,
         decided: (code ? code.slice("visual-state-".length) : "none") as StateDecision,
-        stateMs: t.cut ? DEADLINE : t.stateMs,
-        late: t.recordMs > DEADLINE
+        // QC 2026-11-01 F3: a trial whose state work did not run (cut, or skipped near the budget) counts at the full
+        // deadline in the p95; it is never dropped.
+        stateMs: t.cut || t.stateMs === null ? DEADLINE : t.stateMs,
+        // F5: lateness on the unrounded duration when the evidence has it.
+        late: (t.recordMsRaw ?? t.recordMs) > DEADLINE
       };
     });
 }
@@ -247,8 +253,8 @@ function rowsTrials(trials: Trial[]): RowsTrial[] {
       truthStructure: (t.structure ?? "any") as RowsTrial["truthStructure"],
       truthCoverage: (t.coverage ?? "full") as RowsTrial["truthCoverage"],
       codes: t.codes.filter(isRow),
-      rowMs: t.cut ? DEADLINE : t.rowMs,
-      late: t.recordMs > DEADLINE
+      rowMs: t.cut || t.rowMs === null ? DEADLINE : t.rowMs,
+      late: (t.recordMsRaw ?? t.recordMs) > DEADLINE
     }));
 }
 

@@ -1,5 +1,30 @@
 # Agent Handoff
 
+## HANDOFF (2026-11-01, latest) — review fixes BLOCKED this session; N8 and N9 open; Phase N NOT complete
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Next single task:** in a new session (the terminal denial is per session), fix these in
+  `src/runner/visualDiagnosis/VisualFailureDiagnosis.ts` with **no tracker lease held**:
+  - **S1:** no N7.7, N8 or N9 code when `verdict.outcome === "refused"`, plus a verifier case that injects a password
+    form before the frame;
+  - **S4:** a fail-closed hit test for row facts;
+  - **F1:** a per-member reserve of `visualDiagnosisSyncReserveMs(crop pixels)`;
+  - **F4:** multiply opacity up the ancestor chain;
+  - **F6:** behavioural tests for findings 5, 6 and 7.
+
+  Then measure N5 coverage at 1920×1080 DPR 1 and 1.5 (F2), and run a fresh joint campaign (all seven
+  `benchmark:visual-joint:*` scripts; give `--campaign 3` to keep campaign 2 intact). Then a fresh QC and security
+  review.
+- **Owner decisions:**
+  - F2: accept the large-viewport limit, or approve moving whole-frame pixel work into a worker thread.
+  - S3: accept in-memory container crops that may include card or CVV inputs of other rows (only codes leave).
+  - F7: confirm re-exposing `rows-not-examined`.
+- **Close N8 and N9 only after** an unconditional QC and security APPROVAL. Use a new project-state lease under
+  `awkit-vra-phase-n-tracker-1101`, and release it before any code edit.
+- **Blocked (environment):** N7.1b, N7.8 and N7.9 (`verify:packaging-host` H4/H5).
+- **Preserved untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
 ## HANDOFF (2026-10-31, latest) — decisions ratified; N9 qualified; N8 one NOT MET cell; Beads and N7 BLOCKED
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. Phase N is NOT complete.

@@ -264,4 +264,31 @@ full deadline in the work-time p95.
   work into a worker thread. It was not needed to pass and is not adopted.
 - **Scope:** synthetic lab fixtures at 800 × 600 on this host only. N2 shadow wiring stays out of scope (NR-3).
 
-R-9 is the fresh independent QC and security review, recorded separately.
+R-9 is the fresh independent QC and security review, recorded in § 9.
+
+## 9. Fresh independent review at `8bc11df` (2026-11-01) — N8 and N9 stay OPEN
+
+Verdicts: **security CHANGES REQUIRED**, **QC APPROVED WITH FINDINGS**. Neither is unconditional, so R-9 and S-9 are
+NOT MET and neither milestone closes. Both reviews were read-only: the reviewers' Bash was blocked by the lease guard,
+so they ran no verifiers.
+
+The original QC finding numbers from § 7: 1 stale members, 2 R-5 attribution, 3 sideways overreach, 4 hidden members,
+5 observation cap, 6 abort in the row read, 7 crop lifetime, 8 undeclared grace. All eight were re-checked as fixed. 5,
+6 and 7 have no behavioural test (QC F6).
+
+| Finding | Severity | Disposition |
+|---|---|---|
+| S1: a refused record (N0 refused the frame) still gains N7.7, N8 and N9 codes derived from a page N0 just refused, and the renderer shows them as unreadable | medium | **OPEN, fix BLOCKED this session.** Fix: no advisory extra when `verdict.outcome === "refused"`, plus a verifier case. The edit to `VisualFailureDiagnosis.ts` was refused three times by the lease guard while a `.beads/**` tracker lease was held, which made the gate TERMINAL for this session |
+| S2: no fresh protected scan right before the N8 DOM row read | low | Reviewer proposes accept. N0 re-checks around each screenshot, and with S1 fixed nothing from such a page is persisted. Optional hardening: re-scan before `rowFacts` |
+| S3: container crops may hold card, CVV or token inputs of other rows | info | Reviewer proposes accept as a decision: N0 refuses any page with a password, OTP, webauthn or captcha element; the same pixels are already held by the whole-viewport crop; only fixed codes leave. **Owner decision needed** |
+| S4: `occluded()` read failure is fail-open for the row association | info | **OPEN, fix BLOCKED (same file).** Fix: a fail-closed hit test for row facts |
+| F1: per-member crop and evidence are not cost-scaled; a viewport-sized match at DPR 2 can overrun the hard deadline | major | **OPEN, fix BLOCKED (same file).** Fix: reserve `visualDiagnosisSyncReserveMs(crop pixels)` per member |
+| F2: at 200 ns/px, a 1920×1080 DPR 1.5 viewport (4.7 Mpx) needs about 933 ms, more than N5's 900 ms budget, so core N5 diagnoses become `budget-exhausted` | major | **OPEN, NOT MEASURED.** Qualification ran at 800 × 600 only. Needs N5 coverage measured at realistic viewports, then an owner decision: accept the limit, or move whole-frame pixel work into a worker thread (an architecture change) |
+| F3: p95 dropped non-cut trials with no work time | minor | **Fixed** in the harness. Re-aggregated campaign 2 under the stricter rule: still PASS (no such trial) |
+| F4: opacity is checked per ancestor, not multiplied | minor | **OPEN, fix BLOCKED (same file)** |
+| F5: lateness compared on durations rounded to 0.1 ms | nit | **Fixed** in the harness for later campaigns. Campaign 2's maximum was 1193.7 ms against 1600, so no outcome changes |
+| F6: no behavioural tests for findings 5, 6 and 7 | minor | **OPEN** |
+| F7: § 7 numbering; re-exposing `rows-not-examined` had no pre-declared rule | nit | Numbering clarified above. The re-exposure stands, and the owner may revert it |
+
+**Consequence:** the joint campaign-2 PASS stays valid evidence for the code at `bfd09ef`. Any product fix above
+changes that code, so a fresh joint campaign and a fresh review are required before N8 or N9 can close.
