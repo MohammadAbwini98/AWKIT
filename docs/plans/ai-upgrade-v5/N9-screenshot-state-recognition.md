@@ -321,3 +321,32 @@ the full matrix).
   - The findings that touch N9: a protected refusal of the second frame keeps the N7.7 and N8 codes (security 2,
     low), and a `CAPTURE_STALE` frame is not treated as a refusal (security 1, low).
   - The full list and dispositions are in the N8 plan § 10.
+- **Joint campaign 4 (2026-11-01, `9bda9ee`, after the final remediation in the N8 plan § 11):** **S-1 to S-5 MET in
+  all six cells.** Evidence: `evidence/joint/c4/`; campaigns 1 to 3 are untouched.
+  - The fixes that touch N9:
+    - one advisory refusal boundary: a second frame refused as protected, stale or closed, or one N7.7 refusal,
+      withdraws every N7.7, N8 and N9 code of the diagnosis. Before, only the state code became `skipped`;
+    - the handoff is rechecked once the advisory work is done;
+    - `appendAdvisoryCodes` reserves no slot for a state code the record already has.
+  - `verify:visual-state-runtime` case D now expects no state code at all and the N5 record kept.
+  - 0 false `ready` in 324 loading trials and 0 false `error` in 792 non-error trials.
+  - Recall: loading 805‰, empty 1000‰, error 694‰, ready 864‰. Decided 991‰ (892 of 900).
+  - State-work p95 339 ms (cell maximum 394 ms, headless@1). Record p95 635 ms, max 1082 ms. **0 records after the
+    1600 ms hard deadline, 0 cuts.**
+  - Protected: 72 trials refused with zero frames and no code. Disabled controls: no N8/N9 code, at most one frame,
+    none late.
+- **Joint campaign 5 (2026-11-01, `c4e91fc`, the final source after the NEW-1 fix in the N8 plan § 11): NOT MET.**
+  Evidence: `evidence/joint/c5/`.
+  - **N9 results:**
+    - five cells meet S-1 to S-5;
+    - in **headed@2**, S-3 ready (648‰) and S-5 (2 records after the 1600 ms hard deadline) are NOT MET;
+    - the pooled S-5 is NOT MET (p95 387 ms, but 2 late).
+  - **What the failure looks like:** all 7 overruns and 32 cuts of that cell fall in one contiguous block of variant-c
+    trials. That points to a time-local host slowdown, which is unproven.
+  - **What held:** S-1 0 false `ready` in 324; S-2 0 false `error` in 792; protected 72/72 refused.
+  - **Handling:** recorded unchanged, with no trial removed and no rerun.
+  - The final source is **not** qualified until a fresh full campaign passes.
+- **S-9:** NOT MET.
+  - Both fresh reviews of `280d9ab`, and both delta reviews of `8f87d15`, returned APPROVED WITH FINDINGS.
+  - Before N9 can close: a pre-declared campaign 6 on the final source, the owner's repeat rule, and owner decisions
+    on S2, S3 and F2 (N8 plan § 11).

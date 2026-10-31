@@ -1,6 +1,35 @@
 # Agent Handoff
 
-## HANDOFF (2026-11-01, latest) — review fixes BLOCKED this session; N8 and N9 open; Phase N NOT complete
+## HANDOFF (2026-11-01, latest) — N8/N9 remediation done; campaign 5 NOT MET; owner decisions pending; Phase N NOT complete
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:**
+  - every QC and security finding is fixed in code (`6ac690d`, `8f87d15`);
+  - campaigns 4 and 5 are recorded;
+  - both reviews and both delta reviews returned APPROVED WITH FINDINGS (N8 plan § 11).
+- **Owner decisions needed before closure:**
+  - **S2:** accept the handoff-only recheck (no fresh N0 scan) before the row DOM read.
+  - **S3:** accept the residual risks:
+    1. visible sensitive text is copied into one transient crop;
+    2. the container scan misses nested shadow roots and `contenteditable`;
+    3. closed roots are covered only by `checkVisibility`;
+    4. NEW-2: no `select` or child-iframe scan, and N0 does not cover card fields.
+
+    Or order hardening (fail closed on `iframe`, `select` and `contenteditable`).
+  - **F2:** approve the performance follow-up, or keep the limit documented.
+  - **Campaign 6 repeat rule:** whether one pass after campaign 5's recorded failure qualifies.
+- **Next single task (after those decisions):**
+  1. switch the seven `benchmark:visual-joint:*` scripts to `--campaign 6`;
+  2. pre-declare the run on the unchanged final source and run all six cells plus the aggregate;
+  3. report campaigns 5 and 6 side by side;
+  4. if they qualify, close `awkit-vra.10` and `.11` under a project-state lease on `awkit-vra-phase-n-tracker-1101`.
+- **Optional:** a lease-authorized headed@2 diagnostic under a separate id. The lease guard blocks a direct `tsx` run.
+- **Blocked (environment):** N7.1b, N7.8 and N7.9 (`verify:packaging-host` H4/H5); N7.9 then needs an independent
+  review.
+- **Preserved untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-11-01) — review fixes BLOCKED this session; N8 and N9 open; Phase N NOT complete
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

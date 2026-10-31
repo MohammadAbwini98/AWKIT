@@ -374,3 +374,199 @@ per cell over six lab fixtures; `budget-exhausted` count):
 | Sec 3 (part of S2): no handoff re-check right before the N8 DOM read | info | Reviewer recommends a free synchronous `handedOff` check |
 | S2 / S3 | low / info | Reviewer recommends **accept**. S3 is an owner decision |
 | F2 coverage (above) | major | **Owner decision**: accept the limit or move pixel work into a worker |
+
+## 11. Final remediation and joint campaign 4 (2026-11-01)
+
+**Fixes** (`6ac690d`; no tracker lease held while editing; frozen policies, criteria, thresholds and deadlines unchanged):
+- **One advisory refusal boundary (security S1, Sec 1, Sec 2).** `ADVISORY_REFUSALS` = `PROTECTED_SURFACE`,
+  `CAPTURE_STALE`, `PAGE_CLOSED`. Every N7.7, N8 and N9 code of a diagnosis is withdrawn when any of these holds:
+  - the verdict is `refused`;
+  - N5's frame, or any crop of it (the viewport, a member or the row container), comes back with one of those codes;
+  - N7.7 reports its own refusal (`protected-surface`, `handoff-active`, `page-closed` or `capture-stale`);
+  - N9's second frame, or its crop, is refused or stale (`state()` returns `null`);
+  - the handoff is active once the advisory work is done.
+
+  N5's own verdict, codes and refusal reporting are unchanged.
+- **Sec 3 (S2): handoff recheck.** The cheap `handedOff` check now runs right before N8's DOM row read. If a handoff
+  became active, the result is `protected-surface`, the same refusal as at the start. N0's protected checks stay the
+  authority for every frame. No parallel policy was added.
+- **S3: masked-field containers.** A row container that holds a masked field is never cropped or examined, and gets no
+  row code (`rowFacts` returns `undefined`).
+  - "Masked" is the N4.2 rule, read from attributes only and never from a value. N5's `masked()` check and this check
+    now share it (`MASKED_AUTOCOMPLETE` and `MASKED_DESCRIBED`).
+  - Example: a `cc-number` field in a different row of the same container.
+- **QC 1:** an abort check between the hit-test and visibility rounds.
+- **QC 2:** the visibility walk follows the flat tree, through `assignedSlot` and every open shadow host, nested, up to
+  the document.
+  - Opacity compounds along the way.
+  - It fails closed on a read error, an unreadable opacity, or a chain that does not reach the document.
+  - `checkVisibility({ opacityProperty, visibilityProperty })` covers what page script cannot walk, such as the inside of
+    a closed root.
+- **QC 3:** `memberCropPixels` is exported and tested behaviourally.
+- **QC 4:** S1 is now tested with refusals after the frame is taken:
+  - N9's second frame becomes protected after the row work;
+  - a handoff becomes active while the frame is held;
+  - the page navigates while either frame is held.
+- **QC 5:** `appendAdvisoryCodes` reserves no slot for a state code the record already has.
+- **Verifier-only probe:** `heldFrame(1 | 2)` holds each frame before its crops, so the navigation tests are
+  deterministic. Production passes no probe.
+
+**New regression coverage, and red proof.** The eight fixes were mutated back to the broken behaviour in the working
+tree; the committed fixes were never reverted.
+- `verify:visual-rows` failed exactly the 11 targeted checks (57/11):
+  - the hit-test cut, counted as a started visibility read in the Playwright client, because the cut's handle disposal
+    already stops the read reaching the page;
+  - nested-shadow opacity 0.2 × 0.2, with a full-opacity positive control that stays consistent;
+  - an unreadable shadow-internal ancestor;
+  - the handoff active by the row read (3 DOM row reads happened without the fix);
+  - N9's second frame refused as protected after the row work (`row-association-consistent`, `rows-look-alike` and
+    `visual-state-skipped` leaked without the fix);
+  - a handoff after the frame;
+  - navigation while N5's frame is held, and while N9's second frame is held;
+  - the masked-field container (it was cropped and given `row-association-consistent` without the fix);
+  - the two wiring pins.
+- `verify:visual-diagnosis-deadline` failed the 3 new checks (28/3): a duplicate state slot, a DPR-2 member (699 904
+  px counted instead of 2 799 616) and an edge-clipped member.
+- The two S3 checks for "no value or string in the record" pass even with the fixes reverted. That guarantee never
+  depended on the container scan, and the checks pin it.
+
+**Verification on the final source:** all PASS.
+- build PASS;
+- `verify:visual-rows` 68/0;
+- `verify:visual-diagnosis-deadline` 31/0;
+- `verify:visual-state-runtime` 26/0 (case D now expects no state code, not `skipped`, per Sec 2);
+- `verify:visual-diagnosis-runtime` 65/0;
+- `verify:visual-isolation` 117/0;
+- `verify:mock-site` 378/378;
+- `verify:protected-diagnosis` 75/0;
+- `verify:security` 61/0.
+
+**Joint campaign 4** (`9bda9ee`, evidence `evidence/joint/c4/`; N5, N8 and N9 all on; held-out variants b, c and d;
+the unchanged frozen criteria; strict accounting with no grace; campaigns 1 to 3 untouched):
+**PASS: every N8 and N9 criterion is MET in all six cells.**
+
+| Cell | Record p95 / max (ms) | N9 S-3 loading / empty / error / ready | S-4 | S-5 p95 | R-5 p95 |
+|---|---|---|---|---|---|
+| headless@1 | 636 / 787 | 777 / 1000 / 666 / 851‰ | 986‰ | 394 ms | 34 ms |
+| headless@1.25 | 438 / 702 | 814 / 1000 / 666 / 888‰ | 1000‰ | 253 ms | 33 ms |
+| headless@2 | 733 / 977 | 814 / 1000 / 750 / 851‰ | 986‰ | 355 ms | 54 ms |
+| headed@1 | 408 / 620 | 777 / 1000 / 666 / 851‰ | 986‰ | 229 ms | 35 ms |
+| headed@1.25 | 457 / 760 | 796 / 1000 / 666 / 888‰ | 1000‰ | 246 ms | 34 ms |
+| headed@2 | 714 / 1082 | 851 / 1000 / 750 / 851‰ | 986‰ | 349 ms | 49 ms |
+
+- **Volume:** 280 trials ran per cell, with no harness errors. Pooled: 972 state, 648 rows and 60 control trials.
+- **Deadline:** **0 hard-deadline overruns (late records), 0 cuts.** Record p50 427 ms, p95 635 ms, max 1082 ms against
+  1600.
+- **False positives:**
+  - N8: 0 false associations in 396; R-1 0 consistent claims in 180 adversarial trials; R-3 0 of 72 `look-alike` on
+    distinct rows.
+  - N9: S-1 0 false `ready` in 324; S-2 0 false `error` in 792.
+- **Recall:**
+  - N8: R-2 396/396; R-3 216/216; R-4 72/72 `partly-examined` and 36/36 `not-examined`.
+  - N9: S-3 805 / 1000 / 694 / 864‰; S-4 991‰ (892 of 900).
+- **Performance:** S-5 state work p95 339 ms (budget 600); R-5 row work p95 45 ms (budget 150).
+- **Protected control:** 72 trials refused, zero frames, no codes.
+- **Disabled control:** 60 trials, no N8/N9 code, at most one frame, none late.
+
+**S3: the sensitive-container data path, proven.** Owner disposition is still required for the residual risk below.
+
+| Guarantee | Where it holds | Proof |
+|---|---|---|
+| No additional screenshot for N8 | The container crop is `cropFromVisualFrame` of N5's own N0 frame | `verify:visual-rows` "still exactly one frame"; S3 "one frame" |
+| Crops are transient and released with the guarded frame | `dropRowPixels()` after `decideRows` and in the `finally` before `releaseVisualFrame` | F6 finding 7 event order; S3 sensitive-string case: `frame-taken`, `crop-taken`, `crop-dropped`, `frame-released` |
+| No raw pixels, field values or sensitive strings reach persistence, IPC, reports, logs or audit | The record is codes only (`visualDiagnosisRecord`). The runner sends records only to `onVisualDiagnosis` and logs none. Probes are verifier-only (production passes none, `PlaywrightRunner.ts`) | `verify:visual-diagnosis-runtime` codes-only keys and no log; S3 record checks: no card number or SSN, codes match `^[a-z][a-z0-9-]*$` |
+| Protected surfaces and forbidden authentication steps stay unread | N0 scan before any inspection; N0 checks before and after every frame; the handoff recheck before the row read; handoff steps refused first; masked-field containers never cropped | R-7 protected and handed-off cases; Sec 3 case; S1 cases; S3 masked-field case; campaign 4: 72 protected trials with zero frames |
+| Row evidence never controls actions | Codes are added after the N5 verdict and change no step status, locator or retry | `verify:visual-isolation`: the diagnosis adapter "observes and never acts"; `verify:visual-state-runtime` E: A/B neutrality; `verify:visual-rows`: no click, key, focus or scroll |
+
+**S3 residual risk, for explicit owner disposition (not self-approved):**
+1. **Visible sensitive text.** Text outside a masked field (for example an SSN printed in a cell) is copied into one
+   transient in-memory crop. The crop comes from the same N0 frame N5 already holds, and is reduced to codes and dropped
+   before the frame is released.
+2. **The masked-field scan has limits.** It reads `input` and `textarea` in the container's own tree only. Fields inside
+   a shadow root within the container, and `contenteditable` regions, are not scanned. N0's protected scan still covers
+   password, one-time-code and the other protected surfaces there.
+3. **Closed shadow roots.** The opacity walk cannot see inside one; only the engine's `checkVisibility` (opacity 0,
+   visibility) covers it.
+
+**F2: high-DPI N5 performance** (owner direction 2026-11-01; recorded as a **proposal pending owner approval**).
+- **Known limitation, unchanged:**
+  - 1920 × 1080 at DPR 1.5 with N5 alone is **not qualified and not successfully diagnosed**.
+  - The recorded result stays **48/48 `budget-exhausted`** in each mode.
+  - The 1000 ms deadline is preserved.
+  - No acceptance gate that needs this configuration is closed or waived.
+- **Proposed follow-up** (a separate task, not started):
+  1. measure where the whole-frame chunk's ~200 ns/px goes, and cut that cost;
+  2. chunk the whole-frame crop and fingerprint behind yield-and-budget checkpoints;
+  3. bound the processed pixels (for example a fixed-size subsampled plane for the viewport fingerprint), measured
+     against the frozen criteria before any adoption;
+  4. a worker-thread feasibility study (transfer cost, packaging, offline runtime).
+
+**Fresh reviews of `280d9ab`** (both read-only; each reviewer's verifier runs were BLOCKED by the lease guard):
+
+**Verdicts:** **QC APPROVED WITH FINDINGS** and **security APPROVED WITH FINDINGS**. Neither is unconditional.
+- **Resolved, as confirmed by the reviewers:** QC 1 to 5, Sec 1 (for the paths tested), Sec 2, Sec 3, S1, S4, F1, F4
+  and F6.
+- **S2:** security says ACCEPTED-RISK, owner decision needed. Only a handoff recheck runs before the row read, not a
+  fresh N0 scan. QC says RESOLVED.
+- **S3 and F2:** both reviewers say ACCEPTED-RISK, owner decision needed.
+- **Security NEW-1 (low), and QC nit 1 (the same gap on N9's second frame).** Staleness was noticed only when a crop
+  happened to see it. A navigation after the crops was then overwritten as `TARGET_STALE`, so the codes stayed.
+- **Security NEW-2 (info, for S3).** The container scan does not see `select` elements or child iframes, such as hosted
+  card fields. N0's protected scan does not cover card fields at all.
+- **QC nits 2 and 3:** the evidence records the revision but not whether the tree was clean; the regex wiring pins are
+  brittle.
+
+**NEW-1 fix** (`8f87d15`):
+- N0's stale mark is read with a 1-px crop right before N5's frame is released, and on N9's second frame before the
+  time-left check.
+- A refused crop is no longer overwritten as `TARGET_STALE`.
+- New test, "navigation after the crops, before release". Red proof: with the release check disabled it failed
+  (`row-association-inconclusive` and `rows-inconclusive` leaked).
+- Verifiers on `8f87d15`: build PASS, `verify:visual-rows` 69/0, `verify:visual-state-runtime` 26/0,
+  `verify:visual-diagnosis-deadline` 31/0, `verify:visual-diagnosis-runtime` 65/0, `verify:visual-isolation` 117/0.
+  Mock-site, protected-diagnosis and security were not rerun, because their inputs did not change.
+
+**Joint campaign 5** (`c4e91fc`, the final source, evidence `evidence/joint/c5/`, the same strict accounting and frozen
+criteria): **NOT MET.**
+- Five cells meet every criterion.
+- **headed@2** had 7 hard-deadline overruns (+44 to +190 ms) and 32 cuts. As a result S-3 ready (648‰), S-5 (2 late),
+  R-2 (727‰), R-3 recall (666‰) and R-5 (5 late) are NOT MET there.
+- Every overrun and cut falls in **one contiguous block of about 40 variant-c trials** (cell file lines ~2687 to 3348).
+  The block spans the end of the state lab and the start of the rows lab, and the other five cells kept their usual
+  timings (record p95 390 to 744 ms).
+- Classification, **unproven:** a time-local host slowdown, not a code path. The only product delta from campaign 4 is
+  one 1-px crop per frame.
+- Pooled: R-1 0 claims in 180 adversarial trials, 0 false associations, 0 false `ready` and 0 false `error`, 72/72
+  protected refusals with zero frames and no codes, and clean disabled controls.
+- The result is recorded unchanged: no trial was removed, nothing was tuned, and the cell was not rerun or overwritten.
+  A diagnostic rerun under a separate id was BLOCKED by the lease guard (NOT RUN).
+- **So the final source is not qualified.** Campaign 4 qualified `9bda9ee`, the code before the NEW-1 fix. A fresh full
+  campaign under controlled host conditions is required before R-1 to R-5 and S-1 to S-5 can be claimed for the final
+  source.
+
+**Delta reviews of `8f87d15` and campaign 5** (both read-only, run by the same reviewers):
+
+**Verdicts:** **security APPROVED WITH FINDINGS** and **QC APPROVED WITH FINDINGS**. Neither is unconditional.
+- **NEW-1:** RESOLVED (both reviewers). **QC nit 1:** RESOLVED.
+  - Remaining nit: no test covers the low-time branch of the second-frame check.
+  - Security notes two limits, neither a security issue: a navigation after release is not seen, and a viewport change
+    is detected only by N0's async check.
+- **NEW-2:** ACCEPTED-RISK, owner decision needed (part of S3).
+- **Campaign 5 (QC):** NOT MET, recorded truthfully. Campaign 4 cannot qualify the final source, under § 9's rule. The
+  host-slowdown explanation is plausible but unproven, and must not be used to drop trials, add grace or waive the cell.
+- **Campaign 5 (security):** no security relevance. Protected refusals and false-claim controls held in the failing
+  cell.
+- **Required to qualify** (QC):
+  1. keep campaign 5 as recorded;
+  2. pre-declare a fresh campaign 6 on the unchanged final source: all six cells, the frozen criteria, held-out
+     variants, strict accounting and both controls;
+  3. report campaigns 5 and 6 side by side;
+  4. **the owner decides before the run** whether one pass after a recorded failure qualifies, or sets a repeat rule;
+  5. optionally, run a lease-authorized headed@2 diagnostic under a separate id that never counts as qualification.
+- **Consequence:** R-9 and S-9 stay NOT MET, and `awkit-vra.10` and `awkit-vra.11` stay IN PROGRESS.
+- **Owner decisions pending:**
+  - S2 (security: no fresh N0 scan before the row read);
+  - S3 (residual risks 1 to 3, plus NEW-2);
+  - F2 (the follow-up proposal);
+  - the campaign 6 repeat rule.
+

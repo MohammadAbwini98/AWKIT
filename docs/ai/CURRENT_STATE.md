@@ -1,6 +1,39 @@
 # CURRENT_STATE
 
-## Phase N: N5 deadline fixed; N8+N9 joint qualification PASS; reviews not unconditional; Phase N NOT complete (2026-11-01, latest)
+## Phase N: N8/N9 final remediation; campaign 5 NOT MET; reviews APPROVED WITH FINDINGS; N8, N9 and Phase N open (2026-11-01, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases; no ledger case was touched.
+
+- **Fixes:**
+  - `6ac690d`: one advisory refusal boundary (Sec 1-2): a protected, stale or closed frame or crop, an N7.7 refusal, a
+    refused verdict or a late handoff withdraws every N7.7, N8 and N9 code;
+  - `6ac690d`: a handoff recheck before the row read (Sec 3);
+  - `6ac690d`: masked-field row containers are never cropped (S3);
+  - `6ac690d`: QC 1-5 (an abort check between hit test and visibility, flat-tree opacity through nested shadow roots,
+    behavioural tests for `memberCropPixels`, S1 tested after the frame, no wasted state slot);
+  - `8f87d15`: the review's NEW-1 (N0's stale mark is read before each frame is released).
+  - Every fix has a red proof.
+- **Verifiers on `8f87d15`:**
+  - build PASS;
+  - `verify:visual-rows` 69/0, `verify:visual-diagnosis-deadline` 31/0, `verify:visual-state-runtime` 26/0;
+  - `verify:visual-diagnosis-runtime` 65/0, `verify:visual-isolation` 117/0;
+  - at `6ac690d`: `verify:mock-site` 378/378, `verify:protected-diagnosis` 75/0, `verify:security` 61/0.
+- **Joint campaigns:**
+  - campaign 4 (`9bda9ee`, before NEW-1): PASS in all six cells, 0 overruns, 0 cuts;
+  - **campaign 5 (`c4e91fc`, the final source): NOT MET.** Five cells pass. headed@2 has 7 overruns and 32 cuts in one
+    contiguous burst (host slowdown suspected, unproven), and it is recorded unchanged.
+  - Every campaign: 0 false associations, and 72/72 protected trials refused with zero frames.
+- **Reviews:**
+  - QC and security returned APPROVED WITH FINDINGS on `280d9ab`, and again on `8f87d15`.
+  - **N8 `awkit-vra.10` and N9 `awkit-vra.11` stay IN PROGRESS.**
+  - To close: a pre-declared campaign 6 with an owner repeat rule, and owner decisions on S2, S3 (with NEW-2) and F2
+    (N8 plan § 11).
+- **F2:** N5 alone at 1920 × 1080, DPR 1.5 is NOT qualified (48/48 `budget-exhausted`). A follow-up is proposed, pending
+  owner approval.
+- **Still BLOCKED:** N7.1b, N7.8 and N7.9 (packaging host H4/H5). N7.10 `awkit-2shc` stays open. N6P and N10 stay
+  outside Phase N closure. **Phase N is NOT complete.**
+
+## Phase N: N5 deadline fixed; N8+N9 joint qualification PASS; reviews not unconditional; Phase N NOT complete (2026-11-01)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

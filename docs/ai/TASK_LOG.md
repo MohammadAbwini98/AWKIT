@@ -1,5 +1,41 @@
 # TASK_LOG
 
+## 2026-11-01 — Phase N: final N8/N9 review remediation, campaigns 3 to 5, fresh reviews (Claude)
+
+- **Commits:**
+  - `3a83c0f`: S1, S4, F1, F4, F6;
+  - `3af7ba1`: campaign 3 PASS and N5 coverage;
+  - `578ecd7`: plans;
+  - `6ac690d`: the one advisory refusal boundary (Sec 1-2), the handoff recheck before the row read (Sec 3), the
+    masked-field container refusal (S3), QC 1-5;
+  - `4902494` and `9bda9ee`: campaign 4 scripts;
+  - `280d9ab`: campaign 4 PASS in all six cells;
+  - `8f87d15`: security NEW-1, the stale mark read before each frame is released;
+  - `c4e91fc`: campaign 5 scripts;
+  - `c4811b4`: campaign 5 NOT MET, recorded unchanged;
+  - then the plans, state docs and Beads notes.
+- **Tests (on `8f87d15`):**
+  - build PASS;
+  - `verify:visual-rows` 69/0;
+  - `verify:visual-diagnosis-deadline` 31/0;
+  - `verify:visual-state-runtime` 26/0;
+  - `verify:visual-diagnosis-runtime` 65/0;
+  - `verify:visual-isolation` 117/0;
+  - at `6ac690d`: `verify:mock-site` 378/378, `verify:protected-diagnosis` 75/0, `verify:security` 61/0;
+  - `typecheck:scripts`: PASS, after typing the `sleep` helper in `verify-visual-rows.mts` (a type-only fix for an
+    error from `3a83c0f`).
+- **Red proof:**
+  - with the eight fixes mutated back: rows 57/11, deadline 28/3;
+  - with the NEW-1 release check disabled: rows 67/2.
+- **Benchmarks:**
+  - campaign 4 PASS;
+  - campaign 5 NOT MET: headed@2 had 7 overruns and 32 cuts in one burst;
+  - a diagnostic headed@2 rerun is BLOCKED (lease guard), NOT RUN.
+- **Reviews:** QC and security returned APPROVED WITH FINDINGS on `280d9ab`, and again on the `8f87d15` delta. S2, S3
+  (with NEW-2), F2 and the campaign 6 repeat rule are owner decisions.
+- **Beads:** N8 `.10` and N9 `.11` notes updated; both stay IN PROGRESS.
+- **Result:** Phase N is NOT complete.
+
 ## 2026-11-01 — Phase N: QC remediation, N5 deadline fix, joint N8+N9 qualification (Claude)
 
 - **Commits:**

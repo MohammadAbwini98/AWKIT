@@ -1,7 +1,37 @@
 # KNOWN_ISSUES
 
-## Phase N diagnosis deadline and page-side code (2026-10-31, OPEN)
+## N5 high-DPI coverage and N8 sensitive-container residuals (2026-11-01, OPEN, owner disposition pending)
 
+- **N5 alone is not qualified at 1920 × 1080, DPR 1.5 (OPEN, known limitation, measured; QC F2).**
+  - With N5 alone, every trial is `budget-exhausted`: 48 of 48 headless and 48 of 48 headed
+    (`benchmark:visual-coverage`, `evidence/n5-coverage/`).
+  - The 4.67 Mpx frame needs a ~933 ms whole-frame reserve, more than N5's 900 ms work budget.
+  - This configuration is **not qualified and is never diagnosed**. The 1000 ms deadline and the recorded results stay
+    unchanged, and no gate that requires it is closed or waived.
+  - DPR 1 fits (0 to 2 of 48). With N8 and N9 on (1600 ms), 0 to 5 of 48.
+  - **Proposed follow-up, pending owner approval:** measure and cut the per-pixel cost, chunk the whole-frame work,
+    bound the processed pixels, and study a worker thread. Details: N8 plan § 11.
+- **N8 sensitive-container crops (OPEN residual risk, owner disposition required; security S3).**
+  - A row container that holds a masked field (the N4.2 rule) is never cropped or examined.
+  - Visible sensitive text outside such a field is copied into one transient in-memory crop of N5's own frame. Only
+    codes leave, and the crop is dropped before the frame is released.
+  - The scan covers the container's own `input` and `textarea` only: not fields inside a nested shadow root, and not
+    `contenteditable`. Page script cannot walk the inside of a closed shadow root; the engine's `checkVisibility`
+    covers it.
+  - Data-path proof: N8 plan § 11.
+  - Security NEW-2 (info): the scan also misses `select` and child iframes, such as hosted card fields, and N0's
+    protected scan does not cover `cc-number` or `cc-csc`.
+- **Joint campaign 5 headed@2 burst (OPEN, environment suspected, unproven).**
+  - 7 hard-deadline overruns (+44 to +190 ms) and 32 cuts, all in one contiguous block of about 40 variant-c trials.
+  - The other five cells kept their normal timings.
+  - It is recorded unchanged, with nothing rerun or dropped.
+  - A diagnostic rerun under a separate id needs a package script or lease authorization; the lease guard blocks a
+    direct `npx tsx` run.
+
+## Phase N diagnosis deadline and page-side code (2026-10-31, deadline RESOLVED 2026-11-01; page-side rule OPEN)
+
+- **RESOLVED 2026-11-01:** the N5 deadline fix (`f5860d1`, `bfd09ef`) settles at a work budget behind checkpoints.
+  Joint campaigns 2, 3 and 4 measured 0 hard-deadline overruns. History follows.
 - **The N5 diagnosis can settle after its deadline (OPEN, correctness, measured).**
   - Synchronous pixel work blocks the deadline timer: PNG decode, crops and fingerprints at full device
     resolution. On this ARM64 host the x64 Node build runs under emulation.

@@ -170,7 +170,7 @@ async function diagnose(
   };
 }
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 async function main(): Promise<void> {
   console.log("A. Decision (pure)");
