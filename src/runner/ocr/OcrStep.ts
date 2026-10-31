@@ -12,7 +12,18 @@ import {
 } from "@src/visual";
 import type { ElementHandle, Locator, Page } from "playwright";
 import { sensitiveTarget } from "../visualAssertion/sensitiveTarget";
-import { OCR_ASSERTION_DEADLINE_MS, type OcrAssertionAssessment, type OcrAssertionAssessRequest, type OcrAssertionAssessor, type OcrRecognizer } from "./ocrAssertionContract";
+import {
+  OCR_ASSERTION_DEADLINE_MS,
+  OCR_TEXT_SIGNAL_MARGIN_MS,
+  OCR_TEXT_SIGNAL_MIN_MS,
+  type OcrAssertionAssessment,
+  type OcrAssertionAssessRequest,
+  type OcrAssertionAssessor,
+  type OcrRecognizer,
+  type OcrTextSignal,
+  type OcrTextSignalOutcome,
+  type OcrTextSignalRequest
+} from "./ocrAssertionContract";
 
 /**
  * N7.5 (awkit-vra.9.6): the observe-only OCR assertion adapter. The FIFTH and only additional runner-side module allowed
@@ -236,6 +247,84 @@ export class OcrStep implements OcrAssertionAssessor {
   private inconclusive(started: number, code: string): OcrAssertionAssessment {
     return { verdict: "inconclusive", code, durationMs: Math.round(performance.now() - started) };
   }
+
+  /**
+   * N7.7 (awkit-vra.9.8): the advisory OCR-vs-accessible-name signal (contract `OcrTextSignal`). It reuses this adapter's
+   * pipeline unchanged (refusals, the one N0 capture, N7.2 preprocessing and decision) with the DOM-proven target's
+   * accessible name as the expected text. It runs only on an already warm, idle host, through a recognizer that never
+   * starts, waits for or queues behind one. Before the name is even read: the budget, the handoff, the protected
+   * surface, exactly one element and the N6.8 sensitive container. Effect none; codes only; never throws.
+   */
+  readonly textSignal = async (request: OcrTextSignalRequest): Promise<OcrTextSignal> => {
+    const started = performance.now();
+    const elapsed = () => performance.now() - started;
+    const skipped = (code: string): OcrTextSignal => ({ outcome: "skipped", code, durationMs: Math.round(elapsed()) });
+    const deadlineMs = Math.min(OCR_ASSERTION_DEADLINE_MS, request.deadlineMs - OCR_TEXT_SIGNAL_MARGIN_MS);
+    let handle: ElementHandle | null = null;
+    try {
+      if (deadlineMs < OCR_TEXT_SIGNAL_MIN_MS) return skipped("budget-exhausted");
+      if (request.signal?.aborted) return skipped("cancelled");
+      if (pageClosed(request.page)) return skipped("page-closed");
+      if (request.handedOff !== false) return skipped("handoff-active");
+      const readiness = this.options.recognizer.readiness?.() ?? "cold";
+      if (readiness !== "ready") return skipped(readiness === "busy" ? "ocr-busy" : "ocr-unavailable");
+      if ((await checkProtectedSurface(request.page).catch(() => ({ protected: true as const }))).protected) return skipped("protected-surface");
+      if ((await request.target.count()) !== 1) return skipped("target-not-unique");
+      handle = await request.target.elementHandle({ timeout: remaining(started, deadlineMs) });
+      if (!handle) return skipped("target-not-found");
+      if (await sensitiveTarget(handle)) return skipped("sensitive-step");
+      const name = accessibleName(await request.target.ariaSnapshot({ timeout: remaining(started, deadlineMs) }));
+      if (!name) return skipped("no-accessible-name");
+      const left = deadlineMs - elapsed();
+      if (left < OCR_TEXT_SIGNAL_MIN_MS) return skipped("budget-exhausted");
+      const assessment = await new OcrStep({ recognizer: warmOnly(this.options.recognizer) }).assess({
+        // The adapter's own pipeline expects its own step type; this synthetic step never reaches a report or a flow.
+        step: { id: "n7-7-text-signal", type: "assertImageText" } as unknown as OcrAssertionAssessRequest["step"],
+        page: request.page,
+        target: async () => request.target,
+        handedOff: request.handedOff,
+        expected: { text: name, match: "normalized", otpOrPinContext: false },
+        deadlineMs: left,
+        limitScreenshot: (work) => work(),
+        ...(request.signal ? { signal: request.signal } : {})
+      });
+      return { outcome: textSignalOutcome(assessment.code), code: assessment.code, durationMs: Math.round(elapsed()) };
+    } catch {
+      return skipped(request.signal?.aborted ? "cancelled" : "capture-unavailable");
+    } finally {
+      if (handle) void handle.dispose().catch(() => undefined);
+    }
+  };
+}
+
+/** N7.7: the N7.2 decision code as an advisory outcome. Refusals and failures are `skipped` with their own code. */
+export function textSignalOutcome(code: string): OcrTextSignalOutcome {
+  if (code === "text-matched") return "similar";
+  if (code === "text-differs") return "differs";
+  if (code === "near-miss" || code === "lookalike-only-difference" || code === "lookalike-uncertain" || code === "ambiguous-match") return "uncertain";
+  if (code === "low-confidence" || code === "no-text-read" || code === "ocr-output-invalid") return "unreadable";
+  return "skipped";
+}
+
+/** N7.7: the accessible name of the element's own ARIA snapshot line (`- role "name"`), or null when it has none. */
+export function accessibleName(snapshot: string): string | null {
+  const first = snapshot.split("\n").find((line) => line.trim().startsWith("-"));
+  const match = first?.match(/^\s*-\s+[a-z][a-z0-9-]*\s+"((?:[^"\\]|\\.)*)"/);
+  const name = match ? match[1].replace(/\\(.)/g, "$1").trim() : "";
+  return name ? name : null;
+}
+
+/** N7.7: a recognizer that answers only from an already warm, idle host; it never prepares, starts or queues one. */
+function warmOnly(recognizer: OcrRecognizer): OcrRecognizer {
+  const now = () => recognizer.readiness?.() ?? "cold";
+  return {
+    readiness: now,
+    recognize: (image, options) => {
+      const state = now();
+      if (state !== "ready") return Promise.resolve<Awaited<ReturnType<OcrRecognizer["recognize"]>>>({ ok: false, reason: state === "busy" ? "ocr-busy" : "ocr-unavailable" });
+      return recognizer.recognize(image, options);
+    }
+  };
 }
 
 function pageClosed(page: Page): boolean {

@@ -23,7 +23,7 @@ import type {
   VisualAssertionRuntime
 } from "./visualAssertion/visualAssertionContract";
 import type { OcrStepOptions } from "./ocr/OcrStep";
-import type { OcrAssertionAssessor, OcrAssertionMode, OcrAssertionRecord, OcrAssertionRuntime } from "./ocr/ocrAssertionContract";
+import type { OcrAssertionAssessor, OcrAssertionMode, OcrAssertionRecord, OcrAssertionRuntime, OcrTextSignalSource } from "./ocr/ocrAssertionContract";
 import type { DomIntelligenceRecoveryOptions } from "./domIntelligence/DomIntelligenceProvider";
 import { toRecoveryProvenance } from "./domIntelligence/recoveryProvenance";
 import { ManualHandoffController } from "./ManualHandoffController";
@@ -963,7 +963,8 @@ export class PlaywrightRunner {
             folder: this.options.visualFusionRoot,
             handedOff: (target) => this.pageHandedOff(target),
             ...(this.options.visualAgreement ? { agreement: this.options.visualAgreement } : {}),
-            ...(this.options.visualRecordedFallback === true ? { recordedFallback: true } : {})
+            ...(this.options.visualRecordedFallback === true ? { recordedFallback: true } : {}),
+            ...this.ocrTextSignalOption()
           })
         : undefined,
       onRecoveryEvent: (event) =>
@@ -989,8 +990,26 @@ export class PlaywrightRunner {
       folder: this.options.visualDiagnosisRoot,
       handedOff: (target) => this.pageHandedOff(target),
       ...(this.options.visualRecordedFallback === true ? { recordedFallback: true } : {}),
-      ...(sink ? { onRecord: (record: VisualDiagnosisRecord) => sink(record) } : {})
+      ...(sink ? { onRecord: (record: VisualDiagnosisRecord) => sink(record) } : {}),
+      ...this.ocrTextSignalOption()
     });
+  }
+
+  /**
+   * N7.7 (awkit-vra.9.8): the advisory OCR text signal for N2 and N5, offered only with OCR on (`observe`). It loads the
+   * N7.5 adapter through the same lazy loader as `assertImageText`, counting the load against the caller's budget, so
+   * with OCR off nothing is offered, loaded or forked. Effect none, codes only.
+   */
+  private ocrTextSignalOption(): { textSignal: OcrTextSignalSource } | {} {
+    const options = this.options.ocrAssertions;
+    if (!options || options.mode !== "observe") return {};
+    const textSignal: OcrTextSignalSource = async (request) => {
+      const started = performance.now();
+      const assessor = await (this.ocrAssertionLoader ??= lazyOcrAssertion(options.adapter))().catch(() => undefined);
+      if (!assessor?.textSignal) return { outcome: "skipped", code: "ocr-unavailable", durationMs: Math.round(performance.now() - started) };
+      return assessor.textSignal({ ...request, deadlineMs: request.deadlineMs - (performance.now() - started) });
+    };
+    return { textSignal };
   }
 
   private visualAssertionLoader?: () => Promise<VisualAssertionAssessor | undefined>;

@@ -803,8 +803,9 @@ try {
   // Then 34/400 of 434 on 2026-10-27: N7.5 `.9.6` closed on its executed source gates (4a47d9e, 9a488ab). Measured.
   // Then 34/401 of 435 on 2026-10-28 (ratified A1): N7.6 `.9.7` closed as a completed NO-GO investigation (qualification
   // NOT MET) and N7.10 `awkit-2shc` filed open. Measured.
-    "34 outstanding / 401 closed",
-    beads.stats.outstanding === 34 && beads.stats.closed === 401,
+  // Then 33/402 of 435 on 2026-10-31: N7.7 `.9.8` closed on its executed gates (verify:ocr-text-signal 49/0). Measured.
+    "33 outstanding / 402 closed",
+    beads.stats.outstanding === 33 && beads.stats.closed === 402,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

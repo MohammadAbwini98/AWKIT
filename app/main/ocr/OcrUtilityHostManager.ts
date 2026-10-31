@@ -116,6 +116,17 @@ export class OcrUtilityHostManager {
     };
   }
 
+  /**
+   * N7.7: `ready` only when a live host is idle with nothing queued; `busy` when a job runs or waits; otherwise `cold`
+   * (stopped, starting, stopping, failed open or disposed). The advisory text signal runs only on `ready`, so it never
+   * starts a host, waits for one, or delays an `assertImageText` job. A read; it changes nothing.
+   */
+  readiness(): "ready" | "cold" | "busy" {
+    if (this.disposed || !this.live) return "cold";
+    if (this.running || this.queue.length > 0 || this.state === "busy") return "busy";
+    return this.state === "ready" ? "ready" : "cold";
+  }
+
   /** Recognize one preprocessed plane. Never rejects: every outcome is words or a reason. */
   recognize(image: OcrHostImage, options: { deadlineMs?: number; signal?: AbortSignal } = {}): Promise<OcrHostOutcome> {
     return new Promise((resolve) => {

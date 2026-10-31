@@ -857,7 +857,32 @@ release host. That needs `verify:packaging-host` READY, which today is BLOCKED a
 
   The 2026-10-27 FAILs stay recorded.
 
-**N7.7 design points (2026-10-31): not started.** The ratified contract is two lines: an N2 OCR-vs-accessible-name
+**N7.7 DELIVERED and closed (2026-10-31; owner confirmed the six defaults below).**
+- **Implementation:**
+  - `OcrStep.textSignal`, built on the unchanged N7.5 pipeline and a warm-only recognizer.
+  - `OcrUtilityHostManager.readiness()`.
+  - The N2 `VisualFusionStage` record gains `textSignal`, sanitized into the recovery provenance as `ocrText`, two
+    codes only.
+  - The N5 `VisualFailureDiagnosis` gains `target-text-differs-from-name` or `target-text-unreadable`, with renderer
+    sentences labelled "Unverified OCR evidence".
+  - Wired only with `AWKIT_VISUAL_OCR=observe`.
+- **Gates:**
+
+  | Gate | Result |
+  |---|---|
+  | `verify:ocr-text-signal` (new) | 49/0, with effect and leak negative controls and mutated-source rules |
+  | `verify:visual-fusion-runtime` | 146/0 |
+  | `verify:visual-diagnosis-runtime` | 65/0 |
+  | `verify:visual-diagnosis-report` | 63/0 |
+  | `verify:visual-diagnosis-gui` | 42/0 |
+  | `verify:ocr-runtime` | 86/0 |
+  | `verify:ocr-host` | 54/0 |
+  | `verify:visual-isolation` | 117/0, five edges |
+
+- **Limits:** the real engine is exercised end to end only by its own verifiers, not inside an N2 or N5 run.
+  `readiness()` on the live manager is covered at source level.
+
+**N7.7 design points (2026-10-31), confirmed by the owner and implemented:** The ratified contract is two lines: an N2 OCR-vs-accessible-name
 similarity, shadow, effect `none`; and N5 codes such as `target-text-differs-from-name` or `target-text-unreadable`.
 Implementing it changes runner hot paths, so these points are settled first. Recommended defaults, for owner
 confirmation:

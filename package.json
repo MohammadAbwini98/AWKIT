@@ -348,6 +348,7 @@
     "benchmark:ocr-report": "tsx scripts/benchmark-ocr.mts --report",
     "benchmark:ocr-ambiguity": "tsx scripts/benchmark-ocr-ambiguity.mts",
     "verify:ocr-ambiguity": "tsx scripts/verify-ocr-ambiguity.mts",
+    "verify:ocr-text-signal": "tsx scripts/verify-ocr-text-signal.mts",
     "benchmark:ocr-engine-spike": "tsx scripts/benchmark-ocr-engine-spike.mts",
     "verify:ocr-engine-spike": "tsx scripts/verify-ocr-engine-spike.mts",
     "prepare:ocr-lab-fonts": "node scripts/prepare-ocr-lab-fonts.mjs",

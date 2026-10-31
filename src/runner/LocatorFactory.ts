@@ -203,6 +203,8 @@ export interface LocatorRecoveryVisual {
   competitorScore?: number;
   /** N4.6: which stored reference the verdict compared against; a fixed code. "recorded" always has effect "none". */
   referenceSource?: VisualReferenceSourceCode;
+  /** N7.7: the advisory OCR-vs-accessible-name signal (unverified OCR evidence): two fixed codes, never text. */
+  ocrText?: { outcome: string; code: string };
 }
 
 /** N4.6: the fixed reference-source codes a trace may carry. */
@@ -360,6 +362,8 @@ export interface LocatorVisualVerdict {
   effect: "none" | "veto";
   evidence: { winnerScore?: number; bestCompetitorScore?: number };
   referenceSource?: string;
+  /** N7.7: the advisory OCR text signal, codes only. */
+  textSignal?: { outcome: string; code: string };
 }
 
 /**
@@ -1069,7 +1073,9 @@ export class LocatorFactory {
       ...source,
       ms: performance.now() - started,
       ...(typeof winnerScore === "number" ? { winnerScore } : {}),
-      ...(typeof bestCompetitorScore === "number" ? { competitorScore: bestCompetitorScore } : {})
+      ...(typeof bestCompetitorScore === "number" ? { competitorScore: bestCompetitorScore } : {}),
+      // N7.7: copied as two strings only; the provenance sanitizer keeps them only as fixed codes.
+      ...(verdict.textSignal ? { ocrText: { outcome: String(verdict.textSignal.outcome), code: String(verdict.textSignal.code) } } : {})
     };
   }
 

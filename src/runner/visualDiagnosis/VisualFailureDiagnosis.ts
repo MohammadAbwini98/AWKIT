@@ -33,6 +33,8 @@ import {
   type VisualDiagnosisRequest,
   type VisualFailureDiagnoser
 } from "./visualDiagnosisContract";
+import { VISUAL_DIAGNOSIS_RECORD_MAX_OBSERVATIONS } from "./visualDiagnosisRecord";
+import { OCR_TEXT_SIGNAL_DIAGNOSIS_CODES, type OcrTextSignalSource } from "../ocr/ocrAssertionContract";
 
 /**
  * N5.3 (awkit-vra.14.3): the Visual Failure Diagnosis adapter. The third and last runner-side module allowed to import
@@ -111,6 +113,12 @@ export interface VisualFailureDiagnosisOptions {
   /** Verifier override of the read; production builds a read-only view of the store from `folder`. */
   reader?: VisualDiagnosisReferenceReader;
   probe?: VisualDiagnosisProbe;
+  /**
+   * N7.7: the advisory OCR text signal, offered only with `AWKIT_VISUAL_OCR=observe`. Asked after the diagnosis is
+   * decided, only for exactly one visible in-viewport match, with what is left of the deadline. It may add only
+   * `target-text-differs-from-name` or `target-text-unreadable` (unverified OCR evidence); nothing else changes.
+   */
+  textSignal?: OcrTextSignalSource;
 }
 
 interface MemberBox {
@@ -382,7 +390,22 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
       members,
       viewport: viewportInput
     });
-    return this.toRecord(request, kind, verdict, started);
+    // N7.7: advisory only, after the verdict is decided; a DOM-proven, unique, visible target only.
+    const textCodes: string[] = [];
+    if (this.options.textSignal && matches === 1 && target?.inViewport && !target.zeroSize && !signal.aborted) {
+      const text = await bounded(
+        this.options
+          .textSignal({ page, target: locator, handedOff: this.handedOff(page), deadlineMs: this.remaining(started, deadlineMs), signal })
+          .catch(() => undefined)
+      );
+      const code = text ? OCR_TEXT_SIGNAL_DIAGNOSIS_CODES[text.outcome] : undefined;
+      if (code) textCodes.push(code);
+    }
+    const record = this.toRecord(request, kind, verdict, started);
+    for (const code of textCodes) {
+      if (record.observations.length < VISUAL_DIAGNOSIS_RECORD_MAX_OBSERVATIONS && !record.observations.includes(code)) record.observations.push(code);
+    }
+    return record;
   }
 
   /** Runtime key first; only a missing runtime reference falls back to the recorded key (N4.6). Read only. */

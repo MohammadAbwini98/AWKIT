@@ -39,7 +39,51 @@ export interface OcrRecognizer {
    * once every pre-capture refusal has passed (a refused assertion never starts a host). Never throws.
    */
   prepare?(): void;
+  /**
+   * N7.7: whether a host is already up and idle. The advisory text signal runs only on `ready`; it never starts a host,
+   * waits for one, or queues behind (or ahead of) an `assertImageText` job. Absent means `cold`.
+   */
+  readiness?(): "ready" | "cold" | "busy";
 }
+
+/**
+ * N7.7 (awkit-vra.9.8): the advisory OCR-vs-accessible-name signal for a DOM-proven target, N2 shadow and N5 codes only.
+ * EFFECT NONE: it never selects a locator, acts, branches, retries, waits or changes a step's result. Codes only: the
+ * recognized text and the accessible name stay in memory for the N7.2 comparison and are never returned. The recognizer
+ * is unqualified (OC-10 NOT MET), so every display labels it as unverified OCR evidence (A1.9).
+ */
+export type OcrTextSignalOutcome = "similar" | "differs" | "uncertain" | "unreadable" | "skipped";
+
+export interface OcrTextSignal {
+  outcome: OcrTextSignalOutcome;
+  /** The N7.2 decision code, or the reason it was skipped. A fixed code, never text. */
+  code: string;
+  durationMs: number;
+}
+
+export interface OcrTextSignalRequest {
+  page: Page;
+  /** The DOM-proven target (the recovered winner, or the diagnosed step's unique match). Never chosen from OCR. */
+  target: Locator;
+  /** I5, fail-closed: only an explicit `false` lets anything touch the page. */
+  handedOff: boolean;
+  /** What is left of the caller's own budget; the signal never uses more. */
+  deadlineMs: number;
+  signal?: AbortSignal;
+}
+
+/** Below this many milliseconds the signal is skipped (`budget-exhausted`) without touching the page. */
+export const OCR_TEXT_SIGNAL_MIN_MS = 120;
+/** Kept back from the caller's remaining budget, so the signal settles before the caller's own deadline. */
+export const OCR_TEXT_SIGNAL_MARGIN_MS = 60;
+
+export type OcrTextSignalSource = (request: OcrTextSignalRequest) => Promise<OcrTextSignal>;
+
+/** N7.7: the codes N5 may add to a diagnosis, for these outcomes only. */
+export const OCR_TEXT_SIGNAL_DIAGNOSIS_CODES: Readonly<Partial<Record<OcrTextSignalOutcome, string>>> = {
+  differs: "target-text-differs-from-name",
+  unreadable: "target-text-unreadable"
+};
 
 export interface OcrAssertionExpectation {
   /** The resolved expected text. Held in memory for the decision only; never recorded or logged. */
@@ -76,6 +120,8 @@ export interface OcrAssertionAssessment {
 /** The lazily loaded adapter (`OcrStep`), the fifth approved `src/visual` edge. */
 export interface OcrAssertionAssessor {
   assess(request: OcrAssertionAssessRequest): Promise<OcrAssertionAssessment>;
+  /** N7.7: the advisory text signal (see `OcrTextSignal`). Never throws. */
+  textSignal?: OcrTextSignalSource;
 }
 
 /** The codes-only record of one assertion, for the report. Never text, pixels, boxes, selectors or URLs. */

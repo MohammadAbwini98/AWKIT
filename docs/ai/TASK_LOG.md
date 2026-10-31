@@ -1,5 +1,35 @@
 # TASK_LOG
 
+## 2026-10-31 — Phase N: N7.7 advisory OCR text signal, implemented and closed (Claude)
+
+- **Files:**
+  - `src/runner/ocr/ocrAssertionContract.ts` and `src/runner/ocr/OcrStep.ts`: `textSignal`, a warm-only recognizer,
+    `accessibleName`.
+  - `app/main/ocr/OcrUtilityHostManager.ts`: `readiness`.
+  - `src/runner/visualFusion/VisualFusionStage.ts`, `src/runner/LocatorFactory.ts`,
+    `src/runner/domIntelligence/recoveryProvenance.ts` (N2).
+  - `src/runner/visualDiagnosis/VisualFailureDiagnosis.ts` and
+    `app/renderer/components/reports/VisualDiagnosisSection.tsx` (N5).
+  - `src/runner/PlaywrightRunner.ts` (wiring).
+  - `scripts/verify-ocr-text-signal.mts` (new), the verifier registry, `package.json` and the dashboard pins.
+  - The N7 plan, `ImplementationRoadmap.ts`, CURRENT_STATE, HANDOFF, TASK_LOG, COMMANDS, `.beads`.
+- **Tests:**
+
+  | Gate | Result |
+  |---|---|
+  | `verify:ocr-text-signal` | 49/0 |
+  | `verify:visual-fusion-runtime` | 146/0 |
+  | `verify:visual-diagnosis-runtime` | 65/0 |
+  | `verify:visual-diagnosis-report` | 63/0 |
+  | `verify:visual-diagnosis-gui` | 42/0 |
+  | `verify:ocr-runtime` | 86/0 |
+  | `verify:ocr-host` | 54/0 |
+  | `verify:visual-isolation` | 117/0 |
+  | `verify:verifier-classification` | PASS (370) |
+  | build, typecheck | PASS |
+
+- **Tracker:** `awkit-vra.9.8` closed under the project-state lease, now released.
+
 ## 2026-10-31 — Phase N: A1.9 copy, A5 verifier repair, font Git rules, N7.7 design points, N8 to N10 proposal (Claude)
 
 - **Files:**

@@ -84,7 +84,14 @@ export interface RecoveryProvenanceVisual {
   ms: number;
   winnerScore?: number;
   competitorScore?: number;
+  /**
+   * N7.7 (additive, schema 1): the advisory OCR-vs-accessible-name signal on the recovered winner. Unverified OCR
+   * evidence (OC-10 NOT MET); two fixed codes, never text; it never changed `effect`.
+   */
+  ocrText?: { outcome: "similar" | "differs" | "uncertain" | "unreadable" | "skipped"; code: string };
 }
+
+const OCR_TEXT_OUTCOMES = new Set(["similar", "differs", "uncertain", "unreadable", "skipped"]);
 
 /** Hard bound on events per record (the trace has at most three stages, so this is never reached). */
 export const RECOVERY_PROVENANCE_MAX_EVENTS = 12;
@@ -107,7 +114,11 @@ function toVisualProvenance(visual: LocatorRecoveryTrace["visual"]): RecoveryPro
     effect: visual.effect === "veto" ? ("veto" as const) : ("none" as const),
     ms: Number.isFinite(visual.ms) ? ms(visual.ms) : 0,
     winnerScore: unitScore(visual.winnerScore),
-    competitorScore: unitScore(visual.competitorScore)
+    competitorScore: unitScore(visual.competitorScore),
+    ocrText:
+      visual.ocrText && OCR_TEXT_OUTCOMES.has(visual.ocrText.outcome)
+        ? { outcome: visual.ocrText.outcome as NonNullable<RecoveryProvenanceVisual["ocrText"]>["outcome"], code: code(visual.ocrText.code) }
+        : undefined
   });
 }
 

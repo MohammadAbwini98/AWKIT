@@ -1,5 +1,21 @@
 # CURRENT_STATE
 
+## Phase N: N7.7 delivered and closed; N7 waits on packaged gates (2026-10-31, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N and N7 stay IN
+PROGRESS.** No OCR accuracy or production-readiness claim is made: OC-10 is NOT MET and N7.10 `awkit-2shc` is open.
+- **N7.7 `awkit-vra.9.8`:** closed. This is the advisory OCR-vs-accessible-name signal, effect none:
+  - the N2 shadow record gains `textSignal`;
+  - N5 gains `target-text-differs-from-name` or `target-text-unreadable`, labelled unverified OCR evidence;
+  - it runs only with `AWKIT_VISUAL_OCR=observe` on an already warm, idle host, within the N2 and N5 budgets, after
+    the handoff, protected and sensitive refusals.
+
+  Gates: `verify:ocr-text-signal` 49/0; N2 146/0, N5 runtime 65/0, N5 report 63/0, N5 GUI 42/0, OCR runtime 86/0,
+  OCR host 54/0 and isolation 117/0, all unchanged; build PASS. Details are in the N7 plan § N7.7.
+- **Remaining N7:**
+  - N7.1b and N7.8: BLOCKED on Visual Studio 2022 MSVC v143 (`verify:packaging-host` H4/H5).
+  - N7.9: waits for both.
+
 ## Phase N: A1.9 copy, A5 verifier repair and font Git rules delivered; N7.7 not started; Phase N IN PROGRESS (2026-10-31, latest)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N and N7 stay IN

@@ -1,6 +1,20 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-31, latest) — A1.9, A5 and the font Git rules done; N7.7 design points await confirmation
+## HANDOFF (2026-10-31, latest) — N7.7 closed; N7 waits for the packaging host
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** N7.7 implemented within the confirmed defaults and closed on its gates (N7 plan § N7.7).
+- **Next single task:** N7.1b and then N7.8 on a host where `npm run verify:packaging-host` reports READY. That
+  needs Visual Studio 2022 with "MSVC v143 - VS 2022 C++ x64/x86 build tools (Latest)" and the C++ 2022
+  Redistributable. Then N7.9's independent QC and security review.
+- **Open owner decisions:**
+  - NR, NS and NV (`N8-N10-planning.md`).
+  - N6P inside or outside Phase N closure.
+  - Disposition of the legacy `awkit-vra.2`, `.3` and `.5` to `.8`.
+- **Preserved untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-31) — A1.9, A5 and the font Git rules done; N7.7 design points await confirmation
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

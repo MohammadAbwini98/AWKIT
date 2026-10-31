@@ -25,6 +25,7 @@ import {
   type LocatorVisualRecoveryObservation
 } from "../LocatorFactory";
 import { stepCandidatesDigest } from "../LocatorRecoveryStore";
+import type { OcrTextSignalOutcome, OcrTextSignalSource } from "../ocr/ocrAssertionContract";
 import { VisualReferenceStore } from "./VisualReferenceStore";
 import { recordedVisualReferenceKey } from "./recordedVisualReferenceKey";
 
@@ -98,6 +99,11 @@ export interface VisualFusionVerdictRecord {
   evidence: FusionVerdict["evidence"];
   /** N4.6: the reference the verdict compared against. */
   referenceSource: VisualReferenceSource;
+  /**
+   * N7.7: the advisory OCR-vs-accessible-name signal on the DOM-proven winner (unverified OCR evidence, codes only).
+   * Present only with OCR on; it never changes `outcome`, `reason` or `effect`.
+   */
+  textSignal?: { outcome: OcrTextSignalOutcome; code: string };
 }
 
 const round3 = (value: number): number => Math.round(value * 1000) / 1000;
@@ -141,6 +147,11 @@ export interface VisualFusionStageOptions {
    * recorded key and behaves exactly as before N4.
    */
   recordedFallback?: boolean;
+  /**
+   * N7.7: the advisory OCR text signal, offered only with `AWKIT_VISUAL_OCR=observe`. Asked after the verdict is decided,
+   * for an `eligible` (never sensitive) winner, with what is left of this observation's budget; effect none.
+   */
+  textSignal?: OcrTextSignalSource;
 }
 
 /** N3.3: what a shadow agreement verdict may say about a step: codes only, never pixels, bounds, digests or locators. */
@@ -230,6 +241,13 @@ export class VisualFusionStage implements LocatorVisualFusion {
         MEASURED_FUSION_POLICY
       );
       const verdictRecord = record(step.id, observation.layer, eligibility, verdict, source);
+      // N7.7: advisory only, after the verdict is final, so nothing it answers can reach `outcome`, `reason` or `effect`.
+      if (this.options.textSignal && eligibility === "eligible" && !observation.signal.aborted) {
+        const text = await this.options
+          .textSignal({ page: observation.page, target: observation.locator, handedOff: this.handedOff(observation.page), deadlineMs: remaining(), signal: observation.signal })
+          .catch(() => undefined);
+        if (text) verdictRecord.textSignal = { outcome: text.outcome, code: text.code };
+      }
       try {
         this.options.onVerdict?.(verdictRecord);
       } catch {

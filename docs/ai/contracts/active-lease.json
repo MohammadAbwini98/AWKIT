@@ -1,20 +1,42 @@
 {
-  "task": "awkit-vra-9-gitattributes-fonts-1031",
-  "contract_path": "docs/ai/contracts/awkit-vra-9-gitattributes-fonts-1031.json",
-  "holder": "release",
+  "task": "awkit-vra-9-n7-filing-1026",
+  "contract_path": "docs/ai/contracts/awkit-vra-9-n7-filing-1026.json",
+  "holder": "project-state",
   "status": "released",
   "allowed_paths": [
-    ".gitattributes"
+    ".beads/**"
   ],
-  "acquired_at": "2026-10-31T11:57:24.984Z",
-  "acquired_at_commit": "98c6eeb4ebb8f53f71c556573bfa29ed66c44aec",
+  "acquired_at": "2026-10-31T12:52:07.217Z",
+  "acquired_at_commit": "8357bab0a467a9f0cd58d3f76e0e6b9e88d687ce",
   "baseline_dirty": [
+    "app/main/ocr/OcrUtilityHostManager.ts",
+    "app/renderer/components/reports/VisualDiagnosisSection.tsx",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-vra-9-gitattributes-fonts-1031.json"
+    "package.json",
+    "scripts/lib/verifier-classification.ts",
+    "scripts/verify-ocr-text-signal.mts",
+    "src/runner/LocatorFactory.ts",
+    "src/runner/PlaywrightRunner.ts",
+    "src/runner/domIntelligence/recoveryProvenance.ts",
+    "src/runner/ocr/OcrStep.ts",
+    "src/runner/ocr/ocrAssertionContract.ts",
+    "src/runner/visualDiagnosis/VisualFailureDiagnosis.ts",
+    "src/runner/visualFusion/VisualFusionStage.ts"
   ],
   "baseline_dirty_fingerprints": {
+    "app/main/ocr/OcrUtilityHostManager.ts": "f72cb3fd44591a3142adcad8805d92a2f8060b6a2f7331c27aad1085787f2b9e",
+    "app/renderer/components/reports/VisualDiagnosisSection.tsx": "fe067030b2cec2fd135c449182a2e7cc117fdef8dce35dee094586f3ab4fdcb8",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-vra-9-gitattributes-fonts-1031.json": "cfab27b9fa9f11704d0cd8f0069d41746ba6ffba55d6d20b917b35ba82f70c41"
+    "package.json": "ad0bbda35501172b86611352925c0bf4640f2a144d93a9ea5b582d4af7058511",
+    "scripts/lib/verifier-classification.ts": "894c55f4e16232b03b7e629198c8d6e681913478fc54f367ceb7ac2b217b9387",
+    "scripts/verify-ocr-text-signal.mts": "849f005be2afdce46a94ebfc12af29f0e2f41dbf41b6a898d46462844a572d50",
+    "src/runner/LocatorFactory.ts": "d12872b5ca2977d6d86a71fdcf9f633c0af7449b501afd5fab9db92de5340f7c",
+    "src/runner/PlaywrightRunner.ts": "bc3a63ec86cc2f3b9798784357209836767004bfed9d168dbd4e8c3bddde55d2",
+    "src/runner/domIntelligence/recoveryProvenance.ts": "2f68a02afb044e26bbeff2567b40f6f85b185aa1158532cb0dd443015b2de740",
+    "src/runner/ocr/OcrStep.ts": "792b9dab5b4b4a381aa8174fa0c59e188dc7e5e025df0d4dfd9097d016710172",
+    "src/runner/ocr/ocrAssertionContract.ts": "04d2bfe9611d0b65635cb6dcba7506d9e452f9795cec43e004914b2a4f498931",
+    "src/runner/visualDiagnosis/VisualFailureDiagnosis.ts": "db6762dd0f5ee06ab137ec4f908d286afd81c87008cf1eb0b4f09943072fe396",
+    "src/runner/visualFusion/VisualFusionStage.ts": "42decf820de0998b4a09a28eb97901169c7a49641edc175df1f1e56c66b973f1"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -29,7 +51,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-31T11:57:35.612Z",
-  "released_reason": "Two owner-approved font rules added to .gitattributes, nothing else changed",
-  "archived_at": "2026-10-31T11:57:35.616Z"
+  "released_at": "2026-10-31T12:52:28.387Z",
+  "released_reason": "N7.7 awkit-vra.9.8 closed on executed gates, exported 435 issues",
+  "archived_at": "2026-10-31T12:52:28.400Z"
 }

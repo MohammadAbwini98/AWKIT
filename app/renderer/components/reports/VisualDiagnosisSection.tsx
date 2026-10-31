@@ -38,6 +38,10 @@ const OBSERVATIONS: Record<string, string> = {
   "target-offscreen": "The step's target was outside the visible part of the page.",
   "target-zero-size": "The step's target had no visible size.",
   "target-occluded": "Another element was on top of the step's target.",
+  // N7.7: advisory OCR codes; the recognizer is not qualified for accuracy (OC-10 NOT MET), so each says so (A1.9).
+  "target-text-differs-from-name":
+    "Unverified OCR evidence: the text recognizer's reading of the step's target differed from its accessible name. The recognizer is not qualified for accuracy, so this does not prove the element is wrong.",
+  "target-text-unreadable": "Unverified OCR evidence: the text recognizer could not read the step's target confidently.",
   inconclusive: "The check ran, but nothing it can report applies."
 };
 
