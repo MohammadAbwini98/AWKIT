@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, CircleSlash, Eye, HelpCircle } from "lucide-react";
+import { CircleSlash, Eye, HelpCircle, ScanText } from "lucide-react";
 
 import type { ConcurrentRunReport } from "@src/reports/ExecutionReport";
 import {
@@ -20,7 +20,13 @@ const api = () => window.playwrightFlowStudio;
  * flow ids and a duration reach the screen: never the recognized or expected text, pixels or a selector. Every line is
  * a sentence with its exact code, icons are decorative, nothing is focusable and nothing moves. Observe never fails a
  * step, and every line says so where it could be misread.
+ *
+ * N7 amendment A1.9 (DECISIONS 2026-10-28, copy approved 2026-10-31): the recognizer is not qualified for accuracy
+ * (OC-10 NOT MET), so every verdict is worded as unverified OCR evidence: what the recognizer reported, never what the
+ * element shows. No success check mark is used for a reported match.
  */
+export const UNVERIFIED_OCR_LABEL = "Unverified OCR evidence";
+const UNVERIFIED_OCR_PHRASE = "unverified OCR evidence";
 
 /** Why a check did not produce a verdict, by code. Unknown codes fall back to the generic sentence. */
 const REASONS: Readonly<Record<string, string>> = {
@@ -49,12 +55,12 @@ const REASONS: Readonly<Record<string, string>> = {
   "region-too-small": "the text is too small to read reliably",
   "region-too-large": "the element is too large to read in time",
   "region-clipped": "the element is cut off by its container",
-  "near-miss": "the text read differs only slightly from the expected text",
-  "lookalike-only-difference": "the only difference is between look-alike characters (such as O and 0)",
-  "ambiguous-match": "the expected text was read more than once",
+  "near-miss": "the recognizer's reading differs only slightly from the expected text",
+  "lookalike-only-difference": "the recognizer's reading differs from the expected text only in look-alike characters (such as O and 0)",
+  "ambiguous-match": "the recognizer reported the expected text more than once",
   "low-confidence": "the text reader was not confident enough",
   "lookalike-uncertain": "look-alike characters could not be told apart",
-  "no-text-read": "no text was read from the element",
+  "no-text-read": "the recognizer reported no text for the element",
   "ocr-output-invalid": "the text reader returned an unusable result",
   "policy-invalid": "the decision settings are not valid",
   "input-invalid": "the captured image was not usable"
@@ -75,11 +81,15 @@ const CONFIDENCE: Readonly<Record<string, string>> = {
 
 /** The fixed sentence for one observation; shared with the Designer's latest-result line. Never holds text. */
 export function imageTextSentence(record: OcrAssertionReportRecord): string {
-  if (record.verdict === "matched") return "Observed: the element shows the expected text.";
-  if (record.verdict === "differs") return "Observed: the element shows different text. Observe never fails a step.";
+  if (record.verdict === "matched") {
+    return `${UNVERIFIED_OCR_LABEL}: the text recognizer reported a match with the expected text. This is not a confirmed check of the element's text. Observe never fails a step.`;
+  }
+  if (record.verdict === "differs") {
+    return `${UNVERIFIED_OCR_LABEL}: the text recognizer reported different text. This does not prove the element is wrong. Observe never fails a step.`;
+  }
   const reason = REASONS[record.code];
   if (!record.verdict) return `Not evaluated${reason ? `: ${reason}` : ""}.`;
-  return `Observed without a verdict${reason ? `: ${reason}` : ""}. Observe never fails a step.`;
+  return `${UNVERIFIED_OCR_LABEL}: no verdict${reason ? ` (${reason})` : ""}. Observe never fails a step.`;
 }
 
 /** Buckets, character count and duration as a sentence; empty when the record has none of them. */
@@ -93,9 +103,9 @@ export function imageTextFacts(record: OcrAssertionReportRecord): string {
 }
 
 function totalsSentence(totals: OcrAssertionTotals, scope: string): string {
-  const parts = [`${totals.matched} matched`, `${totals.differs} different`, `${totals.inconclusive} without a verdict`];
+  const parts = [`${totals.matched} reported matched`, `${totals.differs} reported different`, `${totals.inconclusive} without a verdict`];
   if (totals.notEvaluated) parts.push(`${totals.notEvaluated} not evaluated`);
-  return `${scope}: ${totals.total} image text ${totals.total === 1 ? "assertion" : "assertions"} (observe only) — ${parts.join(", ")}.`;
+  return `${scope}: ${totals.total} image text ${totals.total === 1 ? "assertion" : "assertions"} (observe only, ${UNVERIFIED_OCR_PHRASE}) — ${parts.join(", ")}.`;
 }
 
 async function loadRun(executionId: string, instanceId: string): Promise<{ records: OcrAssertionReportRecord[]; run: OcrAssertionTotals | null } | null> {
@@ -126,7 +136,7 @@ export function ImageTextReportSection({ executionId, instanceId }: { executionI
   const instanceTotals = ocrAssertionTotals(data.records);
   return (
     <section className="awkit-detail-section" data-testid="image-text-report-section" aria-labelledby="image-text-report-heading">
-      <h3 id="image-text-report-heading">Image text</h3>
+      <h3 id="image-text-report-heading">Image text ({UNVERIFIED_OCR_PHRASE})</h3>
       <p data-testid="image-text-instance-totals">{totalsSentence(instanceTotals, "This instance")}</p>
       {data.run && data.run.total !== instanceTotals.total ? (
         <p className="awkit-muted" data-testid="image-text-run-totals">
@@ -142,7 +152,7 @@ export function ImageTextReportSection({ executionId, instanceId }: { executionI
             data-code={record.code}
           >
             {record.verdict === "matched" ? (
-              <CheckCircle2 size={13} aria-hidden="true" />
+              <ScanText size={13} aria-hidden="true" />
             ) : record.verdict === "differs" ? (
               <Eye size={13} aria-hidden="true" />
             ) : record.verdict === "inconclusive" ? (

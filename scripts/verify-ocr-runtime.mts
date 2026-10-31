@@ -430,19 +430,61 @@ async function main(): Promise<void> {
         `deadlineMs=${slow.lastDeadlineMs} aborts=${slow.aborts}`
       );
 
-      let lateDelivered = false;
-      const late = new FakeReader(async () => {
-        await sleep(OCR_ASSERTION_DEADLINE_MS + 700);
-        lateDelivered = true;
-        return { ok: true, words: [{ text: "Order", confidence: 99 }, { text: "4521", confidence: 99 }, { text: "shipped", confidence: 99 }], recognizeMs: 2200 };
-      });
-      const lateRun = await observe(label("g-late"), { reader: late });
+      // N7 plan § A5 (owner-approved 2026-10-31): the check waits for the late reply's own delivery signal, bounded, instead
+      // of a fixed 1200 ms sleep that assumed the reader was called within about 510 ms of the step start (it failed
+      // on 2026-10-27 under host load; that run stays recorded as FAIL). It then drains one macrotask, so anything a
+      // defective step chained onto the late promise has run, and asserts exactly as before.
+      const LATE_DELIVERY_BOUND_MS = 5_000;
+      const lateReader = (onDelivered: () => void) =>
+        new FakeReader(async () => {
+          await sleep(OCR_ASSERTION_DEADLINE_MS + 700);
+          onDelivered();
+          return { ok: true, words: [{ text: "Order", confidence: 99 }, { text: "4521", confidence: 99 }, { text: "shipped", confidence: 99 }], recognizeMs: 2200 };
+        });
+      const awaitDelivery = async (delivered: Promise<void>, boundMs: number): Promise<boolean> => {
+        let timer: NodeJS.Timeout | undefined;
+        const arrived = await Promise.race([delivered.then(() => true), new Promise<boolean>((resolve) => (timer = setTimeout(() => resolve(false), boundMs)))]);
+        clearTimeout(timer);
+        await new Promise((resolve) => setImmediate(resolve));
+        return arrived;
+      };
+      const lateChangesNothing = (o: Outcome, arrived: boolean) =>
+        arrived && o.h.records.length === 1 && o.h.records[0].code === "budget-exhausted" && o.h.records[0].verdict !== "matched" && o.result.status === "passed";
+
+      let signalLate: () => void = () => undefined;
+      const lateDelivery = new Promise<void>((resolve) => (signalLate = resolve));
+      const lateRun = await observe(label("g-late"), { reader: lateReader(() => signalLate()) });
       track(lateRun);
-      await sleep(1_200);
+      const lateArrived = await awaitDelivery(lateDelivery, LATE_DELIVERY_BOUND_MS);
       check(
         "a reader that ignores the abort and answers late changes nothing: one record, budget-exhausted, never matched",
-        lateDelivered && lateRun.h.records.length === 1 && lateRun.h.records[0].code === "budget-exhausted" && lateRun.result.status === "passed",
-        `${describe(lateRun)} late=${lateDelivered} records=${lateRun.h.records.length}`
+        lateChangesNothing(lateRun, lateArrived),
+        `${describe(lateRun)} delivered=${lateArrived} records=${lateRun.h.records.length}`
+      );
+
+      // Negative control: a defective step that records the late reply into its own record sink must be caught. Not
+      // tracked, so its planted record never reaches the codes-only and deadline checks below.
+      let signalMutant: () => void = () => undefined;
+      const mutantDelivery = new Promise<void>((resolve) => (signalMutant = resolve));
+      let mutantHarness: Harness | undefined;
+      const mutantRun = await observe(label("g-late-mutant"), {
+        during: (h) => (mutantHarness = h),
+        reader: lateReader(() => {
+          const first = mutantHarness?.records[0];
+          if (first) mutantHarness?.records.push({ ...first, verdict: "matched", code: "text-matched" } as OcrAssertionRecord);
+          signalMutant();
+        })
+      });
+      const mutantArrived = await awaitDelivery(mutantDelivery, LATE_DELIVERY_BOUND_MS);
+      check(
+        "negative control: a step that records the late reply as matched is caught by the same check",
+        mutantArrived && mutantRun.h.records.length === 2 && !lateChangesNothing(mutantRun, mutantArrived),
+        `delivered=${mutantArrived} records=${mutantRun.h.records.map((r) => r.code).join(",")}`
+      );
+      const neverArrived = await awaitDelivery(new Promise<void>(() => undefined), 50);
+      check(
+        "negative control: a late reply that never arrives within its bound fails the check, it never skips",
+        neverArrived === false && !lateChangesNothing(lateRun, neverArrived)
       );
 
       const cancelling = new FakeReader(hangsUntilAbort);

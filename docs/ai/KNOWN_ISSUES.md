@@ -40,7 +40,13 @@
     - The proposal keeps the assertion's detection power: a bounded wait on the delivery signal, then a macrotask
       drain, then the same assertion. It must carry a late-record mutant to be accepted (N7 plan § A5). It awaits
       the owner's go-ahead.
-- **N7 report copy states an OCR match as fact (OPEN; A1 ratified 2026-10-28, copy change not made yet).** "Observed: the element shows the
+- **`verify:ocr-gui` altered-engine case can time out before the checksum refusal (OPEN, environment, 2026-10-31).**
+  On this x64-under-emulation VM the host's checksum refusal arrived after the 1500 ms deadline, so the step recorded
+  `budget-exhausted` (inconclusive, fail-closed) instead of `checksum-mismatch`. It passed in the previous launch.
+  Not a product change; the check is not relaxed.
+- **RESOLVED 2026-10-31:** the A1.9 copy is delivered, and `ofl.txt` now has an LF rule in `.gitattributes` (fresh
+  Windows checkout proof NOT RUN).
+- **N7 report copy states an OCR match as fact (RESOLVED 2026-10-31 by A1.9; historical record below).** "Observed: the element shows the
   expected text." Proposed amendment A1.9 requires "unverified OCR evidence" wording. No copy changed yet.
   - Original record: production was unchanged, and both failed concurrently and again alone:
   - `verify:ocr-host`: "prepare() ... the next recognition runs on it" took 1866–2145 ms against a 1000 ms bound.

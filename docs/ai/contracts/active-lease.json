@@ -1,24 +1,20 @@
 {
-  "task": "awkit-vra-9-n7-filing-1026",
-  "contract_path": "docs/ai/contracts/awkit-vra-9-n7-filing-1026.json",
-  "holder": "project-state",
+  "task": "awkit-vra-9-gitattributes-fonts-1031",
+  "contract_path": "docs/ai/contracts/awkit-vra-9-gitattributes-fonts-1031.json",
+  "holder": "release",
   "status": "released",
   "allowed_paths": [
-    ".beads/**"
+    ".gitattributes"
   ],
-  "acquired_at": "2026-10-29T06:29:43.015Z",
-  "acquired_at_commit": "649e489601b6418619da043efe196ef2d2fd1e8a",
+  "acquired_at": "2026-10-31T11:57:24.984Z",
+  "acquired_at_commit": "98c6eeb4ebb8f53f71c556573bfa29ed66c44aec",
   "baseline_dirty": [
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "scripts/verify-roadmap-dashboard.mjs",
-    "tools/roadmap/lib/normalize.mjs",
-    "tools/roadmap/public/views.js"
+    "docs/ai/contracts/awkit-vra-9-gitattributes-fonts-1031.json"
   ],
   "baseline_dirty_fingerprints": {
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "scripts/verify-roadmap-dashboard.mjs": "b0f857fd81e068048be11a32f7d4a872b39d3911ce3e17ac62b606129e395f99",
-    "tools/roadmap/lib/normalize.mjs": "f00cd81743bb622d5b5021aa74c9ce38c8d14b4a98d2c463c4a4ac417ae9cfdf",
-    "tools/roadmap/public/views.js": "44771233add057607daf3037bf450184d4e5c3e8b3450cec036de3c65d055948"
+    "docs/ai/contracts/awkit-vra-9-gitattributes-fonts-1031.json": "cfab27b9fa9f11704d0cd8f0069d41746ba6ffba55d6d20b917b35ba82f70c41"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -33,7 +29,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-29T06:30:01.457Z",
-  "released_reason": "Roadmap reconciliation 2026-10-29, dated correction notes appended to awkit-vra and awkit-vra.9, no status or edge changed, exported 435 issues",
-  "archived_at": "2026-10-29T06:30:01.460Z"
+  "released_at": "2026-10-31T11:57:35.612Z",
+  "released_reason": "Two owner-approved font rules added to .gitattributes, nothing else changed",
+  "archived_at": "2026-10-31T11:57:35.616Z"
 }

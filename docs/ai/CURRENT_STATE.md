@@ -1,6 +1,39 @@
 # CURRENT_STATE
 
-## Roadmap reconciliation A to N (2026-10-29, latest)
+## Phase N: A1.9 copy, A5 verifier repair and font Git rules delivered; N7.7 not started; Phase N IN PROGRESS (2026-10-31, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N and N7 stay IN
+PROGRESS.** No accuracy claim is made: OC-10 is NOT MET and N7.10 `awkit-2shc` is open.
+- **Delivered (owner-approved 2026-10-31):**
+  - **A1.9 copy.** The report drawer and the Designer label every OCR verdict as "Unverified OCR evidence". A reported
+    match reads "the text recognizer reported a match with the expected text. This is not a confirmed check of the
+    element's text." No success check mark is used.
+  - **A5.** The `verify:ocr-runtime` late-reply check now waits, bounded, for the delivery signal, then drains one
+    macrotask. Two negative controls are caught: a late `matched` record, and a reply that never arrives.
+  - **`.gitattributes`.** `*.woff2 binary` and `mock-site/public/fonts/ofl.txt text eol=lf`, added under a release
+    lease (contract `awkit-vra-9-gitattributes-fonts-1031`).
+- **Not started:** N7.7. Its six design points are in the N7 plan § N7.7, with recommended defaults for owner
+  confirmation.
+- **Proposed, not ratified:** the N8 to N10 answers and the Phase N closure matrix, in `N8-N10-planning.md`.
+- **Gates:**
+
+  | Gate | Result |
+  |---|---|
+  | build, `typecheck:scripts` | PASS |
+  | `verify:ocr-report` | 56/0 |
+  | `verify:ocr-runtime` | 86/0 |
+  | `verify:ocr-host` | 54/0 |
+  | `verify:ocr-calibration` | 67/0 |
+  | `verify:ocr-assets` | 46/0 |
+  | `verify:visual-isolation` | 117/0 |
+  | `verify:ocr-gui` | **FAIL 45/1** |
+  | `verify:visual-fusion-runtime`, `verify:visual-diagnosis-runtime`, `verify:mock-site` | NOT RUN, inputs unchanged |
+  | `verify:packaging-host` | H4/H5 BLOCKED, so N7.1b and N7.8 are BLOCKED |
+
+  The `verify:ocr-gui` failure: an altered engine's checksum refusal arrived after the 1500 ms deadline, so the step
+  recorded `budget-exhausted`. It still failed closed. Environment timing; the check passed in the previous launch.
+
+## Roadmap reconciliation A to N (2026-10-29)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. Phase statuses are unchanged
 and match the tracker: A to L complete, M pending, N in progress.

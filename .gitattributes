@@ -43,6 +43,11 @@
 *.exe binary
 *.dll binary
 *.asar binary
+*.woff2 binary
+
+# Bundled OCR Lab font licence: its SHA-256 is pinned in mock-site/public/fonts/fonts-manifest.json, so Git must
+# never rewrite its line endings on checkout (owner-approved 2026-10-31).
+mock-site/public/fonts/ofl.txt text eol=lf
 
 # Signed offline manifest + signature: signed over exact bytes, so git must never rewrite them.
 resources/dependency-manifest.json text eol=lf

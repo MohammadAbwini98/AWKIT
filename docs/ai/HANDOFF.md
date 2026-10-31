@@ -1,6 +1,26 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-29, latest) — Roadmap reconciled A to N; dashboard marks NO-GO closures; Sources agree
+## HANDOFF (2026-10-31, latest) — A1.9, A5 and the font Git rules done; N7.7 design points await confirmation
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:**
+  - The A1.9 "unverified OCR evidence" copy.
+  - The A5 late-reply repair, with negative controls.
+  - `.gitattributes` font rules under a released release lease.
+  - The N7.7 design points and the N8 to N10 proposal and closure matrix (NOT RATIFIED).
+- **Next single task:** N7.7 implementation, once the owner confirms the six design-point defaults (N7 plan § N7.7).
+- **Blocked:**
+  - N7.1b and N7.8: the Visual Studio 2022 MSVC v143 host.
+  - N7.9: needs N7.7, N7.1b and N7.8.
+- **Open owner decisions:**
+  - The N7.7 defaults.
+  - NR, NS and NV.
+  - N6P inside or outside Phase N closure.
+  - Disposition of the legacy `awkit-vra.2`, `.3` and `.5` to `.8`.
+- **Preserved untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-29) — Roadmap reconciled A to N; dashboard marks NO-GO closures; Sources agree
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

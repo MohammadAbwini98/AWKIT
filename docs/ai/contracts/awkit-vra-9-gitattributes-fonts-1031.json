@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-9-gitattributes-fonts-1031",
+    "title": "N7 font integrity: keep the bundled OCR Lab fonts and OFL licence byte-exact through Git (owner-approved 2026-10-31)",
+    "objective": "Add exactly two owner-approved rules to .gitattributes: *.woff2 binary and mock-site/public/fonts/ofl.txt text eol=lf, so a fresh Windows checkout keeps the committed WOFF2 faces and the OFL-1.1 licence byte-identical to mock-site/public/fonts/fonts-manifest.json. No other rule changes and no font, manifest or licence byte changes.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "98c6eeb",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".gitattributes",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/ai/contracts/awkit-vra-9-gitattributes-fonts-1031.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "release",
+      "allowed_paths": [
+        ".gitattributes"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "FONT-EOL",
+      "description": "The two approved rules are present, no other rule changed, Git reports the WOFF2 faces as binary and ofl.txt as text eol=lf, and every staged font file still matches fonts-manifest.json byte for byte.",
+      "evidence_required": [
+        "verify:ocr-calibration"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:ocr-calibration",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ocr-calibration",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "2026-10-31: 67/0 after the edit; every staged font file and the OFL-1.1 licence match fonts-manifest.json size and SHA-256 and the installed package byte for byte. A fresh Windows checkout was NOT RUN (no clean clone in this session)."
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "verify:ocr-calibration"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-9-gitattributes-fonts-1031:release:2026-10-31T11:57:24.984Z",
+        "task": "awkit-vra-9-gitattributes-fonts-1031",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          ".gitattributes"
+        ],
+        "acquired_at": "2026-10-31T11:57:24.984Z",
+        "acquired_at_commit": "98c6eeb4ebb8f53f71c556573bfa29ed66c44aec",
+        "released_at": "2026-10-31T11:57:35.612Z",
+        "released_reason": "Two owner-approved font rules added to .gitattributes, nothing else changed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

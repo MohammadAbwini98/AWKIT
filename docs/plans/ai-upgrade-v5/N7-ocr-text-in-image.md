@@ -841,6 +841,42 @@ release host. That needs `verify:packaging-host` READY, which today is BLOCKED a
   - the A1.9 "unverified OCR evidence" copy change, a separate task that N7.9 checks;
   - the `verify:ocr-runtime` late-reply fix, which awaits a go-ahead.
 
+**A1.9 and A5 delivered (2026-10-31, owner-approved).**
+- **A1.9 copy** in the report drawer and the Designer:
+  - a reported match reads "Unverified OCR evidence: the text recognizer reported a match with the expected text.
+    This is not a confirmed check of the element's text.";
+  - a reported difference, and every no-verdict reason, carries the same label;
+  - no success check mark is used.
+
+  `verify:ocr-report` E13 to E16 cover it, with a negative control that catches the old copy; `verify:ocr-gui` checks
+  the rendered text.
+- **A5 late-reply repair** in `verify:ocr-runtime`:
+  - a bounded (5000 ms) wait on the late reply's delivery signal, one macrotask drain, then the unchanged assertion;
+  - a negative-control mutant that records the late reply as matched in the step's own record sink is caught;
+  - a reply that never arrives fails, never skips.
+
+  The 2026-10-27 FAILs stay recorded.
+
+**N7.7 design points (2026-10-31): not started.** The ratified contract is two lines: an N2 OCR-vs-accessible-name
+similarity, shadow, effect `none`; and N5 codes such as `target-text-differs-from-name` or `target-text-unreadable`.
+Implementing it changes runner hot paths, so these points are settled first. Recommended defaults, for owner
+confirmation:
+1. **Timing:** run after the DOM-proven action or diagnosis, inside the existing N2 observation budget and N5's 1000 ms
+   deadline. Never wait for a cold host: if the OCR host is not already warm, record `ocr-unavailable` and skip.
+2. **Host contention:** never queue behind or ahead of an `assertImageText` job. Skip with `ocr-busy` when the
+   single-job host is occupied.
+3. **Record shape:**
+   - one optional bucketed field on the N2 I9 record (similarity bucket only);
+   - two new N5 codes;
+   - both sanitizers allowlisted, older reports reading unchanged;
+   - this is a persisted-shape change routed to data persistence.
+4. **Name source and refusals:**
+   - the Playwright accessible name of the DOM-proven target only;
+   - the existing OC-8 sensitive rules and N0 protected and handed-off refusals before any capture.
+5. **Isolation:** reuse the N7.5 adapter edge, so `verify:visual-isolation` stays at five edges, or request an explicit
+   new edge.
+6. **Labelling:** any display carries the A1.9 "unverified OCR evidence" label.
+
 **A6. Spike follow-up rule.** Rerun `benchmark:ocr-engine-spike`, whose criteria file is the contract, when a new
 offline candidate within budget is approved under an N7.1a-style feasibility approval, or when the owner amends
 OC-9's 8 MB budget.

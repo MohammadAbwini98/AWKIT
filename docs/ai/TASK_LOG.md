@@ -1,5 +1,30 @@
 # TASK_LOG
 
+## 2026-10-31 — Phase N: A1.9 copy, A5 verifier repair, font Git rules, N7.7 design points, N8 to N10 proposal (Claude)
+
+- **Files:**
+  - `app/renderer/components/reports/ImageTextReportSection.tsx` and
+    `app/renderer/components/workflow/ImageTextAssertionSection.tsx` (copy).
+  - `scripts/verify-ocr-report.mts`: E13 to E16, with a negative control.
+  - `scripts/verify-ocr-gui.mts`: rendered-label checks.
+  - `scripts/verify-ocr-runtime.mts`: the A5 repair and two negative controls.
+  - `.gitattributes` and its contract `awkit-vra-9-gitattributes-fonts-1031`.
+  - The N7 plan, `N8-N10-planning.md`, CURRENT_STATE, HANDOFF, TASK_LOG, KNOWN_ISSUES.
+- **Found by tests:** a missing space in the drawer totals ("—1"), caught by `verify:ocr-gui` and fixed.
+- **Tests:**
+
+  | Gate | Result |
+  |---|---|
+  | `verify:ocr-report` | 56/0 |
+  | `verify:ocr-runtime` | 86/0 |
+  | `verify:ocr-host` | 54/0 |
+  | `verify:ocr-calibration` | 67/0 |
+  | `verify:ocr-assets` | 46/0 |
+  | `verify:visual-isolation` | 117/0 |
+  | build | PASS |
+  | `verify:ocr-gui` | 45/1 (environment timing, fail-closed held) |
+  | `verify:packaging-host` | BLOCKED (H4/H5) |
+
 ## 2026-10-29 — Roadmap audit and reconciliation, phases A to N (Claude)
 
 - **Task:** audit the roadmap against the tracker, the code and the evidence, correct stale sources, and launch the

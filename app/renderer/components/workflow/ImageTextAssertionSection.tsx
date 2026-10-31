@@ -101,7 +101,9 @@ export function ImageTextAssertionSection({
           from Value Source ({literalLength}/{OCR_EXPECTED_MAX_LENGTH} characters). The result is recorded in the run report
           and never fails, retries or changes the run. It runs only when image text assertions are turned on
           (AWKIT_VISUAL_OCR=observe) and the offline reader is installed; otherwise the step is recorded as not evaluated.
-          Passwords, one-time codes, card numbers, secrets and protected pages are never read.
+          Passwords, one-time codes, card numbers, secrets and protected pages are never read. Results are unverified OCR
+          evidence: the offline text recognizer is not qualified for accuracy, so a reported match is not a confirmed check
+          of the element's text, and a reported difference does not prove the element is wrong.
         </span>
         {problems.length ? (
           <ul className="form-message error" data-testid="image-text-problems" aria-live="polite">

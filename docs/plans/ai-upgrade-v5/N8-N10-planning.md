@@ -135,3 +135,46 @@ or `.11`. They were removed outside the agent, so NR-0 and NS-0 are already sati
 3. The N10 technical plan comes last: it is optional, and its value depends on the N9 deterministic baseline.
 
 No milestone here is implemented, closed or authorized by this document.
+
+## Proposal for owner ratification (2026-10-31) — PROPOSED, NOT RATIFIED
+
+These are recommended answers, not decisions. Nothing below authorizes implementation, and N8, N9 and N10 stay
+planning-only and open until the owner ratifies each line.
+
+| ID | Recommended answer | Why |
+|---|---|---|
+| NR-1, NS-4 | **No** hard dependency on N7 text. N7 OCR is unqualified (OC-10 NOT MET, DECISIONS 2026-10-28). | A dependency would import an unverified signal into new milestones. |
+| NR-2 | Reuse an existing visual adapter only where `verify:visual-isolation` still passes unchanged; otherwise ask for an explicit new edge. | Keeps the approved five-edge isolation. |
+| NR-3 | N2 shadow and N5 codes only first; no action, selection, branch or retry. | The same shadow-first path N2 to N6 took. |
+| NR-4, NR-5 | Measure p95 and accuracy baselines on the N6.6-style cells **before** implementation, and pre-declare calibration criteria from them. | No figure is claimed before it runs. |
+| NS-1 | Deterministic-only classifier: `loading`, `empty`, `error`, `ready`, `unknown`. Default `unknown`, `effect: none`. No N10 dependency. | Works with no model. |
+| NS-2 | N5 diagnosis evidence only; no Smart Wait success, workflow control or retry effect. | Avoids a false-ready deciding a run. |
+| NS-3 | Pre-declare false-ready and false-error ceilings and a performance budget before measuring. | Same discipline as OC-10. |
+| NV-0 to NV-5 | Either (a) a bounded, separately qualified optional advisory model on the L-phase local runtime (CPU fallback, generic qualified NVIDIA acceleration, user-supplied and hash-pinned, never in the base package, no online service), or (b) an explicit owner-ratified transfer or deferral of N10 out of Phase N. | N10 must never be silently dropped or marked implemented without code. |
+
+**Recommended order once ratified:**
+1. N9 deterministic baseline.
+2. N8 row/grid evidence.
+3. N10: either (a) or (b).
+
+N8 and N9 each start with a measured baseline and pre-declared criteria, then shadow/codes-only code, then
+calibration.
+
+## Phase N closure matrix (2026-10-31, source-verified)
+
+Phase N closes only when every milestone in its ratified scope is closed on evidence, or has an explicit, recorded
+owner-approved disposition. It stays IN PROGRESS.
+
+| Milestone | Tracker | State | Blocking kind |
+|---|---|---|---|
+| N0–N6 | `.1`, `.3.1`, `.12`, `.4`, `.13`, `.14`, `.15` | closed (N2, N3 and N6 shadow/observe-only) | — |
+| N3.4, N3.5 | `.4.4`, `.4.5` | blocked | new measurements and an owner decision |
+| N6P | `.16` | open, a future milestone | owner decision: inside or outside Phase N closure |
+| N7.1b, N7.8 | `.9.3`, `.9.9` | open, BLOCKED | environment (Visual Studio 2022 MSVC v143) and packaged evidence |
+| N7.7 | `.9.8` | open, not started | code, after its design points (N7 plan § N7.7) are settled |
+| N7.9 | `.9.10` | open | needs N7.7, N7.1b and N7.8 |
+| N7.10 | `awkit-2shc` | open, independent | independent follow-up (A1 Option 1), outside Phase N closure |
+| N8, N9, N10 | `.10`, `.11`, `.17` | open, planning only | owner decisions above |
+| Legacy `.2`, `.3`, `.5`–`.8` | pre-canonical planning records | open | owner decision: close as superseded by the canonical milestones, or keep |
+
+Roadmap consistency ("Sources agree") is separate from completion: the sources agree, and Phase N is not complete.

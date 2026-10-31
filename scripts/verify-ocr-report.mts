@@ -34,6 +34,7 @@ import {
   type OcrAssertionReportRecord
 } from "@src/runner/ocr/ocrAssertionReport";
 import { imageTextFacts, imageTextSentence } from "../app/renderer/components/reports/ImageTextReportSection";
+import { TEXT_ASSERTION_CODES } from "@src/visual/ocr/decideTextAssertion";
 
 type Sanitize = (value: unknown) => OcrAssertionReportRecord[] | undefined;
 type Outcome = { label: string; ok: boolean; detail?: string };
@@ -238,7 +239,7 @@ function wiring(): Outcome[] {
     "E5 the drawer and the Designer read the block only through the sanitizer",
     /sanitizeOcrAssertionReportRecords\(instance\?\.ocrAssertions\)/.test(section) && /ocrAssertionRunTotals\(report\.instances\)/.test(section) && /sanitizeOcrAssertionReportRecords\(instance\.ocrAssertions\)/.test(designer)
   );
-  add("E6 the drawer section renders no image and its icons are decorative", !/<img|<canvas|<picture|<video/.test(section) && !/<(CheckCircle2|CircleSlash|Eye|HelpCircle) size=\{13\}(?! aria-hidden="true")/.test(section));
+  add("E6 the drawer section renders no image and its icons are decorative", !/<img|<canvas|<picture|<video/.test(section) && !/<(CheckCircle2|CircleSlash|Eye|HelpCircle|ScanText) size=\{13\}(?! aria-hidden="true")/.test(section));
   add("E7 the drawer shows the section for every instance, beside the visual assertions", /<ImageTextReportSection executionId=\{data\.run\.executionId\} instanceId=\{instanceId\} \/>/.test(read("app/renderer/components/reports/RunDetailDrawer.tsx")));
   add("E8 neither UI section reads a text field from a record (there is none to read)", !/record\.(text|expected|words|recognized)/.test(section + designer));
 
@@ -253,6 +254,28 @@ function wiring(): Outcome[] {
   add("E11 the facts line names buckets, count and duration only", imageTextFacts(matched) === "difference: no character edits; reader confidence: 95% or more; 18 characters read; took 412 ms.", imageTextFacts(matched));
   const everySentence = [matched, differs, near, off].map((r) => imageTextSentence(r) + imageTextFacts(r)).join(" ");
   add("E12 no sentence contains a recognized or expected text", !Object.values(SECRET).some((s) => everySentence.includes(s)));
+
+  // N7 amendment A1.9 (copy approved 2026-10-31): the recognizer is unqualified (OC-10 NOT MET), so every verdict is
+  // unverified OCR evidence and no sentence may state what the element shows as fact.
+  type Sentence = (record: OcrAssertionReportRecord) => string;
+  const ASSERTS_TRUTH = /Observed:|the element shows|\bis confirmed\b|\bwas confirmed\b|\bverified (?:text|match)\b|\bthe text read\b|\bwas read more\b|\bno text was read\b/i;
+  const verdictRecords = [
+    { verdict: "matched", code: "text-matched" },
+    { verdict: "differs", code: "text-differs" },
+    ...Object.entries(TEXT_ASSERTION_CODES).filter(([, verdict]) => verdict === "inconclusive").map(([code]) => ({ verdict: "inconclusive", code }))
+  ] as unknown as OcrAssertionReportRecord[];
+  const offending = (sentence: Sentence) => verdictRecords.filter((r) => ASSERTS_TRUTH.test(sentence(r)) || !sentence(r).startsWith("Unverified OCR evidence:"));
+  const misleading = (sentence: Sentence) => offending(sentence).length > 0;
+  const legacySentence: Sentence = (r) =>
+    r.verdict === "matched" ? "Observed: the element shows the expected text." : r.verdict === "differs" ? "Observed: the element shows different text. Observe never fails a step." : "Observed without a verdict: the text read differs only slightly from the expected text. Observe never fails a step.";
+  add(`E13 every verdict sentence (${verdictRecords.length} codes) is labelled unverified OCR evidence and none states the element's text as fact`, !misleading(imageTextSentence), offending(imageTextSentence).map((r) => `${r.code}: ${imageTextSentence(r)}`).join(" | "));
+  add("E13 negative control: the pre-A1.9 copy is caught as misleading", misleading(legacySentence));
+  add("E14 a not-evaluated step is never labelled as OCR evidence", /^Not evaluated/.test(imageTextSentence(off)) && !imageTextSentence(off).includes("Unverified OCR evidence"));
+  add(
+    "E15 the drawer heading and totals carry the label, and a reported match shows no success check mark",
+    /const UNVERIFIED_OCR_PHRASE = "unverified OCR evidence";/.test(section) && /Image text \(\{UNVERIFIED_OCR_PHRASE\}\)/.test(section) && /observe only, \$\{UNVERIFIED_OCR_PHRASE\}/.test(section) && !/CheckCircle2/.test(section)
+  );
+  add("E16 the Designer explains that results are unverified OCR evidence, not a confirmed check", /Results are unverified OCR\s+evidence/.test(designer) && /not a confirmed check/.test(designer) && /does not prove the element is wrong/.test(designer));
   return out;
 }
 

@@ -393,8 +393,16 @@ try {
   check(
     "the drawer shows Image text as text: totals, every observation and its exact code",
     new RegExp(
-      `This instance: 3 image text assertions \\(observe only\\) — ${first.records.filter((r) => r.verdict === "matched").length} matched, ${first.records.filter((r) => r.verdict === "differs").length} different, ${first.records.filter((r) => r.verdict === "inconclusive").length} without a verdict`
+      `This instance: 3 image text assertions \\(observe only, unverified OCR evidence\\) — ${first.records.filter((r) => r.verdict === "matched").length} reported matched, ${first.records.filter((r) => r.verdict === "differs").length} reported different, ${first.records.filter((r) => r.verdict === "inconclusive").length} without a verdict`
     ).test(drawerText) && first.records.every((r) => drawerText.includes(`Reason code ${r.code}`)),
+    drawerText.slice(0, 500)
+  );
+  // N7 A1.9: the rendered drawer labels every verdict as unverified OCR evidence and never states the element's text.
+  check(
+    "the drawer labels every verdict as unverified OCR evidence and never says what the element shows",
+    /Image text \(unverified OCR evidence\)/i.test(drawerText) &&
+      first.records.filter((r) => r.verdict).length <= (drawerText.match(/Unverified OCR evidence:/g) ?? []).length &&
+      !/Observed:|the element shows/.test(drawerText),
     drawerText.slice(0, 500)
   );
   check("the drawer never shows the expected or the recognized text", drawerText.length > 0 && !/4521|Order|shipped|declined|Payment/.test(drawerText), drawerText.slice(0, 300));
@@ -412,6 +420,7 @@ try {
   check("the Designer shows the Image text section for the step", (await section.count()) === 1);
   check("its match mode reads normalized and there is no enforce option", (await win.getByTestId("image-text-match").inputValue()) === "normalized" && (await win.locator('[data-testid="image-text-match"] option[value="enforce"]').count()) === 0);
   check("it explains observe only and names the switch", /Observe only/.test(await win.getByTestId("image-text-observe").innerText()) && /AWKIT_VISUAL_OCR=observe/.test(await win.getByTestId("image-text-observe").innerText()));
+  check("it says results are unverified OCR evidence, not a confirmed check", /Results are unverified OCR evidence/.test(await win.getByTestId("image-text-observe").innerText()) && /not a confirmed check/.test(await win.getByTestId("image-text-observe").innerText()));
   const latestCode = byStep(first.records, AGAIN_STEP)?.code ?? "none";
   check(
     "it states the step's latest recorded result as text with its exact code",
