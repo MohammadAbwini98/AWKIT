@@ -136,10 +136,45 @@ or `.11`. They were removed outside the agent, so NR-0 and NS-0 are already sati
 
 No milestone here is implemented, closed or authorized by this document.
 
-## Proposal for owner ratification (2026-10-31) — PROPOSED, NOT RATIFIED
+## Owner ratification (2026-10-31) — RATIFIED
 
-These are recommended answers, not decisions. Nothing below authorizes implementation, and N8, N9 and N10 stay
-planning-only and open until the owner ratifies each line.
+The owner ratified the NR and NS answers, transferred N10 and N6P out of Phase N closure, and ordered the legacy
+reconciliation (DECISIONS 2026-10-31, contract `awkit-vra-phase-n-completion-1031`). The DECISIONS entry is
+authoritative. In brief:
+
+- **NR-0 to NR-5:** N8 has no N7 dependency. It reuses existing visual infrastructure (a new lazy adapter only with
+  its isolation edge documented first). Its evidence is N2 shadow and N5 codes only, effect `none`. It measures a
+  separate baseline and freezes its criteria before qualification. It makes zero false row-association claims on
+  adversarial fixtures.
+- **NS-0 to NS-4:** N9 is deterministic only and uses no model and no N7. Its evidence is N5 diagnosis only, with no
+  Smart Wait or execution effect. It must make zero false `ready` on loading fixtures. Its false-`error` ceiling,
+  coverage floor and p95 budget are frozen in its plan before qualification, and an all-`unknown` result never passes.
+- **N10 `awkit-vra.17`:** an independent future milestone outside Phase N closure, scope and requirements preserved.
+- **N6P `awkit-vra.16`:** an independent future milestone outside Phase N closure. Packaged production visual
+  assertions stay observe-only.
+
+Technical plans: `N9-screenshot-state-recognition.md` (first) and `N8-row-grid-intelligence.md`.
+
+## Legacy coverage matrix (2026-10-31, source-verified)
+
+The six pre-canonical planning records (2026-09-22, ROADMAP spec) against the canonical milestones. "Covered" names
+the canonical milestone and its evidence. "Transferred" names where an unfinished obligation now lives. Nothing here
+claims a capability that has not shipped.
+
+| Legacy | Obligation (its acceptance) | Covered by | Transferred / excluded |
+|---|---|---|---|
+| `.2` Visual reference management | Local, backward-compatible reference metadata (viewport, DPR, frame, retention), no change to saved workflows | N2 `awkit-vra.12` (`VisualReferenceStore`, image-free `VisualEvidence` with viewport, DPR and frame), N4 `awkit-vra.13` (recorded references beside the flow, FlowProfile byte-identical) | Image retention: excluded by N0/N1 (no pixels persisted) |
+| `.3` Deterministic image recognition | Model-independent offline matching; confidence never hides ambiguity or makes an uncertain match a verified target | N1 `awkit-vra.3.1` (fingerprints), N2 `.12` (veto-only fusion), N3 `.4` (agreement, shadow), N5 `.14` (diagnosis) | Visual-state recognition → N9 `awkit-vra.11`. Template matching to *find* a target: excluded by the DOM-first rule (DECISIONS 2026-10-12; VR-0 allows only the DOM's own best candidate) |
+| `.5` Visual assertions and failure evidence | Optional, report-compatible visual assertions and failed-run evidence with privacy controls; unchanged when disabled | N6 `awkit-vra.15` (observe-only `assertVisual`, codes-only report), N5 `.14` (codes-only failure diagnosis), N7.5 (`assertImageText`) | Production enforcement → N6P `awkit-vra.16` (outside Phase N closure). Packaged acceptance → N7.8 `awkit-vra.9.9` (see `.8`) |
+| `.6` Headed and headless compatibility | Equivalent headed/headless coordinate and rendering contracts; coordinate interaction guarded by verified identity | N0 `awkit-vra.1` (DPR, frame and popup mapping; browser zoom refused), per render-mode × DPR calibration in N2.3, N3.2, N4.5, N5.6 and N6.6 | Coordinate-based interaction: excluded (no visual actions; DOM-first) |
+| `.7` Optional local vision assistance | No mandatory or bundled model; deterministic fallback complete; a model enabled only after measured acceptance on every gate | Deterministic fallback: N0 to N6 run with no model | All model work → N10 `awkit-vra.17` (outside Phase N closure, requirements preserved) |
+| `.8` Integration and acceptance verification | Real-browser, privacy, accessibility, accuracy, packaged-artifact and disabled-fallback evidence; normal automation always available | Real-browser, privacy, accessibility and disabled-mode verifiers of N0 to N7 (each milestone's `verify:*`, mock-site Visual Intelligence labs) | Fresh packaged-artifact evidence (`verify:visual-assertion-packaged`, N6's NOT RUN packaged gate, and packaged disabled-mode compatibility) → N7.8 `awkit-vra.9.9`, which stays BLOCKED on the packaging host and inside Phase N closure |
+
+N3.4 `awkit-vra.4.4` and N3.5 `awkit-vra.4.5` stay unresolved, blocked follow-ups. Neither is closed or waived.
+
+## Proposal for owner ratification (2026-10-31) — superseded by the ratification above
+
+Kept for history. These were the recommended answers before the owner ratified them.
 
 | ID | Recommended answer | Why |
 |---|---|---|

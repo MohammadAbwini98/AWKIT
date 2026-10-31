@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-phase-n-completion-1031",
+    "title": "Phase N: record the owner ratification of NR, NS, NV, N6P and the legacy reconciliation; implement N9 and N8 as deterministic, codes-only, effect-none evidence; keep N7 packaged gates BLOCKED until the packaging host is READY",
+    "objective": "Under the owner prompt of 2026-10-31: record NR-0 to NR-5, NS-0 to NS-4, the N10 and N6P transfers out of Phase N closure and the legacy awkit-vra.2, .3, .5 to .8 coverage matrix; for N9 and then N8 write the technical plan and acceptance contract, build deterministic Test Lab fixtures, measure a baseline, freeze criteria before qualification, implement the smallest complete solution inside the existing N5 adapter edge, add focused verifiers with negative controls, run independent QC and security review, and record any missed qualification as NOT MET; keep N7.1b, N7.8 and N7.9 BLOCKED while verify:packaging-host is BLOCKED; reconcile Beads, ledger and roadmap; commit and push main.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "f4e801a",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": true,
+    "protected_login_change": false,
+    "project_state_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "runtime",
+      "qa",
+      "qc",
+      "security",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "src/visual/**",
+      "src/runner/visualDiagnosis/**",
+      "src/runner/PlaywrightRunner.ts",
+      "src/runner/ExecutionEngine.ts",
+      "app/renderer/components/reports/VisualDiagnosisSection.tsx",
+      "mock-site/**",
+      "scripts/verify-*",
+      "scripts/benchmark-*",
+      "scripts/lib/verifier-classification.ts",
+      "package.json",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "scripts/verify-roadmap-dashboard.mjs",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/**"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qc",
+      "security"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "PHASE-N-RATIFICATION",
+      "description": "NR, NS, NV, N6P and legacy decisions recorded in DECISIONS.md and the N8-N10 plan; N10 and N6P tracked outside Phase N closure with requirements preserved; legacy records closed only with a coverage matrix and canonical references; unfinished unique obligations transferred.",
+      "evidence_required": [
+        "bd-reconciliation",
+        "verify:roadmap-dashboard"
+      ]
+    },
+    {
+      "id": "N9",
+      "description": "Deterministic visual state recognition as N5 codes-only evidence, effect none, default off, criteria frozen before qualification, missed criteria recorded NOT MET.",
+      "evidence_required": [
+        "verify:visual-state",
+        "verify:visual-state-runtime",
+        "benchmark:visual-state"
+      ]
+    },
+    {
+      "id": "N8",
+      "description": "Deterministic row/grid evidence as N5 codes-only evidence, effect none, default off, zero false row-association claims on adversarial fixtures, criteria frozen before qualification.",
+      "evidence_required": [
+        "verify:visual-rows",
+        "benchmark:visual-rows"
+      ]
+    }
+  ],
+  "evidence": [],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  }
+}

@@ -1,6 +1,59 @@
 # DECISIONS
 
-### 2026-10-28 (latest) — N7 scope amendment A1 RATIFIED by the owner, with Option 1 for N7.10
+### 2026-10-31 (latest) — Phase N decisions RATIFIED by the owner: NR, NS, N10 and N6P transfers, legacy reconciliation
+
+Owner prompt "AWKIT — Phase N Decision Ratification and Completion", 2026-10-31, starting commit `f4e801a`. The answers
+below replace the PROPOSED table in `docs/plans/ai-upgrade-v5/N8-N10-planning.md`. Contract
+`awkit-vra-phase-n-completion-1031`.
+
+- **N8 (NR):**
+  - NR-0: the legacy dependency removal is accepted as reconciled (the `.3` edges were already absent).
+  - NR-1: no dependency on N7 OCR.
+  - NR-2: reuse existing visual infrastructure where architecturally appropriate. A separate lazy adapter may be
+    proposed where reuse breaks separation of responsibilities, and its exact new isolation edge is documented before
+    it is added.
+  - NR-3: N2 shadow and N5 codes-only evidence, effect `none`. No action, locator, branch, retry or step-result
+    influence.
+  - NR-4 and NR-5: a separate measured baseline first, then performance and accuracy criteria frozen before the
+    qualifying campaign. Zero false row-association claims on adversarial fixtures; ambiguous and unmounted rows stay
+    inconclusive or not examined.
+- **N9 (NS):**
+  - NS-0: the legacy dependency removal is accepted.
+  - NS-1: deterministic-only state recognition, no model dependency.
+  - NS-2: N5 diagnosis evidence only. No change to Smart Wait or workflow execution.
+  - NS-3: zero false `ready` on loading fixtures. The false-`error` ceiling, the positive-coverage floor and the p95
+    budget are defined in the technical plan before qualification. An all-`unknown` result can never pass.
+  - NS-4: no N7 OCR dependency.
+- **N10 (NV):** transferred to an independent future milestone outside Phase N closure. Its optional, local-only
+  vision-model scope is preserved. A future implementation must:
+  - reuse compatible existing local-runtime infrastructure;
+  - support a CPU fallback and qualified NVIDIA acceleration;
+  - require no model in the base package;
+  - have zero impact on normal automation.
+  It is not closed as implemented, and its requirements are not deleted.
+- **N6P (`awkit-vra.16`):** transferred outside Phase N closure as an independent production enforcement and
+  qualification milestone. Every security and approval requirement is retained. Packaged production visual assertions
+  stay observe-only, with no enforcement bypass.
+- **Legacy Beads `awkit-vra.2`, `.3`, `.5`, `.6`, `.7` and `.8`:** reconciled with the canonical milestones through an
+  explicit coverage matrix (`N8-N10-planning.md` § Legacy coverage matrix). A superseded record closes only with a
+  truthful disposition that names its canonical replacement. Unfinished unique obligations are transferred explicitly
+  and not claimed as shipped. N3.4 and N3.5 stay unresolved follow-ups.
+- **Not changed:**
+  - N7 rules: OC-0 to OC-12, amendment A1, OC-10 NOT MET, `calibrated: false`, and the independent N7.10
+    `awkit-2shc`.
+  - N7.1b, N7.8 and N7.9 stay mandatory and BLOCKED until `npm run verify:packaging-host` reports READY. On
+    2026-10-31 it reports H4 and H5 BLOCKED: no Visual Studio 2022 MSVC v143.
+  - Every protected-capture, offline, isolation, privacy and release rule.
+- **Phase N closure rule (owner):** Phase N is COMPLETE only when all of these hold:
+  - N0 to N9 are complete within their approved scope, or closed under an explicit approved NO-GO disposition;
+  - N7's packaged acceptance and independent review pass;
+  - N8 and N9 pass their verification and independent review;
+  - the legacy records hold no hidden obligation;
+  - N6P, N7.10, N10 and the unresolved enforcement follow-ups stay independently tracked;
+  - Beads, the validation ledger and the roadmap agree;
+  - the final commit is pushed.
+
+### 2026-10-28 — N7 scope amendment A1 RATIFIED by the owner, with Option 1 for N7.10
 
 - **Owner decision, verbatim:** "I approve amendment A1 exactly as worded in the N7 plan (§ N7.6, A1–A6), with
   **Option 1** for N7.10."
