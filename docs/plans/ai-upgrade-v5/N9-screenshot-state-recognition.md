@@ -290,3 +290,18 @@ The same held-out variants, cells and repeats: 972 trials, 936 scored and 36 pro
 - `verify:mock-site` 370/370.
 
 S-8 is met. S-9, the independent QC and security review, is in § 8.
+
+### Campaign 3: joint with N8 (2026-11-01, strict accounting, unchanged frozen policy and criteria)
+
+This ran after the N5 deadline fix (see the N8 plan § 8 for the fix, the strict accounting declared in `32ffca2`, and
+the full matrix).
+- **Joint campaign 1:** headless cells MET. In the headed cells, S-3 loading, S-4 (headed@2) and S-5 were NOT MET,
+  because of background-tab throttling in the harness. Evidence: `evidence/joint/`.
+- **Joint campaign 2:** **S-1 to S-5 MET in all six cells**, with N8 enabled at the same time. Evidence:
+  `evidence/joint/c2/`.
+  - 0 false `ready` in 324 loading trials and 0 false `error` in 792 non-error trials.
+  - Recall: loading 814‰, empty 1000‰, error 694‰, ready 864‰. Decided 991‰.
+  - State-work p95 378 ms. **0 records after the 1600 ms hard deadline**, with no grace, and 0 cuts.
+  - Protected: 72 trials refused with zero frames. Disabled controls clean.
+- The earlier NOT MET results (campaign 1 S-5, and the campaign 2 headless@2 strict overrun of +2 ms) stay on record.
+  N9 closes only after the fresh independent QC and security review (S-9).

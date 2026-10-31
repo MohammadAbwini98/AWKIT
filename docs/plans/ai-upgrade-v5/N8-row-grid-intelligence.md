@@ -211,3 +211,57 @@ review the verifiers' mutation sensitivity, the lab pages or the N9 plan text.
 **Consequence:** the qualification evidence predates these fixes. N8 and N9 both need a fresh qualification campaign
 after the N5 deadline-lateness fix (NOT RUN). Neither milestone closes. Finding 5 is also open: the N9 code can be
 dropped by the 8-observation cap when both flags are on, and the two were never qualified together.
+
+## 8. Remediation and joint qualification (2026-11-01)
+
+**Recovered:** the staged QC fixes were inspected and committed as `9184fee`. The reviewed diff matched findings 1, 3,
+4, 6 and 7.
+
+**N5 deadline fix** (`f5860d1`, `bfd09ef`; `verify:visual-diagnosis-deadline` 23/0):
+- The adapter settles at a work budget of `deadline − min(100 ms, deadline / 4)`.
+- A result finished past the budget is never published: the monotonic clock decides, and it becomes
+  `budget-exhausted`.
+- N5's own whole-frame chunk starts only behind a checkpoint. The checkpoint yields to timers, checks the abort
+  signal, and requires the budget left to cover the chunk's measured cost (200 ns per device pixel,
+  `benchmark:visual-sync-cost`). Otherwise the record is `budget-exhausted`.
+- The N8 and N9 extras degrade instead: rows are withheld (no pixels), and motion is left unmeasured.
+- Finding 5 is fixed: the N9 code keeps one observation slot, and row codes are trimmed structure-first.
+- The verifier reproduces the original defect with margin 0 (back at 1467 ms against a 1400 ms deadline). It proves
+  the remedy under the same synchronous block, under background contention, with abort during frame work, with a late
+  second frame, and with N8 and N9 together.
+
+**Joint campaigns** (`benchmark:visual-joint`, both features on, deadline 1600 ms). The strict accounting was declared
+in commit `32ffca2` before any joint trial: any overrun of the hard deadline is late, and a cut trial counts at the
+full deadline in the work-time p95.
+- **Campaign 1 (`32ffca2`, evidence `evidence/joint/`):** NOT MET.
+  - All headless cells were MET.
+  - The headed cells had 20 to 27 N9 cuts on animated loading fixtures: S-3 loading, S-4 (headed@2) and S-5 NOT MET.
+  - One disabled control (N5 alone, headed@2) overran its 1000 ms deadline by 62.7 ms.
+  - Diagnosed once:
+    - The harness kept both labs open in one headed window, and Chromium throttles the background tab.
+    - Whole-frame fingerprints cost up to about 216 ms at DPR 2, more than the fixed 50 ms reserve plus the 100 ms
+      margin.
+- **Campaign 2 (`bfd09ef`, evidence `evidence/joint/c2/`):** the page under test is brought to the front, and the
+  reserve is cost-scaled. **PASS: every N8 and N9 criterion is MET in all six cells.**
+
+| Pooled (6 cells) | Result |
+|---|---|
+| Trials | 972 state, 648 rows, 60 disabled controls |
+| Hard-deadline overruns | **0** (record duration p50 460 ms, p95 705 ms, max 1194 ms against 1600) |
+| Deadline cuts | 0 |
+| N8 R-1 | 0 association claims in 180 adversarial trials |
+| N8 R-2 / R-3 / R-4 | 396/396; look-alike 216/216 and 0/72 on distinct; partly 72/72, not-examined 36/36 |
+| N8 R-5 | row-work p95 88 ms (cell maximum 118 ms, headed@2) |
+| N9 S-1 / S-2 | 0 false `ready` in 324 loading trials; 0 false `error` in 792 non-error trials |
+| N9 S-3 / S-4 / S-5 | loading 814‰, empty 1000‰, error 694‰, ready 864‰; 991‰ decided; state-work p95 378 ms |
+| Protected | 72 trials, refused, zero frames, no codes |
+| Disabled controls | no N8/N9 code, at most one frame, none late |
+
+- `rows-not-examined` is exposed again: R-4 is now met everywhere.
+- **Residual risk (recorded, not hidden):** the deadline guarantee rests on measured synchronous costs on this host.
+  A stop-the-world pause longer than the 100 ms margin can still delay a settlement, as the 349 ms isolated
+  fingerprint outlier at headed@1 shows. If that recurs, the architecture change would be moving whole-frame pixel
+  work into a worker thread. It was not needed to pass and is not adopted.
+- **Scope:** synthetic lab fixtures at 800 × 600 on this host only. N2 shadow wiring stays out of scope (NR-3).
+
+R-9 is the fresh independent QC and security review, recorded separately.

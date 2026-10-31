@@ -50,9 +50,10 @@ export const VISUAL_DIAGNOSIS_RECORD_KEYS: readonly (keyof VisualDiagnosisRecord
  * stored record keeps the raw code so it can be recalibrated later; anything that SHOWS a diagnosis (N5.5) must go
  * through `exposedVisualDiagnosisObservations`, which turns a pruned code into `inconclusive`.
  * `viewport-uniform`: never reported falsely, but missed on the blank fixture in all three headed cells.
- * `rows-not-examined` (N8, plan § 6): R-4 NOT MET in the headed@2 cell (17 of 18 overall), the declared consequence.
+ * `rows-not-examined` (N8) was pruned on 2026-10-31 for R-4 NOT MET in headed@2 and is exposed again since joint
+ * campaign 2 (2026-11-01) met R-4 in all six cells (36 of 36).
  */
-export const VISUAL_DIAGNOSIS_PRUNED_CODES: ReadonlySet<string> = new Set(["viewport-uniform", "rows-not-examined"]);
+export const VISUAL_DIAGNOSIS_PRUNED_CODES: ReadonlySet<string> = new Set(["viewport-uniform"]);
 
 /** The observations a viewer may see: pruned codes become `inconclusive`, once, in their first position. */
 export function exposedVisualDiagnosisObservations(record: Pick<VisualDiagnosisRecord, "observations">): string[] {
