@@ -565,7 +565,9 @@ async function main(): Promise<void> {
     {
       // N5.7 (QC finding 6): attempts are compared too, and one case retries before its final failure.
       const stable = (result: StepExecutionResult) =>
-        JSON.stringify({ status: result.status, error: result.error, next: result.nextStepId, outcome: result.outcome, attempts: result.attemptCount, kinds: (result.evidence ?? []).map((e) => `${e.kind}:${e.attempt}:${!!e.path}`) });
+        // The error is compared without Playwright's "Call log:" tail: that narration counts actionability retries by
+        // wall clock during the step's own timeout, before the diagnosis hook runs, so it varies between identical runs.
+        JSON.stringify({ status: result.status, error: typeof result.error === "string" ? result.error.split("\nCall log:")[0] : result.error, next: result.nextStepId, outcome: result.outcome, attempts: result.attemptCount, kinds: (result.evidence ?? []).map((e) => `${e.kind}:${e.attempt}:${!!e.path}`) });
       const pageState = (page: Page) =>
         page.evaluate(() => ({
           dom: document.documentElement.outerHTML.length + ":" + document.documentElement.outerHTML.split("").reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 0),
