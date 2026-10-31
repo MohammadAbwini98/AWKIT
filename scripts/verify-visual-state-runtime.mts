@@ -7,7 +7,8 @@
  *      N9 (all fields but the duration);
  *   B  flag on: loading, ready, empty and error fixtures give their one code; exactly two frames, both released;
  *   C  refusals with ZERO frames and no state code (S-6): the protected fixture, a handed-off page, a sensitive step;
- *   D  a password form injected AFTER the first frame: the second frame is refused and the state withdrawn (skipped);
+ *   D  a password form injected AFTER the first frame: the second frame is refused and every advisory code withdrawn
+ *      (2026-11-01 Sec 2; no state code, previously `skipped`), the N5 record kept;
  *   E  A/B neutrality: off and on give the same step status, error, attempt count and page interaction count;
  *   F  the deadline: a tight deadline settles once with every frame released and nothing left in flight;
  *   G  wiring: the runner adds the extra budget and the flag only with state on.
@@ -203,7 +204,12 @@ async function main(): Promise<void> {
           pageRef = page;
         }
       );
-      check("the second frame is refused and the state withdrawn (visual-state-skipped)", stateCode(d.h.records[0]) === "visual-state-skipped", JSON.stringify(d.h.records[0]?.observations));
+      // Security Sec 2 (2026-11-01): the refusal withdraws every advisory code, the state included; N5's record stays.
+      check(
+        "the second frame is refused and the state withdrawn (no state code), the N5 record kept",
+        d.h.records[0]?.outcome === "observed" && stateCode(d.h.records[0]) === undefined && (d.h.records[0]?.observations.length ?? 0) > 0,
+        JSON.stringify(d.h.records[0]?.observations)
+      );
       check("only the first (clean) frame was taken, and it was released", d.h.frames.taken === 1 && d.h.frames.released === 1, JSON.stringify(d.h.frames));
       await d.page.close();
     }

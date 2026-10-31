@@ -16,7 +16,8 @@
  *   D6  N8 and N9 together under the D2 block: back by the deadline, one record, at most one state and three row codes;
  *   D7  pins: the publish gate reads the monotonic clock, the checkpoint guards N5's own frame work (each member at its
  *       measured per-pixel cost, QC F1), and the work budget formula; the N9 code keeps a slot under the observation
- *       cap, tested on appendAdvisoryCodes itself (QC F6).
+ *       cap, tested on appendAdvisoryCodes itself (QC F6); 2026-11-01 QC: memberCropPixels behaviourally (a large DPR-2
+ *       member, a viewport-edge-clipped one, an offscreen one) and no slot reserved for a state code already present.
  *
  * Run: npm run verify:visual-diagnosis-deadline
  */
@@ -25,10 +26,12 @@ import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { chromium, type Browser, type Page } from "playwright";
-import { VisualFailureDiagnosis, appendAdvisoryCodes, type VisualDiagnosisProbe } from "@src/runner/visualDiagnosis/VisualFailureDiagnosis";
+import { VisualFailureDiagnosis, appendAdvisoryCodes, memberCropPixels, type VisualDiagnosisProbe } from "@src/runner/visualDiagnosis/VisualFailureDiagnosis";
 import { VISUAL_DIAGNOSIS_RECORD_MAX_OBSERVATIONS } from "@src/runner/visualDiagnosis/visualDiagnosisRecord";
 import {
   VISUAL_DIAGNOSIS_SETTLE_MARGIN_MS,
+  VISUAL_DIAGNOSIS_SYNC_RESERVE_MS,
+  visualDiagnosisSyncReserveMs,
   visualDiagnosisWorkBudget,
   type VisualDiagnosisRecord
 } from "@src/runner/visualDiagnosis/visualDiagnosisContract";
@@ -265,6 +268,25 @@ async function main(): Promise<void> {
       full.length === VISUAL_DIAGNOSIS_RECORD_MAX_OBSERVATIONS && !full.includes("visual-state-ready") && JSON.stringify(repeated) === JSON.stringify([...n5, "rows-look-alike", "visual-state-loading"]),
       JSON.stringify({ full, repeated })
     );
+    // QC (2026-11-01): a state code already in the record keeps no second slot, so the eighth slot is not wasted.
+    const present = ["target-not-found", "reference-none", "viewport-changed", "target-multiple-matches", "visual-state-ready", "target-text-differs-from-name", "rows-partly-examined"];
+    appendAdvisoryCodes(present, ["rows-look-alike"], "visual-state-ready");
+    check(
+      "QC: no slot is reserved for a state code the record already has",
+      JSON.stringify(present) === JSON.stringify(["target-not-found", "reference-none", "viewport-changed", "target-multiple-matches", "visual-state-ready", "target-text-differs-from-name", "rows-partly-examined", "rows-look-alike"]),
+      JSON.stringify(present)
+    );
+    // QC (2026-11-01), behavioural: memberCropPixels is the element crop plus the 24-CSS-px padded context crop, each
+    // clipped to the viewport, in device pixels.
+    const dpr2 = memberCropPixels({ cssWidth: 1280, cssHeight: 720, scaleX: 2, scaleY: 2 }, { x: 100, y: 100, width: 800, height: 400 });
+    check(
+      "QC: a large DPR-2 member counts (800x400 + 848x448) x 4 device pixels and reserves more than the fixed floor",
+      dpr2 === (800 * 400 + 848 * 448) * 4 && visualDiagnosisSyncReserveMs(dpr2) > VISUAL_DIAGNOSIS_SYNC_RESERVE_MS,
+      `${dpr2} px, ${visualDiagnosisSyncReserveMs(dpr2)} ms`
+    );
+    const clipped = memberCropPixels({ cssWidth: 1280, cssHeight: 720, scaleX: 1.5, scaleY: 1.5 }, { x: -50, y: 680, width: 200, height: 100 });
+    check("QC: a member clipped by the viewport's left and bottom edges counts only its visible part", clipped === (150 * 40 + 174 * 64) * 2.25, String(clipped));
+    check("QC: a member wholly outside the viewport counts no pixels", memberCropPixels({ cssWidth: 1280, cssHeight: 720, scaleX: 1, scaleY: 1 }, { x: 1400, y: 10, width: 50, height: 20 }) === 0);
     check(
       "the work budget is the deadline minus min(margin, a quarter)",
       visualDiagnosisWorkBudget(1000) === 1000 - VISUAL_DIAGNOSIS_SETTLE_MARGIN_MS && visualDiagnosisWorkBudget(300) === 225 && visualDiagnosisWorkBudget(1000, 0) === 1000

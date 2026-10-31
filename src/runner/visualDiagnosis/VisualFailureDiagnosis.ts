@@ -128,6 +128,8 @@ export interface VisualDiagnosisProbe {
   onState?: (event: { features: VisualStateFrameFeatures; motion: VisualMotion | null; verdict: VisualStateVerdict; ms: number }) => void;
   /** N8 QC finding 7: the container crop was taken from the frame, or dropped (always before the frame is released). */
   onRowCrop?: (event: "taken" | "dropped") => void;
+  /** Security Sec 1-2 (2026-11-01): frame 1 (N5's) or 2 (N9's second) was just taken and is held, before any crop. */
+  heldFrame?: (index: 1 | 2) => Promise<void>;
 }
 
 export interface VisualFailureDiagnosisOptions {
@@ -196,14 +198,32 @@ class DiagnosisAborted extends Error {}
 /** The work budget ran out at a checkpoint before synchronous work could start: truthfully `budget-exhausted`. */
 class DiagnosisOverBudget extends Error {}
 
+/**
+ * Security (2026-11-01 review, S1 and Sec 1-2): the one advisory refusal boundary. A frame N0 refused because the surface
+ * is protected, or the page navigated or closed during capture (the first frame or N9's second), withdraws every N7.7, N8
+ * and N9 code of that diagnosis, as do a refused verdict and a handoff that became active while it ran. N5's own record
+ * keeps its meaning and its refusal codes: nothing derived from a page N0 would not capture is added to it.
+ */
+const ADVISORY_REFUSALS: ReadonlySet<string> = new Set(["PROTECTED_SURFACE", "CAPTURE_STALE", "PAGE_CLOSED"]);
+/** The same refusals as N7.7's text signal reports them (its own N0 frame, protected scan and handoff check). */
+const TEXT_SIGNAL_REFUSALS: ReadonlySet<string> = new Set(["protected-surface", "handoff-active", "page-closed", "capture-stale"]);
+/** An unavailable capture result whose code is one of ADVISORY_REFUSALS. */
+const refusedCapture = (capture: unknown): boolean =>
+  !!capture && typeof capture === "object" && (capture as { available?: unknown }).available === false && ADVISORY_REFUSALS.has(String((capture as { code?: unknown }).code));
+
+/** The N4.2 masked-field rule (autocomplete tokens, then the described attributes), shared by `masked` and the N8 container. */
+const MASKED_AUTOCOMPLETE = "one-time-code|current-password|new-password|cc-number|cc-csc";
+const MASKED_DESCRIBED = String.raw`otp|one[-_ ]?time|passcode|\bpin\b|\bcvv\b|\bcvc\b|\bcsc\b|card[-_ ]?number|cardnumber|credit[-_ ]?card|\bssn\b|social[-_ ]?security|\bsecret\b|\btoken\b`;
+
 /** N9: one macrotask turn, so a deadline timer that is already due runs before more synchronous pixel work starts. */
 const yieldToTimers = (): Promise<void> => new Promise<void>((resolve) => setImmediate(resolve));
 
 /**
  * QC F1: the device pixels one member's crop and evidence touch (the element crop plus its padded context crop, each
- * clipped to the viewport), so the checkpoint before them reserves their measured cost, not a fixed one.
+ * clipped to the viewport), so the checkpoint before them reserves their measured cost, not a fixed one. Exported for its
+ * behavioural test.
  */
-function memberCropPixels(viewport: { cssWidth: number; cssHeight: number; scaleX: number; scaleY: number }, box: MemberBox["box"]): number {
+export function memberCropPixels(viewport: { cssWidth: number; cssHeight: number; scaleX: number; scaleY: number }, box: MemberBox["box"]): number {
   const area = (pad: number): number => {
     const width = Math.min(viewport.cssWidth, box.x + box.width + pad) - Math.max(0, box.x - pad);
     const height = Math.min(viewport.cssHeight, box.y + box.height + pad) - Math.max(0, box.y - pad);
@@ -217,7 +237,8 @@ function memberCropPixels(viewport: { cssWidth: number; cssHeight: number; scale
  * code keeps a slot; the N7.7 and N8 codes, given in keep order, fill the rest. Exported for its behavioural test.
  */
 export function appendAdvisoryCodes(observations: string[], extras: readonly string[], stateCode: string | undefined): void {
-  const cap = VISUAL_DIAGNOSIS_RECORD_MAX_OBSERVATIONS - (stateCode ? 1 : 0);
+  // QC (2026-11-01): a state code already in the record needs no slot of its own.
+  const cap = VISUAL_DIAGNOSIS_RECORD_MAX_OBSERVATIONS - (stateCode && !observations.includes(stateCode) ? 1 : 0);
   for (const code of extras) {
     if (observations.length < cap && !observations.includes(code)) observations.push(code);
   }
@@ -398,11 +419,15 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
     const boxes: MemberBox[] = chosen.map((slot, at) => ({ ...slot, ...frames[at] }));
 
     // N8: the DOM's row structure around the first examined main-frame candidate (read only, before the frame).
-    // `undefined` = not asked (off, or too little time left): no row code at all; `null` = no row structure.
+    // `undefined` = not asked (off, too little time left, or a container holding a masked field): no row code at all;
+    // `null` = no row structure.
     let rowFacts: RowFacts | null | undefined;
     let rowAnchor: ElementHandle | undefined;
     let rowMs = 0;
     if (this.options.rowEvidence === true && this.remaining(started, deadlineMs) >= VISUAL_ROWS_MIN_REMAINING_MS) {
+      // Security S2 / Sec 3: the inexpensive handoff recheck right before N8's DOM read. A handoff that became active since
+      // the start is refused exactly as it is there; N0's own protected checks stay authoritative for the frame.
+      if (this.handedOff(page)) return this.refusal(request, "protected-surface", started);
       const reading = performance.now();
       const mainMembers = boxes.filter((slot) => slot.isMainFrame).map((slot) => ({ handle: handles[slot.index]!, box: slot.box }));
       rowAnchor = mainMembers[0]?.handle;
@@ -418,6 +443,8 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
       this.options.probe?.onRowCrop?.("dropped");
     };
     let rowStale = false;
+    /** The container crop was refused as stale (the frame went stale after the member crops): the boundary below. */
+    let rowCropRefused = false;
     let rowsVerdict: VisualRowsVerdict | undefined;
 
     await this.options.probe?.hold?.("before-frame");
@@ -455,6 +482,8 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
       const frame = shot.value;
       this.options.probe?.onFrame?.("taken");
       try {
+        await this.options.probe?.heldFrame?.(1);
+        if (signal.aborted) throw new DiagnosisAborted();
         // The deadline fix: N0's decode just ran synchronously; a due deadline goes first, and N5's own pixel work
         // starts only with the reserve left (otherwise the record is budget-exhausted, as the timer would have said).
         const framePixels = frame.viewport.imageWidth * frame.viewport.imageHeight;
@@ -521,6 +550,8 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
             if (crop.ok) {
               rowPixels = { image: crop.value.element.image, cropCss: { ...crop.value.element.actualCssBounds } };
               this.options.probe?.onRowCrop?.("taken");
+            } else if (ADVISORY_REFUSALS.has(crop.code)) {
+              rowCropRefused = true;
             }
           }
           rowMs += performance.now() - cropping;
@@ -583,9 +614,10 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
       members,
       viewport: viewportInput
     });
-    // Security S1: a refused verdict (N0 refused the frame, or a refusal inside it) gains no N7.7, N8 or N9 code: nothing
-    // derived from a page N0 just refused is added to the record.
-    const advisory = verdict.outcome !== "refused";
+    // The advisory refusal boundary (ADVISORY_REFUSALS): a refused verdict, or a first frame N0 refused or found stale
+    // (the shot itself, or any crop of it) as protected, navigated or closed, gains no N7.7, N8 or N9 code.
+    // N7.7's own refusals (TEXT_SIGNAL_REFUSALS) and a refused second frame withdraw it below.
+    let advisory = verdict.outcome !== "refused" && !rowCropRefused && ![viewportInput, ...members.map((member) => member.evidence)].some(refusedCapture);
     // N7.7: advisory only, after the verdict is decided; a DOM-proven, unique, visible target only.
     const textCodes: string[] = [];
     if (advisory && this.options.textSignal && matches === 1 && target?.inViewport && !target.zeroSize && !signal.aborted) {
@@ -594,6 +626,7 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
           .textSignal({ page, target: locator, handedOff: this.handedOff(page), deadlineMs: this.remaining(started, deadlineMs), signal })
           .catch(() => undefined)
       );
+      if (text && TEXT_SIGNAL_REFUSALS.has(text.code)) advisory = false;
       const code = text ? OCR_TEXT_SIGNAL_DIAGNOSIS_CODES[text.outcome] : undefined;
       if (code) textCodes.push(code);
     }
@@ -614,18 +647,23 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
     }
     // N9: advisory only, after the verdict and the text signal; one code, never more.
     if (advisory && this.options.stateRecognition === true) {
-      stateCode = await this.state(request, page, stateFrame, stateMs, shotAt, signal, started, deadlineMs, bounded, defer);
+      // Sec 2: a refused second frame (null) withdraws the text and row codes already computed, not just the state.
+      const state = await this.state(request, page, stateFrame, stateMs, shotAt, signal, started, deadlineMs, bounded, defer);
+      if (state === null) advisory = false;
+      else stateCode = state;
     }
+    // A handoff that became active while the advisory work ran withdraws it too.
+    if (advisory && this.handedOff(page)) advisory = false;
     const record = this.toRecord(request, kind, verdict, started);
-    appendAdvisoryCodes(record.observations, [...textCodes, ...rowCodes], stateCode);
+    if (advisory) appendAdvisoryCodes(record.observations, [...textCodes, ...rowCodes], stateCode);
     return record;
   }
 
   /**
    * N9 (plan § 2–3): the state of the failed step's viewport. Without a first frame nothing is claimed (`skipped`).
    * With enough deadline left, ONE more guarded N0 frame is taken for motion (same limiter, abort, handoff and protected
-   * rules, released on every path); without it, motion stays unmeasured and `ready` cannot be decided. A protected
-   * refusal of the second frame withdraws the state altogether.
+   * rules, released on every path); without it, motion stays unmeasured and `ready` cannot be decided. A second frame
+   * N0 refuses under ADVISORY_REFUSALS returns `null`: every advisory code of the diagnosis is withdrawn.
    */
   private async state(
     request: VisualDiagnosisRequest,
@@ -638,7 +676,7 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
     deadlineMs: number,
     bounded: <T>(work: Promise<T>) => Promise<T>,
     defer: (cleanup: () => void) => void
-  ): Promise<string> {
+  ): Promise<string | null> {
     if (!frame) return "visual-state-skipped";
     const begun = performance.now();
     let motion: VisualMotion | null = null;
@@ -669,16 +707,19 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
       const shot = await bounded(shooting);
       kept = true;
       if (!shot.ok) {
-        if (shot.code === "PROTECTED_SURFACE") return "visual-state-skipped";
+        if (ADVISORY_REFUSALS.has(shot.code)) return null;
       } else {
         const second = shot.value;
         this.options.probe?.onFrame?.("taken");
         try {
+          await this.options.probe?.heldFrame?.(2);
           await yieldToTimers();
           if (signal.aborted) throw new DiagnosisAborted();
           // Without the reserve left, motion stays unmeasured (so `ready` cannot be decided), never measured late.
           if (this.leftOf(started, deadlineMs) >= visualDiagnosisSyncReserveMs(second.viewport.imageWidth * second.viewport.imageHeight)) {
             const whole = cropFromVisualFrame(second, { x: 0, y: 0, width: second.viewport.cssWidth, height: second.viewport.cssHeight }, 0);
+            // Sec 1: a second frame that went stale (the page navigated or closed while it was held) withdraws too.
+            if (!whole.ok && ADVISORY_REFUSALS.has(whole.code)) return null;
             const plane = whole.ok ? measureVisualMotionPlane(whole.value.element.image, second.viewport.scaleX) : undefined;
             if (plane?.ok) motion = measureVisualMotion(frame.motion, plane.value, this.statePolicy);
           }
@@ -726,9 +767,11 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
   /**
    * N8 (plan § 2): the container of the first member's closest DOM row, that container's row boxes (at most
    * VISUAL_ROWS_MAX_ROWS), a declared row count, and each member's DOM row index in that container (-1 when it is in
-   * another one) and whether nothing is on top of it. Read only: boxes, ancestry and one hit test per member.
+   * another one) and whether nothing is on top of it. Read only: boxes, ancestry and one hit test per member. Security S3:
+   * a container holding a masked field (the N4.2 rule, attributes only, never a value) is `undefined`: never cropped,
+   * never examined, no row code.
    */
-  private async rowFacts(members: Array<{ handle: ElementHandle; box: MemberBox["box"] }>, signal: AbortSignal): Promise<RowFacts | null> {
+  private async rowFacts(members: Array<{ handle: ElementHandle; box: MemberBox["box"] }>, signal: AbortSignal): Promise<RowFacts | null | undefined> {
     // N8 QC finding 6: after a cut, no further page reads are started.
     if (signal.aborted) return null;
     const container = await members[0]!.handle.evaluateHandle((node, selector) => (node as Element).closest(selector)?.parentElement ?? null, ROW_SELECTOR);
@@ -737,9 +780,18 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
       if (signal.aborted) return null;
       const facts = await container.evaluate(
         // No named inner functions here: a bundler may wrap them in a helper the page does not have.
-        (node, [selector, cap]) => {
+        (node, [selector, cap, autocompleteRule, describedRule]) => {
           if (!node) return null;
           const element = node as Element;
+          const autocompleteMasked = new RegExp(autocompleteRule);
+          const describedMasked = new RegExp(describedRule, "i");
+          for (const control of Array.from(element.querySelectorAll("input, textarea"))) {
+            const autocomplete = (control.getAttribute("autocomplete") ?? "").toLowerCase();
+            const described = [control.getAttribute("name"), control.id, autocomplete, control.getAttribute("aria-label"), control.getAttribute("placeholder")].join(" ");
+            if ((control.getAttribute("type") ?? "").toLowerCase() === "password" || autocompleteMasked.test(autocomplete) || describedMasked.test(described)) {
+              return { sensitive: true as const };
+            }
+          }
           const rows = Array.from(element.children).filter((child) => child.matches(selector));
           const boxes: Array<{ x: number; y: number; width: number; height: number }> = [];
           for (const row of rows.slice(0, cap)) {
@@ -756,9 +808,10 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
             declaredRows: Number.isInteger(declared) && declared > 0 ? declared : null
           };
         },
-        [ROW_SELECTOR, VISUAL_ROWS_MAX_ROWS] as [string, number]
+        [ROW_SELECTOR, VISUAL_ROWS_MAX_ROWS, MASKED_AUTOCOMPLETE, MASKED_DESCRIBED] as [string, number, string, string]
       );
       if (!facts || signal.aborted) return null;
+      if ("sensitive" in facts) return undefined;
       const placed = await Promise.all(
         members.map(({ handle }) =>
           handle
@@ -778,20 +831,30 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
       if (signal.aborted) return null;
       // Security S4: an unreadable hit test counts as covered here, so it can never support a row association.
       const covered = await Promise.all(members.map(({ handle }) => this.occluded(handle, true)));
+      // QC (2026-11-01): a cut during the hit tests starts no visibility read.
+      if (signal.aborted) return null;
       // N8 QC finding 4: a member that is transparent or hidden through any ancestor is hit-testable but not seen, so
-      // it is never "on top" (its pixels would be whatever is behind it). QC F4: opacity compounds up the chain. Fail
-      // closed on a read error or an unreadable opacity.
+      // it is never "on top" (its pixels would be whatever is behind it). QC F4: opacity compounds up the chain. QC
+      // (2026-11-01): the chain is the flat tree, through slots and (nested) shadow hosts, up to the document; the
+      // engine's own check covers what page script cannot walk (a closed root's insides). Fail closed on a read error,
+      // an unreadable opacity, or a chain that does not reach the document.
       const hidden = await Promise.all(
         members.map(({ handle }) =>
           handle
             .evaluate((node) => {
+              const element = node as Element;
+              if (typeof element.checkVisibility === "function" && !element.checkVisibility({ opacityProperty: true, visibilityProperty: true })) return true;
               let opacity = 1;
-              for (let at: Element | null = node as Element; at; at = at.parentElement) {
-                const style = getComputedStyle(at);
+              for (let at: Node | null = element; at; ) {
+                if (at.nodeType === Node.DOCUMENT_NODE) return false;
+                if (at.nodeType !== Node.ELEMENT_NODE) return true;
+                const style = getComputedStyle(at as Element);
                 opacity *= Number(style.opacity);
                 if (!(opacity >= 0.05) || style.visibility === "hidden" || style.visibility === "collapse") return true;
+                const parent: Node | null = (at as Element).assignedSlot ?? at.parentNode;
+                at = parent instanceof ShadowRoot ? parent.host : parent;
               }
-              return false;
+              return true;
             })
             .catch(() => true)
         )
@@ -829,16 +892,19 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
         handle === null
           ? Promise.resolve(false)
           : handle
-              .evaluate((node) => {
-                const element = node as Element;
-                const control = element.tagName === "LABEL" ? ((element as HTMLLabelElement).control ?? element) : element;
-                if (control.tagName !== "INPUT" && control.tagName !== "TEXTAREA") return false;
-                const autocomplete = (control.getAttribute("autocomplete") ?? "").toLowerCase();
-                if ((control.getAttribute("type") ?? "").toLowerCase() === "password") return true;
-                if (/one-time-code|current-password|new-password|cc-number|cc-csc/.test(autocomplete)) return true;
-                const described = [control.getAttribute("name"), control.id, autocomplete, control.getAttribute("aria-label"), control.getAttribute("placeholder")].join(" ");
-                return /otp|one[-_ ]?time|passcode|\bpin\b|\bcvv\b|\bcvc\b|\bcsc\b|card[-_ ]?number|cardnumber|credit[-_ ]?card|\bssn\b|social[-_ ]?security|\bsecret\b|\btoken\b/i.test(described);
-              })
+              .evaluate(
+                (node, [autocompleteRule, describedRule]) => {
+                  const element = node as Element;
+                  const control = element.tagName === "LABEL" ? ((element as HTMLLabelElement).control ?? element) : element;
+                  if (control.tagName !== "INPUT" && control.tagName !== "TEXTAREA") return false;
+                  const autocomplete = (control.getAttribute("autocomplete") ?? "").toLowerCase();
+                  if ((control.getAttribute("type") ?? "").toLowerCase() === "password") return true;
+                  if (new RegExp(autocompleteRule).test(autocomplete)) return true;
+                  const described = [control.getAttribute("name"), control.id, autocomplete, control.getAttribute("aria-label"), control.getAttribute("placeholder")].join(" ");
+                  return new RegExp(describedRule, "i").test(described);
+                },
+                [MASKED_AUTOCOMPLETE, MASKED_DESCRIBED] as [string, string]
+              )
               .catch(() => true)
       )
     );
