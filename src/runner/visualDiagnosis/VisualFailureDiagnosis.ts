@@ -443,8 +443,8 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
       this.options.probe?.onRowCrop?.("dropped");
     };
     let rowStale = false;
-    /** The container crop was refused as stale (the frame went stale after the member crops): the boundary below. */
-    let rowCropRefused = false;
+    /** N5's frame went stale after the member crops (the container crop, or the last check before release): the boundary below. */
+    let frameRefused = false;
     let rowsVerdict: VisualRowsVerdict | undefined;
 
     await this.options.probe?.hold?.("before-frame");
@@ -551,7 +551,7 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
               rowPixels = { image: crop.value.element.image, cropCss: { ...crop.value.element.actualCssBounds } };
               this.options.probe?.onRowCrop?.("taken");
             } else if (ADVISORY_REFUSALS.has(crop.code)) {
-              rowCropRefused = true;
+              frameRefused = true;
             }
           }
           rowMs += performance.now() - cropping;
@@ -565,7 +565,8 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
           const now = rechecked[at];
           const before = boxes[at].box;
           if (!now || now.x !== before.x || now.y !== before.y || now.width !== before.width || now.height !== before.height) {
-            members[at] = { ...members[at], evidence: { available: false, code: "TARGET_STALE" } };
+            // Security NEW-1: a refused crop keeps its refusal code (the boundary below reads it).
+            if (!refusedCapture(members[at].evidence)) members[at] = { ...members[at], evidence: { available: false, code: "TARGET_STALE" } };
             // N8 QC finding 1: a member that moved means its pre-frame row facts no longer describe these pixels.
             if (boxes[at].isMainFrame) rowStale = true;
           }
@@ -594,6 +595,10 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
           dropRowPixels();
           rowMs += performance.now() - deciding;
         }
+        // Security NEW-1: N0's own stale mark, read once more right before the frame is released (a 1-px crop reads
+        // only that mark), so a navigation or close after the crops withdraws the advisory codes too.
+        const last = cropFromVisualFrame(frame, { x: 0, y: 0, width: 1, height: 1 }, 0);
+        if (!last.ok && ADVISORY_REFUSALS.has(last.code)) frameRefused = true;
       } finally {
         dropRowPixels();
         releaseVisualFrame(frame);
@@ -617,7 +622,7 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
     // The advisory refusal boundary (ADVISORY_REFUSALS): a refused verdict, or a first frame N0 refused or found stale
     // (the shot itself, or any crop of it) as protected, navigated or closed, gains no N7.7, N8 or N9 code.
     // N7.7's own refusals (TEXT_SIGNAL_REFUSALS) and a refused second frame withdraw it below.
-    let advisory = verdict.outcome !== "refused" && !rowCropRefused && ![viewportInput, ...members.map((member) => member.evidence)].some(refusedCapture);
+    let advisory = verdict.outcome !== "refused" && !frameRefused && ![viewportInput, ...members.map((member) => member.evidence)].some(refusedCapture);
     // N7.7: advisory only, after the verdict is decided; a DOM-proven, unique, visible target only.
     const textCodes: string[] = [];
     if (advisory && this.options.textSignal && matches === 1 && target?.inViewport && !target.zeroSize && !signal.aborted) {
@@ -715,11 +720,13 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
           await this.options.probe?.heldFrame?.(2);
           await yieldToTimers();
           if (signal.aborted) throw new DiagnosisAborted();
+          // Sec 1 (QC nit, 2026-11-01): a second frame that went stale (the page navigated or closed while it was held)
+          // withdraws too, read from N0's mark with a 1-px crop whether or not there is time left to measure motion.
+          const mark = cropFromVisualFrame(second, { x: 0, y: 0, width: 1, height: 1 }, 0);
+          if (!mark.ok && ADVISORY_REFUSALS.has(mark.code)) return null;
           // Without the reserve left, motion stays unmeasured (so `ready` cannot be decided), never measured late.
           if (this.leftOf(started, deadlineMs) >= visualDiagnosisSyncReserveMs(second.viewport.imageWidth * second.viewport.imageHeight)) {
             const whole = cropFromVisualFrame(second, { x: 0, y: 0, width: second.viewport.cssWidth, height: second.viewport.cssHeight }, 0);
-            // Sec 1: a second frame that went stale (the page navigated or closed while it was held) withdraws too.
-            if (!whole.ok && ADVISORY_REFUSALS.has(whole.code)) return null;
             const plane = whole.ok ? measureVisualMotionPlane(whole.value.element.image, second.viewport.scaleX) : undefined;
             if (plane?.ok) motion = measureVisualMotion(frame.motion, plane.value, this.statePolicy);
           }

@@ -15,7 +15,7 @@
  *      during the hit test starts no visibility read, opacity through nested shadow roots (and an unreadable ancestor
  *      fails closed), the handoff recheck before the row read, N9's second frame refused as protected after the row
  *      work, a handoff after the frame, navigation while either frame is held (Sec 1-3), and a container holding a
- *      masked field or a sensitive string (S3);
+ *      masked field or a sensitive string (S3); navigation after every crop, before release (security NEW-1);
  *   D  purity and wiring: the library's imports; the engine, runner and adapter gates; drawer copy for each code.
  *
  * Run: npm run verify:visual-rows
@@ -497,6 +497,16 @@ async function main(): Promise<void> {
       JSON.stringify({ observations: navSecond.record?.observations, frames: navSecond.frames })
     );
     await navSecondPage.close();
+    // Security NEW-1: the page navigates AFTER every crop (while N5's frame is still held, N9 off): no crop sees it, the
+    // re-measure finds detached handles, and only the last stale check before release can withdraw the row codes.
+    const navAfterPage = await lab("table-uniform");
+    const navAfter = await diagnose(navAfterPage, { rows: true, deadlineMs: 5000, afterFrame: async () => void (await navAfterPage.reload()) });
+    check(
+      "NEW-1: navigation after the crops, before release: no row code, not cut, the frame released",
+      navAfter.record?.outcome === "observed" && navAfter.record.observations[0] !== "budget-exhausted" && navAfter.advisory.length === 0 && navAfter.frames.taken === 1 && navAfter.frames.released === 1,
+      JSON.stringify({ observations: navAfter.record?.observations, frames: navAfter.frames, events: navAfter.events })
+    );
+    await navAfterPage.close();
     // Security S3: a row container holding a masked field (a card number, value filled in) and a sensitive string in a
     // cell. The container is never cropped or examined; the record is codes only and carries neither value.
     const SECRET = "4111111111111111";
@@ -584,7 +594,7 @@ async function main(): Promise<void> {
   check("S4: the row facts' hit test fails closed (an unreadable hit test is covered)", /members\.map\(\(\{ handle \}\) => this\.occluded\(handle, true\)\)/.test(adapter) && /\.catch\(\(\) => failClosed\)/.test(adapter));
   check(
     "S1 / Sec 1-2: one refusal boundary gates every advisory code",
-    /let advisory = verdict\.outcome !== "refused" && !rowCropRefused && !\[viewportInput, \.\.\.members\.map\(\(member\) => member\.evidence\)\]\.some\(refusedCapture\)/.test(adapter) &&
+    /let advisory = verdict\.outcome !== "refused" && !frameRefused && !\[viewportInput, \.\.\.members\.map\(\(member\) => member\.evidence\)\]\.some\(refusedCapture\)/.test(adapter) &&
       (adapter.match(/if \(advisory && /g) ?? []).length === 4 &&
       /if \(advisory\) appendAdvisoryCodes\(/.test(adapter)
   );
