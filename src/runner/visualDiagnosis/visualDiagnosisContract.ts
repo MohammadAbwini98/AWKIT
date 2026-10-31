@@ -29,6 +29,17 @@ export const VISUAL_DIAGNOSIS_DEADLINE_MS = 1000;
 export const VISUAL_DIAGNOSIS_SETTLE_MARGIN_MS = 100;
 /** A synchronous phase starts only with at least this much of the work budget left. */
 export const VISUAL_DIAGNOSIS_SYNC_RESERVE_MS = 50;
+/**
+ * Measured cost of the synchronous pixel phases per device pixel (`benchmark:visual-sync-cost`, 2026-11-01, Windows 11
+ * ARM64 running x64 Node under emulation): crop plus fingerprint reached 72 to 190 ns/px at its maximum outside one
+ * isolated pause. A phase over a whole frame starts only when the budget left covers its estimate at this rate.
+ */
+export const VISUAL_DIAGNOSIS_SYNC_NS_PER_PIXEL = 200;
+
+/** The budget a synchronous phase over `pixels` device pixels must have left before it starts. */
+export function visualDiagnosisSyncReserveMs(pixels: number): number {
+  return Math.max(VISUAL_DIAGNOSIS_SYNC_RESERVE_MS, Math.ceil((Math.max(0, pixels) * VISUAL_DIAGNOSIS_SYNC_NS_PER_PIXEL) / 1e6));
+}
 
 /** The work budget for a hard deadline: when the adapter settles, at or before the deadline minus its margin. */
 export function visualDiagnosisWorkBudget(deadlineMs: number, marginMs = VISUAL_DIAGNOSIS_SETTLE_MARGIN_MS): number {

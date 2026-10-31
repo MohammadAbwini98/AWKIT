@@ -236,7 +236,8 @@ async function main(): Promise<void> {
     const adapter = await readFile("src/runner/visualDiagnosis/VisualFailureDiagnosis.ts", "utf8");
     check("the publish gate reads the monotonic clock against the work budget", /settle\(performance\.now\(\) - started > deadlineMs \? this\.refusal\(request, "budget-exhausted", started\) : record\)/.test(adapter));
     check("the work budget, not the hard deadline, drives the timer and the work", /const deadlineMs = visualDiagnosisWorkBudget\(hardDeadlineMs, this\.options\.settleMarginMs\)/.test(adapter));
-    check("N5's own frame work starts behind the checkpoint (frame start and every member)", (adapter.match(/await this\.checkpoint\(signal, started, deadlineMs\)/g) ?? []).length === 2);
+    check("N5's own frame work starts behind the checkpoint (frame start and every member)", (adapter.match(/await this\.checkpoint\(signal, started, deadlineMs/g) ?? []).length === 2);
+    check("the whole-frame chunk's checkpoint reserves its measured per-pixel cost", /await this\.checkpoint\(signal, started, deadlineMs, visualDiagnosisSyncReserveMs\(framePixels\)\)/.test(adapter));
     check("an over-budget checkpoint is reported as budget-exhausted, not capture-failed", /error instanceof DiagnosisOverBudget \? "budget-exhausted" : "capture-failed"/.test(adapter));
     check("the N9 code keeps a slot under the observation cap", /VISUAL_DIAGNOSIS_RECORD_MAX_OBSERVATIONS - \(stateCode \? 1 : 0\)/.test(adapter));
     check(

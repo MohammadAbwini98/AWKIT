@@ -38,7 +38,9 @@ const PORT = 4616;
 const BASE = `http://127.0.0.1:${PORT}`;
 const DEADLINE = VISUAL_DIAGNOSIS_DEADLINE_MS + VISUAL_STATE_EXTRA_MS;
 const OFF_DEADLINE = VISUAL_DIAGNOSIS_DEADLINE_MS;
-const OUT = join(process.cwd(), "docs", "plans", "ai-upgrade-v5", "evidence", "joint");
+/** `--campaign N` (N > 1) writes beside, never over, an earlier campaign's evidence. */
+const CAMPAIGN = args.includes("--campaign") ? Number(args[args.indexOf("--campaign") + 1]) : 1;
+const OUT = join(process.cwd(), "docs", "plans", "ai-upgrade-v5", "evidence", "joint", ...(CAMPAIGN > 1 ? [`c${CAMPAIGN}`] : []));
 const CELLS = ["headless@1", "headless@1.25", "headless@2", "headed@1", "headed@1.25", "headed@2"];
 
 interface Trial {
@@ -108,6 +110,9 @@ async function diagnose(page: Page, locator: string, on: boolean) {
 async function show(page: Page, lab: "state" | "rows", id: string, variant: string): Promise<void> {
   const api = lab === "state" ? "__stateLab" : "__rowsLab";
   const stage = lab === "state" ? "st-stage" : "rw-stage";
+  // Campaign 2 harness fix: both labs share one window, and a headed background tab is throttled by Chromium (its
+  // animations and screenshots stall), so the page under test is brought to the front before every trial.
+  if (CAMPAIGN > 1) await page.bringToFront();
   await page.evaluate(([a, i, v]) => (window as unknown as Record<string, { show(i: string, v: string): Promise<unknown> }>)[a].show(i, v), [api, id, variant]);
   await page.waitForSelector(`#${stage}[data-shown="${id}:${variant}"]`);
 }
