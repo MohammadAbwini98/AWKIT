@@ -394,6 +394,7 @@
     "benchmark:visual-rows:qualify-headless": "tsx scripts/benchmark-visual-rows.mts --qualify --only headless",
     "benchmark:visual-rows:qualify-headed": "tsx scripts/benchmark-visual-rows.mts --qualify --only headed",
     "verify:visual-rows": "tsx scripts/verify-visual-rows.mts",
+    "verify:visual-diagnosis-deadline": "tsx scripts/verify-visual-diagnosis-deadline.mts",
     "verify:visual-state": "tsx scripts/verify-visual-state.mts",
     "verify:visual-state-runtime": "tsx scripts/verify-visual-state-runtime.mts",
     "verify:ai-model-pack": "tsx scripts/verify-ai-model-pack.mts",

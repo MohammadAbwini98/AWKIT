@@ -19,6 +19,23 @@ export function visualDiagnosisMode(env: Record<string, string | undefined> = pr
 export const VISUAL_DIAGNOSIS_DEADLINE_MS = 1000;
 
 /**
+ * The N5 deadline fix (2026-11-01). Synchronous pixel work (N0's PNG decode, crops, fingerprints, N8 and N9 features)
+ * blocks the event loop, so a deadline timer can only fire once that work yields. The hard deadline is therefore never
+ * the timer's own instant: the adapter settles at a WORK BUDGET that ends this margin earlier (at most a quarter of the
+ * deadline), every synchronous phase starts only behind a checkpoint that yields to timers and checks the monotonic
+ * clock, and a result computed past the budget is never published (it becomes `budget-exhausted`). The margin bounds
+ * the one synchronous chunk that cannot be split (a screenshot's decode inside N0).
+ */
+export const VISUAL_DIAGNOSIS_SETTLE_MARGIN_MS = 100;
+/** A synchronous phase starts only with at least this much of the work budget left. */
+export const VISUAL_DIAGNOSIS_SYNC_RESERVE_MS = 50;
+
+/** The work budget for a hard deadline: when the adapter settles, at or before the deadline minus its margin. */
+export function visualDiagnosisWorkBudget(deadlineMs: number, marginMs = VISUAL_DIAGNOSIS_SETTLE_MARGIN_MS): number {
+  return Math.max(1, Math.round(deadlineMs - Math.min(Math.max(0, marginMs), Math.floor(deadlineMs / 4))));
+}
+
+/**
  * N9 (awkit-vra.11, NS-2): `AWKIT_VISUAL_STATE=on` adds screenshot state evidence to an N5 diagnosis. It does nothing
  * unless `AWKIT_VISUAL_DIAGNOSIS=on`; anything else, or nothing, is off. Plan:
  * docs/plans/ai-upgrade-v5/N9-screenshot-state-recognition.md.

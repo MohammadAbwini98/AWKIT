@@ -254,16 +254,21 @@ The same held-out variants, cells and repeats: 972 trials, 936 scored and 36 pro
 |---|---|---|---|---|---|
 | headless@1 | MET (0/54) | MET (0/132) | 777 / 1000 / 666 / 851‰ | 986‰ | MET (p95 252 ms, 0 late) |
 | headless@1.25 | MET | MET | 888 / 1000 / 666 / 888‰ | 1000‰ | MET (p95 478 ms, 0 late) |
-| headless@2 | MET | MET | 796 / 1000 / 750 / 851‰ | 980‰ | MET (p95 521 ms, 0 late) |
+| headless@2 | MET | MET | 796 / 1000 / 750 / 851‰ | 980‰ | **NOT MET** (p95 521 ms; 1 record at 1602 ms, 2 ms past the 1600 ms deadline — see the correction below) |
 | headed@1 | MET | MET | 777 / 1000 / 666 / 851‰ | 986‰ | MET (p95 246 ms, 0 late) |
 | headed@1.25 | MET | MET | 851 / 1000 / 666 / 888‰ | 1000‰ | MET (p95 435 ms, 0 late) |
 | headed@2 | MET | MET | 888 / 1000 / 750 / 851‰ | 986‰ | MET (p95 470 ms, 0 late) |
 
-- **S-1 to S-5 are all MET in all six cells.**
+- **Correction (2026-11-01): campaign 2 does NOT fully qualify N9.** The benchmark counted a record as late only
+  after the deadline + 50 ms. That grace was never declared in § 5 or § 6, which say "no record arriving after the
+  deadline". Read strictly, one headless@2 trial (`skeleton-shimmer`, variant `b`, a deadline cut with no state code)
+  returned at 1602 ms: **S-5 is NOT MET in headless@2**. The evidence file is unchanged; only its reading is
+  corrected. S-1 to S-4 are MET in all six cells, and S-5 in the other five. N9 stays open for a fresh qualification
+  with strict accounting (§ 7, campaign 3) and independent QC.
 - Pooled:
   - 0 false `ready` in 324 loading-truth trials;
   - 0 false `error` in 792 non-error trials;
-  - 0 late records;
+  - 1 record after the strict deadline (+2 ms);
   - one headless deadline cut, with no state code;
   - zero frames and no code in 36 protected trials.
 - No code is pruned from exposure.

@@ -56,6 +56,7 @@ import {
   VISUAL_DIAGNOSIS_DEADLINE_MS,
   VISUAL_DIAGNOSIS_SIGNATURE_CAP,
   visualDiagnosisMode,
+  visualDiagnosisWorkBudget,
   type VisualDiagnosisRecord,
   type VisualFailureDiagnoser
 } from "@src/runner/visualDiagnosis/visualDiagnosisContract";
@@ -606,8 +607,9 @@ async function main(): Promise<void> {
       await h1.run(fillStep("g1", tool(0)));
       const snapshot = JSON.stringify(h1.records);
       check(
-        "held before the frame: budget-exhausted, and the hook got it back at the deadline, not after the 1200 ms hold",
-        h1.records.length === 1 && has(h1.records[0], "budget-exhausted") && h1.records[0].ms >= 300 && h1.calls.length === 1 && h1.calls[0].ms < 1200,
+        // The 2026-11-01 deadline fix settles at the work budget (225 ms for a 300 ms deadline), never after the deadline.
+        "held before the frame: budget-exhausted, and the hook got it back by the deadline (at its work budget), not after the 1200 ms hold",
+        h1.records.length === 1 && has(h1.records[0], "budget-exhausted") && h1.records[0].ms >= visualDiagnosisWorkBudget(300) && h1.calls.length === 1 && h1.calls[0].ms <= 300,
         show(h1.records[0]) + ` record ms ${h1.records[0]?.ms}, hook waited ${h1.calls[0]?.ms} ms`
       );
       await new Promise((r) => setTimeout(r, 1600));

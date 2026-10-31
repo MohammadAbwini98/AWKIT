@@ -46,6 +46,8 @@ import { recordedVisualReferenceKey } from "../visualFusion/recordedVisualRefere
 import {
   VISUAL_DIAGNOSIS_DEADLINE_MS,
   VISUAL_DIAGNOSIS_SIGNATURE_CAP,
+  VISUAL_DIAGNOSIS_SYNC_RESERVE_MS,
+  visualDiagnosisWorkBudget,
   VISUAL_ROWS_MIN_REMAINING_MS,
   VISUAL_STATE_INTERVAL_MS,
   VISUAL_STATE_MIN_REMAINING_MS,
@@ -153,6 +155,11 @@ export interface VisualFailureDiagnosisOptions {
   /** Verifier and development-baseline override; production passes none (MEASURED_VISUAL_STATE_POLICY). */
   statePolicy?: Readonly<VisualStatePolicy>;
   /**
+   * Verifier-only: the settle margin (default VISUAL_DIAGNOSIS_SETTLE_MARGIN_MS). `verify:visual-diagnosis-deadline`
+   * passes 0 to reproduce the original late settlement; production passes none.
+   */
+  settleMarginMs?: number;
+  /**
    * N8 (awkit-vra.10, NR-3): row/grid evidence, only with `AWKIT_VISUAL_ROWS=on`. The DOM proves the container and its
    * rows (read only); one crop of N5's own frame corroborates them. Adds at most three `rows-*` / `row-association-*`
    * codes after the verdict. No extra frame, no interaction; with it off nothing is read.
@@ -183,6 +190,8 @@ interface MemberBox {
 type MemberHandle = ElementHandle;
 
 class DiagnosisAborted extends Error {}
+/** The work budget ran out at a checkpoint before synchronous work could start: truthfully `budget-exhausted`. */
+class DiagnosisOverBudget extends Error {}
 
 /** N9: one macrotask turn, so a deadline timer that is already due runs before more synchronous pixel work starts. */
 const yieldToTimers = (): Promise<void> => new Promise<void>((resolve) => setImmediate(resolve));
@@ -216,7 +225,9 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
   async diagnoseFinalFailure(request: VisualDiagnosisRequest): Promise<VisualDiagnosisRecord | undefined> {
     const started = performance.now();
     // N5.7: a caller that already spent part of the deadline (the lazy loader) passes what is left; never more than ours.
-    const deadlineMs = Math.min(this.deadlineMs, request.deadlineMs ?? this.deadlineMs);
+    const hardDeadlineMs = Math.min(this.deadlineMs, request.deadlineMs ?? this.deadlineMs);
+    // The deadline fix: everything below works to the earlier work budget (see visualDiagnosisWorkBudget).
+    const deadlineMs = visualDiagnosisWorkBudget(hardDeadlineMs, this.options.settleMarginMs);
     const controller = new AbortController();
     // The single-assignment slot: the first settlement wins and closes it.
     let slot: VisualDiagnosisRecord | undefined;
@@ -229,8 +240,10 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
     this.inFlightCount += 1;
     const cleanups: Array<() => void> = [];
     const work = this.run(request, controller.signal, started, deadlineMs, (cleanup) => cleanups.push(cleanup))
-      .catch(() => this.refusal(request, "capture-failed", started))
-      .then(settle)
+      .catch((error) => this.refusal(request, error instanceof DiagnosisOverBudget ? "budget-exhausted" : "capture-failed", started))
+      // The monotonic clock, not the timer, decides: a result finished past the budget (its timer could not run while
+      // synchronous work held the loop) is never published as an observation.
+      .then((record) => settle(performance.now() - started > deadlineMs ? this.refusal(request, "budget-exhausted", started) : record))
       .finally(() => {
         for (const cleanup of cleanups) cleanup();
         this.inFlightCount -= 1;
@@ -408,6 +421,9 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
       const frame = shot.value;
       this.options.probe?.onFrame?.("taken");
       try {
+        // The deadline fix: N0's decode just ran synchronously; a due deadline goes first, and N5's own pixel work
+        // starts only with the reserve left (otherwise the record is budget-exhausted, as the timer would have said).
+        await this.checkpoint(signal, started, deadlineMs);
         const { cssWidth, cssHeight } = frame.viewport;
         const whole = cropFromVisualFrame(frame, { x: 0, y: 0, width: cssWidth, height: cssHeight }, 0);
         if (whole.ok) {
@@ -418,6 +434,8 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
             // first, and the work never starts with less than the minimum left.
             await yieldToTimers();
             if (signal.aborted) throw new DiagnosisAborted();
+          }
+          if (this.options.stateRecognition === true && this.remaining(started, deadlineMs) >= VISUAL_STATE_MIN_REMAINING_MS) {
             const measuring = performance.now();
             const measured = measureVisualStateFrame(whole.value.element.image, this.statePolicy, frame.viewport.scaleX);
             if (measured.ok) stateFrame = measured.value;
@@ -427,6 +445,7 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
           viewportInput = { available: false, code: whole.code };
         }
         for (const slot of boxes) {
+          await this.checkpoint(signal, started, deadlineMs);
           let evidence: VisualDiagnosisEvidenceInput;
           const crop = cropFromVisualFrame(frame, slot.box, CONTEXT_PADDING_CSS);
           if (!crop.ok) {
@@ -455,7 +474,8 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
           const top = Math.max(0, c.y);
           const right = Math.min(cssWidth, c.x + c.width);
           const bottom = Math.min(cssHeight, c.y + c.height);
-          if (right > left && bottom > top) {
+          // Without the reserve left, no crop is taken: the rows are withheld (no-pixels), never decided late.
+          if (right > left && bottom > top && this.leftOf(started, deadlineMs) >= VISUAL_DIAGNOSIS_SYNC_RESERVE_MS) {
             const crop = cropFromVisualFrame(frame, { x: left, y: top, width: right - left, height: bottom - top }, 0);
             if (crop.ok) rowPixels = { image: crop.value.element.image, cropCss: { ...crop.value.element.actualCssBounds } };
           }
@@ -493,7 +513,8 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
         if (rowFacts !== undefined) {
           // N8 QC finding 7: decided while the frame is still held, so the container crop never outlives the frame.
           const deciding = performance.now();
-          rowsVerdict = this.decideRows(rowFacts, rowPixels, viewport, rowStale);
+          // The pixel decision is synchronous: without the reserve left it is withheld (no pixels), never run late.
+          rowsVerdict = this.decideRows(rowFacts, this.leftOf(started, deadlineMs) >= VISUAL_DIAGNOSIS_SYNC_RESERVE_MS ? rowPixels : undefined, viewport, rowStale);
           rowPixels = undefined;
           rowMs += performance.now() - deciding;
         }
@@ -528,12 +549,15 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
       const code = text ? OCR_TEXT_SIGNAL_DIAGNOSIS_CODES[text.outcome] : undefined;
       if (code) textCodes.push(code);
     }
+    const rowCodes: string[] = [];
+    let stateCode: string | undefined;
     // N8: advisory only, after the verdict and the text signal; at most three codes.
     if (rowFacts !== undefined) {
       const deciding = performance.now();
       // Without a frame there are no pixels: the rows are decided here, withheld.
       const rows = rowsVerdict ?? this.decideRows(rowFacts, undefined, viewport, rowStale);
-      textCodes.push(...rows.codes);
+      // QC finding 5: kept apart so the cap trims them last-first (association and coverage before structure).
+      rowCodes.push(...rows.codes.filter((c) => c.startsWith("row-association-")), ...rows.codes.filter((c) => c === "rows-partly-examined"), ...rows.codes.filter((c) => c.startsWith("rows-") && c !== "rows-partly-examined"));
       try {
         this.options.probe?.onRows?.({ verdict: rows, ms: Math.round(rowMs + performance.now() - deciding) });
       } catch {
@@ -542,13 +566,15 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
     }
     // N9: advisory only, after the verdict and the text signal; one code, never more.
     if (this.options.stateRecognition === true) {
-      const code = await this.state(request, page, stateFrame, stateMs, shotAt, signal, started, deadlineMs, bounded, defer);
-      textCodes.push(code);
+      stateCode = await this.state(request, page, stateFrame, stateMs, shotAt, signal, started, deadlineMs, bounded, defer);
     }
     const record = this.toRecord(request, kind, verdict, started);
-    for (const code of textCodes) {
-      if (record.observations.length < VISUAL_DIAGNOSIS_RECORD_MAX_OBSERVATIONS && !record.observations.includes(code)) record.observations.push(code);
+    // QC finding 5: with N9 on, its one code keeps a slot under the observation cap; N7.7 and N8 codes fill the rest.
+    const cap = VISUAL_DIAGNOSIS_RECORD_MAX_OBSERVATIONS - (stateCode ? 1 : 0);
+    for (const code of [...textCodes, ...rowCodes]) {
+      if (record.observations.length < cap && !record.observations.includes(code)) record.observations.push(code);
     }
+    if (stateCode && record.observations.length < VISUAL_DIAGNOSIS_RECORD_MAX_OBSERVATIONS && !record.observations.includes(stateCode)) record.observations.push(stateCode);
     return record;
   }
 
@@ -607,9 +633,12 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
         try {
           await yieldToTimers();
           if (signal.aborted) throw new DiagnosisAborted();
-          const whole = cropFromVisualFrame(second, { x: 0, y: 0, width: second.viewport.cssWidth, height: second.viewport.cssHeight }, 0);
-          const plane = whole.ok ? measureVisualMotionPlane(whole.value.element.image, second.viewport.scaleX) : undefined;
-          if (plane?.ok) motion = measureVisualMotion(frame.motion, plane.value, this.statePolicy);
+          // Without the reserve left, motion stays unmeasured (so `ready` cannot be decided), never measured late.
+          if (this.leftOf(started, deadlineMs) >= VISUAL_DIAGNOSIS_SYNC_RESERVE_MS) {
+            const whole = cropFromVisualFrame(second, { x: 0, y: 0, width: second.viewport.cssWidth, height: second.viewport.cssHeight }, 0);
+            const plane = whole.ok ? measureVisualMotionPlane(whole.value.element.image, second.viewport.scaleX) : undefined;
+            if (plane?.ok) motion = measureVisualMotion(frame.motion, plane.value, this.statePolicy);
+          }
         } finally {
           releaseVisualFrame(second);
           this.options.probe?.onFrame?.("released");
@@ -810,6 +839,21 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
     } catch {
       return true;
     }
+  }
+
+  /** What is left of the work budget on the monotonic clock (may be negative). */
+  private leftOf(started: number, deadlineMs: number): number {
+    return deadlineMs - (performance.now() - started);
+  }
+
+  /**
+   * The deadline fix's checkpoint before N5's own synchronous pixel work: let a due deadline timer run first, then stop
+   * on an abort, or as `budget-exhausted` when less than the reserve is left (the timer may not have fired yet).
+   */
+  private async checkpoint(signal: AbortSignal, started: number, deadlineMs: number): Promise<void> {
+    await yieldToTimers();
+    if (signal.aborted) throw new DiagnosisAborted();
+    if (this.leftOf(started, deadlineMs) < VISUAL_DIAGNOSIS_SYNC_RESERVE_MS) throw new DiagnosisOverBudget();
   }
 
   private remaining(started: number, deadlineMs: number): number {

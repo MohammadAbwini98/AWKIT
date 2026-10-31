@@ -250,7 +250,8 @@ async function main(): Promise<void> {
       /this\.options\.visualStateRecognition === true\s*\?\s*\{ stateRecognition: true, deadlineMs: VISUAL_DIAGNOSIS_DEADLINE_MS \+ VISUAL_STATE_EXTRA_MS \}\s*:\s*\{\}/.test(runner)
     );
     const adapter = await readFile("src/runner/visualDiagnosis/VisualFailureDiagnosis.ts", "utf8");
-    check("the adapter measures state only under stateRecognition === true", (adapter.match(/stateRecognition === true/g) ?? []).length === 2);
+    // Three gates since the 2026-11-01 deadline fix: the frame-1 yield, the frame-1 measurement and the state step.
+    check("the adapter measures state only under stateRecognition === true", (adapter.match(/stateRecognition === true/g) ?? []).length === 3);
     check("the adapter never calls the OCR text signal from the state step (NS-4)", !/textSignal/.test(adapter.slice(adapter.indexOf("private async state("), adapter.indexOf("private get statePolicy"))));
   } finally {
     await browser?.close();
