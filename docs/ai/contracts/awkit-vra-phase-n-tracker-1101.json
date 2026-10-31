@@ -139,6 +139,22 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-vra-phase-n-tracker-1101:project-state:2026-10-31T22:45:37.760Z",
+        "task": "awkit-vra-phase-n-tracker-1101",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-10-31T22:45:37.760Z",
+        "acquired_at_commit": "8a2d6c712d5f435134a139dfc115b00efd34c0df",
+        "released_at": "2026-10-31T22:46:21.067Z",
+        "released_reason": "N8 awkit-vra.10 and N9 awkit-vra.11 notes record the final remediation, campaigns 4 and 5 and the APPROVED WITH FINDINGS reviews, both left in progress, exported 435 issues",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }

@@ -6,33 +6,13 @@
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-10-31T18:01:58.893Z",
-  "acquired_at_commit": "8bc11df9c40719b774f9038705034da66e8a7405",
+  "acquired_at": "2026-10-31T22:45:37.760Z",
+  "acquired_at_commit": "8a2d6c712d5f435134a139dfc115b00efd34c0df",
   "baseline_dirty": [
-    ".beads/interactions.jsonl",
-    ".beads/issues.jsonl",
-    "docs/ai/CURRENT_STATE.md",
-    "docs/ai/HANDOFF.md",
-    "docs/ai/TASK_LOG.md",
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-vra-phase-n-tracker-1101.json",
-    "docs/plans/ai-upgrade-v5/N8-row-grid-intelligence.md",
-    "docs/plans/ai-upgrade-v5/evidence/joint/c2/N8N9-joint-summary.json",
-    "scripts/benchmark-visual-joint.mts"
+    "docs/ai/contracts/awkit-l12-27-implementation-1006.json"
   ],
   "baseline_dirty_fingerprints": {
-    ".beads/interactions.jsonl": "c4c0b87aa601f15bee1cf4439ca317e3cb6aae8621670b7658823177678a1186",
-    ".beads/issues.jsonl": "e0e360de0e1adac6f2b77dd2527879ccbdbae8a14225ad03c746b20692a7f6f4",
-    "docs/ai/CURRENT_STATE.md": "e4e2891af6722704e6c01218c2dbcc3955ce2f02f3b3576642805ba80b0cfb7b",
-    "docs/ai/HANDOFF.md": "794e2cb21991fa5b8e226b68f288468af804ef13405dbdeb227c15dcff32301b",
-    "docs/ai/TASK_LOG.md": "b7c019a417bcc192d634eb117b21abbcaa01597fb252bf9454928d125eeb9037",
-    "docs/ai/contracts/active-lease.json": "e37d41083583c144d70922e22e135d0148ee0f548c20f3dfe0df8a150a4dea57",
-    "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-vra-phase-n-tracker-1101.json": "7d853dddc518bde39da025b1c05792ad635bd03ae8c143a65c94a4d24fb568c2",
-    "docs/plans/ai-upgrade-v5/N8-row-grid-intelligence.md": "ca80437b4b8975e29ed87db9cefa2fcbc44a9901acb32067c950913dede3add0",
-    "docs/plans/ai-upgrade-v5/evidence/joint/c2/N8N9-joint-summary.json": "680cdd0138a1df363aa4ed97ea7dbc85aa571584f51c2707e39359fd83a0e91f",
-    "scripts/benchmark-visual-joint.mts": "d12994c0c9418007cbf80428fe3abe80870b3c4d943287197592b8f3680df719"
+    "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -47,7 +27,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-10-31T18:02:17.039Z",
-  "released_reason": "Explicit bd export of the 2026-11-01 Phase N tracker reconciliation, 435 issues",
-  "archived_at": "2026-10-31T18:02:17.042Z"
+  "released_at": "2026-10-31T22:46:21.067Z",
+  "released_reason": "N8 awkit-vra.10 and N9 awkit-vra.11 notes record the final remediation, campaigns 4 and 5 and the APPROVED WITH FINDINGS reviews, both left in progress, exported 435 issues",
+  "archived_at": "2026-10-31T22:46:21.069Z"
 }
