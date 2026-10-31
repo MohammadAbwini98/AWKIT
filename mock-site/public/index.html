@@ -128,6 +128,18 @@
             <dd><code>/visual-intelligence/ocr</code></dd>
           </dl>
         </article>
+        <article data-testid="scenario-visual-state">
+          <h2><a href="/visual-intelligence/state">Visual State Lab</a></h2>
+          <p>Deterministic loading (spinners, shimmer and static skeletons, a progress bar, animated dots), empty, error and ready pages, with look-alikes (red buttons, a red brand bar, red figures, gray image placeholders, a live badge), a blank page and an on-demand sign-in form, in one development and three held-out variants.</p>
+          <dl class="scenario-meta">
+            <dt>Expected</dt>
+            <dd>With screenshot state recognition on, a failed step's diagnosis carries one advisory state code; a loading page is never called ready, and the sign-in form is refused before anything is captured. The step's outcome never changes.</dd>
+            <dt>Related feature</dt>
+            <dd>Screenshot State Recognition in Visual Failure Diagnosis (Phase N, N9).</dd>
+            <dt>Stable URL</dt>
+            <dd><code>/visual-intelligence/state</code></dd>
+          </dl>
+        </article>
         <article data-testid="scenario-dom-context">
           <h2><a href="/dom-context-lab">DOM Context Lab</a></h2>
           <p>Frame, popup, SPA-route, virtualized-list and delayed-render contexts, each with a look-alike control where a step must not recover from.</p>

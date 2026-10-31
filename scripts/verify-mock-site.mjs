@@ -876,6 +876,34 @@ try {
   const wrongType = await fetch(`${BASE}/fonts/evil.exe`).then((r) => r.status);
   check("the font route serves only allowlisted file names (no traversal, no other types)", traversal === 404 && wrongType === 404, `${traversal} ${wrongType}`);
 
+  // Phase N, N9 Visual State Lab: the fixture table, every fixture in every variant, and the protected form serve.
+  // The state decisions are proven by npm run verify:visual-state-runtime and measured by benchmark:visual-state.
+  console.log("Visual State Lab (/visual-intelligence/state):");
+  await page.goto(`${BASE}/`);
+  check("index lists the Visual State Lab scenario", (await page.getByTestId("scenario-visual-state").count()) === 1);
+  const stateTable = await (await fetch(`${BASE}/visual-intelligence/state-fixtures.json`)).json();
+  check("the state fixture table has 27 fixtures, one development and three held-out variants",
+    stateTable.fixtures.length === 27 && JSON.stringify(stateTable.developmentVariants) === '["a"]' && JSON.stringify(stateTable.qualificationVariants) === '["b","c","d"]');
+  await page.goto(`${BASE}/visual-intelligence/state`);
+  await page.waitForSelector("body[data-fixtures]");
+  check("the state lab serves its title and carries no credential field", (await page.title()) === "Visual State Lab" && (await page.locator('input[type="password"]').count()) === 0);
+  check("the lab draws exactly the table's fixtures (as a set)", JSON.stringify((await page.evaluate(() => window.__stateLab.fixtures())).sort()) === JSON.stringify(stateTable.fixtures.map((f) => f.id).sort()));
+  let allShown = true;
+  for (const variant of ["a", "b", "c", "d"]) {
+    for (const fixture of stateTable.fixtures) {
+      await page.evaluate(([id, v]) => window.__stateLab.show(id, v), [fixture.id, variant]);
+      if ((await page.getAttribute("#st-stage", "data-shown")) !== `${fixture.id}:${variant}`) allShown = false;
+    }
+  }
+  check("every fixture renders in every variant and reports itself as data-shown", allShown);
+  await page.evaluate(() => window.__stateLab.show("protected", "b"));
+  check("the protected fixture adds exactly one password form, and the failing step's target never exists",
+    (await page.locator('#st-protected input[type="password"]').count()) === 1 && (await page.getByTestId("st-missing-target").count()) === 0);
+  await page.evaluate(() => window.__stateLab.show("ready-table", "b"));
+  check("...and the next fixture removes it", (await page.locator("#st-protected").count()) === 0);
+  check("show() refuses an unknown fixture and an unknown variant",
+    await page.evaluate(() => Promise.all([window.__stateLab.show("nope", "a").then(() => false, () => true), window.__stateLab.show("blank", "z").then(() => false, () => true)]).then((r) => r.every(Boolean))));
+
   // Phase N, N2.3 Visual Fusion Calibration Lab: the toolbar, its scenarios and the F5-F7 fixtures serve.
   // The score distributions and the Ctrl+zoom check are measured by npm run benchmark:visual-fusion.
   console.log("Visual Fusion Calibration Lab (/visual-intelligence/fusion):");

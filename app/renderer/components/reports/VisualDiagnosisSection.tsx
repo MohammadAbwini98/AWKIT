@@ -42,6 +42,13 @@ const OBSERVATIONS: Record<string, string> = {
   "target-text-differs-from-name":
     "Unverified OCR evidence: the text recognizer's reading of the step's target differed from its accessible name. The recognizer is not qualified for accuracy, so this does not prove the element is wrong.",
   "target-text-unreadable": "Unverified OCR evidence: the text recognizer could not read the step's target confidently.",
+  // N9: advisory screenshot-state codes (deterministic, qualified on the Visual State Lab only); they never decide a step.
+  "visual-state-loading": "Screenshot state: the page looked like it was still loading (something moving, or placeholder blocks).",
+  "visual-state-empty": "Screenshot state: the page looked empty, with only a short message.",
+  "visual-state-error": "Screenshot state: the page showed red error-style text.",
+  "visual-state-ready": "Screenshot state: the page looked fully rendered and still.",
+  "visual-state-unknown": "Screenshot state: the page's state could not be told from the screenshot.",
+  "visual-state-skipped": "Screenshot state: not checked for this failure.",
   inconclusive: "The check ran, but nothing it can report applies."
 };
 

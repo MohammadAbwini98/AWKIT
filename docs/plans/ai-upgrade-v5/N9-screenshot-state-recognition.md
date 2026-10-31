@@ -244,3 +244,44 @@ trials each: 972 trials, 936 scored and 36 protected, with every cell RAN. Evide
 - **Fix (scheduling only; the policy and criteria are unchanged).** The adapter now yields one macrotask before each
   synchronous state phase, so a due deadline fires first. Frame-1 state features are skipped when less than
   `VISUAL_STATE_MIN_REMAINING_MS` is left. Campaign 2 re-qualifies from scratch.
+
+### Campaign 2 (2026-10-31, after the scheduling fix; same frozen policy and criteria, commit `78864d6`)
+
+The same held-out variants, cells and repeats: 972 trials, 936 scored and 36 protected, with every cell RAN. Evidence:
+`evidence/N9-qualification-headless-c2.json` and `evidence/N9-qualification-headed-c2.json`.
+
+| Cell | S-1 | S-2 | S-3 loading / empty / error / ready | S-4 | S-5 |
+|---|---|---|---|---|---|
+| headless@1 | MET (0/54) | MET (0/132) | 777 / 1000 / 666 / 851‰ | 986‰ | MET (p95 252 ms, 0 late) |
+| headless@1.25 | MET | MET | 888 / 1000 / 666 / 888‰ | 1000‰ | MET (p95 478 ms, 0 late) |
+| headless@2 | MET | MET | 796 / 1000 / 750 / 851‰ | 980‰ | MET (p95 521 ms, 0 late) |
+| headed@1 | MET | MET | 777 / 1000 / 666 / 851‰ | 986‰ | MET (p95 246 ms, 0 late) |
+| headed@1.25 | MET | MET | 851 / 1000 / 666 / 888‰ | 1000‰ | MET (p95 435 ms, 0 late) |
+| headed@2 | MET | MET | 888 / 1000 / 750 / 851‰ | 986‰ | MET (p95 470 ms, 0 late) |
+
+- **S-1 to S-5 are all MET in all six cells.**
+- Pooled:
+  - 0 false `ready` in 324 loading-truth trials;
+  - 0 false `error` in 792 non-error trials;
+  - 0 late records;
+  - one headless deadline cut, with no state code;
+  - zero frames and no code in 36 protected trials.
+- No code is pruned from exposure.
+
+**What this does and does not claim:**
+- The qualification holds on the Visual State Lab's synthetic fixtures and held-out variants, at 800 × 600, in this
+  environment (Windows 11 ARM64 in Parallels, approved 2026-10-19).
+- No accuracy is claimed for arbitrary production pages.
+- Known misses are visible in the table and in § 6: solid red toasts, animated content on ready pages, and paused
+  spinners.
+- Campaign 1's NOT MET is kept above, and its evidence files are committed beside campaign 2's.
+
+**Verification (final state):**
+- `verify:visual-state` 48/0, with a decision mutant (no second-frame guard) red;
+- `verify:visual-state-runtime` 26/0;
+- `verify:visual-isolation` 117/0, five edges unchanged;
+- `verify:visual-diagnosis-runtime` 65/0;
+- `verify:ocr-text-signal` 49/0;
+- `verify:mock-site` 370/370.
+
+S-8 is met. S-9, the independent QC and security review, is in § 8.
