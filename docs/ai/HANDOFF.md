@@ -1,6 +1,35 @@
 # Agent Handoff
 
-## HANDOFF (2026-10-31, latest) — N7.7 closed; N7 waits for the packaging host
+## HANDOFF (2026-10-31, latest) — decisions ratified; N9 qualified; N8 one NOT MET cell; Beads and N7 BLOCKED
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. Phase N is NOT complete.
+
+- **Done:**
+  - NR, NS, N10, N6P and legacy decisions recorded (DECISIONS 2026-10-31), with the legacy coverage matrix in
+    `N8-N10-planning.md`.
+  - N9 implemented and qualified (campaign 2, all six cells MET).
+  - N8 implemented, with R-1 to R-3 MET everywhere.
+- **Blocked (owner):** Beads reconciliation. `npm run agent:lease-grant` for
+  `awkit-vra-phase-n-completion-1031` needs the contract's `routing.reviewers` to be exactly `["qa", "qc"]` (the
+  routed set). The auto-mode classifier denied removing `"security"` from it. Owner options:
+  1. approve that one-line contract edit;
+  2. add a different contract route.
+
+  Once the lease is held, the queued tracker actions are:
+  - close legacy `.2`, `.3`, `.5`, `.6`, `.7` and `.8` as superseded, citing the matrix;
+  - add transfer notes to `.17`, `.16` and `.9.9`;
+  - unparent `.16` and `.17` from `awkit-vra` (outside closure);
+  - close N9 `.11` once QC approves;
+  - note N8 `.10` as NOT MET in headed@2;
+  - file the N5 deadline-lateness follow-up as a blocker of N8 re-qualification;
+  - export, then `verify:roadmap-dashboard`.
+- **Blocked (environment):** N7.1b, N7.8 and N7.9. `verify:packaging-host` H4/H5 report no Visual Studio 2022 MSVC
+  v143.
+- **Next single task:** the owner decision above, then the queued tracker actions. After that: the N5
+  deadline-lateness fix and N8 re-qualification.
+- **Preserved untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-10-31) — N7.7 closed; N7 waits for the packaging host
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

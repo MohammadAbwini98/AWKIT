@@ -1,6 +1,42 @@
 # CURRENT_STATE
 
-## Phase N: N7.7 delivered and closed; N7 waits on packaged gates (2026-10-31, latest)
+## Phase N: decisions ratified; N9 qualified; N8 implemented with one NOT MET cell; Phase N NOT complete (2026-10-31, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N stays IN
+PROGRESS.**
+
+- **Ratified (DECISIONS 2026-10-31):**
+  - NR-0 to NR-5 and NS-0 to NS-4;
+  - N10 `awkit-vra.17` and N6P `awkit-vra.16` transferred outside Phase N closure, requirements preserved;
+  - the legacy `awkit-vra.2`, `.3` and `.5` to `.8` coverage matrix (`docs/plans/ai-upgrade-v5/N8-N10-planning.md`).
+    `.8`'s packaged-artifact evidence moves to N7.8.
+- **N9 `awkit-vra.11`:** implemented and qualified on the Visual State Lab (plan
+  `docs/plans/ai-upgrade-v5/N9-screenshot-state-recognition.md`).
+  - Deterministic screenshot state (`loading`, `empty`, `error`, `ready`, `unknown`) as one N5 code, effect none.
+  - `AWKIT_VISUAL_STATE=on`, only with `AWKIT_VISUAL_DIAGNOSIS=on`.
+  - It uses N5's frame plus one more guarded frame for motion, with +600 ms deadline only when on.
+  - `ready` is never claimed without a static second frame.
+  - Criteria were frozen before qualification. Campaign 1 S-5 was NOT MET (5 records 51–102 ms late), fixed by
+    scheduling only. Campaign 2: S-1 to S-5 MET in all six cells (0 false `ready` in 324 loading trials, 0 false
+    `error` in 792).
+  - `verify:visual-state` 48/0 and `verify:visual-state-runtime` 26/0.
+- **N8 `awkit-vra.10`:** implemented (plan `docs/plans/ai-upgrade-v5/N8-row-grid-intelligence.md`).
+  - DOM-proven rows, corroborated by one crop of N5's own frame, as at most three N5 codes, effect none.
+  - `AWKIT_VISUAL_ROWS=on`, only with the diagnosis on. The N2 shadow is not wired.
+  - R-1 to R-3 MET in all six cells (0 association claims in 180 adversarial trials).
+  - R-4 and R-5 NOT MET in headed@2: one trial where N5's own deadline settled 61 ms late. `rows-not-examined` is
+    pruned from exposure as declared.
+  - `verify:visual-rows` 45/0.
+- **Both:**
+  - no new `src/visual` edge (isolation 117/0 at five);
+  - N5 runtime 65/0 and report 63/0, OCR text signal 49/0, mock-site 378/378, build PASS.
+- **Not complete:**
+  - N7.1b, N7.8 and N7.9: BLOCKED (`verify:packaging-host` H4/H5: no Visual Studio 2022 MSVC v143).
+  - N8 re-qualification: after the N5 deadline-lateness fix.
+  - N8/N9 independent QC and security review: see HANDOFF.
+  - Beads reconciliation: BLOCKED. The contract's reviewer list needs an owner decision.
+
+## Phase N: N7.7 delivered and closed; N7 waits on packaged gates (2026-10-31)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. **Phase N and N7 stay IN
 PROGRESS.** No OCR accuracy or production-readiness claim is made: OC-10 is NOT MET and N7.10 `awkit-2shc` is open.

@@ -1,5 +1,23 @@
 # KNOWN_ISSUES
 
+## Phase N diagnosis deadline and page-side code (2026-10-31, OPEN)
+
+- **The N5 diagnosis can settle after its deadline (OPEN, correctness, measured).**
+  - Synchronous pixel work blocks the deadline timer: PNG decode, crops and fingerprints at full device
+    resolution. On this ARM64 host the x64 Node build runs under emulation.
+  - Measured:
+    - N9 campaign 1: 5 records 51–102 ms after 1600 ms;
+    - N8 headed@2: one record 61 ms after 1000 ms, with no N8 work in it.
+  - N9 yields before its own phases, and campaign 2 measured 0 late. N5's own phases do not yet yield.
+  - Fix path: yield before N5's synchronous frame work, then re-qualify N8 (R-4, R-5).
+  - `verify:visual-diagnosis-runtime` does not test lateness, so it stays green.
+- **Page-side `evaluate` code must not declare named inner functions (OPEN, fragile, CONFIRMED).**
+  - Under `tsx`, esbuild wraps a named inner function (for example `const rect = (e) => …`) in a `__name(...)` call.
+    The page does not have `__name`, so the call throws `ReferenceError: __name is not defined`.
+  - This made every N8 development diagnosis `capture-failed` until it was rewritten with loops.
+  - Write page-side callbacks with no named inner functions. Wrap optional page reads so a failure can never break
+    the N5 record.
+
 ## N7.6 calibration notes (2026-10-27, OPEN, diagnostic evidence)
 
 - **l/1 look-alike is a confident false match (OPEN, accuracy, CONFIRMED in the bundled font).**

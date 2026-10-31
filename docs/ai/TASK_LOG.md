@@ -1,5 +1,54 @@
 # TASK_LOG
 
+## 2026-10-31 — Phase N: decision ratification, N9 implemented and qualified, N8 implemented (Claude)
+
+- **Task:** the owner prompt "Phase N Decision Ratification and Completion". Contract
+  `awkit-vra-phase-n-completion-1031`, starting at `f4e801a`.
+- **Commits:**
+  - `f03a410`: ratification, legacy coverage matrix, N9 plan;
+  - `bb7e786`: N9 code and freeze;
+  - `78864d6`: N9 campaign 1 and its fix;
+  - `0e582b3`: N9 campaign 2 and verifiers;
+  - `4de011e`: N8 code and freeze;
+  - `a3baa32`: N8 qualification and verifiers;
+  - then the state documents.
+- **Files:**
+  - `src/visual/state/visualState.ts`, `src/visual/rows/visualRows.ts`, `src/visual/index.ts`;
+  - `src/runner/visualDiagnosis/{VisualFailureDiagnosis,visualDiagnosisContract,visualDiagnosisRecord}.ts`;
+  - `src/runner/{PlaywrightRunner,ExecutionEngine}.ts`;
+  - `app/renderer/components/reports/VisualDiagnosisSection.tsx`;
+  - mock-site Visual State and Visual Rows labs (pages, fixture tables, routes, index, README);
+  - `scripts/{verify-visual-state,verify-visual-state-runtime,verify-visual-rows,benchmark-visual-state,benchmark-visual-rows}.mts`;
+  - `scripts/lib/{visual-state-criteria,visual-rows-criteria}.mts`;
+  - `scripts/verify-mock-site.mjs`, `scripts/verify-visual-diagnosis-report.mts`, `scripts/lib/verifier-classification.ts`;
+  - `package.json`;
+  - plans N8 and N9 and the N8–N10 planning doc, with evidence;
+  - DECISIONS, CURRENT_STATE, HANDOFF, KNOWN_ISSUES and `ImplementationRoadmap.ts`.
+- **Tests:**
+  - `verify:visual-state` 48/0, with a decision mutant red;
+  - `verify:visual-state-runtime` 26/0;
+  - `verify:visual-rows` 45/0;
+  - `verify:visual-diagnosis-runtime` 65/0;
+  - `verify:visual-diagnosis-report` 63/0;
+  - `verify:ocr-text-signal` 49/0;
+  - `verify:visual-isolation` 117/0;
+  - `verify:mock-site` 378/378;
+  - `verify:verifier-classification` reconciled;
+  - `npm run build` PASS;
+  - `verify:packaging-host` BLOCKED (H4/H5).
+- **Benchmarks:**
+  - N9 campaign 1: S-5 NOT MET.
+  - N9 campaign 2: S-1 to S-5 MET in six cells.
+  - N8: R-1 to R-3 MET in six cells; R-4 and R-5 NOT MET in headed@2.
+  - The N8 freeze commit message says "six adversarial". The table holds **five** (30 trials per development run).
+- **Result:**
+  - N9 is qualified.
+  - N8 is implemented, with one NOT MET cell.
+  - N7 packaged gates are BLOCKED.
+  - Beads reconciliation is BLOCKED: the auto-mode classifier refused to drop `security` from the contract's reviewer
+    list, which the contract validator requires. That needs an owner decision.
+  - Phase N is NOT complete.
+
 ## 2026-10-31 — Phase N: N7.7 advisory OCR text signal, implemented and closed (Claude)
 
 - **Files:**

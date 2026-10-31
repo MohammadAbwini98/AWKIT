@@ -30,11 +30,12 @@
     "manager": "manager",
     "activated_agents": [
       "manager",
+      "frontend",
       "software",
       "runtime",
       "qa",
       "qc",
-      "security",
+      "release",
       "project-state"
     ],
     "expected_paths": [
@@ -93,7 +94,80 @@
       ]
     }
   ],
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "bd-reconciliation",
+      "type": "inspection",
+      "required": true,
+      "command": "bd update, bd create, bd dep and bd close under the project-state lease",
+      "artifact": ".beads/issues.jsonl",
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "verify:visual-state",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-state",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "48/0 with a decision mutant red"
+    },
+    {
+      "id": "verify:visual-state-runtime",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-state-runtime",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "26/0 on the final adapter"
+    },
+    {
+      "id": "benchmark:visual-state",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run benchmark:visual-state:qualify-headless and :qualify-headed",
+      "artifact": "docs/plans/ai-upgrade-v5/evidence/N9-qualification-*-c2.json",
+      "result": "PASS",
+      "observed": "campaign 2: S-1 to S-5 MET in all six cells; campaign 1 S-5 NOT MET kept on record"
+    },
+    {
+      "id": "verify:visual-rows",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-rows",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "45/0"
+    },
+    {
+      "id": "benchmark:visual-rows",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run benchmark:visual-rows:qualify-headless and :qualify-headed",
+      "artifact": "docs/plans/ai-upgrade-v5/evidence/N8-qualification-*.json",
+      "result": "FAIL",
+      "observed": "R-1 to R-3 MET in all six cells; R-4 and R-5 NOT MET in headed@2 (one N5-deadline-late trial)"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    }
+  ],
   "git": {
     "direct_main": true,
     "commit_policy": "coherent",
