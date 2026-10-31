@@ -305,3 +305,19 @@ the full matrix).
   - Protected: 72 trials refused with zero frames. Disabled controls clean.
 - The earlier NOT MET results (campaign 1 S-5, and the campaign 2 headless@2 strict overrun of +2 ms) stay on record.
   N9 closes only after the fresh independent QC and security review (S-9).
+- **Joint campaign 3 (2026-11-01, `3a83c0f`, after the review fixes in the N8 plan § 10):** **S-1 to S-5 MET in all
+  six cells.** Evidence: `evidence/joint/c3/`.
+  - The fixes that touch N9: a refused record gains no state code (security S1), the state code keeps its
+    observation slot (now a behavioural test), and each member crop reserves its measured cost (QC F1).
+  - 0 false `ready` in 324 loading trials and 0 false `error` in 792 non-error trials.
+  - Recall: loading 811‰, empty 1000‰, error 694‰, ready 867‰. Decided 991‰ (892 of 900).
+  - State-work p95 395 ms (cell maximum 463 ms, headed@2). **0 records after the 1600 ms hard deadline, 0 cuts.**
+  - Protected: 72 trials refused with zero frames and no code. Disabled controls clean.
+  - N5 coverage at 1920 × 1080 (QC F2) is recorded in the N8 plan § 10: with N8 and N9 on, 0 to 5 of 48 trials are
+    `budget-exhausted` at DPR 1.5. N5 alone is 48 of 48. That is an owner decision.
+- **S-9 (fresh reviews of `3af7ba1`): NOT MET.**
+  - QC returned APPROVED WITH FINDINGS and security returned APPROVED WITH FINDINGS. Neither is unconditional, so N9
+    stays open.
+  - The findings that touch N9: a protected refusal of the second frame keeps the N7.7 and N8 codes (security 2,
+    low), and a `CAPTURE_STALE` frame is not treated as a refusal (security 1, low).
+  - The full list and dispositions are in the N8 plan § 10.

@@ -292,3 +292,85 @@ The original QC finding numbers from § 7: 1 stale members, 2 R-5 attribution, 3
 
 **Consequence:** the joint campaign-2 PASS stays valid evidence for the code at `bfd09ef`. Any product fix above
 changes that code, so a fresh joint campaign and a fresh review are required before N8 or N9 can close.
+
+## 10. Review fixes, joint campaign 3 and N5 coverage (2026-11-01)
+
+**Fixes** (`3a83c0f`; no tracker lease held while editing; frozen policies and criteria unchanged):
+- **S1:** no N7.7, N8 or N9 code is added when the verdict is `refused`. Verifier case: a password form injected at the
+  `before-frame` hold. The record is exactly `["protected-surface"]`, with zero frames and no row or state code.
+- **S4:** the row facts' hit test fails closed: a read error or a missing view counts as covered. N5's own target fact
+  is unchanged.
+- **F1:** each member's crop and evidence run behind a checkpoint that reserves
+  `visualDiagnosisSyncReserveMs(element + padded context device pixels)`, not the fixed 50 ms.
+- **F4:** opacity is multiplied up the ancestor chain. An unreadable value fails closed. Verifier case: 0.2 × 0.2.
+- **F6:** behavioural tests for:
+  - finding 5: `appendAdvisoryCodes` (the state slot, structure-first trim, cap, no repeats);
+  - finding 6: a cut while the page is busy inside the first row read. A new abort check means exactly one row read
+    reaches the page;
+  - finding 7: a verifier-only `onRowCrop` probe shows the crop dropped before the frame is released, also after a
+    cut while the frame is held.
+- **Red proof:** with S1, F4 and the abort check reverted, `verify:visual-rows` failed exactly those three new checks
+  (52/3). S1 leaked `row-association-inconclusive`, `rows-inconclusive` and `visual-state-skipped` onto a refused
+  record.
+
+**Verification (final code):** build PASS. `verify:visual-rows` 55/0, `verify:visual-diagnosis-deadline` 27/0,
+`verify:visual-state-runtime` 26/0, `verify:visual-diagnosis-runtime` 65/0, `verify:visual-isolation` 117/0.
+
+**Joint campaign 3** (`3a83c0f`, evidence `evidence/joint/c3/`, the same strict accounting and frozen criteria):
+**PASS: every N8 and N9 criterion is MET in all six cells.**
+
+| Cell | Record p95 / max (ms) | N9 S-3 loading / empty / error / ready | S-4 | S-5 p95 | R-5 p95 |
+|---|---|---|---|---|---|
+| headless@1 | 483 / 685 | 777 / 1000 / 666 / 851‰ | 986‰ | 252 ms | 42 ms |
+| headless@1.25 | 618 / 962 | 851 / 1000 / 666 / 888‰ | 1000‰ | 344 ms | 41 ms |
+| headless@2 | 866 / 1131 | 833 / 1000 / 750 / 851‰ | 986‰ | 418 ms | 51 ms |
+| headed@1 | 731 / 1046 | 777 / 1000 / 666 / 870‰ | 986‰ | 443 ms | 36 ms |
+| headed@1.25 | 459 / 1007 | 777 / 1000 / 666 / 888‰ | 1000‰ | 250 ms | 31 ms |
+| headed@2 | 864 / 1358 | 851 / 1000 / 750 / 851‰ | 986‰ | 463 ms | 54 ms |
+
+- Pooled: 972 state, 648 rows and 60 control trials. **0 hard-deadline overruns, 0 cuts.** Record p50 496 ms, p95
+  734 ms, max 1358 ms against 1600.
+- N8: R-1 0 claims in 180 adversarial trials; R-2 396/396; R-3 216/216 and 0/72 on distinct; R-4 72/72 and 36/36;
+  R-5 p95 47 ms.
+- N9: S-1 0 false `ready` in 324; S-2 0 false `error` in 792; S-3 811 / 1000 / 694 / 867‰; S-4 991‰; S-5 p95 395 ms.
+- Protected: 72 trials refused, zero frames, no codes. Disabled controls: no N8/N9 code, at most one frame, none late.
+
+**F2, N5 coverage at 1920 × 1080** (`benchmark:visual-coverage`, `3a83c0f`, evidence `evidence/n5-coverage/`, 48 trials
+per cell over six lab fixtures; `budget-exhausted` count):
+
+| Mode | DPR 1, off | DPR 1, on | DPR 1.5, off | DPR 1.5, on |
+|---|---|---|---|---|
+| headless | 0/48 | 0/48 | **48/48** | 0/48 |
+| headed | 2/48 | 0/48 | **48/48** | 1/48 |
+
+- "Off" is N5 alone at its 1000 ms deadline (900 ms work budget). "On" is N8 + N9 at 1600 ms. No trial overran its
+  hard deadline.
+- An earlier uncommitted run of the same code agreed: DPR 1.5 off 48/48 in both modes, and DPR 1.5 on 1/48 (headless)
+  and 5/48 (headed).
+- **Cause:** a 1920 × 1080 frame at DPR 1.5 is 4.67 Mpx. At the measured 200 ns/px, its whole-frame chunk needs a
+  933 ms reserve, more than N5's 900 ms work budget. So N5 alone never examines it and always reports
+  `budget-exhausted`. At DPR 1 (2.07 Mpx, 415 ms) it fits.
+- **Owner decision needed (not made here):** accept that N5 alone does not diagnose frames above about 4.5 Mpx, or
+  move whole-frame pixel work into a worker thread (an architecture change). Thresholds and deadlines are not changed.
+
+**Fresh reviews of `3af7ba1`:**
+- **Verdicts:** **QC APPROVED WITH FINDINGS** and **security APPROVED WITH FINDINGS**.
+- **Consequence:** neither verdict is unconditional, so R-9 and S-9 stay NOT MET, and `awkit-vra.10` and
+  `awkit-vra.11` stay open. No tracker lease was taken and no tracker state was changed.
+- **What the reviewers confirmed:** S1, S4, F1, F4 and F6 are fixed as described. No frozen value changed.
+- **How the reviews ran:** both were read-only and ran no verifiers.
+- **Fixing the new findings would change product code** after campaign 3. That needs a fresh joint campaign and a
+  fresh review under § 9's rule, so none were applied this session.
+
+| Finding | Severity | Disposition |
+|---|---|---|
+| QC 1: no abort check between the `covered` and `hidden` rounds in `rowFacts`; after a cut during the hit tests, N more page reads start | minor | **OPEN.** Fix: `if (signal.aborted) return null` between them, plus a blocking test inside `elementFromPoint` |
+| QC 2: the F4 ancestor walk stops at a shadow root (`parentElement`), so a fading host's opacity is skipped | minor | **OPEN.** Fix: continue through `getRootNode().host` |
+| QC 3: `memberCropPixels` is pinned only by a regex | minor | **OPEN.** Fix: export it and test a large DPR-2 member and a member clipped at the edge |
+| QC 4: S1 has a behavioural test only for a refusal before the frame | nit | OPEN |
+| QC 5: `appendAdvisoryCodes` reserves the state slot even when that code is already present | nit | OPEN (unreachable today) |
+| Sec 1: a frame refused as `CAPTURE_STALE` (a protected-window trip during a navigation) is not terminal, so the verdict stays `observed` and gains advisory codes | low | **OPEN.** Fix: also require `shot.ok` in the `advisory` gate. No protected-page data enters the record |
+| Sec 2: a protected refusal of N9's second frame keeps the N7.7 and N8 codes, and only shows `visual-state-skipped` | low | **OPEN.** Fix: drop every advisory code in that case, or the owner accepts the residual risk |
+| Sec 3 (part of S2): no handoff re-check right before the N8 DOM read | info | Reviewer recommends a free synchronous `handedOff` check |
+| S2 / S3 | low / info | Reviewer recommends **accept**. S3 is an owner decision |
+| F2 coverage (above) | major | **Owner decision**: accept the limit or move pixel work into a worker |
