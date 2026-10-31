@@ -6,7 +6,7 @@
  *
  *   --mode headless | headed   (default headless)
  *
- * Evidence: docs/plans/ai-upgrade-v5/evidence/coverage/N5-coverage-<mode>.json. Codes, counts and durations only.
+ * Evidence: docs/plans/ai-upgrade-v5/evidence/n5-coverage/N5-coverage-<mode>.json. Codes, counts and durations only.
  */
 
 import { spawn, execFileSync } from "node:child_process";
@@ -24,7 +24,8 @@ const BASE = `http://127.0.0.1:${PORT}`;
 const VIEWPORT = { width: 1920, height: 1080 };
 const DPRS = [1, 1.5];
 const REPEATS = 8;
-const OUT = join(process.cwd(), "docs", "plans", "ai-upgrade-v5", "evidence", "coverage");
+/** Not `coverage/`: that name is ignored repository-wide. */
+const OUT = join(process.cwd(), "docs", "plans", "ai-upgrade-v5", "evidence", "n5-coverage");
 /** Fixtures from both labs: a present target, several matches, no rows, and three page states with a missing target. */
 const CASES: Array<{ lab: "rows" | "state"; id: string; locator: string }> = [
   { lab: "rows", id: "table-uniform", locator: "rw-target" },
