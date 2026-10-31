@@ -366,11 +366,12 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
       const mainMembers = boxes.filter((slot) => slot.isMainFrame).map((slot) => ({ handle: handles[slot.index]!, box: slot.box }));
       rowAnchor = mainMembers[0]?.handle;
       // A failed DOM read is "no structure examined"; it can never turn N5's own record into a failure.
-      rowFacts = mainMembers.length === 0 ? null : await bounded(this.rowFacts(mainMembers).catch(() => null));
+      rowFacts = mainMembers.length === 0 ? null : await bounded(this.rowFacts(mainMembers, signal).catch(() => null));
       rowMs += performance.now() - reading;
     }
     let rowPixels: { image: VisualImage; cropCss: VisualRowsBox } | undefined;
     let rowStale = false;
+    let rowsVerdict: VisualRowsVerdict | undefined;
 
     await this.options.probe?.hold?.("before-frame");
     if (signal.aborted) throw new DiagnosisAborted();
@@ -470,9 +471,11 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
           const before = boxes[at].box;
           if (!now || now.x !== before.x || now.y !== before.y || now.width !== before.width || now.height !== before.height) {
             members[at] = { ...members[at], evidence: { available: false, code: "TARGET_STALE" } };
+            // N8 QC finding 1: a member that moved means its pre-frame row facts no longer describe these pixels.
+            if (boxes[at].isMainFrame) rowStale = true;
           }
         }
-        if (rowFacts && rowAnchor) {
+        if (rowFacts && rowAnchor && !rowStale) {
           // N8: a container that moved since it was read makes every row code inconclusive.
           const before = rowFacts.container;
           const now = await bounded(
@@ -487,7 +490,15 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
           );
           rowStale = !now || now.x !== before.x || now.y !== before.y || now.width !== before.width || now.height !== before.height;
         }
+        if (rowFacts !== undefined) {
+          // N8 QC finding 7: decided while the frame is still held, so the container crop never outlives the frame.
+          const deciding = performance.now();
+          rowsVerdict = this.decideRows(rowFacts, rowPixels, viewport, rowStale);
+          rowPixels = undefined;
+          rowMs += performance.now() - deciding;
+        }
       } finally {
+        rowPixels = undefined;
         releaseVisualFrame(frame);
         this.options.probe?.onFrame?.("released");
       }
@@ -520,17 +531,8 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
     // N8: advisory only, after the verdict and the text signal; at most three codes.
     if (rowFacts !== undefined) {
       const deciding = performance.now();
-      const rows = decideVisualRows(
-        {
-          image: rowPixels?.image ?? null,
-          cropCss: rowPixels?.cropCss ?? null,
-          viewport,
-          dom: rowFacts ? { rows: rowFacts.rows, totalRows: rowFacts.totalRows, declaredRows: rowFacts.declaredRows, members: rowFacts.members } : null,
-          stale: rowStale
-        },
-        this.rowsPolicy
-      );
-      rowPixels = undefined;
+      // Without a frame there are no pixels: the rows are decided here, withheld.
+      const rows = rowsVerdict ?? this.decideRows(rowFacts, undefined, viewport, rowStale);
       textCodes.push(...rows.codes);
       try {
         this.options.probe?.onRows?.({ verdict: rows, ms: Math.round(rowMs + performance.now() - deciding) });
@@ -631,12 +633,32 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
     return this.options.rowsPolicy ?? MEASURED_VISUAL_ROWS_POLICY;
   }
 
+  private decideRows(
+    facts: RowFacts | null,
+    pixels: { image: VisualImage; cropCss: VisualRowsBox } | undefined,
+    viewport: { width: number; height: number },
+    stale: boolean
+  ): VisualRowsVerdict {
+    return decideVisualRows(
+      {
+        image: pixels?.image ?? null,
+        cropCss: pixels?.cropCss ?? null,
+        viewport,
+        dom: facts ? { rows: facts.rows, totalRows: facts.totalRows, declaredRows: facts.declaredRows, members: facts.members } : null,
+        stale
+      },
+      this.rowsPolicy
+    );
+  }
+
   /**
    * N8 (plan § 2): the container of the first member's closest DOM row, that container's row boxes (at most
    * VISUAL_ROWS_MAX_ROWS), a declared row count, and each member's DOM row index in that container (-1 when it is in
    * another one) and whether nothing is on top of it. Read only: boxes, ancestry and one hit test per member.
    */
-  private async rowFacts(members: Array<{ handle: ElementHandle; box: MemberBox["box"] }>): Promise<RowFacts | null> {
+  private async rowFacts(members: Array<{ handle: ElementHandle; box: MemberBox["box"] }>, signal: AbortSignal): Promise<RowFacts | null> {
+    // N8 QC finding 6: after a cut, no further page reads are started.
+    if (signal.aborted) return null;
     const container = await members[0]!.handle.evaluateHandle((node, selector) => (node as Element).closest(selector)?.parentElement ?? null, ROW_SELECTOR);
     try {
       const facts = await container.evaluate(
@@ -662,7 +684,7 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
         },
         [ROW_SELECTOR, VISUAL_ROWS_MAX_ROWS] as [string, number]
       );
-      if (!facts) return null;
+      if (!facts || signal.aborted) return null;
       const placed = await Promise.all(
         members.map(({ handle }) =>
           handle
@@ -679,8 +701,25 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
             .catch(() => -1)
         )
       );
+      if (signal.aborted) return null;
       const covered = await Promise.all(members.map(({ handle }) => this.occluded(handle)));
-      return { ...facts, members: members.map((member, at) => ({ box: member.box, rowIndex: placed[at], topmost: !covered[at] })) };
+      // N8 QC finding 4: a member that is transparent or hidden through any ancestor is hit-testable but not seen, so
+      // it is never "on top" (its pixels would be whatever is behind it). Fail closed on a read error.
+      const hidden = await Promise.all(
+        members.map(({ handle }) =>
+          handle
+            .evaluate((node) => {
+              for (let at: Element | null = node as Element; at; at = at.parentElement) {
+                const style = getComputedStyle(at);
+                if (Number(style.opacity) < 0.05 || style.visibility === "hidden" || style.visibility === "collapse") return true;
+              }
+              return false;
+            })
+            .catch(() => true)
+        )
+      );
+      if (signal.aborted) return null;
+      return { ...facts, members: members.map((member, at) => ({ box: member.box, rowIndex: placed[at], topmost: !covered[at] && !hidden[at] })) };
     } finally {
       await container.dispose().catch(() => undefined);
     }

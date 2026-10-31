@@ -189,3 +189,25 @@ trials each: 648 trials, 612 scored and 36 protected, with every cell RAN. Evide
 - `npm run build` PASS.
 
 R-6, R-7 and R-8 are met. R-9, the independent QC and security review, is in § 7.
+
+## 7. Independent QC and security review (2026-10-31)
+
+Verdicts: **QC CHANGES REQUIRED**, **security APPROVED WITH FINDINGS**. The reviewer was read-only and did not
+review the verifiers' mutation sensitivity, the lab pages or the N9 plan text.
+
+**Fixed after review** (`verify:visual-rows` 48/0, with runtime cases for findings 1 and 4):
+1. A stale member makes the rows stale.
+2. A member that reaches past its row sideways is withheld.
+3. An opacity-0 or hidden member is never on top.
+4. `rowFacts` checks the abort signal between page reads.
+5. Rows are decided before the frame is released.
+
+**Corrections to § 6:**
+- The claim that N8's work "had not run" in the late trial is unsupported: the row DOM read runs before the frame,
+  and `rowMs` is null for every cut record. R-5 is NOT MET. The p95 excludes cut trials.
+- The benchmarks counted a record as late only after deadline + 50 ms. That grace was **not pre-declared**. Strictly,
+  N9 campaign 2 also had one record at 1602 ms (headless@2), so N9 S-5 is NOT MET in that cell.
+
+**Consequence:** the qualification evidence predates these fixes. N8 and N9 both need a fresh qualification campaign
+after the N5 deadline-lateness fix (NOT RUN). Neither milestone closes. Finding 5 is also open: the N9 code can be
+dropped by the 8-observation cap when both flags are on, and the two were never qualified together.

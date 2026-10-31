@@ -248,6 +248,9 @@ export function decideVisualRows(input: VisualRowsInput, policy: Readonly<Visual
         const my1 = Math.min(image.height, Math.round((b.y + b.height - crop.y) * sy));
         if (mx1 <= mx0 || my1 <= my0) return "no-ink";
         if (my0 < band.y0 - tolPx || my1 > band.y1 + tolPx) return "crosses-row-edge";
+        // QC finding 3: a member that reaches past its row sideways (a positioned menu, say) is not inside it either.
+        const tolX = Math.max(1, Math.round(tol * sx));
+        if (mx0 < band.x0 - tolX || mx1 > band.x1 + tolX) return "crosses-row-edge";
         for (const other of bands) if (other !== band && Math.min(my1, other.y1) - Math.max(my0, other.y0) > tolPx) return "overlaps-other-row";
         if (!member.topmost) return "covered";
         for (const y of [band.y0, band.y1 - 1]) if (y >= 0 && y < image.height && rowRange(luma, width, y, mx0, mx1) > policy.quietRange) return "edge-not-quiet";

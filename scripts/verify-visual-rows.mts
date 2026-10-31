@@ -96,7 +96,7 @@ async function lab(fixture: string, variant = "b"): Promise<Page> {
   return page;
 }
 
-async function diagnose(page: Page, options: { rows?: boolean; handedOff?: boolean; locator?: string } = {}) {
+async function diagnose(page: Page, options: { rows?: boolean; handedOff?: boolean; locator?: string; beforeFrame?: () => Promise<void> } = {}) {
   const frames = { taken: 0, released: 0 };
   const records: VisualDiagnosisRecord[] = [];
   const diagnosis = new VisualFailureDiagnosis({
@@ -106,6 +106,9 @@ async function diagnose(page: Page, options: { rows?: boolean; handedOff?: boole
     onRecord: (record) => records.push(record),
     ...(options.rows ? { rowEvidence: true } : {}),
     probe: {
+      hold: async (stage) => {
+        if (stage === "before-frame") await options.beforeFrame?.();
+      },
       onFrame: (event) => {
         if (event === "taken") frames.taken += 1;
         else if (event === "released") frames.released += 1;
@@ -139,6 +142,7 @@ async function main(): Promise<void> {
   check("a candidate outside the container is withheld", decide(base({}, { members: [{ box: { x: 500, y: 130, width: 80, height: 20 }, rowIndex: -1, topmost: true }] })).failures[0] === "outside-container");
   check("a candidate straddling two rows is withheld (crosses-row-edge)", decide(base({}, { members: [{ box: { x: 500, y: 150, width: 80, height: 20 }, rowIndex: 3, topmost: true }] })).failures[0] === "crosses-row-edge");
   check("a candidate drawn in another row is withheld", decide(base({}, { members: [{ box: { x: 500, y: 170, width: 80, height: 20 }, rowIndex: 3, topmost: true }] })).association === "inconclusive");
+  check("QC 3: a candidate reaching past its row sideways is withheld", decide(base({}, { rows: rowBoxes(10).map((r) => ({ ...r, width: 520 })), members: [{ box: { x: 500, y: 130, width: 80, height: 20 }, rowIndex: 3, topmost: true }] })).failures[0] === "crosses-row-edge");
   check("a covered candidate is withheld", decide(base({}, { members: [{ box: { x: 500, y: 130, width: 80, height: 20 }, rowIndex: 3, topmost: false }] })).failures[0] === "covered");
   check("an invisible candidate (no ink) is withheld", decide(base({ image: container(10, () => undefined) })).failures[0] === "no-ink");
   const noisy = container(10, (r, set) => {
@@ -216,6 +220,31 @@ async function main(): Promise<void> {
     const multi = await diagnose(multiPage, { rows: true, locator: "rw-action" });
     check("several matches: each in its own row, consistent", multi.codes.includes("row-association-consistent") && multi.record?.observations.includes("target-multiple-matches"), JSON.stringify(multi.record?.observations));
     await multiPage.close();
+    // QC finding 4: an invisible target placed over its row's own text (ink behind it) is never "seen in its row".
+    const ghostPage = await lab("table-uniform");
+    await ghostPage.evaluate(() => {
+      const target = document.querySelector('[data-testid="rw-target"]') as HTMLElement;
+      const nameCell = target.closest("tr")!.children[1] as HTMLElement;
+      nameCell.style.position = "relative";
+      target.style.cssText += ";position:absolute;left:0;top:50%;transform:translateY(-50%);opacity:0";
+      nameCell.append(target);
+    });
+    const ghost = await diagnose(ghostPage, { rows: true });
+    check("QC 4: an opacity-0 target over row text is withheld, never consistent", ghost.codes.includes("row-association-inconclusive") && !ghost.codes.includes("row-association-consistent"), JSON.stringify(ghost.codes));
+    await ghostPage.close();
+    // QC finding 1: rows re-sorted after the DOM read but before the frame (the container keeps its size).
+    const sortPage = await lab("table-uniform");
+    const sorted = await diagnose(sortPage, {
+      rows: true,
+      beforeFrame: async () => {
+        await sortPage.evaluate(() => {
+          const row = document.querySelector('[data-testid="rw-target"]')!.closest("tr")!;
+          row.parentElement!.append(row);
+        });
+      }
+    });
+    check("QC 1: rows re-sorted between the read and the frame are inconclusive, never consistent", sorted.codes.includes("rows-inconclusive") && !sorted.codes.includes("row-association-consistent"), JSON.stringify(sorted.codes));
+    await sortPage.close();
     const protPage = await lab("protected");
     const prot = await diagnose(protPage, { rows: true });
     check("protected (R-7): zero frames, no row code, no DOM row read", prot.frames.taken === 0 && prot.codes.length === 0 && prot.closest === 0, JSON.stringify(prot));
@@ -240,7 +269,7 @@ async function main(): Promise<void> {
   const runner = await readFile("src/runner/PlaywrightRunner.ts", "utf8");
   check("the runner passes rowEvidence only when enabled, with no extra deadline", /this\.options\.visualRowEvidence === true \? \{ rowEvidence: true \} : \{\}/.test(runner));
   const adapter = await readFile("src/runner/visualDiagnosis/VisualFailureDiagnosis.ts", "utf8");
-  check("the adapter reads rows only under rowEvidence === true and a failed read is caught", /this\.options\.rowEvidence === true/.test(adapter) && /this\.rowFacts\(mainMembers\)\.catch\(\(\) => null\)/.test(adapter));
+  check("the adapter reads rows only under rowEvidence === true and a failed read is caught", /this\.options\.rowEvidence === true/.test(adapter) && /this\.rowFacts\(mainMembers, signal\)\.catch\(\(\) => null\)/.test(adapter));
   const copy = await readFile("app/renderer/components/reports/VisualDiagnosisSection.tsx", "utf8");
   check("the drawer has fixed copy for every row code", VISUAL_ROWS_CODES.every((code) => copy.includes(`"${code}":`)));
 
