@@ -904,6 +904,35 @@ try {
   check("show() refuses an unknown fixture and an unknown variant",
     await page.evaluate(() => Promise.all([window.__stateLab.show("nope", "a").then(() => false, () => true), window.__stateLab.show("blank", "z").then(() => false, () => true)]).then((r) => r.every(Boolean))));
 
+  // Phase N, N8 Visual Rows Lab: the fixture table, every fixture in every variant, the target and the protected form.
+  // The row evidence is proven by npm run verify:visual-rows and measured by benchmark:visual-rows.
+  console.log("Visual Rows Lab (/visual-intelligence/rows):");
+  await page.goto(`${BASE}/`);
+  check("index lists the Visual Rows Lab scenario", (await page.getByTestId("scenario-visual-rows").count()) === 1);
+  const rowsTable = await (await fetch(`${BASE}/visual-intelligence/rows-fixtures.json`)).json();
+  check("the rows fixture table has 18 fixtures, five adversarial, one development and three held-out variants",
+    rowsTable.fixtures.length === 18 && rowsTable.fixtures.filter((f) => f.adversarial).length === 5 && JSON.stringify(rowsTable.qualificationVariants) === '["b","c","d"]');
+  await page.goto(`${BASE}/visual-intelligence/rows`);
+  await page.waitForSelector("body[data-fixtures]");
+  check("the rows lab serves its title and carries no credential field", (await page.title()) === "Visual Rows Lab" && (await page.locator('input[type="password"]').count()) === 0);
+  check("the lab draws exactly the table's fixtures (as a set)", JSON.stringify((await page.evaluate(() => window.__rowsLab.fixtures())).sort()) === JSON.stringify(rowsTable.fixtures.map((f) => f.id).sort()));
+  let rowsShown = true;
+  let rowsTargets = true;
+  for (const variant of ["a", "b", "c", "d"]) {
+    for (const fixture of rowsTable.fixtures) {
+      await page.evaluate(([id, v]) => window.__rowsLab.show(id, v), [fixture.id, variant]);
+      if ((await page.getAttribute("#rw-stage", "data-shown")) !== `${fixture.id}:${variant}`) rowsShown = false;
+      const count = await page.getByTestId(fixture.locator).count();
+      if (fixture.locator === "rw-target" ? count !== 1 : count < 2) rowsTargets = false;
+    }
+  }
+  check("every fixture renders in every variant and reports itself as data-shown", rowsShown);
+  check("each fixture has exactly one rw-target, or several rw-action in multi-match", rowsTargets);
+  await page.evaluate(() => window.__rowsLab.show("protected", "b"));
+  check("the protected fixture adds exactly one password form", (await page.locator('#rw-protected input[type="password"]').count()) === 1);
+  await page.evaluate(() => window.__rowsLab.show("table-uniform", "b"));
+  check("...and the next fixture removes it", (await page.locator("#rw-protected").count()) === 0);
+
   // Phase N, N2.3 Visual Fusion Calibration Lab: the toolbar, its scenarios and the F5-F7 fixtures serve.
   // The score distributions and the Ctrl+zoom check are measured by npm run benchmark:visual-fusion.
   console.log("Visual Fusion Calibration Lab (/visual-intelligence/fusion):");

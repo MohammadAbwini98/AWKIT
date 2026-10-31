@@ -315,7 +315,10 @@ for (const [name, outcomes, mustFail] of mutants) {
 console.log("\nPart 1b. N5.6 pruning at exposure");
 {
   const pruneSuite = (expose: (r: Pick<VisualDiagnosisRecord, "observations">) => string[]): Outcome[] => [
-    { label: "viewport-uniform is pruned (benchmark:visual-diagnosis NOT MET in headed cells)", ok: VISUAL_DIAGNOSIS_PRUNED_CODES.has("viewport-uniform") && VISUAL_DIAGNOSIS_PRUNED_CODES.size === 1 },
+    {
+      label: "exactly viewport-uniform (benchmark:visual-diagnosis NOT MET in headed cells) and rows-not-examined (N8 R-4 NOT MET in headed@2) are pruned",
+      ok: VISUAL_DIAGNOSIS_PRUNED_CODES.has("viewport-uniform") && VISUAL_DIAGNOSIS_PRUNED_CODES.has("rows-not-examined") && VISUAL_DIAGNOSIS_PRUNED_CODES.size === 2
+    },
     { label: "a pruned code is shown as inconclusive", ok: JSON.stringify(expose({ observations: ["reference-unavailable", "target-not-in-dom", "viewport-uniform"] })) === JSON.stringify(["reference-unavailable", "target-not-in-dom", "inconclusive"]) },
     { label: "inconclusive is shown once when both appear", ok: JSON.stringify(expose({ observations: ["viewport-uniform", "inconclusive"] })) === JSON.stringify(["inconclusive"]) },
     { label: "calibrated codes are shown unchanged", ok: JSON.stringify(expose({ observations: ["conditions-unproven", "target-identical-to-reference", "target-occluded"] })) === JSON.stringify(["conditions-unproven", "target-identical-to-reference", "target-occluded"]) }

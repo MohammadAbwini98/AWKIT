@@ -146,6 +146,46 @@ through the real N5 adapter, N0 capture and Chromium. Evidence: `evidence/N8-bas
 Policy: edge tolerance 2 CSS px, minimum row 8 CSS px, look-alike cell delta 96 with at most 1 cell, quiet range 40,
 ink range 48. No deadline is added: the N5 deadline stays 1000 ms with only `AWKIT_VISUAL_ROWS=on`.
 
-## 6. Qualification results
+## 6. Qualification results (2026-10-31, frozen policy and criteria, commit `4de011e`)
 
-*Filled in by the qualifying campaign.*
+`npm run benchmark:visual-rows:qualify-headless` and `:qualify-headed` ran held-out variants `b`, `c` and `d`, two
+trials each: 648 trials, 612 scored and 36 protected, with every cell RAN. Evidence:
+`evidence/N8-qualification-headless.json` and `evidence/N8-qualification-headed.json`.
+
+| Cell | R-1 | R-2 | R-3 (alike / on distinct) | R-4 | R-5 |
+|---|---|---|---|---|---|
+| headless@1 | MET (0/30) | MET 66/66 | MET 36/36, 0/12 | MET | MET (p95 24 ms) |
+| headless@1.25 | MET | MET 66/66 | MET | MET | MET (p95 23 ms) |
+| headless@2 | MET | MET 66/66 | MET | MET | MET (p95 107 ms) |
+| headed@1 | MET | MET 66/66 | MET | MET | MET (p95 40 ms) |
+| headed@1.25 | MET | MET 66/66 | MET | MET | MET (p95 54 ms) |
+| headed@2 | MET | MET 66/66 | MET | **NOT MET** (not-examined 5/6) | **NOT MET** (p95 50 ms, **1 late**) |
+
+- **R-1 holds everywhere: 0 association claims in 180 adversarial trials.** Each was withheld for its designed
+  reason: `crosses-row-edge` (rowspan, displaced), `covered` (overlay), `no-ink` (ghost) and `rows-overlap`.
+- Over all 612 scored trials:
+  - association claimed on 396 of 396 consistent-truth trials;
+  - look-alike on 216 of 216 look-alike-truth trials;
+  - look-alike on 0 of 72 distinct-truth trials;
+  - partly-examined on 72 of 72;
+  - zero frames and no code in 36 protected trials.
+- **NOT MET (headed@2, one trial):** a `no-rows` diagnosis was cut by N5's own 1000 ms deadline and settled 61 ms
+  late, with no row code. N8's work had not run in it (`rowMs` null; for `no-rows` it is one async DOM read). The
+  lateness is the pre-existing N5 synchronous frame processing on this ARM64 host emulating x64, the defect class N9's
+  campaign 1 exposed. No threshold is changed. As declared in § 4, `rows-not-examined` joins
+  `VISUAL_DIAGNOSIS_PRUNED_CODES` (shown as `inconclusive`). R-5 has no code of its own. The N5 deadline-lateness
+  defect is filed as a follow-up. Re-qualification after that fix is the path to MET.
+- **Scope:** the qualification holds on the Visual Rows Lab's synthetic fixtures at 800 × 600 in this environment.
+  N2 shadow wiring is not part of this milestone (§ 1, NR-3).
+
+**Verification (final state):**
+- `verify:visual-rows` 45/0;
+- `verify:visual-diagnosis-report` 63/0 (pruned set pinned at two);
+- `verify:visual-diagnosis-runtime` 65/0;
+- `verify:visual-state-runtime` 26/0;
+- `verify:visual-isolation` 117/0, five edges unchanged;
+- `verify:mock-site` 378/378;
+- `verify:verifier-classification` reconciled;
+- `npm run build` PASS.
+
+R-6, R-7 and R-8 are met. R-9, the independent QC and security review, is in § 7.

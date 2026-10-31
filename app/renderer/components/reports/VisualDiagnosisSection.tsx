@@ -42,6 +42,15 @@ const OBSERVATIONS: Record<string, string> = {
   "target-text-differs-from-name":
     "Unverified OCR evidence: the text recognizer's reading of the step's target differed from its accessible name. The recognizer is not qualified for accuracy, so this does not prove the element is wrong.",
   "target-text-unreadable": "Unverified OCR evidence: the text recognizer could not read the step's target confidently.",
+  // N8: advisory row/grid codes (DOM-proven rows, corroborated by pixels); they never pick or act on a row.
+  "rows-look-alike": "Row evidence: the rows around the step's target look alike, so their pictures cannot tell them apart.",
+  "rows-distinct": "Row evidence: the rows around the step's target look different from one another.",
+  "rows-mixed": "Row evidence: some rows around the step's target look alike and some do not.",
+  "rows-inconclusive": "Row evidence: the row structure could not be checked from the screenshot.",
+  "rows-not-examined": "Row evidence: the step's target is not inside a row structure.",
+  "row-association-consistent": "Row evidence: each matched element sits visibly inside its own row.",
+  "row-association-inconclusive": "Row evidence: it could not be confirmed that each matched element sits visibly inside its own row.",
+  "rows-partly-examined": "Row evidence: only the rows that were on screen were examined; others were not looked at.",
   // N9: advisory screenshot-state codes (deterministic, qualified on the Visual State Lab only); they never decide a step.
   "visual-state-loading": "Screenshot state: the page looked like it was still loading (something moving, or placeholder blocks).",
   "visual-state-empty": "Screenshot state: the page looked empty, with only a short message.",
