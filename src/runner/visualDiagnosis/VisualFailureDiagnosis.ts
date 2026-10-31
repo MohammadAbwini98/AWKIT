@@ -126,6 +126,8 @@ export interface VisualDiagnosisProbe {
   onRows?: (event: { verdict: VisualRowsVerdict; ms: number }) => void;
   /** N9: the state decision with its measured numbers and how long the state work took (benchmark:visual-state). */
   onState?: (event: { features: VisualStateFrameFeatures; motion: VisualMotion | null; verdict: VisualStateVerdict; ms: number }) => void;
+  /** N8 QC finding 7: the container crop was taken from the frame, or dropped (always before the frame is released). */
+  onRowCrop?: (event: "taken" | "dropped") => void;
 }
 
 export interface VisualFailureDiagnosisOptions {
@@ -196,6 +198,31 @@ class DiagnosisOverBudget extends Error {}
 
 /** N9: one macrotask turn, so a deadline timer that is already due runs before more synchronous pixel work starts. */
 const yieldToTimers = (): Promise<void> => new Promise<void>((resolve) => setImmediate(resolve));
+
+/**
+ * QC F1: the device pixels one member's crop and evidence touch (the element crop plus its padded context crop, each
+ * clipped to the viewport), so the checkpoint before them reserves their measured cost, not a fixed one.
+ */
+function memberCropPixels(viewport: { cssWidth: number; cssHeight: number; scaleX: number; scaleY: number }, box: MemberBox["box"]): number {
+  const area = (pad: number): number => {
+    const width = Math.min(viewport.cssWidth, box.x + box.width + pad) - Math.max(0, box.x - pad);
+    const height = Math.min(viewport.cssHeight, box.y + box.height + pad) - Math.max(0, box.y - pad);
+    return Math.max(0, width) * Math.max(0, height);
+  };
+  return (area(0) + area(CONTEXT_PADDING_CSS)) * viewport.scaleX * viewport.scaleY;
+}
+
+/**
+ * N8/N9 QC finding 5: append the advisory codes to a decided record's observations under the observation cap. N9's one
+ * code keeps a slot; the N7.7 and N8 codes, given in keep order, fill the rest. Exported for its behavioural test.
+ */
+export function appendAdvisoryCodes(observations: string[], extras: readonly string[], stateCode: string | undefined): void {
+  const cap = VISUAL_DIAGNOSIS_RECORD_MAX_OBSERVATIONS - (stateCode ? 1 : 0);
+  for (const code of extras) {
+    if (observations.length < cap && !observations.includes(code)) observations.push(code);
+  }
+  if (stateCode && observations.length < VISUAL_DIAGNOSIS_RECORD_MAX_OBSERVATIONS && !observations.includes(stateCode)) observations.push(stateCode);
+}
 
 export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
   private readonly reader: VisualDiagnosisReferenceReader;
@@ -384,6 +411,12 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
       rowMs += performance.now() - reading;
     }
     let rowPixels: { image: VisualImage; cropCss: VisualRowsBox } | undefined;
+    // N8 QC finding 7: the container crop is dropped before its frame is released, on every path.
+    const dropRowPixels = (): void => {
+      if (!rowPixels) return;
+      rowPixels = undefined;
+      this.options.probe?.onRowCrop?.("dropped");
+    };
     let rowStale = false;
     let rowsVerdict: VisualRowsVerdict | undefined;
 
@@ -451,7 +484,8 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
           viewportInput = { available: false, code: whole.code };
         }
         for (const slot of boxes) {
-          await this.checkpoint(signal, started, deadlineMs);
+          // QC F1: each member's crop and evidence are one synchronous chunk, reserved at their measured per-pixel cost.
+          await this.checkpoint(signal, started, deadlineMs, visualDiagnosisSyncReserveMs(memberCropPixels(frame.viewport, slot.box)));
           let evidence: VisualDiagnosisEvidenceInput;
           const crop = cropFromVisualFrame(frame, slot.box, CONTEXT_PADDING_CSS);
           if (!crop.ok) {
@@ -484,7 +518,10 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
           const cropPixels = (right - left) * (bottom - top) * frame.viewport.scaleX * frame.viewport.scaleY;
           if (right > left && bottom > top && this.leftOf(started, deadlineMs) >= visualDiagnosisSyncReserveMs(cropPixels)) {
             const crop = cropFromVisualFrame(frame, { x: left, y: top, width: right - left, height: bottom - top }, 0);
-            if (crop.ok) rowPixels = { image: crop.value.element.image, cropCss: { ...crop.value.element.actualCssBounds } };
+            if (crop.ok) {
+              rowPixels = { image: crop.value.element.image, cropCss: { ...crop.value.element.actualCssBounds } };
+              this.options.probe?.onRowCrop?.("taken");
+            }
           }
           rowMs += performance.now() - cropping;
         }
@@ -523,11 +560,11 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
           // The pixel decision is synchronous: without the reserve left it is withheld (no pixels), never run late.
           const decidable = rowPixels && this.leftOf(started, deadlineMs) >= visualDiagnosisSyncReserveMs(rowPixels.image.width * rowPixels.image.height);
           rowsVerdict = this.decideRows(rowFacts, decidable ? rowPixels : undefined, viewport, rowStale);
-          rowPixels = undefined;
+          dropRowPixels();
           rowMs += performance.now() - deciding;
         }
       } finally {
-        rowPixels = undefined;
+        dropRowPixels();
         releaseVisualFrame(frame);
         this.options.probe?.onFrame?.("released");
       }
@@ -546,9 +583,12 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
       members,
       viewport: viewportInput
     });
+    // Security S1: a refused verdict (N0 refused the frame, or a refusal inside it) gains no N7.7, N8 or N9 code: nothing
+    // derived from a page N0 just refused is added to the record.
+    const advisory = verdict.outcome !== "refused";
     // N7.7: advisory only, after the verdict is decided; a DOM-proven, unique, visible target only.
     const textCodes: string[] = [];
-    if (this.options.textSignal && matches === 1 && target?.inViewport && !target.zeroSize && !signal.aborted) {
+    if (advisory && this.options.textSignal && matches === 1 && target?.inViewport && !target.zeroSize && !signal.aborted) {
       const text = await bounded(
         this.options
           .textSignal({ page, target: locator, handedOff: this.handedOff(page), deadlineMs: this.remaining(started, deadlineMs), signal })
@@ -560,7 +600,7 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
     const rowCodes: string[] = [];
     let stateCode: string | undefined;
     // N8: advisory only, after the verdict and the text signal; at most three codes.
-    if (rowFacts !== undefined) {
+    if (advisory && rowFacts !== undefined) {
       const deciding = performance.now();
       // Without a frame there are no pixels: the rows are decided here, withheld.
       const rows = rowsVerdict ?? this.decideRows(rowFacts, undefined, viewport, rowStale);
@@ -573,16 +613,11 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
       }
     }
     // N9: advisory only, after the verdict and the text signal; one code, never more.
-    if (this.options.stateRecognition === true) {
+    if (advisory && this.options.stateRecognition === true) {
       stateCode = await this.state(request, page, stateFrame, stateMs, shotAt, signal, started, deadlineMs, bounded, defer);
     }
     const record = this.toRecord(request, kind, verdict, started);
-    // QC finding 5: with N9 on, its one code keeps a slot under the observation cap; N7.7 and N8 codes fill the rest.
-    const cap = VISUAL_DIAGNOSIS_RECORD_MAX_OBSERVATIONS - (stateCode ? 1 : 0);
-    for (const code of [...textCodes, ...rowCodes]) {
-      if (record.observations.length < cap && !record.observations.includes(code)) record.observations.push(code);
-    }
-    if (stateCode && record.observations.length < VISUAL_DIAGNOSIS_RECORD_MAX_OBSERVATIONS && !record.observations.includes(stateCode)) record.observations.push(stateCode);
+    appendAdvisoryCodes(record.observations, [...textCodes, ...rowCodes], stateCode);
     return record;
   }
 
@@ -698,6 +733,8 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
     if (signal.aborted) return null;
     const container = await members[0]!.handle.evaluateHandle((node, selector) => (node as Element).closest(selector)?.parentElement ?? null, ROW_SELECTOR);
     try {
+      // QC F6: a cut while the first read was in flight starts no second one.
+      if (signal.aborted) return null;
       const facts = await container.evaluate(
         // No named inner functions here: a bundler may wrap them in a helper the page does not have.
         (node, [selector, cap]) => {
@@ -739,16 +776,20 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
         )
       );
       if (signal.aborted) return null;
-      const covered = await Promise.all(members.map(({ handle }) => this.occluded(handle)));
+      // Security S4: an unreadable hit test counts as covered here, so it can never support a row association.
+      const covered = await Promise.all(members.map(({ handle }) => this.occluded(handle, true)));
       // N8 QC finding 4: a member that is transparent or hidden through any ancestor is hit-testable but not seen, so
-      // it is never "on top" (its pixels would be whatever is behind it). Fail closed on a read error.
+      // it is never "on top" (its pixels would be whatever is behind it). QC F4: opacity compounds up the chain. Fail
+      // closed on a read error or an unreadable opacity.
       const hidden = await Promise.all(
         members.map(({ handle }) =>
           handle
             .evaluate((node) => {
+              let opacity = 1;
               for (let at: Element | null = node as Element; at; at = at.parentElement) {
                 const style = getComputedStyle(at);
-                if (Number(style.opacity) < 0.05 || style.visibility === "hidden" || style.visibility === "collapse") return true;
+                opacity *= Number(style.opacity);
+                if (!(opacity >= 0.05) || style.visibility === "hidden" || style.visibility === "collapse") return true;
               }
               return false;
             })
@@ -808,14 +849,15 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
    * Whether another element is topmost over the member, in its own document or shadow root. Read only. N5.7 (QC finding
    * 1): the probe asks the member's own root, so a target inside an open shadow root is not "covered" by its host, and it
    * probes the centre of the part inside the viewport, so a partly visible target is not "covered" by nothing. A member
-   * with no visible part is never called occluded.
+   * with no visible part is never called occluded. Security S4: `failClosed` (the N8 row facts) makes a read that
+   * cannot be made count as occluded; N5's own target fact keeps reporting it as not occluded.
    */
-  private occluded(member: MemberHandle): Promise<boolean> {
+  private occluded(member: MemberHandle, failClosed = false): Promise<boolean> {
     return member
-      .evaluate((node) => {
+      .evaluate((node, unreadable) => {
         const element = node as Element;
         const view = element.ownerDocument.defaultView;
-        if (!view) return false;
+        if (!view) return unreadable;
         const rect = element.getBoundingClientRect();
         const left = Math.max(rect.left, 0);
         const right = Math.min(rect.right, view.innerWidth);
@@ -825,8 +867,8 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
         const root = element.getRootNode() as Document | ShadowRoot;
         const hit = (typeof root.elementFromPoint === "function" ? root : element.ownerDocument).elementFromPoint((left + right) / 2, (top + bottom) / 2);
         return !(hit && (hit === element || element.contains(hit)));
-      })
-      .catch(() => false);
+      }, failClosed)
+      .catch(() => failClosed);
   }
 
   /** The member's frame depth (0 for the main frame). */

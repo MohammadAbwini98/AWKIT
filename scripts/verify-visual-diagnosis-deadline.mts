@@ -14,8 +14,9 @@
  *       nothing in flight;
  *   D5  late frame delivery (the N9 second screenshot held 3 s): back by the deadline, the late frame released;
  *   D6  N8 and N9 together under the D2 block: back by the deadline, one record, at most one state and three row codes;
- *   D7  pins: the publish gate reads the monotonic clock, the checkpoint guards N5's own frame work, the N9 code keeps a
- *       slot under the observation cap, and the work budget formula.
+ *   D7  pins: the publish gate reads the monotonic clock, the checkpoint guards N5's own frame work (each member at its
+ *       measured per-pixel cost, QC F1), and the work budget formula; the N9 code keeps a slot under the observation
+ *       cap, tested on appendAdvisoryCodes itself (QC F6).
  *
  * Run: npm run verify:visual-diagnosis-deadline
  */
@@ -24,7 +25,8 @@ import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { chromium, type Browser, type Page } from "playwright";
-import { VisualFailureDiagnosis, type VisualDiagnosisProbe } from "@src/runner/visualDiagnosis/VisualFailureDiagnosis";
+import { VisualFailureDiagnosis, appendAdvisoryCodes, type VisualDiagnosisProbe } from "@src/runner/visualDiagnosis/VisualFailureDiagnosis";
+import { VISUAL_DIAGNOSIS_RECORD_MAX_OBSERVATIONS } from "@src/runner/visualDiagnosis/visualDiagnosisRecord";
 import {
   VISUAL_DIAGNOSIS_SETTLE_MARGIN_MS,
   visualDiagnosisWorkBudget,
@@ -239,7 +241,30 @@ async function main(): Promise<void> {
     check("N5's own frame work starts behind the checkpoint (frame start and every member)", (adapter.match(/await this\.checkpoint\(signal, started, deadlineMs/g) ?? []).length === 2);
     check("the whole-frame chunk's checkpoint reserves its measured per-pixel cost", /await this\.checkpoint\(signal, started, deadlineMs, visualDiagnosisSyncReserveMs\(framePixels\)\)/.test(adapter));
     check("an over-budget checkpoint is reported as budget-exhausted, not capture-failed", /error instanceof DiagnosisOverBudget \? "budget-exhausted" : "capture-failed"/.test(adapter));
-    check("the N9 code keeps a slot under the observation cap", /VISUAL_DIAGNOSIS_RECORD_MAX_OBSERVATIONS - \(stateCode \? 1 : 0\)/.test(adapter));
+    check("QC F1: every member's crop and evidence reserve their measured per-pixel cost", /await this\.checkpoint\(signal, started, deadlineMs, visualDiagnosisSyncReserveMs\(memberCropPixels\(frame\.viewport, slot\.box\)\)\)/.test(adapter));
+    check("the record's advisory codes go through appendAdvisoryCodes", /appendAdvisoryCodes\(record\.observations, \[\.\.\.textCodes, \.\.\.rowCodes\], stateCode\)/.test(adapter));
+    // QC F6 (finding 5), behavioural: four N5 observations, a text code, three row codes in keep order, and a state code.
+    const n5 = ["target-not-found", "reference-none", "viewport-changed", "target-multiple-matches"];
+    const extras = ["target-text-differs-from-name", "row-association-consistent", "rows-partly-examined", "rows-look-alike"];
+    const withState = [...n5];
+    appendAdvisoryCodes(withState, extras, "visual-state-ready");
+    check(
+      "QC F6 (finding 5): with N9 on, its code keeps the last slot and the row structure code is trimmed first",
+      JSON.stringify(withState) === JSON.stringify([...n5, ...extras.slice(0, 3), "visual-state-ready"]),
+      JSON.stringify(withState)
+    );
+    const withoutState = [...n5];
+    appendAdvisoryCodes(withoutState, extras, undefined);
+    check("QC F6 (finding 5): with N9 off, the N7.7 and N8 codes fill all eight slots", JSON.stringify(withoutState) === JSON.stringify([...n5, ...extras]), JSON.stringify(withoutState));
+    const full = Array.from({ length: VISUAL_DIAGNOSIS_RECORD_MAX_OBSERVATIONS }, (_, at) => `n5-${at}`);
+    appendAdvisoryCodes(full, extras, "visual-state-ready");
+    const repeated = [...n5, "rows-look-alike"];
+    appendAdvisoryCodes(repeated, ["rows-look-alike"], "visual-state-loading");
+    check(
+      "QC F6 (finding 5): never past the cap, never a repeated code",
+      full.length === VISUAL_DIAGNOSIS_RECORD_MAX_OBSERVATIONS && !full.includes("visual-state-ready") && JSON.stringify(repeated) === JSON.stringify([...n5, "rows-look-alike", "visual-state-loading"]),
+      JSON.stringify({ full, repeated })
+    );
     check(
       "the work budget is the deadline minus min(margin, a quarter)",
       visualDiagnosisWorkBudget(1000) === 1000 - VISUAL_DIAGNOSIS_SETTLE_MARGIN_MS && visualDiagnosisWorkBudget(300) === 225 && visualDiagnosisWorkBudget(1000, 0) === 1000

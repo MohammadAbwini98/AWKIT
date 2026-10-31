@@ -9,6 +9,9 @@
  *   C  runtime (R-6, R-7): flag off adds no row code and reads no DOM row; flag on: consistent, displaced
  *      (withheld), no rows (not examined), virtualized (partly examined), still exactly one frame; protected and
  *      handed-off pages take zero frames and add no code; the N5 part of the record is unchanged; no page interaction;
+ *      2026-11-01 review fixes: S1 (a password form injected before the frame: refused, no row or state code), F4
+ *      (opacity compounds up the chain), F6 (no page read after a cut during the row read; the container crop is
+ *      dropped before its frame is released, also after a cut while the frame is held);
  *   D  purity and wiring: the library's imports; the engine, runner and adapter gates; drawer copy for each code.
  *
  * Run: npm run verify:visual-rows
@@ -96,8 +99,13 @@ async function lab(fixture: string, variant = "b"): Promise<Page> {
   return page;
 }
 
-async function diagnose(page: Page, options: { rows?: boolean; handedOff?: boolean; locator?: string; beforeFrame?: () => Promise<void> } = {}) {
+async function diagnose(
+  page: Page,
+  options: { rows?: boolean; state?: boolean; handedOff?: boolean; locator?: string; deadlineMs?: number; beforeFrame?: () => Promise<void>; afterFrame?: () => Promise<void> } = {}
+) {
   const frames = { taken: 0, released: 0 };
+  /** Frame and container-crop events in order (QC finding 7: the crop never outlives its frame). */
+  const events: string[] = [];
   const records: VisualDiagnosisRecord[] = [];
   const diagnosis = new VisualFailureDiagnosis({
     folder: join(process.cwd(), "build", "n8-verify-no-references"),
@@ -105,14 +113,19 @@ async function diagnose(page: Page, options: { rows?: boolean; handedOff?: boole
     reader: { get: async () => ({ status: "missing" }) as never },
     onRecord: (record) => records.push(record),
     ...(options.rows ? { rowEvidence: true } : {}),
+    ...(options.state ? { stateRecognition: true } : {}),
+    ...(options.deadlineMs ? { deadlineMs: options.deadlineMs } : {}),
     probe: {
       hold: async (stage) => {
         if (stage === "before-frame") await options.beforeFrame?.();
+        else await options.afterFrame?.();
       },
       onFrame: (event) => {
+        events.push(`frame-${event}`);
         if (event === "taken") frames.taken += 1;
         else if (event === "released") frames.released += 1;
-      }
+      },
+      onRowCrop: (event) => events.push(`crop-${event}`)
     }
   });
   const step = { id: "n8-verify", name: "Rows", type: "click", timeoutMs: 800, locator: { strategy: "testId", value: options.locator ?? "rw-target" } } as unknown as FlowStep;
@@ -128,8 +141,20 @@ async function diagnose(page: Page, options: { rows?: boolean; handedOff?: boole
   });
   const closest = await page.evaluate(() => (window as unknown as { __closest: number }).__closest);
   const interactions = await page.evaluate(() => (window as unknown as { __rowsLab: { interactions: number } }).__rowsLab.interactions);
-  return { record, frames, closest, interactions, codes: (record?.observations ?? []).filter((c) => c.startsWith("rows-") || c.startsWith("row-association-")) };
+  const observations = record?.observations ?? [];
+  return {
+    record,
+    frames,
+    events,
+    diagnosis,
+    closest,
+    interactions,
+    codes: observations.filter((c) => c.startsWith("rows-") || c.startsWith("row-association-")),
+    state: observations.filter((c) => c.startsWith("visual-state-"))
+  };
 }
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function main(): Promise<void> {
   console.log("A. Decision (pure)");
@@ -203,6 +228,11 @@ async function main(): Promise<void> {
     const n5 = (r: VisualDiagnosisRecord | undefined) => (r ? { ...r, ms: 0, observations: r.observations.filter((c) => !c.startsWith("rows-") && !c.startsWith("row-association-")) } : null);
     check("on: the N5 part of the record is unchanged", JSON.stringify(n5(off.record)) === JSON.stringify(n5(on.record)), `${JSON.stringify(n5(off.record))} vs ${JSON.stringify(n5(on.record))}`);
     check("on: no click, key, focus or scroll reached the page", on.interactions === 0);
+    check(
+      "QC F6 (finding 7): the container crop is taken from the frame and dropped before the frame is released",
+      JSON.stringify(on.events) === JSON.stringify(["frame-taken", "crop-taken", "crop-dropped", "frame-released"]),
+      JSON.stringify(on.events)
+    );
     await offPage.close();
     await onPage.close();
     for (const [fixture, expected, absent] of [
@@ -232,6 +262,78 @@ async function main(): Promise<void> {
     const ghost = await diagnose(ghostPage, { rows: true });
     check("QC 4: an opacity-0 target over row text is withheld, never consistent", ghost.codes.includes("row-association-inconclusive") && !ghost.codes.includes("row-association-consistent"), JSON.stringify(ghost.codes));
     await ghostPage.close();
+    // QC F4: the same placement at opacity 0.2 on the target and 0.2 on its wrapper (0.04 combined; each alone >= 0.05).
+    const fadedPage = await lab("table-uniform");
+    await fadedPage.evaluate(() => {
+      const target = document.querySelector('[data-testid="rw-target"]') as HTMLElement;
+      const nameCell = target.closest("tr")!.children[1] as HTMLElement;
+      const wrap = document.createElement("span");
+      wrap.style.cssText = "position:absolute;left:0;top:50%;transform:translateY(-50%);opacity:0.2";
+      target.style.opacity = "0.2";
+      nameCell.style.position = "relative";
+      wrap.append(target);
+      nameCell.append(wrap);
+    });
+    const faded = await diagnose(fadedPage, { rows: true });
+    check("QC F4: opacity compounds up the chain (0.2 x 0.2): withheld, never consistent", faded.codes.includes("row-association-inconclusive") && !faded.codes.includes("row-association-consistent"), JSON.stringify(faded.codes));
+    await fadedPage.close();
+    // Security S1: a password form appears after the inspection, just before the frame. N0 refuses the frame, and the
+    // refused record carries no row or state code (the row facts were already read; they must not leak into it).
+    const pwPage = await lab("table-uniform");
+    const pw = await diagnose(pwPage, {
+      rows: true,
+      state: true,
+      beforeFrame: async () => {
+        await pwPage.evaluate(() => document.body.insertAdjacentHTML("afterbegin", '<form style="position:fixed;top:0;left:0"><input type="password" name="pw"></form>'));
+      }
+    });
+    check(
+      "S1: a password form before the frame: refused, zero frames, no row or state code",
+      pw.record?.outcome === "refused" && JSON.stringify(pw.record.observations) === '["protected-surface"]' && pw.frames.taken === 0 && pw.codes.length === 0 && pw.state.length === 0,
+      JSON.stringify({ outcome: pw.record?.outcome, observations: pw.record?.observations, frames: pw.frames })
+    );
+    await pwPage.close();
+    // QC F6 (finding 6): the deadline cuts while the first row read is in flight (the page is busy inside it). Once that
+    // read returns, no further page read is started: exactly one row read reaches the page.
+    const busyPage = await lab("table-uniform");
+    await busyPage.evaluate(() => {
+      const counted = Element.prototype.closest;
+      let armed = true;
+      Element.prototype.closest = function (this: Element, selector: string) {
+        if (armed) {
+          armed = false;
+          const until = Date.now() + 2500;
+          while (Date.now() < until) {
+            // the page is busy inside the first row read
+          }
+        }
+        return counted.call(this, selector);
+      } as typeof Element.prototype.closest;
+    });
+    const busy = await diagnose(busyPage, { rows: true, deadlineMs: 1600 });
+    await busyPage.evaluate(() => 0);
+    await sleep(600);
+    const busyReads = await busyPage.evaluate(() => (window as unknown as { __closest: number }).__closest);
+    check(
+      "QC F6 (finding 6): a cut during the row read: budget-exhausted, no row code, no page read after the cut",
+      busy.record?.observations[0] === "budget-exhausted" && busy.codes.length === 0 && busyReads === 1,
+      JSON.stringify({ observations: busy.record?.observations, reads: busyReads })
+    );
+    await busyPage.close();
+    // QC F6 (finding 7): the deadline cuts while the frame is held (after the crop): the crop is still dropped before
+    // the frame is released, and nothing is left in flight.
+    const heldPage = await lab("table-uniform");
+    const held = await diagnose(heldPage, { rows: true, deadlineMs: 1600, afterFrame: () => sleep(2500) });
+    for (let at = 0; at < 60 && held.diagnosis.inFlight() > 0; at += 1) await sleep(100);
+    check(
+      "QC F6 (finding 7): a cut while the frame is held: budget-exhausted, crop dropped before the frame is released",
+      held.record?.observations[0] === "budget-exhausted" &&
+        held.codes.length === 0 &&
+        held.diagnosis.inFlight() === 0 &&
+        JSON.stringify(held.events) === JSON.stringify(["frame-taken", "crop-taken", "crop-dropped", "frame-released"]),
+      JSON.stringify({ observations: held.record?.observations, events: held.events })
+    );
+    await heldPage.close();
     // QC finding 1: rows re-sorted after the DOM read but before the frame (the container keeps its size).
     const sortPage = await lab("table-uniform");
     const sorted = await diagnose(sortPage, {
@@ -270,6 +372,8 @@ async function main(): Promise<void> {
   check("the runner passes rowEvidence only when enabled, with no extra deadline", /this\.options\.visualRowEvidence === true \? \{ rowEvidence: true \} : \{\}/.test(runner));
   const adapter = await readFile("src/runner/visualDiagnosis/VisualFailureDiagnosis.ts", "utf8");
   check("the adapter reads rows only under rowEvidence === true and a failed read is caught", /this\.options\.rowEvidence === true/.test(adapter) && /this\.rowFacts\(mainMembers, signal\)\.catch\(\(\) => null\)/.test(adapter));
+  check("S4: the row facts' hit test fails closed (an unreadable hit test is covered)", /members\.map\(\(\{ handle \}\) => this\.occluded\(handle, true\)\)/.test(adapter) && /\.catch\(\(\) => failClosed\)/.test(adapter));
+  check("S1: no advisory code is added to a refused verdict", /const advisory = verdict\.outcome !== "refused"/.test(adapter) && (adapter.match(/if \(advisory && /g) ?? []).length === 3);
   const copy = await readFile("app/renderer/components/reports/VisualDiagnosisSection.tsx", "utf8");
   check("the drawer has fixed copy for every row code", VISUAL_ROWS_CODES.every((code) => copy.includes(`"${code}":`)));
 
