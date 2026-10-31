@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { PlaywrightRunner, type PlaywrightRunnerOptions } from "./PlaywrightRunner";
-import { visualDiagnosisMode } from "./visualDiagnosis/visualDiagnosisContract";
+import { visualDiagnosisMode, visualStateMode } from "./visualDiagnosis/visualDiagnosisContract";
 import { visualAssertionFlag, type VisualAssertionAppMode, type VisualAssertionRunInitiator } from "./visualAssertion/visualAssertionContract";
 import { visualAssertionCandidates } from "./visualAssertion/visualAssertionCandidates";
 import { VISUAL_ASSERTION_REPORT_MAX_RECORDS, sanitizeVisualAssertionReportRecords } from "./visualAssertion/visualAssertionReport";
@@ -1721,6 +1721,8 @@ export class ExecutionEngine {
       // N5.3 (VD-7): the advisory visual failure diagnosis is off unless AWKIT_VISUAL_DIAGNOSIS=on, independent of
       // AWKIT_VISUAL_FUSION. It reads the same reference folder and never writes it.
       visualDiagnosisRoot: visualDiagnosisMode() === "on" ? join(dirs.root, "visual-references") : undefined,
+      // N9 (NS-2): AWKIT_VISUAL_STATE=on adds advisory screenshot-state codes to those diagnoses; nothing without them.
+      visualStateRecognition: visualDiagnosisMode() === "on" && visualStateMode() === "on",
       // N6.4 (VA-9): AWKIT_VISUAL_ASSERTIONS=off|observe|enforce (default off), the authored step mode and the build
       // decide each assertVisual step independently; the packaged build never enforces and never reads a grant.
       // N6.7: each decision's codes-only record is collected for this instance's report block only.

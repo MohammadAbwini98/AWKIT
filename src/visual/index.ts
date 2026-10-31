@@ -103,3 +103,20 @@ export {
 } from "./ocr/decideTextAssertion";
 export { OCR_PREPROCESS_VERSION, preprocessForOcr, type OcrPreprocessInput, type OcrPreprocessResult } from "./ocr/preprocess";
 export { detectSensitiveValue, isSensitiveSourceName, type SensitiveValueCode } from "./ocr/sensitiveExpected";
+export {
+  DEVELOPMENT_VISUAL_STATE_POLICY,
+  MEASURED_VISUAL_STATE_POLICY,
+  VISUAL_STATE_VERSION,
+  decideVisualState,
+  measureVisualMotion,
+  measureVisualMotionPlane,
+  measureVisualStateFrame,
+  type VisualMotion,
+  type VisualMotionPlane,
+  type VisualStateCue,
+  type VisualStateFrame,
+  type VisualStateFrameFeatures,
+  type VisualStateKind,
+  type VisualStatePolicy,
+  type VisualStateVerdict
+} from "./state/visualState";

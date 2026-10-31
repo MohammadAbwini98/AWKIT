@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Visual State Lab</title>
+<style>
+  html, body { margin: 0; padding: 0; }
+  body { font-family: Arial, Helvetica, sans-serif; width: 800px; height: 600px; overflow: hidden; }
+  #st-stage { position: fixed; left: 0; top: 0; width: 800px; height: 600px; overflow: hidden; }
+  .st-header { position: absolute; left: 0; top: 0; width: 800px; height: 56px; border-bottom: 1px solid #d1d5db; box-sizing: border-box; }
+  .st-header .st-title { position: absolute; left: 24px; top: 17px; font-size: 18px; font-weight: bold; }
+  .st-header .st-nav { position: absolute; right: 24px; top: 20px; font-size: 14px; }
+  .st-header .st-nav span { margin-left: 18px; }
+  .st-content { position: absolute; left: 0; right: 0; bottom: 0; }
+  table { border-collapse: collapse; }
+  td, th { text-align: left; padding: 0 10px; white-space: nowrap; }
+  .st-spinner { position: absolute; border-style: solid; border-radius: 50%; box-sizing: border-box; animation: st-spin 0.9s linear infinite; }
+  .st-shimmer { animation: st-shimmer 1.2s linear infinite; background-size: 400px 100%; }
+  .st-dot { display: inline-block; animation: st-blink 0.6s steps(2, start) infinite; }
+  .st-dot:nth-child(2) { animation-delay: 0.2s; }
+  .st-dot:nth-child(3) { animation-delay: 0.4s; }
+  .st-bar { position: absolute; top: 0; height: 4px; width: 30%; animation: st-slide 1.1s linear infinite; }
+  .st-live { display: inline-block; width: 10px; height: 10px; border-radius: 50%; animation: st-pulse 0.8s linear infinite; }
+  .st-paused { animation: none !important; }
+  @keyframes st-spin { to { transform: rotate(360deg); } }
+  @keyframes st-shimmer { from { background-position: -400px 0; } to { background-position: 400px 0; } }
+  @keyframes st-blink { to { visibility: hidden; } }
+  @keyframes st-slide { from { left: -30%; } to { left: 100%; } }
+  @keyframes st-pulse { 0% { opacity: 1; } 50% { opacity: 0.15; } 100% { opacity: 1; } }
+</style>
+</head>
+<body data-shown="">
+<div id="st-stage" data-testid="st-stage" data-shown=""></div>
+<script>
+// Phase N, N9 (awkit-vra.11): the Visual State Lab. Every fixture is drawn from fixed tables (no randomness, no
+// external asset). Variant a is development only; b, c and d are held out for qualification (plan § 4).
+(() => {
+  const VARIANTS = {
+    a: { header: true, bg: "#ffffff", text: "#1f2937", muted: "#6b7280", accent: "#2563eb", red: "#b91c1c", redSoft: "#fde8e8", gray: "#e5e7eb", dark: "#c7ccd3", brand: "#c62828", rows: 8, font: 14, offset: 0, spinner: 40 },
+    b: { header: true, bg: "#ffffff", text: "#111827", muted: "#4b5563", accent: "#0f766e", red: "#dc2626", redSoft: "#fee2e2", gray: "#e2e8f0", dark: "#c3cad4", brand: "#d32f2f", rows: 10, font: 13, offset: 24, spinner: 32 },
+    c: { header: false, bg: "#f8fafc", text: "#0f172a", muted: "#64748b", accent: "#7c3aed", red: "#c0392b", redSoft: "#fdecea", gray: "#dfe3e8", dark: "#bcc3cc", brand: "#b71c1c", rows: 6, font: 15, offset: 48, spinner: 48 },
+    d: { header: true, bg: "#fffdf7", text: "#1c1917", muted: "#78716c", accent: "#b45309", red: "#e53935", redSoft: "#ffebee", gray: "#e7e5e4", dark: "#c9c5c2", brand: "#e53935", rows: 12, font: 12, offset: 12, spinner: 36 }
+  };
+  const CUSTOMERS = ["Acme Ltd", "Globex", "Initech", "Umbrella Co", "Stark Supply", "Wayne Retail", "Hooli", "Vandelay", "Wonka Foods", "Tyrell Corp", "Cyberdyne", "Soylent"];
+  const STATUSES = ["Shipped", "Pending", "Delivered", "Packed"];
+  const stage = document.getElementById("st-stage");
+  let fixtures = null;
+
+  const el = (tag, style, text) => {
+    const node = document.createElement(tag);
+    if (style) node.setAttribute("style", style);
+    if (text !== undefined) node.textContent = text;
+    return node;
+  };
+  const amount = (i) => `$${(1240 + i * 317).toLocaleString("en-US")}.00`;
+
+  function shell(v) {
+    stage.style.background = v.bg;
+    stage.style.color = v.text;
+    if (v.header) {
+      const header = el("div", `background:${v.bg};color:${v.text}`);
+      header.className = "st-header";
+      header.dataset.testid = "st-header";
+      header.append(el("div", "", "Orders"));
+      header.lastChild.className = "st-title";
+      const nav = el("div", `color:${v.muted}`);
+      nav.className = "st-nav";
+      for (const label of ["Dashboard", "Orders", "Reports"]) nav.append(el("span", "", label));
+      header.append(nav);
+      stage.append(header);
+    }
+    const content = el("div", `top:${v.header ? 56 : 0}px`);
+    content.className = "st-content";
+    content.dataset.testid = "st-content";
+    stage.append(content);
+    return content;
+  }
+
+  function table(v, rows, opts = {}) {
+    const t = el("table", `position:absolute;left:${24 + v.offset}px;top:${24}px;font-size:${v.font}px;color:${v.text}`);
+    t.dataset.testid = "st-table";
+    const head = el("tr");
+    for (const h of ["Order", "Customer", "Date", "Amount", "Status", ...(opts.action ? [""] : [])]) head.append(el("th", `height:${v.font * 2.4}px;border-bottom:2px solid ${v.gray}`, h));
+    t.append(head);
+    for (let i = 0; i < rows; i++) {
+      const tr = el("tr");
+      tr.append(el("td", `height:${v.font * 2.4}px;border-bottom:1px solid ${v.gray}`, `ORD-${1001 + i}`));
+      tr.append(el("td", `border-bottom:1px solid ${v.gray}`, CUSTOMERS[i % CUSTOMERS.length]));
+      tr.append(el("td", `border-bottom:1px solid ${v.gray}`, `${10 + (i % 18)} Nov 2026`));
+      const negative = opts.redAmounts && i % 4 === 1;
+      tr.append(el("td", `border-bottom:1px solid ${v.gray};color:${negative ? v.red : v.text}`, negative ? `-${amount(i)}` : amount(i)));
+      tr.append(el("td", `border-bottom:1px solid ${v.gray}`, STATUSES[i % STATUSES.length]));
+      if (opts.action) {
+        const cell = el("td", `border-bottom:1px solid ${v.gray}`);
+        cell.append(el("span", `display:inline-block;background:${v.red};color:#ffffff;padding:3px 10px;border-radius:4px;font-size:${v.font - 1}px`, "Delete"));
+        tr.append(cell);
+      }
+      t.append(tr);
+    }
+    return t;
+  }
+
+  function skeleton(v, content, { from = 0, shimmer = true, color = v.gray, count = v.rows } = {}) {
+    for (let i = 0; i < count; i++) {
+      const top = 24 + (from + i) * (v.font * 2.6);
+      if (top > 520) break;
+      for (const [left, width] of [[24, 90], [140, 160], [330, 110], [470, 90], [590, 120]]) {
+        const bar = el("div", `position:absolute;left:${left + v.offset}px;top:${top}px;width:${width}px;height:${Math.round(v.font * 1.1)}px;border-radius:4px;background:${color}`);
+        if (shimmer) {
+          bar.className = "st-shimmer";
+          bar.style.backgroundImage = `linear-gradient(90deg, ${color} 0%, ${v.bg} 50%, ${color} 100%)`;
+        }
+        content.append(bar);
+      }
+    }
+  }
+
+  function spinner(v, content, x, y, paused) {
+    const s = el("div", `left:${x}px;top:${y}px;width:${v.spinner}px;height:${v.spinner}px;border-width:${Math.max(3, v.spinner / 10)}px;border-color:${v.gray};border-top-color:${v.accent}`);
+    s.className = "st-spinner" + (paused ? " st-paused" : "");
+    s.dataset.testid = "st-spinner";
+    content.append(s);
+  }
+
+  function cards(v, content, media) {
+    for (let i = 0; i < 6; i++) {
+      const x = 24 + v.offset + (i % 3) * 248;
+      const y = 24 + Math.floor(i / 3) * 236;
+      const card = el("div", `position:absolute;left:${x}px;top:${y}px;width:228px;height:216px;border:1px solid ${v.gray};border-radius:8px;font-size:${v.font}px;color:${v.text}`);
+      if (media) card.append(el("div", `position:absolute;left:12px;top:12px;width:204px;height:96px;border-radius:6px;background:${v.gray}`));
+      const body = el("div", `position:absolute;left:12px;top:${media ? 120 : 16}px;width:204px;line-height:1.5`);
+      body.append(el("div", "font-weight:bold", `${CUSTOMERS[i]} order`));
+      body.append(el("div", `color:${v.muted}`, `ORD-${2001 + i} · ${amount(i)}`));
+      body.append(el("div", "", `${STATUSES[i % 4]} on ${10 + i} Nov 2026`));
+      if (!media) body.append(el("div", `color:${v.muted}`, "Two items, standard delivery, signed for at the door."));
+      card.append(body);
+      content.append(card);
+    }
+  }
+
+  const RENDER = {
+    "spinner": (v, c) => spinner(v, c, 380 - v.spinner / 2 + v.offset, 230 - v.spinner / 2, false),
+    "spinner-paused": (v, c) => spinner(v, c, 380 - v.spinner / 2 + v.offset, 230 - v.spinner / 2, true),
+    "spinner-overlay": (v, c) => {
+      c.append(table(v, v.rows));
+      c.append(el("div", `position:absolute;inset:0;background:${v.bg};opacity:0.7`));
+      spinner(v, c, 380 - v.spinner / 2, 220 - v.spinner / 2, false);
+    },
+    "skeleton-shimmer": (v, c) => skeleton(v, c),
+    "skeleton-static": (v, c) => skeleton(v, c, { shimmer: false }),
+    "skeleton-dark": (v, c) => skeleton(v, c, { shimmer: false, color: v.dark }),
+    "partial-skeleton": (v, c) => {
+      c.append(table(v, 2));
+      skeleton(v, c, { from: 3, count: v.rows - 2 });
+    },
+    "progress-indeterminate": (v, c) => {
+      const track = el("div", `position:absolute;left:0;top:0;width:800px;height:4px;background:${v.gray};overflow:hidden`);
+      const bar = el("div", `background:${v.accent}`);
+      bar.className = "st-bar";
+      track.append(bar);
+      c.append(track);
+    },
+    "loading-dots": (v, c) => {
+      const text = el("div", `position:absolute;left:${330 + v.offset}px;top:220px;font-size:${v.font + 4}px;color:${v.muted}`, "Loading");
+      for (let i = 0; i < 3; i++) {
+        const dot = el("span", "", ".");
+        dot.className = "st-dot";
+        text.append(dot);
+      }
+      c.append(text);
+    },
+    "empty-illustration": (v, c) => {
+      c.append(el("div", `position:absolute;left:${360 + v.offset}px;top:150px;width:72px;height:56px;border:3px solid ${v.muted};border-radius:8px`));
+      c.append(el("div", `position:absolute;left:${300 + v.offset}px;top:230px;width:200px;text-align:center;font-size:${v.font + 4}px;font-weight:bold;color:${v.text}`, "No orders yet"));
+      c.append(el("div", `position:absolute;left:${270 + v.offset}px;top:262px;width:260px;text-align:center;font-size:${v.font}px;color:${v.muted}`, "New orders will appear here."));
+    },
+    "empty-text": (v, c) => c.append(el("div", `position:absolute;left:${300 + v.offset}px;top:220px;width:200px;text-align:center;font-size:${v.font}px;color:${v.muted}`, "Nothing to show")),
+    "empty-table": (v, c) => {
+      c.append(table(v, 0));
+      c.append(el("div", `position:absolute;left:${300 + v.offset}px;top:180px;width:200px;text-align:center;font-size:${v.font}px;color:${v.muted}`, "No records found"));
+    },
+    "error-banner": (v, c) => {
+      const banner = el("div", `position:absolute;left:24px;top:24px;width:752px;height:48px;box-sizing:border-box;background:${v.redSoft};border:1px solid ${v.red};border-radius:6px;color:${v.red};font-size:${v.font + 1}px;font-weight:bold;padding:14px 16px`, "We could not load your orders. Try again later.");
+      banner.setAttribute("role", "alert");
+      c.append(banner);
+    },
+    "error-inline": (v, c) => {
+      const form = el("div", `position:absolute;left:${40 + v.offset}px;top:32px;font-size:${v.font}px;color:${v.text}`);
+      const fields = ["Customer reference", "Delivery address", "Order quantity"];
+      fields.forEach((label, i) => {
+        form.append(el("div", `position:absolute;left:0;top:${i * 96}px;width:320px`, label));
+        form.append(el("div", `position:absolute;left:0;top:${i * 96 + 22}px;width:320px;height:32px;border:${i === 2 ? 2 : 1}px solid ${i === 2 ? v.red : v.gray};border-radius:4px`));
+        if (i === 2) form.append(el("div", `position:absolute;left:0;top:${i * 96 + 60}px;width:420px;color:${v.red};font-weight:bold`, "Quantity must be a whole number between 1 and 99."));
+      });
+      c.append(form);
+    },
+    "error-page": (v, c) => {
+      c.append(el("div", `position:absolute;left:${370 + v.offset}px;top:140px;width:60px;height:60px;border-radius:50%;border:5px solid ${v.red};box-sizing:border-box;color:${v.red};font-size:36px;font-weight:bold;text-align:center;line-height:50px`, "!"));
+      c.append(el("div", `position:absolute;left:${250 + v.offset}px;top:220px;width:300px;text-align:center;font-size:${v.font + 8}px;font-weight:bold;color:${v.red}`, "Something went wrong"));
+      c.append(el("div", `position:absolute;left:${230 + v.offset}px;top:260px;width:340px;text-align:center;font-size:${v.font}px;color:${v.muted}`, "The server returned an error. Reference E-5021."));
+    },
+    "error-toast": (v, c) => {
+      c.append(table(v, v.rows));
+      const toast = el("div", `position:absolute;right:24px;bottom:24px;width:320px;height:56px;box-sizing:border-box;background:${v.red};color:#ffffff;border-radius:6px;font-size:${v.font}px;padding:18px 16px`, "Saving failed: the order is locked.");
+      toast.setAttribute("role", "alert");
+      c.append(toast);
+    },
+    "ready-table": (v, c) => c.append(table(v, v.rows)),
+    "ready-red-accent": (v, c) => c.append(table(v, v.rows, { action: true })),
+    "ready-red-amounts": (v, c) => c.append(table(v, v.rows, { redAmounts: true })),
+    "ready-red-brand": (v, c) => {
+      c.append(el("div", `position:absolute;left:0;top:0;width:800px;height:44px;background:${v.brand};color:#ffffff;font-size:${v.font + 2}px;font-weight:bold;padding:12px 24px;box-sizing:border-box`, "Acme Commerce — Spring sale"));
+      const t = table(v, Math.max(4, v.rows - 2));
+      t.style.top = "68px";
+      c.append(t);
+    },
+    "ready-cards": (v, c) => cards(v, c, false),
+    "ready-gray-media": (v, c) => cards(v, c, true),
+    "ready-form": (v, c) => {
+      const form = el("div", `position:absolute;left:${40 + v.offset}px;top:24px;font-size:${v.font}px;color:${v.text}`);
+      const labels = ["Customer reference", "Delivery address", "City", "Postcode", "Order quantity", "Notes for the courier"];
+      labels.forEach((label, i) => {
+        const col = i % 2;
+        const row = Math.floor(i / 2);
+        form.append(el("div", `position:absolute;left:${col * 360}px;top:${row * 88}px;width:320px`, label));
+        const input = el("div", `position:absolute;left:${col * 360}px;top:${row * 88 + 22}px;width:320px;height:32px;border:1px solid ${v.muted};border-radius:4px;box-sizing:border-box;padding:7px 8px;color:${v.text}`, ["ACM-2041", "12 Harbour Road", "Portsmouth", "PO1 3AX", "4", "Leave at reception"][i]);
+        form.append(input);
+      });
+      form.append(el("div", `position:absolute;left:0;top:300px;width:120px;height:36px;background:${v.accent};color:#ffffff;border-radius:4px;text-align:center;line-height:36px`, "Save order"));
+      c.append(form);
+    },
+    "ready-article": (v, c) => {
+      const article = el("div", `position:absolute;left:${48 + v.offset}px;top:24px;width:660px;font-size:${v.font + 1}px;line-height:1.6;color:${v.text}`);
+      article.append(el("h2", `margin:0 0 12px 0;font-size:${v.font + 10}px`, "Delivery policy"));
+      for (let i = 0; i < 4; i++) {
+        article.append(el("p", "margin:0 0 12px 0", "Orders placed before two in the afternoon leave the warehouse the same day. Couriers deliver between eight and six on working days, and every parcel is tracked from dispatch to the door, where a signature is taken."));
+      }
+      c.append(article);
+    },
+    "ready-live-badge": (v, c) => {
+      c.append(table(v, v.rows));
+      const badge = el("div", `position:absolute;right:32px;top:28px;font-size:${v.font}px;color:${v.text}`);
+      const dot = el("span", `background:${v.red};margin-right:6px`);
+      dot.className = "st-live";
+      badge.append(dot, document.createTextNode("Live"));
+      c.append(badge);
+    },
+    "blank": () => {},
+    "protected": (v, c) => {
+      const form = el("form", `position:absolute;left:${280 + v.offset}px;top:120px;font-size:${v.font}px`);
+      form.id = "st-protected";
+      form.append(el("div", "", "Sign in"));
+      const user = el("input", "display:block;margin-top:8px;width:240px");
+      user.setAttribute("autocomplete", "username");
+      const pass = el("input", "display:block;margin-top:8px;width:240px");
+      pass.type = "password";
+      pass.setAttribute("autocomplete", "current-password");
+      form.append(user, pass);
+      c.append(form);
+    }
+  };
+
+  const nextFrame = () => new Promise((resolve) => requestAnimationFrame(() => resolve()));
+
+  async function show(id, variant = "a") {
+    const v = VARIANTS[variant];
+    if (!v) throw new Error(`unknown variant ${variant}`);
+    if (!Object.prototype.hasOwnProperty.call(RENDER, id)) throw new Error(`unknown fixture ${id}`);
+    stage.replaceChildren();
+    stage.dataset.shown = "";
+    const content = id === "blank" ? (stage.style.background = v.bg, null) : shell(v);
+    RENDER[id](v, content);
+    await nextFrame();
+    await nextFrame();
+    stage.dataset.shown = `${id}:${variant}`;
+    document.body.dataset.shown = `${id}:${variant}`;
+    return { id, variant };
+  }
+
+  window.__stateLab = {
+    show,
+    fixtures: () => Object.keys(RENDER),
+    variants: () => Object.keys(VARIANTS),
+    interactions: 0
+  };
+  for (const type of ["click", "keydown", "focusin", "scroll"]) document.addEventListener(type, () => (window.__stateLab.interactions += 1), true);
+  fetch("/visual-intelligence/state-fixtures.json")
+    .then((r) => r.json())
+    .then((table) => {
+      fixtures = table;
+      document.body.dataset.fixtures = String(table.fixtures.length);
+    })
+    .catch(() => (document.body.dataset.fixtures = "missing"));
+  void fixtures;
+})();
+</script>
+</body>
+</html>

@@ -141,7 +141,7 @@ Fixture classes (truth label, in brackets; † marks adversarial negatives):
 | S-2 | False `error` (truth ≠ error, decided `error`) ≤ the ceiling `E` over non-error trials, **and** no single non-error fixture decided `error` in more than one third of its trials | Qualification, every cell |
 | S-3 | Positive-coverage floor: for each state in {loading, empty, error, ready}, recall ≥ the floor `F_state` | Qualification, pooled per cell |
 | S-4 | Not vacuous: non-`unknown` decisions ≥ `F_any` of positive-truth trials. The all-`unknown` classifier fails S-3 and S-4 by construction (checked by the verifier) | Qualification |
-| S-5 | p95 of the added time per diagnosis (state on minus N5 alone) ≤ budget `B` ms, and no record arriving after the deadline | Qualification |
+| S-5 | p95 of the time the state work adds to a diagnosis (frame-1 features, the interval wait, the second frame and its motion plane, timed inside the adapter) ≤ budget `B` ms, and no record arriving after the deadline | Qualification |
 | S-6 | Protected, handed-off and sensitive cases: zero frames, no state code | Verifier (zero-capture counters) |
 | S-7 | Flag off: byte-identical N5 record, one frame at most, unchanged deadline; step result, error, attempts and page untouched (A/B) | Verifier |
 | S-8 | `verify:visual-isolation` passes unchanged at five edges; no new dependency, asset or network | Verifier |
@@ -154,9 +154,61 @@ milestone, and every state code is pruned until a fixed policy passes a fresh qu
 Cells: headless and headed × DPR 1, 1.25 and 2. A cell that cannot run (no display for headed) is BLOCKED and not
 counted as passing.
 
-## 6. Baseline and frozen criteria
+## 6. Baseline and frozen criteria (2026-10-31, before any qualification trial)
 
-*Filled in by the baseline run on development variant `a` before any qualification trial.*
+The baseline ran `npm run benchmark:visual-state`: development variant `a`, headless at DPR 1, 1.25 and 2, two trials
+each, 162 trials, through the real N5 adapter, N0 capture and Chromium. Evidence: `evidence/N9-baseline.json`.
+
+**First pass (plan § 3 starting policy).** It found four defects:
+- Header text broke every `empty` fixture (0/18).
+- Red Delete buttons were decided `error` (6/6), a false error.
+- Gray image placeholders read as a skeleton (4/6, false loading).
+- Feature extraction at full device resolution cost a p95 of 795 ms.
+
+**Revision (development data only).** Five changes:
+- a chrome band (the top 12.5 %) excluded from the content counts;
+- an 8 × 8 grid;
+- content text *lines* (bands of edge ink) as the empty/ready discriminator;
+- red text counted only as thin strokes (`redCore × 4 ≤ redStroke`, strokes ≥ half the cell's ink), so solid red
+  blocks are never an error cue;
+- features taken at about CSS resolution (every second pixel at DPR ≥ 1.75), and the second frame computing only
+  its motion plane.
+
+`ready` still needs a measured, static second frame.
+
+**Second pass (the frozen policy).**
+
+| Truth | Trials | Decided correctly | Other decisions |
+|---|---|---|---|
+| loading | 54 | 45 (833‰) | `empty` 9 (`loading-dots` 3, `spinner-paused` 6), **`ready` 0** |
+| empty | 18 | 18 (1000‰) | — |
+| error | 24 | 18 (750‰) | `ready` 6 (`error-toast`: a solid red block is deliberately not an error cue) |
+| ready | 54 | 48 (888‰) | `loading` 6 (`ready-live-badge`: its pulsing dot is motion) |
+| unknown (`blank`) | 6 | 6 | — |
+
+- False `error`: 0 of 132 non-error trials.
+- Protected: 6 trials, zero frames and no state code.
+- State work: p95 471 ms (max 1047 ms). The whole diagnosis p95 is 894 ms against the 1600 ms deadline.
+
+Known limits accepted at freeze:
+- An animated element on a ready page reads `loading`. Any motion is `loading`, which is the zero-false-`ready` side.
+- A solid red toast is not detected.
+- A paused spinner reads `empty`.
+
+**Frozen (code: `MEASURED_VISUAL_STATE_POLICY` in `src/visual/state/visualState.ts`, `N9_FROZEN_CRITERIA` in
+`scripts/lib/visual-state-criteria.mts`):**
+
+| ID | Frozen number |
+|---|---|
+| S-1 | 0 `ready` on loading-truth trials, in every cell |
+| S-2 | false `error` ≤ 20‰ of non-error trials, and ≤ 333‰ for any single non-error fixture |
+| S-3 | recall floors: loading ≥ 700‰, empty ≥ 600‰, error ≥ 600‰, ready ≥ 700‰ |
+| S-4 | non-`unknown` decisions ≥ 750‰ of positive-truth trials |
+| S-5 | state-work p95 ≤ 600 ms (= `VISUAL_STATE_EXTRA_MS`), zero late records |
+
+Deadline: `VISUAL_DIAGNOSIS_DEADLINE_MS + VISUAL_STATE_EXTRA_MS` = 1600 ms with the flag on.
+`VISUAL_STATE_MIN_REMAINING_MS` = 200 ms and `VISUAL_STATE_INTERVAL_MS` = 120 ms. An all-`unknown` classifier fails
+S-3 and S-4 (proven by `verify:visual-state`).
 
 ## 7. Qualification results
 

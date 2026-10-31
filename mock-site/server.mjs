@@ -234,6 +234,9 @@ const server = createServer(async (req, res) => {
   // Phase N, N7.6: the calibration fixture table and the bundled OCR Lab fonts (staged by prepare-ocr-lab-fonts.mjs).
   if (req.method === "GET" && path === "/visual-intelligence/ocr-fixtures.json") return serveStatic(res, "ocr-fixtures.json");
   if (req.method === "GET" && /^\/fonts\/[a-z0-9-]+\.(?:woff2|txt|json)$/.test(path)) return serveStatic(res, path.slice(1));
+  // Phase N, N9: the Visual State Lab (deterministic loading, empty, error and ready fixtures) and its fixture table.
+  if (req.method === "GET" && path === "/visual-intelligence/state") return serveStatic(res, "visual-intelligence-state.html");
+  if (req.method === "GET" && path === "/visual-intelligence/state-fixtures.json") return serveStatic(res, "state-fixtures.json");
   // L11.F DOM Context Lab: its SPA routes serve the lab itself, so a reload stays on the same view.
   if (req.method === "GET" && path === "/dom-context-lab/frame") return serveStatic(res, "dom-context-lab-frame.html");
   if (req.method === "GET" && path === "/dom-context-lab/popup") return serveStatic(res, "dom-context-lab-popup.html");

@@ -13,7 +13,12 @@ import { FileLocatorRecoveryStore, type LocatorRecoveryStore } from "./LocatorRe
 import { FileLocatorBlueprintStore, type LocatorBlueprintStore } from "./LocatorBlueprintStore";
 import type { VisualFusionStageOptions } from "./visualFusion/VisualFusionStage";
 import type { VisualFailureDiagnosisOptions } from "./visualDiagnosis/VisualFailureDiagnosis";
-import { VISUAL_DIAGNOSIS_DEADLINE_MS, type VisualDiagnosisRecord, type VisualFailureDiagnoser } from "./visualDiagnosis/visualDiagnosisContract";
+import {
+  VISUAL_DIAGNOSIS_DEADLINE_MS,
+  VISUAL_STATE_EXTRA_MS,
+  type VisualDiagnosisRecord,
+  type VisualFailureDiagnoser
+} from "./visualDiagnosis/visualDiagnosisContract";
 import type { VisualAssertionStepOptions } from "./visualAssertion/VisualAssertionStep";
 import type {
   VisualAssertionAppMode,
@@ -179,6 +184,11 @@ export interface PlaywrightRunnerOptions extends BrowserContextFactoryOptions {
    * diagnosis of a step's final failure. Absent (the default), the adapter and `src/visual` are never loaded for it.
    */
   visualDiagnosisRoot?: string;
+  /**
+   * N9 (awkit-vra.11, NS-2): `AWKIT_VISUAL_STATE=on`. Adds one screenshot-state code to each diagnosis and gives the
+   * diagnosis `VISUAL_STATE_EXTRA_MS` more deadline. Needs `visualDiagnosisRoot`; absent or false, nothing changes.
+   */
+  visualStateRecognition?: boolean;
   /**
    * N5.4 (VD-5): receives each settled visual diagnosis record. The engine stores a sanitized copy on the instance
    * report; nothing else in the run reads it. Absent, records are dropped.
@@ -991,7 +1001,10 @@ export class PlaywrightRunner {
       handedOff: (target) => this.pageHandedOff(target),
       ...(this.options.visualRecordedFallback === true ? { recordedFallback: true } : {}),
       ...(sink ? { onRecord: (record: VisualDiagnosisRecord) => sink(record) } : {}),
-      ...this.ocrTextSignalOption()
+      ...this.ocrTextSignalOption(),
+      ...(this.options.visualStateRecognition === true
+        ? { stateRecognition: true, deadlineMs: VISUAL_DIAGNOSIS_DEADLINE_MS + VISUAL_STATE_EXTRA_MS }
+        : {})
     });
   }
 

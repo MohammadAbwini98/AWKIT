@@ -17,6 +17,31 @@ export function visualDiagnosisMode(env: Record<string, string | undefined> = pr
 
 /** VD-8: the provisional per-failure deadline (fixed by N5.6 measurement). */
 export const VISUAL_DIAGNOSIS_DEADLINE_MS = 1000;
+
+/**
+ * N9 (awkit-vra.11, NS-2): `AWKIT_VISUAL_STATE=on` adds screenshot state evidence to an N5 diagnosis. It does nothing
+ * unless `AWKIT_VISUAL_DIAGNOSIS=on`; anything else, or nothing, is off. Plan:
+ * docs/plans/ai-upgrade-v5/N9-screenshot-state-recognition.md.
+ */
+export function visualStateMode(env: Record<string, string | undefined> = process.env): "on" | "off" {
+  return env.AWKIT_VISUAL_STATE === "on" ? "on" : "off";
+}
+
+/** N9 NS-D2: the extra diagnosis budget with state recognition on (plan § 6, frozen before qualification). */
+export const VISUAL_STATE_EXTRA_MS = 600;
+/** N9: the second (motion) frame is taken only when at least this much of the deadline is left. */
+export const VISUAL_STATE_MIN_REMAINING_MS = 200;
+/** N9: the second frame is taken no sooner than this after the first. */
+export const VISUAL_STATE_INTERVAL_MS = 120;
+/** N9: the only codes state recognition may add to a diagnosis record (one per record). */
+export const VISUAL_STATE_CODES = [
+  "visual-state-loading",
+  "visual-state-empty",
+  "visual-state-error",
+  "visual-state-ready",
+  "visual-state-unknown",
+  "visual-state-skipped"
+] as const;
 /** VD-8: at most this many diagnoses per (execution, flow, step, failure kind); the rest record `coalesced`. */
 export const VISUAL_DIAGNOSIS_SIGNATURE_CAP = 20;
 

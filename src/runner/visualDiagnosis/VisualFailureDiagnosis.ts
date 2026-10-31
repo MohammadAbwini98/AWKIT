@@ -6,15 +6,25 @@ import {
   captureVisualFrame,
   checkProtectedSurface,
   cropFromVisualFrame,
+  MEASURED_VISUAL_STATE_POLICY,
   decideVisualDiagnosis,
+  decideVisualState,
   fingerprintVisualImage,
+  measureVisualMotion,
+  measureVisualMotionPlane,
+  measureVisualStateFrame,
   releaseVisualFrame,
   type VisualDiagnosisEvidenceInput,
   type VisualDiagnosisInput,
   type VisualDiagnosisMember,
   type VisualDiagnosisRefusal,
   type VisualDiagnosisVerdict,
-  type VisualEvidence
+  type VisualEvidence,
+  type VisualMotion,
+  type VisualStateFrame,
+  type VisualStateFrameFeatures,
+  type VisualStatePolicy,
+  type VisualStateVerdict
 } from "@src/visual";
 import type { ElementHandle, Locator, Page } from "playwright";
 import { PROTECTED_LOGIN_STEP_TYPES, type FlowStep } from "@src/profiles/FlowProfile";
@@ -28,6 +38,8 @@ import { recordedVisualReferenceKey } from "../visualFusion/recordedVisualRefere
 import {
   VISUAL_DIAGNOSIS_DEADLINE_MS,
   VISUAL_DIAGNOSIS_SIGNATURE_CAP,
+  VISUAL_STATE_INTERVAL_MS,
+  VISUAL_STATE_MIN_REMAINING_MS,
   visualDiagnosisFailureKind,
   type VisualDiagnosisRecord,
   type VisualDiagnosisRequest,
@@ -98,6 +110,8 @@ export interface VisualDiagnosisProbe {
   onInspect?: () => void;
   /** N5.7: element handles resolved and disposed, so a verifier can prove every handle is released. */
   onHandles?: (event: "resolved" | "disposed", count: number) => void;
+  /** N9: the state decision with its measured numbers and how long the state work took (benchmark:visual-state). */
+  onState?: (event: { features: VisualStateFrameFeatures; motion: VisualMotion | null; verdict: VisualStateVerdict; ms: number }) => void;
 }
 
 export interface VisualFailureDiagnosisOptions {
@@ -119,6 +133,14 @@ export interface VisualFailureDiagnosisOptions {
    * `target-text-differs-from-name` or `target-text-unreadable` (unverified OCR evidence); nothing else changes.
    */
   textSignal?: OcrTextSignalSource;
+  /**
+   * N9 (awkit-vra.11, NS-2): screenshot state evidence, only with `AWKIT_VISUAL_STATE=on`. After the verdict is decided
+   * it adds one `visual-state-*` code from N5's own frame plus at most one more guarded frame for motion (NS-D1).
+   * Nothing else changes, and with it off the adapter takes at most one frame exactly as before.
+   */
+  stateRecognition?: boolean;
+  /** Verifier and development-baseline override; production passes none (MEASURED_VISUAL_STATE_POLICY). */
+  statePolicy?: Readonly<VisualStatePolicy>;
 }
 
 interface MemberBox {
@@ -325,6 +347,10 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
     });
     const shot = await bounded(shooting);
     kept = true;
+    const shotAt = performance.now();
+    // N9: the state features of this same frame, measured before it is released (in memory only).
+    let stateFrame: VisualStateFrame | undefined;
+    let stateMs = 0;
     if (!shot.ok) {
       viewportInput = { available: false, code: shot.code };
       for (const slot of boxes) members.push({ isTarget: matches === 1 && slot.index === 0, evidence: { available: false, code: shot.code } });
@@ -337,6 +363,12 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
         if (whole.ok) {
           const fingerprint = fingerprintVisualImage(whole.value.element.image);
           viewportInput = fingerprint.ok ? fingerprint.value : { available: false, code: fingerprint.code };
+          if (this.options.stateRecognition === true) {
+            const measuring = performance.now();
+            const measured = measureVisualStateFrame(whole.value.element.image, this.statePolicy, frame.viewport.scaleX);
+            if (measured.ok) stateFrame = measured.value;
+            stateMs = performance.now() - measuring;
+          }
         } else {
           viewportInput = { available: false, code: whole.code };
         }
@@ -401,11 +433,91 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
       const code = text ? OCR_TEXT_SIGNAL_DIAGNOSIS_CODES[text.outcome] : undefined;
       if (code) textCodes.push(code);
     }
+    // N9: advisory only, after the verdict and the text signal; one code, never more.
+    if (this.options.stateRecognition === true) {
+      const code = await this.state(request, page, stateFrame, stateMs, shotAt, signal, started, deadlineMs, bounded, defer);
+      textCodes.push(code);
+    }
     const record = this.toRecord(request, kind, verdict, started);
     for (const code of textCodes) {
       if (record.observations.length < VISUAL_DIAGNOSIS_RECORD_MAX_OBSERVATIONS && !record.observations.includes(code)) record.observations.push(code);
     }
     return record;
+  }
+
+  /**
+   * N9 (plan § 2–3): the state of the failed step's viewport. Without a first frame nothing is claimed (`skipped`).
+   * With enough deadline left, ONE more guarded N0 frame is taken for motion (same limiter, abort, handoff and protected
+   * rules, released on every path); without it, motion stays unmeasured and `ready` cannot be decided. A protected
+   * refusal of the second frame withdraws the state altogether.
+   */
+  private async state(
+    request: VisualDiagnosisRequest,
+    page: Page,
+    frame: VisualStateFrame | undefined,
+    measuredMs: number,
+    firstAt: number,
+    signal: AbortSignal,
+    started: number,
+    deadlineMs: number,
+    bounded: <T>(work: Promise<T>) => Promise<T>,
+    defer: (cleanup: () => void) => void
+  ): Promise<string> {
+    if (!frame) return "visual-state-skipped";
+    const begun = performance.now();
+    let motion: VisualMotion | null = null;
+    if (!signal.aborted && this.remaining(started, deadlineMs) >= VISUAL_STATE_MIN_REMAINING_MS) {
+      const wait = VISUAL_STATE_INTERVAL_MS - (performance.now() - firstAt);
+      if (wait > 0) await bounded(new Promise<void>((resolve) => setTimeout(resolve, wait)));
+      if (signal.aborted) throw new DiagnosisAborted();
+      let kept = false;
+      // A small margin keeps a slow second screenshot from cutting the whole diagnosis: it fails on its own first.
+      const shooting = request.limitScreenshot(() =>
+        captureVisualFrame(page, {
+          timeoutMs: Math.max(1, this.remaining(started, deadlineMs) - 50),
+          signal,
+          stepType: request.step.type,
+          handedOff: this.handedOff(page)
+        })
+      );
+      defer(() => {
+        void shooting.then(
+          (late) => {
+            if (kept || !late.ok) return;
+            releaseVisualFrame(late.value);
+            this.options.probe?.onFrame?.("late-released");
+          },
+          () => undefined
+        );
+      });
+      const shot = await bounded(shooting);
+      kept = true;
+      if (!shot.ok) {
+        if (shot.code === "PROTECTED_SURFACE") return "visual-state-skipped";
+      } else {
+        const second = shot.value;
+        this.options.probe?.onFrame?.("taken");
+        try {
+          const whole = cropFromVisualFrame(second, { x: 0, y: 0, width: second.viewport.cssWidth, height: second.viewport.cssHeight }, 0);
+          const plane = whole.ok ? measureVisualMotionPlane(whole.value.element.image, second.viewport.scaleX) : undefined;
+          if (plane?.ok) motion = measureVisualMotion(frame.motion, plane.value, this.statePolicy);
+        } finally {
+          releaseVisualFrame(second);
+          this.options.probe?.onFrame?.("released");
+        }
+      }
+    }
+    const verdict = decideVisualState({ frame: frame.features, motion }, this.statePolicy);
+    try {
+      this.options.probe?.onState?.({ features: frame.features, motion, verdict, ms: Math.round(measuredMs + performance.now() - begun) });
+    } catch {
+      // A probe is an observer, not a participant.
+    }
+    return `visual-state-${verdict.state}`;
+  }
+
+  private get statePolicy(): Readonly<VisualStatePolicy> {
+    return this.options.statePolicy ?? MEASURED_VISUAL_STATE_POLICY;
   }
 
   /** Runtime key first; only a missing runtime reference falls back to the recorded key (N4.6). Read only. */
