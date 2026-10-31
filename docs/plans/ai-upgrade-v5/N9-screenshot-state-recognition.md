@@ -212,4 +212,35 @@ S-3 and S-4 (proven by `verify:visual-state`).
 
 ## 7. Qualification results
 
-*Filled in by `npm run benchmark:visual-state -- --qualify` on held-out variants `b`, `c` and `d`.*
+### Campaign 1 (2026-10-31, frozen policy and criteria, commit `bb7e786`)
+
+`npm run benchmark:visual-state:qualify-headless` and `:qualify-headed` ran held-out variants `b`, `c` and `d`, two
+trials each: 972 trials, 936 scored and 36 protected, with every cell RAN. Evidence:
+`evidence/N9-qualification-headless.json` and `evidence/N9-qualification-headed.json`.
+
+| Cell | S-1 | S-2 | S-3 loading / empty / error / ready | S-4 | S-5 |
+|---|---|---|---|---|---|
+| headless@1 | MET (0/54) | MET (0/132) | 777 / 1000 / 666 / 851‰ MET | 986‰ MET | MET (p95 260 ms) |
+| headless@1.25 | MET | MET | 888 / 1000 / 666 / 888‰ MET | 1000‰ MET | MET (p95 570 ms) |
+| headless@2 | MET | MET | 814 / 1000 / 750 / 907‰ MET | 986‰ MET | **NOT MET** (p95 684 ms > 600) |
+| headed@1 | MET | MET | 740 / 1000 / 666 / 851‰ MET | 980‰ MET | **NOT MET** (p95 604 ms, 1 late) |
+| headed@1.25 | MET | MET | 833 / 1000 / 666 / 888‰ MET | 1000‰ MET | **NOT MET** (2 late) |
+| headed@2 | MET | MET | 814 / 1000 / 750 / 851‰ MET | 966‰ MET | **NOT MET** (2 late) |
+
+- Pooled over 936 scored trials:
+  - **0 false `ready`** in 324 loading-truth trials;
+  - **0 false `error`** in 792 non-error trials;
+  - zero frames and no code in 36 protected trials.
+- `error-toast` is missed by design: 0 of 36.
+- `ready-live-badge` reads `loading`: 33 of 36.
+- **S-5 is NOT MET in 4 of 6 cells.** The thresholds are not changed:
+  - five records came back 51 to 102 ms after the 1600 ms deadline;
+  - four headed trials were cut by the deadline (`budget-exhausted`, no state code);
+  - headless@2 exceeded the 600 ms p95 budget.
+- **Cause, diagnosed once.** The synchronous pixel work (N5's fingerprint and crops, and N9's frame-1 features) blocks
+  the deadline timer on this ARM64 host, which runs the x64 Node build under emulation. A record can therefore settle
+  after its deadline. That breaks N5's own "settles at or before the deadline" contract, so it is a defect, not a
+  tuning question.
+- **Fix (scheduling only; the policy and criteria are unchanged).** The adapter now yields one macrotask before each
+  synchronous state phase, so a due deadline fires first. Frame-1 state features are skipped when less than
+  `VISUAL_STATE_MIN_REMAINING_MS` is left. Campaign 2 re-qualifies from scratch.

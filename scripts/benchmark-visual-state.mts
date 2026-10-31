@@ -27,6 +27,10 @@ import { N9_FROZEN_CRITERIA, evaluateStateCriteria, p95, type StateDecision, typ
 const args = process.argv.slice(2);
 const MODE = args.includes("--qualify") ? "qualification" : "baseline";
 const REPEATS = Math.max(1, Number(args[args.indexOf("--repeats") + 1]) || 2);
+/** `--only headless|headed` runs one render mode (the evidence file is suffixed), so a campaign fits a bounded run. */
+const ONLY = args.includes("--only") ? args[args.indexOf("--only") + 1] : undefined;
+/** `--tag c2` keeps a later campaign's evidence beside the earlier one instead of overwriting it. */
+const TAG = args.includes("--tag") ? args[args.indexOf("--tag") + 1] : undefined;
 const PORT = 4611;
 const BASE = `http://127.0.0.1:${PORT}`;
 const LAB = `${BASE}/visual-intelligence/state`;
@@ -118,7 +122,9 @@ async function main(): Promise<void> {
     for (let attempt = 0; attempt < 80 && !(await fetch(LAB).then((r) => r.ok, () => false)); attempt += 1) await new Promise((r) => setTimeout(r, 100));
     const table = (await (await fetch(`${BASE}/visual-intelligence/state-fixtures.json`)).json()) as { fixtures: FixtureRow[]; developmentVariants: string[]; qualificationVariants: string[] };
     const variants = qualify ? table.qualificationVariants : table.developmentVariants;
-    const cells: Cell[] = (qualify ? (["headless", "headed"] as const) : (["headless"] as const)).flatMap((mode) => [1, 1.25, 2].map((dpr) => ({ mode, dpr })));
+    const cells: Cell[] = (qualify ? (["headless", "headed"] as const) : (["headless"] as const))
+      .filter((mode) => !ONLY || mode === ONLY)
+      .flatMap((mode) => [1, 1.25, 2].map((dpr) => ({ mode, dpr })));
     for (const cell of cells) {
       const name = `${cell.mode}@${cell.dpr}`;
       let browser: Browser | undefined;
@@ -203,7 +209,7 @@ async function main(): Promise<void> {
     evidence.criteria = N9_FROZEN_CRITERIA;
     evidence.results = { perCell: results, pooled };
   }
-  const out = join(process.cwd(), "docs", "plans", "ai-upgrade-v5", "evidence", `N9-${MODE}.json`);
+  const out = join(process.cwd(), "docs", "plans", "ai-upgrade-v5", "evidence", `N9-${MODE}${ONLY ? `-${ONLY}` : ""}${TAG ? `-${TAG}` : ""}.json`);
   await mkdir(join(process.cwd(), "docs", "plans", "ai-upgrade-v5", "evidence"), { recursive: true });
   await writeFile(out, `${JSON.stringify(evidence, null, 1)}\n`, "utf8");
   console.log(`\nevidence: ${out}`);

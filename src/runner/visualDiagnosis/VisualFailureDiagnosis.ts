@@ -154,6 +154,9 @@ type MemberHandle = ElementHandle;
 
 class DiagnosisAborted extends Error {}
 
+/** N9: one macrotask turn, so a deadline timer that is already due runs before more synchronous pixel work starts. */
+const yieldToTimers = (): Promise<void> => new Promise<void>((resolve) => setImmediate(resolve));
+
 export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
   private readonly reader: VisualDiagnosisReferenceReader;
   private readonly deadlineMs: number;
@@ -363,7 +366,11 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
         if (whole.ok) {
           const fingerprint = fingerprintVisualImage(whole.value.element.image);
           viewportInput = fingerprint.ok ? fingerprint.value : { available: false, code: fingerprint.code };
-          if (this.options.stateRecognition === true) {
+          if (this.options.stateRecognition === true && this.remaining(started, deadlineMs) >= VISUAL_STATE_MIN_REMAINING_MS) {
+            // N9 campaign-1 fix: synchronous pixel work blocks the deadline timer, so a due deadline is let through
+            // first, and the work never starts with less than the minimum left.
+            await yieldToTimers();
+            if (signal.aborted) throw new DiagnosisAborted();
             const measuring = performance.now();
             const measured = measureVisualStateFrame(whole.value.element.image, this.statePolicy, frame.viewport.scaleX);
             if (measured.ok) stateFrame = measured.value;
@@ -498,6 +505,8 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
         const second = shot.value;
         this.options.probe?.onFrame?.("taken");
         try {
+          await yieldToTimers();
+          if (signal.aborted) throw new DiagnosisAborted();
           const whole = cropFromVisualFrame(second, { x: 0, y: 0, width: second.viewport.cssWidth, height: second.viewport.cssHeight }, 0);
           const plane = whole.ok ? measureVisualMotionPlane(whole.value.element.image, second.viewport.scaleX) : undefined;
           if (plane?.ok) motion = measureVisualMotion(frame.motion, plane.value, this.statePolicy);
