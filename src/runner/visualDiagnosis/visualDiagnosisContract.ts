@@ -27,6 +27,28 @@ export function visualStateMode(env: Record<string, string | undefined> = proces
   return env.AWKIT_VISUAL_STATE === "on" ? "on" : "off";
 }
 
+/**
+ * N8 (awkit-vra.10, NR-3): `AWKIT_VISUAL_ROWS=on` adds row/grid evidence to an N5 diagnosis. It does nothing unless
+ * `AWKIT_VISUAL_DIAGNOSIS=on`. Plan: docs/plans/ai-upgrade-v5/N8-row-grid-intelligence.md.
+ */
+export function visualRowsMode(env: Record<string, string | undefined> = process.env): "on" | "off" {
+  return env.AWKIT_VISUAL_ROWS === "on" ? "on" : "off";
+}
+
+/** N8: the row work starts only when at least this much of the deadline is left. */
+export const VISUAL_ROWS_MIN_REMAINING_MS = 150;
+/** N8: the only codes row evidence may add to a diagnosis record (at most three per record). */
+export const VISUAL_ROWS_CODES = [
+  "rows-look-alike",
+  "rows-distinct",
+  "rows-mixed",
+  "rows-inconclusive",
+  "rows-not-examined",
+  "row-association-consistent",
+  "row-association-inconclusive",
+  "rows-partly-examined"
+] as const;
+
 /** N9 NS-D2: the extra diagnosis budget with state recognition on (plan § 6, frozen before qualification). */
 export const VISUAL_STATE_EXTRA_MS = 600;
 /** N9: the second (motion) frame is taken only when at least this much of the deadline is left. */

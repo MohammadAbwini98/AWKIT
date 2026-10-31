@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Visual Rows Lab</title>
+<style>
+  html, body { margin: 0; padding: 0; }
+  body { font-family: Arial, Helvetica, sans-serif; width: 800px; height: 600px; overflow: hidden; background: #ffffff; }
+  #rw-stage { position: absolute; left: 0; top: 0; width: 800px; height: 600px; }
+  table { border-collapse: collapse; }
+  td { padding: 0 12px; white-space: nowrap; }
+  button { font: inherit; border-radius: 4px; padding: 2px 10px; cursor: pointer; }
+  ul { list-style: none; margin: 0; padding: 0; }
+</style>
+</head>
+<body>
+<div id="rw-stage" data-testid="rw-stage" data-shown=""></div>
+<script>
+// Phase N, N8 (awkit-vra.10): the Visual Rows Lab. Fixed tables only (no randomness, no external asset). Variant a is
+// development; b, c and d are held out for qualification (plan § 3).
+(() => {
+  const VARIANTS = {
+    a: { rows: 10, h: 36, font: 14, target: 3, text: "#1f2937", line: "#d1d5db", zebra: "#f3f4f6", accent: "#2563eb", left: 24, top: 24 },
+    b: { rows: 12, h: 32, font: 13, target: 5, text: "#111827", line: "#cbd5e1", zebra: "#eef2f7", accent: "#0f766e", left: 40, top: 32 },
+    c: { rows: 8, h: 44, font: 15, target: 2, text: "#0f172a", line: "#d6d3d1", zebra: "#f5f5f4", accent: "#7c3aed", left: 16, top: 48 },
+    d: { rows: 14, h: 30, font: 12, target: 7, text: "#1c1917", line: "#e2e8f0", zebra: "#f1f5f9", accent: "#b45309", left: 32, top: 16 }
+  };
+  const NAMES = ["Acme Ltd", "Globex", "Initech", "Umbrella Co", "Stark Supply", "Wayne Retail", "Hooli", "Vandelay", "Wonka Foods", "Tyrell Corp", "Cyberdyne", "Soylent", "Oceanic", "Massive Dynamic", "Gringotts", "Monarch", "Aperture", "Black Mesa", "Nakatomi", "Weyland", "Zorg", "Duff", "Krusty", "Planet Express", "Virtucon", "Spacely", "Cogswell", "Prestige", "Sirius", "Ollivanders"];
+  const PALETTE = ["#dc2626", "#16a34a", "#2563eb", "#ca8a04", "#9333ea", "#0891b2", "#db2777", "#4b5563", "#ea580c", "#65a30d", "#0d9488", "#7c3aed", "#be123c", "#1d4ed8"];
+  const stage = document.getElementById("rw-stage");
+
+  const el = (tag, style, text) => {
+    const node = document.createElement(tag);
+    if (style) node.setAttribute("style", style);
+    if (text !== undefined) node.textContent = text;
+    return node;
+  };
+  const button = (v, i, testid) => {
+    const b = el("button", `border:1px solid ${v.accent};color:${v.accent};background:#ffffff;font-size:${v.font}px`, "Approve");
+    b.dataset.testid = testid;
+    b.dataset.row = String(i);
+    return b;
+  };
+  const actionId = (v, i, multi) => (multi ? "rw-action" : i === v.target ? "rw-target" : "rw-other");
+
+  function table(v, { rows = v.rows, zebra = false, lines = true, multi = false, distinct = false, rowspan = false } = {}) {
+    const t = el("table", `position:absolute;left:${v.left}px;top:${v.top}px;font-size:${v.font}px;color:${v.text}`);
+    t.dataset.testid = "rw-table";
+    const body = document.createElement("tbody");
+    for (let i = 0; i < rows; i++) {
+      const tr = el("tr", `height:${v.h}px;${lines ? `border-bottom:1px solid ${v.line};` : ""}${zebra && i % 2 ? `background:${v.zebra};` : ""}`);
+      tr.append(el("td", "", `INV-${3001 + i}`), el("td", "width:160px", NAMES[i % NAMES.length]));
+      if (distinct) {
+        const cell = el("td", "width:300px;position:relative");
+        cell.append(el("div", `position:absolute;left:${(i * 37) % 240}px;top:${Math.round(v.h * 0.2)}px;width:56px;height:${Math.round(v.h * 0.6)}px;background:${PALETTE[i % PALETTE.length]}`));
+        tr.append(cell);
+      } else {
+        tr.append(el("td", "width:120px", `$${(1200 + i * 211).toLocaleString("en-US")}.00`));
+      }
+      if (rowspan && i === v.target + 1) {
+        // The merged action cell of the row above covers this row.
+      } else {
+        const cell = el("td", "vertical-align:middle");
+        if (rowspan && i === v.target) cell.rowSpan = 2;
+        cell.append(button(v, i, actionId(v, i, multi)));
+        tr.append(cell);
+      }
+      body.append(tr);
+    }
+    t.append(body);
+    stage.append(t);
+    return t;
+  }
+
+  function list(v, { overlap = false, distinct = false } = {}) {
+    const ul = el("ul", `position:absolute;left:${v.left}px;top:${v.top}px;width:560px;font-size:${v.font}px;color:${v.text}`);
+    ul.dataset.testid = "rw-list";
+    for (let i = 0; i < Math.min(v.rows, 9); i++) {
+      const li = el("li", `position:relative;height:${v.h + 12}px;margin:${i && overlap ? -14 : i ? 8 : 0}px 0 0 0;border:1px solid ${v.line};border-radius:8px;background:#ffffff;box-sizing:border-box`);
+      li.append(el("span", `position:absolute;left:12px;top:${Math.round((v.h + 12) / 2 - v.font / 2 - 2)}px`, `${NAMES[i]} · INV-${3001 + i}`));
+      if (distinct) li.append(el("div", `position:absolute;left:${200 + ((i * 53) % 200)}px;top:6px;width:64px;height:${v.h}px;background:${PALETTE[i % PALETTE.length]}`));
+      const b = button(v, i, actionId(v, i, false));
+      b.style.cssText += `;position:absolute;right:12px;top:${Math.round((v.h + 12) / 2 - v.font / 2 - 5)}px`;
+      li.append(b);
+      ul.append(li);
+    }
+    stage.append(ul);
+    return ul;
+  }
+
+  function grid(v, { declared = null, rows = v.rows } = {}) {
+    const g = el("div", `position:absolute;left:${v.left}px;top:${v.top}px;width:620px;font-size:${v.font}px;color:${v.text}`);
+    g.setAttribute("role", "grid");
+    g.dataset.testid = "rw-grid";
+    if (declared) g.setAttribute("aria-rowcount", String(declared));
+    for (let i = 0; i < rows; i++) {
+      const row = el("div", `position:relative;height:${v.h}px;border-bottom:1px solid ${v.line}`);
+      row.setAttribute("role", "row");
+      if (declared) row.setAttribute("aria-rowindex", String(i + 1));
+      const name = el("div", `position:absolute;left:12px;top:${Math.round(v.h / 2 - v.font / 2 - 2)}px`, `${NAMES[i % NAMES.length]} · INV-${3001 + i}`);
+      name.setAttribute("role", "gridcell");
+      const cell = el("div", `position:absolute;right:12px;top:${Math.round(v.h / 2 - v.font / 2 - 5)}px`);
+      cell.setAttribute("role", "gridcell");
+      cell.append(button(v, i, actionId(v, i, false)));
+      row.append(name, cell);
+      g.append(row);
+    }
+    stage.append(g);
+    return g;
+  }
+
+  const target = () => stage.querySelector('[data-testid="rw-target"]');
+  const RENDER = {
+    "table-uniform": (v) => table(v),
+    "table-zebra": (v) => table(v, { zebra: true, lines: false }),
+    "table-distinct": (v) => table(v, { distinct: true }),
+    "cards-distinct": (v) => list(v, { distinct: true }),
+    "list-cards": (v) => list(v),
+    "grid-roles": (v) => grid(v),
+    "no-separators": (v) => table(v, { lines: false }),
+    "multi-match": (v) => table(v, { multi: true }),
+    "nested-grid": (v) => {
+      const outer = table(v);
+      outer.querySelector('[data-testid="rw-target"]').dataset.testid = "rw-other";
+      const host = outer.querySelectorAll("tr")[v.target].children[2];
+      host.textContent = "";
+      const inner = el("table", `font-size:${v.font - 2}px`);
+      const ib = document.createElement("tbody");
+      for (let j = 0; j < 3; j++) {
+        const tr = el("tr", `height:${Math.round(v.h * 0.9)}px;border-bottom:1px solid ${v.line}`);
+        const td = el("td", "padding:0 4px");
+        const b = button(v, j, j === 1 ? "rw-target" : "rw-other");
+        b.style.fontSize = `${v.font - 3}px`;
+        td.append(b);
+        tr.append(el("td", "padding:0 4px", `Line ${j + 1}`), td);
+        ib.append(tr);
+      }
+      inner.append(ib);
+      host.append(inner);
+    },
+    "rowspan": (v) => table(v, { rowspan: true }),
+    "displaced": (v) => {
+      table(v);
+      const t = target();
+      t.style.position = "relative";
+      t.style.top = `${v.h}px`;
+    },
+    "overlay": (v) => {
+      table(v);
+      const box = target().getBoundingClientRect();
+      const banner = el("div", `position:absolute;left:${Math.round(box.left - 60)}px;top:${Math.round(box.top + box.height / 2 - 2)}px;width:${Math.round(box.width + 120)}px;height:${v.h}px;background:#fff7ed;border:1px solid #fb923c;color:#9a3412;font-size:${v.font}px;box-sizing:border-box;padding:4px 8px`, "Saved draft restored");
+      banner.dataset.testid = "rw-overlay";
+      stage.append(banner);
+    },
+    "ghost": (v) => {
+      table(v);
+      target().style.opacity = "0";
+    },
+    "overlapping-rows": (v) => list(v, { overlap: true }),
+    "virtualized": (v) => grid(v, { declared: 500, rows: Math.min(12, v.rows) }),
+    "below-fold": (v) => table(v, { rows: 30 }),
+    "no-rows": (v) => {
+      const box = el("div", `position:absolute;left:${v.left + 200}px;top:${v.top + 120}px;font-size:${v.font}px;color:${v.text}`);
+      box.append(el("p", "", "Approve the pending invoice."));
+      box.append(button(v, 0, "rw-target"));
+      stage.append(box);
+    },
+    "protected": (v) => {
+      table(v);
+      const form = el("form", `position:absolute;left:560px;top:${v.top}px;font-size:${v.font}px`);
+      form.id = "rw-protected";
+      const pass = el("input", "display:block;width:180px");
+      pass.type = "password";
+      pass.setAttribute("autocomplete", "current-password");
+      form.append(el("div", "", "Sign in"), pass);
+      stage.append(form);
+    }
+  };
+
+  const nextFrame = () => new Promise((resolve) => requestAnimationFrame(() => resolve()));
+  async function show(id, variant = "a") {
+    const v = VARIANTS[variant];
+    if (!v) throw new Error(`unknown variant ${variant}`);
+    if (!Object.prototype.hasOwnProperty.call(RENDER, id)) throw new Error(`unknown fixture ${id}`);
+    stage.replaceChildren();
+    stage.dataset.shown = "";
+    RENDER[id](v);
+    await nextFrame();
+    await nextFrame();
+    stage.dataset.shown = `${id}:${variant}`;
+    return { id, variant };
+  }
+  window.__rowsLab = { show, fixtures: () => Object.keys(RENDER), variants: () => Object.keys(VARIANTS), interactions: 0 };
+  for (const type of ["click", "keydown", "focusin", "scroll"]) document.addEventListener(type, () => (window.__rowsLab.interactions += 1), true);
+  fetch("/visual-intelligence/rows-fixtures.json")
+    .then((r) => r.json())
+    .then((t) => (document.body.dataset.fixtures = String(t.fixtures.length)))
+    .catch(() => (document.body.dataset.fixtures = "missing"));
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "viewport": { "width": 800, "height": 600 },
+  "developmentVariants": ["a"],
+  "qualificationVariants": ["b", "c", "d"],
+  "fixtures": [
+    { "id": "table-uniform", "association": "consistent", "structure": "look-alike", "coverage": "full", "adversarial": false, "locator": "rw-target" },
+    { "id": "table-zebra", "association": "consistent", "structure": "look-alike", "coverage": "full", "adversarial": false, "locator": "rw-target" },
+    { "id": "table-distinct", "association": "consistent", "structure": "distinct", "coverage": "full", "adversarial": false, "locator": "rw-target" },
+    { "id": "cards-distinct", "association": "consistent", "structure": "distinct", "coverage": "full", "adversarial": false, "locator": "rw-target" },
+    { "id": "list-cards", "association": "consistent", "structure": "look-alike", "coverage": "full", "adversarial": false, "locator": "rw-target" },
+    { "id": "grid-roles", "association": "consistent", "structure": "look-alike", "coverage": "full", "adversarial": false, "locator": "rw-target" },
+    { "id": "no-separators", "association": "consistent", "structure": "look-alike", "coverage": "full", "adversarial": false, "locator": "rw-target" },
+    { "id": "multi-match", "association": "consistent", "structure": "look-alike", "coverage": "full", "adversarial": false, "locator": "rw-action" },
+    { "id": "nested-grid", "association": "consistent", "structure": "any", "coverage": "full", "adversarial": false, "locator": "rw-target" },
+    { "id": "rowspan", "association": "inconclusive", "structure": "any", "coverage": "full", "adversarial": true, "locator": "rw-target" },
+    { "id": "displaced", "association": "inconclusive", "structure": "any", "coverage": "full", "adversarial": true, "locator": "rw-target" },
+    { "id": "overlay", "association": "inconclusive", "structure": "any", "coverage": "full", "adversarial": true, "locator": "rw-target" },
+    { "id": "ghost", "association": "inconclusive", "structure": "any", "coverage": "full", "adversarial": true, "locator": "rw-target" },
+    { "id": "overlapping-rows", "association": "inconclusive", "structure": "inconclusive", "coverage": "full", "adversarial": true, "locator": "rw-target" },
+    { "id": "virtualized", "association": "consistent", "structure": "any", "coverage": "partly", "adversarial": false, "locator": "rw-target" },
+    { "id": "below-fold", "association": "consistent", "structure": "any", "coverage": "partly", "adversarial": false, "locator": "rw-target" },
+    { "id": "no-rows", "association": "none", "structure": "not-examined", "coverage": "none", "adversarial": false, "locator": "rw-target" },
+    { "id": "protected", "association": "refusal", "structure": "refusal", "coverage": "refusal", "adversarial": false, "locator": "rw-target" }
+  ]
+}

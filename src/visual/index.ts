@@ -120,3 +120,18 @@ export {
   type VisualStatePolicy,
   type VisualStateVerdict
 } from "./state/visualState";
+export {
+  DEVELOPMENT_VISUAL_ROWS_POLICY,
+  MEASURED_VISUAL_ROWS_POLICY,
+  VISUAL_ROWS_MAX_ROWS,
+  VISUAL_ROWS_VERSION,
+  decideVisualRows,
+  type VisualRowsAssociation,
+  type VisualRowsBox,
+  type VisualRowsFailure,
+  type VisualRowsInput,
+  type VisualRowsMember,
+  type VisualRowsPolicy,
+  type VisualRowsStructure,
+  type VisualRowsVerdict
+} from "./rows/visualRows";

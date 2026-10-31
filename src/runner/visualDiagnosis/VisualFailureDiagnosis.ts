@@ -6,8 +6,11 @@ import {
   captureVisualFrame,
   checkProtectedSurface,
   cropFromVisualFrame,
+  MEASURED_VISUAL_ROWS_POLICY,
   MEASURED_VISUAL_STATE_POLICY,
+  VISUAL_ROWS_MAX_ROWS,
   decideVisualDiagnosis,
+  decideVisualRows,
   decideVisualState,
   fingerprintVisualImage,
   measureVisualMotion,
@@ -21,6 +24,11 @@ import {
   type VisualDiagnosisVerdict,
   type VisualEvidence,
   type VisualMotion,
+  type VisualImage,
+  type VisualRowsBox,
+  type VisualRowsInput,
+  type VisualRowsPolicy,
+  type VisualRowsVerdict,
   type VisualStateFrame,
   type VisualStateFrameFeatures,
   type VisualStatePolicy,
@@ -38,6 +46,7 @@ import { recordedVisualReferenceKey } from "../visualFusion/recordedVisualRefere
 import {
   VISUAL_DIAGNOSIS_DEADLINE_MS,
   VISUAL_DIAGNOSIS_SIGNATURE_CAP,
+  VISUAL_ROWS_MIN_REMAINING_MS,
   VISUAL_STATE_INTERVAL_MS,
   VISUAL_STATE_MIN_REMAINING_MS,
   visualDiagnosisFailureKind,
@@ -110,6 +119,8 @@ export interface VisualDiagnosisProbe {
   onInspect?: () => void;
   /** N5.7: element handles resolved and disposed, so a verifier can prove every handle is released. */
   onHandles?: (event: "resolved" | "disposed", count: number) => void;
+  /** N8: the row decision and how long the row work took (benchmark:visual-rows). */
+  onRows?: (event: { verdict: VisualRowsVerdict; ms: number }) => void;
   /** N9: the state decision with its measured numbers and how long the state work took (benchmark:visual-state). */
   onState?: (event: { features: VisualStateFrameFeatures; motion: VisualMotion | null; verdict: VisualStateVerdict; ms: number }) => void;
 }
@@ -141,6 +152,25 @@ export interface VisualFailureDiagnosisOptions {
   stateRecognition?: boolean;
   /** Verifier and development-baseline override; production passes none (MEASURED_VISUAL_STATE_POLICY). */
   statePolicy?: Readonly<VisualStatePolicy>;
+  /**
+   * N8 (awkit-vra.10, NR-3): row/grid evidence, only with `AWKIT_VISUAL_ROWS=on`. The DOM proves the container and its
+   * rows (read only); one crop of N5's own frame corroborates them. Adds at most three `rows-*` / `row-association-*`
+   * codes after the verdict. No extra frame, no interaction; with it off nothing is read.
+   */
+  rowEvidence?: boolean;
+  /** Verifier and development-baseline override; production passes none (MEASURED_VISUAL_ROWS_POLICY). */
+  rowsPolicy?: Readonly<VisualRowsPolicy>;
+}
+
+/** N8: what makes an element a row, for the DOM read (plan § 2). */
+const ROW_SELECTOR = 'tr, [role="row"], li, [role="listitem"]';
+
+interface RowFacts {
+  container: VisualRowsBox;
+  rows: VisualRowsBox[];
+  totalRows: number;
+  declaredRows: number | null;
+  members: Array<{ box: VisualRowsBox; rowIndex: number; topmost: boolean }>;
 }
 
 interface MemberBox {
@@ -326,6 +356,22 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
     const frames = await bounded(Promise.all(chosen.map((slot) => this.frameOf(handles[slot.index]!))));
     const boxes: MemberBox[] = chosen.map((slot, at) => ({ ...slot, ...frames[at] }));
 
+    // N8: the DOM's row structure around the first examined main-frame candidate (read only, before the frame).
+    // `undefined` = not asked (off, or too little time left): no row code at all; `null` = no row structure.
+    let rowFacts: RowFacts | null | undefined;
+    let rowAnchor: ElementHandle | undefined;
+    let rowMs = 0;
+    if (this.options.rowEvidence === true && this.remaining(started, deadlineMs) >= VISUAL_ROWS_MIN_REMAINING_MS) {
+      const reading = performance.now();
+      const mainMembers = boxes.filter((slot) => slot.isMainFrame).map((slot) => ({ handle: handles[slot.index]!, box: slot.box }));
+      rowAnchor = mainMembers[0]?.handle;
+      // A failed DOM read is "no structure examined"; it can never turn N5's own record into a failure.
+      rowFacts = mainMembers.length === 0 ? null : await bounded(this.rowFacts(mainMembers).catch(() => null));
+      rowMs += performance.now() - reading;
+    }
+    let rowPixels: { image: VisualImage; cropCss: VisualRowsBox } | undefined;
+    let rowStale = false;
+
     await this.options.probe?.hold?.("before-frame");
     if (signal.aborted) throw new DiagnosisAborted();
 
@@ -398,6 +444,22 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
           }
           members.push({ isTarget: matches === 1 && slot.index === 0, evidence });
         }
+        if (rowFacts) {
+          // N8: one crop of the DOM-proven container from this same frame, in memory only.
+          await yieldToTimers();
+          if (signal.aborted) throw new DiagnosisAborted();
+          const cropping = performance.now();
+          const c = rowFacts.container;
+          const left = Math.max(0, c.x);
+          const top = Math.max(0, c.y);
+          const right = Math.min(cssWidth, c.x + c.width);
+          const bottom = Math.min(cssHeight, c.y + c.height);
+          if (right > left && bottom > top) {
+            const crop = cropFromVisualFrame(frame, { x: left, y: top, width: right - left, height: bottom - top }, 0);
+            if (crop.ok) rowPixels = { image: crop.value.element.image, cropCss: { ...crop.value.element.actualCssBounds } };
+          }
+          rowMs += performance.now() - cropping;
+        }
         await this.options.probe?.hold?.("after-frame");
         if (signal.aborted) throw new DiagnosisAborted();
         // A member that moved since it was measured is not compared.
@@ -409,6 +471,21 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
           if (!now || now.x !== before.x || now.y !== before.y || now.width !== before.width || now.height !== before.height) {
             members[at] = { ...members[at], evidence: { available: false, code: "TARGET_STALE" } };
           }
+        }
+        if (rowFacts && rowAnchor) {
+          // N8: a container that moved since it was read makes every row code inconclusive.
+          const before = rowFacts.container;
+          const now = await bounded(
+            rowAnchor
+              .evaluate((node, selector) => {
+                const container = (node as Element).closest(selector)?.parentElement;
+                if (!container) return null;
+                const r = container.getBoundingClientRect();
+                return { x: r.left, y: r.top, width: r.width, height: r.height };
+              }, ROW_SELECTOR)
+              .catch(() => null)
+          );
+          rowStale = !now || now.x !== before.x || now.y !== before.y || now.width !== before.width || now.height !== before.height;
         }
       } finally {
         releaseVisualFrame(frame);
@@ -439,6 +516,27 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
       );
       const code = text ? OCR_TEXT_SIGNAL_DIAGNOSIS_CODES[text.outcome] : undefined;
       if (code) textCodes.push(code);
+    }
+    // N8: advisory only, after the verdict and the text signal; at most three codes.
+    if (rowFacts !== undefined) {
+      const deciding = performance.now();
+      const rows = decideVisualRows(
+        {
+          image: rowPixels?.image ?? null,
+          cropCss: rowPixels?.cropCss ?? null,
+          viewport,
+          dom: rowFacts ? { rows: rowFacts.rows, totalRows: rowFacts.totalRows, declaredRows: rowFacts.declaredRows, members: rowFacts.members } : null,
+          stale: rowStale
+        },
+        this.rowsPolicy
+      );
+      rowPixels = undefined;
+      textCodes.push(...rows.codes);
+      try {
+        this.options.probe?.onRows?.({ verdict: rows, ms: Math.round(rowMs + performance.now() - deciding) });
+      } catch {
+        // A probe is an observer, not a participant.
+      }
     }
     // N9: advisory only, after the verdict and the text signal; one code, never more.
     if (this.options.stateRecognition === true) {
@@ -527,6 +625,65 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
 
   private get statePolicy(): Readonly<VisualStatePolicy> {
     return this.options.statePolicy ?? MEASURED_VISUAL_STATE_POLICY;
+  }
+
+  private get rowsPolicy(): Readonly<VisualRowsPolicy> {
+    return this.options.rowsPolicy ?? MEASURED_VISUAL_ROWS_POLICY;
+  }
+
+  /**
+   * N8 (plan § 2): the container of the first member's closest DOM row, that container's row boxes (at most
+   * VISUAL_ROWS_MAX_ROWS), a declared row count, and each member's DOM row index in that container (-1 when it is in
+   * another one) and whether nothing is on top of it. Read only: boxes, ancestry and one hit test per member.
+   */
+  private async rowFacts(members: Array<{ handle: ElementHandle; box: MemberBox["box"] }>): Promise<RowFacts | null> {
+    const container = await members[0]!.handle.evaluateHandle((node, selector) => (node as Element).closest(selector)?.parentElement ?? null, ROW_SELECTOR);
+    try {
+      const facts = await container.evaluate(
+        // No named inner functions here: a bundler may wrap them in a helper the page does not have.
+        (node, [selector, cap]) => {
+          if (!node) return null;
+          const element = node as Element;
+          const rows = Array.from(element.children).filter((child) => child.matches(selector));
+          const boxes: Array<{ x: number; y: number; width: number; height: number }> = [];
+          for (const row of rows.slice(0, cap)) {
+            const r = row.getBoundingClientRect();
+            boxes.push({ x: r.left, y: r.top, width: r.width, height: r.height });
+          }
+          const own = element.getBoundingClientRect();
+          const declaredText = element.closest("[aria-rowcount]")?.getAttribute("aria-rowcount") ?? rows[0]?.getAttribute("aria-setsize") ?? null;
+          const declared = declaredText === null ? Number.NaN : Number(declaredText);
+          return {
+            container: { x: own.left, y: own.top, width: own.width, height: own.height },
+            rows: boxes,
+            totalRows: rows.length,
+            declaredRows: Number.isInteger(declared) && declared > 0 ? declared : null
+          };
+        },
+        [ROW_SELECTOR, VISUAL_ROWS_MAX_ROWS] as [string, number]
+      );
+      if (!facts) return null;
+      const placed = await Promise.all(
+        members.map(({ handle }) =>
+          handle
+            .evaluate(
+              (node, [owner, selector]) => {
+                const row = (node as Element).closest(selector);
+                if (!row || !owner || row.parentElement !== owner) return -1;
+                return Array.from((owner as Element).children)
+                  .filter((child) => child.matches(selector))
+                  .indexOf(row);
+              },
+              [container, ROW_SELECTOR] as [typeof container, string]
+            )
+            .catch(() => -1)
+        )
+      );
+      const covered = await Promise.all(members.map(({ handle }) => this.occluded(handle)));
+      return { ...facts, members: members.map((member, at) => ({ box: member.box, rowIndex: placed[at], topmost: !covered[at] })) };
+    } finally {
+      await container.dispose().catch(() => undefined);
+    }
   }
 
   /** Runtime key first; only a missing runtime reference falls back to the recorded key (N4.6). Read only. */

@@ -190,6 +190,11 @@ export interface PlaywrightRunnerOptions extends BrowserContextFactoryOptions {
    */
   visualStateRecognition?: boolean;
   /**
+   * N8 (awkit-vra.10, NR-3): `AWKIT_VISUAL_ROWS=on`. Adds row/grid codes to each diagnosis from N5's own frame. Needs
+   * `visualDiagnosisRoot`; absent or false, nothing changes.
+   */
+  visualRowEvidence?: boolean;
+  /**
    * N5.4 (VD-5): receives each settled visual diagnosis record. The engine stores a sanitized copy on the instance
    * report; nothing else in the run reads it. Absent, records are dropped.
    */
@@ -1002,6 +1007,7 @@ export class PlaywrightRunner {
       ...(this.options.visualRecordedFallback === true ? { recordedFallback: true } : {}),
       ...(sink ? { onRecord: (record: VisualDiagnosisRecord) => sink(record) } : {}),
       ...this.ocrTextSignalOption(),
+      ...(this.options.visualRowEvidence === true ? { rowEvidence: true } : {}),
       ...(this.options.visualStateRecognition === true
         ? { stateRecognition: true, deadlineMs: VISUAL_DIAGNOSIS_DEADLINE_MS + VISUAL_STATE_EXTRA_MS }
         : {})

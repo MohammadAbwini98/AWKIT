@@ -1,0 +1,1487 @@
+{
+ "benchmark": "benchmark:visual-rows",
+ "mode": "baseline",
+ "date": "2026-10-31T14:41:15.542Z",
+ "policy": {
+  "edgeTolerance": 2,
+  "minRowHeight": 8,
+  "alikeCellDelta": 96,
+  "alikeMaxCells": 1,
+  "quietRange": 40,
+  "inkRange": 48
+ },
+ "deadlineMs": 1000,
+ "repeats": 2,
+ "cells": [
+  {
+   "cell": "headless@1",
+   "status": "RAN"
+  },
+  {
+   "cell": "headless@1.25",
+   "status": "RAN"
+  },
+  {
+   "cell": "headless@2",
+   "status": "RAN"
+  }
+ ],
+ "protected": {
+  "trials": 6,
+  "zeroFramesNoCode": true
+ },
+ "trials": [
+  {
+   "fixture": "table-uniform",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 30,
+   "recordMs": 400,
+   "frames": 1
+  },
+  {
+   "fixture": "table-uniform",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 23,
+   "recordMs": 176,
+   "frames": 1
+  },
+  {
+   "fixture": "table-zebra",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 22,
+   "recordMs": 195,
+   "frames": 1
+  },
+  {
+   "fixture": "table-zebra",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 15,
+   "recordMs": 163,
+   "frames": 1
+  },
+  {
+   "fixture": "table-distinct",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-mixed",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 16,
+   "recordMs": 156,
+   "frames": 1
+  },
+  {
+   "fixture": "table-distinct",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-mixed",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 12,
+   "recordMs": 159,
+   "frames": 1
+  },
+  {
+   "fixture": "cards-distinct",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-distinct",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 11,
+   "recordMs": 145,
+   "frames": 1
+  },
+  {
+   "fixture": "cards-distinct",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-distinct",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 11,
+   "recordMs": 143,
+   "frames": 1
+  },
+  {
+   "fixture": "list-cards",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 12,
+   "recordMs": 133,
+   "frames": 1
+  },
+  {
+   "fixture": "list-cards",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 14,
+   "recordMs": 164,
+   "frames": 1
+  },
+  {
+   "fixture": "grid-roles",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 16,
+   "recordMs": 129,
+   "frames": 1
+  },
+  {
+   "fixture": "grid-roles",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 12,
+   "recordMs": 157,
+   "frames": 1
+  },
+  {
+   "fixture": "no-separators",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 9,
+   "recordMs": 127,
+   "frames": 1
+  },
+  {
+   "fixture": "no-separators",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 10,
+   "recordMs": 134,
+   "frames": 1
+  },
+  {
+   "fixture": "multi-match",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 18,
+   "recordMs": 161,
+   "frames": 1
+  },
+  {
+   "fixture": "multi-match",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 20,
+   "recordMs": 165,
+   "frames": 1
+  },
+  {
+   "fixture": "nested-grid",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 7,
+   "recordMs": 119,
+   "frames": 1
+  },
+  {
+   "fixture": "nested-grid",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 5,
+   "recordMs": 120,
+   "frames": 1
+  },
+  {
+   "fixture": "rowspan",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-look-alike",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "crosses-row-edge"
+   ],
+   "rowMs": 8,
+   "recordMs": 119,
+   "frames": 1
+  },
+  {
+   "fixture": "rowspan",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-look-alike",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "crosses-row-edge"
+   ],
+   "rowMs": 8,
+   "recordMs": 131,
+   "frames": 1
+  },
+  {
+   "fixture": "displaced",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-look-alike",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "crosses-row-edge"
+   ],
+   "rowMs": 11,
+   "recordMs": 137,
+   "frames": 1
+  },
+  {
+   "fixture": "displaced",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-look-alike",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "crosses-row-edge"
+   ],
+   "rowMs": 8,
+   "recordMs": 119,
+   "frames": 1
+  },
+  {
+   "fixture": "overlay",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-look-alike",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "covered"
+   ],
+   "rowMs": 8,
+   "recordMs": 129,
+   "frames": 1
+  },
+  {
+   "fixture": "overlay",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-look-alike",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "covered"
+   ],
+   "rowMs": 12,
+   "recordMs": 191,
+   "frames": 1
+  },
+  {
+   "fixture": "ghost",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-look-alike",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "no-ink"
+   ],
+   "rowMs": 9,
+   "recordMs": 161,
+   "frames": 1
+  },
+  {
+   "fixture": "ghost",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-look-alike",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "no-ink"
+   ],
+   "rowMs": 23,
+   "recordMs": 163,
+   "frames": 1
+  },
+  {
+   "fixture": "overlapping-rows",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-inconclusive",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "rows-overlap"
+   ],
+   "rowMs": 8,
+   "recordMs": 184,
+   "frames": 1
+  },
+  {
+   "fixture": "overlapping-rows",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-inconclusive",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "rows-overlap"
+   ],
+   "rowMs": 11,
+   "recordMs": 180,
+   "frames": 1
+  },
+  {
+   "fixture": "virtualized",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent",
+    "rows-partly-examined"
+   ],
+   "failures": [],
+   "rowMs": 15,
+   "recordMs": 149,
+   "frames": 1
+  },
+  {
+   "fixture": "virtualized",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent",
+    "rows-partly-examined"
+   ],
+   "failures": [],
+   "rowMs": 18,
+   "recordMs": 175,
+   "frames": 1
+  },
+  {
+   "fixture": "below-fold",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent",
+    "rows-partly-examined"
+   ],
+   "failures": [],
+   "rowMs": 24,
+   "recordMs": 199,
+   "frames": 1
+  },
+  {
+   "fixture": "below-fold",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent",
+    "rows-partly-examined"
+   ],
+   "failures": [],
+   "rowMs": 19,
+   "recordMs": 173,
+   "frames": 1
+  },
+  {
+   "fixture": "no-rows",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-not-examined"
+   ],
+   "failures": [],
+   "rowMs": 5,
+   "recordMs": 155,
+   "frames": 1
+  },
+  {
+   "fixture": "no-rows",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [
+    "rows-not-examined"
+   ],
+   "failures": [],
+   "rowMs": 3,
+   "recordMs": 140,
+   "frames": 1
+  },
+  {
+   "fixture": "protected",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [],
+   "failures": [],
+   "rowMs": null,
+   "recordMs": 6,
+   "frames": 0
+  },
+  {
+   "fixture": "protected",
+   "variant": "a",
+   "cell": "headless@1",
+   "codes": [],
+   "failures": [],
+   "rowMs": null,
+   "recordMs": 6,
+   "frames": 0
+  },
+  {
+   "fixture": "table-uniform",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 20,
+   "recordMs": 278,
+   "frames": 1
+  },
+  {
+   "fixture": "table-uniform",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 15,
+   "recordMs": 215,
+   "frames": 1
+  },
+  {
+   "fixture": "table-zebra",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 16,
+   "recordMs": 259,
+   "frames": 1
+  },
+  {
+   "fixture": "table-zebra",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 15,
+   "recordMs": 232,
+   "frames": 1
+  },
+  {
+   "fixture": "table-distinct",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-mixed",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 17,
+   "recordMs": 224,
+   "frames": 1
+  },
+  {
+   "fixture": "table-distinct",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-mixed",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 18,
+   "recordMs": 256,
+   "frames": 1
+  },
+  {
+   "fixture": "cards-distinct",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-distinct",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 19,
+   "recordMs": 254,
+   "frames": 1
+  },
+  {
+   "fixture": "cards-distinct",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-distinct",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 17,
+   "recordMs": 233,
+   "frames": 1
+  },
+  {
+   "fixture": "list-cards",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 12,
+   "recordMs": 177,
+   "frames": 1
+  },
+  {
+   "fixture": "list-cards",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 17,
+   "recordMs": 214,
+   "frames": 1
+  },
+  {
+   "fixture": "grid-roles",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 16,
+   "recordMs": 173,
+   "frames": 1
+  },
+  {
+   "fixture": "grid-roles",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 16,
+   "recordMs": 183,
+   "frames": 1
+  },
+  {
+   "fixture": "no-separators",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 15,
+   "recordMs": 198,
+   "frames": 1
+  },
+  {
+   "fixture": "no-separators",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 15,
+   "recordMs": 227,
+   "frames": 1
+  },
+  {
+   "fixture": "multi-match",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 25,
+   "recordMs": 256,
+   "frames": 1
+  },
+  {
+   "fixture": "multi-match",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 20,
+   "recordMs": 219,
+   "frames": 1
+  },
+  {
+   "fixture": "nested-grid",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 10,
+   "recordMs": 212,
+   "frames": 1
+  },
+  {
+   "fixture": "nested-grid",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 11,
+   "recordMs": 212,
+   "frames": 1
+  },
+  {
+   "fixture": "rowspan",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-look-alike",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "crosses-row-edge"
+   ],
+   "rowMs": 19,
+   "recordMs": 182,
+   "frames": 1
+  },
+  {
+   "fixture": "rowspan",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-look-alike",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "crosses-row-edge"
+   ],
+   "rowMs": 20,
+   "recordMs": 188,
+   "frames": 1
+  },
+  {
+   "fixture": "displaced",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-look-alike",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "crosses-row-edge"
+   ],
+   "rowMs": 13,
+   "recordMs": 191,
+   "frames": 1
+  },
+  {
+   "fixture": "displaced",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-look-alike",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "crosses-row-edge"
+   ],
+   "rowMs": 14,
+   "recordMs": 176,
+   "frames": 1
+  },
+  {
+   "fixture": "overlay",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-look-alike",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "covered"
+   ],
+   "rowMs": 16,
+   "recordMs": 205,
+   "frames": 1
+  },
+  {
+   "fixture": "overlay",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-look-alike",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "covered"
+   ],
+   "rowMs": 13,
+   "recordMs": 177,
+   "frames": 1
+  },
+  {
+   "fixture": "ghost",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-look-alike",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "no-ink"
+   ],
+   "rowMs": 12,
+   "recordMs": 178,
+   "frames": 1
+  },
+  {
+   "fixture": "ghost",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-look-alike",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "no-ink"
+   ],
+   "rowMs": 12,
+   "recordMs": 202,
+   "frames": 1
+  },
+  {
+   "fixture": "overlapping-rows",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-inconclusive",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "rows-overlap"
+   ],
+   "rowMs": 7,
+   "recordMs": 163,
+   "frames": 1
+  },
+  {
+   "fixture": "overlapping-rows",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-inconclusive",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "rows-overlap"
+   ],
+   "rowMs": 13,
+   "recordMs": 199,
+   "frames": 1
+  },
+  {
+   "fixture": "virtualized",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent",
+    "rows-partly-examined"
+   ],
+   "failures": [],
+   "rowMs": 14,
+   "recordMs": 238,
+   "frames": 1
+  },
+  {
+   "fixture": "virtualized",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent",
+    "rows-partly-examined"
+   ],
+   "failures": [],
+   "rowMs": 27,
+   "recordMs": 234,
+   "frames": 1
+  },
+  {
+   "fixture": "below-fold",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent",
+    "rows-partly-examined"
+   ],
+   "failures": [],
+   "rowMs": 19,
+   "recordMs": 240,
+   "frames": 1
+  },
+  {
+   "fixture": "below-fold",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent",
+    "rows-partly-examined"
+   ],
+   "failures": [],
+   "rowMs": 17,
+   "recordMs": 208,
+   "frames": 1
+  },
+  {
+   "fixture": "no-rows",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-not-examined"
+   ],
+   "failures": [],
+   "rowMs": 5,
+   "recordMs": 178,
+   "frames": 1
+  },
+  {
+   "fixture": "no-rows",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [
+    "rows-not-examined"
+   ],
+   "failures": [],
+   "rowMs": 3,
+   "recordMs": 151,
+   "frames": 1
+  },
+  {
+   "fixture": "protected",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [],
+   "failures": [],
+   "rowMs": null,
+   "recordMs": 18,
+   "frames": 0
+  },
+  {
+   "fixture": "protected",
+   "variant": "a",
+   "cell": "headless@1.25",
+   "codes": [],
+   "failures": [],
+   "rowMs": null,
+   "recordMs": 5,
+   "frames": 0
+  },
+  {
+   "fixture": "table-uniform",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 23,
+   "recordMs": 351,
+   "frames": 1
+  },
+  {
+   "fixture": "table-uniform",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 22,
+   "recordMs": 362,
+   "frames": 1
+  },
+  {
+   "fixture": "table-zebra",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 25,
+   "recordMs": 391,
+   "frames": 1
+  },
+  {
+   "fixture": "table-zebra",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 22,
+   "recordMs": 337,
+   "frames": 1
+  },
+  {
+   "fixture": "table-distinct",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-mixed",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 27,
+   "recordMs": 369,
+   "frames": 1
+  },
+  {
+   "fixture": "table-distinct",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-mixed",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 26,
+   "recordMs": 353,
+   "frames": 1
+  },
+  {
+   "fixture": "cards-distinct",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-distinct",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 34,
+   "recordMs": 342,
+   "frames": 1
+  },
+  {
+   "fixture": "cards-distinct",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-distinct",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 28,
+   "recordMs": 349,
+   "frames": 1
+  },
+  {
+   "fixture": "list-cards",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 28,
+   "recordMs": 359,
+   "frames": 1
+  },
+  {
+   "fixture": "list-cards",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 27,
+   "recordMs": 323,
+   "frames": 1
+  },
+  {
+   "fixture": "grid-roles",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 27,
+   "recordMs": 359,
+   "frames": 1
+  },
+  {
+   "fixture": "grid-roles",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 25,
+   "recordMs": 346,
+   "frames": 1
+  },
+  {
+   "fixture": "no-separators",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 22,
+   "recordMs": 380,
+   "frames": 1
+  },
+  {
+   "fixture": "no-separators",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 20,
+   "recordMs": 349,
+   "frames": 1
+  },
+  {
+   "fixture": "multi-match",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 29,
+   "recordMs": 412,
+   "frames": 1
+  },
+  {
+   "fixture": "multi-match",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 28,
+   "recordMs": 428,
+   "frames": 1
+  },
+  {
+   "fixture": "nested-grid",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 8,
+   "recordMs": 375,
+   "frames": 1
+  },
+  {
+   "fixture": "nested-grid",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent"
+   ],
+   "failures": [],
+   "rowMs": 8,
+   "recordMs": 397,
+   "frames": 1
+  },
+  {
+   "fixture": "rowspan",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-look-alike",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "crosses-row-edge"
+   ],
+   "rowMs": 21,
+   "recordMs": 386,
+   "frames": 1
+  },
+  {
+   "fixture": "rowspan",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-look-alike",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "crosses-row-edge"
+   ],
+   "rowMs": 21,
+   "recordMs": 374,
+   "frames": 1
+  },
+  {
+   "fixture": "displaced",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-look-alike",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "crosses-row-edge"
+   ],
+   "rowMs": 21,
+   "recordMs": 356,
+   "frames": 1
+  },
+  {
+   "fixture": "displaced",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-look-alike",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "crosses-row-edge"
+   ],
+   "rowMs": 20,
+   "recordMs": 359,
+   "frames": 1
+  },
+  {
+   "fixture": "overlay",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-look-alike",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "covered"
+   ],
+   "rowMs": 21,
+   "recordMs": 333,
+   "frames": 1
+  },
+  {
+   "fixture": "overlay",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-look-alike",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "covered"
+   ],
+   "rowMs": 20,
+   "recordMs": 351,
+   "frames": 1
+  },
+  {
+   "fixture": "ghost",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-look-alike",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "no-ink"
+   ],
+   "rowMs": 20,
+   "recordMs": 350,
+   "frames": 1
+  },
+  {
+   "fixture": "ghost",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-look-alike",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "no-ink"
+   ],
+   "rowMs": 24,
+   "recordMs": 391,
+   "frames": 1
+  },
+  {
+   "fixture": "overlapping-rows",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-inconclusive",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "rows-overlap"
+   ],
+   "rowMs": 12,
+   "recordMs": 359,
+   "frames": 1
+  },
+  {
+   "fixture": "overlapping-rows",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-inconclusive",
+    "row-association-inconclusive"
+   ],
+   "failures": [
+    "rows-overlap"
+   ],
+   "rowMs": 11,
+   "recordMs": 418,
+   "frames": 1
+  },
+  {
+   "fixture": "virtualized",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent",
+    "rows-partly-examined"
+   ],
+   "failures": [],
+   "rowMs": 27,
+   "recordMs": 396,
+   "frames": 1
+  },
+  {
+   "fixture": "virtualized",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent",
+    "rows-partly-examined"
+   ],
+   "failures": [],
+   "rowMs": 29,
+   "recordMs": 409,
+   "frames": 1
+  },
+  {
+   "fixture": "below-fold",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent",
+    "rows-partly-examined"
+   ],
+   "failures": [],
+   "rowMs": 41,
+   "recordMs": 361,
+   "frames": 1
+  },
+  {
+   "fixture": "below-fold",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-look-alike",
+    "row-association-consistent",
+    "rows-partly-examined"
+   ],
+   "failures": [],
+   "rowMs": 31,
+   "recordMs": 404,
+   "frames": 1
+  },
+  {
+   "fixture": "no-rows",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-not-examined"
+   ],
+   "failures": [],
+   "rowMs": 11,
+   "recordMs": 365,
+   "frames": 1
+  },
+  {
+   "fixture": "no-rows",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [
+    "rows-not-examined"
+   ],
+   "failures": [],
+   "rowMs": 6,
+   "recordMs": 361,
+   "frames": 1
+  },
+  {
+   "fixture": "protected",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [],
+   "failures": [],
+   "rowMs": null,
+   "recordMs": 8,
+   "frames": 0
+  },
+  {
+   "fixture": "protected",
+   "variant": "a",
+   "cell": "headless@2",
+   "codes": [],
+   "failures": [],
+   "rowMs": null,
+   "recordMs": 5,
+   "frames": 0
+  }
+ ]
+}
