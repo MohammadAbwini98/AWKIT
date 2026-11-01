@@ -17,5 +17,13 @@
     "    \"claimedAt\": \"2026-07-27T10:00:00Z\", \"expiresAt\": \"2026-07-28T10:00:00Z\",",
     "    \"note\": \"IPC authz sweep\" }"
   ],
-  "claims": []
+  "claims": [
+    {
+      "itemId": "bead:awkit-vra-phase-n-recovery-1101",
+      "agent": "Documentation / Project-State Specialist",
+      "state": "in-progress",
+      "claimedAt": "2026-11-01T18:21:20.534Z",
+      "note": "write lease: docs/plans/ai-upgrade-v5/evidence/joint/diagnostic/**"
+    }
+  ]
 }

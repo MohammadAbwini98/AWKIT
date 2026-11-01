@@ -1,13 +1,13 @@
 {
-  "task": "awkit-vra-phase-n-tracker-1101",
-  "contract_path": "docs/ai/contracts/awkit-vra-phase-n-tracker-1101.json",
+  "task": "awkit-vra-phase-n-recovery-1101",
+  "contract_path": "docs/ai/contracts/awkit-vra-phase-n-recovery-1101.json",
   "holder": "project-state",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
-    ".beads/**"
+    "docs/plans/ai-upgrade-v5/evidence/joint/diagnostic/**"
   ],
-  "acquired_at": "2026-10-31T22:45:37.760Z",
-  "acquired_at_commit": "8a2d6c712d5f435134a139dfc115b00efd34c0df",
+  "acquired_at": "2026-11-01T18:21:20.534Z",
+  "acquired_at_commit": "27f6dd8a8276d397718fd6fcd6a3e827c84c787a",
   "baseline_dirty": [
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json"
   ],
@@ -26,8 +26,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-10-31T22:46:21.067Z",
-  "released_reason": "N8 awkit-vra.10 and N9 awkit-vra.11 notes record the final remediation, campaigns 4 and 5 and the APPROVED WITH FINDINGS reviews, both left in progress, exported 435 issues",
-  "archived_at": "2026-10-31T22:46:21.069Z"
+  "violations": []
 }
