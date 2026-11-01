@@ -2,7 +2,7 @@
   "task": "awkit-vra-phase-n-recovery-1101",
   "contract_path": "docs/ai/contracts/awkit-vra-phase-n-recovery-1101.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "docs/plans/ai-upgrade-v5/evidence/joint/diagnostic/**"
   ],
@@ -26,5 +26,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-11-01T18:27:52.541Z",
+  "released_reason": "Diagnostic c5-headed2-d1 recorded and committed, classification INCONCLUSIVE",
+  "archived_at": "2026-11-01T18:27:52.543Z"
 }
