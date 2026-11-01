@@ -1,0 +1,136 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-phase-n-qualification-1102",
+    "title": "Phase N qualification resume: classify the two intermittent verifier incidents, run pre-declared campaigns 8 and 9 on the awkit-vra.18 fix, independent QC and security review, reconcile N8 and N9",
+    "objective": "Under the owner prompt of 2026-11-02 at implemented baseline 7a0a9227 and pre-declaration 62a3b0bf: confirm the campaign-8/9 baseline is unchanged; classify the verify:visual-rows virtualized incident and the verify:visual-diagnosis-runtime reference-seed refusal with evidence or as INCONCLUSIVE, without relaxing assertions, increasing deadlines, adding sleeps or retries, and without bypassing N0; run campaign 8 under the frozen criteria and strict accounting, stopping if it fails; run campaign 9 only if campaign 8 passes; request independent QC and security review only after both pass; close N8 and N9 only on two passing campaigns and the required approvals; keep N7.1b, N7.8, N7.9 BLOCKED and N7.10 open; reconcile and push main.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "ab04846d",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "project-state"
+    ],
+    "expected_paths": [
+      "src/roadmap/ImplementationRoadmap.ts",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/**",
+      ".beads/**"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        "docs/plans/ai-upgrade-v5/evidence/joint/c8/**",
+        "docs/plans/ai-upgrade-v5/evidence/joint/c9/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "INCIDENTS",
+      "description": "The verify:visual-rows virtualized incident and the verify:visual-diagnosis-runtime reference-seed refusal classified with evidence or INCONCLUSIVE; earlier failures stay recorded; no relaxed assertion, longer deadline, sleep, silent retry or N0 bypass.",
+      "evidence_required": [
+        "verify:visual-rows",
+        "verify:visual-diagnosis-runtime"
+      ]
+    },
+    {
+      "id": "REQUALIFY",
+      "description": "Campaigns 8 and 9 on the pre-declared revision under the unchanged frozen criteria and strict accounting; campaign 9 runs only if campaign 8 passes.",
+      "evidence_required": [
+        "benchmark:visual-joint:campaigns-8-9"
+      ]
+    },
+    {
+      "id": "SECURITY-REVIEW",
+      "description": "Owner requirement beyond routing: fresh independent QC and security review after both campaigns pass; N8 and N9 close only on approvals without open owner decisions.",
+      "evidence_required": [
+        "security-review"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:visual-rows",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-rows",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "verify:visual-diagnosis-runtime",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-diagnosis-runtime",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "benchmark:visual-joint:campaigns-8-9",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run benchmark:visual-joint:* (campaign 8, then the c9- scripts only if 8 passes)",
+      "artifact": "docs/plans/ai-upgrade-v5/evidence/joint/c8/ and c9/",
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "security-review",
+      "type": "inspection",
+      "required": true,
+      "command": "independent read-only QC and security review of the final source and both campaigns",
+      "artifact": "docs/plans/ai-upgrade-v5/N8-row-grid-intelligence.md",
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  }
+}

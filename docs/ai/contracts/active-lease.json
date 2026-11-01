@@ -1,18 +1,21 @@
 {
-  "task": "awkit-vra-phase-n-tracker-1101",
-  "contract_path": "docs/ai/contracts/awkit-vra-phase-n-tracker-1101.json",
+  "task": "awkit-vra-phase-n-qualification-1102",
+  "contract_path": "docs/ai/contracts/awkit-vra-phase-n-qualification-1102.json",
   "holder": "project-state",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
-    ".beads/**"
+    "docs/plans/ai-upgrade-v5/evidence/joint/c8/**",
+    "docs/plans/ai-upgrade-v5/evidence/joint/c9/**"
   ],
-  "acquired_at": "2026-11-01T20:31:36.442Z",
-  "acquired_at_commit": "c564aa0a3512f16660146887c6a1afc6b2a523e4",
+  "acquired_at": "2026-11-01T22:31:13.806Z",
+  "acquired_at_commit": "ab04846d688f9a5079af11086c56707cf919fe2e",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-l12-27-implementation-1006.json"
+    "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+    "docs/ai/contracts/awkit-vra-phase-n-qualification-1102.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+    "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
+    "docs/ai/contracts/awkit-vra-phase-n-qualification-1102.json": "6c947b8119da3a18e8899faa3800307e2a7eac504eceabe62ad72f89499957ff"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -26,8 +29,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-11-01T20:32:09.589Z",
-  "released_reason": "awkit-vra.18 deadline-safety fix note appended (7a0a9227, campaigns 8 and 9 pre-declared in 62a3b0bf, NOT RUN), exported",
-  "archived_at": "2026-11-01T20:32:09.593Z"
+  "violations": []
 }
