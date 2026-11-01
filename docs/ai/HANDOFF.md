@@ -1,6 +1,35 @@
 # Agent Handoff
 
-## HANDOFF (2026-11-01, latest) — Phase N recovery: campaign 6 NOT MET; S3/NEW-2 hardened; reviews APPROVED WITH FINDINGS; Phase N NOT complete
+## HANDOFF (2026-11-01, latest) — `awkit-vra.18` deadline-safety fix landed; campaigns 8 and 9 pre-declared, NOT RUN; Phase N NOT complete
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. N8 `awkit-vra.10` and N9
+`awkit-vra.11` stay IN PROGRESS; `awkit-vra.18` stays IN PROGRESS (this was its deadline-safety part only).
+
+- **Done (`7a0a9227`, N8 plan § 12):**
+  - per-phase synchronous reserves at about 1.25 × the measured maximum (fingerprint 365, state features 435, motion
+    plane 180, member crop 520, decode 115 ns/px), replacing the single 200 ns/px;
+  - a host factor learned from each diagnosis's first whole-frame chunk, carried as the maximum of the last 8 diagnoses,
+    multiplying every later reserve;
+  - N9's second capture timeout leaves the decode reserve of frame 1's pixels times the factor;
+  - verifier-only probes `syncCost` and `onCaptureTimeout`; deadline verifier D8 and D9, 45/0 twice, red 39/6 and
+    restored byte-identically.
+- **Verifiers:** build PASS; `typecheck:scripts` PASS; `verify:visual-diagnosis-deadline` 45/0 (three runs); `verify:visual-rows` 82/0, then 81/1, then 82/0 on one retry (the 81/1 run's `virtualized` case returned no row code at N5's 1000 ms deadline; a record cut as budget-exhausted, more likely with the larger fingerprint reserve, fits, but that record was not printed and 12 targeted runs all passed in 190 to 549 ms against the 900 ms budget, so the cause is INCONCLUSIVE); `verify:visual-state` 48/0; `verify:visual-state-runtime` 26/0; `verify:visual-diagnosis-runtime` first aborted in its own setup (N0's `captureElement` refused the verifier's reference seed as `PROTECTED_SURFACE`, before any adapter call), then 65/0 on one retry; `verify:protected-diagnosis` 75/0; `verify:security` 61/0; `verify:visual-isolation` 117/0; `verify:ocr-text-signal` 49/0; `verify:mock-site` 378/378; `verify:verifier-classification` reconciled.
+- **Pre-declared, NOT RUN:** campaigns 8 and 9 (`62a3b0bf`, N8 plan § 12). `npm run benchmark:visual-joint:<cell>` and
+  `:aggregate` write `evidence/joint/c8/`; the `c9-` scripts write `c9/`. Run them only on an idle host, one cell after
+  another, with no other work in the VM, and only at a tip whose product source is still `7a0a9227`'s.
+- **Next single task (owner's call):** run campaign 8. If it passes, run campaign 9; if it fails, record it and stop.
+  Then the review round. Fewer late records may mean more cuts, and cuts count at the full deadline, so headed@2 S-5 may
+  still be NOT MET.
+- **Still open on `awkit-vra.18`:** the worker-thread study and subsampling (out of this scope); the box pass's cost on
+  the heavy-frame path; the open review items (slot-only test, NodeList iteration, other shadow trees, rescan by the
+  original handle, QC 4, QC 6).
+- **Owner:** add the W: share to the global Git `safe.directory`; decide QC 4; resolve the governance gap
+  (`MULTI_AGENT_ARCHITECTURE.md` § 191 against lease-guard's "unleased-routine" writes; `7a0a9227` was again ordinary
+  unleased work, since no contract routes a product writer for these paths).
+- **Blocked (environment):** N7.1b, N7.8 and N7.9 (`verify:packaging-host` H4/H5). N7.10 `awkit-2shc` stays open.
+- **Preserved untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-11-01) — Phase N recovery: campaign 6 NOT MET; S3/NEW-2 hardened; reviews APPROVED WITH FINDINGS; Phase N NOT complete
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. Contract
 `awkit-vra-phase-n-recovery-1101`.

@@ -1,6 +1,32 @@
 # CURRENT_STATE
 
-## Phase N recovery: campaign 6 NOT MET; S3/NEW-2 hardened; reviews not unconditional; N8, N9 and Phase N open (2026-11-01, latest)
+## `awkit-vra.18` deadline-safety fix; campaigns 8 and 9 pre-declared and NOT RUN; N8, N9 and Phase N open (2026-11-01, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases; no ledger case was touched.
+
+- **Fix (`7a0a9227`, N8 plan § 12):** the two measured defects behind the campaign 5 and 6 late records.
+  - **Per-phase reserves.** The single `VISUAL_DIAGNOSIS_SYNC_NS_PER_PIXEL = 200` was not an upper bound (state features
+    measured 345 ns/px). It is now one rate per phase, about 1.25 × the measured maximum: fingerprint 365, state
+    features 435, motion plane 180, member crop 520, decode 115 ns/px.
+  - **Host factor.** `max(1, observed ns/px ÷ 365)` from each diagnosis's first whole-frame chunk, carried as the
+    maximum of the last 8 diagnoses in the process, multiplies every later reserve.
+  - **N9's second capture** gets `remaining − max(50, decode reserve of frame 1's pixels × factor)`, so N0's synchronous
+    decode no longer runs past the deadline.
+  - Deadlines, settle margin, criteria, `src/visual` and all evidence unchanged. Production passes no probes.
+- **Tests:** `verify:visual-diagnosis-deadline` 45/0 (was 31/0). D8: a 3× slow host across whole N8+N9 diagnoses gives
+  no late record. D9: the second capture leaves the decode reserve, and a DPR-2 decode delivered 10 ms before its
+  timeout still ends by the deadline. Red proof 39/6, restored byte-identically.
+- **Verifiers on `7a0a9227`:** build PASS; `typecheck:scripts` PASS; `verify:visual-diagnosis-deadline` 45/0 (three runs); `verify:visual-rows` 82/0, then 81/1, then 82/0 on one retry (the 81/1 run's `virtualized` case returned no row code at N5's 1000 ms deadline; a record cut as budget-exhausted, more likely with the larger fingerprint reserve, fits, but that record was not printed and 12 targeted runs all passed in 190 to 549 ms against the 900 ms budget, so the cause is INCONCLUSIVE); `verify:visual-state` 48/0; `verify:visual-state-runtime` 26/0; `verify:visual-diagnosis-runtime` first aborted in its own setup (N0's `captureElement` refused the verifier's reference seed as `PROTECTED_SURFACE`, before any adapter call), then 65/0 on one retry; `verify:protected-diagnosis` 75/0; `verify:security` 61/0; `verify:visual-isolation` 117/0; `verify:ocr-text-signal` 49/0; `verify:mock-site` 378/378; `verify:verifier-classification` reconciled.
+- **Campaigns 8 and 9:** pre-declared (`62a3b0bf`), with the seven `benchmark:visual-joint:*` scripts on `--campaign 8`
+  and `c9-` variants on 9. **NOT RUN**: the owner runs them on an idle host. Fewer late records may mean more cuts, so
+  headed@2 S-5 may still be NOT MET.
+- **Not qualified:** no campaign covers `b1f6ce37` or `7a0a9227`. N8 `awkit-vra.10`, N9 `awkit-vra.11` and
+  `awkit-vra.18` stay IN PROGRESS.
+- **Still BLOCKED:** N7.1b, N7.8 and N7.9 (`verify:packaging-host` H4/H5). N7.10 `awkit-2shc` open; N6P and N10 outside
+  closure.
+- **Phase N is NOT complete.**
+
+## Phase N recovery: campaign 6 NOT MET; S3/NEW-2 hardened; reviews not unconditional; N8, N9 and Phase N open (2026-11-01)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases; no ledger case was touched.
 Contract `awkit-vra-phase-n-recovery-1101`.

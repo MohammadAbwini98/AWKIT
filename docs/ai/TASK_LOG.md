@@ -1,5 +1,32 @@
 # TASK_LOG
 
+## 2026-11-01 — `awkit-vra.18` deadline-safety fix and campaign 8/9 pre-declaration (Claude)
+
+- **Task:** the `awkit-vra.18` deadline-safety part only (the worker-thread study and subsampling stay out of scope),
+  from the design in the N8 plan § 12. Branch `main` only; baseline `45b6f632`.
+- **Commits:** `7a0a9227` (fix, tests, benchmark); `62a3b0bf` (pre-declaration, campaign scripts, project state); the
+  Beads export.
+- **Files:**
+  - code: `src/runner/visualDiagnosis/{visualDiagnosisContract,VisualFailureDiagnosis}.ts`;
+  - tests and diagnostics: `scripts/verify-visual-diagnosis-deadline.mts`, `scripts/benchmark-visual-sync-cost.mts`;
+  - `package.json` (`benchmark:visual-joint:*` on campaign 8, `c9-` on 9);
+  - docs: `docs/plans/ai-upgrade-v5/N8-row-grid-intelligence.md` § 12,
+    `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,KNOWN_ISSUES}.md`; `.beads/issues.jsonl` and the tracker lease files.
+- **Measurement:** `benchmark:visual-sync-cost` rerun (8 runs per cell): crop + fingerprint 290, state features 345,
+  motion plane 127 (+ crop ≤ 15), member crop + evidence 414, PNG decode 84 ns/px maxima. Rates are about 1.25 × the
+  maximum of this and the earlier run.
+- **Tests:**
+  - build PASS, `typecheck:scripts` PASS;
+  - build PASS; `typecheck:scripts` PASS; `verify:visual-diagnosis-deadline` 45/0 (three runs); `verify:visual-rows` 82/0, then 81/1, then 82/0 on one retry (the 81/1 run's `virtualized` case returned no row code at N5's 1000 ms deadline; a record cut as budget-exhausted, more likely with the larger fingerprint reserve, fits, but that record was not printed and 12 targeted runs all passed in 190 to 549 ms against the 900 ms budget, so the cause is INCONCLUSIVE); `verify:visual-state` 48/0; `verify:visual-state-runtime` 26/0; `verify:visual-diagnosis-runtime` first aborted in its own setup (N0's `captureElement` refused the verifier's reference seed as `PROTECTED_SURFACE`, before any adapter call), then 65/0 on one retry; `verify:protected-diagnosis` 75/0; `verify:security` 61/0; `verify:visual-isolation` 117/0; `verify:ocr-text-signal` 49/0; `verify:mock-site` 378/378; `verify:verifier-classification` reconciled.
+  - red proof: the fix mutated back in the working tree gave `verify:visual-diagnosis-deadline` 39/6 (D8 2 of 8 late,
+    D9's two timeout checks and its late decode, the two new pins). The file was restored byte-identically (SHA-256
+    `3a7dacda…ad846`);
+  - campaigns 8 and 9: NOT RUN (pre-declared only, owner's call); no review requested.
+- **Governance:** `7a0a9227` and `62a3b0bf` were ordinary unleased work, as before: no contract routes a product
+  writer for these paths. The Beads update ran under the project-state lease on `awkit-vra-phase-n-tracker-1101`, with
+  notes appended, never replaced.
+- **Result:** Phase N is NOT complete. N8, N9 and `awkit-vra.18` stay IN PROGRESS.
+
 ## 2026-11-01 — Phase N recovery: campaign-5 diagnosis, S3/NEW-2 hardening, campaign 6 NOT MET, fresh reviews (Claude)
 
 - **Task:** the owner prompt "AWKIT — Phase N Final Qualification Recovery" (baseline `20e93347`, contract

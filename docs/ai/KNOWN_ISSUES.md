@@ -10,6 +10,18 @@
   - **Campaign 6:** headed@2's first trial was late (+42.8 ms) and 3 trials were cut, so S-5 is NOT MET.
   - **Effect:** N8 and N9 are not qualified on `e6f67806`. The fix is a product change, so the campaign sequence must be
     pre-declared again for the new revision.
+  - **Fix landed, NOT yet qualified (2026-11-01, `7a0a9227`; N8 plan § 12):**
+    - per-phase reserves at about 1.25 × the measured maximum replace the 200 ns/px;
+    - a host factor learned from each diagnosis's first whole-frame chunk, carried over the last 8 diagnoses;
+    - N9's second capture timeout leaves the decode reserve, which closes the unguarded decode of frame 2 (the likely
+      mechanism of every late record: `frames: 1`, no state result).
+    - Campaigns 8 and 9 are pre-declared and NOT RUN. Fewer late records may mean more cuts, so headed@2 S-5 may still be
+      NOT MET.
+  - **Residuals of the fix:**
+    - N5's first capture's decode is not reserved (it is taken at the start of the budget);
+    - the factor is learned only from the fingerprint chunk, so a host slow in one other phase only is not seen;
+    - a pause inside that chunk raises every reserve for up to 8 diagnoses (more cuts, never late);
+    - the rates were measured on this one host, and the row decision's rate is borrowed (state features), not measured.
 - **Campaign-5 headed@2 burst: cause INCONCLUSIVE.**
   - The diagnostic `c5-headed2-d1` did not reproduce it.
   - The diagnostic's CDP `Performance` instrumentation probably stalls screenshots of animated fixtures (not isolated), so
