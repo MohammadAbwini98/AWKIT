@@ -11,7 +11,7 @@ The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 
   - S3/NEW-2 hardening plus review fixes (`af1deab3`, `b1f6ce37`);
   - campaign 6 run and recorded as NOT MET; campaign 7 NOT RUN under the frozen rule;
   - fresh and delta QC and security reviews; the F2 follow-up `awkit-vra.18` filed outside Phase N closure.
-- **Next single task:** `awkit-vra.18`.
+- **Next single task:** `awkit-vra.18` (IN PROGRESS: mechanism measured and fix designed in the N8 plan § 12, `e256a6da`).
   - Make the synchronous-work reserve host-adaptive, and bound the whole-frame work, so headed DPR 2 frames cannot
     overrun the 1600 ms deadline. The deadline and criteria stay unchanged.
   - Measure the cost of the new box pass on the heavy-frame path.

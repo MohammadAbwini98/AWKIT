@@ -6,17 +6,13 @@
   "allowed_paths": [
     ".beads/**"
   ],
-  "acquired_at": "2026-11-01T18:54:10.770Z",
-  "acquired_at_commit": "6d22b317c46d0d324daa53192acfccebfa996405",
+  "acquired_at": "2026-11-01T19:52:28.219Z",
+  "acquired_at_commit": "e256a6dad9de86d867db0be5f1a1afc4b2c00a5e",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/plans/ai-upgrade-v5/N8-row-grid-intelligence.md",
-    "docs/plans/ai-upgrade-v5/N9-screenshot-state-recognition.md"
+    "docs/ai/contracts/awkit-l12-27-implementation-1006.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/plans/ai-upgrade-v5/N8-row-grid-intelligence.md": "dbcf48dc1f1fe0ffda74728c378bf1efc15359aa3aaeef3c1e3608ac592c8e55",
-    "docs/plans/ai-upgrade-v5/N9-screenshot-state-recognition.md": "5cf0fac28d16f123fb9f3e8af813d620bc930841d5caaf862508984b0c879867"
+    "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -31,7 +27,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-11-01T19:15:39.785Z",
-  "released_reason": "N8 and N9 notes record the recovery, campaign 6 NOT MET and the APPROVED WITH FINDINGS delta reviews, both left in progress, F2 follow-up awkit-vra.18 filed outside Phase N closure, exported 436 issues",
-  "archived_at": "2026-11-01T19:15:39.788Z"
+  "released_at": "2026-11-01T19:52:35.735Z",
+  "released_reason": "awkit-vra.18 marked in progress with the measured mechanism and fix design, exported 436 issues",
+  "archived_at": "2026-11-01T19:52:35.738Z"
 }
