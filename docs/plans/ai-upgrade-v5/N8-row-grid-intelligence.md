@@ -570,3 +570,80 @@ criteria): **NOT MET.**
   - F2 (the follow-up proposal);
   - the campaign 6 repeat rule.
 
+
+## 12. Recovery: owner dispositions, S3/NEW-2 hardening, campaign-5 diagnosis, campaigns 6 and 7 (2026-11-01)
+
+Owner prompt "AWKIT — Phase N Final Qualification Recovery" (DECISIONS 2026-11-01), contract
+`awkit-vra-phase-n-recovery-1101`, baseline `20e93347`.
+
+**Owner dispositions (DECISIONS 2026-11-01):**
+- **S2:** conditionally accepted, subject to explicit security confirmation.
+- **S3/NEW-2:** hardening required, with no blanket risk acceptance.
+- **F2:** a documented limitation with an independently tracked follow-up; not qualified.
+- **Repeatability:** two complete campaigns (6 and 7) on one final revision. A failed campaign 6 stops the sequence.
+
+**Campaign-5 diagnosis:** **INCONCLUSIVE.**
+- The run was the separately identified `c5-headed2-d1`, lease-authorized and never qualification. Evidence and
+  reading: `evidence/joint/diagnostic/c5-headed2-d1/ANALYSIS.md`.
+- **Campaign 5's burst:**
+  - post-frame work (frames taken, no state result);
+  - all phases about 2.7× slower for about 37 consecutive trials;
+  - not bound to any fixture or lab transition.
+- **The instrumented run:**
+  - It did not reproduce that burst.
+  - It cut every animated state fixture with no frame taken: an observer effect of the instrumentation.
+  - N5 still settled on time (37 cuts, 0 late).
+- No cause is demonstrated, and the burst is not called a flake.
+- Product finding, moved into the F2 follow-up: the fixed 200 ns/px synchronous reserve does not adapt to a slower
+  host.
+
+**S3/NEW-2 hardening** (`af1deab3`):
+- Before the optional crop, `rowFacts` classifies everything the crop could show:
+  - the container's subtree;
+  - every nested open shadow root;
+  - whatever paints over the container's visible box (a bounded 3 × 3 `elementFromPoint`).
+- It refuses the row observation (no crop, no row code) on any of:
+  - a masked `input`, `textarea` or `select` (the shared N4.2 rule, attributes only);
+  - a `contenteditable` region;
+  - an `iframe`, `frame`, `object`, `embed`, `fencedframe` or `portal`;
+  - an autonomous custom element with no open root (it may hold a closed root that page script cannot read);
+  - more than `VISUAL_ROWS_MAX_SCAN_NODES` (4000) elements.
+- The work is bounded: no document-wide scan, no new screenshot, no persisted pixels or text. No value, text or pixel is
+  read, and protected steps are refused before the scan.
+- **Remaining limits, for security review:**
+  - a closed shadow root on a built-in element (for example a `div`) cannot be detected by page script;
+  - `pointer-events: none` overlays are invisible to the hit test;
+  - visible sensitive text outside any control (S3 residual 1) is still copied into the transient crop;
+  - the scan runs before the frame, like the earlier masked check.
+- **Tests:** `verify:visual-rows` **78/0**. Each new case places the content in a row other than the target's: a masked
+  `select`, `contenteditable`, a hosted-card `iframe`, a card field two open shadow roots deep, a closed root, and the
+  scan bound. One more case overlays a hosted-card `iframe` from outside the container. Positive controls (an ordinary
+  `select`, plain text in nested shadow roots) still crop.
+- **Red proof:** reverting the scan to the old light-DOM, `input`/`textarea`-only rule failed exactly the 7 new
+  refusal cases, the overlay case and the shifted hit-test count (70/8). The controls stayed green.
+
+**Campaigns 6 and 7: pre-declaration** (committed before either runs, with the scripts that run them):
+- **Revision:** both run on the commit that contains this section, with a clean tracked tree (`treeClean: true` in
+  each cell file). Product source is as of `af1deab3`. Any product change after campaign 6 voids the sequence.
+- **Environment:**
+  - the approved Windows 11 ARM64 Parallels host, x64 Node, bundled Chromium;
+  - the six cells run one after another, in one shell, with no instrumentation;
+  - no build, verifier or other benchmark runs in parallel, and the VM is not used interactively during a cell.
+- **What runs:**
+  - all six cells (headless and headed at DPR 1, 1.25 and 2) with N5, N8 and N9 on;
+  - held-out variants b, c and d, two repeats each;
+  - the protected and disabled-mode controls;
+  - `npm run benchmark:visual-joint:<cell>` then `:aggregate` writes `evidence/joint/c6/`, and the `c7-` scripts write
+    `evidence/joint/c7/`.
+- **Criteria:** `N8_FROZEN_CRITERIA` R-1 to R-5 and `N9_FROZEN_CRITERIA` S-1 to S-5, unchanged.
+  - Strict accounting: any overrun of the 1600 ms hard deadline is late.
+  - A cut counts at the full deadline.
+  - No trial is excluded.
+  - Every protected trial refused with zero frames and no code.
+  - Disabled controls carry no N8/N9 code, take at most one frame, and none is late.
+- **A campaign passes** only when every criterion is MET in every cell.
+- **Sequence:**
+  - campaign 6 first;
+  - if it fails, it is recorded and the sequence stops, so campaign 7 does not run;
+  - N8 and N9 qualify on this revision only if campaigns 6 and 7 **both** pass.
+- The harness refuses to overwrite any existing cell file.

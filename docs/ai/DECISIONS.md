@@ -1,6 +1,61 @@
 # DECISIONS
 
-### 2026-10-31 (latest) — Phase N decisions RATIFIED by the owner: NR, NS, N10 and N6P transfers, legacy reconciliation
+### 2026-11-01 (latest) — Phase N recovery: owner dispositions for S2, S3/NEW-2 and F2, and the two-campaign repeat rule
+
+Owner prompt "AWKIT — Phase N Final Qualification Recovery", 2026-11-01, baseline `20e93347`. Contract
+`awkit-vra-phase-n-recovery-1101`. These are the owner's directions, recorded as given. They are still subject to the
+existing approval and security controls: no reviewer verdict is assumed, and nothing here closes N8 or N9.
+
+- **S2: conditional acceptance.** The handoff-only recheck before N8's DOM row read (no fresh N0 scan) is accepted,
+  within these limits:
+  - N0 stays authoritative for every protected screenshot capture;
+  - a refused or stale observation never contributes an advisory code (the one advisory refusal boundary, N8 plan § 11);
+  - the DOM row inspection never reads input values or authentication secrets (attributes only);
+  - **the security reviewer must explicitly confirm this residual risk.** Until they do, S2 is not accepted.
+- **S3 and NEW-2: hardening required, no blanket risk acceptance.** The row-container scan runs before the optional
+  crop, and the row observation is refused (fail closed) when relevant sensitive content cannot be safely excluded:
+  - ordinary `input`, `textarea` and `select` under the N4.2 masked rule;
+  - `contenteditable` regions;
+  - nested open shadow roots, at any depth;
+  - embedded frames (`iframe`, `frame`, `object`, `embed`), such as hosted card fields;
+  - possible closed roots, and any other uncertain classification.
+
+  The scan reuses the existing masking and protected-surface rules, stays bounded, takes no new screenshot, persists no
+  pixels or text, and never inspects protected authentication steps. Implemented in `af1deab3` (N8 plan § 12).
+- **F2: documented performance limitation.** N5 alone at 1920 × 1080, DPR 1.5 stays a measured limitation and is
+  **not qualified**. The N5 deadline and every acceptance criterion are unchanged; nothing is waived.
+  - An independently tracked follow-up investigates:
+    - whole-frame pixel-processing cost;
+    - safe chunking and bounded work;
+    - cost reduction or subsampling;
+    - worker-thread feasibility, including packaging and runtime impact.
+
+    It also covers the campaign-5 finding that the fixed per-pixel synchronous reserve does not adapt to a slower
+    host.
+  - No worker-thread rewrite is done in this task.
+- **Repeatability rule (frozen before any requalification run).** One pass after campaign 5's unexplained failure is
+  not enough:
+  - Two independently executed, complete campaigns (6, then 7) are required, on the same final product revision, in
+    the same approved environment, against the same frozen criteria. Each covers:
+    - all six headed/headless × DPR cells;
+    - N5, N8 and N9 on together;
+    - the original held-out variants and repeat counts;
+    - the protected, refusal and disabled-mode controls;
+    - strict zero-grace deadline accounting;
+    - every cut and late record, with nothing excluded;
+    - the original frozen R-1 to R-5 and S-1 to S-5.
+  - If campaign 6 fails, it is recorded and the sequence **stops**. Campaign 7 is not run just to get a passing
+    sample.
+  - A product change after either campaign voids that sequence for the new revision, and a new sequence is
+    pre-declared.
+  - Prior evidence is never modified, and thresholds are never lowered.
+- **Campaign 5:** recorded unchanged. A separately identified diagnostic (`c5-headed2-d1`, never qualification)
+  classified the cause as **INCONCLUSIVE** (`docs/plans/ai-upgrade-v5/evidence/joint/diagnostic/c5-headed2-d1/ANALYSIS.md`).
+- **Reviewer routing:** the deterministic router names `qa` and `qc` for this contract. The owner's required
+  independent security review is carried as the contract's own `SECURITY-REVIEW` acceptance item, not by editing
+  routing.
+
+### 2026-10-31 — Phase N decisions RATIFIED by the owner: NR, NS, N10 and N6P transfers, legacy reconciliation
 
 Owner prompt "AWKIT — Phase N Decision Ratification and Completion", 2026-10-31, starting commit `f4e801a`. The answers
 below replace the PROPOSED table in `docs/plans/ai-upgrade-v5/N8-N10-planning.md`. Contract
