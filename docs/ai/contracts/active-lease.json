@@ -2,7 +2,7 @@
   "task": "awkit-vra-phase-n-qualification-1102",
   "contract_path": "docs/ai/contracts/awkit-vra-phase-n-qualification-1102.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     ".beads/**",
     "docs/ai/**",
@@ -46,5 +46,8 @@
     }
   ],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-11-01T23:09:51.981Z",
+  "released_reason": "Campaign 8 NOT MET recorded with its analysis; campaign 9 not run under the repeat rule",
+  "archived_at": "2026-11-01T23:09:51.984Z"
 }

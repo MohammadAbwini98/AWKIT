@@ -132,5 +132,43 @@
     "status": "pending",
     "qa_status": "pending",
     "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-phase-n-qualification-1102:project-state:2026-11-01T22:31:13.806Z",
+        "task": "awkit-vra-phase-n-qualification-1102",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**",
+          "docs/ai/**",
+          "docs/plans/ai-upgrade-v5/N8-row-grid-intelligence.md",
+          "docs/plans/ai-upgrade-v5/N9-screenshot-state-recognition.md",
+          "docs/plans/ai-upgrade-v5/evidence/joint/c8/**",
+          "docs/plans/ai-upgrade-v5/evidence/joint/c9/**"
+        ],
+        "acquired_at": "2026-11-01T22:31:13.806Z",
+        "acquired_at_commit": "ab04846d688f9a5079af11086c56707cf919fe2e",
+        "released_at": "2026-11-01T23:09:51.981Z",
+        "released_reason": "Campaign 8 NOT MET recorded with its analysis; campaign 9 not run under the repeat rule",
+        "amendments": [
+          {
+            "timestamp": "2026-11-01T23:05:37.437Z",
+            "added": [
+              "docs/ai/**",
+              "docs/plans/ai-upgrade-v5/N8-row-grid-intelligence.md",
+              "docs/plans/ai-upgrade-v5/N9-screenshot-state-recognition.md",
+              ".beads/**"
+            ],
+            "reason": "Campaign 8 NOT MET: record evidence, diagnosis and project state; campaign 9 not run",
+            "triggered_escalation": [],
+            "approved_by": "manager"
+          }
+        ],
+        "overrides": [],
+        "violations": []
+      }
+    ]
   }
 }
