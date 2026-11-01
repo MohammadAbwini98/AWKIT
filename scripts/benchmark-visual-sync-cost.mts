@@ -3,14 +3,17 @@
  * one guarded frame (N0 capture including its PNG decode, the whole-viewport crop, the viewport fingerprint), headless
  * and headed at DPR 1, 1.25 and 2, on the Visual Rows Lab. Read-only: no record, no store, no evidence file. It sizes
  * the deadline fix's synchronous reserve from measurement instead of a guess. 2026-11-01 (awkit-vra.18): it also times N9's
- * state features and motion plane on the Visual State Lab's animated `skeleton-shimmer` fixture.
+ * state features and motion plane on the Visual State Lab's animated `skeleton-shimmer` fixture, and (for the per-phase
+ * reserves) the motion plane per pixel and one member's crop plus evidence (an 800 x 400 CSS box with its padded
+ * context, counted as the adapter's `memberCropPixels`).
  *
  * Run: npm run benchmark:visual-sync-cost
  */
 
 import { spawn } from "node:child_process";
 import { chromium } from "playwright";
-import { MEASURED_VISUAL_STATE_POLICY, captureVisualFrame, cropFromVisualFrame, decodePng, fingerprintVisualImage, measureVisualMotionPlane, measureVisualStateFrame, releaseVisualFrame } from "@src/visual";
+import { MEASURED_VISUAL_STATE_POLICY, buildVisualEvidence, captureVisualFrame, cropFromVisualFrame, decodePng, fingerprintVisualImage, measureVisualMotionPlane, measureVisualStateFrame, releaseVisualFrame } from "@src/visual";
+import { memberCropPixels } from "@src/runner/visualDiagnosis/VisualFailureDiagnosis";
 
 const PORT = 4617;
 const URL = `http://127.0.0.1:${PORT}/visual-intelligence/rows`;
@@ -36,6 +39,8 @@ async function main(): Promise<void> {
         const capture: number[] = [];
         const crop: number[] = [];
         const print: number[] = [];
+        const member: number[] = [];
+        let memberPixels = 0;
         let pixels = 0;
         for (let i = 0; i < RUNS; i += 1) {
           const t0 = performance.now();
@@ -48,6 +53,21 @@ async function main(): Promise<void> {
           const t2 = performance.now();
           if (whole.ok) fingerprintVisualImage(whole.value.element.image);
           const t3 = performance.now();
+          const box = { x: 0, y: 100, width: 800, height: 400 };
+          memberPixels = memberCropPixels(frame.viewport, box);
+          const memberCrop = cropFromVisualFrame(frame, box, 24);
+          if (memberCrop.ok) {
+            buildVisualEvidence({
+              kind: "element",
+              viewport: { ...frame.viewport },
+              frame: { isMainFrame: true, depth: 0 },
+              element: memberCrop.value.element,
+              ...(memberCrop.value.context ? { context: memberCrop.value.context } : {}),
+              capturedAt: frame.capturedAt,
+              durationMs: 0
+            });
+          }
+          member.push(performance.now() - t3);
           releaseVisualFrame(frame);
           capture.push(t1 - t0);
           crop.push(t2 - t1);
@@ -56,6 +76,7 @@ async function main(): Promise<void> {
         console.log(
           `${headless ? "headless" : "headed"}@${dpr} (${pixels} px): capture+decode ${stats(capture)} ms; crop ${stats(crop)} ms; fingerprint ${stats(print)} ms; crop+fingerprint ns/px max ${(((Math.max(...crop.map((c, i) => c + print[i]))) * 1e6) / pixels).toFixed(0)}`
         );
+        console.log(`  member crop+evidence ${stats(member)} ms (max ${((Math.max(...member) * 1e6) / memberPixels).toFixed(0)} ns/px over ${memberPixels} px)`);
         const decode: number[] = [];
         for (let i = 0; i < RUNS; i += 1) {
           const png = await page.screenshot({ type: "png", scale: "device" });
@@ -85,7 +106,7 @@ async function main(): Promise<void> {
           }
           releaseVisualFrame(frame);
         }
-        console.log(`  state lab: state features ${stats(state)} ms (max ${((Math.max(...state) * 1e6) / pixels).toFixed(0)} ns/px); motion plane ${stats(motion)} ms`);
+        console.log(`  state lab: state features ${stats(state)} ms (max ${((Math.max(...state) * 1e6) / pixels).toFixed(0)} ns/px); motion plane ${stats(motion)} ms (max ${((Math.max(...motion) * 1e6) / pixels).toFixed(0)} ns/px)`);
         await context.close();
       }
       await browser.close();

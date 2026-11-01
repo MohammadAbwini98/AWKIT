@@ -17,7 +17,15 @@
  *   D7  pins: the publish gate reads the monotonic clock, the checkpoint guards N5's own frame work (each member at its
  *       measured per-pixel cost, QC F1), and the work budget formula; the N9 code keeps a slot under the observation
  *       cap, tested on appendAdvisoryCodes itself (QC F6); 2026-11-01 QC: memberCropPixels behaviourally (a large DPR-2
- *       member, a viewport-edge-clipped one, an offscreen one) and no slot reserved for a state code already present.
+ *       member, a viewport-edge-clipped one, an offscreen one) and no slot reserved for a state code already present;
+ *       awkit-vra.18: the per-phase reserve, the host factor and the second capture's timeout;
+ *   D8  awkit-vra.18: a host 3x slower than every reserved rate (the verifier-only `syncCost` probe busy-waits 2 x the
+ *       phase's rate per pixel in every synchronous phase, decode included) across whole N8+N9 diagnoses started at
+ *       eight offsets: none returns after the hard deadline, the host factor is learned and carried, and it decays
+ *       once ordinary diagnoses follow;
+ *   D9  awkit-vra.18: N9's second capture leaves the decode reserve. The `onCaptureTimeout` observer's timeout is
+ *       checked against the verifier's own clock, then a DPR-2 frame on a host 3x slower in the fingerprint and decode
+ *       phases has its second screenshot delivered 10 ms before that timeout: the decode still ends by the hard deadline.
  *
  * Run: npm run verify:visual-diagnosis-deadline
  */
@@ -26,12 +34,23 @@ import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { chromium, type Browser, type Page } from "playwright";
-import { VisualFailureDiagnosis, appendAdvisoryCodes, memberCropPixels, type VisualDiagnosisProbe } from "@src/runner/visualDiagnosis/VisualFailureDiagnosis";
+import {
+  VisualFailureDiagnosis,
+  appendAdvisoryCodes,
+  carriedVisualDiagnosisHostFactor,
+  memberCropPixels,
+  resetVisualDiagnosisHostFactors,
+  type VisualDiagnosisProbe
+} from "@src/runner/visualDiagnosis/VisualFailureDiagnosis";
 import { VISUAL_DIAGNOSIS_RECORD_MAX_OBSERVATIONS } from "@src/runner/visualDiagnosis/visualDiagnosisRecord";
 import {
+  VISUAL_DIAGNOSIS_HOST_FACTOR_WINDOW,
   VISUAL_DIAGNOSIS_SETTLE_MARGIN_MS,
+  VISUAL_DIAGNOSIS_SYNC_NS_PER_PIXEL,
   VISUAL_DIAGNOSIS_SYNC_RESERVE_MS,
+  visualDiagnosisHostFactor,
   visualDiagnosisSyncReserveMs,
+  type VisualDiagnosisSyncPhase,
   visualDiagnosisWorkBudget,
   type VisualDiagnosisRecord
 } from "@src/runner/visualDiagnosis/visualDiagnosisContract";
@@ -64,8 +83,8 @@ function block(ms: number): void {
   }
 }
 
-async function lab(fixture = "table-uniform"): Promise<Page> {
-  const page = await browser!.newPage({ viewport: { width: 800, height: 600 } });
+async function lab(fixture = "table-uniform", deviceScaleFactor = 1): Promise<Page> {
+  const page = await browser!.newPage({ viewport: { width: 800, height: 600 }, deviceScaleFactor });
   await page.goto(LAB);
   await page.waitForSelector("body[data-fixtures]");
   await page.evaluate((id) => (window as unknown as { __rowsLab: { show(i: string, v: string): Promise<unknown> } }).__rowsLab.show(id, "b"), fixture);
@@ -80,6 +99,10 @@ interface Run {
   diagnosis: VisualFailureDiagnosis;
   /** The planned block started on time (the frame was ready before it). */
   placed: boolean;
+  /** awkit-vra.18: N9's second capture as the observer saw it, with the work budget left on the verifier's own clock. */
+  second?: { timeoutMs: number; leftMs: number; reserveMs: number; verifierLeftMs: number; firstPixels: number };
+  /** The second screenshot was delivered within 15 ms of the end of its timeout (D9's precondition). */
+  heldToTimeout: boolean;
 }
 
 async function run(
@@ -96,13 +119,25 @@ async function run(
     holdMs?: number;
     /** Delay the n-th screenshot by this long. */
     delayShot?: { index: number; ms: number };
+    /** awkit-vra.18: a host this many times slower than the reserved rates in these synchronous phases (all by default). */
+    slow?: number;
+    slowPhases?: readonly VisualDiagnosisSyncPhase[];
+    /** Wait this long (asynchronously) before the frame, so the synchronous phases start at another point of the budget. */
+    preFrameMs?: number;
+    /** awkit-vra.18: deliver the second screenshot 10 ms before its capture timeout ends. */
+    holdSecondToTimeout?: boolean;
   }
 ): Promise<Run> {
   const frames = { taken: 0, released: 0, late: 0 };
+  const workBudget = visualDiagnosisWorkBudget(options.deadlineMs, options.marginMs);
+  let second: Run["second"];
+  let firstPixels = 0;
+  let heldToTimeout = false;
   let placed = options.blockAt === undefined;
   let callStarted = 0;
   const probe: VisualDiagnosisProbe = {
     hold: async (stage) => {
+      if (stage === "before-frame" && options.preFrameMs) await new Promise((r) => setTimeout(r, options.preFrameMs));
       if (stage !== "after-frame") return;
       if (options.holdMs) await new Promise((r) => setTimeout(r, options.holdMs));
       if (options.blockAt !== undefined) {
@@ -118,6 +153,14 @@ async function run(
       if (event === "taken") frames.taken += 1;
       else if (event === "released") frames.released += 1;
       else frames.late += 1;
+    },
+    // The simulated slower host: each synchronous phase also busy-waits (slow - 1) x its reserved rate per pixel.
+    syncCost: (phase, pixels) => {
+      if (phase === "decode" && firstPixels === 0) firstPixels = pixels;
+      if (options.slow && (!options.slowPhases || options.slowPhases.includes(phase))) block(((options.slow - 1) * VISUAL_DIAGNOSIS_SYNC_NS_PER_PIXEL[phase] * pixels) / 1e6);
+    },
+    onCaptureTimeout: ({ timeoutMs, leftMs, reserveMs }) => {
+      second = { timeoutMs, leftMs, reserveMs, verifierLeftMs: workBudget - (performance.now() - callStarted), firstPixels };
     }
   };
   const diagnosis = new VisualFailureDiagnosis({
@@ -144,10 +187,16 @@ async function run(
     limitScreenshot: async (fn) => {
       shots += 1;
       if (options.delayShot && shots === options.delayShot.index) await new Promise((r) => setTimeout(r, options.delayShot!.ms));
-      return fn();
+      if (!(options.holdSecondToTimeout && shots === 2 && second)) return fn();
+      const timeoutEnds = performance.now() + second.timeoutMs;
+      const value = await fn();
+      const wait = timeoutEnds - 10 - performance.now();
+      if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+      heldToTimeout = Math.abs(timeoutEnds - performance.now()) <= 15;
+      return value;
     }
   });
-  return { record, waited: performance.now() - callStarted, frames, diagnosis, placed };
+  return { record, waited: performance.now() - callStarted, frames, diagnosis, placed, ...(second ? { second } : {}), heldToTimeout };
 }
 
 /** A placed run, repeated (bounded) when the frame was not ready before the planned block. */
@@ -237,14 +286,91 @@ async function main(): Promise<void> {
       check("every frame released", r.frames.taken === r.frames.released + r.frames.late, JSON.stringify(r.frames));
     }
 
+    console.log("D8. awkit-vra.18: a host 3x slower than every reserved rate, across whole N8+N9 diagnoses");
+    {
+      resetVisualDiagnosisHostFactors();
+      const waits: number[] = [];
+      const outcomes: string[] = [];
+      for (let i = 0; i < 8; i += 1) {
+        const page = await lab(i % 2 ? "list-cards" : "table-uniform");
+        // Eight start offsets sweep the synchronous phases across the whole budget.
+        const r = await run(page, { deadlineMs: 1600, rows: true, state: true, slow: 3, preFrameMs: i * 100 });
+        waits.push(r.waited);
+        outcomes.push(r.record?.observations[0] ?? "none");
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        await page.close();
+      }
+      check(`none of 8 slow-host diagnoses returned after the 1600 ms hard deadline (max ${Math.round(Math.max(...waits))} ms)`, waits.every((w) => w <= 1600), waits.map(Math.round).join(","));
+      console.log(`    (first observations: ${outcomes.join(", ")})`);
+      const learned = carriedVisualDiagnosisHostFactor();
+      check(`the host factor was learned from the whole-frame chunk and is carried (${learned.toFixed(2)} >= 2)`, learned >= 2, learned.toFixed(2));
+      for (let i = 0; i < VISUAL_DIAGNOSIS_HOST_FACTOR_WINDOW; i += 1) {
+        const page = await lab();
+        await run(page, { deadlineMs: 1600 });
+        await page.close();
+      }
+      const decayed = carriedVisualDiagnosisHostFactor();
+      check(`after ${VISUAL_DIAGNOSIS_HOST_FACTOR_WINDOW} ordinary diagnoses the carried factor decays (${decayed.toFixed(2)} < ${learned.toFixed(2)})`, decayed < learned, decayed.toFixed(2));
+    }
+
+    console.log("D9. awkit-vra.18: N9's second capture leaves the decode reserve");
+    {
+      resetVisualDiagnosisHostFactors();
+      const page = await lab("table-uniform");
+      const plain = await run(page, { deadlineMs: 1600, state: true });
+      await page.close();
+      const s = plain.second;
+      const reserve = s ? visualDiagnosisSyncReserveMs("decode", s.firstPixels, carriedVisualDiagnosisHostFactor()) : Number.NaN;
+      check("precondition: the second capture was attempted (observer called, frame 1's pixels seen)", !!s && s.firstPixels > 0, JSON.stringify(s));
+      check(
+        `its timeout leaves the decode reserve on the verifier's clock (${s?.timeoutMs} ms <= ${Math.round(s?.verifierLeftMs ?? 0)} - ${reserve} ms, 2 ms rounding)`,
+        !!s && s.timeoutMs <= s.verifierLeftMs - reserve + 2,
+        JSON.stringify(s)
+      );
+    }
+    {
+      // Long enough that the slow host still runs the state features (about 1.9 s reserved at DPR 2) and takes frame 2.
+      const DEADLINE_D9 = 6000;
+      let held: Run | undefined;
+      for (let attempt = 0; attempt < ATTEMPTS && !held?.heldToTimeout; attempt += 1) {
+        resetVisualDiagnosisHostFactors();
+        const page = await lab("table-uniform", 2);
+        held = await run(page, { deadlineMs: DEADLINE_D9, state: true, slow: 3, slowPhases: ["fingerprint", "decode"], holdSecondToTimeout: true });
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        await page.close();
+      }
+      const s = held!.second;
+      const reserve = s ? visualDiagnosisSyncReserveMs("decode", s.firstPixels, carriedVisualDiagnosisHostFactor()) : Number.NaN;
+      check("precondition: the DPR-2 second screenshot was delivered 10 ms before its timeout ended", held!.heldToTimeout && held!.frames.taken === 2, JSON.stringify({ frames: held!.frames, second: s }));
+      check(
+        `the slow host's learned factor sized the decode reserve (${reserve} ms; timeout ${s?.timeoutMs} ms <= ${Math.round(s?.verifierLeftMs ?? 0)} ms left - reserve)`,
+        !!s && reserve > VISUAL_DIAGNOSIS_SYNC_RESERVE_MS && s.timeoutMs <= s.verifierLeftMs - reserve + 2,
+        JSON.stringify(s)
+      );
+      check(`the slow decode after the late delivery still ended by the ${DEADLINE_D9} ms hard deadline (${Math.round(held!.waited)} ms)`, held!.waited <= DEADLINE_D9, `${held!.waited}`);
+      check("every frame released", held!.frames.taken === held!.frames.released + held!.frames.late, JSON.stringify(held!.frames));
+    }
+
     console.log("D7. Pins");
     const adapter = await readFile("src/runner/visualDiagnosis/VisualFailureDiagnosis.ts", "utf8");
     check("the publish gate reads the monotonic clock against the work budget", /settle\(performance\.now\(\) - started > deadlineMs \? this\.refusal\(request, "budget-exhausted", started\) : record\)/.test(adapter));
     check("the work budget, not the hard deadline, drives the timer and the work", /const deadlineMs = visualDiagnosisWorkBudget\(hardDeadlineMs, this\.options\.settleMarginMs\)/.test(adapter));
     check("N5's own frame work starts behind the checkpoint (frame start and every member)", (adapter.match(/await this\.checkpoint\(signal, started, deadlineMs/g) ?? []).length === 2);
-    check("the whole-frame chunk's checkpoint reserves its measured per-pixel cost", /await this\.checkpoint\(signal, started, deadlineMs, visualDiagnosisSyncReserveMs\(framePixels\)\)/.test(adapter));
+    check("the whole-frame chunk's checkpoint reserves the fingerprint rate times the host factor", /await this\.checkpoint\(signal, started, deadlineMs, reserveMs\("fingerprint", framePixels\)\)/.test(adapter));
+    check(
+      "awkit-vra.18: every reserve goes through the per-phase rate and the diagnosis's host factor",
+      /const reserveMs = \(phase: VisualDiagnosisSyncPhase, pixels: number\): number => visualDiagnosisSyncReserveMs\(phase, pixels, hostFactor\)/.test(adapter) &&
+        (adapter.match(/visualDiagnosisSyncReserveMs\(/g) ?? []).length === 1
+    );
+    check(
+      "awkit-vra.18: the second capture's timeout leaves the decode reserve of frame 1's pixels",
+      /const decodeReserveMs = reserveMs\("decode", firstPixels\)/.test(adapter) && /const timeoutMs = Math\.max\(1, this\.remaining\(started, deadlineMs\) - decodeReserveMs\)/.test(adapter)
+    );
     check("an over-budget checkpoint is reported as budget-exhausted, not capture-failed", /error instanceof DiagnosisOverBudget \? "budget-exhausted" : "capture-failed"/.test(adapter));
-    check("QC F1: every member's crop and evidence reserve their measured per-pixel cost", /await this\.checkpoint\(signal, started, deadlineMs, visualDiagnosisSyncReserveMs\(memberCropPixels\(frame\.viewport, slot\.box\)\)\)/.test(adapter));
+    check(
+      "QC F1: every member's crop and evidence reserve their measured per-pixel cost",
+      /const memberPixels = memberCropPixels\(frame\.viewport, slot\.box\);\s+await this\.checkpoint\(signal, started, deadlineMs, reserveMs\("memberCrop", memberPixels\)\)/.test(adapter)
+    );
     check("the record's advisory codes go through appendAdvisoryCodes", /appendAdvisoryCodes\(record\.observations, \[\.\.\.textCodes, \.\.\.rowCodes\], stateCode\)/.test(adapter));
     // QC F6 (finding 5), behavioural: four N5 observations, a text code, three row codes in keep order, and a state code.
     const n5 = ["target-not-found", "reference-none", "viewport-changed", "target-multiple-matches"];
@@ -281,12 +407,36 @@ async function main(): Promise<void> {
     const dpr2 = memberCropPixels({ cssWidth: 1280, cssHeight: 720, scaleX: 2, scaleY: 2 }, { x: 100, y: 100, width: 800, height: 400 });
     check(
       "QC: a large DPR-2 member counts (800x400 + 848x448) x 4 device pixels and reserves more than the fixed floor",
-      dpr2 === (800 * 400 + 848 * 448) * 4 && visualDiagnosisSyncReserveMs(dpr2) > VISUAL_DIAGNOSIS_SYNC_RESERVE_MS,
-      `${dpr2} px, ${visualDiagnosisSyncReserveMs(dpr2)} ms`
+      dpr2 === (800 * 400 + 848 * 448) * 4 && visualDiagnosisSyncReserveMs("memberCrop", dpr2) > VISUAL_DIAGNOSIS_SYNC_RESERVE_MS,
+      `${dpr2} px, ${visualDiagnosisSyncReserveMs("memberCrop", dpr2)} ms`
     );
     const clipped = memberCropPixels({ cssWidth: 1280, cssHeight: 720, scaleX: 1.5, scaleY: 1.5 }, { x: -50, y: 680, width: 200, height: 100 });
     check("QC: a member clipped by the viewport's left and bottom edges counts only its visible part", clipped === (150 * 40 + 174 * 64) * 2.25, String(clipped));
     check("QC: a member wholly outside the viewport counts no pixels", memberCropPixels({ cssWidth: 1280, cssHeight: 720, scaleX: 1, scaleY: 1 }, { x: 1400, y: 10, width: 50, height: 20 }) === 0);
+    // awkit-vra.18: the per-phase reserve and the host factor, behaviourally.
+    check(
+      "awkit-vra.18: a reserve is pixels x the phase's rate x the host factor, never below the floor; an unreadable or sub-1 factor is 1",
+      visualDiagnosisSyncReserveMs("stateFeatures", 1_000_000) === VISUAL_DIAGNOSIS_SYNC_NS_PER_PIXEL.stateFeatures &&
+        visualDiagnosisSyncReserveMs("stateFeatures", 1_000_000, 2.5) === Math.ceil(VISUAL_DIAGNOSIS_SYNC_NS_PER_PIXEL.stateFeatures * 2.5) &&
+        visualDiagnosisSyncReserveMs("decode", 1000, 3) === VISUAL_DIAGNOSIS_SYNC_RESERVE_MS &&
+        visualDiagnosisSyncReserveMs("decode", 1_000_000, 0.5) === visualDiagnosisSyncReserveMs("decode", 1_000_000) &&
+        visualDiagnosisSyncReserveMs("decode", 1_000_000, Number.NaN) === visualDiagnosisSyncReserveMs("decode", 1_000_000)
+    );
+    check(
+      "awkit-vra.18: each rate is at least 1.25 x the benchmark's maximum (fingerprint 290, state features 345, motion 142, member crop 414, decode 92 ns/px)",
+      VISUAL_DIAGNOSIS_SYNC_NS_PER_PIXEL.fingerprint >= 290 * 1.25 &&
+        VISUAL_DIAGNOSIS_SYNC_NS_PER_PIXEL.stateFeatures >= 345 * 1.25 &&
+        VISUAL_DIAGNOSIS_SYNC_NS_PER_PIXEL.motionPlane >= 142 * 1.25 &&
+        VISUAL_DIAGNOSIS_SYNC_NS_PER_PIXEL.memberCrop >= 414 * 1.25 &&
+        VISUAL_DIAGNOSIS_SYNC_NS_PER_PIXEL.decode >= 92 * 1.25
+    );
+    check(
+      "awkit-vra.18: the host factor is observed / rate, never below 1, and 1 for an unreadable observation",
+      visualDiagnosisHostFactor("fingerprint", VISUAL_DIAGNOSIS_SYNC_NS_PER_PIXEL.fingerprint * 3) === 3 &&
+        visualDiagnosisHostFactor("fingerprint", 10) === 1 &&
+        visualDiagnosisHostFactor("fingerprint", Number.NaN) === 1 &&
+        visualDiagnosisHostFactor("fingerprint", Number.POSITIVE_INFINITY) === 1
+    );
     check(
       "the work budget is the deadline minus min(margin, a quarter)",
       visualDiagnosisWorkBudget(1000) === 1000 - VISUAL_DIAGNOSIS_SETTLE_MARGIN_MS && visualDiagnosisWorkBudget(300) === 225 && visualDiagnosisWorkBudget(1000, 0) === 1000

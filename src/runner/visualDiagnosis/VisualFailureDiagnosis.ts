@@ -45,9 +45,12 @@ import { VisualReferenceStore, type VisualReferenceRead } from "../visualFusion/
 import { recordedVisualReferenceKey } from "../visualFusion/recordedVisualReferenceKey";
 import {
   VISUAL_DIAGNOSIS_DEADLINE_MS,
+  VISUAL_DIAGNOSIS_HOST_FACTOR_WINDOW,
   VISUAL_DIAGNOSIS_SIGNATURE_CAP,
   VISUAL_DIAGNOSIS_SYNC_RESERVE_MS,
+  visualDiagnosisHostFactor,
   visualDiagnosisSyncReserveMs,
+  type VisualDiagnosisSyncPhase,
   visualDiagnosisWorkBudget,
   VISUAL_ROWS_MIN_REMAINING_MS,
   VISUAL_STATE_INTERVAL_MS,
@@ -102,6 +105,26 @@ function admit(signature: string): boolean {
   return next <= VISUAL_DIAGNOSIS_SIGNATURE_CAP;
 }
 
+/** awkit-vra.18: the host factors of the most recent diagnoses in this process (VISUAL_DIAGNOSIS_HOST_FACTOR_WINDOW). */
+const recentHostFactors: number[] = [];
+
+/** awkit-vra.18: the host factor carried into the next diagnosis: the largest recent one, never below 1. */
+export function carriedVisualDiagnosisHostFactor(): number {
+  return Math.max(1, ...recentHostFactors);
+}
+
+/** Remembers one diagnosis's learned factor, forgetting the oldest past the window. */
+function learnHostFactor(factor: number): number {
+  recentHostFactors.push(factor);
+  while (recentHostFactors.length > VISUAL_DIAGNOSIS_HOST_FACTOR_WINDOW) recentHostFactors.shift();
+  return factor;
+}
+
+/** Verifier-only: forget the learned host factors, so one case's simulated slow host does not carry into the next. */
+export function resetVisualDiagnosisHostFactors(): void {
+  recentHostFactors.length = 0;
+}
+
 /** The store's change detector (unused for reads, required by its constructor). */
 function digestOf(value: unknown): string | null {
   const digest = (value as VisualEvidence | null)?.fingerprint?.contentDigest;
@@ -130,6 +153,14 @@ export interface VisualDiagnosisProbe {
   onRowCrop?: (event: "taken" | "dropped") => void;
   /** Security Sec 1-2 (2026-11-01): frame 1 (N5's) or 2 (N9's second) was just taken and is held, before any crop. */
   heldFrame?: (index: 1 | 2) => Promise<void>;
+  /**
+   * awkit-vra.18 (`verify:visual-diagnosis-deadline`): called synchronously at the start of each synchronous pixel phase
+   * with its device pixels, inside the timed chunk, so a verifier can busy-wait to simulate a slower host. `decode` is
+   * called right after a frame arrives, where N0's own PNG decode has just run.
+   */
+  syncCost?: (phase: VisualDiagnosisSyncPhase, pixels: number) => void;
+  /** awkit-vra.18: N9's second capture is about to start with this timeout, this much work budget left, and this decode reserve. */
+  onCaptureTimeout?: (event: { index: 2; timeoutMs: number; leftMs: number; reserveMs: number }) => void;
 }
 
 export interface VisualFailureDiagnosisOptions {
@@ -548,6 +579,10 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
     await this.options.probe?.hold?.("before-frame");
     if (signal.aborted) throw new DiagnosisAborted();
 
+    // awkit-vra.18: every synchronous phase reserves its own measured rate times the host factor. The factor starts as the
+    // largest of the last few diagnoses' and is raised by this diagnosis's first whole-frame chunk.
+    let hostFactor = carriedVisualDiagnosisHostFactor();
+    const reserveMs = (phase: VisualDiagnosisSyncPhase, pixels: number): number => visualDiagnosisSyncReserveMs(phase, pixels, hostFactor);
     const members: VisualDiagnosisMember[] = [];
     let viewportInput: VisualDiagnosisInput["viewport"] = null;
     // N5.7 (security finding 4): the wait for the screenshot slot is bounded by the deadline too. A slot granted after
@@ -579,18 +614,24 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
     } else {
       const frame = shot.value;
       this.options.probe?.onFrame?.("taken");
+      const framePixels = frame.viewport.imageWidth * frame.viewport.imageHeight;
+      this.options.probe?.syncCost?.("decode", framePixels);
       try {
         await this.options.probe?.heldFrame?.(1);
         if (signal.aborted) throw new DiagnosisAborted();
         // The deadline fix: N0's decode just ran synchronously; a due deadline goes first, and N5's own pixel work
         // starts only with the reserve left (otherwise the record is budget-exhausted, as the timer would have said).
-        const framePixels = frame.viewport.imageWidth * frame.viewport.imageHeight;
         // The whole-viewport crop and fingerprint are one synchronous chunk: it starts only if its measured cost fits.
-        await this.checkpoint(signal, started, deadlineMs, visualDiagnosisSyncReserveMs(framePixels));
+        await this.checkpoint(signal, started, deadlineMs, reserveMs("fingerprint", framePixels));
         const { cssWidth, cssHeight } = frame.viewport;
+        const chunkStarted = performance.now();
+        this.options.probe?.syncCost?.("fingerprint", framePixels);
         const whole = cropFromVisualFrame(frame, { x: 0, y: 0, width: cssWidth, height: cssHeight }, 0);
         if (whole.ok) {
           const fingerprint = fingerprintVisualImage(whole.value.element.image);
+          // awkit-vra.18: this chunk, timed whole, is where the host shows how much slower than measured it runs now.
+          const learned = learnHostFactor(visualDiagnosisHostFactor("fingerprint", ((performance.now() - chunkStarted) * 1e6) / framePixels));
+          hostFactor = Math.max(hostFactor, learned);
           viewportInput = fingerprint.ok ? fingerprint.value : { available: false, code: fingerprint.code };
           if (this.options.stateRecognition === true && this.remaining(started, deadlineMs) >= VISUAL_STATE_MIN_REMAINING_MS) {
             // N9 campaign-1 fix: synchronous pixel work blocks the deadline timer, so a due deadline is let through
@@ -600,9 +641,10 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
           }
           if (
             this.options.stateRecognition === true &&
-            this.remaining(started, deadlineMs) >= Math.max(VISUAL_STATE_MIN_REMAINING_MS, visualDiagnosisSyncReserveMs(framePixels))
+            this.remaining(started, deadlineMs) >= Math.max(VISUAL_STATE_MIN_REMAINING_MS, reserveMs("stateFeatures", framePixels))
           ) {
             const measuring = performance.now();
+            this.options.probe?.syncCost?.("stateFeatures", framePixels);
             const measured = measureVisualStateFrame(whole.value.element.image, this.statePolicy, frame.viewport.scaleX);
             if (measured.ok) stateFrame = measured.value;
             stateMs = performance.now() - measuring;
@@ -612,7 +654,9 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
         }
         for (const slot of boxes) {
           // QC F1: each member's crop and evidence are one synchronous chunk, reserved at their measured per-pixel cost.
-          await this.checkpoint(signal, started, deadlineMs, visualDiagnosisSyncReserveMs(memberCropPixels(frame.viewport, slot.box)));
+          const memberPixels = memberCropPixels(frame.viewport, slot.box);
+          await this.checkpoint(signal, started, deadlineMs, reserveMs("memberCrop", memberPixels));
+          this.options.probe?.syncCost?.("memberCrop", memberPixels);
           let evidence: VisualDiagnosisEvidenceInput;
           const crop = cropFromVisualFrame(frame, slot.box, CONTEXT_PADDING_CSS);
           if (!crop.ok) {
@@ -643,7 +687,8 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
           const bottom = Math.min(cssHeight, c.y + c.height);
           // Without the reserve left, no crop is taken: the rows are withheld (no-pixels), never decided late.
           const cropPixels = (right - left) * (bottom - top) * frame.viewport.scaleX * frame.viewport.scaleY;
-          if (right > left && bottom > top && this.leftOf(started, deadlineMs) >= visualDiagnosisSyncReserveMs(cropPixels)) {
+          if (right > left && bottom > top && this.leftOf(started, deadlineMs) >= reserveMs("memberCrop", cropPixels)) {
+            this.options.probe?.syncCost?.("memberCrop", cropPixels);
             const crop = cropFromVisualFrame(frame, { x: left, y: top, width: right - left, height: bottom - top }, 0);
             if (crop.ok) {
               rowPixels = { image: crop.value.element.image, cropCss: { ...crop.value.element.actualCssBounds } };
@@ -704,7 +749,8 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
           // N8 QC finding 7: decided while the frame is still held, so the container crop never outlives the frame.
           const deciding = performance.now();
           // The pixel decision is synchronous: without the reserve left it is withheld (no pixels), never run late.
-          const decidable = rowPixels && this.leftOf(started, deadlineMs) >= visualDiagnosisSyncReserveMs(rowPixels.image.width * rowPixels.image.height);
+          const decidable = rowPixels && this.leftOf(started, deadlineMs) >= reserveMs("stateFeatures", rowPixels.image.width * rowPixels.image.height);
+          if (decidable && rowPixels) this.options.probe?.syncCost?.("stateFeatures", rowPixels.image.width * rowPixels.image.height);
           rowsVerdict = this.decideRows(rowFacts, decidable ? rowPixels : undefined, viewport, rowStale);
           dropRowPixels();
           rowMs += performance.now() - deciding;
@@ -767,7 +813,8 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
     // N9: advisory only, after the verdict and the text signal; one code, never more.
     if (advisory && this.options.stateRecognition === true) {
       // Sec 2: a refused second frame (null) withdraws the text and row codes already computed, not just the state.
-      const state = await this.state(request, page, stateFrame, stateMs, shotAt, signal, started, deadlineMs, bounded, defer);
+      const firstPixels = shot.ok ? shot.value.viewport.imageWidth * shot.value.viewport.imageHeight : 0;
+      const state = await this.state(request, page, stateFrame, stateMs, shotAt, firstPixels, reserveMs, signal, started, deadlineMs, bounded, defer);
       if (state === null) advisory = false;
       else stateCode = state;
     }
@@ -790,6 +837,8 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
     frame: VisualStateFrame | undefined,
     measuredMs: number,
     firstAt: number,
+    firstPixels: number,
+    reserveMs: (phase: VisualDiagnosisSyncPhase, pixels: number) => number,
     signal: AbortSignal,
     started: number,
     deadlineMs: number,
@@ -804,10 +853,15 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
       if (wait > 0) await bounded(new Promise<void>((resolve) => setTimeout(resolve, wait)));
       if (signal.aborted) throw new DiagnosisAborted();
       let kept = false;
-      // A small margin keeps a slow second screenshot from cutting the whole diagnosis: it fails on its own first.
+      // awkit-vra.18: N0 decodes the PNG synchronously once the bytes arrive, with no check of the time left, so the
+      // capture must end early enough for that decode (frame 1's pixels at the decode rate times the host factor, never
+      // less than the old 50 ms margin) to finish inside the work budget. A slow second screenshot fails on its own first.
+      const decodeReserveMs = reserveMs("decode", firstPixels);
+      const timeoutMs = Math.max(1, this.remaining(started, deadlineMs) - decodeReserveMs);
+      this.options.probe?.onCaptureTimeout?.({ index: 2, timeoutMs, leftMs: this.leftOf(started, deadlineMs), reserveMs: decodeReserveMs });
       const shooting = request.limitScreenshot(() =>
         captureVisualFrame(page, {
-          timeoutMs: Math.max(1, this.remaining(started, deadlineMs) - 50),
+          timeoutMs,
           signal,
           stepType: request.step.type,
           handedOff: this.handedOff(page)
@@ -830,6 +884,8 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
       } else {
         const second = shot.value;
         this.options.probe?.onFrame?.("taken");
+        const secondPixels = second.viewport.imageWidth * second.viewport.imageHeight;
+        this.options.probe?.syncCost?.("decode", secondPixels);
         try {
           await this.options.probe?.heldFrame?.(2);
           await yieldToTimers();
@@ -839,7 +895,8 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
           const mark = cropFromVisualFrame(second, { x: 0, y: 0, width: 1, height: 1 }, 0);
           if (!mark.ok && ADVISORY_REFUSALS.has(mark.code)) return null;
           // Without the reserve left, motion stays unmeasured (so `ready` cannot be decided), never measured late.
-          if (this.leftOf(started, deadlineMs) >= visualDiagnosisSyncReserveMs(second.viewport.imageWidth * second.viewport.imageHeight)) {
+          if (this.leftOf(started, deadlineMs) >= reserveMs("motionPlane", secondPixels)) {
+            this.options.probe?.syncCost?.("motionPlane", secondPixels);
             const whole = cropFromVisualFrame(second, { x: 0, y: 0, width: second.viewport.cssWidth, height: second.viewport.cssHeight }, 0);
             const plane = whole.ok ? measureVisualMotionPlane(whole.value.element.image, second.viewport.scaleX) : undefined;
             if (plane?.ok) motion = measureVisualMotion(frame.motion, plane.value, this.statePolicy);

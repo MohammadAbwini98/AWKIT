@@ -30,15 +30,49 @@ export const VISUAL_DIAGNOSIS_SETTLE_MARGIN_MS = 100;
 /** A synchronous phase starts only with at least this much of the work budget left. */
 export const VISUAL_DIAGNOSIS_SYNC_RESERVE_MS = 50;
 /**
- * Measured cost of the synchronous pixel phases per device pixel (`benchmark:visual-sync-cost`, 2026-11-01, Windows 11
- * ARM64 running x64 Node under emulation): crop plus fingerprint reached 72 to 190 ns/px at its maximum outside one
- * isolated pause. A phase over a whole frame starts only when the budget left covers its estimate at this rate.
+ * awkit-vra.18: the measured cost of each synchronous pixel phase per device pixel, about 1.25 x the largest value
+ * `benchmark:visual-sync-cost` measured in two runs on 2026-11-01 (Windows 11 ARM64 running x64 Node under emulation,
+ * headless and headed at DPR 1, 1.25 and 2; pauses included). The single 200 ns/px reserve it replaces was not an upper
+ * bound: the state features reached 345 ns/px.
+ * - `fingerprint`: the whole-viewport crop plus its fingerprint (max 290);
+ * - `stateFeatures`: N9's `measureVisualStateFrame` (max 345); also the row decision over the container crop, which is
+ *   unmeasured, so it takes the largest whole-image rate;
+ * - `motionPlane`: the second frame's whole crop plus `measureVisualMotionPlane` (max 127 + 15);
+ * - `memberCrop`: one member's crop plus its evidence, and the row container's crop (max 414);
+ * - `decode`: N0's synchronous PNG decode (max 92).
  */
-export const VISUAL_DIAGNOSIS_SYNC_NS_PER_PIXEL = 200;
+export const VISUAL_DIAGNOSIS_SYNC_NS_PER_PIXEL = {
+  fingerprint: 365,
+  stateFeatures: 435,
+  motionPlane: 180,
+  memberCrop: 520,
+  decode: 115
+} as const;
+export type VisualDiagnosisSyncPhase = keyof typeof VISUAL_DIAGNOSIS_SYNC_NS_PER_PIXEL;
 
-/** The budget a synchronous phase over `pixels` device pixels must have left before it starts. */
-export function visualDiagnosisSyncReserveMs(pixels: number): number {
-  return Math.max(VISUAL_DIAGNOSIS_SYNC_RESERVE_MS, Math.ceil((Math.max(0, pixels) * VISUAL_DIAGNOSIS_SYNC_NS_PER_PIXEL) / 1e6));
+/**
+ * awkit-vra.18: how many recent diagnoses' host factors the process remembers. The largest is carried, so one slow
+ * diagnosis raises every reserve for the next few, and a burst that ends stops costing coverage soon after.
+ */
+export const VISUAL_DIAGNOSIS_HOST_FACTOR_WINDOW = 8;
+
+/**
+ * awkit-vra.18: how much slower than the measured rate this host ran a phase, never below 1. Learned from the first
+ * whole-frame chunk of each diagnosis (`fingerprint`), it multiplies every later reserve.
+ */
+export function visualDiagnosisHostFactor(phase: VisualDiagnosisSyncPhase, observedNsPerPixel: number): number {
+  const factor = observedNsPerPixel / VISUAL_DIAGNOSIS_SYNC_NS_PER_PIXEL[phase];
+  return Number.isFinite(factor) && factor > 1 ? factor : 1;
+}
+
+/**
+ * The budget a synchronous phase over `pixels` device pixels must have left before it starts: its measured rate times
+ * the host factor, never less than VISUAL_DIAGNOSIS_SYNC_RESERVE_MS.
+ */
+export function visualDiagnosisSyncReserveMs(phase: VisualDiagnosisSyncPhase, pixels: number, hostFactor = 1): number {
+  // A factor that cannot be read is 1; an unbounded one reserves everything.
+  const factor = hostFactor > 1 ? hostFactor : 1;
+  return Math.max(VISUAL_DIAGNOSIS_SYNC_RESERVE_MS, Math.ceil((Math.max(0, pixels) * VISUAL_DIAGNOSIS_SYNC_NS_PER_PIXEL[phase] * factor) / 1e6));
 }
 
 /** The work budget for a hard deadline: when the adapter settles, at or before the deadline minus its margin. */
