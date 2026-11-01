@@ -68,3 +68,14 @@ the F2 pixel-cost follow-up (whole-frame cost, bounded and chunked work, host-ad
 **Supported environmental controls** for campaigns 6 and 7: the approved ARM64 Parallels host, AC power, no
 interactive use of the VM while a cell runs, cells run sequentially in one shell, no other benchmark or build in
 parallel, and no instrumentation.
+
+## Corrections after the independent QC review (2026-11-01)
+
+The evidence file is unchanged. These correct the reading above:
+
+- **Frames on cut trials.** "never" and "30 of 37" overstate it: 29 of the 37 non-control cuts took no frame and 8 had
+  one. One more cut (38 in all) is a disabled-control trial with no frame.
+- **"Observer effect" is a hypothesis, not a finding.** No run compared the same cell with and without instrumentation.
+  Campaign 6, run without instrumentation, also cut three animated-fixture trials (`spinner`/b, `partial-skeleton`/b
+  and /d), so the instrumentation may amplify an existing stall rather than cause it. The diagnostic's cut counts stay
+  non-comparable to campaign results. The classification stays **INCONCLUSIVE**.

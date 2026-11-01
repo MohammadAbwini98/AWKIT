@@ -220,6 +220,98 @@ const refusedCapture = (capture: unknown): boolean =>
 /** The N4.2 masked-field rule (autocomplete tokens, then the described attributes), shared by `masked` and the N8 container. */
 const MASKED_AUTOCOMPLETE = "one-time-code|current-password|new-password|cc-number|cc-csc";
 const MASKED_DESCRIBED = String.raw`otp|one[-_ ]?time|passcode|\bpin\b|\bcvv\b|\bcvc\b|\bcsc\b|card[-_ ]?number|cardnumber|credit[-_ ]?card|\bssn\b|social[-_ ]?security|\bsecret\b|\btoken\b`;
+const ROW_SCAN_RULES = [MASKED_AUTOCOMPLETE, MASKED_DESCRIBED, VISUAL_ROWS_MAX_SCAN_NODES] as [string, string, number];
+
+/**
+ * Security S3 / NEW-2 (owner 2026-11-01; review fixes the same day): true when the row container's crop could show
+ * content that cannot be safely excluded, so the optional row observation is refused (fail closed). Runs in the page,
+ * before the frame and again after the crop while the frame is held. What is classified: the container's flat tree
+ * (its subtree, every nested open shadow root and every slot's assigned elements), the topmost element at a 3 x 3 grid
+ * over its visible box, and every embedded frame or form control whose box meets that visible box wherever it sits in
+ * the document (a fixed-selector query, so one under a transparent layer, between sample points or with
+ * `pointer-events: none` counts). Refused: a masked `input`, `textarea` or `select` (the N4.2 rule), a
+ * `contenteditable` region, an embedded frame, an autonomous custom element with no open root (it may hold a closed
+ * root), or more than `scanCap` elements walked or matched. Attributes and boxes only: no value, text or pixel is read.
+ * No named inner functions: a bundler may wrap them in a helper the page does not have.
+ */
+const rowContainerSensitive = (node: Node | null, [autocompleteRule, describedRule, scanCap]: [string, string, number]): boolean => {
+  if (!node) return true;
+  const element = node as Element;
+  const autocompleteMasked = new RegExp(autocompleteRule);
+  const describedMasked = new RegExp(describedRule, "i");
+  const own = element.getBoundingClientRect();
+  const scope: Node[] = [element];
+  const queued = new Set<Node>(scope);
+  let seen = 0;
+  const left = Math.max(0, own.left);
+  const top = Math.max(0, own.top);
+  const right = Math.min(window.innerWidth, own.right);
+  const bottom = Math.min(window.innerHeight, own.bottom);
+  if (right > left && bottom > top) {
+    const tree = element.getRootNode();
+    const finder: Document | ShadowRoot = tree instanceof ShadowRoot ? tree : document;
+    const lineage = new Set<Node>();
+    for (let at: Node | null = element; at; at = at instanceof ShadowRoot ? at.host : at.parentNode) lineage.add(at);
+    for (const fx of [1, 3, 5]) {
+      for (const fy of [1, 3, 5]) {
+        const hit = finder.elementFromPoint(left + ((right - left) * fx) / 6, top + ((bottom - top) * fy) / 6);
+        if (hit && !lineage.has(hit) && !element.contains(hit) && !queued.has(hit)) {
+          queued.add(hit);
+          scope.push(hit);
+        }
+      }
+    }
+    for (const where of tree instanceof ShadowRoot ? [document, tree] : [document]) {
+      for (const candidate of Array.from(where.querySelectorAll("iframe, frame, object, embed, fencedframe, portal, input, textarea, select, [contenteditable]"))) {
+        seen += 1;
+        if (seen > scanCap) return true;
+        const box = candidate.getBoundingClientRect();
+        if (box.width > 0 && box.height > 0 && box.left < right && box.right > left && box.top < bottom && box.bottom > top && !queued.has(candidate)) {
+          queued.add(candidate);
+          scope.push(candidate);
+        }
+      }
+    }
+  }
+  for (let at = 0; at < scope.length; at += 1) {
+    // A walker stops at the cap; nothing grows with the size of a subtree it does not visit.
+    const walker = document.createTreeWalker(scope[at]!, NodeFilter.SHOW_ELEMENT);
+    for (let current: Node | null = scope[at] instanceof Element ? scope[at]! : walker.nextNode(); current; current = walker.nextNode()) {
+      seen += 1;
+      if (seen > scanCap) return true;
+      const control = current as Element;
+      const tag = control.localName;
+      // Embedded documents (hosted card fields, other origins) cannot be classified from here.
+      if (tag === "iframe" || tag === "frame" || tag === "object" || tag === "embed" || tag === "fencedframe" || tag === "portal") return true;
+      // Editable regions have no masking semantics to classify them by.
+      if (control instanceof HTMLElement && control.isContentEditable) return true;
+      if (control.shadowRoot) {
+        if (!queued.has(control.shadowRoot)) {
+          queued.add(control.shadowRoot);
+          scope.push(control.shadowRoot);
+        }
+      } else if (tag.includes("-") && control.namespaceURI === "http://www.w3.org/1999/xhtml") {
+        // An autonomous custom element with no open root may hold a closed one, which page script cannot read.
+        return true;
+      }
+      // Slotted light-DOM content paints inside the shadow tree that holds the slot (security review finding 1).
+      if (control instanceof HTMLSlotElement) {
+        for (const assigned of control.assignedElements({ flatten: true })) {
+          if (!queued.has(assigned)) {
+            queued.add(assigned);
+            scope.push(assigned);
+          }
+        }
+      }
+      if (tag === "input" || tag === "textarea" || tag === "select") {
+        const autocomplete = (control.getAttribute("autocomplete") ?? "").toLowerCase();
+        const described = [control.getAttribute("name"), control.id, autocomplete, control.getAttribute("aria-label"), control.getAttribute("placeholder")].join(" ");
+        if ((control.getAttribute("type") ?? "").toLowerCase() === "password" || autocompleteMasked.test(autocomplete) || describedMasked.test(described)) return true;
+      }
+    }
+  }
+  return false;
+};
 
 /** N9: one macrotask turn, so a deadline timer that is already due runs before more synchronous pixel work starts. */
 const yieldToTimers = (): Promise<void> => new Promise<void>((resolve) => setImmediate(resolve));
@@ -592,6 +684,22 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
           );
           rowStale = !now || now.x !== before.x || now.y !== before.y || now.width !== before.width || now.height !== before.height;
         }
+        // Security review finding 3 (2026-11-01): the same scan once more while the frame is held, after the crop and
+        // before any row decision, like N0's own before-and-after checks. Content that mounted between the first scan and
+        // the shot (an asynchronously loaded hosted card frame) drops the crop and every row code; a rescan that cannot
+        // run refuses too.
+        if (rowPixels) {
+          const now = rowAnchor ? await bounded(rowAnchor.evaluateHandle((node, selector) => (node as Element).closest(selector)?.parentElement ?? null, ROW_SELECTOR).catch(() => null)) : null;
+          try {
+            if (!now?.asElement() || (await bounded(now.evaluate(rowContainerSensitive, ROW_SCAN_RULES).catch(() => true)))) {
+              dropRowPixels();
+              rowFacts = undefined;
+            }
+          } finally {
+            await now?.dispose().catch(() => undefined);
+          }
+          if (signal.aborted) throw new DiagnosisAborted();
+        }
         if (rowFacts !== undefined) {
           // N8 QC finding 7: decided while the frame is still held, so the container crop never outlives the frame.
           const deciding = performance.now();
@@ -794,60 +902,16 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
     try {
       // QC F6: a cut while the first read was in flight starts no second one.
       if (signal.aborted) return null;
+      // Security S3 / NEW-2: classify what the crop could show first; anything uncertain or unreadable refuses (fail closed).
+      // No row container at all is "no structure" (no crop is ever taken), decided by the read below.
+      if (container.asElement() && (await container.evaluate(rowContainerSensitive, ROW_SCAN_RULES).catch(() => true))) return undefined;
+      if (signal.aborted) return null;
       const facts = await container.evaluate(
         // No named inner functions here: a bundler may wrap them in a helper the page does not have.
-        (node, [selector, cap, autocompleteRule, describedRule, scanCap]) => {
+        (node, [selector, cap]) => {
           if (!node) return null;
           const element = node as Element;
-          const autocompleteMasked = new RegExp(autocompleteRule);
-          const describedMasked = new RegExp(describedRule, "i");
           const own = element.getBoundingClientRect();
-          // Security S3 / NEW-2 (owner 2026-11-01): before the optional crop, everything the crop could show is
-          // classified, and any content that cannot be safely excluded refuses the row observation (fail closed). The
-          // scope is the container's subtree with every nested open shadow root, plus whatever paints over its visible
-          // box (a bounded 3 x 3 hit test, so a hosted card frame overlaid on the rows counts). Attributes only: no field
-          // value, text or pixel is read.
-          const scope: Array<Element | ShadowRoot> = [element];
-          const left = Math.max(0, own.left);
-          const top = Math.max(0, own.top);
-          const right = Math.min(window.innerWidth, own.right);
-          const bottom = Math.min(window.innerHeight, own.bottom);
-          if (right > left && bottom > top) {
-            const tree = element.getRootNode();
-            const finder: Document | ShadowRoot = tree instanceof ShadowRoot ? tree : document;
-            const lineage = new Set<Node>();
-            for (let at: Node | null = element; at; at = at instanceof ShadowRoot ? at.host : at.parentNode) lineage.add(at);
-            for (const fx of [1, 3, 5]) {
-              for (const fy of [1, 3, 5]) {
-                const hit = finder.elementFromPoint(left + ((right - left) * fx) / 6, top + ((bottom - top) * fy) / 6);
-                if (hit && !lineage.has(hit) && !element.contains(hit) && !scope.includes(hit)) scope.push(hit);
-              }
-            }
-          }
-          let seen = 0;
-          for (let at = 0; at < scope.length; at += 1) {
-            const root = scope[at]!;
-            const nodes = root instanceof ShadowRoot ? Array.from(root.querySelectorAll("*")) : [root, ...Array.from(root.querySelectorAll("*"))];
-            for (const control of nodes) {
-              seen += 1;
-              if (seen > scanCap) return { sensitive: true as const };
-              const tag = control.localName;
-              // Embedded documents (hosted card fields, other origins) cannot be classified from here.
-              if (tag === "iframe" || tag === "frame" || tag === "object" || tag === "embed" || tag === "fencedframe" || tag === "portal") return { sensitive: true as const };
-              // Editable regions have no masking semantics to classify them by.
-              if (control instanceof HTMLElement && control.isContentEditable) return { sensitive: true as const };
-              if (control.shadowRoot) scope.push(control.shadowRoot);
-              // An autonomous custom element with no open root may hold a closed one, which page script cannot read.
-              else if (tag.includes("-") && control.namespaceURI === "http://www.w3.org/1999/xhtml") return { sensitive: true as const };
-              if (tag === "input" || tag === "textarea" || tag === "select") {
-                const autocomplete = (control.getAttribute("autocomplete") ?? "").toLowerCase();
-                const described = [control.getAttribute("name"), control.id, autocomplete, control.getAttribute("aria-label"), control.getAttribute("placeholder")].join(" ");
-                if ((control.getAttribute("type") ?? "").toLowerCase() === "password" || autocompleteMasked.test(autocomplete) || describedMasked.test(described)) {
-                  return { sensitive: true as const };
-                }
-              }
-            }
-          }
           const rows = Array.from(element.children).filter((child) => child.matches(selector));
           const boxes: Array<{ x: number; y: number; width: number; height: number }> = [];
           for (const row of rows.slice(0, cap)) {

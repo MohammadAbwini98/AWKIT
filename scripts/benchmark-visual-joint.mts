@@ -29,6 +29,7 @@
 import { spawn } from "node:child_process";
 import { cpus, freemem, totalmem } from "node:os";
 import { monitorEventLoopDelay, performance as nodePerformance } from "node:perf_hooks";
+import { realpathSync } from "node:fs";
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
@@ -332,8 +333,10 @@ async function runCell(cell: string): Promise<void> {
   }
   let revision = "unknown";
   let treeClean: boolean | null = null;
-  // Read-only; `safe.directory` for this one call only, because the checkout may sit on a host share (2026-11-01).
-  const git = (...gitArgs: string[]) => execFileSync("git", ["-c", "safe.directory=*", ...gitArgs], { encoding: "utf8" }).trim();
+  // Read-only, as tools/agents/git-inspection.mjs does: `safe.directory` names exactly this checkout's native root (a
+  // mapped drive resolves to its UNC path), never a wildcard, and no repository-configured fsmonitor runs (2026-11-01).
+  const root = realpathSync.native(process.cwd()).replace(/\\/g, "/");
+  const git = (...gitArgs: string[]) => execFileSync("git", ["-c", "core.fsmonitor=false", "-c", `safe.directory=${root}`, ...gitArgs], { encoding: "utf8" }).trim();
   try {
     revision = git("rev-parse", "HEAD");
     // QC nit 2 (2026-11-01): whether tracked files differed from the revision when the cell ran.

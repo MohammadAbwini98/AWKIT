@@ -562,6 +562,13 @@ async function main(): Promise<void> {
     // excluded refuses the optional row observation (one frame, no container crop, no row code), always placed in a row
     // OTHER than the target's. Each refusal has a positive control that must still crop, so the scan is not a blanket
     // refusal. Field values are set where a field has one, and must never reach the record.
+    // QC review finding 1 (2026-11-01): a frame still loading inside N0's strict capture window makes N0 refuse the whole
+    // diagnosis (zero frames), so the row scan would never be exercised. Every added frame finishes loading and the page
+    // settles first; the assertions below then require exactly one frame, so the refusal is the row scan's.
+    const settledFrames = async (page: Page) => {
+      await page.waitForFunction(() => Array.from(document.querySelectorAll("iframe")).every((frame) => frame.contentDocument?.readyState === "complete"));
+      await sleep(400);
+    };
     const otherRow = async (html: string, setup?: string) => {
       const page = await lab("table-uniform");
       await page.evaluate(
@@ -574,6 +581,7 @@ async function main(): Promise<void> {
         },
         [html, setup ?? ""] as const
       );
+      await settledFrames(page);
       const result = await diagnose(page, { rows: true });
       await page.close();
       return result;
@@ -625,9 +633,72 @@ async function main(): Promise<void> {
       Object.assign(frame.style, { position: "fixed", left: `${box.left + box.width / 3}px`, top: `${box.top + box.height / 3}px`, width: `${box.width / 3}px`, height: `${box.height / 3}px`, border: "0" });
       document.body.append(frame);
     });
+    await settledFrames(overlayPage);
     const overlay = await diagnose(overlayPage, { rows: true });
     check("S3: a hosted-card iframe overlaid on the rows from outside the container: one frame, no container crop, no row code", refusedRows(overlay), JSON.stringify({ events: overlay.events, codes: overlay.codes }));
     await overlayPage.close();
+    // Security review finding 2: a small hosted-card frame between the 3 x 3 sample points (and with pointer-events: none,
+    // so no hit test could see it) is still found, by its box meeting the container's visible box.
+    const smallPage = await lab("table-uniform");
+    await smallPage.evaluate(() => {
+      const box = document.querySelector('[data-testid="rw-target"]')!.closest("tr")!.parentElement!.getBoundingClientRect();
+      const frame = document.createElement("iframe");
+      frame.title = "Card";
+      frame.srcdoc = "<input autocomplete='cc-csc'>";
+      Object.assign(frame.style, { position: "fixed", left: `${box.left + box.width / 3 + 4}px`, top: `${box.top + 2}px`, width: "12px", height: "8px", border: "0", pointerEvents: "none" });
+      document.body.append(frame);
+    });
+    await settledFrames(smallPage);
+    const small = await diagnose(smallPage, { rows: true });
+    check("S3: a 12 x 8 px hosted-card frame between the sample points, pointer-events none: one frame, no container crop, no row code", refusedRows(small), JSON.stringify({ events: small.events, codes: small.codes }));
+    await smallPage.close();
+    // Security review finding 1: rows inside a shadow tree whose cell shows slotted light-DOM content (the vaadin-grid
+    // pattern). The slotted field is not a descendant of the container, but it paints inside it.
+    const slottedRows = async (lightHtml: string) => {
+      const page = await lab("table-uniform");
+      await page.evaluate((light) => {
+        document.querySelector('[data-testid="rw-target"]')!.removeAttribute("data-testid");
+        const host = document.createElement("div");
+        host.innerHTML = light;
+        document.body.prepend(host);
+        const root = host.attachShadow({ mode: "open" });
+        root.innerHTML =
+          '<ul style="list-style:none;margin:0;padding:0;width:400px">' +
+          '<li style="height:30px;border-bottom:1px solid #888"><button data-testid="rw-target">Open</button> Row one</li>' +
+          '<li style="height:30px;border-bottom:1px solid #888"><slot></slot></li>' +
+          '<li style="height:30px;border-bottom:1px solid #888">Row three</li></ul>';
+      }, lightHtml);
+      const result = await diagnose(page, { rows: true });
+      await page.close();
+      return result;
+    };
+    const slottedCard = await slottedRows('<input autocomplete="cc-number" value="4111111111111111" style="width:80px">');
+    check(
+      "S3: a card field slotted from the light DOM into a shadow-tree row: one frame, no container crop, no row code, no value",
+      refusedRows(slottedCard) && !JSON.stringify(slottedCard.record).includes("4111111111111111"),
+      JSON.stringify({ events: slottedCard.events, codes: slottedCard.codes })
+    );
+    const slottedPlain = await slottedRows("<span>plain</span>");
+    check("S3 control: plain text slotted into a shadow-tree row still crops", slottedPlain.events.includes("crop-taken"), JSON.stringify({ events: slottedPlain.events, codes: slottedPlain.codes }));
+    // Security review finding 3: content that appears after the first scan, before the shot (a field mounted late), is
+    // found by the rescan while the frame is held: the crop is taken, then dropped, and no row code is added.
+    const latePage = await lab("table-uniform");
+    const late = await diagnose(latePage, {
+      rows: true,
+      beforeFrame: async () => {
+        await latePage.evaluate(() => {
+          const own = document.querySelector('[data-testid="rw-target"]')!.closest("tr")!;
+          const other = Array.from(own.parentElement!.children).find((row) => row !== own)!;
+          other.children[1].insertAdjacentHTML("beforeend", '<select name="pin"><option>9876543210</option></select>');
+        });
+      }
+    });
+    check(
+      "S3: a masked field mounted after the first scan: the rescan while the frame is held drops the crop and adds no row code",
+      late.frames.taken === 1 && late.codes.length === 0 && JSON.stringify(late.events) === JSON.stringify(["frame-taken", "crop-taken", "crop-dropped", "frame-released"]) && !JSON.stringify(late.record).includes("9876543210"),
+      JSON.stringify({ events: late.events, codes: late.codes })
+    );
+    await latePage.close();
     // QC finding 1: rows re-sorted after the DOM read but before the frame (the container keeps its size).
     const sortPage = await lab("table-uniform");
     const sorted = await diagnose(sortPage, {
