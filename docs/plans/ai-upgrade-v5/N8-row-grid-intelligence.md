@@ -792,3 +792,94 @@ the raw PNG decode, N9 state features and the motion plane; diagnostic only, no 
 - **After the fix:** it is a product change, so it needs a newly pre-declared campaign pair (campaigns 8 and 9, since
   the harness refuses to overwrite `c6`) and a review round. Fewer late records may come at the cost of more cuts.
   Cuts count at the full deadline in the S-5 p95, so whether headed@2 S-5 then passes is unknown until measured.
+
+**`awkit-vra.18` deadline-safety fix (2026-11-01, `7a0a9227`)** (this part only: the worker-thread study and subsampling
+stay open on `awkit-vra.18`, outside Phase N closure).
+- **Fresh measurement** (`benchmark:visual-sync-cost`, now also timing the motion plane per pixel and one member's crop
+  plus evidence; 8 runs per cell; diagnostic only, no evidence file). Maxima, with the earlier § 12 run:
+
+  | Phase | This run, max ns/px (cell) | Earlier run | Rate (≈ 1.25 × max) |
+  |---|---|---|---|
+  | Whole crop + fingerprint | 290 (headless@1, a pause; p50 there 92) | 281 | **365** |
+  | N9 state features | 345 (headed@1) | 331 | **435** |
+  | Second frame's whole crop + motion plane | 127 + ≤ 15 (headed@1) | — | **180** |
+  | Member crop + evidence | 414 (headless@1, one 281 ms pause; p50 there 88) | — | **520** |
+  | PNG decode | 84 (headless@1.25) | 92 | **115** |
+
+  The maxima include host pauses on purpose: the rate is an upper bound, not a typical cost.
+- **What changed** (`src/runner/visualDiagnosis/visualDiagnosisContract.ts`, `VisualFailureDiagnosis.ts`; nothing in
+  `src/visual`):
+  1. `VISUAL_DIAGNOSIS_SYNC_NS_PER_PIXEL` is now one rate per phase (table above). The row container crop takes the
+     member-crop rate. The row decision over that crop is unmeasured, so it takes the largest whole-image rate (state
+     features).
+  2. **Host factor.** The first whole-frame chunk of each diagnosis (whole crop plus fingerprint) is timed whole:
+     `factor = max(1, observed ns/px ÷ 365)`. The process keeps the last `VISUAL_DIAGNOSIS_HOST_FACTOR_WINDOW` (8)
+     diagnoses' factors and carries their maximum into the next diagnosis. Within a diagnosis the factor is the carried
+     one, raised by its own chunk. It multiplies every later reserve: state features, member crops, row crop and
+     decision, the second capture's decode reserve, and the motion plane.
+  3. **N9's second capture** gets `timeoutMs = remaining − max(50, frame 1's pixels × 115 ns × factor)`, so N0's
+     synchronous decode of the bytes still fits in the work budget.
+  4. **Verifier-only probes** (production passes none): `syncCost(phase, pixels)`, called synchronously inside each
+     timed chunk (and right after each frame arrives, for `decode`), and `onCaptureTimeout`, the second capture's
+     timeout, work budget left and decode reserve.
+- **Unchanged:** the N5 and N9 deadlines, `VISUAL_DIAGNOSIS_SETTLE_MARGIN_MS`, the 50 ms floor, every frozen criterion in
+  `scripts/lib/visual-*-criteria.mts`, all evidence.
+- **Tests** (`verify:visual-diagnosis-deadline`, 31 → 45 checks):
+  - **D8:** a host 3× slower than every reserved rate (the probe busy-waits 2 × the phase's rate per pixel in every
+    phase, decode included), 8 whole N8+N9 diagnoses started at offsets 0 to 700 ms. None returns after the 1600 ms hard
+    deadline. The factor is learned (≥ 2) and carried, and it decays after 8 ordinary diagnoses.
+  - **D9:** the second capture's observed timeout leaves the decode reserve, checked on the verifier's own clock. Then a
+    DPR-2 frame on a host 3× slower in the fingerprint and decode phases has its second screenshot delivered 10 ms
+    before that timeout ends. The decode still finishes by the hard deadline (6000 ms test deadline, so the slow host
+    still reaches frame 2).
+  - Pins for the per-phase reserve, the factor arithmetic and the timeout; the earlier pins were moved to the new names.
+  - **Red proof:** in the working tree, the adapter was put back to the single 200 ns/px reserve with no host factor and
+    a `remaining − 50` timeout: **39/6**. It failed D8 (2 of 8 diagnoses late, 1646 and 1690 ms), both D9 timeout
+    checks, D9's late decode (6299 ms against 6000), and the two new pins. Every earlier check stayed green. Restored
+    byte-identically (SHA-256 `3a7dacda…ad846` before and after).
+- **Verifiers on `7a0a9227`:** build PASS; `typecheck:scripts` PASS; `verify:visual-diagnosis-deadline` 45/0 (three runs); `verify:visual-rows` 82/0, then 81/1, then 82/0 on one retry (the 81/1 run's `virtualized` case returned no row code at N5's 1000 ms deadline; a record cut as budget-exhausted, more likely with the larger fingerprint reserve, fits, but that record was not printed and 12 targeted runs all passed in 190 to 549 ms against the 900 ms budget, so the cause is INCONCLUSIVE); `verify:visual-state` 48/0; `verify:visual-state-runtime` 26/0; `verify:visual-diagnosis-runtime` first aborted in its own setup (N0's `captureElement` refused the verifier's reference seed as `PROTECTED_SURFACE`, before any adapter call), then 65/0 on one retry; `verify:protected-diagnosis` 75/0; `verify:security` 61/0; `verify:visual-isolation` 117/0; `verify:ocr-text-signal` 49/0; `verify:mock-site` 378/378; `verify:verifier-classification` reconciled.
+- **Residuals** (for the owner and the review round):
+  - N5's first capture still gets `timeoutMs = remaining`, and its decode is not reserved. It is taken at the start of
+    the budget, so it only matters on a page whose first screenshot is itself near the deadline.
+  - The rates come from this one host. On a slower host the factor learns the difference, but only from the
+    fingerprint chunk, so a host that is slow in one phase only is not seen.
+  - A pause inside the fingerprint chunk raises the factor for up to 8 diagnoses: more cuts, never a late record.
+  - **The expected trade-off:** fewer late records may mean more cuts. Cuts count at the full deadline in the S-5 p95,
+    so whether headed@2 S-5 passes is unknown until campaign 8 is run.
+  - The QC delta item on the box pass's cost on the heavy-frame path is still unmeasured, and the open review items
+    (slot-only test, NodeList iteration, other shadow trees, rescan by the original handle, QC 4, QC 6) are not part of
+    this fix.
+
+**Campaigns 8 and 9: pre-declaration** (committed before either runs, with the scripts that run them; under the frozen
+repeat rule, DECISIONS 2026-11-01):
+- **Revision:** the product source as of `7a0a9227`. Both campaigns run at the tip of `main` once this pre-declaration is
+  committed, with a clean tracked tree (`treeClean: true` in each cell file, which also records the revision). No
+  commit after this pre-declaration may change product source, the joint harness, the labs or the frozen criteria
+  (`src/**`, `app/**`, `mock-site/**`, `scripts/benchmark-visual-joint.mts`, `scripts/lib/visual-*-criteria.mts`, or
+  the `benchmark:visual-joint:*` scripts in `package.json`). Any such change, or any product change after campaign 8,
+  voids the sequence.
+- **Environment:**
+  - the approved Windows 11 ARM64 Parallels host, x64 Node, bundled Chromium;
+  - the six cells run one after another, in one shell, with no instrumentation (no `--diagnostic`);
+  - no build, verifier or other benchmark runs in parallel, and the VM is not used interactively during a cell.
+- **What runs** (unchanged from campaigns 6 and 7):
+  - all six cells (headless and headed at DPR 1, 1.25 and 2) with N5, N8 and N9 on;
+  - held-out variants b, c and d, two repeats each;
+  - the protected and disabled-mode controls;
+  - `npm run benchmark:visual-joint:<cell>` then `:aggregate` writes `evidence/joint/c8/`, and the `c9-` scripts write
+    `evidence/joint/c9/`.
+- **Criteria:** `N8_FROZEN_CRITERIA` R-1 to R-5 and `N9_FROZEN_CRITERIA` S-1 to S-5, unchanged.
+  - Strict accounting: any overrun of the 1600 ms hard deadline is late.
+  - A cut counts at the full deadline.
+  - No trial is excluded.
+  - Every protected trial refused with zero frames and no code.
+  - Disabled controls carry no N8/N9 code, take at most one frame, and none is late.
+- **A campaign passes** only when every criterion is MET in every cell.
+- **Sequence:**
+  - campaign 8 first;
+  - if it fails, it is recorded and the sequence stops, so campaign 9 does not run;
+  - N8 and N9 qualify on this revision only if campaigns 8 and 9 **both** pass, followed by a review round that
+    approves.
+- The harness refuses to overwrite any existing cell file. Campaigns 6 and 7's scripts are replaced by these; `c6`
+  evidence is unchanged.
+- **Status:** NOT RUN. The owner decides when to run them on an idle host.
