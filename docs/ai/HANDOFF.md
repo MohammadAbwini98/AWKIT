@@ -1,6 +1,32 @@
 # Agent Handoff
 
-## HANDOFF (2026-11-01, latest) — N8/N9 remediation done; campaign 5 NOT MET; owner decisions pending; Phase N NOT complete
+## HANDOFF (2026-11-01, latest) — Phase N recovery: campaign 6 NOT MET; S3/NEW-2 hardened; reviews APPROVED WITH FINDINGS; Phase N NOT complete
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. Contract
+`awkit-vra-phase-n-recovery-1101`.
+
+- **Done:**
+  - owner dispositions recorded (DECISIONS 2026-11-01); security CONFIRMED S2;
+  - the campaign-5 diagnosis (INCONCLUSIVE);
+  - S3/NEW-2 hardening plus review fixes (`af1deab3`, `b1f6ce37`);
+  - campaign 6 run and recorded as NOT MET; campaign 7 NOT RUN under the frozen rule;
+  - fresh and delta QC and security reviews; the F2 follow-up `awkit-vra.18` filed outside Phase N closure.
+- **Next single task:** `awkit-vra.18`.
+  - Make the synchronous-work reserve host-adaptive, and bound the whole-frame work, so headed DPR 2 frames cannot
+    overrun the 1600 ms deadline. The deadline and criteria stay unchanged.
+  - Measure the cost of the new box pass on the heavy-frame path.
+  - Close the open review items: the slot-only test, NodeList iteration, other shadow trees, rescan by the original
+    handle, QC 4 and QC 6.
+  - Then pre-declare a new campaign 6/7 pair on that final revision (new campaign numbers, for example 8 and 9, so
+    `c6` stays intact), and request a review round.
+- **Owner:**
+  - add the new share path to the global Git `safe.directory` (it changed from X: to W:);
+  - decide QC 4 (accept the custom-element closed-root heuristic and its recall cost, or order CDP-pierce reuse);
+  - resolve the governance gap: `MULTI_AGENT_ARCHITECTURE.md` § 191 against lease-guard's "unleased-routine" writes.
+- **Blocked (environment):** N7.1b, N7.8 and N7.9 (`verify:packaging-host` H4/H5). N7.10 `awkit-2shc` stays open.
+- **Preserved untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-11-01) — N8/N9 remediation done; campaign 5 NOT MET; owner decisions pending; Phase N NOT complete
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

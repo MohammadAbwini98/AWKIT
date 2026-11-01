@@ -350,3 +350,10 @@ the full matrix).
   - Both fresh reviews of `280d9ab`, and both delta reviews of `8f87d15`, returned APPROVED WITH FINDINGS.
   - Before N9 can close: a pre-declared campaign 6 on the final source, the owner's repeat rule, and owner decisions
     on S2, S3 and F2 (N8 plan § 11).
+- **Recovery (2026-11-01, N8 plan § 12; DECISIONS 2026-11-01):**
+  - the owner's repeat rule needs campaigns 6 **and** 7 on one final revision;
+  - the campaign-5 diagnosis is INCONCLUSIVE (`evidence/joint/diagnostic/c5-headed2-d1/`);
+  - **joint campaign 6 (`e6f67806`): NOT MET.** headed@2 S-5 fails (p95 631 ms over the 600 ms budget, and 1 record
+    after the 1600 ms hard deadline on the cell's first trial, +42.8 ms); the other five cells meet S-1 to S-5;
+  - S-1 shows 0 false `ready` and S-2 0 false `error`; protected trials are 72/72 refused;
+  - campaign 7 was not run. **N9 stays IN PROGRESS.**

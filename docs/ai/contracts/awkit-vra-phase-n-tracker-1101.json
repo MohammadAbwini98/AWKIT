@@ -155,6 +155,22 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-vra-phase-n-tracker-1101:project-state:2026-11-01T18:54:10.770Z",
+        "task": "awkit-vra-phase-n-tracker-1101",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**"
+        ],
+        "acquired_at": "2026-11-01T18:54:10.770Z",
+        "acquired_at_commit": "6d22b317c46d0d324daa53192acfccebfa996405",
+        "released_at": "2026-11-01T19:15:39.785Z",
+        "released_reason": "N8 and N9 notes record the recovery, campaign 6 NOT MET and the APPROVED WITH FINDINGS delta reviews, both left in progress, F2 follow-up awkit-vra.18 filed outside Phase N closure, exported 436 issues",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }

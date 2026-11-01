@@ -1,5 +1,49 @@
 # TASK_LOG
 
+## 2026-11-01 — Phase N recovery: campaign-5 diagnosis, S3/NEW-2 hardening, campaign 6 NOT MET, fresh reviews (Claude)
+
+- **Task:** the owner prompt "AWKIT — Phase N Final Qualification Recovery" (baseline `20e93347`, contract
+  `awkit-vra-phase-n-recovery-1101`).
+- **Commits:**
+  - `27f6dd8a`: the `--diagnostic` harness mode, the overwrite refusal, the `treeClean` field and the contract;
+  - `ffdc1ae8`, `039a6387`: diagnostic `c5-headed2-d1` and lease release;
+  - `af1deab3`: S3/NEW-2 hardening;
+  - `b1f6ce37`: review-round fixes;
+  - `e6f67806`: dispositions, pre-declaration and campaign scripts;
+  - `6d22b317`: campaign 6 evidence;
+  - plus this closeout.
+- **Files:**
+  - code: `src/runner/visualDiagnosis/VisualFailureDiagnosis.ts`, `scripts/verify-visual-rows.mts`,
+    `scripts/benchmark-visual-joint.mts`, `package.json`, `src/roadmap/ImplementationRoadmap.ts`;
+  - plans and evidence: `docs/plans/ai-upgrade-v5/{N8-row-grid-intelligence,N9-screenshot-state-recognition}.md`,
+    `evidence/joint/{diagnostic/c5-headed2-d1,c6}/`;
+  - project state: `docs/ai/{DECISIONS,CURRENT_STATE,HANDOFF,KNOWN_ISSUES,TASK_LOG}.md`, `.beads/issues.jsonl`, and the
+    contracts and lease files.
+- **Tests:**
+  - build PASS and `typecheck:scripts` PASS;
+  - `verify:visual-rows` 82/0 twice on `b1f6ce37` (78/0 on `af1deab3`; mutants 70/8 and 79/3);
+  - `verify:visual-diagnosis-deadline` 31/0, `verify:visual-state` 48/0, `verify:visual-state-runtime` 26/0;
+  - `verify:visual-diagnosis-runtime` 65/0, `verify:protected-diagnosis` 75/0, `verify:security` 61/0;
+  - `verify:visual-isolation` 117/0, `verify:ocr-text-signal` 49/0, `verify:mock-site` 378/378;
+  - `verify:verifier-classification` reconciled;
+  - `verify:packaging-host`: BLOCKED (H4/H5);
+  - `verify:roadmap-dashboard`: 183/184, "Sources agree" (two rounds; counts 435 to 436 and 27 to 28 updated for `awkit-vra.18`).
+    The remaining check, the portable build status commit, is BLOCKED by the share's Git ownership refusal (`tools/roadmap/server.mjs`
+    runs a plain `git rev-parse`);
+  - campaign 6: NOT MET; campaign 7: NOT RUN (repeat rule).
+- **Reviews (independent, read-only):**
+  - fresh round: QC CHANGES REQUIRED and security CHANGES REQUIRED, with security CONFIRMING S2;
+  - delta round on `b1f6ce37`: both APPROVED WITH FINDINGS.
+- **Governance (security finding 6, record-only):**
+  - `27f6dd8a`, `af1deab3`, `e6f67806` and `6d22b317` were committed while no lease was held, and `b1f6ce37` while only
+    the tracker lease (scope `.beads/**`, outside its scope) was held. This is
+    "unleased-routine" work, which `lease-guard` allows.
+  - Leases held: the diagnostic project-state lease on this contract, then the tracker lease
+    `awkit-vra-phase-n-tracker-1101` for `.beads/**`.
+  - `bd update --notes` replaces notes. The earlier N8 and N9 notes were restored from the committed export, and the
+    new note was appended after them.
+- **Result:** Phase N is NOT complete. N8 and N9 stay IN PROGRESS, and the next step is `awkit-vra.18` (see HANDOFF).
+
 ## 2026-11-01 — Phase N: final N8/N9 review remediation, campaigns 3 to 5, fresh reviews (Claude)
 
 - **Commits:**

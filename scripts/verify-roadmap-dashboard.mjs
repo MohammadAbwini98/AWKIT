@@ -183,7 +183,9 @@ try {
   // `awkit-vra.9.1`-`.9.11` (N7.1, N7.1a, N7.1b, N7.2-N7.9). Measured after `bd export`.
   // Then 435 on 2026-10-28 (contract `awkit-vra-9-n7-filing-1026`, ratified N7 amendment A1): N7.10 filed as the
   // independent open accuracy-qualification item `awkit-2shc`. Measured after `bd export`.
-  check("435 issues parse", beads.stats.total === 435, `got ${beads.stats.total}`);
+  // Then 436 on 2026-11-01 (contract `awkit-vra-phase-n-recovery-1101`): the F2 follow-up `awkit-vra.18` filed open,
+  // outside Phase N closure. Measured after `bd export`.
+  check("436 issues parse", beads.stats.total === 436, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -806,8 +808,10 @@ try {
   // Then 33/402 of 435 on 2026-10-31: N7.7 `.9.8` closed on its executed gates (verify:ocr-text-signal 49/0). Measured.
   // Then 27/408 of 435 on 2026-11-01 (contract `awkit-vra-phase-n-tracker-1101`): the six legacy records `awkit-vra.2`,
   // `.3`, `.5`, `.6`, `.7` and `.8` closed as superseded under the owner-ratified coverage matrix. Measured after export.
-    "27 outstanding / 408 closed",
-    beads.stats.outstanding === 27 && beads.stats.closed === 408,
+  // Then 28/408 of 436 on 2026-11-01 (contract `awkit-vra-phase-n-recovery-1101`): the F2 follow-up `awkit-vra.18` filed
+  // open. Measured after export.
+    "28 outstanding / 408 closed",
+    beads.stats.outstanding === 28 && beads.stats.closed === 408,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a

@@ -97,8 +97,8 @@
       "required": true,
       "command": "npm run benchmark:visual-joint:diagnostic",
       "artifact": "docs/plans/ai-upgrade-v5/evidence/joint/diagnostic/",
-      "result": "NOT RUN",
-      "observed": "pending"
+      "result": "PASS",
+      "observed": "ran once as c5-headed2-d1 (ffdc1ae8), never qualification; 37 non-control cuts, 0 late; campaign-5 cause classified INCONCLUSIVE"
     },
     {
       "id": "verify:visual-rows",
@@ -106,8 +106,8 @@
       "required": true,
       "command": "npm run verify:visual-rows",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": "pending"
+      "result": "PASS",
+      "observed": "82/0 twice on b1f6ce37 (QC reran: 82/0); mutants red 70/8 (af1deab3) and 79/3 (b1f6ce37)"
     },
     {
       "id": "benchmark:visual-joint:campaigns-6-7",
@@ -115,8 +115,8 @@
       "required": true,
       "command": "npm run benchmark:visual-joint:* (campaign 6, then campaign 7 only if 6 passes)",
       "artifact": "docs/plans/ai-upgrade-v5/evidence/joint/c6/ and c7/",
-      "result": "NOT RUN",
-      "observed": "pending"
+      "result": "FAIL",
+      "observed": "campaign 6 at e6f67806 NOT MET (headed@2 S-5 p95 631 ms, 1 late +42.8 ms); campaign 7 NOT RUN under the frozen repeat rule; b1f6ce37 is a later product change, so no campaign covers it"
     },
     {
       "id": "security-review",
@@ -124,8 +124,8 @@
       "required": true,
       "command": "independent read-only security review of the final source and campaign evidence",
       "artifact": "docs/plans/ai-upgrade-v5/N8-row-grid-intelligence.md",
-      "result": "NOT RUN",
-      "observed": "pending"
+      "result": "FAIL",
+      "observed": "fresh round CHANGES REQUIRED, delta round on b1f6ce37 APPROVED WITH FINDINGS (not unconditional); S2 residual risk CONFIRMED"
     },
     {
       "id": "git-push",
@@ -169,5 +169,6 @@
         "violations": []
       }
     ]
-  }
+  },
+  "governance_note": "Security finding 6 (record-only): 27f6dd8a, af1deab3, e6f67806 and 6d22b317 were committed with no lease held (lease-guard unleased-routine), b1f6ce37 under the tracker lease outside its .beads/** scope; owner to reconcile MULTI_AGENT_ARCHITECTURE.md section 191 with the guard."
 }

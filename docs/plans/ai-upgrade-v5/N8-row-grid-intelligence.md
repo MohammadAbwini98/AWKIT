@@ -591,7 +591,7 @@ Owner prompt "AWKIT — Phase N Final Qualification Recovery" (DECISIONS 2026-11
   - not bound to any fixture or lab transition.
 - **The instrumented run:**
   - It did not reproduce that burst.
-  - It cut every animated state fixture with no frame taken: an observer effect of the instrumentation.
+  - It cut every animated state fixture with no frame taken: probably an effect of the instrumentation (not isolated; QC review).
   - N5 still settled on time (37 cuts, 0 late).
 - No cause is demonstrated, and the burst is not called a flake.
 - Product finding, moved into the F2 follow-up: the fixed 200 ns/px synchronous reserve does not adapt to a slower
@@ -608,7 +608,7 @@ Owner prompt "AWKIT — Phase N Final Qualification Recovery" (DECISIONS 2026-11
   - an `iframe`, `frame`, `object`, `embed`, `fencedframe` or `portal`;
   - an autonomous custom element with no open root (it may hold a closed root that page script cannot read);
   - more than `VISUAL_ROWS_MAX_SCAN_NODES` (4000) elements.
-- The work is bounded: no document-wide scan, no new screenshot, no persisted pixels or text. No value, text or pixel is
+- The work is bounded: no document-wide content scan (since `b1f6ce37` one fixed-selector document query, matches capped), no new screenshot, no persisted pixels or text. No value, text or pixel is
   read, and protected steps are refused before the scan.
 - **Remaining limits, for security review:**
   - a closed shadow root on a built-in element (for example a `div`) cannot be detected by page script;
@@ -619,8 +619,8 @@ Owner prompt "AWKIT — Phase N Final Qualification Recovery" (DECISIONS 2026-11
   `select`, `contenteditable`, a hosted-card `iframe`, a card field two open shadow roots deep, a closed root, and the
   scan bound. One more case overlays a hosted-card `iframe` from outside the container. Positive controls (an ordinary
   `select`, plain text in nested shadow roots) still crop.
-- **Red proof:** reverting the scan to the old light-DOM, `input`/`textarea`-only rule failed exactly the 7 new
-  refusal cases, the overlay case and the shifted hit-test count (70/8). The controls stayed green.
+- **Red proof:** reverting the scan to the old light-DOM, `input`/`textarea`-only rule failed exactly the 6 new
+  refusal cases, the overlay case and the shifted hit-test count (8 checks, 70/8). The controls stayed green.
 
 **Campaigns 6 and 7: pre-declaration** (committed before either runs, with the scripts that run them):
 - **Revision:** both run on the commit that contains this section, with a clean tracked tree (`treeClean: true` in
@@ -647,3 +647,110 @@ Owner prompt "AWKIT — Phase N Final Qualification Recovery" (DECISIONS 2026-11
   - if it fails, it is recorded and the sequence stops, so campaign 7 does not run;
   - N8 and N9 qualify on this revision only if campaigns 6 and 7 **both** pass.
 - The harness refuses to overwrite any existing cell file.
+
+**Campaign 6** (`e6f67806`, `treeClean: true` in every cell, evidence `evidence/joint/c6/`, committed `6d22b317`):
+**NOT MET.** Five cells meet every N8 and N9 criterion. In **headed@2**, N9 **S-5 is NOT MET** (p95 631 ms against the
+600 ms budget, and 1 record after the 1600 ms hard deadline). Recorded unchanged: nothing excluded, re-scored or rerun.
+
+| Cell | Record p95 / max (ms) | Late | Cuts | S-3 loading / empty / error / ready (‰) | S-5 p95 | R-5 p95 | False assoc. / ready / error |
+|---|---|---|---|---|---|---|---|
+| headless@1 | 377 / 591 | 0 | 0 | 778 / 1000 / 667 / 852 | 214 ms | 31 ms | 0 / 0 / 0 |
+| headless@1.25 | 473 / 700 | 0 | 0 | 852 / 1000 / 667 / 889 | 269 ms | 43 ms | 0 / 0 / 0 |
+| headless@2 | 756 / 996 | 0 | 0 | 815 / 1000 / 750 / 852 | 381 ms | 44 ms | 0 / 0 / 0 |
+| headed@1 | 400 / 572 | 0 | 0 | 778 / 1000 / 667 / 852 | 243 ms | 35 ms | 0 / 0 / 0 |
+| headed@1.25 | 596 / 1513 | 0 | 1 | 815 / 1000 / 667 / 889 | 278 ms | 52 ms | 0 / 0 / 0 |
+| **headed@2** | 1160 / 1643 | **1** (`spinner`/b, +42.8 ms) | 3 | 815 / 1000 / 750 / 870 | **631 ms** | 69 ms | 0 / 0 / 0 |
+
+- **Pooled:**
+  - R-1: 0 consistent claims in 180 adversarial trials;
+  - 72/72 protected trials refused, with zero frames and no code;
+  - disabled controls: no N8/N9 code, at most one frame, none late;
+  - S-5 pooled is NOT MET (p95 401 ms, but 1 late).
+- **What the failure looks like:**
+  - The late record is the cell's very first diagnosis.
+  - The 3 cuts are animated state fixtures (`spinner`, `partial-skeleton`). Every cut and late trial had N5's frame,
+    so the time went into post-frame work.
+  - The whole cell ran slower than campaign 4's headed@2 (block medians 680 to 950 ms, against about 500 to 580 ms).
+  - The S3/NEW-2 scan does not run on state-lab trials (their target is missing, so there are no row members).
+  - Like campaign 5, the time went into post-frame work on the heaviest frames (headed, DPR 2). A plausible but unproven
+    mechanism is synchronous work exceeding the fixed per-pixel reserve; the cause stays INCONCLUSIVE (F2 follow-up).
+- **Repeat rule:** campaign 6 failed, so the sequence **stops**. Campaign 7 was **not run**. N8 and N9 are **not
+  qualified** on this revision.
+- **Next:** a product change to the synchronous reserve and scheduling is needed before any new sequence. That change
+  voids this revision's sequence, and a new campaign pair must be pre-declared for the new revision.
+
+**Fresh independent reviews of `af1deab3` to `6d22b317`** (read-only; verdicts recorded as returned):
+- **Security: CHANGES REQUIRED.**
+  - **S2: CONFIRMED.** The handoff-only recheck is an acceptable residual risk while the four owner limits stay
+    enforced by tests. With that confirmation, the owner's S2 conditional acceptance is satisfied.
+  - Required:
+    1. slotted light-DOM content was not scanned;
+    2. the 3 × 3 overlay sampling missed small or under-layer overlays;
+    3. the scan ran only before the frame (time-of-check).
+  - Low: the benchmark's wildcard `safe.directory`.
+  - Governance: the product commits were made with no lease held. `lease-guard` allows "unleased-routine" writes,
+    which contradicts `MULTI_AGENT_ARCHITECTURE.md` § 191. Recorded here, not changed.
+  - Acceptable residuals: closed roots on built-in elements; sensitive text, canvas or images outside controls.
+- **QC: CHANGES REQUIRED.**
+  - The iframe tests raced N0's strict frame window (the QC run gave 76/2).
+  - The overlay gap (as security found).
+  - The custom-element closed-root heuristic costs recall on custom-element tables (`mat-table`), unmeasured on the
+    labs.
+  - The scan built the whole subtree before checking the cap.
+  - A brittle hit-count pin.
+  - Overclaims in `ANALYSIS.md` and in this section.
+  - Confirmed:
+    - campaign 6 NOT MET, recomputed independently;
+    - the pre-declaration was committed before the run;
+    - stopping before campaign 7 is correct;
+    - no protected-capture, stale-frame, offline or disabled-mode regression;
+    - no harness behaviour change without `--diagnostic`.
+- **Fixes (`b1f6ce37`):**
+  - one shared page function `rowContainerSensitive` runs before the frame and again after the crop while the frame
+    is held; a hit drops the crop and every row code;
+  - slot-assigned elements are scanned;
+  - every embedded frame, form control or `[contenteditable]` whose box meets the container's visible box is
+    classified. This is a fixed-selector document query with matches capped at 4000 and no content read;
+  - a `TreeWalker` stops at the cap;
+  - the iframe tests wait for their frames to load;
+  - the benchmark's Git calls trust only the exact checkout root, with `core.fsmonitor=false`;
+  - the overclaims are corrected.
+- **Tests and red proof:**
+  - `verify:visual-rows` **82/0 in two consecutive runs**;
+  - a mutant without the three fixes gives 79/3: exactly the slotted card, the 12 × 8 px pointer-events-none frame,
+    and the late-mounted field;
+  - deadline 31/0, state-runtime 26/0, diagnosis-runtime 65/0, protected-diagnosis 75/0, security 61/0, isolation
+    117/0, build PASS.
+- **Left open:**
+  - QC 4: the closed-root heuristic stays, under the owner's "refuse when uncertain". CDP-pierce reuse would be a
+    larger design change.
+  - QC 6: the coordinate assertion for the hit-count pin.
+- **Qualification:** `b1f6ce37` is a product change after campaign 6, so no campaign qualifies it. A new pair must be
+  pre-declared for the next final revision, after the heavy-frame reserve work (`awkit-vra.18`).
+
+**Delta reviews of `b1f6ce37`** (one bounded round; verdicts recorded as returned):
+- **Security: APPROVED WITH FINDINGS.**
+  - **S2 CONFIRMED** again.
+  - Slotted content, overlays and the time-of-check gap: RESOLVED.
+  - The wildcard `safe.directory`: RESOLVED. The unleased commits: accepted as record-only; the gap between the
+    governance doc and the guard is left for the owner.
+  - Open low and info items:
+    - the slotted-card test can also be caught by the box pass, so add a slot-only case;
+    - iterate the NodeList directly instead of `Array.from`;
+    - frames and controls inside *other* open shadow trees are seen only by the hit test;
+    - the rescan finds the container again from the anchor instead of reusing the original handle.
+- **QC: APPROVED WITH FINDINGS.**
+  - Its own `verify:visual-rows` run: 82/0.
+  - QC1, QC3, QC5 and QC7 RESOLVED; QC2 resolved as far as one run shows.
+  - QC4 (the closed-root heuristic and its unmeasured recall cost on custom-element tables) and QC6 (the hit-count
+    coordinate assertion) stay OPEN, as recorded.
+  - New, low to medium:
+    - the box pass is a document query run twice per diagnosis, and its cost is unmeasured on the heavy-frame path;
+    - other shadow trees are not searched (as security found);
+    - content that appears and disappears between the two scans is not caught, since this scan has no mutation sentinel.
+- **Consequence:** neither review is an unconditional approval, and no campaign covers `b1f6ce37`. **N8 `awkit-vra.10`
+  and N9 `awkit-vra.11` stay IN PROGRESS.**
+- **To close:**
+  1. the heavy-frame reserve work (`awkit-vra.18`) plus the open review items;
+  2. a newly pre-declared campaign 6/7 pair on that final revision, both passing;
+  3. a review round that approves.

@@ -1,5 +1,35 @@
 # KNOWN_ISSUES
 
+## Phase N recovery: campaign 6 NOT MET, heavy-frame deadline overrun, S3 hardening limits, share Git ownership (2026-11-01, OPEN)
+
+- **Heavy-frame synchronous work can overrun the N5/N8/N9 hard deadline on this host (OPEN; F2 follow-up
+  `awkit-vra.18`).**
+  - **What:** `VISUAL_DIAGNOSIS_SYNC_NS_PER_PIXEL` (200 ns/px) is a fixed reserve. On the emulated x64 Node, headed
+    DPR 2 frames sometimes take longer.
+  - **Campaign 5:** a burst of ~37 slow trials, with 7 late records and 32 cuts.
+  - **Campaign 6:** headed@2's first trial was late (+42.8 ms) and 3 trials were cut, so S-5 is NOT MET.
+  - **Effect:** N8 and N9 are not qualified on `e6f67806`. The fix is a product change, so the campaign sequence must be
+    pre-declared again for the new revision.
+- **Campaign-5 headed@2 burst: cause INCONCLUSIVE.**
+  - The diagnostic `c5-headed2-d1` did not reproduce it.
+  - The diagnostic's CDP `Performance` instrumentation probably stalls screenshots of animated fixtures (not isolated), so
+    instrumented runs are never comparable to campaigns.
+- **S3/NEW-2 hardening limits (residual; security review decides):**
+  - closed shadow roots on built-in elements are undetectable;
+  - since `b1f6ce37` frames and controls are found by box, but only in the document and the container's own shadow root: one inside another open shadow tree (for example a hosted-card web component overlaid with `pointer-events: none`) is seen only by the 3 × 3 topmost hit test;
+  - visible sensitive text outside controls is still copied into the transient crop;
+  - the scan runs before the frame and again after the crop (`b1f6ce37`); content that appears and disappears between the two scans is not caught (N0 has a mutation sentinel, this scan has none); the box pass is a fixed-selector document query run twice per diagnosis, cost not yet measured in a campaign;
+  - Autonomous custom elements without an open root (common in some frameworks) now refuse the row observation by
+    design.
+- **N5 alone at 1920 × 1080, DPR 1.5:** NOT qualified (48/48 `budget-exhausted`). This is a documented limitation;
+  nothing is waived (`awkit-vra.18`).
+- **The repository share changed drive letter (X: to W:, UNC `//Mac/Samsung9100PRO/...`).**
+  - Git refuses the repository as "dubious ownership"; the global `safe.directory` names only the old X: path.
+  - This session's ad-hoc read-only Git inspection used `-c safe.directory=*` per command (no persistent change). The lease CLI ran with a per-process `GIT_CONFIG_*` entry for the exact UNC
+    path, and since `b1f6ce37` the joint benchmark trusts only the exact native checkout root, with `core.fsmonitor=false`.
+  - `tools/agents/compaction-checkpoint.mjs` fails until the owner adds the new path to the global Git config.
+
+
 ## N5 high-DPI coverage and N8 sensitive-container residuals (2026-11-01, OPEN, owner disposition pending)
 
 - **N5 alone is not qualified at 1920 × 1080, DPR 1.5 (OPEN, known limitation, measured; QC F2).**

@@ -1,6 +1,50 @@
 # CURRENT_STATE
 
-## Phase N: N8/N9 final remediation; campaign 5 NOT MET; reviews APPROVED WITH FINDINGS; N8, N9 and Phase N open (2026-11-01, latest)
+## Phase N recovery: campaign 6 NOT MET; S3/NEW-2 hardened; reviews not unconditional; N8, N9 and Phase N open (2026-11-01, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases; no ledger case was touched.
+Contract `awkit-vra-phase-n-recovery-1101`.
+
+- **Owner dispositions (DECISIONS 2026-11-01):**
+  - **S2:** conditional acceptance. Security **CONFIRMED** the residual risk, so S2 is satisfied while its four limits
+    stay test-enforced.
+  - **S3/NEW-2:** hardening required. **F2:** a documented, unqualified limitation, followed up independently in
+    `awkit-vra.18`.
+  - **Repeat rule:** campaigns 6 **and** 7 on one final revision; a failed campaign 6 stops the sequence.
+- **Campaign-5 diagnosis: INCONCLUSIVE.** Diagnostic `c5-headed2-d1` (`ffdc1ae8`) never counts as qualification. It did
+  not reproduce the burst, and its instrumentation probably stalls animated fixtures (not isolated).
+- **S3/NEW-2 hardening** (`af1deab3`, review fixes `b1f6ce37`):
+  - one shared, bounded, attributes-only scan, run before the frame and again after the crop while the frame is held;
+  - **refuses on:**
+    - masked `input`, `textarea` or `select`;
+    - `contenteditable`;
+    - embedded frames;
+    - nested open shadow roots and slotted content;
+    - possible closed roots;
+    - any frame or control whose box meets the container;
+    - more than 4000 elements.
+  - `verify:visual-rows` 82/0 twice, with the mutants red (70/8, then 79/3).
+- **Campaign 6** (`e6f67806`, pre-declared, strict): **NOT MET**.
+  - headed@2 S-5: p95 631 ms, and 1 record +42.8 ms past the hard deadline.
+  - The other five cells pass.
+  - 72/72 protected refusals; 0 false association, `ready` or `error` claims.
+  - The sequence stopped, and **campaign 7 was NOT RUN**.
+  - `b1f6ce37` changed the product afterwards, so no campaign qualifies the current source.
+- **Reviews:**
+  - Fresh round: QC and security both **CHANGES REQUIRED**, all addressed in `b1f6ce37`.
+  - Delta round: security **APPROVED WITH FINDINGS** (low and info only); QC **APPROVED WITH FINDINGS** (its own run 82/0).
+  - Neither review is an unconditional approval. **N8 `awkit-vra.10` and N9 `awkit-vra.11` stay IN PROGRESS.**
+- **Verifiers on `b1f6ce37`:**
+  - build PASS and `typecheck:scripts` PASS;
+  - `verify:visual-rows` 82/0 (×2), deadline 31/0, state-runtime 26/0, diagnosis-runtime 65/0;
+  - protected-diagnosis 75/0, security 61/0, isolation 117/0.
+  - On `af1deab3`: visual-state 48/0, ocr-text-signal 49/0, mock-site 378/378, verifier-classification reconciled.
+- **Still BLOCKED:** N7.1b, N7.8 and N7.9 (`verify:packaging-host` H4/H5: no Visual Studio 2022 MSVC v143).
+  - N7.10 `awkit-2shc` stays open (OCR accuracy NOT MET).
+  - N6P and N10 stay outside closure.
+- **Phase N is NOT complete.**
+
+## Phase N: N8/N9 final remediation; campaign 5 NOT MET; reviews APPROVED WITH FINDINGS; N8, N9 and Phase N open (2026-11-01)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases; no ledger case was touched.
 
