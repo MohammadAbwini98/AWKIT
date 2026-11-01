@@ -4,6 +4,10 @@
   "holder": "project-state",
   "status": "active",
   "allowed_paths": [
+    ".beads/**",
+    "docs/ai/**",
+    "docs/plans/ai-upgrade-v5/N8-row-grid-intelligence.md",
+    "docs/plans/ai-upgrade-v5/N9-screenshot-state-recognition.md",
     "docs/plans/ai-upgrade-v5/evidence/joint/c8/**",
     "docs/plans/ai-upgrade-v5/evidence/joint/c9/**"
   ],
@@ -27,7 +31,20 @@
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.59|manifest.json:1785274864439.5393",
     "build": "dir(10):command-authorization-build.log:1791655824280.519|command-authorization-graphify.log:1791656102774.0833|command-authorization-roadmap.log:1791655956531.24|command-authorization-routing.log:1791655726727.7021|command-authorization-task-gate.json:1791655978836.031|lease-status-build.log:1791656486702.492|lease-status-roadmap.log:1791656634670.6675|lease-status-routing.log:1791656586249.2314|native-hosts:1792950540185.39|ocr:1793035794455.6753"
   },
-  "amendments": [],
+  "amendments": [
+    {
+      "timestamp": "2026-11-01T23:05:37.437Z",
+      "added": [
+        "docs/ai/**",
+        "docs/plans/ai-upgrade-v5/N8-row-grid-intelligence.md",
+        "docs/plans/ai-upgrade-v5/N9-screenshot-state-recognition.md",
+        ".beads/**"
+      ],
+      "reason": "Campaign 8 NOT MET: record evidence, diagnosis and project state; campaign 9 not run",
+      "triggered_escalation": [],
+      "approved_by": "manager"
+    }
+  ],
   "overrides": [],
   "violations": []
 }

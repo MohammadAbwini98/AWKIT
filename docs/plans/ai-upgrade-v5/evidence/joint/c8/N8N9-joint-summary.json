@@ -1,0 +1,43 @@
+{
+ "benchmark": "benchmark:visual-joint",
+ "date": "2026-11-01T23:03:29.777Z",
+ "cells": [
+  {
+   "cell": "headless@1",
+   "status": "RAN",
+   "revision": "1c7f8b5793c1d4a00198d6bce9d85eb51a0f0f44",
+   "trials": 280
+  },
+  {
+   "cell": "headless@1.25",
+   "status": "RAN",
+   "revision": "1c7f8b5793c1d4a00198d6bce9d85eb51a0f0f44",
+   "trials": 280
+  },
+  {
+   "cell": "headless@2",
+   "status": "RAN",
+   "revision": "1c7f8b5793c1d4a00198d6bce9d85eb51a0f0f44",
+   "trials": 280
+  },
+  {
+   "cell": "headed@1",
+   "status": "RAN",
+   "revision": "1c7f8b5793c1d4a00198d6bce9d85eb51a0f0f44",
+   "trials": 280
+  },
+  {
+   "cell": "headed@1.25",
+   "status": "RAN",
+   "revision": "1c7f8b5793c1d4a00198d6bce9d85eb51a0f0f44",
+   "trials": 280
+  },
+  {
+   "cell": "headed@2",
+   "status": "RAN",
+   "revision": "1c7f8b5793c1d4a00198d6bce9d85eb51a0f0f44",
+   "trials": 280
+  }
+ ],
+ "allCriteriaMet": false
+}
