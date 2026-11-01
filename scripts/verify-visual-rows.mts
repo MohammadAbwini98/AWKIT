@@ -15,7 +15,10 @@
  *      during the hit test starts no visibility read, opacity through nested shadow roots (and an unreadable ancestor
  *      fails closed), the handoff recheck before the row read, N9's second frame refused as protected after the row
  *      work, a handoff after the frame, navigation while either frame is held (Sec 1-3), and a container holding a
- *      masked field or a sensitive string (S3); navigation after every crop, before release (security NEW-1);
+ *      masked field or a sensitive string (S3); navigation after every crop, before release (security NEW-1); the S3 /
+ *      NEW-2 hardening (owner 2026-11-01): a masked select, contenteditable, a hosted-card iframe (in another row, and
+ *      overlaid from outside the container), a card field two open shadow roots deep, a closed root and the scan bound
+ *      each refuse the row observation, with positive controls that still crop;
  *   D  purity and wiring: the library's imports; the engine, runner and adapter gates; drawer copy for each code.
  *
  * Run: npm run verify:visual-rows
@@ -351,16 +354,18 @@ async function main(): Promise<void> {
     );
     await heldPage.close();
     // QC (2026-11-01): the deadline cuts while the rows' hit test is in flight (the page is busy inside it). Once it
-    // returns, no visibility read is started. The first elementFromPoint is N5's own target fact; the second is the rows'.
+    // returns, no visibility read is started. The first elementFromPoint is N5's own target fact, the next nine are the
+    // container scan's 3 x 3 overlay hit test (S3 / NEW-2), and the one after them is the rows' member hit test.
     // A started read is counted in the Playwright client (the cut's handle disposal would also stop it reaching the page).
+    const MEMBER_HIT = 2 + 9;
     const hitPage = await lab("table-uniform");
-    await hitPage.evaluate(() => {
+    await hitPage.evaluate((at) => {
       const w = window as unknown as { __hits: number };
       w.__hits = 0;
       const hit = Document.prototype.elementFromPoint;
       Document.prototype.elementFromPoint = function (this: Document, x: number, y: number) {
         w.__hits += 1;
-        if (w.__hits === 2) {
+        if (w.__hits === at) {
           const until = Date.now() + 2500;
           while (Date.now() < until) {
             // the page is busy inside the rows' hit test
@@ -368,7 +373,7 @@ async function main(): Promise<void> {
         }
         return hit.call(this, x, y);
       };
-    });
+    }, MEMBER_HIT);
     let handleProto = Object.getPrototypeOf(await hitPage.$("body")) as { evaluate: (...args: unknown[]) => Promise<unknown> } | null;
     while (handleProto && !Object.prototype.hasOwnProperty.call(handleProto, "evaluate")) handleProto = Object.getPrototypeOf(handleProto);
     const evaluateOriginal = handleProto!.evaluate;
@@ -388,7 +393,7 @@ async function main(): Promise<void> {
     }
     check(
       "QC: a cut during the rows' hit test: budget-exhausted, no row code, no visibility read started after the cut",
-      hitCut.record?.observations[0] === "budget-exhausted" && hitCut.codes.length === 0 && hits === 2 && visibilityReads === 0,
+      hitCut.record?.observations[0] === "budget-exhausted" && hitCut.codes.length === 0 && hits === MEMBER_HIT && visibilityReads === 0,
       JSON.stringify({ observations: hitCut.record?.observations, hits, visibilityReads })
     );
     await hitPage.close();
@@ -553,6 +558,76 @@ async function main(): Promise<void> {
       JSON.stringify({ events: text.events, record: text.record })
     );
     await textPage.close();
+    // Security S3 / NEW-2 hardening (owner 2026-11-01): content the container crop could show and that cannot be safely
+    // excluded refuses the optional row observation (one frame, no container crop, no row code), always placed in a row
+    // OTHER than the target's. Each refusal has a positive control that must still crop, so the scan is not a blanket
+    // refusal. Field values are set where a field has one, and must never reach the record.
+    const otherRow = async (html: string, setup?: string) => {
+      const page = await lab("table-uniform");
+      await page.evaluate(
+        ([markup, script]) => {
+          const own = document.querySelector('[data-testid="rw-target"]')!.closest("tr")!;
+          const other = Array.from(own.parentElement!.children).find((row) => row !== own)!;
+          const cell = other.children[1] as HTMLElement;
+          cell.insertAdjacentHTML("beforeend", markup);
+          if (script) new Function("cell", script)(cell);
+        },
+        [html, setup ?? ""] as const
+      );
+      const result = await diagnose(page, { rows: true });
+      await page.close();
+      return result;
+    };
+    const refusedRows = (r: Awaited<ReturnType<typeof diagnose>>) => r.frames.taken === 1 && r.codes.length === 0 && JSON.stringify(r.events) === JSON.stringify(["frame-taken", "frame-released"]);
+    const croppedRows = (r: Awaited<ReturnType<typeof diagnose>>) => r.events.includes("crop-taken") && r.codes.length > 0;
+    const hardening: Array<[string, string, string | undefined, boolean]> = [
+      ["NEW-2: a masked select (PIN) in another row", '<select name="pin"><option>9876543210</option></select>', undefined, true],
+      ["NEW-2 control: an ordinary select (quantity) in another row still crops", '<select name="quantity"><option>2</option></select>', undefined, false],
+      ["S3: a contenteditable region in another row", '<div contenteditable="true">note</div>', undefined, true],
+      ["S3: a hosted-card iframe in another row", "<iframe title=\"Card\" srcdoc=\"<input autocomplete='cc-number' value='4111111111111111'>\" style=\"width:120px;height:24px\"></iframe>", undefined, true],
+      [
+        "S3: a card field two open shadow roots deep in another row",
+        '<span class="host"></span>',
+        "const outer = cell.querySelector('.host').attachShadow({ mode: 'open' }); outer.innerHTML = '<span class=\"inner\"></span>'; const inner = outer.querySelector('.inner').attachShadow({ mode: 'open' }); inner.innerHTML = '<input autocomplete=\"cc-number\" value=\"4111111111111111\" style=\"width:80px\">';",
+        true
+      ],
+      [
+        "S3 control: plain text two open shadow roots deep in another row still crops",
+        '<span class="host"></span>',
+        "const outer = cell.querySelector('.host').attachShadow({ mode: 'open' }); outer.innerHTML = '<span class=\"inner\"></span>'; outer.querySelector('.inner').attachShadow({ mode: 'open' }).textContent = 'plain';",
+        false
+      ],
+      [
+        "S3: a closed shadow root (custom element) in another row is uncertain",
+        "<card-field></card-field>",
+        "cell.querySelector('card-field').attachShadow({ mode: 'closed' }).innerHTML = '<input autocomplete=\"cc-csc\" value=\"123\">';",
+        true
+      ],
+      ["S3: more elements than the scan bound in another row", "", "for (let i = 0; i < 4100; i += 1) cell.appendChild(document.createElement('i'));", true]
+    ];
+    for (const [label, html, setup, refuse] of hardening) {
+      const r = await otherRow(html, setup);
+      const json = JSON.stringify(r.record);
+      check(
+        `${label}: ${refuse ? "one frame, no container crop, no row code" : "cropped and decided"}; the record has no field value`,
+        (refuse ? refusedRows(r) : croppedRows(r)) && !json.includes("4111111111111111") && !json.includes("9876543210") && r.record?.observations.every((c) => /^[a-z][a-z0-9-]*$/.test(c)),
+        JSON.stringify({ events: r.events, codes: r.codes })
+      );
+    }
+    // S3 / NEW-2: a hosted-card frame painted over the rows from OUTSIDE the container (a fixed overlay) is found by the
+    // bounded hit test over the container's visible box, not by a document-wide scan.
+    const overlayPage = await lab("table-uniform");
+    await overlayPage.evaluate(() => {
+      const box = document.querySelector('[data-testid="rw-target"]')!.closest("tr")!.parentElement!.getBoundingClientRect();
+      const frame = document.createElement("iframe");
+      frame.title = "Card";
+      frame.srcdoc = "<input autocomplete='cc-number'>";
+      Object.assign(frame.style, { position: "fixed", left: `${box.left + box.width / 3}px`, top: `${box.top + box.height / 3}px`, width: `${box.width / 3}px`, height: `${box.height / 3}px`, border: "0" });
+      document.body.append(frame);
+    });
+    const overlay = await diagnose(overlayPage, { rows: true });
+    check("S3: a hosted-card iframe overlaid on the rows from outside the container: one frame, no container crop, no row code", refusedRows(overlay), JSON.stringify({ events: overlay.events, codes: overlay.codes }));
+    await overlayPage.close();
     // QC finding 1: rows re-sorted after the DOM read but before the frame (the container keeps its size).
     const sortPage = await lab("table-uniform");
     const sorted = await diagnose(sortPage, {

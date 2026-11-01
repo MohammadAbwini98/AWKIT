@@ -176,6 +176,12 @@ export interface VisualFailureDiagnosisOptions {
 
 /** N8: what makes an element a row, for the DOM read (plan § 2). */
 const ROW_SELECTOR = 'tr, [role="row"], li, [role="listitem"]';
+/**
+ * Security S3 / NEW-2 (owner 2026-11-01): the most elements the sensitive-content scan of a row container (its subtree,
+ * its open shadow roots, and whatever paints over its visible box) reads. Past it the content cannot be safely excluded,
+ * so the optional row observation is refused: bounded, never a document-wide scan.
+ */
+const VISUAL_ROWS_MAX_SCAN_NODES = 4000;
 
 interface RowFacts {
   container: VisualRowsBox;
@@ -776,7 +782,10 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
    * VISUAL_ROWS_MAX_ROWS), a declared row count, and each member's DOM row index in that container (-1 when it is in
    * another one) and whether nothing is on top of it. Read only: boxes, ancestry and one hit test per member. Security S3:
    * a container holding a masked field (the N4.2 rule, attributes only, never a value) is `undefined`: never cropped,
-   * never examined, no row code.
+   * never examined, no row code. S3 / NEW-2 (owner 2026-11-01): so is a container whose crop could show content that
+   * cannot be safely excluded: a masked `input`, `textarea` or `select`, a `contenteditable` region, an embedded frame,
+   * a possible closed shadow root, at any depth of open shadow roots or painted over the container, or more than
+   * VISUAL_ROWS_MAX_SCAN_NODES elements to classify.
    */
   private async rowFacts(members: Array<{ handle: ElementHandle; box: MemberBox["box"] }>, signal: AbortSignal): Promise<RowFacts | null | undefined> {
     // N8 QC finding 6: after a cut, no further page reads are started.
@@ -787,16 +796,56 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
       if (signal.aborted) return null;
       const facts = await container.evaluate(
         // No named inner functions here: a bundler may wrap them in a helper the page does not have.
-        (node, [selector, cap, autocompleteRule, describedRule]) => {
+        (node, [selector, cap, autocompleteRule, describedRule, scanCap]) => {
           if (!node) return null;
           const element = node as Element;
           const autocompleteMasked = new RegExp(autocompleteRule);
           const describedMasked = new RegExp(describedRule, "i");
-          for (const control of Array.from(element.querySelectorAll("input, textarea"))) {
-            const autocomplete = (control.getAttribute("autocomplete") ?? "").toLowerCase();
-            const described = [control.getAttribute("name"), control.id, autocomplete, control.getAttribute("aria-label"), control.getAttribute("placeholder")].join(" ");
-            if ((control.getAttribute("type") ?? "").toLowerCase() === "password" || autocompleteMasked.test(autocomplete) || describedMasked.test(described)) {
-              return { sensitive: true as const };
+          const own = element.getBoundingClientRect();
+          // Security S3 / NEW-2 (owner 2026-11-01): before the optional crop, everything the crop could show is
+          // classified, and any content that cannot be safely excluded refuses the row observation (fail closed). The
+          // scope is the container's subtree with every nested open shadow root, plus whatever paints over its visible
+          // box (a bounded 3 x 3 hit test, so a hosted card frame overlaid on the rows counts). Attributes only: no field
+          // value, text or pixel is read.
+          const scope: Array<Element | ShadowRoot> = [element];
+          const left = Math.max(0, own.left);
+          const top = Math.max(0, own.top);
+          const right = Math.min(window.innerWidth, own.right);
+          const bottom = Math.min(window.innerHeight, own.bottom);
+          if (right > left && bottom > top) {
+            const tree = element.getRootNode();
+            const finder: Document | ShadowRoot = tree instanceof ShadowRoot ? tree : document;
+            const lineage = new Set<Node>();
+            for (let at: Node | null = element; at; at = at instanceof ShadowRoot ? at.host : at.parentNode) lineage.add(at);
+            for (const fx of [1, 3, 5]) {
+              for (const fy of [1, 3, 5]) {
+                const hit = finder.elementFromPoint(left + ((right - left) * fx) / 6, top + ((bottom - top) * fy) / 6);
+                if (hit && !lineage.has(hit) && !element.contains(hit) && !scope.includes(hit)) scope.push(hit);
+              }
+            }
+          }
+          let seen = 0;
+          for (let at = 0; at < scope.length; at += 1) {
+            const root = scope[at]!;
+            const nodes = root instanceof ShadowRoot ? Array.from(root.querySelectorAll("*")) : [root, ...Array.from(root.querySelectorAll("*"))];
+            for (const control of nodes) {
+              seen += 1;
+              if (seen > scanCap) return { sensitive: true as const };
+              const tag = control.localName;
+              // Embedded documents (hosted card fields, other origins) cannot be classified from here.
+              if (tag === "iframe" || tag === "frame" || tag === "object" || tag === "embed" || tag === "fencedframe" || tag === "portal") return { sensitive: true as const };
+              // Editable regions have no masking semantics to classify them by.
+              if (control instanceof HTMLElement && control.isContentEditable) return { sensitive: true as const };
+              if (control.shadowRoot) scope.push(control.shadowRoot);
+              // An autonomous custom element with no open root may hold a closed one, which page script cannot read.
+              else if (tag.includes("-") && control.namespaceURI === "http://www.w3.org/1999/xhtml") return { sensitive: true as const };
+              if (tag === "input" || tag === "textarea" || tag === "select") {
+                const autocomplete = (control.getAttribute("autocomplete") ?? "").toLowerCase();
+                const described = [control.getAttribute("name"), control.id, autocomplete, control.getAttribute("aria-label"), control.getAttribute("placeholder")].join(" ");
+                if ((control.getAttribute("type") ?? "").toLowerCase() === "password" || autocompleteMasked.test(autocomplete) || describedMasked.test(described)) {
+                  return { sensitive: true as const };
+                }
+              }
             }
           }
           const rows = Array.from(element.children).filter((child) => child.matches(selector));
@@ -805,7 +854,6 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
             const r = row.getBoundingClientRect();
             boxes.push({ x: r.left, y: r.top, width: r.width, height: r.height });
           }
-          const own = element.getBoundingClientRect();
           const declaredText = element.closest("[aria-rowcount]")?.getAttribute("aria-rowcount") ?? rows[0]?.getAttribute("aria-setsize") ?? null;
           const declared = declaredText === null ? Number.NaN : Number(declaredText);
           return {
@@ -815,7 +863,7 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
             declaredRows: Number.isInteger(declared) && declared > 0 ? declared : null
           };
         },
-        [ROW_SELECTOR, VISUAL_ROWS_MAX_ROWS, MASKED_AUTOCOMPLETE, MASKED_DESCRIBED] as [string, number, string, string]
+        [ROW_SELECTOR, VISUAL_ROWS_MAX_ROWS, MASKED_AUTOCOMPLETE, MASKED_DESCRIBED, VISUAL_ROWS_MAX_SCAN_NODES] as [string, number, string, string, number]
       );
       if (!facts || signal.aborted) return null;
       if ("sensitive" in facts) return undefined;
