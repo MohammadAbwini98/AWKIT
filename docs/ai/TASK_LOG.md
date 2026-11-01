@@ -1,5 +1,20 @@
 # TASK_LOG
 
+## 2026-11-02 — Phase N qualification resume: campaign 8 NOT MET, campaign 9 not run (Claude)
+
+- **Task:** the owner prompt "AWKIT — Resume Phase N Qualification and Closure" (implemented baseline `7a0a9227`,
+  pre-declaration `62a3b0bf`). Contract `awkit-vra-phase-n-qualification-1102`; a project-state lease on
+  `evidence/joint/c8/**` and `c9/**`, amended to `docs/ai/**`, the N8 and N9 plans and `.beads/**`, then released.
+- **Commits:**
+  - `1c7f8b57`: contract and lease;
+  - `233734a4`: campaign 8 evidence, unchanged;
+  - the analysis, docs and Beads closeout.
+- **Tests:**
+  - **Campaign 8: NOT MET.** headless@2 and headed@2 MET; headless@1, headless@1.25, headed@1 and headed@1.25 NOT MET.
+  - **Campaign 9: NOT RUN.** **Reviews: NOT RUN.**
+  - **Verifier incidents:** `verify:visual-rows` `virtualized` 81/1 incident: **INCONCLUSIVE**; `verify:visual-diagnosis-runtime` reference-seed `PROTECTED_SURFACE` refusal: **INCONCLUSIVE** (both earlier failures stay recorded; N8 plan § 12). No verifier was rerun.
+- **Result:** N8 `awkit-vra.10` and N9 `awkit-vra.11` stay IN PROGRESS. Phase N is NOT complete.
+
 ## 2026-11-01 — `awkit-vra.18` deadline-safety fix and campaign 8/9 pre-declaration (Claude)
 
 - **Task:** the `awkit-vra.18` deadline-safety part only (the worker-thread study and subsampling stay out of scope),

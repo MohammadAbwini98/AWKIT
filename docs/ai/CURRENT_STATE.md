@@ -1,6 +1,33 @@
 # CURRENT_STATE
 
-## `awkit-vra.18` deadline-safety fix; campaigns 8 and 9 pre-declared and NOT RUN; N8, N9 and Phase N open (2026-11-01, latest)
+## Campaign 8 NOT MET on the `awkit-vra.18` fix; campaign 9 NOT RUN; N8, N9 and Phase N open (2026-11-02, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. Contract
+`awkit-vra-phase-n-qualification-1102`.
+
+- **Campaign 8** (`1c7f8b57`, product source of `7a0a9227`, `treeClean: true`, pre-declared in `62a3b0bf`):
+  **NOT MET** in 4 of 6 cells.
+  - **headless@1:** S-5 p95 783 ms, 1 late (+54.8 ms).
+  - **headless@1.25:** S-5 p95 624 ms, 2 late (+24.6 and +205.8 ms).
+  - **headed@1:** disabled control late (+126.1 ms, N5 only).
+  - **headed@1.25:** R-5, 1 late (+321.4 ms).
+  - **headless@2 and headed@2:** MET. headed@2 has 0 late and 0 cuts (campaign 6 had 1 late and 3 cuts).
+  - Evidence: `233734a4`.
+- **Campaign 9: NOT RUN** under the frozen repeat rule. **Review round: NOT RUN**, since it may only follow two passing
+  campaigns.
+- **Diagnosis** (`evidence/joint/c8/ANALYSIS.md`):
+  - No late record ran N8 or N9 pixel work, so the `awkit-vra.18` mechanism did not recur. The late records sit in N5's
+    first-capture phase (the fix's residual 1).
+  - One record coincides with a demonstrated 15.5-minute VM suspension.
+  - The first two cells ran their state work 1.2 to 2.3× slower than campaign 6.
+  - Cause: **INCONCLUSIVE**, except the suspended record. No product change.
+- **Verifier incidents on `7a0a9227`:** `verify:visual-rows` `virtualized` 81/1 incident: **INCONCLUSIVE**; `verify:visual-diagnosis-runtime` reference-seed `PROTECTED_SURFACE` refusal: **INCONCLUSIVE** (both earlier failures stay recorded; N8 plan § 12).
+- **N8 `awkit-vra.10`, N9 `awkit-vra.11` and `awkit-vra.18` stay IN PROGRESS.**
+- **Still BLOCKED:** N7.1b, N7.8 and N7.9 (`verify:packaging-host` H4/H5). N7.10 `awkit-2shc` is open (OCR accuracy
+  NOT MET). N6P and N10 are outside closure.
+- **Phase N is NOT complete.**
+
+## `awkit-vra.18` deadline-safety fix; campaigns 8 and 9 pre-declared and NOT RUN; N8, N9 and Phase N open (2026-11-01)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases; no ledger case was touched.
 

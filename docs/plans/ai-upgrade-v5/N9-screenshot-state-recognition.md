@@ -357,3 +357,6 @@ the full matrix).
     after the 1600 ms hard deadline on the cell's first trial, +42.8 ms); the other five cells meet S-1 to S-5;
   - S-1 shows 0 false `ready` and S-2 0 false `error`; protected trials are 72/72 refused;
   - campaign 7 was not run. **N9 stays IN PROGRESS.**
+  - **joint campaign 8 (2026-11-02, product source `7a0a9227`): NOT MET.** headless@1 S-5 (p95 783 ms, 1 late) and
+    headless@1.25 S-5 (p95 624 ms, 2 late) fail; headed@2 S-5 is now MET (p95 349 ms, 0 late, 0 cuts). S-1 to S-4 are
+    MET in every cell. Campaign 9 was not run (N8 plan § 12, `evidence/joint/c8/ANALYSIS.md`). **N9 stays IN PROGRESS.**

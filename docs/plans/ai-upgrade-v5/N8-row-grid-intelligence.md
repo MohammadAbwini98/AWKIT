@@ -883,3 +883,43 @@ repeat rule, DECISIONS 2026-11-01):
 - The harness refuses to overwrite any existing cell file. Campaigns 6 and 7's scripts are replaced by these; `c6`
   evidence is unchanged.
 - **Status:** NOT RUN. The owner decides when to run them on an idle host.
+
+**Campaign 8 (2026-11-02, `1c7f8b57`, product source of `7a0a9227`): NOT MET; campaign 9 NOT RUN** (evidence
+`evidence/joint/c8/`, committed unchanged in `233734a4`; analysis `evidence/joint/c8/ANALYSIS.md`).
+- **Cells:**
+  - **MET:** headless@2 and headed@2. headed@2 has 0 late and 0 cuts; record p95 715 ms against 1160 in campaign 6,
+    and state p95 344 ms against 548.
+  - **NOT MET:**
+    - headless@1: S-5 p95 783 ms, 1 late;
+    - headless@1.25: S-5 p95 624 ms, 2 late;
+    - headed@1: a disabled N5-only control late by +126.1 ms;
+    - headed@1.25: R-5, 1 late (+321.4 ms).
+  - Pooled: 0 false association, 0 false `ready` or `error`, and 72/72 protected refusals with 0 frames.
+- **Diagnosis (once):**
+  - **The `awkit-vra.18` mechanism did not recur.** No late record ran N8 or N9 pixel work, and four took no frame.
+  - **The late records sit in N5's first-capture phase.** That is residual 1 above: `timeoutMs = remaining`, with N0's
+    decode not reserved. The harness counts no `late-released` frame and records no phase timing, so this is not shown.
+  - **headed@1.25: VM suspension.** Its late record coincides with a VM suspension the System log demonstrates: a
+    15.5-minute clock jump at 01:59:22 from 01:43:55.
+  - **headless@1 and headless@1.25 ran slower on the same work** (state p50 1.2 to 1.6× and p95 2 to 2.3× campaign 6).
+  - **Cause:** INCONCLUSIVE, except the suspended record. No product correction is made.
+- **Intermittent verifier incidents on `7a0a9227` (classification, 2026-11-02):** neither verifier printed what would
+  tell the candidates apart, so both stay **INCONCLUSIVE**, and the earlier failures are kept.
+  - **`verify:visual-rows`, `virtualized` (81/1).**
+    - The check prints only the codes, and the run had none. "No row code" is produced only by fail-closed paths:
+      1. a cut, at a checkpoint or by the deadline timer. At factor 1 the reserves after the frame are about 540 ms
+         against the 900 ms budget (fingerprint 175, row crop about 200, row decision about 167), so about 360 ms of
+         pre-frame time, or a factor carried at about 2 or more, cuts the record;
+      2. the post-crop rescan dropping the crop and `rowFacts`, on a hit, an error or a missing handle.
+    - Neither emits a wrong code. No assertion, deadline or retry was changed.
+  - **`verify:visual-diagnosis-runtime`, reference seed.**
+    - The verifier throws only `captured.code`, not N0's message, which names the reason.
+    - The lab has no protected field, so a `protected-field` reason would recur deterministically. A transient
+      `frame-unscannable` fits better: N0 fails closed when its strict window cannot open or finish, or when a frame
+      scan exceeds `PROTECTED_FRAME_SCAN_TIMEOUT_MS` (1500 ms) on a cold first capture. Neither is shown.
+    - N0's boundary was not touched.
+  - **Follow-up (not done here; QA-owned verifier files, outside this project-state lease):** print the record's
+    outcome and observations, and N0's refusal message, on these failures.
+- **Next:** owner decision. Either a harness change (record `late-released` frames and the phase running at the
+  deadline) and/or N5 first-capture decode reservation, then a new pre-declared campaign pair; and host controls
+  against VM suspension. Each is a new revision.

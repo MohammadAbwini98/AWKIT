@@ -1,6 +1,37 @@
 # Agent Handoff
 
-## HANDOFF (2026-11-01, latest) — `awkit-vra.18` deadline-safety fix landed; campaigns 8 and 9 pre-declared, NOT RUN; Phase N NOT complete
+## HANDOFF (2026-11-02, latest) — campaign 8 NOT MET; campaign 9 and the review round NOT RUN; Phase N NOT complete
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. N8 `awkit-vra.10`, N9
+`awkit-vra.11` and `awkit-vra.18` stay IN PROGRESS. Contract `awkit-vra-phase-n-qualification-1102`; its
+project-state lease is released.
+
+- **Done:**
+  - **Baseline:** confirmed unchanged against `62a3b0bf`.
+  - **Campaign 8: NOT MET** (`233734a4`; 4 of 6 cells fail):
+    - headless@1 S-5;
+    - headless@1.25 S-5;
+    - headed@1 disabled control, 1 late;
+    - headed@1.25 R-5, 1 late, coinciding with a VM suspension.
+  - **headed@2 passes** with 0 late and 0 cuts.
+  - **Diagnosis INCONCLUSIVE** (`evidence/joint/c8/ANALYSIS.md`): the late records sit in N5's first-capture phase,
+    not in N8/N9 pixel work. N8 plan § 12 has the details.
+  - **Verifier incidents:** `verify:visual-rows` `virtualized` 81/1 incident: **INCONCLUSIVE**; `verify:visual-diagnosis-runtime` reference-seed `PROTECTED_SURFACE` refusal: **INCONCLUSIVE** (both earlier failures stay recorded; N8 plan § 12).
+- **Not done:**
+  - campaign 9 (repeat rule);
+  - the QC and security review round, which only follows two passing campaigns;
+  - any product change.
+- **Next single task (owner's call):** choose the next revision, then pre-declare a new campaign pair. Options:
+  1. a harness change that records `late-released` frames and the phase running at the deadline;
+  2. reserving N0's decode for N5's first capture (`awkit-vra.18` residual 1);
+  3. host controls against VM suspension (Mac sleep, Parallels pause).
+- **Follow-up:** the two verifiers should print the record outcome and observations, and N0's refusal message, on
+  failure. These files are QA-owned.
+- **Owner (unchanged):** add the W: share to the global Git `safe.directory`; decide QC 4; resolve the governance gap.
+- **Blocked (environment):** N7.1b, N7.8 and N7.9 (`verify:packaging-host` H4/H5). N7.10 `awkit-2shc` stays open.
+- **Preserved untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-11-01) — `awkit-vra.18` deadline-safety fix landed; campaigns 8 and 9 pre-declared, NOT RUN; Phase N NOT complete
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. N8 `awkit-vra.10` and N9
 `awkit-vra.11` stay IN PROGRESS; `awkit-vra.18` stays IN PROGRESS (this was its deadline-safety part only).

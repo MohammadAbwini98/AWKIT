@@ -80,8 +80,8 @@
       "required": true,
       "command": "npm run verify:visual-rows",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": "pending"
+      "result": "INCONCLUSIVE",
+      "observed": "not rerun; the 7a0a9227 incident (81/1, virtualized, no row code) classified INCONCLUSIVE between a fail-closed cut and the post-crop rescan withdrawal; 82/0 results kept"
     },
     {
       "id": "verify:visual-diagnosis-runtime",
@@ -89,8 +89,8 @@
       "required": true,
       "command": "npm run verify:visual-diagnosis-runtime",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": "pending"
+      "result": "INCONCLUSIVE",
+      "observed": "not rerun; the 7a0a9227 reference-seed PROTECTED_SURFACE refusal classified INCONCLUSIVE (reason not printed; frame-unscannable fits); 65/0 retry kept; N0 untouched"
     },
     {
       "id": "benchmark:visual-joint:campaigns-8-9",
@@ -98,8 +98,8 @@
       "required": true,
       "command": "npm run benchmark:visual-joint:* (campaign 8, then the c9- scripts only if 8 passes)",
       "artifact": "docs/plans/ai-upgrade-v5/evidence/joint/c8/ and c9/",
-      "result": "NOT RUN",
-      "observed": "pending"
+      "result": "FAIL",
+      "observed": "campaign 8 at 1c7f8b57 NOT MET (headless@1 S-5, headless@1.25 S-5, headed@1 disabled control late, headed@1.25 R-5 late); headless@2 and headed@2 MET; evidence 233734a4; campaign 9 NOT RUN under the repeat rule"
     },
     {
       "id": "security-review",
@@ -108,7 +108,7 @@
       "command": "independent read-only QC and security review of the final source and both campaigns",
       "artifact": "docs/plans/ai-upgrade-v5/N8-row-grid-intelligence.md",
       "result": "NOT RUN",
-      "observed": "pending"
+      "observed": "requires two passing campaigns first"
     },
     {
       "id": "git-push",

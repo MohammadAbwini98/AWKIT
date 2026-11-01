@@ -1,5 +1,25 @@
 # KNOWN_ISSUES
 
+## Campaign 8 NOT MET on the `awkit-vra.18` fix; first-capture late records; intermittent verifier incidents (2026-11-02, OPEN)
+
+- **Late records in N5's first-capture phase (OPEN; `awkit-vra.18`).**
+  - **What:** campaign 8 has 5 late records (+24.6 to +321.4 ms), one of them in a disabled N5-only control. None ran
+    N8 or N9 pixel work, and four took no frame.
+  - **Fits, not shown:** N5's first capture gets `timeoutMs = remaining`, and N0's synchronous decode of a frame that
+    arrives near the deadline is not reserved.
+  - **Why it can't be shown:** the joint harness does not count `late-released` frames or record the phase.
+  - One record coincides with a VM suspension: a 15.5-minute clock jump in the System log at 01:59:22.
+  - **Effect:** N8 and N9 are not qualified. Any fix, in the product or the harness, needs a new revision and a new
+    pre-declared campaign pair.
+- **Time-local host slowdown (INCONCLUSIVE).** headless@1 and headless@1.25 ran their state work 1.2 to 2.3× slower than
+  campaign 6 on identical code, which failed S-5 p95. The four later cells did not.
+- **Intermittent verifier incidents (INCONCLUSIVE; QA follow-up).**
+  - `verify:visual-rows` `virtualized` 81/1 and `verify:visual-diagnosis-runtime`'s reference-seed refusal: the
+    failure output omits the record and N0's refusal message.
+  - Both outcomes are fail-closed (no wrong code; N0 refused). The follow-up is to print those details on failure.
+- **VM suspension during a campaign.** Host sleep or a Parallels pause suspended the VM during headed@1.25. Next
+  campaigns need suspension disabled and the clock checked per cell.
+
 ## Phase N recovery: campaign 6 NOT MET, heavy-frame deadline overrun, S3 hardening limits, share Git ownership (2026-11-01, OPEN)
 
 - **Heavy-frame synchronous work can overrun the N5/N8/N9 hard deadline on this host (OPEN; F2 follow-up
