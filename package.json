@@ -403,6 +403,7 @@
     "benchmark:visual-coverage": "tsx scripts/benchmark-visual-coverage.mts --mode headless",
     "benchmark:visual-coverage:headed": "tsx scripts/benchmark-visual-coverage.mts --mode headed",
     "benchmark:visual-joint:aggregate": "tsx scripts/benchmark-visual-joint.mts --campaign 5 --aggregate",
+    "benchmark:visual-joint:diagnostic": "tsx scripts/benchmark-visual-joint.mts --diagnostic c5-headed2-d1 --cell headed@2",
     "verify:visual-rows": "tsx scripts/verify-visual-rows.mts",
     "verify:visual-diagnosis-deadline": "tsx scripts/verify-visual-diagnosis-deadline.mts",
     "verify:visual-state": "tsx scripts/verify-visual-state.mts",

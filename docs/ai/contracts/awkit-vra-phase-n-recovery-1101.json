@@ -1,0 +1,153 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-phase-n-recovery-1101",
+    "title": "Phase N final qualification recovery: campaign-5 headed@2 diagnosis, S2/S3/F2 owner dispositions, S3 and NEW-2 row-container hardening, frozen repeat rule and campaigns 6 and 7, independent QC and security review",
+    "objective": "Under the owner prompt of 2026-11-01 at baseline 20e93347: record the owner dispositions (S2 conditional acceptance, S3 and NEW-2 hardening required, F2 documented limitation with an independently tracked follow-up, the two-campaign repeat rule); run one separately identified, lease-authorized headed@2 diagnostic that never counts as qualification and never overwrites evidence; classify the campaign-5 failure with evidence or as INCONCLUSIVE; harden the N8 row-container scan (input, textarea, select, contenteditable, nested open shadow roots, embedded frames, uncertain closed-root hosts; bounded, codes only, fail closed) with deterministic negative tests; pre-declare and run campaigns 6 and 7 on one final revision under the unchanged frozen criteria and strict accounting, stopping after a failed campaign 6; request independent QC and security review; close N8 and N9 only when approval and risk-disposition requirements hold; keep N7.1b, N7.8 and N7.9 BLOCKED until verify:packaging-host is READY and N7.10 open; reconcile and push main.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "20e93347",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": true,
+    "protected_login_change": false,
+    "project_state_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "software",
+      "runtime",
+      "qa",
+      "qc",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      "src/runner/visualDiagnosis/**",
+      "mock-site/**",
+      "scripts/verify-*",
+      "scripts/benchmark-*",
+      "scripts/lib/verifier-classification.ts",
+      "package.json",
+      "src/roadmap/ImplementationRoadmap.ts",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/**"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa",
+      "qc"
+    ],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        "docs/plans/ai-upgrade-v5/evidence/joint/diagnostic/**"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "C5-DIAGNOSIS",
+      "description": "One separately identified, lease-authorized headed@2 diagnostic run, written only under evidence/joint/diagnostic/, never counted as qualification; the campaign-5 failure classified with evidence, or INCONCLUSIVE.",
+      "evidence_required": [
+        "benchmark:visual-joint:diagnostic"
+      ]
+    },
+    {
+      "id": "S3-HARDENING",
+      "description": "The N8 row-container scan fails closed on sensitive input, textarea, select, contenteditable, embedded frames, nested open shadow roots and uncertain closed-root hosts, bounded, with deterministic negative tests.",
+      "evidence_required": [
+        "verify:visual-rows"
+      ]
+    },
+    {
+      "id": "REQUALIFY",
+      "description": "Campaigns 6 and 7 on one final revision, pre-declared, unchanged frozen criteria and strict accounting; campaign 7 runs only if campaign 6 passes.",
+      "evidence_required": [
+        "benchmark:visual-joint:campaigns-6-7"
+      ]
+    },
+    {
+      "id": "SECURITY-REVIEW",
+      "description": "Owner requirement beyond the routed qa/qc reviewers: an independent security review of the final source and evidence must explicitly address campaign 5, campaigns 6 and 7, S2, S3/NEW-2, F2, protected capture and stale frames, offline and disabled mode. N8 and N9 close only on its approval.",
+      "evidence_required": [
+        "security-review"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "benchmark:visual-joint:diagnostic",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run benchmark:visual-joint:diagnostic",
+      "artifact": "docs/plans/ai-upgrade-v5/evidence/joint/diagnostic/",
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "verify:visual-rows",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:visual-rows",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "benchmark:visual-joint:campaigns-6-7",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run benchmark:visual-joint:* (campaign 6, then campaign 7 only if 6 passes)",
+      "artifact": "docs/plans/ai-upgrade-v5/evidence/joint/c6/ and c7/",
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "security-review",
+      "type": "inspection",
+      "required": true,
+      "command": "independent read-only security review of the final source and campaign evidence",
+      "artifact": "docs/plans/ai-upgrade-v5/N8-row-grid-intelligence.md",
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  }
+}

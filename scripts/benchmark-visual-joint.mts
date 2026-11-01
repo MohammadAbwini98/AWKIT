@@ -17,13 +17,22 @@
  *
  * Evidence: docs/plans/ai-upgrade-v5/evidence/joint/N8N9-<cell>.json and N8N9-joint-summary.json. Codes, counts and
  * durations only.
+ *
+ *   --diagnostic <id> --cell <cell>   one instrumented run (2026-11-01, the campaign-5 headed@2 investigation). It writes
+ *                                     only evidence/joint/diagnostic/<id>/, refuses to overwrite, is never a campaign and
+ *                                     never counts as qualification. Per trial it adds timings and counters only: Node
+ *                                     event-loop delay and utilization, process CPU and memory, host CPU busy share,
+ *                                     Chromium renderer task metrics (CDP Performance), page visibility and focus, an
+ *                                     evaluate round trip, and the adapter's frame timestamps. No page content.
  */
 
 import { spawn } from "node:child_process";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { cpus, freemem, totalmem } from "node:os";
+import { monitorEventLoopDelay, performance as nodePerformance } from "node:perf_hooks";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { chromium, type Page } from "playwright";
+import { chromium, type CDPSession, type Page } from "playwright";
 import { VisualFailureDiagnosis } from "@src/runner/visualDiagnosis/VisualFailureDiagnosis";
 import { VISUAL_DIAGNOSIS_DEADLINE_MS, VISUAL_STATE_EXTRA_MS } from "@src/runner/visualDiagnosis/visualDiagnosisContract";
 import type { FlowStep } from "@src/profiles/FlowProfile";
@@ -40,7 +49,16 @@ const DEADLINE = VISUAL_DIAGNOSIS_DEADLINE_MS + VISUAL_STATE_EXTRA_MS;
 const OFF_DEADLINE = VISUAL_DIAGNOSIS_DEADLINE_MS;
 /** `--campaign N` (N > 1) writes beside, never over, an earlier campaign's evidence. */
 const CAMPAIGN = args.includes("--campaign") ? Number(args[args.indexOf("--campaign") + 1]) : 1;
-const OUT = join(process.cwd(), "docs", "plans", "ai-upgrade-v5", "evidence", "joint", ...(CAMPAIGN > 1 ? [`c${CAMPAIGN}`] : []));
+const DIAGNOSTIC = args.includes("--diagnostic") ? args[args.indexOf("--diagnostic") + 1] : undefined;
+const OUT = join(
+  process.cwd(),
+  "docs",
+  "plans",
+  "ai-upgrade-v5",
+  "evidence",
+  "joint",
+  ...(DIAGNOSTIC ? ["diagnostic", DIAGNOSTIC] : CAMPAIGN > 1 ? [`c${CAMPAIGN}`] : [])
+);
 const CELLS = ["headless@1", "headless@1.25", "headless@2", "headed@1", "headed@1.25", "headed@2"];
 
 interface Trial {
@@ -62,6 +80,29 @@ interface Trial {
   frames: number;
   refused: boolean;
   cut: boolean;
+  /** `--diagnostic` only. */
+  diag?: TrialDiagnostics;
+}
+
+/** Timings and counters only (`--diagnostic`). Times in ms; `at` is ms since the cell started. */
+interface TrialDiagnostics {
+  at: number;
+  /** Adapter probe timestamps relative to the diagnosis start: inspect, then each frame taken / released. */
+  marks: Array<[string, number]>;
+  loopDelay: { mean: number; p99: number; max: number };
+  loopUtilization: number;
+  processCpu: { user: number; system: number };
+  rssMb: number;
+  heapMb: number;
+  hostBusy: number;
+  hostFreeMb: number;
+  renderer: { task: number; script: number; layout: number; style: number } | null;
+  pingBefore: number;
+  pingAfter: number;
+  visibility: string;
+  focused: boolean;
+  /** Time spent collecting this entry outside the measured diagnosis window. */
+  overheadMs: number;
 }
 
 const pct = (values: number[], q: number): number | null => {
@@ -71,18 +112,23 @@ const pct = (values: number[], q: number): number | null => {
 };
 let seq = 0;
 
-async function diagnose(page: Page, locator: string, on: boolean) {
+async function diagnose(page: Page, locator: string, on: boolean, marks?: Array<[string, number]>) {
   let stateMs: number | null = null;
   let rowMs: number | null = null;
   let frames = 0;
+  let started = 0;
+  const mark = (name: string) => marks?.push([name, Math.round((performance.now() - started) * 10) / 10]);
   const diagnosis = new VisualFailureDiagnosis({
     folder: join(process.cwd(), "build", "joint-no-references"),
     handedOff: () => false,
     reader: { get: async () => ({ status: "missing" }) as never },
     ...(on ? { rowEvidence: true, stateRecognition: true, deadlineMs: DEADLINE } : {}),
     probe: {
+      // Observers only (`--diagnostic`); campaigns pass no `marks` and keep the campaign-5 probe set.
+      ...(marks ? { onInspect: () => mark("inspect") } : {}),
       onFrame: (event) => {
         if (event === "taken") frames += 1;
+        if (marks) mark(`frame-${event}`);
       },
       onState: (event) => {
         stateMs = event.ms;
@@ -93,7 +139,7 @@ async function diagnose(page: Page, locator: string, on: boolean) {
     }
   });
   const step = { id: "joint", name: "Joint", type: "click", timeoutMs: 800, locator: { strategy: "testId", value: locator } } as unknown as FlowStep;
-  const started = performance.now();
+  started = performance.now();
   const record = await diagnosis.diagnoseFinalFailure({
     step,
     attempt: 0,
@@ -107,6 +153,73 @@ async function diagnose(page: Page, locator: string, on: boolean) {
   const recordMs = performance.now() - started;
   const obs = record?.observations ?? [];
   return { obs, stateMs, rowMs, frames, recordMs };
+}
+
+/** `--diagnostic` instruments; `null` for campaigns, which then run each diagnosis exactly as before. */
+let instrument: { start: number; loop: ReturnType<typeof monitorEventLoopDelay>; cdp: Map<Page, CDPSession> } | null = null;
+
+const hostCpu = () =>
+  cpus().reduce(
+    (sum, { times }) => ({ idle: sum.idle + times.idle, total: sum.total + times.user + times.nice + times.sys + times.idle + times.irq }),
+    { idle: 0, total: 0 }
+  );
+
+async function rendererMetrics(cdp: CDPSession | undefined): Promise<Record<string, number> | null> {
+  if (!cdp) return null;
+  try {
+    const { metrics } = await cdp.send("Performance.getMetrics");
+    return Object.fromEntries(metrics.map((m) => [m.name, m.value]));
+  } catch {
+    return null;
+  }
+}
+
+async function measured(page: Page, run: (marks?: Array<[string, number]>) => ReturnType<typeof diagnose>): Promise<{ d: Awaited<ReturnType<typeof diagnose>>; diag?: TrialDiagnostics }> {
+  if (!instrument) return { d: await run() };
+  const begun = performance.now();
+  const [visibility, focused] = await page.evaluate(() => [document.visibilityState, document.hasFocus()] as [string, boolean]);
+  const pingBefore = performance.now() - begun;
+  const r0 = await rendererMetrics(instrument.cdp.get(page));
+  const h0 = hostCpu();
+  const c0 = process.cpuUsage();
+  const u0 = nodePerformance.eventLoopUtilization();
+  const at = performance.now() - instrument.start;
+  const pre = performance.now() - begun;
+  const marks: Array<[string, number]> = [];
+  instrument.loop.reset();
+  const d = await run(marks);
+  const after = performance.now();
+  const ms = (ns: number) => (Number.isFinite(ns) ? Math.round(ns / 1e4) / 100 : 0);
+  const loopDelay = { mean: ms(instrument.loop.mean), p99: ms(instrument.loop.percentile(99)), max: ms(instrument.loop.max) };
+  const loopUtilization = Math.round(nodePerformance.eventLoopUtilization(u0).utilization * 1000) / 1000;
+  const cpu = process.cpuUsage(c0);
+  const h1 = hostCpu();
+  const memory = process.memoryUsage();
+  const r1 = await rendererMetrics(instrument.cdp.get(page));
+  const pinged = performance.now();
+  await page.evaluate(() => 0);
+  const pingAfter = performance.now() - pinged;
+  const delta = (name: string) => (r0 && r1 ? Math.round(((r1[name] ?? 0) - (r0[name] ?? 0)) * 10000) / 10 : 0);
+  return {
+    d,
+    diag: {
+      at: Math.round(at),
+      marks,
+      loopDelay,
+      loopUtilization,
+      processCpu: { user: Math.round(cpu.user / 100) / 10, system: Math.round(cpu.system / 100) / 10 },
+      rssMb: Math.round(memory.rss / 1048576),
+      heapMb: Math.round(memory.heapUsed / 1048576),
+      hostBusy: h1.total > h0.total ? Math.round((1 - (h1.idle - h0.idle) / (h1.total - h0.total)) * 1000) / 1000 : 0,
+      hostFreeMb: Math.round(freemem() / 1048576),
+      renderer: r0 && r1 ? { task: delta("TaskDuration"), script: delta("ScriptDuration"), layout: delta("LayoutDuration"), style: delta("RecalcStyleDuration") } : null,
+      pingBefore: Math.round(pingBefore * 10) / 10,
+      pingAfter: Math.round(pingAfter * 10) / 10,
+      visibility,
+      focused,
+      overheadMs: Math.round((pre + performance.now() - after) * 10) / 10
+    }
+  };
 }
 
 async function show(page: Page, lab: "state" | "rows", id: string, variant: string): Promise<void> {
@@ -152,6 +265,21 @@ async function runCell(cell: string): Promise<void> {
         const rowsPage = await context.newPage();
         await rowsPage.goto(`${BASE}/visual-intelligence/rows`);
         await rowsPage.waitForSelector("body[data-fixtures]");
+        if (DIAGNOSTIC) {
+          const cdp = new Map<Page, CDPSession>();
+          for (const page of [statePage, rowsPage]) {
+            const session = await context.newCDPSession(page);
+            await session.send("Performance.enable");
+            cdp.set(page, session);
+          }
+          const loop = monitorEventLoopDelay({ resolution: 10 });
+          loop.enable();
+          instrument = { start: performance.now(), loop, cdp };
+        }
+        const trial = async (page: Page, lab: Trial["lab"], f: { id: string; adversarial: boolean }, variant: string, locator: string, on: boolean, extra: Partial<Trial>, deadline: number) => {
+          const { d, diag } = await measured(page, (marks) => diagnose(page, locator, on, marks));
+          trials.push({ ...record(lab, f, variant, d, extra, deadline), ...(diag ? { diag } : {}) });
+        };
         const record = (lab: Trial["lab"], f: { id: string; adversarial: boolean }, variant: string, d: Awaited<ReturnType<typeof diagnose>>, extra: Partial<Trial>, deadline: number): Trial => ({
           lab,
           fixture: f.id,
@@ -174,25 +302,26 @@ async function runCell(cell: string): Promise<void> {
           for (const f of stateTable.fixtures) {
             for (let r = 0; r < REPEATS; r += 1) {
               await show(statePage, "state", f.id, variant);
-              trials.push(record("state", f, variant, await diagnose(statePage, "st-missing-target", true), { truth: f.truth }, DEADLINE));
+              await trial(statePage, "state", f, variant, "st-missing-target", true, { truth: f.truth }, DEADLINE);
             }
           }
           for (const f of rowsTable.fixtures) {
             for (let r = 0; r < REPEATS; r += 1) {
               await show(rowsPage, "rows", f.id, variant);
-              trials.push(record("rows", f, variant, await diagnose(rowsPage, f.locator, true), { truth: f.association, coverage: f.coverage, structure: f.structure }, DEADLINE));
+              await trial(rowsPage, "rows", f, variant, f.locator, true, { truth: f.association, coverage: f.coverage, structure: f.structure }, DEADLINE);
             }
           }
         }
         // Disabled-mode control: both features off.
         for (const id of ["spinner", "ready-table", "error-banner", "empty-text", "protected"]) {
           await show(statePage, "state", id, "b");
-          trials.push(record("control", { id, adversarial: false }, "b", await diagnose(statePage, "st-missing-target", false), { truth: "off" }, OFF_DEADLINE));
+          await trial(statePage, "control", { id, adversarial: false }, "b", "st-missing-target", false, { truth: "off" }, OFF_DEADLINE);
         }
         for (const f of rowsTable.fixtures.filter((x) => ["table-uniform", "displaced", "virtualized", "no-rows", "multi-match"].includes(x.id))) {
           await show(rowsPage, "rows", f.id, "b");
-          trials.push(record("control", { id: f.id, adversarial: false }, "b", await diagnose(rowsPage, f.locator, false), { truth: "off" }, OFF_DEADLINE));
+          await trial(rowsPage, "control", { id: f.id, adversarial: false }, "b", f.locator, false, { truth: "off" }, OFF_DEADLINE);
         }
+        instrument?.loop.disable();
         await context.close();
       } finally {
         await browser.close();
@@ -202,20 +331,33 @@ async function runCell(cell: string): Promise<void> {
     server.kill();
   }
   let revision = "unknown";
+  let treeClean: boolean | null = null;
+  // Read-only; `safe.directory` for this one call only, because the checkout may sit on a host share (2026-11-01).
+  const git = (...gitArgs: string[]) => execFileSync("git", ["-c", "safe.directory=*", ...gitArgs], { encoding: "utf8" }).trim();
   try {
-    revision = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+    revision = git("rev-parse", "HEAD");
+    // QC nit 2 (2026-11-01): whether tracked files differed from the revision when the cell ran.
+    treeClean = git("status", "--porcelain", "--untracked-files=no") === "";
   } catch {
     // recorded as unknown
   }
   await mkdir(OUT, { recursive: true });
   const evidence = {
     benchmark: "benchmark:visual-joint",
+    ...(DIAGNOSTIC ? { diagnostic: DIAGNOSTIC, qualification: false } : {}),
     cell,
     status,
     reason,
     date: new Date().toISOString(),
     revision,
-    environment: { platform: process.platform, arch: process.arch, node: process.version, chromium: chromium.name() },
+    treeClean,
+    environment: {
+      platform: process.platform,
+      arch: process.arch,
+      node: process.version,
+      chromium: chromium.name(),
+      ...(DIAGNOSTIC ? { hostProcessor: process.env.PROCESSOR_IDENTIFIER ?? null, logicalCpus: cpus().length, totalMemMb: Math.round(totalmem() / 1048576) } : {})
+    },
     deadlineMs: DEADLINE,
     accounting: "strict: late = any overrun of the hard deadline; a cut trial counts at the full deadline in the work-time p95",
     trials
@@ -310,6 +452,10 @@ async function main(): Promise<void> {
     console.error("benchmark:visual-joint refuses to run: the N8 or N9 criteria are not frozen.");
     process.exit(1);
   }
+  if (AGGREGATE && DIAGNOSTIC !== undefined) {
+    console.error("--diagnostic cannot be aggregated: it is never a qualification campaign");
+    process.exit(1);
+  }
   if (AGGREGATE) {
     const cells = [];
     for (const cell of CELLS) {
@@ -327,6 +473,16 @@ async function main(): Promise<void> {
   }
   if (!CELL || !CELLS.includes(CELL)) {
     console.error(`--cell must be one of ${CELLS.join(", ")} (or --aggregate)`);
+    process.exit(1);
+  }
+  // A diagnostic is never a campaign: its own id and one cell.
+  if (DIAGNOSTIC !== undefined && (!/^[a-z0-9][a-z0-9-]*$/.test(DIAGNOSTIC) || args.includes("--campaign"))) {
+    console.error("--diagnostic takes a lower-case id and cannot be combined with --campaign or --aggregate");
+    process.exit(1);
+  }
+  // Recorded evidence is never overwritten (2026-11-01): a rerun needs a new campaign number or diagnostic id.
+  if (await access(join(OUT, `N8N9-${CELL}.json`)).then(() => true, () => false)) {
+    console.error(`${join(OUT, `N8N9-${CELL}.json`)} already exists; refusing to overwrite recorded evidence`);
     process.exit(1);
   }
   await runCell(CELL);
