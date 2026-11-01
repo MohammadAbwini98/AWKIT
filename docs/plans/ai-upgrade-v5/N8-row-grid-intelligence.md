@@ -754,3 +754,41 @@ Owner prompt "AWKIT — Phase N Final Qualification Recovery" (DECISIONS 2026-11
   1. the heavy-frame reserve work (`awkit-vra.18`) plus the open review items;
   2. a newly pre-declared campaign 6/7 pair on that final revision, both passing;
   3. a review round that approves.
+
+**`awkit-vra.18` started (2026-11-01): measured mechanism and fix design** (`benchmark:visual-sync-cost`, now also timing
+the raw PNG decode, N9 state features and the motion plane; diagnostic only, no evidence file).
+- **Measured on this host** (8 runs per cell; maxima):
+
+  | Phase | Max ns/px | Max ms |
+  |---|---|---|
+  | N0 capture + decode | — | 662 (headed@1), 649 (headed@2) |
+  | Raw PNG decode | 92 (DPR 2) | — |
+  | Crop + fingerprint | 281 | — |
+  | N9 state features | **331** (headless@1.25), 312 (headed@1) | — |
+  | Motion plane | — | 84 |
+
+- **Defect 1: one constant that is not an upper bound.** One constant, `VISUAL_DIAGNOSIS_SYNC_NS_PER_PIXEL = 200`,
+  gates every synchronous phase. The state-feature phase and the fingerprint exceed it on this host even without a
+  slowdown, so either can start with less budget left than it needs.
+- **Defect 2: an undecoded second frame.** N9's second capture gets `timeoutMs = remaining − 50`. N0 then decodes the
+  PNG synchronously with no check of the time left (`src/visual/internal/captureCore.ts:294`). A screenshot arriving
+  just inside the timeout decodes past the 1600 ms deadline.
+  - This fits every late record in campaigns 5 and 6: `frames: 1` (the second frame never reported `taken`) and no
+    state result.
+  - Under a host slowdown the decode (up to 92 ms, normally) also exceeds the 100 ms settle margin.
+- **Fix design** (the deadline, margin and criteria are unchanged):
+  1. **Per-phase measured rates.** Fingerprint, state features, motion plane, member crop and PNG decode each get a
+     rate of about 1.25 × its measured maximum.
+  2. **A host factor.** It is learned from the first whole-frame chunk of each diagnosis:
+     `factor = max(1, observed ns/px ÷ rate)`. It is carried as the recent maximum across the last few diagnoses in the
+     process and multiplies every later reserve.
+  3. **N9's second capture timeout** becomes `remaining − max(50, decode reserve of frame 1's pixels × factor)`, so
+     the bytes arrive early enough for the decode to finish in budget.
+  4. **Verifier-only probes** (production passes none):
+     - a per-phase synchronous cost injector, to simulate a slower host deterministically;
+     - a capture-timeout observer.
+     - New `verify:visual-diagnosis-deadline` cases with a red proof: a 3× slow host gives no late record; the
+       second-frame timeout leaves the decode reserve.
+- **After the fix:** it is a product change, so it needs a newly pre-declared campaign pair (campaigns 8 and 9, since
+  the harness refuses to overwrite `c6`) and a review round. Fewer late records may come at the cost of more cuts.
+  Cuts count at the full deadline in the S-5 p95, so whether headed@2 S-5 then passes is unknown until measured.
