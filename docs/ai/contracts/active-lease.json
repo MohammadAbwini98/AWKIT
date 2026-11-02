@@ -2,7 +2,7 @@
   "task": "awkit-vra-joint-harness-accounting-1102",
   "contract_path": "docs/ai/contracts/awkit-vra-joint-harness-accounting-1102.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "docs/ai/**"
   ],
@@ -32,5 +32,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-11-02T15:16:35.908Z",
+  "released_reason": "HANDOFF tally committed; campaigns 10 and 11 await the owner decision on awkit-kv3n",
+  "archived_at": "2026-11-02T15:16:35.911Z"
 }

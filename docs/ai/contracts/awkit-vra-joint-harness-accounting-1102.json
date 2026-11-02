@@ -192,6 +192,22 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-vra-joint-harness-accounting-1102:project-state:2026-11-02T15:16:10.446Z",
+        "task": "awkit-vra-joint-harness-accounting-1102",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "docs/ai/**"
+        ],
+        "acquired_at": "2026-11-02T15:16:10.446Z",
+        "acquired_at_commit": "755db4bd9c26f82d15b26256f9f496c083306bfe",
+        "released_at": "2026-11-02T15:16:35.908Z",
+        "released_reason": "HANDOFF tally committed; campaigns 10 and 11 await the owner decision on awkit-kv3n",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }
