@@ -1,25 +1,26 @@
 {
-  "task": "awkit-vra-phase-n-qualification-1102",
-  "contract_path": "docs/ai/contracts/awkit-vra-phase-n-qualification-1102.json",
-  "holder": "project-state",
-  "status": "released",
+  "task": "awkit-vra-joint-harness-accounting-1102",
+  "contract_path": "docs/ai/contracts/awkit-vra-joint-harness-accounting-1102.json",
+  "holder": "qa",
+  "status": "active",
   "allowed_paths": [
-    ".beads/**",
-    "docs/ai/**",
-    "docs/plans/ai-upgrade-v5/N8-row-grid-intelligence.md",
-    "docs/plans/ai-upgrade-v5/N9-screenshot-state-recognition.md",
-    "docs/plans/ai-upgrade-v5/evidence/joint/c8/**",
-    "docs/plans/ai-upgrade-v5/evidence/joint/c9/**"
+    "scripts/benchmark-visual-joint.mts"
   ],
-  "acquired_at": "2026-11-01T22:31:13.806Z",
-  "acquired_at_commit": "ab04846d688f9a5079af11086c56707cf919fe2e",
+  "acquired_at": "2026-11-02T15:11:14.895Z",
+  "acquired_at_commit": "7a873f9d6ced9c3ec7e4687e9d71211deb572f53",
   "baseline_dirty": [
+    "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-vra-phase-n-qualification-1102.json"
+    "docs/ai/contracts/awkit-vra-joint-harness-accounting-1102.json",
+    "docs/plans/ai-upgrade-v5/evidence/joint/diagnostic/acct-smoke-1102/",
+    "scripts/benchmark-visual-joint.mts"
   ],
   "baseline_dirty_fingerprints": {
+    "docs/ai/contracts/active-lease.json": "b568a573c630a2e71c56d9c45f5d8a9dff81de9ae3818ec519212c6cd9c3081a",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-vra-phase-n-qualification-1102.json": "6c947b8119da3a18e8899faa3800307e2a7eac504eceabe62ad72f89499957ff"
+    "docs/ai/contracts/awkit-vra-joint-harness-accounting-1102.json": "c6bfc3d59ea7273282b94a985ad09ebf3944ae261b05f5bd51fd2569a4587536",
+    "docs/plans/ai-upgrade-v5/evidence/joint/diagnostic/acct-smoke-1102/": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "scripts/benchmark-visual-joint.mts": "ec343e1a07642e1eca17dcf98c0bb325d63a5692c701f902fef4ba32b0c16dec"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -31,23 +32,7 @@
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.59|manifest.json:1785274864439.5393",
     "build": "dir(10):command-authorization-build.log:1791655824280.519|command-authorization-graphify.log:1791656102774.0833|command-authorization-roadmap.log:1791655956531.24|command-authorization-routing.log:1791655726727.7021|command-authorization-task-gate.json:1791655978836.031|lease-status-build.log:1791656486702.492|lease-status-roadmap.log:1791656634670.6675|lease-status-routing.log:1791656586249.2314|native-hosts:1792950540185.39|ocr:1793035794455.6753"
   },
-  "amendments": [
-    {
-      "timestamp": "2026-11-01T23:05:37.437Z",
-      "added": [
-        "docs/ai/**",
-        "docs/plans/ai-upgrade-v5/N8-row-grid-intelligence.md",
-        "docs/plans/ai-upgrade-v5/N9-screenshot-state-recognition.md",
-        ".beads/**"
-      ],
-      "reason": "Campaign 8 NOT MET: record evidence, diagnosis and project state; campaign 9 not run",
-      "triggered_escalation": [],
-      "approved_by": "manager"
-    }
-  ],
+  "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-11-01T23:09:51.981Z",
-  "released_reason": "Campaign 8 NOT MET recorded with its analysis; campaign 9 not run under the repeat rule",
-  "archived_at": "2026-11-01T23:09:51.984Z"
+  "violations": []
 }

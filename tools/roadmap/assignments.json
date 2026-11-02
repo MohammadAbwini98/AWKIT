@@ -17,5 +17,13 @@
     "    \"claimedAt\": \"2026-07-27T10:00:00Z\", \"expiresAt\": \"2026-07-28T10:00:00Z\",",
     "    \"note\": \"IPC authz sweep\" }"
   ],
-  "claims": []
+  "claims": [
+    {
+      "itemId": "bead:awkit-vra-joint-harness-accounting-1102",
+      "agent": "Quality Assurance Engineer",
+      "state": "in-progress",
+      "claimedAt": "2026-11-02T15:11:14.895Z",
+      "note": "write lease: scripts/benchmark-visual-joint.mts"
+    }
+  ]
 }

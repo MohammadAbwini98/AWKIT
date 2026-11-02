@@ -1,0 +1,146 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-vra-joint-harness-accounting-1102",
+    "title": "Joint benchmark late-frame, phase and clock accounting, then pre-declare campaigns 10 and 11",
+    "objective": "Owner choice 2026-11-02 after campaign 8 NOT MET: make benchmark:visual-joint record, passively and in every campaign trial, frames that arrive after the work gave up (late-released), the adapter phase marks (frame events and synchronous-phase starts), the phase running when the deadline passed, per-trial event-loop utilization and process CPU, and the wall-against-monotonic clock skew per trial and per cell (VM suspension), with no product change, no change to the frozen criteria or the strict accounting, and no observer like CDP Performance; then pre-declare campaigns 10 and 11 on that revision. Campaigns are not run in this task.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "7a873f9d",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "qa",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      "scripts/benchmark-visual-joint.mts",
+      "package.json",
+      "docs/plans/ai-upgrade-v5/**",
+      "docs/ai/**",
+      ".beads/**"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "qa",
+      "allowed_paths": [
+        "scripts/benchmark-visual-joint.mts"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "ACCOUNTING",
+      "description": "Every campaign trial records late-released frames, adapter phase marks, the phase at the deadline, ELU and CPU, and clock skew; criteria and strict accounting unchanged; earlier evidence still aggregates.",
+      "evidence_required": [
+        "typecheck:scripts",
+        "benchmark:visual-joint:smoke"
+      ]
+    },
+    {
+      "id": "PREDECLARE",
+      "description": "Campaigns 10 and 11 pre-declared on the new revision with the benchmark:visual-joint scripts on --campaign 10 and c11- on 11; NOT RUN.",
+      "evidence_required": [
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "typecheck:scripts",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run typecheck:scripts",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "benchmark:visual-joint:smoke",
+      "type": "verifier",
+      "required": true,
+      "command": "benchmark:visual-joint --diagnostic smoke run into build/, aggregate of c8 unchanged",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-vra-joint-harness-accounting-1102:qa:2026-11-02T14:36:24.051Z",
+        "task": "awkit-vra-joint-harness-accounting-1102",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/benchmark-visual-joint.mts"
+        ],
+        "acquired_at": "2026-11-02T14:36:24.051Z",
+        "acquired_at_commit": "7a873f9d6ced9c3ec7e4687e9d71211deb572f53",
+        "released_at": "2026-11-02T14:40:28.667Z",
+        "released_reason": "amendment added paths outside qa's ownership (docs/plans/ai-upgrade-v5/evidence/joint/diagnostic/acct-smoke-1102/**) — routing re-run requires a different specialist",
+        "amendments": [
+          {
+            "timestamp": "2026-11-02T14:40:28.660Z",
+            "added": [
+              "docs/plans/ai-upgrade-v5/evidence/joint/diagnostic/acct-smoke-1102/**"
+            ],
+            "reason": "One smoke run of the accounting through the diagnostic mode, never qualification",
+            "triggered_escalation": [
+              "project-state"
+            ],
+            "approved_by": "manager"
+          }
+        ],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

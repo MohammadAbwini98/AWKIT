@@ -18,6 +18,14 @@
  * Evidence: docs/plans/ai-upgrade-v5/evidence/joint/N8N9-<cell>.json and N8N9-joint-summary.json. Codes, counts and
  * durations only.
  *
+ * Accounting (2026-11-02, after campaign 8, whose late records could not be placed): every trial also records `acct`,
+ * passively. It holds the adapter's probe marks (frame taken, released or late-released; each synchronous phase as it
+ * starts; N9's second capture timeout) in ms from the diagnosis start, the count of frames that arrived after the work
+ * gave up, Node's event-loop utilization and process CPU over the diagnosis, and the wall clock beside the monotonic
+ * clock (a VM suspension shows as skew). Each cell file records the cell's wall and monotonic elapsed time. The counters
+ * are read outside the timed window, the marks are a timestamp and an array push, and no CDP domain, timer or page call is
+ * added. None of it enters a criterion: the strict accounting and the frozen criteria are unchanged.
+ *
  *   --diagnostic <id> --cell <cell>   one instrumented run (2026-11-01, the campaign-5 headed@2 investigation). It writes
  *                                     only evidence/joint/diagnostic/<id>/, refuses to overwrite, is never a campaign and
  *                                     never counts as qualification. Per trial it adds timings and counters only: Node
@@ -83,6 +91,24 @@ interface Trial {
   cut: boolean;
   /** `--diagnostic` only. */
   diag?: TrialDiagnostics;
+  /** Passive accounting (campaigns after 8). */
+  acct?: TrialAccounting;
+}
+
+/** Times in ms. `marks` are from the diagnosis start; a late-released frame may be marked after the record settled. */
+interface TrialAccounting {
+  /** Wall clock (epoch ms) and monotonic ms since the cell started, both at the diagnosis start. */
+  wallStart: number;
+  monoAt: number;
+  /** Wall-clock duration of the diagnosis, beside the monotonic `recordMsRaw`. */
+  wallMs: number;
+  /** Node event-loop utilization and process CPU over the diagnosis. */
+  elu: number;
+  cpuUserMs: number;
+  cpuSystemMs: number;
+  /** Frames that arrived after the work gave up (released unused). */
+  lateFrames: number;
+  marks: Array<[string, number]>;
 }
 
 /** Timings and counters only (`--diagnostic`). Times in ms; `at` is ms since the cell started. */
@@ -119,18 +145,28 @@ async function diagnose(page: Page, locator: string, on: boolean, marks?: Array<
   let frames = 0;
   let started = 0;
   const mark = (name: string) => marks?.push([name, Math.round((performance.now() - started) * 10) / 10]);
+  const acct: TrialAccounting = { wallStart: 0, monoAt: 0, wallMs: 0, elu: 0, cpuUserMs: 0, cpuSystemMs: 0, lateFrames: 0, marks: [] };
+  const account = (name: string) => acct.marks.push([name, Math.round((performance.now() - started) * 10) / 10]);
   const diagnosis = new VisualFailureDiagnosis({
     folder: join(process.cwd(), "build", "joint-no-references"),
     handedOff: () => false,
     reader: { get: async () => ({ status: "missing" }) as never },
     ...(on ? { rowEvidence: true, stateRecognition: true, deadlineMs: DEADLINE } : {}),
     probe: {
-      // Observers only (`--diagnostic`); campaigns pass no `marks` and keep the campaign-5 probe set.
-      ...(marks ? { onInspect: () => mark("inspect") } : {}),
+      // Observers only: `--diagnostic` adds `marks`; every run keeps the accounting marks (a timestamp and a push).
+      // `inspect`: the locator is resolved and the DOM inspection (then the first capture) begins.
+      onInspect: () => {
+        account("inspect");
+        if (marks) mark("inspect");
+      },
       onFrame: (event) => {
         if (event === "taken") frames += 1;
+        if (event === "late-released") acct.lateFrames += 1;
+        account(`frame-${event}`);
         if (marks) mark(`frame-${event}`);
       },
+      syncCost: (phase) => account(`sync-${phase}`),
+      onCaptureTimeout: () => account("capture-2"),
       onState: (event) => {
         stateMs = event.ms;
       },
@@ -140,7 +176,11 @@ async function diagnose(page: Page, locator: string, on: boolean, marks?: Array<
     }
   });
   const step = { id: "joint", name: "Joint", type: "click", timeoutMs: 800, locator: { strategy: "testId", value: locator } } as unknown as FlowStep;
+  const u0 = nodePerformance.eventLoopUtilization();
+  const c0 = process.cpuUsage();
+  acct.wallStart = Date.now();
   started = performance.now();
+  acct.monoAt = Math.round((started - cellStarted) * 10) / 10;
   const record = await diagnosis.diagnoseFinalFailure({
     step,
     attempt: 0,
@@ -152,8 +192,25 @@ async function diagnose(page: Page, locator: string, on: boolean, marks?: Array<
     limitScreenshot: (fn) => fn()
   });
   const recordMs = performance.now() - started;
+  acct.wallMs = Date.now() - acct.wallStart;
+  acct.elu = Math.round(nodePerformance.eventLoopUtilization(u0).utilization * 1000) / 1000;
+  const cpu = process.cpuUsage(c0);
+  acct.cpuUserMs = Math.round(cpu.user / 100) / 10;
+  acct.cpuSystemMs = Math.round(cpu.system / 100) / 10;
   const obs = record?.observations ?? [];
-  return { obs, stateMs, rowMs, frames, recordMs };
+  return { obs, stateMs, rowMs, frames, recordMs, acct };
+}
+
+/** Monotonic start of the running cell (accounting). */
+let cellStarted = performance.now();
+
+/** The accounting mark in force when the deadline passed, and the first one after it. */
+function phaseAt(t: Trial): { at: string; next: string | null } | null {
+  if (!t.acct) return null;
+  const deadline = t.lab === "control" ? OFF_DEADLINE : DEADLINE;
+  const before = t.acct.marks.filter(([, ms]) => ms <= deadline);
+  const after = t.acct.marks.find(([, ms]) => ms > deadline);
+  return { at: before.length ? before[before.length - 1][0] : "before-first-mark", next: after ? `${after[0]}@${after[1]}` : null };
 }
 
 /** `--diagnostic` instruments; `null` for campaigns, which then run each diagnosis exactly as before. */
@@ -242,6 +299,8 @@ async function runCell(cell: string): Promise<void> {
   const server = spawn(process.execPath, ["mock-site/server.mjs"], { env: { ...process.env, MOCK_SITE_PORT: String(PORT) }, stdio: ["ignore", "ignore", "inherit"], windowsHide: true });
   const trials: Trial[] = [];
   let status: "RAN" | "BLOCKED" = "RAN";
+  const cellWallStart = Date.now();
+  cellStarted = performance.now();
   let reason: string | undefined;
   try {
     for (let a = 0; a < 80 && !(await fetch(`${BASE}/visual-intelligence/state`).then((r) => r.ok, () => false)); a += 1) await new Promise((r) => setTimeout(r, 100));
@@ -297,7 +356,8 @@ async function runCell(cell: string): Promise<void> {
           frames: d.frames,
           refused: ["protected-surface", "sensitive", "handoff-active"].includes(d.obs[0] ?? ""),
           cut: d.obs[0] === "budget-exhausted",
-          ...extra
+          ...extra,
+          acct: d.acct
         });
         for (const variant of stateTable.qualificationVariants) {
           for (const f of stateTable.fixtures) {
@@ -331,6 +391,10 @@ async function runCell(cell: string): Promise<void> {
   } finally {
     server.kill();
   }
+  // Accounting: the cell's wall and monotonic elapsed time; a VM suspension shows as skew between them.
+  const wallElapsedMs = Date.now() - cellWallStart;
+  const monoElapsedMs = Math.round(performance.now() - cellStarted);
+  const clock = { wallStart: new Date(cellWallStart).toISOString(), wallElapsedMs, monoElapsedMs, skewMs: wallElapsedMs - monoElapsedMs };
   let revision = "unknown";
   let treeClean: boolean | null = null;
   // Read-only, as tools/agents/git-inspection.mjs does: `safe.directory` names exactly this checkout's native root (a
@@ -362,6 +426,7 @@ async function runCell(cell: string): Promise<void> {
       ...(DIAGNOSTIC ? { hostProcessor: process.env.PROCESSOR_IDENTIFIER ?? null, logicalCpus: cpus().length, totalMemMb: Math.round(totalmem() / 1048576) } : {})
     },
     deadlineMs: DEADLINE,
+    clock,
     accounting: "strict: late = any overrun of the hard deadline; a cut trial counts at the full deadline in the work-time p95",
     trials
   };
@@ -403,7 +468,7 @@ function rowsTrials(trials: Trial[]): RowsTrial[] {
     }));
 }
 
-function report(cells: Array<{ cell: string; status: string; trials: Trial[] }>): { allMet: boolean } {
+function report(cells: Array<{ cell: string; status: string; trials: Trial[]; clock?: { wallElapsedMs: number; monoElapsedMs: number; skewMs: number } }>): { allMet: boolean } {
   let allMet = true;
   const all: Trial[] = [];
   for (const c of cells) {
@@ -414,12 +479,35 @@ function report(cells: Array<{ cell: string; status: string; trials: Trial[] }>)
     }
     all.push(...c.trials);
     summarize(c.trials, (met) => (allMet &&= met));
+    accountFor(c.trials, c.clock);
   }
   if (cells.length > 1) {
     console.log("\npooled:");
     summarize(all, () => undefined);
   }
   return { allMet };
+}
+
+/**
+ * Accounting lines (cells that have it): the cell clock, and for every late or cut trial, controls included, where the
+ * deadline found the diagnosis. Descriptive only; nothing here enters a criterion.
+ */
+function accountFor(trials: Trial[], clock?: { wallElapsedMs: number; monoElapsedMs: number; skewMs: number }): void {
+  if (clock) console.log(`  clock: wall ${clock.wallElapsedMs} ms, monotonic ${clock.monoElapsedMs} ms, skew ${clock.skewMs} ms`);
+  const first = trials.find((t) => t.acct)?.acct;
+  if (!first) return;
+  // Skew so far: wall time since the first trial minus monotonic time since it (a suspension steps it up).
+  const skewSoFar = (a: TrialAccounting) => Math.round(a.wallStart - first.wallStart - (a.monoAt - first.monoAt));
+  const worst = trials.reduce((max, t) => (t.acct ? Math.max(max, Math.abs(t.acct.wallMs - (t.recordMsRaw ?? t.recordMs))) : max), 0);
+  console.log(`  trial clocks: largest wall-against-monotonic difference within one trial ${Math.round(worst)} ms; late-released frames ${trials.reduce((s, t) => s + (t.acct?.lateFrames ?? 0), 0)}`);
+  for (const t of trials.filter((x) => x.overrunMs > 0 || x.cut)) {
+    const a = t.acct;
+    const p = phaseAt(t);
+    if (!a || !p) continue;
+    console.log(
+      `  ${t.overrunMs > 0 ? `late +${t.overrunMs} ms` : "cut"}: ${t.lab} ${t.fixture}/${t.variant}, frames ${t.frames}, late-released ${a.lateFrames}, at deadline ${p.at}${p.next ? `, next ${p.next}` : ""}, elu ${a.elu}, cpu ${a.cpuUserMs}+${a.cpuSystemMs} ms, skew so far ${skewSoFar(a)} ms, marks ${a.marks.map(([n, ms]) => `${n}@${ms}`).join(" ")}`
+    );
+  }
 }
 
 function summarize(trials: Trial[], onMet: (met: boolean) => void): void {
