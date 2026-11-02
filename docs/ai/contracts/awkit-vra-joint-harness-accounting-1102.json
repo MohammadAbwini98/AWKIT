@@ -46,9 +46,12 @@
       "qa"
     ],
     "writer": {
-      "agent_id": "qa",
+      "agent_id": "project-state",
       "allowed_paths": [
-        "scripts/benchmark-visual-joint.mts"
+        "docs/plans/ai-upgrade-v5/evidence/joint/diagnostic/acct-smoke-1102/**",
+        "docs/ai/**",
+        "docs/plans/ai-upgrade-v5/N8-row-grid-intelligence.md",
+        ".beads/**"
       ]
     }
   },
@@ -76,8 +79,8 @@
       "required": true,
       "command": "npm run typecheck:scripts",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": "pending"
+      "result": "PASS",
+      "observed": "exit 0 on aa54a586's harness"
     },
     {
       "id": "benchmark:visual-joint:smoke",
@@ -85,8 +88,8 @@
       "required": true,
       "command": "benchmark:visual-joint --diagnostic smoke run into build/, aggregate of c8 unchanged",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": "pending"
+      "result": "PASS",
+      "observed": "acct-smoke-1102 attempt 1 crashed (N0 awkit-kv3n, unhandled page.screenshot rejection); attempt 2 completed 280 trials with acct, clock and marks written; both attempts unleased, committed under the project-state lease"
     },
     {
       "id": "git-push",
@@ -138,6 +141,22 @@
             "approved_by": "manager"
           }
         ],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-vra-joint-harness-accounting-1102:qa:2026-11-02T15:11:14.895Z",
+        "task": "awkit-vra-joint-harness-accounting-1102",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/benchmark-visual-joint.mts"
+        ],
+        "acquired_at": "2026-11-02T15:11:14.895Z",
+        "acquired_at_commit": "7a873f9d6ced9c3ec7e4687e9d71211deb572f53",
+        "released_at": "2026-11-02T15:12:32.148Z",
+        "released_reason": "Harness accounting committed",
+        "amendments": [],
         "overrides": [],
         "violations": []
       }

@@ -1,5 +1,15 @@
 # KNOWN_ISSUES
 
+## N0 orphans a screenshot started on an already-aborted capture (2026-11-02, OPEN, `awkit-kv3n` P1)
+
+- **What:** `Budget.race(step)` attaches its handlers after `check()`, and its callers build `step` first. If the signal
+  is already aborted, `check()` throws and the started `page.screenshot` (or guard or metrics read) is orphaned. A
+  rejection from it is unhandled, and Node exits.
+- **Seen:** once, in the accounting smoke run (diagnostic mode). Not seen in campaigns 6 and 8 (3360 trials) or the
+  second smoke attempt.
+- **Effect:** a campaign cell can be lost, and in the app the runner process can crash. No pixels are kept.
+- **Fix:** a product change in `src/visual`, before the next campaign pre-declaration.
+
 ## Campaign 8 NOT MET on the `awkit-vra.18` fix; first-capture late records; intermittent verifier incidents (2026-11-02, OPEN)
 
 - **Late records in N5's first-capture phase (OPEN; `awkit-vra.18`).**

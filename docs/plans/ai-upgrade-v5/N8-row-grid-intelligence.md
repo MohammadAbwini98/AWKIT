@@ -923,3 +923,28 @@ repeat rule, DECISIONS 2026-11-01):
 - **Next:** owner decision. Either a harness change (record `late-released` frames and the phase running at the
   deadline) and/or N5 first-capture decode reservation, then a new pre-declared campaign pair; and host controls
   against VM suspension. Each is a new revision.
+
+**Joint-harness accounting (2026-11-02, `aa54a586`; owner choice after campaign 8).** Contract
+`awkit-vra-joint-harness-accounting-1102`.
+- **What `benchmark:visual-joint` now records,** passively, in every trial (`acct`):
+  - the adapter's probe marks, in ms from the diagnosis start: `inspect`; frames taken, released or late-released;
+    each synchronous phase as it starts (`sync-decode`, `sync-fingerprint`, `sync-stateFeatures`,
+    `sync-memberCrop`, `sync-motionPlane`); and `capture-2`;
+  - the late-released frame count;
+  - Node event-loop utilization and process CPU, both read outside the timed window;
+  - the wall clock beside the monotonic one.
+- **Per cell:** wall and monotonic elapsed time, and their skew.
+- **Aggregate:** for every late or cut trial, controls included, the aggregate prints the mark in force when the
+  deadline passed, the next mark, the late-released frames, ELU, CPU and the skew so far.
+- **Unchanged:** the frozen criteria, the strict accounting, the labs and the product. No CDP domain, timer or page call
+  is added.
+- **Limit:** the first capture's start has no probe of its own. A deadline found at `inspect` covers the DOM
+  inspection and the first capture together.
+- **Smoke run** (`evidence/joint/diagnostic/acct-smoke-1102/`, never qualification):
+  - **Attempt 1 crashed** on an unhandled `page.screenshot` timeout of 25 ms, in N0's first capture. This is
+    **`awkit-kv3n`**: `Budget.race` builds its step before `check()`, so a screenshot started on an already-aborted
+    capture is orphaned.
+  - **Attempt 2 completed:** 280 trials, all marks present, clock skew −5 ms, 0 late-released frames.
+- **Campaigns 10 and 11 are not pre-declared yet.** `awkit-kv3n` is a product change in `src/visual`, and a crash in a
+  campaign cell would lose that cell. The owner decides whether it is fixed first, so that the pre-declaration covers the
+  fixed revision.

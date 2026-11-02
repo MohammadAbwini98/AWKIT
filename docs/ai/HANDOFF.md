@@ -1,6 +1,19 @@
 # Agent Handoff
 
-## HANDOFF (2026-11-02, latest) — campaign 8 NOT MET; campaign 9 and the review round NOT RUN; Phase N NOT complete
+## HANDOFF (2026-11-02, latest) — joint-harness accounting landed; N0 crash `awkit-kv3n` found; campaigns 10 and 11 not pre-declared; Phase N NOT complete
+
+- **Done:** `aa54a586`, the passive accounting in `benchmark:visual-joint` (N8 plan § 12). Smoke run
+  `acct-smoke-1102`: attempt 1 crashed, attempt 2 completed 280 trials. `awkit-kv3n` filed (P1).
+- **Next single task (owner's call):** fix `awkit-kv3n` in `src/visual`, with a deterministic verifier case, so that
+  `Budget.race` never orphans a started step. Then pre-declare campaigns 10 and 11 on that revision, and switch
+  `benchmark:visual-joint:*` to `--campaign 10` with `c11-` scripts. Alternatively, pre-declare now and accept the
+  crash risk.
+- **Host controls for the next campaign:** stop the Mac and Parallels from suspending the VM. The per-cell clock skew
+  now shows a suspension.
+- **Unchanged:** campaign 8 NOT MET; N8, N9 and `awkit-vra.18` IN PROGRESS; N7.1b, N7.8 and N7.9 BLOCKED; N7.10 open.
+- **Preserved untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-11-02) — campaign 8 NOT MET; campaign 9 and the review round NOT RUN; Phase N NOT complete
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. N8 `awkit-vra.10`, N9
 `awkit-vra.11` and `awkit-vra.18` stay IN PROGRESS. Contract `awkit-vra-phase-n-qualification-1102`; its

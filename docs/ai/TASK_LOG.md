@@ -1,5 +1,23 @@
 # TASK_LOG
 
+## 2026-11-02 — Joint-harness accounting and the N0 orphaned-screenshot crash (Claude)
+
+- **Task:** the owner choice "Harness accounting first", after campaign 8 NOT MET. Contract
+  `awkit-vra-joint-harness-accounting-1102`.
+- **Leases:**
+  - QA lease on `scripts/benchmark-visual-joint.mts`;
+  - an amend that added a project-state path was refused, and that released the lease;
+  - QA re-granted for the commit;
+  - then project-state for the docs, the smoke evidence and `.beads/**`.
+  - The two smoke attempts ran with no write lease held.
+- **Commits:** `aa54a586` (harness), then this closeout.
+- **Tests:**
+  - `typecheck:scripts` PASS;
+  - smoke `acct-smoke-1102`: attempt 1 FAIL (crash, `awkit-kv3n`), attempt 2 PASS (280 trials, accounting written);
+  - `verify:roadmap-dashboard` counts moved to 437 issues;
+  - campaigns: NOT RUN.
+- **Result:** campaigns 10 and 11 are not pre-declared, pending the owner's decision on `awkit-kv3n`.
+
 ## 2026-11-02 — Phase N qualification resume: campaign 8 NOT MET, campaign 9 not run (Claude)
 
 - **Task:** the owner prompt "AWKIT — Resume Phase N Qualification and Closure" (implemented baseline `7a0a9227`,

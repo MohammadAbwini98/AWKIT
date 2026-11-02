@@ -1,6 +1,28 @@
 # CURRENT_STATE
 
-## Campaign 8 NOT MET on the `awkit-vra.18` fix; campaign 9 NOT RUN; N8, N9 and Phase N open (2026-11-02, latest)
+## Joint-harness accounting landed; N0 crash `awkit-kv3n` found; campaigns 10 and 11 not yet pre-declared; N8, N9 and Phase N open (2026-11-02, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. Contract
+`awkit-vra-joint-harness-accounting-1102`.
+
+- **Harness (`aa54a586`, N8 plan § 12):** `benchmark:visual-joint` now records, passively, in every trial:
+  - adapter phase marks;
+  - late-released frames;
+  - ELU and CPU;
+  - the wall clock beside the monotonic one, per trial and per cell.
+  The aggregate prints where the deadline found each late or cut trial. Criteria, accounting, labs and product are
+  unchanged. `typecheck:scripts` PASS.
+- **Smoke run** `acct-smoke-1102` (diagnostic, never qualification): attempt 1 crashed, attempt 2 completed 280 trials
+  with the accounting written. Both attempts ran with no write lease held; the result was committed later under the
+  project-state lease.
+- **New P1 bug `awkit-kv3n` (N0):** a screenshot started on an already-aborted capture is orphaned by `Budget.race`.
+  Its rejection is unhandled, and Node exits.
+- **Not done:** the campaign 10 and 11 pre-declaration and the `package.json` scripts. They wait for the owner's
+  decision on `awkit-kv3n`.
+- **Unchanged:** campaign 8 NOT MET. N8 `awkit-vra.10`, N9 `awkit-vra.11` and `awkit-vra.18` stay IN PROGRESS.
+  N7.1b, N7.8 and N7.9 are BLOCKED (H4/H5). N7.10 is open. **Phase N is NOT complete.**
+
+## Campaign 8 NOT MET on the `awkit-vra.18` fix; campaign 9 NOT RUN; N8, N9 and Phase N open (2026-11-02)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. Contract
 `awkit-vra-phase-n-qualification-1102`.

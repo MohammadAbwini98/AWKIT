@@ -1,26 +1,29 @@
 {
   "task": "awkit-vra-joint-harness-accounting-1102",
   "contract_path": "docs/ai/contracts/awkit-vra-joint-harness-accounting-1102.json",
-  "holder": "qa",
+  "holder": "project-state",
   "status": "active",
   "allowed_paths": [
-    "scripts/benchmark-visual-joint.mts"
+    ".beads/**",
+    "docs/ai/**",
+    "docs/plans/ai-upgrade-v5/N8-row-grid-intelligence.md",
+    "docs/plans/ai-upgrade-v5/evidence/joint/diagnostic/acct-smoke-1102/**"
   ],
-  "acquired_at": "2026-11-02T15:11:14.895Z",
-  "acquired_at_commit": "7a873f9d6ced9c3ec7e4687e9d71211deb572f53",
+  "acquired_at": "2026-11-02T15:12:55.515Z",
+  "acquired_at_commit": "aa54a586f062ea559784429fe8481412b53ad81f",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
     "docs/ai/contracts/awkit-vra-joint-harness-accounting-1102.json",
     "docs/plans/ai-upgrade-v5/evidence/joint/diagnostic/acct-smoke-1102/",
-    "scripts/benchmark-visual-joint.mts"
+    "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "b568a573c630a2e71c56d9c45f5d8a9dff81de9ae3818ec519212c6cd9c3081a",
+    "docs/ai/contracts/active-lease.json": "5dcf2d448daa2114606cbb6d94788c06c3cbe84ef91388e8d1dd8fc04976dc8c",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-vra-joint-harness-accounting-1102.json": "c6bfc3d59ea7273282b94a985ad09ebf3944ae261b05f5bd51fd2569a4587536",
+    "docs/ai/contracts/awkit-vra-joint-harness-accounting-1102.json": "9a0485767e023fc1a4f02c8b42cd4baaa8fc37b80d8c1deb7f1a1fc3429efa95",
     "docs/plans/ai-upgrade-v5/evidence/joint/diagnostic/acct-smoke-1102/": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "scripts/benchmark-visual-joint.mts": "ec343e1a07642e1eca17dcf98c0bb325d63a5692c701f902fef4ba32b0c16dec"
+    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
