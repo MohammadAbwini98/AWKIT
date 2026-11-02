@@ -39,19 +39,17 @@
       "package.json",
       "docs/plans/ai-upgrade-v5/**",
       "docs/ai/**",
-      ".beads/**"
+      ".beads/**",
+      "scripts/verify-roadmap-dashboard.mjs"
     ],
     "consultants": [],
     "reviewers": [
       "qa"
     ],
     "writer": {
-      "agent_id": "project-state",
+      "agent_id": "qa",
       "allowed_paths": [
-        "docs/plans/ai-upgrade-v5/evidence/joint/diagnostic/acct-smoke-1102/**",
-        "docs/ai/**",
-        "docs/plans/ai-upgrade-v5/N8-row-grid-intelligence.md",
-        ".beads/**"
+        "scripts/verify-roadmap-dashboard.mjs"
       ]
     }
   },
@@ -156,6 +154,25 @@
         "acquired_at_commit": "7a873f9d6ced9c3ec7e4687e9d71211deb572f53",
         "released_at": "2026-11-02T15:12:32.148Z",
         "released_reason": "Harness accounting committed",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-vra-joint-harness-accounting-1102:project-state:2026-11-02T15:12:55.515Z",
+        "task": "awkit-vra-joint-harness-accounting-1102",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**",
+          "docs/ai/**",
+          "docs/plans/ai-upgrade-v5/N8-row-grid-intelligence.md",
+          "docs/plans/ai-upgrade-v5/evidence/joint/diagnostic/acct-smoke-1102/**"
+        ],
+        "acquired_at": "2026-11-02T15:12:55.515Z",
+        "acquired_at_commit": "aa54a586f062ea559784429fe8481412b53ad81f",
+        "released_at": "2026-11-02T15:14:59.176Z",
+        "released_reason": "Docs, smoke evidence and Beads committed",
         "amendments": [],
         "overrides": [],
         "violations": []

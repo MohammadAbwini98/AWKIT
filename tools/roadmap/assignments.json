@@ -20,10 +20,10 @@
   "claims": [
     {
       "itemId": "bead:awkit-vra-joint-harness-accounting-1102",
-      "agent": "Documentation / Project-State Specialist",
+      "agent": "Quality Assurance Engineer",
       "state": "in-progress",
-      "claimedAt": "2026-11-02T15:12:55.515Z",
-      "note": "write lease: .beads/**, docs/ai/**, docs/plans/ai-upgrade-v5/N8-row-grid-intelligence.md, docs/plans/ai-upgrade-v5/evidence/joint/diagnostic/acct-smoke-1102/**"
+      "claimedAt": "2026-11-02T15:15:01.506Z",
+      "note": "write lease: scripts/verify-roadmap-dashboard.mjs"
     }
   ]
 }

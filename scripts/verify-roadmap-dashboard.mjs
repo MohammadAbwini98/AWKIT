@@ -185,7 +185,9 @@ try {
   // independent open accuracy-qualification item `awkit-2shc`. Measured after `bd export`.
   // Then 436 on 2026-11-01 (contract `awkit-vra-phase-n-recovery-1101`): the F2 follow-up `awkit-vra.18` filed open,
   // outside Phase N closure. Measured after `bd export`.
-  check("436 issues parse", beads.stats.total === 436, `got ${beads.stats.total}`);
+  // Then 437 on 2026-11-02 (contract `awkit-vra-joint-harness-accounting-1102`): the N0 bug `awkit-kv3n` filed open,
+  // discovered from `awkit-vra.18`. Measured after `bd export`.
+  check("437 issues parse", beads.stats.total === 437, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -810,8 +812,10 @@ try {
   // `.3`, `.5`, `.6`, `.7` and `.8` closed as superseded under the owner-ratified coverage matrix. Measured after export.
   // Then 28/408 of 436 on 2026-11-01 (contract `awkit-vra-phase-n-recovery-1101`): the F2 follow-up `awkit-vra.18` filed
   // open. Measured after export.
-    "28 outstanding / 408 closed",
-    beads.stats.outstanding === 28 && beads.stats.closed === 408,
+  // Then 29/408 of 437 on 2026-11-02 (contract `awkit-vra-joint-harness-accounting-1102`): `awkit-kv3n` filed open.
+  // Measured after export.
+    "29 outstanding / 408 closed",
+    beads.stats.outstanding === 29 && beads.stats.closed === 408,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
@@ -960,9 +964,11 @@ try {
   // ratified N7 blocks edges (N7.1b after N7.3 and N7.4, never before N7.2-N7.5). Measured.
   // Then 392 on 2026-11-01 (contract `awkit-vra-phase-n-tracker-1101`): N6P `awkit-vra.16` and N10 `awkit-vra.17` lost
   // their parent-child edge to `awkit-vra` when the owner transferred them outside Phase N closure. Measured.
+  // Then 393 on 2026-11-02 (contract `awkit-vra-joint-harness-accounting-1102`): `awkit-kv3n` discovered-from
+  // `awkit-vra.18`. Measured.
   check(
-    "392 edges are present to classify",
-    beads.stats.edges === 392,
+    "393 edges are present to classify",
+    beads.stats.edges === 393,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(
