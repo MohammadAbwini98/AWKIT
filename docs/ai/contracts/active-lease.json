@@ -1,13 +1,13 @@
 {
   "task": "awkit-vra-joint-harness-accounting-1102",
   "contract_path": "docs/ai/contracts/awkit-vra-joint-harness-accounting-1102.json",
-  "holder": "qa",
+  "holder": "project-state",
   "status": "active",
   "allowed_paths": [
-    "scripts/verify-roadmap-dashboard.mjs"
+    "docs/ai/**"
   ],
-  "acquired_at": "2026-11-02T15:15:01.506Z",
-  "acquired_at_commit": "8fe468306b746be3e3c6c0418807cd7a3dfa02fe",
+  "acquired_at": "2026-11-02T15:16:10.446Z",
+  "acquired_at_commit": "755db4bd9c26f82d15b26256f9f496c083306bfe",
   "baseline_dirty": [
     "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
@@ -15,9 +15,9 @@
     "tools/roadmap/assignments.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "5376d40d9dba7442996479c29d7351ffd3128ffe17efee48cab45352baed1826",
+    "docs/ai/contracts/active-lease.json": "b16ef578b3075fd4b2a9c7fa69b02f322ade84c45de2fbc54324d9d8da6bcb34",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-vra-joint-harness-accounting-1102.json": "c80504f88adae1635c20904ecde2a79a4f73858391381dcc778a7928171227ea",
+    "docs/ai/contracts/awkit-vra-joint-harness-accounting-1102.json": "ded7bc1032b298214297971d1f7683937b181a6d57d2892225f141eb36d6d3da",
     "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
   },
   "baseline_watched_ignored": {

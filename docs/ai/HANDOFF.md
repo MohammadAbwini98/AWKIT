@@ -2,6 +2,9 @@
 
 ## HANDOFF (2026-11-02, latest) — joint-harness accounting landed; N0 crash `awkit-kv3n` found; campaigns 10 and 11 not pre-declared; Phase N NOT complete
 
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. N8 `awkit-vra.10`, N9
+`awkit-vra.11` and `awkit-vra.18` stay IN PROGRESS. Contract `awkit-vra-joint-harness-accounting-1102`.
+
 - **Done:** `aa54a586`, the passive accounting in `benchmark:visual-joint` (N8 plan § 12). Smoke run
   `acct-smoke-1102`: attempt 1 crashed, attempt 2 completed 280 trials. `awkit-kv3n` filed (P1).
 - **Next single task (owner's call):** fix `awkit-kv3n` in `src/visual`, with a deterministic verifier case, so that
