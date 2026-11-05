@@ -1,6 +1,10 @@
 # KNOWN_ISSUES
 
-## N0 orphans a screenshot started on an already-aborted capture (2026-11-02, OPEN, `awkit-kv3n` P1)
+## N0 orphans a screenshot started on an already-aborted capture (2026-11-02, FIXED in `e60b890b` 2026-11-05, `awkit-kv3n` P1; Beads closure BLOCKED on a tracker lease)
+
+- **Resolution:** `Budget.race` takes a start function and checks the budget before starting; a started step is always
+  observed. Pinned by the Budget.race section of `verify:visual-capture` (red-first 341/7, green 348/0). Keep that
+  section first in the verifier: its timer count is process-wide.
 
 - **What:** `Budget.race(step)` attaches its handlers after `check()`, and its callers build `step` first. If the signal
   is already aborted, `check()` throws and the started `page.screenshot` (or guard or metrics read) is orphaned. A

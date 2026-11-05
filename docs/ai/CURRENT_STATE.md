@@ -1,6 +1,25 @@
 # CURRENT_STATE
 
-## Joint-harness accounting landed; N0 crash `awkit-kv3n` found; campaigns 10 and 11 not yet pre-declared; N8, N9 and Phase N open (2026-11-02, latest)
+## `awkit-kv3n` fixed and pushed (`e60b890b`); campaigns 10 and 11 pre-declared, NOT RUN; N8, N9 and Phase N open (2026-11-05, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Fix (`e60b890b`):** `Budget.race` in `src/visual/internal/captureCore.ts` takes a start function. The budget is
+  checked before the step starts, so a cancelled or exhausted capture starts no screenshot, guard or read. An abort
+  raised while the step starts is re-checked. Every started step's settlement is observed: a late rejection is absorbed
+  and a late element handle is disposed. `measureElement` keeps CANCELLED / BUDGET_EXHAUSTED instead of reporting
+  TARGET_STALE (review finding). This supersedes the 2026-11-04 working-tree attempt, which only absorbed the step.
+- **Proof:** `verify:visual-capture` red-first 341/7, green 348/0; mutations M1 342/6, M2+M3 345/3; build PASS.
+- **Reviews:** independent QC and security both APPROVED WITH FINDINGS; the shared finding is fixed in `e60b890b`.
+- **Campaigns 10 and 11:** pre-declared in the N8 plan § 12 on `e60b890b`; the `benchmark:visual-joint:*` scripts now
+  write `c10` and `c11`. **NOT RUN:** execution is BLOCKED until the owner confirms the Mac/Parallels host cannot suspend
+  the VM.
+- **BLOCKED:** `bd close awkit-kv3n` needs a contract-backed tracker lease, so the issue stays OPEN in Beads although
+  the fix is committed.
+- **Unchanged:** N8, N9 and `awkit-vra.18` are IN PROGRESS. **Phase N is NOT complete** (N7.1b, N7.8 and N7.9 are
+  blocked on the Windows packaging host).
+
+## Joint-harness accounting landed; N0 crash `awkit-kv3n` found; campaigns 10 and 11 not yet pre-declared; N8, N9 and Phase N open (2026-11-02)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. Contract
 `awkit-vra-joint-harness-accounting-1102`.

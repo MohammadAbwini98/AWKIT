@@ -948,3 +948,47 @@ repeat rule, DECISIONS 2026-11-01):
 - **Campaigns 10 and 11 are not pre-declared yet.** `awkit-kv3n` is a product change in `src/visual`, and a crash in a
   campaign cell would lose that cell. The owner decides whether it is fixed first, so that the pre-declaration covers the
   fixed revision.
+
+**`awkit-kv3n` fixed (2026-11-05, `e60b890b`).** `Budget.race` (N0, `src/visual/internal/captureCore.ts`) now takes a
+start function: the budget is checked before the step starts, so a cancelled or exhausted capture starts no screenshot,
+guard or read; an abort raised while the step starts is re-checked; the started step's settlement is always observed (a
+late rejection is absorbed, a late element handle disposed); `measureElement` keeps CANCELLED / BUDGET_EXHAUSTED.
+`verify:visual-capture` red-first 341/7, green 348/0; mutations M1 342/6, M2+M3 345/3. Independent QC and security
+review: both APPROVED WITH FINDINGS (the shared finding, `measureElement`'s `.catch(() => false)`, is fixed in
+`e60b890b`; QC finding 2, the process-wide timer count, is pinned by a comment that the section runs first).
+
+**Campaigns 10 and 11: pre-declaration** (committed before either runs, with the scripts that run them; same frozen
+repeat rule as campaigns 8 and 9, DECISIONS 2026-11-01):
+- **Revision:** the product source as of `e60b890b` (the `awkit-kv3n` fix, on top of the joint-harness accounting
+  `aa54a586`). Both campaigns run at the tip of `main` once this pre-declaration is committed, with a clean tracked tree
+  (`treeClean: true` in each cell file, which records the revision). No commit after this pre-declaration may change
+  `src/**`, `app/**`, `mock-site/**`, `scripts/benchmark-visual-joint.mts`, `scripts/lib/visual-*-criteria.mts`, or the
+  `benchmark:visual-joint:*` scripts in `package.json`. Any such change, or any product change after campaign 10, voids
+  the sequence. Campaigns 1 to 9 and every diagnostic evidence folder stay unchanged.
+- **Environment:**
+  - the approved Windows 11 ARM64 Parallels host, x64 Node, bundled Chromium;
+  - the six cells run one after another, in one shell, with no instrumentation (no `--diagnostic`);
+  - no build, verifier or other benchmark runs in parallel, and the VM is not used interactively during a cell;
+  - **new precondition (campaign 8's headed@1.25 suspension):** before campaign 10 starts, the owner confirms on the
+    Mac that neither macOS sleep nor Parallels can suspend or pause the VM for the whole run (Mac sleep disabled on
+    power, Parallels "pause when idle / no apps" off, no scheduled suspend), and records it with the start time. The
+    passive accounting's wall-versus-monotonic skew per trial and per cell is the clock-consistency record; a suspension
+    it or the System log shows is reported as such, never as a product PASS, and the affected results are kept.
+- **What runs** (unchanged from campaigns 8 and 9):
+  - all six cells (headless and headed at DPR 1, 1.25 and 2) with N5, N8 and N9 on;
+  - held-out variants b, c and d, two repeats each;
+  - the protected and disabled-mode controls;
+  - passive accounting (`acct`) in every trial: phase marks, late-released frames, ELU, CPU and clock skew;
+  - `npm run benchmark:visual-joint:<cell>` then `:aggregate` writes `evidence/joint/c10/`, and the `c11-` scripts write
+    `evidence/joint/c11/`.
+- **Criteria:** `N8_FROZEN_CRITERIA` R-1 to R-5 and `N9_FROZEN_CRITERIA` S-1 to S-5, unchanged.
+  - Strict accounting: any overrun of the 1600 ms hard deadline is late (zero grace).
+  - A cut counts at the full deadline, and every cut and late record is listed.
+  - No trial is excluded.
+  - Every protected trial refused with zero frames and no code.
+  - Disabled controls carry no N8/N9 code, take at most one frame, and none is late.
+- **A campaign passes** only when every criterion is MET in every cell.
+- **Sequence:** campaign 10 first; if it fails it is recorded NOT MET and campaign 11 does not run. N8 and N9 qualify on
+  this revision only if campaigns 10 and 11 **both** pass, followed by an independent N8/N9 review round that approves.
+- **Status:** NOT RUN. Execution is BLOCKED on the host precondition above: suspension settings live on the Mac host and
+  cannot be read from the guest, and this session's guest-side power and event-log reads were refused by the lease guard.

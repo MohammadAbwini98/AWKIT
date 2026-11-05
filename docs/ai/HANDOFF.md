@@ -1,6 +1,27 @@
 # Agent Handoff
 
-## HANDOFF (2026-11-02, latest) — joint-harness accounting landed; N0 crash `awkit-kv3n` found; campaigns 10 and 11 not pre-declared; Phase N NOT complete
+## HANDOFF (2026-11-05, latest) — `awkit-kv3n` fixed and pushed; campaigns 10 and 11 pre-declared, NOT RUN; Phase N NOT complete
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:**
+  - `e60b890b`: the `awkit-kv3n` fix (`Budget.race` checks before starting and observes every started step) and its
+    `verify:visual-capture` tests (red-first 341/7, green 348/0, mutations caught), pushed to `origin/main`;
+  - independent QC and security reviews: both APPROVED WITH FINDINGS, shared finding fixed in `e60b890b`;
+  - campaigns 10 and 11 pre-declared in the N8 plan § 12, with the joint scripts switched to `c10` and `c11-`.
+- **Blocked:**
+  - campaign 10 execution: the owner must confirm on the Mac that neither macOS sleep nor Parallels can suspend or pause
+    the VM. Guest-side `powercfg` and System-log reads were refused by the lease guard;
+  - `bd close awkit-kv3n`: needs a contract-backed tracker lease, so the issue is still OPEN.
+- **Next (owner):**
+  1. confirm the host suspension settings and record the start time;
+  2. on an idle VM, at the tip of `main` with a clean tracked tree, run the six `benchmark:visual-joint:<cell>` scripts
+     one after another, then `:aggregate`;
+  3. only if campaign 10 passes every cell, run the six `c11-` scripts and `c11-aggregate`;
+  4. close `awkit-kv3n` under a tracker lease.
+- **Preserved untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-11-02) — joint-harness accounting landed; N0 crash `awkit-kv3n` found; campaigns 10 and 11 not pre-declared; Phase N NOT complete
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. N8 `awkit-vra.10`, N9
 `awkit-vra.11` and `awkit-vra.18` stay IN PROGRESS. Contract `awkit-vra-joint-harness-accounting-1102`.

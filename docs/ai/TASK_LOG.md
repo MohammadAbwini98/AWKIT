@@ -1,5 +1,32 @@
 # TASK_LOG
 
+## 2026-11-05 — `awkit-kv3n` fixed; campaigns 10 and 11 pre-declared (Claude)
+
+- **Task:** fix P1 `awkit-kv3n` and prepare Phase N joint campaigns 10 and 11. No contract or lease (ordinary product
+  code, not a Risk-3 path). Supersedes the uncommitted 2026-11-04 attempt (absorb-only, which still started the step).
+- **Root cause:** every `Budget.race` caller started its step (`page.screenshot`, the guard, a metrics read) before
+  `race` ran `check()`. On an already-aborted capture `check()` threw, the started step was orphaned, and its later
+  rejection was unhandled, which exits Node.
+- **Change (`e60b890b`):** `race(start, discard?)` checks first, starts second, re-checks an abort raised during the
+  start, always attaches settlement handlers, absorbs late rejections, disposes late element handles. All 16 callers
+  pass thunks. `Budget` is exported for the verifier only. `measureElement` lets `VisualAbort` through its `.catch`.
+- **Tests:** `verify:visual-capture` gains a browser-free Budget.race section (controlled promises; pre-start abort,
+  exhausted budget, abort during start, abort while pending, expiry while pending, late rejection and late value after
+  settlement, success, genuine error; listener and timer release; no unhandled rejection) and two integration cases
+  (no screenshot or guard starts on a cancelled capture). Red-first 341/7, green 348/0. Mutations: M1 start before
+  check 342/6; M2 no post-start re-check plus M3 discard disabled 345/3.
+- **Verification (all PASS):** build; `typecheck:scripts`; `verify:visual-capture` 348/0 (final source);
+  `verify:visual-isolation` 117/0; `verify:security` 61/0; `verify:protected-diagnosis` 75/0; `verify:mock-site`
+  378/378; `verify:visual-diagnosis-deadline` 45/0; `verify:visual-diagnosis-runtime` 65/0; `verify:visual-rows` 82/0;
+  `verify:visual-state` 48/0; `verify:b2-protected-capture` 39/0; `verify:visual-capture-fanout` 193/0. The last ten
+  ran before the review fix to `measureElement`'s `.catch`, which only changes a cancelled element read's code.
+- **Reviews:** independent QC and security: APPROVED WITH FINDINGS. The shared finding (`measureElement`) is fixed; QC
+  finding 2 (process-wide timer count) is pinned by a comment.
+- **Campaigns:** 10 and 11 pre-declared (N8 plan § 12), scripts switched to `c10` / `c11-`. NOT RUN (BLOCKED on the
+  host suspension precondition).
+- **BLOCKED:** `bd close awkit-kv3n` (tracker lease); guest `powercfg` and System-log reads (lease guard).
+- **Git:** `e60b890b` pushed; the pre-declaration and these docs follow in one docs commit.
+
 ## 2026-11-02 — Joint-harness accounting and the N0 orphaned-screenshot crash (Claude)
 
 - **Task:** the owner choice "Harness accounting first", after campaign 8 NOT MET. Contract
