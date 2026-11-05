@@ -124,7 +124,8 @@ export interface VisualElementCapture {
 const DEFAULT_TIMEOUT_MS = 5000;
 const DEFAULT_CONTEXT_PADDING_CSS = 24;
 
-class Budget {
+/** One capture's time budget and abort signal. Exported for `verify:visual-capture` only (awkit-kv3n). */
+export class Budget {
   private readonly deadline: number;
 
   constructor(
@@ -144,32 +145,47 @@ class Budget {
     if (this.remaining() <= 0) throw new VisualAbort("BUDGET_EXHAUSTED", "the capture ran out of time");
   }
 
-  /** Race one step against the remaining budget and the abort signal. The losing step's settlement is absorbed. */
-  race<T>(step: Promise<T>): Promise<T> {
+  /**
+   * Start one step and race it against the remaining budget and the abort signal (awkit-kv3n).
+   *
+   * - The budget is checked BEFORE `start` runs, so a capture already cancelled or out of time starts nothing. That
+   *   check throws synchronously, as it always has, so `race(...).catch(...)` callers still see the cancellation.
+   * - Once started, the step's settlement is always observed: a step that loses (the deadline, an abort while it is
+   *   pending, or an abort raised while it was starting) has its later rejection absorbed, never left unhandled.
+   * - `discard` releases a value the step produces after it lost (an element handle), so nothing it owns leaks.
+   */
+  race<T>(start: () => Promise<T>, discard?: (late: T) => unknown): Promise<T> {
     this.check();
+    const step = start();
     const signal = this.signal;
     return new Promise<T>((resolve, reject) => {
+      let lost = false;
       const onAbort = (): void => {
+        lost = true;
         clearTimeout(timer);
         reject(new VisualAbort("CANCELLED", "the capture was cancelled"));
       };
       const timer = setTimeout(() => {
+        lost = true;
         signal?.removeEventListener("abort", onAbort);
         reject(new VisualAbort("BUDGET_EXHAUSTED", "the capture ran out of time"));
       }, this.remaining());
-      signal?.addEventListener("abort", onAbort, { once: true });
       step.then(
         (value) => {
           clearTimeout(timer);
           signal?.removeEventListener("abort", onAbort);
-          resolve(value);
+          if (!lost) resolve(value);
+          else if (discard) Promise.resolve().then(() => discard(value)).catch(() => undefined);
         },
         (error: unknown) => {
           clearTimeout(timer);
           signal?.removeEventListener("abort", onAbort);
-          reject(error);
+          if (!lost) reject(error);
         }
       );
+      // An abort raised while the step was starting has already fired; a listener added now would never run.
+      if (signal?.aborted) onAbort();
+      else signal?.addEventListener("abort", onAbort, { once: true });
     });
   }
 }
@@ -199,7 +215,7 @@ async function assertNotProtected(page: Page, budget: Budget, seams: VisualCaptu
   const guard = seams?.guard ?? ((target: Page) => checkProtectedSurface(target));
   let verdict: ProtectedGuardVerdict;
   try {
-    verdict = await budget.race(guard(page));
+    verdict = await budget.race(() => guard(page));
   } catch (error) {
     if (error instanceof VisualAbort) throw error;
     verdict = { protected: true, reason: "frame-unscannable" };
@@ -266,7 +282,7 @@ function readViewportMetrics(page: Page): Promise<ViewportMetrics> {
 }
 
 async function measureViewport(page: Page, budget: Budget): Promise<ViewportMetrics> {
-  const metrics = await budget.race(readViewportMetrics(page));
+  const metrics = await budget.race(() => readViewportMetrics(page));
   if (!(metrics.cssWidth > 0 && metrics.cssHeight > 0)) refuse("CAPTURE_UNAVAILABLE", "the viewport has no size");
   // Pinch zoom moves the visual viewport away from the layout viewport that boundingBox() reports against.
   if (Math.abs(metrics.visualScale - 1) > 1e-3) refuse("CAPTURE_UNAVAILABLE", "the page is pinch-zoomed");
@@ -283,7 +299,7 @@ interface ViewportScreenshot {
 
 async function screenshotViewport(page: Page, budget: Budget, metrics: ViewportMetrics, stillness = false): Promise<ViewportScreenshot> {
   const shotStarted = performance.now();
-  const bytes = await budget.race(
+  const bytes = await budget.race(() =>
     page.screenshot({
       type: "png",
       scale: "device",
@@ -353,7 +369,7 @@ export async function captureViewportWithSeams(
     await assertNotProtected(page, budget, seams, "before capture");
     const metrics = await measureViewport(page, budget);
     const { image, scale } = await screenshotViewport(page, budget, metrics);
-    if (seams?.afterScreenshot) await budget.race(seams.afterScreenshot(page));
+    if (seams?.afterScreenshot) await budget.race(() => seams.afterScreenshot!(page));
     await assertNotProtected(page, budget, seams, "after capture");
     await assertWindowClean(captureWindow);
     budget.check();
@@ -378,10 +394,14 @@ function frameDepth(frame: Frame): number {
 }
 
 async function measureElement(handle: ElementHandle, budget: Budget, inChildFrame: boolean): Promise<CssRect> {
-  const box = await budget.race(handle.boundingBox());
+  const box = await budget.race(() => handle.boundingBox());
   if (!box) {
     // A detached element and an element in a frame that no longer maps into the viewport both report no box.
-    const attached = await budget.race(handle.evaluate((node) => node.isConnected)).catch(() => false);
+    // A cancellation or deadline keeps its own code (QC/security review, awkit-kv3n); only a failed read means detached.
+    const attached = await budget.race(() => handle.evaluate((node) => node.isConnected)).catch((error: unknown) => {
+      if (error instanceof VisualAbort) throw error;
+      return false;
+    });
     if (!attached) refuse("TARGET_STALE", "the target is no longer attached");
     if (inChildFrame) refuse("FRAME_MAPPING_FAILED", "the target's frame does not map into the viewport");
     refuse("INVALID_BOUNDS", "the target has no layout box");
@@ -411,13 +431,17 @@ export async function captureElementWithSeams(
     captureWindow = await openCaptureWindow(page, budget, seams);
     await assertNotProtected(page, budget, seams, "before capture");
 
-    const count = await budget.race(target.count());
+    const count = await budget.race(() => target.count());
     if (count === 0) refuse("TARGET_STALE", "the target matched no element");
     if (count > 1) refuse("TARGET_NOT_UNIQUE", "the target matched more than one element");
-    handle = await budget.race(target.elementHandle({ timeout: Math.max(1, budget.remaining()) }));
+    handle = await budget.race(
+      () => target.elementHandle({ timeout: Math.max(1, budget.remaining()) }),
+      (late) => late?.dispose()
+    );
     if (!handle) refuse("TARGET_STALE", "the target matched no element");
+    const found: ElementHandle = handle;
 
-    const ownerFrame = await budget.race(handle.ownerFrame());
+    const ownerFrame = await budget.race(() => found.ownerFrame());
     if (!ownerFrame || ownerFrame.isDetached()) refuse("FRAME_MAPPING_FAILED", "the target's frame is detached");
     if (ownerFrame.page() !== page) refuse("FRAME_MAPPING_FAILED", "the target belongs to a different page");
     const isMainFrame = ownerFrame === page.mainFrame();
@@ -427,7 +451,7 @@ export async function captureElementWithSeams(
     if (isOutsideViewport(before, metrics.cssWidth, metrics.cssHeight)) refuse("TARGET_OFFSCREEN", "the target is outside the viewport");
 
     const { image, scale } = await screenshotViewport(page, budget, metrics, options.stillness === true);
-    if (seams?.afterScreenshot) await budget.race(seams.afterScreenshot(page));
+    if (seams?.afterScreenshot) await budget.race(() => seams.afterScreenshot!(page));
     // Protection first: a page that left and came back inside the window must be refused as that, not as a stale target.
     await assertNotProtected(page, budget, seams, "after capture");
     await assertWindowClean(captureWindow);
@@ -643,7 +667,7 @@ async function assertFrameCurrent(frame: VisualCaptureFrame, budget: Budget): Pr
     } else {
       let now: ViewportMetrics | null = null;
       try {
-        now = await budget.race(readViewportMetrics(binding.page));
+        now = await budget.race(() => readViewportMetrics(binding.page));
       } catch (error) {
         if (error instanceof VisualAbort) throw error;
         now = null;
@@ -713,7 +737,7 @@ export async function captureVisualFrameWithSeams(
     const metrics = await measureViewport(page, budget);
     frame = (await shootFrame(page, budget, metrics, options)).frame;
     seams?.onFrame?.(frame);
-    if (seams?.afterScreenshot) await budget.race(seams.afterScreenshot(page));
+    if (seams?.afterScreenshot) await budget.race(() => seams.afterScreenshot!(page));
     await assertFrameAfterCapture(page, frame, budget, seams, captureWindow);
     budget.check();
     const owned = frame;
@@ -836,13 +860,16 @@ interface ResolvedCandidate {
 }
 
 async function resolveCandidate(page: Page, target: Locator, budget: Budget, metrics: ViewportMetrics, index: number): Promise<ResolvedCandidate> {
-  const count = await budget.race(target.count());
+  const count = await budget.race(() => target.count());
   if (count === 0) refuse("TARGET_STALE", "the target matched no element");
   if (count > 1) refuse("TARGET_NOT_UNIQUE", "the target matched more than one element");
-  const handle = await budget.race(target.elementHandle({ timeout: Math.max(1, budget.remaining()) }));
+  const handle = await budget.race(
+    () => target.elementHandle({ timeout: Math.max(1, budget.remaining()) }),
+    (late) => late?.dispose()
+  );
   if (!handle) refuse("TARGET_STALE", "the target matched no element");
   try {
-    const ownerFrame = await budget.race(handle.ownerFrame());
+    const ownerFrame = await budget.race(() => handle.ownerFrame());
     if (!ownerFrame || ownerFrame.isDetached()) refuse("FRAME_MAPPING_FAILED", "the target's frame is detached");
     if (ownerFrame.page() !== page) refuse("FRAME_MAPPING_FAILED", "the target belongs to a different page");
     const isMainFrame = ownerFrame === page.mainFrame();
@@ -941,7 +968,7 @@ export async function captureCandidatesWithSeams(
     timing.screenshotMs = shot.screenshotMs;
     timing.decodeMs = shot.decodeMs;
     seams?.onFrame?.(frame);
-    if (seams?.afterScreenshot) await budget.race(seams.afterScreenshot(page));
+    if (seams?.afterScreenshot) await budget.race(() => seams.afterScreenshot!(page));
     await assertFrameAfterCapture(page, frame, budget, seams, captureWindow);
 
     const viewport = { ...frame.viewport };

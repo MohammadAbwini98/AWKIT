@@ -13,7 +13,8 @@
  *     frame scrolls DURING capture), and below-the-fold targets after the test scrolls the page;
  *   - a page whose devicePixelRatio disagrees with the screenshot's measured scale is refused, never cropped;
  *   - the error taxonomy (not unique, no match, zero size, not rendered, offscreen, moved during capture, wrong page,
- *     closed page, cancelled, budget exhausted);
+ *     closed page, cancelled, budget exhausted), and a step started on an already-aborted capture rejecting later
+ *     without an unhandled rejection (awkit-kv3n);
  *   - protected refusal: the account route, an injected credential frame, OTP / MFA / CAPTCHA / passkey surfaces,
  *     protected step types and a handed-off session, and each surface appearing only AFTER the screenshot;
  *   - the capture window (awkit-3gtj follow-up): through all four capture entries, R1a the page visits the protected
@@ -43,6 +44,7 @@ import sharp from "sharp";
 import { captureElement, captureViewport, type VisualCrop } from "@src/visual/capture";
 // The seam-taking entry is verifier-only (N2.1): the public functions above take no seam.
 import {
+  Budget,
   captureCandidatesWithSeams,
   captureElementWithSeams,
   captureViewportWithSeams,
@@ -51,7 +53,7 @@ import {
   releaseVisualFrame,
   VisualCaptureFrame
 } from "@src/visual/internal/captureCore";
-import type { VisualResult } from "@src/visual/errors";
+import { VisualAbort, type VisualResult } from "@src/visual/errors";
 import { clampPixelRect, cssRectToPixelRect, scaleMatchesDevicePixelRatio, type CssRect } from "@src/visual/geometry";
 import { cropImage, decodePng, PngDecodeError, type VisualImage } from "@src/visual/png";
 import { checkProtectedSurface, type ProtectedGuardVerdict, type ProtectedWindowWatch } from "@src/visual/protectedGuard";
@@ -408,6 +410,271 @@ async function injectAccountFrame(page: Page): Promise<void> {
   await page.frameLocator('[data-testid="vi-account-frame"]').locator('input[type="password"]').waitFor();
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// awkit-kv3n: Budget.race, browser-free. Every step is a controlled promise settled by the test; no case sleeps.
+// ---------------------------------------------------------------------------------------------------------------------
+
+interface Deferred<T> {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+  reject: (error: unknown) => void;
+}
+
+function deferred<T>(): Deferred<T> {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+/** One macrotask turn: every microtask, and Node's unhandled-rejection pass, has run by then. */
+const flush = (): Promise<void> => new Promise((r) => setImmediate(r));
+
+/**
+ * Process-wide Timeout count. Deterministic only because budgetRace() runs FIRST, before the browser, the mock-site
+ * traffic or any other timer exists (only the keepAlive interval does): keep that section first (QC finding 2).
+ */
+const activeTimers = (): number => process.getActiveResourcesInfo().filter((kind) => kind === "Timeout").length;
+
+/** Abort listeners still registered on `signal` (a fired once-listener counts as released). */
+function trackListeners(signal: AbortSignal): () => number {
+  const live = new Map<unknown, EventListener>();
+  const add = signal.addEventListener.bind(signal);
+  const remove = signal.removeEventListener.bind(signal);
+  signal.addEventListener = ((type: string, listener: EventListener, options?: AddEventListenerOptions) => {
+    const wrapped: EventListener = (event) => {
+      live.delete(listener);
+      listener.call(signal, event);
+    };
+    live.set(listener, wrapped);
+    add(type, wrapped, options);
+  }) as AbortSignal["addEventListener"];
+  signal.removeEventListener = ((type: string, listener: EventListener, options?: EventListenerOptions) => {
+    const wrapped = live.get(listener);
+    if (!wrapped) return;
+    live.delete(listener);
+    remove(type, wrapped, options);
+  }) as AbortSignal["removeEventListener"];
+  return () => live.size;
+}
+
+function errorCode(error: unknown): string {
+  if (error instanceof VisualAbort) return error.code;
+  return error instanceof Error ? `Error(${error.message})` : String(error);
+}
+
+/** Call race the way captureCore's callers do and turn a synchronous throw into a rejection, so both are observed. */
+function raceOf<T>(budget: Budget, start: () => Promise<T>, discard?: (late: T) => unknown): Promise<T> {
+  try {
+    return budget.race(start, discard);
+  } catch (error) {
+    return Promise.reject(error);
+  }
+}
+
+const settleOf = <T,>(promise: Promise<T>): Promise<string> =>
+  promise.then(
+    (value) => `resolved(${String(value)})`,
+    (error: unknown) => errorCode(error)
+  );
+
+async function budgetRace(): Promise<void> {
+  console.log("\nBudget.race (awkit-kv3n, controlled promises):\n");
+  const unhandled: unknown[] = [];
+  const onUnhandled = (reason: unknown): void => {
+    unhandled.push(reason);
+  };
+  process.on("unhandledRejection", onUnhandled);
+  try {
+    const baseTimers = activeTimers();
+
+    {
+      // 1. Signal aborted before the operation would start.
+      const controller = new AbortController();
+      controller.abort();
+      const budget = new Budget(2_000, controller.signal);
+      // The step exists only if race starts it; a never-started step has nothing to reject.
+      let step: Deferred<string> | null = null;
+      let starts = 0;
+      let sync: unknown = null;
+      try {
+        void budget.race(() => {
+          starts += 1;
+          step = deferred<string>();
+          return step.promise;
+        });
+      } catch (error) {
+        sync = error;
+      }
+      (step as Deferred<string> | null)?.reject(new Error("screenshot rejected after the abort"));
+      await flush();
+      check(
+        "1. an already-aborted capture starts no step and throws CANCELLED synchronously; nothing is unhandled",
+        starts === 0 && errorCode(sync) === "CANCELLED" && unhandled.length === 0,
+        `${starts} started, ${errorCode(sync)}, ${unhandled.length} unhandled`
+      );
+    }
+
+    {
+      // 1b. Budget already exhausted before the operation would start (waits on the deadline, not a fixed sleep).
+      const budget = new Budget(1, undefined);
+      while (budget.remaining() > 0) await new Promise((r) => setTimeout(r, 1));
+      let step: Deferred<string> | null = null;
+      let starts = 0;
+      let sync: unknown = null;
+      try {
+        void budget.race(() => {
+          starts += 1;
+          step = deferred<string>();
+          return step.promise;
+        });
+      } catch (error) {
+        sync = error;
+      }
+      (step as Deferred<string> | null)?.reject(new Error("late rejection"));
+      await flush();
+      check(
+        "1b. an exhausted budget starts no step and throws BUDGET_EXHAUSTED synchronously; nothing is unhandled",
+        starts === 0 && errorCode(sync) === "BUDGET_EXHAUSTED" && unhandled.length === 0,
+        `${starts} started, ${errorCode(sync)}, ${unhandled.length} unhandled`
+      );
+    }
+
+    {
+      // 2. Abort raised between the operation's creation and the budget's validation (the acct-smoke-1102 crash).
+      const controller = new AbortController();
+      const listeners = trackListeners(controller.signal);
+      const budget = new Budget(2_000, controller.signal);
+      const step = deferred<string>();
+      const before = unhandled.length;
+      const startedAt = performance.now();
+      const outcome2 = await settleOf(
+        raceOf(budget, () => {
+          controller.abort();
+          return step.promise;
+        })
+      );
+      const tookMs = performance.now() - startedAt;
+      step.reject(new Error("page.screenshot: Timeout 25ms exceeded"));
+      await flush();
+      check(
+        "2. an abort raised while the step starts is CANCELLED at once, and the step's later rejection is absorbed",
+        outcome2 === "CANCELLED" && tookMs < 1_000 && unhandled.length === before,
+        `${outcome2} after ${tookMs.toFixed(0)} ms, ${unhandled.length - before} unhandled`
+      );
+      check("2. ...its abort listener and deadline timer are released", listeners() === 0 && activeTimers() === baseTimers, `${listeners()} listeners, ${activeTimers() - baseTimers} extra timers`);
+    }
+
+    {
+      // 3. Abort while the operation is pending, then the operation rejects after the race already settled.
+      const controller = new AbortController();
+      const listeners = trackListeners(controller.signal);
+      const budget = new Budget(2_000, controller.signal);
+      const step = deferred<string>();
+      const before = unhandled.length;
+      const race = raceOf(budget, () => step.promise);
+      let settlements = 0;
+      const outcome3 = settleOf(race.finally(() => (settlements += 1)));
+      controller.abort();
+      const code3 = await outcome3;
+      step.reject(new Error("rejected after the race settled"));
+      await flush();
+      check(
+        "3. an abort while the step is pending is CANCELLED; the step's later rejection is absorbed; one settlement",
+        code3 === "CANCELLED" && unhandled.length === before && settlements === 1,
+        `${code3}, ${unhandled.length - before} unhandled, ${settlements} settlements`
+      );
+      check("3. ...its abort listener and deadline timer are released", listeners() === 0 && activeTimers() === baseTimers, `${listeners()} listeners, ${activeTimers() - baseTimers} extra timers`);
+    }
+
+    {
+      // 4. Budget expiry while the operation is pending; a late value is discarded exactly once, never delivered.
+      const controller = new AbortController();
+      const listeners = trackListeners(controller.signal);
+      const budget = new Budget(30, controller.signal);
+      const step = deferred<string>();
+      const discarded: string[] = [];
+      const before = unhandled.length;
+      const race = raceOf(budget, () => step.promise, (late) => discarded.push(late));
+      let settlements = 0;
+      const code4 = await settleOf(race.finally(() => (settlements += 1)));
+      check("4. the deadline passing while the step is pending is BUDGET_EXHAUSTED", code4 === "BUDGET_EXHAUSTED", code4);
+      check("4. ...the abort listener and the fired timer are released", listeners() === 0 && activeTimers() === baseTimers, `${listeners()} listeners, ${activeTimers() - baseTimers} extra timers`);
+      step.resolve("late element handle");
+      await flush();
+      check(
+        "4. ...a value the step produces after it lost is discarded exactly once and never delivered (one settlement)",
+        JSON.stringify(discarded) === JSON.stringify(["late element handle"]) && settlements === 1 && unhandled.length === before,
+        `${JSON.stringify(discarded)}, ${settlements} settlements, ${unhandled.length - before} unhandled`
+      );
+      controller.abort();
+      await flush();
+      check("4. ...an abort after the race settled changes nothing", settlements === 1 && unhandled.length === before, `${settlements} settlements`);
+    }
+
+    {
+      // 4b. Budget expiry, then the step rejects after the race settled: absorbed.
+      const budget = new Budget(30, undefined);
+      const step = deferred<string>();
+      const before = unhandled.length;
+      const code4b = await settleOf(raceOf(budget, () => step.promise));
+      step.reject(new Error("rejected after the deadline"));
+      await flush();
+      check("4b. a step rejecting after the deadline settled the race is absorbed, not unhandled", code4b === "BUDGET_EXHAUSTED" && unhandled.length === before, `${code4b}, ${unhandled.length - before} unhandled`);
+    }
+
+    {
+      // 5. Success with sufficient budget.
+      const controller = new AbortController();
+      const listeners = trackListeners(controller.signal);
+      const budget = new Budget(2_000, controller.signal);
+      const step = deferred<number>();
+      const discarded: number[] = [];
+      let starts = 0;
+      const race = raceOf(
+        budget,
+        () => {
+          starts += 1;
+          return step.promise;
+        },
+        (late) => discarded.push(late)
+      );
+      step.resolve(42);
+      const code5 = await settleOf(race);
+      controller.abort();
+      await flush();
+      check(
+        "5. a step inside the budget resolves its value once, started once, nothing discarded",
+        code5 === "resolved(42)" && starts === 1 && discarded.length === 0,
+        `${code5}, ${starts} started, ${discarded.length} discarded`
+      );
+      check("5. ...its abort listener and deadline timer are released (a later abort changes nothing)", listeners() === 0 && activeTimers() === baseTimers, `${listeners()} listeners, ${activeTimers() - baseTimers} extra timers`);
+    }
+
+    {
+      // 6. A genuine step error inside the budget is passed through unchanged, never reclassified or swallowed.
+      const budget = new Budget(2_000, undefined);
+      const step = deferred<string>();
+      const genuine = new Error("Target page, context or browser has been closed");
+      const race = raceOf(budget, () => step.promise);
+      step.reject(genuine);
+      let seen: unknown = null;
+      await race.catch((error: unknown) => {
+        seen = error;
+      });
+      check("6. a genuine step error inside the budget reaches the caller as the same error", seen === genuine, errorCode(seen));
+    }
+
+    await flush();
+    check("no unhandled rejection anywhere in the Budget.race cases", unhandled.length === 0, unhandled.map(errorCode).join(", "));
+  } finally {
+    process.off("unhandledRejection", onUnhandled);
+  }
+}
+
 const server = spawn(process.execPath, ["mock-site/server.mjs"], {
   env: { ...process.env, MOCK_SITE_PORT: String(PORT) },
   stdio: ["ignore", "ignore", "inherit"],
@@ -416,6 +683,8 @@ const server = spawn(process.execPath, ["mock-site/server.mjs"], {
 
 let browser: Browser | undefined;
 try {
+  section = "budget";
+  await budgetRace();
   section = "PNG";
   await pngMatrix();
   section = "scale";
@@ -594,6 +863,59 @@ try {
     const started = Date.now();
     const exhausted = await captureViewportWithSeams(page, { timeoutMs: 150 }, { guard: slowGuard });
     check("a call over budget is BUDGET_EXHAUSTED, inside the budget", outcome(exhausted) === "BUDGET_EXHAUSTED" && Date.now() - started < 400, `${outcome(exhausted)} after ${Date.now() - started} ms`);
+
+    // awkit-kv3n through a real capture: no screenshot (or later step) starts on a cancelled capture, and a step that
+    // had already started is never orphaned. page.screenshot is counted on this page only, then restored.
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown): void => {
+      unhandled.push(reason);
+    };
+    process.on("unhandledRejection", onUnhandled);
+    const realScreenshot = page.screenshot.bind(page);
+    let shots = 0;
+    page.screenshot = ((options?: Parameters<Page["screenshot"]>[0]) => {
+      shots += 1;
+      return realScreenshot(options);
+    }) as Page["screenshot"];
+    try {
+      // The guard is the started step: it aborts the signal while starting and rejects only after the capture returned.
+      const lateController = new AbortController();
+      const lateStep = deferred<ProtectedGuardVerdict>();
+      const abortingGuard = (): Promise<ProtectedGuardVerdict> => {
+        lateController.abort();
+        return lateStep.promise;
+      };
+      const orphaned = await captureViewportWithSeams(page, { signal: lateController.signal, timeoutMs: 2_000 }, { guard: abortingGuard, watch: noWindow });
+      lateStep.reject(new Error("late step rejection"));
+      await flush();
+      check(
+        "a step that aborts the capture while starting is CANCELLED, its later rejection is absorbed, and no screenshot starts",
+        outcome(orphaned) === "CANCELLED" && unhandled.length === 0 && shots === 0,
+        `${outcome(orphaned)}, ${unhandled.length} unhandled, ${shots} screenshots`
+      );
+
+      // The capture is cancelled before the first raced step: the guard is never started at all.
+      const earlyController = new AbortController();
+      let guardStarts = 0;
+      const countingGuard = (): Promise<ProtectedGuardVerdict> => {
+        guardStarts += 1;
+        return Promise.reject(new Error("a guard started on a cancelled capture"));
+      };
+      const abortingWatch = async (): Promise<ProtectedWindowWatch> => {
+        earlyController.abort();
+        return noWindow();
+      };
+      const early = await captureViewportWithSeams(page, { signal: earlyController.signal }, { guard: countingGuard, watch: abortingWatch });
+      await flush();
+      check(
+        "a capture cancelled before its first raced step is CANCELLED and starts no guard and no screenshot",
+        outcome(early) === "CANCELLED" && guardStarts === 0 && shots === 0 && unhandled.length === 0,
+        `${outcome(early)}, ${guardStarts} guards, ${shots} screenshots, ${unhandled.length} unhandled`
+      );
+    } finally {
+      page.screenshot = realScreenshot;
+      process.off("unhandledRejection", onUnhandled);
+    }
 
     console.log("\nActive page, popup and wrong page:\n");
     const [popup] = await Promise.all([page.waitForEvent("popup"), page.getByTestId("vi-open-popup").click()]);
