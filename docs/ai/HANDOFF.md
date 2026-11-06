@@ -1,6 +1,22 @@
 # Agent Handoff
 
-## HANDOFF (2026-11-06, latest) — campaign 10 NOT MET (headed@2 S-5); campaign 11 NOT RUN; Phase N NOT complete
+## HANDOFF (2026-11-06, latest) — N9 reserve fixed (`3e7f884b`); campaigns 12 and 13 pre-declared, NOT RUN; Phase N NOT complete
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** `3e7f884b` fixes campaign 10's headed@2 S-5 cause. N9's state-features gate now reserves the analysed
+  pixels, not every device pixel (D10 red-first and green; QC APPROVED WITH FINDINGS, both fixed). Campaigns 12 and 13
+  are pre-declared on it (N8 plan § 12), and the scripts write `c12` and `c13`.
+- **Corrected:** the `c11-` scripts were malformed (`--campaign 11--cell`); campaign 11 never ran.
+- **Next (owner):**
+  1. confirm macOS sleep and Parallels pause/suspend are off;
+  2. on an idle VM at the tip of `main`, run the six `benchmark:visual-joint:<cell>` scripts, then `:aggregate`;
+  3. only if campaign 12 passes every cell, run the six `c13-` scripts and `c13-aggregate`;
+  4. close `awkit-kv3n` under a tracker lease.
+- **Blocked:** Beads updates (tracker lease).
+- **Preserved untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-11-06) — campaign 10 NOT MET (headed@2 S-5); campaign 11 NOT RUN; Phase N NOT complete
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

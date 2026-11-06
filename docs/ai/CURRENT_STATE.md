@@ -1,6 +1,25 @@
 # CURRENT_STATE
 
-## Campaign 10 NOT MET (headed@2 S-5 only); campaign 11 NOT RUN; N8, N9 and Phase N open (2026-11-06, latest)
+## N9 state-features reserve fixed (`3e7f884b`); campaigns 12 and 13 pre-declared, NOT RUN; N8, N9 and Phase N open (2026-11-06, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Fix (`3e7f884b`, `awkit-vra.18`):** N9's state-features gate reserved every device pixel (836 ms at DPR 2), but the
+  features analyse a quarter of them there. It now reserves the analysed pixels (209 ms at DPR 2) through the new pure
+  `visualStateAnalysisPixels`. Rates, criteria and deadlines are unchanged. This is campaign 10's headed@2 S-5 cause.
+- **Proof:** `verify:visual-diagnosis-deadline` D10, red-first `visual-state-skipped`, green `visual-state-ready`;
+  51/0. Build, `typecheck:scripts`, isolation 117/0, state 48/0, state-runtime 26/0, diagnosis-runtime 65/0, rows 82/0,
+  protected-diagnosis 75/0. QC: APPROVED WITH FINDINGS, both fixed.
+- **Campaigns 12 and 13:** pre-declared in the N8 plan § 12; the scripts write `c12` and `c13`. NOT RUN until the owner
+  confirms the host suspension settings.
+- **Correction:** the `c11-` scripts of the campaign 10/11 pre-declaration lacked a space and could not have run;
+  campaign 11 never ran.
+- **Intermittent:** the deadline verifier's D6 once returned at 1604 ms (> 1600) on the unchanged product, then 1565 and
+  1570 ms. INCONCLUSIVE; the 1600 ms margin is thin on this host.
+- **Unchanged:** `awkit-kv3n` still OPEN in Beads (tracker lease BLOCKED). N8, N9 and `awkit-vra.18` IN PROGRESS.
+  **Phase N is NOT complete** (N7.1b, N7.8 and N7.9 blocked on the Windows packaging host).
+
+## Campaign 10 NOT MET (headed@2 S-5 only); campaign 11 NOT RUN; N8, N9 and Phase N open (2026-11-06)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

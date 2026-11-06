@@ -14,7 +14,12 @@
 - **Effect:** a campaign cell can be lost, and in the app the runner process can crash. No pixels are kept.
 - **Fix:** a product change in `src/visual`, before the next campaign pre-declaration.
 
-## Campaign 10 NOT MET: N9 skipped at headed DPR 2 after a slow N5 first capture (2026-11-06, OPEN, `awkit-vra.18`)
+## Campaign 10 NOT MET: N9 skipped at headed DPR 2 after a slow N5 first capture (2026-11-06, FIXED in `3e7f884b`, pending campaigns 12 and 13; `awkit-vra.18`)
+
+- **Root cause found:** the state-features gate reserved every device pixel, not the analysed quarter at DPR 2. Now
+  pinned by `verify:visual-diagnosis-deadline` D10.
+- **Still open:** the deadline verifier's D6 once returned at 1604 ms (> 1600) on the unchanged product (1565 and
+  1570 ms on later runs). INCONCLUSIVE: the hard-deadline margin is thin on this host.
 
 - **What:** at headed@2, N5's first frame arrives around 600 ms and the fingerprint runs to around 870 ms, leaving N9
   no reserve for its second capture. N9 then records `visual-state-skipped`, which fails closed: never a wrong code and

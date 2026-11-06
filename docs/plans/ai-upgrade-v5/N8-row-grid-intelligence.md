@@ -1022,3 +1022,38 @@ repeat rule as campaigns 8 and 9, DECISIONS 2026-11-01):
 - **Next (owner decision):** a product change to N5's first-capture budget or to N9's reserve at high DPR
   (`awkit-vra.18`), then a new revision and a new pre-declared campaign pair. Each such change voids `c10`/`c11` as a
   qualifying pair.
+- **Correction found on 2026-11-06:** the `c11-` scripts committed with this pre-declaration (`bdb235c6`) read
+  `--campaign 11--cell` (a missing space), so campaign 11 could not have run as written. It never ran, and no evidence
+  is affected. The `c13-` scripts below are checked.
+
+**N9 state-features reserve fixed (2026-11-06, `3e7f884b`; owner choice "fix it here").** The skip in campaign 10 was
+not N9's second capture: the state-features gate reserved `stateFeatures` at 435 ns/px over every **device** pixel
+(836 ms at DPR 2), but `measureVisualStateFrame` analyses every second pixel at DPR 1.75 and above (a quarter).
+`benchmark:visual-sync-cost` re-measured on this host: state features max 299 ns/px at DPR 1, 125 at 1.25, and 108 ms
+at DPR 2 (56 ns per device pixel, about 225 per analysed pixel), all within 435 ns per analysed pixel. The gate now
+reserves `visualStateAnalysisPixels(...)` (209 ms at DPR 2); rates, criteria and deadlines are unchanged; the motion
+plane keeps its device-pixel reserve (conservative: it also crops at full resolution, and only gates motion).
+`verify:visual-diagnosis-deadline` D10 (DPR-2 first frame held to 700 ms): red-first `visual-state-skipped`, green
+`visual-state-ready`; 51/0. Independent QC: APPROVED WITH FINDINGS (probe pixel count, a moved doc comment), both fixed
+in `3e7f884b`.
+
+**Campaigns 12 and 13: pre-declaration** (committed before either runs; same frozen repeat rule):
+- **Revision:** the product source as of `3e7f884b`. Both run at the tip of `main` once this pre-declaration is committed,
+  with a clean tracked tree. No later commit may change `src/**`, `app/**`, `mock-site/**`,
+  `scripts/benchmark-visual-joint.mts`, `scripts/lib/visual-*-criteria.mts`, or the `benchmark:visual-joint:*` scripts;
+  any such change, or any product change after campaign 12, voids the sequence. Campaigns 1 to 11 and every diagnostic
+  folder stay unchanged.
+- **Environment:** as for campaigns 10 and 11, including the owner's confirmation before campaign 12 that neither macOS
+  sleep nor Parallels can suspend or pause the VM, cells one after another in one shell, no parallel work, the passive
+  accounting's clock skew as the consistency record, and a suspension never counted as a product PASS.
+- **What runs:** all six cells with N5, N8 and N9 on; held-out variants b, c and d, two repeats each; the protected and
+  disabled-mode controls; passive accounting in every trial. `benchmark:visual-joint:<cell>` then `:aggregate` write
+  `evidence/joint/c12/`; the `c13-` scripts write `evidence/joint/c13/`.
+- **Criteria:** `N8_FROZEN_CRITERIA` R-1 to R-5 and `N9_FROZEN_CRITERIA` S-1 to S-5, unchanged; strict 1600 ms hard
+  deadline with zero grace; every cut and late record listed and counted at the full deadline; no trial excluded;
+  protected trials refused with zero frames and no code; disabled controls with no N8/N9 code, at most one frame, none
+  late.
+- **A campaign passes** only when every criterion is MET in every cell. Campaign 12 first; if it fails it is recorded
+  NOT MET and campaign 13 does not run. N8 and N9 qualify on this revision only if both pass, followed by an independent
+  N8/N9 review round that approves.
+- **Status:** NOT RUN. The owner confirms the host suspension settings before campaign 12.

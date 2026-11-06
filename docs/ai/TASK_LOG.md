@@ -1,5 +1,25 @@
 # TASK_LOG
 
+## 2026-11-06 — N9 state-features reserve fix; campaigns 12 and 13 pre-declared (Claude)
+
+- **Task:** the owner choice "Yes, fix it here": fix campaign 10's headed@2 S-5 failure (`awkit-vra.18`).
+- **Root cause:** `visual-state-skipped` is returned when frame 1's state features were never measured. Their gate
+  reserved `stateFeatures` over every device pixel (836 ms at DPR 2), though `measureVisualStateFrame` analyses every
+  second pixel at DPR 1.75 and above. After a slow first capture, N9 was always skipped.
+- **Measurement:** `benchmark:visual-sync-cost`: state features max 299 ns/px at DPR 1, 125 at 1.25, and 108 ms
+  (about 225 ns per analysed pixel) at DPR 2.
+- **Change (`3e7f884b`):** `visualStateAnalysisPixels` in `src/visual/state/visualState.ts` (shares the sampling step
+  with `analysisImage`), exported from `src/visual/index.ts`. The adapter's gate and slow-host probe use it.
+- **Tests:** `verify:visual-diagnosis-deadline` D10 plus three D7 pins. Red-first 46/2: D10 `visual-state-skipped`,
+  plus an intermittent D6 at 1604 ms on the unchanged product. Green 51/0 twice, once after the QC fixes.
+- **Verification (PASS):** build; `typecheck:scripts`; `verify:visual-isolation` 117/0; `verify:visual-state` 48/0;
+  `verify:visual-state-runtime` 26/0; `verify:visual-diagnosis-runtime` 65/0; `verify:visual-rows` 82/0;
+  `verify:protected-diagnosis` 75/0. These ran before the QC follow-up, which changed only the probe's pixel count and
+  a comment; build and the deadline verifier were rerun after it.
+- **Review:** independent QC APPROVED WITH FINDINGS; both findings fixed.
+- **Campaigns:** 12 and 13 pre-declared (N8 plan § 12), NOT RUN. The malformed `c11-` scripts from `bdb235c6` are
+  recorded and replaced by checked `c13-` scripts.
+
 ## 2026-11-06 — Joint campaign 10: NOT MET; campaign 11 not run (Claude)
 
 - **Task:** run campaign 10 after the owner confirmed ("Confirmed, run c10") that the Mac/Parallels host could not
