@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-n8n9-reconciliation-1107",
+    "title": "N8/N9 qualification reconciliation, review-gate disposition, Beads reconciliation and N7 packaging-host check",
+    "objective": "Owner prompt 2026-11-07 'AWKIT — N8/N9 Qualification Reconciliation and Phase N Packaged Acceptance': record campaigns 12 and 13 (both PASS on 3e7f884b) as N8/N9 technical qualification; determine the R-9/S-9 review-gate disposition without converting APPROVED WITH FINDINGS into approval; reconcile Beads (close awkit-kv3n if its closure contract is met; record N8/N9 qualification and close only if every closure requirement is met; keep awkit-vra.18 IN PROGRESS with every retained residual); update project state; run verify:packaging-host for N7.1b/N7.8/N7.9. No product code, frozen criteria, harness or campaign evidence changes; no campaign reruns.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "9228f06a",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "docs/ai/**",
+      "docs/plans/ai-upgrade-v5/**"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**",
+        "docs/ai/**",
+        "docs/plans/ai-upgrade-v5/N8-row-grid-intelligence.md",
+        "docs/plans/ai-upgrade-v5/N9-screenshot-state-recognition.md"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "RECONCILE",
+      "description": "N8/N9 technical qualification recorded PASS; R-9/S-9 disposition recorded truthfully with every review finding; Beads changed only where closure contracts are met; awkit-vra.18 keeps every residual; Beads exported; roadmap Sources agree.",
+      "evidence_required": [
+        "verify:roadmap-dashboard",
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  }
+}

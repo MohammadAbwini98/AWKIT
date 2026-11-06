@@ -1085,12 +1085,48 @@ in `3e7f884b`.
      (`awkit-vra.18`).
   4. (Info) Every cell records `arch: x64`: Node under x64 emulation on the ARM64 VM. All timing evidence is specific to
      that setup.
-- **Qualified:** N8 (`awkit-vra.10`) and N9 (`awkit-vra.11`) meet their pre-declared qualification sequence on
-  `3e7f884b`, with the findings above. This is not an unconditional approval. Beads closure is BLOCKED on a tracker
-  lease.
+- **Technical qualification:** N8 (`awkit-vra.10`) and N9 (`awkit-vra.11`) meet their pre-declared qualification
+  sequence on `3e7f884b`, with the findings above. This is not an unconditional approval, and R-9 and S-9 are not met
+  (see the reconciliation below).
 - **Stays open under `awkit-vra.18`:**
   - N5's first-capture budget at DPR 2 (finding 3);
   - checking the reserve calibration (435 ns/px per analysed pixel, one host's benchmark) on another host;
   - the `verify:visual-diagnosis-deadline` D6 margin (one 1604 ms run, INCONCLUSIVE);
   - a second-host replication (all qualification ran on one Windows 11 ARM64 Parallels VM under x64 emulation).
 - **Phase N** stays IN PROGRESS: N7.1b, N7.8 and N7.9 are blocked on the Windows packaging host.
+
+**Reconciliation (2026-11-07, contract `awkit-n8n9-reconciliation-1107`).** Three distinct states:
+
+| State | N8 (`awkit-vra.10`) | N9 (`awkit-vra.11`) |
+|---|---|---|
+| Technical qualification (R-1 to R-8 / S-1 to S-8 plus the campaign pair) | **PASS** on `3e7f884b` | **PASS** on `3e7f884b` |
+| Review gate (R-9 / S-9) | **NOT MET** | **NOT MET** |
+| Tracker | IN PROGRESS | IN PROGRESS |
+
+- **Evidence re-validated:**
+  - `git diff --stat 3e7f884b HEAD` over `src`, `app`, `mock-site`, `scripts/lib` and the joint harness is empty;
+  - every c12 cell records revision `0bcb28ae` and every c13 cell `c12bbf2e`, all `treeClean: true`;
+  - c12 was committed before c13 started;
+  - criteria are frozen since 2026-10-31;
+  - no trial is excluded: every cut, late record and refusal is accounted for in the aggregates above.
+- **R-9 / S-9, the independent QC and security review of `3e7f884b`:**
+  - **Security: APPROVED (unconditional), 2026-11-07.** The refusal boundary, frame lifetime, isolation, offline, IPC
+    and persistence are unchanged. Prior dispositions S2 and S3/NEW-2 remain satisfied. Code-level review only: the
+    reviewer's `git show` was refused by the lease guard, and the product source was confirmed identical to `3e7f884b`
+    by the empty diff above.
+  - **QC: APPROVED WITH FINDINGS (2026-11-06).** Classification:
+    1. Host confirmation: **documentation corrected.**
+    2. Stale state and plans: **documentation corrected.**
+    3. DPR-2 N5 disabled-control budget exhaustion: **unresolved functional limitation, transferred to
+       `awkit-vra.18`.**
+    4. A single ARM64 VM with x64 Node under emulation: **single-host qualification limitation,** retained under
+       `awkit-vra.18`.
+  - **Disposition:** every prior round treated a non-unconditional verdict as R-9 and S-9 NOT MET (§§ 9 to 12). The
+    precedent for accepting a limitation is an owner disposition in DECISIONS (F2, 2026-11-01: "a documented limitation
+    with an independently tracked follow-up; not qualified"). So R-9 and S-9 stay **NOT MET**, and the milestones do not
+    close.
+  - **Exact blocker:** the owner's disposition of QC findings 3 and 4 (accepting them as documented limitations under
+    `awkit-vra.18`, or not), followed by a policy-compliant QC disposition. No acceptance rule was weakened.
+- **Beads:** `awkit-kv3n` closed (its closure contract is met). Notes were appended to `awkit-vra.10` and
+  `awkit-vra.11` (qualification PASS, R-9/S-9 NOT MET, the blocker) and to `awkit-vra.18` (every retained residual).
+  Exported with `bd export -o .beads/issues.jsonl`.

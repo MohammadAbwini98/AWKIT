@@ -357,6 +357,16 @@ the full matrix).
     after the 1600 ms hard deadline on the cell's first trial, +42.8 ms); the other five cells meet S-1 to S-5;
   - S-1 shows 0 false `ready` and S-2 0 false `error`; protected trials are 72/72 refused;
   - campaign 7 was not run. **N9 stays IN PROGRESS.**
+- **Final revision `3e7f884b` (2026-11-06/07; N8 plan § 12):**
+  - Campaign 10 NOT MET on headed@2 S-5 only: N9 was skipped when the state-features reserve counted every device
+    pixel, while the features analyse every second pixel at DPR 1.75 and above. Fixed in `3e7f884b`.
+  - **Campaigns 12 and 13 both PASS S-1 to S-5 in all six cells.** headed@2 S-5 p95 was 417 and 409 ms, with
+    0 skipped, 0 late, 0 false `ready` and 0 false `error`. **Technical qualification: PASS.**
+  - **S-9: NOT MET.** Security APPROVED (unconditional); QC APPROVED WITH FINDINGS. Findings 1 and 2 are documentation
+    corrections. Finding 3 (DPR-2 N5 disabled-control budget exhaustion) and finding 4 (single ARM64 VM, emulated
+    x64 Node) are limitations kept under `awkit-vra.18`.
+  - N9 closes only after the owner disposes of findings 3 and 4 and QC gives a policy-compliant disposition.
+    **N9 stays IN PROGRESS.**
   - **joint campaign 8 (2026-11-02, product source `7a0a9227`): NOT MET.** headless@1 S-5 (p95 783 ms, 1 late) and
     headless@1.25 S-5 (p95 624 ms, 2 late) fail; headed@2 S-5 is now MET (p95 349 ms, 0 late, 0 cuts). S-1 to S-4 are
     MET in every cell. Campaign 9 was not run (N8 plan § 12, `evidence/joint/c8/ANALYSIS.md`). **N9 stays IN PROGRESS.**

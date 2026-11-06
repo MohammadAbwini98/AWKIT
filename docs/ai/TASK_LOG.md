@@ -1,5 +1,24 @@
 # TASK_LOG
 
+## 2026-11-07 — N8/N9 qualification reconciliation, review-gate disposition, Beads, packaging host (Claude)
+
+- **Task:** owner prompt "N8/N9 Qualification Reconciliation and Phase N Packaged Acceptance". Contract
+  `awkit-n8n9-reconciliation-1107`. The first grant was refused because the contract routed `qa`, which deterministic
+  routing does not activate; corrected once, then granted to project-state. No product, criteria, harness or evidence
+  change, and no campaign rerun.
+- **Evidence validation: PASS.** `git diff --stat 3e7f884b HEAD` over product, labs, criteria and harness is empty;
+  cell revisions are c12 `0bcb28ae` and c13 `c12bbf2e`, all `treeClean`. The commit-range `git log` was refused by
+  the hook (not retried).
+- **Review gate:** security review of `3e7f884b` APPROVED (unconditional; code-level, its `git show` was refused by
+  the hook). QC APPROVED WITH FINDINGS (2026-11-06): findings classified 1 and 2 corrected, 3 and 4 transferred to
+  `awkit-vra.18`. R-9 and S-9 NOT MET by precedent; the owner's disposition is needed.
+- **Beads:** `bd close awkit-kv3n`; `bd update --append-notes` on `awkit-vra.10`, `awkit-vra.11` and `awkit-vra.18`;
+  `bd export -o .beads/issues.jsonl` (437 issues).
+- **Packaging host:** `verify:packaging-host` BLOCKED (H4 VS 2022 MSVC x64 tools absent, H5 needs H4). The N7.1b,
+  N7.8 and N7.9 packaged path is stopped.
+- **Files:** `.beads/issues.jsonl`, the contract, the N8 and N9 plans, `CURRENT_STATE`, `HANDOFF`, `TASK_LOG`,
+  `KNOWN_ISSUES`.
+
 ## 2026-11-06 — Joint campaigns 12 and 13: both PASS; N8/N9 review APPROVED WITH FINDINGS (Claude)
 
 - **Task:** the owner's "Confirmed, run c12" (host suspension settings confirmed first).

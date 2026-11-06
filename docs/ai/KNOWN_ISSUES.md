@@ -1,6 +1,6 @@
 # KNOWN_ISSUES
 
-## N0 orphans a screenshot started on an already-aborted capture (2026-11-02, FIXED in `e60b890b` 2026-11-05, `awkit-kv3n` P1; Beads closure BLOCKED on a tracker lease)
+## N0 orphans a screenshot started on an already-aborted capture (2026-11-02, FIXED in `e60b890b` 2026-11-05, `awkit-kv3n` P1, CLOSED in Beads 2026-11-07)
 
 - **Resolution:** `Budget.race` takes a start function and checks the budget before starting; a started step is always
   observed. Pinned by the Budget.race section of `verify:visual-capture` (red-first 341/7, green 348/0). Keep that

@@ -1,24 +1,23 @@
 {
-  "task": "awkit-vra-joint-harness-accounting-1102",
-  "contract_path": "docs/ai/contracts/awkit-vra-joint-harness-accounting-1102.json",
+  "task": "awkit-n8n9-reconciliation-1107",
+  "contract_path": "docs/ai/contracts/awkit-n8n9-reconciliation-1107.json",
   "holder": "project-state",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
-    "docs/ai/**"
+    ".beads/**",
+    "docs/ai/**",
+    "docs/plans/ai-upgrade-v5/N8-row-grid-intelligence.md",
+    "docs/plans/ai-upgrade-v5/N9-screenshot-state-recognition.md"
   ],
-  "acquired_at": "2026-11-02T15:16:10.446Z",
-  "acquired_at_commit": "755db4bd9c26f82d15b26256f9f496c083306bfe",
+  "acquired_at": "2026-11-06T21:17:43.571Z",
+  "acquired_at_commit": "9228f06ae870eb8df19fccc4c00f090ad9101c7d",
   "baseline_dirty": [
-    "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-vra-joint-harness-accounting-1102.json",
-    "tools/roadmap/assignments.json"
+    "docs/ai/contracts/awkit-n8n9-reconciliation-1107.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "b16ef578b3075fd4b2a9c7fa69b02f322ade84c45de2fbc54324d9d8da6bcb34",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-vra-joint-harness-accounting-1102.json": "ded7bc1032b298214297971d1f7683937b181a6d57d2892225f141eb36d6d3da",
-    "tools/roadmap/assignments.json": "4a693150c2db4e5087b4bd9630c018cc80e42a22eab1e40a65bc9ceb4ff81d8f"
+    "docs/ai/contracts/awkit-n8n9-reconciliation-1107.json": "47950f8e3275f7d3d8871497c6090405e12ddb5a8255efd1a9caff55fde81d0e"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -32,8 +31,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-11-02T15:16:35.908Z",
-  "released_reason": "HANDOFF tally committed; campaigns 10 and 11 await the owner decision on awkit-kv3n",
-  "archived_at": "2026-11-02T15:16:35.911Z"
+  "violations": []
 }

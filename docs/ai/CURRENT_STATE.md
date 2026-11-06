@@ -1,6 +1,27 @@
 # CURRENT_STATE
 
-## Campaigns 12 and 13 PASS; N8 and N9 qualified on `3e7f884b` (review APPROVED WITH FINDINGS); Phase N open (2026-11-06, latest)
+## N8/N9 technical qualification PASS, R-9/S-9 NOT MET (owner disposition needed); `awkit-kv3n` closed; Phase N open (2026-11-07, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. Contract
+`awkit-n8n9-reconciliation-1107`.
+
+- **Technical qualification: PASS** for N8 and N9 on `3e7f884b`. Campaigns 12 and 13 both PASS every frozen criterion
+  in all six cells. Re-validated: no product, harness, lab or criteria change since `3e7f884b`; every cell
+  `treeClean`; c12 was committed before c13 ran.
+- **Review gate R-9 / S-9: NOT MET.** Security review of `3e7f884b`: APPROVED (unconditional). QC: APPROVED WITH
+  FINDINGS.
+  - Findings 1 and 2 are documentation, now corrected.
+  - Finding 3 (DPR-2 N5 disabled-control budget exhaustion) and finding 4 (single ARM64 VM, emulated x64 Node) are
+    limitations transferred to `awkit-vra.18`.
+  - By precedent (N8 plan §§ 9 to 12) a non-unconditional verdict leaves R-9/S-9 NOT MET. **Blocker:** the owner's
+    disposition of findings 3 and 4, then a policy-compliant QC disposition.
+- **Beads:** `awkit-kv3n` CLOSED. Notes appended to `awkit-vra.10`, `awkit-vra.11` and `awkit-vra.18`. The first two
+  stay IN PROGRESS; `awkit-vra.18` stays IN PROGRESS with every residual. Exported.
+- **The 2026-11-06 sections below say "qualified with findings":** read that as technical qualification only.
+- **Phase N: NOT complete.** N8/N9 gate above; N7.1b, N7.8 and N7.9 need the Windows packaging host; N7.10 is a
+  separate OCR accuracy obligation; N6P and N10 are outside Phase N closure.
+
+## Campaigns 12 and 13 PASS; N8 and N9 qualified on `3e7f884b` (review APPROVED WITH FINDINGS); Phase N open (2026-11-06)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

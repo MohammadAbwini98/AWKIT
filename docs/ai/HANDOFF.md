@@ -1,6 +1,35 @@
 # Agent Handoff
 
-## HANDOFF (2026-11-06, latest) — campaigns 12 and 13 PASS; N8 and N9 qualified with findings; Phase N NOT complete
+## HANDOFF (2026-11-07, latest) — N8/N9 technical qualification PASS, R-9/S-9 NOT MET; `awkit-kv3n` closed; packaging host BLOCKED; Phase N NOT complete
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. Contract
+`awkit-n8n9-reconciliation-1107`.
+
+- **Done:**
+  - c12/c13 evidence re-validated: product source identical to `3e7f884b`, every cell `treeClean`, c12 committed
+    before c13;
+  - fresh security review of `3e7f884b`: APPROVED (unconditional);
+  - Beads under a project-state lease: `awkit-kv3n` closed; notes appended to `awkit-vra.10`, `awkit-vra.11` and
+    `awkit-vra.18`; exported;
+  - N8 and N9 plans reconciled (technical qualification, review gate and tracker shown separately).
+- **Blocked:**
+  - **R-9 / S-9:** QC is APPROVED WITH FINDINGS. Needs the owner's disposition of QC findings 3 (DPR-2 N5
+    disabled-control budget exhaustion) and 4 (single ARM64 VM, emulated x64 Node), then a policy-compliant QC
+    disposition. N8 and N9 stay IN PROGRESS.
+  - **N7.1b, N7.8 and N7.9:** `verify:packaging-host` BLOCKED. H4: no Visual Studio 2022 with MSVC v143 x64/x86 tools
+    and the C++ 2022 Redistributable (`vswhere.exe` absent). H5: app-local MSVC runtime DLLs, needs H4. Also: the
+    issuer key is unset (licensed packaged gates would be BLOCKED), the Electron win32-x64 archive is not cached
+    (offline build host only), and this host is ARM64 (x64 packaging unproven here). No packaged test was run or
+    substituted.
+- **Next (owner):**
+  1. dispose of QC findings 3 and 4;
+  2. provide a Windows x64 release host, or install the VS 2022 MSVC x64 components here, then rerun
+     `npm run verify:packaging-host`;
+  3. set the issuer key for the licensed packaged gates.
+- **Kept outside Phase N closure:** N7.10 (OCR accuracy, separate obligation), N6P and N10.
+- **Preserved untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-11-06) — campaigns 12 and 13 PASS; N8 and N9 qualified with findings; Phase N NOT complete
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
