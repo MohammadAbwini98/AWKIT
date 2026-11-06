@@ -1,24 +1,22 @@
 {
-  "task": "awkit-roadmap-pin-qa-1107",
-  "contract_path": "docs/ai/contracts/awkit-roadmap-pin-qa-1107.json",
-  "holder": "qa",
+  "task": "awkit-n7-packaging-host-1107",
+  "contract_path": "docs/ai/contracts/awkit-n7-packaging-host-1107.json",
+  "holder": "project-state",
   "status": "released",
   "allowed_paths": [
-    "scripts/verify-roadmap-dashboard.mjs"
+    ".beads/**",
+    "docs/ai/**",
+    "docs/plans/ai-upgrade-v5/N7-ocr-text-in-image.md"
   ],
-  "acquired_at": "2026-11-06T23:33:18.377Z",
-  "acquired_at_commit": "30399a6ab0ca90f898c7b6f2ab204b725eb2507d",
+  "acquired_at": "2026-11-06T23:50:03.247Z",
+  "acquired_at_commit": "a18397136f277f9f49ca6422046628c9b685138b",
   "baseline_dirty": [
-    "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-n8n9-final-disposition-1107.json",
-    "docs/ai/contracts/awkit-roadmap-pin-qa-1107.json"
+    "docs/ai/contracts/awkit-n7-packaging-host-1107.json"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "c3338fe391b82d8470a38f0b815a208b8eaf6f35fb34cb778c208768e80bc0e8",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-n8n9-final-disposition-1107.json": "30017f2bfec5925c1ef7d20121a752c943b9a859cd8b5e427319cc3ca93a9a5a",
-    "docs/ai/contracts/awkit-roadmap-pin-qa-1107.json": "faa34aadbab95fb342c8841c00485aba3d77099bbb07dcd58e91e8ba363493f9"
+    "docs/ai/contracts/awkit-n7-packaging-host-1107.json": "4e52799c988f966304261b350e91cb66c6ac242543587bcb694d81a60441ec8e"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -33,7 +31,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-11-06T23:35:20.565Z",
-  "released_reason": "roadmap pin updated to the measured 26 outstanding and 411 closed, committed in 69a7313b, verify:roadmap-dashboard 184/184 Sources agree",
-  "archived_at": "2026-11-06T23:35:20.568Z"
+  "released_at": "2026-11-06T23:53:25.242Z",
+  "released_reason": "packaging-host BLOCKED recorded, provisioning specification, Beads notes and state docs committed in 8fe26103",
+  "archived_at": "2026-11-06T23:53:25.244Z"
 }

@@ -90,5 +90,27 @@
     "status": "pending",
     "qa_status": "pending",
     "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-n7-packaging-host-1107:project-state:2026-11-06T23:50:03.247Z",
+        "task": "awkit-n7-packaging-host-1107",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**",
+          "docs/ai/**",
+          "docs/plans/ai-upgrade-v5/N7-ocr-text-in-image.md"
+        ],
+        "acquired_at": "2026-11-06T23:50:03.247Z",
+        "acquired_at_commit": "a18397136f277f9f49ca6422046628c9b685138b",
+        "released_at": "2026-11-06T23:53:25.242Z",
+        "released_reason": "packaging-host BLOCKED recorded, provisioning specification, Beads notes and state docs committed in 8fe26103",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
   }
 }
