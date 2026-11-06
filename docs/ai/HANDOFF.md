@@ -1,6 +1,21 @@
 # Agent Handoff
 
-## HANDOFF (2026-11-06, latest) — N9 reserve fixed (`3e7f884b`); campaigns 12 and 13 pre-declared, NOT RUN; Phase N NOT complete
+## HANDOFF (2026-11-06, latest) — campaigns 12 and 13 PASS; N8 and N9 qualified with findings; Phase N NOT complete
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** campaigns 12 and 13 ran on `3e7f884b` after the owner's host confirmation. Both PASS in every cell, with
+  evidence in `c12bbf2e` and `891a1635`. The independent N8/N9 review returned APPROVED WITH FINDINGS (N8 plan § 12).
+- **Blocked:** Beads updates need a contract-backed tracker lease: closing `awkit-vra.10`, `awkit-vra.11` and
+  `awkit-kv3n`, and adding the findings to `awkit-vra.18`.
+- **Next (owner):**
+  1. under a tracker lease, close N8 and N9 with the review's findings and close `awkit-kv3n`;
+  2. decide the `awkit-vra.18` follow-up: N5's first-capture budget at DPR 2, calibration on a second host, and the D6
+     margin;
+  3. the Windows packaging-host prerequisites for N7.1b, N7.8 and N7.9.
+- **Preserved untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-11-06) — N9 reserve fixed (`3e7f884b`); campaigns 12 and 13 pre-declared, NOT RUN; Phase N NOT complete
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

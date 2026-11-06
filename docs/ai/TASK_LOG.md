@@ -1,5 +1,20 @@
 # TASK_LOG
 
+## 2026-11-06 — Joint campaigns 12 and 13: both PASS; N8/N9 review APPROVED WITH FINDINGS (Claude)
+
+- **Task:** the owner's "Confirmed, run c12" (host suspension settings confirmed first).
+- **Campaign 12:** run at `0bcb28ae`: six cells, then the aggregate, `JOINT QUALIFICATION: PASS`. Evidence committed
+  unchanged in `c12bbf2e` before campaign 13. Pooled: 0 late, 2 enabled-trial cuts (headless@1, ELU 0.89), state p95
+  416 ms, headed@2 S-5 p95 417 ms with 0 skipped.
+- **Campaign 13:** run at `c12bbf2e`, PASS. Evidence in `891a1635`. Pooled: 0 late, 0 enabled-trial cuts, state p95
+  421 ms.
+- **Review:** independent N8/N9 qualification review, APPROVED WITH FINDINGS (3 Low, 1 Info), no integrity problem.
+  Findings 1 and 2 (records) are resolved by this update; findings 3 and 4 are recorded as residuals under
+  `awkit-vra.18`.
+- **BLOCKED:** Beads closure of N8, N9 and `awkit-kv3n` (tracker lease).
+- **Files:** `evidence/joint/c12/`, `evidence/joint/c13/`, the N8 plan § 12, `CURRENT_STATE`, `HANDOFF`, `TASK_LOG`,
+  `KNOWN_ISSUES`.
+
 ## 2026-11-06 — N9 state-features reserve fix; campaigns 12 and 13 pre-declared (Claude)
 
 - **Task:** the owner choice "Yes, fix it here": fix campaign 10's headed@2 S-5 failure (`awkit-vra.18`).

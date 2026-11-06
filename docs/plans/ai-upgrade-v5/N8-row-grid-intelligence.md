@@ -1056,4 +1056,41 @@ in `3e7f884b`.
 - **A campaign passes** only when every criterion is MET in every cell. Campaign 12 first; if it fails it is recorded
   NOT MET and campaign 13 does not run. N8 and N9 qualify on this revision only if both pass, followed by an independent
   N8/N9 review round that approves.
-- **Status:** NOT RUN. The owner confirms the host suspension settings before campaign 12.
+- **Status (superseded below):** NOT RUN at pre-declaration. The owner confirms the host suspension settings before
+  campaign 12.
+
+**Campaigns 12 and 13 (2026-11-06): both PASS; N8 and N9 qualified on `3e7f884b`, review APPROVED WITH FINDINGS.**
+- **Host precondition:** before campaign 12 the owner confirmed in the session ("Confirmed, run c12") that neither
+  macOS sleep nor Parallels could suspend or pause the VM. Clock skew per cell stayed at most 12 ms (c12) and 6 ms
+  (c13), and at most 13 ms within any trial.
+- **Sequence:** campaign 12 ran at `0bcb28ae` (all six cells, then the aggregate) and PASSED. Its evidence was committed
+  unchanged in `c12bbf2e` before campaign 13 started. Campaign 13 ran at `c12bbf2e` and PASSED; evidence in `891a1635`.
+  No commit between the pre-declaration and the results touched product, harness, labs, criteria or scripts. Every cell
+  file records `treeClean: true`.
+- **Campaign 12** (`evidence/joint/c12/`): every frozen criterion MET in every cell. Pooled: 0 late in 1680 trials;
+  2 enabled-trial cuts (c12 headless@1 `ready-red-amounts/b` and `ready-gray-media/b`, ELU 0.89, host load); 0 false
+  association; 0 false `ready` or `error`; 72/72 protected refusals with 0 frames; state p95 416 ms; row p95 50 ms.
+  headed@2 S-5 p95 417 ms with no `skipped` (campaign 10: 1600 ms).
+- **Campaign 13** (`evidence/joint/c13/`): every frozen criterion MET in every cell. Pooled: 0 late and 0 enabled-trial
+  cuts in 1680 trials; 0 false association; 0 false `ready` or `error`; 72/72 protected refusals; state p95 421 ms; row
+  p95 49 ms.
+- **Independent N8/N9 review: APPROVED WITH FINDINGS.** Integrity verified: revisions, `treeClean`, the order of the
+  campaigns, criteria frozen 2026-10-31 and unchanged, no trial excluded, 0 overruns, every protected trial with
+  0 frames and no code, disabled controls clean. Findings:
+  1. (Low) The owner's suspension confirmation was not yet written down. Recorded above.
+  2. (Low) The plan and project state were stale after the evidence commits. Updated with this section.
+  3. (Low) "0 cut" in the commit messages covers enabled trials only. At DPR 2, N5-only disabled controls end
+     `budget-exhausted` in 8/10 (c12 headless@2), 4/10 (c12 headed@2), 9/10 (c13 headless@2) and 7/10 (c13 headed@2).
+     They meet the control criteria, but this is direct evidence of the N5 first-capture budget residual
+     (`awkit-vra.18`).
+  4. (Info) Every cell records `arch: x64`: Node under x64 emulation on the ARM64 VM. All timing evidence is specific to
+     that setup.
+- **Qualified:** N8 (`awkit-vra.10`) and N9 (`awkit-vra.11`) meet their pre-declared qualification sequence on
+  `3e7f884b`, with the findings above. This is not an unconditional approval. Beads closure is BLOCKED on a tracker
+  lease.
+- **Stays open under `awkit-vra.18`:**
+  - N5's first-capture budget at DPR 2 (finding 3);
+  - checking the reserve calibration (435 ns/px per analysed pixel, one host's benchmark) on another host;
+  - the `verify:visual-diagnosis-deadline` D6 margin (one 1604 ms run, INCONCLUSIVE);
+  - a second-host replication (all qualification ran on one Windows 11 ARM64 Parallels VM under x64 emulation).
+- **Phase N** stays IN PROGRESS: N7.1b, N7.8 and N7.9 are blocked on the Windows packaging host.

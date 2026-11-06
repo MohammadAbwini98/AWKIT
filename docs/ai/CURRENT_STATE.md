@@ -1,6 +1,23 @@
 # CURRENT_STATE
 
-## N9 state-features reserve fixed (`3e7f884b`); campaigns 12 and 13 pre-declared, NOT RUN; N8, N9 and Phase N open (2026-11-06, latest)
+## Campaigns 12 and 13 PASS; N8 and N9 qualified on `3e7f884b` (review APPROVED WITH FINDINGS); Phase N open (2026-11-06, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Campaign 12** (evidence `c12bbf2e`) and **campaign 13** (evidence `891a1635`) both PASS: every frozen criterion is
+  MET in all six cells of each. Both ran after the owner confirmed the host could not suspend the VM.
+  - c12: 0 late in 1680 trials, 2 enabled-trial cuts (headless@1, host load), state p95 416 ms.
+  - c13: 0 late and 0 enabled-trial cuts, state p95 421 ms.
+  - Both: 0 false association, 0 false `ready`/`error`, 72/72 protected refusals with 0 frames.
+- **Independent N8/N9 review: APPROVED WITH FINDINGS**, with no integrity problem. Its four findings and the open
+  residuals are recorded in the N8 plan § 12. Most notably, N5-only disabled controls at DPR 2 often end
+  `budget-exhausted` (the N5 first-capture residual), and all timing is from one ARM64 VM running x64 Node.
+- **N8 (`awkit-vra.10`) and N9 (`awkit-vra.11`):** qualified on `3e7f884b` with findings. Beads closure is BLOCKED on a
+  tracker lease, as is closing `awkit-kv3n`.
+- **Open:** `awkit-vra.18` (N5 first-capture budget at DPR 2, reserve calibration on a second host, the deadline
+  verifier's D6 margin). **Phase N is NOT complete:** N7.1b, N7.8 and N7.9 are blocked on the Windows packaging host.
+
+## N9 state-features reserve fixed (`3e7f884b`); campaigns 12 and 13 pre-declared, NOT RUN; N8, N9 and Phase N open (2026-11-06)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

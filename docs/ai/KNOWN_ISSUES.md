@@ -14,7 +14,15 @@
 - **Effect:** a campaign cell can be lost, and in the app the runner process can crash. No pixels are kept.
 - **Fix:** a product change in `src/visual`, before the next campaign pre-declaration.
 
-## Campaign 10 NOT MET: N9 skipped at headed DPR 2 after a slow N5 first capture (2026-11-06, FIXED in `3e7f884b`, pending campaigns 12 and 13; `awkit-vra.18`)
+## N5 first-capture budget at DPR 2 and single-host timing (2026-11-06, OPEN, `awkit-vra.18`)
+
+- **What:** in campaigns 12 and 13, N5-only disabled controls at DPR 2 end `budget-exhausted` in 4 to 9 of 10 trials
+  per cell. They meet the control criteria (no code, at most one frame, none late), but N5's first capture leaves
+  little budget at DPR 2.
+- **Also open:** the 435 ns/px reserve calibration rests on one host's benchmark; all qualification ran on one Windows
+  11 ARM64 Parallels VM with x64 Node under emulation; the deadline verifier's D6 once returned at 1604 ms.
+
+## Campaign 10 NOT MET: N9 skipped at headed DPR 2 after a slow N5 first capture (2026-11-06, FIXED in `3e7f884b`, confirmed by campaigns 12 and 13; `awkit-vra.18`)
 
 - **Root cause found:** the state-features gate reserved every device pixel, not the analysed quarter at DPR 2. Now
   pinned by `verify:visual-diagnosis-deadline` D10.
