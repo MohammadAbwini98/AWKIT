@@ -1,23 +1,24 @@
 {
-  "task": "awkit-n8n9-reconciliation-1107",
-  "contract_path": "docs/ai/contracts/awkit-n8n9-reconciliation-1107.json",
-  "holder": "project-state",
+  "task": "awkit-roadmap-pin-qa-1107",
+  "contract_path": "docs/ai/contracts/awkit-roadmap-pin-qa-1107.json",
+  "holder": "qa",
   "status": "released",
   "allowed_paths": [
-    ".beads/**",
-    "docs/ai/**",
-    "docs/plans/ai-upgrade-v5/N8-row-grid-intelligence.md",
-    "docs/plans/ai-upgrade-v5/N9-screenshot-state-recognition.md"
+    "scripts/verify-roadmap-dashboard.mjs"
   ],
-  "acquired_at": "2026-11-06T21:17:43.571Z",
-  "acquired_at_commit": "9228f06ae870eb8df19fccc4c00f090ad9101c7d",
+  "acquired_at": "2026-11-06T23:33:18.377Z",
+  "acquired_at_commit": "30399a6ab0ca90f898c7b6f2ab204b725eb2507d",
   "baseline_dirty": [
+    "docs/ai/contracts/active-lease.json",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
-    "docs/ai/contracts/awkit-n8n9-reconciliation-1107.json"
+    "docs/ai/contracts/awkit-n8n9-final-disposition-1107.json",
+    "docs/ai/contracts/awkit-roadmap-pin-qa-1107.json"
   ],
   "baseline_dirty_fingerprints": {
+    "docs/ai/contracts/active-lease.json": "c3338fe391b82d8470a38f0b815a208b8eaf6f35fb34cb778c208768e80bc0e8",
     "docs/ai/contracts/awkit-l12-27-implementation-1006.json": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2",
-    "docs/ai/contracts/awkit-n8n9-reconciliation-1107.json": "47950f8e3275f7d3d8871497c6090405e12ddb5a8255efd1a9caff55fde81d0e"
+    "docs/ai/contracts/awkit-n8n9-final-disposition-1107.json": "30017f2bfec5925c1ef7d20121a752c943b9a859cd8b5e427319cc3ca93a9a5a",
+    "docs/ai/contracts/awkit-roadmap-pin-qa-1107.json": "faa34aadbab95fb342c8841c00485aba3d77099bbb07dcd58e91e8ba363493f9"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -32,7 +33,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-11-06T21:20:22.866Z",
-  "released_reason": "Beads reconciled and exported, state docs and plans committed in e75086a4",
-  "archived_at": "2026-11-06T21:20:22.870Z"
+  "released_at": "2026-11-06T23:35:20.565Z",
+  "released_reason": "roadmap pin updated to the measured 26 outstanding and 411 closed, committed in 69a7313b, verify:roadmap-dashboard 184/184 Sources agree",
+  "archived_at": "2026-11-06T23:35:20.568Z"
 }

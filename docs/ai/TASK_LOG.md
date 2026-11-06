@@ -14,8 +14,16 @@
     note command was refused for semicolons and corrected once.
   - `bd export -o .beads/issues.jsonl`: 437 issues, measured 26 outstanding / 411 closed.
   - The N8 and N9 plans, `CURRENT_STATE`, `HANDOFF` and `KNOWN_ISSUES` were updated.
-- **Contract `awkit-roadmap-pin-qa-1107` (QA lease, owner-authorized):** the pin update to the measured counts is
-  recorded below in Checks.
+- **Contract `awkit-roadmap-pin-qa-1107` (QA lease, owner-authorized):** granted cleanly to `qa` on
+  `scripts/verify-roadmap-dashboard.mjs` only. The pin now reads 26 outstanding / 411 closed, which is the measured
+  state after N8 and N9 closed, not the 28/409 from before them. It stays an exact pair, and the history comment is
+  extended. Committed in `69a7313b`, then the lease was released.
+- **Checks (final state):**
+  - `verify:roadmap-dashboard` **PASS 184/184**, "Sources agree";
+  - `verify:verifier-classification` PASS (374);
+  - `npm run build` PASS.
+- **Lease-guard incident:** one `agent:lease-release` without `--reason` was refused (terminal for that form). The
+  documented form with `--reason` then succeeded.
 - **Packaging host:** `verify:packaging-host` BLOCKED.
   - H4: VS 2022 MSVC v143 x64/x86 tools and the C++ 2022 Redistributable are absent. H5 needs H4.
   - INFO: the issuer key is unset, the Electron win32-x64 archive is not cached, and the host is ARM64.

@@ -91,5 +91,28 @@
     "status": "pending",
     "qa_status": "pending",
     "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-n8n9-final-disposition-1107:project-state:2026-11-06T23:28:41.752Z",
+        "task": "awkit-n8n9-final-disposition-1107",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**",
+          "docs/ai/**",
+          "docs/plans/ai-upgrade-v5/N8-row-grid-intelligence.md",
+          "docs/plans/ai-upgrade-v5/N9-screenshot-state-recognition.md"
+        ],
+        "acquired_at": "2026-11-06T23:28:41.752Z",
+        "acquired_at_commit": "0377afae913c45f30ab8f2681d74ea49b49f46f8",
+        "released_at": "2026-11-06T23:33:12.480Z",
+        "released_reason": "N8 and N9 disposition, Beads closure and state docs committed in 30399a6a",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
   }
 }

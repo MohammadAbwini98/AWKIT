@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-roadmap-pin-qa-1107",
+    "title": "QA: correct the stale tracker-count pin in verify-roadmap-dashboard",
+    "objective": "Owner prompt 2026-11-07 'AWKIT — Final N8/N9 Review Disposition, QA Reconciliation and N7 Release Prerequisites', step 4 (owner-authorized, QA-owned): verify-roadmap-dashboard pins 29 outstanding / 408 closed, but the authoritative Beads export measures differently after awkit-kv3n closed. Measure the counts directly from the Beads state, update only the exact expected pair and its explanatory history comment, and keep the exact-pair assertion so future unexpected drift is still detected. No Beads, derived roadmap data, assertion-strength or unrelated changes.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "0377afae",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": false,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "qa"
+    ],
+    "expected_paths": [
+      "scripts/verify-roadmap-dashboard.mjs"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "qa",
+      "allowed_paths": [
+        "scripts/verify-roadmap-dashboard.mjs"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "PIN",
+      "description": "The outstanding/closed pin equals the measured Beads counts, stays an exact pair, and its history comment records the change; verify:roadmap-dashboard PASS with Sources agree.",
+      "evidence_required": [
+        "verify:roadmap-dashboard",
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-roadmap-pin-qa-1107:qa:2026-11-06T23:33:18.377Z",
+        "task": "awkit-roadmap-pin-qa-1107",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-roadmap-dashboard.mjs"
+        ],
+        "acquired_at": "2026-11-06T23:33:18.377Z",
+        "acquired_at_commit": "30399a6ab0ca90f898c7b6f2ab204b725eb2507d",
+        "released_at": "2026-11-06T23:35:20.565Z",
+        "released_reason": "roadmap pin updated to the measured 26 outstanding and 411 closed, committed in 69a7313b, verify:roadmap-dashboard 184/184 Sources agree",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}
