@@ -21,6 +21,9 @@
   little budget at DPR 2.
 - **Also open:** the 435 ns/px reserve calibration rests on one host's benchmark; all qualification ran on one Windows
   11 ARM64 Parallels VM with x64 Node under emulation; the deadline verifier's D6 once returned at 1604 ms.
+- **Status (2026-11-07):** the owner accepted both as scoped limitations outside the N8/N9 closure scope (DECISIONS
+  2026-11-07), and N8 and N9 closed. This issue is **not resolved**. N5 high-DPI performance and cross-machine
+  performance remain **not qualified**, and `awkit-vra.18` stays IN PROGRESS.
 
 ## Campaign 10 NOT MET: N9 skipped at headed DPR 2 after a slow N5 first capture (2026-11-06, FIXED in `3e7f884b`, confirmed by campaigns 12 and 13; `awkit-vra.18`)
 

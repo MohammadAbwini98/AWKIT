@@ -1,6 +1,31 @@
 # Agent Handoff
 
-## HANDOFF (2026-11-07, latest) — N8/N9 technical qualification PASS, R-9/S-9 NOT MET; `awkit-kv3n` closed; packaging host BLOCKED; Phase N NOT complete
+## HANDOFF (2026-11-07, latest) — N8 and N9 CLOSED; packaging host BLOCKED; Phase N NOT complete
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. Contracts
+`awkit-n8n9-final-disposition-1107` (project-state) and `awkit-roadmap-pin-qa-1107` (QA).
+
+- **Done:**
+  - the owner's scoped dispositions of QC findings 3 and 4 are recorded in DECISIONS 2026-11-07;
+  - a fresh independent QC disposition returned APPROVED (unconditional), so R-9 and S-9 are MET;
+  - `awkit-vra.10` and `awkit-vra.11` are closed;
+  - `awkit-vra.18` has its note and stays IN PROGRESS;
+  - Beads exported, measuring 26 outstanding / 411 closed of 437;
+  - the roadmap verifier pin was handled under the separate QA contract (result in `TASK_LOG` 2026-11-07).
+- **Blocked:** N7.1b, N7.8 and N7.9.
+  - `verify:packaging-host` is BLOCKED on H4 (VS 2022 MSVC v143 x64/x86 tools and the C++ 2022 Redistributable are
+    absent) and on H5 (needs H4).
+  - The issuer key is unset, and the Electron win32-x64 archive is not cached.
+  - This host is ARM64.
+  - No packaged test was run or substituted.
+- **Next (owner):**
+  1. provide a native Windows x64 release host with VS 2022 MSVC v143 x64/x86 and the C++ 2022 Redistributable, or
+     install them here;
+  2. provision the issuer key through the approved secret mechanism;
+  3. run `npm run verify:packaging-host`, and only on READY run N7.1b, then N7.8, then N7.9.
+- **Separate obligations:** `awkit-vra.18` (performance and cross-host), N7.10 (OCR accuracy), N6P and N10.
+
+## HANDOFF (2026-11-07) — N8/N9 technical qualification PASS, R-9/S-9 NOT MET; `awkit-kv3n` closed; packaging host BLOCKED; Phase N NOT complete
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. Contract
 `awkit-n8n9-reconciliation-1107`.

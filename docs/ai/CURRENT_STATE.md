@@ -1,6 +1,29 @@
 # CURRENT_STATE
 
-## N8/N9 technical qualification PASS, R-9/S-9 NOT MET (owner disposition needed); `awkit-kv3n` closed; Phase N open (2026-11-07, latest)
+## N8 and N9 CLOSED (R-9/S-9 MET after owner dispositions and fresh QC APPROVED); packaging host BLOCKED; Phase N open (2026-11-07, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. Contracts
+`awkit-n8n9-final-disposition-1107` (project-state) and `awkit-roadmap-pin-qa-1107` (QA, roadmap pin).
+
+- **Owner dispositions (DECISIONS 2026-11-07).** These are scoped limitations, not waivers.
+  - QC finding 3: DPR-2 N5 `budget-exhausted` is outside N8/N9 scope. N5 high-DPI performance is not qualified.
+  - QC finding 4: the ARM64 Parallels VM with emulated x64 Node is the qualification environment for this evidence.
+    Cross-machine performance is unqualified.
+- **Fresh independent QC disposition: APPROVED (unconditional).** Security is APPROVED (unconditional). **R-9 and S-9
+  are MET.** The 2026-11-06 QC verdict stays recorded as APPROVED WITH FINDINGS.
+- **Beads:** N8 `awkit-vra.10` and N9 `awkit-vra.11` are CLOSED. The source at HEAD equals `3e7f884b` (empty diff
+  re-run before closure). `awkit-vra.18` stays IN PROGRESS with every obligation (N8 plan § 12). `awkit-kv3n` was
+  untouched. Measured 437 issues: 26 outstanding / 411 closed.
+- **Packaging host, `verify:packaging-host`: BLOCKED.**
+  - H4: no Visual Studio 2022 with MSVC v143 x64/x86 tools and the C++ 2022 Redistributable.
+  - H5: the app-local MSVC runtime DLLs, which need H4.
+  - INFO: the issuer key is unset, and the Electron win32-x64 archive is not cached.
+  - This host is ARM64, where x64 packaging is unproven.
+  - N7.1b, N7.8 and N7.9 were NOT RUN.
+- **Phase N: NOT complete.** Only the N7 packaged gates remain (N7.1b, N7.8, N7.9). N7.10 is a separate OCR accuracy
+  obligation; N6P and N10 are outside Phase N closure.
+
+## N8/N9 technical qualification PASS, R-9/S-9 NOT MET (owner disposition needed); `awkit-kv3n` closed; Phase N open (2026-11-07)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. Contract
 `awkit-n8n9-reconciliation-1107`.

@@ -1,6 +1,41 @@
 # DECISIONS
 
-### 2026-11-01 (latest) — Phase N recovery: owner dispositions for S2, S3/NEW-2 and F2, and the two-campaign repeat rule
+### 2026-11-07 (latest) — N8/N9 residual-risk dispositions: QC findings 3 and 4 accepted as scoped limitations (owner)
+
+Owner prompt "AWKIT — Final N8/N9 Review Disposition, QA Reconciliation and N7 Release Prerequisites", 2026-11-07,
+starting commit `0377afae`, qualified product revision `3e7f884b`. Contract `awkit-n8n9-final-disposition-1107`. The
+owner chose "Accept as limitations" in the session. These are the owner's directions, recorded as given.
+
+They are **scoped risk dispositions**:
+- they do not change the original QC verdict on `3e7f884b`, which stays **APPROVED WITH FINDINGS**;
+- they do not waive any mandatory review or acceptance gate;
+- R-9 and S-9 still need an independent QC disposition that meets the acceptance contract (N8 plan § 12).
+
+Findings 1 and 2 were documentation corrections, already made in `e75086a4`.
+
+- **QC finding 3: DPR-2 N5 performance.** The observed N5-only `budget-exhausted` outcome of the disabled controls at
+  DPR 2 is accepted as a **documented limitation outside the demonstrated N8/N9 qualification scope**. The observed
+  outcomes were 8/10 and 4/10 in campaign 12, and 9/10 and 7/10 in campaign 13. Conditions:
+  - the original campaign 12 and 13 measurements are preserved unchanged (`evidence/joint/c12/`, `c13/`);
+  - `awkit-vra.18` stays IN PROGRESS and owns the N5 first-capture budget;
+  - N5 high-DPI performance is **not** claimed as qualified;
+  - deadlines, frozen thresholds and failure accounting are unchanged;
+  - the limitation is **not** presented as resolved.
+- **QC finding 4: single-host qualification.** The Windows 11 ARM64 Parallels VM running x64 Node under emulation is
+  accepted as **the qualification environment for the existing N8/N9 evidence** (consistent with the 2026-10-19
+  acceptance-environment decision). Conditions:
+  - cross-machine performance remains **unqualified**;
+  - the measured timing is not generalized to arbitrary Windows hardware;
+  - the second-host replication and the reserve-calibration check (435 ns/px per analysed pixel) stay under
+    `awkit-vra.18`;
+  - no physical Windows x64 qualification is claimed without actual evidence.
+- **What this does not do:**
+  - it does not mark R-9 or S-9 PASS;
+  - it does not close N8 or N9;
+  - it does not touch `awkit-kv3n`, which is already CLOSED;
+  - it does not alter N7.10, N6P or N10.
+
+### 2026-11-01 — Phase N recovery: owner dispositions for S2, S3/NEW-2 and F2, and the two-campaign repeat rule
 
 Owner prompt "AWKIT — Phase N Final Qualification Recovery", 2026-11-01, baseline `20e93347`. Contract
 `awkit-vra-phase-n-recovery-1101`. These are the owner's directions, recorded as given. They are still subject to the

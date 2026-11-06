@@ -367,6 +367,13 @@ the full matrix).
     x64 Node) are limitations kept under `awkit-vra.18`.
   - N9 closes only after the owner disposes of findings 3 and 4 and QC gives a policy-compliant disposition.
     **N9 stays IN PROGRESS.**
+  - **Final disposition (2026-11-07, contract `awkit-n8n9-final-disposition-1107`): S-9 MET, N9 CLOSED.**
+    - The owner accepted findings 3 and 4 as scoped limitations (DECISIONS 2026-11-07).
+    - A fresh independent QC disposition then returned **APPROVED (unconditional)**; security remains APPROVED
+      (unconditional).
+    - The source at HEAD still equals `3e7f884b` (empty diff).
+    - `awkit-vra.11` closed. Not qualified: N5 high-DPI performance and cross-machine performance; both stay under
+      `awkit-vra.18`. The earlier QC verdict is recorded unchanged (APPROVED WITH FINDINGS).
   - **joint campaign 8 (2026-11-02, product source `7a0a9227`): NOT MET.** headless@1 S-5 (p95 783 ms, 1 late) and
     headless@1.25 S-5 (p95 624 ms, 2 late) fail; headed@2 S-5 is now MET (p95 349 ms, 0 late, 0 cuts). S-1 to S-4 are
     MET in every cell. Campaign 9 was not run (N8 plan § 12, `evidence/joint/c8/ANALYSIS.md`). **N9 stays IN PROGRESS.**

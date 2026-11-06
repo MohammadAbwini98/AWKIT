@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-n8n9-final-disposition-1107",
+    "title": "N8/N9 owner residual-risk dispositions, independent QC disposition, final Beads reconciliation and N7 packaging-host check",
+    "objective": "Owner prompt 2026-11-07 'AWKIT — Final N8/N9 Review Disposition, QA Reconciliation and N7 Release Prerequisites': record the owner's scoped dispositions of QC findings 3 and 4 in DECISIONS without changing the original review verdict; record a fresh independent QC disposition truthfully; mark R-9/S-9 PASS and close N8/N9 only if that verdict meets the acceptance contract; keep awkit-vra.18 IN PROGRESS with every residual; do not touch awkit-kv3n; run verify:packaging-host for N7.1b/N7.8/N7.9. No product code, frozen criteria, harness or campaign evidence changes; no campaign reruns. The roadmap verifier pin is a separate QA contract.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "0377afae",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "docs/ai/**",
+      "docs/plans/ai-upgrade-v5/**"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**",
+        "docs/ai/**",
+        "docs/plans/ai-upgrade-v5/N8-row-grid-intelligence.md",
+        "docs/plans/ai-upgrade-v5/N9-screenshot-state-recognition.md"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "DISPOSITION",
+      "description": "Owner dispositions of QC findings 3 and 4 recorded as scoped conditions; the independent QC disposition recorded as returned; R-9/S-9 and N8/N9 Beads status follow that verdict only; awkit-vra.18 keeps every residual; Beads exported; roadmap Sources agree.",
+      "evidence_required": [
+        "verify:roadmap-dashboard",
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  }
+}

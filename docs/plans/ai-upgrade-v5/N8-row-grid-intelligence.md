@@ -1130,3 +1130,44 @@ in `3e7f884b`.
 - **Beads:** `awkit-kv3n` closed (its closure contract is met). Notes were appended to `awkit-vra.10` and
   `awkit-vra.11` (qualification PASS, R-9/S-9 NOT MET, the blocker) and to `awkit-vra.18` (every retained residual).
   Exported with `bd export -o .beads/issues.jsonl`.
+
+**Final disposition (2026-11-07, contract `awkit-n8n9-final-disposition-1107`): R-9 and S-9 MET; N8 and N9 CLOSED.**
+
+| State | N8 (`awkit-vra.10`) | N9 (`awkit-vra.11`) |
+|---|---|---|
+| Technical qualification | **PASS** on `3e7f884b` | **PASS** on `3e7f884b` |
+| Review gate (R-9 / S-9) | **MET** | **MET** |
+| Tracker | **CLOSED** | **CLOSED** |
+
+- **Owner dispositions (DECISIONS 2026-11-07).** Both are scoped risk dispositions, not waivers. They change no
+  deadline, threshold or failure accounting.
+  - Finding 3: accepted as a documented limitation outside N8/N9 qualification scope. N5 high-DPI performance is not
+    qualified.
+  - Finding 4: the ARM64 Parallels VM with emulated x64 Node is accepted as the qualification environment for this
+    evidence. Cross-machine performance is unqualified.
+- **Independent QC disposition (fresh, 2026-11-07): APPROVED (unconditional).**
+  - (a) Findings 3 and 4 can be accepted outside N8/N9 closure scope. R-1 to R-8 and S-1 to S-8 do not cover N5's own
+    first-capture budget. The N8/N9-enabled DPR-2 trials met R-5 and S-5 with 0 late. The VM is the owner-approved
+    acceptance environment (2026-10-19).
+  - (b) R-9 and S-9 are satisfied, with security APPROVED (unconditional).
+  - (c) No QC item blocks N8 or N9 closure.
+  - New finding (Info): the DECISIONS entry was uncommitted at review time, and is committed together with this
+    record.
+  - The reviewer's own `git diff` was refused by the lease guard. The primary re-ran
+    `git diff --stat 3e7f884b HEAD -- src app mock-site scripts/lib scripts/benchmark-visual-joint.mts` before closure:
+    empty.
+- **The earlier verdict is unchanged in the record:** QC on 2026-11-06 was APPROVED WITH FINDINGS. The 2026-11-07
+  verdict is a separate, fresh disposition.
+- **Beads:** `awkit-vra.10` and `awkit-vra.11` closed. `awkit-vra.18` stays IN PROGRESS with every obligation:
+  - the N5 first-capture budget at DPR 2;
+  - second-host replication;
+  - the 435 ns/px reserve calibration;
+  - the D6 margin;
+  - bounded work and chunking;
+  - worker-thread feasibility;
+  - the motion reserve on device pixels;
+  - N5 at 1920 × 1080 DPR 1.5.
+
+  `awkit-kv3n` is untouched (already CLOSED). Tracker measured after export: 437 issues, 26 outstanding / 411 closed.
+- **Phase N stays IN PROGRESS.** N7.1b, N7.8 and N7.9 are blocked on the packaging host (H4/H5 BLOCKED, 2026-11-07).
+  N7.10 is a separate OCR accuracy obligation; N6P and N10 are outside Phase N closure.

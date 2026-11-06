@@ -1,5 +1,26 @@
 # TASK_LOG
 
+## 2026-11-07 — N8/N9 final review disposition, QA roadmap pin, N7 packaging-host check (Claude)
+
+- **Task:** owner prompt "Final N8/N9 Review Disposition, QA Reconciliation and N7 Release Prerequisites", starting
+  at `0377afae`. The owner chose "Accept as limitations". No product, criteria, harness or evidence change, and no
+  campaign rerun.
+- **Contract `awkit-n8n9-final-disposition-1107` (project-state lease):**
+  - DECISIONS 2026-11-07 records the scoped dispositions of QC findings 3 and 4.
+  - A fresh independent QC disposition returned APPROVED (unconditional). Its new Info finding: the DECISIONS entry
+    was uncommitted, and is committed together with this record. The reviewer's `git diff` was refused by the hook.
+  - The primary re-ran `git diff --stat 3e7f884b HEAD` over product, labs and harness: empty.
+  - `bd close awkit-vra.10` and `bd close awkit-vra.11` with evidence; `bd update awkit-vra.18 --append-notes`; one
+    note command was refused for semicolons and corrected once.
+  - `bd export -o .beads/issues.jsonl`: 437 issues, measured 26 outstanding / 411 closed.
+  - The N8 and N9 plans, `CURRENT_STATE`, `HANDOFF` and `KNOWN_ISSUES` were updated.
+- **Contract `awkit-roadmap-pin-qa-1107` (QA lease, owner-authorized):** the pin update to the measured counts is
+  recorded below in Checks.
+- **Packaging host:** `verify:packaging-host` BLOCKED.
+  - H4: VS 2022 MSVC v143 x64/x86 tools and the C++ 2022 Redistributable are absent. H5 needs H4.
+  - INFO: the issuer key is unset, the Electron win32-x64 archive is not cached, and the host is ARM64.
+  - N7.1b, N7.8 and N7.9 NOT RUN.
+
 ## 2026-11-07 — N8/N9 qualification reconciliation, review-gate disposition, Beads, packaging host (Claude)
 
 - **Task:** owner prompt "N8/N9 Qualification Reconciliation and Phase N Packaged Acceptance". Contract
