@@ -2,7 +2,7 @@
   "task": "awkit-n8n9-reconciliation-1107",
   "contract_path": "docs/ai/contracts/awkit-n8n9-reconciliation-1107.json",
   "holder": "project-state",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     ".beads/**",
     "docs/ai/**",
@@ -31,5 +31,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-11-06T21:20:22.866Z",
+  "released_reason": "Beads reconciled and exported, state docs and plans committed in e75086a4",
+  "archived_at": "2026-11-06T21:20:22.870Z"
 }

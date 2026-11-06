@@ -18,6 +18,14 @@
   N7.8 and N7.9 packaged path is stopped.
 - **Files:** `.beads/issues.jsonl`, the contract, the N8 and N9 plans, `CURRENT_STATE`, `HANDOFF`, `TASK_LOG`,
   `KNOWN_ISSUES`.
+- **Checks:** `verify:verifier-classification` PASS (374 classified). `npm run build` PASS.
+  `verify:roadmap-dashboard` **FAIL 183/184**: the Overview banner reads "Sources agree", but the pinned tracker
+  totals in `scripts/verify-roadmap-dashboard.mjs` still say 29 outstanding / 408 closed, against the measured 28 / 409
+  after `awkit-kv3n` closed.
+- **BLOCKED:** updating that pin needs a QA-owned lease on the verifier file. Amending this contract to route a QA
+  writer was refused by the session's permission classifier as an access widening, and was not retried or worked
+  around. The owner must authorize a QA lease (contract routing for `scripts/verify-roadmap-dashboard.mjs`) for a
+  one-line count update.
 
 ## 2026-11-06 — Joint campaigns 12 and 13: both PASS; N8/N9 review APPROVED WITH FINDINGS (Claude)
 

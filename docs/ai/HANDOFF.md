@@ -21,6 +21,10 @@ The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 
     issuer key is unset (licensed packaged gates would be BLOCKED), the Electron win32-x64 archive is not cached
     (offline build host only), and this host is ARM64 (x64 packaging unproven here). No packaged test was run or
     substituted.
+  - **Roadmap verifier pin:** `verify:roadmap-dashboard` FAIL 183/184 ("Sources agree" holds). The pinned tracker
+    totals (29/408) need updating to the measured 28/409 under a QA-owned lease on
+    `scripts/verify-roadmap-dashboard.mjs`. Routing a QA writer in this contract was refused by the permission
+    classifier, so this needs owner authorization.
 - **Next (owner):**
   1. dispose of QC findings 3 and 4;
   2. provide a Windows x64 release host, or install the VS 2022 MSVC x64 components here, then rerun
