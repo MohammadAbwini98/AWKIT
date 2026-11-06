@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-n7-packaging-host-1107",
+    "title": "Phase N final packaging: packaging-host readiness, provisioning specification and N7.1b/N7.8/N7.9 status",
+    "objective": "Owner prompt 2026-11-07 'AWKIT — Phase N Final Packaging and Release Qualification': run verify:packaging-host and record H1-H6 and I1-I2; run N7.1b, N7.8 and N7.9 only on a READY native Windows x64 host with the issuer key provisioned; otherwise record BLOCKED, write a reproducible host-provisioning specification in the N7 plan, append the blocker to the N7.1b, N7.8 and N7.9 Beads records, and update project state. No product code, packaging script, licensing, criteria or evidence change; N8/N9 stay CLOSED; awkit-vra.18 stays IN PROGRESS.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "a1839713",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "docs/ai/**",
+      "docs/plans/ai-upgrade-v5/**"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**",
+        "docs/ai/**",
+        "docs/plans/ai-upgrade-v5/N7-ocr-text-in-image.md"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "PACKAGING-STATUS",
+      "description": "verify:packaging-host results recorded exactly; packaged gates run only on READY, otherwise BLOCKED with a reproducible provisioning specification; Beads notes appended without status change; roadmap Sources agree.",
+      "evidence_required": [
+        "verify:roadmap-dashboard",
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  }
+}

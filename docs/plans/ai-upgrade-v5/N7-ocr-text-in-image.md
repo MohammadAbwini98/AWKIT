@@ -425,6 +425,95 @@ changes in either proof.
 - **Scope creep toward text-based targeting:** excluded by OC-0, and a verifier asserts that no locator or action path
   consumes OCR output.
 
+## Packaged-acceptance host: readiness record and provisioning specification (2026-11-07)
+
+Contract `awkit-n7-packaging-host-1107`, owner prompt "Phase N Final Packaging and Release Qualification", baseline
+`a1839713`.
+
+**Readiness record (`npm run verify:packaging-host`, 2026-11-07): 2 prerequisites BLOCKED. N7.1b, N7.8 and N7.9 NOT
+RUN.**
+
+| Check | Result | Detail |
+|---|---|---|
+| H1 Windows host | PASS | 10.0.26300, native ARM64, process x64 under emulation. Not a qualified x64 release host |
+| H2 Node.js | PASS | v24.20.0 x64 |
+| H3a Electron pinned | PASS | 33.4.11 = 33.4.11 |
+| H3b win32-x64 Electron archive cached | INFO | `electron-v33.4.11-win32-x64.zip` not cached. Fine for a networked build; required for an offline build |
+| H4 VS 2022 MSVC x64/x86 tools and redist | **BLOCKED** | `vswhere.exe` absent |
+| H5 App-local MSVC runtime | **BLOCKED** | needs H4 |
+| H6 Shared requirement declarations | PASS | 5 equal; 8/8 mutations detected |
+| I1 Release-tree cleanliness | INFO | 1 untracked file (the preserved L12.27 contract) |
+| I2 Issuer key | INFO | `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` not set: licensed packaged gates BLOCKED |
+
+**Three separate readiness levels:**
+1. **Packaging-host READY:** H1–H6 have no BLOCKED. This host fails at H4/H5.
+2. **Licensed packaged-gate readiness:** READY plus I2 set. Not met.
+3. **Offline-build readiness:** READY plus H3b cached and the manifest signing key in approved custody. Not met.
+
+The ARM64 host is not treated as a verified x64 release environment.
+
+**Additional gap found:** the N7.8 acceptance gate names `verify:ocr-packaged` (§ Work breakdown), but no such script
+exists in `package.json` or `scripts/`. N7.8 therefore cannot complete even on a READY host until that verifier is
+implemented and registered in `scripts/lib/verifier-classification.ts`. That is QA-owned work under its own contract.
+Recorded on `awkit-vra.9.9`.
+
+**Provisioning specification (reproducible; for the owner or release engineer).** Nothing here was installed or
+changed by the agent.
+
+1. **Machine:** a native Windows 10/11 **x64** host. The repository is cloned *outside* any cloud-synced folder
+   (OneDrive, Dropbox, Google Drive, iCloud). `scripts/lib/release-key-custody.mjs` refuses a signing key in a synced
+   tree, and this repository's current path is under OneDrive. Check out `main`, with no other branch.
+   - At least 1,536 MiB of free Windows commit (RAM plus pagefile), which the portable pipeline enforces.
+2. **Toolchain (H2–H5):**
+   - Node.js x64; this repo records v24.20.0. Run `npm ci`. Electron must then report the pinned 33.4.11.
+   - A **validly licensed Visual Studio 2022 Community, Professional or Enterprise**. Build Tools alone is not
+     accepted: its license does not cover redistributing the VC\redist files (owner decision 2026-09-25).
+   - Version range `[17.0,18.0)`. Add both components with Visual Studio Installer → Modify → Individual components:
+     - "MSVC v143 - VS 2022 C++ x64/x86 build tools (Latest)" (`Microsoft.VisualStudio.Component.VC.Tools.x86.x64`);
+     - "C++ 2022 Redistributable Update" (`Microsoft.VisualStudio.Component.VC.Redist.14.Latest`).
+   - H5 then resolves `msvcp140.dll`, `vcruntime140.dll` and `vcruntime140_1.dll` from that redist folder. They must be
+     Microsoft-signed, at version 14.40 or later.
+3. **Offline build only (H3b):** place `electron-v33.4.11-win32-x64.zip` from the official Electron release in
+   `%LOCALAPPDATA%\electron\Cache`; its checksum is verified. The Chromium input comes through
+   `npm run offline:prepare` (§ `docs/OFFLINE_STANDALONE_PACKAGING.md`).
+4. **Release keys (custody, never committed, printed or synced):**
+   - Offline-manifest Ed25519 private key: the approved custody location (`approvedKeyPath`, under
+     `%LOCALAPPDATA%`), or `AWKIT_OFFLINE_MANIFEST_PRIVATE_KEY` set to an absolute non-synced path. Its public key
+     must equal `resources/trust/offline-manifest-public.pem`.
+   - Licensed-gate issuer key: `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` set to an **absolute path** of the authorized
+     validation issuer key. There is no fallback to the default issuer-key folder, and the app never sees the path
+     (`scripts/helpers/packaged-license.mts`).
+5. **Clean tree:** `scripts/release-portable.ps1` refuses untracked files. Keep the preserved L12.27 contract out of
+   the check with a local `.git/info/exclude` entry. Never delete it.
+6. **Gate order (stop at the first non-PASS):**
+   1. `npm run verify:packaging-host` → must print READY, with I2 set.
+   2. `npm run package:portable` (preflight, build, signed manifest, `validate:offline -Strict`, electron-builder).
+      Record `dist/release-provenance.json` and the SHA-256 of the portable EXE.
+   3. **N7.1b** on that artifact:
+      - the OCR engine (`tesseract.js-core` 6.0.0) and the `eng` data survive the ASAR/unpack rules and appear in the
+        signed manifest with checksums equal to the pin;
+      - the size is within the 8 MB OC-9 target;
+      - the utility process loads and runs the engine with zero network;
+      - startup, shutdown, cancellation and cleanup work.
+
+      `npm run validate:offline -- -Strict` and `npm run verify:ocr-assets` are applied to the package.
+   4. **N7.8:**
+      - `verify:ocr-packaged`, once implemented;
+      - `verify:visual-assertion-packaged`;
+      - `verify:packaged-runtime`;
+      - `verify:packaged-walkthrough`;
+      - `verify:packaged-licensing`, which needs I2;
+      - `verify:packaged-validation`;
+      - `verify:offline-supply-chain`.
+
+      Each runs against the real package and must show no network, observe-only OCR, protected/payment/sensitive
+      refusals, disabled mode identical to a build without OCR, and codes-only reports. No accuracy claim is made
+      (N7.10).
+   5. **N7.9:** fresh independent QC and security reviews of the packaged artifact and its evidence. Both must return
+      APPROVED.
+7. **Not substitutable:** development-mode tests, mock evidence or ARM64-emulated packaging do not satisfy N7.1b or
+   N7.8.
+
 ## Exact next task
 
 Done:

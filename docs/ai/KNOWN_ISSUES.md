@@ -14,6 +14,16 @@
 - **Effect:** a campaign cell can be lost, and in the app the runner process can crash. No pixels are kept.
 - **Fix:** a product change in `src/visual`, before the next campaign pre-declaration.
 
+## N7.8 gate `verify:ocr-packaged` does not exist (2026-11-07, OPEN, `awkit-vra.9.9`)
+
+- **What:** the N7 plan names `verify:ocr-packaged` as the N7.8 acceptance gate. There is no such npm script or
+  `scripts/` file.
+- **Impact:** a READY packaging host alone cannot complete N7.8.
+- **Fix:** QA-owned implementation under its own contract, registered in `scripts/lib/verifier-classification.ts`. It
+  must run against the real package.
+- **Related:** this repository lives under OneDrive, and release-key custody refuses signing keys in synced trees. The
+  release host needs a clone outside synced folders (N7 plan § "Packaged-acceptance host").
+
 ## N5 first-capture budget at DPR 2 and single-host timing (2026-11-06, OPEN, `awkit-vra.18`)
 
 - **What:** in campaigns 12 and 13, N5-only disabled controls at DPR 2 end `budget-exhausted` in 4 to 9 of 10 trials

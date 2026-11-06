@@ -1,5 +1,23 @@
 # TASK_LOG
 
+## 2026-11-07 — Phase N final packaging and release qualification: host BLOCKED (Claude)
+
+- **Task:** owner prompt "Phase N Final Packaging and Release Qualification", baseline `a1839713`. Contract
+  `awkit-n7-packaging-host-1107` (project-state lease).
+- **`verify:packaging-host`: 2 BLOCKED.**
+  - PASS: H1 (native ARM64), H2, H3a, H6.
+  - BLOCKED: H4 (no VS 2022 MSVC v143 x64/x86 tools or redist) and H5.
+  - INFO: H3b (archive not cached), I1 (1 untracked), I2 (issuer key unset).
+- **Packaged path:** stopped. No package built; N7.1b, N7.8 and N7.9 NOT RUN, and no substitute evidence.
+- **Licensing and key custody reviewed** (`packaged-license.mts`, `release-key-custody.mjs`): the issuer key is an
+  absolute path with no fallback. The manifest key must sit in approved non-synced custody, and this repository's
+  path is under OneDrive.
+- **Gap:** `verify:ocr-packaged`, named as the N7.8 gate, does not exist.
+- **Files:** the N7 plan (provisioning specification), `.beads/issues.jsonl`, the contract, `CURRENT_STATE`,
+  `HANDOFF`, `TASK_LOG` and `KNOWN_ISSUES`.
+- **Beads:** notes on `awkit-vra.9.3`, `.9.9` and `.9.10`; exported 437 (26/411).
+- **Checks:** see the commit message.
+
 ## 2026-11-07 — N8/N9 final review disposition, QA roadmap pin, N7 packaging-host check (Claude)
 
 - **Task:** owner prompt "Final N8/N9 Review Disposition, QA Reconciliation and N7 Release Prerequisites", starting

@@ -1,6 +1,32 @@
 # CURRENT_STATE
 
-## N8 and N9 CLOSED (R-9/S-9 MET after owner dispositions and fresh QC APPROVED); packaging host BLOCKED; Phase N open (2026-11-07, latest)
+## Phase N final packaging: packaging host BLOCKED, N7.1b/N7.8/N7.9 NOT RUN, provisioning specification written (2026-11-07, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. Contract
+`awkit-n7-packaging-host-1107`.
+
+- **`verify:packaging-host`: 2 BLOCKED.**
+  - PASS: H1 (but native ARM64 with x64 emulation, not a qualified x64 release host), H2 Node v24.20.0 x64, H3a
+    Electron 33.4.11 pinned, H6.
+  - **BLOCKED:** H4 (VS 2022 MSVC v143 x64/x86 tools and the C++ 2022 Redistributable) and H5 (needs H4).
+  - INFO: H3b (Electron win32-x64 archive not cached), I1 (1 untracked file, the preserved L12.27 contract), I2
+    (issuer key not set).
+- **No package was built.** N7.1b, N7.8 and N7.9 are **NOT RUN**, with no substitute evidence.
+- **New gap:** `verify:ocr-packaged`, the N7.8 gate, does not exist. It needs QA-owned implementation before N7.8 can
+  complete.
+- **Provisioning specification:** N7 plan § "Packaged-acceptance host". It covers:
+  - the native x64 host and a clone outside synced folders;
+  - licensed VS 2022 with the two components;
+  - the offline Electron archive;
+  - manifest-key and issuer-key custody;
+  - the clean tree;
+  - the gate order.
+- **Beads:** notes appended to N7.1b `awkit-vra.9.3`, N7.8 `.9.9` and N7.9 `.9.10`, with status unchanged. Exported 437
+  (26 outstanding / 411 closed).
+- **Phase N: NOT complete.** N8 and N9 are CLOSED. Remaining: N7.1b, N7.8 and N7.9 (and the `verify:ocr-packaged`
+  verifier). `awkit-vra.18` stays IN PROGRESS. N7.10, N6P and N10 are independent.
+
+## N8 and N9 CLOSED (R-9/S-9 MET after owner dispositions and fresh QC APPROVED); packaging host BLOCKED; Phase N open (2026-11-07)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. Contracts
 `awkit-n8n9-final-disposition-1107` (project-state) and `awkit-roadmap-pin-qa-1107` (QA, roadmap pin).

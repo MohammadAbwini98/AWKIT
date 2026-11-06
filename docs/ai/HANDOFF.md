@@ -1,6 +1,26 @@
 # Agent Handoff
 
-## HANDOFF (2026-11-07, latest) — N8 and N9 CLOSED; packaging host BLOCKED; Phase N NOT complete
+## HANDOFF (2026-11-07, latest) — Phase N final packaging BLOCKED on the release host; provisioning specification ready
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. Contract
+`awkit-n7-packaging-host-1107`.
+
+- **Done:**
+  - `verify:packaging-host` recorded: H4 and H5 BLOCKED, and I2 issuer key unset;
+  - the provisioning specification and gate order written in the N7 plan § "Packaged-acceptance host";
+  - Beads notes on `awkit-vra.9.3`, `.9.9` and `.9.10`; exported.
+- **Blocked (owner action):**
+  1. a native Windows x64 release host, with the clone outside any synced folder, and licensed VS 2022
+     (Community, Professional or Enterprise) with "MSVC v143 - VS 2022 C++ x64/x86 build tools (Latest)" and the
+     "C++ 2022 Redistributable Update";
+  2. the manifest signing key in approved custody;
+  3. `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` set to the absolute path of the authorized validation issuer key;
+  4. for an offline build, the Electron 33.4.11 win32-x64 archive cached.
+- **Next (agent):**
+  - QA contract to implement and register `verify:ocr-packaged`, the N7.8 gate, which is missing;
+  - on a READY host: `package:portable`, then N7.1b, N7.8 and N7.9 in that order.
+
+## HANDOFF (2026-11-07) — N8 and N9 CLOSED; packaging host BLOCKED; Phase N NOT complete
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. Contracts
 `awkit-n8n9-final-disposition-1107` (project-state) and `awkit-roadmap-pin-qa-1107` (QA).
