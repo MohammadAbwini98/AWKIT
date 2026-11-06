@@ -1,6 +1,21 @@
 # Agent Handoff
 
-## HANDOFF (2026-11-05, latest) — `awkit-kv3n` fixed and pushed; campaigns 10 and 11 pre-declared, NOT RUN; Phase N NOT complete
+## HANDOFF (2026-11-06, latest) — campaign 10 NOT MET (headed@2 S-5); campaign 11 NOT RUN; Phase N NOT complete
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** campaign 10 ran all six cells and the aggregate on `bdb235c6` (product `e60b890b`), after the owner confirmed
+  the host suspension settings. Evidence `evidence/joint/c10/` is committed unchanged; the analysis is in the N8 plan
+  § 12.
+- **Result:** NOT MET. Five cells are fully MET. headed@2 fails S-5 only (p95 1600 ms): 1 cut and 8 state runs that did
+  not run count at the deadline. N9 skipped because N5's first capture at DPR 2 left no reserve (`awkit-vra.18`).
+- **Not run:** campaign 11, by the pre-declared rule.
+- **Blocked:** `bd close awkit-kv3n` and Beads notes on N8/N9/`awkit-vra.18` need a contract-backed tracker lease.
+- **Next (owner decision):** a product change to N5's first-capture budget or N9's high-DPR reserve under
+  `awkit-vra.18`, then a new revision and a new pre-declared campaign pair (12 and 13).
+- **Preserved untracked:** `docs/ai/contracts/awkit-l12-27-implementation-1006.json`.
+
+## HANDOFF (2026-11-05) — `awkit-kv3n` fixed and pushed; campaigns 10 and 11 pre-declared, NOT RUN; Phase N NOT complete
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

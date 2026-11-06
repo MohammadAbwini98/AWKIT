@@ -992,3 +992,33 @@ repeat rule as campaigns 8 and 9, DECISIONS 2026-11-01):
   this revision only if campaigns 10 and 11 **both** pass, followed by an independent N8/N9 review round that approves.
 - **Status:** NOT RUN. Execution is BLOCKED on the host precondition above: suspension settings live on the Mac host and
   cannot be read from the guest, and this session's guest-side power and event-log reads were refused by the lease guard.
+
+**Campaign 10 (2026-11-06, `bdb235c6`, product source of `e60b890b`): NOT MET; campaign 11 NOT RUN** (evidence
+`evidence/joint/c10/`, committed unchanged).
+- **Host precondition:** the owner confirmed on 2026-11-06, before the run, that neither macOS sleep nor Parallels could
+  suspend or pause the VM. Cells ran one after another in one shell, with a clean tracked tree.
+- **Clock consistency:** per-cell wall-against-monotonic skew −10 to +6 ms, and within one trial at most 8 ms. No sign of
+  suspension.
+- **Cells:**
+  - **MET (every criterion):** headless@1, headless@1.25, headless@2, headed@1 and headed@1.25. headless@2's S-5 p95 is
+    598 ms against the 600 ms budget, with 2 cuts.
+  - **NOT MET:** headed@2, **S-5 only**: state-work p95 1600 ms against 600 ms, with 0 late records. Every other headed@2
+    criterion is MET.
+  - **Pooled:** 0 late records in 1680 trials, 3 cuts; 0 false association, 0 false `ready` or `error`; 72/72 protected
+    refusals with 0 frames; disabled controls carry no N8/N9 code and none is late. The pooled S-5 p95 is 426 ms
+    (MET), but a campaign passes only when every cell does.
+- **Why headed@2 S-5 fails (diagnosed once):** a state trial whose N9 work did not run counts at the full 1600 ms deadline
+  (QC F3). 9 of headed@2's 156 state runs did not run: 1 cut (`spinner-paused/c`), 7 `visual-state-skipped`
+  (`spinner/b`, `ready-red-accent/b`, `skeleton-shimmer/d` twice, `skeleton-static/d`, `partial-skeleton/d`,
+  `ready-table/d`) and 1 with no state code. That puts the 95th percentile on the deadline. A skipped trial's marks show
+  why, for example `skeleton-shimmer/d`: `inspect` at 43 ms, N5's first frame taken at 617 ms, fingerprint until 866 ms,
+  then no reserve left in the work budget for N9's second capture, so N9 skips (fail closed, never a wrong code, never
+  late).
+- **Classification:** product timing. N5's first capture at headed DPR 2 is slow enough to starve N9's reserve; this is
+  the open first-capture residual of `awkit-vra.18`. Not environment (no suspension evidence), not harness, and not
+  `awkit-kv3n` (its fix changes only the cancelled and timed-out paths). Whether this is run-to-run variance against
+  campaign 8's headed@2 MET or a regression is INCONCLUSIVE: campaign 8 recorded no phase marks to compare.
+- **Sequence:** campaign 10 failed, so campaign 11 is not run, as pre-declared. N8 and N9 do not qualify on this revision.
+- **Next (owner decision):** a product change to N5's first-capture budget or to N9's reserve at high DPR
+  (`awkit-vra.18`), then a new revision and a new pre-declared campaign pair. Each such change voids `c10`/`c11` as a
+  qualifying pair.

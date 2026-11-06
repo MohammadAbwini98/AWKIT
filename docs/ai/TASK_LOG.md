@@ -1,5 +1,21 @@
 # TASK_LOG
 
+## 2026-11-06 — Joint campaign 10: NOT MET; campaign 11 not run (Claude)
+
+- **Task:** run campaign 10 after the owner confirmed ("Confirmed, run c10") that the Mac/Parallels host could not
+  suspend the VM. Revision `bdb235c6` (product `e60b890b`), clean tracked tree, cells run one at a time in the
+  foreground (the lease guard refuses background runs).
+- **Commands:** the six `benchmark:visual-joint:<cell>` scripts, then `benchmark:visual-joint:aggregate`.
+- **Results:** headless@1, headless@1.25, headless@2, headed@1 and headed@1.25 MET every criterion. headed@2 NOT MET,
+  S-5 only: p95 1600 ms, 0 late. Pooled 0 late in 1680 trials, 3 cuts. Aggregate: `JOINT QUALIFICATION: NOT MET`.
+- **Diagnosis (once):** 9 of headed@2's 156 state runs did not run (1 cut, 7 `visual-state-skipped`, 1 no code), and
+  each counts at the 1600 ms deadline. Marks show N5's first frame at about 617 ms and the fingerprint until about
+  866 ms, so N9 has no reserve for its second capture. Classified as product timing (`awkit-vra.18`). Clock skew at
+  most 10 ms per cell, so no suspension.
+- **Not run:** campaign 11 (pre-declared stop rule).
+- **BLOCKED:** Beads updates (tracker lease).
+- **Files:** `evidence/joint/c10/` (7 files), the N8 plan § 12, `CURRENT_STATE`, `HANDOFF`, `TASK_LOG`, `KNOWN_ISSUES`.
+
 ## 2026-11-05 — `awkit-kv3n` fixed; campaigns 10 and 11 pre-declared (Claude)
 
 - **Task:** fix P1 `awkit-kv3n` and prepare Phase N joint campaigns 10 and 11. No contract or lease (ordinary product

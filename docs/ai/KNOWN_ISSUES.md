@@ -14,6 +14,16 @@
 - **Effect:** a campaign cell can be lost, and in the app the runner process can crash. No pixels are kept.
 - **Fix:** a product change in `src/visual`, before the next campaign pre-declaration.
 
+## Campaign 10 NOT MET: N9 skipped at headed DPR 2 after a slow N5 first capture (2026-11-06, OPEN, `awkit-vra.18`)
+
+- **What:** at headed@2, N5's first frame arrives around 600 ms and the fingerprint runs to around 870 ms, leaving N9
+  no reserve for its second capture. N9 then records `visual-state-skipped`, which fails closed: never a wrong code and
+  never late. S-5 counts every state trial that did not run at the full 1600 ms deadline, so 9 of 156 put the p95 at
+  1600 ms.
+- **Effect:** campaign 10 NOT MET on headed@2 S-5 only; campaign 11 not run; N8 and N9 do not qualify on `e60b890b`.
+- **Fix:** a product change to N5's first-capture budget or N9's reserve at high DPR, as a new revision with a new
+  pre-declared campaign pair.
+
 ## Campaign 8 NOT MET on the `awkit-vra.18` fix; first-capture late records; intermittent verifier incidents (2026-11-02, OPEN)
 
 - **Late records in N5's first-capture phase (OPEN; `awkit-vra.18`).**

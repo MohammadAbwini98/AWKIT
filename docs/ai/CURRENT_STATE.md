@@ -1,6 +1,21 @@
 # CURRENT_STATE
 
-## `awkit-kv3n` fixed and pushed (`e60b890b`); campaigns 10 and 11 pre-declared, NOT RUN; N8, N9 and Phase N open (2026-11-05, latest)
+## Campaign 10 NOT MET (headed@2 S-5 only); campaign 11 NOT RUN; N8, N9 and Phase N open (2026-11-06, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Campaign 10** (product source `e60b890b`, evidence `evidence/joint/c10/`): the owner confirmed beforehand that the host
+  could not suspend the VM. Five of six cells MET every criterion. headed@2 is NOT MET on **S-5 only**: state-work
+  p95 1600 ms against 600 ms. 9 of its 156 state runs did not run (1 cut, 7 N9 `skipped`, 1 with no code) and count at
+  the deadline. Pooled: 0 late in 1680 trials, 0 false association, 0 false `ready`/`error`, 72/72 protected refusals.
+- **Cause (diagnosed once):** N5's first capture at headed DPR 2 leaves no reserve for N9's second capture, so N9 skips
+  (fail closed). Product timing; the open first-capture residual of `awkit-vra.18`. Clock skew at most 10 ms per cell:
+  no suspension.
+- **Campaign 11:** NOT RUN, as pre-declared. N8 and N9 do not qualify on this revision.
+- **Unchanged:** `awkit-kv3n` fixed in `e60b890b` but still OPEN in Beads (tracker lease BLOCKED). N8, N9 and
+  `awkit-vra.18` IN PROGRESS. **Phase N is NOT complete** (N7.1b, N7.8 and N7.9 blocked on the Windows packaging host).
+
+## `awkit-kv3n` fixed and pushed (`e60b890b`); campaigns 10 and 11 pre-declared, NOT RUN; N8, N9 and Phase N open (2026-11-05)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
