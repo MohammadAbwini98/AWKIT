@@ -111,6 +111,7 @@ export {
   measureVisualMotion,
   measureVisualMotionPlane,
   measureVisualStateFrame,
+  visualStateAnalysisPixels,
   type VisualMotion,
   type VisualMotionPlane,
   type VisualStateCue,

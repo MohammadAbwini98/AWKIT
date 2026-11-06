@@ -55,6 +55,7 @@ import {
   type VisualDiagnosisRecord
 } from "@src/runner/visualDiagnosis/visualDiagnosisContract";
 import type { FlowStep } from "@src/profiles/FlowProfile";
+import { visualStateAnalysisPixels } from "@src/visual";
 
 let passed = 0;
 let failed = 0;
@@ -103,6 +104,10 @@ interface Run {
   second?: { timeoutMs: number; leftMs: number; reserveMs: number; verifierLeftMs: number; firstPixels: number };
   /** The second screenshot was delivered within 15 ms of the end of its timeout (D9's precondition). */
   heldToTimeout: boolean;
+  /** Every synchronous phase the adapter started, in order (from the syncCost probe). */
+  phases: VisualDiagnosisSyncPhase[];
+  /** D10: when the held first frame was let go, ms after the call began. */
+  firstHeldTo?: number;
 }
 
 async function run(
@@ -126,6 +131,8 @@ async function run(
     preFrameMs?: number;
     /** awkit-vra.18: deliver the second screenshot 10 ms before its capture timeout ends. */
     holdSecondToTimeout?: boolean;
+    /** Campaign-10 headed@2: hold the first frame until this many ms after the call began (a slow first capture). */
+    firstFrameAt?: number;
   }
 ): Promise<Run> {
   const frames = { taken: 0, released: 0, late: 0 };
@@ -135,6 +142,8 @@ async function run(
   let heldToTimeout = false;
   let placed = options.blockAt === undefined;
   let callStarted = 0;
+  const phases: VisualDiagnosisSyncPhase[] = [];
+  let firstHeldTo: number | undefined;
   const probe: VisualDiagnosisProbe = {
     hold: async (stage) => {
       if (stage === "before-frame" && options.preFrameMs) await new Promise((r) => setTimeout(r, options.preFrameMs));
@@ -149,6 +158,12 @@ async function run(
         block(options.blockMs ?? 0);
       }
     },
+    heldFrame: async (index) => {
+      if (index !== 1 || options.firstFrameAt === undefined) return;
+      const wait = options.firstFrameAt - (performance.now() - callStarted);
+      if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+      firstHeldTo = performance.now() - callStarted;
+    },
     onFrame: (event) => {
       if (event === "taken") frames.taken += 1;
       else if (event === "released") frames.released += 1;
@@ -156,6 +171,7 @@ async function run(
     },
     // The simulated slower host: each synchronous phase also busy-waits (slow - 1) x its reserved rate per pixel.
     syncCost: (phase, pixels) => {
+      phases.push(phase);
       if (phase === "decode" && firstPixels === 0) firstPixels = pixels;
       if (options.slow && (!options.slowPhases || options.slowPhases.includes(phase))) block(((options.slow - 1) * VISUAL_DIAGNOSIS_SYNC_NS_PER_PIXEL[phase] * pixels) / 1e6);
     },
@@ -196,7 +212,17 @@ async function run(
       return value;
     }
   });
-  return { record, waited: performance.now() - callStarted, frames, diagnosis, placed, ...(second ? { second } : {}), heldToTimeout };
+  return {
+    record,
+    waited: performance.now() - callStarted,
+    frames,
+    diagnosis,
+    placed,
+    ...(second ? { second } : {}),
+    heldToTimeout,
+    phases,
+    ...(firstHeldTo !== undefined ? { firstHeldTo } : {})
+  };
 }
 
 /** A placed run, repeated (bounded) when the frame was not ready before the planned block. */
@@ -351,12 +377,64 @@ async function main(): Promise<void> {
       check("every frame released", held!.frames.taken === held!.frames.released + held!.frames.late, JSON.stringify(held!.frames));
     }
 
+    console.log("D10. awkit-vra.18 (campaign 10 headed@2): a slow DPR-2 first capture still leaves N9 its state features");
+    {
+      // The first frame is held until 700 ms into the 1600 ms call (work budget 1500 ms), as c10's slow headed@2 first
+      // capture did: 800 ms is left, enough for the fingerprint's reserve. The state features run on the analysis image
+      // (every second pixel at DPR 2), so they must reserve those pixels, not all the device pixels, or N9 is skipped.
+      const FIRST_AT = 700;
+      let r: Run | undefined;
+      for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
+        resetVisualDiagnosisHostFactors();
+        const page = await lab("table-uniform", 2);
+        r = await run(page, { deadlineMs: 1600, state: true, firstFrameAt: FIRST_AT });
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        await page.close();
+        // Precondition retried only: the frame must reach the hold before 700 ms, and the fingerprint must have run.
+        if ((r.firstHeldTo ?? 0) >= FIRST_AT && (r.firstHeldTo ?? 0) < FIRST_AT + 50 && r.phases.includes("fingerprint")) break;
+      }
+      const stateCode = r!.record?.observations.find((c) => c.startsWith("visual-state-"));
+      check(
+        `precondition: the DPR-2 first frame was held to ${FIRST_AT} ms (${Math.round(r!.firstHeldTo ?? 0)} ms) and the fingerprint still ran`,
+        (r!.firstHeldTo ?? 0) >= FIRST_AT && (r!.firstHeldTo ?? 0) < FIRST_AT + 50 && r!.phases.includes("fingerprint"),
+        JSON.stringify({ firstHeldTo: r!.firstHeldTo, phases: r!.phases })
+      );
+      check(
+        `N9 measured the state features and decided (${stateCode ?? "no state code"}), never visual-state-skipped`,
+        r!.phases.includes("stateFeatures") && !!stateCode && stateCode !== "visual-state-skipped",
+        JSON.stringify({ observations: r!.record?.observations, phases: r!.phases })
+      );
+      check(`back by the 1600 ms hard deadline (${Math.round(r!.waited)} ms), every frame released`, r!.waited <= 1600 && r!.frames.taken === r!.frames.released + r!.frames.late, JSON.stringify({ waited: r!.waited, frames: r!.frames }));
+    }
+
     console.log("D7. Pins");
     const adapter = await readFile("src/runner/visualDiagnosis/VisualFailureDiagnosis.ts", "utf8");
     check("the publish gate reads the monotonic clock against the work budget", /settle\(performance\.now\(\) - started > deadlineMs \? this\.refusal\(request, "budget-exhausted", started\) : record\)/.test(adapter));
     check("the work budget, not the hard deadline, drives the timer and the work", /const deadlineMs = visualDiagnosisWorkBudget\(hardDeadlineMs, this\.options\.settleMarginMs\)/.test(adapter));
     check("N5's own frame work starts behind the checkpoint (frame start and every member)", (adapter.match(/await this\.checkpoint\(signal, started, deadlineMs/g) ?? []).length === 2);
     check("the whole-frame chunk's checkpoint reserves the fingerprint rate times the host factor", /await this\.checkpoint\(signal, started, deadlineMs, reserveMs\("fingerprint", framePixels\)\)/.test(adapter));
+    check(
+      "awkit-vra.18 (c10): the state-features gate reserves the analysed pixels, never every device pixel",
+      /const statePixels = visualStateAnalysisPixels\(frame\.viewport\.imageWidth, frame\.viewport\.imageHeight, frame\.viewport\.scaleX\)/.test(adapter) &&
+        /reserveMs\("stateFeatures", statePixels\)/.test(adapter) &&
+        /syncCost\?\.\("stateFeatures", statePixels\)/.test(adapter) &&
+        !/reserveMs\("stateFeatures", framePixels\)/.test(adapter) &&
+        !/syncCost\?\.\("stateFeatures", framePixels\)/.test(adapter)
+    );
+    check(
+      "awkit-vra.18 (c10): the analysed pixels are the device pixels below DPR 1.75 and every second pixel from 1.75 (800x600 CSS)",
+      visualStateAnalysisPixels(800, 600, 1) === 480_000 &&
+        visualStateAnalysisPixels(1000, 750, 1.25) === 750_000 &&
+        visualStateAnalysisPixels(1400, 1050, 1.75) === 700 * 525 &&
+        visualStateAnalysisPixels(1600, 1200, 2) === 480_000 &&
+        visualStateAnalysisPixels(1601, 1201, 2) === 480_000 &&
+        visualStateAnalysisPixels(0, 600, 2) === 0 &&
+        visualStateAnalysisPixels(800, 600, Number.NaN) === 480_000
+    );
+    check(
+      "awkit-vra.18 (c10): at DPR 2 the state-features reserve falls from 836 ms (device pixels) to 209 ms (analysed), the 435 ns/px rate unchanged",
+      visualDiagnosisSyncReserveMs("stateFeatures", 1600 * 1200) === 836 && visualDiagnosisSyncReserveMs("stateFeatures", visualStateAnalysisPixels(1600, 1200, 2)) === 209
+    );
     check(
       "awkit-vra.18: every reserve goes through the per-phase rate and the diagnosis's host factor",
       /const reserveMs = \(phase: VisualDiagnosisSyncPhase, pixels: number\): number => visualDiagnosisSyncReserveMs\(phase, pixels, hostFactor\)/.test(adapter) &&

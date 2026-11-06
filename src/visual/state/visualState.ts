@@ -194,12 +194,27 @@ function backgroundOf(luma: Uint8Array): number {
   return best * 4 + 2;
 }
 
+/** The analysis image's sampling step: 2 at DPR 1.75 and above, otherwise 1 (see `analysisImage`). */
+function analysisStep(scale: number): 1 | 2 {
+  return Number.isFinite(scale) && scale >= 1.75 ? 2 : 1;
+}
+
+/**
+ * awkit-vra.18 (campaign 10): the pixels `measureVisualStateFrame` and `measureVisualMotionPlane` actually analyse for an
+ * image of `width` x `height` device pixels at `scale` (a quarter at DPR 2). A reserve for that work counts these.
+ */
+export function visualStateAnalysisPixels(width: number, height: number, scale: number): number {
+  if (!(width > 0 && height > 0)) return 0;
+  const step = analysisStep(scale);
+  return Math.max(1, Math.floor(width / step)) * Math.max(1, Math.floor(height / step));
+}
+
 /**
  * The analysis image: device pixels at DPR below 1.75, every second pixel at 1.75 and above, so the features are taken
  * at about CSS resolution (thresholds hold across DPR, and the cost at DPR 2 is a quarter). Nearest sampling, exact.
  */
 function analysisImage(image: VisualImage, scale: number): VisualImage {
-  const step = Number.isFinite(scale) && scale >= 1.75 ? 2 : 1;
+  const step = analysisStep(scale);
   if (step === 1) return image;
   const width = Math.max(1, Math.floor(image.width / step));
   const height = Math.max(1, Math.floor(image.height / step));

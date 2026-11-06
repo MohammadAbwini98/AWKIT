@@ -16,6 +16,7 @@ import {
   measureVisualMotion,
   measureVisualMotionPlane,
   measureVisualStateFrame,
+  visualStateAnalysisPixels,
   releaseVisualFrame,
   type VisualDiagnosisEvidenceInput,
   type VisualDiagnosisInput,
@@ -639,12 +640,15 @@ export class VisualFailureDiagnosis implements VisualFailureDiagnoser {
             await yieldToTimers();
             if (signal.aborted) throw new DiagnosisAborted();
           }
+          // awkit-vra.18 (campaign 10 headed@2): the features run on the analysis image (every second pixel at DPR 2), so
+          // they reserve those pixels; reserving every device pixel over-counted 4x and skipped N9 after a slow capture.
+          const statePixels = visualStateAnalysisPixels(frame.viewport.imageWidth, frame.viewport.imageHeight, frame.viewport.scaleX);
           if (
             this.options.stateRecognition === true &&
-            this.remaining(started, deadlineMs) >= Math.max(VISUAL_STATE_MIN_REMAINING_MS, reserveMs("stateFeatures", framePixels))
+            this.remaining(started, deadlineMs) >= Math.max(VISUAL_STATE_MIN_REMAINING_MS, reserveMs("stateFeatures", statePixels))
           ) {
             const measuring = performance.now();
-            this.options.probe?.syncCost?.("stateFeatures", framePixels);
+            this.options.probe?.syncCost?.("stateFeatures", statePixels);
             const measured = measureVisualStateFrame(whole.value.element.image, this.statePolicy, frame.viewport.scaleX);
             if (measured.ok) stateFrame = measured.value;
             stateMs = performance.now() - measuring;
