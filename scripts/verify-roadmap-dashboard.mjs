@@ -814,8 +814,13 @@ try {
   // open. Measured after export.
   // Then 29/408 of 437 on 2026-11-02 (contract `awkit-vra-joint-harness-accounting-1102`): `awkit-kv3n` filed open.
   // Measured after export.
-    "29 outstanding / 408 closed",
-    beads.stats.outstanding === 29 && beads.stats.closed === 408,
+  // Then 28/409 of 437 on 2026-11-07 (contract `awkit-n8n9-reconciliation-1107`): `awkit-kv3n` closed. This pin was
+  // not updated then (no QA lease), so the verifier stayed FAIL 183/184 until the next line.
+  // Then 26/411 of 437 on 2026-11-07 (contract `awkit-n8n9-final-disposition-1107`): N8 `awkit-vra.10` and N9
+  // `awkit-vra.11` closed after R-9/S-9 were met. Measured after export; pin updated under the owner-authorized QA
+  // contract `awkit-roadmap-pin-qa-1107`.
+    "26 outstanding / 411 closed",
+    beads.stats.outstanding === 26 && beads.stats.closed === 411,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   // WHAT THE PIN ABOVE PROTECTS AGAINST, and why it stays an exact pair rather than a range: a
