@@ -277,6 +277,9 @@ async function launch(localAppData: string, extra: Record<string, string>): Prom
     ...process.env,
     LOCALAPPDATA: localAppData,
     APPDATA: join(localAppData, "Roaming"),
+    // Temporary files (the automation browser's context included) land inside the scanned profile too.
+    TEMP: join(localAppData, "Temp"),
+    TMP: join(localAppData, "Temp"),
     AWKIT_VISUAL_OCR: undefined,
     AWKIT_OCR_DEV_ASSET_DIR: undefined,
     ELECTRON_RUN_AS_NODE: undefined,
@@ -435,6 +438,7 @@ async function packagedApp(): Promise<void> {
   seed(localAppData, lab);
   const server: ChildProcess = spawn(process.execPath, ["mock-site/server.mjs"], { cwd: root, env: { ...process.env, MOCK_SITE_PORT: String(port) }, stdio: "ignore", windowsHide: true });
   const workDir = join(localAppData, "license-work");
+  mkdirSync(join(localAppData, "Temp"), { recursive: true });
   let app: ElectronApplication | undefined;
   const seenHosts = new Set<number>();
   try {
@@ -451,11 +455,15 @@ async function packagedApp(): Promise<void> {
     const runFlow = await validate("ocr-pkg-workflow");
     check("the OCR run flow validates", (JSON.parse(runFlow) as { valid?: boolean }).valid === true, runFlow.slice(0, 400));
     const cardFlow = await validate("ocr-card-workflow");
-    const cardIssues = ((JSON.parse(cardFlow) as { issues?: { blocking?: boolean; nodeId?: string; message?: string }[] }).issues ?? []).filter((i) => i.blocking);
+    const allIssues = (JSON.parse(cardFlow) as { issues?: { blocking?: boolean; nodeId?: string; message?: string }[] }).issues ?? [];
+    // Only the issues are judged for the number: the result also carries the workflow and its steps, by design.
+    const issuesText = JSON.stringify(allIssues);
     check(
-      "an OCR step expecting a card number is refused before any run (blocking OC-8 issue on that step), and the issue does not repeat the number",
-      (JSON.parse(cardFlow) as { valid?: boolean }).valid === false && cardIssues.some((i) => i.nodeId === "ocr-card" && /OC-8/.test(String(i.message))) && !cardFlow.includes("4111"),
-      cardFlow.replace(/4111[\d ]*/g, "[card]").slice(0, 400)
+      "an OCR step expecting a card number is refused before any run (blocking OC-8 issue on that step), and no issue repeats the number",
+      (JSON.parse(cardFlow) as { valid?: boolean }).valid === false &&
+        allIssues.some((i) => i.blocking && i.nodeId === "ocr-card" && /OC-8/.test(String(i.message))) &&
+        !issuesText.includes("4111"),
+      issuesText.replace(/4111[\d ]*/g, "[card]").slice(0, 400)
     );
 
     console.log("\nC. Real runs on the packaged app");
@@ -582,7 +590,11 @@ async function packagedApp(): Promise<void> {
         `${during ? `stopped during "${during}"` : `no OCR step was observed in progress among ${CANCEL_STEPS}`}; settled ${stopped}`
       );
       const after = await run(launched.win, "ocr-pkg-workflow");
-      check("the next OCR run completes after the cancellation", !("refused" in after) && completed(after.status), "refused" in after ? after.refused : after.status);
+      check(
+        "the next OCR run completes and passes after the cancellation, with every OCR step recorded in order",
+        !("refused" in after) && completed(after.status) && after.reportStatus === "passed" && after.records.map((rec) => rec.stepId).join() === OCR_STEPS.join(),
+        "refused" in after ? after.refused : `${after.status}/${after.reportStatus} [${after.records.map((rec) => rec.stepId).join(",")}]`
+      );
       for (const pid of await ocrHostPids(app)) seenHosts.add(pid);
     }
 
@@ -594,8 +606,9 @@ async function packagedApp(): Promise<void> {
     while (Date.now() < goneBy && [...seenHosts].some(alive)) await sleep(250);
     check("no OCR host process the app started is alive after it closed", seenHosts.size > 0 && ![...seenHosts].some(alive), JSON.stringify([...seenHosts].filter(alive)));
 
-    // The whole isolated profile (LOCALAPPDATA data, Roaming user data, logs), except the flow store that holds the
-    // expectations by design, the minted licence work folder and Chromium's page caches of the lab itself.
+    // The whole isolated profile (LOCALAPPDATA data, Roaming user data, logs, the redirected TEMP), except the flow
+    // store that holds the expectations by design, the minted licence work folder and Chromium's page caches of the
+    // lab itself. A failure names each file, so an app-owned copy of the flow store would be visible as such.
     const flowStores = [join(dataRoot, "flows"), join(dataRoot, "workflows"), workDir];
     const leaks = files(localAppData)
       .filter((f) => !flowStores.some((store) => f.startsWith(store + sep)) && !/[\\/](Cache|Code Cache|GPUCache|Service Worker|blob_storage|browser-profiles?|chromium)[\\/]/i.test(f))
