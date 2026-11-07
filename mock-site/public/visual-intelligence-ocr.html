@@ -22,7 +22,7 @@
         oc-payment     a wrapper around a name="cvv" input                      -> inconclusive/sensitive-step
         oc-otp         a wrapper whose open shadow root holds an id="otp" input -> inconclusive/sensitive-step
       injectProtected() adds a password sign-in form (the protected-surface refusal; the page carries no credential
-      field otherwise). Nothing is random, animated or time-dependent. The card number is the public 4111 test number.
+      field otherwise); ?protected=1 does the same on load, for a recorded flow. Nothing is random, animated or time-dependent. The card number is the public 4111 test number.
       Served by npm run verify:mock-site; exercised by npm run verify:ocr-runtime and verify:ocr-gui.
     -->
     <style>
@@ -94,6 +94,9 @@
           document.body.appendChild(form);
         }
         setVariant("baseline");
+        // ?protected=1 adds the password form on load, so a recorded flow (verify:ocr-packaged) can reach the
+        // protected-surface refusal without page scripting. Without it the page carries no credential field.
+        if (/[?&]protected=1(?:&|$)/.test(location.search)) injectProtected();
         window.__ocrLab = { setVariant: setVariant, injectProtected: injectProtected, variants: Object.keys(TEXT) };
       })();
 

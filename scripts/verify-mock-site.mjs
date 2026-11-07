@@ -848,6 +848,13 @@ try {
   );
   await page.evaluate(() => window.__ocrLab.injectProtected());
   check("injectProtected adds exactly one password field", (await page.locator('#oc-protected input[type="password"]').count()) === 1);
+  await page.goto(`${BASE}/visual-intelligence/ocr?protected=1`);
+  check(
+    "?protected=1 adds the same single password form on load, with the label unchanged",
+    (await page.locator('#oc-protected input[type="password"]').count()) === 1 &&
+      (await page.locator('input[type="password"]').count()) === 1 &&
+      (await page.getByTestId("oc-label").innerText()) === "Order 4521 shipped"
+  );
 
   // Phase N, N7.6 calibration mode (?calibration=1): the stage, the fixture table and the bundled-font gate. The
   // measurements are benchmark:ocr's; this proves the lab serves them deterministically.
