@@ -8,27 +8,28 @@
  *
  *  A. Packaged assets (N7.1b): the three pinned files of src/offline/ocr-runtime.json are in resources/resources/ocr
  *     with their pinned SHA-256, outside the ASAR, within the OC-9 byte target, with the Apache licence text; the
- *     shipped host is byte-identical to native-hosts/ocr/ocr-host.cjs and blocks every network entry point before it
+ *     shipped host is byte-identical to native-hosts/ocr/ocr-host.cjs and replaces every network entry point before it
  *     loads the engine; the shipped dependency manifest verifies against the shipped Ed25519 public key and lists the
  *     same engine, data, files and host with the same SHA-256, optional for startup.
- *  B. Startup (unlicensed): the packaged app starts with AWKIT_VISUAL_OCR=observe and forks no OCR host until a step
- *     needs one (lazy, zero mandatory model dependency).
+ *  B. Startup and validation (unlicensed): the packaged app starts with AWKIT_VISUAL_OCR=observe and forks no OCR host
+ *     (lazy, no mandatory model dependency); the run flow validates; an OCR step expecting a card number is refused
+ *     before any run as a blocking OC-8 issue that does not repeat the number.
  *  C. Real runs on the packaged app (licensed through the walkthrough's verification-license path):
  *     C1 OCR off (flag unset): every OCR step is recorded `disabled` with no verdict, the run completes, no OCR host;
- *        a flow without OCR steps completes with no OCR block (disabled mode identical to a build without OCR).
+ *        a flow without OCR steps completes with no OCR block (disabled mode identical to running without OCR).
  *     C2 OCR observe: the packaged engine runs in the utility host and reads the lab label (matched) and a wrong
- *        expectation (differs), or reports budget-exhausted honestly, never a wrong verdict; observe only — the run
- *        completes and no OCR step fails, retries or changes the flow; card text (sensitive-input), a cvv wrapper
- *        (sensitive-step) and a protected sign-in page (protected-surface) are refused; the OCR host holds no TCP or
- *        UDP endpoint; no engine or language file is downloaded into the profile; the flow without OCR steps still
- *        completes with no OCR block.
- *     C3 Cancellation: a run stopped mid-way settles stopped/cancelled and the next run completes.
+ *        expectation (differs), or reports budget-exhausted honestly, never a wrong verdict. Observe only: with
+ *        stopOnError the instance report passes, every OCR step is recorded in flow order and the flow reaches its end.
+ *        A cvv wrapper (sensitive-step) and a protected sign-in page (protected-surface) are refused. While the runs
+ *        execute, the live OCR host is sampled for TCP and UDP endpoints (a supporting sample; the runtime proof of the
+ *        host's network block is verify:ocr-host). No engine or language file is downloaded into the profile, and a
+ *        flow without OCR steps still completes with no OCR block.
+ *     C3 Cancellation: a run stopped while an OCR step is in progress settles stopped/cancelled and the next run
+ *        completes.
  *     C4 Shutdown: after the app closes, no OCR host process it started is still alive.
- *  Throughout: no expected or recognized text reaches a report, log, audit or other stored file outside the flow store.
+ *  Throughout: no expected or recognized text reaches any stored file of the isolated profile outside the flow store.
  *
- * Network: section A proves the shipped host replaces Node's and Electron's network entry points before the engine
- * loads (the runtime proof of that block is verify:ocr-host); C2 samples the live host's sockets. Strict offline
- * validation of the release itself is `validate:offline -- -Strict`, run inside package:portable.
+ * Strict offline validation of the release itself is `validate:offline -- -Strict`, run inside package:portable.
  *
  * Run: npm run package:portable && npm run verify:ocr-packaged
  */
@@ -69,6 +70,7 @@ const pin = JSON.parse(readFileSync(join(root, "src", "offline", "ocr-runtime.js
 const EXPECTED = "Order 4521 shipped";
 const WRONG = "Payment declined today";
 const CARD = "4111 1111 1111 1111";
+const LEAK_PHRASES = [EXPECTED, WRONG, CARD];
 
 let passed = 0;
 let failed = 0;
@@ -141,6 +143,7 @@ async function inspectPackage(): Promise<void> {
   const hostSource = join(root, "native-hosts", "ocr", "ocr-host.cjs");
   check("the shipped OCR host is byte-identical to native-hosts/ocr/ocr-host.cjs", existsSync(hostShipped) && sha256(hostShipped) === sha256(hostSource));
   if (existsSync(hostShipped)) {
+    // The same anchors verify:ocr-host pins on the source host, here on the shipped bytes.
     const code = readFileSync(hostShipped, "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
     const blockAt = code.indexOf("(function blockNetwork()");
     const engineAt = code.indexOf("require(path.join(dir, ENGINE_JS))");
@@ -160,14 +163,13 @@ async function inspectPackage(): Promise<void> {
     "the shipped public key is the repository's release key",
     sha256(publicKeyPath) === sha256(join(root, "resources", "trust", "offline-manifest-public.pem"))
   );
-  let signatureOk = false;
+  let signatureError = "";
   try {
     await verifyManifestSignature({ manifestPath, signaturePath, publicKeyPath });
-    signatureOk = true;
   } catch (error) {
-    check("the shipped dependency manifest verifies against the shipped Ed25519 public key", false, error instanceof Error ? error.message : String(error));
+    signatureError = error instanceof Error ? error.message : String(error);
   }
-  if (signatureOk) check("the shipped dependency manifest verifies against the shipped Ed25519 public key", true);
+  check("the shipped dependency manifest verifies against the shipped Ed25519 public key", signatureError === "", signatureError);
 
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
     ocrRuntime?: {
@@ -201,22 +203,26 @@ function writeJson(file: string, value: unknown): void {
   writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
-const OCR_STEPS = ["ocr-label", "ocr-wrong", "ocr-card", "ocr-cvv", "ocr-protected"] as const;
+/** The OCR steps of the run flow, in flow order. */
+const OCR_STEPS = ["ocr-label", "ocr-wrong", "ocr-wrapper", "ocr-protected"] as const;
+const CANCEL_STEPS = 8;
 
 function seed(localAppData: string, lab: string): void {
   const data = join(localAppData, "SpecterStudio");
   const now = new Date().toISOString();
   const goto = (id: string, url: string) => ({ id, type: "goto", name: `Open ${id}`, url, valueSource: { type: "static", value: url }, timeoutMs: 30000 });
-  const observe = (id: string, testId: string, value: string) => ({
+  // Neutral names: a step name is part of the OC-8 context, so none suggests a code, PIN or card.
+  const observe = (id: string, name: string, testId: string, value: string) => ({
     id,
     type: "assertImageText",
-    name: `Observe ${id}`,
+    name,
     locator: { strategy: "testId", value: testId },
     value,
     valueSource: { type: "static", value },
     timeoutMs: 15000,
     config: { ocrMatch: "normalized" }
   });
+  const visible = (id: string) => ({ id, type: "assertVisible", name: `Label visible ${id}`, locator: { strategy: "testId", value: "oc-label" }, timeoutMs: 15000 });
   const flow = (id: string, name: string, nodes: { id: string }[]) => ({
     id,
     name,
@@ -226,33 +232,39 @@ function seed(localAppData: string, lab: string): void {
     nodes: [{ id: "start", type: "start", name: "Start" }, ...nodes, { id: "end", type: "end", name: "End" }],
     edges: ["start", ...nodes.map((n) => n.id)].map((source, i, all) => ({ id: `e${i}`, source, target: all[i + 1] ?? "end", type: "success" }))
   });
-  writeJson(
-    join(data, "flows", "ocr-pkg-flow.json"),
-    flow("ocr-pkg-flow", "OCR packaged flow", [
-      goto("open-lab", lab),
-      observe("ocr-label", "oc-label", EXPECTED),
-      observe("ocr-wrong", "oc-label", WRONG),
-      observe("ocr-card", "oc-card-text", CARD),
-      observe("ocr-cvv", "oc-payment", "Security code"),
-      goto("open-protected", `${lab}?protected=1`),
-      observe("ocr-protected", "oc-label", EXPECTED)
-    ])
-  );
-  writeJson(
-    join(data, "flows", "plain-ocr-pkg-flow.json"),
-    flow("plain-ocr-pkg-flow", "Plain packaged flow", [goto("open-lab", lab), { id: "see-label", type: "assertVisible", name: "The label is visible", locator: { strategy: "testId", value: "oc-label" }, timeoutMs: 15000 } as { id: string }])
-  );
-  for (const [id, flowId] of [
-    ["ocr-pkg-workflow", "ocr-pkg-flow"],
-    ["plain-ocr-pkg-workflow", "plain-ocr-pkg-flow"]
-  ]) {
-    writeJson(join(data, "workflows", `${id}.json`), {
-      id,
-      name: id,
+  const flows: [string, string, { id: string }[]][] = [
+    [
+      "ocr-pkg-flow",
+      "OCR packaged flow",
+      [
+        goto("open-lab", lab),
+        observe("ocr-label", "OCR label", "oc-label", EXPECTED),
+        observe("ocr-wrong", "OCR wrong text", "oc-label", WRONG),
+        observe("ocr-wrapper", "OCR wrapper", "oc-payment", "Security code"),
+        goto("open-protected", `${lab}?protected=1`),
+        observe("ocr-protected", "OCR protected page", "oc-label", EXPECTED),
+        // Runs only if every OCR step let the flow continue: the flow reaches its end.
+        visible("at-end")
+      ]
+    ],
+    ["plain-ocr-pkg-flow", "Plain packaged flow", [goto("open-lab", lab), visible("plain")]],
+    ["ocr-card-flow", "OCR card flow", [goto("open-lab", lab), observe("ocr-card", "OCR card label", "oc-card-text", CARD)]],
+    [
+      "ocr-cancel-flow",
+      "OCR cancel flow",
+      [goto("open-lab", lab), ...Array.from({ length: CANCEL_STEPS }, (_, i) => observe(`ocr-read-${i + 1}`, `OCR read ${i + 1}`, "oc-label", EXPECTED))]
+    ]
+  ];
+  for (const [id, name, nodes] of flows) {
+    writeJson(join(data, "flows", `${id}.json`), flow(id, name, nodes));
+    const workflowId = id.replace(/-flow$/, "-workflow");
+    writeJson(join(data, "workflows", `${workflowId}.json`), {
+      id: workflowId,
+      name: workflowId,
       version: 1,
       createdAt: now,
       updatedAt: now,
-      nodes: [{ id: "ref", type: "flowRef", flowId, alias: flowId, order: 1, required: true, inputBindings: {}, retryPolicy: { count: 0, delayMs: 0 }, failurePolicy: "stop", position: { x: 0, y: 0 } }],
+      nodes: [{ id: "ref", type: "flowRef", flowId: id, alias: id, order: 1, required: true, inputBindings: {}, retryPolicy: { count: 0, delayMs: 0 }, failurePolicy: "stop", position: { x: 0, y: 0 } }],
       edges: [],
       runtimeInputs: [],
       execution: { mode: "sequential", maxConcurrentInstances: 1, stopOnRequiredFlowFailure: true }
@@ -326,35 +338,50 @@ async function license(win: Page, sessionRef: string, workDir: string): Promise<
   }
 }
 
-type OcrRecord = { stepId: string; mode?: string; status?: string; verdict?: string; code: string; durationMs?: number };
-type Run = { status: string; records: OcrRecord[]; hasBlock: boolean; stepStatuses: string; raw: string } | { refused: string };
+type OcrRecord = { stepId: string; verdict?: string; code: string; durationMs?: number };
+type Done = { status: string; reportStatus: string; records: OcrRecord[]; hasBlock: boolean; raw: string };
+type Run = Done | { refused: string };
 const SETTLED = ["passed", "failed", "cancelled", "stopped", "completed", "error"];
 const completed = (status: string) => status === "completed" || status === "passed";
 
 async function start(win: Page, workflowId: string): Promise<string | { refused: string }> {
   const started = (await win.evaluate(
     async (id) =>
-      (window as any).playwrightFlowStudio.executions.runWorkflow({ workflowId: id, dryRun: false, headless: true, totalInstances: 1, maxConcurrentInstances: 1, stopOnError: true, screenshotOnFailure: false }),
+      (window as any).playwrightFlowStudio.executions.runWorkflow({
+        workflowId: id,
+        dryRun: false,
+        headless: true,
+        totalInstances: 1,
+        maxConcurrentInstances: 1,
+        isolationMode: "browserContext",
+        stopOnError: true,
+        screenshotOnFailure: false
+      }),
     workflowId
   )) as any;
   return started?.executionId ? String(started.executionId) : { refused: String(started?.status ?? JSON.stringify(started)).slice(0, 200) };
 }
 
-async function settle(win: Page, executionId: string, limitMs = 150_000): Promise<string> {
+async function instancesOf(win: Page, executionId: string): Promise<any[]> {
+  const list = (await win.evaluate(async () => (window as any).playwrightFlowStudio.executions.list())) as any[];
+  return list.filter((i) => i.executionId === executionId);
+}
+
+async function settle(win: Page, executionId: string, limitMs = 150_000, onPoll?: () => Promise<void>): Promise<string> {
   const deadline = Date.now() + limitMs;
   for (;;) {
-    const list = (await win.evaluate(async () => (window as any).playwrightFlowStudio.executions.list())) as any[];
-    const mine = list.filter((i) => i.executionId === executionId);
+    const mine = await instancesOf(win, executionId);
     if (mine.length > 0 && mine.every((i) => SETTLED.includes(String(i.status)))) return String(mine[0].status);
     if (Date.now() > deadline) throw new Error(`execution ${executionId} did not settle within ${limitMs / 1000} s`);
-    await sleep(1_000);
+    await onPoll?.();
+    await sleep(500);
   }
 }
 
-async function run(win: Page, workflowId: string): Promise<Run> {
+async function run(win: Page, workflowId: string, onPoll?: () => Promise<void>): Promise<Run> {
   const id = await start(win, workflowId);
   if (typeof id !== "string") return id;
-  const status = await settle(win, id);
+  const status = await settle(win, id, 150_000, onPoll);
   const report = (await win.evaluate(async (executionId) => {
     const end = Date.now() + 15_000;
     for (;;) {
@@ -365,9 +392,7 @@ async function run(win: Page, workflowId: string): Promise<Run> {
   }, id)) as any;
   const instance = report?.instances?.[0] ?? {};
   const records = (instance.ocrAssertions ?? []) as OcrRecord[];
-  const steps = (instance.steps ?? instance.stepResults ?? []) as any[];
-  const stepStatuses = JSON.stringify(steps.map((s) => `${s.stepId ?? s.nodeId ?? s.id}:${s.status}`));
-  return { status, records, hasBlock: instance.ocrAssertions !== undefined, stepStatuses, raw: JSON.stringify(records).slice(0, 1500) };
+  return { status, reportStatus: String(instance.status ?? "none"), records, hasBlock: instance.ocrAssertions !== undefined, raw: JSON.stringify(records).slice(0, 1500) };
 }
 
 async function ocrHostPids(app: ElectronApplication): Promise<number[]> {
@@ -379,7 +404,7 @@ async function ocrHostPids(app: ElectronApplication): Promise<number[]> {
   );
 }
 
-/** TCP connections plus UDP endpoints owned by a process, from Windows' own tables. */
+/** TCP connections plus UDP endpoints owned by a process, from Windows' own tables; null when the probe failed. */
 function socketsOwnedBy(pid: number): number | null {
   const probe = spawnSync(
     "powershell",
@@ -415,21 +440,31 @@ async function packagedApp(): Promise<void> {
   try {
     for (let i = 0; i < 100 && !(await fetch(lab).then((r) => r.ok, () => false)); i += 1) await sleep(100);
 
-    // ── B. Startup ────────────────────────────────────────────────────────────────────────────────────────────────
-    console.log("\nB. Startup with AWKIT_VISUAL_OCR=observe");
+    // ── B. Startup and validation ─────────────────────────────────────────────────────────────────────────────────
+    console.log("\nB. Startup and validation with AWKIT_VISUAL_OCR=observe");
     let launched = await launch(localAppData, { AWKIT_VISUAL_OCR: "observe" });
     app = launched.app;
     let sessionRef = await signIn(launched.win);
     check("the packaged app starts and signs in with OCR observe on", true);
     check("no OCR host is forked at startup (lazy; OCR is never a startup dependency)", (await ocrHostPids(app)).length === 0);
+    const validate = async (workflowId: string) => JSON.stringify(await launched.win.evaluate(async (id) => (window as any).playwrightFlowStudio.executions.validate(id), workflowId));
+    const runFlow = await validate("ocr-pkg-workflow");
+    check("the OCR run flow validates", (JSON.parse(runFlow) as { valid?: boolean }).valid === true, runFlow.slice(0, 400));
+    const cardFlow = await validate("ocr-card-workflow");
+    const cardIssues = ((JSON.parse(cardFlow) as { issues?: { blocking?: boolean; nodeId?: string; message?: string }[] }).issues ?? []).filter((i) => i.blocking);
+    check(
+      "an OCR step expecting a card number is refused before any run (blocking OC-8 issue on that step), and the issue does not repeat the number",
+      (JSON.parse(cardFlow) as { valid?: boolean }).valid === false && cardIssues.some((i) => i.nodeId === "ocr-card" && /OC-8/.test(String(i.message))) && !cardFlow.includes("4111"),
+      cardFlow.replace(/4111[\d ]*/g, "[card]").slice(0, 400)
+    );
 
     console.log("\nC. Real runs on the packaged app");
     const unlicensed = await license(launched.win, sessionRef, workDir);
     if (unlicensed) {
       for (const label of [
         "C1 OCR off: disabled records, no host, a flow without OCR unchanged",
-        "C2 OCR observe: the packaged engine reads the label, observe only, refusals, no host sockets, no download",
-        "C3 cancellation",
+        "C2 OCR observe: the packaged engine reads the label, observe only, refusals, host sockets, no download",
+        "C3 cancellation during an OCR step",
         "C4 shutdown leaves no OCR host"
       ]) {
         block(label, unlicensed);
@@ -448,39 +483,44 @@ async function packagedApp(): Promise<void> {
     if ("refused" in off) check("the OCR workflow is admitted with OCR off", false, off.refused);
     else {
       check(
-        "every OCR step is recorded disabled with no verdict, and the run completes",
-        completed(off.status) && off.records.length === OCR_STEPS.length && off.records.every((r) => r.code === "disabled" && !r.verdict),
-        `${off.status} ${off.raw}`
+        "every OCR step is recorded disabled with no verdict, and the run completes and passes",
+        completed(off.status) && off.reportStatus === "passed" && off.records.length === OCR_STEPS.length && off.records.every((r) => r.code === "disabled" && !r.verdict),
+        `${off.status}/${off.reportStatus} ${off.raw}`
       );
     }
     check("no OCR host was started with OCR off", (await ocrHostPids(app)).length === 0);
     const plainOff = await run(launched.win, "plain-ocr-pkg-workflow");
     if ("refused" in plainOff) check("the flow without OCR is admitted with OCR off", false, plainOff.refused);
-    else check("a flow without OCR completes with no OCR block", completed(plainOff.status) && !plainOff.hasBlock, `${plainOff.status} ${plainOff.raw}`);
+    else check("a flow without OCR completes and passes with no OCR block", completed(plainOff.status) && plainOff.reportStatus === "passed" && !plainOff.hasBlock, `${plainOff.status}/${plainOff.reportStatus} ${plainOff.raw}`);
     await app.close().catch(() => undefined);
     app = undefined;
 
     // ── C2. OCR observe ───────────────────────────────────────────────────────────────────────────────────────────
     console.log("\nC2. OCR observe on the packaged engine");
-    const before = new Set(files(dataRoot));
+    const before = new Set(files(localAppData));
     launched = await launch(localAppData, { AWKIT_VISUAL_OCR: "observe" });
     app = launched.app;
     sessionRef = await signIn(launched.win);
+    const liveApp = app;
+    const samples: { pid: number; count: number | null }[] = [];
+    const sample = async () => {
+      for (const pid of await ocrHostPids(liveApp)) {
+        seenHosts.add(pid);
+        samples.push({ pid, count: socketsOwnedBy(pid) });
+      }
+    };
     // The first run warms the host; verdicts from both runs are pooled (budget-exhausted is honest, never wrong).
     const runs: Run[] = [];
-    for (let i = 0; i < 2; i += 1) {
-      const r = await run(launched.win, "ocr-pkg-workflow");
-      runs.push(r);
-      for (const pid of await ocrHostPids(app)) seenHosts.add(pid);
-    }
-    const okRuns = runs.filter((r): r is Exclude<Run, { refused: string }> => !("refused" in r));
-    check("both observe runs are admitted", okRuns.length === 2, runs.filter((r) => "refused" in r).map((r) => (r as { refused: string }).refused).join(" | "));
+    for (let i = 0; i < 2; i += 1) runs.push(await run(launched.win, "ocr-pkg-workflow", sample));
+    await sample();
+    const okRuns = runs.filter((r): r is Done => !("refused" in r));
+    check("both observe runs are admitted", okRuns.length === 2, runs.filter((r): r is { refused: string } => "refused" in r).map((r) => r.refused).join(" | "));
     if (okRuns.length > 0) {
       const all = okRuns.flatMap((r) => r.records);
       check(
-        "observe only: every run completes, with one OCR record per step and no step failed by OCR",
-        okRuns.every((r) => completed(r.status) && r.records.length === OCR_STEPS.length && r.records.every((rec) => rec.status !== "failed")),
-        okRuns.map((r) => `${r.status} ${r.stepStatuses}`).join(" | ")
+        "observe only: with stopOnError each run completes and its report passes, every OCR step is recorded in flow order and the flow reaches its end",
+        okRuns.every((r) => completed(r.status) && r.reportStatus === "passed" && r.records.map((rec) => rec.stepId).join() === OCR_STEPS.join()),
+        okRuns.map((r) => `${r.status}/${r.reportStatus} [${r.records.map((rec) => rec.stepId).join(",")}]`).join(" | ")
       );
       const labels = okRuns.map((r) => byStep(r.records, "ocr-label"));
       const wrongs = okRuns.map((r) => byStep(r.records, "ocr-wrong"));
@@ -495,8 +535,7 @@ async function packagedApp(): Promise<void> {
         wrongs.map((r) => describe(r)).join(" | ")
       );
       for (const [stepId, code, what] of [
-        ["ocr-card", "sensitive-input", "an expectation of card text"],
-        ["ocr-cvv", "sensitive-step", "a wrapper around a cvv field"],
+        ["ocr-wrapper", "sensitive-step", "a wrapper around a cvv field"],
         ["ocr-protected", "protected-surface", "a protected sign-in page"]
       ] as const) {
         const recs = okRuns.map((r) => byStep(r.records, stepId));
@@ -508,34 +547,40 @@ async function packagedApp(): Promise<void> {
         all.map((r) => describe(r)).join(" | ")
       );
     }
-    const hosts = await ocrHostPids(app);
     check("the packaged OCR utility host ran", seenHosts.size > 0);
-    const sockets = hosts.map((pid) => ({ pid, count: socketsOwnedBy(pid) }));
     check(
-      "the live OCR host owns no TCP connection or UDP endpoint",
-      sockets.length > 0 && sockets.every((s) => s.count === 0),
-      JSON.stringify(sockets)
+      "supporting sample: the live OCR host owned no TCP connection or UDP endpoint at any sample taken during and after the runs",
+      samples.length > 0 && samples.every((s) => s.count === 0),
+      `${samples.length} samples: ${JSON.stringify(samples.filter((s) => s.count !== 0).slice(0, 5))}`
     );
     const plainObserve = await run(launched.win, "plain-ocr-pkg-workflow");
     if ("refused" in plainObserve) check("the flow without OCR is admitted with OCR observe", false, plainObserve.refused);
-    else check("with OCR on, a flow without OCR still completes with no OCR block", completed(plainObserve.status) && !plainObserve.hasBlock, `${plainObserve.status} ${plainObserve.raw}`);
-    const downloaded = files(dataRoot).filter((f) => !before.has(f) && /\.(wasm|traineddata(\.gz)?)$|tesseract/i.test(f));
+    else check("with OCR on, a flow without OCR still completes and passes with no OCR block", completed(plainObserve.status) && plainObserve.reportStatus === "passed" && !plainObserve.hasBlock, `${plainObserve.status}/${plainObserve.reportStatus} ${plainObserve.raw}`);
+    const downloaded = files(localAppData).filter((f) => !before.has(f) && /\.(wasm|traineddata(\.gz)?)$|tesseract/i.test(f));
     check("no engine or language data was downloaded into the profile", downloaded.length === 0, downloaded.join(", "));
 
-    // ── C3. Cancellation ──────────────────────────────────────────────────────────────────────────────────────────
-    console.log("\nC3. Cancellation");
-    const cancelId = await start(launched.win, "ocr-pkg-workflow");
+    // ── C3. Cancellation during an OCR step ───────────────────────────────────────────────────────────────────────
+    console.log("\nC3. Cancellation during an OCR step");
+    const cancelId = await start(launched.win, "ocr-cancel-workflow");
     if (typeof cancelId !== "string") check("the run to cancel is admitted", false, cancelId.refused);
     else {
-      const visibleBy = Date.now() + 30_000;
-      while (Date.now() < visibleBy) {
-        const list = (await launched.win.evaluate(async () => (window as any).playwrightFlowStudio.executions.list())) as any[];
-        if (list.some((i) => i.executionId === cancelId)) break;
-        await sleep(200);
+      let during = "";
+      const watchUntil = Date.now() + 90_000;
+      while (Date.now() < watchUntil && !during) {
+        const mine = await instancesOf(launched.win, cancelId);
+        if (mine.length > 0 && mine.every((i) => SETTLED.includes(String(i.status)))) break;
+        const step = mine.map((i) => String(i.currentStep ?? "")).find((s) => /^OCR read \d+$/.test(s));
+        if (step) during = step;
+        else await sleep(50);
       }
-      await launched.win.evaluate(async () => (window as any).playwrightFlowStudio.executions.stopAll());
+      if (during) await launched.win.evaluate(async () => (window as any).playwrightFlowStudio.executions.stopAll());
+      for (const pid of await ocrHostPids(app)) seenHosts.add(pid);
       const stopped = await settle(launched.win, cancelId, 60_000);
-      check("a stopped OCR run settles stopped or cancelled", stopped === "stopped" || stopped === "cancelled", stopped);
+      check(
+        "the stop was issued while an OCR step was in progress, and the run settled stopped or cancelled",
+        !!during && (stopped === "stopped" || stopped === "cancelled"),
+        `${during ? `stopped during "${during}"` : `no OCR step was observed in progress among ${CANCEL_STEPS}`}; settled ${stopped}`
+      );
       const after = await run(launched.win, "ocr-pkg-workflow");
       check("the next OCR run completes after the cancellation", !("refused" in after) && completed(after.status), "refused" in after ? after.refused : after.status);
       for (const pid of await ocrHostPids(app)) seenHosts.add(pid);
@@ -549,19 +594,21 @@ async function packagedApp(): Promise<void> {
     while (Date.now() < goneBy && [...seenHosts].some(alive)) await sleep(250);
     check("no OCR host process the app started is alive after it closed", seenHosts.size > 0 && ![...seenHosts].some(alive), JSON.stringify([...seenHosts].filter(alive)));
 
-    const flowStores = [join(dataRoot, "flows"), join(dataRoot, "workflows")];
-    const leaks = files(dataRoot)
+    // The whole isolated profile (LOCALAPPDATA data, Roaming user data, logs), except the flow store that holds the
+    // expectations by design, the minted licence work folder and Chromium's page caches of the lab itself.
+    const flowStores = [join(dataRoot, "flows"), join(dataRoot, "workflows"), workDir];
+    const leaks = files(localAppData)
       .filter((f) => !flowStores.some((store) => f.startsWith(store + sep)) && !/[\\/](Cache|Code Cache|GPUCache|Service Worker|blob_storage|browser-profiles?|chromium)[\\/]/i.test(f))
       .filter((f) => {
         try {
           if (statSync(f).size > 64 * 1024 * 1024) return false;
-          const text = readFileSync(f).toString("latin1");
-          return text.includes("4521") || text.includes("declined") || text.includes("4111");
+          const bytes = readFileSync(f);
+          return LEAK_PHRASES.some((phrase) => bytes.includes(Buffer.from(phrase, "utf8")) || bytes.includes(Buffer.from(phrase, "utf16le")));
         } catch {
           return false;
         }
       });
-    check("no report, log, audit or other stored file outside the flow store holds an expected or recognized text", leaks.length === 0, leaks.map((f) => f.slice(dataRoot.length)).join(", "));
+    check("no stored file of the isolated profile outside the flow store holds an expected or recognized text", leaks.length === 0, leaks.map((f) => f.slice(localAppData.length)).join(", "));
   } finally {
     await app?.close().catch(() => undefined);
     server.kill();
