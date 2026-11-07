@@ -142,6 +142,25 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-ocr-packaged-state-1107:project-state:2026-11-07T00:18:35.634Z",
+        "task": "awkit-ocr-packaged-state-1107",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**",
+          "docs/ai/**",
+          "docs/plans/ai-upgrade-v5/N7-ocr-text-in-image.md",
+          "scripts/lib/verifier-classification.ts"
+        ],
+        "acquired_at": "2026-11-07T00:18:35.634Z",
+        "acquired_at_commit": "b29d7d5bc804506da1eae38f63097907ff374882",
+        "released_at": "2026-11-07T00:21:38.700Z",
+        "released_reason": "state record committed in f7ce6725, build PASS, roadmap 184/184 Sources agree",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }
