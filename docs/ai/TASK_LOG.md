@@ -1,5 +1,34 @@
 # TASK_LOG
 
+## 2026-11-07 — Implement `verify:ocr-packaged`, the N7.8 packaged OCR gate (Claude)
+
+- **Task:** owner "Yes, implement it".
+- **Contracts and leases:**
+  - QA `awkit-ocr-packaged-verifier-1107` (verifier and mock-site);
+  - release `awkit-ocr-packaged-script-1107` (`package.json` scripts only). It was needed because the first QA grant
+    was refused: `package.json` is release-owned. A second refusal, for extra qa/qc routing, was corrected once;
+  - project-state `awkit-ocr-packaged-state-1107` (classification and docs).
+- **Files:**
+  - `scripts/verify-ocr-packaged.mts` (new);
+  - `mock-site/public/visual-intelligence-ocr.html` (`?protected=1`), `mock-site/README.md`,
+    `scripts/verify-mock-site.mjs`;
+  - `package.json`;
+  - `scripts/lib/verifier-classification.ts`;
+  - the N7 plan, `CURRENT_STATE`, `HANDOFF`, `TASK_LOG`, `KNOWN_ISSUES` and `.beads/issues.jsonl`.
+- **Independent QC:**
+  - Round 1: CHANGES REQUIRED. High: a literal card-number step fails flow validation, which would refuse the whole
+    run. Medium: a vacuous status check, a cancellation race, and one socket snapshot. Low: the leak-scan scope.
+    Fixed in `e88cd302`.
+  - Re-review: APPROVED WITH FINDINGS, 3 Low (the card check's search scope, the post-cancellation report, TEMP not
+    scanned). Fixed in `b29d7d5b`.
+- **Checks:**
+  - `typecheck:scripts` PASS;
+  - `verify:mock-site` 379/379 PASS;
+  - `verify:ocr-packaged` NOT RUN (exit 2, stale 2026-10-13 payload) — expected; its live sections are unexecuted;
+  - `verify:verifier-classification` PASS (375);
+  - build and roadmap: see the commit.
+- **Beads:** notes on `awkit-vra.9.3` and `.9.9`, with status unchanged.
+
 ## 2026-11-07 — Phase N final packaging and release qualification: host BLOCKED (Claude)
 
 - **Task:** owner prompt "Phase N Final Packaging and Release Qualification", baseline `a1839713`. Contract

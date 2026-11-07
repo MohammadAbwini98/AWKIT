@@ -1,0 +1,148 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-ocr-packaged-state-1107",
+    "title": "Project state: classify verify:ocr-packaged and record the N7.8 gate implementation",
+    "objective": "Owner go-ahead 2026-11-07 ('Yes, implement it'): register verify:ocr-packaged as packaged-application in scripts/lib/verifier-classification.ts; record the gate's existence and its NOT RUN state (no current package, packaging host BLOCKED) and the independent QC review in the N7 plan, state docs and Beads notes on awkit-vra.9.3 and .9.9 without status change. N7.1b, N7.8 and N7.9 stay open.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "28c12ef6",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      ".beads/**",
+      "docs/ai/**",
+      "docs/plans/ai-upgrade-v5/**",
+      "scripts/lib/verifier-classification.ts"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        ".beads/**",
+        "docs/ai/**",
+        "docs/plans/ai-upgrade-v5/N7-ocr-text-in-image.md",
+        "scripts/lib/verifier-classification.ts"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "STATE",
+      "description": "verify:ocr-packaged classified packaged-application; classification, build and roadmap PASS with Sources agree; N7 plan, state docs and Beads notes record the gate truthfully as implemented and NOT RUN.",
+      "evidence_required": [
+        "verify:verifier-classification",
+        "verify:roadmap-dashboard",
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "verify:roadmap-dashboard",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:roadmap-dashboard",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-ocr-packaged-state-1107:project-state:2026-11-07T00:07:33.732Z",
+        "task": "awkit-ocr-packaged-state-1107",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**",
+          "docs/ai/**",
+          "docs/plans/ai-upgrade-v5/N7-ocr-text-in-image.md",
+          "scripts/lib/verifier-classification.ts"
+        ],
+        "acquired_at": "2026-11-07T00:07:33.732Z",
+        "acquired_at_commit": "28c12ef6f5efc5e86094560e15481565039a56a5",
+        "released_at": "2026-11-07T00:11:49.549Z",
+        "released_reason": "pausing for QA fixes from the independent QC review, classification edit kept uncommitted for the next project-state lease",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-ocr-packaged-state-1107:project-state:2026-11-07T00:15:50.057Z",
+        "task": "awkit-ocr-packaged-state-1107",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          ".beads/**",
+          "docs/ai/**",
+          "docs/plans/ai-upgrade-v5/N7-ocr-text-in-image.md",
+          "scripts/lib/verifier-classification.ts"
+        ],
+        "acquired_at": "2026-11-07T00:15:50.057Z",
+        "acquired_at_commit": "e88cd302b990e733156e9950fcabd445c3b6d39b",
+        "released_at": "2026-11-07T00:16:49.814Z",
+        "released_reason": "classification committed in 2c23bf1f, pausing for the QC re-review Low fixes",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

@@ -14,7 +14,17 @@
 - **Effect:** a campaign cell can be lost, and in the app the runner process can crash. No pixels are kept.
 - **Fix:** a product change in `src/visual`, before the next campaign pre-declaration.
 
-## N7.8 gate `verify:ocr-packaged` does not exist (2026-11-07, OPEN, `awkit-vra.9.9`)
+## N7.8 gate `verify:ocr-packaged` does not exist (2026-11-07, RESOLVED the same day in `a8012ce2`..`b29d7d5b`, `awkit-vra.9.9`)
+
+- **Resolution:** implemented, registered and classified (packaged-application). Independent QC round 1 returned
+  CHANGES REQUIRED; the fixes were re-reviewed APPROVED WITH FINDINGS, and the three Low findings were then fixed. The
+  verifier's live sections are **unexecuted**: it reports NOT RUN until a current package exists, and that needs the
+  packaging host. Details in the N7 plan § "Packaged-acceptance host".
+- **Fragile point it pins:** an `assertImageText` step with a literal card number fails flow validation (OC-8). A
+  packaged run flow must never include one; the refusal is proven by validation instead.
+
+The original entry follows.
+
 
 - **What:** the N7 plan names `verify:ocr-packaged` as the N7.8 acceptance gate. There is no such npm script or
   `scripts/` file.

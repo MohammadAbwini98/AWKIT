@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-ocr-packaged-script-1107",
+    "title": "Release: register the verify:ocr-packaged npm script",
+    "objective": "Owner go-ahead 2026-11-07 ('Yes, implement it'): add exactly one npm script, \"verify:ocr-packaged\": \"tsx scripts/verify-ocr-packaged.mts\", beside verify:visual-assertion-packaged in package.json. The scripts field is shared; no dependency, identity, build or packaging field changes.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "a8012ce2",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": false,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "release"
+    ],
+    "expected_paths": [
+      "package.json"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "release",
+      "allowed_paths": [
+        "package.json"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "SCRIPT",
+      "description": "package.json gains only the verify:ocr-packaged script; npm run verify:ocr-packaged reports NOT RUN without a current package; verifier classification and build PASS.",
+      "evidence_required": [
+        "verify:verifier-classification",
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-ocr-packaged-script-1107:release:2026-11-07T00:06:39.287Z",
+        "task": "awkit-ocr-packaged-script-1107",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "package.json"
+        ],
+        "acquired_at": "2026-11-07T00:06:39.287Z",
+        "acquired_at_commit": "a8012ce256b146394427600110e923ad3360c29a",
+        "released_at": "2026-11-07T00:07:09.848Z",
+        "released_reason": "verify:ocr-packaged npm script committed in 28c12ef6, scripts field only",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

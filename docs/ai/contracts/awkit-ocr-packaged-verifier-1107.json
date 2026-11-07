@@ -1,0 +1,169 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-ocr-packaged-verifier-1107",
+    "title": "QA: implement verify:ocr-packaged, the N7.8 packaged OCR acceptance gate",
+    "objective": "Owner go-ahead 2026-11-07 ('Yes, implement it'): the N7 plan names verify:ocr-packaged as the N7.8 gate but it does not exist. Implement scripts/verify-ocr-packaged.mts as a packaged-application verifier that runs only against the real dist/win-unpacked payload (NOT RUN when absent or stale, BLOCKED for licensed runs without the issuer key, never a development-mode substitute): pinned OCR assets and host in resources/ocr with pinned SHA-256, outside the ASAR, within the OC-9 budget, listed in the Ed25519-signed dependency manifest; the shipped host blocks the network before the engine loads; startup forks no OCR host; OCR off records disabled with no host and a flow without OCR is unchanged; observe mode reads the lab label with the real packaged engine, never fails or changes a step, refuses card text, a cvv wrapper and a protected sign-in page with zero host sockets; cancellation and shutdown leave no OCR host process; no expected or recognized text in stored files. Add a ?protected=1 switch on the existing Image Text Assertion Lab (README and verify:mock-site updated). No product, licensing, packaging or criteria change.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "634e68dc",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "??",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": false,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "qa"
+    ],
+    "expected_paths": [
+      "scripts/verify-ocr-packaged.mts",
+      "scripts/verify-mock-site.mjs",
+      "mock-site/public/visual-intelligence-ocr.html",
+      "mock-site/README.md"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "qa",
+      "allowed_paths": [
+        "scripts/verify-ocr-packaged.mts",
+        "scripts/verify-mock-site.mjs",
+        "mock-site/public/visual-intelligence-ocr.html",
+        "mock-site/README.md"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "VERIFIER",
+      "description": "verify:ocr-packaged exists, is registered, typechecks, reports NOT RUN without a real package (exit 2) and never passes on development assets; verify:mock-site PASS with the ?protected=1 switch; build PASS; independent QC review recorded.",
+      "evidence_required": [
+        "verify:mock-site",
+        "build",
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:mock-site",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:mock-site",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "build",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-ocr-packaged-verifier-1107:qa:2026-11-07T00:01:35.169Z",
+        "task": "awkit-ocr-packaged-verifier-1107",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "mock-site/README.md",
+          "mock-site/public/visual-intelligence-ocr.html",
+          "scripts/verify-mock-site.mjs",
+          "scripts/verify-ocr-packaged.mts"
+        ],
+        "acquired_at": "2026-11-07T00:01:35.169Z",
+        "acquired_at_commit": "634e68dcb6be2f6103bebcb64f1e78a2fea24bdc",
+        "released_at": "2026-11-07T00:06:06.564Z",
+        "released_reason": "verify-ocr-packaged and the ?protected=1 lab switch committed in a8012ce2, verify:mock-site 379/379, typecheck:scripts PASS",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-ocr-packaged-verifier-1107:qa:2026-11-07T00:11:53.030Z",
+        "task": "awkit-ocr-packaged-verifier-1107",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "mock-site/README.md",
+          "mock-site/public/visual-intelligence-ocr.html",
+          "scripts/verify-mock-site.mjs",
+          "scripts/verify-ocr-packaged.mts"
+        ],
+        "acquired_at": "2026-11-07T00:11:53.030Z",
+        "acquired_at_commit": "28c12ef6f5efc5e86094560e15481565039a56a5",
+        "released_at": "2026-11-07T00:15:39.011Z",
+        "released_reason": "QC fixes to verify-ocr-packaged committed in e88cd302, typecheck:scripts PASS",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-ocr-packaged-verifier-1107:qa:2026-11-07T00:16:52.959Z",
+        "task": "awkit-ocr-packaged-verifier-1107",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "mock-site/README.md",
+          "mock-site/public/visual-intelligence-ocr.html",
+          "scripts/verify-mock-site.mjs",
+          "scripts/verify-ocr-packaged.mts"
+        ],
+        "acquired_at": "2026-11-07T00:16:52.959Z",
+        "acquired_at_commit": "2c23bf1f4d97d0b11d9426e273e34bed665ce33c",
+        "released_at": "2026-11-07T00:18:32.451Z",
+        "released_reason": "QC re-review Low fixes committed in b29d7d5b, typecheck:scripts PASS",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

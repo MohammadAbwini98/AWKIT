@@ -452,10 +452,54 @@ RUN.**
 
 The ARM64 host is not treated as a verified x64 release environment.
 
-**Additional gap found:** the N7.8 acceptance gate names `verify:ocr-packaged` (§ Work breakdown), but no such script
-exists in `package.json` or `scripts/`. N7.8 therefore cannot complete even on a READY host until that verifier is
-implemented and registered in `scripts/lib/verifier-classification.ts`. That is QA-owned work under its own contract.
-Recorded on `awkit-vra.9.9`.
+**Additional gap found, then closed the same day:** the N7.8 acceptance gate named `verify:ocr-packaged` (§ Work
+breakdown), but no such script existed.
+- **Implemented 2026-11-07** at the owner's go-ahead. Contracts:
+  - `awkit-ocr-packaged-verifier-1107` (QA): `scripts/verify-ocr-packaged.mts` and the lab's `?protected=1` switch;
+  - `awkit-ocr-packaged-script-1107` (release): the npm script;
+  - `awkit-ocr-packaged-state-1107` (project-state): classification and this record.
+- Commits: `a8012ce2`, `28c12ef6`, `e88cd302`, `2c23bf1f` and `b29d7d5b`. Packaged-application class.
+- **What it checks:**
+  - **A, N7.1b (on the package):**
+    - the three pinned files and the host are in `resources/resources/ocr` with their pinned SHA-256, outside the
+      ASAR, within OC-9;
+    - the shipped host is byte-identical and blocks the network before the engine;
+    - the shipped dependency manifest verifies against the shipped Ed25519 key and lists them.
+  - **B, startup and validation:**
+    - no OCR host at startup;
+    - the run flow validates;
+    - a card-number expectation is refused at validation, OC-8, without the number.
+  - **C, licensed runs** (BLOCKED without the issuer key):
+    - OCR off records `disabled` with no host, and a flow without OCR is unchanged;
+    - observe mode reads the lab label on the packaged engine; the instance report passes, with every OCR step
+      recorded in order;
+    - a cvv wrapper and a protected page are refused;
+    - samples taken during the runs show no host socket (supporting; the runtime proof of the network block stays
+      `verify:ocr-host`);
+    - nothing is downloaded;
+    - a run stopped during an OCR step settles, and the next run passes;
+    - no host is left after shutdown;
+    - no expected or recognized text appears anywhere in the isolated profile, TEMP included.
+- **Outcomes:**
+  - missing or stale payload: NOT RUN (exit 2);
+  - unlicensed: BLOCKED (exit 3).
+
+  It never uses development assets.
+- **Independent QC:**
+  - Round 1: **CHANGES REQUIRED**, 1 High, 3 Medium and 1 Low.
+    - High: a literal card-number step makes the flow fail validation, so every run would be refused.
+    - Medium: a vacuous record-status check, a cancellation race, and a single after-the-fact socket sample.
+    - Low: the scope of the leak scan.
+    - All fixed in `e88cd302`.
+  - Re-review: **APPROVED WITH FINDINGS**, 3 Low, all fixed in `b29d7d5b`:
+    - the card-number check judges only the validation issues;
+    - the post-cancellation run must pass its report;
+    - TEMP is redirected into the scanned profile.
+- **Unconfirmed until a real packaged run:** QC's source-level items (packaged paths, manifest shape, preload calls).
+  The live sections B and C are **unexecuted**.
+- **Executed here:** `npm run verify:ocr-packaged` reports NOT RUN (exit 2) on the stale 2026-10-13
+  `dist/win-unpacked` payload, as designed.
+- **The gate exists; N7.8 evidence does not.** N7.1b and N7.8 stay BLOCKED on the packaging host.
 
 **Provisioning specification (reproducible; for the owner or release engineer).** Nothing here was installed or
 changed by the agent.
@@ -498,7 +542,7 @@ changed by the agent.
 
       `npm run validate:offline -- -Strict` and `npm run verify:ocr-assets` are applied to the package.
    4. **N7.8:**
-      - `verify:ocr-packaged`, once implemented;
+      - `verify:ocr-packaged` (implemented 2026-11-07; it also executes the N7.1b checks on the package);
       - `verify:visual-assertion-packaged`;
       - `verify:packaged-runtime`;
       - `verify:packaged-walkthrough`;

@@ -1,5 +1,27 @@
 # CURRENT_STATE
 
+## `verify:ocr-packaged` implemented (N7.8 gate), QC APPROVED WITH FINDINGS with every finding fixed; live sections unexecuted (2026-11-07, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **New verifier:** `npm run verify:ocr-packaged` (packaged-application; 375 classified, 25 packaged-application). It
+  is the N7.8 gate and runs the N7.1b checks on the real `dist/win-unpacked` package:
+  - pinned OCR assets, the host and the signed manifest;
+  - startup and validation, including the OC-8 card refusal;
+  - licensed runs: OCR off, observe, refusals, socket samples, no download, cancellation, shutdown and a leak scan.
+- **Outcomes:** NOT RUN (exit 2) on a missing or stale payload; BLOCKED (exit 3) without the issuer key; never uses
+  development assets.
+- **The Image Text Assertion Lab** gains `?protected=1`. `verify:mock-site` 379/379.
+- **Contracts:**
+  - `awkit-ocr-packaged-verifier-1107` (QA);
+  - `awkit-ocr-packaged-script-1107` (release, the npm script);
+  - `awkit-ocr-packaged-state-1107` (project-state).
+- **Independent QC:** round 1 CHANGES REQUIRED, all fixed (`e88cd302`); re-review APPROVED WITH FINDINGS, 3 Low, all
+  fixed (`b29d7d5b`).
+- **Executed here:** NOT RUN (exit 2) on the stale 2026-10-13 payload.
+- **N7.1b, N7.8 and N7.9 remain NOT RUN / BLOCKED** on the packaging host (H4/H5) and the issuer key. Phase N is not
+  complete.
+
 ## Phase N final packaging: packaging host BLOCKED, N7.1b/N7.8/N7.9 NOT RUN, provisioning specification written (2026-11-07, latest)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. Contract

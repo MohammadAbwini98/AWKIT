@@ -1,5 +1,24 @@
 # Agent Handoff
 
+## HANDOFF (2026-11-07, latest) — `verify:ocr-packaged` ready; N7 packaged acceptance still BLOCKED on the release host
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** `verify:ocr-packaged` is implemented, registered and classified. Independent QC: CHANGES REQUIRED, then
+  APPROVED WITH FINDINGS; every finding is fixed. The lab gains `?protected=1`. It reports NOT RUN on the stale payload
+  here.
+- **Blocked (owner):** a native Windows x64 release host with licensed VS 2022 (MSVC v143 x64/x86 and the C++ 2022
+  Redistributable), the manifest signing key in custody, and `AWKIT_PACKAGED_LICENSE_ISSUER_KEY`. See the N7 plan
+  § "Packaged-acceptance host".
+- **Next (agent, on a READY host):**
+  1. `npm run package:portable`, recording the provenance and the EXE SHA-256;
+  2. `npm run verify:ocr-packaged`, N7.1b and N7.8 together;
+  3. the other N7.8 packaged gates;
+  4. N7.9 reviews of the real artifact.
+
+  Expect QC's unconfirmed source-level items (packaged paths, manifest shape, preload calls) to be settled by that
+  first real run. Any check that fails there is a finding to diagnose, not to loosen.
+
 ## HANDOFF (2026-11-07, latest) — Phase N final packaging BLOCKED on the release host; provisioning specification ready
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases. Contract
