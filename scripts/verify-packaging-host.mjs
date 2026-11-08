@@ -8,6 +8,9 @@
  *  H1 Host OS and CPU (Windows; x64, or ARM64 running the x64 toolchain; the package target is Windows x64)
  *  H2 Node.js (version and architecture the build runs under)
  *  H3 Electron (the pinned version; INFO whether the win32-x64 archive electron-builder packs is cached locally)
+ *  H3c electron-builder's build tools (winCodeSign, nsis, nsis-resources): each candidate archive from --tool-archives
+ *      (default %LOCALAPPDATA%\SpecterStudio\release-inputs\electron-builder-tools) hashed against the SHA-512 the installed toolchain embeds, and the app-builder cache folder compared file by file
+ *      with a verified archive; never acquires, copies or extracts anything
  *  H4 Visual Studio 2022 Community, Professional or Enterprise with the two MSVC components (awkit-i6ot)
  *  H5 The app-local MSVC runtime: the three x64 DLLs from that installation's redist folder, Microsoft-signed, at least
  *     the 14.40 floor (the packaging step also raises it to the newest linker of a staged binary)
@@ -17,13 +20,15 @@
  *  I1 Release-tree cleanliness for scripts/release-portable.ps1 (untracked files make it refuse)
  *  I2 License issuer key for the licensed packaged gates (presence only; the value is never read or printed)
  *
- * Run: npm run verify:packaging-host
+ * Run: npm run verify:packaging-host [-- --tool-archives <folder>] [--builder-cache <folder>]
  */
 import { spawnSync } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import zlib from "node:zlib";
 
 import { MSVC_REMEDY, MSVC_RUNTIME, MSVC_RUNTIME_FLOOR, VS_COMPONENTS, VS_PRODUCTS, VS_VERSION_RANGE } from "./lib/msvc-redist-requirements.mjs";
 
@@ -84,6 +89,147 @@ report(
     ? cached[0]
     : `${zipName} not cached in ${cacheDirs.join(" or ") || "the Electron cache"}: electron-builder fetches the official Electron release and verifies its checksum, so a networked build host is fine; an offline build host needs it cached first`
 );
+
+// H3c electron-builder's own build tools (read-only; acquires, copies, extracts and changes nothing).
+// electron-builder 25.1.8 hands these downloads to app-builder.exe (app-builder-bin 5.0.0-alpha.10). It keeps only the
+// EXTRACTED folder, at <cache>\<name up to the first "-">\<name>-<version> (cache = ELECTRON_BUILDER_CACHE, else
+// %LOCALAPPDATA%\electron-builder\Cache), and reuses an existing folder WITHOUT re-checking it. So an archive counts as
+// verified only when its SHA-512 equals the value the installed toolchain embeds, and a cache folder only when its files
+// equal a verified archive's listing (per-file size and CRC32 from the bundled 7za). Candidate archives come from
+// --tool-archives <folder> (repeatable). Statuses: PRESENT AND VERIFIED, MISSING, CHECKSUM MISMATCH, VERSION MISMATCH,
+// INVALID CACHE LAYOUT, INCONCLUSIVE.
+const TOOL_PINS = [
+  { name: "winCodeSign", version: "2.6.0", sha512: "6LQI2d9BPC3Xs0ZoTQe1o3tPiA28c7+PY69Q9i/pD8lY45psMtHuLwv3vRckiVr3Zx1cbNyLlBR8STwCdcHwtA==" },
+  { name: "nsis", version: "3.0.4.1", sha512: "VKMiizYdmNdJOWpRGz4trl4lD++BvYP2irAXpMilheUP0pc93iKlWAoP843Vlraj8YG19CVn0j+dCo/hURz9+Q==" },
+  { name: "nsis-resources", version: "3.4.1", sha512: "Dqd6g+2buwwvoG1Vyf6BHR1b+25QMmPcwZx40atOT57gH27rkjOei1L0JTldxZu4NFoEmW4kJgZ3DlSWVON3+Q==" }
+];
+// Without --tool-archives, the operator's staging folder %LOCALAPPDATA%\SpecterStudio\release-inputs\electron-builder-tools
+// is searched (outside Git, resources and app.asar, beside the release-keys custody folder), when it exists.
+const toolArchiveArgs = process.argv.flatMap((arg, i, all) => (arg === "--tool-archives" && all[i + 1] ? [path.resolve(all[i + 1])] : []));
+const stagingDir = process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, "SpecterStudio", "release-inputs", "electron-builder-tools") : "";
+const toolArchiveDirs = toolArchiveArgs.length > 0 ? toolArchiveArgs : stagingDir && fs.existsSync(stagingDir) ? [stagingDir] : [];
+const readOr = (file, encoding, fallback) => {
+  try {
+    return fs.readFileSync(file, encoding);
+  } catch {
+    return fallback;
+  }
+};
+const libOut = path.join(root, "node_modules", "app-builder-lib", "out");
+const appBuilderExe = path.join(root, "node_modules", "app-builder-bin", "win", process.arch, "app-builder.exe");
+const appBuilderText = readOr(appBuilderExe, "latin1", "");
+const jsPin = (file, name) => {
+  const all = [...readOr(path.join(libOut, ...file), "utf8", "").matchAll(new RegExp(`getBinFromUrl\\)\\("${name}", "([^"]+)", "([A-Za-z0-9+/]{86}==)"\\)`, "g"))];
+  return all.length === 1 ? { version: all[0][1], sha512: all[0][2] } : null;
+};
+// What the INSTALLED toolchain resolves for each tool: nsis and nsis-resources pass version and SHA-512 from the JS;
+// winCodeSign is requested by name only, so app-builder.exe supplies both (its 2.6.0 checksum must be embedded verbatim).
+const installedPin = {
+  winCodeSign:
+    /getBin\)\("winCodeSign"\)/.test(readOr(path.join(libOut, "codeSign", "windowsSignToolManager.js"), "utf8", "")) && appBuilderText.includes(TOOL_PINS[0].sha512)
+      ? { version: TOOL_PINS[0].version, sha512: TOOL_PINS[0].sha512 }
+      : null,
+  nsis: jsPin(["targets", "nsis", "nsisUtil.js"], "nsis"),
+  "nsis-resources": jsPin(["targets", "nsis", "NsisTarget.js"], "nsis-resources")
+};
+// --builder-cache <folder> inspects another cache folder (for example one offered for reuse) instead of the one this
+// host's packaging run would read; the report names the folder either way.
+const cacheArg = process.argv.indexOf("--builder-cache");
+const builderCache =
+  cacheArg > 0 && process.argv[cacheArg + 1]
+    ? path.resolve(process.argv[cacheArg + 1])
+    : process.env.ELECTRON_BUILDER_CACHE || (process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, "electron-builder", "Cache") : "");
+const sevenZip = path.join(root, "node_modules", "7zip-bin", "win", process.arch, "7za.exe");
+const listArchive = (archive) => {
+  const run = spawnSync(sevenZip, ["l", "-slt", archive], { encoding: "utf8", windowsHide: true, timeout: 60_000, maxBuffer: 64 * 1024 * 1024 });
+  const body = `${run.stdout ?? ""}`.split(/\r?\n----------\r?\n/)[1];
+  if (run.status !== 0 || !body) return null;
+  return body
+    .split(/\r?\n\r?\n/)
+    .map((block) => Object.fromEntries([...block.matchAll(/^(\w[\w ]*?) = (.*)$/gm)].map((m) => [m[1], m[2]])))
+    .filter((entry) => entry.Path)
+    .map((entry) => ({ rel: entry.Path.replace(/\\/g, "/"), dir: /^D/.test(entry.Attributes ?? "") || entry.Folder === "+", link: /\bl[rwxsStT-]{9}\b/.test(entry.Attributes ?? ""), size: Number(entry.Size ?? 0), crc: (entry.CRC ?? "").toUpperCase() }));
+};
+const filesUnder = (dir) =>
+  fs
+    .readdirSync(dir, { recursive: true, withFileTypes: true })
+    .filter((d) => d.isFile())
+    .map((d) => path.relative(dir, path.join(d.parentPath ?? d.path, d.name)).replace(/\\/g, "/"));
+for (const pin of TOOL_PINS) {
+  const id = `${pin.name}-${pin.version}`;
+  const installed = installedPin[pin.name];
+  if (!installed || installed.version !== pin.version || installed.sha512 !== pin.sha512) {
+    report("H3c", "BLOCKED", `${id} build tool`, `VERSION MISMATCH: the installed electron-builder toolchain resolves ${installed ? `${pin.name}-${installed.version}` : "an unrecognized version"}, not the pinned ${id}; this check must be reviewed against the installed toolchain before its results mean anything`);
+    continue;
+  }
+  // Candidate archives: hashed, never trusted by name.
+  let verifiedArchive = "";
+  const candidates = toolArchiveDirs.flatMap((dir) => {
+    try {
+      return fs.readdirSync(dir, { recursive: true }).filter((entry) => path.basename(String(entry)) === `${id}.7z`).map((entry) => path.join(dir, String(entry)));
+    } catch {
+      return [];
+    }
+  });
+  if (toolArchiveDirs.length > 0 && candidates.length === 0) report("H3c", "INFO", `${id}.7z archive`, `MISSING from ${toolArchiveDirs.join(", ")}`);
+  for (const archive of candidates) {
+    const bytes = readOr(archive, undefined, null);
+    if (!bytes) {
+      report("H3c", "INFO", `${id}.7z archive`, `INCONCLUSIVE: ${archive} could not be read`);
+      continue;
+    }
+    const sha512 = crypto.createHash("sha512").update(bytes).digest("base64");
+    const sha256 = crypto.createHash("sha256").update(bytes).digest("hex");
+    const match = sha512 === installed.sha512;
+    if (match && !verifiedArchive) verifiedArchive = archive;
+    report("H3c", "INFO", `${id}.7z archive`, `${match ? "PRESENT AND VERIFIED" : "CHECKSUM MISMATCH"}: ${archive}, ${bytes.length} bytes, SHA-256 ${sha256}, SHA-512 ${match ? "equals" : "differs from"} the installed toolchain's value`);
+  }
+  // The cache folder app-builder would reuse.
+  const subDir = pin.name.includes("-") ? pin.name.slice(0, pin.name.indexOf("-")) : pin.name;
+  const folder = builderCache ? path.join(builderCache, subDir, id) : "";
+  const stat = folder ? fs.statSync(folder, { throwIfNoEntry: false }) : undefined;
+  const foreign = builderCache && fs.existsSync(path.join(builderCache, id)) ? ` (an ${id} folder at ${path.join(builderCache, id)} uses another electron-builder's layout, which this toolchain does not read)` : "";
+  if (!stat) {
+    report("H3c", "INFO", `${id} in the electron-builder cache`, `${foreign ? "INVALID CACHE LAYOUT" : "MISSING"}: ${folder || "no cache folder (ELECTRON_BUILDER_CACHE and LOCALAPPDATA unset)"} is absent${foreign}; electron-builder downloads it from GitHub electron-builder-binaries and verifies the SHA-512 itself, so a networked build host is fine; an offline build host needs it provisioned from a verified archive first`);
+    continue;
+  }
+  const onDisk = stat.isDirectory() ? filesUnder(folder) : [];
+  if (onDisk.length === 0) {
+    report("H3c", "BLOCKED", `${id} in the electron-builder cache`, `INVALID CACHE LAYOUT: ${folder} is ${stat.isDirectory() ? "an empty folder" : "not a folder"}, and app-builder would reuse it without checking`);
+    continue;
+  }
+  if (!verifiedArchive) {
+    report("H3c", "INFO", `${id} in the electron-builder cache`, `INCONCLUSIVE: ${folder} exists (${onDisk.length} files) but no verified ${id}.7z was supplied with --tool-archives to compare it against; app-builder reuses it without checking`);
+    continue;
+  }
+  const listing = listArchive(verifiedArchive);
+  if (!listing) {
+    report("H3c", "INFO", `${id} in the electron-builder cache`, `INCONCLUSIVE: the bundled 7za could not list ${verifiedArchive}`);
+    continue;
+  }
+  const files = listing.filter((entry) => !entry.dir);
+  const expected = new Set(files.map((entry) => entry.rel.toLowerCase()));
+  let differ = 0;
+  let linksAbsent = 0;
+  for (const entry of files) {
+    const file = path.join(folder, entry.rel);
+    const present = fs.statSync(file, { throwIfNoEntry: false });
+    if (entry.link) {
+      if (!present) linksAbsent += 1;
+      continue;
+    }
+    if (!present || !present.isFile() || present.size !== entry.size) differ += 1;
+    else if (entry.size > 0 && zlib.crc32(fs.readFileSync(file)).toString(16).toUpperCase().padStart(8, "0") !== entry.crc) differ += 1;
+  }
+  const extra = onDisk.filter((rel) => !expected.has(rel.toLowerCase())).length;
+  const ok = differ === 0 && extra === 0;
+  report(
+    "H3c",
+    ok ? "PASS" : "BLOCKED",
+    `${id} in the electron-builder cache`,
+    `${ok ? "PRESENT AND VERIFIED" : "CHECKSUM MISMATCH"}: ${folder}, ${files.length - linksAbsent} archive files compared by size and CRC32 against the verified ${verifiedArchive}${differ ? `, ${differ} differ or are missing` : ""}${extra ? `, ${extra} extra file(s) not in the archive` : ""}${linksAbsent ? `, ${linksAbsent} symbolic link(s) not extracted (macOS-only entries; Windows packaging does not use them)` : ""}`
+  );
+}
 
 // H4 Visual Studio 2022 with the MSVC components (same query as the packaging step).
 const vswhere = path.join(process.env["ProgramFiles(x86)"] ?? "C:\\Program Files (x86)", "Microsoft Visual Studio", "Installer", "vswhere.exe");

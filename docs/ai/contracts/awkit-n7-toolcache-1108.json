@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-n7-toolcache-1108",
+    "title": "QA: read-only electron-builder tool-cache check (H3c) in verify:packaging-host",
+    "objective": "Owner prompt 2026-11-08 'Resolve electron-builder Tool Dependencies and Resume N7 Packaging' section 5: before repeating the full packaging pipeline, verify that the three electron-builder 25.1.8 build tools (winCodeSign 2.6.0, nsis 3.0.4.1, nsis-resources 3.4.1) are locally resolvable. Extend the existing read-only verify:packaging-host with H3c: read each tool's version and SHA-512 from the installed toolchain (app-builder-lib JS, app-builder.exe), hash candidate .7z archives from an operator-supplied --tool-archives folder, and compare the extracted app-builder cache folder against a verified archive (per-file size and CRC32 from the bundled 7za listing). Statuses: PRESENT AND VERIFIED, MISSING, CHECKSUM MISMATCH, VERSION MISMATCH, INVALID CACHE LAYOUT, INCONCLUSIVE. It acquires, copies, extracts and changes nothing; no new npm script, no dependency, version, checksum or packaging change.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "d51e840d",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "!!",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": false,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "qa"
+    ],
+    "expected_paths": [
+      "scripts/verify-packaging-host.mjs"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "qa",
+      "allowed_paths": [
+        "scripts/verify-packaging-host.mjs"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "H3C",
+      "description": "verify:packaging-host reports each electron-builder tool archive and cache folder with one of the six statuses, never claims verification without hashing or comparing, changes nothing on disk, and npm run build passes.",
+      "evidence_required": [
+        "verify:packaging-host",
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:packaging-host",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:packaging-host",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "2026-11-08 on the ARM64 host: READY. H3c recognized all three pins in the installed toolchain (winCodeSign 2.6.0 SHA-512 embedded in app-builder-bin 5.0.0-alpha.10 app-builder.exe; nsis 3.0.4.1 and nsis-resources 3.4.1 from app-builder-lib 25.1.8 JS) and reported each as MISSING in C:\\Users\\mohammadabwini\\AppData\\Local\\electron-builder\\Cache (INFO, networked hosts fetch and verify it). The guard admits npm run verify:* only without arguments, so archives are read from the default %LOCALAPPDATA%\\SpecterStudio\\release-inputs\\electron-builder-tools staging folder; --tool-archives and --builder-cache serve owner runs."
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-n7-toolcache-1108:qa:2026-11-08T12:16:24.338Z",
+        "task": "awkit-n7-toolcache-1108",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-packaging-host.mjs"
+        ],
+        "acquired_at": "2026-11-08T12:16:24.338Z",
+        "acquired_at_commit": "d51e840d9bd4023ca4ed260ef0e3b01b7569605d",
+        "released_at": "2026-11-08T12:19:02.024Z",
+        "released_reason": "verify:packaging-host H3c read-only electron-builder tool-cache check implemented and run READY",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

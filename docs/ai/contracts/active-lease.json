@@ -1,21 +1,22 @@
 {
-  "task": "awkit-n7-package-1108",
-  "contract_path": "docs/ai/contracts/awkit-n7-package-1108.json",
-  "holder": "release",
+  "task": "awkit-n7-toolcache-1108",
+  "contract_path": "docs/ai/contracts/awkit-n7-toolcache-1108.json",
+  "holder": "qa",
   "status": "released",
   "allowed_paths": [
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig"
+    "scripts/verify-packaging-host.mjs"
   ],
-  "acquired_at": "2026-11-08T10:53:10.378Z",
-  "acquired_at_commit": "9953f455a22b92a1029aefb9a3330d883e9f2ebb",
+  "acquired_at": "2026-11-08T12:16:24.338Z",
+  "acquired_at_commit": "d51e840d9bd4023ca4ed260ef0e3b01b7569605d",
   "baseline_dirty": [
+    "docs/ai/contracts/awkit-n7-toolcache-1108.json",
     "resources/dependency-manifest.json",
     "resources/dependency-manifest.sig"
   ],
   "baseline_dirty_fingerprints": {
-    "resources/dependency-manifest.json": "e0b5f06ab77e87017f317612a9b677f90bb0838f3246e2139dc8f06f04b3d626",
-    "resources/dependency-manifest.sig": "16483cf954c71f62b5d3dc93ac4685cee06e58eb36e0b0ed22d03f8245d3f7a5"
+    "docs/ai/contracts/awkit-n7-toolcache-1108.json": "6eb3fc936c5dd0db9199bba6eddb874467de20854f6b03f9e8e862cace30072e",
+    "resources/dependency-manifest.json": "e8f36bb17899d3a164620281dc89acf609a016b08c91177008a4fe57b9aaeae3",
+    "resources/dependency-manifest.sig": "2f9a7c82287211a2fa22bcca3654112aff098b2732d8e672612257e41a8b4434"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -25,12 +26,12 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.59|manifest.json:1785274864439.5393",
-    "build": "dir(10):command-authorization-build.log:1791655824280.519|command-authorization-graphify.log:1791656102774.0833|command-authorization-roadmap.log:1791655956531.24|command-authorization-routing.log:1791655726727.7021|command-authorization-task-gate.json:1791655978836.031|lease-status-build.log:1791656486702.492|lease-status-roadmap.log:1791656634670.6675|lease-status-routing.log:1791656586249.2314|native-hosts:1794128986813.5542|ocr:1794128987301.4104"
+    "build": "dir(10):command-authorization-build.log:1791655824280.519|command-authorization-graphify.log:1791656102774.0833|command-authorization-roadmap.log:1791655956531.24|command-authorization-routing.log:1791655726727.7021|command-authorization-task-gate.json:1791655978836.031|lease-status-build.log:1791656486702.492|lease-status-roadmap.log:1791656634670.6675|lease-status-routing.log:1791656586249.2314|native-hosts:1794135368837.0847|ocr:1794135369274.82"
   },
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-11-08T11:04:48.676Z",
-  "released_reason": "package:portable BLOCKED by a new environment dependency: Electron archive resolved from the verified cache and the app was packed, then electron-builder got HTTP 503 from GitHub for winCodeSign-2.6.0.7z during resource editing, no artifact written",
-  "archived_at": "2026-11-08T11:04:48.681Z"
+  "released_at": "2026-11-08T12:19:02.024Z",
+  "released_reason": "verify:packaging-host H3c read-only electron-builder tool-cache check implemented and run READY",
+  "archived_at": "2026-11-08T12:19:02.027Z"
 }
