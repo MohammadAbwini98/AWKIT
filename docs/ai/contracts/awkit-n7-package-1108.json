@@ -1,0 +1,140 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-n7-package-1108",
+    "title": "N7 first packaged OCR run: package portable 0.1.54 on the newly ready host and run verify:ocr-packaged",
+    "objective": "Owner go-ahead 2026-11-08 ('Key placed, package' / 'Done, retry'): with verify:packaging-host READY (Visual Studio 2022 Community installed on this ARM64 host, x64 MSVC runtime 14.44.35211) and the manifest signing key in the approved %LOCALAPPDATA% custody folder, produce dist/SpecterStudio 0.1.54.exe with npm run package:portable under a release lease, commit only the signed dependency-manifest pair as release-portable.ps1 does, then run npm run verify:ocr-packaged and the other N7.8 packaged gates against the exact payload. ARM64-host evidence is development evidence, not x64 release acceptance; license-dependent gates are BLOCKED, never passed, without an authorized issuer key.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "1e518469",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "!!",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "release",
+      "project-state"
+    ],
+    "expected_paths": [
+      "resources/dependency-manifest.json",
+      "resources/dependency-manifest.sig",
+      "docs/ai/CURRENT_STATE.md",
+      "docs/ai/HANDOFF.md",
+      "docs/ai/TASK_LOG.md",
+      "docs/ai/KNOWN_ISSUES.md",
+      "docs/plans/ai-upgrade-v5/N7-ocr-text-in-image.md",
+      "docs/ai/contracts/awkit-n7-package-1108.json",
+      "docs/ai/contracts/active-lease.json"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "release",
+      "allowed_paths": [
+        "resources/dependency-manifest.json",
+        "resources/dependency-manifest.sig"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "N7-FIRST-PACKAGED-RUN",
+      "description": "The 0.1.54 portable package is built by the governed pipeline on the READY host, and verify:ocr-packaged runs against it with every section's real outcome recorded; license-dependent sections are BLOCKED, never passed, without an authorized issuer key; ARM64 evidence is not recorded as x64 release acceptance.",
+      "evidence_required": [
+        "package:portable",
+        "verify:ocr-packaged"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "package:portable",
+      "type": "build",
+      "required": true,
+      "command": "npm run package:portable",
+      "artifact": "dist/SpecterStudio 0.1.54.exe",
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "verify:ocr-packaged",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:ocr-packaged",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-n7-package-1108:release:2026-11-08T09:01:17.145Z",
+        "task": "awkit-n7-package-1108",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig"
+        ],
+        "acquired_at": "2026-11-08T09:01:17.145Z",
+        "acquired_at_commit": "1e518469efda78a615b0baefde89f768b6537bfb",
+        "released_at": "2026-11-08T09:04:37.015Z",
+        "released_reason": "amendment added paths outside release's ownership (.git/info/exclude) — routing re-run requires a different specialist",
+        "amendments": [
+          {
+            "timestamp": "2026-11-08T09:04:37.014Z",
+            "added": [
+              ".git/info/exclude"
+            ],
+            "reason": "local-only exclude for the preserved untracked L12.27 contract so the strict packaging tree check passes without touching it, per KNOWN_ISSUES packaging-host note",
+            "triggered_escalation": [],
+            "approved_by": "manager"
+          }
+        ],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}
