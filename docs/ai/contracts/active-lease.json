@@ -2,24 +2,20 @@
   "task": "awkit-n7-package-1108",
   "contract_path": "docs/ai/contracts/awkit-n7-package-1108.json",
   "holder": "release",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
     "resources/dependency-manifest.json",
     "resources/dependency-manifest.sig"
   ],
-  "acquired_at": "2026-11-08T09:05:13.007Z",
-  "acquired_at_commit": "1e518469efda78a615b0baefde89f768b6537bfb",
+  "acquired_at": "2026-11-08T10:53:10.378Z",
+  "acquired_at_commit": "9953f455a22b92a1029aefb9a3330d883e9f2ebb",
   "baseline_dirty": [
-    "docs/ai/contracts/active-lease.json",
-    "docs/ai/contracts/awkit-n7-package-1108.json",
     "resources/dependency-manifest.json",
     "resources/dependency-manifest.sig"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/active-lease.json": "21fbf7e2e694c75195bfdee5ac0b3fc6e1216d98c087a15743543b13cb86e2ac",
-    "docs/ai/contracts/awkit-n7-package-1108.json": "be7b8a797521d507f58a16180b7d530930e1a190eb02e4eb6cf6ed228b294e4d",
-    "resources/dependency-manifest.json": "1fa2e1d4dbd270222a25c8259640bf12d5db455fb3987d41d63ccd8c6b3dde1b",
-    "resources/dependency-manifest.sig": "563882bbb1b7cf53f4f3851d3f82c9d7e74a7a1502ed37e3605733644f13c237"
+    "resources/dependency-manifest.json": "e0b5f06ab77e87017f317612a9b677f90bb0838f3246e2139dc8f06f04b3d626",
+    "resources/dependency-manifest.sig": "16483cf954c71f62b5d3dc93ac4685cee06e58eb36e0b0ed22d03f8245d3f7a5"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -29,12 +25,9 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.59|manifest.json:1785274864439.5393",
-    "build": "dir(10):command-authorization-build.log:1791655824280.519|command-authorization-graphify.log:1791656102774.0833|command-authorization-roadmap.log:1791655956531.24|command-authorization-routing.log:1791655726727.7021|command-authorization-task-gate.json:1791655978836.031|lease-status-build.log:1791656486702.492|lease-status-roadmap.log:1791656634670.6675|lease-status-routing.log:1791656586249.2314|native-hosts:1794128590558.1396|ocr:1794128590973.1584"
+    "build": "dir(10):command-authorization-build.log:1791655824280.519|command-authorization-graphify.log:1791656102774.0833|command-authorization-roadmap.log:1791655956531.24|command-authorization-routing.log:1791655726727.7021|command-authorization-task-gate.json:1791655978836.031|lease-status-build.log:1791656486702.492|lease-status-roadmap.log:1791656634670.6675|lease-status-routing.log:1791656586249.2314|native-hosts:1794128986813.5542|ocr:1794128987301.4104"
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-11-08T09:10:53.957Z",
-  "released_reason": "package:portable BLOCKED by environment twice: strict offline validation passed, then electron-builder got HTTP 504 from GitHub for electron-v33.4.11-win32-x64.zip which is not cached (H3b), no artifact written",
-  "archived_at": "2026-11-08T09:10:53.960Z"
+  "violations": []
 }
