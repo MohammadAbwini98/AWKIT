@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-n7-toolprovision-1108",
+    "title": "Release: owner-side, non-destructive electron-builder tool-cache provisioning script",
+    "objective": "Owner prompt 2026-11-08 'Secure electron-builder Cache Provisioning and N7 Packaging Recovery': replace the earlier inline owner snippet (which accepted 7za exit 2, trusted existing cache folders, extracted straight into the cache and removed a staged archive) with scripts/release-provision-electron-builder-tools.ps1. For winCodeSign 2.6.0, nsis 3.0.4.1 and nsis-resources 3.4.1 it verifies the source archive and a staged copy against the SHA-512 pins in scripts/verify-packaging-host.mjs, inspects the archive inventory (path safety; only the pinned macOS-only symbolic links may be excluded), extracts with the bundled 7za into a unique work folder outside the cache requiring exit 0, validates the work folder with the H3c comparison, promotes by a same-volume no-overwrite rename, re-verifies in place, and preserves every existing or unverified folder. The owner runs it manually; agents never run it. It changes nothing in the repository and needs no administrator rights.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 2
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "ac4c8dae",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "!!",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": false,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "release"
+    ],
+    "expected_paths": [
+      "scripts/release-provision-electron-builder-tools.ps1"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "release",
+      "allowed_paths": [
+        "scripts/release-provision-electron-builder-tools.ps1"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "PROVISION-SCRIPT",
+      "description": "The script fails closed on missing or mismatched inputs, accepts only 7za exit 0, never overwrites, deletes or reuses an unverified folder, promotes only H3c-verified content, prints per-tool evidence and a final PASS, FAIL or BLOCKED; an independent read-only review finds no blocking defect.",
+      "evidence_required": [
+        "independent-review",
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "independent-review",
+      "type": "inspection",
+      "required": true,
+      "command": "awkit-qc-reviewer read-only review of scripts/release-provision-electron-builder-tools.ps1",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "2026-11-08 verdict APPROVE WITH CHANGES; no path found by which the script's own extract-and-promote flow could promote an incomplete or tampered folder; ASCII-only, return values clean, native stderr captured, pin regex and -slt parsing agree with the verifier, File.Move/Directory.Move refuse to overwrite, only 7za exit 0 accepted. Applied: (1) rollback failure now prints UNVERIFIED FOLDER LEFT IN CACHE; (2) every H3c call passes --builder-cache explicitly, the PASS line must name the exact folder, a relative ELECTRON_BUILDER_CACHE is BLOCKED; (3) verifier counts links/junctions as extra and inspects with lstat; (4) failed checks print the verifier's tool lines or its last lines, and H2 requires zlib.crc32; nits: pinned link paths must be absent, 7za chosen by node's process.arch in both, rerun falls back to a verified staged archive, staging/work may not overlap the cache, empty-folder removal checks emptiness first. PowerShell parse check BLOCKED for the reviewer by the command guard; the script has not been executed (owner-side by design)."
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-n7-toolprovision-1108:release:2026-11-08T12:53:45.743Z",
+        "task": "awkit-n7-toolprovision-1108",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/release-provision-electron-builder-tools.ps1"
+        ],
+        "acquired_at": "2026-11-08T12:53:45.743Z",
+        "acquired_at_commit": "ac4c8daed2cc24df090775ac848032128f13a76c",
+        "released_at": "2026-11-08T13:00:56.537Z",
+        "released_reason": "owner provisioning script written and corrected after independent review findings 1-4 and nits 6-9",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-n7-toolprovision-1108:release:2026-11-08T13:05:20.521Z",
+        "task": "awkit-n7-toolprovision-1108",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/release-provision-electron-builder-tools.ps1"
+        ],
+        "acquired_at": "2026-11-08T13:05:20.521Z",
+        "acquired_at_commit": "ac4c8daed2cc24df090775ac848032128f13a76c",
+        "released_at": "2026-11-08T13:05:51.654Z",
+        "released_reason": "commit gate BLOCKED for the agent: staged set mixes the release-owned script with docs and contracts, owner commits from the terminal",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

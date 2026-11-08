@@ -60,8 +60,10 @@ else
   );
 
 // H2 Node.js.
+// H3c also needs zlib.crc32 (Node 20.15+ or 22.2+), so an older Node 20 is BLOCKED rather than crashing mid-check.
 const nodeMajor = Number(process.versions.node.split(".")[0]);
-report("H2", nodeMajor >= 20 ? "PASS" : "BLOCKED", "Node.js", `${process.version} ${process.arch}${nodeMajor >= 20 ? "" : " (Node 20 or newer is required by the build toolchain)"}`);
+const nodeOk = nodeMajor >= 20 && typeof zlib.crc32 === "function";
+report("H2", nodeOk ? "PASS" : "BLOCKED", "Node.js", `${process.version} ${process.arch}${nodeOk ? "" : " (Node 20.15+ or 22.2+ is required: the build toolchain needs Node 20, and H3c needs zlib.crc32)"}`);
 
 // H3 Electron and its offline x64 archive.
 let electronVersion = "";
@@ -103,6 +105,14 @@ const TOOL_PINS = [
   { name: "nsis", version: "3.0.4.1", sha512: "VKMiizYdmNdJOWpRGz4trl4lD++BvYP2irAXpMilheUP0pc93iKlWAoP843Vlraj8YG19CVn0j+dCo/hURz9+Q==" },
   { name: "nsis-resources", version: "3.4.1", sha512: "Dqd6g+2buwwvoG1Vyf6BHR1b+25QMmPcwZx40atOT57gH27rkjOei1L0JTldxZu4NFoEmW4kJgZ3DlSWVON3+Q==" }
 ];
+// The ONLY archive entries allowed to be absent from a cache folder: macOS-only symbolic links that Windows cannot
+// create without the symlink privilege and that Windows packaging never reads (the real libraries beside them,
+// libcrypto.1.0.0.dylib and libssl.1.0.0.dylib, are regular files and are compared). An entry is tolerated only when the
+// verified archive's own listing marks it as a link AND it is named here; scripts/release-provision-electron-builder-tools.ps1
+// excludes exactly these entries from extraction.
+const MACOS_ONLY_LINKS = {
+  "winCodeSign-2.6.0": ["darwin/10.12/lib/libcrypto.dylib", "darwin/10.12/lib/libssl.dylib"]
+};
 // Without --tool-archives, the operator's staging folder %LOCALAPPDATA%\SpecterStudio\release-inputs\electron-builder-tools
 // is searched (outside Git, resources and app.asar, beside the release-keys custody folder), when it exists.
 const toolArchiveArgs = process.argv.flatMap((arg, i, all) => (arg === "--tool-archives" && all[i + 1] ? [path.resolve(all[i + 1])] : []));
@@ -148,13 +158,79 @@ const listArchive = (archive) => {
     .split(/\r?\n\r?\n/)
     .map((block) => Object.fromEntries([...block.matchAll(/^(\w[\w ]*?) = (.*)$/gm)].map((m) => [m[1], m[2]])))
     .filter((entry) => entry.Path)
-    .map((entry) => ({ rel: entry.Path.replace(/\\/g, "/"), dir: /^D/.test(entry.Attributes ?? "") || entry.Folder === "+", link: /\bl[rwxsStT-]{9}\b/.test(entry.Attributes ?? ""), size: Number(entry.Size ?? 0), crc: (entry.CRC ?? "").toUpperCase() }));
+    .map((entry) => {
+      // Attributes = "<Windows letters>[ <unix mode>]", for example "A_ -rw-r--r--", "D_ drwxr-xr-x", "A_ lrwxr-xr-x".
+      const [win = "", unix = ""] = (entry.Attributes ?? "").split(" ");
+      return { rel: entry.Path.replace(/\\/g, "/"), dir: /D/.test(win) || unix.startsWith("d") || entry.Folder === "+", link: /^l[rwxsStT-]{9}$/.test(unix), size: Number(entry.Size ?? 0), crc: (entry.CRC ?? "").toUpperCase() };
+    });
 };
+// The H3c inventory criteria, shared by the real comparison and the negative controls: every archive file present as a
+// regular (non-link) file with equal size and CRC32; nothing on disk that the archive lacks; no symbolic link or junction
+// anywhere on disk (a reparse point could redirect a checked file or hide content); and the archive's link entries must be
+// ABSENT, which is tolerated only for this tool's pinned macOS-only links. onDisk is [{ rel, link }] for every file and
+// link under the folder; inspect(rel) is lstat-based and returns null or { isFile, link, size, crc: () => "HEX" }.
+function compareInventory(id, listing, onDisk, inspect) {
+  const files = listing.filter((entry) => !entry.dir);
+  const expected = new Set(files.map((entry) => entry.rel.toLowerCase()));
+  const tolerated = new Set((MACOS_ONLY_LINKS[id] ?? []).map((rel) => rel.toLowerCase()));
+  let differ = 0;
+  let linksAbsent = 0;
+  for (const entry of files) {
+    const found = inspect(entry.rel);
+    if (entry.link) {
+      if (!found && tolerated.has(entry.rel.toLowerCase())) linksAbsent += 1;
+      else differ += 1; // an unpinned link entry, or any content at a link path, is not accepted
+    } else if (!found || !found.isFile || found.link || found.size !== entry.size || (entry.size > 0 && found.crc() !== entry.crc)) differ += 1;
+  }
+  const extra = onDisk.filter((item) => item.link || !expected.has(item.rel.toLowerCase())).length;
+  return { files: files.length, differ, extra, linksAbsent, ok: differ === 0 && extra === 0 };
+}
+// Negative controls: each mutation of a matching synthetic inventory must be rejected, so the comparison cannot pass
+// vacuously or tolerate more than the pinned links.
+{
+  const listing = [
+    { rel: "bin", dir: true, link: false, size: 0, crc: "" },
+    { rel: "bin/tool.exe", dir: false, link: false, size: 4, crc: "0000ABCD" },
+    { rel: "darwin/10.12/lib/libssl.dylib", dir: false, link: true, size: 20, crc: "0000BEEF" }
+  ];
+  const disk = { "bin/tool.exe": { isFile: true, link: false, size: 4, crc: "0000ABCD" } };
+  const check = (id, list, files) =>
+    compareInventory(
+      id,
+      list,
+      Object.entries(files).map(([rel, item]) => ({ rel, link: item.link })),
+      (rel) => (files[rel] ? { ...files[rel], crc: () => files[rel].crc } : null)
+    ).ok;
+  const unlinked = listing.map((entry) => (entry.link ? { ...entry, link: false } : entry));
+  const mutations = {
+    "a pinned link path present on disk as a file": check("winCodeSign-2.6.0", listing, { ...disk, "darwin/10.12/lib/libssl.dylib": { isFile: true, link: false, size: 20, crc: "0000BEEF" } }),
+    "a Windows file replaced by a symbolic link": check("winCodeSign-2.6.0", listing, { "bin/tool.exe": { ...disk["bin/tool.exe"], isFile: false, link: true } }),
+    "a junction or link inside the folder": check("winCodeSign-2.6.0", listing, { ...disk, "bin/elsewhere": { isFile: false, link: true, size: 0, crc: "" } }),
+    "a Windows file missing": check("winCodeSign-2.6.0", listing, {}),
+    "a size differs": check("winCodeSign-2.6.0", listing, { "bin/tool.exe": { ...disk["bin/tool.exe"], size: 5 } }),
+    "a CRC32 differs": check("winCodeSign-2.6.0", listing, { "bin/tool.exe": { ...disk["bin/tool.exe"], crc: "0000ABCE" } }),
+    "a folder where a file belongs": check("winCodeSign-2.6.0", listing, { "bin/tool.exe": { ...disk["bin/tool.exe"], isFile: false } }),
+    "an extra file": check("winCodeSign-2.6.0", listing, { ...disk, "bin/extra.dll": { isFile: true, link: false, size: 1, crc: "00000001" } }),
+    "an unpinned link absent": check("winCodeSign-2.6.0", [...listing, { rel: "bin/helper.dll", dir: false, link: true, size: 9, crc: "00000009" }], disk),
+    "a pinned link path absent for another tool": check("nsis-3.0.4.1", listing, disk),
+    "a pinned path absent but listed as a regular file": check("winCodeSign-2.6.0", unlinked, disk)
+  };
+  const baseline = check("winCodeSign-2.6.0", listing, disk);
+  const missed = Object.entries(mutations).filter(([, ok]) => ok).map(([name]) => name);
+  report(
+    "H3c",
+    baseline && missed.length === 0 ? "PASS" : "BLOCKED",
+    "Tool-cache inventory comparison negative controls",
+    !baseline ? "a matching synthetic inventory was rejected; the comparison cannot be trusted" : missed.length ? `missed ${missed.length} of ${Object.keys(mutations).length} mutations (${missed.join("; ")}); the comparison cannot be trusted` : `matching inventory accepted, ${Object.keys(mutations).length} of ${Object.keys(mutations).length} mutations rejected`
+  );
+}
+// Every file and every symbolic link or junction under the folder (readdir does not descend into links, so they are
+// reported here instead of being silently skipped).
 const filesUnder = (dir) =>
   fs
     .readdirSync(dir, { recursive: true, withFileTypes: true })
-    .filter((d) => d.isFile())
-    .map((d) => path.relative(dir, path.join(d.parentPath ?? d.path, d.name)).replace(/\\/g, "/"));
+    .filter((d) => d.isFile() || d.isSymbolicLink())
+    .map((d) => ({ rel: path.relative(dir, path.join(d.parentPath ?? d.path, d.name)).replace(/\\/g, "/"), link: d.isSymbolicLink() }));
 for (const pin of TOOL_PINS) {
   const id = `${pin.name}-${pin.version}`;
   const installed = installedPin[pin.name];
@@ -207,27 +283,16 @@ for (const pin of TOOL_PINS) {
     report("H3c", "INFO", `${id} in the electron-builder cache`, `INCONCLUSIVE: the bundled 7za could not list ${verifiedArchive}`);
     continue;
   }
-  const files = listing.filter((entry) => !entry.dir);
-  const expected = new Set(files.map((entry) => entry.rel.toLowerCase()));
-  let differ = 0;
-  let linksAbsent = 0;
-  for (const entry of files) {
-    const file = path.join(folder, entry.rel);
-    const present = fs.statSync(file, { throwIfNoEntry: false });
-    if (entry.link) {
-      if (!present) linksAbsent += 1;
-      continue;
-    }
-    if (!present || !present.isFile() || present.size !== entry.size) differ += 1;
-    else if (entry.size > 0 && zlib.crc32(fs.readFileSync(file)).toString(16).toUpperCase().padStart(8, "0") !== entry.crc) differ += 1;
-  }
-  const extra = onDisk.filter((rel) => !expected.has(rel.toLowerCase())).length;
-  const ok = differ === 0 && extra === 0;
+  const result = compareInventory(id, listing, onDisk, (rel) => {
+    const file = path.join(folder, rel);
+    const present = fs.lstatSync(file, { throwIfNoEntry: false });
+    return present ? { isFile: present.isFile(), link: present.isSymbolicLink(), size: present.size, crc: () => zlib.crc32(fs.readFileSync(file)).toString(16).toUpperCase().padStart(8, "0") } : null;
+  });
   report(
     "H3c",
-    ok ? "PASS" : "BLOCKED",
+    result.ok ? "PASS" : "BLOCKED",
     `${id} in the electron-builder cache`,
-    `${ok ? "PRESENT AND VERIFIED" : "CHECKSUM MISMATCH"}: ${folder}, ${files.length - linksAbsent} archive files compared by size and CRC32 against the verified ${verifiedArchive}${differ ? `, ${differ} differ or are missing` : ""}${extra ? `, ${extra} extra file(s) not in the archive` : ""}${linksAbsent ? `, ${linksAbsent} symbolic link(s) not extracted (macOS-only entries; Windows packaging does not use them)` : ""}`
+    `${result.ok ? "PRESENT AND VERIFIED" : "CHECKSUM MISMATCH"}: ${folder}, ${result.files - result.linksAbsent} archive files compared by size and CRC32 against the verified ${verifiedArchive}${result.differ ? `, ${result.differ} differ or are missing` : ""}${result.extra ? `, ${result.extra} extra file(s) not in the archive` : ""}${result.linksAbsent ? `, ${result.linksAbsent} pinned macOS-only symbolic link(s) not extracted (${MACOS_ONLY_LINKS[id].join(", ")}; Windows packaging does not read them)` : ""}`
   );
 }
 

@@ -348,6 +348,19 @@ The original entry follows.
       - **Remedy:** retry when GitHub's release downloads recover. electron-builder then verifies the tools itself.
       - **Trap:** the X: profile's `electron-builder\Cache` holds `.7z` and `.state` files in a different layout,
         likely from a newer electron-builder. Do not copy them in unverified.
+      - **Offline provisioning path (2026-11-08, not yet executed).** app-builder 5.0.0-alpha.10 keeps only the
+        unpacked folder `<cache>\<name up to the first "-">\<name>-<version>` and reuses an existing folder without
+        re-checking it, so a hand-copied folder is trusted blindly.
+        - `npm run verify:packaging-host` H3c hashes staged archives in
+          `%LOCALAPPDATA%\SpecterStudio\release-inputs\electron-builder-tools` against the pins. It also compares each
+          cache folder file by file with a verified archive.
+        - The owner provisions with `scripts/release-provision-electron-builder-tools.ps1 -SourceCache <folder>`, run
+          manually. It verifies the source and the staged copy, accepts only 7za exit 0, extracts outside the cache,
+          validates with H3c, promotes by a no-overwrite rename, and never reuses or deletes an unverified folder.
+        - The guard admits `npm run verify:*` only without arguments, so agents cannot pass `--tool-archives`.
+        - The only entries allowed to be missing are winCodeSign's macOS-only symbolic links
+          `darwin/10.12/lib/libcrypto.dylib` and `libssl.dylib`, which Windows cannot create without the symlink
+          privilege. Both are pinned in the verifier and the script.
 - **The shared GUI harness now picks `C:\electron-dist` automatically** when it matches the installed Electron
   version (`scripts/lib/gui-verify-harness.mjs`). The packaged executable in `dist\win-unpacked` on the Parallels
   share may still hit the GPU error_code=18 launch failure.

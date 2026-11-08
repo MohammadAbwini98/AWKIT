@@ -64,7 +64,7 @@
       "command": "npm run verify:packaging-host",
       "artifact": null,
       "result": "PASS",
-      "observed": "2026-11-08 on the ARM64 host: READY. H3c recognized all three pins in the installed toolchain (winCodeSign 2.6.0 SHA-512 embedded in app-builder-bin 5.0.0-alpha.10 app-builder.exe; nsis 3.0.4.1 and nsis-resources 3.4.1 from app-builder-lib 25.1.8 JS) and reported each as MISSING in C:\\Users\\mohammadabwini\\AppData\\Local\\electron-builder\\Cache (INFO, networked hosts fetch and verify it). The guard admits npm run verify:* only without arguments, so archives are read from the default %LOCALAPPDATA%\\SpecterStudio\\release-inputs\\electron-builder-tools staging folder; --tool-archives and --builder-cache serve owner runs."
+      "observed": "2026-11-08 on the ARM64 host: READY. H3c recognized all three pins in the installed toolchain (winCodeSign 2.6.0 SHA-512 embedded in app-builder-bin 5.0.0-alpha.10 app-builder.exe; nsis 3.0.4.1 and nsis-resources 3.4.1 from app-builder-lib 25.1.8 JS) and reported each as MISSING in C:\\Users\\mohammadabwini\\AppData\\Local\\electron-builder\\Cache (INFO, networked hosts fetch and verify it). The guard admits npm run verify:* only without arguments, so archives are read from the default %LOCALAPPDATA%\\SpecterStudio\\release-inputs\\electron-builder-tools staging folder; --tool-archives and --builder-cache serve owner runs. Second pass 2026-11-08 (owner prompt 'Secure electron-builder Cache Provisioning', plus the independent awkit-qc-reviewer findings 3-5): only the pinned macOS-only links MACOS_ONLY_LINKS (winCodeSign darwin/10.12/lib/libcrypto.dylib and libssl.dylib) may be absent, and only when the archive listing marks them as links; any content at a link path, any symbolic link or junction under the folder, and any archive file reached through a link now fail (lstat-based inspection); folder and link detection read the Windows and unix halves of the 7za Attributes field; H2 requires zlib.crc32 (Node 20.15+/22.2+); the comparison is one shared function with 11 negative controls. Rerun READY with 'matching inventory accepted, 11 of 11 mutations rejected'."
     },
     {
       "id": "git-push",
@@ -103,6 +103,38 @@
         "acquired_at_commit": "d51e840d9bd4023ca4ed260ef0e3b01b7569605d",
         "released_at": "2026-11-08T12:19:02.024Z",
         "released_reason": "verify:packaging-host H3c read-only electron-builder tool-cache check implemented and run READY",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-n7-toolcache-1108:qa:2026-11-08T12:51:27.177Z",
+        "task": "awkit-n7-toolcache-1108",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-packaging-host.mjs"
+        ],
+        "acquired_at": "2026-11-08T12:51:27.177Z",
+        "acquired_at_commit": "ac4c8daed2cc24df090775ac848032128f13a76c",
+        "released_at": "2026-11-08T12:52:21.909Z",
+        "released_reason": "H3c tightened: only the pinned winCodeSign macOS-only links may be absent, shared inventory comparison with 8 negative controls, verify:packaging-host READY",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-n7-toolcache-1108:qa:2026-11-08T13:01:05.086Z",
+        "task": "awkit-n7-toolcache-1108",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/verify-packaging-host.mjs"
+        ],
+        "acquired_at": "2026-11-08T13:01:05.086Z",
+        "acquired_at_commit": "ac4c8daed2cc24df090775ac848032128f13a76c",
+        "released_at": "2026-11-08T13:02:13.385Z",
+        "released_reason": "H3c review fixes: lstat-based inspection, links and junctions counted as extra, pinned links must be absent, zlib.crc32 Node floor, 11 negative controls, verify:packaging-host READY",
         "amendments": [],
         "overrides": [],
         "violations": []

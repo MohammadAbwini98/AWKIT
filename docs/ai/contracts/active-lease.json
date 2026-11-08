@@ -1,22 +1,34 @@
 {
-  "task": "awkit-n7-toolcache-1108",
-  "contract_path": "docs/ai/contracts/awkit-n7-toolcache-1108.json",
-  "holder": "qa",
+  "task": "awkit-n7-toolprovision-1108",
+  "contract_path": "docs/ai/contracts/awkit-n7-toolprovision-1108.json",
+  "holder": "release",
   "status": "released",
   "allowed_paths": [
+    "scripts/release-provision-electron-builder-tools.ps1"
+  ],
+  "acquired_at": "2026-11-08T13:05:20.521Z",
+  "acquired_at_commit": "ac4c8daed2cc24df090775ac848032128f13a76c",
+  "baseline_dirty": [
+    "docs/ai/KNOWN_ISSUES.md",
+    "docs/ai/TASK_LOG.md",
+    "docs/ai/contracts/active-lease.json",
+    "docs/ai/contracts/awkit-n7-toolcache-1108.json",
+    "docs/ai/contracts/awkit-n7-toolprovision-1108.json",
+    "resources/dependency-manifest.json",
+    "resources/dependency-manifest.sig",
+    "scripts/release-provision-electron-builder-tools.ps1",
     "scripts/verify-packaging-host.mjs"
   ],
-  "acquired_at": "2026-11-08T12:16:24.338Z",
-  "acquired_at_commit": "d51e840d9bd4023ca4ed260ef0e3b01b7569605d",
-  "baseline_dirty": [
-    "docs/ai/contracts/awkit-n7-toolcache-1108.json",
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig"
-  ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-n7-toolcache-1108.json": "6eb3fc936c5dd0db9199bba6eddb874467de20854f6b03f9e8e862cace30072e",
+    "docs/ai/KNOWN_ISSUES.md": "adeb1b87110e39f556e7d6467378a0191714f2928b0088052c065f0f345788f4",
+    "docs/ai/TASK_LOG.md": "7fbf1be654b9624238b6de939cad7225e7102e651713a9a27dedb25ad417d71b",
+    "docs/ai/contracts/active-lease.json": "fb0ced744a62f4b6e1abf3bcfb1e48736d5ce8d013b494f4317674ebc7554e77",
+    "docs/ai/contracts/awkit-n7-toolcache-1108.json": "046faca9b1e9e500e998b5f5d6c6680d3f0230dd18d90668679745ec59a1312b",
+    "docs/ai/contracts/awkit-n7-toolprovision-1108.json": "5a476a6a3d4c2ddee2979cb40e3ca48077efd758738223352982693b5316f55e",
     "resources/dependency-manifest.json": "e8f36bb17899d3a164620281dc89acf609a016b08c91177008a4fe57b9aaeae3",
-    "resources/dependency-manifest.sig": "2f9a7c82287211a2fa22bcca3654112aff098b2732d8e672612257e41a8b4434"
+    "resources/dependency-manifest.sig": "2f9a7c82287211a2fa22bcca3654112aff098b2732d8e672612257e41a8b4434",
+    "scripts/release-provision-electron-builder-tools.ps1": "e39326e2114f79844ee70a1b2ccc40744098dd68136cf07951a22866ae616e5c",
+    "scripts/verify-packaging-host.mjs": "4288f9d882dd0a86111b22adfebb40d1f95a2242ed78e182ffe068f3d73b5368"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -31,7 +43,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-11-08T12:19:02.024Z",
-  "released_reason": "verify:packaging-host H3c read-only electron-builder tool-cache check implemented and run READY",
-  "archived_at": "2026-11-08T12:19:02.027Z"
+  "released_at": "2026-11-08T13:05:51.654Z",
+  "released_reason": "commit gate BLOCKED for the agent: staged set mixes the release-owned script with docs and contracts, owner commits from the terminal",
+  "archived_at": "2026-11-08T13:05:51.657Z"
 }

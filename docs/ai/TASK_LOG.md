@@ -1,5 +1,30 @@
 # TASK_LOG
 
+## 2026-11-08 — electron-builder tool-cache check (H3c) and owner provisioning script for N7 packaging (Claude)
+
+- **Task:** owner prompts "Resolve electron-builder Tool Dependencies" and "Secure electron-builder Cache Provisioning".
+- **Contracts and leases:**
+  - QA `awkit-n7-toolcache-1108` (`scripts/verify-packaging-host.mjs`, three grants);
+  - release `awkit-n7-toolprovision-1108` (the owner script). Its first grant was refused once for extra qa/qc
+    routing and an invalid evidence type, then corrected.
+- **Files:**
+  - `scripts/verify-packaging-host.mjs` (H3c, the H2 `zlib.crc32` floor);
+  - `scripts/release-provision-electron-builder-tools.ps1` (new);
+  - both contracts, `KNOWN_ISSUES` and `TASK_LOG`.
+- **Findings:**
+  - electron-builder 25.1.8 pins nsis 3.0.4.1 and nsis-resources 3.4.1, with SHA-512 values in the app-builder-lib JS.
+  - winCodeSign 2.6.0 is requested by name only; its SHA-512 is embedded in `app-builder.exe`.
+  - The cache folder is reused without being checked again.
+- **Earlier owner snippet:** it was replaced. It accepted 7za exit 2, trusted existing folders, extracted straight into
+  the cache and deleted a mismatched staged copy.
+- **Independent QC (awkit-qc-reviewer):** APPROVE WITH CHANGES. Findings 1–4 and the nits were applied. The reviewer's
+  PowerShell parse check was BLOCKED by the guard.
+- **Checks:**
+  - `verify:packaging-host` READY: H3c negative controls 11/11, all three tools MISSING from this host's cache;
+  - `npm run build` PASS;
+  - classification and roadmap: see the commit.
+  - The owner script has not been run (owner-side). `package:portable` and `verify:ocr-packaged` NOT RUN.
+
 ## 2026-11-07 — Implement `verify:ocr-packaged`, the N7.8 packaged OCR gate (Claude)
 
 - **Task:** owner "Yes, implement it".
