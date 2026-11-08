@@ -1,13 +1,14 @@
 {
-  "task": "awkit-n7-toolprovision-1108",
-  "contract_path": "docs/ai/contracts/awkit-n7-toolprovision-1108.json",
+  "task": "awkit-n7-package-1108",
+  "contract_path": "docs/ai/contracts/awkit-n7-package-1108.json",
   "holder": "release",
-  "status": "released",
+  "status": "active",
   "allowed_paths": [
-    "scripts/release-provision-electron-builder-tools.ps1"
+    "resources/dependency-manifest.json",
+    "resources/dependency-manifest.sig"
   ],
-  "acquired_at": "2026-11-08T16:54:12.135Z",
-  "acquired_at_commit": "b2049cbb4db02596a9270c25b3bc947313b9a8a8",
+  "acquired_at": "2026-11-08T18:19:00.304Z",
+  "acquired_at_commit": "fd800f28f208eb1a44b8af9ca3255a383be2638e",
   "baseline_dirty": [
     "resources/dependency-manifest.json",
     "resources/dependency-manifest.sig"
@@ -28,8 +29,5 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-11-08T16:54:39.875Z",
-  "released_reason": "provisioning script parse fix committed in 0c6560e6",
-  "archived_at": "2026-11-08T16:54:39.879Z"
+  "violations": []
 }
