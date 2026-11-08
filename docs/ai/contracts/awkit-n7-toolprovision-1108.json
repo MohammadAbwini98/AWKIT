@@ -120,6 +120,22 @@
         "amendments": [],
         "overrides": [],
         "violations": []
+      },
+      {
+        "id": "awkit-n7-toolprovision-1108:release:2026-11-08T16:54:12.135Z",
+        "task": "awkit-n7-toolprovision-1108",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/release-provision-electron-builder-tools.ps1"
+        ],
+        "acquired_at": "2026-11-08T16:54:12.135Z",
+        "acquired_at_commit": "b2049cbb4db02596a9270c25b3bc947313b9a8a8",
+        "released_at": "2026-11-08T16:54:39.875Z",
+        "released_reason": "provisioning script parse fix committed in 0c6560e6",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
       }
     ]
   }
