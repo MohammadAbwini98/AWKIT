@@ -4,12 +4,12 @@
                    "version":  3,
                    "sourceTemplate":  "playwright_flow_studio_updated_phases/12_OFFLINE_DEPENDENCY_MANIFEST_TEMPLATE.md"
                },
-    "manifestGeneratedAt":  "2026-10-13T15:49:49.2840254Z",
+    "manifestGeneratedAt":  "2026-11-08T18:21:30.2516338Z",
     "application":  {
                         "name":  "SpecterStudio",
-                        "version":  "0.1.53",
+                        "version":  "0.1.54",
                         "buildMode":  "production-offline",
-                        "sourceCommit":  "3bd01feaf3e7fc8bd0e4dbe9f48e28b63b2720a3",
+                        "sourceCommit":  "96689feae1dc41f08df4944debe40e40a87ac51f",
                         "sourceTreeDirty":  false
                     },
     "offline":  {
@@ -7745,7 +7745,7 @@
                                    "arch":  "x64",
                                    "stagedRoot":  "native-hosts/dom-intelligence",
                                    "fileCount":  168,
-                                   "totalBytes":  31547104,
+                                   "totalBytes":  31547251,
                                    "assets":  [
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/host/dom_intelligence_host.py",
@@ -7795,7 +7795,7 @@
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/python/python312.zip",
                                                       "size":  2295253,
-                                                      "sha256":  "b1cace1c6bd5bd28210d37e66f3caa172cf53f2239bcdde59c6db8d4e4d138e8"
+                                                      "sha256":  "56d45a9202abbe6cd4497d40a321a26b7951addbb8d20e12aa5cee141b38c8b6"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/python/sqlite3.dll",
@@ -7819,8 +7819,8 @@
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/__pycache__/typing_extensions.cpython-312.pyc",
-                                                      "size":  166563,
-                                                      "sha256":  "d02cd08b32c2c22762faef3e0481f34bf131952142d7e1b21e0f2cc4a4ecaaff"
+                                                      "size":  166566,
+                                                      "sha256":  "b03151a38ecc1800a8de85c36319f21db8f3779a304d55269b0961d24fe701dd"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/cssselect-1.5.0.dist-info/licenses/AUTHORS",
@@ -7854,18 +7854,18 @@
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/cssselect/__pycache__/__init__.cpython-312.pyc",
-                                                      "size":  886,
-                                                      "sha256":  "d85b06c26af2d6dd9418db102c09534ea0d871b95c5d81b35d6d0623f183840a"
+                                                      "size":  889,
+                                                      "sha256":  "7953f393eca21952d0388d5ff689d1037c82587c945f25a4f5fc46afba2fb533"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/cssselect/__pycache__/parser.cpython-312.pyc",
-                                                      "size":  50488,
-                                                      "sha256":  "ba1561ec1fa2adedbcfa03af1f4e9cf46ea8057bfe2b92ce514c2bc215239c0f"
+                                                      "size":  50491,
+                                                      "sha256":  "993f2055564983ce75bc5a740f521a8353db07a01509df5d2360558d9752980a"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/cssselect/__pycache__/xpath.cpython-312.pyc",
-                                                      "size":  37620,
-                                                      "sha256":  "0db1e457c3fe748eb5f33153e58a0e96b0606f02613e2b2b11bc73900bcb4c7c"
+                                                      "size":  37623,
+                                                      "sha256":  "57d5bf8f91959d71470d827c1345fed83790f5b7f93cdfb99ffc42a55470ed27"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/cssselect/parser.py",
@@ -7919,48 +7919,48 @@
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/lxml/__pycache__/__init__.cpython-312.pyc",
-                                                      "size":  1030,
-                                                      "sha256":  "f96f454898229c10cd7853787e9059dd67aaafb986d9f3ae779c95d248ac8142"
+                                                      "size":  1033,
+                                                      "sha256":  "d6972f5011dd63a93d6cc8812b9f8ee4cba3e584e3e98888a64e325db65b6e1e"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/lxml/__pycache__/_elementpath.cpython-312.pyc",
-                                                      "size":  10447,
-                                                      "sha256":  "673ed6f9925c500f53e1d51d8fcf70755260b56f43506c4860d3933379a4ff07"
+                                                      "size":  10450,
+                                                      "sha256":  "76829bb682cbf5e132e389022c36bf2ce80146523419c1a4e9de51290c645a1a"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/lxml/__pycache__/builder.cpython-312.pyc",
-                                                      "size":  8094,
-                                                      "sha256":  "a371310a5e3f582d333a6cac61359eb6ac479bdbe98adab323e2b38c0fabf3bc"
+                                                      "size":  8097,
+                                                      "sha256":  "fa23c6001b977feb4e137b145b7370a3e595b57b8842b2710828ce2eab6dceb3"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/lxml/__pycache__/cssselect.cpython-312.pyc",
-                                                      "size":  4591,
-                                                      "sha256":  "d88458b588761067807d283316aead6648a0ae25be9940d2bf44306530cce79c"
+                                                      "size":  4594,
+                                                      "sha256":  "5ff37a63be7b83c297876e26cda54b603daf5b6f59eeae1776716b4ca565fbbc"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/lxml/__pycache__/doctestcompare.cpython-312.pyc",
-                                                      "size":  24288,
-                                                      "sha256":  "a12150068c137ad4823aae0594756a13e73da28ea4122cce2920cc5203bd7357"
+                                                      "size":  24291,
+                                                      "sha256":  "fccf598bffb346c655d23485bbc7469b9ac9dbc910968636420439072ac881f1"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/lxml/__pycache__/ElementInclude.cpython-312.pyc",
-                                                      "size":  6095,
-                                                      "sha256":  "f4e512608d86487dde483758ccdf0c9d88c2b5535384948aae27445d095bd2c3"
+                                                      "size":  6098,
+                                                      "sha256":  "878004e651097d7f64f5fbe6b83c2dda85782671f7452508135772888d190f64"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/lxml/__pycache__/pyclasslookup.cpython-312.pyc",
-                                                      "size":  272,
-                                                      "sha256":  "8934a7e18dfb2324619efade8b4230cdcfe16d9822891bcbce4e844f55baa020"
+                                                      "size":  275,
+                                                      "sha256":  "8e1423f241232644cd733b15c728850886cec733e325f1028c7be2bfa2a776f9"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/lxml/__pycache__/sax.cpython-312.pyc",
-                                                      "size":  12914,
-                                                      "sha256":  "c72afaacb12ad14f66636a469144022eefbb5717b3c2f83e1246b567f46e7e80"
+                                                      "size":  12917,
+                                                      "sha256":  "405a03a04436ba3b709c018e91890434501126e55781a613ab8011f59c586ead"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/lxml/__pycache__/usedoctest.cpython-312.pyc",
-                                                      "size":  505,
-                                                      "sha256":  "b3e43b0e6c245fcb02269084dab2ef3a20be8215777d22537b853d5d76301ac1"
+                                                      "size":  508,
+                                                      "sha256":  "5e3f2512a78f2f411680cf927f5330be236d5c3a05bcbb4f37839ae418cce6d4"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/lxml/_elementpath.cp312-win_amd64.pyd",
@@ -8009,73 +8009,73 @@
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/lxml/html/__pycache__/__init__.cpython-312.pyc",
-                                                      "size":  80771,
-                                                      "sha256":  "8696a9e86eb003df25a8b1e78929d5b8f751a479940cedc068e72af7c165ba0b"
+                                                      "size":  80774,
+                                                      "sha256":  "8b4647f60e36bd870fb0db488981242276dc1b0c571e9784d727715bcea148a1"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/lxml/html/__pycache__/_diffcommand.cpython-312.pyc",
-                                                      "size":  3905,
-                                                      "sha256":  "00cb11a8170e28b00d395e210199693a610768a1975261c43c73c223576184c5"
+                                                      "size":  3908,
+                                                      "sha256":  "7ca6cab9e93630cbc4d92094b2aa23a3df9ae4cf0bc25de947c164c44f0979c9"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/lxml/html/__pycache__/_difflib.cpython-312.pyc",
-                                                      "size":  77001,
-                                                      "sha256":  "b04d4351ea19fa1608ef5e121a96174e741ef7e1854f67e64906b6e17df6ffd4"
+                                                      "size":  77004,
+                                                      "sha256":  "8a5577523e01e5ba1d9b430fe3a5e4b5ba910ccfda7fcd9f70c5a151a61b5554"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/lxml/html/__pycache__/_html5builder.cpython-312.pyc",
-                                                      "size":  5837,
-                                                      "sha256":  "d5f03483f18f0b2e68b4d43eda0708daecfa488ae7139652728ef50ffe8857ce"
+                                                      "size":  5840,
+                                                      "sha256":  "3ad182ba7807f811acc4c462a7955e95d6c18aad11779d8d650f776ab95bc928"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/lxml/html/__pycache__/_setmixin.cpython-312.pyc",
-                                                      "size":  2545,
-                                                      "sha256":  "4bceb3a4bae5602a53d978d4a1f482655b3ece44f0253bd60f7d4c4adec6e068"
+                                                      "size":  2548,
+                                                      "sha256":  "7b327752c62f37631eb78a32ba93d69173c653c000119b0b27ce9da6a56a75c6"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/lxml/html/__pycache__/builder.cpython-312.pyc",
-                                                      "size":  7397,
-                                                      "sha256":  "338e883727f9751f3d9824ed1ad17a64d655bfbee7f97ce9a14946203355804c"
+                                                      "size":  7400,
+                                                      "sha256":  "72f35445ee095fe5db4bff2396506678ee27f38f44c677d09bc23ffe4c7c558d"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/lxml/html/__pycache__/clean.cpython-312.pyc",
-                                                      "size":  645,
-                                                      "sha256":  "b04584b684b982f90d39861ea66d66849fef7c146cca2f6dd2e2ddafaa42076d"
+                                                      "size":  648,
+                                                      "sha256":  "dca3ae5ebc1037db9cb235fc19d4e66a28d7cc32ea0651d1fa3df0d1ea3b5c4f"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/lxml/html/__pycache__/defs.cpython-312.pyc",
-                                                      "size":  4231,
-                                                      "sha256":  "b1d4d3d2361b648b2b58218b736f070afb82a1ae0894687fc243ec86eda061d8"
+                                                      "size":  4234,
+                                                      "sha256":  "1b2cbde3359ee475d86380b6eaa14f825d7d20af8130cc77e2faeec97dd33726"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/lxml/html/__pycache__/diff.cpython-312.pyc",
-                                                      "size":  35000,
-                                                      "sha256":  "7f76daedb9d25c763dc116684bcc8847812d2dd62b581382c2293449a02fdf83"
+                                                      "size":  35003,
+                                                      "sha256":  "bc2b3a412d90908eb8e50de03f90d66c65b21827a73e3662413a6e8eaa5e91e3"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/lxml/html/__pycache__/ElementSoup.cpython-312.pyc",
-                                                      "size":  641,
-                                                      "sha256":  "5af928377b2ab4e3ef875e658124dcde2ff730009339e716822f2b3bd041d28b"
+                                                      "size":  644,
+                                                      "sha256":  "89067458dda7157ba7b4c438335cfd04c4aecb1b60bf97ecebcecdfcec2993d7"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/lxml/html/__pycache__/formfill.cpython-312.pyc",
-                                                      "size":  12179,
-                                                      "sha256":  "444a680491aba4bc9aab666e0222b16e717162021ba9b01379e01dd6fce370d2"
+                                                      "size":  12182,
+                                                      "sha256":  "ce2225e3ec7fc01f615bb8089b95784f7f046ec4a7c96cc73afd6df4d0480d6d"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/lxml/html/__pycache__/html5parser.cpython-312.pyc",
-                                                      "size":  9014,
-                                                      "sha256":  "c437425d3ee6e09726ab884cf04f71e1e848e1798df709d2b4aa2a5f9d864672"
+                                                      "size":  9017,
+                                                      "sha256":  "df84fa79e6f64e11edf8d3caff5c42725d43446ab5b446ecdb918bf05590aa2a"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/lxml/html/__pycache__/soupparser.cpython-312.pyc",
-                                                      "size":  11610,
-                                                      "sha256":  "38458f3cd8759b39551a4825186419ab0be08db09376fb90eeb35c9647cb2be8"
+                                                      "size":  11613,
+                                                      "sha256":  "a515c9b9e8d64b19f7bc8b490b2651495031edeb7a43331b70c7e1d87c33fb91"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/lxml/html/__pycache__/usedoctest.cpython-312.pyc",
-                                                      "size":  529,
-                                                      "sha256":  "e84f85cfb073fdfedf6696589ab45fc9481295d039db92a5fd893761f2aa826a"
+                                                      "size":  532,
+                                                      "sha256":  "94150593dbc935d73adda12e8942d244bd5163984e478dc043c7c72a4bbf8dca"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/lxml/html/_diffcommand.py",
@@ -8159,8 +8159,8 @@
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/lxml/isoschematron/__pycache__/__init__.cpython-312.pyc",
-                                                      "size":  14225,
-                                                      "sha256":  "d792051139d9dfa4fd56d4099c61b948aebc0ed09899fea3f0e5fa5e628f9b3e"
+                                                      "size":  14228,
+                                                      "sha256":  "66e9d73309ca99a9d86cd19a3704b05e2caadc04aef528a4480a66ddd7b6ae0a"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/lxml/isoschematron/resources/rng/iso-schematron.rng",
@@ -8274,8 +8274,8 @@
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/orjson/__pycache__/__init__.cpython-312.pyc",
-                                                      "size":  736,
-                                                      "sha256":  "25335a22ef89cf58a427627e1d907370e07ffd7bb332e6fab9c4e156619d571a"
+                                                      "size":  739,
+                                                      "sha256":  "a0d76a48751a818c5f259dee49d566a2dc4388c579085a4bc8a0d1a4c4c3d39d"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/orjson/orjson.cp312-win_amd64.pyd",
@@ -8324,13 +8324,13 @@
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/scrapling/__pycache__/__init__.cpython-312.pyc",
-                                                      "size":  1783,
-                                                      "sha256":  "ce0fcf0e3d8a1d7e4766c0855c08ab15f99be40437036cb19eaa7a5251f4ebc7"
+                                                      "size":  1786,
+                                                      "sha256":  "d3502c86504403b47ebe0721aa3725682958f2730bf614294ac850295ffd97f3"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/scrapling/__pycache__/parser.cpython-312.pyc",
-                                                      "size":  66649,
-                                                      "sha256":  "2b03515db25711838cd16d41a947238f1d29c98c4f6ae17462d6d01a34579f1b"
+                                                      "size":  66652,
+                                                      "sha256":  "c3651e6e4b7a4b20b0f5910c684303eab9730ef565da88762e880b43a8f0c33a"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/scrapling/core/__init__.py",
@@ -8339,33 +8339,33 @@
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/scrapling/core/__pycache__/__init__.cpython-312.pyc",
-                                                      "size":  213,
-                                                      "sha256":  "c8b30b83319860166df44770704e5af8d32657aaa1cb34b4135bacd195688945"
+                                                      "size":  216,
+                                                      "sha256":  "d52177267242558375dfacc9498631f32b4bec143eb936487eb1ba44d80dda13"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/scrapling/core/__pycache__/_types.cpython-312.pyc",
-                                                      "size":  2031,
-                                                      "sha256":  "6e3cb543785ec8baa6b67a606b6c10510930f6084c7ef5044dfc85ad0db2e11a"
+                                                      "size":  2034,
+                                                      "sha256":  "8cd90fa2a7e4b90b8a9136213f1eab67d7d726ab711e9f0eef952865faf9eae9"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/scrapling/core/__pycache__/custom_types.cpython-312.pyc",
-                                                      "size":  19705,
-                                                      "sha256":  "209f6411c0c26a080552b147cc6778836664a317dce498ed30ae2ed706118210"
+                                                      "size":  19708,
+                                                      "sha256":  "f7df4deff0127ff7e8e3b04c15e561b1a7e75546094a6daf0d2ea6d1ab49b94e"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/scrapling/core/__pycache__/mixins.cpython-312.pyc",
-                                                      "size":  4591,
-                                                      "sha256":  "c221b49bb3228dc69899423e2fff3ff4f44c0a4bf77b163d00c3cf259efb7791"
+                                                      "size":  4594,
+                                                      "sha256":  "79e6b29c8219709513e030074cb61ecd370421da023cae3cc295dade9ee05059"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/scrapling/core/__pycache__/storage.cpython-312.pyc",
-                                                      "size":  8801,
-                                                      "sha256":  "e518cc500a88aaf0cee323f98bb0456520d49f4f4a9d8b3d935e2ff4ffa5b0b2"
+                                                      "size":  8804,
+                                                      "sha256":  "87d353b84bdd1895677fcf1ee31949fc8bd5fcd39b3b0e82f78340d773585d31"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/scrapling/core/__pycache__/translator.cpython-312.pyc",
-                                                      "size":  7527,
-                                                      "sha256":  "a0a12b73faeafc69533fa67dc2a7f6bc0264e5237dacca9e4e4dc7d35a27f316"
+                                                      "size":  7530,
+                                                      "sha256":  "b15d398d0d45c3858d9554aa12b5544a26205f4ce7e92b1c871dba29527ec80d"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/scrapling/core/_types.py",
@@ -8399,13 +8399,13 @@
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/scrapling/core/utils/__pycache__/__init__.cpython-312.pyc",
-                                                      "size":  464,
-                                                      "sha256":  "2e6084f8f1aa5cd6035b1d6262af28a9b46cc2d8f45546577726fa3411ded242"
+                                                      "size":  467,
+                                                      "sha256":  "2a76466942c1e3bb6970c028b077a4d2265cadb3fe52e7fb85f0ffdd60447b3f"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/scrapling/core/utils/__pycache__/_utils.cpython-312.pyc",
-                                                      "size":  6499,
-                                                      "sha256":  "745b967eef794123cda4d3066f983a238be41eccec47d8d7fc7309647a1cd3d6"
+                                                      "size":  6502,
+                                                      "sha256":  "e47edac9b825a47a97c974552a50cf395269d0ee325d8c15d1ffdac1aaafacd0"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/scrapling/core/utils/_utils.py",
@@ -8474,53 +8474,53 @@
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/w3lib/__pycache__/__init__.cpython-312.pyc",
-                                                      "size":  570,
-                                                      "sha256":  "f8614fd9af5790dc7732786477da9208601ba6a1abc24eb619ab6d8008ae4b59"
+                                                      "size":  573,
+                                                      "sha256":  "2c0746b7cc99a2ac37ae43fab4eba9d0ec9683926ffbf4b17abd9b75044a8233"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/w3lib/__pycache__/_infra.cpython-312.pyc",
-                                                      "size":  902,
-                                                      "sha256":  "a62e78c7ca647b226d44852201ecc61b0fde2500a2460e3257ded8c6f08ed2c4"
+                                                      "size":  905,
+                                                      "sha256":  "7252843a83d395162528edde74e7a629db659b521f6e21b3954cd6d30a5e3fd6"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/w3lib/__pycache__/_types.cpython-312.pyc",
-                                                      "size":  416,
-                                                      "sha256":  "b49d88f169f9a546cb4d874faa02f298f13ddd8cfead8c28d7ecc2e775e9cf01"
+                                                      "size":  419,
+                                                      "sha256":  "fd229aea1a614978264f95ec3c9144d457c3ef0e386951cbf358171ef1ed9ffb"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/w3lib/__pycache__/_url.cpython-312.pyc",
-                                                      "size":  26676,
-                                                      "sha256":  "020968ff568fd97b7e97b2021356bd96bc24e45711a5bd14bff89e8fdc80d55b"
+                                                      "size":  26679,
+                                                      "sha256":  "3e7096ee2a84f348bd5d464612ed8cd3e06de4178ad3e8fdedb840b8c0fae7fc"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/w3lib/__pycache__/_util.cpython-312.pyc",
-                                                      "size":  3877,
-                                                      "sha256":  "710a20e9cdeefc59875edc2fb1d37929bfe880477faba0bb4dc3a5f0015c4e36"
+                                                      "size":  3880,
+                                                      "sha256":  "5835d3f89b4ddb8f30bedb37876cc73857c250a8099657336b7d8bb4568d511e"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/w3lib/__pycache__/encoding.cpython-312.pyc",
-                                                      "size":  14600,
-                                                      "sha256":  "efa75781a3b90da0299f0314ab00fb9ab870084fe02e9cd648a076a3c1b9b931"
+                                                      "size":  14603,
+                                                      "sha256":  "85ebd2d8eb7f92aacd9cf80946fe67984342170c9e60abeaeb6cf01a2928cf05"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/w3lib/__pycache__/html.cpython-312.pyc",
-                                                      "size":  23710,
-                                                      "sha256":  "0dc8c973a8cc51c8119564499449ff6d640d9c7a16ec8ae9fd08953fcb232ada"
+                                                      "size":  23713,
+                                                      "sha256":  "ba7e355d59c10bc14b3991e732974bf22193e7ec164a3065fb2bee2a342559bf"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/w3lib/__pycache__/http.cpython-312.pyc",
-                                                      "size":  4441,
-                                                      "sha256":  "2ce18ba2e56ee2e2b74b1c554b0a85ac16dd2bce9ad26ea4b41feaa1f058bf3d"
+                                                      "size":  4444,
+                                                      "sha256":  "7cf94c0ce9d693b051e95e2621f33d503d3d5087be2061f9d0f6723d135ddfa1"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/w3lib/__pycache__/url.cpython-312.pyc",
-                                                      "size":  29970,
-                                                      "sha256":  "a02ff633d4af8af0c94ba1a6b839b665987493deab86d4583317940e2dc3b2de"
+                                                      "size":  29973,
+                                                      "sha256":  "93b6a330e8bc3379087521467a79e39c7a90ec48401913c6287c72544fdad41e"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/w3lib/__pycache__/util.cpython-312.pyc",
-                                                      "size":  1140,
-                                                      "sha256":  "2932e87c05772d46a1b4d869dea5958b915de674196b891b448468144a2ec24d"
+                                                      "size":  1143,
+                                                      "sha256":  "80358bb5725fca5d4f0214f0225f78132a4c3f45a541d8094bfdd662f95e44c4"
                                                   },
                                                   {
                                                       "relativePath":  "native-hosts/dom-intelligence/site-packages/w3lib/_infra.py",
@@ -8588,5 +8588,65 @@
                                                       "sha256":  "45222d94ddd511536f3b2f7d9deae3b2339b4ce0f075f1ca25703b07cad9dd21"
                                                   }
                                               ]
-                               }
+                               },
+    "ocrRuntime":  {
+                       "enabled":  true,
+                       "requiredForAppStartup":  false,
+                       "engine":  {
+                                      "package":  "tesseract.js-core",
+                                      "version":  "6.0.0",
+                                      "integrity":  "sha512-1Qncm/9oKM7xgrQXZXNB+NRh19qiXGhxlrR8EwFbK5SaUbPZnS5OMtP/ghtqfd23hsr1ZvZbZjeuAGcMxd/ooA==",
+                                      "license":  "Apache-2.0",
+                                      "flavor":  "simd-lstm",
+                                      "requiresWasmSimd":  true
+                                  },
+                       "data":  {
+                                    "package":  "@tesseract.js-data/eng",
+                                    "version":  "1.0.0",
+                                    "integrity":  "sha512-mbTumm6KQPUHyzTPQaF3ObXYnx0SqqfV2nabqFVQBwD6Kl7PhGSLSzOlfFTWy0P3BjghaSKA2W9GB19Jk+ZcTg==",
+                                    "packageLicense":  "MIT",
+                                    "variant":  "4.0.0_best_int",
+                                    "language":  "eng"
+                                },
+                       "qualification":  {
+                                             "benchmark":  "npm run benchmark:ocr-feasibility",
+                                             "commit":  "cfee499",
+                                             "result":  "scripts/ocr-feasibility/results/latest.json"
+                                         },
+                       "stagedRoot":  "resources/ocr",
+                       "fileCount":  6,
+                       "totalBytes":  5968312,
+                       "assets":  [
+                                      {
+                                          "relativePath":  "ocr/tesseract-core-simd-lstm.js",
+                                          "size":  124752,
+                                          "sha256":  "be3504705d7111d1d1f3f7f9dff326c26d334031ede36e31c4d3cf883027e982"
+                                      },
+                                      {
+                                          "relativePath":  "ocr/tesseract-core-simd-lstm.wasm",
+                                          "size":  2871377,
+                                          "sha256":  "187d76742dfc0d8929f0b49a619f145bb6370730776c7bd0d3e20c6b2098808d"
+                                      },
+                                      {
+                                          "relativePath":  "ocr/eng.traineddata.gz",
+                                          "size":  2952873,
+                                          "sha256":  "45b4cb346724ac1774f1c36f42f182b887bcdb28ebe63e6fff90ac41f3fcff91"
+                                      },
+                                      {
+                                          "relativePath":  "ocr/LICENSE.tesseract.js-core.txt",
+                                          "size":  11358,
+                                          "sha256":  "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08"
+                                      },
+                                      {
+                                          "relativePath":  "ocr/ocr-host.cjs",
+                                          "size":  7291,
+                                          "sha256":  "414d51cedbdd3ba6c2cc24c151e160b3513ae24f9488f02984cbfa75fd0ece36"
+                                      },
+                                      {
+                                          "relativePath":  "ocr/OCR-NOTICE.txt",
+                                          "size":  661,
+                                          "sha256":  "d0e98713e09c11e65402d0568369541fc038a37c3c7bdcc3358713d214bd6e56"
+                                      }
+                                  ]
+                   }
 }
