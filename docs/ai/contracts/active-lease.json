@@ -2,7 +2,7 @@
   "task": "awkit-n7-package-1108",
   "contract_path": "docs/ai/contracts/awkit-n7-package-1108.json",
   "holder": "release",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "resources/dependency-manifest.json",
     "resources/dependency-manifest.sig"
@@ -29,5 +29,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-11-08T11:04:48.676Z",
+  "released_reason": "package:portable BLOCKED by a new environment dependency: Electron archive resolved from the verified cache and the app was packed, then electron-builder got HTTP 503 from GitHub for winCodeSign-2.6.0.7z during resource editing, no artifact written",
+  "archived_at": "2026-11-08T11:04:48.681Z"
 }

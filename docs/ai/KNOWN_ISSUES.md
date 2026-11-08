@@ -338,6 +338,16 @@ The original entry follows.
       returned HTTP 504 for `electron-v33.4.11-win32-x64.zip`, which is not cached (H3b). No artifact was written.
     - **Remedy:** retry when GitHub recovers, or place the official archive (checksum-verified against Electron's
       `SHASUMS256.txt`) in `%LOCALAPPDATA%\electron\Cache` first.
+    - **Later on 2026-11-08: the Electron archive is resolved; electron-builder's own tools are the next download.**
+      - The owner verified the archive against `node_modules/electron/checksums.json` (SHA-256 `f64c8a5a…483c`)
+        and cached it. GitHub's `SHASUMS256.txt` was itself returning 504.
+      - A third run packed the app, then failed in resource editing. GitHub returned HTTP 503 for
+        `winCodeSign-2.6.0.7z`, which electron-builder 25.1.8 downloads into
+        `%LOCALAPPDATA%\electron-builder\Cache` and checks against checksums built into electron-builder. The portable
+        target also needs `nsis-3.0.4.1` and `nsis-resources-3.4.1` from the same place.
+      - **Remedy:** retry when GitHub's release downloads recover. electron-builder then verifies the tools itself.
+      - **Trap:** the X: profile's `electron-builder\Cache` holds `.7z` and `.state` files in a different layout,
+        likely from a newer electron-builder. Do not copy them in unverified.
 - **The shared GUI harness now picks `C:\electron-dist` automatically** when it matches the installed Electron
   version (`scripts/lib/gui-verify-harness.mjs`). The packaged executable in `dist\win-unpacked` on the Parallels
   share may still hit the GPU error_code=18 launch failure.

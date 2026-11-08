@@ -72,7 +72,7 @@
       "command": "npm run package:portable",
       "artifact": "dist/SpecterStudio 0.1.54.exe",
       "result": "BLOCKED",
-      "observed": "2026-11-08, two runs under the release lease after verify:packaging-host READY (VS 2022 Community, MSVC runtime 14.44.35211, ARM64 host). Each run passed the offline input preflight, the memory preflight, build, staging of Zvec, local AI (app-local MSVC 14.44.35112), DOM intelligence and OCR (6 files, 5,968,312 bytes), portable fresh-state 10/10, manifest signing with ed25519:aa5b9dd8... from the approved custody folder and strict offline validation (OCR 6/6 checksum-verified). electron-builder then failed both times: HTTP 504 from GitHub for electron-v33.4.11-win32-x64.zip, which is not in the local Electron cache (H3b). No artifact written; the first run before the bookkeeping commit was refused by strict validation for a dirty tree, as KNOWN_ISSUES documents."
+      "observed": "2026-11-08, two runs under the release lease after verify:packaging-host READY (VS 2022 Community, MSVC runtime 14.44.35211, ARM64 host). Each run passed the offline input preflight, the memory preflight, build, staging of Zvec, local AI (app-local MSVC 14.44.35112), DOM intelligence and OCR (6 files, 5,968,312 bytes), portable fresh-state 10/10, manifest signing with ed25519:aa5b9dd8... from the approved custody folder and strict offline validation (OCR 6/6 checksum-verified). electron-builder then failed both times: HTTP 504 from GitHub for electron-v33.4.11-win32-x64.zip, which is not in the local Electron cache (H3b). No artifact written; the first run before the bookkeeping commit was refused by strict validation for a dirty tree, as KNOWN_ISSUES documents. Third run 2026-11-08 after the owner verified the archive (SHA-256 f64c8a5a81d9b420b636fdba13e180f49d69f2198e1d86a8b01f858b17a9483c, equal to node_modules/electron/checksums.json for electron 33.4.11; GitHub SHASUMS256.txt itself returned 504) and installed it in %LOCALAPPDATA%\\electron\\Cache in both the flat and the hashed @electron/get layout: verify:packaging-host READY with H3b found; build, staging, fresh-state, manifest signing and strict offline validation passed again; electron-builder resolved Electron from the cache and packed dist/win-unpacked, then failed in signApp resource editing because GitHub returned HTTP 503 for electron-builder-binaries winCodeSign-2.6.0.7z (not in %LOCALAPPDATA%\\electron-builder\\Cache); the portable target will also need nsis-3.0.4.1 and nsis-resources-3.4.1. No artifact written; dist/win-unpacked is an unsigned intermediate, not an accepted payload."
     },
     {
       "id": "verify:ocr-packaged",
@@ -148,6 +148,23 @@
         "acquired_at_commit": "1e518469efda78a615b0baefde89f768b6537bfb",
         "released_at": "2026-11-08T09:10:53.957Z",
         "released_reason": "package:portable BLOCKED by environment twice: strict offline validation passed, then electron-builder got HTTP 504 from GitHub for electron-v33.4.11-win32-x64.zip which is not cached (H3b), no artifact written",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-n7-package-1108:release:2026-11-08T10:53:10.378Z",
+        "task": "awkit-n7-package-1108",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig"
+        ],
+        "acquired_at": "2026-11-08T10:53:10.378Z",
+        "acquired_at_commit": "9953f455a22b92a1029aefb9a3330d883e9f2ebb",
+        "released_at": "2026-11-08T11:04:48.676Z",
+        "released_reason": "package:portable BLOCKED by a new environment dependency: Electron archive resolved from the verified cache and the app was packed, then electron-builder got HTTP 503 from GitHub for winCodeSign-2.6.0.7z during resource editing, no artifact written",
         "amendments": [],
         "overrides": [],
         "violations": []
