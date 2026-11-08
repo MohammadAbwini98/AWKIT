@@ -103,11 +103,14 @@ function Get-ArchiveListing([string]$archive) {
     $win = $attributeParts[0]
     $unix = if ($attributeParts.Count -gt 1) { $attributeParts[1] } else { '' }
     $folder = if ($fields.ContainsKey('Folder')) { [string]$fields['Folder'] } else { '' }
-    $entries.Add([pscustomobject]@{
-        Rel  = ([string]$fields['Path']) -replace '\\', '/'
-        Dir  = ($win -cmatch 'D') -or $unix.StartsWith('d') -or ($folder -eq '+')
-        Link = ($unix -cmatch '^l[rwxsStT-]{9}$')
-      })
+    # Built at statement level, not inside .Add(...), where a comma would be read as a method-argument separator.
+    $rel = ([string]$fields['Path']) -replace '\\', '/'
+    $entry = [pscustomobject]@{
+      Rel  = $rel
+      Dir  = ($win -cmatch 'D') -or $unix.StartsWith('d') -or ($folder -eq '+')
+      Link = ($unix -cmatch '^l[rwxsStT-]{9}$')
+    }
+    $entries.Add($entry)
   }
   return , $entries
 }
