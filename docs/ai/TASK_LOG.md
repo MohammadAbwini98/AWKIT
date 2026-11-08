@@ -1,5 +1,24 @@
 # TASK_LOG
 
+## 2026-11-08 — N7 fourth packaging run: tool cache provisioned, 0.1.54 portable built, packaged launch FAIL on the share (Claude)
+
+- **Owner step:** `scripts/release-provision-electron-builder-tools.ps1` first failed to parse (comma inside `.Add(...)`,
+  fixed in 0c6560e6). It then printed RESULT PASS, and a rerun reused everything unchanged.
+- **verify:packaging-host:** READY; H3c PRESENT AND VERIFIED for winCodeSign-2.6.0, nsis-3.0.4.1 and
+  nsis-resources-3.4.1; negative controls 11/11.
+- **package:portable (lease `awkit-n7-package-1108`, bookkeeping 96689fea): PASS.**
+  - `dist/SpecterStudio 0.1.54.exe`, 263670066 bytes, SHA-256 `2a9974f71e9f0289bb7830d46b7c0cdc8a026f629d91914ab6cf4f26337e1f20`.
+  - Source 96689fea, clean tree; manifest SHA-256 `4c5919f5…`, signed `ed25519:aa5b9dd8…`, pair committed in d396e4af.
+  - Unsigned build. ARM64 host: development evidence only.
+- **verify:ocr-packaged: FAIL.**
+  - Precondition and section A PASS (18/18).
+  - Section B FAIL: the main window never appeared within 90 s.
+  - Sections C1–C4 NOT RUN; their licensed parts would be BLOCKED (issuer key unset).
+- **Diagnosis (once):** `verify:packaged-runtime` fails the same way (parts A/B 10/10, part C no window). Classified
+  environment: probably the known Parallels-share GPU error_code=18 (see KNOWN_ISSUES); not confirmed by a log line.
+- **Files:** manifest pair, contract `awkit-n7-package-1108`, `KNOWN_ISSUES`, `TASK_LOG`, `HANDOFF`, `CURRENT_STATE`.
+- **Open:** N7.1b, N7.8 and N7.9 stay open. Phase N is not complete.
+
 ## 2026-11-08 — electron-builder tool-cache check (H3c) and owner provisioning script for N7 packaging (Claude)
 
 - **Task:** owner prompts "Resolve electron-builder Tool Dependencies" and "Secure electron-builder Cache Provisioning".

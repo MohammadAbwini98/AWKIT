@@ -1,5 +1,20 @@
 # Agent Handoff
 
+## HANDOFF (2026-11-08, latest) — 0.1.54 portable built on the ARM64 host; packaged launch gates FAIL from the X: share
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done:** electron-builder tool cache provisioned and H3c-verified; `package:portable` PASS
+  (`dist/SpecterStudio 0.1.54.exe`, SHA-256 `2a9974f7…`, manifest pair d396e4af); `verify:ocr-packaged` section A
+  PASS 18/18.
+- **Failed:** `verify:ocr-packaged` section B and `verify:packaged-runtime` part C. The packaged main window never
+  appears. Probable cause: the known Parallels-share GPU error_code=18 (KNOWN_ISSUES). C1–C4 NOT RUN.
+- **Next (owner):** put the repository on a local disk (or use the native Windows x64 release host), then rerun
+  `verify:packaging-host`, `package:portable` and `verify:ocr-packaged`. Do not rerun the packaged launch gates from
+  `X:`. The licensed checks need `AWKIT_PACKAGED_LICENSE_ISSUER_KEY`.
+- **Open:** N7.1b, N7.8 and N7.9 (with their independent QC/security reviews); `awkit-vra.18`, N7.10, N6P and N10
+  under their own obligations. Phase N is not complete.
+
 ## HANDOFF (2026-11-07, latest) — `verify:ocr-packaged` ready; N7 packaged acceptance still BLOCKED on the release host
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.

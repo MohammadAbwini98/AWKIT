@@ -1,5 +1,22 @@
 # CURRENT_STATE
 
+## N7 first package built on the ARM64 host (0.1.54); packaged launch gates FAIL from the X: share (2026-11-08, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Tool cache:** electron-builder's winCodeSign 2.6.0, nsis 3.0.4.1 and nsis-resources 3.4.1 are provisioned and
+  H3c PRESENT AND VERIFIED.
+- **Package:** `package:portable` PASS: `dist/SpecterStudio 0.1.54.exe`, SHA-256 `2a9974f7…`, source 96689fea,
+  manifest pair committed in d396e4af. It is unsigned, and an ARM64 build is development evidence only.
+- **`verify:ocr-packaged`:**
+  - Section A PASS 18/18.
+  - Section B FAIL: the main window never appears.
+  - C1–C4 NOT RUN.
+  - `verify:packaged-runtime` part C fails the same way.
+- **Cause and next step:** probably the known Parallels-share GPU error_code=18, so launch gates need the repository on
+  a local disk.
+- **Status:** N7.1b, N7.8 and N7.9 are open. Phase N is not complete.
+
 ## `verify:ocr-packaged` implemented (N7.8 gate), QC APPROVED WITH FINDINGS with every finding fixed; live sections unexecuted (2026-11-07, latest)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.

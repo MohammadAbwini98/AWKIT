@@ -71,8 +71,8 @@
       "required": true,
       "command": "npm run package:portable",
       "artifact": "dist/SpecterStudio 0.1.54.exe",
-      "result": "BLOCKED",
-      "observed": "2026-11-08, two runs under the release lease after verify:packaging-host READY (VS 2022 Community, MSVC runtime 14.44.35211, ARM64 host). Each run passed the offline input preflight, the memory preflight, build, staging of Zvec, local AI (app-local MSVC 14.44.35112), DOM intelligence and OCR (6 files, 5,968,312 bytes), portable fresh-state 10/10, manifest signing with ed25519:aa5b9dd8... from the approved custody folder and strict offline validation (OCR 6/6 checksum-verified). electron-builder then failed both times: HTTP 504 from GitHub for electron-v33.4.11-win32-x64.zip, which is not in the local Electron cache (H3b). No artifact written; the first run before the bookkeeping commit was refused by strict validation for a dirty tree, as KNOWN_ISSUES documents. Third run 2026-11-08 after the owner verified the archive (SHA-256 f64c8a5a81d9b420b636fdba13e180f49d69f2198e1d86a8b01f858b17a9483c, equal to node_modules/electron/checksums.json for electron 33.4.11; GitHub SHASUMS256.txt itself returned 504) and installed it in %LOCALAPPDATA%\\electron\\Cache in both the flat and the hashed @electron/get layout: verify:packaging-host READY with H3b found; build, staging, fresh-state, manifest signing and strict offline validation passed again; electron-builder resolved Electron from the cache and packed dist/win-unpacked, then failed in signApp resource editing because GitHub returned HTTP 503 for electron-builder-binaries winCodeSign-2.6.0.7z (not in %LOCALAPPDATA%\\electron-builder\\Cache); the portable target will also need nsis-3.0.4.1 and nsis-resources-3.4.1. No artifact written; dist/win-unpacked is an unsigned intermediate, not an accepted payload."
+      "result": "PASS",
+      "observed": "Fourth run 2026-11-08 (ARM64 host, development evidence only, not x64 release acceptance) after the owner ran scripts/release-provision-electron-builder-tools.ps1 (RESULT PASS, rerun idempotent) and verify:packaging-host reported winCodeSign-2.6.0, nsis-3.0.4.1 and nsis-resources-3.4.1 PRESENT AND VERIFIED (archives SHA-512 equal to the installed toolchain pins; cache folders compared file by file, 81/343/22 files, 11 of 11 negative controls rejected): offline preflight, memory preflight, build, staging, fresh-state 10/10, manifest signing with ed25519:aa5b9dd8..., strict offline validation and electron-builder all passed with no download. Artifact dist/SpecterStudio 0.1.54.exe, 263670066 bytes, SHA-256 2a9974f71e9f0289bb7830d46b7c0cdc8a026f629d91914ab6cf4f26337e1f20; source 96689feae1dc41f08df4944debe40e40a87ac51f, treeDirty false; dependency manifest SHA-256 4c5919f53cc33cbd8280c1b6b5c34a0de3bb37e9b2e31424c414ba485654a25d committed in d396e4af; electron-builder signing skipped (no signing info, unsigned build). Earlier runs: 2026-11-08, two runs under the release lease after verify:packaging-host READY (VS 2022 Community, MSVC runtime 14.44.35211, ARM64 host). Each run passed the offline input preflight, the memory preflight, build, staging of Zvec, local AI (app-local MSVC 14.44.35112), DOM intelligence and OCR (6 files, 5,968,312 bytes), portable fresh-state 10/10, manifest signing with ed25519:aa5b9dd8... from the approved custody folder and strict offline validation (OCR 6/6 checksum-verified). electron-builder then failed both times: HTTP 504 from GitHub for electron-v33.4.11-win32-x64.zip, which is not in the local Electron cache (H3b). No artifact written; the first run before the bookkeeping commit was refused by strict validation for a dirty tree, as KNOWN_ISSUES documents. Third run 2026-11-08 after the owner verified the archive (SHA-256 f64c8a5a81d9b420b636fdba13e180f49d69f2198e1d86a8b01f858b17a9483c, equal to node_modules/electron/checksums.json for electron 33.4.11; GitHub SHASUMS256.txt itself returned 504) and installed it in %LOCALAPPDATA%\\electron\\Cache in both the flat and the hashed @electron/get layout: verify:packaging-host READY with H3b found; build, staging, fresh-state, manifest signing and strict offline validation passed again; electron-builder resolved Electron from the cache and packed dist/win-unpacked, then failed in signApp resource editing because GitHub returned HTTP 503 for electron-builder-binaries winCodeSign-2.6.0.7z (not in %LOCALAPPDATA%\\electron-builder\\Cache); the portable target will also need nsis-3.0.4.1 and nsis-resources-3.4.1. No artifact written; dist/win-unpacked is an unsigned intermediate, not an accepted payload."
     },
     {
       "id": "verify:ocr-packaged",
@@ -80,8 +80,8 @@
       "required": true,
       "command": "npm run verify:ocr-packaged",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": "no fresh package: packaging BLOCKED at the Electron archive download; the existing dist/win-unpacked is not a current payload"
+      "result": "FAIL",
+      "observed": "2026-11-08 against the fourth-run payload: precondition 'the packaged payload is current' passed; section A (assets, host, signed manifest) PASS 18 of 18; section B FAIL: the packaged main window with the preload bridge never appeared within 90 s with AWKIT_VISUAL_OCR=observe; sections C1-C4 NOT RUN (B is their prerequisite; the licensed checks would be BLOCKED anyway, AWKIT_PACKAGED_LICENSE_ISSUER_KEY unset). One diagnosis pass: verify:packaged-runtime (proven launch pattern, only LOCALAPPDATA redirected) fails the same way after its parts A and B pass 10 of 10, so the cause is not the OCR verifier's launch environment. The two isolated profiles stopped at different startup points (OCR run: root .write-test probe created empty, never written or removed, before licensing init; runtime run: probe removed, offline gate passed, Licensing/migration-grace.json written, no ui-settings.json), so the process ended at an arbitrary point rather than at a fixed gate. Classification: environment. The symptom matches KNOWN_ISSUES 'Electron GUI verifiers cannot launch from the Parallels share: GPU process fails with error_code=18' (X: is \\\\Mac\\Samsung9100PRO; the GPU child relaunch fails from the share and the main process exits with 'GPU process isn't usable'), whose shared-harness note already warns the packaged dist/win-unpacked on the share may hit it; N7.5 also records that the OCR engine cannot initialise from the share. The error_code=18 line itself was not captured (the guard blocks process inspection), so the attribution is probable, not confirmed. The verifier runs only against dist/win-unpacked in the repository, so sections B and C need the repository (and therefore the package) on a local disk; no verifier or product change was made."
     },
     {
       "id": "git-push",
@@ -165,6 +165,23 @@
         "acquired_at_commit": "9953f455a22b92a1029aefb9a3330d883e9f2ebb",
         "released_at": "2026-11-08T11:04:48.676Z",
         "released_reason": "package:portable BLOCKED by a new environment dependency: Electron archive resolved from the verified cache and the app was packed, then electron-builder got HTTP 503 from GitHub for winCodeSign-2.6.0.7z during resource editing, no artifact written",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-n7-package-1108:release:2026-11-08T18:19:00.304Z",
+        "task": "awkit-n7-package-1108",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig"
+        ],
+        "acquired_at": "2026-11-08T18:19:00.304Z",
+        "acquired_at_commit": "fd800f28f208eb1a44b8af9ca3255a383be2638e",
+        "released_at": "2026-11-08T18:31:09.981Z",
+        "released_reason": "package:portable PASS on the ARM64 host (dist/SpecterStudio 0.1.54.exe SHA-256 2a9974f7, manifest pair committed in d396e4af), verify:ocr-packaged section A PASS 18 of 18, section B FAIL main window never appeared, C NOT RUN",
         "amendments": [],
         "overrides": [],
         "violations": []

@@ -348,7 +348,8 @@ The original entry follows.
       - **Remedy:** retry when GitHub's release downloads recover. electron-builder then verifies the tools itself.
       - **Trap:** the X: profile's `electron-builder\Cache` holds `.7z` and `.state` files in a different layout,
         likely from a newer electron-builder. Do not copy them in unverified.
-      - **Offline provisioning path (2026-11-08, not yet executed).** app-builder 5.0.0-alpha.10 keeps only the
+      - **Offline provisioning path (2026-11-08, executed: owner run RESULT PASS, rerun idempotent; H3c then PRESENT AND
+        VERIFIED for all three tools and the fourth `package:portable` run downloaded nothing).** app-builder 5.0.0-alpha.10 keeps only the
         unpacked folder `<cache>\<name up to the first "-">\<name>-<version>` and reuses an existing folder without
         re-checking it, so a hand-copied folder is trusted blindly.
         - `npm run verify:packaging-host` H3c hashes staged archives in
@@ -364,6 +365,13 @@ The original entry follows.
 - **The shared GUI harness now picks `C:\electron-dist` automatically** when it matches the installed Electron
   version (`scripts/lib/gui-verify-harness.mjs`). The packaged executable in `dist\win-unpacked` on the Parallels
   share may still hit the GPU error_code=18 launch failure.
+  - **Observed 2026-11-08 with the first package built on this host (0.1.54, SHA-256 2a9974f7).** Both
+    `verify:ocr-packaged` (section B) and `verify:packaged-runtime` (part C) waited 90 s / 60 s for the main window with
+    the preload bridge and never saw it. Their static sections passed (18/18, 10/10). The isolated profiles stopped at
+    different startup points (one probe file cut off mid-write), which fits the main process exiting early, as in the
+    error_code=18 entry below. That log line was not captured, so the cause is probable, not confirmed.
+  - Both verifiers launch only `dist/win-unpacked` inside the repository, so the packaged launch gates (N7.1b/N7.8
+    sections B and C, the other packaged GUI gates) need the repository on a local disk. Do not rerun them from `X:`.
 - **N6 sensitive-target residuals (accepted at N6.8).** None of these block observe-only use. Candidates stay in
   memory, previews need re-authentication, and only HMAC commitments reach disk.
   - Closed shadow roots cannot be walked.

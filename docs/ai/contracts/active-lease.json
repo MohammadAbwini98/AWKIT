@@ -2,7 +2,7 @@
   "task": "awkit-n7-package-1108",
   "contract_path": "docs/ai/contracts/awkit-n7-package-1108.json",
   "holder": "release",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "resources/dependency-manifest.json",
     "resources/dependency-manifest.sig"
@@ -29,5 +29,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-11-08T18:31:09.981Z",
+  "released_reason": "package:portable PASS on the ARM64 host (dist/SpecterStudio 0.1.54.exe SHA-256 2a9974f7, manifest pair committed in d396e4af), verify:ocr-packaged section A PASS 18 of 18, section B FAIL main window never appeared, C NOT RUN",
+  "archived_at": "2026-11-08T18:31:09.984Z"
 }
