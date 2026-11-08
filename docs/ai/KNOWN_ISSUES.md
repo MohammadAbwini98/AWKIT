@@ -327,6 +327,17 @@ The original entry follows.
       `prepare-ai-native-host.mjs`.
   - The clearer failure text inside `prepare-ai-native-host.mjs` itself is BLOCKED: the path is protected and the
     edit was a terminal lease denial.
+  - **2026-11-08 update: H4 and H5 now PASS; the blocker moved to the Electron archive download.**
+    - The owner installed Visual Studio 2022 Community with the x64/x86 MSVC tools and redist. `verify:packaging-host`
+      reports READY (runtime 14.44.35211). The host is still ARM64, so anything packaged here is development evidence,
+      not x64 release acceptance.
+    - The manifest signing key is in the approved `%LOCALAPPDATA%\SpecterStudio\release-keys` folder, and the local
+      `.git/info/exclude` entry for the L12.27 contract is in place.
+    - Two `package:portable` runs under contract `awkit-n7-package-1108` passed build, staging (`prepare-ai-native-host`
+      included), manifest signing and strict offline validation. Both then stopped in electron-builder: GitHub
+      returned HTTP 504 for `electron-v33.4.11-win32-x64.zip`, which is not cached (H3b). No artifact was written.
+    - **Remedy:** retry when GitHub recovers, or place the official archive (checksum-verified against Electron's
+      `SHASUMS256.txt`) in `%LOCALAPPDATA%\electron\Cache` first.
 - **The shared GUI harness now picks `C:\electron-dist` automatically** when it matches the installed Electron
   version (`scripts/lib/gui-verify-harness.mjs`). The packaged executable in `dist\win-unpacked` on the Parallels
   share may still hit the GPU error_code=18 launch failure.

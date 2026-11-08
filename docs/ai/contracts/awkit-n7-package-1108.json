@@ -71,8 +71,8 @@
       "required": true,
       "command": "npm run package:portable",
       "artifact": "dist/SpecterStudio 0.1.54.exe",
-      "result": "NOT RUN",
-      "observed": "pending"
+      "result": "BLOCKED",
+      "observed": "2026-11-08, two runs under the release lease after verify:packaging-host READY (VS 2022 Community, MSVC runtime 14.44.35211, ARM64 host). Each run passed the offline input preflight, the memory preflight, build, staging of Zvec, local AI (app-local MSVC 14.44.35112), DOM intelligence and OCR (6 files, 5,968,312 bytes), portable fresh-state 10/10, manifest signing with ed25519:aa5b9dd8... from the approved custody folder and strict offline validation (OCR 6/6 checksum-verified). electron-builder then failed both times: HTTP 504 from GitHub for electron-v33.4.11-win32-x64.zip, which is not in the local Electron cache (H3b). No artifact written; the first run before the bookkeeping commit was refused by strict validation for a dirty tree, as KNOWN_ISSUES documents."
     },
     {
       "id": "verify:ocr-packaged",
@@ -81,7 +81,7 @@
       "command": "npm run verify:ocr-packaged",
       "artifact": null,
       "result": "NOT RUN",
-      "observed": "pending"
+      "observed": "no fresh package: packaging BLOCKED at the Electron archive download; the existing dist/win-unpacked is not a current payload"
     },
     {
       "id": "git-push",
@@ -132,6 +132,23 @@
             "approved_by": "manager"
           }
         ],
+        "overrides": [],
+        "violations": []
+      },
+      {
+        "id": "awkit-n7-package-1108:release:2026-11-08T09:05:13.007Z",
+        "task": "awkit-n7-package-1108",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "resources/dependency-manifest.json",
+          "resources/dependency-manifest.sig"
+        ],
+        "acquired_at": "2026-11-08T09:05:13.007Z",
+        "acquired_at_commit": "1e518469efda78a615b0baefde89f768b6537bfb",
+        "released_at": "2026-11-08T09:10:53.957Z",
+        "released_reason": "package:portable BLOCKED by environment twice: strict offline validation passed, then electron-builder got HTTP 504 from GitHub for electron-v33.4.11-win32-x64.zip which is not cached (H3b), no artifact written",
+        "amendments": [],
         "overrides": [],
         "violations": []
       }

@@ -2,7 +2,7 @@
   "task": "awkit-n7-package-1108",
   "contract_path": "docs/ai/contracts/awkit-n7-package-1108.json",
   "holder": "release",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "resources/dependency-manifest.json",
     "resources/dependency-manifest.sig"
@@ -33,5 +33,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-11-08T09:10:53.957Z",
+  "released_reason": "package:portable BLOCKED by environment twice: strict offline validation passed, then electron-builder got HTTP 504 from GitHub for electron-v33.4.11-win32-x64.zip which is not cached (H3b), no artifact written",
+  "archived_at": "2026-11-08T09:10:53.960Z"
 }
