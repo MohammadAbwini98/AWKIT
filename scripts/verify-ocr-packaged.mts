@@ -42,6 +42,7 @@ import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { listPackage } from "@electron/asar";
 import { _electron as electron, type ElectronApplication, type Page } from "playwright";
+import { PACKAGED_LAUNCH_LOG_ENV, watchPackagedLaunch } from "./helpers/packaged-launch-diagnostics.mts";
 
 import { cleanupMintedArtifacts, mintVerificationLicense, resolveIssuerKey, sanitizeAppEnv } from "./helpers/packaged-license.mts";
 import { stalePackagedPayload } from "./helpers/packaged-artifacts.mjs";
@@ -283,9 +284,11 @@ async function launch(localAppData: string, extra: Record<string, string>): Prom
     AWKIT_VISUAL_OCR: undefined,
     AWKIT_OCR_DEV_ASSET_DIR: undefined,
     ELECTRON_RUN_AS_NODE: undefined,
+    ...PACKAGED_LAUNCH_LOG_ENV,
     ...extra
   });
   const app = await electron.launch({ executablePath: exePath, args: [`--user-data-dir=${join(localAppData, "Roaming", "SpecterStudio")}`], env: env as never, timeout: 90_000 });
+  const launchDiagnostics = watchPackagedLaunch(app);
   const deadline = Date.now() + 90_000;
   await app.firstWindow({ timeout: 90_000 }).catch(() => undefined);
   while (Date.now() < deadline) {
@@ -296,7 +299,7 @@ async function launch(localAppData: string, extra: Record<string, string>): Prom
     }
     await sleep(400);
   }
-  throw new Error("the packaged main window with the preload bridge never appeared");
+  throw new Error(`the packaged main window with the preload bridge never appeared (${launchDiagnostics.describe()})`);
 }
 
 async function signIn(win: Page): Promise<string> {

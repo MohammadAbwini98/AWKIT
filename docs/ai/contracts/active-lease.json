@@ -1,21 +1,20 @@
 {
-  "task": "awkit-n7-package-1108",
-  "contract_path": "docs/ai/contracts/awkit-n7-package-1108.json",
-  "holder": "release",
-  "status": "released",
+  "task": "awkit-launch-diag-1111",
+  "contract_path": "docs/ai/contracts/awkit-launch-diag-1111.json",
+  "holder": "qa",
+  "status": "active",
   "allowed_paths": [
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig"
+    "scripts/helpers/packaged-launch-diagnostics.mts",
+    "scripts/verify-ocr-packaged.mts",
+    "scripts/verify-packaged-runtime.mts"
   ],
-  "acquired_at": "2026-11-08T18:19:00.304Z",
-  "acquired_at_commit": "fd800f28f208eb1a44b8af9ca3255a383be2638e",
+  "acquired_at": "2026-11-11T18:31:50.935Z",
+  "acquired_at_commit": "e741dc89dad7eb4067605bb01c4c8ce7af5c1a1a",
   "baseline_dirty": [
-    "resources/dependency-manifest.json",
-    "resources/dependency-manifest.sig"
+    "docs/ai/contracts/awkit-launch-diag-1111.json"
   ],
   "baseline_dirty_fingerprints": {
-    "resources/dependency-manifest.json": "e8f36bb17899d3a164620281dc89acf609a016b08c91177008a4fe57b9aaeae3",
-    "resources/dependency-manifest.sig": "2f9a7c82287211a2fa22bcca3654112aff098b2732d8e672612257e41a8b4434"
+    "docs/ai/contracts/awkit-launch-diag-1111.json": "52308726bd9ab4d3d205925d2f7b6aeb94a4b77c440feb1396ca90515f1274fd"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -25,12 +24,9 @@
     "session-profiles.json": "absent",
     "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
     "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.59|manifest.json:1785274864439.5393",
-    "build": "dir(10):command-authorization-build.log:1791655824280.519|command-authorization-graphify.log:1791656102774.0833|command-authorization-roadmap.log:1791655956531.24|command-authorization-routing.log:1791655726727.7021|command-authorization-task-gate.json:1791655978836.031|lease-status-build.log:1791656486702.492|lease-status-roadmap.log:1791656634670.6675|lease-status-routing.log:1791656586249.2314|native-hosts:1794135368837.0847|ocr:1794135369274.82"
+    "build": "dir(11):command-authorization-build.log:1791655824280.519|command-authorization-graphify.log:1791656102774.0833|command-authorization-roadmap.log:1791655956531.24|command-authorization-routing.log:1791655726727.7021|command-authorization-task-gate.json:1791655978836.031|diag:1794418879975.7092|lease-status-build.log:1791656486702.492|lease-status-roadmap.log:1791656634670.6675|lease-status-routing.log:1791656586249.2314|native-hosts:1794162082024.5188|ocr:1794162082502.8406"
   },
   "amendments": [],
   "overrides": [],
-  "violations": [],
-  "released_at": "2026-11-08T18:31:09.981Z",
-  "released_reason": "package:portable PASS on the ARM64 host (dist/SpecterStudio 0.1.54.exe SHA-256 2a9974f7, manifest pair committed in d396e4af), verify:ocr-packaged section A PASS 18 of 18, section B FAIL main window never appeared, C NOT RUN",
-  "archived_at": "2026-11-08T18:31:09.984Z"
+  "violations": []
 }

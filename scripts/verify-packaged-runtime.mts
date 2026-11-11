@@ -22,6 +22,7 @@ import { _electron as electron, type ElectronApplication } from "playwright";
 import { loadSqlJs } from "@src/runner/store/SqlJsLoader";
 import { capturePackagedAppPids, ensurePackagedAppDead } from "./helpers/packaged-process-tree.mts";
 import { sanitizeAppEnv } from "./helpers/packaged-license.mts";
+import { PACKAGED_LAUNCH_LOG_ENV, watchPackagedLaunch, type PackagedLaunchDiagnostics } from "./helpers/packaged-launch-diagnostics.mts";
 
 const requireFromHere = createRequire(import.meta.url);
 // @electron/asar is CJS (ships with electron-builder's dependency tree).
@@ -48,7 +49,7 @@ function check(label: string, condition: unknown, detail?: string): void {
 const sleep = (ms: number) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 
 /** The main window is the one carrying the preload bridge — never the splash window. */
-async function resolvePackagedMainWindow(app: ElectronApplication, timeoutMs = 60_000) {
+async function resolvePackagedMainWindow(app: ElectronApplication, launchDiagnostics: PackagedLaunchDiagnostics, timeoutMs = 60_000) {
   const deadline = Date.now() + timeoutMs;
   await app.firstWindow({ timeout: timeoutMs }).catch(() => undefined);
   while (Date.now() < deadline) {
@@ -60,7 +61,7 @@ async function resolvePackagedMainWindow(app: ElectronApplication, timeoutMs = 6
     }
     await sleep(400);
   }
-  throw new Error("packaged main window with the preload bridge never appeared");
+  throw new Error(`packaged main window with the preload bridge never appeared (${launchDiagnostics.describe()})`);
 }
 
 async function main(): Promise<void> {
@@ -103,9 +104,10 @@ async function main(): Promise<void> {
   const localAppData = join(tmpdir(), "awkit-packaged-runtime", new Date().toISOString().replace(/[:.]/g, "-"));
   await mkdir(localAppData, { recursive: true });
   // Sanitized like the other packaged gates: the app must never inherit the issuer-key path.
-  const env = sanitizeAppEnv({ ...process.env, LOCALAPPDATA: localAppData }) as Record<string, string | undefined>;
+  const env = sanitizeAppEnv({ ...process.env, LOCALAPPDATA: localAppData, ...PACKAGED_LAUNCH_LOG_ENV }) as Record<string, string | undefined>;
   delete env.ELECTRON_RUN_AS_NODE; // must boot as a GUI app
   const app = await electron.launch({ executablePath: exePath, env: env as never, timeout: 60_000 });
+  const launchDiagnostics = watchPackagedLaunch(app);
   // Launcher-stub gotcha (Phase 5.1D): the spawned EXE is a stub; capture the REAL main pid
   // for cleanup so a failed run never leaves a zombie app.
   const appPids = await capturePackagedAppPids(app);
@@ -116,7 +118,7 @@ async function main(): Promise<void> {
     // and every `window.playwrightFlowStudio` call silently returns nothing. Resolve the real main
     // window by probing for the preload bridge. (Same defect class as verify-canvas-perf; this file
     // predates the splash window.)
-    const win = await resolvePackagedMainWindow(app);
+    const win = await resolvePackagedMainWindow(app, launchDiagnostics);
     await win.waitForLoadState("domcontentloaded");
     check("packaged app launched and opened a window", true);
 

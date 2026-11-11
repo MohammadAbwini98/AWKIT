@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-launch-diag-1111",
+    "title": "QA: packaged launch verifiers record the Electron exit and log when the main window never appears",
+    "objective": "Owner go-ahead 2026-11-11 ('Yes, fix them'): verify:ocr-packaged section B and verify:packaged-runtime part C report only 'the main window never appeared' when the packaged process exits early, so the 2026-11-08 Section B failure stayed unconfirmed until a separate diagnostic showed error_code=18 and a fatal exit from the X: share. Add a shared helper that records the launched process's exit code or signal and the last notable Chromium log lines (ELECTRON_ENABLE_LOGGING=1, diagnostic only) and append that to both failure messages. No acceptance criterion, timeout, GPU, sandbox, security switch, product or packaging change.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "e741dc89",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "!!",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": false,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "qa"
+    ],
+    "expected_paths": [
+      "scripts/helpers/packaged-launch-diagnostics.mts",
+      "scripts/verify-ocr-packaged.mts",
+      "scripts/verify-packaged-runtime.mts"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "qa",
+      "allowed_paths": [
+        "scripts/helpers/packaged-launch-diagnostics.mts",
+        "scripts/verify-ocr-packaged.mts",
+        "scripts/verify-packaged-runtime.mts"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "LAUNCH-DIAGNOSTICS",
+      "description": "Both launch failure messages name the process exit code (or that it was still running) and the notable log lines; typecheck:scripts PASS; negative control from the X: share shows the error_code=18 exit in the verifier output; no acceptance check weakened.",
+      "evidence_required": [
+        "typecheck:scripts",
+        "negative-control",
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "typecheck:scripts",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run typecheck:scripts",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "2026-11-11 tsc -p tsconfig.scripts.json clean with the new helper and both call sites."
+    },
+    {
+      "id": "negative-control",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:packaged-runtime",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "2026-11-11 negative control from the X: share against the unchanged 0.1.54 payload, where the launch is known to fail. Before: part C said only 'packaged main window with the preload bridge never appeared'. After: verify:packaged-runtime parts A/B 10/10, part C fails with 'the launched process exited with code 2147483651 (0x80000003)' plus the error_code=18 lines and 'FATAL ... GPU process isn't usable. Goodbye.'; verify:ocr-packaged precondition and section A 19 passed, section B fails with the same exit code and log lines including 'Renderer process launch-failed'. The gates still fail (no acceptance weakened); the failure now names its cause. Positive behaviour on a local disk was shown separately by the owner-run diagnostic (bridge ready in 14.9 s)."
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  }
+}
