@@ -8,13 +8,22 @@
  *
  * Diagnostic only: it never changes what a gate accepts. `PACKAGED_LAUNCH_LOG_ENV` turns on Chromium's
  * stderr logging and nothing else (no GPU, sandbox or security switch).
+ *
+ * Every retained line is redacted before it is kept: the description is printed in gate failures that are
+ * copied into committed evidence, and with logging on, renderer console output reaches stderr too. The
+ * project's SemanticRedactor removes absolute paths (which name the Windows user), URLs, authorization
+ * headers, JWTs, key/value secrets, opaque blobs and email addresses, and leaves error_code values, Chromium
+ * source locations and FATAL reasons readable (verify:packaged-launch-diagnostics).
  */
 import type { ElectronApplication } from "playwright";
+import { SemanticRedactor } from "@src/semantic/SemanticRedactor";
 
 export const PACKAGED_LAUNCH_LOG_ENV = { ELECTRON_ENABLE_LOGGING: "1" } as const;
 
 const NOTABLE = /fatal|error|crash|launch.?failed|isn't usable|denied/i;
 const KEEP = 12;
+const MAX_LINE = 240;
+const redactor = new SemanticRedactor();
 
 export interface PackagedLaunchDiagnostics {
   /** One line: how the process ended (or that it is still running) and its notable log lines. */
@@ -33,7 +42,8 @@ export function watchPackagedLaunch(app: ElectronApplication): PackagedLaunchDia
     partial = lines.pop() ?? "";
     for (const line of lines) {
       if (!NOTABLE.test(line)) continue;
-      notable.push(line.trim().slice(0, 240));
+      // Redact the whole line before truncating, so a cut can never leave a secret no rule recognises.
+      notable.push(redactor.redactText(line.trim()).slice(0, MAX_LINE));
       if (notable.length > KEEP) notable.shift();
     }
   };

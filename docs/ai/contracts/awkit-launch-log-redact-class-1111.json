@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-launch-log-redact-class-1111",
+    "title": "Project-state: classify verify:packaged-launch-diagnostics",
+    "objective": "Companion to awkit-launch-log-redact-1111 (QA): register verify:packaged-launch-diagnostics as a unit verifier in scripts/lib/verifier-classification.ts (pure helper over a fake child process, no fs, browser or packaged payload) and run verify:verifier-classification.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "ac85d63a",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "!!",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": true,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "project-state"
+    ],
+    "expected_paths": [
+      "scripts/lib/verifier-classification.ts"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "project-state",
+      "allowed_paths": [
+        "scripts/lib/verifier-classification.ts"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "CLASSIFIED",
+      "description": "verify:packaged-launch-diagnostics has one classification entry; verify:verifier-classification PASS.",
+      "evidence_required": [
+        "verify:verifier-classification",
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "verify:verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "2026-11-11 all 376 verify:/validate: scripts classified (86 unit including verify:packaged-launch-diagnostics), no stale entries, every guards path exists, classification reconciled."
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-launch-log-redact-class-1111:project-state:2026-11-11T20:06:15.615Z",
+        "task": "awkit-launch-log-redact-class-1111",
+        "holder": "project-state",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/lib/verifier-classification.ts"
+        ],
+        "acquired_at": "2026-11-11T20:06:15.615Z",
+        "acquired_at_commit": "ac85d63a2ed7bbe3595a0d8b65094c8593387f65",
+        "released_at": "2026-11-11T20:06:39.921Z",
+        "released_reason": "verify:packaged-launch-diagnostics classified unit, verify:verifier-classification PASS 376 classified",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

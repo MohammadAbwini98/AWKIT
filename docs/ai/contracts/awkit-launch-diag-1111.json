@@ -86,8 +86,8 @@
       "required": true,
       "command": "git push origin main",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": "pending"
+      "result": "PASS",
+      "observed": "2026-11-11 git push reported 'e741dc89..ac85d63a main -> main' (code commit 5bd4b9e2, docs commit ac85d63a). Reconciled in the follow-up task: .git/refs/heads/main and .git/refs/remotes/origin/main both read ac85d63a2ed7bbe3595a0d8b65094c8593387f65 (the git CLI inspection helper was BLOCKED at its 10-second/128-KiB limit, so the refs were read directly). Follow-up awkit-launch-log-redact-1111 adds redaction of the retained log lines."
     }
   ],
   "git": {
@@ -99,9 +99,10 @@
     "push_evidence_id": "git-push"
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "pending",
-    "qc_status": "pending"
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED",
+    "closed_at_commit": "ac85d63a2ed7bbe3595a0d8b65094c8593387f65"
   },
   "write_lease": {
     "history": [

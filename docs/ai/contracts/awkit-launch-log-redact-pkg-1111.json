@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-launch-log-redact-pkg-1111",
+    "title": "Release: register the verify:packaged-launch-diagnostics npm script",
+    "objective": "Companion to awkit-launch-log-redact-1111 (QA): add one package.json script line, \"verify:packaged-launch-diagnostics\": \"tsx scripts/verify-packaged-launch-diagnostics.mts\", so the redaction regression verifier can run through npm. No dependency, version, packaging or electron-builder change.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "ac85d63a",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "!!",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": false,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "release"
+    ],
+    "expected_paths": [
+      "package.json"
+    ],
+    "consultants": [],
+    "reviewers": [],
+    "writer": {
+      "agent_id": "release",
+      "allowed_paths": [
+        "package.json"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "NPM-SCRIPT",
+      "description": "package.json gains exactly the one script line and still parses; the script resolves (run under awkit-launch-log-redact-1111).",
+      "evidence_required": [
+        "npm-script-resolves",
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "npm-script-resolves",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:packaged-launch-diagnostics",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "2026-11-11 the script resolved through npm (red 12 of 20 before the redaction fix, 20 of 20 after, under awkit-launch-log-redact-1111); npm parsed package.json for every later script run."
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-launch-log-redact-pkg-1111:release:2026-11-11T20:01:41.175Z",
+        "task": "awkit-launch-log-redact-pkg-1111",
+        "holder": "release",
+        "status": "released",
+        "allowed_paths": [
+          "package.json"
+        ],
+        "acquired_at": "2026-11-11T20:01:41.175Z",
+        "acquired_at_commit": "ac85d63a2ed7bbe3595a0d8b65094c8593387f65",
+        "released_at": "2026-11-11T20:01:50.824Z",
+        "released_reason": "verify:packaged-launch-diagnostics npm script line added to package.json",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}

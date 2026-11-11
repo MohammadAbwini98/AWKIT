@@ -1,20 +1,30 @@
 {
-  "task": "awkit-launch-diag-1111",
-  "contract_path": "docs/ai/contracts/awkit-launch-diag-1111.json",
-  "holder": "qa",
+  "task": "awkit-launch-log-redact-class-1111",
+  "contract_path": "docs/ai/contracts/awkit-launch-log-redact-class-1111.json",
+  "holder": "project-state",
   "status": "released",
   "allowed_paths": [
-    "scripts/helpers/packaged-launch-diagnostics.mts",
-    "scripts/verify-ocr-packaged.mts",
-    "scripts/verify-packaged-runtime.mts"
+    "scripts/lib/verifier-classification.ts"
   ],
-  "acquired_at": "2026-11-11T18:31:50.935Z",
-  "acquired_at_commit": "e741dc89dad7eb4067605bb01c4c8ce7af5c1a1a",
+  "acquired_at": "2026-11-11T20:06:15.615Z",
+  "acquired_at_commit": "ac85d63a2ed7bbe3595a0d8b65094c8593387f65",
   "baseline_dirty": [
-    "docs/ai/contracts/awkit-launch-diag-1111.json"
+    "docs/ai/contracts/active-lease.json",
+    "docs/ai/contracts/awkit-launch-log-redact-1111.json",
+    "docs/ai/contracts/awkit-launch-log-redact-class-1111.json",
+    "docs/ai/contracts/awkit-launch-log-redact-pkg-1111.json",
+    "package.json",
+    "scripts/helpers/packaged-launch-diagnostics.mts",
+    "scripts/verify-packaged-launch-diagnostics.mts"
   ],
   "baseline_dirty_fingerprints": {
-    "docs/ai/contracts/awkit-launch-diag-1111.json": "52308726bd9ab4d3d205925d2f7b6aeb94a4b77c440feb1396ca90515f1274fd"
+    "docs/ai/contracts/active-lease.json": "2e010cb4f01675c48d6a61da5c1d8c5bd862d20aba07cc3421ff9c0c5d91efa3",
+    "docs/ai/contracts/awkit-launch-log-redact-1111.json": "5f7f3527fae77a226767f4c162e2510fa4e28a7d71588845209d8ed48334ce5c",
+    "docs/ai/contracts/awkit-launch-log-redact-class-1111.json": "b6fceb1440582a04027de77702d10b518da01b087f39b34b4d07cd9d05b32da1",
+    "docs/ai/contracts/awkit-launch-log-redact-pkg-1111.json": "f27b1f927435364929c1c07cff6005453e939be8325f6f86ca67d0813125fa17",
+    "package.json": "055cb12327bc050e9d8550edb443346833be915dfe8181457d56234494be7c08",
+    "scripts/helpers/packaged-launch-diagnostics.mts": "7da4083828bb77991835d72d0a58db6bc59511a657ab9360f7bd5c408a95ca03",
+    "scripts/verify-packaged-launch-diagnostics.mts": "a75414e9802d49e25f4a6aac8ebcde13d857e6ff0641f56539ba9e002d90d47c"
   },
   "baseline_watched_ignored": {
     ".env": "absent",
@@ -29,7 +39,7 @@
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-11-11T18:37:25.729Z",
-  "released_reason": "packaged launch diagnostics committed in 5bd4b9e2, typecheck:scripts PASS, X: negative control shows exit 0x80000003 with error_code=18 in both gates",
-  "archived_at": "2026-11-11T18:37:25.734Z"
+  "released_at": "2026-11-11T20:06:39.921Z",
+  "released_reason": "verify:packaged-launch-diagnostics classified unit, verify:verifier-classification PASS 376 classified",
+  "archived_at": "2026-11-11T20:06:39.925Z"
 }

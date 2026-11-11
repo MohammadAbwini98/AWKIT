@@ -1,0 +1,155 @@
+{
+  "version": 1,
+  "task": {
+    "id": "awkit-launch-log-redact-1111",
+    "title": "QA: packaged launch diagnostics redact retained Chromium and app log lines",
+    "objective": "Owner prompt 2026-11-11 (Phase N native x64 acceptance, step 2): review the packaged-launch diagnostic helper from 5bd4b9e2 for disclosure through retained log lines. Finding: watchPackagedLaunch keeps up to 12 raw stdout/stderr lines matching error/fatal/denied and prints them in the verifier failure message, and ELECTRON_ENABLE_LOGGING also routes renderer console output to stderr, so absolute paths (which name the Windows user), URLs with query tokens, authorization headers, JWTs, key/value secrets and email addresses can reach console output that is copied into committed evidence. Fix: pass each retained line through the existing src/semantic/SemanticRedactor before truncation, and add a focused unit verifier, run red before the fix and green after. The npm script is registered under awkit-launch-log-redact-pkg-1111 (release owns package.json) and the classification under awkit-launch-log-redact-class-1111 (project-state owns the registry). No acceptance criterion, timeout, GPU, sandbox, security switch, product or packaging change.",
+    "requested_by": "repository owner",
+    "mode": "change",
+    "risk_level": 1
+  },
+  "repository": {
+    "branch": "main",
+    "baseline_commit": "ac85d63a",
+    "working_tree_expected": "preserved_changes",
+    "preserved_paths": [
+      {
+        "path": "docs/ai/contracts/awkit-l12-27-implementation-1006.json",
+        "git_status": "!!",
+        "sha256": "c32103a1ed64131a6359bf4d1662d5306a1a165754ac72347e8778723b35a4a2"
+      }
+    ]
+  },
+  "classification": {
+    "execution_change": false,
+    "protected_login_change": false,
+    "project_state_change": false,
+    "persisted_shape_change": false
+  },
+  "routing": {
+    "manager": "manager",
+    "activated_agents": [
+      "manager",
+      "qa"
+    ],
+    "expected_paths": [
+      "scripts/helpers/packaged-launch-diagnostics.mts",
+      "scripts/verify-packaged-launch-diagnostics.mts"
+    ],
+    "consultants": [],
+    "reviewers": [
+      "qa"
+    ],
+    "writer": {
+      "agent_id": "qa",
+      "allowed_paths": [
+        "scripts/helpers/packaged-launch-diagnostics.mts",
+        "scripts/verify-packaged-launch-diagnostics.mts"
+      ]
+    }
+  },
+  "acceptance": [
+    {
+      "id": "LAUNCH-LOG-REDACTION",
+      "description": "Retained launch log lines carry no user path, URL, authorization header, JWT, key/value secret or email; the diagnostic content (error_code, FATAL reason, exit code) survives; the new verifier fails before the fix and passes after; typecheck:scripts, build and verifier-classification PASS.",
+      "evidence_required": [
+        "red-before-fix",
+        "verify:packaged-launch-diagnostics",
+        "typecheck:scripts",
+        "build",
+        "verify:verifier-classification",
+        "git-push"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "red-before-fix",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:packaged-launch-diagnostics",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "2026-11-11 negative control: the new verifier run against the unredacted 5bd4b9e2 helper exited 1 with 12 passed, 8 failed; every failure was a planted value surviving (a Windows and a UNC path naming the planted user, a URL query token, a Bearer value, a JWT signature, a key/value password, an email), and all behaviour checks passed. The red run proves the verifier detects the disclosure."
+    },
+    {
+      "id": "verify:packaged-launch-diagnostics",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:packaged-launch-diagnostics",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "2026-11-11 after each retained line is passed through SemanticRedactor before the 240-character cut: 20 passed, 0 failed (8 redaction checks, each planted line still represented, error_code=18, Chromium source location, FATAL reason, stdout lines, exit code in decimal and hex, non-notable lines dropped, chunk-split lines joined, last 12 kept, 240 cap, signal exit)."
+    },
+    {
+      "id": "typecheck:scripts",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run typecheck:scripts",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "2026-11-11 tsc -p tsconfig.scripts.json clean with the redacting helper and the new verifier."
+    },
+    {
+      "id": "build",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run build",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "2026-11-11 roadmap snapshot, tsc --noEmit and electron-vite build (main, preload, renderer) completed; only the existing securityKernel dynamic-import notice."
+    },
+    {
+      "id": "verify:verifier-classification",
+      "type": "verifier",
+      "required": true,
+      "command": "npm run verify:verifier-classification",
+      "artifact": null,
+      "result": "PASS",
+      "observed": "2026-11-11 run under awkit-launch-log-redact-class-1111: all 376 verify:/validate: scripts classified (86 unit), no stale entries, classification reconciled."
+    },
+    {
+      "id": "git-push",
+      "type": "inspection",
+      "required": true,
+      "command": "git push origin main",
+      "artifact": null,
+      "result": "NOT RUN",
+      "observed": "pending"
+    }
+  ],
+  "git": {
+    "direct_main": true,
+    "commit_policy": "coherent",
+    "force_push": false,
+    "destructive_reset": false,
+    "push_authorized": true,
+    "push_evidence_id": "git-push"
+  },
+  "completion": {
+    "status": "pending",
+    "qa_status": "pending",
+    "qc_status": "pending"
+  },
+  "write_lease": {
+    "history": [
+      {
+        "id": "awkit-launch-log-redact-1111:qa:2026-11-11T20:01:55.660Z",
+        "task": "awkit-launch-log-redact-1111",
+        "holder": "qa",
+        "status": "released",
+        "allowed_paths": [
+          "scripts/helpers/packaged-launch-diagnostics.mts",
+          "scripts/verify-packaged-launch-diagnostics.mts"
+        ],
+        "acquired_at": "2026-11-11T20:01:55.660Z",
+        "acquired_at_commit": "ac85d63a2ed7bbe3595a0d8b65094c8593387f65",
+        "released_at": "2026-11-11T20:06:10.946Z",
+        "released_reason": "launch log lines redacted with SemanticRedactor, verify:packaged-launch-diagnostics red 12 of 20 before then 20 of 20 after, typecheck:scripts and build PASS",
+        "amendments": [],
+        "overrides": [],
+        "violations": []
+      }
+    ]
+  }
+}
