@@ -70,8 +70,8 @@
       "required": true,
       "command": "git push origin main",
       "artifact": null,
-      "result": "NOT RUN",
-      "observed": "pending"
+      "result": "PASS",
+      "observed": "2026-11-11 git push reported 'ac85d63a..1edcd7c8 main -> main'; .git/refs/remotes/origin/main reads 1edcd7c831b586bdcb011f3d93035ba524984851."
     }
   ],
   "git": {
@@ -83,9 +83,10 @@
     "push_evidence_id": "git-push"
   },
   "completion": {
-    "status": "pending",
-    "qa_status": "pending",
-    "qc_status": "pending"
+    "status": "complete",
+    "qa_status": "PASS",
+    "qc_status": "NOT_REQUIRED",
+    "closed_at_commit": "1edcd7c831b586bdcb011f3d93035ba524984851"
   },
   "write_lease": {
     "history": [

@@ -1,5 +1,26 @@
 # TASK_LOG
 
+## 2026-11-11 — Launch diagnostics redaction, diag contract closed, native x64 acceptance BLOCKED (Claude)
+
+- **Contracts and leases:** each lease was granted and released.
+  - `awkit-launch-log-redact-1111` (qa): helper and verifier.
+  - `-pkg-1111` (release): the `package.json` script line.
+  - `-class-1111` (project-state): the classification entry.
+- **Finding:** the 5bd4b9e2 helper printed raw Chromium and app log lines in gate failures. With
+  `ELECTRON_ENABLE_LOGGING=1` these include renderer console output, and gate failures are copied into committed
+  evidence.
+- **Fix:** each retained line now passes through `SemanticRedactor` before the 240-character cut.
+- **Checks:**
+  - `verify:packaged-launch-diagnostics` (new, unit): 12 passed / 8 failed against the unredacted helper, where all
+    8 failures were planted secrets surviving; 20/20 after the fix.
+  - `typecheck:scripts`, `build` and `verify:verifier-classification` (376 classified): PASS.
+- **Governance:** `awkit-launch-diag-1111` has git-push PASS (refs at `ac85d63a`) and completion complete. Git CLI
+  inspection was BLOCKED at the helper limit, so the refs were read directly.
+- **Native x64:** BLOCKED, no x64 host reachable (ARM64 VM plus a Linux cloud environment only). No package was
+  built and no packaged gate ran. The runbook is in HANDOFF.
+- **Commits:** 1edcd7c8 (code and contracts), pushed `ac85d63a..1edcd7c8`.
+- CodeCraft: not used (off by default).
+
 ## 2026-11-11 — Packaged launch gates record why the main window never appeared (Claude)
 
 - **Contract and lease:** QA contract `awkit-launch-diag-1111` (lease granted, released after commit 5bd4b9e2).

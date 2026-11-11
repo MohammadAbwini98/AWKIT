@@ -1,6 +1,18 @@
 # CURRENT_STATE
 
-## N7 Section B root cause confirmed: the X: share, not the product (2026-11-11, latest)
+## Launch diagnostics redact retained log lines; native x64 acceptance BLOCKED (2026-11-11, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Privacy fix (1edcd7c8):** the packaged-launch diagnostic helper now runs every retained Chromium or app log line
+  through `SemanticRedactor` before printing it in a gate failure. New unit verifier
+  `verify:packaged-launch-diagnostics`: 12 of 20 before the fix, 20 of 20 after.
+- **Governance:** `awkit-launch-diag-1111` is closed, with git-push PASS from the `ac85d63a` refs.
+- **Native x64:** BLOCKED. The only places reachable from this session are this ARM64 Parallels VM and a Linux cloud
+  environment; no SSH host is saved. No package was built and no packaged gate ran here.
+- **Status:** N7.1b, N7.8, N7.9, the N7 parent and Phase N stay open. The owner-side runbook is in HANDOFF.
+
+## N7 Section B root cause confirmed: the X: share, not the product (2026-11-11)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 

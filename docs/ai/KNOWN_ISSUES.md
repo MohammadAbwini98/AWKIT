@@ -384,6 +384,10 @@ The original entry follows.
   - **Verifier observability gap (fixed 2026-11-11, 5bd4b9e2):** the launch helpers did not record the Electron exit
     code or stderr when the window never appeared, which is why the 2026-11-08 cause stayed unconfirmed. Both gates now
     append the exit code and the last notable Chromium log lines (`scripts/helpers/packaged-launch-diagnostics.mts`).
+    Since 1edcd7c8 each retained line passes through `SemanticRedactor` first, because the lines (renderer console
+    output included, with logging on) end up in committed evidence. Paths naming the user, URLs, authorization
+    headers, JWTs, key/value secrets and emails are removed. `error_code`, the FATAL reason and the exit code stay.
+    Guarded by `verify:packaged-launch-diagnostics`.
   - Both verifiers launch only `dist/win-unpacked` inside the repository, so the packaged launch gates (N7.1b/N7.8
     sections B and C, the other packaged GUI gates) need the repository on a local disk. Do not rerun them from `X:`.
 - **N6 sensitive-target residuals (accepted at N6.8).** None of these block observe-only use. Candidates stay in

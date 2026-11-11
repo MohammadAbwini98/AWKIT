@@ -1,6 +1,38 @@
 # Agent Handoff
 
-## HANDOFF (2026-11-11, latest) — Section B root cause confirmed: the X: share; native x64 acceptance still owner-side
+## HANDOFF (2026-11-11, latest) — Native x64 packaged acceptance BLOCKED: no x64 host reachable; launch log redaction done
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Done here:**
+  - Launch diagnostics redact retained log lines (1edcd7c8; `verify:packaged-launch-diagnostics` 12/20 before,
+    20/20 after).
+  - `build`, `typecheck:scripts` and `verify:verifier-classification` PASS.
+  - `awkit-launch-diag-1111` is closed with git-push PASS.
+- **BLOCKED:** native Windows x64 acceptance. This session sees only the ARM64 Parallels VM and a Linux cloud
+  environment, with no SSH host. Not run here: `verify:packaging-host` on x64, the x64 `package:portable`,
+  `verify:packaged-runtime`, `verify:ocr-packaged` A/B/C, `verify:visual-assertion-packaged`, the other N7.8 gates,
+  the licensed runs and the N7.9 QC/security reviews. The ARM64 0.1.54 package is not x64 evidence.
+- **Owner-side runbook (Claude Code can run directly on the x64 host):**
+  1. Make a local, non-synced clone of `main` at or after 1edcd7c8 and run `npm ci`.
+  2. Check that VS 2022 has the MSVC x64/x86 tools and redist. Keep the release-manifest signing key in approved
+     custody.
+  3. Check the Electron 33.4.11 win32-x64 archive against `node_modules/electron/checksums.json`. Then run
+     `scripts/release-provision-electron-builder-tools.ps1` with the three pinned electron-builder archives.
+  4. Set `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` to the path of the authorized validation issuer key file (a path only).
+  5. Run `npm run verify:packaging-host`. Every mandatory check must pass, all three H3c archives must report
+     PRESENT AND VERIFIED, and the host must report native x64.
+  6. With the tree clean, take the release lease, then run `npm run build` and `npm run package:portable` once.
+  7. Record the source revision, architecture, EXE SHA-256, version and signed-manifest identity.
+  8. Run `npm run verify:packaged-runtime`, then `npm run verify:ocr-packaged`, recording sections A, B and C
+     separately. On a launch failure, the redacted exit code and log lines name the cause. Never disable GPU, sandbox,
+     licensing or security controls.
+  9. If OCR passes, run `verify:visual-assertion-packaged` and the remaining N7.8 checks: offline, protected-surface
+     refusal, disabled mode and licensed workflow. Then request fresh N7.9 QC and security reviews of that artifact.
+- **Open:** N7.1b, N7.8, N7.9, the N7 parent and Phase N. `awkit-vra.18` stays IN PROGRESS. N7.10, N6P and N10 stay
+  under their own obligations.
+
+## HANDOFF (2026-11-11) — Section B root cause confirmed: the X: share; native x64 acceptance still owner-side
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
 
