@@ -1,5 +1,20 @@
 # TASK_LOG
 
+## 2026-11-11 — Packaged launch gates record why the main window never appeared (Claude)
+
+- **Contract and lease:** QA contract `awkit-launch-diag-1111` (lease granted, released after commit 5bd4b9e2).
+- **Change:** new `scripts/helpers/packaged-launch-diagnostics.mts` records the launched process's exit code or signal
+  and its last notable Chromium log lines. `ELECTRON_ENABLE_LOGGING=1` is diagnostic only; no GPU, sandbox or security
+  switch is changed. `verify:ocr-packaged` section B and `verify:packaged-runtime` part C append it to their failure.
+  No acceptance criterion or timeout changed.
+- **Checks:**
+  - `typecheck:scripts` PASS.
+  - **Negative control from `X:`** (launch known to fail): `verify:packaged-runtime` parts A/B 10/10, then part C
+    names exit 2147483651 (0x80000003), `error_code=18` and "GPU process isn't usable". `verify:ocr-packaged` 19
+    passed, then section B names the same.
+  - The gates still fail there, as they must.
+- **Open:** native x64 acceptance (owner-side); N7.1b, N7.8 and N7.9.
+
 ## 2026-11-11 — N7 packaged startup diagnosis: Section B root cause confirmed as the X: share (Claude)
 
 - **Task:** owner prompt "Phase N Packaged Startup Diagnosis and Native x64 Acceptance".

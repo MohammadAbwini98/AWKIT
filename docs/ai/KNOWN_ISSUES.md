@@ -381,8 +381,9 @@ The original entry follows.
       clean exit when closed.
     - Classification: environment (the share), not the product, packaging, preload or verifier timing. GPU, sandbox and
       security switches were not changed.
-  - **Verifier observability gap:** neither launch helper records the Electron exit code or stderr when the window
-    never appears, which is why the 2026-11-08 cause stayed unconfirmed.
+  - **Verifier observability gap (fixed 2026-11-11, 5bd4b9e2):** the launch helpers did not record the Electron exit
+    code or stderr when the window never appeared, which is why the 2026-11-08 cause stayed unconfirmed. Both gates now
+    append the exit code and the last notable Chromium log lines (`scripts/helpers/packaged-launch-diagnostics.mts`).
   - Both verifiers launch only `dist/win-unpacked` inside the repository, so the packaged launch gates (N7.1b/N7.8
     sections B and C, the other packaged GUI gates) need the repository on a local disk. Do not rerun them from `X:`.
 - **N6 sensitive-target residuals (accepted at N6.8).** None of these block observe-only use. Candidates stay in

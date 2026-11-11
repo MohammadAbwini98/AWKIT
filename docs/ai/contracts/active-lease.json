@@ -2,7 +2,7 @@
   "task": "awkit-launch-diag-1111",
   "contract_path": "docs/ai/contracts/awkit-launch-diag-1111.json",
   "holder": "qa",
-  "status": "active",
+  "status": "released",
   "allowed_paths": [
     "scripts/helpers/packaged-launch-diagnostics.mts",
     "scripts/verify-ocr-packaged.mts",
@@ -28,5 +28,8 @@
   },
   "amendments": [],
   "overrides": [],
-  "violations": []
+  "violations": [],
+  "released_at": "2026-11-11T18:37:25.729Z",
+  "released_reason": "packaged launch diagnostics committed in 5bd4b9e2, typecheck:scripts PASS, X: negative control shows exit 0x80000003 with error_code=18 in both gates",
+  "archived_at": "2026-11-11T18:37:25.734Z"
 }
