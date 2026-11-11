@@ -1,5 +1,24 @@
 # TASK_LOG
 
+## 2026-11-11 — N7 packaged startup diagnosis: Section B root cause confirmed as the X: share (Claude)
+
+- **Task:** owner prompt "Phase N Packaged Startup Diagnosis and Native x64 Acceptance".
+- **Source check:** after 96689fea, only the packaging-generated manifest pair (d396e4af) and docs (2301bd64) changed. No
+  product source changed. Bounded Git inspection timed out on the share today (BLOCKED); refs read from `.git`.
+- **Gap found:** the packaged launch helpers in `verify-ocr-packaged.mts` and `verify-packaged-runtime.mts` do not
+  record the Electron exit code or stderr.
+- **Diagnostic:** a git-ignored `build/diag/startup-diag.mjs` launches exactly like section B and adds only
+  `ELECTRON_ENABLE_LOGGING=1`. The command guard refuses ad-hoc node scripts, so the owner ran it in their terminal.
+  - Artifact SHA-256 unchanged.
+  - **From `X:`:** `error_code=18` ×9, renderer launch-failed, FATAL "GPU process isn't usable", exit 2147483651 after
+    3.4 s.
+  - **Byte-identical copy on C:** 2267 files, 0 mismatches; bridge ready in 14.9 s.
+  - Classified environment.
+- **Not run:** native x64 qualification (no x64 host reachable), `package:portable` and `verify:ocr-packaged` (nothing
+  changed that affects them).
+- **Files:** `KNOWN_ISSUES`, `CURRENT_STATE`, `HANDOFF`, `TASK_LOG`.
+- **Open:** N7.1b, N7.8 and N7.9. Phase N is not complete.
+
 ## 2026-11-08 — N7 fourth packaging run: tool cache provisioned, 0.1.54 portable built, packaged launch FAIL on the share (Claude)
 
 - **Owner step:** `scripts/release-provision-electron-builder-tools.ps1` first failed to parse (comma inside `.Add(...)`,

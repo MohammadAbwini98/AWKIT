@@ -370,6 +370,19 @@ The original entry follows.
     the preload bridge and never saw it. Their static sections passed (18/18, 10/10). The isolated profiles stopped at
     different startup points (one probe file cut off mid-write), which fits the main process exiting early, as in the
     error_code=18 entry below. That log line was not captured, so the cause is probable, not confirmed.
+  - **Confirmed 2026-11-11 (owner-run diagnostic, ARM64 host, same payload).** The artifact SHA-256 still matched.
+    Launched exactly as section B launches it (Playwright `_electron`, isolated profile, `AWKIT_VISUAL_OCR=observe`,
+    plus only `ELECTRON_ENABLE_LOGGING=1`):
+    - **From `X:`:** `GPU process launch failed: error_code=18` nine times, `Renderer process launch-failed`, then
+      `FATAL ... GPU process isn't usable. Goodbye.`; exit code 2147483651 (0x80000003) after 3.4 s, no window.
+      Child processes cannot launch from the share, so the renderer is affected too, not only the GPU process.
+    - **From a byte-identical copy on the local disk** (2267 files, 963,198,741 bytes, every SHA-256 equal;
+      `SpecterStudio.exe` `fe0b30aa…`): splash then main window, preload bridge ready after 14.9 s, no GPU errors,
+      clean exit when closed.
+    - Classification: environment (the share), not the product, packaging, preload or verifier timing. GPU, sandbox and
+      security switches were not changed.
+  - **Verifier observability gap:** neither launch helper records the Electron exit code or stderr when the window
+    never appears, which is why the 2026-11-08 cause stayed unconfirmed.
   - Both verifiers launch only `dist/win-unpacked` inside the repository, so the packaged launch gates (N7.1b/N7.8
     sections B and C, the other packaged GUI gates) need the repository on a local disk. Do not rerun them from `X:`.
 - **N6 sensitive-target residuals (accepted at N6.8).** None of these block observe-only use. Candidates stay in

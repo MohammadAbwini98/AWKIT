@@ -1,5 +1,26 @@
 # Agent Handoff
 
+## HANDOFF (2026-11-11, latest) — Section B root cause confirmed: the X: share; native x64 acceptance still owner-side
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **Root cause:** an owner-run diagnostic launched the unchanged 0.1.54 payload exactly as section B does.
+  - From `X:`, child processes failed with `error_code=18` and Electron exited fatally after 3.4 s ("GPU process isn't
+    usable").
+  - A byte-identical local-disk copy reached the preload bridge in 14.9 s.
+  - Environment, not a product defect (KNOWN_ISSUES).
+- **No x64 host is reachable from this session** (no SSH connection). Execution-environment blocker.
+- **Next (owner, native Windows x64, Claude Code may run locally there):**
+  1. local non-synced clone of `main`;
+  2. VS 2022 x64 MSVC runtime, the signing key in custody, the Electron 33.4.11 archive checked against
+     `node_modules/electron/checksums.json`, then `scripts/release-provision-electron-builder-tools.ps1`;
+  3. `verify:packaging-host` (all three H3c tools PRESENT AND VERIFIED, x64 host);
+  4. release lease, then `package:portable` once;
+  5. `verify:ocr-packaged` with `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` set, sections A, B and C recorded separately;
+  6. the other N7.8 gates, then the N7.9 QC and security reviews.
+- **Open:** N7.1b, N7.8 and N7.9; `awkit-vra.18`, N7.10, N6P and N10 under their own obligations. Phase N is not
+  complete. Optional: let the packaged launch helpers record the exit code and stderr (QA contract).
+
 ## HANDOFF (2026-11-08, latest) — 0.1.54 portable built on the ARM64 host; packaged launch gates FAIL from the X: share
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.

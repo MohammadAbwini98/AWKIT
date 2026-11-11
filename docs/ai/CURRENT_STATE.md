@@ -1,5 +1,15 @@
 # CURRENT_STATE
 
+## N7 Section B root cause confirmed: the X: share, not the product (2026-11-11, latest)
+
+The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
+
+- **From `X:`:** the 0.1.54 payload (artifact SHA-256 still `2a9974f7…`) exits with code 0x80000003 after 3.4 s.
+  Child-process launch fails with `error_code=18`, then the fatal "GPU process isn't usable".
+- **From a byte-identical local-disk copy:** the main window and preload bridge are ready in 14.9 s.
+- **Status:** ARM64 diagnostic evidence only. Native x64 acceptance is owner-side, because no x64 host is reachable
+  from this session. N7.1b, N7.8 and N7.9 are open. Phase N is not complete.
+
 ## N7 first package built on the ARM64 host (0.1.54); packaged launch gates FAIL from the X: share (2026-11-08, latest)
 
 The validation ledger is unchanged at 65 PASS / 2 NOT RUN / 0 BLOCKED across 67 cases.
